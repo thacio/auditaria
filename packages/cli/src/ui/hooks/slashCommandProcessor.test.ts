@@ -65,7 +65,7 @@ import {
   getMCPDiscoveryState,
   getMCPServerStatus,
   GeminiClient,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { LoadedSettings } from '../../config/settings.js';
 import * as ShowMemoryCommandModule from './useShowMemoryCommand.js';
@@ -853,6 +853,27 @@ describe('useSlashCommandProcessor', () => {
   });
 
   describe('/mcp command', () => {
+    beforeEach(() => {
+      // Mock the core module with getMCPServerStatus and getMCPDiscoveryState
+      vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+        const actual = await importOriginal();
+        return {
+          ...actual,
+          MCPServerStatus: {
+            CONNECTED: 'connected',
+            CONNECTING: 'connecting',
+            DISCONNECTED: 'disconnected',
+          },
+          MCPDiscoveryState: {
+            NOT_STARTED: 'not_started',
+            IN_PROGRESS: 'in_progress',
+            COMPLETED: 'completed',
+          },
+          getMCPServerStatus: vi.fn(),
+          getMCPDiscoveryState: vi.fn(),
+        };
+      });
+    });
     it('should show an error if tool registry is not available', async () => {
       mockConfig = {
         ...mockConfig,

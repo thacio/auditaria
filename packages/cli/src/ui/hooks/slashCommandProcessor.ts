@@ -18,7 +18,7 @@ import {
   MCPServerStatus,
   getMCPDiscoveryState,
   getMCPServerStatus,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
   Message,
@@ -912,6 +912,7 @@ export const useSlashCommandProcessor = (
         name: 'improved-fallback',
         description: 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)',
         action: async (_mainCommand, _subCommand, _args) => {
+          if (!config) return;
           const currentStrategy = config.getUseImprovedFallbackStrategy();
           const newStrategy = !currentStrategy;
           config.setUseImprovedFallbackStrategy(newStrategy);
@@ -932,6 +933,7 @@ export const useSlashCommandProcessor = (
         name: 'stay-pro',
         description: 'toggle whether to stay on Pro model (disable/enable fallback to Flash)',
         action: async (_mainCommand, _subCommand, _args) => {
+          if (!config) return;
           const currentState = config.getDisableFallbackForSession();
           const newState = !currentState;
           config.setDisableFallbackForSession(newState);
