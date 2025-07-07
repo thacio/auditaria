@@ -95,7 +95,7 @@ export async function retryWithBackoff<T>(
 
       // If we have persistent 429s and a fallback callback for OAuth
       if (
-        consecutive429Count >= 2 &&
+        consecutive429Count >= 7 &&
         onPersistent429 &&
         authType === AuthType.LOGIN_WITH_GOOGLE
       ) {
@@ -133,13 +133,18 @@ export async function retryWithBackoff<T>(
         // Reset currentDelay for next potential non-429 error, or if Retry-After is not present next time
         currentDelay = initialDelayMs;
       } else {
-        // Fallback to exponential backoff with jitter
+        // Use fixed 2-second delay for 429 errors, exponential backoff for others
         logRetryAttempt(attempt, error, errorStatus);
-        // Add jitter: +/- 30% of currentDelay
-        const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
-        const delayWithJitter = Math.max(0, currentDelay + jitter);
-        await delay(delayWithJitter);
-        currentDelay = Math.min(maxDelayMs, currentDelay * 2);
+        if (errorStatus === 429) {
+          // Fixed 2-second delay for rate limit errors
+          await delay(2000);
+        } else {
+          // Exponential backoff with jitter for other errors
+          const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
+          const delayWithJitter = Math.max(0, currentDelay + jitter);
+          await delay(delayWithJitter);
+          currentDelay = Math.min(maxDelayMs, currentDelay * 2);
+        }
       }
     }
   }
