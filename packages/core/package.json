@@ -1,10 +1,10 @@
 {
-  "name": "@google/gemini-cli-core",
+  "name": "@thacio/auditaria-cli-core",
   "version": "0.1.9",
-  "description": "Gemini CLI Core",
+  "description": "Auditaria CLI Core",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thacio/auditarIA.git"
+    "url": "git+https://github.com/thacio/auditaria.git"
   },
   "type": "module",
   "main": "dist/index.js",
