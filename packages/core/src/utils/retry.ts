@@ -13,6 +13,7 @@ export interface RetryOptions {
   shouldRetry: (error: Error) => boolean;
   onPersistent429?: (authType?: string) => Promise<string | null>;
   authType?: string;
+  useImprovedFallbackStrategy?: boolean;
 }
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
@@ -70,6 +71,7 @@ export async function retryWithBackoff<T>(
     onPersistent429,
     authType,
     shouldRetry,
+    useImprovedFallbackStrategy,
   } = {
     ...DEFAULT_RETRY_OPTIONS,
     ...options,
@@ -94,8 +96,9 @@ export async function retryWithBackoff<T>(
       }
 
       // If we have persistent 429s and a fallback callback for OAuth
+      const threshold = useImprovedFallbackStrategy ? 7 : 2;
       if (
-        consecutive429Count >= 7 &&
+        consecutive429Count >= threshold &&
         onPersistent429 &&
         authType === AuthType.LOGIN_WITH_GOOGLE
       ) {
@@ -133,13 +136,13 @@ export async function retryWithBackoff<T>(
         // Reset currentDelay for next potential non-429 error, or if Retry-After is not present next time
         currentDelay = initialDelayMs;
       } else {
-        // Use fixed 2-second delay for 429 errors, exponential backoff for others
+        // Use improved or original delay strategy based on flag
         logRetryAttempt(attempt, error, errorStatus);
-        if (errorStatus === 429) {
-          // Fixed 2-second delay for rate limit errors
+        if (useImprovedFallbackStrategy && errorStatus === 429) {
+          // Fixed 2-second delay for rate limit errors when using improved strategy
           await delay(2000);
         } else {
-          // Exponential backoff with jitter for other errors
+          // Exponential backoff with jitter for other errors or when using original strategy
           const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
           const delayWithJitter = Math.max(0, currentDelay + jitter);
           await delay(delayWithJitter);

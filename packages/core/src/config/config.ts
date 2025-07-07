@@ -92,7 +92,7 @@ export class MCPServerConfig {
     readonly description?: string,
     readonly includeTools?: string[],
     readonly excludeTools?: string[],
-  ) {}
+  ) { }
 }
 
 export interface SandboxConfig {
@@ -138,6 +138,7 @@ export interface ConfigParameters {
   bugCommand?: BugCommandSettings;
   model: string;
   extensionContextFilePaths?: string[];
+  useImprovedFallbackStrategy?: boolean;
   listExtensions?: boolean;
   activeExtensions?: ActiveExtension[];
 }
@@ -179,6 +180,7 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private modelSwitchedDuringSession: boolean = false;
+  private useImprovedFallbackStrategy: boolean;
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
@@ -223,6 +225,7 @@ export class Config {
     this.bugCommand = params.bugCommand;
     this.model = params.model;
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
+    this.useImprovedFallbackStrategy = params.useImprovedFallbackStrategy ?? true;
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
 
@@ -455,6 +458,14 @@ export class Config {
 
   getExtensionContextFilePaths(): string[] {
     return this.extensionContextFilePaths;
+  }
+
+  getUseImprovedFallbackStrategy(): boolean {
+    return this.useImprovedFallbackStrategy;
+  }
+
+  setUseImprovedFallbackStrategy(enabled: boolean): void {
+    this.useImprovedFallbackStrategy = enabled;
   }
 
   getListExtensions(): boolean {

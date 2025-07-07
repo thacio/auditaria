@@ -908,6 +908,26 @@ export const useSlashCommandProcessor = (
           setPendingCompressionItem(null);
         },
       },
+      {
+        name: 'improved-fallback',
+        description: 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)',
+        action: async (_mainCommand, _subCommand, _args) => {
+          const currentStrategy = config.getUseImprovedFallbackStrategy();
+          const newStrategy = !currentStrategy;
+          config.setUseImprovedFallbackStrategy(newStrategy);
+          
+          const currentMode = currentStrategy ? 'improved' : 'original';
+          const newMode = newStrategy ? 'improved' : 'original';
+          
+          addMessage({
+            type: MessageType.INFO,
+            content: `Fallback strategy switched from ${currentMode} to ${newMode}.\n\n${newMode === 'improved' 
+              ? 'Improved strategy: 7 attempts with 2s delays, reset to Pro on each message' 
+              : 'Original strategy: 2 attempts with exponential backoff, stay on Flash once switched'}`,
+            timestamp: new Date(),
+          });
+        },
+      },
     ];
 
     if (config?.getCheckpointingEnabled()) {
