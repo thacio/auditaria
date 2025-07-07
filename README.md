@@ -30,7 +30,7 @@ With the Gemini CLI you can:
 
    ```bash
    npm install -g @google/gemini-cli
-   gemini
+   auditaria
    ```
 
 3. **Pick a color theme**

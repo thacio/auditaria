@@ -46,7 +46,7 @@
     "clean": "node scripts/clean.js"
   },
   "bin": {
-    "gemini": "bundle/gemini.js"
+    "auditaria": "bundle/gemini.js"
   },
   "files": [
     "bundle/",
