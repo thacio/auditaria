@@ -14,6 +14,7 @@ export interface RetryOptions {
   onPersistent429?: (authType?: string) => Promise<string | null>;
   authType?: string;
   useImprovedFallbackStrategy?: boolean;
+  disableFallbackForSession?: boolean;
 }
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
@@ -72,6 +73,7 @@ export async function retryWithBackoff<T>(
     authType,
     shouldRetry,
     useImprovedFallbackStrategy,
+    disableFallbackForSession,
   } = {
     ...DEFAULT_RETRY_OPTIONS,
     ...options,
@@ -100,7 +102,8 @@ export async function retryWithBackoff<T>(
       if (
         consecutive429Count >= threshold &&
         onPersistent429 &&
-        authType === AuthType.LOGIN_WITH_GOOGLE
+        authType === AuthType.LOGIN_WITH_GOOGLE &&
+        !disableFallbackForSession
       ) {
         try {
           const fallbackModel = await onPersistent429(authType);
@@ -120,6 +123,13 @@ export async function retryWithBackoff<T>(
 
       // Check if we've exhausted retries or shouldn't retry
       if (attempt >= maxAttempts || !shouldRetry(error as Error)) {
+        // If we're staying on Pro and hit 429s, provide helpful error message
+        if (disableFallbackForSession && errorStatus === 429 && consecutive429Count >= threshold) {
+          throw new Error(
+            'Gemini Pro is currently rate limited and fallback to Flash is disabled for this session. ' +
+            'Please try again later or use /stay-pro to enable fallback to Flash.'
+          );
+        }
         throw error;
       }
 

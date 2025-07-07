@@ -181,6 +181,7 @@ export class Config {
   private readonly extensionContextFilePaths: string[];
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
+  private disableFallbackForSession: boolean = false;
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
@@ -466,6 +467,14 @@ export class Config {
 
   setUseImprovedFallbackStrategy(enabled: boolean): void {
     this.useImprovedFallbackStrategy = enabled;
+  }
+
+  getDisableFallbackForSession(): boolean {
+    return this.disableFallbackForSession;
+  }
+
+  setDisableFallbackForSession(disabled: boolean): void {
+    this.disableFallbackForSession = disabled;
   }
 
   getListExtensions(): boolean {

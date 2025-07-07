@@ -274,6 +274,7 @@ export class GeminiChat {
           await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
         useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
+        disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
       const durationMs = Date.now() - startTime;
       await this._logApiResponse(
@@ -372,6 +373,7 @@ export class GeminiChat {
           await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
         useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
+        disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
 
       // Resolve the internal tracking of send completion promise - `sendPromise`

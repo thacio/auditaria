@@ -332,6 +332,7 @@ export class GeminiClient {
           await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
         useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
+        disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
 
       const text = getResponseText(result);
@@ -421,6 +422,7 @@ export class GeminiClient {
           await this.handleFlashFallback(authType),
         authType: this.config.getContentGeneratorConfig()?.authType,
         useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
+        disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
       return result;
     } catch (error: unknown) {

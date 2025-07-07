@@ -928,6 +928,23 @@ export const useSlashCommandProcessor = (
           });
         },
       },
+      {
+        name: 'stay-pro',
+        description: 'toggle whether to stay on Pro model (disable/enable fallback to Flash)',
+        action: async (_mainCommand, _subCommand, _args) => {
+          const currentState = config.getDisableFallbackForSession();
+          const newState = !currentState;
+          config.setDisableFallbackForSession(newState);
+          
+          addMessage({
+            type: MessageType.INFO,
+            content: newState 
+              ? 'Fallback disabled - will stay on Gemini Pro even if rate limited'
+              : 'Fallback enabled - will switch to Flash if Pro is rate limited',
+            timestamp: new Date(),
+          });
+        },
+      },
     ];
 
     if (config?.getCheckpointingEnabled()) {
