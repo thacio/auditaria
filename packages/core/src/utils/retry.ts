@@ -66,7 +66,6 @@ export async function retryWithBackoff<T>(
   options?: Partial<RetryOptions>,
 ): Promise<T> {
   const {
-    maxAttempts,
     initialDelayMs,
     maxDelayMs,
     onPersistent429,
@@ -78,6 +77,10 @@ export async function retryWithBackoff<T>(
     ...DEFAULT_RETRY_OPTIONS,
     ...options,
   };
+
+  // Adjust maxAttempts based on fallback strategy
+  const threshold = useImprovedFallbackStrategy ? 7 : 2;
+  const maxAttempts = options?.maxAttempts ?? Math.max(DEFAULT_RETRY_OPTIONS.maxAttempts, threshold + 1);
 
   let attempt = 0;
   let currentDelay = initialDelayMs;
@@ -98,7 +101,6 @@ export async function retryWithBackoff<T>(
       }
 
       // If we have persistent 429s and a fallback callback for OAuth
-      const threshold = useImprovedFallbackStrategy ? 7 : 2;
       if (
         consecutive429Count >= threshold &&
         onPersistent429 &&
