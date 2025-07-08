@@ -47,12 +47,18 @@ export class ClearcutLogger {
   }
 
   static getInstance(config?: Config): ClearcutLogger | undefined {
+    // EXTERNAL TELEMETRY DISABLED: ClearcutLogger sends data to Google servers
+    // Returning undefined to disable all external usage statistics
+    return undefined;
+    
+    /*
     if (config === undefined || !config?.getUsageStatisticsEnabled())
       return undefined;
     if (!ClearcutLogger.instance) {
       ClearcutLogger.instance = new ClearcutLogger(config);
     }
     return ClearcutLogger.instance;
+    */
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Clearcut expects this format.

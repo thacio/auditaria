@@ -47,7 +47,13 @@ export function logCliConfiguration(
   config: Config,
   event: StartSessionEvent,
 ): void {
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logStartSessionEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
+  // OpenTelemetry logger.emit() would send configuration data externally
+  return;
+
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -76,7 +82,13 @@ export function logCliConfiguration(
 }
 
 export function logUserPrompt(config: Config, event: UserPromptEvent): void {
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logNewPromptEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging of user prompts
+  // This prevents sensitive user prompt data from being sent externally
+  return;
+
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -99,13 +111,30 @@ export function logUserPrompt(config: Config, event: UserPromptEvent): void {
 }
 
 export function logToolCall(config: Config, event: ToolCallEvent): void {
+  // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   const uiEvent = {
     ...event,
     'event.name': EVENT_TOOL_CALL,
     'event.timestamp': new Date().toISOString(),
   } as UiEvent;
   uiTelemetryService.addEvent(uiEvent);
+
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logToolCallEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
+  // OpenTelemetry logger.emit() would send tool call data externally
+
+  // KEEP LOCAL METRICS: These are used for local statistics
+  recordToolCallMetrics(
+    config,
+    event.function_name,
+    event.duration_ms,
+    event.success,
+    event.decision,
+  );
+
+  /*
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -128,17 +157,24 @@ export function logToolCall(config: Config, event: ToolCallEvent): void {
     attributes,
   };
   logger.emit(logRecord);
-  recordToolCallMetrics(
+    recordToolCallMetrics(
     config,
     event.function_name,
     event.duration_ms,
     event.success,
     event.decision,
   );
+  */
 }
 
 export function logApiRequest(config: Config, event: ApiRequestEvent): void {
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logApiRequestEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging of API requests
+  // This prevents API request data from being sent externally
+  return;
+  
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -157,13 +193,30 @@ export function logApiRequest(config: Config, event: ApiRequestEvent): void {
 }
 
 export function logApiError(config: Config, event: ApiErrorEvent): void {
+  // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   const uiEvent = {
     ...event,
     'event.name': EVENT_API_ERROR,
     'event.timestamp': new Date().toISOString(),
   } as UiEvent;
   uiTelemetryService.addEvent(uiEvent);
+
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logApiErrorEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
+  // OpenTelemetry logger.emit() would send API error data externally
+
+  // KEEP LOCAL METRICS: These are used for local statistics
+  recordApiErrorMetrics(
+    config,
+    event.model,
+    event.duration_ms,
+    event.status_code,
+    event.error_type,
+  );
+
+  /*
   if (!isTelemetrySdkInitialized()) return;
 
   const attributes: LogAttributes = {
@@ -189,23 +242,32 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
     attributes,
   };
   logger.emit(logRecord);
-  recordApiErrorMetrics(
+    recordApiErrorMetrics(
     config,
     event.model,
     event.duration_ms,
     event.status_code,
     event.error_type,
   );
+  */
 }
 
 export function logApiResponse(config: Config, event: ApiResponseEvent): void {
+  // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   const uiEvent = {
     ...event,
     'event.name': EVENT_API_RESPONSE,
     'event.timestamp': new Date().toISOString(),
   } as UiEvent;
   uiTelemetryService.addEvent(uiEvent);
+
+  // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
   ClearcutLogger.getInstance(config)?.logApiResponseEvent(event);
+
+  // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
+  // OpenTelemetry logger.emit() would send API response data externally
+
+  // KEEP LOCAL METRICS: These are used for local statistics and UI display
   if (!isTelemetrySdkInitialized()) return;
   const attributes: LogAttributes = {
     ...getCommonAttributes(config),

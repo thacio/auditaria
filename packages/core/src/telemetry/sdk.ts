@@ -71,6 +71,18 @@ export function initializeTelemetry(config: Config): void {
     'session.id': config.getSessionId(),
   });
 
+  // EXTERNAL TELEMETRY DISABLED: Force local-only exporters to prevent data from leaving the computer
+  // This keeps local metrics collection but disables external OTLP/gRPC data transmission
+  const useOtlp = false; // Force local exporters instead of external OTLP
+
+  const spanExporter = new ConsoleSpanExporter(); // Local console output only
+  const logExporter = new ConsoleLogRecordExporter(); // Local console output only
+  const metricReader = new PeriodicExportingMetricReader({
+    exporter: new ConsoleMetricExporter(), // Local console output only
+    exportIntervalMillis: 10000,
+  });
+
+  /*
   const otlpEndpoint = config.getTelemetryOtlpEndpoint();
   const grpcParsedEndpoint = parseGrpcEndpoint(otlpEndpoint);
   const useOtlp = !!grpcParsedEndpoint;
@@ -99,6 +111,7 @@ export function initializeTelemetry(config: Config): void {
         exporter: new ConsoleMetricExporter(),
         exportIntervalMillis: 10000,
       });
+      */
 
   sdk = new NodeSDK({
     resource,
