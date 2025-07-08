@@ -18,6 +18,8 @@ import {
   MCPServerStatus,
   getMCPDiscoveryState,
   getMCPServerStatus,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FLASH_MODEL,
 } from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
@@ -909,7 +911,7 @@ export const useSlashCommandProcessor = (
         },
       },
       {
-        name: 'improved-fallback',
+        name: 'fallback-improved',
         description: 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)',
         action: async (_mainCommand, _subCommand, _args) => {
           if (!config) return;
@@ -925,6 +927,26 @@ export const useSlashCommandProcessor = (
             content: `Fallback strategy switched from ${currentMode} to ${newMode}.\n\n${newMode === 'improved' 
               ? 'Improved strategy: 7 attempts with 2s delays, reset to Pro on each message' 
               : 'Original strategy: 2 attempts with exponential backoff, stay on Flash once switched'}`,
+            timestamp: new Date(),
+          });
+        },
+      },
+      {
+        name: 'model-switch',
+        description: 'switch between Gemini Pro and Flash models',
+        action: async (_mainCommand, _subCommand, _args) => {
+          if (!config) return;
+          const currentModel = config.getModel();
+          
+          // Toggle between Pro and Flash using existing constants
+          const isCurrentlyPro = currentModel === DEFAULT_GEMINI_MODEL || !currentModel;
+          const newModel = isCurrentlyPro ? DEFAULT_GEMINI_FLASH_MODEL : DEFAULT_GEMINI_MODEL;
+          
+          config.setModel(newModel);
+          
+          addMessage({
+            type: MessageType.INFO,
+            content: `Model switched to: ${newModel} (${isCurrentlyPro ? 'Flash' : 'Pro'})`,
             timestamp: new Date(),
           });
         },

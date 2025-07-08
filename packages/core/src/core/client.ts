@@ -263,10 +263,6 @@ export class GeminiClient {
     signal: AbortSignal,
     turns: number = this.MAX_TURNS,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
-    // Reset to Pro model if using improved fallback strategy and model was switched during session
-    if (this.config.getUseImprovedFallbackStrategy() && this.config.isModelSwitchedDuringSession()) {
-      this.config.resetModelToDefault();
-    }
 
     // Ensure turns never exceeds MAX_TURNS to prevent infinite loops
     const boundedTurns = Math.min(turns, this.MAX_TURNS);
