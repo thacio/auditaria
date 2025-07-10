@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -49,7 +50,7 @@ export const Footer: React.FC<FooterProps> = ({
         </Text>
         {debugMode && (
           <Text color={Colors.AccentRed}>
-            {' ' + (debugMessage || '--debug')}
+            {' ' + (debugMessage || t('footer.debug_mode', '--debug'))}
           </Text>
         )}
       </Box>
@@ -67,12 +68,12 @@ export const Footer: React.FC<FooterProps> = ({
           </Text>
         ) : process.env.SANDBOX === 'sandbox-exec' ? (
           <Text color={Colors.AccentYellow}>
-            MacOS Seatbelt{' '}
+            {t('footer.macos_seatbelt', 'MacOS Seatbelt')}{' '}
             <Text color={Colors.Gray}>({process.env.SEATBELT_PROFILE})</Text>
           </Text>
         ) : (
           <Text color={Colors.AccentRed}>
-            no sandbox <Text color={Colors.Gray}>(see /docs)</Text>
+            {t('footer.no_sandbox', 'no sandbox')} <Text color={Colors.Gray}>{t('footer.see_docs', '(see /docs)')}</Text>
           </Text>
         )}
       </Box>
@@ -83,7 +84,7 @@ export const Footer: React.FC<FooterProps> = ({
           {' '}
           {model}{' '}
           <Text color={Colors.Gray}>
-            ({((1 - percentage) * 100).toFixed(0)}% context left)
+            {t('footer.context_left', '({percentage}% context left)', { percentage: ((1 - percentage) * 100).toFixed(0) })}
           </Text>
         </Text>
         {corgiMode && (

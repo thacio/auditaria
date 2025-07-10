@@ -112,6 +112,64 @@
       "read_error": "Could not read restorable tool calls. This is the error: {error}"
     }
   },
+  "help": {
+    "section_basics": "Basics:",
+    "section_commands": "Commands:",
+    "section_shortcuts": "Keyboard Shortcuts:",
+    "add_context": "Add context",
+    "add_context_help": "Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.",
+    "shell_mode": "Shell mode",
+    "shell_mode_help": "Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).",
+    "shell_command": "shell command",
+    "keys": {
+      "enter": "Enter",
+      "ctrl_enter": "Ctrl+Enter",
+      "ctrl_j": "Ctrl+J",
+      "up_down": "Up/Down",
+      "alt_left_right": "Alt+Left/Right",
+      "shift_tab": "Shift+Tab",
+      "ctrl_y": "Ctrl+Y",
+      "esc": "Esc",
+      "ctrl_c": "Ctrl+C"
+    },
+    "shortcuts": {
+      "enter": "Send message",
+      "new_line_win": "New line",
+      "new_line_linux": "New line (Alt+Enter works for certain linux distros)",
+      "cycle_history": "Cycle through your prompt history",
+      "jump_words": "Jump through words in the input",
+      "toggle_auto_accept": "Toggle auto-accepting edits",
+      "toggle_yolo": "Toggle YOLO mode",
+      "cancel": "Cancel operation",
+      "quit": "Quit application"
+    }
+  },
+  "auth": {
+    "dialog_title": "Get started",
+    "dialog_question": "How would you like to authenticate for this project?",
+    "options": {
+      "login_google": "Login with Google",
+      "cloud_shell": "Use Cloud Shell user credentials",
+      "gemini_api": "Use Gemini API Key",
+      "vertex_ai": "Vertex AI"
+    },
+    "messages": {
+      "api_key_detected": "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.",
+      "must_select_auth": "You must select an auth method to proceed. Press Ctrl+C twice to exit.",
+      "use_enter": "(Use Enter to select)",
+      "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI"
+    }
+  },
+  "footer": {
+    "macos_seatbelt": "MacOS Seatbelt",
+    "no_sandbox": "no sandbox",
+    "see_docs": "(see /docs)",
+    "context_left": "({percentage}% context left)",
+    "debug_mode": "--debug"
+  },
+  "input": {
+    "placeholder": "  Type your message or @path/to/file"
+  },
   "errors": {
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",

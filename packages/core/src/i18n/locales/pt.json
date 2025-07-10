@@ -112,6 +112,64 @@
       "read_error": "Não foi possível ler chamadas de ferramenta restauráveis. Este é o erro: {error}"
     }
   },
+  "help": {
+    "section_basics": "Básico:",
+    "section_commands": "Comandos:",
+    "section_shortcuts": "Atalhos do Teclado:",
+    "add_context": "Adicionar contexto",
+    "add_context_help": "Use {symbol} para especificar arquivos para contexto (ex., {example}) para direcionar arquivos ou pastas específicas.",
+    "shell_mode": "Modo shell",
+    "shell_mode_help": "Execute comandos shell via {symbol} (ex., {example}) ou use linguagem natural (ex. {natural_example}).",
+    "shell_command": "comando shell",
+    "keys": {
+      "enter": "Enter",
+      "ctrl_enter": "Ctrl+Enter",
+      "ctrl_j": "Ctrl+J",
+      "up_down": "Seta Para Cima/Baixo",
+      "alt_left_right": "Alt+Esquerda/Direita",
+      "shift_tab": "Shift+Tab",
+      "ctrl_y": "Ctrl+Y",
+      "esc": "Esc",
+      "ctrl_c": "Ctrl+C"
+    },
+    "shortcuts": {
+      "enter": "Enviar mensagem",
+      "new_line_win": "Nova linha",
+      "new_line_linux": "Nova linha (Alt+Enter funciona para certas distribuições linux)",
+      "cycle_history": "Navegar pelo histórico de prompts",
+      "jump_words": "Pular entre palavras na entrada",
+      "toggle_auto_accept": "Alternar aceitação automática de edições",
+      "toggle_yolo": "Alternar modo YOLO",
+      "cancel": "Cancelar operação",
+      "quit": "Sair da aplicação"
+    }
+  },
+  "auth": {
+    "dialog_title": "Começar",
+    "dialog_question": "Como você gostaria de autenticar para este projeto?",
+    "options": {
+      "login_google": "Fazer login com Google",
+      "cloud_shell": "Usar credenciais do usuário Cloud Shell",
+      "gemini_api": "Usar Chave API Gemini",
+      "vertex_ai": "Vertex AI"
+    },
+    "messages": {
+      "api_key_detected": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
+      "must_select_auth": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
+      "use_enter": "(Use Enter para selecionar)",
+      "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI"
+    }
+  },
+  "footer": {
+    "macos_seatbelt": "MacOS Seatbelt",
+    "no_sandbox": "sem sandbox",
+    "see_docs": "(ver /docs)",
+    "context_left": "({percentage}% contexto restante)",
+    "debug_mode": "--debug"
+  },
+  "input": {
+    "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo"
+  },
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
