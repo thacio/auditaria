@@ -170,6 +170,44 @@
   "input": {
     "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo"
   },
+  "tool_confirmation": {
+    "modify_in_progress": "Modificação em andamento: ",
+    "save_close_editor": "Salve e feche o editor externo para continuar",
+    "questions": {
+      "apply_change": "Aplicar esta alteração?",
+      "allow_execution": "Permitir execução?",
+      "do_you_want_proceed": "Você quer prosseguir?",
+      "allow_mcp_tool": "Permitir execução da ferramenta MCP \"{toolName}\" do servidor \"{serverName}\"?"
+    },
+    "options": {
+      "yes_once": "Sim, permitir uma vez",
+      "yes_always": "Sim, permitir sempre",
+      "yes_always_command": "Sim, permitir sempre \"{command} ...\"",
+      "yes_always_tool": "Sim, sempre permitir ferramenta \"{toolName}\" do servidor \"{serverName}\"",
+      "yes_always_server": "Sim, sempre permitir todas as ferramentas do servidor \"{serverName}\"",
+      "modify_editor": "Modificar com editor externo",
+      "no_esc": "Não (esc)"
+    },
+    "mcp_labels": {
+      "server": "Servidor MCP: {serverName}",
+      "tool": "Ferramenta: {toolName}"
+    },
+    "info": {
+      "urls_to_fetch": "URLs para buscar:"
+    }
+  },
+  "suggestions": {
+    "loading": "Carregando sugestões..."
+  },
+  "loading": {
+    "waiting_confirmation": "Aguardando confirmação do usuário...",
+    "phrases": [
+      "Estou Me Sentindo Com Sorte",
+      "Enviando excelência... ",
+      "Pintando as serifas de volta...",
+      "Nota: As 141 frases completas de carregamento podem ser extraídas posteriormente conforme necessário"
+    ]
+  },
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",

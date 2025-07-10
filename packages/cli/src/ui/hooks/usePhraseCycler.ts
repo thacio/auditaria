@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -156,7 +157,7 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
 
   useEffect(() => {
     if (isWaiting) {
-      setCurrentLoadingPhrase('Waiting for user confirmation...');
+      setCurrentLoadingPhrase(t('loading.waiting_confirmation', 'Waiting for user confirmation...'));
       if (phraseIntervalRef.current) {
         clearInterval(phraseIntervalRef.current);
         phraseIntervalRef.current = null;
