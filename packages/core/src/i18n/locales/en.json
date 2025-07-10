@@ -14,6 +14,9 @@
     "editor": {
       "description": "set external editor preference"
     },
+    "language": {
+      "description": "change language preference"
+    },
     "privacy": {
       "description": "display the privacy notice"
     },
@@ -395,6 +398,42 @@
       "preferred_editor": "Your preferred editor is:",
       "none": "None"
     }
+  },
+  "language_dialog": {
+    "title": "Language Selection",
+    "first_time_title": "Welcome! Select Your Language",
+    "first_time_description": "Choose your preferred language for the interface. You can change this later using the /language command.",
+    "select_language": "Select Language",
+    "apply_to": "Apply To",
+    "loading_title": "Loading Available Languages...",
+    "loading_message": "Discovering available language options...",
+    "error_title": "Language Selection Error",
+    "no_languages_available": "No language files found. Please ensure translation files are available.",
+    "languages_count": "Available languages: {count}",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_select": "(Use Enter to select",
+      "tab_to_change_focus": ", Tab to change focus",
+      "escape_to_cancel": ", Esc to cancel",
+      "press_escape": "Press Esc to continue with default language."
+    },
+    "errors": {
+      "failed_to_load": "Failed to load available languages. Using defaults."
+    }
+  },
+  "language": {
+    "initialization_failed": "Failed to load language \"{language}\". Using default.",
+    "no_language_selected": "No language selected.",
+    "changed_successfully": "Language changed to {language}.",
+    "application_failed": "Failed to apply language \"{language}\". Please try again.",
+    "must_select_language": "You must select a language to continue.",
+    "welcome_message": "Welcome! Language has been set to {language}. You can change it anytime using the /language command.",
+    "save_failed": "Failed to save language setting. Please try again."
   },
   "about_box": {
     "title": "About Gemini CLI",

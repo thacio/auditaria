@@ -104,13 +104,12 @@ function detectLanguage(): SupportedLanguage {
 }
 
 export async function main() {
-  // Initialize i18n system first
-  // const language = detectLanguage();
-  // await initI18n(language);
-  await initI18n('pt');
-  
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
+  
+  // Initialize i18n system with settings-based language or fallback to detection
+  const language = settings.merged.language || detectLanguage();
+  await initI18n(language);
 
   await cleanupCheckpoints();
   if (settings.errors.length > 0) {

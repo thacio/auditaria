@@ -16,8 +16,6 @@ class I18nManager {
   private initialized = false;
 
   async initialize(language?: SupportedLanguage): Promise<void> {
-    if (this.initialized) return;
-
     if (language) {
       this.config.currentLanguage = language;
     }
@@ -26,8 +24,10 @@ class I18nManager {
     this.initialized = true;
   }
 
-  setLanguage(language: SupportedLanguage): void {
+  async setLanguage(language: SupportedLanguage): Promise<void> {
     this.config.currentLanguage = language;
+    // Reload translations to ensure the new language is available
+    await translationLoader.loadAllLanguages();
   }
 
   getCurrentLanguage(): SupportedLanguage {
@@ -71,7 +71,7 @@ class I18nManager {
     const loadedTranslations = translationLoader.getLoadedTranslations();
     
     // Try current language first
-    const currentLangData = this.config.currentLanguage === 'en' ? loadedTranslations.en : loadedTranslations.pt;
+    const currentLangData = (loadedTranslations as any)[this.config.currentLanguage];
     if (currentLangData) {
       const translation = this.getNestedValue(currentLangData, key);
       if (translation) {
@@ -81,7 +81,7 @@ class I18nManager {
 
     // Try fallback language if different from current
     if (this.config.fallbackLanguage !== this.config.currentLanguage) {
-      const fallbackLangData = this.config.fallbackLanguage === 'en' ? loadedTranslations.en : loadedTranslations.pt;
+      const fallbackLangData = (loadedTranslations as any)[this.config.fallbackLanguage];
       if (fallbackLangData) {
         const translation = this.getNestedValue(fallbackLangData, key);
         if (translation) {
@@ -108,7 +108,7 @@ class I18nManager {
     }
     
     const currentLang = this.config.currentLanguage;
-    return currentLang === 'en' ? loadedTranslations.en : loadedTranslations.pt;
+    return (loadedTranslations as any)[currentLang];
   }
 }
 
@@ -143,11 +143,11 @@ export const getTranslationData = (): any => {
 };
 
 /**
- * Set current language
+ * Set current language and reload translations
  * @param language - Language to set
  */
-export const setLanguage = (language: SupportedLanguage): void => {
-  i18nManager.setLanguage(language);
+export const setLanguage = async (language: SupportedLanguage): Promise<void> => {
+  await i18nManager.setLanguage(language);
 };
 
 /**
@@ -160,3 +160,6 @@ export const getCurrentLanguage = (): SupportedLanguage => {
 
 // Export types for use in other files
 export * from './types.js';
+
+// Export discovery functions
+export { discoverAvailableLanguages, isLanguageAvailable } from './discovery.js';

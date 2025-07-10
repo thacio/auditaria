@@ -76,6 +76,7 @@ export const useSlashCommandProcessor = (
   openThemeDialog: () => void,
   openAuthDialog: () => void,
   openEditorDialog: () => void,
+  openLanguageDialog: () => void,
   toggleCorgiMode: () => void,
   showToolDescriptions: boolean = false,
   setQuittingMessages: (message: HistoryItem[]) => void,
@@ -261,6 +262,11 @@ export const useSlashCommandProcessor = (
         name: 'editor',
         description: t('commands.editor.description', 'set external editor preference'),
         action: (_mainCommand, _subCommand, _args) => openEditorDialog(),
+      },
+      {
+        name: 'language',
+        description: t('commands.language.description', 'change language preference'),
+        action: (_mainCommand, _subCommand, _args) => openLanguageDialog(),
       },
       {
         name: 'privacy',

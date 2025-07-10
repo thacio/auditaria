@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type SupportedLanguage = 'en' | 'pt';
+export type SupportedLanguage = string;
 
 export interface LanguageInfo {
   code: SupportedLanguage;

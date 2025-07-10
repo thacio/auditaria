@@ -24,6 +24,7 @@ import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
 import { useThemeCommand } from './hooks/useThemeCommand.js';
 import { useAuthCommand } from './hooks/useAuthCommand.js';
 import { useEditorSettings } from './hooks/useEditorSettings.js';
+import { useLanguageSettings } from './hooks/useLanguageSettings.js';
 import { useSlashCommandProcessor } from './hooks/slashCommandProcessor.js';
 import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
@@ -37,6 +38,7 @@ import { ThemeDialog } from './components/ThemeDialog.js';
 import { AuthDialog } from './components/AuthDialog.js';
 import { AuthInProgress } from './components/AuthInProgress.js';
 import { EditorSettingsDialog } from './components/EditorSettingsDialog.js';
+import { LanguageSelectionDialog } from './components/LanguageSelectionDialog.js';
 import { Colors } from './colors.js';
 import { Help } from './components/Help.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
@@ -122,6 +124,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   const [themeError, setThemeError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [languageError, setLanguageError] = useState<string | null>(null);
   const [footerHeight, setFooterHeight] = useState<number>(0);
   const [corgiMode, setCorgiMode] = useState(false);
   const [currentModel, setCurrentModel] = useState(config.getModel());
@@ -181,6 +184,13 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     handleEditorSelect,
     exitEditorDialog,
   } = useEditorSettings(settings, setEditorError, addItem);
+
+  const {
+    isLanguageDialogOpen,
+    openLanguageDialog,
+    handleLanguageSelect,
+    isFirstTimeSetup,
+  } = useLanguageSettings(settings, setLanguageError, addItem);
 
   const toggleCorgiMode = useCallback(() => {
     setCorgiMode((prev) => !prev);
@@ -325,6 +335,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     openThemeDialog,
     openAuthDialog,
     openEditorDialog,
+    openLanguageDialog,
     toggleCorgiMode,
     showToolDescriptions,
     setQuittingMessages,
@@ -693,7 +704,20 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
             </Box>
           )}
 
-          {isThemeDialogOpen ? (
+          {isLanguageDialogOpen ? (
+            <Box flexDirection="column">
+              {languageError && (
+                <Box marginBottom={1}>
+                  <Text color={Colors.AccentRed}>{languageError}</Text>
+                </Box>
+              )}
+              <LanguageSelectionDialog
+                onSelect={handleLanguageSelect}
+                settings={settings}
+                isFirstTimeSetup={isFirstTimeSetup}
+              />
+            </Box>
+          ) : isThemeDialogOpen ? (
             <Box flexDirection="column">
               {themeError && (
                 <Box marginBottom={1}>

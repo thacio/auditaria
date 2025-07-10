@@ -14,6 +14,9 @@
     "editor": {
       "description": "definir preferência do editor externo"
     },
+    "language": {
+      "description": "alterar preferência de idioma"
+    },
     "privacy": {
       "description": "exibir o aviso de privacidade"
     },
@@ -395,6 +398,42 @@
       "preferred_editor": "Seu editor preferido é:",
       "none": "Nenhum"
     }
+  },
+  "language_dialog": {
+    "title": "Seleção de Idioma",
+    "first_time_title": "Bem-vindo! Selecione Seu Idioma",
+    "first_time_description": "Escolha seu idioma preferido para a interface. Você pode alterar isso mais tarde usando o comando /language.",
+    "select_language": "Selecionar Idioma",
+    "apply_to": "Aplicar Para",
+    "loading_title": "Carregando Idiomas Disponíveis...",
+    "loading_message": "Descobrindo opções de idioma disponíveis...",
+    "error_title": "Erro na Seleção de Idioma",
+    "no_languages_available": "Nenhum arquivo de idioma encontrado. Certifique-se de que os arquivos de tradução estejam disponíveis.",
+    "languages_count": "Idiomas disponíveis: {count}",
+    "scope_options": {
+      "user_settings": "Configurações do Usuário",
+      "workspace_settings": "Configurações do Espaço de Trabalho"
+    },
+    "messages": {
+      "also_modified_in": "(Também modificado em {scope})",
+      "modified_in": "(Modificado em {scope})",
+      "use_enter_select": "(Use Enter para selecionar",
+      "tab_to_change_focus": ", Tab para mudar o foco",
+      "escape_to_cancel": ", Esc para cancelar",
+      "press_escape": "Pressione Esc para continuar com o idioma padrão."
+    },
+    "errors": {
+      "failed_to_load": "Falha ao carregar idiomas disponíveis. Usando padrões."
+    }
+  },
+  "language": {
+    "initialization_failed": "Falha ao carregar idioma \"{language}\". Usando padrão.",
+    "no_language_selected": "Nenhum idioma selecionado.",
+    "changed_successfully": "Idioma alterado para {language}.",
+    "application_failed": "Falha ao aplicar idioma \"{language}\". Tente novamente.",
+    "must_select_language": "Você deve selecionar um idioma para continuar.",
+    "welcome_message": "Bem-vindo! O idioma foi definido para {language}. Você pode alterá-lo a qualquer momento usando o comando /language.",
+    "save_failed": "Falha ao salvar configuração de idioma. Tente novamente."
   },
   "about_box": {
     "title": "Sobre Gemini CLI",

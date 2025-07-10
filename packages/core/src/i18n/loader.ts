@@ -40,13 +40,28 @@ class TranslationLoader {
   }
 
   async loadAllLanguages(): Promise<LoadedTranslations> {
-    const languages: SupportedLanguage[] = ['en', 'pt'];
-    
-    await Promise.all(
-      languages.map(async (lang) => {
-        await this.loadLanguage(lang);
-      })
-    );
+    try {
+      // Dynamically discover available language files
+      const files = await import('fs').then(fs => fs.promises.readdir(this.localesPath));
+      const languageFiles = files.filter(file => file.endsWith('.json'));
+      const languages = languageFiles.map(file => file.replace('.json', '') as SupportedLanguage);
+      
+      await Promise.all(
+        languages.map(async (lang) => {
+          await this.loadLanguage(lang);
+        })
+      );
+    } catch (error) {
+      // Fallback to known languages if directory reading fails
+      console.warn('Could not read locales directory, falling back to defaults:', error);
+      const fallbackLanguages: SupportedLanguage[] = ['en', 'pt'];
+      
+      await Promise.all(
+        fallbackLanguages.map(async (lang) => {
+          await this.loadLanguage(lang);
+        })
+      );
+    }
 
     return this.loadedTranslations;
   }
