@@ -240,6 +240,56 @@
       "none": "None"
     }
   },
+  "about_box": {
+    "title": "About Gemini CLI",
+    "labels": {
+      "cli_version": "CLI Version",
+      "git_commit": "Git Commit",
+      "model": "Model",
+      "sandbox": "Sandbox",
+      "os": "OS",
+      "auth_method": "Auth Method",
+      "gcp_project": "GCP Project"
+    }
+  },
+  "tips": {
+    "title": "Tips for getting started:",
+    "tip1": "Ask questions, edit files, or run commands.",
+    "tip2": "Be specific for the best results.",
+    "tip3_with_gemini": "Create {filename} files to customize your interactions with Gemini.",
+    "tip3_without_gemini": "{command} for more information.",
+    "tip4": "{command} for more information."
+  },
+  "console_summary": {
+    "error_count": "{count} error{plural}",
+    "ctrl_o_details": "(ctrl+o for details)"
+  },
+  "auto_accept": {
+    "accepting_edits": "accepting edits",
+    "yolo_mode": "YOLO mode",
+    "shift_tab_toggle": " (shift + tab to toggle)",
+    "ctrl_y_toggle": " (ctrl + y to toggle)"
+  },
+  "shell_mode": {
+    "enabled": "shell mode enabled",
+    "esc_to_disable": " (esc to disable)"
+  },
+  "loading_indicator": {
+    "esc_to_cancel": " (esc to cancel, {time})",
+    "seconds": "{elapsed}s",
+    "minutes": "{duration}"
+  },
+  "show_more": {
+    "press_ctrl_s": "Press ctrl-s to show more lines"
+  },
+  "context_summary": {
+    "using": "Using ",
+    "and": " and ",
+    "context_files": "{count} {name} file{plural}",
+    "mcp_servers": "{count} MCP server{plural}",
+    "ctrl_t_toggle": " (ctrl+t to toggle)",
+    "ctrl_t_view": " (ctrl+t to view)"
+  },
   "errors": {
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",

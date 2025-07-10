@@ -125,6 +125,72 @@ This file tracks the progress of extracting hardcoded strings and implementing i
   - ✅ Help text (supported editors info, current preference)
   - ✅ Instructions and default values (None, Enter/Tab usage)
 
+### ✅ packages/cli/src/ui/components/AboutBox.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~8 strings
+- **Completed work**:
+  - ✅ About dialog title
+  - ✅ All system info labels (CLI Version, Git Commit, Model, Sandbox, OS, Auth Method, GCP Project)
+
+### ✅ packages/cli/src/ui/components/Tips.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~6 strings
+- **Completed work**:
+  - ✅ Tips section title
+  - ✅ All numbered tips with dynamic content
+  - ✅ GEMINI.md file references and help command
+
+### ✅ packages/cli/src/ui/components/ConsoleSummaryDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Error count display with plural support
+  - ✅ Keyboard shortcut hint (ctrl+o for details)
+
+### ✅ packages/cli/src/ui/components/AutoAcceptIndicator.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~4 strings
+- **Completed work**:
+  - ✅ Mode indicators (accepting edits, YOLO mode)
+  - ✅ Toggle instructions (shift+tab, ctrl+y shortcuts)
+
+### ✅ packages/cli/src/ui/components/ShellModeIndicator.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Shell mode enabled status
+  - ✅ Escape key instruction
+
+### ✅ packages/cli/src/ui/components/LoadingIndicator.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~3 strings
+- **Completed work**:
+  - ✅ Cancel instruction with time display
+  - ✅ Time formatting (seconds/minutes)
+
+### ✅ packages/cli/src/ui/components/ShowMoreLines.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Ctrl+S instruction for showing more lines
+
+### ✅ packages/cli/src/ui/components/ContextSummaryDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~6 strings
+- **Completed work**:
+  - ✅ Context file count with plural support
+  - ✅ MCP server count with plural support  
+  - ✅ Usage summary text construction
+  - ✅ Keyboard shortcut instructions (ctrl+t)
+
 ### 🔄 Files In Progress
 - None currently
 
@@ -132,8 +198,6 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - packages/cli/src/ui/commands/memoryCommand.ts (memory command strings)
 - packages/core/src/tools/*.ts (tool descriptions and error messages)
 - packages/cli/src/ui/privacy/*.tsx (privacy notice strings)
-- packages/cli/src/ui/components/AboutBox.tsx (version and info display)
-- packages/cli/src/ui/components/Tips.tsx (user tips and hints)
 - Additional UI components as needed
 
 ## Translation Keys Structure

@@ -251,7 +251,7 @@ export function ThemeDialog({
       <Box marginTop={1}>
         <Text color={Colors.Gray} wrap="truncate">
           {t('theme_dialog.messages.use_enter_select', '(Use Enter to select')}
-          {showScopeSelection ? t('theme_dialog.messages.tab_to_change_focus', ', Tab to change focus') : ''})}
+          {showScopeSelection ? t('theme_dialog.messages.tab_to_change_focus', ', Tab to change focus') : ''})
         </Text>
       </Box>
     </Box>

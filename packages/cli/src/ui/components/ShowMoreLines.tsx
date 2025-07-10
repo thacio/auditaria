@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { Box, Text } from 'ink';
 import { useOverflowState } from '../contexts/OverflowContext.js';
@@ -33,7 +34,7 @@ export const ShowMoreLines = ({ constrainHeight }: ShowMoreLinesProps) => {
   return (
     <Box>
       <Text color={Colors.Gray} wrap="truncate">
-        Press ctrl-s to show more lines
+        {t('show_more.press_ctrl_s', 'Press ctrl-s to show more lines')}
       </Text>
     </Box>
   );

@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { ThoughtSummary } from '@thacio/auditaria-cli-core';
 import React from 'react';
@@ -51,7 +52,9 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
         <Text color={Colors.Gray}>
           {streamingState === StreamingState.WaitingForConfirmation
             ? ''
-            : ` (esc to cancel, ${elapsedTime < 60 ? `${elapsedTime}s` : formatDuration(elapsedTime * 1000)})`}
+            : t('loading_indicator.esc_to_cancel', ' (esc to cancel, {time})', {
+                time: elapsedTime < 60 ? t('loading_indicator.seconds', '{elapsed}s', { elapsed: elapsedTime }) : formatDuration(elapsedTime * 1000)
+              })}
         </Text>
         <Box flexGrow={1}>{/* Spacer */}</Box>
         {rightContent && <Box>{rightContent}</Box>}

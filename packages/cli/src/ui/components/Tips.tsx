@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -17,28 +18,20 @@ export const Tips: React.FC<TipsProps> = ({ config }) => {
   const geminiMdFileCount = config.getGeminiMdFileCount();
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text color={Colors.Foreground}>Tips for getting started:</Text>
+      <Text color={Colors.Foreground}>{t('tips.title', 'Tips for getting started:')}</Text>
       <Text color={Colors.Foreground}>
-        1. Ask questions, edit files, or run commands.
+        1. {t('tips.tip1', 'Ask questions, edit files, or run commands.')}
       </Text>
       <Text color={Colors.Foreground}>
-        2. Be specific for the best results.
+        2. {t('tips.tip2', 'Be specific for the best results.')}
       </Text>
       {geminiMdFileCount === 0 && (
         <Text color={Colors.Foreground}>
-          3. Create{' '}
-          <Text bold color={Colors.AccentPurple}>
-            GEMINI.md
-          </Text>{' '}
-          files to customize your interactions with Gemini.
+          3. {t('tips.tip3_with_gemini', 'Create {filename} files to customize your interactions with Gemini.', { filename: 'GEMINI.md' })}
         </Text>
       )}
       <Text color={Colors.Foreground}>
-        {geminiMdFileCount === 0 ? '4.' : '3.'}{' '}
-        <Text bold color={Colors.AccentPurple}>
-          /help
-        </Text>{' '}
-        for more information.
+        {geminiMdFileCount === 0 ? '4.' : '3.'} {t('tips.tip4', '{command} for more information.', { command: '/help' })}
       </Text>
     </Box>
   );

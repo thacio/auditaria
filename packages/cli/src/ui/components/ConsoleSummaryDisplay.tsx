@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -26,8 +27,8 @@ export const ConsoleSummaryDisplay: React.FC<ConsoleSummaryDisplayProps> = ({
     <Box>
       {errorCount > 0 && (
         <Text color={Colors.AccentRed}>
-          {errorIcon} {errorCount} error{errorCount > 1 ? 's' : ''}{' '}
-          <Text color={Colors.Gray}>(ctrl+o for details)</Text>
+          {errorIcon} {t('console_summary.error_count', '{count} error{plural}', { count: errorCount, plural: errorCount > 1 ? 's' : '' })}{' '}
+          <Text color={Colors.Gray}>{t('console_summary.ctrl_o_details', '(ctrl+o for details)')}</Text>
         </Text>
       )}
     </Box>
