@@ -97,12 +97,14 @@ This file tracks the progress of extracting hardcoded strings and implementing i
   - ✅ Loading suggestions text
 
 ### ✅ packages/cli/src/ui/hooks/usePhraseCycler.ts
-- **Status**: Partially Completed
+- **Status**: Completed
 - **Date**: 2025-01-10
-- **Strings extracted**: ~1 critical string
+- **Strings extracted**: 142 strings (1 + 141 witty phrases)
 - **Completed work**:
   - ✅ "Waiting for user confirmation..." message
-  - 📝 Framework prepared for 141 loading phrases (can be completed later)
+  - ✅ All 141 witty loading phrases with Portuguese translations
+  - ✅ Dynamic phrase loading system with i18n integration
+  - ✅ Fallback system for backwards compatibility
 
 ### ✅ packages/cli/src/ui/components/ThemeDialog.tsx
 - **Status**: Completed

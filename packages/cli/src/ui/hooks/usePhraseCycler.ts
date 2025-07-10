@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { getTranslationData } from '@thacio/auditaria-cli-core';
 import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useRef } from 'react';
@@ -143,6 +144,16 @@ export const WITTY_LOADING_PHRASES = [
 
 export const PHRASE_CHANGE_INTERVAL_MS = 15000;
 
+
+const getWittyLoadingPhrases = (): string[] => {
+  try {
+    const translationData = getTranslationData();
+    return translationData?.loading?.phrases || WITTY_LOADING_PHRASES;
+  } catch {
+    return WITTY_LOADING_PHRASES;
+  }
+};
+
 /**
  * Custom hook to manage cycling through loading phrases.
  * @param isActive Whether the phrase cycling should be active.
@@ -151,7 +162,7 @@ export const PHRASE_CHANGE_INTERVAL_MS = 15000;
  */
 export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
   const [currentLoadingPhrase, setCurrentLoadingPhrase] = useState(
-    WITTY_LOADING_PHRASES[0],
+    getWittyLoadingPhrases()[0],
   );
   const phraseIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -167,17 +178,19 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
         clearInterval(phraseIntervalRef.current);
       }
       // Select an initial random phrase
+      const phrases = getWittyLoadingPhrases();
       const initialRandomIndex = Math.floor(
-        Math.random() * WITTY_LOADING_PHRASES.length,
+        Math.random() * phrases.length,
       );
-      setCurrentLoadingPhrase(WITTY_LOADING_PHRASES[initialRandomIndex]);
+      setCurrentLoadingPhrase(phrases[initialRandomIndex]);
 
       phraseIntervalRef.current = setInterval(() => {
         // Select a new random phrase
+        const phrases = getWittyLoadingPhrases();
         const randomIndex = Math.floor(
-          Math.random() * WITTY_LOADING_PHRASES.length,
+          Math.random() * phrases.length,
         );
-        setCurrentLoadingPhrase(WITTY_LOADING_PHRASES[randomIndex]);
+        setCurrentLoadingPhrase(phrases[randomIndex]);
       }, PHRASE_CHANGE_INTERVAL_MS);
     } else {
       // Idle or other states, clear the phrase interval
@@ -186,7 +199,7 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
         clearInterval(phraseIntervalRef.current);
         phraseIntervalRef.current = null;
       }
-      setCurrentLoadingPhrase(WITTY_LOADING_PHRASES[0]);
+      setCurrentLoadingPhrase(getWittyLoadingPhrases()[0]);
     }
 
     return () => {

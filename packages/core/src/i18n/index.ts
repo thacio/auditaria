@@ -93,6 +93,23 @@ class I18nManager {
     // Return fallback with parameter interpolation if needed
     return params ? this.interpolateString(fallback, params) : fallback;
   }
+
+  /**
+   * Get current translation data
+   */
+  getCurrentTranslationData(): any {
+    if (!this.initialized) {
+      return null;
+    }
+    
+    const loadedTranslations = translationLoader.getLoadedTranslations();
+    if (!loadedTranslations) {
+      return null;
+    }
+    
+    const currentLang = this.config.currentLanguage;
+    return currentLang === 'en' ? loadedTranslations.en : loadedTranslations.pt;
+  }
 }
 
 // Create singleton instance
@@ -115,6 +132,14 @@ export const t = (key: string, fallback: string, params?: Record<string, string 
  */
 export const initI18n = async (language?: SupportedLanguage): Promise<void> => {
   await i18nManager.initialize(language);
+};
+
+/**
+ * Get current translation data
+ * @returns Current translation data or null if not initialized
+ */
+export const getTranslationData = (): any => {
+  return i18nManager.getCurrentTranslationData();
 };
 
 /**
