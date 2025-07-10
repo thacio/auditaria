@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '../i18n/index.js';
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -221,8 +222,8 @@ Expectation for required parameters:
     } else if (!fileExists) {
       // Trying to edit a non-existent file (and old_string is not empty)
       error = {
-        display: `File not found. Cannot apply edit. Use an empty old_string to create a new file.`,
-        raw: `File not found: ${params.file_path}`,
+        display: t('tools.edit.file_not_found_create', 'File not found. Cannot apply edit. Use an empty old_string to create a new file.'),
+        raw: t('tools.edit.file_not_found_raw', 'File not found: {path}', { path: params.file_path }),
       };
     } else if (currentContent !== null) {
       // Editing an existing file
@@ -240,12 +241,12 @@ Expectation for required parameters:
       if (params.old_string === '') {
         // Error: Trying to create a file that already exists
         error = {
-          display: `Failed to edit. Attempted to create a file that already exists.`,
+          display: t('tools.edit.failed_create_exists', 'Failed to edit. Attempted to create a file that already exists.'),
           raw: `File already exists, cannot create: ${params.file_path}`,
         };
       } else if (occurrences === 0) {
         error = {
-          display: `Failed to edit, could not find the string to replace.`,
+          display: t('tools.edit.failed_find_string', 'Failed to edit, could not find the string to replace.'),
           raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
         };
       } else if (occurrences !== expectedReplacements) {
@@ -253,7 +254,7 @@ Expectation for required parameters:
           expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
         error = {
-          display: `Failed to edit, expected ${expectedReplacements} ${occurenceTerm} but found ${occurrences}.`,
+          display: t('tools.edit.failed_replacement_count', 'Failed to edit, expected {expected} {term} but found {found}.', { expected: expectedReplacements, term: occurenceTerm, found: occurrences }),
           raw: `Failed to edit, Expected ${expectedReplacements} ${occurenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
         };
       }
@@ -372,7 +373,7 @@ Expectation for required parameters:
     if (validationError) {
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: `Error: ${validationError}`,
+        returnDisplay: t('tools.edit.validation_error', 'Error: {error}', { error: validationError }),
       };
     }
 
@@ -383,14 +384,14 @@ Expectation for required parameters:
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         llmContent: `Error preparing edit: ${errorMsg}`,
-        returnDisplay: `Error preparing edit: ${errorMsg}`,
+        returnDisplay: t('tools.edit.error_preparing_edit', 'Error preparing edit: {error}', { error: errorMsg }),
       };
     }
 
     if (editData.error) {
       return {
         llmContent: editData.error.raw,
-        returnDisplay: `Error: ${editData.error.display}`,
+        returnDisplay: t('tools.edit.error_display', 'Error: {error}', { error: editData.error.display }),
       };
     }
 
@@ -400,7 +401,7 @@ Expectation for required parameters:
 
       let displayResult: ToolResultDisplay;
       if (editData.isNewFile) {
-        displayResult = `Created ${shortenPath(makeRelative(params.file_path, this.rootDirectory))}`;
+        displayResult = t('tools.edit.created_file', 'Created {file}', { file: shortenPath(makeRelative(params.file_path, this.rootDirectory)) });
       } else {
         // Generate diff for display, even though core logic doesn't technically need it
         // The CLI wrapper will use this part of the ToolResult
@@ -435,7 +436,7 @@ Expectation for required parameters:
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         llmContent: `Error executing edit: ${errorMsg}`,
-        returnDisplay: `Error writing file: ${errorMsg}`,
+        returnDisplay: t('tools.edit.error_writing_file', 'Error writing file: {error}', { error: errorMsg }),
       };
     }
   }

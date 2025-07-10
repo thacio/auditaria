@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '../i18n/index.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -286,14 +287,14 @@ Process Group PGID: Process group started or \`(none)\``,
           `Command rejected: ${params.command}`,
           `Reason: ${validationError}`,
         ].join('\n'),
-        returnDisplay: `Error: ${validationError}`,
+        returnDisplay: t('tools.shell.validation_error', 'Error: {error}', { error: validationError }),
       };
     }
 
     if (abortSignal.aborted) {
       return {
         llmContent: 'Command was cancelled by user before it could start.',
-        returnDisplay: 'Command cancelled by user.',
+        returnDisplay: t('tools.shell.command_cancelled_user', 'Command cancelled by user.'),
       };
     }
 
@@ -474,14 +475,14 @@ Process Group PGID: Process group started or \`(none)\``,
       } else {
         // Output is empty, let's provide a reason if the command failed or was cancelled
         if (abortSignal.aborted) {
-          returnDisplayMessage = 'Command cancelled by user.';
+          returnDisplayMessage = t('tools.shell.command_cancelled_user', 'Command cancelled by user.');
         } else if (processSignal) {
-          returnDisplayMessage = `Command terminated by signal: ${processSignal}`;
+          returnDisplayMessage = t('tools.shell.command_terminated_signal', 'Command terminated by signal: {signal}', { signal: processSignal });
         } else if (error) {
           // If error is not null, it's an Error object (or other truthy value)
-          returnDisplayMessage = `Command failed: ${getErrorMessage(error)}`;
+          returnDisplayMessage = t('tools.shell.command_failed', 'Command failed: {error}', { error: getErrorMessage(error) });
         } else if (code !== null && code !== 0) {
-          returnDisplayMessage = `Command exited with code: ${code}`;
+          returnDisplayMessage = t('tools.shell.command_exit_code', 'Command exited with code: {code}', { code });
         }
         // If output is empty and command succeeded (code 0, no error/signal/abort),
         // returnDisplayMessage will remain empty, which is fine.

@@ -185,7 +185,8 @@
       "use_enter": "(Use Enter to select)",
       "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
       "auth_timeout": "Authentication timed out. Please try again.",
-      "waiting_for_auth": "Waiting for auth... (Press ESC to cancel)"
+      "waiting_for_auth": "Waiting for auth... (Press ESC to cancel)",
+      "failed_login": "Failed to login. Message: {error}"
     }
   },
   "footer": {
@@ -391,5 +392,94 @@
   },
   "update": {
     "available": "Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update"
+  },
+  "shell": {
+    "binary_output_detected": "[Binary output detected. Halting stream...]",
+    "receiving_binary_output": "[Receiving binary output... {size} received]",
+    "binary_output_not_shown": "[Command produced binary output, which is not shown.]",
+    "no_output": "(Command produced no output)",
+    "command_cancelled": "Command was cancelled.",
+    "command_terminated_signal": "Command terminated by signal: {signal}.",
+    "command_exit_code": "Command exited with code {code}.",
+    "directory_change_warning": "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
+    "unexpected_error": "An unexpected error occurred: {error}"
+  },
+  "at_command": {
+    "tool_not_found": "Error: read_many_files tool not found.",
+    "invalid_command": "Error: Invalid @ command '{command}'. No path specified.",
+    "successfully_read": "Successfully read: {files}",
+    "content_header": "\n--- Content from referenced files ---",
+    "content_from_file": "\nContent from @{file}:\n",
+    "content_footer": "\n--- End of content ---",
+    "error_reading_files": "Error reading files ({files}): {error}"
+  },
+  "theme": {
+    "no_color_env": "Theme configuration unavailable due to NO_COLOR env variable.",
+    "not_found": "Theme \"{theme}\" not found."
+  },
+  "editor": {
+    "preference_set": "Editor preference set to \"{editor}\" in {scope} settings.",
+    "preference_cleared": "Editor preference cleared in {scope} settings.",
+    "failed_to_set": "Failed to set editor preference: {error}"
+  },
+  "privacy": {
+    "oauth_not_used": "Oauth not being used",
+    "no_current_tier": "User does not have a current tier",
+    "loading": "Loading...",
+    "error_loading_optin": "Error loading Opt-in settings: {error}",
+    "press_esc_exit": "Press Esc to exit.",
+    "yes": "Yes",
+    "no": "No",
+    "gemini_code_assist_notice_title": "Gemini Code Assist for Individuals Privacy Notice",
+    "notice_intro": "This notice and our Privacy Policy {ref} describe how Gemini Code Assist handles your data. Please read them carefully.",
+    "data_collection_description": "When you use Gemini Code Assist for individuals with Gemini CLI, Google collects your prompts, related code, generated output, code edits, related feature usage information, and your feedback to provide, improve, and develop Google products and services and machine learning technologies.",
+    "human_review_description": "To help with quality and improve our products (such as generative machine-learning models), human reviewers may read, annotate, and process the data collected above. We take steps to protect your privacy as part of this process. This includes disconnecting the data from your Google Account before reviewers see or annotate it, and storing those disconnected copies for up to 18 months. Please don't submit confidential information or any data you wouldn't want a reviewer to see or Google to use to improve our products, services and machine-learning technologies.",
+    "allow_data_usage_question": "Allow Google to use this data to develop and improve our products?",
+    "press_enter_choose_exit": "Press Enter to choose an option and exit.",
+    "gemini_api_key_notice_title": "Gemini API Key Notice",
+    "gemini_api_terms_text": "By using the Gemini API {ref1}, Google AI Studio {ref2}, and the other Google developer services that reference these terms (collectively, the \"APIs\" or \"Services\"), you are agreeing to Google APIs Terms of Service (the \"API Terms\") {ref3}, and the Gemini API Additional Terms of Service (the \"Additional Terms\") {ref4}.",
+    "vertex_ai_notice_title": "Vertex AI Notice",
+    "vertex_ai_service_terms_text": "Service Specific Terms {ref1} are incorporated into the agreement under which Google has agreed to provide Google Cloud Platform {ref2} to Customer (the \"Agreement\"). If the Agreement authorizes the resale or supply of Google Cloud Platform under a Google Cloud partner or reseller program, then except for in the section entitled \"Partner-Specific Terms\", all references to Customer in the Service Specific Terms mean Partner or Reseller (as applicable), and all references to Customer Data in the Service Specific Terms mean Partner Data. Capitalized terms used but not defined in the Service Specific Terms have the meaning given to them in the Agreement."
+  },
+  "tools": {
+    "edit": {
+      "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
+      "file_not_found_raw": "File not found: {path}",
+      "failed_create_exists": "Failed to edit. Attempted to create a file that already exists.",
+      "failed_find_string": "Failed to edit, could not find the string to replace.",
+      "failed_replacement_count": "Failed to edit, expected {expected} {term} but found {found}.",
+      "validation_error": "Error: {error}",
+      "error_preparing_edit": "Error preparing edit: {error}",
+      "error_display": "Error: {error}",
+      "created_file": "Created {file}",
+      "error_writing_file": "Error writing file: {error}"
+    },
+    "shell": {
+      "validation_error": "Error: {error}",
+      "command_cancelled_user": "Command cancelled by user.",
+      "command_terminated_signal": "Command terminated by signal: {signal}",
+      "command_failed": "Command failed: {error}",
+      "command_exit_code": "Command exited with code: {code}"
+    },
+    "grep": {
+      "no_matches_detailed": "No matches found for pattern \"{pattern}\" in path \"{path}\"{filter}.",
+      "no_matches": "No matches found",
+      "invalid_parameters": "Model provided invalid parameters. Error: {error}",
+      "matches_found": "Found {count} {term}",
+      "search_error": "Error: {error}"
+    },
+    "read_file": {
+      "validation_error": "Error: {error}"
+    },
+    "write_file": {
+      "validation_error": "Error: {error}",
+      "file_check_error": "Error checking existing file: {error}",
+      "write_error": "Error: {error}"
+    }
+  },
+  "auth": {
+    "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
+    "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
+    "invalid_method": "Invalid auth method selected."
   }
 }

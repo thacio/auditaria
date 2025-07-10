@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
@@ -90,7 +91,7 @@ function executeShellCommand(
         if (isBinary(sniffBuffer)) {
           streamToUi = false;
           // Overwrite any garbled text that may have streamed with a clear message.
-          onOutputChunk('[Binary output detected. Halting stream...]');
+          onOutputChunk(t('shell.binary_output_detected', '[Binary output detected. Halting stream...]'));
         }
       }
 
@@ -115,7 +116,7 @@ function executeShellCommand(
           0,
         );
         onOutputChunk(
-          `[Receiving binary output... ${formatMemoryUsage(totalBytes)} received]`,
+          t('shell.receiving_binary_output', '[Receiving binary output... {size} received]', { size: formatMemoryUsage(totalBytes) }),
         );
       }
     };
@@ -272,11 +273,10 @@ export const useShellCommandProcessor = (
             // cannot be parsed and understood and thus would only pollute the context window and waste
             // tokens.
             if (isBinary(result.rawOutput)) {
-              mainContent =
-                '[Command produced binary output, which is not shown.]';
+              mainContent = t('shell.binary_output_not_shown', '[Command produced binary output, which is not shown.]');
             } else {
               mainContent =
-                result.output.trim() || '(Command produced no output)';
+                result.output.trim() || t('shell.no_output', '(Command produced no output)');
             }
 
             let finalOutput = mainContent;
@@ -285,19 +285,19 @@ export const useShellCommandProcessor = (
               historyItemType = 'error';
               finalOutput = `${result.error.message}\n${finalOutput}`;
             } else if (result.aborted) {
-              finalOutput = `Command was cancelled.\n${finalOutput}`;
+              finalOutput = `${t('shell.command_cancelled', 'Command was cancelled.')}\n${finalOutput}`;
             } else if (result.signal) {
               historyItemType = 'error';
-              finalOutput = `Command terminated by signal: ${result.signal}.\n${finalOutput}`;
+              finalOutput = `${t('shell.command_terminated_signal', 'Command terminated by signal: {signal}.', { signal: result.signal })}\n${finalOutput}`;
             } else if (result.exitCode !== 0) {
               historyItemType = 'error';
-              finalOutput = `Command exited with code ${result.exitCode}.\n${finalOutput}`;
+              finalOutput = `${t('shell.command_exit_code', 'Command exited with code {code}.', { code: result.exitCode ?? 'unknown' })}\n${finalOutput}`;
             }
 
             if (pwdFilePath && fs.existsSync(pwdFilePath)) {
               const finalPwd = fs.readFileSync(pwdFilePath, 'utf8').trim();
               if (finalPwd && finalPwd !== targetDir) {
-                const warning = `WARNING: shell mode is stateless; the directory change to '${finalPwd}' will not persist.`;
+                const warning = t('shell.directory_change_warning', 'WARNING: shell mode is stateless; the directory change to \'{directory}\' will not persist.', { directory: finalPwd });
                 finalOutput = `${warning}\n\n${finalOutput}`;
               }
             }
@@ -318,7 +318,7 @@ export const useShellCommandProcessor = (
             addItemToHistory(
               {
                 type: 'error',
-                text: `An unexpected error occurred: ${errorMessage}`,
+                text: t('shell.unexpected_error', 'An unexpected error occurred: {error}', { error: errorMessage }),
               },
               userMessageTimestamp,
             );

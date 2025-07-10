@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import {
   AuthType,
@@ -19,13 +20,13 @@ import {
 const getRateLimitErrorMessageGoogleFree = (
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nPossible quota limitations in place or slow response times detected. Switching to the ${fallbackModel} model for the rest of this session.`;
+  t('errors.rate_limit_google_free', '\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.', { fallbackModel });
 
 const getRateLimitErrorMessageGoogleProQuotaFree = (
   currentModel: string = DEFAULT_GEMINI_MODEL,
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nYou have reached your daily ${currentModel} quota limit. You will be switched to the ${fallbackModel} model for the rest of this session. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+  t('errors.rate_limit_google_pro_quota_free', '\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { currentModel, fallbackModel });
 
 const getRateLimitErrorMessageGoogleGenericQuotaFree = () =>
   `\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
@@ -160,5 +161,5 @@ export function parseAndFormatApiError(
     return `[API Error: ${error}]`;
   }
 
-  return '[API Error: An unknown error occurred.]';
+  return t('errors.api_unknown', '[API Error: An unknown error occurred.]');
 }

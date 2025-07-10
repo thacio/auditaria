@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '../i18n/index.js';
 
 import fs from 'fs';
 import fsPromises from 'fs/promises';
@@ -171,7 +172,7 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
     if (validationError) {
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: `Model provided invalid parameters. Error: ${validationError}`,
+        returnDisplay: t('tools.grep.invalid_parameters', 'Model provided invalid parameters. Error: {error}', { error: validationError }),
       };
     }
 
@@ -188,8 +189,8 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
       });
 
       if (matches.length === 0) {
-        const noMatchMsg = `No matches found for pattern "${params.pattern}" in path "${searchDirDisplay}"${params.include ? ` (filter: "${params.include}")` : ''}.`;
-        return { llmContent: noMatchMsg, returnDisplay: `No matches found` };
+        const noMatchMsg = t('tools.grep.no_matches_detailed', 'No matches found for pattern "{pattern}" in path "{path}"{filter}.', { pattern: params.pattern, path: searchDirDisplay, filter: params.include ? ` (filter: "${params.include}")` : '' });
+        return { llmContent: noMatchMsg, returnDisplay: t('tools.grep.no_matches', 'No matches found') };
       }
 
       const matchesByFile = matches.reduce(
@@ -225,14 +226,14 @@ export class GrepTool extends BaseTool<GrepToolParams, ToolResult> {
 
       return {
         llmContent: llmContent.trim(),
-        returnDisplay: `Found ${matchCount} ${matchTerm}`,
+        returnDisplay: t('tools.grep.matches_found', 'Found {count} {term}', { count: matchCount, term: matchTerm }),
       };
     } catch (error) {
       console.error(`Error during GrepLogic execution: ${error}`);
       const errorMessage = getErrorMessage(error);
       return {
         llmContent: `Error during grep search operation: ${errorMessage}`,
-        returnDisplay: `Error: ${errorMessage}`,
+        returnDisplay: t('tools.grep.search_error', 'Error: {error}', { error: errorMessage }),
       };
     }
   }

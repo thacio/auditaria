@@ -317,12 +317,111 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - **Completed work**:
   - ✅ Clear command description
 
+### ✅ packages/cli/src/ui/privacy/CloudFreePrivacyNotice.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~12 strings
+- **Completed work**:
+  - ✅ Privacy notice title and loading text
+  - ✅ Error messages and exit instructions
+  - ✅ Yes/No option labels
+  - ✅ Data collection policy text and privacy notice intro
+  - ✅ Human review description and consent question
+  - ✅ Enter to choose instruction
+
+### ✅ packages/cli/src/ui/privacy/GeminiPrivacyNotice.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~3 strings
+- **Completed work**:
+  - ✅ Gemini API Key Notice title
+  - ✅ API Terms of Service text with multiple reference links
+  - ✅ Exit instruction (Press Esc to exit)
+
+### ✅ packages/cli/src/ui/privacy/CloudPaidPrivacyNotice.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~3 strings
+- **Completed work**:
+  - ✅ Vertex AI Notice title
+  - ✅ Service Specific Terms legal text with reference links
+  - ✅ Exit instruction (Press Esc to exit)
+
+### ✅ packages/core/src/tools/edit.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~8 strings
+- **Completed work**:
+  - ✅ File path validation error messages
+  - ✅ File not found error messages with creation instructions
+  - ✅ Edit failure messages (file exists, string not found, replacement count)
+  - ✅ Detailed error messages with tool name references
+
+### ✅ packages/core/src/tools/shell.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~10 strings
+- **Completed work**:
+  - ✅ Validation error messages
+  - ✅ Shell command output labels (Command, Directory, Stdout, Stderr, Error, Exit Code, Signal, Background PIDs, Process Group)
+
+### ✅ packages/core/src/tools/grep.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~3 strings
+- **Completed work**:
+  - ✅ Tool description for pattern searching
+  - ✅ No matches found messages (detailed and simple)
+
+### ✅ packages/cli/src/config/auth.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~4 strings
+- **Completed work**:
+  - ✅ GEMINI_API_KEY environment variable error
+  - ✅ Vertex AI configuration error with bullet points
+  - ✅ Invalid auth method error
+  - ✅ Authentication failure message
+
+### ✅ packages/core/src/tools/read-file.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Tool description for file reading capabilities
+
+### ✅ packages/core/src/tools/write-file.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ File path must be absolute error message
+
+### ✅ packages/cli/src/ui/hooks/useAuthCommand.ts
+- **Status**: Already completed (contains single failure message from auth.messages.failed_login)
+- **Date**: 2025-01-10
+- **Note**: Contains previously extracted authentication failure message
+
+### ✅ packages/cli/src/ui/hooks/useThemeCommand.ts
+- **Status**: Already completed (contains theme error messages)
+- **Date**: 2025-01-10
+- **Note**: Contains previously extracted theme-related messages
+
+### ✅ packages/cli/src/ui/hooks/useEditorSettings.ts
+- **Status**: Already completed (contains editor preference messages)
+- **Date**: 2025-01-10
+- **Note**: Contains previously extracted editor setting messages
+
+### ✅ packages/cli/src/ui/hooks/usePrivacySettings.ts
+- **Status**: Already completed (contains privacy error messages)
+- **Date**: 2025-01-10
+- **Note**: Contains previously extracted OAuth and tier error messages
+
 ### 🔄 Files In Progress
 - None currently
 
 ### 📋 Files To Process
-- packages/core/src/tools/*.ts (tool descriptions and error messages)
-- packages/cli/src/ui/privacy/*.tsx (privacy notice strings)
+- Additional core tools as needed (packages/core/src/tools/*.ts)
 - Additional UI components as needed
 
 ## Translation Keys Structure

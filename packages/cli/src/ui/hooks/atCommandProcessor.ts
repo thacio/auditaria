@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -149,7 +150,7 @@ export async function handleAtCommand({
 
   if (!readManyFilesTool) {
     addItem(
-      { type: 'error', text: 'Error: read_many_files tool not found.' },
+      { type: 'error', text: t('at_command.tool_not_found', 'Error: read_many_files tool not found.') },
       userMessageTimestamp,
     );
     return { processedQuery: null, shouldProceed: false };
@@ -172,7 +173,7 @@ export async function handleAtCommand({
       addItem(
         {
           type: 'error',
-          text: `Error: Invalid @ command '${originalAtPath}'. No path specified.`,
+          text: t('at_command.invalid_command', 'Error: Invalid @ command \'{command}\'. No path specified.', { command: originalAtPath }),
         },
         userMessageTimestamp,
       );
@@ -360,14 +361,14 @@ export async function handleAtCommand({
       status: ToolCallStatus.Success,
       resultDisplay:
         result.returnDisplay ||
-        `Successfully read: ${contentLabelsForDisplay.join(', ')}`,
+        t('at_command.successfully_read', 'Successfully read: {files}', { files: contentLabelsForDisplay.join(', ') }),
       confirmationDetails: undefined,
     };
 
     if (Array.isArray(result.llmContent)) {
       const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
       processedQueryParts.push({
-        text: '\n--- Content from referenced files ---',
+        text: t('at_command.content_header', '\n--- Content from referenced files ---'),
       });
       for (const part of result.llmContent) {
         if (typeof part === 'string') {
@@ -376,7 +377,7 @@ export async function handleAtCommand({
             const filePathSpecInContent = match[1]; // This is a resolved pathSpec
             const fileActualContent = match[2].trim();
             processedQueryParts.push({
-              text: `\nContent from @${filePathSpecInContent}:\n`,
+              text: t('at_command.content_from_file', '\nContent from @{file}:\n', { file: filePathSpecInContent }),
             });
             processedQueryParts.push({ text: fileActualContent });
           } else {
@@ -387,7 +388,7 @@ export async function handleAtCommand({
           processedQueryParts.push(part);
         }
       }
-      processedQueryParts.push({ text: '\n--- End of content ---' });
+      processedQueryParts.push({ text: t('at_command.content_footer', '\n--- End of content ---') });
     } else {
       onDebugMessage(
         'read_many_files tool returned no content or empty content.',
@@ -408,7 +409,7 @@ export async function handleAtCommand({
       name: readManyFilesTool.displayName,
       description: readManyFilesTool.getDescription(toolArgs),
       status: ToolCallStatus.Error,
-      resultDisplay: `Error reading files (${contentLabelsForDisplay.join(', ')}): ${getErrorMessage(error)}`,
+      resultDisplay: t('at_command.error_reading_files', 'Error reading files ({files}): {error}', { files: contentLabelsForDisplay.join(', '), error: getErrorMessage(error) }),
       confirmationDetails: undefined,
     };
     addItem(

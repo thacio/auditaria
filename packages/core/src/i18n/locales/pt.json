@@ -392,5 +392,67 @@
   },
   "update": {
     "available": "Atualização do Gemini CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar"
+  },
+  "privacy": {
+    "oauth_not_used": "OAuth não está sendo usado",
+    "no_current_tier": "Usuário não possui um nível atual",
+    "loading": "Carregando...",
+    "error_loading_optin": "Erro ao carregar configurações de Opt-in: {error}",
+    "press_esc_exit": "Pressione Esc para sair.",
+    "yes": "Sim",
+    "no": "Não",
+    "gemini_code_assist_notice_title": "Aviso de Privacidade do Gemini Code Assist para Indivíduos",
+    "notice_intro": "Este aviso e nossa Política de Privacidade {ref} descrevem como o Gemini Code Assist lida com seus dados. Por favor, leia-os cuidadosamente.",
+    "data_collection_description": "Quando você usa o Gemini Code Assist para indivíduos com Gemini CLI, o Google coleta seus prompts, código relacionado, saída gerada, edições de código, informações de uso de recursos relacionados e seu feedback para fornecer, melhorar e desenvolver produtos e serviços do Google e tecnologias de aprendizado de máquina.",
+    "human_review_description": "Para ajudar com qualidade e melhorar nossos produtos (como modelos generativos de aprendizado de máquina), revisores humanos podem ler, anotar e processar os dados coletados acima. Tomamos medidas para proteger sua privacidade como parte deste processo. Isso inclui desconectar os dados de sua Conta Google antes que os revisores vejam ou anotem, e armazenar essas cópias desconectadas por até 18 meses. Por favor, não submeta informações confidenciais ou qualquer dado que você não gostaria que um revisor visse ou que o Google usasse para melhorar nossos produtos, serviços e tecnologias de aprendizado de máquina.",
+    "allow_data_usage_question": "Permitir que o Google use estes dados para desenvolver e melhorar nossos produtos?",
+    "press_enter_choose_exit": "Pressione Enter para escolher uma opção e sair.",
+    "gemini_api_key_notice_title": "Aviso da Chave API Gemini",
+    "gemini_api_terms_text": "Ao usar a API Gemini {ref1}, Google AI Studio {ref2}, e os outros serviços de desenvolvedor do Google que referenciam estes termos (coletivamente, as \"APIs\" ou \"Serviços\"), você está concordando com os Termos de Serviço das APIs do Google (os \"Termos da API\") {ref3}, e os Termos de Serviço Adicionais da API Gemini (os \"Termos Adicionais\") {ref4}.",
+    "vertex_ai_notice_title": "Aviso do Vertex AI",
+    "vertex_ai_service_terms_text": "Os Termos Específicos do Serviço {ref1} são incorporados ao acordo sob o qual o Google concordou em fornecer o Google Cloud Platform {ref2} ao Cliente (o \"Acordo\"). Se o Acordo autorizar a revenda ou fornecimento do Google Cloud Platform sob um programa de parceiro ou revendedor do Google Cloud, então, exceto na seção intitulada \"Termos Específicos do Parceiro\", todas as referências ao Cliente nos Termos Específicos do Serviço significam Parceiro ou Revendedor (conforme aplicável), e todas as referências aos Dados do Cliente nos Termos Específicos do Serviço significam Dados do Parceiro. Termos em maiúsculas usados mas não definidos nos Termos Específicos do Serviço têm o significado dado a eles no Acordo."
+  },
+  "tools": {
+    "edit": {
+      "file_path_must_be_absolute": "Caminho do arquivo deve ser absoluto: {path}",
+      "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
+      "file_not_found_raw": "Arquivo não encontrado: {path}",
+      "failed_create_exists": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
+      "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
+      "failed_replacement_count": "Falha ao editar, esperado {expected} {term} mas encontrado {found}.",
+      "validation_error": "Erro: {error}",
+      "error_preparing_edit": "Erro ao preparar edição: {error}",
+      "error_display": "Erro: {error}",
+      "created_file": "Criado {file}",
+      "error_writing_file": "Erro ao escrever arquivo: {error}"
+    },
+    "shell": {
+      "validation_error": "Erro: {error}",
+      "command_cancelled_user": "Comando cancelado pelo usuário.",
+      "command_terminated_signal": "Comando terminado por sinal: {signal}",
+      "command_failed": "Comando falhou: {error}",
+      "command_exit_code": "Comando saiu com código: {code}"
+    },
+    "grep": {
+      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" no caminho \"{path}\"{filter}.",
+      "no_matches": "Nenhuma correspondência encontrada",
+      "invalid_parameters": "Modelo forneceu parâmetros inválidos. Erro: {error}",
+      "matches_found": "Encontrado {count} {term}",
+      "search_error": "Erro: {error}"
+    },
+    "read_file": {
+      "validation_error": "Erro: {error}"
+    },
+    "write_file": {
+      "validation_error": "Erro: {error}",
+      "file_check_error": "Erro ao verificar arquivo existente: {error}",
+      "write_error": "Erro: {error}"
+    }
+  },
+  "auth": {
+    "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione isso ao seu ambiente e tente novamente (não é necessário recarregar se estiver usando .env)!",
+    "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se estiver usando .env)!",
+    "invalid_method": "Método de autenticação inválido selecionado.",
+    "failed_login": "Falha no login. Mensagem: {error}"
   }
 }
