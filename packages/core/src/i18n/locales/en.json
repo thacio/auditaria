@@ -678,5 +678,23 @@
     "activated": "Activated extension: {name} (version: {version})",
     "disabled": "Disabled extension: {name}",
     "not_found": "Extension not found: {name}"
+  },
+  "app": {
+    "memory_refreshing": "Refreshing hierarchical memory (GEMINI.md or other context files)...",
+    "memory_refreshed_success": "Memory refreshed successfully. Loaded {chars} characters from {count} file(s).",
+    "memory_refreshed_no_content": "Memory refreshed successfully. No memory content found.",
+    "memory_refresh_error": "Error refreshing memory: {error}",
+    "reauth_required": "reauth required",
+    "quota_exceeded_pro_paid": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "quota_exceeded_pro_free": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "quota_exceeded_generic_paid": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "quota_exceeded_generic_free": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "fallback_default_paid": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "fallback_default_free": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "auth_timeout": "Authentication timed out. Please try again.",
+    "press_ctrl_c_exit": "Press Ctrl+C again to exit.",
+    "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
+    "initialization_error": "Initialization Error: {error}",
+    "check_api_config": "Please check API key and configuration."
   }
 }

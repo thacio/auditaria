@@ -512,6 +512,19 @@ This file tracks the progress of extracting hardcoded strings and implementing i
   - ✅ Gemini API and Vertex AI rate limit messages
   - ✅ Generic API error handling and formatting
 
+### ✅ packages/cli/src/ui/App.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~15 strings
+- **Completed work**:
+  - ✅ Memory refresh messages (refreshing, success, error states)
+  - ✅ Authentication timeout and reauth messages
+  - ✅ Comprehensive quota exceeded messages for different user tiers
+  - ✅ Model fallback messages (pro quota, generic quota, capacity errors)
+  - ✅ Exit confirmation messages (Ctrl+C, Ctrl+D instructions)
+  - ✅ Initialization error messages
+  - ✅ API configuration validation messages
+
 ### 🔄 Files In Progress
 - None currently
 
@@ -538,10 +551,10 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 
 ## Summary
 
-- **Total files processed**: 85+ 
-- **Files with extracted strings**: 77+
+- **Total files processed**: 86+ 
+- **Files with extracted strings**: 78+
 - **Files with no strings to extract**: 8
-- **Total extracted strings**: ~300+ across all categories
+- **Total extracted strings**: ~315+ across all categories
 - **Translation coverage**: English and Portuguese
 - **Categories covered**: 
   - Slash commands and help system

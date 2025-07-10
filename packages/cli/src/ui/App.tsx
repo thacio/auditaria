@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
@@ -189,7 +190,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     addItem(
       {
         type: MessageType.INFO,
-        text: 'Refreshing hierarchical memory (GEMINI.md or other context files)...',
+        text: t('app.memory_refreshing', 'Refreshing hierarchical memory (GEMINI.md or other context files)...'),
       },
       Date.now(),
     );
@@ -207,7 +208,9 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
       addItem(
         {
           type: MessageType.INFO,
-          text: `Memory refreshed successfully. ${memoryContent.length > 0 ? `Loaded ${memoryContent.length} characters from ${fileCount} file(s).` : 'No memory content found.'}`,
+          text: memoryContent.length > 0 
+            ? t('app.memory_refreshed_success', 'Memory refreshed successfully. Loaded {chars} characters from {count} file(s).', { chars: memoryContent.length, count: fileCount })
+            : t('app.memory_refreshed_no_content', 'Memory refreshed successfully. No memory content found.'),
         },
         Date.now(),
       );
@@ -221,7 +224,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
       addItem(
         {
           type: MessageType.ERROR,
-          text: `Error refreshing memory: ${errorMessage}`,
+          text: t('app.memory_refresh_error', 'Error refreshing memory: {error}', { error: errorMessage }),
         },
         Date.now(),
       );
@@ -263,41 +266,23 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
       // Check if this is a Pro quota exceeded error
       if (error && isProQuotaExceededError(error)) {
         if (isPaidTier) {
-          message = `⚡ You have reached your daily ${currentModel} quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+          message = t('app.quota_exceeded_pro_paid', '⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { model: currentModel, fallback: fallbackModel });
         } else {
-          message = `⚡ You have reached your daily ${currentModel} quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+          message = t('app.quota_exceeded_pro_free', '⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth', { model: currentModel, fallback: fallbackModel });
         }
       } else if (error && isGenericQuotaExceededError(error)) {
         if (isPaidTier) {
-          message = `⚡ You have reached your daily quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+          message = t('app.quota_exceeded_generic_paid', '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { model: currentModel, fallback: fallbackModel });
         } else {
-          message = `⚡ You have reached your daily quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+          message = t('app.quota_exceeded_generic_free', '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth', { model: currentModel, fallback: fallbackModel });
         }
       } else {
         if (isPaidTier) {
           // Default fallback message for other cases (like consecutive 429s)
-          message = `⚡ Automatically switching from ${currentModel} to ${fallbackModel} for faster responses for the remainder of this session.
-⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily ${currentModel} quota limit
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+          message = t('app.fallback_default_paid', '⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { model: currentModel, fallback: fallbackModel });
         } else {
           // Default fallback message for other cases (like consecutive 429s)
-          message = `⚡ Automatically switching from ${currentModel} to ${fallbackModel} for faster responses for the remainder of this session.  
-⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily ${currentModel} quota limit
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+          message = t('app.fallback_default_free', '⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth', { model: currentModel, fallback: fallbackModel });
         }
       }
 
@@ -461,7 +446,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
   }, [settings, openEditorDialog]);
 
   const onAuthError = useCallback(() => {
-    setAuthError('reauth required');
+    setAuthError(t('app.reauth_required', 'reauth required'));
     openAuthDialog();
   }, [openAuthDialog, setAuthError]);
 
@@ -730,7 +715,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
           ) : isAuthenticating ? (
             <AuthInProgress
               onTimeout={() => {
-                setAuthError('Authentication timed out. Please try again.');
+                setAuthError(t('app.auth_timeout', 'Authentication timed out. Please try again.'));
                 cancelAuthentication();
                 openAuthDialog();
               }}
@@ -789,11 +774,11 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
                   )}
                   {ctrlCPressedOnce ? (
                     <Text color={Colors.AccentYellow}>
-                      Press Ctrl+C again to exit.
+                      {t('app.press_ctrl_c_exit', 'Press Ctrl+C again to exit.')}
                     </Text>
                   ) : ctrlDPressedOnce ? (
                     <Text color={Colors.AccentYellow}>
-                      Press Ctrl+D again to exit.
+                      {t('app.press_ctrl_d_exit', 'Press Ctrl+D again to exit.')}
                     </Text>
                   ) : (
                     <ContextSummaryDisplay
@@ -870,11 +855,11 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
               ) : (
                 <>
                   <Text color={Colors.AccentRed}>
-                    Initialization Error: {initError}
+                    {t('app.initialization_error', 'Initialization Error: {error}', { error: initError })}
                   </Text>
                   <Text color={Colors.AccentRed}>
                     {' '}
-                    Please check API key and configuration.
+                    {t('app.check_api_config', 'Please check API key and configuration.')}
                   </Text>
                 </>
               )}
