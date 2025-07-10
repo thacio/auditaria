@@ -110,6 +110,32 @@
       "file_not_found": "Arquivo não encontrado: {file}",
       "project_restored": "Projeto restaurado para o estado antes da chamada da ferramenta.",
       "read_error": "Não foi possível ler chamadas de ferramenta restauráveis. Este é o erro: {error}"
+    },
+    "memory": {
+      "description": "Comandos para interagir com a memória.",
+      "show": {
+        "description": "Mostrar o conteúdo atual da memória.",
+        "content_with_files": "Conteúdo atual da memória de {fileCount} arquivo(s):\n\n---\n{memoryContent}\n---",
+        "empty": "A memória está atualmente vazia."
+      },
+      "add": {
+        "description": "Adicionar conteúdo à memória.",
+        "usage": "Uso: /memory add <texto para lembrar>",
+        "attempting": "Tentando salvar na memória: \"{text}\""
+      },
+      "refresh": {
+        "description": "Atualizar a memória da origem.",
+        "refreshing": "Atualizando memória dos arquivos de origem...",
+        "success_with_content": "Memória atualizada com sucesso. Carregados {charCount} caracteres de {fileCount} arquivo(s).",
+        "success_no_content": "Memória atualizada com sucesso. Nenhum conteúdo de memória encontrado.",
+        "error": "Erro ao atualizar memória: {error}"
+      }
+    },
+    "help": {
+      "description": "para ajuda sobre gemini-cli"
+    },
+    "clear": {
+      "description": "limpar a tela e o histórico da conversa"
     }
   },
   "help": {
@@ -157,7 +183,9 @@
       "api_key_detected": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
       "must_select_auth": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
       "use_enter": "(Use Enter para selecionar)",
-      "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI"
+      "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
+      "auth_timeout": "Autenticação expirou. Tente novamente.",
+      "waiting_for_auth": "Aguardando autenticação... (Pressione ESC para cancelar)"
     }
   },
   "footer": {
@@ -262,7 +290,9 @@
   },
   "console_summary": {
     "error_count": "{count} erro{plural}",
-    "ctrl_o_details": "(ctrl+o para detalhes)"
+    "ctrl_o_details": "(ctrl+o para detalhes)",
+    "debug_console": "Console de Debug",
+    "ctrl_o_close": "ctrl+o para fechar"
   },
   "auto_accept": {
     "accepting_edits": "aceitando edições",
@@ -295,9 +325,72 @@
     "compressed": "Histórico do chat comprimido de {original} para {new} tokens.",
     "unknown": "desconhecido"
   },
+  "stats": {
+    "session_stats": "Estatísticas da Sessão",
+    "session_goodbye": "Agente desligando. Tchau!",
+    "model_stats_title": "Estatísticas do Modelo Para Nerds",
+    "tool_stats_title": "Estatísticas de Ferramentas Para Nerds",
+    "no_api_calls": "Nenhuma chamada de API foi feita nesta sessão.",
+    "no_tool_calls": "Nenhuma chamada de ferramenta foi feita nesta sessão.",
+    "sections": {
+      "interaction_summary": "Resumo da Interação",
+      "performance": "Performance",
+      "model_usage": "Uso do Modelo",
+      "user_decision_summary": "Resumo de Decisões do Usuário",
+      "api": "API"
+    },
+    "labels": {
+      "tool_calls": "Chamadas de Ferramenta:",
+      "success_rate": "Taxa de Sucesso:",
+      "user_agreement": "Concordância do Usuário:",
+      "wall_time": "Tempo Total:",
+      "agent_active": "Agente Ativo:",
+      "api_time": "Tempo de API:",
+      "tool_time": "Tempo de Ferramenta:",
+      "metric": "Métrica",
+      "tool_name": "Nome da Ferramenta",
+      "calls": "Chamadas",
+      "avg_duration": "Duração Média",
+      "requests": "Requisições",
+      "errors": "Erros",
+      "avg_latency": "Latência Média",
+      "tokens": "Tokens",
+      "total": "Total",
+      "prompt": "Prompt",
+      "cached": "Cache",
+      "thoughts": "Pensamentos",
+      "tool": "Ferramenta",
+      "output": "Saída",
+      "input_tokens": "Tokens de Entrada",
+      "output_tokens": "Tokens de Saída",
+      "reqs": "Reqs",
+      "total_reviewed": "Total de Sugestões Revisadas:",
+      "accepted": " » Aceitas:",
+      "rejected": " » Rejeitadas:",
+      "modified": " » Modificadas:",
+      "overall_agreement": " Taxa Geral de Concordância:",
+      "reviewed": "revisadas"
+    },
+    "messages": {
+      "savings_highlight": "Destaque de Economia:",
+      "cached_tokens": "{count} ({percentage}%) dos tokens de entrada foram servidos do cache, reduzindo custos.",
+      "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`."
+    }
+  },
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
     "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}"
+  },
+  "diff": {
+    "no_content": "Nenhum conteúdo de diff.",
+    "no_changes": "Nenhuma alteração detectada."
+  },
+  "show_more": {
+    "first_lines_hidden": "... primeiras {count} linha{plural} oculta{plural} ...",
+    "last_lines_hidden": "... últimas {count} linha{plural} oculta{plural} ..."
+  },
+  "update": {
+    "available": "Atualização do Gemini CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar"
   }
 }

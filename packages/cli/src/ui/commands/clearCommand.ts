@@ -5,10 +5,11 @@
  */
 
 import { SlashCommand } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const clearCommand: SlashCommand = {
   name: 'clear',
-  description: 'clear the screen and conversation history',
+  description: t('commands.clear.description', 'clear the screen and conversation history'),
   action: async (context, _args) => {
     context.ui.setDebugMessage('Clearing terminal and resetting chat.');
     await context.services.config?.getGeminiClient()?.resetChat();

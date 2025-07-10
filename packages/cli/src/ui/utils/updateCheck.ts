@@ -7,6 +7,7 @@
 import updateNotifier from 'update-notifier';
 import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export async function checkForUpdates(): Promise<string | null> {
   try {
@@ -29,7 +30,7 @@ export async function checkForUpdates(): Promise<string | null> {
       notifier.update &&
       semver.gt(notifier.update.latest, notifier.update.current)
     ) {
-      return `Gemini CLI update available! ${notifier.update.current} → ${notifier.update.latest}\nRun npm install -g ${packageJson.name} to update`;
+      return t('update.available', 'Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update', { current: notifier.update.current, latest: notifier.update.latest, packageName: packageJson.name });
     }
 
     return null;

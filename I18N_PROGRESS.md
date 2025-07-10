@@ -254,11 +254,73 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - **Completed work**:
   - ✅ Session goodbye message
 
+### ✅ packages/cli/src/ui/components/AuthInProgress.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Authentication timeout message
+  - ✅ Waiting for auth message with ESC instruction
+
+### ✅ packages/cli/src/ui/components/DetailedMessagesDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Debug Console title
+  - ✅ Keyboard shortcut for closing (ctrl+o)
+
+### ✅ packages/cli/src/ui/components/messages/DiffRenderer.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ No diff content message
+  - ✅ No changes detected message
+
+### ✅ packages/cli/src/ui/components/shared/MaxSizedBox.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ First lines hidden message with plural support
+  - ✅ Last lines hidden message with plural support
+
+### ✅ packages/cli/src/ui/commands/memoryCommand.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~10 strings
+- **Completed work**:
+  - ✅ Memory command description and subcommand descriptions
+  - ✅ Show memory messages (empty state, content with file count)
+  - ✅ Add memory messages (usage, attempting to save)
+  - ✅ Refresh memory messages (refreshing, success states, error handling)
+
+### ✅ packages/cli/src/ui/utils/updateCheck.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Update available notification with version and install command
+
+### ✅ packages/cli/src/ui/commands/helpCommand.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Help command description
+
+### ✅ packages/cli/src/ui/commands/clearCommand.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Clear command description
+
 ### 🔄 Files In Progress
 - None currently
 
 ### 📋 Files To Process
-- packages/cli/src/ui/commands/memoryCommand.ts (memory command strings)
 - packages/core/src/tools/*.ts (tool descriptions and error messages)
 - packages/cli/src/ui/privacy/*.tsx (privacy notice strings)
 - Additional UI components as needed

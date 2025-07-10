@@ -110,6 +110,32 @@
       "file_not_found": "File not found: {file}",
       "project_restored": "Restored project to the state before the tool call.",
       "read_error": "Could not read restorable tool calls. This is the error: {error}"
+    },
+    "memory": {
+      "description": "Commands for interacting with memory.",
+      "show": {
+        "description": "Show the current memory contents.",
+        "content_with_files": "Current memory content from {fileCount} file(s):\n\n---\n{memoryContent}\n---",
+        "empty": "Memory is currently empty."
+      },
+      "add": {
+        "description": "Add content to the memory.",
+        "usage": "Usage: /memory add <text to remember>",
+        "attempting": "Attempting to save to memory: \"{text}\""
+      },
+      "refresh": {
+        "description": "Refresh the memory from the source.",
+        "refreshing": "Refreshing memory from source files...",
+        "success_with_content": "Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).",
+        "success_no_content": "Memory refreshed successfully. No memory content found.",
+        "error": "Error refreshing memory: {error}"
+      }
+    },
+    "help": {
+      "description": "for help on gemini-cli"
+    },
+    "clear": {
+      "description": "clear the screen and conversation history"
     }
   },
   "help": {
@@ -157,7 +183,9 @@
       "api_key_detected": "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.",
       "must_select_auth": "You must select an auth method to proceed. Press Ctrl+C twice to exit.",
       "use_enter": "(Use Enter to select)",
-      "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI"
+      "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
+      "auth_timeout": "Authentication timed out. Please try again.",
+      "waiting_for_auth": "Waiting for auth... (Press ESC to cancel)"
     }
   },
   "footer": {
@@ -226,7 +254,7 @@
   "editor_dialog": {
     "title": "Select Editor",
     "apply_to": "Apply To",
-    "editor_preference": "Editor Preference", 
+    "editor_preference": "Editor Preference",
     "scope_options": {
       "user_settings": "User Settings",
       "workspace_settings": "Workspace Settings"
@@ -262,7 +290,9 @@
   },
   "console_summary": {
     "error_count": "{count} error{plural}",
-    "ctrl_o_details": "(ctrl+o for details)"
+    "ctrl_o_details": "(ctrl+o for details)",
+    "debug_console": "Debug Console",
+    "ctrl_o_close": "ctrl+o to close"
   },
   "auto_accept": {
     "accepting_edits": "accepting edits",
@@ -350,5 +380,16 @@
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",
     "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}"
+  },
+  "diff": {
+    "no_content": "No diff content.",
+    "no_changes": "No changes detected."
+  },
+  "show_more": {
+    "first_lines_hidden": "... first {count} line{plural} hidden ...",
+    "last_lines_hidden": "... last {count} line{plural} hidden ..."
+  },
+  "update": {
+    "available": "Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update"
   }
 }

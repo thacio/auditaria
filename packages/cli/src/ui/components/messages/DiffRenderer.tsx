@@ -10,6 +10,7 @@ import { Colors } from '../../colors.js';
 import crypto from 'crypto';
 import { colorizeCode } from '../../utils/CodeColorizer.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 interface DiffLine {
   type: 'add' | 'del' | 'context' | 'hunk' | 'other';
@@ -105,7 +106,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   terminalWidth,
 }) => {
   if (!diffContent || typeof diffContent !== 'string') {
-    return <Text color={Colors.AccentYellow}>No diff content.</Text>;
+    return <Text color={Colors.AccentYellow}>{t('diff.no_content', 'No diff content.')}</Text>;
   }
 
   const parsedLines = parseDiffWithLineNumbers(diffContent);
@@ -113,7 +114,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
   if (parsedLines.length === 0) {
     return (
       <Box borderStyle="round" borderColor={Colors.Gray} padding={1}>
-        <Text dimColor>No changes detected.</Text>
+        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
       </Box>
     );
   }
@@ -181,7 +182,7 @@ const renderDiffContent = (
   if (displayableLines.length === 0) {
     return (
       <Box borderStyle="round" borderColor={Colors.Gray} padding={1}>
-        <Text dimColor>No changes detected.</Text>
+        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
       </Box>
     );
   }
