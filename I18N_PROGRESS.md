@@ -417,6 +417,99 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - **Date**: 2025-01-10
 - **Note**: Contains previously extracted OAuth and tier error messages
 
+### ✅ packages/cli/src/ui/hooks/useShowMemoryCommand.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~5 strings
+- **Completed work**:
+  - ✅ Configuration not available error
+  - ✅ Memory loaded from files info message
+  - ✅ Current memory content display
+  - ✅ Loaded but empty memory message
+  - ✅ No memory loaded message
+
+### ✅ packages/cli/src/utils/userStartupWarnings.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Home directory warning
+  - ✅ Directory verification error
+
+### ✅ packages/cli/src/utils/startupWarnings.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Cannot delete warnings file warning
+  - ✅ Error reading warnings file message
+
+### ✅ packages/cli/src/nonInteractiveCli.ts
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~2 strings
+- **Completed work**:
+  - ✅ Operation cancelled message
+  - ✅ Tool execution error message
+
+### ✅ packages/cli/src/utils/sandbox.ts
+- **Status**: Completed (Verified comprehensive)
+- **Date**: 2025-01-10
+- **Strings extracted**: ~30+ strings
+- **Completed work**:
+  - ✅ Debian UID/GID info message
+  - ✅ OS release warning
+  - ✅ Build sandbox restrictions (MacOS Seatbelt, installed binary)
+  - ✅ Seatbelt profile errors and usage messages
+  - ✅ Sandbox initialization messages (building, hopping into sandbox)
+  - ✅ Docker image management (checking, pulling, availability)
+  - ✅ Proxy management (starting, stopping, status)
+  - ✅ Mount configuration and validation
+  - ✅ Environment variable configuration
+  - ✅ Process status and error handling
+
+### ✅ packages/cli/src/config/extension.ts
+- **Status**: Completed (Verified comprehensive)
+- **Date**: 2025-01-10
+- **Strings extracted**: ~9 strings
+- **Completed work**:
+  - ✅ Extension loading message
+  - ✅ Warning messages (unexpected file, missing config)
+  - ✅ Configuration validation errors
+  - ✅ Extension parsing errors
+  - ✅ Extension status messages (activated, disabled, not found)
+  - ✅ All extensions disabled notification
+
+### ✅ packages/cli/src/ui/utils/updateCheck.ts
+- **Status**: Already completed (contains i18n)
+- **Date**: 2025-01-10
+- **Note**: Already has update notification string internationalized
+
+### ✅ packages/cli/src/ui/hooks/atCommandProcessor.ts
+- **Status**: Already completed (contains i18n)
+- **Date**: 2025-01-10  
+- **Note**: Already has comprehensive @ command string internationalization
+
+### ✅ packages/cli/src/ui/components/DetailedMessagesDisplay.tsx
+- **Status**: Already completed (contains i18n)
+- **Date**: 2025-01-10
+- **Note**: Already has debug console strings internationalized
+
+### ✅ packages/cli/src/ui/components/messages/DiffRenderer.tsx
+- **Status**: Already completed (contains i18n)
+- **Date**: 2025-01-10
+- **Note**: Already has diff display strings internationalized
+
+### ✅ packages/cli/src/ui/utils/errorParsing.ts
+- **Status**: Completed (Verified comprehensive)
+- **Date**: 2025-01-10
+- **Strings extracted**: ~10+ strings
+- **Completed work**:
+  - ✅ All rate limit error messages for different auth types
+  - ✅ Google-specific quota messages (free vs paid tiers)
+  - ✅ Gemini API and Vertex AI rate limit messages
+  - ✅ Generic API error handling and formatting
+
 ### 🔄 Files In Progress
 - None currently
 
@@ -441,8 +534,33 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - English (en) - ✅ Base implementation
 - Portuguese (pt) - ✅ Base implementation
 
+## Summary
+
+- **Total files processed**: 85+ 
+- **Files with extracted strings**: 77+
+- **Files with no strings to extract**: 8
+- **Total extracted strings**: ~300+ across all categories
+- **Translation coverage**: English and Portuguese
+- **Categories covered**: 
+  - Slash commands and help system
+  - Authentication dialogs and processes
+  - UI components and user interactions
+  - Tool confirmation and error messages
+  - Loading indicators and status displays
+  - Privacy notices and settings
+  - Statistical displays and summaries
+  - Hooks for memory, shell, editor, and theme management
+  - Core tools (edit, grep, read-file, shell, write-file)
+  - Utility functions and startup warnings
+  - Non-interactive CLI error handling
+  - Sandbox configuration and error messages
+  - Extension loading and management
+  - Update notifications and diff rendering
+
+The internationalization system is comprehensive and covers the vast majority of user-facing strings in the application.
+
 ## Next Steps
-1. Complete slashCommandProcessor.ts string extraction
-2. Move to high-priority UI components
-3. Add CLI initialization with language detection
-4. Create validation tools for translation completeness
+1. Add CLI initialization with language detection
+2. Create validation tools for translation completeness
+3. Process additional files as needed
+4. Add support for user language selection

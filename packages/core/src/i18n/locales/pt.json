@@ -381,7 +381,14 @@
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
-    "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}"
+    "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}",
+    "rate_limit_google_generic_quota_free": "\nVocê atingiu seu limite de cota diária. Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist, ou use /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+    "rate_limit_google_paid": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI.",
+    "rate_limit_google_pro_quota_paid": "\nVocê atingiu seu limite de cota diária do {currentModel}. Você será mudado para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+    "rate_limit_google_generic_quota_paid": "\nVocê atingiu seu limite de cota diária. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+    "rate_limit_use_gemini": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do AI Studio, ou mude para outro método /auth",
+    "rate_limit_vertex": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do Vertex, ou mude para outro método /auth",
+    "rate_limit_default": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão."
   },
   "diff": {
     "no_content": "Nenhum conteúdo de diff.",
@@ -454,5 +461,68 @@
     "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione-a ao seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
     "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
     "invalid_method": "Método de autenticação inválido selecionado."
+  },
+  "memory": {
+    "config_not_available": "Configuração não disponível. Não é possível mostrar a memória.",
+    "loaded_files": "Memória carregada de {count} arquivo{plural} {name}.",
+    "current_content": "Conteúdo atual combinado da memória:\n```markdown\n{content}\n```",
+    "loaded_but_empty": "Memória hierárquica (GEMINI.md ou outros arquivos de contexto) está carregada mas o conteúdo está vazio.",
+    "not_loaded": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está atualmente carregada."
+  },
+  "startup": {
+    "home_directory_warning": "Você está executando o Gemini CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "directory_verification_error": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
+    "cannot_delete_warnings_file": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
+    "error_reading_warnings_file": "Erro ao verificar/ler arquivo de avisos: {error}"
+  },
+  "non_interactive": {
+    "operation_cancelled": "Operação cancelada.",
+    "tool_execution_error": "Erro ao executar ferramenta {toolName}: {error}"
+  },
+  "sandbox": {
+    "debian_uid_gid_info": "INFO: Usando por padrão UID/GID do usuário atual para Linux baseado em Debian/Ubuntu.",
+    "os_release_warning": "Aviso: Não foi possível ler /etc/os-release para auto-detectar Debian/Ubuntu para padrão UID/GID.",
+    "cannot_build_with_seatbelt": "ERRO: não é possível BUILD_SANDBOX ao usar MacOS Seatbelt",
+    "missing_seatbelt_profile": "ERRO: arquivo de perfil macos seatbelt '{profileFile}' ausente",
+    "using_seatbelt": "usando macos seatbelt (perfil: {profile}) ...",
+    "hopping_into_sandbox": "entrando no sandbox (comando: {command}) ...",
+    "cannot_build_installed_binary": "ERRO: não é possível construir sandbox usando binário gemini instalado; execute `npm link ./packages/cli` sob o repo gemini-cli para mudar para binário linkado.",
+    "building_sandbox": "construindo sandbox ...",
+    "using_custom_dockerfile": "usando {dockerfile} para sandbox",
+    "image_missing_or_pull_failed": "ERRO: Imagem do sandbox '{image}' está ausente ou não pôde ser baixada. {remedy}",
+    "mount_path_not_absolute": "ERRO: caminho '{path}' listado em SANDBOX_MOUNTS deve ser absoluto",
+    "mount_path_missing": "ERRO: caminho de montagem '{path}' listado em SANDBOX_MOUNTS ausente",
+    "stopping_proxy": "parando proxy ...",
+    "proxy_command_exited": "ERRO: comando proxy '{command}' saiu com código {code}, sinal {signal}",
+    "waiting_proxy_start": "aguardando proxy iniciar ...",
+    "mount_info": "SANDBOX_MOUNTS: {from} -> {to} ({opts})",
+    "env_info": "SANDBOX_ENV: {env}",
+    "env_invalid_format": "ERRO: SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
+    "stopping_proxy_container": "parando container proxy ...",
+    "proxy_container_exited": "ERRO: comando container proxy '{command}' saiu com código {code}, sinal {signal}",
+    "process_error": "Erro no processo sandbox: {error}",
+    "process_exited": "Processo sandbox saiu com código: {code}, sinal: {signal}",
+    "failed_start_image_check": "Falha ao iniciar comando '{sandbox}' para verificação de imagem: {error}",
+    "attempting_pull_image": "Tentando baixar imagem {image} usando {sandbox}...",
+    "failed_start_pull_command": "Falha ao iniciar comando '{sandbox} pull {image}': {error}",
+    "successfully_pulled_image": "Imagem {image} baixada com sucesso.",
+    "failed_pull_image": "Falha ao baixar imagem {image}. '{sandbox} pull {image}' saiu com código {code}.",
+    "checking_image": "Verificando imagem do sandbox: {image}",
+    "image_found_locally": "Imagem do sandbox {image} encontrada localmente.",
+    "image_not_found_locally": "Imagem do sandbox {image} não encontrada localmente.",
+    "image_available_after_pull": "Imagem do sandbox {image} está agora disponível após o download.",
+    "image_still_not_found": "Imagem do sandbox {image} ainda não encontrada após tentativa de download. Isso pode indicar um problema com o nome da imagem ou registro, ou o comando de download reportou sucesso mas falhou em disponibilizar a imagem.",
+    "failed_obtain_image": "Falha ao obter imagem do sandbox {image} após verificação e tentativa de download."
+  },
+  "extension": {
+    "loading": "Carregando extensão: {name} (versão: {version})",
+    "unexpected_file": "Aviso: arquivo inesperado {path} no diretório de extensões.",
+    "missing_config": "Aviso: diretório de extensão {dir} não contém arquivo de configuração {config}.",
+    "invalid_config": "Configuração de extensão inválida em {path}: nome ou versão ausente.",
+    "parse_error": "Aviso: erro ao analisar configuração de extensão em {path}: {error}",
+    "all_disabled": "Todas as extensões estão desabilitadas.",
+    "activated": "Extensão ativada: {name} (versão: {version})",
+    "disabled": "Extensão desabilitada: {name}",
+    "not_found": "Extensão não encontrada: {name}"
   }
 }

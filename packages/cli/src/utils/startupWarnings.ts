@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import fs from 'fs/promises';
 import os from 'os';
@@ -21,7 +22,7 @@ export async function getStartupWarnings(): Promise<string[]> {
     try {
       await fs.unlink(warningsFilePath);
     } catch {
-      warnings.push('Warning: Could not delete temporary warnings file.');
+      warnings.push(t('startup.cannot_delete_warnings_file', 'Warning: Could not delete temporary warnings file.'));
     }
     return warnings;
   } catch (err: unknown) {
@@ -35,6 +36,6 @@ export async function getStartupWarnings(): Promise<string[]> {
       return []; // File not found, no warnings to return.
     }
     // For other errors (permissions, etc.), return the error message.
-    return [`Error checking/reading warnings file: ${getErrorMessage(err)}`];
+    return [t('startup.error_reading_warnings_file', 'Error checking/reading warnings file: {error}', { error: getErrorMessage(err) })];
   }
 }

@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import fs from 'fs/promises';
 import * as os from 'os';
@@ -23,11 +24,11 @@ const homeDirectoryCheck: WarningCheck = {
       ]);
 
       if (workspaceRealPath === homeRealPath) {
-        return 'You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.';
+        return t('startup.home_directory_warning', 'You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.');
       }
       return null;
     } catch (_err: unknown) {
-      return 'Could not verify the current directory due to a file system error.';
+      return t('startup.directory_verification_error', 'Could not verify the current directory due to a file system error.');
     }
   },
 };

@@ -380,7 +380,14 @@
   "errors": {
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",
-    "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}"
+    "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}",
+    "rate_limit_google_generic_quota_free": "\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_google_paid": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI.",
+    "rate_limit_google_pro_quota_paid": "\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_google_generic_quota_paid": "\nYou have reached your daily quota limit. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_use_gemini": "\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method",
+    "rate_limit_vertex": "\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method",
+    "rate_limit_default": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session."
   },
   "diff": {
     "no_content": "No diff content.",
@@ -481,5 +488,68 @@
     "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
     "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
     "invalid_method": "Invalid auth method selected."
+  },
+  "memory": {
+    "config_not_available": "Configuration not available. Cannot show memory.",
+    "loaded_files": "Loaded memory from {count} {name} file{plural}.",
+    "current_content": "Current combined memory content:\n```markdown\n{content}\n```",
+    "loaded_but_empty": "Hierarchical memory (GEMINI.md or other context files) is loaded but content is empty.",
+    "not_loaded": "No hierarchical memory (GEMINI.md or other context files) is currently loaded."
+  },
+  "startup": {
+    "home_directory_warning": "You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.",
+    "directory_verification_error": "Could not verify the current directory due to a file system error.",
+    "cannot_delete_warnings_file": "Warning: Could not delete temporary warnings file.",
+    "error_reading_warnings_file": "Error checking/reading warnings file: {error}"
+  },
+  "non_interactive": {
+    "operation_cancelled": "Operation cancelled.",
+    "tool_execution_error": "Error executing tool {toolName}: {error}"
+  },
+  "sandbox": {
+    "debian_uid_gid_info": "INFO: Defaulting to use current user UID/GID for Debian/Ubuntu-based Linux.",
+    "os_release_warning": "Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.",
+    "cannot_build_with_seatbelt": "ERROR: cannot BUILD_SANDBOX when using MacOS Seatbelt",
+    "missing_seatbelt_profile": "ERROR: missing macos seatbelt profile file '{profileFile}'",
+    "using_seatbelt": "using macos seatbelt (profile: {profile}) ...",
+    "hopping_into_sandbox": "hopping into sandbox (command: {command}) ...",
+    "cannot_build_installed_binary": "ERROR: cannot build sandbox using installed gemini binary; run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.",
+    "building_sandbox": "building sandbox ...",
+    "using_custom_dockerfile": "using {dockerfile} for sandbox",
+    "image_missing_or_pull_failed": "ERROR: Sandbox image '{image}' is missing or could not be pulled. {remedy}",
+    "mount_path_not_absolute": "ERROR: path '{path}' listed in SANDBOX_MOUNTS must be absolute",
+    "mount_path_missing": "ERROR: missing mount path '{path}' listed in SANDBOX_MOUNTS",
+    "stopping_proxy": "stopping proxy ...",
+    "proxy_command_exited": "ERROR: proxy command '{command}' exited with code {code}, signal {signal}",
+    "waiting_proxy_start": "waiting for proxy to start ...",
+    "mount_info": "SANDBOX_MOUNTS: {from} -> {to} ({opts})",
+    "env_info": "SANDBOX_ENV: {env}",
+    "env_invalid_format": "ERROR: SANDBOX_ENV must be a comma-separated list of key=value pairs",
+    "stopping_proxy_container": "stopping proxy container ...",
+    "proxy_container_exited": "ERROR: proxy container command '{command}' exited with code {code}, signal {signal}",
+    "process_error": "Sandbox process error: {error}",
+    "process_exited": "Sandbox process exited with code: {code}, signal: {signal}",
+    "failed_start_image_check": "Failed to start '{sandbox}' command for image check: {error}",
+    "attempting_pull_image": "Attempting to pull image {image} using {sandbox}...",
+    "failed_start_pull_command": "Failed to start '{sandbox} pull {image}' command: {error}",
+    "successfully_pulled_image": "Successfully pulled image {image}.",
+    "failed_pull_image": "Failed to pull image {image}. '{sandbox} pull {image}' exited with code {code}.",
+    "checking_image": "Checking for sandbox image: {image}",
+    "image_found_locally": "Sandbox image {image} found locally.",
+    "image_not_found_locally": "Sandbox image {image} not found locally.",
+    "image_available_after_pull": "Sandbox image {image} is now available after pulling.",
+    "image_still_not_found": "Sandbox image {image} still not found after a pull attempt. This might indicate an issue with the image name or registry, or the pull command reported success but failed to make the image available.",
+    "failed_obtain_image": "Failed to obtain sandbox image {image} after check and pull attempt."
+  },
+  "extension": {
+    "loading": "Loading extension: {name} (version: {version})",
+    "unexpected_file": "Warning: unexpected file {path} in extensions directory.",
+    "missing_config": "Warning: extension directory {dir} does not contain a config file {config}.",
+    "invalid_config": "Invalid extension config in {path}: missing name or version.",
+    "parse_error": "Warning: error parsing extension config in {path}: {error}",
+    "all_disabled": "All extensions are disabled.",
+    "activated": "Activated extension: {name} (version: {version})",
+    "disabled": "Disabled extension: {name}",
+    "not_found": "Extension not found: {name}"
   }
 }
