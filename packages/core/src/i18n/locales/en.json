@@ -208,6 +208,38 @@
       "Note: Full 141 loading phrases can be extracted later as needed"
     ]
   },
+  "theme_dialog": {
+    "title": "Select Theme",
+    "apply_to": "Apply To",
+    "preview": "Preview",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_select": "(Use Enter to select",
+      "tab_to_change_focus": ", Tab to change focus)"
+    }
+  },
+  "editor_dialog": {
+    "title": "Select Editor",
+    "apply_to": "Apply To",
+    "editor_preference": "Editor Preference", 
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_tab": "(Use Enter to select, Tab to change focus)",
+      "supported_editors": "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.",
+      "preferred_editor": "Your preferred editor is:",
+      "none": "None"
+    }
+  },
   "errors": {
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",

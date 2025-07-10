@@ -208,6 +208,38 @@
       "Nota: As 141 frases completas de carregamento podem ser extraídas posteriormente conforme necessário"
     ]
   },
+  "theme_dialog": {
+    "title": "Selecionar Tema",
+    "apply_to": "Aplicar Para",
+    "preview": "Pré-visualização",
+    "scope_options": {
+      "user_settings": "Configurações do Usuário",
+      "workspace_settings": "Configurações do Espaço de Trabalho"
+    },
+    "messages": {
+      "also_modified_in": "(Também modificado em {scope})",
+      "modified_in": "(Modificado em {scope})",
+      "use_enter_select": "(Use Enter para selecionar",
+      "tab_to_change_focus": ", Tab para mudar o foco)"
+    }
+  },
+  "editor_dialog": {
+    "title": "Selecionar Editor",
+    "apply_to": "Aplicar Para",
+    "editor_preference": "Preferência do Editor",
+    "scope_options": {
+      "user_settings": "Configurações do Usuário", 
+      "workspace_settings": "Configurações do Espaço de Trabalho"
+    },
+    "messages": {
+      "also_modified_in": "(Também modificado em {scope})",
+      "modified_in": "(Modificado em {scope})",
+      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco)",
+      "supported_editors": "Estes editores são atualmente suportados. Note que alguns editores não podem ser usados no modo sandbox.",
+      "preferred_editor": "Seu editor preferido é:",
+      "none": "Nenhum"
+    }
+  },
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",

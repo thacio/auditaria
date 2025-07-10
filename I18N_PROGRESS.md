@@ -104,6 +104,27 @@ This file tracks the progress of extracting hardcoded strings and implementing i
   - ✅ "Waiting for user confirmation..." message
   - 📝 Framework prepared for 141 loading phrases (can be completed later)
 
+### ✅ packages/cli/src/ui/components/ThemeDialog.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~8 strings
+- **Completed work**:
+  - ✅ Dialog titles (Select Theme, Apply To, Preview)
+  - ✅ Scope options (User Settings, Workspace Settings)
+  - ✅ Status messages (modified in scope notifications)
+  - ✅ Instructions (Enter to select, Tab to change focus)
+
+### ✅ packages/cli/src/ui/components/EditorSettingsDialog.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~10 strings
+- **Completed work**:
+  - ✅ Dialog titles (Select Editor, Apply To, Editor Preference)
+  - ✅ Scope options (User Settings, Workspace Settings)
+  - ✅ Status messages (modified in scope notifications)
+  - ✅ Help text (supported editors info, current preference)
+  - ✅ Instructions and default values (None, Enter/Tab usage)
+
 ### 🔄 Files In Progress
 - None currently
 
@@ -111,6 +132,8 @@ This file tracks the progress of extracting hardcoded strings and implementing i
 - packages/cli/src/ui/commands/memoryCommand.ts (memory command strings)
 - packages/core/src/tools/*.ts (tool descriptions and error messages)
 - packages/cli/src/ui/privacy/*.tsx (privacy notice strings)
+- packages/cli/src/ui/components/AboutBox.tsx (version and info display)
+- packages/cli/src/ui/components/Tips.tsx (user tips and hints)
 - Additional UI components as needed
 
 ## Translation Keys Structure
