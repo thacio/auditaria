@@ -1,0 +1,120 @@
+{
+  "commands": {
+    "docs": {
+      "description": "abrir documentação completa do Gemini CLI no seu navegador",
+      "opening": "Abrindo documentação no seu navegador: {url}",
+      "sandbox_message": "Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n{url}"
+    },
+    "theme": {
+      "description": "alterar o tema"
+    },
+    "auth": {
+      "description": "alterar o método de autenticação"
+    },
+    "editor": {
+      "description": "definir preferência do editor externo"
+    },
+    "privacy": {
+      "description": "exibir o aviso de privacidade"
+    },
+    "stats": {
+      "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
+      "alt_name": "uso"
+    },
+    "mcp": {
+      "description": "listar servidores MCP configurados e ferramentas",
+      "no_servers": "Nenhum servidor MCP configurado. Abrindo documentação no seu navegador: {url}",
+      "no_servers_sandbox": "Nenhum servidor MCP configurado. Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n{url}",
+      "servers_starting": "⏳ Servidores MCP estão iniciando ({count} inicializando)...",
+      "first_startup_note": "Nota: A primeira inicialização pode demorar mais. A disponibilidade das ferramentas será atualizada automaticamente.",
+      "configured_servers": "Servidores MCP configurados:",
+      "status": {
+        "ready": "Pronto",
+        "starting": "Iniciando... (primeira inicialização pode demorar mais)",
+        "disconnected": "Desconectado"
+      },
+      "tools_count": "({count} ferramentas)",
+      "tools_when_ready": "(ferramentas aparecerão quando prontas)",
+      "tools_cached": "({count} ferramentas em cache)",
+      "no_tools": "Nenhuma ferramenta disponível",
+      "parameters": "Parâmetros:"
+    },
+    "extensions": {
+      "description": "listar extensões ativas",
+      "no_extensions": "Nenhuma extensão ativa.",
+      "active_extensions": "Extensões ativas:"
+    },
+    "tools": {
+      "description": "listar ferramentas disponíveis do Gemini CLI",
+      "available_tools": "Ferramentas disponíveis do Gemini CLI:",
+      "no_tools": "Nenhuma ferramenta disponível",
+      "error_retrieve": "Não foi possível recuperar as ferramentas."
+    },
+    "about": {
+      "description": "mostrar informações da versão"
+    },
+    "bug": {
+      "description": "enviar relatório de bug",
+      "submit_message": "Para enviar seu relatório de bug, por favor abra a seguinte URL no seu navegador:\n{url}",
+      "browser_error": "Não foi possível abrir URL no navegador: {error}"
+    },
+    "chat": {
+      "description": "Gerenciar histórico de conversas. Uso: /chat <list|save|resume> <tag>",
+      "no_client": "Nenhum cliente de chat disponível para status da conversa.",
+      "missing_command": "Comando ausente\nUso: /chat <list|save|resume> <tag>",
+      "save": {
+        "missing_tag": "Tag ausente. Uso: /chat save <tag>",
+        "saved": "Checkpoint de conversa salvo com tag: {tag}.",
+        "no_conversation": "Nenhuma conversa encontrada para salvar."
+      },
+      "resume": {
+        "missing_tag": "Tag ausente. Uso: /chat resume <tag>",
+        "not_found": "Nenhum checkpoint salvo encontrado com tag: {tag}."
+      },
+      "list": {
+        "saved_conversations": "lista de conversas salvas: {tags}"
+      },
+      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume"
+    },
+    "quit": {
+      "description": "sair do cli",
+      "alt_name": "sair"
+    },
+    "compress": {
+      "description": "Comprime o contexto substituindo-o por um resumo.",
+      "alt_name": "resumir",
+      "already_compressing": "Já comprimindo, aguarde a solicitação anterior terminar",
+      "failed": "Falha ao comprimir histórico do chat.",
+      "failed_error": "Falha ao comprimir histórico do chat: {error}"
+    },
+    "fallback_improved": {
+      "description": "alternar entre estratégia de fallback melhorada (7 tentativas, atrasos de 2s, reset para Pro) e comportamento original do Google (2 tentativas, backoff exponencial)",
+      "switched": "Estratégia de fallback alterada de {currentMode} para {newMode}.\n\n{description}",
+      "improved_description": "Estratégia melhorada: 7 tentativas com atrasos de 2s, reset para Pro em cada mensagem",
+      "original_description": "Estratégia original: 2 tentativas com backoff exponencial, permanecer no Flash uma vez alterado"
+    },
+    "model_switch": {
+      "description": "alternar entre modelos Gemini Pro e Flash",
+      "switched": "Modelo alterado para: {model} ({type})"
+    },
+    "stay_pro": {
+      "description": "alternar se deve permanecer no modelo Pro (desabilitar/habilitar fallback para Flash)",
+      "disabled": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
+      "enabled": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa"
+    },
+    "restore": {
+      "description": "restaurar uma chamada de ferramenta. Isso redefinirá a conversa e o histórico de arquivos para o estado em que estava quando a chamada da ferramenta foi sugerida",
+      "no_directory": "Não foi possível determinar o caminho do diretório .gemini.",
+      "no_restorable": "Nenhuma chamada de ferramenta restaurável encontrada.",
+      "available_calls": "Chamadas de ferramenta disponíveis para restaurar:\n\n{fileList}",
+      "file_not_found": "Arquivo não encontrado: {file}",
+      "project_restored": "Projeto restaurado para o estado antes da chamada da ferramenta.",
+      "read_error": "Não foi possível ler chamadas de ferramenta restauráveis. Este é o erro: {error}"
+    }
+  },
+  "errors": {
+    "unknown_command": "Comando desconhecido: {command}",
+    "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
+    "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}"
+  }
+}

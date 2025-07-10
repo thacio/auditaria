@@ -1,0 +1,120 @@
+{
+  "commands": {
+    "docs": {
+      "description": "open full Gemini CLI documentation in your browser",
+      "opening": "Opening documentation in your browser: {url}",
+      "sandbox_message": "Please open the following URL in your browser to view the documentation:\n{url}"
+    },
+    "theme": {
+      "description": "change the theme"
+    },
+    "auth": {
+      "description": "change the auth method"
+    },
+    "editor": {
+      "description": "set external editor preference"
+    },
+    "privacy": {
+      "description": "display the privacy notice"
+    },
+    "stats": {
+      "description": "check session stats. Usage: /stats [model|tools]",
+      "alt_name": "usage"
+    },
+    "mcp": {
+      "description": "list configured MCP servers and tools",
+      "no_servers": "No MCP servers configured. Opening documentation in your browser: {url}",
+      "no_servers_sandbox": "No MCP servers configured. Please open the following URL in your browser to view documentation:\n{url}",
+      "servers_starting": "⏳ MCP servers are starting up ({count} initializing)...",
+      "first_startup_note": "Note: First startup may take longer. Tool availability will update automatically.",
+      "configured_servers": "Configured MCP servers:",
+      "status": {
+        "ready": "Ready",
+        "starting": "Starting... (first startup may take longer)",
+        "disconnected": "Disconnected"
+      },
+      "tools_count": "({count} tools)",
+      "tools_when_ready": "(tools will appear when ready)",
+      "tools_cached": "({count} tools cached)",
+      "no_tools": "No tools available",
+      "parameters": "Parameters:"
+    },
+    "extensions": {
+      "description": "list active extensions",
+      "no_extensions": "No active extensions.",
+      "active_extensions": "Active extensions:"
+    },
+    "tools": {
+      "description": "list available Gemini CLI tools",
+      "available_tools": "Available Gemini CLI tools:",
+      "no_tools": "No tools available",
+      "error_retrieve": "Could not retrieve tools."
+    },
+    "about": {
+      "description": "show version info"
+    },
+    "bug": {
+      "description": "submit a bug report",
+      "submit_message": "To submit your bug report, please open the following URL in your browser:\n{url}",
+      "browser_error": "Could not open URL in browser: {error}"
+    },
+    "chat": {
+      "description": "Manage conversation history. Usage: /chat <list|save|resume> <tag>",
+      "no_client": "No chat client available for conversation status.",
+      "missing_command": "Missing command\nUsage: /chat <list|save|resume> <tag>",
+      "save": {
+        "missing_tag": "Missing tag. Usage: /chat save <tag>",
+        "saved": "Conversation checkpoint saved with tag: {tag}.",
+        "no_conversation": "No conversation found to save."
+      },
+      "resume": {
+        "missing_tag": "Missing tag. Usage: /chat resume <tag>",
+        "not_found": "No saved checkpoint found with tag: {tag}."
+      },
+      "list": {
+        "saved_conversations": "list of saved conversations: {tags}"
+      },
+      "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume"
+    },
+    "quit": {
+      "description": "exit the cli",
+      "alt_name": "exit"
+    },
+    "compress": {
+      "description": "Compresses the context by replacing it with a summary.",
+      "alt_name": "summarize",
+      "already_compressing": "Already compressing, wait for previous request to complete",
+      "failed": "Failed to compress chat history.",
+      "failed_error": "Failed to compress chat history: {error}"
+    },
+    "fallback_improved": {
+      "description": "toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)",
+      "switched": "Fallback strategy switched from {currentMode} to {newMode}.\n\n{description}",
+      "improved_description": "Improved strategy: 7 attempts with 2s delays, reset to Pro on each message",
+      "original_description": "Original strategy: 2 attempts with exponential backoff, stay on Flash once switched"
+    },
+    "model_switch": {
+      "description": "switch between Gemini Pro and Flash models",
+      "switched": "Model switched to: {model} ({type})"
+    },
+    "stay_pro": {
+      "description": "toggle whether to stay on Pro model (disable/enable fallback to Flash)",
+      "disabled": "Fallback disabled - will stay on Gemini Pro even if rate limited",
+      "enabled": "Fallback enabled - will switch to Flash if Pro is rate limited"
+    },
+    "restore": {
+      "description": "restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested",
+      "no_directory": "Could not determine the .gemini directory path.",
+      "no_restorable": "No restorable tool calls found.",
+      "available_calls": "Available tool calls to restore:\n\n{fileList}",
+      "file_not_found": "File not found: {file}",
+      "project_restored": "Restored project to the state before the tool call.",
+      "read_error": "Could not read restorable tool calls. This is the error: {error}"
+    }
+  },
+  "errors": {
+    "unknown_command": "Unknown command: {command}",
+    "tool_registry_error": "Could not retrieve tool registry.",
+    "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}"
+  }
+}

@@ -35,6 +35,8 @@ import {
   sessionId,
   logUserPrompt,
   AuthType,
+  initI18n,
+  SupportedLanguage,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from './config/auth.js';
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
@@ -83,7 +85,30 @@ async function relaunchWithAdditionalArgs(additionalArgs: string[]) {
   process.exit(0);
 }
 
+function detectLanguage(): SupportedLanguage {
+  // For testing, check if Portuguese is explicitly set
+  if (process.env.AUDITARIA_LANG === 'pt') {
+    return 'pt';
+  }
+  
+  // Check system locale environment variables
+  const locale = process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || '';
+  
+  // Simple detection - if locale contains 'pt', use Portuguese
+  if (locale.toLowerCase().includes('pt')) {
+    return 'pt';
+  }
+  
+  // Default to Portuguese
+  return 'en';
+}
+
 export async function main() {
+  // Initialize i18n system first
+  // const language = detectLanguage();
+  // await initI18n(language);
+  await initI18n('pt');
+  
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
 
