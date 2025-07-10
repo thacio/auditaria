@@ -290,6 +290,11 @@
     "ctrl_t_toggle": " (ctrl+t para alternar)",
     "ctrl_t_view": " (ctrl+t para visualizar)"
   },
+  "compression": {
+    "compressing": "Comprimindo histórico do chat",
+    "compressed": "Histórico do chat comprimido de {original} para {new} tokens.",
+    "unknown": "desconhecido"
+  },
   "errors": {
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",

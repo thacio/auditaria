@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -22,9 +23,11 @@ export const CompressionMessage: React.FC<CompressionDisplayProps> = ({
   compression,
 }) => {
   const text = compression.isPending
-    ? 'Compressing chat history'
-    : `Chat history compressed from ${compression.originalTokenCount ?? 'unknown'}` +
-      ` to ${compression.newTokenCount ?? 'unknown'} tokens.`;
+    ? t('compression.compressing', 'Compressing chat history')
+    : t('compression.compressed', 'Chat history compressed from {original} to {new} tokens.', {
+        original: compression.originalTokenCount ?? t('compression.unknown', 'unknown'),
+        new: compression.newTokenCount ?? t('compression.unknown', 'unknown')
+      });
 
   return (
     <Box flexDirection="row">

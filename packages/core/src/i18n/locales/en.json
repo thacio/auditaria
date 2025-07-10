@@ -290,6 +290,62 @@
     "ctrl_t_toggle": " (ctrl+t to toggle)",
     "ctrl_t_view": " (ctrl+t to view)"
   },
+  "compression": {
+    "compressing": "Compressing chat history",
+    "compressed": "Chat history compressed from {original} to {new} tokens.",
+    "unknown": "unknown"
+  },
+  "stats": {
+    "session_stats": "Session Stats",
+    "session_goodbye": "Agent powering down. Goodbye!",
+    "model_stats_title": "Model Stats For Nerds",
+    "tool_stats_title": "Tool Stats For Nerds",
+    "no_api_calls": "No API calls have been made in this session.",
+    "no_tool_calls": "No tool calls have been made in this session.",
+    "sections": {
+      "interaction_summary": "Interaction Summary",
+      "performance": "Performance",
+      "model_usage": "Model Usage",
+      "user_decision_summary": "User Decision Summary"
+    },
+    "labels": {
+      "tool_calls": "Tool Calls:",
+      "success_rate": "Success Rate:",
+      "user_agreement": "User Agreement:",
+      "wall_time": "Wall Time:",
+      "agent_active": "Agent Active:",
+      "api_time": "API Time:",
+      "tool_time": "Tool Time:",
+      "metric": "Metric",
+      "tool_name": "Tool Name",
+      "calls": "Calls",
+      "avg_duration": "Avg Duration",
+      "requests": "Requests",
+      "errors": "Errors",
+      "avg_latency": "Avg Latency",
+      "tokens": "Tokens",
+      "total": "Total",
+      "prompt": "Prompt",
+      "cached": "Cached",
+      "thoughts": "Thoughts",
+      "tool": "Tool",
+      "output": "Output",
+      "input_tokens": "Input Tokens",
+      "output_tokens": "Output Tokens",
+      "reqs": "Reqs",
+      "total_reviewed": "Total Reviewed Suggestions:",
+      "accepted": " » Accepted:",
+      "rejected": " » Rejected:",
+      "modified": " » Modified:",
+      "overall_agreement": " Overall Agreement Rate:",
+      "reviewed": "reviewed"
+    },
+    "messages": {
+      "savings_highlight": "Savings Highlight:",
+      "cached_tokens": "{count} ({percentage}%) of input tokens were served from the cache, reducing costs.",
+      "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`."
+    }
+  },
   "errors": {
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",

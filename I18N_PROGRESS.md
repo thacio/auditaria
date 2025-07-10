@@ -191,6 +191,69 @@ This file tracks the progress of extracting hardcoded strings and implementing i
   - ✅ Usage summary text construction
   - ✅ Keyboard shortcut instructions (ctrl+t)
 
+### ✅ packages/cli/src/ui/components/CompressionMessage.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~3 strings
+- **Completed work**:
+  - ✅ Compression status message
+  - ✅ Compression completion message with token counts
+  - ✅ Unknown token count fallback
+
+### ✅ packages/cli/src/ui/components/messages/GeminiMessage.tsx
+- **Status**: Completed (No strings to extract)
+- **Date**: 2025-01-10
+- **Note**: Component handles message display without hardcoded text
+
+### ✅ packages/cli/src/ui/components/messages/UserMessage.tsx
+- **Status**: Completed (No strings to extract)
+- **Date**: 2025-01-10
+- **Note**: Component displays user-provided content
+
+### ✅ packages/cli/src/ui/components/messages/ToolMessage.tsx
+- **Status**: Completed (No strings to extract)
+- **Date**: 2025-01-10
+- **Note**: Component displays tool results without hardcoded text
+
+### ✅ packages/cli/src/ui/components/StatsDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~17 strings
+- **Completed work**:
+  - ✅ Session stats title
+  - ✅ Section headers (Interaction Summary, Performance, Model Usage)
+  - ✅ Statistical labels (Tool Calls, Success Rate, User Agreement, Wall Time, API Time, Tool Time)
+  - ✅ Cache efficiency messages and tips
+  - ✅ Column headers for model usage table
+
+### ✅ packages/cli/src/ui/components/ModelStatsDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~12 strings
+- **Completed work**:
+  - ✅ Model stats title
+  - ✅ Section headers (API, Tokens)
+  - ✅ Metric labels (Requests, Errors, Avg Latency, Total, Prompt, Cached, Thoughts, Tool, Output)
+  - ✅ No API calls message
+
+### ✅ packages/cli/src/ui/components/ToolStatsDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~10 strings
+- **Completed work**:
+  - ✅ Tool stats title
+  - ✅ Table headers (Tool Name, Calls, Success Rate, Avg Duration)
+  - ✅ User Decision Summary section and labels
+  - ✅ Decision type labels (Accepted, Rejected, Modified)
+  - ✅ No tool calls message
+
+### ✅ packages/cli/src/ui/components/SessionSummaryDisplay.tsx
+- **Status**: Completed
+- **Date**: 2025-01-10
+- **Strings extracted**: ~1 string
+- **Completed work**:
+  - ✅ Session goodbye message
+
 ### 🔄 Files In Progress
 - None currently
 

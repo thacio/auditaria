@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -67,7 +68,7 @@ export const ToolStatsDisplay: React.FC = () => {
         paddingY={1}
         paddingX={2}
       >
-        <Text>No tool calls have been made in this session.</Text>
+        <Text>{t('stats.no_tool_calls', 'No tool calls have been made in this session.')}</Text>
       </Box>
     );
   }
@@ -101,23 +102,23 @@ export const ToolStatsDisplay: React.FC = () => {
       width={70}
     >
       <Text bold color={Colors.AccentPurple}>
-        Tool Stats For Nerds
+        {t('stats.tool_stats_title', 'Tool Stats For Nerds')}
       </Text>
       <Box height={1} />
 
       {/* Header */}
       <Box>
         <Box width={TOOL_NAME_COL_WIDTH}>
-          <Text bold>Tool Name</Text>
+          <Text bold>{t('stats.labels.tool_name', 'Tool Name')}</Text>
         </Box>
         <Box width={CALLS_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>Calls</Text>
+          <Text bold>{t('stats.labels.calls', 'Calls')}</Text>
         </Box>
         <Box width={SUCCESS_RATE_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>Success Rate</Text>
+          <Text bold>{t('stats.labels.success_rate', 'Success Rate')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>Avg Duration</Text>
+          <Text bold>{t('stats.labels.avg_duration', 'Avg Duration')}</Text>
         </Box>
       </Box>
 
@@ -139,12 +140,12 @@ export const ToolStatsDisplay: React.FC = () => {
       <Box height={1} />
 
       {/* User Decision Summary */}
-      <Text bold>User Decision Summary</Text>
+      <Text bold>{t('stats.sections.user_decision_summary', 'User Decision Summary')}</Text>
       <Box>
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-          <Text color={Colors.LightBlue}>Total Reviewed Suggestions:</Text>
+          <Text color={Colors.LightBlue}>{t('stats.labels.total_reviewed', 'Total Reviewed Suggestions:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text>{totalReviewed}</Text>
@@ -154,7 +155,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-          <Text> » Accepted:</Text>
+          <Text>{t('stats.labels.accepted', ' » Accepted:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={Colors.AccentGreen}>{totalDecisions.accept}</Text>
@@ -164,7 +165,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-          <Text> » Rejected:</Text>
+          <Text>{t('stats.labels.rejected', ' » Rejected:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={Colors.AccentRed}>{totalDecisions.reject}</Text>
@@ -174,7 +175,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-          <Text> » Modified:</Text>
+          <Text>{t('stats.labels.modified', ' » Modified:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={Colors.AccentYellow}>{totalDecisions.modify}</Text>
@@ -195,7 +196,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-          <Text> Overall Agreement Rate:</Text>
+          <Text>{t('stats.labels.overall_agreement', ' Overall Agreement Rate:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text bold color={totalReviewed > 0 ? agreementColor : undefined}>
