@@ -10,7 +10,9 @@ import { t } from '@thacio/auditaria-cli-core';
 export const helpCommand: SlashCommand = {
   name: 'help',
   altName: '?',
-  description: t('commands.help.description', 'for help on gemini-cli'),
+  get description() {
+    return t('commands.help.description', 'for help on gemini-cli');
+  },
   action: (_context, _args): OpenDialogActionReturn => {
     console.debug('Opening help UI ...');
     return {

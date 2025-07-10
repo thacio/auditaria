@@ -11,11 +11,15 @@ import { t } from '@thacio/auditaria-cli-core';
 
 export const memoryCommand: SlashCommand = {
   name: 'memory',
-  description: t('commands.memory.description', 'Commands for interacting with memory.'),
+  get description() {
+    return t('commands.memory.description', 'Commands for interacting with memory.');
+  },
   subCommands: [
     {
       name: 'show',
-      description: t('commands.memory.show.description', 'Show the current memory contents.'),
+      get description() {
+        return t('commands.memory.show.description', 'Show the current memory contents.');
+      },
       action: async (context) => {
         const memoryContent = context.services.config?.getUserMemory() || '';
         const fileCount = context.services.config?.getGeminiMdFileCount() || 0;
@@ -36,7 +40,9 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'add',
-      description: t('commands.memory.add.description', 'Add content to the memory.'),
+      get description() {
+        return t('commands.memory.add.description', 'Add content to the memory.');
+      },
       action: (context, args): SlashCommandActionReturn | void => {
         if (!args || args.trim() === '') {
           return {
@@ -63,7 +69,9 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'refresh',
-      description: t('commands.memory.refresh.description', 'Refresh the memory from the source.'),
+      get description() {
+        return t('commands.memory.refresh.description', 'Refresh the memory from the source.');
+      },
       action: async (context) => {
         context.ui.addItem(
           {
