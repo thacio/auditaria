@@ -17,8 +17,9 @@ import { WriteFileTool } from '../tools/write-file.js';
 import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
+import { LANGUAGE_MAP, SupportedLanguage } from '../i18n/index.js';
 
-export function getCoreSystemPrompt(userMemory?: string): string {
+export function getCoreSystemPrompt(userMemory?: string, language?: SupportedLanguage): string {
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
   let systemMdEnabled = false;
@@ -119,6 +120,16 @@ When requested to perform auditing, compliance, or evaluation tasks, follow this
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
 - **Feedback:** To report a bug or provide feedback, please use the /bug command.
+${(function () {
+  const languageInstructions = language && language !== 'en' 
+    ? `\n\n## Language Instructions
+1.  **Prioritize the User's Language:** Your primary rule is to respond in the same language the user has used in their most recent message.
+2.  **Default Language:** The UI language is set to ${LANGUAGE_MAP[language]?.name || language}. Use this as the default language only for your very first message in a conversation.
+3.  **Switching Language:** If the user starts the conversation in a different language, or asks you to respond in his language, you **must** immediately switch your response language to match theirs.`
+    : '';
+    return languageInstructions
+})()}
+
 
 ${(function () {
   // Determine sandbox status based on environment variables
