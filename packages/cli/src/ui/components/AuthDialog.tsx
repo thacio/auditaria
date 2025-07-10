@@ -28,27 +28,27 @@ export function AuthDialog({
     initialErrorMessage
       ? initialErrorMessage
       : process.env.GEMINI_API_KEY
-        ? t('auth.messages.api_key_detected', 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.')
+        ? t('auth_dialog.messages.api_key_detected', 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.')
         : null,
   );
   const items = [
     {
-      label: t('auth.options.login_google', 'Login with Google'),
+      label: t('auth_dialog.options.login_google', 'Login with Google'),
       value: AuthType.LOGIN_WITH_GOOGLE,
     },
     ...(process.env.CLOUD_SHELL === 'true'
       ? [
           {
-            label: t('auth.options.cloud_shell', 'Use Cloud Shell user credentials'),
+            label: t('auth_dialog.options.cloud_shell', 'Use Cloud Shell user credentials'),
             value: AuthType.CLOUD_SHELL,
           },
         ]
       : []),
     {
-      label: t('auth.options.gemini_api', 'Use Gemini API Key'),
+      label: t('auth_dialog.options.gemini_api', 'Use Gemini API Key'),
       value: AuthType.USE_GEMINI,
     },
-    { label: t('auth.options.vertex_ai', 'Vertex AI'), value: AuthType.USE_VERTEX_AI },
+    { label: t('auth_dialog.options.vertex_ai', 'Vertex AI'), value: AuthType.USE_VERTEX_AI },
   ];
 
   const initialAuthIndex = items.findIndex((item) => {
@@ -83,7 +83,7 @@ export function AuthDialog({
       if (settings.merged.selectedAuthType === undefined) {
         // Prevent exiting if no auth method is set
         setErrorMessage(
-          t('auth.messages.must_select_auth', 'You must select an auth method to proceed. Press Ctrl+C twice to exit.'),
+          t('auth_dialog.messages.must_select_auth', 'You must select an auth method to proceed. Press Ctrl+C twice to exit.'),
         );
         return;
       }
@@ -99,9 +99,9 @@ export function AuthDialog({
       padding={1}
       width="100%"
     >
-      <Text bold>{t('auth.dialog_title', 'Get started')}</Text>
+      <Text bold>{t('auth_dialog.dialog_title', 'Get started')}</Text>
       <Box marginTop={1}>
-        <Text>{t('auth.dialog_question', 'How would you like to authenticate for this project?')}</Text>
+        <Text>{t('auth_dialog.dialog_question', 'How would you like to authenticate for this project?')}</Text>
       </Box>
       <Box marginTop={1}>
         <RadioButtonSelect
@@ -117,10 +117,10 @@ export function AuthDialog({
         </Box>
       )}
       <Box marginTop={1}>
-        <Text color={Colors.Gray}>{t('auth.messages.use_enter', '(Use Enter to select)')}</Text>
+        <Text color={Colors.Gray}>{t('auth_dialog.messages.use_enter', '(Use Enter to select)')}</Text>
       </Box>
       <Box marginTop={1}>
-        <Text>{t('auth.messages.terms_privacy', 'Terms of Services and Privacy Notice for Gemini CLI')}</Text>
+        <Text>{t('auth_dialog.messages.terms_privacy', 'Terms of Services and Privacy Notice for Gemini CLI')}</Text>
       </Box>
       <Box marginTop={1}>
         <Text color={Colors.AccentBlue}>

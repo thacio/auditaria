@@ -34,7 +34,7 @@ export const ShowMoreLines = ({ constrainHeight }: ShowMoreLinesProps) => {
   return (
     <Box>
       <Text color={Colors.Gray} wrap="truncate">
-        {t('show_more.press_ctrl_s', 'Press ctrl-s to show more lines')}
+        {t('show_more_lines.press_ctrl_s', 'Press ctrl-s to show more lines')}
       </Text>
     </Box>
   );

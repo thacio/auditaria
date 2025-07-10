@@ -170,7 +170,7 @@
       "quit": "Sair da aplicação"
     }
   },
-  "auth": {
+  "auth_dialog": {
     "dialog_title": "Começar",
     "dialog_question": "Como você gostaria de autenticar para este projeto?",
     "options": {
@@ -185,7 +185,8 @@
       "use_enter": "(Use Enter para selecionar)",
       "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
       "auth_timeout": "Autenticação expirou. Tente novamente.",
-      "waiting_for_auth": "Aguardando autenticação... (Pressione ESC para cancelar)"
+      "waiting_for_auth": "Aguardando autenticação... (Pressione ESC para cancelar)",
+      "failed_login": "Falha no login. Mensagem: {error}"
     }
   },
   "footer": {
@@ -309,7 +310,7 @@
     "seconds": "{elapsed}s",
     "minutes": "{duration}"
   },
-  "show_more": {
+  "show_more_lines": {
     "press_ctrl_s": "Pressione ctrl-s para mostrar mais linhas"
   },
   "context_summary": {
@@ -386,7 +387,7 @@
     "no_content": "Nenhum conteúdo de diff.",
     "no_changes": "Nenhuma alteração detectada."
   },
-  "show_more": {
+  "show_more_content": {
     "first_lines_hidden": "... primeiras {count} linha{plural} oculta{plural} ...",
     "last_lines_hidden": "... últimas {count} linha{plural} oculta{plural} ..."
   },
@@ -449,10 +450,9 @@
       "write_error": "Erro: {error}"
     }
   },
-  "auth": {
-    "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione isso ao seu ambiente e tente novamente (não é necessário recarregar se estiver usando .env)!",
-    "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se estiver usando .env)!",
-    "invalid_method": "Método de autenticação inválido selecionado.",
-    "failed_login": "Falha no login. Mensagem: {error}"
+  "auth_errors": {
+    "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione-a ao seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
+    "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
+    "invalid_method": "Método de autenticação inválido selecionado."
   }
 }

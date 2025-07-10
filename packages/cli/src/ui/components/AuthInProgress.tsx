@@ -44,12 +44,12 @@ export function AuthInProgress({
     >
       {timedOut ? (
         <Text color={Colors.AccentRed}>
-          {t('auth.messages.auth_timeout', 'Authentication timed out. Please try again.')}
+          {t('auth_dialog.messages.auth_timeout', 'Authentication timed out. Please try again.')}
         </Text>
       ) : (
         <Box>
           <Text>
-            <Spinner type="dots" /> {t('auth.messages.waiting_for_auth', 'Waiting for auth... (Press ESC to cancel)')}
+            <Spinner type="dots" /> {t('auth_dialog.messages.waiting_for_auth', 'Waiting for auth... (Press ESC to cancel)')}
           </Text>
         </Box>
       )}

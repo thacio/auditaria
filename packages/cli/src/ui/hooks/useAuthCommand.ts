@@ -41,7 +41,7 @@ export const useAuthCommand = (
         await config.refreshAuth(authType);
         console.log(`Authenticated via "${authType}".`);
       } catch (e) {
-        setAuthError(t('auth.messages.failed_login', 'Failed to login. Message: {error}', { error: getErrorMessage(e) }));
+        setAuthError(t('auth_dialog.messages.failed_login', 'Failed to login. Message: {error}', { error: getErrorMessage(e) }));
         openAuthDialog();
       } finally {
         setIsAuthenticating(false);

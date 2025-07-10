@@ -170,7 +170,7 @@
       "quit": "Quit application"
     }
   },
-  "auth": {
+  "auth_dialog": {
     "dialog_title": "Get started",
     "dialog_question": "How would you like to authenticate for this project?",
     "options": {
@@ -310,7 +310,7 @@
     "seconds": "{elapsed}s",
     "minutes": "{duration}"
   },
-  "show_more": {
+  "show_more_lines": {
     "press_ctrl_s": "Press ctrl-s to show more lines"
   },
   "context_summary": {
@@ -386,7 +386,7 @@
     "no_content": "No diff content.",
     "no_changes": "No changes detected."
   },
-  "show_more": {
+  "show_more_content": {
     "first_lines_hidden": "... first {count} line{plural} hidden ...",
     "last_lines_hidden": "... last {count} line{plural} hidden ..."
   },
@@ -477,7 +477,7 @@
       "write_error": "Error: {error}"
     }
   },
-  "auth": {
+  "auth_errors": {
     "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
     "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
     "invalid_method": "Invalid auth method selected."

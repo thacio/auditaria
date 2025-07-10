@@ -188,13 +188,13 @@ export const MaxSizedBox: React.FC<MaxSizedBoxProps> = ({
     <Box flexDirection="column" width={maxWidth} flexShrink={0}>
       {totalHiddenLines > 0 && overflowDirection === 'top' && (
         <Text color={Colors.Gray} wrap="truncate">
-          {t('show_more.first_lines_hidden', '... first {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
+          {t('show_more_content.first_lines_hidden', '... first {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
         </Text>
       )}
       {visibleLines}
       {totalHiddenLines > 0 && overflowDirection === 'bottom' && (
         <Text color={Colors.Gray} wrap="truncate">
-          {t('show_more.last_lines_hidden', '... last {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
+          {t('show_more_content.last_lines_hidden', '... last {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
         </Text>
       )}
     </Box>
