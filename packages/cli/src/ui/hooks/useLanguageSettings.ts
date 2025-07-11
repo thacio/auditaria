@@ -24,6 +24,7 @@ export const useLanguageSettings = (
   loadedSettings: LoadedSettings,
   setLanguageError: (error: string | null) => void,
   addItem: (item: Omit<HistoryItem, 'id'>, timestamp: number) => void,
+  refreshStatic?: () => void,
 ): UseLanguageSettingsReturn => {
   // Determine if this is first-time setup (no language setting exists)
   const hasLanguageSetting = loadedSettings.merged.language !== undefined;
@@ -119,6 +120,11 @@ export const useLanguageSettings = (
         
         if (success) {
           setIsLanguageDialogOpen(false);
+          
+          // Force refresh the static content to show new language
+          if (refreshStatic) {
+            refreshStatic();
+          }
           
           // For first-time setup, show welcome message
           if (isFirstTimeSetup) {

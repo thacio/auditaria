@@ -190,7 +190,7 @@ const App = ({ config, settings, startupWarnings = [] }: AppProps) => {
     openLanguageDialog,
     handleLanguageSelect,
     isFirstTimeSetup,
-  } = useLanguageSettings(settings, setLanguageError, addItem);
+  } = useLanguageSettings(settings, setLanguageError, addItem, refreshStatic);
 
   const toggleCorgiMode = useCallback(() => {
     setCorgiMode((prev) => !prev);

@@ -23,6 +23,7 @@ export const useLanguageCommand = (
   loadedSettings: LoadedSettings,
   setLanguageError: (error: string | null) => void,
   addItem: (item: Omit<HistoryItem, 'id'>, timestamp: number) => void,
+  refreshStatic?: () => void,
 ): UseLanguageCommandReturn => {
   // Initial state: Dialog is closed for slash command usage
   const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
@@ -84,6 +85,11 @@ export const useLanguageCommand = (
         
         if (success) {
           setIsLanguageDialogOpen(false);
+          
+          // Force refresh the static content to show new language
+          if (refreshStatic) {
+            refreshStatic();
+          }
         }
         // If not successful, keep dialog open and error message is already set
       } catch (error) {
