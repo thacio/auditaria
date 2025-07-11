@@ -7,22 +7,27 @@
 import { getErrorMessage } from '@thacio/auditaria-cli-core';
 import { MessageType } from '../types.js';
 import { SlashCommand, SlashCommandActionReturn } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const memoryCommand: SlashCommand = {
   name: 'memory',
-  description: 'Commands for interacting with memory.',
+  get description() {
+    return t('commands.memory.description', 'Commands for interacting with memory.');
+  },
   subCommands: [
     {
       name: 'show',
-      description: 'Show the current memory contents.',
+      get description() {
+        return t('commands.memory.show.description', 'Show the current memory contents.');
+      },
       action: async (context) => {
         const memoryContent = context.services.config?.getUserMemory() || '';
         const fileCount = context.services.config?.getGeminiMdFileCount() || 0;
 
         const messageContent =
           memoryContent.length > 0
-            ? `Current memory content from ${fileCount} file(s):\n\n---\n${memoryContent}\n---`
-            : 'Memory is currently empty.';
+            ? t('commands.memory.show.content_with_files', 'Current memory content from {fileCount} file(s):\n\n---\n{memoryContent}\n---', { fileCount, memoryContent })
+            : t('commands.memory.show.empty', 'Memory is currently empty.');
 
         context.ui.addItem(
           {
@@ -35,20 +40,22 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'add',
-      description: 'Add content to the memory.',
+      get description() {
+        return t('commands.memory.add.description', 'Add content to the memory.');
+      },
       action: (context, args): SlashCommandActionReturn | void => {
         if (!args || args.trim() === '') {
           return {
             type: 'message',
             messageType: 'error',
-            content: 'Usage: /memory add <text to remember>',
+            content: t('commands.memory.add.usage', 'Usage: /memory add <text to remember>'),
           };
         }
 
         context.ui.addItem(
           {
             type: MessageType.INFO,
-            text: `Attempting to save to memory: "${args.trim()}"`,
+            text: t('commands.memory.add.attempting', 'Attempting to save to memory: "{text}"', { text: args.trim() }),
           },
           Date.now(),
         );
@@ -62,12 +69,14 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'refresh',
-      description: 'Refresh the memory from the source.',
+      get description() {
+        return t('commands.memory.refresh.description', 'Refresh the memory from the source.');
+      },
       action: async (context) => {
         context.ui.addItem(
           {
             type: MessageType.INFO,
-            text: 'Refreshing memory from source files...',
+            text: t('commands.memory.refresh.refreshing', 'Refreshing memory from source files...'),
           },
           Date.now(),
         );
@@ -79,8 +88,8 @@ export const memoryCommand: SlashCommand = {
             const { memoryContent, fileCount } = result;
             const successMessage =
               memoryContent.length > 0
-                ? `Memory refreshed successfully. Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
-                : 'Memory refreshed successfully. No memory content found.';
+                ? t('commands.memory.refresh.success_with_content', 'Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).', { charCount: memoryContent.length, fileCount })
+                : t('commands.memory.refresh.success_no_content', 'Memory refreshed successfully. No memory content found.');
 
             context.ui.addItem(
               {
@@ -95,7 +104,7 @@ export const memoryCommand: SlashCommand = {
           context.ui.addItem(
             {
               type: MessageType.ERROR,
-              text: `Error refreshing memory: ${errorMessage}`,
+              text: t('commands.memory.refresh.error', 'Error refreshing memory: {error}', { error: errorMessage }),
             },
             Date.now(),
           );

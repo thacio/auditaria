@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import {
   AuthType,
@@ -19,41 +20,41 @@ import {
 const getRateLimitErrorMessageGoogleFree = (
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nPossible quota limitations in place or slow response times detected. Switching to the ${fallbackModel} model for the rest of this session.`;
+  t('errors.rate_limit_google_free', '\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.', { fallbackModel });
 
 const getRateLimitErrorMessageGoogleProQuotaFree = (
   currentModel: string = DEFAULT_GEMINI_MODEL,
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nYou have reached your daily ${currentModel} quota limit. You will be switched to the ${fallbackModel} model for the rest of this session. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+  t('errors.rate_limit_google_pro_quota_free', '\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { currentModel, fallbackModel });
 
 const getRateLimitErrorMessageGoogleGenericQuotaFree = () =>
-  `\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+  t('errors.rate_limit_google_generic_quota_free', '\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey');
 
 // Legacy/Standard Tier message functions
 const getRateLimitErrorMessageGooglePaid = (
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nPossible quota limitations in place or slow response times detected. Switching to the ${fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI.`;
+  t('errors.rate_limit_google_paid', '\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI.', { fallbackModel });
 
 const getRateLimitErrorMessageGoogleProQuotaPaid = (
   currentModel: string = DEFAULT_GEMINI_MODEL,
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nYou have reached your daily ${currentModel} quota limit. You will be switched to the ${fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+  t('errors.rate_limit_google_pro_quota_paid', '\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { currentModel, fallbackModel });
 
 const getRateLimitErrorMessageGoogleGenericQuotaPaid = (
   currentModel: string = DEFAULT_GEMINI_MODEL,
 ) =>
-  `\nYou have reached your daily quota limit. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+  t('errors.rate_limit_google_generic_quota_paid', '\nYou have reached your daily quota limit. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey', { currentModel });
 const RATE_LIMIT_ERROR_MESSAGE_USE_GEMINI =
-  '\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method';
+  t('errors.rate_limit_use_gemini', '\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method');
 const RATE_LIMIT_ERROR_MESSAGE_VERTEX =
-  '\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method';
+  t('errors.rate_limit_vertex', '\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method');
 const getRateLimitErrorMessageDefault = (
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  `\nPossible quota limitations in place or slow response times detected. Switching to the ${fallbackModel} model for the rest of this session.`;
+  t('errors.rate_limit_default', '\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.', { fallbackModel });
 
 function getRateLimitMessage(
   authType?: AuthType,
@@ -160,5 +161,5 @@ export function parseAndFormatApiError(
     return `[API Error: ${error}]`;
   }
 
-  return '[API Error: An unknown error occurred.]';
+  return t('errors.api_unknown', '[API Error: An unknown error occurred.]');
 }

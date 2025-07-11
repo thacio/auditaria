@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
@@ -55,8 +56,8 @@ export function ThemeDialog({
   );
 
   const scopeItems = [
-    { label: 'User Settings', value: SettingScope.User },
-    { label: 'Workspace Settings', value: SettingScope.Workspace },
+    { label: t('theme_dialog.scope_options.user_settings', 'User Settings'), value: SettingScope.User },
+    { label: t('theme_dialog.scope_options.workspace_settings', 'Workspace Settings'), value: SettingScope.Workspace },
   ];
 
   const handleThemeSelect = (themeName: string) => {
@@ -94,8 +95,8 @@ export function ThemeDialog({
   if (settings.forScope(otherScope).settings.theme !== undefined) {
     otherScopeModifiedMessage =
       settings.forScope(selectedScope).settings.theme !== undefined
-        ? `(Also modified in ${otherScope})`
-        : `(Modified in ${otherScope})`;
+        ? t('theme_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: otherScope })
+        : t('theme_dialog.messages.modified_in', '(Modified in {scope})', { scope: otherScope });
   }
 
   // Constants for calculating preview pane layout.
@@ -180,7 +181,7 @@ export function ThemeDialog({
         {/* Left Column: Selection */}
         <Box flexDirection="column" width="45%" paddingRight={2}>
           <Text bold={currenFocusedSection === 'theme'} wrap="truncate">
-            {currenFocusedSection === 'theme' ? '> ' : '  '}Select Theme{' '}
+            {currenFocusedSection === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
             <Text color={Colors.Gray}>{otherScopeModifiedMessage}</Text>
           </Text>
           <RadioButtonSelect
@@ -196,7 +197,7 @@ export function ThemeDialog({
           {showScopeSelection && (
             <Box marginTop={1} flexDirection="column">
               <Text bold={currenFocusedSection === 'scope'} wrap="truncate">
-                {currenFocusedSection === 'scope' ? '> ' : '  '}Apply To
+                {currenFocusedSection === 'scope' ? '> ' : '  '}{t('theme_dialog.apply_to', 'Apply To')}
               </Text>
               <RadioButtonSelect
                 items={scopeItems}
@@ -211,7 +212,7 @@ export function ThemeDialog({
 
         {/* Right Column: Preview */}
         <Box flexDirection="column" width="55%" paddingLeft={2}>
-          <Text bold>Preview</Text>
+          <Text bold>{t('theme_dialog.preview', 'Preview')}</Text>
           <Box
             borderStyle="single"
             borderColor={Colors.Gray}
@@ -249,8 +250,8 @@ export function ThemeDialog({
       </Box>
       <Box marginTop={1}>
         <Text color={Colors.Gray} wrap="truncate">
-          (Use Enter to select
-          {showScopeSelection ? ', Tab to change focus' : ''})
+          {t('theme_dialog.messages.use_enter_select', '(Use Enter to select')}
+          {showScopeSelection ? t('theme_dialog.messages.tab_to_change_focus', ', Tab to change focus') : ''})
         </Text>
       </Box>
     </Box>

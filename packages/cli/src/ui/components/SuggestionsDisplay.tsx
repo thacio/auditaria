@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
@@ -33,7 +34,7 @@ export function SuggestionsDisplay({
   if (isLoading) {
     return (
       <Box paddingX={1} width={width}>
-        <Text color="gray">Loading suggestions...</Text>
+        <Text color="gray">{t('suggestions.loading', 'Loading suggestions...')}</Text>
       </Box>
     );
   }

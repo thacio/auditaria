@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -23,46 +24,33 @@ export const Help: React.FC<Help> = ({ commands }) => (
   >
     {/* Basics */}
     <Text bold color={Colors.Foreground}>
-      Basics:
+      {t('help.section_basics', 'Basics:')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Add context
+        {t('help.add_context', 'Add context')}
       </Text>
-      : Use{' '}
-      <Text bold color={Colors.AccentPurple}>
-        @
-      </Text>{' '}
-      to specify files for context (e.g.,{' '}
-      <Text bold color={Colors.AccentPurple}>
-        @src/myFile.ts
-      </Text>
-      ) to target specific files or folders.
+      : {t('help.add_context_help', 'Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.', {
+        symbol: '@',
+        example: '@src/myFile.ts'
+      })}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Shell mode
+        {t('help.shell_mode', 'Shell mode')}
       </Text>
-      : Execute shell commands via{' '}
-      <Text bold color={Colors.AccentPurple}>
-        !
-      </Text>{' '}
-      (e.g.,{' '}
-      <Text bold color={Colors.AccentPurple}>
-        !npm run start
-      </Text>
-      ) or use natural language (e.g.{' '}
-      <Text bold color={Colors.AccentPurple}>
-        start server
-      </Text>
-      ).
+      : {t('help.shell_mode_help', 'Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).', {
+        symbol: '!',
+        example: '!npm run start',
+        natural_example: 'start server'
+      })}
     </Text>
 
     <Box height={1} />
 
     {/* Commands */}
     <Text bold color={Colors.Foreground}>
-      Commands:
+      {t('help.section_commands', 'Commands:')}
     </Text>
     {commands
       .filter((command) => command.description)
@@ -92,64 +80,64 @@ export const Help: React.FC<Help> = ({ commands }) => (
         {' '}
         !{' '}
       </Text>
-      - shell command
+      - {t('help.shell_command', 'shell command')}
     </Text>
 
     <Box height={1} />
 
     {/* Shortcuts */}
     <Text bold color={Colors.Foreground}>
-      Keyboard Shortcuts:
+      {t('help.section_shortcuts', 'Keyboard Shortcuts:')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Enter
+        {t('help.keys.enter', 'Enter')}
       </Text>{' '}
-      - Send message
+      - {t('help.shortcuts.enter', 'Send message')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        {process.platform === 'win32' ? 'Ctrl+Enter' : 'Ctrl+J'}
+        {process.platform === 'win32' ? t('help.keys.ctrl_enter', 'Ctrl+Enter') : t('help.keys.ctrl_j', 'Ctrl+J')}
       </Text>{' '}
-      {process.platform === 'linux'
-        ? '- New line (Alt+Enter works for certain linux distros)'
-        : '- New line'}
+      - {process.platform === 'linux'
+        ? t('help.shortcuts.new_line_linux', 'New line (Alt+Enter works for certain linux distros)')
+        : t('help.shortcuts.new_line_win', 'New line')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Up/Down
+        {t('help.keys.up_down', 'Up/Down')}
       </Text>{' '}
-      - Cycle through your prompt history
+      - {t('help.shortcuts.cycle_history', 'Cycle through your prompt history')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Alt+Left/Right
+        {t('help.keys.alt_left_right', 'Alt+Left/Right')}
       </Text>{' '}
-      - Jump through words in the input
+      - {t('help.shortcuts.jump_words', 'Jump through words in the input')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Shift+Tab
+        {t('help.keys.shift_tab', 'Shift+Tab')}
       </Text>{' '}
-      - Toggle auto-accepting edits
+      - {t('help.shortcuts.toggle_auto_accept', 'Toggle auto-accepting edits')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Ctrl+Y
+        {t('help.keys.ctrl_y', 'Ctrl+Y')}
       </Text>{' '}
-      - Toggle YOLO mode
+      - {t('help.shortcuts.toggle_yolo', 'Toggle YOLO mode')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Esc
+        {t('help.keys.esc', 'Esc')}
       </Text>{' '}
-      - Cancel operation
+      - {t('help.shortcuts.cancel', 'Cancel operation')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        Ctrl+C
+        {t('help.keys.ctrl_c', 'Ctrl+C')}
       </Text>{' '}
-      - Quit application
+      - {t('help.shortcuts.quit', 'Quit application')}
     </Text>
   </Box>
 );

@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -36,13 +37,13 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   >
     <Box marginBottom={1}>
       <Text bold color={Colors.AccentPurple}>
-        About Gemini CLI
+        {t('about_box.title', 'About Gemini CLI')}
       </Text>
     </Box>
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={Colors.LightBlue}>
-          CLI Version
+          {t('about_box.labels.cli_version', 'CLI Version')}
         </Text>
       </Box>
       <Box>
@@ -53,7 +54,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
       <Box flexDirection="row">
         <Box width="35%">
           <Text bold color={Colors.LightBlue}>
-            Git Commit
+            {t('about_box.labels.git_commit', 'Git Commit')}
           </Text>
         </Box>
         <Box>
@@ -64,7 +65,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={Colors.LightBlue}>
-          Model
+          {t('about_box.labels.model', 'Model')}
         </Text>
       </Box>
       <Box>
@@ -74,7 +75,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={Colors.LightBlue}>
-          Sandbox
+          {t('about_box.labels.sandbox', 'Sandbox')}
         </Text>
       </Box>
       <Box>
@@ -84,7 +85,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={Colors.LightBlue}>
-          OS
+          {t('about_box.labels.os', 'OS')}
         </Text>
       </Box>
       <Box>
@@ -94,7 +95,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={Colors.LightBlue}>
-          Auth Method
+          {t('about_box.labels.auth_method', 'Auth Method')}
         </Text>
       </Box>
       <Box>
@@ -107,7 +108,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
       <Box flexDirection="row">
         <Box width="35%">
           <Text bold color={Colors.LightBlue}>
-            GCP Project
+            {t('about_box.labels.gcp_project', 'GCP Project')}
           </Text>
         </Box>
         <Box>

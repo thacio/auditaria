@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { GaxiosError } from 'gaxios';
 import { useState, useEffect, useCallback } from 'react';
@@ -84,9 +85,9 @@ function getCodeAssistServer(config: Config): CodeAssistServer {
   const server = config.getGeminiClient().getContentGenerator();
   // Neither of these cases should ever happen.
   if (!(server instanceof CodeAssistServer)) {
-    throw new Error('Oauth not being used');
+    throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
   } else if (!server.projectId) {
-    throw new Error('Oauth not being used');
+    throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
   }
   return server;
 }
@@ -102,7 +103,7 @@ async function getTier(server: CodeAssistServer): Promise<UserTierId> {
     },
   });
   if (!loadRes.currentTier) {
-    throw new Error('User does not have a current tier');
+    throw new Error(t('privacy.no_current_tier', 'User does not have a current tier'));
   }
   return loadRes.currentTier.id;
 }

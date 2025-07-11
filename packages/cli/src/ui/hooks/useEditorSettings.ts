@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useCallback } from 'react';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
@@ -49,14 +50,16 @@ export const useEditorSettings = (
         addItem(
           {
             type: MessageType.INFO,
-            text: `Editor preference ${editorType ? `set to "${editorType}"` : 'cleared'} in ${scope} settings.`,
+            text: editorType 
+              ? t('editor.preference_set', 'Editor preference set to "{editor}" in {scope} settings.', { editor: editorType, scope })
+              : t('editor.preference_cleared', 'Editor preference cleared in {scope} settings.', { scope }),
           },
           Date.now(),
         );
         setEditorError(null);
         setIsEditorDialogOpen(false);
       } catch (error) {
-        setEditorError(`Failed to set editor preference: ${error}`);
+        setEditorError(t('editor.failed_to_set', 'Failed to set editor preference: {error}', { error: error instanceof Error ? error.message : String(error) }));
       }
     },
     [loadedSettings, setEditorError, addItem],

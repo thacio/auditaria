@@ -1,0 +1,742 @@
+{
+  "commands": {
+    "docs": {
+      "description": "open full Gemini CLI documentation in your browser",
+      "opening": "Opening documentation in your browser: {url}",
+      "sandbox_message": "Please open the following URL in your browser to view the documentation:\n{url}"
+    },
+    "theme": {
+      "description": "change the theme"
+    },
+    "auth": {
+      "description": "change the auth method"
+    },
+    "editor": {
+      "description": "set external editor preference"
+    },
+    "language": {
+      "description": "change language preference"
+    },
+    "privacy": {
+      "description": "display the privacy notice"
+    },
+    "stats": {
+      "description": "check session stats. Usage: /stats [model|tools]",
+      "alt_name": "usage"
+    },
+    "mcp": {
+      "description": "list configured MCP servers and tools",
+      "no_servers": "No MCP servers configured. Opening documentation in your browser: {url}",
+      "no_servers_sandbox": "No MCP servers configured. Please open the following URL in your browser to view documentation:\n{url}",
+      "servers_starting": "⏳ MCP servers are starting up ({count} initializing)...",
+      "first_startup_note": "Note: First startup may take longer. Tool availability will update automatically.",
+      "configured_servers": "Configured MCP servers:",
+      "status": {
+        "ready": "Ready",
+        "starting": "Starting... (first startup may take longer)",
+        "disconnected": "Disconnected"
+      },
+      "tools_count": "({count} tools)",
+      "tools_when_ready": "(tools will appear when ready)",
+      "tools_cached": "({count} tools cached)",
+      "no_tools": "No tools available",
+      "parameters": "Parameters:"
+    },
+    "extensions": {
+      "description": "list active extensions",
+      "no_extensions": "No active extensions.",
+      "active_extensions": "Active extensions:"
+    },
+    "tools": {
+      "description": "list available Gemini CLI tools",
+      "available_tools": "Available Gemini CLI tools:",
+      "no_tools": "No tools available",
+      "error_retrieve": "Could not retrieve tools."
+    },
+    "about": {
+      "description": "show version info"
+    },
+    "bug": {
+      "description": "submit a bug report",
+      "submit_message": "To submit your bug report, please open the following URL in your browser:\n{url}",
+      "browser_error": "Could not open URL in browser: {error}"
+    },
+    "chat": {
+      "description": "Manage conversation history. Usage: /chat <list|save|resume> <tag>",
+      "no_client": "No chat client available for conversation status.",
+      "missing_command": "Missing command\nUsage: /chat <list|save|resume> <tag>",
+      "save": {
+        "missing_tag": "Missing tag. Usage: /chat save <tag>",
+        "saved": "Conversation checkpoint saved with tag: {tag}.",
+        "no_conversation": "No conversation found to save."
+      },
+      "resume": {
+        "missing_tag": "Missing tag. Usage: /chat resume <tag>",
+        "not_found": "No saved checkpoint found with tag: {tag}."
+      },
+      "list": {
+        "saved_conversations": "list of saved conversations: {tags}"
+      },
+      "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume"
+    },
+    "quit": {
+      "description": "exit the cli",
+      "alt_name": "exit"
+    },
+    "compress": {
+      "description": "Compresses the context by replacing it with a summary.",
+      "alt_name": "summarize",
+      "already_compressing": "Already compressing, wait for previous request to complete",
+      "failed": "Failed to compress chat history.",
+      "failed_error": "Failed to compress chat history: {error}"
+    },
+    "fallback_improved": {
+      "description": "toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)",
+      "switched": "Fallback strategy switched from {currentMode} to {newMode}.\n\n{description}",
+      "improved_description": "Improved strategy: 7 attempts with 2s delays, reset to Pro on each message",
+      "original_description": "Original strategy: 2 attempts with exponential backoff, stay on Flash once switched"
+    },
+    "model_switch": {
+      "description": "switch between Gemini Pro and Flash models",
+      "switched": "Model switched to: {model} ({type})"
+    },
+    "stay_pro": {
+      "description": "toggle whether to stay on Pro model (disable/enable fallback to Flash)",
+      "disabled": "Fallback disabled - will stay on Gemini Pro even if rate limited",
+      "enabled": "Fallback enabled - will switch to Flash if Pro is rate limited"
+    },
+    "restore": {
+      "description": "restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested",
+      "no_directory": "Could not determine the .gemini directory path.",
+      "no_restorable": "No restorable tool calls found.",
+      "available_calls": "Available tool calls to restore:\n\n{fileList}",
+      "file_not_found": "File not found: {file}",
+      "project_restored": "Restored project to the state before the tool call.",
+      "read_error": "Could not read restorable tool calls. This is the error: {error}"
+    },
+    "memory": {
+      "description": "Commands for interacting with memory.",
+      "show": {
+        "description": "Show the current memory contents.",
+        "content_with_files": "Current memory content from {fileCount} file(s):\n\n---\n{memoryContent}\n---",
+        "empty": "Memory is currently empty."
+      },
+      "add": {
+        "description": "Add content to the memory.",
+        "usage": "Usage: /memory add <text to remember>",
+        "attempting": "Attempting to save to memory: \"{text}\""
+      },
+      "refresh": {
+        "description": "Refresh the memory from the source.",
+        "refreshing": "Refreshing memory from source files...",
+        "success_with_content": "Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).",
+        "success_no_content": "Memory refreshed successfully. No memory content found.",
+        "error": "Error refreshing memory: {error}"
+      }
+    },
+    "help": {
+      "description": "for help on gemini-cli"
+    },
+    "clear": {
+      "description": "clear the screen and conversation history"
+    }
+  },
+  "help": {
+    "section_basics": "Basics:",
+    "section_commands": "Commands:",
+    "section_shortcuts": "Keyboard Shortcuts:",
+    "add_context": "Add context",
+    "add_context_help": "Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.",
+    "shell_mode": "Shell mode",
+    "shell_mode_help": "Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).",
+    "shell_command": "shell command",
+    "keys": {
+      "enter": "Enter",
+      "ctrl_enter": "Ctrl+Enter",
+      "ctrl_j": "Ctrl+J",
+      "up_down": "Up/Down",
+      "alt_left_right": "Alt+Left/Right",
+      "shift_tab": "Shift+Tab",
+      "ctrl_y": "Ctrl+Y",
+      "esc": "Esc",
+      "ctrl_c": "Ctrl+C"
+    },
+    "shortcuts": {
+      "enter": "Send message",
+      "new_line_win": "New line",
+      "new_line_linux": "New line (Alt+Enter works for certain linux distros)",
+      "cycle_history": "Cycle through your prompt history",
+      "jump_words": "Jump through words in the input",
+      "toggle_auto_accept": "Toggle auto-accepting edits",
+      "toggle_yolo": "Toggle YOLO mode",
+      "cancel": "Cancel operation",
+      "quit": "Quit application"
+    }
+  },
+  "auth_dialog": {
+    "dialog_title": "Get started",
+    "dialog_question": "How would you like to authenticate for this project?",
+    "options": {
+      "login_google": "Login with Google",
+      "cloud_shell": "Use Cloud Shell user credentials",
+      "gemini_api": "Use Gemini API Key",
+      "vertex_ai": "Vertex AI"
+    },
+    "messages": {
+      "api_key_detected": "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.",
+      "must_select_auth": "You must select an auth method to proceed. Press Ctrl+C twice to exit.",
+      "use_enter": "(Use Enter to select)",
+      "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
+      "auth_timeout": "Authentication timed out. Please try again.",
+      "waiting_for_auth": "Waiting for auth... (Press ESC to cancel)",
+      "failed_login": "Failed to login. Message: {error}"
+    }
+  },
+  "footer": {
+    "macos_seatbelt": "MacOS Seatbelt",
+    "no_sandbox": "no sandbox",
+    "see_docs": "(see /docs)",
+    "context_left": "({percentage}% context left)",
+    "debug_mode": "--debug"
+  },
+  "input": {
+    "placeholder": "  Type your message or @path/to/file"
+  },
+  "tool_confirmation": {
+    "modify_in_progress": "Modify in progress: ",
+    "save_close_editor": "Save and close external editor to continue",
+    "questions": {
+      "apply_change": "Apply this change?",
+      "allow_execution": "Allow execution?",
+      "do_you_want_proceed": "Do you want to proceed?",
+      "allow_mcp_tool": "Allow execution of MCP tool \"{toolName}\" from server \"{serverName}\"?"
+    },
+    "options": {
+      "yes_once": "Yes, allow once",
+      "yes_always": "Yes, allow always",
+      "yes_always_command": "Yes, allow always \"{command} ...\"",
+      "yes_always_tool": "Yes, always allow tool \"{toolName}\" from server \"{serverName}\"",
+      "yes_always_server": "Yes, always allow all tools from server \"{serverName}\"",
+      "modify_editor": "Modify with external editor",
+      "no_esc": "No (esc)"
+    },
+    "mcp_labels": {
+      "server": "MCP Server: {serverName}",
+      "tool": "Tool: {toolName}"
+    },
+    "info": {
+      "urls_to_fetch": "URLs to fetch:"
+    }
+  },
+  "suggestions": {
+    "loading": "Loading suggestions..."
+  },
+  "loading": {
+    "waiting_confirmation": "Waiting for user confirmation...",
+    "phrases": [
+      "I'm Feeling Lucky",
+      "Shipping awesomeness... ",
+      "Painting the serifs back on...",
+      "Navigating the slime mold...",
+      "Consulting the digital spirits...",
+      "Reticulating splines...",
+      "Warming up the AI hamsters...",
+      "Asking the magic conch shell...",
+      "Generating witty retort...",
+      "Polishing the algorithms...",
+      "Don't rush perfection (or my code)...",
+      "Brewing fresh bytes...",
+      "Counting electrons...",
+      "Engaging cognitive processors...",
+      "Checking for syntax errors in the universe...",
+      "One moment, optimizing humor...",
+      "Shuffling punchlines...",
+      "Untangling neural nets...",
+      "Compiling brilliance...",
+      "Loading wit.exe...",
+      "Summoning the cloud of wisdom...",
+      "Preparing a witty response...",
+      "Just a sec, I'm debugging reality...",
+      "Confuzzling the options...",
+      "Tuning the cosmic frequencies...",
+      "Crafting a response worthy of your patience...",
+      "Compiling the 1s and 0s...",
+      "Resolving dependencies... and existential crises...",
+      "Defragmenting memories... both RAM and personal...",
+      "Rebooting the humor module...",
+      "Caching the essentials (mostly cat memes)...",
+      "Running sudo make me a sandwich...",
+      "Optimizing for ludicrous speed",
+      "Swapping bits... don't tell the bytes...",
+      "Garbage collecting... be right back...",
+      "Assembling the interwebs...",
+      "Converting coffee into code...",
+      "Pushing to production (and hoping for the best)...",
+      "Updating the syntax for reality...",
+      "Rewiring the synapses...",
+      "Looking for a misplaced semicolon...",
+      "Greasin' the cogs of the machine...",
+      "Pre-heating the servers...",
+      "Calibrating the flux capacitor...",
+      "Engaging the improbability drive...",
+      "Channeling the Force...",
+      "Aligning the stars for optimal response...",
+      "So say we all...",
+      "Loading the next great idea...",
+      "Just a moment, I'm in the zone...",
+      "Preparing to dazzle you with brilliance...",
+      "Just a tick, I'm polishing my wit...",
+      "Hold tight, I'm crafting a masterpiece...",
+      "Just a jiffy, I'm debugging the universe...",
+      "Just a moment, I'm aligning the pixels...",
+      "Just a sec, I'm optimizing the humor...",
+      "Just a moment, I'm tuning the algorithms...",
+      "Warp speed engaged...",
+      "Mining for more Dilithium crystals...",
+      "I'm Giving Her all she's got Captain!",
+      "Don't panic...",
+      "Following the white rabbit...",
+      "The truth is in here... somewhere...",
+      "Blowing on the cartridge...",
+      "Looking for the princess in another castle...",
+      "Loading... Do a barrel roll!",
+      "Waiting for the respawn...",
+      "Finishing the Kessel Run in less than 12 parsecs...",
+      "The cake is not a lie, it's just still loading...",
+      "Fiddling with the character creation screen...",
+      "Just a moment, I'm finding the right meme...",
+      "Pressing 'A' to continue...",
+      "Herding digital cats...",
+      "Polishing the pixels...",
+      "Finding a suitable loading screen pun...",
+      "Distracting you with this witty phrase...",
+      "Almost there... probably...",
+      "Our hamsters are working as fast as they can...",
+      "Giving Cloudy a pat on the head...",
+      "Petting the cat...",
+      "Rickrolling my boss...",
+      "Never gonna give you up, never gonna let you down...",
+      "Slapping the bass...",
+      "Tasting the snozberries...",
+      "I'm going the distance, I'm going for speed...",
+      "Is this the real life? Is this just fantasy?...",
+      "I've got a good feeling about this...",
+      "Poking the bear...",
+      "Doing research on the latest memes...",
+      "Figuring out how to make this more witty...",
+      "Hmmm... let me think...",
+      "What do you call a fish with no eyes? A fsh...",
+      "Why did the computer go to therapy? It had too many bytes...",
+      "Why don't programmers like nature? It has too many bugs...",
+      "Why do programmers prefer dark mode? Because light attracts bugs...",
+      "Why did the developer go broke? Because he used up all his cache...",
+      "What can you do with a broken pencil? Nothing, it's pointless...",
+      "Applying percussive maintenance...",
+      "Searching for the correct USB orientation...",
+      "Ensuring the magic smoke stays inside the wires...",
+      "Rewriting in Rust for no particular reason...",
+      "Trying to exit Vim...",
+      "Spinning up the hamster wheel...",
+      "That's not a bug, it's an undocumented feature...",
+      "Engage.",
+      "I'll be back... with an answer.",
+      "My other process is a TARDIS...",
+      "Communing with the machine spirit...",
+      "Letting the thoughts marinate...",
+      "Just remembered where I put my keys...",
+      "Pondering the orb...",
+      "I've seen things you people wouldn't believe... like a user who reads loading messages.",
+      "Initiating thoughtful gaze...",
+      "What's a computer's favorite snack? Microchips.",
+      "Why do Java developers wear glasses? Because they don't C#.",
+      "Charging the laser... pew pew!",
+      "Dividing by zero... just kidding!",
+      "Looking for an adult superviso... I mean, processing.",
+      "Making it go beep boop.",
+      "Buffering... because even AIs need a moment.",
+      "Entangling quantum particles for a faster response...",
+      "Polishing the chrome... on the algorithms.",
+      "Are you not entertained? (Working on it!)",
+      "Summoning the code gremlins... to help, of course.",
+      "Just waiting for the dial-up tone to finish...",
+      "Recalibrating the humor-o-meter.",
+      "My other loading screen is even funnier.",
+      "Pretty sure there's a cat walking on the keyboard somewhere...",
+      "Enhancing... Enhancing... Still loading.",
+      "It's not a bug, it's a feature... of this loading screen.",
+      "Have you tried turning it off and on again? (The loading screen, not me.)"
+    ]
+  },
+  "theme_dialog": {
+    "title": "Select Theme",
+    "apply_to": "Apply To",
+    "preview": "Preview",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_select": "(Use Enter to select",
+      "tab_to_change_focus": ", Tab to change focus)"
+    }
+  },
+  "editor_dialog": {
+    "title": "Select Editor",
+    "apply_to": "Apply To",
+    "editor_preference": "Editor Preference",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_tab": "(Use Enter to select, Tab to change focus)",
+      "supported_editors": "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.",
+      "preferred_editor": "Your preferred editor is:",
+      "none": "None"
+    }
+  },
+  "language_dialog": {
+    "title": "Language Selection",
+    "first_time_title": "Welcome! Select Your Language",
+    "first_time_description": "Choose your preferred language for the interface. You can change this later using the /language command.",
+    "select_language": "Select Language",
+    "apply_to": "Apply To",
+    "loading_title": "Loading Available Languages...",
+    "loading_message": "Discovering available language options...",
+    "error_title": "Language Selection Error",
+    "no_languages_available": "No language files found. Please ensure translation files are available.",
+    "languages_count": "Available languages: {count}",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings"
+    },
+    "messages": {
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})",
+      "use_enter_select": "(Use Enter to select",
+      "tab_to_change_focus": ", Tab to change focus",
+      "escape_to_cancel": ", Esc to cancel",
+      "press_escape": "Press Esc to continue with default language."
+    },
+    "errors": {
+      "failed_to_load": "Failed to load available languages. Using defaults."
+    }
+  },
+  "language": {
+    "initialization_failed": "Failed to load language \"{language}\". Using default.",
+    "no_language_selected": "No language selected.",
+    "changed_successfully": "Language changed to {language}.",
+    "application_failed": "Failed to apply language \"{language}\". Please try again.",
+    "must_select_language": "You must select a language to continue.",
+    "welcome_message": "Welcome! Language has been set to {language}. You can change it anytime using the /language command.",
+    "save_failed": "Failed to save language setting. Please try again."
+  },
+  "about_box": {
+    "title": "About Gemini CLI",
+    "labels": {
+      "cli_version": "CLI Version",
+      "git_commit": "Git Commit",
+      "model": "Model",
+      "sandbox": "Sandbox",
+      "os": "OS",
+      "auth_method": "Auth Method",
+      "gcp_project": "GCP Project"
+    }
+  },
+  "tips": {
+    "title": "Tips for getting started:",
+    "tip1": "Ask questions, edit files, or run commands.",
+    "tip2": "Be specific for the best results.",
+    "tip3_with_gemini": "Create {filename} files to customize your interactions with Gemini.",
+    "tip3_without_gemini": "{command} for more information.",
+    "tip4": "{command} for more information."
+  },
+  "console_summary": {
+    "error_count": "{count} error{plural}",
+    "ctrl_o_details": "(ctrl+o for details)",
+    "debug_console": "Debug Console",
+    "ctrl_o_close": "ctrl+o to close"
+  },
+  "auto_accept": {
+    "accepting_edits": "accepting edits",
+    "yolo_mode": "YOLO mode",
+    "shift_tab_toggle": " (shift + tab to toggle)",
+    "ctrl_y_toggle": " (ctrl + y to toggle)"
+  },
+  "shell_mode": {
+    "enabled": "shell mode enabled",
+    "esc_to_disable": " (esc to disable)"
+  },
+  "loading_indicator": {
+    "esc_to_cancel": " (esc to cancel, {time})",
+    "seconds": "{elapsed}s",
+    "minutes": "{duration}"
+  },
+  "show_more_lines": {
+    "press_ctrl_s": "Press ctrl-s to show more lines"
+  },
+  "context_summary": {
+    "using": "Using ",
+    "and": " and ",
+    "context_files": "{count} {name} file{plural}",
+    "mcp_servers": "{count} MCP server{plural}",
+    "ctrl_t_toggle": " (ctrl+t to toggle)",
+    "ctrl_t_view": " (ctrl+t to view)"
+  },
+  "compression": {
+    "compressing": "Compressing chat history",
+    "compressed": "Chat history compressed from {original} to {new} tokens.",
+    "unknown": "unknown"
+  },
+  "stats": {
+    "session_stats": "Session Stats",
+    "session_goodbye": "Agent powering down. Goodbye!",
+    "model_stats_title": "Model Stats For Nerds",
+    "tool_stats_title": "Tool Stats For Nerds",
+    "no_api_calls": "No API calls have been made in this session.",
+    "no_tool_calls": "No tool calls have been made in this session.",
+    "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`.",
+    "sections": {
+      "interaction_summary": "Interaction Summary",
+      "performance": "Performance",
+      "model_usage": "Model Usage",
+      "user_decision_summary": "User Decision Summary"
+    },
+    "labels": {
+      "tool_calls": "Tool Calls:",
+      "success_rate": "Success Rate:",
+      "user_agreement": "User Agreement:",
+      "wall_time": "Wall Time:",
+      "agent_active": "Agent Active:",
+      "api_time": "API Time:",
+      "tool_time": "Tool Time:",
+      "metric": "Metric",
+      "tool_name": "Tool Name",
+      "calls": "Calls",
+      "avg_duration": "Avg Duration",
+      "requests": "Requests",
+      "errors": "Errors",
+      "avg_latency": "Avg Latency",
+      "tokens": "Tokens",
+      "total": "Total",
+      "prompt": "Prompt",
+      "cached": "Cached",
+      "thoughts": "Thoughts",
+      "tool": "Tool",
+      "output": "Output",
+      "input_tokens": "Input Tokens",
+      "output_tokens": "Output Tokens",
+      "reqs": "Reqs",
+      "total_reviewed": "Total Reviewed Suggestions:",
+      "accepted": " » Accepted:",
+      "rejected": " » Rejected:",
+      "modified": " » Modified:",
+      "overall_agreement": " Overall Agreement Rate:",
+      "reviewed": "reviewed",
+      "savings_highlight": "Savings Highlight:"
+    },
+    "messages": {
+      "savings_highlight": "Savings Highlight:",
+      "cached_tokens": "{count} ({percentage}%) of input tokens were served from the cache, reducing costs.",
+      "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`.",
+      "reviewed_count": "({count} reviewed)"
+    }
+  },
+  "errors": {
+    "unknown_command": "Unknown command: {command}",
+    "tool_registry_error": "Could not retrieve tool registry.",
+    "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}",
+    "rate_limit_google_generic_quota_free": "\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_google_paid": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI.",
+    "rate_limit_google_pro_quota_paid": "\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_google_generic_quota_paid": "\nYou have reached your daily quota limit. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "rate_limit_use_gemini": "\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method",
+    "rate_limit_vertex": "\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method",
+    "rate_limit_default": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session."
+  },
+  "diff": {
+    "no_content": "No diff content.",
+    "no_changes": "No changes detected."
+  },
+  "show_more_content": {
+    "first_lines_hidden": "... first {count} line{plural} hidden ...",
+    "last_lines_hidden": "... last {count} line{plural} hidden ..."
+  },
+  "update": {
+    "available": "Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update"
+  },
+  "shell": {
+    "binary_output_detected": "[Binary output detected. Halting stream...]",
+    "receiving_binary_output": "[Receiving binary output... {size} received]",
+    "binary_output_not_shown": "[Command produced binary output, which is not shown.]",
+    "no_output": "(Command produced no output)",
+    "command_cancelled": "Command was cancelled.",
+    "command_terminated_signal": "Command terminated by signal: {signal}.",
+    "command_exit_code": "Command exited with code {code}.",
+    "directory_change_warning": "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
+    "unexpected_error": "An unexpected error occurred: {error}"
+  },
+  "at_command": {
+    "tool_not_found": "Error: read_many_files tool not found.",
+    "invalid_command": "Error: Invalid @ command '{command}'. No path specified.",
+    "successfully_read": "Successfully read: {files}",
+    "content_header": "\n--- Content from referenced files ---",
+    "content_from_file": "\nContent from @{file}:\n",
+    "content_footer": "\n--- End of content ---",
+    "error_reading_files": "Error reading files ({files}): {error}"
+  },
+  "theme": {
+    "no_color_env": "Theme configuration unavailable due to NO_COLOR env variable.",
+    "not_found": "Theme \"{theme}\" not found."
+  },
+  "editor": {
+    "preference_set": "Editor preference set to \"{editor}\" in {scope} settings.",
+    "preference_cleared": "Editor preference cleared in {scope} settings.",
+    "failed_to_set": "Failed to set editor preference: {error}"
+  },
+  "privacy": {
+    "oauth_not_used": "Oauth not being used",
+    "no_current_tier": "User does not have a current tier",
+    "loading": "Loading...",
+    "error_loading_optin": "Error loading Opt-in settings: {error}",
+    "press_esc_exit": "Press Esc to exit.",
+    "yes": "Yes",
+    "no": "No",
+    "gemini_code_assist_notice_title": "Gemini Code Assist for Individuals Privacy Notice",
+    "notice_intro": "This notice and our Privacy Policy {ref} describe how Gemini Code Assist handles your data. Please read them carefully.",
+    "data_collection_description": "When you use Gemini Code Assist for individuals with Gemini CLI, Google collects your prompts, related code, generated output, code edits, related feature usage information, and your feedback to provide, improve, and develop Google products and services and machine learning technologies.",
+    "human_review_description": "To help with quality and improve our products (such as generative machine-learning models), human reviewers may read, annotate, and process the data collected above. We take steps to protect your privacy as part of this process. This includes disconnecting the data from your Google Account before reviewers see or annotate it, and storing those disconnected copies for up to 18 months. Please don't submit confidential information or any data you wouldn't want a reviewer to see or Google to use to improve our products, services and machine-learning technologies.",
+    "allow_data_usage_question": "Allow Google to use this data to develop and improve our products?",
+    "press_enter_choose_exit": "Press Enter to choose an option and exit.",
+    "gemini_api_key_notice_title": "Gemini API Key Notice",
+    "gemini_api_terms_text": "By using the Gemini API {ref1}, Google AI Studio {ref2}, and the other Google developer services that reference these terms (collectively, the \"APIs\" or \"Services\"), you are agreeing to Google APIs Terms of Service (the \"API Terms\") {ref3}, and the Gemini API Additional Terms of Service (the \"Additional Terms\") {ref4}.",
+    "vertex_ai_notice_title": "Vertex AI Notice",
+    "vertex_ai_service_terms_text": "Service Specific Terms {ref1} are incorporated into the agreement under which Google has agreed to provide Google Cloud Platform {ref2} to Customer (the \"Agreement\"). If the Agreement authorizes the resale or supply of Google Cloud Platform under a Google Cloud partner or reseller program, then except for in the section entitled \"Partner-Specific Terms\", all references to Customer in the Service Specific Terms mean Partner or Reseller (as applicable), and all references to Customer Data in the Service Specific Terms mean Partner Data. Capitalized terms used but not defined in the Service Specific Terms have the meaning given to them in the Agreement."
+  },
+  "tools": {
+    "edit": {
+      "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
+      "file_not_found_raw": "File not found: {path}",
+      "failed_create_exists": "Failed to edit. Attempted to create a file that already exists.",
+      "failed_find_string": "Failed to edit, could not find the string to replace.",
+      "failed_replacement_count": "Failed to edit, expected {expected} {term} but found {found}.",
+      "validation_error": "Error: {error}",
+      "error_preparing_edit": "Error preparing edit: {error}",
+      "error_display": "Error: {error}",
+      "created_file": "Created {file}",
+      "error_writing_file": "Error writing file: {error}"
+    },
+    "shell": {
+      "validation_error": "Error: {error}",
+      "command_cancelled_user": "Command cancelled by user.",
+      "command_terminated_signal": "Command terminated by signal: {signal}",
+      "command_failed": "Command failed: {error}",
+      "command_exit_code": "Command exited with code: {code}"
+    },
+    "grep": {
+      "no_matches_detailed": "No matches found for pattern \"{pattern}\" in path \"{path}\"{filter}.",
+      "no_matches": "No matches found",
+      "invalid_parameters": "Model provided invalid parameters. Error: {error}",
+      "matches_found": "Found {count} {term}",
+      "search_error": "Error: {error}"
+    },
+    "read_file": {
+      "validation_error": "Error: {error}"
+    },
+    "write_file": {
+      "validation_error": "Error: {error}",
+      "file_check_error": "Error checking existing file: {error}",
+      "write_error": "Error: {error}"
+    }
+  },
+  "auth_errors": {
+    "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
+    "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
+    "invalid_method": "Invalid auth method selected."
+  },
+  "memory": {
+    "config_not_available": "Configuration not available. Cannot show memory.",
+    "loaded_files": "Loaded memory from {count} {name} file{plural}.",
+    "current_content": "Current combined memory content:\n```markdown\n{content}\n```",
+    "loaded_but_empty": "Hierarchical memory (GEMINI.md or other context files) is loaded but content is empty.",
+    "not_loaded": "No hierarchical memory (GEMINI.md or other context files) is currently loaded."
+  },
+  "startup": {
+    "home_directory_warning": "You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.",
+    "directory_verification_error": "Could not verify the current directory due to a file system error.",
+    "cannot_delete_warnings_file": "Warning: Could not delete temporary warnings file.",
+    "error_reading_warnings_file": "Error checking/reading warnings file: {error}"
+  },
+  "non_interactive": {
+    "operation_cancelled": "Operation cancelled.",
+    "tool_execution_error": "Error executing tool {toolName}: {error}"
+  },
+  "sandbox": {
+    "debian_uid_gid_info": "INFO: Defaulting to use current user UID/GID for Debian/Ubuntu-based Linux.",
+    "os_release_warning": "Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.",
+    "cannot_build_with_seatbelt": "ERROR: cannot BUILD_SANDBOX when using MacOS Seatbelt",
+    "missing_seatbelt_profile": "ERROR: missing macos seatbelt profile file '{profileFile}'",
+    "using_seatbelt": "using macos seatbelt (profile: {profile}) ...",
+    "hopping_into_sandbox": "hopping into sandbox (command: {command}) ...",
+    "cannot_build_installed_binary": "ERROR: cannot build sandbox using installed gemini binary; run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.",
+    "building_sandbox": "building sandbox ...",
+    "using_custom_dockerfile": "using {dockerfile} for sandbox",
+    "image_missing_or_pull_failed": "ERROR: Sandbox image '{image}' is missing or could not be pulled. {remedy}",
+    "mount_path_not_absolute": "ERROR: path '{path}' listed in SANDBOX_MOUNTS must be absolute",
+    "mount_path_missing": "ERROR: missing mount path '{path}' listed in SANDBOX_MOUNTS",
+    "stopping_proxy": "stopping proxy ...",
+    "proxy_command_exited": "ERROR: proxy command '{command}' exited with code {code}, signal {signal}",
+    "waiting_proxy_start": "waiting for proxy to start ...",
+    "mount_info": "SANDBOX_MOUNTS: {from} -> {to} ({opts})",
+    "env_info": "SANDBOX_ENV: {env}",
+    "env_invalid_format": "ERROR: SANDBOX_ENV must be a comma-separated list of key=value pairs",
+    "stopping_proxy_container": "stopping proxy container ...",
+    "proxy_container_exited": "ERROR: proxy container command '{command}' exited with code {code}, signal {signal}",
+    "process_error": "Sandbox process error: {error}",
+    "process_exited": "Sandbox process exited with code: {code}, signal: {signal}",
+    "failed_start_image_check": "Failed to start '{sandbox}' command for image check: {error}",
+    "attempting_pull_image": "Attempting to pull image {image} using {sandbox}...",
+    "failed_start_pull_command": "Failed to start '{sandbox} pull {image}' command: {error}",
+    "successfully_pulled_image": "Successfully pulled image {image}.",
+    "failed_pull_image": "Failed to pull image {image}. '{sandbox} pull {image}' exited with code {code}.",
+    "checking_image": "Checking for sandbox image: {image}",
+    "image_found_locally": "Sandbox image {image} found locally.",
+    "image_not_found_locally": "Sandbox image {image} not found locally.",
+    "image_available_after_pull": "Sandbox image {image} is now available after pulling.",
+    "image_still_not_found": "Sandbox image {image} still not found after a pull attempt. This might indicate an issue with the image name or registry, or the pull command reported success but failed to make the image available.",
+    "failed_obtain_image": "Failed to obtain sandbox image {image} after check and pull attempt."
+  },
+  "extension": {
+    "loading": "Loading extension: {name} (version: {version})",
+    "unexpected_file": "Warning: unexpected file {path} in extensions directory.",
+    "missing_config": "Warning: extension directory {dir} does not contain a config file {config}.",
+    "invalid_config": "Invalid extension config in {path}: missing name or version.",
+    "parse_error": "Warning: error parsing extension config in {path}: {error}",
+    "all_disabled": "All extensions are disabled.",
+    "activated": "Activated extension: {name} (version: {version})",
+    "disabled": "Disabled extension: {name}",
+    "not_found": "Extension not found: {name}"
+  },
+  "app": {
+    "memory_refreshing": "Refreshing hierarchical memory (GEMINI.md or other context files)...",
+    "memory_refreshed_success": "Memory refreshed successfully. Loaded {chars} characters from {count} file(s).",
+    "memory_refreshed_no_content": "Memory refreshed successfully. No memory content found.",
+    "memory_refresh_error": "Error refreshing memory: {error}",
+    "reauth_required": "reauth required",
+    "quota_exceeded_pro_paid": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "quota_exceeded_pro_free": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "quota_exceeded_generic_paid": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "quota_exceeded_generic_free": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "fallback_default_paid": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "fallback_default_free": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "auth_timeout": "Authentication timed out. Please try again.",
+    "press_ctrl_c_exit": "Press Ctrl+C again to exit.",
+    "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
+    "initialization_error": "Initialization Error: {error}",
+    "check_api_config": "Please check API key and configuration."
+  }
+}

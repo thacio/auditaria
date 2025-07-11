@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
@@ -23,13 +24,13 @@ export const AutoAcceptIndicator: React.FC<AutoAcceptIndicatorProps> = ({
   switch (approvalMode) {
     case ApprovalMode.AUTO_EDIT:
       textColor = Colors.AccentGreen;
-      textContent = 'accepting edits';
-      subText = ' (shift + tab to toggle)';
+      textContent = t('auto_accept.accepting_edits', 'accepting edits');
+      subText = t('auto_accept.shift_tab_toggle', ' (shift + tab to toggle)');
       break;
     case ApprovalMode.YOLO:
       textColor = Colors.AccentRed;
-      textContent = 'YOLO mode';
-      subText = ' (ctrl + y to toggle)';
+      textContent = t('auto_accept.yolo_mode', 'YOLO mode');
+      subText = t('auto_accept.ctrl_y_toggle', ' (ctrl + y to toggle)');
       break;
     case ApprovalMode.DEFAULT:
     default:

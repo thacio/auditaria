@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '../i18n/index.js';
 
 import path from 'path';
 import { SchemaValidator } from '../utils/schemaValidator.js';
@@ -131,7 +132,7 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     if (validationError) {
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: validationError,
+        returnDisplay: t('tools.read_file.validation_error', 'Error: {error}', { error: validationError }),
       };
     }
 

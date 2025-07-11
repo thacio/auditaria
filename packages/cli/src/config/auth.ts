@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { AuthType } from '@thacio/auditaria-cli-core';
 import { loadEnvironment } from './settings.js';
@@ -18,7 +19,7 @@ export const validateAuthMethod = (authMethod: string): string | null => {
 
   if (authMethod === AuthType.USE_GEMINI) {
     if (!process.env.GEMINI_API_KEY) {
-      return 'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!';
+      return t('auth_errors.gemini_api_key_not_found', 'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!');
     }
     return null;
   }
@@ -28,15 +29,10 @@ export const validateAuthMethod = (authMethod: string): string | null => {
       !!process.env.GOOGLE_CLOUD_PROJECT && !!process.env.GOOGLE_CLOUD_LOCATION;
     const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
     if (!hasVertexProjectLocationConfig && !hasGoogleApiKey) {
-      return (
-        'When using Vertex AI, you must specify either:\n' +
-        '• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n' +
-        '• GOOGLE_API_KEY environment variable (if using express mode).\n' +
-        'Update your environment and try again (no reload needed if using .env)!'
-      );
+      return t('auth_errors.vertex_ai_env_vars_missing', 'When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!');
     }
     return null;
   }
 
-  return 'Invalid auth method selected.';
+  return t('auth_errors.invalid_method', 'Invalid auth method selected.');
 };

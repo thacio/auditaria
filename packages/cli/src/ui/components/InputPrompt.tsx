@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
@@ -44,7 +45,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   config,
   slashCommands,
   commandContext,
-  placeholder = '  Type your message or @path/to/file',
+  placeholder = t('input.placeholder', '  Type your message or @path/to/file'),
   focus = true,
   inputWidth,
   suggestionsWidth,

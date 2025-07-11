@@ -18,6 +18,7 @@ import {
   USER_AGREEMENT_RATE_MEDIUM,
 } from '../utils/displayUtils.js';
 import { computeSessionStats } from '../utils/computeStats.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 // A more flexible and powerful StatRow component
 interface StatRowProps {
@@ -79,16 +80,16 @@ const ModelUsageTable: React.FC<{
       {/* Header */}
       <Box>
         <Box width={nameWidth}>
-          <Text bold>Model Usage</Text>
+          <Text bold>{t('stats.sections.model_usage','Model Usage')}</Text>
         </Box>
         <Box width={requestsWidth} justifyContent="flex-end">
-          <Text bold>Reqs</Text>
+          <Text bold>{t('stats.labels.requests','Reqs')}</Text>
         </Box>
         <Box width={inputTokensWidth} justifyContent="flex-end">
-          <Text bold>Input Tokens</Text>
+          <Text bold>{t('stats.labels.input_tokens','Input Tokens')}</Text>
         </Box>
         <Box width={outputTokensWidth} justifyContent="flex-end">
-          <Text bold>Output Tokens</Text>
+          <Text bold>{t('stats.labels.output_tokens','Output Tokens')}</Text>
         </Box>
       </Box>
       {/* Divider */}
@@ -125,13 +126,15 @@ const ModelUsageTable: React.FC<{
       {cacheEfficiency > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text>
-            <Text color={Colors.AccentGreen}>Savings Highlight:</Text>{' '}
-            {totalCachedTokens.toLocaleString()} ({cacheEfficiency.toFixed(1)}
-            %) of input tokens were served from the cache, reducing costs.
+            <Text color={Colors.AccentGreen}>{t('stats.labels.savings_highlight','Savings Highlight:')} </Text>
+            {t('stats.messages.cached_tokens', '{count} ({percentage}%) of input tokens were served from the cache, reducing costs.', {
+              count: totalCachedTokens.toLocaleString(),
+              percentage: cacheEfficiency.toFixed(1)
+            })}
           </Text>
           <Box height={1} />
           <Text color={Colors.Gray}>
-            » Tip: For a full token breakdown, run `/stats model`.
+            {t('stats.tip_full_breakdown','» Tip: For a full token breakdown, run `/stats model`.')}
           </Text>
         </Box>
       )}
@@ -181,7 +184,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
     }
     return (
       <Text bold color={Colors.AccentPurple}>
-        Session Stats
+        {t('stats.session_stats','Session Stats')}
       </Text>
     );
   };
@@ -198,23 +201,25 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
       <Box height={1} />
 
       {tools.totalCalls > 0 && (
-        <Section title="Interaction Summary">
-          <StatRow title="Tool Calls:">
+        <Section title={t('stats.sections.interaction_summary','Interaction Summary')}>
+          <StatRow title={t('stats.labels.tool_calls','Tool Calls:')}>
             <Text>
               {tools.totalCalls} ({' '}
               <Text color={Colors.AccentGreen}>✔ {tools.totalSuccess}</Text>{' '}
               <Text color={Colors.AccentRed}>✖ {tools.totalFail}</Text> )
             </Text>
           </StatRow>
-          <StatRow title="Success Rate:">
+          <StatRow title={t('stats.labels.success_rate','Success Rate:')}>
             <Text color={successColor}>{computed.successRate.toFixed(1)}%</Text>
           </StatRow>
           {computed.totalDecisions > 0 && (
-            <StatRow title="User Agreement:">
+            <StatRow title={t('stats.labels.user_agreement','User Agreement:')}>
               <Text color={agreementColor}>
                 {computed.agreementRate.toFixed(1)}%{' '}
                 <Text color={Colors.Gray}>
-                  ({computed.totalDecisions} reviewed)
+                  {t('stats.messages.reviewed_count', '({count} reviewed)', {
+                    count: computed.totalDecisions
+                  })}
                 </Text>
               </Text>
             </StatRow>
@@ -222,14 +227,14 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         </Section>
       )}
 
-      <Section title="Performance">
-        <StatRow title="Wall Time:">
+      <Section title={t('stats.sections.performance','Performance')}>
+        <StatRow title={t('stats.labels.wall_time','Wall Time:')}>
           <Text>{duration}</Text>
         </StatRow>
-        <StatRow title="Agent Active:">
+        <StatRow title={t('stats.labels.agent_active','Agent Active:')}>
           <Text>{formatDuration(computed.agentActiveTime)}</Text>
         </StatRow>
-        <SubStatRow title="API Time:">
+        <SubStatRow title={t('stats.labels.api_time','API Time:')}>
           <Text>
             {formatDuration(computed.totalApiTime)}{' '}
             <Text color={Colors.Gray}>
@@ -237,7 +242,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </Text>
           </Text>
         </SubStatRow>
-        <SubStatRow title="Tool Time:">
+        <SubStatRow title={t('stats.labels.tool_time','Tool Time:')}>
           <Text>
             {formatDuration(computed.totalToolTime)}{' '}
             <Text color={Colors.Gray}>

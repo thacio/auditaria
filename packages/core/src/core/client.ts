@@ -39,6 +39,7 @@ import {
 } from './contentGenerator.js';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
+import { getCurrentLanguage } from '../i18n/index.js';
 
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -226,7 +227,8 @@ export class GeminiClient {
     ];
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(userMemory);
+      const currentLanguage = getCurrentLanguage();
+      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
       const generateContentConfigWithThinking = isThinkingSupported(
         this.config.getModel(),
       )
@@ -327,7 +329,8 @@ export class GeminiClient {
       model || this.config.getModel() || DEFAULT_GEMINI_FLASH_MODEL;
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(userMemory);
+      const currentLanguage = getCurrentLanguage();
+      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
       const requestConfig = {
         abortSignal,
         ...this.generateContentConfig,
@@ -421,7 +424,8 @@ export class GeminiClient {
 
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(userMemory);
+      const currentLanguage = getCurrentLanguage();
+      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
 
       const requestConfig = {
         abortSignal,

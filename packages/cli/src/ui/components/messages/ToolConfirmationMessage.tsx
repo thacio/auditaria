@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Box, Text, useInput } from 'ink';
@@ -96,29 +97,29 @@ export const ToolConfirmationMessage: React.FC<
           padding={1}
           overflow="hidden"
         >
-          <Text>Modify in progress: </Text>
+          <Text>{t('tool_confirmation.modify_in_progress', 'Modify in progress: ')}</Text>
           <Text color={Colors.AccentGreen}>
-            Save and close external editor to continue
+            {t('tool_confirmation.save_close_editor', 'Save and close external editor to continue')}
           </Text>
         </Box>
       );
     }
 
-    question = `Apply this change?`;
+    question = t('tool_confirmation.questions.apply_change', 'Apply this change?');
     options.push(
       {
-        label: 'Yes, allow once',
+        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
         value: ToolConfirmationOutcome.ProceedOnce,
       },
       {
-        label: 'Yes, allow always',
+        label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
       {
-        label: 'Modify with external editor',
+        label: t('tool_confirmation.options.modify_editor', 'Modify with external editor'),
         value: ToolConfirmationOutcome.ModifyWithEditor,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
     );
     bodyContent = (
       <DiffRenderer
@@ -132,17 +133,17 @@ export const ToolConfirmationMessage: React.FC<
     const executionProps =
       confirmationDetails as ToolExecuteConfirmationDetails;
 
-    question = `Allow execution?`;
+    question = t('tool_confirmation.questions.allow_execution', 'Allow execution?');
     options.push(
       {
-        label: 'Yes, allow once',
+        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
         value: ToolConfirmationOutcome.ProceedOnce,
       },
       {
-        label: `Yes, allow always "${executionProps.rootCommand} ..."`,
+        label: t('tool_confirmation.options.yes_always_command', 'Yes, allow always "{command} ..."', { command: executionProps.rootCommand }),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
     );
 
     let bodyContentHeight = availableBodyContentHeight();
@@ -169,17 +170,17 @@ export const ToolConfirmationMessage: React.FC<
       infoProps.urls &&
       !(infoProps.urls.length === 1 && infoProps.urls[0] === infoProps.prompt);
 
-    question = `Do you want to proceed?`;
+    question = t('tool_confirmation.questions.do_you_want_proceed', 'Do you want to proceed?');
     options.push(
       {
-        label: 'Yes, allow once',
+        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
         value: ToolConfirmationOutcome.ProceedOnce,
       },
       {
-        label: 'Yes, allow always',
+        label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
     );
 
     bodyContent = (
@@ -187,7 +188,7 @@ export const ToolConfirmationMessage: React.FC<
         <Text color={Colors.AccentCyan}>{infoProps.prompt}</Text>
         {displayUrls && infoProps.urls && infoProps.urls.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
-            <Text>URLs to fetch:</Text>
+            <Text>{t('tool_confirmation.info.urls_to_fetch', 'URLs to fetch:')}</Text>
             {infoProps.urls.map((url) => (
               <Text key={url}> - {url}</Text>
             ))}
@@ -201,26 +202,26 @@ export const ToolConfirmationMessage: React.FC<
 
     bodyContent = (
       <Box flexDirection="column" paddingX={1} marginLeft={1}>
-        <Text color={Colors.AccentCyan}>MCP Server: {mcpProps.serverName}</Text>
-        <Text color={Colors.AccentCyan}>Tool: {mcpProps.toolName}</Text>
+        <Text color={Colors.AccentCyan}>{t('tool_confirmation.mcp_labels.server', 'MCP Server: {serverName}', { serverName: mcpProps.serverName })}</Text>
+        <Text color={Colors.AccentCyan}>{t('tool_confirmation.mcp_labels.tool', 'Tool: {toolName}', { toolName: mcpProps.toolName })}</Text>
       </Box>
     );
 
-    question = `Allow execution of MCP tool "${mcpProps.toolName}" from server "${mcpProps.serverName}"?`;
+    question = t('tool_confirmation.questions.allow_mcp_tool', 'Allow execution of MCP tool "{toolName}" from server "{serverName}"?', { toolName: mcpProps.toolName, serverName: mcpProps.serverName });
     options.push(
       {
-        label: 'Yes, allow once',
+        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
         value: ToolConfirmationOutcome.ProceedOnce,
       },
       {
-        label: `Yes, always allow tool "${mcpProps.toolName}" from server "${mcpProps.serverName}"`,
+        label: t('tool_confirmation.options.yes_always_tool', 'Yes, always allow tool "{toolName}" from server "{serverName}"', { toolName: mcpProps.toolName, serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysTool, // Cast until types are updated
       },
       {
-        label: `Yes, always allow all tools from server "${mcpProps.serverName}"`,
+        label: t('tool_confirmation.options.yes_always_server', 'Yes, always allow all tools from server "{serverName}"', { serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysServer,
       },
-      { label: 'No (esc)', value: ToolConfirmationOutcome.Cancel },
+      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
     );
   }
 

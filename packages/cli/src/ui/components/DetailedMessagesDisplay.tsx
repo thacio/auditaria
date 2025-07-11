@@ -9,6 +9,7 @@ import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { ConsoleMessageItem } from '../types.js';
 import { MaxSizedBox } from './shared/MaxSizedBox.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 interface DetailedMessagesDisplayProps {
   messages: ConsoleMessageItem[];
@@ -37,7 +38,7 @@ export const DetailedMessagesDisplay: React.FC<
     >
       <Box marginBottom={1}>
         <Text bold color={Colors.Foreground}>
-          Debug Console <Text color={Colors.Gray}>(ctrl+o to close)</Text>
+          {t('console_summary.debug_console', 'Debug Console')} <Text color={Colors.Gray}>({t('console_summary.ctrl_o_close', 'ctrl+o to close')})</Text>
         </Text>
       </Box>
       <MaxSizedBox maxHeight={maxHeight} maxWidth={width - borderAndPadding}>

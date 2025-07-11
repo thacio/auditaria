@@ -37,4 +37,17 @@ for (const file of sbFiles) {
   copyFileSync(join(root, file), join(bundleDir, basename(file)));
 }
 
-console.log('Assets copied to bundle/');
+// Create locales directory in bundle and copy translation files
+const localesDir = join(bundleDir, 'locales');
+if (!existsSync(localesDir)) {
+  mkdirSync(localesDir, { recursive: true });
+}
+
+// Find and copy all .json files from i18n/locales directories
+const localeFiles = glob.sync('packages/**/i18n/locales/*.json', { cwd: root });
+for (const file of localeFiles) {
+  const fileName = basename(file);
+  copyFileSync(join(root, file), join(localesDir, fileName));
+}
+
+console.log('Assets and locale files copied to bundle/');

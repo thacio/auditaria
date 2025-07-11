@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useCallback, useEffect } from 'react';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
@@ -40,7 +41,7 @@ export const useAuthCommand = (
         await config.refreshAuth(authType);
         console.log(`Authenticated via "${authType}".`);
       } catch (e) {
-        setAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
+        setAuthError(t('auth_dialog.messages.failed_login', 'Failed to login. Message: {error}', { error: getErrorMessage(e) }));
         openAuthDialog();
       } finally {
         setIsAuthenticating(false);

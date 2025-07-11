@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import {
   Config,
@@ -83,7 +84,7 @@ export async function runNonInteractive(
 
       for await (const resp of responseStream) {
         if (abortController.signal.aborted) {
-          console.error('Operation cancelled.');
+          console.error(t('non_interactive.operation_cancelled', 'Operation cancelled.'));
           return;
         }
         const textPart = getResponseText(resp);
@@ -120,7 +121,7 @@ export async function runNonInteractive(
               'not found in registry',
             );
             console.error(
-              `Error executing tool ${fc.name}: ${toolResponse.resultDisplay || toolResponse.error.message}`,
+              t('non_interactive.tool_execution_error', 'Error executing tool {toolName}: {error}', { toolName: fc.name ?? 'unknown', error: toolResponse.error.message }),
             );
             if (!isToolNotFound) {
               process.exit(1);

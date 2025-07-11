@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { exec, execSync, spawn, type ChildProcess } from 'node:child_process';
 import os from 'node:os';
@@ -83,7 +84,7 @@ async function shouldUseCurrentUserInSandbox(): Promise<boolean> {
       ) {
         // note here and below we use console.error for informational messages on stderr
         console.error(
-          'INFO: Defaulting to use current user UID/GID for Debian/Ubuntu-based Linux.',
+          t('sandbox.debian_uid_gid_info', 'INFO: Defaulting to use current user UID/GID for Debian/Ubuntu-based Linux.'),
         );
         return true;
       }
@@ -91,7 +92,7 @@ async function shouldUseCurrentUserInSandbox(): Promise<boolean> {
       // Silently ignore if /etc/os-release is not found or unreadable.
       // The default (false) will be applied in this case.
       console.warn(
-        'Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.',
+        t('sandbox.os_release_warning', 'Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.'),
       );
     }
   }
@@ -187,7 +188,7 @@ export async function start_sandbox(
   if (config.command === 'sandbox-exec') {
     // disallow BUILD_SANDBOX
     if (process.env.BUILD_SANDBOX) {
-      console.error('ERROR: cannot BUILD_SANDBOX when using MacOS Seatbelt');
+      console.error(t('sandbox.cannot_build_with_seatbelt', 'ERROR: cannot BUILD_SANDBOX when using MacOS Seatbelt'));
       process.exit(1);
     }
     const profile = (process.env.SEATBELT_PROFILE ??= 'permissive-open');
@@ -202,12 +203,12 @@ export async function start_sandbox(
     }
     if (!fs.existsSync(profileFile)) {
       console.error(
-        `ERROR: missing macos seatbelt profile file '${profileFile}'`,
+        t('sandbox.missing_seatbelt_profile', 'ERROR: missing macos seatbelt profile file \'{profileFile}\'', { profileFile }),
       );
       process.exit(1);
     }
     // Log on STDERR so it doesn't clutter the output on STDOUT
-    console.error(`using macos seatbelt (profile: ${profile}) ...`);
+    console.error(t('sandbox.using_seatbelt', 'using macos seatbelt (profile: {profile}) ...', { profile }));
     // if DEBUG is set, convert to --inspect-brk in NODE_OPTIONS
     const nodeOptions = [
       ...(process.env.DEBUG ? ['--inspect-brk'] : []),
@@ -261,7 +262,7 @@ export async function start_sandbox(
       });
       // install handlers to stop proxy on exit/signal
       const stopProxy = () => {
-        console.log('stopping proxy ...');
+        console.log(t('sandbox.stopping_proxy', 'stopping proxy ...'));
         if (proxyProcess?.pid) {
           process.kill(-proxyProcess.pid, 'SIGTERM');
         }
@@ -279,14 +280,14 @@ export async function start_sandbox(
       });
       proxyProcess.on('close', (code, signal) => {
         console.error(
-          `ERROR: proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`,
+          t('sandbox.proxy_command_exited', 'ERROR: proxy command \'{command}\' exited with code {code}, signal {signal}', { command: proxyCommand, code: code ?? 'unknown', signal: signal ?? 'none' }),
         );
         if (sandboxProcess?.pid) {
           process.kill(-sandboxProcess.pid, 'SIGTERM');
         }
         process.exit(1);
       });
-      console.log('waiting for proxy to start ...');
+      console.log(t('sandbox.waiting_proxy_start', 'waiting for proxy to start ...'));
       await execAsync(
         `until timeout 0.25 curl -s http://localhost:8877; do sleep 0.25; done`,
       );
@@ -299,7 +300,7 @@ export async function start_sandbox(
     return;
   }
 
-  console.error(`hopping into sandbox (command: ${config.command}) ...`);
+  console.error(t('sandbox.hopping_into_sandbox', 'hopping into sandbox (command: {command}) ...', { command: config.command }));
 
   // determine full path for gemini-cli to distinguish linked vs installed setting
   const gcPath = fs.realpathSync(process.argv[1]);
@@ -320,12 +321,11 @@ export async function start_sandbox(
   if (process.env.BUILD_SANDBOX) {
     if (!gcPath.includes('gemini-cli/packages/')) {
       console.error(
-        'ERROR: cannot build sandbox using installed gemini binary; ' +
-          'run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.',
+        t('sandbox.cannot_build_installed_binary', 'ERROR: cannot build sandbox using installed gemini binary; run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.'),
       );
       process.exit(1);
     } else {
-      console.error('building sandbox ...');
+      console.error(t('sandbox.building_sandbox', 'building sandbox ...'));
       const gcRoot = gcPath.split('/packages/')[0];
       // if project folder has sandbox.Dockerfile under project settings folder, use that
       let buildArgs = '';
@@ -334,7 +334,7 @@ export async function start_sandbox(
         'sandbox.Dockerfile',
       );
       if (isCustomProjectSandbox) {
-        console.error(`using ${projectSandboxDockerfile} for sandbox`);
+        console.error(t('sandbox.using_custom_dockerfile', 'using {dockerfile} for sandbox', { dockerfile: projectSandboxDockerfile }));
         buildArgs += `-f ${path.resolve(projectSandboxDockerfile)} -i ${image}`;
       }
       execSync(
@@ -357,7 +357,7 @@ export async function start_sandbox(
         ? 'Try running `npm run build:all` or `npm run build:sandbox` under the gemini-cli repo to build it locally, or check the image name and your network connection.'
         : 'Please check the image name, your network connection, or notify gemini-cli-dev@google.com if the issue persists.';
     console.error(
-      `ERROR: Sandbox image '${image}' is missing or could not be pulled. ${remedy}`,
+      t('sandbox.image_missing_or_pull_failed', 'ERROR: Sandbox image \'{image}\' is missing or could not be pulled. {remedy}', { image, remedy }),
     );
     process.exit(1);
   }
@@ -427,18 +427,18 @@ export async function start_sandbox(
         // check that from path is absolute
         if (!path.isAbsolute(from)) {
           console.error(
-            `ERROR: path '${from}' listed in SANDBOX_MOUNTS must be absolute`,
+            t('sandbox.mount_path_not_absolute', 'ERROR: path \'{path}\' listed in SANDBOX_MOUNTS must be absolute', { path: from }),
           );
           process.exit(1);
         }
         // check that from path exists on host
         if (!fs.existsSync(from)) {
           console.error(
-            `ERROR: missing mount path '${from}' listed in SANDBOX_MOUNTS`,
+            t('sandbox.mount_path_missing', 'ERROR: missing mount path \'{path}\' listed in SANDBOX_MOUNTS', { path: from }),
           );
           process.exit(1);
         }
-        console.error(`SANDBOX_MOUNTS: ${from} -> ${to} (${opts})`);
+        console.error(t('sandbox.mount_info', 'SANDBOX_MOUNTS: {from} -> {to} ({opts})', { from, to, opts }));
         args.push('--volume', mount);
       }
     }
@@ -583,11 +583,11 @@ export async function start_sandbox(
     for (let env of process.env.SANDBOX_ENV.split(',')) {
       if ((env = env.trim())) {
         if (env.includes('=')) {
-          console.error(`SANDBOX_ENV: ${env}`);
+          console.error(t('sandbox.env_info', 'SANDBOX_ENV: {env}', { env }));
           args.push('--env', env);
         } else {
           console.error(
-            'ERROR: SANDBOX_ENV must be a comma-separated list of key=value pairs',
+            t('sandbox.env_invalid_format', 'ERROR: SANDBOX_ENV must be a comma-separated list of key=value pairs'),
           );
           process.exit(1);
         }
@@ -682,7 +682,7 @@ export async function start_sandbox(
     });
     // install handlers to stop proxy on exit/signal
     const stopProxy = () => {
-      console.log('stopping proxy container ...');
+      console.log(t('sandbox.stopping_proxy_container', 'stopping proxy container ...'));
       execSync(`${config.command} rm -f ${SANDBOX_PROXY_NAME}`);
     };
     process.on('exit', stopProxy);
@@ -698,14 +698,14 @@ export async function start_sandbox(
     });
     proxyProcess.on('close', (code, signal) => {
       console.error(
-        `ERROR: proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`,
+        t('sandbox.proxy_container_exited', 'ERROR: proxy container command \'{command}\' exited with code {code}, signal {signal}', { command: proxyContainerCommand, code: code ?? 'unknown', signal: signal ?? 'none' }),
       );
       if (sandboxProcess?.pid) {
         process.kill(-sandboxProcess.pid, 'SIGTERM');
       }
       process.exit(1);
     });
-    console.log('waiting for proxy to start ...');
+    console.log(t('sandbox.waiting_proxy_start', 'waiting for proxy to start ...'));
     await execAsync(
       `until timeout 0.25 curl -s http://localhost:8877; do sleep 0.25; done`,
     );
@@ -722,14 +722,14 @@ export async function start_sandbox(
   });
 
   sandboxProcess.on('error', (err) => {
-    console.error('Sandbox process error:', err);
+    console.error(t('sandbox.process_error', 'Sandbox process error: {error}', { error: err.message || String(err) }));
   });
 
   await new Promise<void>((resolve) => {
     sandboxProcess?.on('close', (code, signal) => {
       if (code !== 0) {
         console.log(
-          `Sandbox process exited with code: ${code}, signal: ${signal}`,
+          t('sandbox.process_exited', 'Sandbox process exited with code: {code}, signal: {signal}', { code: code ?? 'unknown', signal: signal ?? 'none' }),
         );
       }
       resolve();
@@ -752,7 +752,7 @@ async function imageExists(sandbox: string, image: string): Promise<boolean> {
 
     checkProcess.on('error', (err) => {
       console.warn(
-        `Failed to start '${sandbox}' command for image check: ${err.message}`,
+        t('sandbox.failed_start_image_check', 'Failed to start \'{sandbox}\' command for image check: {error}', { sandbox, error: err.message }),
       );
       resolve(false);
     });
@@ -769,7 +769,7 @@ async function imageExists(sandbox: string, image: string): Promise<boolean> {
 }
 
 async function pullImage(sandbox: string, image: string): Promise<boolean> {
-  console.info(`Attempting to pull image ${image} using ${sandbox}...`);
+  console.info(t('sandbox.attempting_pull_image', 'Attempting to pull image {image} using {sandbox}...', { image, sandbox }));
   return new Promise((resolve) => {
     const args = ['pull', image];
     const pullProcess = spawn(sandbox, args, { stdio: 'pipe' });
@@ -777,17 +777,17 @@ async function pullImage(sandbox: string, image: string): Promise<boolean> {
     let stderrData = '';
 
     const onStdoutData = (data: Buffer) => {
-      console.info(data.toString().trim()); // Show pull progress
+      console.info(data.toString().trim()); // Show pull progress (keep as is - dynamic data)
     };
 
     const onStderrData = (data: Buffer) => {
       stderrData += data.toString();
-      console.error(data.toString().trim()); // Show pull errors/info from the command itself
+      console.error(data.toString().trim()); // Show pull errors/info from the command itself (keep as is - dynamic data)
     };
 
     const onError = (err: Error) => {
       console.warn(
-        `Failed to start '${sandbox} pull ${image}' command: ${err.message}`,
+        t('sandbox.failed_start_pull_command', 'Failed to start \'{sandbox} pull {image}\' command: {error}', { sandbox, image, error: err.message }),
       );
       cleanup();
       resolve(false);
@@ -795,12 +795,12 @@ async function pullImage(sandbox: string, image: string): Promise<boolean> {
 
     const onClose = (code: number | null) => {
       if (code === 0) {
-        console.info(`Successfully pulled image ${image}.`);
+        console.info(t('sandbox.successfully_pulled_image', 'Successfully pulled image {image}.', { image }));
         cleanup();
         resolve(true);
       } else {
         console.warn(
-          `Failed to pull image ${image}. '${sandbox} pull ${image}' exited with code ${code}.`,
+          t('sandbox.failed_pull_image', 'Failed to pull image {image}. \'{sandbox} pull {image}\' exited with code {code}.', { image, sandbox, code: code ?? 'unknown' }),
         );
         if (stderrData.trim()) {
           // Details already printed by the stderr listener above
@@ -839,13 +839,13 @@ async function ensureSandboxImageIsPresent(
   sandbox: string,
   image: string,
 ): Promise<boolean> {
-  console.info(`Checking for sandbox image: ${image}`);
+  console.info(t('sandbox.checking_image', 'Checking for sandbox image: {image}', { image }));
   if (await imageExists(sandbox, image)) {
-    console.info(`Sandbox image ${image} found locally.`);
+    console.info(t('sandbox.image_found_locally', 'Sandbox image {image} found locally.', { image }));
     return true;
   }
 
-  console.info(`Sandbox image ${image} not found locally.`);
+  console.info(t('sandbox.image_not_found_locally', 'Sandbox image {image} not found locally.', { image }));
   if (image === LOCAL_DEV_SANDBOX_IMAGE_NAME) {
     // user needs to build the image themself
     return false;
@@ -854,18 +854,18 @@ async function ensureSandboxImageIsPresent(
   if (await pullImage(sandbox, image)) {
     // After attempting to pull, check again to be certain
     if (await imageExists(sandbox, image)) {
-      console.info(`Sandbox image ${image} is now available after pulling.`);
+      console.info(t('sandbox.image_available_after_pull', 'Sandbox image {image} is now available after pulling.', { image }));
       return true;
     } else {
       console.warn(
-        `Sandbox image ${image} still not found after a pull attempt. This might indicate an issue with the image name or registry, or the pull command reported success but failed to make the image available.`,
+        t('sandbox.image_still_not_found', 'Sandbox image {image} still not found after a pull attempt. This might indicate an issue with the image name or registry, or the pull command reported success but failed to make the image available.', { image }),
       );
       return false;
     }
   }
 
   console.error(
-    `Failed to obtain sandbox image ${image} after check and pull attempt.`,
+    t('sandbox.failed_obtain_image', 'Failed to obtain sandbox image {image} after check and pull attempt.', { image }),
   );
   return false; // Pull command failed or image still not present
 }

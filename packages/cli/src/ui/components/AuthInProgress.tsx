@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import Spinner from 'ink-spinner';
 import { Colors } from '../colors.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 interface AuthInProgressProps {
   onTimeout: () => void;
@@ -43,12 +44,12 @@ export function AuthInProgress({
     >
       {timedOut ? (
         <Text color={Colors.AccentRed}>
-          Authentication timed out. Please try again.
+          {t('auth_dialog.messages.auth_timeout', 'Authentication timed out. Please try again.')}
         </Text>
       ) : (
         <Box>
           <Text>
-            <Spinner type="dots" /> Waiting for auth... (Press ESC to cancel)
+            <Spinner type="dots" /> {t('auth_dialog.messages.waiting_for_auth', 'Waiting for auth... (Press ESC to cancel)')}
           </Text>
         </Box>
       )}

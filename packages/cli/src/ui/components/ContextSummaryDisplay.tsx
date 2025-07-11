@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import React from 'react';
 import { Text } from 'ink';
@@ -34,31 +35,36 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     }
     const allNamesTheSame = new Set(contextFileNames).size < 2;
     const name = allNamesTheSame ? contextFileNames[0] : 'context';
-    return `${geminiMdFileCount} ${name} file${
-      geminiMdFileCount > 1 ? 's' : ''
-    }`;
+    return t('context_summary.context_files', '{count} {name} file{plural}', {
+      count: geminiMdFileCount,
+      name,
+      plural: geminiMdFileCount > 1 ? 's' : ''
+    });
   })();
 
   const mcpText =
     mcpServerCount > 0
-      ? `${mcpServerCount} MCP server${mcpServerCount > 1 ? 's' : ''}`
+      ? t('context_summary.mcp_servers', '{count} MCP server{plural}', {
+          count: mcpServerCount,
+          plural: mcpServerCount > 1 ? 's' : ''
+        })
       : '';
 
-  let summaryText = 'Using ';
+  let summaryText = t('context_summary.using', 'Using ');
   if (geminiMdText) {
     summaryText += geminiMdText;
   }
   if (geminiMdText && mcpText) {
-    summaryText += ' and ';
+    summaryText += t('context_summary.and', ' and ');
   }
   if (mcpText) {
     summaryText += mcpText;
     // Add ctrl+t hint when MCP servers are available
     if (mcpServers && Object.keys(mcpServers).length > 0) {
       if (showToolDescriptions) {
-        summaryText += ' (ctrl+t to toggle)';
+        summaryText += t('context_summary.ctrl_t_toggle', ' (ctrl+t to toggle)');
       } else {
-        summaryText += ' (ctrl+t to view)';
+        summaryText += t('context_summary.ctrl_t_view', ' (ctrl+t to view)');
       }
     }
   }

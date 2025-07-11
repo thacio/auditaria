@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '../i18n/index.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -120,7 +121,7 @@ export class WriteFileTool
 
     const filePath = params.file_path;
     if (!path.isAbsolute(filePath)) {
-      return `File path must be absolute: ${filePath}`;
+      return t('tools.write_file.file_path_must_be_absolute', 'File path must be absolute: {path}', { path: filePath });
     }
     if (!this.isWithinRoot(filePath)) {
       return `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
@@ -220,7 +221,7 @@ export class WriteFileTool
     if (validationError) {
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
-        returnDisplay: `Error: ${validationError}`,
+        returnDisplay: t('tools.write_file.validation_error', 'Error: {error}', { error: validationError }),
       };
     }
 
@@ -235,7 +236,7 @@ export class WriteFileTool
       const errorMsg = `Error checking existing file: ${errDetails.message}`;
       return {
         llmContent: `Error checking existing file ${params.file_path}: ${errDetails.message}`,
-        returnDisplay: errorMsg,
+        returnDisplay: t('tools.write_file.file_check_error', 'Error checking existing file: {error}', { error: errDetails.message }),
       };
     }
 
@@ -319,7 +320,7 @@ export class WriteFileTool
       const errorMsg = `Error writing to file: ${error instanceof Error ? error.message : String(error)}`;
       return {
         llmContent: `Error writing to file ${params.file_path}: ${errorMsg}`,
-        returnDisplay: `Error: ${errorMsg}`,
+        returnDisplay: t('tools.write_file.write_error', 'Error: {error}', { error: errorMsg }),
       };
     }
   }

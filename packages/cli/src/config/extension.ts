@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { MCPServerConfig } from '@thacio/auditaria-cli-core';
 import * as fs from 'fs';
@@ -35,7 +36,7 @@ export function loadExtensions(workspaceDir: string): Extension[] {
   for (const extension of allExtensions) {
     if (!uniqueExtensions.has(extension.config.name)) {
       console.log(
-        `Loading extension: ${extension.config.name} (version: ${extension.config.version})`,
+        t('extension.loading', 'Loading extension: {name} (version: {version})', { name: extension.config.name, version: extension.config.version }),
       );
       uniqueExtensions.set(extension.config.name, extension);
     }
@@ -65,7 +66,7 @@ function loadExtensionsFromDir(dir: string): Extension[] {
 function loadExtension(extensionDir: string): Extension | null {
   if (!fs.statSync(extensionDir).isDirectory()) {
     console.error(
-      `Warning: unexpected file ${extensionDir} in extensions directory.`,
+      t('extension.unexpected_file', 'Warning: unexpected file {path} in extensions directory.', { path: extensionDir }),
     );
     return null;
   }
@@ -73,7 +74,7 @@ function loadExtension(extensionDir: string): Extension | null {
   const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
   if (!fs.existsSync(configFilePath)) {
     console.error(
-      `Warning: extension directory ${extensionDir} does not contain a config file ${configFilePath}.`,
+      t('extension.missing_config', 'Warning: extension directory {dir} does not contain a config file {config}.', { dir: extensionDir, config: configFilePath }),
     );
     return null;
   }
@@ -83,7 +84,7 @@ function loadExtension(extensionDir: string): Extension | null {
     const config = JSON.parse(configContent) as ExtensionConfig;
     if (!config.name || !config.version) {
       console.error(
-        `Invalid extension config in ${configFilePath}: missing name or version.`,
+        t('extension.invalid_config', 'Invalid extension config in {path}: missing name or version.', { path: configFilePath }),
       );
       return null;
     }
@@ -98,7 +99,7 @@ function loadExtension(extensionDir: string): Extension | null {
     };
   } catch (e) {
     console.error(
-      `Warning: error parsing extension config in ${configFilePath}: ${e}`,
+      t('extension.parse_error', 'Warning: error parsing extension config in {path}: {error}', { path: configFilePath, error: String(e) }),
     );
     return null;
   }
@@ -130,7 +131,7 @@ export function filterActiveExtensions(
     lowerCaseEnabledExtensions.has('none')
   ) {
     if (extensions.length > 0) {
-      console.log('All extensions are disabled.');
+      console.log(t('extension.all_disabled', 'All extensions are disabled.'));
     }
     return [];
   }
@@ -142,17 +143,17 @@ export function filterActiveExtensions(
     const lowerCaseName = extension.config.name.toLowerCase();
     if (lowerCaseEnabledExtensions.has(lowerCaseName)) {
       console.log(
-        `Activated extension: ${extension.config.name} (version: ${extension.config.version})`,
+        t('extension.activated', 'Activated extension: {name} (version: {version})', { name: extension.config.name, version: extension.config.version }),
       );
       activeExtensions.push(extension);
       notFoundNames.delete(lowerCaseName);
     } else {
-      console.log(`Disabled extension: ${extension.config.name}`);
+      console.log(t('extension.disabled', 'Disabled extension: {name}', { name: extension.config.name }));
     }
   }
 
   for (const requestedName of notFoundNames) {
-    console.log(`Extension not found: ${requestedName}`);
+    console.log(t('extension.not_found', 'Extension not found: {name}', { name: requestedName }));
   }
 
   return activeExtensions;

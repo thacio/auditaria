@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useCallback, useEffect } from 'react';
 import { themeManager } from '../themes/theme-manager.js';
@@ -42,7 +43,7 @@ export const useThemeCommand = (
         addItem(
           {
             type: MessageType.INFO,
-            text: 'Theme configuration unavailable due to NO_COLOR env variable.',
+            text: t('theme.no_color_env', 'Theme configuration unavailable due to NO_COLOR env variable.'),
           },
           Date.now(),
         );
@@ -53,7 +54,7 @@ export const useThemeCommand = (
 
     if (!themeManager.setActiveTheme(effectiveTheme)) {
       setIsThemeDialogOpen(true);
-      setThemeError(`Theme "${effectiveTheme}" not found.`);
+      setThemeError(t('theme.not_found', 'Theme "{theme}" not found.', { theme: effectiveTheme }));
     } else {
       setThemeError(null);
     }
@@ -64,7 +65,7 @@ export const useThemeCommand = (
       addItem(
         {
           type: MessageType.INFO,
-          text: 'Theme configuration unavailable due to NO_COLOR env variable.',
+          text: t('theme.no_color_env', 'Theme configuration unavailable due to NO_COLOR env variable.'),
         },
         Date.now(),
       );
@@ -78,7 +79,7 @@ export const useThemeCommand = (
       if (!themeManager.setActiveTheme(themeName)) {
         // If theme is not found, open the theme selection dialog and set error message
         setIsThemeDialogOpen(true);
-        setThemeError(`Theme "${themeName}" not found.`);
+        setThemeError(t('theme.not_found', 'Theme "{theme}" not found.', { theme: themeName ?? 'undefined' }));
       } else {
         setForceRender((v) => v + 1); // Trigger potential re-render
         setThemeError(null); // Clear any previous theme error on success

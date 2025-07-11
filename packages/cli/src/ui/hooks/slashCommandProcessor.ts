@@ -20,6 +20,7 @@ import {
   getMCPServerStatus,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
+  t,
 } from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import {
@@ -75,6 +76,7 @@ export const useSlashCommandProcessor = (
   openThemeDialog: () => void,
   openAuthDialog: () => void,
   openEditorDialog: () => void,
+  openLanguageDialog: () => void,
   toggleCorgiMode: () => void,
   showToolDescriptions: boolean = false,
   setQuittingMessages: (message: HistoryItem[]) => void,
@@ -225,19 +227,19 @@ export const useSlashCommandProcessor = (
       // `/help` and `/clear` have been migrated and REMOVED from this list.
       {
         name: 'docs',
-        description: 'open full Gemini CLI documentation in your browser',
+        description: t('commands.docs.description', 'open full Gemini CLI documentation in your browser'),
         action: async (_mainCommand, _subCommand, _args) => {
           const docsUrl = 'https://goo.gle/gemini-cli-docs';
           if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
             addMessage({
               type: MessageType.INFO,
-              content: `Please open the following URL in your browser to view the documentation:\n${docsUrl}`,
+              content: t('commands.docs.sandbox_message', 'Please open the following URL in your browser to view the documentation:\n{url}', { url: docsUrl }),
               timestamp: new Date(),
             });
           } else {
             addMessage({
               type: MessageType.INFO,
-              content: `Opening documentation in your browser: ${docsUrl}`,
+              content: t('commands.docs.opening', 'Opening documentation in your browser: {url}', { url: docsUrl }),
               timestamp: new Date(),
             });
             await open(docsUrl);
@@ -246,30 +248,35 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'theme',
-        description: 'change the theme',
+        description: t('commands.theme.description', 'change the theme'),
         action: (_mainCommand, _subCommand, _args) => {
           openThemeDialog();
         },
       },
       {
         name: 'auth',
-        description: 'change the auth method',
+        description: t('commands.auth.description', 'change the auth method'),
         action: (_mainCommand, _subCommand, _args) => openAuthDialog(),
       },
       {
         name: 'editor',
-        description: 'set external editor preference',
+        description: t('commands.editor.description', 'set external editor preference'),
         action: (_mainCommand, _subCommand, _args) => openEditorDialog(),
       },
       {
+        name: 'language',
+        description: t('commands.language.description', 'change language preference'),
+        action: (_mainCommand, _subCommand, _args) => openLanguageDialog(),
+      },
+      {
         name: 'privacy',
-        description: 'display the privacy notice',
+        description: t('commands.privacy.description', 'display the privacy notice'),
         action: (_mainCommand, _subCommand, _args) => openPrivacyNotice(),
       },
       {
         name: 'stats',
         altName: 'usage',
-        description: 'check session stats. Usage: /stats [model|tools]',
+        description: t('commands.stats.description', 'check session stats. Usage: /stats [model|tools]'),
         action: (_mainCommand, subCommand, _args) => {
           if (subCommand === 'model') {
             addMessage({
@@ -298,7 +305,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'mcp',
-        description: 'list configured MCP servers and tools',
+        description: t('commands.mcp.description', 'list configured MCP servers and tools'),
         action: async (_mainCommand, _subCommand, _args) => {
           // Check if the _subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
@@ -324,7 +331,7 @@ export const useSlashCommandProcessor = (
           if (!toolRegistry) {
             addMessage({
               type: MessageType.ERROR,
-              content: 'Could not retrieve tool registry.',
+              content: t('errors.tool_registry_error', 'Could not retrieve tool registry.'),
               timestamp: new Date(),
             });
             return;
@@ -338,13 +345,13 @@ export const useSlashCommandProcessor = (
             if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
               addMessage({
                 type: MessageType.INFO,
-                content: `No MCP servers configured. Please open the following URL in your browser to view documentation:\n${docsUrl}`,
+                content: t('commands.mcp.no_servers_sandbox', 'No MCP servers configured. Please open the following URL in your browser to view documentation:\n{url}', { url: docsUrl }),
                 timestamp: new Date(),
               });
             } else {
               addMessage({
                 type: MessageType.INFO,
-                content: `No MCP servers configured. Opening documentation in your browser: ${docsUrl}`,
+                content: t('commands.mcp.no_servers', 'No MCP servers configured. Opening documentation in your browser: {url}', { url: docsUrl }),
                 timestamp: new Date(),
               });
               await open(docsUrl);
@@ -365,11 +372,11 @@ export const useSlashCommandProcessor = (
             discoveryState === MCPDiscoveryState.IN_PROGRESS ||
             connectingServers.length > 0
           ) {
-            message += `\u001b[33m⏳ MCP servers are starting up (${connectingServers.length} initializing)...\u001b[0m\n`;
-            message += `\u001b[90mNote: First startup may take longer. Tool availability will update automatically.\u001b[0m\n\n`;
+            message += `\u001b[33m${t('commands.mcp.servers_starting', '⏳ MCP servers are starting up ({count} initializing)...', { count: connectingServers.length })}\u001b[0m\n`;
+            message += `\u001b[90m${t('commands.mcp.first_startup_note', 'Note: First startup may take longer. Tool availability will update automatically.')}\u001b[0m\n\n`;
           }
 
-          message += 'Configured MCP servers:\n\n';
+          message += `${t('commands.mcp.configured_servers', 'Configured MCP servers:')}\n\n`;
 
           for (const serverName of serverNames) {
             const serverTools = toolRegistry.getToolsByServer(serverName);
@@ -381,16 +388,16 @@ export const useSlashCommandProcessor = (
             switch (status) {
               case MCPServerStatus.CONNECTED:
                 statusIndicator = '🟢';
-                statusText = 'Ready';
+                statusText = t('commands.mcp.status.ready', 'Ready');
                 break;
               case MCPServerStatus.CONNECTING:
                 statusIndicator = '🔄';
-                statusText = 'Starting... (first startup may take longer)';
+                statusText = t('commands.mcp.status.starting', 'Starting... (first startup may take longer)');
                 break;
               case MCPServerStatus.DISCONNECTED:
               default:
                 statusIndicator = '🔴';
-                statusText = 'Disconnected';
+                statusText = t('commands.mcp.status.disconnected', 'Disconnected');
                 break;
             }
 
@@ -402,11 +409,11 @@ export const useSlashCommandProcessor = (
 
             // Add tool count with conditional messaging
             if (status === MCPServerStatus.CONNECTED) {
-              message += ` (${serverTools.length} tools)`;
+              message += ` ${t('commands.mcp.tools_count', '({count} tools)', { count: serverTools.length })}`;
             } else if (status === MCPServerStatus.CONNECTING) {
-              message += ` (tools will appear when ready)`;
+              message += ` ${t('commands.mcp.tools_when_ready', '(tools will appear when ready)')}`;
             } else {
-              message += ` (${serverTools.length} tools cached)`;
+              message += ` ${t('commands.mcp.tools_cached', '({count} tools cached)', { count: serverTools.length })}`;
             }
 
             // Add server description with proper handling of multi-line descriptions
@@ -460,7 +467,7 @@ export const useSlashCommandProcessor = (
                 }
                 if (useShowSchema) {
                   // Prefix the parameters in cyan
-                  message += `    \u001b[36mParameters:\u001b[0m\n`;
+                  message += `    \u001b[36m${t('commands.mcp.parameters', 'Parameters:')}\u001b[0m\n`;
                   // Apply green color to the parameter text
                   const greenColor = '\u001b[32m';
                   const resetColor = '\u001b[0m';
@@ -480,7 +487,7 @@ export const useSlashCommandProcessor = (
                 }
               });
             } else {
-              message += '  No tools available\n';
+              message += `  ${t('commands.mcp.no_tools', 'No tools available')}\n`;
             }
             message += '\n';
           }
@@ -497,19 +504,19 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'extensions',
-        description: 'list active extensions',
+        description: t('commands.extensions.description', 'list active extensions'),
         action: async () => {
           const activeExtensions = config?.getActiveExtensions();
           if (!activeExtensions || activeExtensions.length === 0) {
             addMessage({
               type: MessageType.INFO,
-              content: 'No active extensions.',
+              content: t('commands.extensions.no_extensions', 'No active extensions.'),
               timestamp: new Date(),
             });
             return;
           }
 
-          let message = 'Active extensions:\n\n';
+          let message = `${t('commands.extensions.active_extensions', 'Active extensions:')}\n\n`;
           for (const ext of activeExtensions) {
             message += `  - \u001b[36m${ext.name} (v${ext.version})\u001b[0m\n`;
           }
@@ -525,7 +532,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'tools',
-        description: 'list available Gemini CLI tools',
+        description: t('commands.tools.description', 'list available Gemini CLI tools'),
         action: async (_mainCommand, _subCommand, _args) => {
           // Check if the _subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
@@ -547,7 +554,7 @@ export const useSlashCommandProcessor = (
           if (!tools) {
             addMessage({
               type: MessageType.ERROR,
-              content: 'Could not retrieve tools.',
+              content: t('commands.tools.error_retrieve', 'Could not retrieve tools.'),
               timestamp: new Date(),
             });
             return;
@@ -556,7 +563,7 @@ export const useSlashCommandProcessor = (
           // Filter out MCP tools by checking if they have a serverName property
           const geminiTools = tools.filter((tool) => !('serverName' in tool));
 
-          let message = 'Available Gemini CLI tools:\n\n';
+          let message = `${t('commands.tools.available_tools', 'Available Gemini CLI tools:')}\n\n`;
 
           if (geminiTools.length > 0) {
             geminiTools.forEach((tool) => {
@@ -583,7 +590,7 @@ export const useSlashCommandProcessor = (
               }
             });
           } else {
-            message += '  No tools available\n';
+            message += `  ${t('commands.tools.no_tools', 'No tools available')}\n`;
           }
           message += '\n';
 
@@ -605,7 +612,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'about',
-        description: 'show version info',
+        description: t('commands.about.description', 'show version info'),
         action: async (_mainCommand, _subCommand, _args) => {
           const osVersion = process.platform;
           let sandboxEnv = 'no sandbox';
@@ -634,7 +641,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'bug',
-        description: 'submit a bug report',
+        description: t('commands.bug.description', 'submit a bug report'),
         action: async (_mainCommand, _subCommand, args) => {
           let bugDescription = _subCommand || '';
           if (args) {
@@ -676,7 +683,7 @@ export const useSlashCommandProcessor = (
 
           addMessage({
             type: MessageType.INFO,
-            content: `To submit your bug report, please open the following URL in your browser:\n${bugReportUrl}`,
+            content: t('commands.bug.submit_message', 'To submit your bug report, please open the following URL in your browser:\n{url}', { url: bugReportUrl }),
             timestamp: new Date(),
           });
           (async () => {
@@ -687,7 +694,7 @@ export const useSlashCommandProcessor = (
                 error instanceof Error ? error.message : String(error);
               addMessage({
                 type: MessageType.ERROR,
-                content: `Could not open URL in browser: ${errorMessage}`,
+                content: t('commands.bug.browser_error', 'Could not open URL in browser: {error}', { error: errorMessage }),
                 timestamp: new Date(),
               });
             }
@@ -696,8 +703,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'chat',
-        description:
-          'Manage conversation history. Usage: /chat <list|save|resume> <tag>',
+        description: t('commands.chat.description', 'Manage conversation history. Usage: /chat <list|save|resume> <tag>'),
         action: async (_mainCommand, subCommand, args) => {
           const tag = (args || '').trim();
           const logger = new Logger(config?.getSessionId() || '');
@@ -706,7 +712,7 @@ export const useSlashCommandProcessor = (
           if (!chat) {
             addMessage({
               type: MessageType.ERROR,
-              content: 'No chat client available for conversation status.',
+              content: t('commands.chat.no_client', 'No chat client available for conversation status.'),
               timestamp: new Date(),
             });
             return;
@@ -714,7 +720,7 @@ export const useSlashCommandProcessor = (
           if (!subCommand) {
             addMessage({
               type: MessageType.ERROR,
-              content: 'Missing command\nUsage: /chat <list|save|resume> <tag>',
+              content: t('commands.chat.missing_command', 'Missing command\nUsage: /chat <list|save|resume> <tag>'),
               timestamp: new Date(),
             });
             return;
@@ -724,7 +730,7 @@ export const useSlashCommandProcessor = (
               if (!tag) {
                 addMessage({
                   type: MessageType.ERROR,
-                  content: 'Missing tag. Usage: /chat save <tag>',
+                  content: t('commands.chat.save.missing_tag', 'Missing tag. Usage: /chat save <tag>'),
                   timestamp: new Date(),
                 });
                 return;
@@ -734,13 +740,13 @@ export const useSlashCommandProcessor = (
                 await logger.saveCheckpoint(chat?.getHistory() || [], tag);
                 addMessage({
                   type: MessageType.INFO,
-                  content: `Conversation checkpoint saved with tag: ${tag}.`,
+                  content: t('commands.chat.save.saved', 'Conversation checkpoint saved with tag: {tag}.', { tag }),
                   timestamp: new Date(),
                 });
               } else {
                 addMessage({
                   type: MessageType.INFO,
-                  content: 'No conversation found to save.',
+                  content: t('commands.chat.save.no_conversation', 'No conversation found to save.'),
                   timestamp: new Date(),
                 });
               }
@@ -752,7 +758,7 @@ export const useSlashCommandProcessor = (
               if (!tag) {
                 addMessage({
                   type: MessageType.ERROR,
-                  content: 'Missing tag. Usage: /chat resume <tag>',
+                  content: t('commands.chat.resume.missing_tag', 'Missing tag. Usage: /chat resume <tag>'),
                   timestamp: new Date(),
                 });
                 return;
@@ -761,7 +767,7 @@ export const useSlashCommandProcessor = (
               if (conversation.length === 0) {
                 addMessage({
                   type: MessageType.INFO,
-                  content: `No saved checkpoint found with tag: ${tag}.`,
+                  content: t('commands.chat.resume.not_found', 'No saved checkpoint found with tag: {tag}.', { tag }),
                   timestamp: new Date(),
                 });
                 return;
@@ -812,16 +818,14 @@ export const useSlashCommandProcessor = (
             case 'list':
               addMessage({
                 type: MessageType.INFO,
-                content:
-                  'list of saved conversations: ' +
-                  (await savedChatTags()).join(', '),
+                content: t('commands.chat.list.saved_conversations', 'list of saved conversations: {tags}', { tags: (await savedChatTags()).join(', ') }),
                 timestamp: new Date(),
               });
               return;
             default:
               addMessage({
                 type: MessageType.ERROR,
-                content: `Unknown /chat command: ${subCommand}. Available: list, save, resume`,
+                content: t('commands.chat.unknown_command', 'Unknown /chat command: {command}. Available: list, save, resume', { command: subCommand }),
                 timestamp: new Date(),
               });
               return;
@@ -833,7 +837,7 @@ export const useSlashCommandProcessor = (
       {
         name: 'quit',
         altName: 'exit',
-        description: 'exit the cli',
+        description: t('commands.quit.description', 'exit the cli'),
         action: async (mainCommand, _subCommand, _args) => {
           const now = new Date();
           const { sessionStartTime } = session.stats;
@@ -860,13 +864,12 @@ export const useSlashCommandProcessor = (
       {
         name: 'compress',
         altName: 'summarize',
-        description: 'Compresses the context by replacing it with a summary.',
+        description: t('commands.compress.description', 'Compresses the context by replacing it with a summary.'),
         action: async (_mainCommand, _subCommand, _args) => {
           if (pendingCompressionItemRef.current !== null) {
             addMessage({
               type: MessageType.ERROR,
-              content:
-                'Already compressing, wait for previous request to complete',
+              content: t('commands.compress.already_compressing', 'Already compressing, wait for previous request to complete'),
               timestamp: new Date(),
             });
             return;
@@ -897,14 +900,14 @@ export const useSlashCommandProcessor = (
             } else {
               addMessage({
                 type: MessageType.ERROR,
-                content: 'Failed to compress chat history.',
+                content: t('commands.compress.failed', 'Failed to compress chat history.'),
                 timestamp: new Date(),
               });
             }
           } catch (e) {
             addMessage({
               type: MessageType.ERROR,
-              content: `Failed to compress chat history: ${e instanceof Error ? e.message : String(e)}`,
+              content: t('commands.compress.failed_error', 'Failed to compress chat history: {error}', { error: e instanceof Error ? e.message : String(e) }),
               timestamp: new Date(),
             });
           }
@@ -913,7 +916,7 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'fallback-improved',
-        description: 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)',
+        description: t('commands.fallback_improved.description', 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)'),
         action: async (_mainCommand, _subCommand, _args) => {
           if (!config) return;
           const currentStrategy = config.getUseImprovedFallbackStrategy();
@@ -922,19 +925,20 @@ export const useSlashCommandProcessor = (
           
           const currentMode = currentStrategy ? 'improved' : 'original';
           const newMode = newStrategy ? 'improved' : 'original';
+          const description = newMode === 'improved' 
+            ? t('commands.fallback_improved.improved_description', 'Improved strategy: 7 attempts with 2s delays, reset to Pro on each message')
+            : t('commands.fallback_improved.original_description', 'Original strategy: 2 attempts with exponential backoff, stay on Flash once switched');
           
           addMessage({
             type: MessageType.INFO,
-            content: `Fallback strategy switched from ${currentMode} to ${newMode}.\n\n${newMode === 'improved' 
-              ? 'Improved strategy: 7 attempts with 2s delays, reset to Pro on each message' 
-              : 'Original strategy: 2 attempts with exponential backoff, stay on Flash once switched'}`,
+            content: t('commands.fallback_improved.switched', 'Fallback strategy switched from {currentMode} to {newMode}.\n\n{description}', { currentMode, newMode, description }),
             timestamp: new Date(),
           });
         },
       },
       {
         name: 'model-switch',
-        description: 'switch between Gemini Pro and Flash models',
+        description: t('commands.model_switch.description', 'switch between Gemini Pro and Flash models'),
         action: async (_mainCommand, _subCommand, _args) => {
           if (!config) return;
           const currentModel = config.getModel();
@@ -947,14 +951,14 @@ export const useSlashCommandProcessor = (
           
           addMessage({
             type: MessageType.INFO,
-            content: `Model switched to: ${newModel} (${isCurrentlyPro ? 'Flash' : 'Pro'})`,
+            content: t('commands.model_switch.switched', 'Model switched to: {model} ({type})', { model: newModel, type: isCurrentlyPro ? 'Flash' : 'Pro' }),
             timestamp: new Date(),
           });
         },
       },
       {
         name: 'stay-pro',
-        description: 'toggle whether to stay on Pro model (disable/enable fallback to Flash)',
+        description: t('commands.stay_pro.description', 'toggle whether to stay on Pro model (disable/enable fallback to Flash)'),
         action: async (_mainCommand, _subCommand, _args) => {
           if (!config) return;
           const currentState = config.getDisableFallbackForSession();
@@ -964,8 +968,8 @@ export const useSlashCommandProcessor = (
           addMessage({
             type: MessageType.INFO,
             content: newState 
-              ? 'Fallback disabled - will stay on Gemini Pro even if rate limited'
-              : 'Fallback enabled - will switch to Flash if Pro is rate limited',
+              ? t('commands.stay_pro.disabled', 'Fallback disabled - will stay on Gemini Pro even if rate limited')
+              : t('commands.stay_pro.enabled', 'Fallback enabled - will switch to Flash if Pro is rate limited'),
             timestamp: new Date(),
           });
         },
@@ -975,8 +979,7 @@ export const useSlashCommandProcessor = (
     if (config?.getCheckpointingEnabled()) {
       commands.push({
         name: 'restore',
-        description:
-          'restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested',
+        description: t('commands.restore.description', 'restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested'),
         completion: async () => {
           const checkpointDir = config?.getProjectTempDir()
             ? path.join(config.getProjectTempDir(), 'checkpoints')
@@ -1001,7 +1004,7 @@ export const useSlashCommandProcessor = (
           if (!checkpointDir) {
             addMessage({
               type: MessageType.ERROR,
-              content: 'Could not determine the .gemini directory path.',
+              content: t('commands.restore.no_directory', 'Could not determine the .gemini directory path.'),
               timestamp: new Date(),
             });
             return;
@@ -1017,7 +1020,7 @@ export const useSlashCommandProcessor = (
               if (jsonFiles.length === 0) {
                 addMessage({
                   type: MessageType.INFO,
-                  content: 'No restorable tool calls found.',
+                  content: t('commands.restore.no_restorable', 'No restorable tool calls found.'),
                   timestamp: new Date(),
                 });
                 return;
@@ -1033,7 +1036,7 @@ export const useSlashCommandProcessor = (
               const fileList = truncatedFiles.join('\n');
               addMessage({
                 type: MessageType.INFO,
-                content: `Available tool calls to restore:\n\n${fileList}`,
+                content: t('commands.restore.available_calls', 'Available tool calls to restore:\n\n{fileList}', { fileList }),
                 timestamp: new Date(),
               });
               return;
@@ -1046,7 +1049,7 @@ export const useSlashCommandProcessor = (
             if (!jsonFiles.includes(selectedFile)) {
               addMessage({
                 type: MessageType.ERROR,
-                content: `File not found: ${selectedFile}`,
+                content: t('commands.restore.file_not_found', 'File not found: {file}', { file: selectedFile }),
                 timestamp: new Date(),
               });
               return;
@@ -1072,7 +1075,7 @@ export const useSlashCommandProcessor = (
               );
               addMessage({
                 type: MessageType.INFO,
-                content: `Restored project to the state before the tool call.`,
+                content: t('commands.restore.project_restored', 'Restored project to the state before the tool call.'),
                 timestamp: new Date(),
               });
             }
@@ -1085,7 +1088,7 @@ export const useSlashCommandProcessor = (
           } catch (error) {
             addMessage({
               type: MessageType.ERROR,
-              content: `Could not read restorable tool calls. This is the error: ${error}`,
+              content: t('commands.restore.read_error', 'Could not read restorable tool calls. This is the error: {error}', { error: String(error) }),
               timestamp: new Date(),
             });
           }
@@ -1210,12 +1213,12 @@ export const useSlashCommandProcessor = (
 
           return { type: 'handled' };
         } else if (commandToExecute.subCommands) {
-          const helpText = `Command '/${commandToExecute.name}' requires a subcommand. Available:\n${commandToExecute.subCommands
+          const subcommands = commandToExecute.subCommands
             .map((sc) => `  - ${sc.name}: ${sc.description || ''}`)
-            .join('\n')}`;
+            .join('\n');
           addMessage({
             type: MessageType.INFO,
-            content: helpText,
+            content: t('errors.requires_subcommand', 'Command \'/{command}\' requires a subcommand. Available:\n{subcommands}', { command: commandToExecute.name, subcommands }),
             timestamp: new Date(),
           });
           return { type: 'handled' };
@@ -1263,7 +1266,7 @@ export const useSlashCommandProcessor = (
 
       addMessage({
         type: MessageType.ERROR,
-        content: `Unknown command: ${trimmed}`,
+        content: t('errors.unknown_command', 'Unknown command: {command}', { command: trimmed }),
         timestamp: new Date(),
       });
       return { type: 'handled' };
