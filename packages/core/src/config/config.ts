@@ -26,6 +26,7 @@ import {
   setGeminiMdFilename,
   GEMINI_CONFIG_DIR as GEMINI_DIR,
 } from '../tools/memoryTool.js';
+import { TodoTool } from '../tools/todoTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { GeminiClient } from '../core/client.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
@@ -564,6 +565,7 @@ export class Config {
     registerCoreTool(ReadManyFilesTool, targetDir, this);
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
+    registerCoreTool(TodoTool);
     registerCoreTool(WebSearchTool, this);
 
     await registry.discoverTools();

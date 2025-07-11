@@ -12,6 +12,8 @@ import { Colors } from '../../colors.js';
 import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
+import { TodoListDisplay } from '../TodoListDisplay.js';
+import { isTodoWriteResult, extractTodosFromDisplay } from '../../utils/todoParser.js';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -77,7 +79,17 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
       {resultDisplay && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} width="100%" marginTop={1}>
           <Box flexDirection="column">
-            {typeof resultDisplay === 'string' && renderOutputAsMarkdown && (
+            {typeof resultDisplay === 'string' && name === 'TodoWrite' && isTodoWriteResult(resultDisplay) && (
+              <Box flexDirection="column">
+                {(() => {
+                  const todos = extractTodosFromDisplay(resultDisplay);
+                  return todos ? <TodoListDisplay todos={todos} /> : (
+                    <Text wrap="wrap">{resultDisplay}</Text>
+                  );
+                })()}
+              </Box>
+            )}
+            {typeof resultDisplay === 'string' && !(name === 'TodoWrite' && isTodoWriteResult(resultDisplay)) && renderOutputAsMarkdown && (
               <Box flexDirection="column">
                 <MarkdownDisplay
                   text={resultDisplay}
@@ -87,7 +99,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                 />
               </Box>
             )}
-            {typeof resultDisplay === 'string' && !renderOutputAsMarkdown && (
+            {typeof resultDisplay === 'string' && !(name === 'TodoWrite' && isTodoWriteResult(resultDisplay)) && !renderOutputAsMarkdown && (
               <MaxSizedBox maxHeight={availableHeight} maxWidth={childWidth}>
                 <Box>
                   <Text wrap="wrap">{resultDisplay}</Text>
