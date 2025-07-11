@@ -499,6 +499,7 @@
     "tool_stats_title": "Tool Stats For Nerds",
     "no_api_calls": "No API calls have been made in this session.",
     "no_tool_calls": "No tool calls have been made in this session.",
+    "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`.",
     "sections": {
       "interaction_summary": "Interaction Summary",
       "performance": "Performance",
@@ -535,12 +536,14 @@
       "rejected": " » Rejected:",
       "modified": " » Modified:",
       "overall_agreement": " Overall Agreement Rate:",
-      "reviewed": "reviewed"
+      "reviewed": "reviewed",
+      "savings_highlight": "Savings Highlight:"
     },
     "messages": {
       "savings_highlight": "Savings Highlight:",
       "cached_tokens": "{count} ({percentage}%) of input tokens were served from the cache, reducing costs.",
-      "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`."
+      "tip_full_breakdown": "» Tip: For a full token breakdown, run `/stats model`.",
+      "reviewed_count": "({count} reviewed)"
     }
   },
   "errors": {

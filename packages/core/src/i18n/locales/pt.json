@@ -387,7 +387,7 @@
     "apply_to": "Aplicar Para",
     "editor_preference": "Preferência do Editor",
     "scope_options": {
-      "user_settings": "Configurações do Usuário", 
+      "user_settings": "Configurações do Usuário",
       "workspace_settings": "Configurações do Espaço de Trabalho"
     },
     "messages": {
@@ -499,6 +499,7 @@
     "tool_stats_title": "Estatísticas de Ferramentas Para Nerds",
     "no_api_calls": "Nenhuma chamada de API foi feita nesta sessão.",
     "no_tool_calls": "Nenhuma chamada de ferramenta foi feita nesta sessão.",
+    "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`.",
     "sections": {
       "interaction_summary": "Resumo da Interação",
       "performance": "Performance",
@@ -536,12 +537,14 @@
       "rejected": " » Rejeitadas:",
       "modified": " » Modificadas:",
       "overall_agreement": " Taxa Geral de Concordância:",
-      "reviewed": "revisadas"
+      "reviewed": "revisadas",
+      "savings_highlight": "Destaque de Economia:"
     },
     "messages": {
       "savings_highlight": "Destaque de Economia:",
       "cached_tokens": "{count} ({percentage}%) dos tokens de entrada foram servidos do cache, reduzindo custos.",
-      "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`."
+      "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`.",
+      "reviewed_count": "({count} revisadas)"
     }
   },
   "errors": {
