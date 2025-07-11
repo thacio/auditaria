@@ -143,6 +143,7 @@ export interface ConfigParameters {
   useImprovedFallbackStrategy?: boolean;
   listExtensions?: boolean;
   activeExtensions?: ActiveExtension[];
+  noBrowser?: boolean;
 }
 
 export class Config {
@@ -181,6 +182,7 @@ export class Config {
   private readonly bugCommand: BugCommandSettings | undefined;
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
+  private readonly noBrowser: boolean;
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
   private disableFallbackForSession: boolean = false;
@@ -232,6 +234,7 @@ export class Config {
     this.useImprovedFallbackStrategy = params.useImprovedFallbackStrategy ?? true;
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
+    this.noBrowser = params.noBrowser ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -494,6 +497,10 @@ export class Config {
 
   getActiveExtensions(): ActiveExtension[] {
     return this._activeExtensions;
+  }
+
+  getNoBrowser(): boolean {
+    return this.noBrowser;
   }
 
   async getGitService(): Promise<GitService> {

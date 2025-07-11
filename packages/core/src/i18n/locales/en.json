@@ -722,6 +722,14 @@
     "disabled": "Disabled extension: {name}",
     "not_found": "Extension not found: {name}"
   },
+  "oauth": {
+    "auth_failed": "\nFailed to authenticate with user code.",
+    "retrying": "Retrying...\n",
+    "visit_url": "Please visit the following URL to authorize the application:",
+    "enter_code": "Enter the authorization code: ",
+    "code_required": "Authorization code is required.",
+    "code_received": "Received authorization code: \"{code}\""
+  },
   "app": {
     "memory_refreshing": "Refreshing hierarchical memory (GEMINI.md or other context files)...",
     "memory_refreshed_success": "Memory refreshed successfully. Loaded {chars} characters from {count} file(s).",

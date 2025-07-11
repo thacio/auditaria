@@ -695,6 +695,14 @@
     "disabled": "Extensão desabilitada: {name}",
     "not_found": "Extensão não encontrada: {name}"
   },
+  "oauth": {
+    "auth_failed": "\nFalha na autenticação com código do usuário.",
+    "retrying": "Tentando novamente...\n",
+    "visit_url": "Por favor, visite a seguinte URL para autorizar a aplicação:",
+    "enter_code": "Digite o código de autorização: ",
+    "code_required": "Código de autorização é obrigatório.",
+    "code_received": "Código de autorização recebido: \"{code}\""
+  },
   "app": {
     "memory_refreshing": "Atualizando memória hierárquica (GEMINI.md ou outros arquivos de contexto)...",
     "memory_refreshed_success": "Memória atualizada com sucesso. Carregados {chars} caracteres de {count} arquivo(s).",
