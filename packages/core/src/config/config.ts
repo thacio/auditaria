@@ -11,6 +11,7 @@ import {
   ContentGeneratorConfig,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
+import { UserTierId } from '../code_assist/types.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import { LSTool } from '../tools/ls.js';
 import { ReadFileTool } from '../tools/read-file.js';
@@ -141,6 +142,7 @@ export interface ConfigParameters {
   model: string;
   extensionContextFilePaths?: string[];
   useImprovedFallbackStrategy?: boolean;
+  maxSessionTurns?: number;
   listExtensions?: boolean;
   activeExtensions?: ActiveExtension[];
   noBrowser?: boolean;
@@ -186,6 +188,7 @@ export class Config {
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
   private disableFallbackForSession: boolean = false;
+  private readonly maxSessionTurns: number;
   private readonly listExtensions: boolean;
   private readonly _activeExtensions: ActiveExtension[];
   flashFallbackHandler?: FlashFallbackHandler;
@@ -232,6 +235,7 @@ export class Config {
     this.model = params.model;
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
     this.useImprovedFallbackStrategy = params.useImprovedFallbackStrategy ?? true;
+    this.maxSessionTurns = params.maxSessionTurns ?? -1;
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
     this.noBrowser = params.noBrowser ?? false;
@@ -313,12 +317,24 @@ export class Config {
     this.flashFallbackHandler = handler;
   }
 
+  getMaxSessionTurns(): number {
+    return this.maxSessionTurns;
+  }
+
   setQuotaErrorOccurred(value: boolean): void {
     this.quotaErrorOccurred = value;
   }
 
   getQuotaErrorOccurred(): boolean {
     return this.quotaErrorOccurred;
+  }
+
+  async getUserTier(): Promise<UserTierId | undefined> {
+    if (!this.geminiClient) {
+      return undefined;
+    }
+    const generator = this.geminiClient.getContentGenerator();
+    return await generator.getTier?.();
   }
 
   getEmbeddingModel(): string {

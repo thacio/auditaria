@@ -87,6 +87,7 @@ export class GeminiClient {
     temperature: 0,
     topP: 1,
   };
+  private sessionTurnCount = 0;
   private readonly MAX_TURNS = 100;
   /**
    * Threshold for compression token count as a fraction of the model's token limit.
@@ -268,7 +269,14 @@ export class GeminiClient {
     turns: number = this.MAX_TURNS,
     originalModel?: string,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
-
+    this.sessionTurnCount++;
+    if (
+      this.config.getMaxSessionTurns() > 0 &&
+      this.sessionTurnCount > this.config.getMaxSessionTurns()
+    ) {
+      yield { type: GeminiEventType.MaxSessionTurns };
+      return new Turn(this.getChat(), prompt_id);
+    }
     // Ensure turns never exceeds MAX_TURNS to prevent infinite loops
     const boundedTurns = Math.min(turns, this.MAX_TURNS);
     if (!boundedTurns) {
@@ -416,8 +424,9 @@ export class GeminiClient {
     contents: Content[],
     generationConfig: GenerateContentConfig,
     abortSignal: AbortSignal,
+    model?: string,
   ): Promise<GenerateContentResponse> {
-    const modelToUse = this.config.getModel();
+    const modelToUse = model ?? this.config.getModel();
     const configToUse: GenerateContentConfig = {
       ...this.generateContentConfig,
       ...generationConfig,
