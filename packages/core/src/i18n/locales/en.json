@@ -373,7 +373,8 @@
     "preview": "Preview",
     "scope_options": {
       "user_settings": "User Settings",
-      "workspace_settings": "Workspace Settings"
+      "workspace_settings": "Workspace Settings",
+      "system_settings": "System Settings"
     },
     "messages": {
       "also_modified_in": "(Also modified in {scope})",

@@ -373,7 +373,8 @@
     "preview": "Pré-visualização",
     "scope_options": {
       "user_settings": "Configurações do Usuário",
-      "workspace_settings": "Configurações do Espaço de Trabalho"
+      "workspace_settings": "Configurações do Espaço de Trabalho",
+      "system_settings": "Configurações do Sistema"
     },
     "messages": {
       "also_modified_in": "(Também modificado em {scope})",
