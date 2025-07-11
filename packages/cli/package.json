@@ -1,6 +1,6 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Auditaria CLI",
   "repository": {
     "type": "git",
@@ -25,7 +25,7 @@
     "dist"
   ],
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.9"
+    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.10"
   },
   "dependencies": {
     "@thacio/auditaria-cli-core": "file:../core",
