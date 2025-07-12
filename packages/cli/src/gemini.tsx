@@ -26,6 +26,7 @@ import { getUserStartupWarnings } from './utils/userStartupWarnings.js';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import { loadExtensions, Extension } from './config/extension.js';
 import { cleanupCheckpoints } from './utils/cleanup.js';
+import { getCliVersion } from './utils/version.js';
 import {
   ApprovalMode,
   Config,
@@ -207,6 +208,7 @@ export async function main() {
 
   // Render UI, passing necessary config values. Check that there is no command line question.
   if (process.stdin.isTTY && input?.length === 0) {
+    const version = await getCliVersion();
     setWindowTitle(basename(workspaceRoot), settings);
     render(
       <React.StrictMode>
@@ -214,6 +216,7 @@ export async function main() {
           config={config}
           settings={settings}
           startupWarnings={startupWarnings}
+          version={version}
         />
       </React.StrictMode>,
       { exitOnCtrlC: false },
