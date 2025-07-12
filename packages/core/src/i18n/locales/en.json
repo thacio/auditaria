@@ -747,5 +747,11 @@
     "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
     "initialization_error": "Initialization Error: {error}",
     "check_api_config": "Please check API key and configuration."
+  },
+  "cli": {
+    "errors": {
+      "prompt_interactive_conflict": "Cannot use both --prompt (-p) and --prompt-interactive (-i) together",
+      "prompt_interactive_stdin": "Error: The --prompt-interactive flag is not supported when piping input from stdin."
+    }
   }
 }
