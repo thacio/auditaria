@@ -5,7 +5,7 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { Colors } from '../colors.js';
 import { themeManager, DEFAULT_THEME } from '../themes/theme-manager.js';
@@ -61,19 +61,25 @@ export function ThemeDialog({
     { label: t('theme_dialog.scope_options.system_settings', 'System Settings'), value: SettingScope.System },
   ];
 
-  const handleThemeSelect = (themeName: string) => {
-    onSelect(themeName, selectedScope);
-  };
+  const handleThemeSelect = useCallback(
+    (themeName: string) => {
+      onSelect(themeName, selectedScope);
+    },
+    [onSelect, selectedScope],
+  );
 
-  const handleScopeHighlight = (scope: SettingScope) => {
+  const handleScopeHighlight = useCallback((scope: SettingScope) => {
     setSelectedScope(scope);
     setSelectInputKey(Date.now());
-  };
+  }, []);
 
-  const handleScopeSelect = (scope: SettingScope) => {
-    handleScopeHighlight(scope);
-    setFocusedSection('theme'); // Reset focus to theme section
-  };
+  const handleScopeSelect = useCallback(
+    (scope: SettingScope) => {
+      handleScopeHighlight(scope);
+      setFocusedSection('theme'); // Reset focus to theme section
+    },
+    [handleScopeHighlight],
+  );
 
   const [focusedSection, setFocusedSection] = useState<'theme' | 'scope'>(
     'theme',
@@ -197,6 +203,7 @@ export function ThemeDialog({
             onSelect={handleThemeSelect}
             onHighlight={onHighlight}
             isFocused={currenFocusedSection === 'theme'}
+            maxItemsToShow={8}
           />
 
           {/* Scope Selection */}
@@ -211,6 +218,7 @@ export function ThemeDialog({
                 onSelect={handleScopeSelect}
                 onHighlight={handleScopeHighlight}
                 isFocused={currenFocusedSection === 'scope'}
+                showScrollArrows={false}
               />
             </Box>
           )}
