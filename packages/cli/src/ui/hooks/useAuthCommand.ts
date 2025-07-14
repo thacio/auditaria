@@ -13,6 +13,7 @@ import {
   clearCachedCredentialFile,
   getErrorMessage,
 } from '@thacio/auditaria-cli-core';
+import { runExitCleanup } from '../../utils/cleanup.js';
 
 export const useAuthCommand = (
   settings: LoadedSettings,
@@ -56,11 +57,22 @@ export const useAuthCommand = (
       if (authType) {
         await clearCachedCredentialFile();
         settings.setValue(scope, 'selectedAuthType', authType);
+        if (authType === AuthType.LOGIN_WITH_GOOGLE && config.getNoBrowser()) {
+          runExitCleanup();
+          console.log(
+            `
+----------------------------------------------------------------
+${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Gemini CLI to continue.')}
+----------------------------------------------------------------
+            `,
+          );
+          process.exit(0);
+        }
       }
       setIsAuthDialogOpen(false);
       setAuthError(null);
     },
-    [settings, setAuthError],
+    [settings, setAuthError, config],
   );
 
   const cancelAuthentication = useCallback(() => {

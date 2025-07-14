@@ -701,7 +701,8 @@
     "visit_url": "Por favor, visite a seguinte URL para autorizar a aplicação:",
     "enter_code": "Digite o código de autorização: ",
     "code_required": "Código de autorização é obrigatório.",
-    "code_received": "Código de autorização recebido: \"{code}\""
+    "code_received": "Código de autorização recebido: \"{code}\"",
+    "restart_cli_message": "Logando com Google... Por favor, reinicie o Gemini CLI para continuar."
   },
   "app": {
     "memory_refreshing": "Atualizando memória hierárquica (GEMINI.md ou outros arquivos de contexto)...",

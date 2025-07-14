@@ -728,7 +728,8 @@
     "visit_url": "Please visit the following URL to authorize the application:",
     "enter_code": "Enter the authorization code: ",
     "code_required": "Authorization code is required.",
-    "code_received": "Received authorization code: \"{code}\""
+    "code_received": "Received authorization code: \"{code}\"",
+    "restart_cli_message": "Logging in with Google... Please restart Gemini CLI to continue."
   },
   "app": {
     "memory_refreshing": "Refreshing hierarchical memory (GEMINI.md or other context files)...",
