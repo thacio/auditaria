@@ -7,11 +7,13 @@ This document provides a guide to sandboxing in the Gemini CLI, including prereq
 Before using sandboxing, you need to install and set up the Gemini CLI:
 
 ```bash
-# install gemini-cli with npm
-npm install -g @google/gemini-cli
+npm install -g @thacio/auditaria-cli
+```
 
-# Verify installation
-gemini --version
+To verify the installation:
+
+```bash
+auditaria --version
 ```
 
 ## Overview of sandboxing

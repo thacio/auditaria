@@ -30,6 +30,11 @@ With Auditaria CLI you can:
 
    ```bash
    npm install -g https://github.com/thacio/auditaria
+   ```
+
+   Then, run the CLI from anywhere:
+
+   ```bash
    auditaria
    ```
 
