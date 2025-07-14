@@ -184,6 +184,7 @@
     },
     "messages": {
       "api_key_detected": "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.",
+      "invalid_default_auth_type": "Invalid value for GEMINI_DEFAULT_AUTH_TYPE: \"{defaultAuthType}\". Valid values are: {validValues}.",
       "must_select_auth": "You must select an auth method to proceed. Press Ctrl+C twice to exit.",
       "use_enter": "(Use Enter to select)",
       "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
