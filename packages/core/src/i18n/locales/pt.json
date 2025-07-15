@@ -647,7 +647,8 @@
     "home_directory_warning": "Você está executando o Gemini CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
     "directory_verification_error": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
     "cannot_delete_warnings_file": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
-    "error_reading_warnings_file": "Erro ao verificar/ler arquivo de avisos: {error}"
+    "error_reading_warnings_file": "Erro ao verificar/ler arquivo de avisos: {error}",
+    "node_version_warning": "Você está usando Node.js v{currentVersion}. O Gemini CLI requer Node.js {minVersion} ou superior para melhores resultados."
   },
   "non_interactive": {
     "operation_cancelled": "Operação cancelada.",

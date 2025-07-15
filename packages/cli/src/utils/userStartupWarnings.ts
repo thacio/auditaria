@@ -7,6 +7,7 @@ import { t } from '@thacio/auditaria-cli-core';
 
 import fs from 'fs/promises';
 import * as os from 'os';
+import semver from 'semver';
 
 type WarningCheck = {
   id: string;
@@ -33,8 +34,26 @@ const homeDirectoryCheck: WarningCheck = {
   },
 };
 
+const nodeVersionCheck: WarningCheck = {
+  id: 'node-version',
+  check: async (_workspaceRoot: string) => {
+    const minMajor = 20;
+    const major = semver.major(process.versions.node);
+    if (major < minMajor) {
+      return t('startup.node_version_warning', 'You are using Node.js v{currentVersion}. Gemini CLI requires Node.js {minVersion} or higher for best results.', {
+        currentVersion: process.versions.node,
+        minVersion: minMajor.toString()
+      });
+    }
+    return null;
+  },
+};
+
 // All warning checks
-const WARNING_CHECKS: readonly WarningCheck[] = [homeDirectoryCheck];
+const WARNING_CHECKS: readonly WarningCheck[] = [
+  homeDirectoryCheck,
+  nodeVersionCheck,
+];
 
 export async function getUserStartupWarnings(
   workspaceRoot: string,
