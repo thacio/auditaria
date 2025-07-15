@@ -54,7 +54,10 @@
       "error_retrieve": "Não foi possível recuperar as ferramentas."
     },
     "about": {
-      "description": "mostrar informações da versão"
+      "description": "mostrar informações da versão",
+      "no_sandbox": "sem sandbox",
+      "unknown_profile": "desconhecido",
+      "unknown_model": "Desconhecido"
     },
     "bug": {
       "description": "enviar relatório de bug",

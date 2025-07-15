@@ -594,35 +594,6 @@ export const useSlashCommandProcessor = (
         },
       },
       {
-        name: 'about',
-        description: t('commands.about.description', 'show version info'),
-        action: async (_mainCommand, _subCommand, _args) => {
-          const osVersion = process.platform;
-          let sandboxEnv = 'no sandbox';
-          if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
-            sandboxEnv = process.env.SANDBOX;
-          } else if (process.env.SANDBOX === 'sandbox-exec') {
-            sandboxEnv = `sandbox-exec (${
-              process.env.SEATBELT_PROFILE || 'unknown'
-            })`;
-          }
-          const modelVersion = config?.getModel() || 'Unknown';
-          const cliVersion = await getCliVersion();
-          const selectedAuthType = settings.merged.selectedAuthType || '';
-          const gcpProject = process.env.GOOGLE_CLOUD_PROJECT || '';
-          addMessage({
-            type: MessageType.ABOUT,
-            timestamp: new Date(),
-            cliVersion,
-            osVersion,
-            sandboxEnv,
-            modelVersion,
-            selectedAuthType,
-            gcpProject,
-          });
-        },
-      },
-      {
         name: 'bug',
         description: t('commands.bug.description', 'submit a bug report'),
         action: async (_mainCommand, _subCommand, args) => {
@@ -1086,7 +1057,6 @@ export const useSlashCommandProcessor = (
     toggleCorgiMode,
     savedChatTags,
     config,
-    settings,
     showToolDescriptions,
     session,
     gitService,

@@ -54,7 +54,10 @@
       "error_retrieve": "Could not retrieve tools."
     },
     "about": {
-      "description": "show version info"
+      "description": "show version info",
+      "no_sandbox": "no sandbox",
+      "unknown_profile": "unknown",
+      "unknown_model": "Unknown"
     },
     "bug": {
       "description": "submit a bug report",
