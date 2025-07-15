@@ -566,6 +566,7 @@
     "unknown_command": "Unknown command: {command}",
     "tool_registry_error": "Could not retrieve tool registry.",
     "requires_subcommand": "Command '/{command}' requires a subcommand. Available:\n{subcommands}",
+    "ide_mode_port_missing": "Could not run in ide mode, make sure you're running in vs code integrated terminal. Try running in a fresh terminal.",
     "rate_limit_google_generic_quota_free": "\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "rate_limit_google_paid": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI.",
     "rate_limit_google_pro_quota_paid": "\nYou have reached your daily {currentModel} quota limit. You will be switched to the {fallbackModel} model for the rest of this session. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",

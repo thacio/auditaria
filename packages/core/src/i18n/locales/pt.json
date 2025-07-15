@@ -567,6 +567,7 @@
     "unknown_command": "Comando desconhecido: {command}",
     "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
     "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}",
+    "ide_mode_port_missing": "Não foi possível executar no modo IDE. Certifique-se de estar executando no terminal integrado do VS Code. Tente executar em um terminal novo.",
     "rate_limit_google_generic_quota_free": "\nVocê atingiu seu limite de cota diária. Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist, ou use /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
     "rate_limit_google_paid": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI.",
     "rate_limit_google_pro_quota_paid": "\nVocê atingiu seu limite de cota diária do {currentModel}. Você será mudado para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
