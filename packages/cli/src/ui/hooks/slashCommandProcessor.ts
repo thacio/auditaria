@@ -257,11 +257,6 @@ export const useSlashCommandProcessor = (
         action: (_mainCommand, _subCommand, _args) => openLanguageDialog(),
       },
       {
-        name: 'privacy',
-        description: t('commands.privacy.description', 'display the privacy notice'),
-        action: (_mainCommand, _subCommand, _args) => openPrivacyNotice(),
-      },
-      {
         name: 'stats',
         altName: 'usage',
         description: t('commands.stats.description', 'check session stats. Usage: /stats [model|tools]'),
@@ -1087,7 +1082,7 @@ export const useSlashCommandProcessor = (
   }, [
     addMessage,
     openEditorDialog,
-    openPrivacyNotice,
+    openLanguageDialog,
     toggleCorgiMode,
     savedChatTags,
     config,
@@ -1189,6 +1184,9 @@ export const useSlashCommandProcessor = (
                   case 'theme':
                     openThemeDialog();
                     return { type: 'handled' };
+                  case 'privacy':
+                    openPrivacyNotice();
+                    return { type: 'handled' };
                   default: {
                     const unhandled: never = result.dialog;
                     throw new Error(
@@ -1272,6 +1270,7 @@ export const useSlashCommandProcessor = (
       commandContext,
       addMessage,
       openThemeDialog,
+      openPrivacyNotice,
     ],
   );
 
