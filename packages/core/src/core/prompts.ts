@@ -19,8 +19,14 @@ import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 import { TodoTool } from '../tools/todoTool.js';
 import { LANGUAGE_MAP, SupportedLanguage } from '../i18n/index.js';
+import { Config } from '../config/config.js';
+import { ideContext } from '../services/ideContext.js';
 
-export function getCoreSystemPrompt(userMemory?: string, language?: SupportedLanguage): string {
+export function getCoreSystemPrompt(
+  config: Config,
+  userMemory?: string,
+  language?: SupportedLanguage,
+): string {
   // if GEMINI_SYSTEM_MD is set (and not 0|false), override system prompt from file
   // default path is .gemini/system.md but can be modified via custom path in GEMINI_SYSTEM_MD
   let systemMdEnabled = false;
@@ -247,7 +253,25 @@ ${(function () {
   }
   return '';
 })()}
-
+${(function () {
+  if (config.getIdeMode()) {
+    const activeFile = ideContext.getActiveFileContext();
+    if (activeFile?.filePath) {
+      let prompt = `
+# IDE Mode
+You are running in IDE mode. The user has the following file open:
+- Path: ${activeFile.filePath}`;
+      if (activeFile.cursor) {
+        prompt += `
+- Cursor Position: Line ${activeFile.cursor.line}, Character ${activeFile.cursor.character}`;
+      }
+      prompt += `
+Focus on providing contextually relevant assistance for this file.`;
+      return prompt;
+    }
+  }
+  return '';
+})()}
 # Examples (Illustrating Tone and Workflow)
 <example>
 user: 1 + 2

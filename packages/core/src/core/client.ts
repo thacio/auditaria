@@ -240,7 +240,7 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
+      const systemInstruction = getCoreSystemPrompt(this.config, userMemory, currentLanguage);
       const generateContentConfigWithThinking = isThinkingSupported(
         this.config.getModel(),
       )
@@ -357,7 +357,7 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
+      const systemInstruction = getCoreSystemPrompt(this.config, userMemory, currentLanguage);
       const requestConfig = {
         abortSignal,
         ...this.generateContentConfig,
@@ -453,7 +453,7 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
+      const systemInstruction = getCoreSystemPrompt(this.config, userMemory, currentLanguage);
 
       const requestConfig = {
         abortSignal,
