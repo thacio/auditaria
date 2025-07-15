@@ -674,8 +674,7 @@
     "home_directory_warning": "You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.",
     "directory_verification_error": "Could not verify the current directory due to a file system error.",
     "cannot_delete_warnings_file": "Warning: Could not delete temporary warnings file.",
-    "error_reading_warnings_file": "Error checking/reading warnings file: {error}",
-    "node_version_warning": "You are using Node.js v{currentVersion}. Gemini CLI requires Node.js {minVersion} or higher for best results."
+    "error_reading_warnings_file": "Error checking/reading warnings file: {error}"
   },
   "non_interactive": {
     "operation_cancelled": "Operation cancelled.",
