@@ -23,6 +23,7 @@ import {
   getCachedGoogleAccount,
   getLifetimeGoogleAccounts,
 } from '../../utils/user_account.js';
+import { safeJsonStringify } from '../../utils/safeJsonStringify.js';
 
 const start_session_event_name = 'start_session';
 const new_prompt_event_name = 'new_prompt';
@@ -71,7 +72,7 @@ export class ClearcutLogger {
     this.events.push([
       {
         event_time_ms: Date.now(),
-        source_extension_json: JSON.stringify(event),
+        source_extension_json: safeJsonStringify(event),
       },
     ]);
   }
@@ -127,7 +128,7 @@ export class ClearcutLogger {
           log_event: eventsToSend,
         },
       ];
-      const body = JSON.stringify(request);
+      const body = safeJsonStringify(request);
       const options = {
         hostname: 'play.googleapis.com',
         path: '/log',
