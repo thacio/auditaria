@@ -755,5 +755,8 @@
       "prompt_interactive_conflict": "Cannot use both --prompt (-p) and --prompt-interactive (-i) together",
       "prompt_interactive_stdin": "Error: The --prompt-interactive flag is not supported when piping input from stdin."
     }
+  },
+  "loop_detection": {
+    "message": "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted."
   }
 }
