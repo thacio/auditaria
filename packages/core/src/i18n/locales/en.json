@@ -22,7 +22,18 @@
     },
     "stats": {
       "description": "check session stats. Usage: /stats [model|tools]",
-      "alt_name": "usage"
+      "alt_name": "usage",
+      "errors": {
+        "session_start_unavailable": "Session start time is unavailable, cannot calculate stats."
+      },
+      "subcommands": {
+        "model": {
+          "description": "Show model-specific usage statistics."
+        },
+        "tools": {
+          "description": "Show tool-specific usage statistics."
+        }
+      }
     },
     "mcp": {
       "description": "list configured MCP servers and tools",

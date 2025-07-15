@@ -22,7 +22,18 @@
     },
     "stats": {
       "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
-      "alt_name": "uso"
+      "alt_name": "uso",
+      "errors": {
+        "session_start_unavailable": "Horário de início da sessão não disponível, não é possível calcular estatísticas."
+      },
+      "subcommands": {
+        "model": {
+          "description": "Mostrar estatísticas de uso específicas do modelo."
+        },
+        "tools": {
+          "description": "Mostrar estatísticas de uso específicas das ferramentas."
+        }
+      }
     },
     "mcp": {
       "description": "listar servidores MCP configurados e ferramentas",
