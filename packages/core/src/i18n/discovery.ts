@@ -38,7 +38,7 @@ export async function discoverAvailableLanguages(): Promise<LanguageInfo[]> {
     // Fallback to known languages
     return [
       { code: 'en', name: 'English', nativeName: 'English' },
-      { code: 'pt', name: 'Portuguese', nativeName: 'Português' }
+      { code: 'pt', name: 'Brazilian Portuguese', nativeName: 'Português Brasileiro' }
     ];
   }
 }
