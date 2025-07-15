@@ -27,7 +27,7 @@ import {
 } from '../utils/editCorrector.js';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { ModifiableTool, ModifyContext } from './modifiable-tool.js';
-import { getSpecificMimeType } from '../utils/fileUtils.js';
+import { getSpecificMimeType, isWithinRoot } from '../utils/fileUtils.js';
 import {
   recordFileOperationMetric,
   FileOperation,
@@ -94,25 +94,6 @@ export class WriteFileTool
     );
   }
 
-  /**
-   * Checks if a given path is within the root directory bounds.
-   * This security check prevents writing files outside the designated root directory.
-   *
-   * @param pathToCheck The absolute path to validate
-   * @returns True if the path is within the root directory, false otherwise
-   */
-  private isWithinRoot(pathToCheck: string): boolean {
-    const normalizedPath = path.normalize(pathToCheck);
-    const normalizedRoot = path.normalize(this.config.getTargetDir());
-    const rootWithSep = normalizedRoot.endsWith(path.sep)
-      ? normalizedRoot
-      : normalizedRoot + path.sep;
-    return (
-      normalizedPath === normalizedRoot ||
-      normalizedPath.startsWith(rootWithSep)
-    );
-  }
-
   validateToolParams(params: WriteFileToolParams): string | null {
     const errors = SchemaValidator.validate(this.schema.parameters, params);
     if (errors) {
@@ -123,7 +104,7 @@ export class WriteFileTool
     if (!path.isAbsolute(filePath)) {
       return t('tools.write_file.file_path_must_be_absolute', 'File path must be absolute: {path}', { path: filePath });
     }
-    if (!this.isWithinRoot(filePath)) {
+    if (!isWithinRoot(filePath, this.config.getTargetDir())) {
       return `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
     }
 
