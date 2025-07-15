@@ -18,6 +18,7 @@ import {
   FileDiscoveryService,
   TelemetryTarget,
   MCPServerConfig,
+  IDE_SERVER_NAME,
   t,
 } from '@thacio/auditaria-cli-core';
 import { Settings } from './settings.js';
@@ -286,7 +287,7 @@ export async function loadCliConfig(
   }
 
   if (ideMode) {
-    mcpServers['_ide_server'] = new MCPServerConfig(
+    mcpServers[IDE_SERVER_NAME] = new MCPServerConfig(
       undefined, // command
       undefined, // args
       undefined, // env
