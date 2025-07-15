@@ -7,7 +7,6 @@
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
-import { t } from '@thacio/auditaria-cli-core';
 import {
   Config,
   loadServerHierarchicalMemory,
