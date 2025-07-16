@@ -82,14 +82,18 @@
       "save": {
         "missing_tag": "Missing tag. Usage: /chat save <tag>",
         "saved": "Conversation checkpoint saved with tag: {tag}.",
-        "no_conversation": "No conversation found to save."
+        "no_conversation": "No conversation found to save.",
+        "no_client": "No chat client available to save conversation."
       },
       "resume": {
         "missing_tag": "Missing tag. Usage: /chat resume <tag>",
         "not_found": "No saved checkpoint found with tag: {tag}."
       },
       "list": {
-        "saved_conversations": "list of saved conversations: {tags}"
+        "saved_conversations": "list of saved conversations: {tags}",
+        "no_checkpoints": "No saved conversation checkpoints found.",
+        "header": "List of saved conversations:\n\n",
+        "note": "Note: Newest last, oldest first"
       },
       "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume"
     },
