@@ -211,28 +211,7 @@ export const useSlashCommandProcessor = (
   // new system. As commands are migrated, they are removed from this list.
   const legacyCommands: LegacySlashCommand[] = useMemo(() => {
     const commands: LegacySlashCommand[] = [
-      // `/help` and `/clear` have been migrated and REMOVED from this list.
-      {
-        name: 'docs',
-        description: t('commands.docs.description', 'open full Gemini CLI documentation in your browser'),
-        action: async (_mainCommand, _subCommand, _args) => {
-          const docsUrl = 'https://goo.gle/gemini-cli-docs';
-          if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
-            addMessage({
-              type: MessageType.INFO,
-              content: t('commands.docs.sandbox_message', 'Please open the following URL in your browser to view the documentation:\n{url}', { url: docsUrl }),
-              timestamp: new Date(),
-            });
-          } else {
-            addMessage({
-              type: MessageType.INFO,
-              content: t('commands.docs.opening', 'Opening documentation in your browser: {url}', { url: docsUrl }),
-              timestamp: new Date(),
-            });
-            await open(docsUrl);
-          }
-        },
-      },
+      // `/help`, `/clear`, and `/docs` have been migrated and REMOVED from this list.
       {
         name: 'editor',
         description: t('commands.editor.description', 'set external editor preference'),
