@@ -5,7 +5,6 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import { GaxiosError } from 'gaxios';
 import { useState, useEffect, useCallback } from 'react';
 import { Config, CodeAssistServer, UserTierId } from '@thacio/auditaria-cli-core';
 
@@ -114,13 +113,18 @@ async function getRemoteDataCollectionOptIn(
   try {
     const resp = await server.getCodeAssistGlobalUserSetting();
     return resp.freeTierDataCollectionOptin;
-  } catch (e) {
-    if (e instanceof GaxiosError) {
-      if (e.response?.status === 404) {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const gaxiosError = error as {
+        response?: {
+          status?: unknown;
+        };
+      };
+      if (gaxiosError.response?.status === 404) {
         return true;
       }
     }
-    throw e;
+    throw error;
   }
 }
 
