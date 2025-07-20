@@ -148,39 +148,12 @@ describe('useSlashCommandProcessor', () => {
     vi.clearAllMocks();
   });
 
-  const getProcessor = () => {
-    const { result } = renderHook(() =>
-      useSlashCommandProcessor(
-        mockAddItem,
-        mockClearItems,
-        mockLoadHistory,
-        mockRefreshStatic,
-        mockOpenHelp,
-        mockOpenAuthDialog,
-        mockOpenEditorDialog,
-        mockOpenLanguageDialog,
-        mockOpenPrivacyNotice,
-        mockOpenThemeDialog,
-        mockToggleCorgiMode,
-        mockSetDebugMessage,
-        mockSetQuittingMessages,
-        mockSetPendingCompressionItem,
-        mockPendingCompressionItemRef,
-        mockConfig,
-        mockSettings,
-        undefined,
-        mockCommandService,
-      ),
-    );
-
-    return {
-      handleSlashCommand: result.current.handleSlashCommand,
-      allCommands: result.current.allCommands,
-      config: mockConfig,
-    };
-  };
-
   const getProcessorHook = () => {
+    const settings = {
+      merged: {
+        contextFileName: 'GEMINI.md',
+      },
+    } as unknown as LoadedSettings;
     return renderHook(() =>
       useSlashCommandProcessor(
         mockAddItem,
@@ -191,11 +164,9 @@ describe('useSlashCommandProcessor', () => {
         mockOpenAuthDialog,
         mockOpenEditorDialog,
         mockOpenLanguageDialog,
-        mockOpenPrivacyNotice,
-        mockOpenThemeDialog,
         mockToggleCorgiMode,
-        mockSetDebugMessage,
         mockSetQuittingMessages,
+        mockOpenPrivacyNotice,
         mockSetPendingCompressionItem,
         mockPendingCompressionItemRef,
         mockConfig,
@@ -204,9 +175,12 @@ describe('useSlashCommandProcessor', () => {
         mockCommandService,
       ),
     );
+
   };
 
-  describe('handleSlashCommand', () => {
+  const getProcessor = () => getProcessorHook().result.current;
+
+  describe('Other commands', () => {
     it('should return false for non-string input', async () => {
       const { handleSlashCommand } = getProcessor();
       const result = await handleSlashCommand([
@@ -321,6 +295,7 @@ describe('useSlashCommandProcessor', () => {
       expect(commandResult).toEqual({ type: 'handled' });
     });
 
+<<<<<<< HEAD
     it('should handle /memory command', async () => {
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandProcessorResult | false = false;
@@ -423,3 +398,87 @@ describe('useSlashCommandProcessor', () => {
     });
   });
 });
+=======
+    it('should use the custom bug command URL from config if available', async () => {
+      process.env.CLI_VERSION = '0.1.0';
+      process.env.SANDBOX = 'sandbox-exec';
+      process.env.SEATBELT_PROFILE = 'permissive-open';
+      const bugCommand = {
+        urlTemplate:
+          'https://custom-bug-tracker.com/new?title={title}&info={info}',
+      };
+      mockConfig = {
+        ...mockConfig,
+        getBugCommand: vi.fn(() => bugCommand),
+      } as unknown as Config;
+      process.env.CLI_VERSION = '0.1.0';
+
+      const { handleSlashCommand } = getProcessor();
+      const bugDescription = 'This is a custom bug';
+      const info = `
+*   **CLI Version:** 0.1.0
+*   **Git Commit:** ${GIT_COMMIT_INFO}
+*   **Operating System:** test-platform test-node-version
+*   **Sandbox Environment:** sandbox-exec (permissive-open)
+*   **Model Version:** test-model
+*   **Memory Usage:** 11.8 MB
+`;
+      const expectedUrl = bugCommand.urlTemplate
+        .replace('{title}', encodeURIComponent(bugDescription))
+        .replace('{info}', encodeURIComponent(info));
+
+      let commandResult: SlashCommandProcessorResult | false = false;
+      await act(async () => {
+        commandResult = await handleSlashCommand(`/bug ${bugDescription}`);
+      });
+
+      expect(mockAddItem).toHaveBeenCalledTimes(2);
+      expect(open).toHaveBeenCalledWith(expectedUrl);
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+  });
+
+  describe('/quit and /exit commands', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([['/quit'], ['/exit']])(
+      'should handle %s, set quitting messages, and exit the process',
+      async (command) => {
+        const { handleSlashCommand } = getProcessor();
+        const mockDate = new Date('2025-01-01T01:02:03.000Z');
+        vi.setSystemTime(mockDate);
+
+        await act(async () => {
+          handleSlashCommand(command);
+        });
+
+        expect(mockAddItem).not.toHaveBeenCalled();
+        expect(mockSetQuittingMessages).toHaveBeenCalledWith([
+          {
+            type: 'user',
+            text: command,
+            id: expect.any(Number),
+          },
+          {
+            type: 'quit',
+            duration: '1h 2m 3s',
+            id: expect.any(Number),
+          },
+        ]);
+
+        // Fast-forward timers to trigger process.exit
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(mockProcessExit).toHaveBeenCalledWith(0);
+      },
+    );
+  });
+});
+>>>>>>> 21eb44b2

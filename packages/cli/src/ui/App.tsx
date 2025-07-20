@@ -386,7 +386,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     openEditorDialog,
     openLanguageDialog,
     toggleCorgiMode,
-    showToolDescriptions,
     setQuittingMessages,
     openPrivacyNotice,
   );
