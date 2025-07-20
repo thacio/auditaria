@@ -107,6 +107,13 @@ describe('useSlashCommandProcessor', () => {
         getAllTools: vi.fn().mockReturnValue([]),
       }),
       getMcpServers: vi.fn().mockReturnValue({}),
+      getDebugMode: vi.fn(() => false),
+      getSandbox: vi.fn(() => 'test-sandbox'),
+      getModel: vi.fn(() => 'test-model'),
+      getProjectRoot: vi.fn(() => '/test/dir'),
+      getBugCommand: vi.fn(() => undefined),
+      getSessionId: vi.fn(() => 'test-session-id'),
+      getIdeMode: vi.fn(() => false),
     } as unknown as Config;
 
     mockSettings = {
