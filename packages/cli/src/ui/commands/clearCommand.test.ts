@@ -8,7 +8,18 @@ import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import { clearCommand } from './clearCommand.js';
 import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
-import { GeminiClient } from '@thacio/auditaria-cli-core';
+// Mock the telemetry service
+vi.mock('@thacio/auditaria-cli-core', async () => {
+  const actual = await vi.importActual('@thacio/auditaria-cli-core');
+  return {
+    ...actual,
+    uiTelemetryService: {
+      resetLastPromptTokenCount: vi.fn(),
+    },
+  };
+});
+
+import { GeminiClient, uiTelemetryService } from '@thacio/auditaria-cli-core';
 
 describe('clearCommand', () => {
   let mockContext: CommandContext;
@@ -16,6 +27,7 @@ describe('clearCommand', () => {
 
   beforeEach(() => {
     mockResetChat = vi.fn().mockResolvedValue(undefined);
+    vi.clearAllMocks();
 
     mockContext = createMockCommandContext({
       services: {
@@ -29,7 +41,7 @@ describe('clearCommand', () => {
     });
   });
 
-  it('should set debug message, reset chat, and clear UI when config is available', async () => {
+  it('should set debug message, reset chat, reset telemetry, and clear UI when config is available', async () => {
     if (!clearCommand.action) {
       throw new Error('clearCommand must have an action.');
     }
@@ -42,18 +54,24 @@ describe('clearCommand', () => {
     expect(mockContext.ui.setDebugMessage).toHaveBeenCalledTimes(1);
 
     expect(mockResetChat).toHaveBeenCalledTimes(1);
-
+    expect(uiTelemetryService.resetLastPromptTokenCount).toHaveBeenCalledTimes(
+      1,
+    );
     expect(mockContext.ui.clear).toHaveBeenCalledTimes(1);
 
     // Check the order of operations.
     const setDebugMessageOrder = (mockContext.ui.setDebugMessage as Mock).mock
       .invocationCallOrder[0];
     const resetChatOrder = mockResetChat.mock.invocationCallOrder[0];
+    const resetTelemetryOrder = (
+      uiTelemetryService.resetLastPromptTokenCount as Mock
+    ).mock.invocationCallOrder[0];
     const clearOrder = (mockContext.ui.clear as Mock).mock
       .invocationCallOrder[0];
 
     expect(setDebugMessageOrder).toBeLessThan(resetChatOrder);
-    expect(resetChatOrder).toBeLessThan(clearOrder);
+    expect(resetChatOrder).toBeLessThan(resetTelemetryOrder);
+    expect(resetTelemetryOrder).toBeLessThan(clearOrder);
   });
 
   it('should not attempt to reset chat if config service is not available', async () => {
@@ -70,9 +88,12 @@ describe('clearCommand', () => {
     await clearCommand.action(nullConfigContext, '');
 
     expect(nullConfigContext.ui.setDebugMessage).toHaveBeenCalledWith(
-      'Clearing terminal and resetting chat.',
+      'Clearing terminal.',
     );
     expect(mockResetChat).not.toHaveBeenCalled();
+    expect(uiTelemetryService.resetLastPromptTokenCount).toHaveBeenCalledTimes(
+      1,
+    );
     expect(nullConfigContext.ui.clear).toHaveBeenCalledTimes(1);
   });
 });
