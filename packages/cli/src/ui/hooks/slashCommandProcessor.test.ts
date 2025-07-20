@@ -29,7 +29,6 @@ import {
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { LoadedSettings } from '../../config/settings.js';
 import * as ShowMemoryCommandModule from './useShowMemoryCommand.js';
-import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { CommandService } from '../../services/CommandService.js';
 import { SlashCommand } from '../commands/types.js';
 
@@ -187,7 +186,6 @@ describe('useSlashCommandProcessor', () => {
 
   const getProcessor = () => getProcessorHook().result.current;
 
-<<<<<<< HEAD
   describe('Other commands', () => {
     it('should return false for non-string input', async () => {
       const { handleSlashCommand } = getProcessor();
@@ -308,7 +306,6 @@ describe('useSlashCommandProcessor', () => {
       expect(commandResult).toEqual({ type: 'handled' });
     });
 
-<<<<<<< HEAD
     it('should handle /memory command', async () => {
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandProcessorResult | false = false;
@@ -410,46 +407,6 @@ describe('useSlashCommandProcessor', () => {
       expect(commandResult).toEqual({ type: 'handled' });
     });
   });
-});
-=======
-    it('should use the custom bug command URL from config if available', async () => {
-      process.env.CLI_VERSION = '0.1.0';
-      process.env.SANDBOX = 'sandbox-exec';
-      process.env.SEATBELT_PROFILE = 'permissive-open';
-      const bugCommand = {
-        urlTemplate:
-          'https://custom-bug-tracker.com/new?title={title}&info={info}',
-      };
-      mockConfig = {
-        ...mockConfig,
-        getBugCommand: vi.fn(() => bugCommand),
-      } as unknown as Config;
-      process.env.CLI_VERSION = '0.1.0';
-
-      const { handleSlashCommand } = getProcessor();
-      const bugDescription = 'This is a custom bug';
-      const info = `
-*   **CLI Version:** 0.1.0
-*   **Git Commit:** ${GIT_COMMIT_INFO}
-*   **Operating System:** test-platform test-node-version
-*   **Sandbox Environment:** sandbox-exec (permissive-open)
-*   **Model Version:** test-model
-*   **Memory Usage:** 11.8 MB
-`;
-      const expectedUrl = bugCommand.urlTemplate
-        .replace('{title}', encodeURIComponent(bugDescription))
-        .replace('{info}', encodeURIComponent(info));
-
-      let commandResult: SlashCommandProcessorResult | false = false;
-      await act(async () => {
-        commandResult = await handleSlashCommand(`/bug ${bugDescription}`);
-      });
-
-      expect(mockAddItem).toHaveBeenCalledTimes(2);
-      expect(open).toHaveBeenCalledWith(expectedUrl);
-      expect(commandResult).toEqual({ type: 'handled' });
-    });
-  });
 
   describe('/quit and /exit commands', () => {
     beforeEach(() => {
@@ -494,4 +451,3 @@ describe('useSlashCommandProcessor', () => {
     );
   });
 });
->>>>>>> 21eb44b2
