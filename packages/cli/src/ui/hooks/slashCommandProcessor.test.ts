@@ -187,6 +187,7 @@ describe('useSlashCommandProcessor', () => {
 
   const getProcessor = () => getProcessorHook().result.current;
 
+<<<<<<< HEAD
   describe('Other commands', () => {
     it('should return false for non-string input', async () => {
       const { handleSlashCommand } = getProcessor();
@@ -230,11 +231,16 @@ describe('useSlashCommandProcessor', () => {
       expect(mockOpenPrivacyNotice).toHaveBeenCalled();
     });
 
-    it('should handle /editor command', async () => {
-      const { handleSlashCommand } = getProcessor();
-      const result = await handleSlashCommand('/editor');
-      expect(result).toEqual({ type: 'handled' });
-      expect(mockOpenEditorDialog).toHaveBeenCalled();
+  });
+
+  describe('New command registry', () => {
+    let ActualCommandService: typeof CommandService;
+
+    beforeAll(async () => {
+      const actual = (await vi.importActual(
+        '../../services/CommandService.js',
+      )) as { CommandService: typeof CommandService };
+      ActualCommandService = actual.CommandService;
     });
 
     it('should handle /language command', async () => {

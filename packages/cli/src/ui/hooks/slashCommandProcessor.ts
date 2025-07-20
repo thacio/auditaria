@@ -212,11 +212,6 @@ export const useSlashCommandProcessor = (
     const commands: LegacySlashCommand[] = [
       // `/help`, `/clear`, and `/docs` have been migrated and REMOVED from this list.
       {
-        name: 'editor',
-        description: t('commands.editor.description', 'set external editor preference'),
-        action: (_mainCommand, _subCommand, _args) => openEditorDialog(),
-      },
-      {
         name: 'language',
         description: t('commands.language.description', 'change language preference'),
         action: (_mainCommand, _subCommand, _args) => openLanguageDialog(),
@@ -501,7 +496,6 @@ export const useSlashCommandProcessor = (
     return commands;
   }, [
     addMessage,
-    openEditorDialog,
     openLanguageDialog,
     toggleCorgiMode,
     config,
@@ -595,6 +589,9 @@ export const useSlashCommandProcessor = (
                     return { type: 'handled' };
                   case 'theme':
                     openThemeDialog();
+                    return { type: 'handled' };
+                  case 'editor':
+                    openEditorDialog();
                     return { type: 'handled' };
                   case 'privacy':
                     openPrivacyNotice();
@@ -694,6 +691,7 @@ export const useSlashCommandProcessor = (
       addMessage,
       openThemeDialog,
       openPrivacyNotice,
+      openEditorDialog,
     ],
   );
 
