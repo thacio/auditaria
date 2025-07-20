@@ -147,6 +147,7 @@ export interface ConfigParameters {
   extensionContextFilePaths?: string[];
   useImprovedFallbackStrategy?: boolean;
   maxSessionTurns?: number;
+  experimentalAcp?: boolean;
   listExtensions?: boolean;
   activeExtensions?: ActiveExtension[];
   noBrowser?: boolean;
@@ -203,6 +204,7 @@ export class Config {
   private readonly summarizeToolOutput:
     | Record<string, SummarizeToolOutputSettings>
     | undefined;
+  private readonly experimentalAcp: boolean = false;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -246,6 +248,7 @@ export class Config {
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
     this.useImprovedFallbackStrategy = params.useImprovedFallbackStrategy ?? true;
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
+    this.experimentalAcp = params.experimentalAcp ?? false;
     this.listExtensions = params.listExtensions ?? false;
     this._activeExtensions = params.activeExtensions ?? [];
     this.noBrowser = params.noBrowser ?? false;
@@ -513,6 +516,10 @@ export class Config {
 
   setDisableFallbackForSession(disabled: boolean): void {
     this.disableFallbackForSession = disabled;
+  }
+
+  getExperimentalAcp(): boolean {
+    return this.experimentalAcp;
   }
 
   getListExtensions(): boolean {
