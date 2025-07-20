@@ -4,17 +4,57 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { renderHook, act } from '@testing-library/react';
-import {
-  vi,
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  beforeAll,
-  Mock,
-} from 'vitest';
+const { mockProcessExit } = vi.hoisted(() => ({
+  mockProcessExit: vi.fn((_code?: number): never => undefined as never),
+}));
+
+vi.mock('node:process', () => ({
+  default: {
+    exit: mockProcessExit,
+    cwd: vi.fn(() => '/mock/cwd'),
+    get env() {
+      return process.env;
+    }, // Use a getter to ensure current process.env is used
+    platform: 'test-platform',
+    version: 'test-node-version',
+    memoryUsage: vi.fn(() => ({
+      rss: 12345678,
+      heapTotal: 23456789,
+      heapUsed: 10234567,
+      external: 1234567,
+      arrayBuffers: 123456,
+    })),
+  },
+  // Provide top-level exports as well for compatibility
+  exit: mockProcessExit,
+  cwd: vi.fn(() => '/mock/cwd'),
+  get env() {
+    return process.env;
+  }, // Use a getter here too
+  platform: 'test-platform',
+  version: 'test-node-version',
+  memoryUsage: vi.fn(() => ({
+    rss: 12345678,
+    heapTotal: 23456789,
+    heapUsed: 10234567,
+    external: 1234567,
+    arrayBuffers: 123456,
+  })),
+}));
+
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  mkdir: vi.fn(),
+}));
+
+const mockGetCliVersionFn = vi.fn(() => Promise.resolve('0.1.0'));
+vi.mock('../../utils/version.js', () => ({
+  getCliVersion: (...args: []) => mockGetCliVersionFn(...args),
+}));
+
+import { act, renderHook } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, Mock } from 'vitest';
 import open from 'open';
 import { useSlashCommandProcessor } from './slashCommandProcessor.js';
 import { MessageType, SlashCommandProcessorResult } from '../types.js';
@@ -184,11 +224,9 @@ describe('useSlashCommandProcessor', () => {
 
   };
 
-  const getProcessor = () => getProcessorHook().result.current;
-
   describe('Other commands', () => {
     it('should return false for non-string input', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand([
         { text: 'not a slash command' },
       ]);
@@ -196,41 +234,40 @@ describe('useSlashCommandProcessor', () => {
     });
 
     it('should return false for non-slash command', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand('not a slash command');
       expect(result).toBe(false);
     });
 
     it('should handle /help command', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand('/help');
       expect(result).toEqual({ type: 'handled' });
       expect(mockOpenHelp).toHaveBeenCalled();
     });
 
     it('should handle /auth command', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand('/auth');
       expect(result).toEqual({ type: 'handled' });
       expect(mockOpenAuthDialog).toHaveBeenCalled();
     });
 
     it('should handle /theme command', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand('/theme');
       expect(result).toEqual({ type: 'handled' });
       expect(mockOpenThemeDialog).toHaveBeenCalled();
     });
 
     it('should handle /privacy command', async () => {
-      const { handleSlashCommand } = getProcessor();
+      const { handleSlashCommand } = getProcessorHook().result.current;
       const result = await handleSlashCommand('/privacy');
       expect(result).toEqual({ type: 'handled' });
       expect(mockOpenPrivacyNotice).toHaveBeenCalled();
     });
 
   });
-
   describe('New command registry', () => {
     let ActualCommandService: typeof CommandService;
 
@@ -406,48 +443,5 @@ describe('useSlashCommandProcessor', () => {
       expect(message).toContain('Description for Tool2');
       expect(commandResult).toEqual({ type: 'handled' });
     });
-  });
-
-  describe('/quit and /exit commands', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it.each([['/quit'], ['/exit']])(
-      'should handle %s, set quitting messages, and exit the process',
-      async (command) => {
-        const { handleSlashCommand } = getProcessor();
-        const mockDate = new Date('2025-01-01T01:02:03.000Z');
-        vi.setSystemTime(mockDate);
-
-        await act(async () => {
-          handleSlashCommand(command);
-        });
-
-        expect(mockAddItem).not.toHaveBeenCalled();
-        expect(mockSetQuittingMessages).toHaveBeenCalledWith([
-          {
-            type: 'user',
-            text: command,
-            id: expect.any(Number),
-          },
-          {
-            type: 'quit',
-            duration: '1h 2m 3s',
-            id: expect.any(Number),
-          },
-        ]);
-
-        // Fast-forward timers to trigger process.exit
-        await act(async () => {
-          vi.advanceTimersByTime(100);
-        });
-        expect(mockProcessExit).toHaveBeenCalledWith(0);
-      },
-    );
   });
 });

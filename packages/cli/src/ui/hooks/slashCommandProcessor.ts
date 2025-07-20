@@ -31,7 +31,6 @@ import {
 } from '../types.js';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { formatDuration } from '../utils/formatters.js';
 import { LoadedSettings } from '../../config/settings.js';
 import {
   type CommandContext,
@@ -217,33 +216,6 @@ export const useSlashCommandProcessor = (
         name: 'corgi',
         action: (_mainCommand, _subCommand, _args) => {
           toggleCorgiMode();
-        },
-      },
-      {
-        name: 'quit',
-        altName: 'exit',
-        description: t('commands.quit.description', 'exit the cli'),
-        action: async (mainCommand, _subCommand, _args) => {
-          const now = new Date();
-          const { sessionStartTime } = session.stats;
-          const wallDuration = now.getTime() - sessionStartTime.getTime();
-
-          setQuittingMessages([
-            {
-              type: 'user',
-              text: `/${mainCommand}`,
-              id: now.getTime() - 1,
-            },
-            {
-              type: 'quit',
-              duration: formatDuration(wallDuration),
-              id: now.getTime(),
-            },
-          ]);
-
-          setTimeout(() => {
-            process.exit(0);
-          }, 100);
         },
       },
       {
@@ -433,10 +405,8 @@ export const useSlashCommandProcessor = (
     openLanguageDialog,
     toggleCorgiMode,
     config,
-    session,
     gitService,
     loadHistory,
-    setQuittingMessages,
   ]);
 
   const handleSlashCommand = useCallback(
@@ -547,6 +517,12 @@ export const useSlashCommandProcessor = (
                 });
                 return { type: 'handled' };
               }
+              case 'quit':
+                setQuittingMessages(result.messages);
+                setTimeout(() => {
+                  process.exit(0);
+                }, 100);
+                return { type: 'handled' };
               default: {
                 const unhandled: never = result;
                 throw new Error(`Unhandled slash command result: ${unhandled}`);
@@ -626,6 +602,7 @@ export const useSlashCommandProcessor = (
       openThemeDialog,
       openPrivacyNotice,
       openEditorDialog,
+      setQuittingMessages,
     ],
   );
 
