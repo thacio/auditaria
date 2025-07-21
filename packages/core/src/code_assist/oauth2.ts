@@ -55,7 +55,7 @@ const SIGN_IN_SUCCESS_URL =
 const SIGN_IN_FAILURE_URL =
   'https://developers.google.com/gemini-code-assist/auth_failure_gemini';
 
-const GEMINI_DIR = '.gemini';
+const GEMINI_DIR = '.auditaria';
 const CREDENTIAL_FILENAME = 'oauth_creds.json';
 
 /**

@@ -36,7 +36,7 @@ export interface MCPOAuthCredentials {
  */
 export class MCPOAuthTokenStorage {
   private static readonly TOKEN_FILE = 'mcp-oauth-tokens.json';
-  private static readonly CONFIG_DIR = '.gemini';
+  private static readonly CONFIG_DIR = '.auditaria';
 
   /**
    * Get the path to the token storage file.
