@@ -653,6 +653,7 @@
       "error_writing_file": "Error writing file: {error}"
     },
     "shell": {
+      "name": "Shell Command",
       "validation_error": "Error: {error}",
       "command_cancelled_user": "Command cancelled by user.",
       "command_terminated_signal": "Command terminated by signal: {signal}",
