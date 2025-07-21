@@ -153,6 +153,13 @@
     },
     "clear": {
       "description": "limpar a tela e o histórico da conversa"
+    },
+    "copy": {
+      "description": "Copiar o último resultado ou trecho de código para a área de transferência",
+      "no_output": "Nenhuma saída no histórico",
+      "success": "Última saída copiada para a área de transferência",
+      "error": "Falha ao copiar para a área de transferência.",
+      "no_text": "A última saída da IA não contém texto para copiar."
     }
   },
   "help": {
@@ -386,6 +393,7 @@
     "title": "Selecionar Tema",
     "apply_to": "Aplicar Para",
     "preview": "Pré-visualização",
+    "custom_type": "Personalizado",
     "theme_type_preview": "Pré-visualização do Tema {themeType}",
     "scope_options": {
       "user_settings": "Configurações do Usuário",
@@ -622,6 +630,7 @@
       "error_writing_file": "Erro ao escrever arquivo: {error}"
     },
     "shell": {
+      "name": "Comando Shell",
       "validation_error": "Erro: {error}",
       "command_cancelled_user": "Comando cancelado pelo usuário.",
       "command_terminated_signal": "Comando terminado por sinal: {signal}",

@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '@thacio/auditaria-cli-core';
 import { copyToClipboard } from '../utils/commandUtils.js';
 import { SlashCommand, SlashCommandActionReturn } from './types.js';
 
 export const copyCommand: SlashCommand = {
   name: 'copy',
-  description: 'Copy the last result or code snippet to clipboard',
+  description: t('commands.copy.description', 'Copy the last result or code snippet to clipboard'),
   action: async (context, _args): Promise<SlashCommandActionReturn | void> => {
     const chat = await context.services.config?.getGeminiClient()?.getChat();
     const history = chat?.getHistory();
@@ -23,7 +24,7 @@ export const copyCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: 'No output in history',
+        content: t('commands.copy.no_output', 'No output in history'),
       };
     }
     // Extract text from the parts
@@ -39,7 +40,7 @@ export const copyCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'info',
-          content: 'Last output copied to the clipboard',
+          content: t('commands.copy.success', 'Last output copied to the clipboard'),
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -48,14 +49,14 @@ export const copyCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Failed to copy to the clipboard.',
+          content: t('commands.copy.error', 'Failed to copy to the clipboard.'),
         };
       }
     } else {
       return {
         type: 'message',
         messageType: 'info',
-        content: 'Last AI output contains no text to copy.',
+        content: t('commands.copy.no_text', 'Last AI output contains no text to copy.'),
       };
     }
   },

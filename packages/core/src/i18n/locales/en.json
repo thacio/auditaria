@@ -157,6 +157,13 @@
     },
     "clear": {
       "description": "clear the screen and conversation history"
+    },
+    "copy": {
+      "description": "Copy the last result or code snippet to clipboard",
+      "no_output": "No output in history",
+      "success": "Last output copied to the clipboard",
+      "error": "Failed to copy to the clipboard.",
+      "no_text": "Last AI output contains no text to copy."
     }
   },
   "help": {
