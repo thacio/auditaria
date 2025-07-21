@@ -112,6 +112,7 @@ describe('CommandService', () => {
     mockConfig = {
       getIdeMode: vi.fn(),
       getCheckpointingEnabled: vi.fn(),
+      getBackgroundAgentManager: vi.fn(),
     } as unknown as Mocked<Config>;
     vi.mocked(ideCommand).mockReturnValue(null);
     vi.mocked(restoreCommand).mockReturnValue(null);
