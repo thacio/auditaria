@@ -14,6 +14,7 @@ interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
   contextFileNames: string[];
   mcpServers?: Record<string, MCPServerConfig>;
+  blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   showToolDescriptions?: boolean;
 }
 
@@ -21,11 +22,17 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   geminiMdFileCount,
   contextFileNames,
   mcpServers,
+  blockedMcpServers,
   showToolDescriptions,
 }) => {
   const mcpServerCount = Object.keys(mcpServers || {}).length;
+  const blockedMcpServerCount = blockedMcpServers?.length || 0;
 
-  if (geminiMdFileCount === 0 && mcpServerCount === 0) {
+  if (
+    geminiMdFileCount === 0 &&
+    mcpServerCount === 0 &&
+    blockedMcpServerCount === 0
+  ) {
     return <Text> </Text>; // Render an empty space to reserve height
   }
 
@@ -42,13 +49,30 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     });
   })();
 
-  const mcpText =
-    mcpServerCount > 0
-      ? t('context_summary.mcp_servers', '{count} MCP server{plural}', {
+  const mcpText = (() => {
+    if (mcpServerCount === 0 && blockedMcpServerCount === 0) {
+      return '';
+    }
+
+    const parts = [];
+    if (mcpServerCount > 0) {
+      parts.push(
+        t('context_summary.mcp_servers', '{count} MCP server{plural}', {
           count: mcpServerCount,
           plural: mcpServerCount > 1 ? 's' : ''
         })
-      : '';
+      );
+    }
+
+    if (blockedMcpServerCount > 0) {
+      let blockedText = `${blockedMcpServerCount} blocked`;
+      if (mcpServerCount === 0) {
+        blockedText += ` MCP server${blockedMcpServerCount > 1 ? 's' : ''}`;
+      }
+      parts.push(blockedText);
+    }
+    return parts.join(', ');
+  })();
 
   let summaryText = t('context_summary.using', 'Using ');
   if (geminiMdText) {

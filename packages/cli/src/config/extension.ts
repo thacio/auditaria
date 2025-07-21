@@ -5,7 +5,7 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import { MCPServerConfig } from '@thacio/auditaria-cli-core';
+import { MCPServerConfig, GeminiCLIExtension } from '@thacio/auditaria-cli-core';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -35,9 +35,6 @@ export function loadExtensions(workspaceDir: string): Extension[] {
   const uniqueExtensions = new Map<string, Extension>();
   for (const extension of allExtensions) {
     if (!uniqueExtensions.has(extension.config.name)) {
-      console.log(
-        t('extension.loading', 'Loading extension: {name} (version: {version})', { name: extension.config.name, version: extension.config.version }),
-      );
       uniqueExtensions.set(extension.config.name, extension);
     }
   }
@@ -114,12 +111,18 @@ function getContextFileNames(config: ExtensionConfig): string[] {
   return config.contextFileName;
 }
 
-export function filterActiveExtensions(
+export function annotateActiveExtensions(
   extensions: Extension[],
   enabledExtensionNames: string[],
-): Extension[] {
+): GeminiCLIExtension[] {
+  const annotatedExtensions: GeminiCLIExtension[] = [];
+
   if (enabledExtensionNames.length === 0) {
-    return extensions;
+    return extensions.map((extension) => ({
+      name: extension.config.name,
+      version: extension.config.version,
+      isActive: true,
+    }));
   }
 
   const lowerCaseEnabledExtensions = new Set(
@@ -130,31 +133,33 @@ export function filterActiveExtensions(
     lowerCaseEnabledExtensions.size === 1 &&
     lowerCaseEnabledExtensions.has('none')
   ) {
-    if (extensions.length > 0) {
-      console.log(t('extension.all_disabled', 'All extensions are disabled.'));
-    }
-    return [];
+    return extensions.map((extension) => ({
+      name: extension.config.name,
+      version: extension.config.version,
+      isActive: false,
+    }));
   }
 
-  const activeExtensions: Extension[] = [];
   const notFoundNames = new Set(lowerCaseEnabledExtensions);
 
   for (const extension of extensions) {
     const lowerCaseName = extension.config.name.toLowerCase();
-    if (lowerCaseEnabledExtensions.has(lowerCaseName)) {
-      console.log(
-        t('extension.activated', 'Activated extension: {name} (version: {version})', { name: extension.config.name, version: extension.config.version }),
-      );
-      activeExtensions.push(extension);
+    const isActive = lowerCaseEnabledExtensions.has(lowerCaseName);
+
+    if (isActive) {
       notFoundNames.delete(lowerCaseName);
-    } else {
-      console.log(t('extension.disabled', 'Disabled extension: {name}', { name: extension.config.name }));
     }
+
+    annotatedExtensions.push({
+      name: extension.config.name,
+      version: extension.config.version,
+      isActive,
+    });
   }
 
   for (const requestedName of notFoundNames) {
-    console.log(t('extension.not_found', 'Extension not found: {name}', { name: requestedName }));
+    console.error(t('extension.not_found', 'Extension not found: {name}', { name: requestedName }));
   }
 
-  return activeExtensions;
+  return annotatedExtensions;
 }
