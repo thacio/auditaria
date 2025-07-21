@@ -7,7 +7,6 @@
 import { Config } from '@thacio/auditaria-cli-core';
 import { SlashCommand } from '../ui/commands/types.js';
 import { memoryCommand } from '../ui/commands/memoryCommand.js';
-import { backgroundCommand } from '../ui/commands/backgroundCommand.js';
 import { helpCommand } from '../ui/commands/helpCommand.js';
 import { clearCommand } from '../ui/commands/clearCommand.js';
 import { corgiCommand } from '../ui/commands/corgiCommand.js';
@@ -38,7 +37,6 @@ const loadBuiltInCommands = async (
   const allCommands = [
     aboutCommand,
     authCommand,
-    backgroundCommand(config),
     bugCommand,
     chatCommand,
     clearCommand,
