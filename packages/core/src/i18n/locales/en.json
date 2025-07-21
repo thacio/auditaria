@@ -390,6 +390,7 @@
     "title": "Select Theme",
     "apply_to": "Apply To",
     "preview": "Preview",
+    "custom_type": "Custom",
     "theme_type_preview": "{themeType} Theme Preview",
     "scope_options": {
       "user_settings": "User Settings",
