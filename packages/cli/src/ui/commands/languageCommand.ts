@@ -9,10 +9,8 @@ import { type SlashCommand } from './types.js';
 export const languageCommand: SlashCommand = {
   name: 'language',
   description: 'change language preference',
-  action: (context, _args) => {
-    return {
-      type: 'dialog',
-      dialog: 'language',
-    };
-  },
+  action: (_context, _args) => ({
+    type: 'dialog',
+    dialog: 'language',
+  }),
 };
