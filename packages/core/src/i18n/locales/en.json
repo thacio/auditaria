@@ -697,7 +697,8 @@
     "not_loaded": "No hierarchical memory (GEMINI.md or other context files) is currently loaded."
   },
   "startup": {
-    "home_directory_warning": "You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.",
+    "home_directory_warning": "You are running Auditaria CLI in your home directory. It is recommended to run in a project-specific directory.",
+    "root_directory_warning": "Warning: You are running Auditaria CLI in the root directory. Your entire folder structure will be used for context. It is strongly recommended to run in a project-specific directory.",
     "directory_verification_error": "Could not verify the current directory due to a file system error.",
     "cannot_delete_warnings_file": "Warning: Could not delete temporary warnings file.",
     "error_reading_warnings_file": "Error checking/reading warnings file: {error}"

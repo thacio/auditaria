@@ -666,7 +666,8 @@
     "not_loaded": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está atualmente carregada."
   },
   "startup": {
-    "home_directory_warning": "Você está executando o Gemini CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "home_directory_warning": "Você está executando o Auditaria CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "root_directory_warning": "Aviso: Você está executando o Auditaria CLI no diretório raiz. Toda a estrutura de pastas será usada para contexto. É fortemente recomendado executar em um diretório específico do projeto.",
     "directory_verification_error": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
     "cannot_delete_warnings_file": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
     "error_reading_warnings_file": "Erro ao verificar/ler arquivo de avisos: {error}"

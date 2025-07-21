@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type SlashCommand } from './types.js';
+import { type SlashCommand, CommandKind } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const languageCommand: SlashCommand = {
   name: 'language',
-  description: 'change language preference',
+  get description() {
+    return t('commands.language.description', 'change language preference');
+  },
+  kind: CommandKind.BUILT_IN,
   action: (_context, _args) => ({
     type: 'dialog',
     dialog: 'language',

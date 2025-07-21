@@ -5,11 +5,14 @@
  */
 
 import { t } from '@thacio/auditaria-cli-core';
-import { type SlashCommand } from './types.js';
+import { type SlashCommand, CommandKind } from './types.js';
 
 export const stayProCommand: SlashCommand = {
   name: 'stay-pro',
-  description: 'toggle whether to stay on Pro model (disable/enable fallback to Flash)',
+  get description() {
+    return t('commands.stay_pro.description', 'toggle whether to stay on Pro model (disable/enable fallback to Flash)');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const { config } = context.services;
     if (!config) return;

@@ -5,11 +5,14 @@
  */
 
 import { t } from '@thacio/auditaria-cli-core';
-import { type SlashCommand } from './types.js';
+import { type SlashCommand, CommandKind } from './types.js';
 
 export const fallbackImprovedCommand: SlashCommand = {
   name: 'fallback-improved',
-  description: 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)',
+  get description() {
+    return t('commands.fallback_improved.description', 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const { config } = context.services;
     if (!config) return;

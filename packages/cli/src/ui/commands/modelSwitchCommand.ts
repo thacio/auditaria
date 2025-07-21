@@ -5,11 +5,14 @@
  */
 
 import { DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_FLASH_MODEL, t } from '@thacio/auditaria-cli-core';
-import { type SlashCommand } from './types.js';
+import { type SlashCommand, CommandKind } from './types.js';
 
 export const modelSwitchCommand: SlashCommand = {
   name: 'model-switch',
-  description: 'switch between Gemini Pro and Flash models',
+  get description() {
+    return t('commands.model_switch.description', 'switch between Gemini Pro and Flash models');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const { config } = context.services;
     if (!config) return;
