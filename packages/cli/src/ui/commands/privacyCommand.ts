@@ -5,10 +5,13 @@
  */
 
 import { CommandKind, OpenDialogActionReturn, SlashCommand } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const privacyCommand: SlashCommand = {
   name: 'privacy',
-  description: 'display the privacy notice',
+  get description() {
+    return t('commands.privacy.description', 'display the privacy notice');
+  },
   kind: CommandKind.BUILT_IN,
   action: (): OpenDialogActionReturn => ({
     type: 'dialog',

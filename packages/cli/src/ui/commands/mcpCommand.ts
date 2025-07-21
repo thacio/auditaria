@@ -16,6 +16,7 @@ import {
   getMCPServerStatus,
   MCPDiscoveryState,
   MCPServerStatus,
+  t,
 } from '@thacio/auditaria-cli-core';
 import open from 'open';
 
@@ -229,7 +230,9 @@ const getMcpStatus = async (
 
 export const mcpCommand: SlashCommand = {
   name: 'mcp',
-  description: 'list configured MCP servers and tools',
+  get description() {
+    return t('commands.mcp.description', 'list configured MCP servers and tools');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args: string) => {
     const lowerCaseArgs = args.toLowerCase().split(/\s+/).filter(Boolean);

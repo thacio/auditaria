@@ -73,7 +73,13 @@
     "bug": {
       "description": "enviar relatório de bug",
       "submit_message": "Para enviar seu relatório de bug, por favor abra a seguinte URL no seu navegador:\n{url}",
-      "browser_error": "Não foi possível abrir URL no navegador: {error}"
+      "browser_error": "Não foi possível abrir URL no navegador: {error}",
+      "no_sandbox": "sem sandbox",
+      "unknown_profile": "desconhecido",
+      "unknown_model": "Desconhecido"
+    },
+    "corgi": {
+      "description": "Alterna o modo corgi."
     },
     "chat": {
       "description": "Gerenciar histórico de conversas. Uso: /chat <list|save|resume> <tag>",

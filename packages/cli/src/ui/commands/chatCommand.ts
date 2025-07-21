@@ -201,7 +201,9 @@ const resumeCommand: SlashCommand = {
 
 export const chatCommand: SlashCommand = {
   name: 'chat',
-  description: 'Manage conversation history.',
+  get description() {
+    return t('commands.chat.description', 'Manage conversation history. Usage: /chat <list|save|resume> <tag>');
+  },
   kind: CommandKind.BUILT_IN,
   subCommands: [listCommand, saveCommand, resumeCommand],
 };

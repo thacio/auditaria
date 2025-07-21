@@ -12,7 +12,9 @@ import { t } from '@thacio/auditaria-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',
-  description: t('commands.about.description', 'show version info'),
+  get description() {
+    return t('commands.about.description', 'show version info');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context) => {
     const osVersion = process.platform;
