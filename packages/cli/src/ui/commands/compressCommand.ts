@@ -5,13 +5,16 @@
  */
 
 import { HistoryItemCompression, MessageType } from '../types.js';
-import { SlashCommand } from './types.js';
+import { CommandKind, SlashCommand } from './types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const compressCommand: SlashCommand = {
   name: 'compress',
-  altName: 'summarize',
-  description: 'Compresses the context by replacing it with a summary.',
+  altNames: ['summarize'],
+  get description() {
+    return t('commands.compress.description', 'Compresses the context by replacing it with a summary.');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context) => {
     const { ui } = context;
     if (ui.pendingItem) {

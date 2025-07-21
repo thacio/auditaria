@@ -18,6 +18,7 @@ import {
   CommandContext,
   SlashCommand,
   SlashCommandActionReturn,
+  CommandKind,
 } from './types.js';
 import * as child_process from 'child_process';
 import * as process from 'process';
@@ -48,11 +49,17 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
 
   return {
     name: 'ide',
-    description: t('commands.ide.description', 'manage IDE integration'),
+    get description() {
+      return t('commands.ide.description', 'manage IDE integration');
+    },
+    kind: CommandKind.BUILT_IN,
     subCommands: [
       {
         name: 'status',
-        description: t('commands.ide.status.description', 'check status of IDE integration'),
+        get description() {
+          return t('commands.ide.status.description', 'check status of IDE integration');
+        },
+        kind: CommandKind.BUILT_IN,
         action: (_context: CommandContext): SlashCommandActionReturn => {
           const status = getMCPServerStatus(IDE_SERVER_NAME);
           const discoveryState = getMCPDiscoveryState();
@@ -90,6 +97,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       {
         name: 'install',
         description: 'install required VS Code companion extension',
+        kind: CommandKind.BUILT_IN,
         action: async (context) => {
           if (!isVSCodeInstalled()) {
             context.ui.addItem(

@@ -4,13 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type CommandContext, type SlashCommand } from './types.js';
+import {
+  type CommandContext,
+  type SlashCommand,
+  CommandKind,
+} from './types.js';
 import { MessageType } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const toolsCommand: SlashCommand = {
   name: 'tools',
-  description: t('commands.tools.description', 'list available Gemini CLI tools'),
+  get description() {
+    return t('commands.tools.description', 'list available Gemini CLI tools');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {
     const subCommand = args?.trim();
 

@@ -5,7 +5,7 @@
  */
 
 import { uiTelemetryService } from '@thacio/auditaria-cli-core';
-import { SlashCommand } from './types.js';
+import { CommandKind, SlashCommand } from './types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const clearCommand: SlashCommand = {
@@ -13,6 +13,7 @@ export const clearCommand: SlashCommand = {
   get description() {
     return t('commands.clear.description', 'clear the screen and conversation history');
   },
+  kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const geminiClient = context.services.config?.getGeminiClient();
 

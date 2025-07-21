@@ -6,13 +6,20 @@
 
 import { MessageType, HistoryItemStats } from '../types.js';
 import { formatDuration } from '../utils/formatters.js';
-import { type CommandContext, type SlashCommand } from './types.js';
+import {
+  type CommandContext,
+  type SlashCommand,
+  CommandKind,
+} from './types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const statsCommand: SlashCommand = {
   name: 'stats',
-  altName: 'usage',
-  description: t('commands.stats.description', 'check session stats. Usage: /stats [model|tools]'),
+  altNames: ['usage'],
+  get description() {
+    return t('commands.stats.description', 'check session stats. Usage: /stats [model|tools]');
+  },
+  kind: CommandKind.BUILT_IN,
   action: (context: CommandContext) => {
     const now = new Date();
     const { sessionStartTime } = context.session.stats;
@@ -38,7 +45,10 @@ export const statsCommand: SlashCommand = {
   subCommands: [
     {
       name: 'model',
-      description: t('commands.stats.subcommands.model.description', 'Show model-specific usage statistics.'),
+      get description() {
+        return t('commands.stats.subcommands.model.description', 'Show model-specific usage statistics.');
+      },
+      kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {
         context.ui.addItem(
           {
@@ -50,7 +60,10 @@ export const statsCommand: SlashCommand = {
     },
     {
       name: 'tools',
-      description: t('commands.stats.subcommands.tools.description', 'Show tool-specific usage statistics.'),
+      get description() {
+        return t('commands.stats.subcommands.tools.description', 'Show tool-specific usage statistics.');
+      },
+      kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {
         context.ui.addItem(
           {

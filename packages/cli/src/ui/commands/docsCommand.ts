@@ -6,13 +6,20 @@
 
 import open from 'open';
 import process from 'node:process';
-import { type CommandContext, type SlashCommand } from './types.js';
+import {
+  type CommandContext,
+  type SlashCommand,
+  CommandKind,
+} from './types.js';
 import { MessageType } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const docsCommand: SlashCommand = {
   name: 'docs',
-  description: t('commands.docs.description', 'open full Gemini CLI documentation in your browser'),
+  get description() {
+    return t('commands.docs.description', 'open full Gemini CLI documentation in your browser');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext): Promise<void> => {
     const docsUrl = 'https://goo.gle/gemini-cli-docs';
 

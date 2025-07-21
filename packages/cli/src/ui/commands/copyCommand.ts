@@ -6,11 +6,18 @@
 
 import { t } from '@thacio/auditaria-cli-core';
 import { copyToClipboard } from '../utils/commandUtils.js';
-import { SlashCommand, SlashCommandActionReturn } from './types.js';
+import {
+  CommandKind,
+  SlashCommand,
+  SlashCommandActionReturn,
+} from './types.js';
 
 export const copyCommand: SlashCommand = {
   name: 'copy',
-  description: t('commands.copy.description', 'Copy the last result or code snippet to clipboard'),
+  get description() {
+    return t('commands.copy.description', 'Copy the last result or code snippet to clipboard');
+  },
+  kind: CommandKind.BUILT_IN,
   action: async (context, _args): Promise<SlashCommandActionReturn | void> => {
     const chat = await context.services.config?.getGeminiClient()?.getChat();
     const history = chat?.getHistory();
