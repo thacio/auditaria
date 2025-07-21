@@ -11,7 +11,12 @@ import { type SlashCommand } from '../ui/commands/types.js';
 import { memoryCommand } from '../ui/commands/memoryCommand.js';
 import { helpCommand } from '../ui/commands/helpCommand.js';
 import { clearCommand } from '../ui/commands/clearCommand.js';
+import { corgiCommand } from '../ui/commands/corgiCommand.js';
 import { docsCommand } from '../ui/commands/docsCommand.js';
+import { languageCommand } from '../ui/commands/languageCommand.js';
+import { fallbackImprovedCommand } from '../ui/commands/fallbackImprovedCommand.js';
+import { modelSwitchCommand } from '../ui/commands/modelSwitchCommand.js';
+import { stayProCommand } from '../ui/commands/stayProCommand.js';
 import { chatCommand } from '../ui/commands/chatCommand.js';
 import { authCommand } from '../ui/commands/authCommand.js';
 import { themeCommand } from '../ui/commands/themeCommand.js';
@@ -38,8 +43,23 @@ vi.mock('../ui/commands/helpCommand.js', () => ({
 vi.mock('../ui/commands/clearCommand.js', () => ({
   clearCommand: { name: 'clear', description: 'Mock Clear' },
 }));
+vi.mock('../ui/commands/corgiCommand.js', () => ({
+  corgiCommand: { name: 'corgi', description: 'Mock Corgi' },
+}));
 vi.mock('../ui/commands/docsCommand.js', () => ({
   docsCommand: { name: 'docs', description: 'Mock Docs' },
+}));
+vi.mock('../ui/commands/languageCommand.js', () => ({
+  languageCommand: { name: 'language', description: 'Mock Language' },
+}));
+vi.mock('../ui/commands/fallbackImprovedCommand.js', () => ({
+  fallbackImprovedCommand: { name: 'fallback-improved', description: 'Mock Fallback Improved' },
+}));
+vi.mock('../ui/commands/modelSwitchCommand.js', () => ({
+  modelSwitchCommand: { name: 'model-switch', description: 'Mock Model Switch' },
+}));
+vi.mock('../ui/commands/stayProCommand.js', () => ({
+  stayProCommand: { name: 'stay-pro', description: 'Mock Stay Pro' },
 }));
 vi.mock('../ui/commands/authCommand.js', () => ({
   authCommand: { name: 'auth', description: 'Mock Auth' },
@@ -85,7 +105,7 @@ vi.mock('../ui/commands/restoreCommand.js', () => ({
 }));
 
 describe('CommandService', () => {
-  const subCommandLen = 17;
+  const subCommandLen = 22;
   let mockConfig: Mocked<Config>;
 
   beforeEach(() => {
@@ -128,7 +148,13 @@ describe('CommandService', () => {
         expect(commandNames).toContain('memory');
         expect(commandNames).toContain('help');
         expect(commandNames).toContain('clear');
+        expect(commandNames).toContain('compress');
+        expect(commandNames).toContain('corgi');
         expect(commandNames).toContain('docs');
+        expect(commandNames).toContain('fallback-improved');
+        expect(commandNames).toContain('language');
+        expect(commandNames).toContain('model-switch');
+        expect(commandNames).toContain('stay-pro');
         expect(commandNames).toContain('chat');
         expect(commandNames).toContain('theme');
         expect(commandNames).toContain('stats');
@@ -136,7 +162,6 @@ describe('CommandService', () => {
         expect(commandNames).toContain('about');
         expect(commandNames).toContain('extensions');
         expect(commandNames).toContain('tools');
-        expect(commandNames).toContain('compress');
         expect(commandNames).toContain('mcp');
         expect(commandNames).not.toContain('ide');
       });
@@ -201,15 +226,20 @@ describe('CommandService', () => {
           chatCommand,
           clearCommand,
           compressCommand,
+          corgiCommand,
           docsCommand,
           editorCommand,
           extensionsCommand,
+          fallbackImprovedCommand,
           helpCommand,
+          languageCommand,
           mcpCommand,
           memoryCommand,
+          modelSwitchCommand,
           privacyCommand,
           quitCommand,
           statsCommand,
+          stayProCommand,
           themeCommand,
           toolsCommand,
         ]);

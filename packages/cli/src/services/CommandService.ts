@@ -9,7 +9,12 @@ import { SlashCommand } from '../ui/commands/types.js';
 import { memoryCommand } from '../ui/commands/memoryCommand.js';
 import { helpCommand } from '../ui/commands/helpCommand.js';
 import { clearCommand } from '../ui/commands/clearCommand.js';
+import { corgiCommand } from '../ui/commands/corgiCommand.js';
 import { docsCommand } from '../ui/commands/docsCommand.js';
+import { languageCommand } from '../ui/commands/languageCommand.js';
+import { fallbackImprovedCommand } from '../ui/commands/fallbackImprovedCommand.js';
+import { modelSwitchCommand } from '../ui/commands/modelSwitchCommand.js';
+import { stayProCommand } from '../ui/commands/stayProCommand.js';
 import { mcpCommand } from '../ui/commands/mcpCommand.js';
 import { authCommand } from '../ui/commands/authCommand.js';
 import { themeCommand } from '../ui/commands/themeCommand.js';
@@ -36,17 +41,22 @@ const loadBuiltInCommands = async (
     chatCommand,
     clearCommand,
     compressCommand,
+    corgiCommand,
     docsCommand,
     editorCommand,
     extensionsCommand,
+    fallbackImprovedCommand,
     helpCommand,
     ideCommand(config),
+    languageCommand,
     mcpCommand,
     memoryCommand,
+    modelSwitchCommand,
     privacyCommand,
     quitCommand,
     restoreCommand(config),
     statsCommand,
+    stayProCommand,
     themeCommand,
     toolsCommand,
   ];

@@ -47,6 +47,8 @@ export interface CommandContext {
      * @param history The array of history items to load.
      */
     loadHistory: UseHistoryManagerReturn['loadHistory'];
+    /** Toggles a special display mode. */
+    toggleCorgiMode: () => void;
   };
   // Session-specific data
   session: {
@@ -84,7 +86,7 @@ export interface MessageActionReturn {
  */
 export interface OpenDialogActionReturn {
   type: 'dialog';
-  dialog: 'help' | 'auth' | 'theme' | 'editor' | 'privacy';
+  dialog: 'help' | 'auth' | 'theme' | 'editor' | 'privacy' | 'language';
 }
 
 /**
@@ -103,6 +105,7 @@ export type SlashCommandActionReturn =
   | QuitActionReturn
   | OpenDialogActionReturn
   | LoadHistoryActionReturn;
+
 // The standardized contract for any command in the system.
 export interface SlashCommand {
   name: string;

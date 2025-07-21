@@ -14,7 +14,7 @@ vi.mock('node:process', () => ({
     cwd: vi.fn(() => '/mock/cwd'),
     get env() {
       return process.env;
-    }, // Use a getter to ensure current process.env is used
+    },
     platform: 'test-platform',
     version: 'test-node-version',
     memoryUsage: vi.fn(() => ({
@@ -25,12 +25,11 @@ vi.mock('node:process', () => ({
       arrayBuffers: 123456,
     })),
   },
-  // Provide top-level exports as well for compatibility
   exit: mockProcessExit,
   cwd: vi.fn(() => '/mock/cwd'),
   get env() {
     return process.env;
-  }, // Use a getter here too
+  },
   platform: 'test-platform',
   version: 'test-node-version',
   memoryUsage: vi.fn(() => ({
@@ -116,6 +115,7 @@ describe('useSlashCommandProcessor', () => {
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockAddItem = vi.fn();
     mockClearItems = vi.fn();
     mockLoadHistory = vi.fn();
@@ -202,6 +202,8 @@ describe('useSlashCommandProcessor', () => {
     } as unknown as LoadedSettings;
     return renderHook(() =>
       useSlashCommandProcessor(
+        mockConfig,
+        settings,
         mockAddItem,
         mockClearItems,
         mockLoadHistory,
@@ -224,51 +226,7 @@ describe('useSlashCommandProcessor', () => {
 
   };
 
-  describe('Other commands', () => {
-    it('should return false for non-string input', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand([
-        { text: 'not a slash command' },
-      ]);
-      expect(result).toBe(false);
-    });
-
-    it('should return false for non-slash command', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand('not a slash command');
-      expect(result).toBe(false);
-    });
-
-    it('should handle /help command', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand('/help');
-      expect(result).toEqual({ type: 'handled' });
-      expect(mockOpenHelp).toHaveBeenCalled();
-    });
-
-    it('should handle /auth command', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand('/auth');
-      expect(result).toEqual({ type: 'handled' });
-      expect(mockOpenAuthDialog).toHaveBeenCalled();
-    });
-
-    it('should handle /theme command', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand('/theme');
-      expect(result).toEqual({ type: 'handled' });
-      expect(mockOpenThemeDialog).toHaveBeenCalled();
-    });
-
-    it('should handle /privacy command', async () => {
-      const { handleSlashCommand } = getProcessorHook().result.current;
-      const result = await handleSlashCommand('/privacy');
-      expect(result).toEqual({ type: 'handled' });
-      expect(mockOpenPrivacyNotice).toHaveBeenCalled();
-    });
-
-  });
-  describe('New command registry', () => {
+  describe('Command Processing', () => {
     let ActualCommandService: typeof CommandService;
 
     beforeAll(async () => {
@@ -285,10 +243,36 @@ describe('useSlashCommandProcessor', () => {
       expect(mockOpenLanguageDialog).toHaveBeenCalled();
     });
 
+<<<<<<< HEAD
     it('should handle /quit command', async () => {
       const { handleSlashCommand } = getProcessor();
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit called');
+=======
+    it('should execute a registered command', async () => {
+      const mockAction = vi.fn();
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+
+      // We create the instance outside the mock implementation.
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+
+      // This mock ensures the hook uses our pre-configured instance.
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+
+      await vi.waitFor(() => {
+        // We check that the `slashCommands` array, which is the public API
+        // of our hook, eventually contains the command we injected.
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
       });
 
       expect(async () => {
@@ -316,6 +300,71 @@ describe('useSlashCommandProcessor', () => {
         commandResult = await handleSlashCommand('/about');
       });
 
+<<<<<<< HEAD
+=======
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should return "schedule_tool" for a command returning a tool action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'tool',
+        toolName: 'my_tool',
+        toolArgs: { arg1: 'value1' },
+      });
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/test');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(commandResult).toEqual({
+        type: 'schedule_tool',
+        toolName: 'my_tool',
+        toolArgs: { arg1: 'value1' },
+      });
+    });
+
+    it('should return "handled" for a command returning a message action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'message',
+        messageType: 'info',
+        content: 'This is a message',
+      });
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/test');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
       expect(mockAddItem).toHaveBeenCalledWith(
         expect.objectContaining({
           type: MessageType.INFO,
@@ -326,9 +375,124 @@ describe('useSlashCommandProcessor', () => {
       expect(commandResult).toEqual({ type: 'handled' });
     });
 
+<<<<<<< HEAD
     it('should handle /stats command', async () => {
       const { handleSlashCommand } = getProcessor();
       let commandResult: SlashCommandProcessorResult | false = false;
+=======
+    it('should return "handled" for a command returning a dialog action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'dialog',
+        dialog: 'help',
+      });
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/test');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockSetShowHelp).toHaveBeenCalledWith(true);
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should open the auth dialog for a command returning an auth dialog action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'dialog',
+        dialog: 'auth',
+      });
+      const newAuthCommand: SlashCommand = { name: 'auth', action: mockAction };
+
+      const mockLoader = async () => [newAuthCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'auth'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/auth');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockOpenAuthDialog).toHaveBeenCalledWith();
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should open the theme dialog for a command returning a theme dialog action', async () => {
+      const mockAction = vi.fn().mockResolvedValue({
+        type: 'dialog',
+        dialog: 'theme',
+      });
+      const newCommand: SlashCommand = { name: 'test', action: mockAction };
+      const mockLoader = async () => [newCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'test'),
+        ).toBe(true);
+      });
+
+      const commandResult = await result.current.handleSlashCommand('/test');
+
+      expect(mockAction).toHaveBeenCalledTimes(1);
+      expect(mockOpenThemeDialog).toHaveBeenCalledWith();
+      expect(commandResult).toEqual({ type: 'handled' });
+    });
+
+    it('should show help for a parent command with no action', async () => {
+      const parentCommand: SlashCommand = {
+        name: 'parent',
+        subCommands: [
+          { name: 'child', description: 'A child.', action: vi.fn() },
+        ],
+      };
+
+      const mockLoader = async () => [parentCommand];
+      const commandServiceInstance = new ActualCommandService(
+        mockConfig,
+        mockLoader,
+      );
+      vi.mocked(CommandService).mockImplementation(
+        () => commandServiceInstance,
+      );
+
+      const { result } = getProcessorHook();
+
+      await vi.waitFor(() => {
+        expect(
+          result.current.slashCommands.some((c) => c.name === 'parent'),
+        ).toBe(true);
+      });
+
       await act(async () => {
         commandResult = await handleSlashCommand('/stats');
       });

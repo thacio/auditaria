@@ -30,29 +30,8 @@ import {
   SlashCommandProcessorResult,
 } from '../types.js';
 import { LoadedSettings } from '../../config/settings.js';
-import {
-  type CommandContext,
-  type SlashCommandActionReturn,
-  type SlashCommand,
-} from '../commands/types.js';
+import { type CommandContext, type SlashCommand } from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
-
-// This interface is for the old, inline command definitions.
-// It will be removed once all commands are migrated to the new system.
-export interface LegacySlashCommand {
-  name: string;
-  altName?: string;
-  description?: string;
-  completion?: () => Promise<string[]>;
-  action: (
-    mainCommand: string,
-    subCommand?: string,
-    args?: string,
-  ) =>
-    | void
-    | SlashCommandActionReturn
-    | Promise<void | SlashCommandActionReturn>;
-}
 
 /**
  * Hook to define and process slash commands (e.g., /help, /clear).
@@ -60,7 +39,6 @@ export interface LegacySlashCommand {
 export const useSlashCommandProcessor = (
   config: Config | null,
   settings: LoadedSettings,
-  history: HistoryItem[],
   addItem: UseHistoryManagerReturn['addItem'],
   clearItems: UseHistoryManagerReturn['clearItems'],
   loadHistory: UseHistoryManagerReturn['loadHistory'],
@@ -169,6 +147,7 @@ export const useSlashCommandProcessor = (
         setDebugMessage: onDebugMessage,
         pendingItem: pendingCompressionItemRef.current,
         setPendingItem: setPendingCompressionItem,
+        toggleCorgiMode,
       },
       session: {
         stats: session.stats,
@@ -187,6 +166,7 @@ export const useSlashCommandProcessor = (
       onDebugMessage,
       pendingCompressionItemRef,
       setPendingCompressionItem,
+      toggleCorgiMode,
     ],
   );
 
@@ -200,88 +180,6 @@ export const useSlashCommandProcessor = (
 
     load();
   }, [commandService]);
-
-  // Define legacy commands
-  // This list contains all commands that have NOT YET been migrated to the
-  // new system. As commands are migrated, they are removed from this list.
-  const legacyCommands: LegacySlashCommand[] = useMemo(() => {
-    const commands: LegacySlashCommand[] = [
-      // `/help`, `/clear`, and `/docs` have been migrated and REMOVED from this list.
-      {
-        name: 'language',
-        description: t('commands.language.description', 'change language preference'),
-        action: (_mainCommand, _subCommand, _args) => openLanguageDialog(),
-      },
-      {
-        name: 'corgi',
-        action: (_mainCommand, _subCommand, _args) => {
-          toggleCorgiMode();
-        },
-      },
-      {
-        name: 'fallback-improved',
-        description: t('commands.fallback_improved.description', 'toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)'),
-        action: async (_mainCommand, _subCommand, _args) => {
-          if (!config) return;
-          const currentStrategy = config.getUseImprovedFallbackStrategy();
-          const newStrategy = !currentStrategy;
-          config.setUseImprovedFallbackStrategy(newStrategy);
-          
-          const currentMode = currentStrategy ? 'improved' : 'original';
-          const newMode = newStrategy ? 'improved' : 'original';
-          const description = newMode === 'improved' 
-            ? t('commands.fallback_improved.improved_description', 'Improved strategy: 7 attempts with 2s delays, reset to Pro on each message')
-            : t('commands.fallback_improved.original_description', 'Original strategy: 2 attempts with exponential backoff, stay on Flash once switched');
-          
-          addMessage({
-            type: MessageType.INFO,
-            content: t('commands.fallback_improved.switched', 'Fallback strategy switched from {currentMode} to {newMode}.\n\n{description}', { currentMode, newMode, description }),
-            timestamp: new Date(),
-          });
-        },
-      },
-      {
-        name: 'model-switch',
-        description: t('commands.model_switch.description', 'switch between Gemini Pro and Flash models'),
-        action: async (_mainCommand, _subCommand, _args) => {
-          if (!config) return;
-          const currentModel = config.getModel();
-          
-          // Toggle between Pro and Flash using existing constants
-          const isCurrentlyPro = currentModel === DEFAULT_GEMINI_MODEL || !currentModel;
-          const newModel = isCurrentlyPro ? DEFAULT_GEMINI_FLASH_MODEL : DEFAULT_GEMINI_MODEL;
-          
-          config.setModel(newModel);
-          
-          addMessage({
-            type: MessageType.INFO,
-            content: t('commands.model_switch.switched', 'Model switched to: {model} ({type})', { model: newModel, type: isCurrentlyPro ? 'Flash' : 'Pro' }),
-            timestamp: new Date(),
-          });
-        },
-      },
-      {
-        name: 'stay-pro',
-        description: t('commands.stay_pro.description', 'toggle whether to stay on Pro model (disable/enable fallback to Flash)'),
-        action: async (_mainCommand, _subCommand, _args) => {
-          if (!config) return;
-          const currentState = config.getDisableFallbackForSession();
-          const newState = !currentState;
-          config.setDisableFallbackForSession(newState);
-          
-          addMessage({
-            type: MessageType.INFO,
-            content: newState 
-              ? t('commands.stay_pro.disabled', 'Fallback disabled - will stay on Gemini Pro even if rate limited')
-              : t('commands.stay_pro.enabled', 'Fallback enabled - will switch to Flash if Pro is rate limited'),
-            timestamp: new Date(),
-          });
-        },
-      },
-    ];
-
-    return commands;
-  }, [toggleCorgiMode]);
 
   const handleSlashCommand = useCallback(
     async (
@@ -306,8 +204,6 @@ export const useSlashCommandProcessor = (
 
       const parts = trimmed.substring(1).trim().split(/\s+/);
       const commandPath = parts.filter((p) => p); // The parts of the command, e.g., ['memory', 'add']
-
-      // --- Start of New Tree Traversal Logic ---
 
       let currentCommands = commands;
       let commandToExecute: SlashCommand | undefined;
@@ -371,6 +267,9 @@ export const useSlashCommandProcessor = (
                   case 'editor':
                     openEditorDialog();
                     return { type: 'handled' };
+                  case 'language':
+                    openLanguageDialog();
+                    return { type: 'handled' };
                   case 'privacy':
                     openPrivacyNotice();
                     return { type: 'handled' };
@@ -418,45 +317,6 @@ export const useSlashCommandProcessor = (
         }
       }
 
-      // --- End of New Tree Traversal Logic ---
-
-      // --- Legacy Fallback Logic (for commands not yet migrated) ---
-
-      const mainCommand = parts[0];
-      const subCommand = parts[1];
-      const legacyArgs = parts.slice(2).join(' ');
-
-      for (const cmd of legacyCommands) {
-        if (mainCommand === cmd.name || mainCommand === cmd.altName) {
-          const actionResult = await cmd.action(
-            mainCommand,
-            subCommand,
-            legacyArgs,
-          );
-
-          if (actionResult?.type === 'tool') {
-            return {
-              type: 'schedule_tool',
-              toolName: actionResult.toolName,
-              toolArgs: actionResult.toolArgs,
-            };
-          }
-          if (actionResult?.type === 'message') {
-            addItem(
-              {
-                type:
-                  actionResult.messageType === 'error'
-                    ? MessageType.ERROR
-                    : MessageType.INFO,
-                text: actionResult.content,
-              },
-              Date.now(),
-            );
-          }
-          return { type: 'handled' };
-        }
-      }
-
       addMessage({
         type: MessageType.ERROR,
         content: t('errors.unknown_command', 'Unknown command: {command}', { command: trimmed }),
@@ -470,48 +330,19 @@ export const useSlashCommandProcessor = (
       setShowHelp,
       openAuthDialog,
       commands,
-      legacyCommands,
       commandContext,
       addMessage,
       openThemeDialog,
       openPrivacyNotice,
       openEditorDialog,
+      openLanguageDialog,
       setQuittingMessages,
     ],
   );
 
-  const allCommands = useMemo(() => {
-    // Adapt legacy commands to the new SlashCommand interface
-    const adaptedLegacyCommands: SlashCommand[] = legacyCommands.map(
-      (legacyCmd) => ({
-        name: legacyCmd.name,
-        altName: legacyCmd.altName,
-        description: legacyCmd.description,
-        action: async (_context: CommandContext, args: string) => {
-          const parts = args.split(/\s+/);
-          const subCommand = parts[0] || undefined;
-          const restOfArgs = parts.slice(1).join(' ') || undefined;
-
-          return legacyCmd.action(legacyCmd.name, subCommand, restOfArgs);
-        },
-        completion: legacyCmd.completion
-          ? async (_context: CommandContext, _partialArg: string) =>
-              legacyCmd.completion!()
-          : undefined,
-      }),
-    );
-
-    const newCommandNames = new Set(commands.map((c) => c.name));
-    const filteredAdaptedLegacy = adaptedLegacyCommands.filter(
-      (c) => !newCommandNames.has(c.name),
-    );
-
-    return [...commands, ...filteredAdaptedLegacy];
-  }, [commands, legacyCommands]);
-
   return {
     handleSlashCommand,
-    slashCommands: allCommands,
+    slashCommands: commands,
     pendingHistoryItems,
     commandContext,
   };
