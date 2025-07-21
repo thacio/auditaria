@@ -501,10 +501,10 @@
     "press_ctrl_s": "Press ctrl-s to show more lines"
   },
   "context_summary": {
-    "using": "Using ",
+    "using": "Using: ",
     "and": " and ",
-    "context_files": "{count} {name} file{plural}",
-    "mcp_servers": "{count} MCP server{plural}",
+    "context_files": "{count} {name} File{plural}",
+    "mcp_servers": "{count} MCP Server{plural}",
     "ctrl_t_toggle": " (ctrl+t to toggle)",
     "ctrl_t_view": " (ctrl+t to view)"
   },
