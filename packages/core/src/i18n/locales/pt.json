@@ -386,6 +386,7 @@
     "title": "Selecionar Tema",
     "apply_to": "Aplicar Para",
     "preview": "Pré-visualização",
+    "theme_type_preview": "Pré-visualização do Tema {themeType}",
     "scope_options": {
       "user_settings": "Configurações do Usuário",
       "workspace_settings": "Configurações do Espaço de Trabalho",
