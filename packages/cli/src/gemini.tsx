@@ -39,6 +39,7 @@ import {
   initI18n,
   SupportedLanguage,
   getOauthClient,
+  shouldAttemptBrowserLaunch,
   t,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from './config/auth.js';
@@ -209,7 +210,7 @@ export async function main() {
 
   if (
     settings.merged.selectedAuthType === AuthType.LOGIN_WITH_GOOGLE &&
-    config.getNoBrowser()
+    (config.getNoBrowser() || !shouldAttemptBrowserLaunch())
   ) {
     // Do oauth before app renders to make copying the link possible.
     await getOauthClient(settings.merged.selectedAuthType, config);

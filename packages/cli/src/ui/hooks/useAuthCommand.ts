@@ -3,8 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
-
 import { useState, useCallback, useEffect } from 'react';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
 import {
@@ -12,6 +10,8 @@ import {
   Config,
   clearCachedCredentialFile,
   getErrorMessage,
+  shouldAttemptBrowserLaunch,
+  t,
 } from '@thacio/auditaria-cli-core';
 import { runExitCleanup } from '../../utils/cleanup.js';
 
@@ -57,7 +57,10 @@ export const useAuthCommand = (
       if (authType) {
         await clearCachedCredentialFile();
         settings.setValue(scope, 'selectedAuthType', authType);
-        if (authType === AuthType.LOGIN_WITH_GOOGLE && config.getNoBrowser()) {
+        if (
+          authType === AuthType.LOGIN_WITH_GOOGLE &&
+          (config.getNoBrowser() || !shouldAttemptBrowserLaunch())
+        ) {
           runExitCleanup();
           console.log(
             `
