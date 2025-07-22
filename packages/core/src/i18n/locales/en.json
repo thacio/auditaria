@@ -792,5 +792,18 @@
   },
   "warnings": {
     "ide_server_reserved": "Ignoring user-defined MCP server config for \"{serverName}\" as it is a reserved name."
+  },
+  "finish_reasons": {
+    "max_tokens": "Response truncated due to token limits.",
+    "safety": "Response stopped due to safety reasons.",
+    "recitation": "Response stopped due to recitation policy.",
+    "language": "Response stopped due to unsupported language.",
+    "blocklist": "Response stopped due to forbidden terms.",
+    "prohibited_content": "Response stopped due to prohibited content.",
+    "spii": "Response stopped due to sensitive personally identifiable information.",
+    "other": "Response stopped for other reasons.",
+    "malformed_function_call": "Response stopped due to malformed function call.",
+    "image_safety": "Response stopped due to image safety violations.",
+    "unexpected_tool_call": "Response stopped due to unexpected tool call."
   }
 }

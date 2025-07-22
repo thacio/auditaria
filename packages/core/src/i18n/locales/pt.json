@@ -761,5 +761,18 @@
   },
   "warnings": {
     "ide_server_reserved": "Ignorando configuração MCP do servidor definida pelo usuário para \"{serverName}\" pois é um nome reservado."
+  },
+  "finish_reasons": {
+    "max_tokens": "Resposta truncada devido aos limites de token.",
+    "safety": "Resposta interrompida por razões de segurança.",
+    "recitation": "Resposta interrompida devido à política de recitação.",
+    "language": "Resposta interrompida devido ao idioma não suportado.",
+    "blocklist": "Resposta interrompida devido a termos proibidos.",
+    "prohibited_content": "Resposta interrompida devido a conteúdo proibido.",
+    "spii": "Resposta interrompida devido a informações pessoais identificáveis sensíveis.",
+    "other": "Resposta interrompida por outras razões.",
+    "malformed_function_call": "Resposta interrompida devido a chamada de função malformada.",
+    "image_safety": "Resposta interrompida devido a violações de segurança da imagem.",
+    "unexpected_tool_call": "Resposta interrompida devido a chamada de ferramenta inesperada."
   }
 }
