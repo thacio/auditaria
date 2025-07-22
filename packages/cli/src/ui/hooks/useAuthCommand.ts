@@ -10,7 +10,6 @@ import {
   Config,
   clearCachedCredentialFile,
   getErrorMessage,
-  shouldAttemptBrowserLaunch,
   t,
 } from '@thacio/auditaria-cli-core';
 import { runExitCleanup } from '../../utils/cleanup.js';
@@ -60,7 +59,7 @@ export const useAuthCommand = (
         settings.setValue(scope, 'selectedAuthType', authType);
         if (
           authType === AuthType.LOGIN_WITH_GOOGLE &&
-          (config.getNoBrowser() || !shouldAttemptBrowserLaunch())
+          config.isBrowserLaunchSuppressed()
         ) {
           runExitCleanup();
           console.log(
