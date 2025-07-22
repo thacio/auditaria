@@ -164,6 +164,9 @@
       "success": "Last output copied to the clipboard",
       "error": "Failed to copy to the clipboard.",
       "no_text": "Last AI output contains no text to copy."
+    },
+    "file_command": {
+      "default_description": "Custom command from {filename}"
     }
   },
   "help": {

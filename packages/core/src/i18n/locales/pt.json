@@ -166,6 +166,9 @@
       "success": "Última saída copiada para a área de transferência",
       "error": "Falha ao copiar para a área de transferência.",
       "no_text": "A última saída da IA não contém texto para copiar."
+    },
+    "file_command": {
+      "default_description": "Comando personalizado de {filename}"
     }
   },
   "help": {
