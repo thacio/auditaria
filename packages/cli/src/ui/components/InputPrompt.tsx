@@ -449,7 +449,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         return;
       }
 
-      // Fallback to the text buffer's default input handling for all other keys
+      // Fall back to the text buffer's default input handling for all other keys
       buffer.handleInput(key);
     },
     [

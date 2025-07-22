@@ -211,7 +211,7 @@ export async function retryWithBackoff<T>(
         // Reset currentDelay for next potential non-429 error, or if Retry-After is not present next time
         currentDelay = initialDelayMs;
       } else {
-        // Use improved or original delay strategy based on flag
+        // Fall back to exponential backoff with jitter
         logRetryAttempt(attempt, error, errorStatus);
         if (useImprovedFallbackStrategy && errorStatus === 429) {
           // Fixed 2-second delay for rate limit errors when using improved strategy

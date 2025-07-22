@@ -221,7 +221,7 @@
     }
   },
   "footer": {
-    "macos_seatbelt": "MacOS Seatbelt",
+    "macos_seatbelt": "macOS Seatbelt",
     "no_sandbox": "sem sandbox",
     "see_docs": "(ver /docs)",
     "context_left": "({percentage}% contexto restante)",
@@ -686,7 +686,7 @@
   "sandbox": {
     "debian_uid_gid_info": "INFO: Usando por padrão UID/GID do usuário atual para Linux baseado em Debian/Ubuntu.",
     "os_release_warning": "Aviso: Não foi possível ler /etc/os-release para auto-detectar Debian/Ubuntu para padrão UID/GID.",
-    "cannot_build_with_seatbelt": "ERRO: não é possível BUILD_SANDBOX ao usar MacOS Seatbelt",
+    "cannot_build_with_seatbelt": "ERRO: não é possível BUILD_SANDBOX ao usar macOS Seatbelt",
     "missing_seatbelt_profile": "ERRO: arquivo de perfil macos seatbelt '{profileFile}' ausente",
     "using_seatbelt": "usando macos seatbelt (perfil: {profile}) ...",
     "hopping_into_sandbox": "entrando no sandbox (comando: {command}) ...",

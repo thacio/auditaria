@@ -210,7 +210,7 @@ Expectation for required parameters:
       // Creating a new file
       isNewFile = true;
     } else if (!fileExists) {
-      // Trying to edit a non-existent file (and old_string is not empty)
+      // Trying to edit a nonexistent file (and old_string is not empty)
       error = {
         display: t('tools.edit.file_not_found_create', 'File not found. Cannot apply edit. Use an empty old_string to create a new file.'),
         raw: t('tools.edit.file_not_found_raw', 'File not found: {path}', { path: params.file_path }),
@@ -240,12 +240,12 @@ Expectation for required parameters:
           raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
         };
       } else if (occurrences !== expectedReplacements) {
-        const occurenceTerm =
+        const occurrenceTerm =
           expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
         error = {
-          display: t('tools.edit.failed_replacement_count', 'Failed to edit, expected {expected} {term} but found {found}.', { expected: expectedReplacements, term: occurenceTerm, found: occurrences }),
-          raw: `Failed to edit, Expected ${expectedReplacements} ${occurenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
+          display: t('tools.edit.failed_replacement_count', 'Failed to edit, expected {expected} {term} but found {found}.', { expected: expectedReplacements, term: occurrenceTerm, found: occurrences }),
+          raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
         };
       } else if (finalOldString === finalNewString) {
         error = {

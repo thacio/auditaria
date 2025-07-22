@@ -74,7 +74,7 @@ export function ThemeDialog({
   const initialThemeIndex = themeItems.findIndex(
     (item) => item.value === selectedThemeName,
   );
-  // If not found, fallback to the first theme
+  // If not found, fall back to the first theme
   const safeInitialThemeIndex = initialThemeIndex >= 0 ? initialThemeIndex : 0;
 
   const scopeItems = [
@@ -186,7 +186,7 @@ export function ThemeDialog({
   }
 
   // Don't focus the scope selection if it is hidden due to height constraints.
-  const currenFocusedSection = !showScopeSelection ? 'theme' : focusedSection;
+  const currentFocusedSection = !showScopeSelection ? 'theme' : focusedSection;
 
   // Vertical space taken by elements other than the two code blocks in the preview pane.
   // Includes "Preview" title, borders, and margin between blocks.
@@ -225,8 +225,8 @@ export function ThemeDialog({
       <Box flexDirection="row">
         {/* Left Column: Selection */}
         <Box flexDirection="column" width="45%" paddingRight={2}>
-          <Text bold={currenFocusedSection === 'theme'} wrap="truncate">
-            {currenFocusedSection === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
+          <Text bold={currentFocusedSection === 'theme'} wrap="truncate">
+            {currentFocusedSection === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
             <Text color={Colors.Gray}>{otherScopeModifiedMessage}</Text>
           </Text>
           <RadioButtonSelect
@@ -235,25 +235,25 @@ export function ThemeDialog({
             initialIndex={safeInitialThemeIndex}
             onSelect={handleThemeSelect}
             onHighlight={handleThemeHighlight}
-            isFocused={currenFocusedSection === 'theme'}
+            isFocused={currentFocusedSection === 'theme'}
             maxItemsToShow={8}
             showScrollArrows={true}
-            showNumbers={currenFocusedSection === 'theme'}
+            showNumbers={currentFocusedSection === 'theme'}
           />
 
           {/* Scope Selection */}
           {showScopeSelection && (
             <Box marginTop={1} flexDirection="column">
-              <Text bold={currenFocusedSection === 'scope'} wrap="truncate">
-                {currenFocusedSection === 'scope' ? '> ' : '  '}{t('theme_dialog.apply_to', 'Apply To')}
+              <Text bold={currentFocusedSection === 'scope'} wrap="truncate">
+                {currentFocusedSection === 'scope' ? '> ' : '  '}{t('theme_dialog.apply_to', 'Apply To')}
               </Text>
               <RadioButtonSelect
                 items={scopeItems}
                 initialIndex={0} // Default to User Settings
                 onSelect={handleScopeSelect}
                 onHighlight={handleScopeHighlight}
-                isFocused={currenFocusedSection === 'scope'}
-                showNumbers={currenFocusedSection === 'scope'}
+                isFocused={currentFocusedSection === 'scope'}
+                showNumbers={currentFocusedSection === 'scope'}
               />
             </Box>
           )}
@@ -262,7 +262,7 @@ export function ThemeDialog({
         {/* Right Column: Preview */}
         <Box flexDirection="column" width="55%" paddingLeft={2}>
           <Text bold>{t('theme_dialog.preview', 'Preview')}</Text>
-          {/* Get the Theme object for the highlighted theme, fallback to default if not found */}
+          {/* Get the Theme object for the highlighted theme, fall back to default if not found */}
           {(() => {
             const previewTheme =
               themeManager.getTheme(
