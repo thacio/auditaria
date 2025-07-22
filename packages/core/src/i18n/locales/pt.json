@@ -632,6 +632,7 @@
       "validation_error": "Erro: {error}",
       "error_preparing_edit": "Erro ao preparar edição: {error}",
       "error_display": "Erro: {error}",
+      "no_changes_identical": "Nenhuma alteração a aplicar. A old_string e new_string são idênticas.",
       "created_file": "Criado {file}",
       "error_writing_file": "Erro ao escrever arquivo: {error}"
     },

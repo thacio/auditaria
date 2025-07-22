@@ -249,7 +249,7 @@ Expectation for required parameters:
         };
       } else if (finalOldString === finalNewString) {
         error = {
-          display: `No changes to apply. The old_string and new_string are identical.`,
+          display: t('tools.edit.no_changes_identical', 'No changes to apply. The old_string and new_string are identical.'),
           raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
         };
       }

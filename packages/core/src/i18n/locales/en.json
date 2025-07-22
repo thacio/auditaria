@@ -657,6 +657,7 @@
       "validation_error": "Error: {error}",
       "error_preparing_edit": "Error preparing edit: {error}",
       "error_display": "Error: {error}",
+      "no_changes_identical": "No changes to apply. The old_string and new_string are identical.",
       "created_file": "Created {file}",
       "error_writing_file": "Error writing file: {error}"
     },
