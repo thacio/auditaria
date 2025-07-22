@@ -25,13 +25,17 @@ With Auditaria CLI you can:
 2. **Run the CLI:** Execute the following command in your terminal:
 
    ```bash
-   npx https://github.com/thacio/auditaria
+   npx https://github.com/thacio/auditaria-cli
    ```
 
    Or install it globally with:
-
    ```bash
-   git clone https://github.com/thacio/auditaria
+   npm install -g https://github.com/thacio/auditaria-cli/releases/latest/download/auditaria-cli-latest.tgz
+   ```
+   or install globally by clones this repository
+   
+   ```bash
+   git clone https://github.com/thacio/auditaria-cli
    cd ./auditaria-cli
    npm run build
    npm install -g .
