@@ -9,6 +9,7 @@ import {
   SlashCommandActionReturn,
   CommandContext,
   CommandKind,
+  MessageActionReturn,
 } from './types.js';
 import {
   DiscoveredMCPTool,
@@ -16,13 +17,17 @@ import {
   getMCPServerStatus,
   MCPDiscoveryState,
   MCPServerStatus,
+  mcpServerRequiresOAuth,
+  getErrorMessage,
   t,
 } from '@thacio/auditaria-cli-core';
 import open from 'open';
 
 const COLOR_GREEN = '\u001b[32m';
 const COLOR_YELLOW = '\u001b[33m';
+const COLOR_RED = '\u001b[31m';
 const COLOR_CYAN = '\u001b[36m';
+const COLOR_GREY = '\u001b[90m';
 const RESET_COLOR = '\u001b[0m';
 
 const getMcpStatus = async (
@@ -129,6 +134,31 @@ const getMcpStatus = async (
     // Format server header with bold formatting and status
     message += `${statusIndicator} \u001b[1m${serverDisplayName}\u001b[0m - ${statusText}`;
 
+    let needsAuthHint = mcpServerRequiresOAuth.get(serverName) || false;
+    // Add OAuth status if applicable
+    if (server?.oauth?.enabled) {
+      needsAuthHint = true;
+      try {
+        const { MCPOAuthTokenStorage } = await import(
+          '@thacio/auditaria-cli-core'
+        );
+        const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
+        if (hasToken) {
+          const isExpired = MCPOAuthTokenStorage.isTokenExpired(hasToken.token);
+          if (isExpired) {
+            message += ` ${COLOR_YELLOW}(OAuth token expired)${RESET_COLOR}`;
+          } else {
+            message += ` ${COLOR_GREEN}(OAuth authenticated)${RESET_COLOR}`;
+            needsAuthHint = false;
+          }
+        } else {
+          message += ` ${COLOR_RED}(OAuth not authenticated)${RESET_COLOR}`;
+        }
+      } catch (_err) {
+        // If we can't check OAuth status, just continue
+      }
+    }
+
     // Add tool count with conditional messaging
     if (status === MCPServerStatus.CONNECTED) {
       message += ` (${serverTools.length} tools)`;
@@ -194,7 +224,11 @@ const getMcpStatus = async (
         }
       });
     } else {
-      message += '  No tools available\n';
+      message += '  No tools available';
+      if (status === MCPServerStatus.DISCONNECTED && needsAuthHint) {
+        message += ` ${COLOR_GREY}(type: "/mcp auth ${serverName}" to authenticate this server)${RESET_COLOR}`;
+      }
+      message += '\n';
     }
     message += '\n';
   }
@@ -214,6 +248,7 @@ const getMcpStatus = async (
     message += `  • Use ${COLOR_CYAN}/mcp desc${RESET_COLOR} to show server and tool descriptions\n`;
     message += `  • Use ${COLOR_CYAN}/mcp schema${RESET_COLOR} to show tool parameter schemas\n`;
     message += `  • Use ${COLOR_CYAN}/mcp nodesc${RESET_COLOR} to hide descriptions\n`;
+    message += `  • Use ${COLOR_CYAN}/mcp auth <server-name>${RESET_COLOR} to authenticate with OAuth-enabled servers\n`;
     message += `  • Press ${COLOR_CYAN}Ctrl+T${RESET_COLOR} to toggle tool descriptions on/off\n`;
     message += '\n';
   }
@@ -228,8 +263,138 @@ const getMcpStatus = async (
   };
 };
 
-export const mcpCommand: SlashCommand = {
-  name: 'mcp',
+const authCommand: SlashCommand = {
+  name: 'auth',
+  description: 'Authenticate with an OAuth-enabled MCP server',
+  kind: CommandKind.BUILT_IN,
+  action: async (
+    context: CommandContext,
+    args: string,
+  ): Promise<MessageActionReturn> => {
+    const serverName = args.trim();
+    const { config } = context.services;
+
+    if (!config) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.mcp.auth.config_not_loaded', 'Config not loaded.'),
+      };
+    }
+
+    const mcpServers = config.getMcpServers() || {};
+
+    if (!serverName) {
+      // List servers that support OAuth
+      const oauthServers = Object.entries(mcpServers)
+        .filter(([_, server]) => server.oauth?.enabled)
+        .map(([name, _]) => name);
+
+      if (oauthServers.length === 0) {
+        return {
+          type: 'message',
+          messageType: 'info',
+          content: t('commands.mcp.auth.no_oauth_servers', 'No MCP servers configured with OAuth authentication.'),
+        };
+      }
+
+      return {
+        type: 'message',
+        messageType: 'info',
+        content: t('commands.mcp.auth.oauth_servers_list', 'MCP servers with OAuth authentication:\n{servers}\n\nUse /mcp auth <server-name> to authenticate.', { servers: oauthServers.map((s) => `  - ${s}`).join('\n') }),
+      };
+    }
+
+    const server = mcpServers[serverName];
+    if (!server) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.mcp.auth.server_not_found', `MCP server '${serverName}' not found.`, { serverName }),
+      };
+    }
+
+    // Always attempt OAuth authentication, even if not explicitly configured
+    // The authentication process will discover OAuth requirements automatically
+
+    try {
+      context.ui.addItem(
+        {
+          type: 'info',
+          text: t('commands.mcp.auth.starting_auth', `Starting OAuth authentication for MCP server '${serverName}'...`, { serverName }),
+        },
+        Date.now(),
+      );
+
+      // Import dynamically to avoid circular dependencies
+      const { MCPOAuthProvider } = await import('@thacio/auditaria-cli-core');
+
+      // Create OAuth config for authentication (will be discovered automatically)
+      const oauthConfig = server.oauth || {
+        authorizationUrl: '', // Will be discovered automatically
+        tokenUrl: '', // Will be discovered automatically
+      };
+
+      // Pass the MCP server URL for OAuth discovery
+      const mcpServerUrl = server.httpUrl || server.url;
+      await MCPOAuthProvider.authenticate(
+        serverName,
+        oauthConfig,
+        mcpServerUrl,
+      );
+
+      context.ui.addItem(
+        {
+          type: 'info',
+          text: t('commands.mcp.auth.auth_successful', `✅ Successfully authenticated with MCP server '${serverName}'!`, { serverName }),
+        },
+        Date.now(),
+      );
+
+      // Trigger tool re-discovery to pick up authenticated server
+      const toolRegistry = await config.getToolRegistry();
+      if (toolRegistry) {
+        context.ui.addItem(
+          {
+            type: 'info',
+            text: t('commands.mcp.auth.rediscovering_tools', `Re-discovering tools from '${serverName}'...`, { serverName }),
+          },
+          Date.now(),
+        );
+        await toolRegistry.discoverToolsForServer(serverName);
+      }
+      // Update the client with the new tools
+      const geminiClient = config.getGeminiClient();
+      if (geminiClient) {
+        await geminiClient.setTools();
+      }
+
+      return {
+        type: 'message',
+        messageType: 'info',
+        content: t('commands.mcp.auth.auth_and_refresh_successful', `Successfully authenticated and refreshed tools for '${serverName}'.`, { serverName }),
+      };
+    } catch (error) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.mcp.auth.auth_failed', `Failed to authenticate with MCP server '${serverName}': {error}`, { serverName, error: getErrorMessage(error) }),
+      };
+    }
+  },
+  completion: async (context: CommandContext, partialArg: string) => {
+    const { config } = context.services;
+    if (!config) return [];
+
+    const mcpServers = config.getMcpServers() || {};
+    return Object.keys(mcpServers).filter((name) =>
+      name.startsWith(partialArg),
+    );
+  },
+};
+
+const listCommand: SlashCommand = {
+  name: 'list',
   get description() {
     return t('commands.mcp.description', 'list configured MCP servers and tools');
   },
@@ -253,4 +418,16 @@ export const mcpCommand: SlashCommand = {
 
     return getMcpStatus(context, showDescriptions, showSchema, showTips);
   },
+};
+
+export const mcpCommand: SlashCommand = {
+  name: 'mcp',
+  description:
+    'list configured MCP servers and tools, or authenticate with OAuth-enabled servers',
+  kind: CommandKind.BUILT_IN,
+  subCommands: [listCommand, authCommand],
+  // Default action when no subcommand is provided
+  action: async (context: CommandContext, args: string) =>
+    // If no subcommand, run the list command
+    listCommand.action!(context, args),
 };

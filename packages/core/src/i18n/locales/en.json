@@ -77,6 +77,17 @@
         "failed_stored_credentials": "Failed to get stored credentials for server '{serverName}'",
         "config_failed_manual": "OAuth configuration failed for '{serverName}'. Please authenticate manually with /mcp auth {serverName}",
         "requires_auth_config": "MCP server '{serverName}' requires authentication. Please configure OAuth or check server settings."
+      },
+      "auth": {
+        "config_not_loaded": "Config not loaded.",
+        "no_oauth_servers": "No MCP servers configured with OAuth authentication.",
+        "oauth_servers_list": "MCP servers with OAuth authentication:\n{servers}\n\nUse /mcp auth <server-name> to authenticate.",
+        "server_not_found": "MCP server '{serverName}' not found.",
+        "starting_auth": "Starting OAuth authentication for MCP server '{serverName}'...",
+        "auth_successful": "✅ Successfully authenticated with MCP server '{serverName}'!",
+        "rediscovering_tools": "Re-discovering tools from '{serverName}'...",
+        "auth_and_refresh_successful": "Successfully authenticated and refreshed tools for '{serverName}'.",
+        "auth_failed": "Failed to authenticate with MCP server '{serverName}': {error}"
       }
     },
     "extensions": {

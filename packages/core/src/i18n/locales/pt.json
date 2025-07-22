@@ -77,6 +77,17 @@
         "failed_stored_credentials": "Falha ao obter credenciais armazenadas para o servidor '{serverName}'",
         "config_failed_manual": "Configuração OAuth falhou para '{serverName}'. Por favor, autentique manualmente com /mcp auth {serverName}",
         "requires_auth_config": "Servidor MCP '{serverName}' requer autenticação. Por favor, configure OAuth ou verifique as configurações do servidor."
+      },
+      "auth": {
+        "config_not_loaded": "Configuração não carregada.",
+        "no_oauth_servers": "Nenhum servidor MCP configurado com autenticação OAuth.",
+        "oauth_servers_list": "Servidores MCP com autenticação OAuth:\n{servers}\n\nUse /mcp auth <nome-do-servidor> para autenticar.",
+        "server_not_found": "Servidor MCP '{serverName}' não encontrado.",
+        "starting_auth": "Iniciando autenticação OAuth para o servidor MCP '{serverName}'...",
+        "auth_successful": "✅ Autenticado com sucesso com o servidor MCP '{serverName}'!",
+        "rediscovering_tools": "Re-descobrindo ferramentas de '{serverName}'...",
+        "auth_and_refresh_successful": "Autenticado com sucesso e ferramentas atualizadas para '{serverName}'.",
+        "auth_failed": "Falha ao autenticar com o servidor MCP '{serverName}': {error}"
       }
     },
     "extensions": {
