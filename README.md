@@ -48,6 +48,93 @@ With Auditaria CLI you can:
    auditaria
    ```
 
+
+### Corporate Firewall (MITM) Setup
+
+If you're using Auditaria CLI behind a corporate firewall that performs man-in-the-middle (MITM) certificate inspection, you may encounter SSL certificate errors when the CLI tries to connect to to Google's server. Here's how to resolve this:
+
+#### Windows Command Prompt (cmd)
+```cmd
+set NODE_TLS_REJECT_UNAUTHORIZED=0
+auditaria
+```
+
+Or run both commands together:
+```cmd
+set NODE_TLS_REJECT_UNAUTHORIZED=0 && auditaria
+```
+
+#### Windows PowerShell
+```powershell
+$env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
+auditaria
+```
+
+Or run both commands together:
+```powershell
+$env:NODE_TLS_REJECT_UNAUTHORIZED = "0"; auditaria
+```
+
+#### Linux/macOS
+```bash
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+auditaria
+```
+
+Or run both commands together:
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 auditaria
+```
+
+#### Permanent Setting (Optional)
+If you want to set it permanently for all sessions:
+
+**Windows (System-wide, requires admin):**
+```cmd
+setx NODE_TLS_REJECT_UNAUTHORIZED 0 /M
+```
+
+**Windows (User-only):**
+```cmd
+setx NODE_TLS_REJECT_UNAUTHORIZED 0
+```
+
+**Linux/macOS (add to ~/.bashrc or ~/.zshrc):**
+```bash
+export NODE_TLS_REJECT_UNAUTHORIZED=0
+```
+
+Note: After using `setx` on Windows, restart your terminal for the change to take effect.
+
+#### Reverting the Setting
+To remove the environment variable and restore normal SSL certificate validation:
+
+**Windows Command Prompt:**
+```cmd
+set NODE_TLS_REJECT_UNAUTHORIZED=
+```
+
+**Windows PowerShell:**
+```powershell
+Remove-Item Env:NODE_TLS_REJECT_UNAUTHORIZED
+```
+
+**Linux/macOS:**
+```bash
+unset NODE_TLS_REJECT_UNAUTHORIZED
+```
+
+**Remove permanent setting (Windows):**
+```cmd
+setx NODE_TLS_REJECT_UNAUTHORIZED "" /M
+```
+or
+```cmd
+setx NODE_TLS_REJECT_UNAUTHORIZED ""
+```
+
+**⚠️ Security Note:** This setting disables SSL certificate validation. Only use it in trusted corporate environments where IT controls the network infrastructure.
+
 ### Configuration
 
 1. **Pick a color theme**
