@@ -2,7 +2,7 @@
 
 [![Auditaria CLI CI](https://github.com/thacio/auditaria/actions/workflows/ci.yml/badge.svg)](https://github.com/thacio/auditaria/actions/workflows/ci.yml)
 
-![Auditaria CLI Screenshot](./docs/assets/gemini-screenshot.png)
+![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
 
 This repository contains Auditaria CLI, a command-line AI workflow tool that connects to your
 tools, understands your code and accelerates your workflows.
@@ -31,8 +31,12 @@ With Auditaria CLI you can:
    Or install it globally with:
 
    ```bash
-   npm install -g https://github.com/thacio/auditaria
+   git clone https://github.com/thacio/auditaria
+   cd ./auditaria
+   npm run build
+   npm install -g .
    ```
+
 
    Then, run the CLI from anywhere:
 
