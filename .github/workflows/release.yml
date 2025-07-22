@@ -30,11 +30,13 @@ jobs:
         run: npm run prepare:package
       
       - name: Create tarball
-        run: npm pack
+        run: |
+          npm pack
+          cp *.tgz auditaria-cli-latest.tgz
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            *.tgz
+            auditaria-cli-latest.tgz
           generate_release_notes: true
