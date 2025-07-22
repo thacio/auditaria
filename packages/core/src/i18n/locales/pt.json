@@ -721,7 +721,8 @@
   },
   "non_interactive": {
     "operation_cancelled": "Operação cancelada.",
-    "tool_execution_error": "Erro ao executar ferramenta {toolName}: {error}"
+    "tool_execution_error": "Erro ao executar ferramenta {toolName}: {error}",
+    "auth_method_required": "Por favor, defina um método de autenticação em {settingsPath} ou especifique as variáveis de ambiente GEMINI_API_KEY ou GOOGLE_GENAI_USE_VERTEXAI antes de executar"
   },
   "sandbox": {
     "debian_uid_gid_info": "INFO: Usando por padrão UID/GID do usuário atual para Linux baseado em Debian/Ubuntu.",
