@@ -34,15 +34,13 @@ jobs:
           npm pack
           # Create generic filename for consistent downloads
           cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
-          # Also keep versioned file
-          cp thacio-auditaria-cli-*.tgz auditaria-cli-${GITHUB_REF#refs/tags/}.tgz
+          # List files to debug
+          ls -la *.tgz
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            auditaria-cli-latest.tgz
-            auditaria-cli-*.tgz
+          files: auditaria-cli-latest.tgz
           generate_release_notes: true
           draft: false
         env:
