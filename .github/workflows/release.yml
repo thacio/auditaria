@@ -26,17 +26,24 @@ jobs:
       - name: Build
         run: npm run build
       
-      - name: Prepare package
-        run: npm run prepare:package
+      - name: Bundle
+        run: npm run bundle
       
-      - name: Create tarball
+      - name: Create tarball with built assets
         run: |
           npm pack
-          cp *.tgz auditaria-cli-latest.tgz
+          # Create generic filename for consistent downloads
+          cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
+          # Also keep versioned file
+          cp thacio-auditaria-cli-*.tgz auditaria-cli-${GITHUB_REF#refs/tags/}.tgz
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             auditaria-cli-latest.tgz
+            auditaria-cli-*.tgz
           generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
