@@ -19,8 +19,6 @@ With Auditaria CLI you can:
 
 ## Quickstart
 
-You have two options to install Gemini CLI.
-
 ### With Node
 
 1. **Prerequisites:** Ensure you have [Node.js version 20](https://nodejs.org/en/download) or higher installed.
@@ -42,25 +40,10 @@ You have two options to install Gemini CLI.
    auditaria
    ```
 
-### With Homebrew
+### Configuration
 
-1. **Prerequisites:** Ensure you have [Homebrew](https://brew.sh/) installed.
-2. **Install the CLI** Execute the following command in your terminal:
-
-   ```bash
-   brew install gemini-cli
-   ```
-
-   Then, run the CLI from anywhere:
-
-   ```bash
-   gemini
-   ```
-
-### Common Configuration steps
-
-3. **Pick a color theme**
-4. **Authenticate:** When prompted, sign in with your personal Google account. This will grant you up to 60 model requests per minute and 1,000 model requests per day using Gemini.
+1. **Pick a color theme**
+2. **Authenticate:** When prompted, sign in with your personal Google account. This will grant you up to 60 model requests per minute and 1,000 model requests per day using Gemini.
 
 You are now ready to use Auditaria CLI!
 
