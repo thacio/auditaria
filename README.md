@@ -4,6 +4,32 @@
 
 ![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
 
+## About This Fork
+
+Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed specifically for **audits**, **software engineering**, and **data analysis** workflows. This fork enhances the original tool with audit-focused features, multi-language support, and improved workflow capabilities while **maintaining all original software engineering capabilities** intact.
+
+### Key Enhancements
+
+- **🛠️ TODO Tool**: Complete task management system for tracking and organizing complex audit workflows
+- **🌐 Multi-language Support**: Full internationalization with Portuguese and English support (with `/language` command)
+- **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model management:
+  - `/model-switch` - Switch between Gemini Pro and Flash models
+  - `/stay-pro` - Disable/enable fallback to Flash model
+  - `/fallback-improved` - Toggle between retry strategies
+- **🔄 Improved Retry Strategy**: 7 retries with 2-second delays and automatic reset to Gemini Pro on each user message
+- **🎯 Audit-Focused Features**: Specialized system prompts and capabilities tailored for audit tasks
+- **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working with audit data
+
+### Language Support
+
+Currently supports:
+- **English** (en)
+- **Portuguese** (pt)
+
+Use the `/language` command to switch between supported languages at runtime.
+
+---
+
 This repository contains Auditaria CLI, a command-line AI workflow tool that connects to your
 tools, understands your code and accelerates your workflows.
 
