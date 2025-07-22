@@ -32,7 +32,7 @@ With Auditaria CLI you can:
 
    ```bash
    git clone https://github.com/thacio/auditaria
-   cd ./auditaria
+   cd ./auditaria-cli
    npm run build
    npm install -g .
    ```
