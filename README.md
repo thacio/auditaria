@@ -9,8 +9,6 @@
 <a id="português"></a>
 ![Captura de Tela do Auditaria CLI](./docs/assets/auditaria-screenshot-pt.png)
 
-## Sobre Este Repositório
-
 O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) projetado especificamente para fluxos de trabalho de **auditorias**, **engenharia de software** e **análise de dados**. Este fork aprimora a ferramenta original com recursos focados em auditoria, suporte multi-idioma e capacidades de fluxo de trabalho melhoradas, mantendo **todas as capacidades originais de engenharia de software** intactas.
 
 ### Principais Melhorias
@@ -292,8 +290,6 @@ Para detalhes sobre os termos de serviço e aviso de privacidade aplicáveis ao 
 # Auditaria CLI
 
 ![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
-
-## About This Fork
 
 Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed specifically for **audits**, **software engineering**, and **data analysis** workflows. This fork enhances the original tool with audit-focused features, multi-language support, and improved workflow capabilities while **maintaining all original software engineering capabilities** intact.
 
