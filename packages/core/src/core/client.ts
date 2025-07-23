@@ -44,7 +44,7 @@ import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { getCurrentLanguage } from '../i18n/index.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../services/ideContext.js';
-import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
+import { logFlashDecidedToContinue } from '../telemetry/loggers.js';
 import { FlashDecidedToContinueEvent } from '../telemetry/types.js';
 
 function isThinkingSupported(model: string) {
@@ -390,7 +390,8 @@ export class GeminiClient {
         signal,
       );
       if (nextSpeakerCheck?.next_speaker === 'model') {
-        ClearcutLogger.getInstance(this.config)?.logFlashDecidedToContinueEvent(
+        logFlashDecidedToContinue(
+          this.config,
           new FlashDecidedToContinueEvent(prompt_id),
         );
         const nextRequest = [{ text: 'Please continue.' }];
