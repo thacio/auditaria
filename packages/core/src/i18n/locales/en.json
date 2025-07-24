@@ -88,6 +88,11 @@
         "rediscovering_tools": "Re-discovering tools from '{serverName}'...",
         "auth_and_refresh_successful": "Successfully authenticated and refreshed tools for '{serverName}'.",
         "auth_failed": "Failed to authenticate with MCP server '{serverName}': {error}"
+      },
+      "google_credentials": {
+        "scopes_required": "Scopes must be provided in the oauth config for Google Credentials provider",
+        "failed_get_token": "Failed to get access token from Google ADC",
+        "no_url_configured": "No URL configured for Google Credentials MCP server"
       }
     },
     "extensions": {
