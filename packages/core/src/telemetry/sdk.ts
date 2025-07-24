@@ -29,6 +29,11 @@ import { Config } from '../config/config.js';
 import { SERVICE_NAME } from './constants.js';
 import { initializeMetrics } from './metrics.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
+import {
+  FileLogExporter,
+  FileMetricExporter,
+  FileSpanExporter,
+} from './file-exporters.js';
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
@@ -73,16 +78,26 @@ export function initializeTelemetry(config: Config): void {
 
   // EXTERNAL TELEMETRY DISABLED: Force local-only exporters to prevent data from leaving the computer
   // This keeps local metrics collection but disables external OTLP/gRPC data transmission
-  const useOtlp = false; // Force local exporters instead of external OTLP
+  // However, we do support file output for local inspection
+  const telemetryOutfile = config.getTelemetryOutfile();
 
-  const spanExporter = new ConsoleSpanExporter(); // Local console output only
-  const logExporter = new ConsoleLogRecordExporter(); // Local console output only
+  const spanExporter = telemetryOutfile 
+    ? new FileSpanExporter(telemetryOutfile)
+    : new ConsoleSpanExporter(); // Local console output only
+  const logExporter = telemetryOutfile
+    ? new FileLogExporter(telemetryOutfile)
+    : new ConsoleLogRecordExporter(); // Local console output only
   const metricReader = new PeriodicExportingMetricReader({
-    exporter: new ConsoleMetricExporter(), // Local console output only
+    exporter: telemetryOutfile
+      ? new FileMetricExporter(telemetryOutfile)
+      : new ConsoleMetricExporter(), // Local console output only
     exportIntervalMillis: 10000,
   });
 
   /*
+  EXTERNAL TELEMETRY DISABLED - The original upstream code below is commented out
+  to prevent any external data transmission while keeping local telemetry functional:
+  
   const otlpEndpoint = config.getTelemetryOtlpEndpoint();
   const grpcParsedEndpoint = parseGrpcEndpoint(otlpEndpoint);
   const useOtlp = !!grpcParsedEndpoint;
@@ -92,13 +107,17 @@ export function initializeTelemetry(config: Config): void {
         url: grpcParsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
       })
-    : new ConsoleSpanExporter();
+    : telemetryOutfile
+      ? new FileSpanExporter(telemetryOutfile)
+      : new ConsoleSpanExporter();
   const logExporter = useOtlp
     ? new OTLPLogExporter({
         url: grpcParsedEndpoint,
         compression: CompressionAlgorithm.GZIP,
       })
-    : new ConsoleLogRecordExporter();
+    : telemetryOutfile
+      ? new FileLogExporter(telemetryOutfile)
+      : new ConsoleLogRecordExporter();
   const metricReader = useOtlp
     ? new PeriodicExportingMetricReader({
         exporter: new OTLPMetricExporter({
@@ -107,11 +126,16 @@ export function initializeTelemetry(config: Config): void {
         }),
         exportIntervalMillis: 10000,
       })
-    : new PeriodicExportingMetricReader({
-        exporter: new ConsoleMetricExporter(),
-        exportIntervalMillis: 10000,
-      });
-      */
+    : telemetryOutfile
+      ? new PeriodicExportingMetricReader({
+          exporter: new FileMetricExporter(telemetryOutfile),
+          exportIntervalMillis: 10000,
+        })
+      : new PeriodicExportingMetricReader({
+          exporter: new ConsoleMetricExporter(),
+          exportIntervalMillis: 10000,
+        });
+  */
 
   sdk = new NodeSDK({
     resource,
