@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getErrorMessage, t } from '@thacio/auditaria-cli-core';
+import {
+  getErrorMessage,
+  loadServerHierarchicalMemory,
+  t
+} from '@thacio/auditaria-cli-core';
 import { MessageType } from '../types.js';
 import {
   CommandKind,
@@ -89,10 +93,20 @@ export const memoryCommand: SlashCommand = {
         );
 
         try {
-          const result = await context.services.config?.refreshMemory();
+          const config = await context.services.config;
+          if (config) {
+            const { memoryContent, fileCount } =
+              await loadServerHierarchicalMemory(
+                config.getWorkingDir(),
+                config.getDebugMode(),
+                config.getFileService(),
+                config.getExtensionContextFilePaths(),
+                config.getFileFilteringOptions(),
+                context.services.settings.merged.memoryDiscoveryMaxDirs,
+              );
+            config.setUserMemory(memoryContent);
+            config.setGeminiMdFileCount(fileCount);
 
-          if (result) {
-            const { memoryContent, fileCount } = result;
             const successMessage =
               memoryContent.length > 0
                 ? t('commands.memory.refresh.success_with_content', 'Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).', { charCount: memoryContent.length, fileCount })
