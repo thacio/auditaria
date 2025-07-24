@@ -17,6 +17,37 @@
     "language": {
       "description": "alterar preferência de idioma"
     },
+    "web": {
+      "description": "gerenciar interface web",
+      "help": "Comandos da interface web ainda não foram implementados. Use a flag --web para iniciar com interface web habilitada.",
+      "error": {
+        "not_available": "Interface web não está disponível nesta configuração"
+      },
+      "start": {
+        "description": "iniciar servidor da interface web",
+        "pending": "Iniciando interface web...",
+        "error": "Falha ao iniciar interface web: {error}"
+      },
+      "stop": {
+        "description": "parar servidor da interface web",
+        "error": "Falha ao parar interface web: {error}"
+      },
+      "status": {
+        "description": "mostrar status da interface web",
+        "running": "Interface web está rodando na porta {port} com {clients} cliente(s) conectado(s)",
+        "stopped": "Interface web não está rodando"
+      },
+      "already_running": "Interface web já está rodando na porta {port}",
+      "not_running": "Interface web não está rodando atualmente",
+      "started": "Interface web iniciada em http://localhost:{port}",
+      "stopped": "Interface web parada",
+      "messages": {
+        "connected": "Conectado ao Auditaria CLI"
+      },
+      "errors": {
+        "already_running": "Interface web já está rodando"
+      }
+    },
     "privacy": {
       "description": "exibir o aviso de privacidade"
     },

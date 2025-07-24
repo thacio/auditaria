@@ -58,4 +58,34 @@ for (const file of vsixFiles) {
   copyFileSync(join(root, file), join(bundleDir, basename(file)));
 }
 
+// Copy web client files to bundle directory
+const webClientSrc = join(root, 'packages/web-client/dist');
+const webClientDest = join(bundleDir, 'web-client');
+
+if (existsSync(webClientSrc)) {
+  if (!existsSync(webClientDest)) {
+    mkdirSync(webClientDest, { recursive: true });
+  }
+  
+  // Copy all files from web-client/dist to bundle/web-client
+  const webClientFiles = glob.sync('**/*', { 
+    cwd: webClientSrc,
+    nodir: true 
+  });
+  
+  for (const file of webClientFiles) {
+    const srcPath = join(webClientSrc, file);
+    const destPath = join(webClientDest, file);
+    const destDir = dirname(destPath);
+    
+    if (!existsSync(destDir)) {
+      mkdirSync(destDir, { recursive: true });
+    }
+    
+    copyFileSync(srcPath, destPath);
+  }
+  
+  console.log('Web client files copied to bundle/web-client/');
+}
+
 console.log('Assets and locale files copied to bundle/');

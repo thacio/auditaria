@@ -62,6 +62,7 @@ export interface CliArgs {
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
   ideMode: boolean | undefined;
+  web: boolean | undefined;
   proxy: string | undefined;
 }
 
@@ -195,6 +196,12 @@ export async function parseArguments(): Promise<CliArgs> {
     .option('ide-mode', {
       type: 'boolean',
       description: 'Run in IDE mode?',
+    })
+    .option('web', {
+      alias: 'w',
+      type: 'boolean',
+      description: 'Start with web interface enabled?',
+      default: false,
     })
     .option('proxy', {
       type: 'string',

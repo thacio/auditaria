@@ -242,6 +242,7 @@ export async function main() {
           settings={settings}
           startupWarnings={startupWarnings}
           version={version}
+          webEnabled={argv.web || false}
         />
       </React.StrictMode>,
       { exitOnCtrlC: false },

@@ -87,6 +87,7 @@ import ansiEscapes from 'ansi-escapes';
 import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
+import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -95,11 +96,14 @@ interface AppProps {
   settings: LoadedSettings;
   startupWarnings?: string[];
   version: string;
+  webEnabled?: boolean;
 }
 
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
-    <App {...props} />
+    <WebInterfaceProvider enabled={props.webEnabled}>
+      <App {...props} />
+    </WebInterfaceProvider>
   </SessionStatsProvider>
 );
 

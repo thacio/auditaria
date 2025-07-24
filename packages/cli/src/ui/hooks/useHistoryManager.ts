@@ -6,6 +6,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { HistoryItem } from '../types.js';
+import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 
 // Type for the updater function passed to updateHistoryItem
 type HistoryItemUpdater = (
@@ -32,6 +33,7 @@ export interface UseHistoryManagerReturn {
 export function useHistory(): UseHistoryManagerReturn {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const messageIdCounterRef = useRef(0);
+  const webInterface = useWebInterface();
 
   // Generates a unique message ID based on a timestamp and a counter.
   const getNextMessageId = useCallback((baseTimestamp: number): number => {
@@ -63,9 +65,13 @@ export function useHistory(): UseHistoryManagerReturn {
         }
         return [...prevHistory, newItem];
       });
+
+      // Broadcast to web interface if available
+      webInterface?.broadcastMessage(newItem);
+
       return id; // Return the generated ID (even if not added, to keep signature)
     },
-    [getNextMessageId],
+    [getNextMessageId, webInterface],
   );
 
   /**
