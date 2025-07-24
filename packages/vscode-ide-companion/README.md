@@ -13,7 +13,7 @@ The Auditaria CLI Companion extension seamlessly integrates [Auditaria CLI](http
 To use this extension, you'll need:
 
 - VS Code version 1.101.0 or newer
-- Auditaria CLI (installed separately) and running within the VS Code integrated terminal
+- Auditaria CLI (installed separately) running within the VS Code integrated terminal
 
 # Terms of Service and Privacy Notice
 
