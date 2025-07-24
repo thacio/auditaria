@@ -132,7 +132,12 @@
         "not_found": "Nenhum checkpoint salvo encontrado com tag: {tag}."
       },
       "list": {
-        "saved_conversations": "lista de conversas salvas: {tags}"
+        "saved_conversations": "lista de conversas salvas: {tags}",
+        "no_checkpoints": "Nenhum checkpoint de conversa salvo encontrado.",
+        "header": "Lista de conversas salvas:\n\n",
+        "note": "Nota: Mais recente por último, mais antigo primeiro",
+        "invalid_date": "Data Inválida",
+        "saved_on": "(salvo em {date})"
       },
       "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume"
     },

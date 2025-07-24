@@ -130,7 +130,9 @@
         "saved_conversations": "list of saved conversations: {tags}",
         "no_checkpoints": "No saved conversation checkpoints found.",
         "header": "List of saved conversations:\n\n",
-        "note": "Note: Newest last, oldest first"
+        "note": "Note: Newest last, oldest first",
+        "invalid_date": "Invalid Date",
+        "saved_on": "(saved on {date})"
       },
       "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume"
     },
