@@ -133,18 +133,19 @@ export const ToolConfirmationMessage: React.FC<
     const executionProps =
       confirmationDetails as ToolExecuteConfirmationDetails;
 
-    question = t('tool_confirmation.questions.allow_execution', 'Allow execution?');
+    question = t('tool_confirmation.questions.allow_execution_of', 'Allow execution of: \'{command}\'?', { command: executionProps.rootCommand });
     options.push(
       {
         label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
         value: ToolConfirmationOutcome.ProceedOnce,
       },
       {
-        label: t('tool_confirmation.options.yes_always_command', 'Yes, allow always "{command} ..."', { command: executionProps.rootCommand }),
+        label: t('tool_confirmation.options.yes_always_ellipsis', 'Yes, allow always ...'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
     );
+
+    options.push({ label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel });
 
     let bodyContentHeight = availableBodyContentHeight();
     if (bodyContentHeight !== undefined) {
