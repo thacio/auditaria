@@ -285,12 +285,14 @@
     "questions": {
       "apply_change": "Apply this change?",
       "allow_execution": "Allow execution?",
+      "allow_execution_of": "Allow execution of: '{command}'?",
       "do_you_want_proceed": "Do you want to proceed?",
       "allow_mcp_tool": "Allow execution of MCP tool \"{toolName}\" from server \"{serverName}\"?"
     },
     "options": {
       "yes_once": "Yes, allow once",
       "yes_always": "Yes, allow always",
+      "yes_always_ellipsis": "Yes, allow always ...",
       "yes_always_command": "Yes, allow always \"{command} ...\"",
       "yes_always_tool": "Yes, always allow tool \"{toolName}\" from server \"{serverName}\"",
       "yes_always_server": "Yes, always allow all tools from server \"{serverName}\"",
