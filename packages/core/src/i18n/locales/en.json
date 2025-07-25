@@ -864,5 +864,10 @@
   },
   "checkpoint": {
     "tag_sanitized_empty": "Sanitized tag is empty setting to \"default\"."
+  },
+  "ide_context": {
+    "title": "IDE Context (ctrl+e to toggle)",
+    "recent_files": "Recent files:",
+    "active_file": " (active)"
   }
 }

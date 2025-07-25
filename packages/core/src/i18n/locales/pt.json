@@ -836,5 +836,10 @@
   },
   "checkpoint": {
     "tag_sanitized_empty": "Tag sanitizada está vazia definindo como \"default\"."
+  },
+  "ide_context": {
+    "title": "Contexto do IDE (ctrl+e para alternar)",
+    "recent_files": "Arquivos recentes:",
+    "active_file": " (ativo)"
   }
 }

@@ -9,7 +9,6 @@ import React from 'react';
 import { Text } from 'ink';
 import { Colors } from '../colors.js';
 import { type OpenFiles, type MCPServerConfig } from '@thacio/auditaria-cli-core';
-import path from 'path';
 
 interface ContextSummaryDisplayProps {
   geminiMdFileCount: number;
@@ -35,16 +34,17 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     geminiMdFileCount === 0 &&
     mcpServerCount === 0 &&
     blockedMcpServerCount === 0 &&
-    !openFiles?.activeFile
+    (openFiles?.recentOpenFiles?.length ?? 0) === 0
   ) {
     return <Text> </Text>; // Render an empty space to reserve height
   }
 
-  const activeFileText = (() => {
-    if (!openFiles?.activeFile) {
+  const recentFilesText = (() => {
+    const count = openFiles?.recentOpenFiles?.length ?? 0;
+    if (count === 0) {
       return '';
     }
-    return `Open File (${path.basename(openFiles.activeFile)})`;
+    return `${count} recent file${count > 1 ? 's' : ''} (ctrl+e to view)`;
   })();
 
   const geminiMdText = (() => {
@@ -52,7 +52,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
       return '';
     }
     const allNamesTheSame = new Set(contextFileNames).size < 2;
-    const name = allNamesTheSame ? contextFileNames[0] : 'Context';
+    const name = allNamesTheSame ? contextFileNames[0] : 'context';
     return t('context_summary.context_files', '{count} {name} file{plural}', {
       count: geminiMdFileCount,
       name,
@@ -78,7 +78,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (blockedMcpServerCount > 0) {
       let blockedText = `${blockedMcpServerCount} Blocked`;
       if (mcpServerCount === 0) {
-        blockedText += ` MCP Server${blockedMcpServerCount > 1 ? 's' : ''}`;
+        blockedText += ` MCP server${blockedMcpServerCount > 1 ? 's' : ''}`;
       }
       parts.push(blockedText);
     }
@@ -87,8 +87,8 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
 
   let summaryText = t('context_summary.using', 'Using: ');
   const summaryParts = [];
-  if (activeFileText) {
-    summaryParts.push(activeFileText);
+  if (recentFilesText) {
+    summaryParts.push(recentFilesText);
   }
   if (geminiMdText) {
     summaryParts.push(geminiMdText);
