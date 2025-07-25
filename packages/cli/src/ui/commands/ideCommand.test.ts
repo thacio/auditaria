@@ -25,6 +25,7 @@ import {
   IDE_SERVER_NAME,
   MCPDiscoveryState,
   MCPServerStatus,
+  IDEConnectionStatus,
 } from '@thacio/auditaria-cli-core';
 
 vi.mock('child_process');
@@ -49,8 +50,6 @@ describe('ideCommand', () => {
   let execSyncSpy: MockInstance;
   let globSyncSpy: MockInstance;
   let platformSpy: MockInstance;
-  let getMCPServerStatusSpy: MockInstance;
-  let getMCPDiscoveryStateSpy: MockInstance;
 
   beforeEach(() => {
     mockContext = {
@@ -61,13 +60,12 @@ describe('ideCommand', () => {
 
     mockConfig = {
       getIdeMode: vi.fn(),
+      getIdeClient: vi.fn(),
     } as unknown as Config;
 
     execSyncSpy = vi.spyOn(child_process, 'execSync');
     globSyncSpy = vi.spyOn(glob, 'sync');
     platformSpy = vi.spyOn(process, 'platform', 'get');
-    getMCPServerStatusSpy = vi.mocked(getMCPServerStatus);
-    getMCPDiscoveryStateSpy = vi.mocked(getMCPDiscoveryState);
   });
 
   afterEach(() => {
@@ -91,15 +89,21 @@ describe('ideCommand', () => {
   });
 
   describe('status subcommand', () => {
+    const mockGetConnectionStatus = vi.fn();
     beforeEach(() => {
       vi.mocked(mockConfig.getIdeMode).mockReturnValue(true);
+      vi.mocked(mockConfig.getIdeClient).mockReturnValue({
+        getConnectionStatus: mockGetConnectionStatus,
+      } as ReturnType<Config['getIdeClient']>);
     });
 
     it('should show connected status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.CONNECTED);
+      mockGetConnectionStatus.mockReturnValue({
+        status: IDEConnectionStatus.Connected,
+      });
       const command = ideCommand(mockConfig);
       const result = command!.subCommands![0].action!(mockContext, '');
-      expect(getMCPServerStatusSpy).toHaveBeenCalledWith(IDE_SERVER_NAME);
+      expect(mockGetConnectionStatus).toHaveBeenCalled();
       expect(result).toEqual({
         type: 'message',
         messageType: 'info',
@@ -108,37 +112,45 @@ describe('ideCommand', () => {
     });
 
     it('should show connecting status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.CONNECTING);
+      mockGetConnectionStatus.mockReturnValue({
+        status: IDEConnectionStatus.Connecting,
+      });
       const command = ideCommand(mockConfig);
       const result = command!.subCommands![0].action!(mockContext, '');
+      expect(mockGetConnectionStatus).toHaveBeenCalled();
       expect(result).toEqual({
         type: 'message',
         messageType: 'info',
-        content: '🔄 Initializing...',
+        content: `🟡 Connecting...`,
       });
     });
-
-    it('should show discovery in progress status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.DISCONNECTED);
-      getMCPDiscoveryStateSpy.mockReturnValue(MCPDiscoveryState.IN_PROGRESS);
-      const command = ideCommand(mockConfig);
-      const result = command!.subCommands![0].action!(mockContext, '');
-      expect(result).toEqual({
-        type: 'message',
-        messageType: 'info',
-        content: '🔄 Initializing...',
-      });
-    });
-
     it('should show disconnected status', () => {
-      getMCPServerStatusSpy.mockReturnValue(MCPServerStatus.DISCONNECTED);
-      getMCPDiscoveryStateSpy.mockReturnValue(MCPDiscoveryState.COMPLETED);
+      mockGetConnectionStatus.mockReturnValue({
+        status: IDEConnectionStatus.Disconnected,
+      });
       const command = ideCommand(mockConfig);
       const result = command!.subCommands![0].action!(mockContext, '');
+      expect(mockGetConnectionStatus).toHaveBeenCalled();
       expect(result).toEqual({
         type: 'message',
         messageType: 'error',
-        content: '🔴 Disconnected',
+        content: `🔴 Disconnected`,
+      });
+    });
+
+    it('should show disconnected status with details', () => {
+      const details = 'Something went wrong';
+      mockGetConnectionStatus.mockReturnValue({
+        status: IDEConnectionStatus.Disconnected,
+        details,
+      });
+      const command = ideCommand(mockConfig);
+      const result = command!.subCommands![0].action!(mockContext, '');
+      expect(mockGetConnectionStatus).toHaveBeenCalled();
+      expect(result).toEqual({
+        type: 'message',
+        messageType: 'error',
+        content: `🔴 Disconnected: ${details}`,
       });
     });
   });
