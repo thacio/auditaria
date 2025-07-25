@@ -652,7 +652,7 @@ export class Config {
     registerCoreTool(TodoTool);
     registerCoreTool(WebSearchTool, this);
 
-    await registry.discoverTools();
+    await registry.discoverAllTools();
     return registry;
   }
 }
