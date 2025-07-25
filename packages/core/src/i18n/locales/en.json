@@ -52,6 +52,10 @@
       "tools_cached": "({count} tools cached)",
       "no_tools": "No tools available",
       "parameters": "Parameters:",
+      "refresh": {
+        "description": "Refresh the list of MCP servers and tools",
+        "refreshing": "Refreshing MCP servers and tools..."
+      },
       "oauth": {
         "requires_auth": "🔐 '{serverName}' requires OAuth authentication",
         "config_failed": "❌ Could not configure OAuth for '{serverName}' - please authenticate manually with /mcp auth {serverName}",
@@ -853,5 +857,12 @@
     "malformed_function_call": "Response stopped due to malformed function call.",
     "image_safety": "Response stopped due to image safety violations.",
     "unexpected_tool_call": "Response stopped due to unexpected tool call."
+  },
+  "vscode_extension": {
+    "command_title": "Auditaria CLI: Run",
+    "terminal_name": "Auditaria CLI"
+  },
+  "checkpoint": {
+    "tag_sanitized_empty": "Sanitized tag is empty setting to \"default\"."
   }
 }

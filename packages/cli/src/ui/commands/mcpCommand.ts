@@ -422,7 +422,7 @@ const listCommand: SlashCommand = {
 
 const refreshCommand: SlashCommand = {
   name: 'refresh',
-  description: 'Refresh the list of MCP servers and tools',
+  description: t('commands.mcp.refresh.description', 'Refresh the list of MCP servers and tools'),
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,
@@ -432,7 +432,7 @@ const refreshCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: 'Config not loaded.',
+        content: t('commands.mcp.auth.config_not_loaded', 'Config not loaded.'),
       };
     }
 
@@ -441,14 +441,14 @@ const refreshCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: 'Could not retrieve tool registry.',
+        content: t('errors.tool_registry_error', 'Could not retrieve tool registry.'),
       };
     }
 
     context.ui.addItem(
       {
         type: 'info',
-        text: 'Refreshing MCP servers and tools...',
+        text: t('commands.mcp.refresh.refreshing', 'Refreshing MCP servers and tools...'),
       },
       Date.now(),
     );

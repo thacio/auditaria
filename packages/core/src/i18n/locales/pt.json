@@ -52,6 +52,10 @@
       "tools_cached": "({count} ferramentas em cache)",
       "no_tools": "Nenhuma ferramenta disponível",
       "parameters": "Parâmetros:",
+      "refresh": {
+        "description": "Atualizar a lista de servidores MCP e ferramentas",
+        "refreshing": "Atualizando servidores MCP e ferramentas..."
+      },
       "oauth": {
         "requires_auth": "🔐 '{serverName}' requer autenticação OAuth",
         "config_failed": "❌ Não foi possível configurar OAuth para '{serverName}' - por favor autentique manualmente com /mcp auth {serverName}",
@@ -825,5 +829,12 @@
     "malformed_function_call": "Resposta interrompida devido a chamada de função malformada.",
     "image_safety": "Resposta interrompida devido a violações de segurança da imagem.",
     "unexpected_tool_call": "Resposta interrompida devido a chamada de ferramenta inesperada."
+  },
+  "vscode_extension": {
+    "command_title": "Auditaria CLI: Executar",
+    "terminal_name": "Auditaria CLI"
+  },
+  "checkpoint": {
+    "tag_sanitized_empty": "Tag sanitizada está vazia definindo como \"default\"."
   }
 }

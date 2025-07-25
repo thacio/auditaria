@@ -8,6 +8,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Content } from '@google/genai';
 import { getProjectTempDir } from '../utils/paths.js';
+import { t } from '../i18n/index.js';
 
 const LOG_FILE_NAME = 'logs.json';
 
@@ -241,7 +242,7 @@ export class Logger {
     // Sanitize tag to prevent directory traversal attacks
     tag = tag.replace(/[^a-zA-Z0-9-_]/g, '');
     if (!tag) {
-      console.error('Sanitized tag is empty setting to "default".');
+      console.error(t('checkpoint.tag_sanitized_empty', 'Sanitized tag is empty setting to "default".'));
       tag = 'default';
     }
     return path.join(this.geminiDir, `checkpoint-${tag}.json`);

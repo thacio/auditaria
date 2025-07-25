@@ -25,11 +25,11 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('gemini-cli.runGeminiCLI', () => {
-      const geminiCmd = 'gemini';
-      const terminal = vscode.window.createTerminal(`Gemini CLI`);
+    vscode.commands.registerCommand('auditaria-cli.runAuditariaCLI', () => {
+      const auditariaCmd = 'auditaria';
+      const terminal = vscode.window.createTerminal(`Auditaria CLI`);
       terminal.show();
-      terminal.sendText(geminiCmd);
+      terminal.sendText(auditariaCmd);
     }),
   );
 }
