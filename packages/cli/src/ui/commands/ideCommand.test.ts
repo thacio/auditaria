@@ -20,25 +20,11 @@ import * as child_process from 'child_process';
 import { glob } from 'glob';
 
 import {
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  IDE_SERVER_NAME,
-  MCPDiscoveryState,
-  MCPServerStatus,
   IDEConnectionStatus,
 } from '@thacio/auditaria-cli-core';
 
 vi.mock('child_process');
 vi.mock('glob');
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
-  return {
-    ...original,
-    getMCPServerStatus: vi.fn(),
-    getMCPDiscoveryState: vi.fn(),
-  };
-});
 
 function regexEscape(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

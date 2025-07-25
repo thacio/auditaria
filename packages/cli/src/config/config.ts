@@ -19,8 +19,6 @@ import {
   FileDiscoveryService,
   TelemetryTarget,
   FileFilteringOptions,
-  MCPServerConfig,
-  IDE_SERVER_NAME,
   t,
   IdeClient,
 } from '@thacio/auditaria-cli-core';

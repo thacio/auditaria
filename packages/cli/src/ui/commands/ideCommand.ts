@@ -7,11 +7,6 @@
 import { fileURLToPath } from 'url';
 import {
   Config,
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  IDE_SERVER_NAME,
-  MCPDiscoveryState,
-  MCPServerStatus,
   t,
   IDEConnectionStatus,
 } from '@thacio/auditaria-cli-core';
