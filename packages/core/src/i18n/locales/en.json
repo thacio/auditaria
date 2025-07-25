@@ -49,8 +49,10 @@
       },
       "tools_count": "({count} tools)",
       "tools_when_ready": "(tools will appear when ready)",
+      "tools_and_prompts_when_ready": "(tools and prompts will appear when ready)",
       "tools_cached": "({count} tools cached)",
       "no_tools": "No tools available",
+      "no_tools_or_prompts": "No tools or prompts available",
       "parameters": "Parameters:",
       "refresh": {
         "description": "Refresh the list of MCP servers and tools",
@@ -97,6 +99,19 @@
         "scopes_required": "Scopes must be provided in the oauth config for Google Credentials provider",
         "failed_get_token": "Failed to get access token from Google ADC",
         "no_url_configured": "No URL configured for Google Credentials MCP server"
+      },
+      "prompts": {
+        "config_not_loaded": "Config not loaded.",
+        "server_config_not_found": "MCP server config not found for '{serverName}'.",
+        "invoke_error": "Error invoking prompt: {error}",
+        "empty_response": "Received an empty or invalid prompt response from the server.",
+        "missing_arguments": "Missing required argument(s): {missingArgNames}",
+        "no_arguments": "Prompt \"{promptName}\" has no arguments.",
+        "arguments_help_intro": "Arguments for \"{promptName}\":",
+        "arguments_usage_note": "You can provide arguments by name (e.g., --argName=\"value\") or by position.",
+        "arguments_example": "e.g., {promptName} {positionalExample} is equivalent to {promptName} {namedExample}",
+        "argument_required_yes": "yes",
+        "argument_required_no": "no"
       }
     },
     "extensions": {
@@ -205,6 +220,11 @@
     },
     "clear": {
       "description": "clear the screen and conversation history"
+    },
+    "vim": {
+      "description": "toggle vim mode on/off",
+      "entered": "Entered Vim mode. Run /vim again to exit.",
+      "exited": "Exited Vim mode."
     },
     "copy": {
       "description": "Copy the last result or code snippet to clipboard",

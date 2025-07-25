@@ -49,8 +49,10 @@
       },
       "tools_count": "({count} ferramentas)",
       "tools_when_ready": "(ferramentas aparecerão quando prontas)",
+      "tools_and_prompts_when_ready": "(ferramentas e prompts aparecerão quando prontos)",
       "tools_cached": "({count} ferramentas em cache)",
       "no_tools": "Nenhuma ferramenta disponível",
+      "no_tools_or_prompts": "Nenhuma ferramenta ou prompt disponível",
       "parameters": "Parâmetros:",
       "refresh": {
         "description": "Atualizar a lista de servidores MCP e ferramentas",
@@ -97,6 +99,19 @@
         "scopes_required": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials",
         "failed_get_token": "Falha ao obter token de acesso do Google ADC",
         "no_url_configured": "Nenhuma URL configurada para o servidor MCP Google Credentials"
+      },
+      "prompts": {
+        "config_not_loaded": "Configuração não carregada.",
+        "server_config_not_found": "Configuração do servidor MCP não encontrada para '{serverName}'.",
+        "invoke_error": "Erro ao invocar prompt: {error}",
+        "empty_response": "Recebida resposta vazia ou inválida do servidor de prompt.",
+        "missing_arguments": "Argumentos obrigatórios ausentes: {missingArgNames}",
+        "no_arguments": "Prompt \"{promptName}\" não possui argumentos.",
+        "arguments_help_intro": "Argumentos para \"{promptName}\":",
+        "arguments_usage_note": "Você pode fornecer argumentos por nome (ex: --argName=\"valor\") ou por posição.",
+        "arguments_example": "ex: {promptName} {positionalExample} é equivalente a {promptName} {namedExample}",
+        "argument_required_yes": "sim",
+        "argument_required_no": "não"
       }
     },
     "extensions": {
@@ -210,6 +225,11 @@
     },
     "clear": {
       "description": "limpar a tela e o histórico da conversa"
+    },
+    "vim": {
+      "description": "alternar modo vim ligado/desligado",
+      "entered": "Modo Vim ativado. Execute /vim novamente para sair.",
+      "exited": "Modo Vim desativado."
     },
     "copy": {
       "description": "Copiar o último resultado ou trecho de código para a área de transferência",

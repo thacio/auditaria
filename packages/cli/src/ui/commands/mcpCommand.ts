@@ -183,7 +183,7 @@ const getMcpStatus = async (
         message += ` (0 tools)`;
       }
     } else if (status === MCPServerStatus.CONNECTING) {
-      message += ` (tools and prompts will appear when ready)`;
+      message += ` (${t('commands.mcp.tools_and_prompts_when_ready', 'tools and prompts will appear when ready', {})})`;
     } else {
       message += ` (${serverTools.length} tools cached)`;
     }
@@ -269,7 +269,7 @@ const getMcpStatus = async (
     }
 
     if (serverTools.length === 0 && serverPrompts.length === 0) {
-      message += '  No tools or prompts available\n';
+      message += `  ${t('commands.mcp.no_tools_or_prompts', 'No tools or prompts available', {})}\n`;
     } else if (serverTools.length === 0) {
       message += '  No tools available';
       if (status === MCPServerStatus.DISCONNECTED && needsAuthHint) {
