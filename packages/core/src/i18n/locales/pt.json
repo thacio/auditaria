@@ -665,7 +665,8 @@
     "rate_limit_google_generic_quota_paid": "\nVocê atingiu seu limite de cota diária. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
     "rate_limit_use_gemini": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do AI Studio, ou mude para outro método /auth",
     "rate_limit_vertex": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do Vertex, ou mude para outro método /auth",
-    "rate_limit_default": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão."
+    "rate_limit_default": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão.",
+    "unhandled_rejection": "=========================================\nEste é um erro inesperado. Por favor, relate um bug usando a ferramenta /bug.\nCRÍTICO: Rejeição de Promise Não Tratada!\n=========================================\nRazão: {reason}{stack}"
   },
   "diff": {
     "no_content": "Nenhum conteúdo de diff.",

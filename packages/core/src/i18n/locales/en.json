@@ -659,7 +659,8 @@
     "rate_limit_google_generic_quota_paid": "\nYou have reached your daily quota limit. We appreciate you for choosing Gemini Code Assist and the Gemini CLI. To continue accessing the {currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "rate_limit_use_gemini": "\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method",
     "rate_limit_vertex": "\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method",
-    "rate_limit_default": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session."
+    "rate_limit_default": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.",
+    "unhandled_rejection": "=========================================\nThis is an unexpected error. Please file a bug report using the /bug tool.\nCRITICAL: Unhandled Promise Rejection!\n=========================================\nReason: {reason}{stack}"
   },
   "diff": {
     "no_content": "No diff content.",
