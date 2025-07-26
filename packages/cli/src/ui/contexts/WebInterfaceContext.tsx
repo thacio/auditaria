@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { WebInterfaceService, WebInterfaceConfig } from '../../services/WebInterfaceService.js';
 import { HistoryItem } from '../types.js';
+import { useSubmitQuery } from './SubmitQueryContext.js';
 
 interface WebInterfaceContextValue {
   service: WebInterfaceService | null;
@@ -30,6 +31,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
   const [isRunning, setIsRunning] = useState(false);
   const [port, setPort] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState(0);
+  const submitQuery = useSubmitQuery();
 
   const start = useCallback(async (config?: WebInterfaceConfig): Promise<number> => {
     try {
@@ -90,6 +92,13 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
 
     return () => clearInterval(interval);
   }, [service, isRunning]);
+
+  // Auto-register submitQuery with the service when both are available
+  useEffect(() => {
+    if (submitQuery && service) {
+      service.setSubmitQueryHandler(submitQuery);
+    }
+  }, [submitQuery, service]);
 
   const contextValue: WebInterfaceContextValue = {
     service,

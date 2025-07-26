@@ -7,7 +7,6 @@
 import express, { Express } from 'express';
 import { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { AddressInfo } from 'net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HistoryItem } from '../ui/types.js';
@@ -28,6 +27,7 @@ export class WebInterfaceService {
   private clients: Set<WebSocket> = new Set();
   private isRunning = false;
   private port?: number;
+  private submitQueryHandler?: (query: string) => void;
 
   /**
    * Start the web interface server
@@ -57,7 +57,7 @@ export class WebInterfaceService {
             webClientPath = testPath;
             break;
           }
-        } catch (e) {
+        } catch {
           // Continue to next path
         }
       }
@@ -179,6 +179,25 @@ export class WebInterfaceService {
   }
 
   /**
+   * Set the handler for submit query function
+   */
+  setSubmitQueryHandler(handler: (query: string) => void): void {
+    this.submitQueryHandler = handler;
+  }
+
+  /**
+   * Handle incoming messages from web clients
+   */
+  private handleIncomingMessage(message: { type: string; content?: string }): void {
+    if (message.type === 'user_message' && this.submitQueryHandler) {
+      const query = message.content?.trim();
+      if (query) {
+        this.submitQueryHandler(query);
+      }
+    }
+  }
+
+  /**
    * Set up WebSocket connection handlers
    */
   private setupWebSocketHandlers(): void {
@@ -194,6 +213,16 @@ export class WebInterfaceService {
       ws.on('error', (error) => {
         console.error('WebSocket error:', error);
         this.clients.delete(ws);
+      });
+
+      // Handle incoming messages from web client
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleIncomingMessage(message);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
       });
 
       // Send welcome message

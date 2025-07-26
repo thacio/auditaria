@@ -88,6 +88,7 @@ import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
 import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
+import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -101,9 +102,11 @@ interface AppProps {
 
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
-    <WebInterfaceProvider enabled={props.webEnabled}>
-      <App {...props} />
-    </WebInterfaceProvider>
+    <SubmitQueryProvider>
+      <WebInterfaceProvider enabled={props.webEnabled}>
+        <App {...props} />
+      </WebInterfaceProvider>
+    </SubmitQueryProvider>
   </SessionStatsProvider>
 );
 
@@ -524,6 +527,14 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
   const { elapsedTime, currentLoadingPhrase } =
     useLoadingIndicator(streamingState);
   const showAutoAcceptIndicator = useAutoAcceptIndicator({ config });
+
+  // Register submitQuery with the context for web interface access
+  const registerSubmitQuery = useSubmitQueryRegistration();
+  useEffect(() => {
+    if (submitQuery) {
+      registerSubmitQuery(submitQuery);
+    }
+  }, [submitQuery, registerSubmitQuery]);
 
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {
