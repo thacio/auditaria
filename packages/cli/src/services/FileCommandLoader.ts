@@ -72,6 +72,7 @@ export class FileCommandLoader implements ICommandLoader {
       nodir: true,
       dot: true,
       signal,
+      follow: true,
     };
 
     try {
