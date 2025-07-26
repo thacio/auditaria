@@ -17,7 +17,7 @@ interface TipsProps {
 export const Tips: React.FC<TipsProps> = ({ config }) => {
   const geminiMdFileCount = config.getGeminiMdFileCount();
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column">
       <Text color={Colors.Foreground}>{t('tips.title', 'Tips for getting started:')}</Text>
       <Text color={Colors.Foreground}>
         1. {t('tips.tip1', 'Ask questions, edit files, or run commands.')}
