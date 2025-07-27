@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { HistoryItem } from '../types.js';
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 
@@ -34,6 +34,13 @@ export function useHistory(): UseHistoryManagerReturn {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const messageIdCounterRef = useRef(0);
   const webInterface = useWebInterface();
+
+  // Update web interface history whenever the main history changes
+  useEffect(() => {
+    if (webInterface) {
+      webInterface.setCurrentHistory(history);
+    }
+  }, [history, webInterface]);
 
   // Generates a unique message ID based on a timestamp and a counter.
   const getNextMessageId = useCallback((baseTimestamp: number): number => {

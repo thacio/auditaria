@@ -30,6 +30,7 @@ export class WebInterfaceService {
   private isRunning = false;
   private port?: number;
   private submitQueryHandler?: (query: string) => void;
+  private currentHistory: HistoryItem[] = [];
 
   /**
    * Start the web interface server
@@ -246,6 +247,13 @@ export class WebInterfaceService {
   }
 
   /**
+   * Set the current history for new clients
+   */
+  setCurrentHistory(history: HistoryItem[]): void {
+    this.currentHistory = history;
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
   private handleIncomingMessage(message: { type: string; content?: string }): void {
@@ -291,6 +299,15 @@ export class WebInterfaceService {
         data: { message: t('web.messages.connected', 'Connected to Auditaria CLI') },
         timestamp: Date.now(),
       }));
+
+      // Send current history to new client
+      if (this.currentHistory.length > 0) {
+        ws.send(JSON.stringify({
+          type: 'history_sync',
+          data: { history: this.currentHistory },
+          timestamp: Date.now(),
+        }));
+      }
     });
 
     this.wss.on('error', (error) => {

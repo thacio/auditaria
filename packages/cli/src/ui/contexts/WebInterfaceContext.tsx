@@ -17,6 +17,7 @@ interface WebInterfaceContextValue {
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
+  setCurrentHistory: (history: HistoryItem[]) => void;
 }
 
 const WebInterfaceContext = createContext<WebInterfaceContextValue | null>(null);
@@ -61,6 +62,12 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
       setClientCount(status.clients);
     }
   }, [service, isRunning]);
+
+  const setCurrentHistory = useCallback((history: HistoryItem[]): void => {
+    if (service) {
+      service.setCurrentHistory(history);
+    }
+  }, [service]);
 
   // Auto-start if enabled
   useEffect(() => {
@@ -108,6 +115,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     start,
     stop,
     broadcastMessage,
+    setCurrentHistory,
   };
 
   return (
