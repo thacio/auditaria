@@ -1,18 +1,22 @@
 /* Professional Chat Interface for Auditaria CLI */
 :root {
-  --primary-bg: #0f1419;
-  --secondary-bg: #1a1f24;
-  --tertiary-bg: #242a30;
-  --border-color: #2d343c;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #656d76;
-  --accent-blue: #1f6feb;
-  --accent-green: #238636;
-  --accent-orange: #fb8500;
-  --accent-red: #da3633;
-  --accent-purple: #8b5cf6;
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --bg: #F9FAFB;
+  --surface: #FFFFFF;
+  --surface-alt: #F3F4F6;
+  --text: #111827;
+  --text-subtle: #4B5563;
+  --primary: #2563EB;   /* professional blue */
+  --primary-10: #D1FAE5;
+  --accent: #0891B2;
+  --border: #E5E7EB;
+  --success: #15803D;
+  --warning: #CA8A04;
+  --error: #DC2626;
+  --tool-executing: #8B5CF6; /* Purple */
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --radius: 8px;
   --radius-sm: 4px;
 }
@@ -24,9 +28,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-  background: var(--primary-bg);
-  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   line-height: 1.5;
   height: 100vh;
   overflow: hidden;
@@ -41,9 +45,9 @@ body {
 
 /* Header */
 .header {
-  background: var(--secondary-bg);
+  background: var(--surface);
   padding: 16px 24px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -53,7 +57,7 @@ body {
 }
 
 .header h1 {
-  color: var(--text-primary);
+  color: var(--text);
   font-size: 18px;
   font-weight: 600;
   display: flex;
@@ -69,7 +73,7 @@ body {
 }
 
 .status-connected {
-  color: var(--accent-green);
+  color: var(--success);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -80,13 +84,13 @@ body {
   content: "";
   width: 8px;
   height: 8px;
-  background: var(--accent-green);
+  background: var(--success);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 .status-disconnected {
-  color: var(--accent-red);
+  color: var(--error);
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -97,7 +101,7 @@ body {
   content: "";
   width: 8px;
   height: 8px;
-  background: var(--accent-red);
+  background: var(--error);
   border-radius: 50%;
 }
 
@@ -107,9 +111,9 @@ body {
 }
 
 #message-count {
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   font-size: 13px;
-  background: var(--tertiary-bg);
+  background: var(--surface-alt);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
 }
@@ -120,7 +124,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--primary-bg);
+  background: var(--bg);
 }
 
 .messages-container {
@@ -136,16 +140,16 @@ body {
 .welcome-message {
   text-align: center;
   padding: 48px 24px;
-  color: var(--text-secondary);
-  background: var(--secondary-bg);
+  color: var(--text-subtle);
+  background: var(--surface);
   border-radius: var(--radius);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   margin: 24px auto;
   max-width: 500px;
 }
 
 .welcome-message h2 {
-  color: var(--text-primary);
+  color: var(--text);
   margin-bottom: 12px;
   font-size: 20px;
   font-weight: 600;
@@ -179,14 +183,18 @@ body {
 }
 
 .message-user .message-bubble {
-  background: var(--accent-blue);
+  background: var(--primary);
   color: white;
   border-bottom-right-radius: 4px;
 }
 
 .message-user .message-header {
-  color: var(--accent-blue);
+  color: var(--primary);
   text-align: right;
+}
+
+.message-user .message-timestamp {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* AI/Gemini Messages (left aligned) */
@@ -198,14 +206,14 @@ body {
 
 .message-gemini .message-bubble,
 .message-gemini_content .message-bubble {
-  background: var(--secondary-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
 }
 
 .message-gemini .message-header,
 .message-gemini_content .message-header {
-  color: var(--accent-green);
+  color: var(--success);
 }
 
 /* System/Command Messages (centered) */
@@ -218,36 +226,36 @@ body {
 }
 
 .message-info .message-bubble {
-  background: var(--tertiary-bg);
-  border: 1px solid var(--accent-orange);
-  border-left: 4px solid var(--accent-orange);
+  background: var(--surface-alt);
+  border: 1px solid var(--warning);
+  border-left: 4px solid var(--warning);
 }
 
 .message-info .message-header {
-  color: var(--accent-orange);
+  color: var(--warning);
   text-align: center;
 }
 
 .message-tool-group .message-bubble {
-  background: var(--tertiary-bg);
-  border: 1px solid var(--accent-purple);
-  border-left: 4px solid var(--accent-purple);
+  background: var(--surface-alt);
+  border: 1px solid var(--accent);
+  border-left: 4px solid var(--accent);
 }
 
 .message-tool-group .message-header {
-  color: var(--accent-purple);
+  color: var(--accent);
   text-align: center;
 }
 
 /* Error Messages */
 .message-error .message-bubble {
-  background: rgba(218, 54, 51, 0.1);
-  border: 1px solid var(--accent-red);
-  border-left: 4px solid var(--accent-red);
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid var(--error);
+  border-left: 4px solid var(--error);
 }
 
 .message-error .message-header {
-  color: var(--accent-red);
+  color: var(--error);
 }
 
 /* Message Components */
@@ -264,20 +272,20 @@ body {
   padding: 12px 16px;
   border-radius: var(--radius);
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .message-content {
   font-size: 14px;
   line-height: 1.6;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
 
 .message-timestamp {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-subtle);
   margin-top: 6px;
   text-align: right;
 }
@@ -291,13 +299,14 @@ body {
 }
 
 .tool-item {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--surface-alt);
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border: 1px solid var(--border);
 }
 
 .tool-header {
@@ -314,7 +323,7 @@ body {
 
 .tool-name {
   font-weight: 600;
-  color: var(--accent-blue);
+  color: var(--accent);
   flex: 1;
 }
 
@@ -328,38 +337,38 @@ body {
 }
 
 .tool-status-success {
-  background: rgba(35, 134, 54, 0.2);
-  color: var(--accent-green);
+  background: var(--primary-10);
+  color: var(--success);
 }
 
 .tool-status-error {
-  background: rgba(218, 54, 51, 0.2);
-  color: var(--accent-red);
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--error);
 }
 
 .tool-status-pending {
-  background: rgba(251, 133, 0, 0.2);
-  color: var(--accent-orange);
+  background: rgba(202, 138, 4, 0.1);
+  color: var(--warning);
 }
 
 .tool-status-executing {
-  background: rgba(139, 92, 246, 0.2);
-  color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--tool-executing);
 }
 
 .tool-status-confirming {
-  background: rgba(251, 191, 36, 0.2);
-  color: var(--accent-yellow);
+  background: rgba(202, 138, 4, 0.1);
+  color: var(--warning);
 }
 
 .tool-status-canceled {
-  background: rgba(156, 163, 175, 0.2);
-  color: var(--text-muted);
+  background: #E5E7EB;
+  color: var(--text-subtle);
 }
 
 .tool-description {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   margin-left: 24px; /* Align with tool name after status indicator */
 }
 
@@ -369,14 +378,14 @@ body {
 }
 
 .tool-output-text {
-  background: var(--tertiary-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--text);
   white-space: pre-wrap;
   overflow-x: auto;
   max-height: 200px;
@@ -384,27 +393,27 @@ body {
 }
 
 .tool-output-diff {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .diff-filename {
-  background: var(--secondary-bg);
+  background: var(--surface-alt);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
+  color: var(--text-subtle);
+  border-bottom: 1px solid var(--border);
 }
 
 .diff-content {
-  background: var(--tertiary-bg);
+  background: var(--surface);
   padding: 8px 12px;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-primary);
+  color: var(--text);
   white-space: pre-wrap;
   overflow-x: auto;
   max-height: 300px;
@@ -413,14 +422,14 @@ body {
 }
 
 .tool-output-object {
-  background: var(--tertiary-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   white-space: pre-wrap;
   overflow-x: auto;
   max-height: 150px;
@@ -433,13 +442,13 @@ body {
   display: grid;
   gap: 4px;
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
 }
 
 /* Footer with Input Section */
 .footer {
-  background: var(--secondary-bg);
-  border-top: 1px solid var(--border-color);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -456,12 +465,12 @@ body {
 
 #message-input {
   flex: 1;
-  background: var(--tertiary-bg);
-  border: 1px solid var(--border-color);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px 16px;
-  color: var(--text-primary);
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: var(--text);
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 14px;
   line-height: 1.4;
   resize: none;
@@ -473,8 +482,8 @@ body {
 
 #message-input:focus {
   outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.2);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2);
 }
 
 #message-input:disabled {
@@ -483,11 +492,11 @@ body {
 }
 
 #message-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-subtle);
 }
 
 #send-button {
-  background: var(--accent-blue);
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: var(--radius);
@@ -500,7 +509,7 @@ body {
 }
 
 #send-button:hover:not(:disabled) {
-  background: #1a5fc7;
+  background: #0E6862;
   transform: translateY(-1px);
 }
 
@@ -509,7 +518,7 @@ body {
 }
 
 #send-button:disabled {
-  background: var(--text-muted);
+  background: var(--text-subtle);
   cursor: not-allowed;
   transform: none;
 }
@@ -517,7 +526,7 @@ body {
 .input-status {
   text-align: center;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-subtle);
 }
 
 
@@ -527,16 +536,16 @@ body {
 }
 
 .messages-container::-webkit-scrollbar-track {
-  background: var(--primary-bg);
+  background: var(--bg);
 }
 
 .messages-container::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: var(--border);
   border-radius: 3px;
 }
 
 .messages-container::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--text-subtle);
 }
 
 /* Responsive Design */
@@ -572,22 +581,27 @@ body {
 
 /* Focus and hover states */
 .message-bubble:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   transform: translateY(-1px);
   transition: all 0.2s ease;
 }
 
 /* Selection styling */
 ::selection {
-  background: var(--accent-blue);
+  background: var(--primary);
   color: white;
+}
+
+.message-user .message-bubble::selection {
+    background: white;
+    color: black;
 }
 
 /* Footer Information Styling */
 .footer-info {
-  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'Courier New', monospace;
+  font-family: 'Roboto Mono', 'Fira Code', 'Monaco', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-subtle);
   font-weight: 400;
   word-spacing: 0.1em;
   line-height: 1.2;
@@ -599,10 +613,10 @@ body {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(36, 42, 48, 0.95);
+  background: var(--surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px 20px;
   margin-bottom: 16px;
@@ -611,27 +625,9 @@ body {
   gap: 12px;
   min-width: 280px;
   max-width: 90%;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
   animation: floatIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 1000;
-}
-
-.loading-indicator::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, 
-    rgba(139, 92, 246, 0.1) 0%, 
-    rgba(139, 92, 246, 0.05) 50%, 
-    rgba(139, 92, 246, 0.1) 100%);
-  border-radius: 12px;
-  pointer-events: none;
 }
 
 .loading-indicator.hidden {
@@ -682,10 +678,10 @@ body {
 
 /* Modern spinner with gradient */
 .loading-spinner {
-  color: var(--accent-purple);
+  color: var(--primary);
   font-size: 16px;
   animation: modernSpin 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.3));
+  filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.3));
   position: relative;
   z-index: 1;
 }
@@ -693,37 +689,36 @@ body {
 @keyframes modernSpin {
   from { 
     transform: rotate(0deg);
-    filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.3));
+    filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.3));
   }
   to { 
     transform: rotate(360deg);
-    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4));
+    filter: drop-shadow(0 0 8px rgba(15, 118, 110, 0.4));
   }
 }
 
 /* Enhanced text styling */
 .loading-text {
-  color: var(--text-primary);
+  color: var(--text);
   font-weight: 500;
   font-size: 14px;
   flex: 1;
   position: relative;
   z-index: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   line-height: 1.4;
 }
 
 .loading-time {
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
   font-weight: 500;
   position: relative;
   z-index: 1;
-  background: rgba(139, 92, 246, 0.1);
+  background: var(--surface-alt);
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid var(--border);
 }
 
 /* Input container positioning for floating effect */
@@ -757,12 +752,16 @@ body {
 
 .input-status {
   padding: 4px 0;
-  border-top: 1px solid var(--border-color);
-  background: var(--primary-bg);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
   min-height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.input-status.error {
+  color: var(--error);
 }
 
 /* Responsive footer info */
