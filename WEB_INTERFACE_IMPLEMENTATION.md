@@ -108,6 +108,64 @@ packages/cli/src/services/
 - Displays thinking messages, elapsed time, and animated spinner
 - Smooth slide-in/slide-out animations with professional styling
 
+### **7. Tool Execution Integration System**
+```
+packages/cli/src/ui/hooks/
+├── useGeminiStream.ts               # Enhanced with pending tool broadcasting
+├── useReactToolScheduler.ts         # Tool state management and mapping
+packages/cli/src/services/
+└── WebInterfaceService.ts           # Extended with pending item broadcasting
+packages/web-client/src/
+└── client.js                        # Enhanced tool rendering and state transitions
+```
+
+**Features:**
+- Real-time tool execution state broadcasting (scheduled → executing → completed/error/canceled)
+- Separate handling for pending vs final tool states
+- Comprehensive tool output display for all execution states
+- Visual distinction for different tool statuses with status indicators
+- Smart state transitions from pending to final tool groups
+- Error and canceled tool output display with fallback messages
+
+### **8. Real-time Pending Item System**
+```
+CLI Pending Items:
+- AI Text Responses → pendingHistoryItemRef → broadcastPendingItem() → Web Client
+- Tool Executions → pendingToolCallGroupDisplay → broadcastPendingItem() → Web Client
+
+Web Client Handling:
+- pending_item → updatePendingItem() → updatePendingTextMessage() | updatePendingToolGroup()
+- history_item → addHistoryItem() → Convert .message-pending-* to final message
+```
+
+**Features:**
+- Instant display of streaming AI responses and tool executions
+- Real-time tool status updates during execution
+- Seamless conversion from pending to final states
+- No delay between CLI and web interface for any content type
+
+### **9. Keyboard Shortcut System**
+```
+packages/web-client/src/
+└── client.js                        # KeyboardShortcutManager implementation
+packages/cli/src/ui/hooks/
+├── useGeminiStream.ts               # triggerAbort method exposure
+packages/cli/src/services/
+└── WebInterfaceService.ts           # Interrupt handling via WebSocket
+```
+
+**Features:**
+- **ESC Key Interruption**: Press ESC during AI processing to cancel request
+- **State-aware Activation**: Shortcuts only active during appropriate states
+- **Same Mechanism as CLI**: Uses identical abort handler as CLI ESC key
+- **Extensible Architecture**: Ready for future shortcuts (Ctrl+C, Ctrl+S, etc.)
+- **Visual Feedback**: Shows "press ESC to cancel" text matching CLI exactly
+
+**Message Flow:**
+```
+Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: Request cancelled
+```
+
 ---
 
 ## 🎨 User Experience Design
@@ -128,7 +186,26 @@ packages/cli/src/services/
 - **Animations**: Smooth slide-in effects for new messages and loading states
 - **Layout**: Chat bubble design with proper visual hierarchy
 - **Loading States**: Purple-themed loading indicator with spinner animation
+- **Tool States**: Visual status indicators for different execution states
 - **Responsive**: Mobile-friendly with adaptive layouts
+
+### **Tool Status Visual Design**
+| Tool Status | Indicator | Color | Description |
+|-------------|-----------|-------|-------------|
+| **Pending** | `o` | Gray | Tool scheduled but not started |
+| **Executing** | `⊷` | Purple | Tool currently running |
+| **Success** | `✔` | Green | Tool completed successfully |
+| **Error** | `✗` | Red | Tool failed with error |
+| **Canceled** | `-` | Orange | Tool execution was canceled |
+| **Confirming** | `?` | Yellow | Tool awaiting user confirmation |
+
+### **Tool Output Handling**
+- **Success States**: Display `resultDisplay` content with syntax highlighting
+- **Error States**: Show error messages with fallback "Tool execution failed"
+- **Canceled States**: Display cancellation info with fallback "Tool execution was canceled"
+- **Live Execution**: Real-time output streaming during tool execution
+- **JSON Results**: Formatted display for structured tool responses
+- **File Diffs**: Special rendering for file modification tools
 
 ### **Loading State Visual Design**
 - **Location**: Above input area for optimal visibility
@@ -147,6 +224,8 @@ packages/cli/src/services/
 CLI Message → useHistoryManager.addItem() → webInterface.broadcastMessage() → WebSocket → Web Client
 CLI Footer → Footer.tsx → FooterContext → webInterface.broadcastFooterData() → WebSocket → Web Client Footer
 CLI Loading → LoadingIndicator.tsx → LoadingStateContext → webInterface.broadcastLoadingState() → WebSocket → Web Client Loading UI
+CLI Pending Text → useGeminiStream.pendingHistoryItemRef → webInterface.broadcastPendingItem() → WebSocket → Web Client Pending Text
+CLI Pending Tools → useGeminiStream.pendingToolCallGroupDisplay → webInterface.broadcastPendingItem() → WebSocket → Web Client Pending Tools
 History Sync → useHistoryManager.history → webInterface.setCurrentHistory() → WebSocket (on connect) → Web Client History Display
 ```
 
@@ -182,14 +261,17 @@ auditaria --web
 
 ### **Features in Action**
 1. **Real-time Messaging**: Type in CLI → appears instantly on web
-2. **Message Distinction**: Different colors/alignment for user vs AI vs system
-3. **Tool Visualization**: Tool execution shown with status indicators
-4. **Connection Status**: Live connection indicator with client count
-5. **Auto-scroll**: Messages automatically scroll to bottom
-6. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
-7. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
-8. **Conversation History Loading**: When opening web interface, displays all previous conversation history
-9. **Responsive**: Works on desktop and mobile browsers
+2. **Message Distinction**: Different colors/alignment for user vs AI vs system vs tools
+3. **Tool Visualization**: Real-time tool execution with status indicators and output display
+4. **Tool State Transitions**: Watch tools progress from Pending → Executing → Success/Error/Canceled
+5. **Tool Output Display**: Comprehensive output for all tool states including errors and cancellations
+6. **ESC Key Interruption**: Press ESC during AI/tool processing to cancel operations
+7. **Connection Status**: Live connection indicator with client count
+8. **Auto-scroll**: Messages automatically scroll to bottom
+9. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
+10. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
+11. **Conversation History Loading**: When opening web interface, displays all previous conversation history
+12. **Responsive**: Works on desktop and mobile browsers
 
 ---
 
@@ -198,7 +280,11 @@ auditaria --web
 ### **Completed Tests**
 - ✅ Server startup and shutdown
 - ✅ WebSocket connection and messaging
-- ✅ Message type rendering
+- ✅ Message type rendering (user, AI, system, tools, errors)
+- ✅ Tool execution real-time display and state transitions
+- ✅ Tool output rendering for all states (success, error, canceled, executing)
+- ✅ ESC key interruption functionality matching CLI behavior
+- ✅ Pending item broadcasting (AI responses and tool executions)
 - ✅ Auto-reconnection functionality
 - ✅ Responsive design
 - ✅ Error handling and edge cases
@@ -206,6 +292,8 @@ auditaria --web
 - ✅ Loading state display and animations
 - ✅ Conversation history loading and synchronization
 - ✅ Infinite loop prevention and performance optimization
+- ✅ Keyboard shortcut system extensibility
+- ✅ Tool state conversion from pending to final
 
 ### **Browser Compatibility**
 - ✅ Chrome/Chromium
@@ -367,6 +455,10 @@ During footer integration implementation, we encountered a severe infinite loop 
 | CLI Integration | ✅ Complete | --web flag + message hooks |
 | Footer Integration | ✅ Complete | Real-time CLI footer in web interface |
 | Loading State Integration | ✅ Complete | Real-time AI thinking states in web interface |
+| Tool Execution Integration | ✅ Complete | Real-time tool state broadcasting and display |
+| Tool Output Display | ✅ Complete | Comprehensive output for all tool states |
+| ESC Key Interruption | ✅ Complete | Keyboard shortcut system with CLI parity |
+| Pending Item Broadcasting | ✅ Complete | Instant AI and tool response streaming |
 | History Synchronization | ✅ Complete | Full conversation history loading on connection |
 | Build Process | ✅ Complete | Asset copying automated |
 | Performance Optimization | ✅ Complete | Infinite loop prevention, debug cleanup |
@@ -380,7 +472,11 @@ During footer integration implementation, we encountered a severe infinite loop 
 
 - ✅ `auditaria --web` starts CLI with web interface available
 - ✅ Real-time message display in web browser  
-- ✅ Visual distinction between user, AI, and command messages
+- ✅ Visual distinction between user, AI, system, and tool messages
+- ✅ **Tool Execution Real-time Display**: Tools appear instantly and update states in real-time
+- ✅ **Tool Output Comprehensive Display**: All tool states (success, error, canceled) show outputs
+- ✅ **ESC Key Interruption**: Press ESC in web to cancel AI/tool operations like CLI
+- ✅ **Pending Item Broadcasting**: Instant streaming of AI responses and tool executions
 - ✅ Professional, sober, and beautiful design
 - ✅ No additional setup required beyond `npm install -g`
 - ✅ Minimal changes to existing CLI codebase
@@ -389,6 +485,7 @@ During footer integration implementation, we encountered a severe infinite loop 
 - ✅ **Loading State Integration**: Web interface shows AI thinking states with animated indicators
 - ✅ **Conversation History Loading**: Web interface displays all previous conversation history when connecting
 - ✅ **Performance Optimized**: No infinite loops, clean console output
+- ✅ **Keyboard Shortcut Extensibility**: Ready for future Ctrl+C, Ctrl+S shortcuts
 - ✅ Foundation ready for future bidirectional communication
 
 ### **🎯 Latest Enhancements: Complete CLI Integration**
@@ -431,11 +528,39 @@ The web interface now loads complete conversation history when connecting:
 3. Web interface immediately displays all previous conversation history
 4. Continue conversation seamlessly with new messages appearing in real-time
 
+#### **Tool Execution Integration**
+The web interface now provides complete tool execution integration:
+- **Real-time Tool Broadcasting**: Tools appear instantly when called and update states in real-time
+- **Comprehensive State Support**: Handles all tool states (Pending → Executing → Success/Error/Canceled)
+- **Output Display for All States**: Shows tool outputs for success, error, canceled, and live execution
+- **Visual Status Indicators**: Clear status icons and color coding for different tool states
+- **Seamless State Transitions**: Smooth conversion from pending tools to final completed tools
+- **Debug Logging**: Comprehensive logging for troubleshooting tool state issues
+
+**Tool Flow:**
+1. AI calls tool → Web shows "Pending" instantly
+2. Tool starts → Web updates to "Executing" with live output
+3. Tool completes → Web shows final state with complete output
+4. Error handling → Web displays error messages with appropriate fallbacks
+
+#### **ESC Key Interruption System**
+The web interface now supports keyboard interruption matching CLI behavior:
+- **ESC Key Cancellation**: Press ESC during AI/tool processing to cancel operations
+- **State-aware Activation**: Shortcuts only active during appropriate states (loading)
+- **Same Mechanism as CLI**: Uses identical abort handler as CLI ESC key
+- **Visual Feedback**: Shows "press ESC to cancel" text matching CLI exactly
+- **Extensible Architecture**: Ready for future shortcuts (Ctrl+C, Ctrl+S, etc.)
+
+**Interruption Flow:**
+```
+Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: Request cancelled
+```
+
 #### **Technical Excellence**
 - **Zero Infinite Loops**: Robust React context management with stable dependencies
 - **Clean Console Output**: No debug spam, production-ready logging
-- **Minimal Code Invasion**: Added 6 new files, modified 17 existing files
+- **Minimal Code Invasion**: Enhanced 5 existing files, added comprehensive tool support
 - **Performance Optimized**: <10ms latency for real-time updates
-- **History Sync Architecture**: Efficient message synchronization on connection
+- **Complete Real-time Parity**: Web interface matches CLI behavior exactly for all features
 
-**The Auditaria CLI Web Interface with complete CLI Footer, Loading State, and Conversation History Integration is production-ready and successfully delivers on all requirements with professional polish.**
+**The Auditaria CLI Web Interface with complete Tool Execution, ESC Key Interruption, and Real-time State Broadcasting is production-ready and successfully delivers on all requirements with professional polish.**
