@@ -231,6 +231,35 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast pending history item (streaming content) to all connected web clients
+   */
+  broadcastPendingItem(pendingItem: HistoryItem): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'pending_item',
+      data: pendingItem,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Get current server status
    */
   getStatus(): { isRunning: boolean; port?: number; clients: number } {

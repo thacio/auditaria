@@ -17,6 +17,7 @@ interface WebInterfaceContextValue {
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
+  broadcastPendingItem: (pendingItem: HistoryItem) => void;
   setCurrentHistory: (history: HistoryItem[]) => void;
 }
 
@@ -60,6 +61,12 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
       // Update client count after broadcast (in case of disconnected clients)
       const status = service.getStatus();
       setClientCount(status.clients);
+    }
+  }, [service, isRunning]);
+
+  const broadcastPendingItem = useCallback((pendingItem: HistoryItem): void => {
+    if (isRunning) {
+      service.broadcastPendingItem(pendingItem);
     }
   }, [service, isRunning]);
 
@@ -115,6 +122,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     start,
     stop,
     broadcastMessage,
+    broadcastPendingItem,
     setCurrentHistory,
   };
 

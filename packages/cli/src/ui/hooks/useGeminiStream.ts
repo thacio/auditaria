@@ -56,6 +56,7 @@ import {
   TrackedCancelledToolCall,
 } from './useReactToolScheduler.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
+import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 
 export function mergePartListUnions(list: PartListUnion[]): PartListUnion {
   const resultParts: PartListUnion = [];
@@ -106,12 +107,26 @@ export const useGeminiStream = (
   const processedMemoryToolsRef = useRef<Set<string>>(new Set());
   const { startNewPrompt, getPromptCount } = useSessionStats();
   const logger = useLogger();
+  const webInterface = useWebInterface();
   const gitService = useMemo(() => {
     if (!config.getProjectRoot()) {
       return;
     }
     return new GitService(config.getProjectRoot());
   }, [config]);
+
+  // Broadcast pending items to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingHistoryItemRef.current) {
+      // Create a proper HistoryItem with an ID for broadcasting
+      const pendingItemWithId: HistoryItem = {
+        ...pendingHistoryItemRef.current,
+        id: -1, // Temporary ID for pending items
+      } as HistoryItem;
+      
+      webInterface.broadcastPendingItem(pendingItemWithId);
+    }
+  }, [pendingHistoryItemRef.current, webInterface]);
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(

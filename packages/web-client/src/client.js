@@ -175,6 +175,9 @@ class AuditariaWebClient {
             case 'history_item':
                 this.addHistoryItem(message.data);
                 break;
+            case 'pending_item':
+                this.updatePendingItem(message.data);
+                break;
             case 'footer_data':
                 this.updateFooter(message.data);
                 break;
@@ -196,21 +199,85 @@ class AuditariaWebClient {
     }
     
     addHistoryItem(historyItem) {
-        const messageEl = this.createChatMessage(
-            historyItem.type,
-            this.getMessageTypeLabel(historyItem.type),
-            this.getMessageContent(historyItem),
-            historyItem
-        );
+        // Check if this is converting a pending message to final
+        const pendingMessageEl = this.messagesContainer.querySelector('.message-pending');
         
-        this.messagesContainer.appendChild(messageEl);
-        this.messageCount++;
-        this.updateMessageCount();
+        if (pendingMessageEl && (historyItem.type === 'gemini' || historyItem.type === 'gemini_content')) {
+            // Convert pending message to final message
+            pendingMessageEl.classList.remove('message-pending');
+            
+            // Update content to final version
+            const contentEl = pendingMessageEl.querySelector('.message-content');
+            if (contentEl) {
+                contentEl.textContent = this.getMessageContent(historyItem);
+            }
+            
+            // Update timestamp
+            const timestampEl = pendingMessageEl.querySelector('.message-timestamp');
+            if (timestampEl) {
+                const timestamp = new Date().toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                timestampEl.textContent = timestamp;
+            }
+            
+            this.messageCount++;
+            this.updateMessageCount();
+            this.scrollToBottom();
+        } else {
+            // Regular new message
+            const messageEl = this.createChatMessage(
+                historyItem.type,
+                this.getMessageTypeLabel(historyItem.type),
+                this.getMessageContent(historyItem),
+                historyItem
+            );
+            
+            this.messagesContainer.appendChild(messageEl);
+            this.messageCount++;
+            this.updateMessageCount();
+            this.scrollToBottom();
+        }
+    }
+    
+    updatePendingItem(pendingItem) {
+        // Find existing pending message element or create new one
+        let pendingMessageEl = this.messagesContainer.querySelector('.message-pending');
+        
+        if (!pendingMessageEl) {
+            // Create new pending message element
+            pendingMessageEl = this.createChatMessage(
+                pendingItem.type,
+                this.getMessageTypeLabel(pendingItem.type),
+                this.getMessageContent(pendingItem),
+                pendingItem
+            );
+            pendingMessageEl.classList.add('message-pending');
+            this.messagesContainer.appendChild(pendingMessageEl);
+        } else {
+            // Update existing pending message content
+            const contentEl = pendingMessageEl.querySelector('.message-content');
+            if (contentEl) {
+                contentEl.textContent = this.getMessageContent(pendingItem);
+            }
+            
+            // Update timestamp
+            const timestampEl = pendingMessageEl.querySelector('.message-timestamp');
+            if (timestampEl) {
+                const timestamp = new Date().toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                timestampEl.textContent = timestamp;
+            }
+        }
+        
         this.scrollToBottom();
     }
     
     loadHistoryItems(historyItems) {
-        // Clear welcome message when loading history
+        // Clear welcome message and any pending items when loading history
         this.messagesContainer.innerHTML = '';
         this.messageCount = 0;
         

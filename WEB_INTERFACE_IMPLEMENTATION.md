@@ -54,7 +54,7 @@ packages/cli/src/ui/hooks/
 
 ### **3. Web Client Interface**
 ```
-packages/web-client/dist/
+packages/web-client/src/
 ├── index.html                   # Main web interface
 ├── style.css                    # Professional GitHub-inspired theme
 └── client.js                    # WebSocket client with auto-reconnection
