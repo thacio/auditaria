@@ -982,6 +982,9 @@ class AuditariaWebClient {
     updateLoadingState(loadingState) {
         // Update internal loading state for keyboard shortcuts
         this.isLoading = loadingState.isLoading;
+
+        // Disable/enable send button only
+        this.sendButton.disabled = this.isLoading;
         
         if (loadingState.isLoading) {
             // Show loading indicator and enable keyboard shortcuts

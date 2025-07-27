@@ -519,7 +519,7 @@ body {
 
 #send-button:disabled {
   background: var(--text-subtle);
-  cursor: not-allowed;
+  cursor: default;
   transform: none;
 }
 
