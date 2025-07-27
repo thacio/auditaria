@@ -5,7 +5,7 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { shortenPath, tildeifyPath, tokenLimit } from '@thacio/auditaria-cli-core';
@@ -13,6 +13,7 @@ import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import Gradient from 'ink-gradient';
 import { MemoryUsageDisplay } from './MemoryUsageDisplay.js';
+import { useFooter } from '../contexts/FooterContext.js';
 
 interface FooterProps {
   model: string;
@@ -43,6 +44,42 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const limit = tokenLimit(model);
   const percentage = promptTokenCount / limit;
+  const footerContext = useFooter();
+
+  // Update footer data for web interface
+  useEffect(() => {
+    if (footerContext) {
+      // Determine sandbox status
+      let sandboxStatus = 'no sandbox';
+      if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
+        sandboxStatus = process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '');
+      } else if (process.env.SANDBOX === 'sandbox-exec') {
+        sandboxStatus = 'macOS Seatbelt';
+      }
+
+      const footerData = {
+        targetDir,
+        branchName,
+        model,
+        contextPercentage: (1 - percentage) * 100, // Remaining context percentage
+        sandboxStatus,
+        errorCount,
+        debugMode,
+        debugMessage,
+      };
+      
+      footerContext.updateFooterData(footerData);
+    }
+  }, [
+    model,
+    targetDir, 
+    branchName,
+    debugMode,
+    debugMessage,
+    errorCount,
+    percentage,
+    footerContext
+  ]);
 
   return (
     <Box marginTop={1} justifyContent="space-between" width="100%">

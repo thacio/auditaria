@@ -89,6 +89,7 @@ import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
 import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
 import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
+import { FooterProvider } from './contexts/FooterContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -104,7 +105,9 @@ export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <SubmitQueryProvider>
       <WebInterfaceProvider enabled={props.webEnabled}>
-        <App {...props} />
+        <FooterProvider>
+          <App {...props} />
+        </FooterProvider>
       </WebInterfaceProvider>
     </SubmitQueryProvider>
   </SessionStatsProvider>

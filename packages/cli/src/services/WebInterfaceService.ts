@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HistoryItem } from '../ui/types.js';
 import { t } from '@thacio/auditaria-cli-core';
+import type { FooterData } from '../ui/contexts/FooterContext.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,6 +158,35 @@ export class WebInterfaceService {
         try {
           client.send(message);
         } catch (_error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
+   * Broadcast footer data to all connected web clients
+   */
+  broadcastFooterData(footerData: FooterData): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'footer_data',
+      data: footerData,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
           // Remove failed client
           this.clients.delete(client);
         }
