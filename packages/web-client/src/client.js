@@ -199,6 +199,13 @@ class AuditariaWebClient {
     }
     
     addHistoryItem(historyItem) {
+        console.log('addHistoryItem called with:', {
+            type: historyItem.type,
+            hasTools: !!(historyItem.tools),
+            toolCount: historyItem.tools?.length,
+            toolStatuses: historyItem.tools?.map(t => ({ name: t.name, status: t.status }))
+        });
+        
         // Check if this is converting a pending message to final
         if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content') {
             const pendingTextEl = this.messagesContainer.querySelector('.message-pending-text');
@@ -229,7 +236,9 @@ class AuditariaWebClient {
             }
         } else if (historyItem.type === 'tool_group') {
             const pendingToolEl = this.messagesContainer.querySelector('.message-pending-tools');
+            console.log('Tool group conversion - found pending element:', !!pendingToolEl);
             if (pendingToolEl) {
+                console.log('Converting pending tool group to final with tools:', historyItem.tools?.map(t => ({ name: t.name, status: t.status })));
                 // Convert pending tool group to final tool group
                 pendingToolEl.classList.remove('message-pending-tools');
                 
@@ -480,6 +489,19 @@ class AuditariaWebClient {
         const toolListEl = document.createElement('div');
         toolListEl.className = 'tool-list';
         
+        // Debug logging for tool outputs
+        console.log('Rendering tool group:', tools.map(t => ({ 
+            name: t.name, 
+            status: t.status, 
+            hasResultDisplay: !!t.resultDisplay,
+            resultDisplayType: typeof t.resultDisplay,
+            resultDisplayPreview: typeof t.resultDisplay === 'string' ? t.resultDisplay.substring(0, 100) : t.resultDisplay,
+            fullResultDisplay: t.resultDisplay
+        })));
+        
+        // Additional logging for debugging state transitions
+        console.log('Tool group debug - complete tool objects:', tools);
+        
         tools.forEach(tool => {
             const toolItemEl = document.createElement('div');
             toolItemEl.className = 'tool-item';
@@ -514,38 +536,58 @@ class AuditariaWebClient {
             }
             
             // Tool output/result display
-            if (tool.resultDisplay) {
+            console.log(`Tool ${tool.name} (${tool.status}): resultDisplay =`, tool.resultDisplay);
+            
+            // Show output for tools with resultDisplay OR for error/canceled states with messages
+            const shouldShowOutput = tool.resultDisplay || 
+                                   (tool.status === 'Error' || tool.status === 'Canceled') ||
+                                   (tool.status === 'Executing' && tool.liveOutput);
+            
+            if (shouldShowOutput) {
+                console.log(`Rendering output for ${tool.name} with status ${tool.status}`);
                 const toolOutputEl = document.createElement('div');
                 toolOutputEl.className = 'tool-output';
                 
-                if (typeof tool.resultDisplay === 'string') {
+                // Determine what content to display
+                let outputContent = tool.resultDisplay;
+                if (!outputContent && tool.status === 'Error') {
+                    outputContent = 'Tool execution failed';
+                }
+                if (!outputContent && tool.status === 'Canceled') {
+                    outputContent = 'Tool execution was canceled';
+                }
+                if (!outputContent && tool.status === 'Executing' && tool.liveOutput) {
+                    outputContent = tool.liveOutput;
+                }
+                
+                if (typeof outputContent === 'string') {
                     // Handle string output (most common case)
-                    if (tool.name === 'TodoWrite' && this.isTodoWriteResult(tool.resultDisplay)) {
+                    if (tool.name === 'TodoWrite' && this.isTodoWriteResult(outputContent)) {
                         // Special handling for TodoWrite - could be enhanced later
-                        toolOutputEl.textContent = tool.resultDisplay;
+                        toolOutputEl.textContent = outputContent;
                     } else {
                         // Regular text output - preserve formatting
                         const outputPreEl = document.createElement('pre');
                         outputPreEl.className = 'tool-output-text';
-                        outputPreEl.textContent = tool.resultDisplay;
+                        outputPreEl.textContent = outputContent;
                         toolOutputEl.appendChild(outputPreEl);
                     }
-                } else if (tool.resultDisplay && typeof tool.resultDisplay === 'object') {
+                } else if (outputContent && typeof outputContent === 'object') {
                     // Handle diff/file output
-                    if (tool.resultDisplay.fileDiff) {
+                    if (outputContent.fileDiff) {
                         const diffEl = document.createElement('div');
                         diffEl.className = 'tool-output-diff';
                         
-                        if (tool.resultDisplay.fileName) {
+                        if (outputContent.fileName) {
                             const fileNameEl = document.createElement('div');
                             fileNameEl.className = 'diff-filename';
-                            fileNameEl.textContent = `File: ${tool.resultDisplay.fileName}`;
+                            fileNameEl.textContent = `File: ${outputContent.fileName}`;
                             diffEl.appendChild(fileNameEl);
                         }
                         
                         const diffContentEl = document.createElement('pre');
                         diffContentEl.className = 'diff-content';
-                        diffContentEl.textContent = tool.resultDisplay.fileDiff;
+                        diffContentEl.textContent = outputContent.fileDiff;
                         diffEl.appendChild(diffContentEl);
                         
                         toolOutputEl.appendChild(diffEl);
@@ -553,9 +595,15 @@ class AuditariaWebClient {
                         // Fallback for other object types
                         const objOutputEl = document.createElement('pre');
                         objOutputEl.className = 'tool-output-object';
-                        objOutputEl.textContent = JSON.stringify(tool.resultDisplay, null, 2);
+                        objOutputEl.textContent = JSON.stringify(outputContent, null, 2);
                         toolOutputEl.appendChild(objOutputEl);
                     }
+                } else if (!outputContent) {
+                    // Fallback for when we want to show output but have no content
+                    const fallbackEl = document.createElement('div');
+                    fallbackEl.className = 'tool-output-fallback';
+                    fallbackEl.textContent = 'No output available';
+                    toolOutputEl.appendChild(fallbackEl);
                 }
                 
                 toolItemEl.appendChild(toolOutputEl);
