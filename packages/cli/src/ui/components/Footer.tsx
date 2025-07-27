@@ -66,6 +66,10 @@ export const Footer: React.FC<FooterProps> = ({
         errorCount,
         debugMode,
         debugMessage,
+        corgiMode,
+        showMemoryUsage: !!showMemoryUsage,
+        nightly,
+        showErrorDetails,
       };
       
       footerContext.updateFooterData(footerData);
@@ -78,6 +82,10 @@ export const Footer: React.FC<FooterProps> = ({
     debugMessage,
     errorCount,
     percentage,
+    corgiMode,
+    showMemoryUsage,
+    nightly,
+    showErrorDetails,
     footerContext
   ]);
 

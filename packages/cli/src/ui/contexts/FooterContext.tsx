@@ -16,6 +16,10 @@ export interface FooterData {
   errorCount: number;
   debugMode: boolean;
   debugMessage?: string;
+  corgiMode: boolean;
+  showMemoryUsage: boolean;
+  nightly: boolean;
+  showErrorDetails: boolean;
 }
 
 interface FooterContextValue {
