@@ -30,6 +30,7 @@ export class WebInterfaceService {
   private isRunning = false;
   private port?: number;
   private submitQueryHandler?: (query: string) => void;
+  private abortHandler?: () => void;
   private currentHistory: HistoryItem[] = [];
 
   /**
@@ -248,6 +249,13 @@ export class WebInterfaceService {
   }
 
   /**
+   * Set the handler for aborting current AI processing from web interface
+   */
+  setAbortHandler(handler: () => void): void {
+    this.abortHandler = handler;
+  }
+
+  /**
    * Set the current history for new clients
    */
   setCurrentHistory(history: HistoryItem[]): void {
@@ -263,6 +271,8 @@ export class WebInterfaceService {
       if (query) {
         this.submitQueryHandler(query);
       }
+    } else if (message.type === 'interrupt_request' && this.abortHandler) {
+      this.abortHandler();
     }
   }
 

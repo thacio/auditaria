@@ -1,3 +1,77 @@
+/**
+ * Extensible keyboard shortcut manager for future shortcuts like Ctrl+C, Ctrl+S, etc.
+ */
+class KeyboardShortcutManager {
+    constructor(client) {
+        this.client = client;
+        this.shortcuts = new Map();
+        this.isEnabled = false;
+        this.setupGlobalListener();
+    }
+    
+    /**
+     * Register a keyboard shortcut
+     * @param {string} key - The key code (e.g., 'Escape', 'KeyS')
+     * @param {function} callback - Function to call when shortcut is pressed
+     * @param {object} modifiers - Optional modifiers like { ctrl: true, shift: true }
+     */
+    register(key, callback, modifiers = {}) {
+        const shortcutKey = this.createShortcutKey(key, modifiers);
+        this.shortcuts.set(shortcutKey, callback);
+    }
+    
+    /**
+     * Create a unique key for the shortcut map
+     */
+    createShortcutKey(key, modifiers) {
+        const parts = [];
+        if (modifiers.ctrl) parts.push('ctrl');
+        if (modifiers.shift) parts.push('shift');
+        if (modifiers.alt) parts.push('alt');
+        if (modifiers.meta) parts.push('meta');
+        parts.push(key);
+        return parts.join('+');
+    }
+    
+    /**
+     * Enable keyboard shortcuts (only when appropriate)
+     */
+    enable() {
+        this.isEnabled = true;
+    }
+    
+    /**
+     * Disable keyboard shortcuts
+     */
+    disable() {
+        this.isEnabled = false;
+    }
+    
+    /**
+     * Set up global keyboard listener
+     */
+    setupGlobalListener() {
+        document.addEventListener('keydown', (event) => {
+            if (!this.isEnabled) return;
+            
+            const modifiers = {
+                ctrl: event.ctrlKey,
+                shift: event.shiftKey,
+                alt: event.altKey,
+                meta: event.metaKey
+            };
+            
+            const shortcutKey = this.createShortcutKey(event.code, modifiers);
+            const callback = this.shortcuts.get(shortcutKey);
+            
+            if (callback) {
+                event.preventDefault();
+                callback(event);
+            }
+        });
+    }
+}
+
 class AuditariaWebClient {
     constructor() {
         this.socket = null;
@@ -7,8 +81,10 @@ class AuditariaWebClient {
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 2000;
         this.hasFooterData = false;
+        this.isLoading = false;
         
         this.initializeUI();
+        this.setupKeyboardShortcuts();
         this.connect();
     }
     
@@ -28,6 +104,22 @@ class AuditariaWebClient {
         
         // Set up input handlers
         this.setupInputHandlers();
+    }
+    
+    setupKeyboardShortcuts() {
+        // Initialize keyboard shortcut manager
+        this.shortcuts = new KeyboardShortcutManager(this);
+        
+        // Register ESC key for interrupting AI processing
+        this.shortcuts.register('Escape', () => {
+            if (this.isLoading && this.isConnected) {
+                this.sendInterruptRequest();
+            }
+        });
+        
+        // Future shortcuts can be added here easily:
+        // this.shortcuts.register('KeyS', () => { /* Save functionality */ }, { ctrl: true });
+        // this.shortcuts.register('KeyC', () => { /* Copy functionality */ }, { ctrl: true });
     }
     
     connect() {
@@ -391,6 +483,26 @@ class AuditariaWebClient {
         }
     }
     
+    sendInterruptRequest() {
+        if (!this.isConnected) {
+            console.warn('Cannot send interrupt request: not connected');
+            return;
+        }
+        
+        try {
+            // Send interrupt request to server
+            this.socket.send(JSON.stringify({
+                type: 'interrupt_request',
+                timestamp: Date.now()
+            }));
+            
+            console.log('Interrupt request sent');
+            
+        } catch (error) {
+            console.error('Failed to send interrupt request:', error);
+        }
+    }
+    
     updateInputState() {
         const isEnabled = this.isConnected;
         this.messageInput.disabled = !isEnabled;
@@ -467,12 +579,17 @@ class AuditariaWebClient {
     }
     
     updateLoadingState(loadingState) {
+        // Update internal loading state for keyboard shortcuts
+        this.isLoading = loadingState.isLoading;
+        
         if (loadingState.isLoading) {
-            // Show loading indicator
+            // Show loading indicator and enable keyboard shortcuts
             this.showLoadingIndicator(loadingState);
+            this.shortcuts.enable();
         } else {
-            // Hide loading indicator
+            // Hide loading indicator and disable keyboard shortcuts
             this.hideLoadingIndicator();
+            this.shortcuts.disable();
         }
     }
     
@@ -481,10 +598,10 @@ class AuditariaWebClient {
         const loadingMessage = loadingState.thought || loadingState.currentLoadingPhrase || 'Thinking...';
         this.loadingText.textContent = loadingMessage;
         
-        // Update elapsed time
+        // Update elapsed time with ESC cancel text (matching CLI format)
         const timeText = loadingState.elapsedTime < 60 
-            ? `(${loadingState.elapsedTime}s)` 
-            : `(${Math.floor(loadingState.elapsedTime / 60)}m ${loadingState.elapsedTime % 60}s)`;
+            ? `(esc to cancel, ${loadingState.elapsedTime}s)` 
+            : `(esc to cancel, ${Math.floor(loadingState.elapsedTime / 60)}m ${loadingState.elapsedTime % 60}s)`;
         this.loadingTime.textContent = timeText;
         
         // Show the loading indicator with animation

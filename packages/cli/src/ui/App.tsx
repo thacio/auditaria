@@ -87,7 +87,7 @@ import ansiEscapes from 'ansi-escapes';
 import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
-import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
+import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceContext.js';
 import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 import { FooterProvider } from './contexts/FooterContext.js';
 import { LoadingStateProvider } from './contexts/LoadingStateContext.js';
@@ -514,6 +514,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     initError,
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
+    triggerAbort,
   } = useGeminiStream(
     config.getGeminiClient(),
     history,
@@ -541,6 +542,14 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       registerSubmitQuery(submitQuery);
     }
   }, [submitQuery, registerSubmitQuery]);
+
+  // Register abort handler with web interface service
+  const webInterface = useWebInterface();
+  useEffect(() => {
+    if (webInterface?.service && triggerAbort) {
+      webInterface.service.setAbortHandler(triggerAbort);
+    }
+  }, [webInterface?.service, triggerAbort]);
 
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {

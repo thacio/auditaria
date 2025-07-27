@@ -939,11 +939,31 @@ export const useGeminiStream = (
     saveRestorableToolCalls();
   }, [toolCalls, config, onDebugMessage, gitService, history, geminiClient]);
 
+  const triggerAbort = useCallback(() => {
+    if (streamingState === StreamingState.Responding && !turnCancelledRef.current) {
+      turnCancelledRef.current = true;
+      abortControllerRef.current?.abort();
+      if (pendingHistoryItemRef.current) {
+        addItem(pendingHistoryItemRef.current, Date.now());
+      }
+      addItem(
+        {
+          type: MessageType.INFO,
+          text: t('gemini_stream.request_cancelled', 'Request cancelled.'),
+        },
+        Date.now(),
+      );
+      setPendingHistoryItem(null);
+      setIsResponding(false);
+    }
+  }, [streamingState, pendingHistoryItemRef, addItem, setPendingHistoryItem]);
+
   return {
     streamingState,
     submitQuery,
     initError,
     pendingHistoryItems,
     thought,
+    triggerAbort,
   };
 };
