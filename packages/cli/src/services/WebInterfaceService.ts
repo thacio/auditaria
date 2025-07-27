@@ -45,13 +45,16 @@ export class WebInterfaceService {
       this.app = express();
       
       // Serve static files from web-client directory
-      // In bundled version, files are in bundle/ directory
+      // The web client files are bundled with the CLI package
       const possiblePaths = [
-        path.resolve(__dirname, '../web-client'),            // Bundled path (bundle/web-client)
-        path.resolve(__dirname, '../../../web-client/src'), // Development path (src)
-        path.resolve(process.cwd(), 'packages/web-client/src'), // From project root (src)
-        path.resolve(process.cwd(), 'bundle/web-client'),    // Alternative bundled
-        path.resolve(process.cwd(), 'packages/web-client/dist'), // Legacy dist path
+        // For published package: web-client is in the same dist folder
+        path.resolve(__dirname, 'web-client'),
+        // For development: try bundle location first
+        path.resolve(__dirname, '../../../bundle/web-client'), 
+        // Development fallback: source files
+        path.resolve(__dirname, '../../../packages/web-client/src'),
+        // Legacy development paths
+        path.resolve(process.cwd(), 'packages/web-client/src'),
       ];
       
       let webClientPath = '';

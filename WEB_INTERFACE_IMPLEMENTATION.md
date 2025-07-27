@@ -401,10 +401,6 @@ The web interface footer now displays real-time CLI footer information:
 - **Error count** with keyboard shortcut hints
 - **Seamless updates** as CLI footer data changes
 
-**Example Footer Display:**
-```
-C:\projects\auditaria (feature/web-interface*) | no sandbox (see /docs) | gemini-2.5-flash (99% context left)
-```
 
 #### **Loading State Integration**
 The web interface now displays AI thinking/processing states above the input area:
