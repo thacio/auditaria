@@ -592,9 +592,9 @@ body {
   color: white;
 }
 
-.message-user .message-bubble::selection {
-    background: white;
-    color: black;
+.message-user .message-bubble .message-content span::selection {
+    background: white !important;
+    color: black !important;
 }
 
 /* Footer Information Styling */

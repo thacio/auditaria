@@ -450,7 +450,9 @@ class AuditariaWebClient {
         
         const contentEl = document.createElement('div');
         contentEl.className = 'message-content';
-        contentEl.textContent = content;
+        const textSpan = document.createElement('span');
+        textSpan.textContent = content;
+        contentEl.appendChild(textSpan);
         
         const timestampEl = document.createElement('div');
         timestampEl.className = 'message-timestamp';
