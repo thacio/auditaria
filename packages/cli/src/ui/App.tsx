@@ -90,6 +90,7 @@ import { PrivacyNotice } from './privacy/PrivacyNotice.js';
 import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
 import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 import { FooterProvider } from './contexts/FooterContext.js';
+import { LoadingStateProvider } from './contexts/LoadingStateContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -106,7 +107,9 @@ export const AppWrapper = (props: AppProps) => (
     <SubmitQueryProvider>
       <WebInterfaceProvider enabled={props.webEnabled}>
         <FooterProvider>
-          <App {...props} />
+          <LoadingStateProvider>
+            <App {...props} />
+          </LoadingStateProvider>
         </FooterProvider>
       </WebInterfaceProvider>
     </SubmitQueryProvider>

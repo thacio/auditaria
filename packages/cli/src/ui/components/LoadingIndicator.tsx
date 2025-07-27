@@ -6,13 +6,14 @@
 import { t } from '@thacio/auditaria-cli-core';
 
 import { ThoughtSummary } from '@thacio/auditaria-cli-core';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';
 import { StreamingState } from '../types.js';
 import { GeminiRespondingSpinner } from './GeminiRespondingSpinner.js';
 import { formatDuration } from '../utils/formatters.js';
+import { useLoadingState } from '../contexts/LoadingStateContext.js';
 
 interface LoadingIndicatorProps {
   currentLoadingPhrase?: string;
@@ -28,6 +29,22 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   thought,
 }) => {
   const streamingState = useStreamingContext();
+  const loadingStateContext = useLoadingState();
+
+  // Update loading state for web interface
+  useEffect(() => {
+    if (loadingStateContext) {
+      const loadingStateData = {
+        isLoading: streamingState !== StreamingState.Idle,
+        streamingState,
+        currentLoadingPhrase,
+        elapsedTime,
+        thought: thought?.subject || null,
+      };
+      
+      loadingStateContext.updateLoadingState(loadingStateData);
+    }
+  }, [streamingState, currentLoadingPhrase, elapsedTime, thought, loadingStateContext]);
 
   if (streamingState === StreamingState.Idle) {
     return null;
