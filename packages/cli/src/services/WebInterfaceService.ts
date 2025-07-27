@@ -236,7 +236,7 @@ export class WebInterfaceService {
   /**
    * Broadcast pending history item (streaming content) to all connected web clients
    */
-  broadcastPendingItem(pendingItem: HistoryItem): void {
+  broadcastPendingItem(pendingItem: HistoryItem | null): void {
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }

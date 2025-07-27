@@ -286,6 +286,13 @@ class AuditariaWebClient {
     }
     
     updatePendingItem(pendingItem) {
+        // Handle null pendingItem (means clear all pending items)
+        if (!pendingItem) {
+            this.clearPendingToolGroup();
+            this.clearPendingTextMessage();
+            return;
+        }
+        
         if (pendingItem.type === 'tool_group') {
             this.updatePendingToolGroup(pendingItem);
         } else {
@@ -376,6 +383,22 @@ class AuditariaWebClient {
         }
         
         this.scrollToBottom();
+    }
+    
+    clearPendingToolGroup() {
+        // Remove any existing pending tool group element
+        const pendingToolEl = this.messagesContainer.querySelector('.message-pending-tools');
+        if (pendingToolEl) {
+            pendingToolEl.remove();
+        }
+    }
+    
+    clearPendingTextMessage() {
+        // Remove any existing pending text message element
+        const pendingTextEl = this.messagesContainer.querySelector('.message-pending-text');
+        if (pendingTextEl) {
+            pendingTextEl.remove();
+        }
     }
     
     loadHistoryItems(historyItems) {

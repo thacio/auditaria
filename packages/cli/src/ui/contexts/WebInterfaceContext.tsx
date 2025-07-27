@@ -17,7 +17,7 @@ interface WebInterfaceContextValue {
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
-  broadcastPendingItem: (pendingItem: HistoryItem) => void;
+  broadcastPendingItem: (pendingItem: HistoryItem | null) => void;
   setCurrentHistory: (history: HistoryItem[]) => void;
 }
 
@@ -64,7 +64,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     }
   }, [service, isRunning]);
 
-  const broadcastPendingItem = useCallback((pendingItem: HistoryItem): void => {
+  const broadcastPendingItem = useCallback((pendingItem: HistoryItem | null): void => {
     if (isRunning) {
       service.broadcastPendingItem(pendingItem);
     }

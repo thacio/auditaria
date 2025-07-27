@@ -161,13 +161,26 @@ export const useGeminiStream = (
   // Broadcast pending tool calls to web interface when they change
   useEffect(() => {
     if (webInterface && pendingToolCallGroupDisplay) {
-      // Create a proper HistoryItem with an ID for broadcasting
-      const pendingToolItemWithId: HistoryItem = {
-        ...pendingToolCallGroupDisplay,
-        id: -2, // Temporary ID for pending tool calls (different from text responses)
-      } as HistoryItem;
+      // Only broadcast tools that are actually still pending/executing (not completed)
+      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(tool => 
+        tool.status === 'Pending' || 
+        tool.status === 'Executing' || 
+        tool.status === 'Confirming'
+      );
       
-      webInterface.broadcastPendingItem(pendingToolItemWithId);
+      // Only broadcast if there are actually pending tools
+      if (activePendingTools.length > 0) {
+        const pendingToolItemWithId: HistoryItem = {
+          ...pendingToolCallGroupDisplay,
+          tools: activePendingTools,
+          id: -2, // Temporary ID for pending tool calls (different from text responses)
+        } as HistoryItem;
+        
+        webInterface.broadcastPendingItem(pendingToolItemWithId);
+      } else {
+        // If no pending tools, broadcast null to clear any existing pending display
+        webInterface.broadcastPendingItem(null);
+      }
     }
   }, [pendingToolCallGroupDisplay, webInterface]);
 
