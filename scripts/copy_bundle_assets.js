@@ -59,7 +59,7 @@ for (const file of vsixFiles) {
 }
 
 // Copy web client files to bundle directory
-const webClientSrc = join(root, 'packages/web-client/dist');
+const webClientSrc = join(root, 'packages/web-client/src');
 const webClientDest = join(bundleDir, 'web-client');
 
 if (existsSync(webClientSrc)) {
@@ -67,7 +67,7 @@ if (existsSync(webClientSrc)) {
     mkdirSync(webClientDest, { recursive: true });
   }
   
-  // Copy all files from web-client/dist to bundle/web-client
+  // Copy all files from web-client/src to bundle/web-client
   const webClientFiles = glob.sync('**/*', { 
     cwd: webClientSrc,
     nodir: true 

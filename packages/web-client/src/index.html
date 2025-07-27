@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditaria CLI - Web Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>🛠️ Auditaria</h1>
+            <div class="status" id="status">
+                <span id="connection-status" class="status-disconnected">Disconnected</span>
+                <span id="message-count">0 messages</span>
+            </div>
+        </header>
+        
+        <main class="main">
+            <div id="messages" class="messages-container">
+                <div class="welcome-message">
+                    <h2>Welcome to Auditaria CLI Web Interface</h2>
+                    <p>Connecting to CLI session...</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <div class="input-section">
+                <div class="input-container">
+                    <!-- Loading Indicator - positioned relative to input container -->
+                    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                        <div class="loading-spinner">⠋</div>
+                        <div class="loading-text" id="loading-text">Thinking...</div>
+                        <div class="loading-time" id="loading-time">(0s)</div>
+                    </div>
+                    
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Type your message and press Enter to send (Shift+Enter for new line)..."
+                        rows="1"
+                        disabled
+                    ></textarea>
+                    <button id="send-button" disabled>Send</button>
+                </div>
+                <div class="input-status" id="input-status">
+                    <span>Connecting...</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <script src="client.js"></script>
+</body>
+</html>

@@ -47,9 +47,10 @@ export class WebInterfaceService {
       // In bundled version, files are in bundle/ directory
       const possiblePaths = [
         path.resolve(__dirname, '../web-client'),            // Bundled path (bundle/web-client)
-        path.resolve(__dirname, '../../../web-client/dist'), // Development path
-        path.resolve(process.cwd(), 'packages/web-client/dist'), // From project root
+        path.resolve(__dirname, '../../../web-client/src'), // Development path (src)
+        path.resolve(process.cwd(), 'packages/web-client/src'), // From project root (src)
         path.resolve(process.cwd(), 'bundle/web-client'),    // Alternative bundled
+        path.resolve(process.cwd(), 'packages/web-client/dist'), // Legacy dist path
       ];
       
       let webClientPath = '';

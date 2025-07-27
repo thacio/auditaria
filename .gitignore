@@ -28,6 +28,12 @@ Thumbs.db
 # Ignore built ts files
 dist
 
+# Exception: Allow web client source files to be tracked
+!packages/web-client/src/
+!packages/web-client/src/*.html
+!packages/web-client/src/*.css
+!packages/web-client/src/*.js
+
 # Docker folder to help skip auth refreshes
 .docker
 
