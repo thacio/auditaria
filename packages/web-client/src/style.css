@@ -296,13 +296,26 @@ body {
   border-radius: var(--radius-sm);
   font-size: 13px;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-header {
+  display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.tool-status-indicator {
+  font-size: 14px;
+  min-width: 16px;
+  text-align: center;
 }
 
 .tool-name {
   font-weight: 600;
   color: var(--accent-blue);
+  flex: 1;
 }
 
 .tool-status {
@@ -311,6 +324,7 @@ body {
   padding: 2px 6px;
   border-radius: 12px;
   font-weight: 500;
+  margin-left: auto;
 }
 
 .tool-status-success {
@@ -326,6 +340,91 @@ body {
 .tool-status-pending {
   background: rgba(251, 133, 0, 0.2);
   color: var(--accent-orange);
+}
+
+.tool-status-executing {
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--accent-purple);
+}
+
+.tool-status-confirming {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--accent-yellow);
+}
+
+.tool-status-canceled {
+  background: rgba(156, 163, 175, 0.2);
+  color: var(--text-muted);
+}
+
+.tool-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 24px; /* Align with tool name after status indicator */
+}
+
+.tool-output {
+  margin-left: 24px; /* Align with tool name after status indicator */
+  margin-top: 4px;
+}
+
+.tool-output-text {
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tool-output-diff {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.diff-filename {
+  background: var(--secondary-bg);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diff-content {
+  background: var(--tertiary-bg);
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.tool-output-object {
+  background: var(--tertiary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 150px;
+  overflow-y: auto;
 }
 
 /* About Info */

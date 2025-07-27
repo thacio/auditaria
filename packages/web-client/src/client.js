@@ -461,6 +461,14 @@ class AuditariaWebClient {
             const toolItemEl = document.createElement('div');
             toolItemEl.className = 'tool-item';
             
+            // Tool header with status indicator, name, and status text
+            const toolHeaderEl = document.createElement('div');
+            toolHeaderEl.className = 'tool-header';
+            
+            const toolStatusIndicatorEl = document.createElement('span');
+            toolStatusIndicatorEl.className = `tool-status-indicator tool-status-${tool.status.toLowerCase()}`;
+            toolStatusIndicatorEl.textContent = this.getToolStatusIndicator(tool.status);
+            
             const toolNameEl = document.createElement('span');
             toolNameEl.className = 'tool-name';
             toolNameEl.textContent = tool.name;
@@ -469,22 +477,88 @@ class AuditariaWebClient {
             toolStatusEl.className = `tool-status tool-status-${tool.status.toLowerCase()}`;
             toolStatusEl.textContent = tool.status;
             
-            toolItemEl.appendChild(toolNameEl);
-            toolItemEl.appendChild(toolStatusEl);
+            toolHeaderEl.appendChild(toolStatusIndicatorEl);
+            toolHeaderEl.appendChild(toolNameEl);
+            toolHeaderEl.appendChild(toolStatusEl);
+            toolItemEl.appendChild(toolHeaderEl);
             
+            // Tool description
             if (tool.description) {
                 const toolDescEl = document.createElement('div');
+                toolDescEl.className = 'tool-description';
                 toolDescEl.textContent = tool.description;
-                toolDescEl.style.fontSize = '12px';
-                toolDescEl.style.color = 'var(--text-secondary)';
-                toolDescEl.style.marginTop = '4px';
                 toolItemEl.appendChild(toolDescEl);
+            }
+            
+            // Tool output/result display
+            if (tool.resultDisplay) {
+                const toolOutputEl = document.createElement('div');
+                toolOutputEl.className = 'tool-output';
+                
+                if (typeof tool.resultDisplay === 'string') {
+                    // Handle string output (most common case)
+                    if (tool.name === 'TodoWrite' && this.isTodoWriteResult(tool.resultDisplay)) {
+                        // Special handling for TodoWrite - could be enhanced later
+                        toolOutputEl.textContent = tool.resultDisplay;
+                    } else {
+                        // Regular text output - preserve formatting
+                        const outputPreEl = document.createElement('pre');
+                        outputPreEl.className = 'tool-output-text';
+                        outputPreEl.textContent = tool.resultDisplay;
+                        toolOutputEl.appendChild(outputPreEl);
+                    }
+                } else if (tool.resultDisplay && typeof tool.resultDisplay === 'object') {
+                    // Handle diff/file output
+                    if (tool.resultDisplay.fileDiff) {
+                        const diffEl = document.createElement('div');
+                        diffEl.className = 'tool-output-diff';
+                        
+                        if (tool.resultDisplay.fileName) {
+                            const fileNameEl = document.createElement('div');
+                            fileNameEl.className = 'diff-filename';
+                            fileNameEl.textContent = `File: ${tool.resultDisplay.fileName}`;
+                            diffEl.appendChild(fileNameEl);
+                        }
+                        
+                        const diffContentEl = document.createElement('pre');
+                        diffContentEl.className = 'diff-content';
+                        diffContentEl.textContent = tool.resultDisplay.fileDiff;
+                        diffEl.appendChild(diffContentEl);
+                        
+                        toolOutputEl.appendChild(diffEl);
+                    } else {
+                        // Fallback for other object types
+                        const objOutputEl = document.createElement('pre');
+                        objOutputEl.className = 'tool-output-object';
+                        objOutputEl.textContent = JSON.stringify(tool.resultDisplay, null, 2);
+                        toolOutputEl.appendChild(objOutputEl);
+                    }
+                }
+                
+                toolItemEl.appendChild(toolOutputEl);
             }
             
             toolListEl.appendChild(toolItemEl);
         });
         
         return toolListEl;
+    }
+    
+    getToolStatusIndicator(status) {
+        switch (status) {
+            case 'Pending': return 'o';
+            case 'Executing': return '⊷';
+            case 'Success': return '✔';
+            case 'Confirming': return '?';
+            case 'Canceled': return '-';
+            case 'Error': return '✗';
+            default: return '•';
+        }
+    }
+    
+    isTodoWriteResult(text) {
+        // Simple check for TodoWrite results - could be enhanced
+        return text && text.includes('Todos have been') && text.includes('modified successfully');
     }
     
     renderAboutInfo(aboutItem) {
