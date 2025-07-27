@@ -158,6 +158,19 @@ export const useGeminiStream = (
     [toolCalls],
   );
 
+  // Broadcast pending tool calls to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingToolCallGroupDisplay) {
+      // Create a proper HistoryItem with an ID for broadcasting
+      const pendingToolItemWithId: HistoryItem = {
+        ...pendingToolCallGroupDisplay,
+        id: -2, // Temporary ID for pending tool calls (different from text responses)
+      } as HistoryItem;
+      
+      webInterface.broadcastPendingItem(pendingToolItemWithId);
+    }
+  }, [pendingToolCallGroupDisplay, webInterface]);
+
   const loopDetectedRef = useRef(false);
 
   const onExec = useCallback(async (done: Promise<void>) => {

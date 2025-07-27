@@ -200,16 +200,118 @@ class AuditariaWebClient {
     
     addHistoryItem(historyItem) {
         // Check if this is converting a pending message to final
-        const pendingMessageEl = this.messagesContainer.querySelector('.message-pending');
+        if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content') {
+            const pendingTextEl = this.messagesContainer.querySelector('.message-pending-text');
+            if (pendingTextEl) {
+                // Convert pending text message to final message
+                pendingTextEl.classList.remove('message-pending-text');
+                
+                // Update content to final version
+                const contentEl = pendingTextEl.querySelector('.message-content');
+                if (contentEl) {
+                    contentEl.textContent = this.getMessageContent(historyItem);
+                }
+                
+                // Update timestamp
+                const timestampEl = pendingTextEl.querySelector('.message-timestamp');
+                if (timestampEl) {
+                    const timestamp = new Date().toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    timestampEl.textContent = timestamp;
+                }
+                
+                this.messageCount++;
+                this.updateMessageCount();
+                this.scrollToBottom();
+                return;
+            }
+        } else if (historyItem.type === 'tool_group') {
+            const pendingToolEl = this.messagesContainer.querySelector('.message-pending-tools');
+            if (pendingToolEl) {
+                // Convert pending tool group to final tool group
+                pendingToolEl.classList.remove('message-pending-tools');
+                
+                // Update content to final version - regenerate tool list
+                const bubbleEl = pendingToolEl.querySelector('.message-bubble');
+                if (bubbleEl) {
+                    // Remove old tool content
+                    const existingToolList = bubbleEl.querySelector('.tool-list');
+                    if (existingToolList) {
+                        existingToolList.remove();
+                    }
+                    
+                    // Add final tool content
+                    const specialContent = this.renderSpecialContent(historyItem);
+                    if (specialContent) {
+                        const timestampEl = bubbleEl.querySelector('.message-timestamp');
+                        if (timestampEl) {
+                            bubbleEl.insertBefore(specialContent, timestampEl);
+                        } else {
+                            bubbleEl.appendChild(specialContent);
+                        }
+                    }
+                }
+                
+                // Update timestamp
+                const timestampEl = pendingToolEl.querySelector('.message-timestamp');
+                if (timestampEl) {
+                    const timestamp = new Date().toLocaleTimeString([], { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    });
+                    timestampEl.textContent = timestamp;
+                }
+                
+                this.messageCount++;
+                this.updateMessageCount();
+                this.scrollToBottom();
+                return;
+            }
+        }
         
-        if (pendingMessageEl && (historyItem.type === 'gemini' || historyItem.type === 'gemini_content')) {
-            // Convert pending message to final message
-            pendingMessageEl.classList.remove('message-pending');
-            
-            // Update content to final version
+        // Regular new message (no pending version exists)
+        const messageEl = this.createChatMessage(
+            historyItem.type,
+            this.getMessageTypeLabel(historyItem.type),
+            this.getMessageContent(historyItem),
+            historyItem
+        );
+        
+        this.messagesContainer.appendChild(messageEl);
+        this.messageCount++;
+        this.updateMessageCount();
+        this.scrollToBottom();
+    }
+    
+    updatePendingItem(pendingItem) {
+        if (pendingItem.type === 'tool_group') {
+            this.updatePendingToolGroup(pendingItem);
+        } else {
+            this.updatePendingTextMessage(pendingItem);
+        }
+    }
+    
+    updatePendingTextMessage(pendingItem) {
+        // Find existing pending text message element or create new one
+        let pendingMessageEl = this.messagesContainer.querySelector('.message-pending-text');
+        
+        if (!pendingMessageEl) {
+            // Create new pending message element
+            pendingMessageEl = this.createChatMessage(
+                pendingItem.type,
+                this.getMessageTypeLabel(pendingItem.type),
+                this.getMessageContent(pendingItem),
+                pendingItem
+            );
+            pendingMessageEl.classList.add('message-pending-text');
+            this.messagesContainer.appendChild(pendingMessageEl);
+        } else {
+            // Update existing pending message content
             const contentEl = pendingMessageEl.querySelector('.message-content');
             if (contentEl) {
-                contentEl.textContent = this.getMessageContent(historyItem);
+                contentEl.textContent = this.getMessageContent(pendingItem);
             }
             
             // Update timestamp
@@ -221,49 +323,49 @@ class AuditariaWebClient {
                 });
                 timestampEl.textContent = timestamp;
             }
-            
-            this.messageCount++;
-            this.updateMessageCount();
-            this.scrollToBottom();
-        } else {
-            // Regular new message
-            const messageEl = this.createChatMessage(
-                historyItem.type,
-                this.getMessageTypeLabel(historyItem.type),
-                this.getMessageContent(historyItem),
-                historyItem
-            );
-            
-            this.messagesContainer.appendChild(messageEl);
-            this.messageCount++;
-            this.updateMessageCount();
-            this.scrollToBottom();
         }
+        
+        this.scrollToBottom();
     }
     
-    updatePendingItem(pendingItem) {
-        // Find existing pending message element or create new one
-        let pendingMessageEl = this.messagesContainer.querySelector('.message-pending');
+    updatePendingToolGroup(pendingItem) {
+        // Find existing pending tool group element or create new one
+        let pendingToolEl = this.messagesContainer.querySelector('.message-pending-tools');
         
-        if (!pendingMessageEl) {
-            // Create new pending message element
-            pendingMessageEl = this.createChatMessage(
+        if (!pendingToolEl) {
+            // Create new pending tool group element
+            pendingToolEl = this.createChatMessage(
                 pendingItem.type,
                 this.getMessageTypeLabel(pendingItem.type),
                 this.getMessageContent(pendingItem),
                 pendingItem
             );
-            pendingMessageEl.classList.add('message-pending');
-            this.messagesContainer.appendChild(pendingMessageEl);
+            pendingToolEl.classList.add('message-pending-tools');
+            this.messagesContainer.appendChild(pendingToolEl);
         } else {
-            // Update existing pending message content
-            const contentEl = pendingMessageEl.querySelector('.message-content');
-            if (contentEl) {
-                contentEl.textContent = this.getMessageContent(pendingItem);
+            // Update existing tool group content - regenerate the tool list
+            const bubbleEl = pendingToolEl.querySelector('.message-bubble');
+            if (bubbleEl) {
+                // Remove old tool content but keep header and timestamp
+                const existingToolList = bubbleEl.querySelector('.tool-list');
+                if (existingToolList) {
+                    existingToolList.remove();
+                }
+                
+                // Add updated tool content
+                const specialContent = this.renderSpecialContent(pendingItem);
+                if (specialContent) {
+                    const timestampEl = bubbleEl.querySelector('.message-timestamp');
+                    if (timestampEl) {
+                        bubbleEl.insertBefore(specialContent, timestampEl);
+                    } else {
+                        bubbleEl.appendChild(specialContent);
+                    }
+                }
             }
             
             // Update timestamp
-            const timestampEl = pendingMessageEl.querySelector('.message-timestamp');
+            const timestampEl = pendingToolEl.querySelector('.message-timestamp');
             if (timestampEl) {
                 const timestamp = new Date().toLocaleTimeString([], { 
                     hour: '2-digit', 
