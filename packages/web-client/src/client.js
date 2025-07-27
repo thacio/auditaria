@@ -566,7 +566,15 @@ class AuditariaWebClient {
                     // Handle string output (most common case)
                     if (tool.name === 'TodoWrite' && this.isTodoWriteResult(outputContent)) {
                         // Special handling for TodoWrite - could be enhanced later
-                        toolOutputEl.textContent = outputContent;
+                        const todos = this.extractTodosFromDisplay(outputContent);
+                        if (todos) {
+                            toolOutputEl.appendChild(this.renderTodoList(todos));
+                        } else {
+                            const outputPreEl = document.createElement('pre');
+                            outputPreEl.className = 'tool-output-text';
+                            outputPreEl.textContent = outputContent;
+                            toolOutputEl.appendChild(outputPreEl);
+                        }
                     } else {
                         // Regular text output - preserve formatting
                         const outputPreEl = document.createElement('pre');
@@ -626,6 +634,83 @@ class AuditariaWebClient {
             case 'Canceled': return '-';
             case 'Error': return '✗';
             default: return '•';
+        }
+    }
+
+    extractTodosFromDisplay(resultDisplay) {
+        try {
+            const systemReminderMatch = resultDisplay.match(
+                /<system-reminder>[\s\S]*?Here are the latest contents of your todo list:\s*(.*?)\. Continue on with the tasks/
+            );
+            
+            if (!systemReminderMatch) {
+                return null;
+            }
+            
+            const todosJsonString = systemReminderMatch[1].trim();
+            const todos = JSON.parse(todosJsonString);
+            
+            if (!Array.isArray(todos)) {
+                return null;
+            }
+            
+            for (const todo of todos) {
+                if (
+                    !todo.content ||
+                    !todo.id ||
+                    !['high', 'medium', 'low'].includes(todo.priority) ||
+                    !['pending', 'in_progress', 'completed'].includes(todo.status)
+                ) {
+                    return null;
+                }
+            }
+            
+            return todos;
+        } catch (error) {
+            console.error('Error parsing todos from display:', error);
+            return null;
+        }
+    }
+
+    renderTodoList(todos) {
+        const todoListEl = document.createElement('div');
+        todoListEl.className = 'todo-list-container';
+
+        const titleEl = document.createElement('h4');
+        titleEl.className = 'todo-list-title';
+        titleEl.textContent = 'Update Todos';
+        todoListEl.appendChild(titleEl);
+
+        todos.forEach(todo => {
+            const todoItemEl = document.createElement('div');
+            todoItemEl.className = `todo-item status-${todo.status}`;
+
+            const iconEl = document.createElement('span');
+            iconEl.className = 'todo-item-icon';
+            iconEl.textContent = this.getTodoStatusIcon(todo.status);
+
+            const contentEl = document.createElement('span');
+            contentEl.className = 'todo-item-content';
+            contentEl.textContent = todo.content;
+
+            todoItemEl.appendChild(iconEl);
+            todoItemEl.appendChild(contentEl);
+            todoListEl.appendChild(todoItemEl);
+        });
+
+        return todoListEl;
+    }
+
+    getTodoStatusIcon(status) {
+        switch (status) {
+            case 'pending':
+                return '☐';
+            case 'in_progress':
+                return '☐';
+            case 'completed':
+                return '☑';
+            default:
+                return '☐';
         }
     }
     

@@ -764,6 +764,48 @@ body {
   color: var(--error);
 }
 
+/* Todo List Styling */
+.todo-list-container {
+    margin-top: 12px;
+}
+
+.todo-list-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.todo-item-icon {
+    font-size: 16px;
+    color: var(--text-subtle);
+}
+
+.todo-item-content {
+    font-size: 14px;
+    color: var(--text);
+}
+
+.todo-item.status-completed .todo-item-content {
+    text-decoration: line-through;
+    color: var(--text-subtle);
+}
+
+.todo-item.status-completed .todo-item-icon {
+    color: var(--success);
+}
+
+.todo-item.status-in_progress .todo-item-icon {
+    color: var(--tool-executing);
+}
+
 /* Responsive footer info */
 @media (max-width: 768px) {
   .footer-info {
