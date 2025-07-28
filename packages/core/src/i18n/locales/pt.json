@@ -232,13 +232,6 @@
     "clear": {
       "description": "limpar a tela e o histórico da conversa"
     },
-    "config": {
-      "description": "Comandos para interagir com a configuração da CLI.",
-      "refresh": {
-        "description": "Recarregar configurações e extensões do sistema de arquivos.",
-        "success": "Configuração, extensões, memória e ferramentas foram atualizadas."
-      }
-    },
     "vim": {
       "description": "alternar modo vim ligado/desligado",
       "entered": "Modo Vim ativado. Execute /vim novamente para sair.",
