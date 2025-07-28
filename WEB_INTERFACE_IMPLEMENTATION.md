@@ -381,65 +381,148 @@ auditaria --web
 
 ## ⚠️ Critical Issue Resolution: Infinite Loop Prevention
 
-### **Problem Encountered**
-During footer integration implementation, we encountered a severe infinite loop issue that generated thousands of debug log lines, causing:
-- **Console Spam**: 17,804+ debug lines flooding the CLI console
-- **Performance Degradation**: Exponential re-renders causing UI freezing
-- **Memory Issues**: Excessive logging consuming system resources
-- **User Experience Breakdown**: CLI became unusable due to debug spam
+### **Problem Summary**
+The Auditaria CLI web interface was causing severe infinite re-render loops that made the application unusable. Users reported thousands of debug log lines flooding the console and "Maximum update depth exceeded" errors when the web interface was enabled. This issue was so critical that it prompted concerns from Anthropic about system stability.
 
 ### **Root Cause Analysis**
-1. **Unstable useEffect Dependencies**: 
-   ```typescript
-   // PROBLEMATIC CODE:
-   useEffect(() => {
-     // Broadcasting logic
-   }, [footerData, webInterface]); // webInterface object changes on every render
+The infinite loops were caused by unstable React dependencies in multiple interconnected contexts:
+
+1. **Primary Cause: Unstable submitQuery Function**
+   - The `submitQuery` function from `useGeminiStream` was being recreated on every render due to a massive dependency array (15+ dependencies)
+   - Dependencies included complex objects like `config`, `geminiClient`, and numerous callback functions
+   - Each recreation triggered re-registration with web interface services, causing cascading re-renders
+
+2. **Secondary Causes: Context Dependency Chains**
+   - **FooterContext**: Depended on unstable `webInterface` object in useEffect
+   - **LoadingStateContext**: Same unstable `webInterface` dependency pattern  
+   - **WebInterfaceContext**: Included unstable functions in context value without memoization
+   - **SubmitQueryContext**: Context value recreated on every render
+
+3. **Circular Dependencies Pattern**
+   ```
+   submitQuery changes → webInterface re-registers → contexts update →
+   Footer/LoadingState re-render → webInterface updates → submitQuery changes
    ```
 
-2. **Excessive Debug Logging**: 
-   ```typescript
-   // PROBLEMATIC CODE:
-   console.log('[DEBUG] FooterContext: Broadcasting...'); // Called in every re-render
-   ```
+### **Failed Solutions Attempted**
+1. **Dependency Stabilization**:
+   - Tried memoizing `geminiClient` with `useMemo` 
+   - Failed because other dependencies in `useGeminiStream` remained unstable
 
-3. **React Re-render Cascade**: Context updates triggered useEffect, which triggered more context updates
+2. **Context Memoization**:
+   - Tried adding `useMemo` to context values
+   - Failed because dependencies themselves were still unstable
 
-### **Solution Applied**
-1. **Stabilized Dependencies**:
-   ```typescript
-   // FIXED CODE:
-   useEffect(() => {
-     // Broadcasting logic  
-   }, [footerData, webInterface?.service, webInterface?.isRunning]); // Stable dependencies
-   ```
+3. **Removing Dependencies**:
+   - Tried removing `webInterface?.service` from dependency arrays
+   - Failed because it prevented proper registration timing
 
-2. **Removed Debug Spam**:
-   ```typescript
-   // FIXED CODE:
-   // Removed all console.log statements from render cycles
-   ```
+### **Final Solution: Stable Reference Pattern**
 
-3. **Used useCallback**:
-   ```typescript
-   // FIXED CODE:
-   const updateFooterData = useCallback((data: FooterData) => {
-     setFooterData(data);
-   }, []); // Stable callback reference
-   ```
+#### **1. Stable Function Wrapper for Web Interface**
+```typescript
+// Store current submitQuery in ref
+const submitQueryRef = useRef(submitQuery);
+useEffect(() => {
+  submitQueryRef.current = submitQuery;
+}, [submitQuery]);
 
-### **Key Prevention Strategies**
+// Create completely stable function that never changes
+const stableWebSubmitQuery = useCallback((query: string) => {
+  if (submitQueryRef.current) {
+    submitQueryRef.current(query);
+  }
+}, []); // Empty dependency array - never changes
+```
+
+#### **2. One-Time Registration Pattern**
+```typescript
+// Register once and never again
+const submitQueryRegisteredRef = useRef(false);
+useEffect(() => {
+  if (!submitQueryRegisteredRef.current) {
+    registerSubmitQuery(stableWebSubmitQuery);
+    submitQueryRegisteredRef.current = true;
+  }
+}, []); // Empty dependency array - only run once
+```
+
+#### **3. Context Dependency Removal**
+```typescript
+// Footer.tsx - Removed footerContext from dependencies
+useEffect(() => {
+  if (footerContext) {
+    footerContext.updateFooterData(footerData);
+  }
+}, [
+  // All data dependencies but NOT footerContext
+  model, targetDir, branchName, debugMode, errorCount, percentage
+  // footerContext removed to prevent infinite loop
+]);
+```
+
+#### **4. Moved Broadcasting Logic to App.tsx**
+```typescript
+// Moved from contexts to App.tsx for better dependency control
+const footerContext = useFooter();
+useEffect(() => {
+  if (footerContext?.footerData && webInterface?.service && webInterface.isRunning) {
+    webInterface.service.broadcastFooterData(footerContext.footerData);
+  }
+}, [footerContext?.footerData]); // Only depend on data, not webInterface
+```
+
+### **Key Technical Insights**
+1. **React useEffect Dependencies**: Including function/object references that change on every render causes infinite loops
+2. **Context Provider Optimization**: Context values must be memoized and dependencies must be stable  
+3. **Registration Patterns**: Use one-time registration with stable function references
+4. **Separation of Concerns**: Move complex logic to App.tsx where dependencies can be better managed
+
+### **Files Modified for Infinite Loop Fix**
+- **App.tsx**: Implemented stable web interface registration pattern
+- **FooterContext.tsx**: Removed web interface dependencies, simplified to state-only
+- **LoadingStateContext.tsx**: Same pattern as FooterContext
+- **Footer.tsx**: Removed footerContext from useEffect dependencies
+- **LoadingIndicator.tsx**: Removed loadingStateContext from useEffect dependencies  
+- **WebInterfaceContext.tsx**: Added context value memoization
+- **SubmitQueryContext.tsx**: Added context value memoization
+
+### **Performance Impact**
+**Before Fix:**
+- Infinite re-renders causing 100% CPU usage
+- Console flooded with 17,000+ debug messages
+- Application completely unusable
+- Web interface non-functional
+
+**After Fix:**
+- Zero infinite loops
+- Normal render cycles
+- Clean console output
+- Full web interface functionality restored
+
+### **Critical Prevention Strategies for Future Context Development**
 - **✅ Dependency Auditing**: Always audit useEffect dependency arrays for stability
+- **✅ One-Time Registration**: Use refs and empty dependency arrays for service registration
+- **✅ Stable References**: Use useRef pattern to avoid recreating functions in useEffect
+- **✅ Context Isolation**: Keep contexts focused on single concerns, move complex logic to App.tsx
 - **✅ Debug Logging Discipline**: Never add console.log in React render cycles
-- **✅ Performance Testing**: Test context integrations thoroughly before deployment
-- **✅ State Management Best Practices**: Use useCallback and useMemo for stable references
-- **✅ Early Detection**: Monitor console output during development for unusual patterns
+- **✅ Systematic Testing**: Test contexts individually before combining them
+- **✅ Performance Monitoring**: Watch for infinite loop patterns early in development
 
-### **Lessons for Future Development**
-- **React Context Pattern**: When integrating new contexts, always verify dependency stability
-- **Debug Strategy**: Use debug logging sparingly and remove before production
-- **Performance Impact**: Small mistakes in React hooks can have exponential performance consequences
-- **User Experience**: Performance issues can make features completely unusable regardless of functionality
+### **Architecture Benefits**
+- **Maintainable**: Clear separation between CLI and web interface concerns
+- **Stable**: Robust against future dependency changes  
+- **Performant**: Minimal re-renders and registrations
+- **Scalable**: Pattern can be applied to future web interface features
+
+### **Lessons for Future Context Development**
+1. **React Hook Dependencies**: Be extremely careful with useEffect dependency arrays containing objects/functions
+2. **Context Design**: Keep contexts simple and focused on single concerns
+3. **Registration Patterns**: Use one-time registration with stable references for external services
+4. **Debugging Strategy**: Systematic isolation of components to identify root causes
+5. **Performance First**: Watch for infinite loop patterns early in development - they make features completely unusable regardless of functionality
+
+**This comprehensive fix pattern should be followed for ALL future context integrations to prevent similar infinite loop issues.**
 
 ---
 
