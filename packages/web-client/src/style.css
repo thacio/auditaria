@@ -619,7 +619,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px 20px;
-  margin-bottom: 16px;
+  margin-bottom: 24px; /* Increased from 16px */
   display: flex;
   align-items: center;
   gap: 12px;
