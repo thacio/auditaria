@@ -143,9 +143,9 @@
       "description": "Alterna o modo corgi."
     },
     "chat": {
-      "description": "Gerenciar histórico de conversas. Uso: /chat <list|save|resume> <tag>",
+      "description": "Gerenciar histórico de conversas. Uso: /chat <list|save|resume|delete> <tag>",
       "no_client": "Nenhum cliente de chat disponível para status da conversa.",
-      "missing_command": "Comando ausente\nUso: /chat <list|save|resume> <tag>",
+      "missing_command": "Comando ausente\nUso: /chat <list|save|resume|delete> <tag>",
       "save": {
         "missing_tag": "Tag ausente. Uso: /chat save <tag>",
         "saved": "Checkpoint de conversa salvo com tag: {tag}.",
@@ -163,7 +163,13 @@
         "invalid_date": "Data Inválida",
         "saved_on": "(salvo em {date})"
       },
-      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume"
+      "delete": {
+        "description": "Deletar um checkpoint de conversa. Uso: /chat delete <tag>",
+        "missing_tag": "Tag ausente. Uso: /chat delete <tag>",
+        "deleted": "Checkpoint de conversa '{tag}' foi deletado.",
+        "not_found": "Erro: Nenhum checkpoint encontrado com tag '{tag}'."
+      },
+      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume, delete"
     },
     "quit": {
       "description": "sair do cli",
