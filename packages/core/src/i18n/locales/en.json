@@ -325,6 +325,16 @@
     },
     "info": {
       "urls_to_fetch": "URLs to fetch:"
+    },
+    "shell_confirmation": {
+      "title": "Shell Command Execution",
+      "description": "A custom command wants to run the following shell commands:",
+      "question": "Do you want to proceed?",
+      "options": {
+        "yes_once": "Yes, allow once",
+        "yes_always_session": "Yes, allow always for this session",
+        "no_esc": "No (esc)"
+      }
     }
   },
   "suggestions": {

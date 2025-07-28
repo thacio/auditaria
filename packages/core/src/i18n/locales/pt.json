@@ -330,6 +330,16 @@
     },
     "info": {
       "urls_to_fetch": "URLs para buscar:"
+    },
+    "shell_confirmation": {
+      "title": "Execução de Comando Shell",
+      "description": "Um comando personalizado quer executar os seguintes comandos shell:",
+      "question": "Você quer prosseguir?",
+      "options": {
+        "yes_once": "Sim, permitir uma vez",
+        "yes_always_session": "Sim, permitir sempre para esta sessão",
+        "no_esc": "Não (esc)"
+      }
     }
   },
   "suggestions": {
