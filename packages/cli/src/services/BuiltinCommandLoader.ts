@@ -33,6 +33,7 @@ import { fallbackImprovedCommand } from '../ui/commands/fallbackImprovedCommand.
 import { modelSwitchCommand } from '../ui/commands/modelSwitchCommand.js';
 import { stayProCommand } from '../ui/commands/stayProCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
+import { configCommand } from '../ui/commands/configCommand.js';
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -58,6 +59,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       compressCommand,
       copyCommand,
       corgiCommand,
+      configCommand,
       docsCommand,
       editorCommand,
       extensionsCommand,

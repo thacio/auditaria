@@ -227,6 +227,13 @@
     "clear": {
       "description": "clear the screen and conversation history"
     },
+    "config": {
+      "description": "Commands for interacting with the CLI configuration.",
+      "refresh": {
+        "description": "Reload settings and extensions from the filesystem.",
+        "success": "Configuration, extensions, memory, and tools have been refreshed."
+      }
+    },
     "vim": {
       "description": "toggle vim mode on/off",
       "entered": "Entered Vim mode. Run /vim again to exit.",
