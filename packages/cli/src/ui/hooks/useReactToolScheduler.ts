@@ -22,7 +22,7 @@ import {
   Status as CoreStatus,
   EditorType,
 } from '@thacio/auditaria-cli-core';
-import { useCallback, useState, useMemo, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
@@ -135,6 +135,7 @@ export function useReactToolScheduler(
   );
 
   // Handle tool confirmations for web interface
+  const prevAwaitingApprovalIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!toolConfirmationContext) return;
 
@@ -145,9 +146,11 @@ export function useReactToolScheduler(
         .map(tc => tc.request.callId)
     );
 
-    // Add new confirmations
+    const prevAwaitingApprovalIds = prevAwaitingApprovalIdsRef.current;
+
+    // Add new confirmations (only those not seen before)
     toolCallsForDisplay.forEach((toolCall) => {
-      if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall) {
+      if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall && !prevAwaitingApprovalIds.has(toolCall.request.callId)) {
         const waitingCall = toolCall as TrackedWaitingToolCall;
         const pendingConfirmation = {
           callId: waitingCall.request.callId,
@@ -160,13 +163,16 @@ export function useReactToolScheduler(
       }
     });
 
-    // Remove confirmations that are no longer awaiting approval
-    toolConfirmationContext.pendingConfirmations.forEach(pendingConfirmation => {
-      if (!currentAwaitingApprovalIds.has(pendingConfirmation.callId)) {
-        toolConfirmationContext.removePendingConfirmation(pendingConfirmation.callId);
+    // Remove confirmations that are no longer awaiting approval (based on previous state)
+    prevAwaitingApprovalIds.forEach(prevCallId => {
+      if (!currentAwaitingApprovalIds.has(prevCallId)) {
+        toolConfirmationContext.removePendingConfirmation(prevCallId);
       }
     });
-  }, [toolCallsForDisplay, toolConfirmationContext]);
+
+    // Update the ref for next time
+    prevAwaitingApprovalIdsRef.current = currentAwaitingApprovalIds;
+  }, [toolCallsForDisplay]); // Only depend on toolCallsForDisplay
 
   const scheduler = useMemo(
     () =>
