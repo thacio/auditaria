@@ -631,6 +631,15 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
         webInterface.service?.broadcastToolConfirmation(confirmation);
       });
       
+      // Also broadcast removals for confirmations that were removed
+      const removedConfirmations = prevConfirmations.filter(prev => 
+        !currentConfirmations.some(current => current.callId === prev.callId)
+      );
+      
+      removedConfirmations.forEach(removedConfirmation => {
+        webInterface.service?.broadcastToolConfirmationRemoval(removedConfirmation.callId);
+      });
+      
       prevConfirmationsRef.current = currentConfirmations;
     }
   }, [toolConfirmationContext?.pendingConfirmations]); // Only depend on pendingConfirmations

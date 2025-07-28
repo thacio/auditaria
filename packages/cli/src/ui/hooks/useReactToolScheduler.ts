@@ -138,6 +138,14 @@ export function useReactToolScheduler(
   useEffect(() => {
     if (!toolConfirmationContext) return;
 
+    // Get current call IDs that are awaiting approval
+    const currentAwaitingApprovalIds = new Set(
+      toolCallsForDisplay
+        .filter(tc => tc.status === 'awaiting_approval')
+        .map(tc => tc.request.callId)
+    );
+
+    // Add new confirmations
     toolCallsForDisplay.forEach((toolCall) => {
       if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall) {
         const waitingCall = toolCall as TrackedWaitingToolCall;
@@ -149,6 +157,13 @@ export function useReactToolScheduler(
         };
         
         toolConfirmationContext.addPendingConfirmation(pendingConfirmation);
+      }
+    });
+
+    // Remove confirmations that are no longer awaiting approval
+    toolConfirmationContext.pendingConfirmations.forEach(pendingConfirmation => {
+      if (!currentAwaitingApprovalIds.has(pendingConfirmation.callId)) {
+        toolConfirmationContext.removePendingConfirmation(pendingConfirmation.callId);
       }
     });
   }, [toolCallsForDisplay, toolConfirmationContext]);

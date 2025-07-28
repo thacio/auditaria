@@ -294,6 +294,35 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast tool confirmation removal to all connected web clients
+   */
+  broadcastToolConfirmationRemoval(callId: string): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'tool_confirmation_removal',
+      data: { callId },
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Get current server status
    */
   getStatus(): { isRunning: boolean; port?: number; clients: number } {

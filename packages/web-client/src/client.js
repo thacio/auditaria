@@ -190,6 +190,9 @@ class AuditariaWebClient {
             case 'tool_confirmation':
                 this.handleToolConfirmation(message.data);
                 break;
+            case 'tool_confirmation_removal':
+                this.handleToolConfirmationRemoval(message.data);
+                break;
             default:
                 console.log('Unknown message type:', message.type);
         }
@@ -1190,7 +1193,7 @@ class AuditariaWebClient {
                     const prevButton = buttons[index - 1] ? container.children[index - 1] : container.children[buttons.length - 1];
                     prevButton.focus();
                 } else if (e.key === 'Escape') {
-                    this.handleConfirmationResponse(confirmationData.callId, 'Cancel');
+                    this.handleConfirmationResponse(confirmationData.callId, 'cancel');
                 }
             });
             
@@ -1204,42 +1207,40 @@ class AuditariaWebClient {
         switch (confirmationDetails.type) {
             case 'edit':
                 return [
-                    { label: 'Yes, allow once', outcome: 'ProceedOnce', type: 'primary' },
-                    { label: 'Yes, allow always', outcome: 'ProceedAlways', type: 'primary' },
-                    { label: 'Modify with external editor', outcome: 'ModifyWithEditor', type: 'secondary' },
-                    { label: 'No (esc)', outcome: 'Cancel', type: 'cancel' }
+                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
+                    { label: 'Yes, allow always', outcome: 'proceed_always', type: 'primary' },
+                    { label: 'Modify with external editor', outcome: 'modify_with_editor', type: 'secondary' },
+                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
                 ];
                 
             case 'exec':
                 const rootCommand = confirmationDetails.rootCommand || 'command';
                 return [
-                    { label: 'Yes, allow once', outcome: 'ProceedOnce', type: 'primary' },
-                    { label: `Yes, allow always "${rootCommand} ..."`, outcome: 'ProceedAlways', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'Cancel', type: 'cancel' }
+                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
+                    { label: `Yes, allow always "${rootCommand} ..."`, outcome: 'proceed_always', type: 'primary' },
+                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
                 ];
                 
             case 'info':
                 return [
-                    { label: 'Yes, allow once', outcome: 'ProceedOnce', type: 'primary' },
-                    { label: 'Yes, allow always', outcome: 'ProceedAlways', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'Cancel', type: 'cancel' }
+                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
+                    { label: 'Yes, allow always', outcome: 'proceed_always', type: 'primary' },
+                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
                 ];
                 
             default: // MCP
                 const toolName = confirmationDetails.toolName || 'tool';
                 const serverName = confirmationDetails.serverName || 'server';
                 return [
-                    { label: 'Yes, allow once', outcome: 'ProceedOnce', type: 'primary' },
-                    { label: `Yes, always allow tool "${toolName}" from server "${serverName}"`, outcome: 'ProceedAlwaysTool', type: 'primary' },
-                    { label: `Yes, always allow all tools from server "${serverName}"`, outcome: 'ProceedAlwaysServer', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'Cancel', type: 'cancel' }
+                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
+                    { label: `Yes, always allow tool "${toolName}" from server "${serverName}"`, outcome: 'proceed_always_tool', type: 'primary' },
+                    { label: `Yes, always allow all tools from server "${serverName}"`, outcome: 'proceed_always_server', type: 'primary' },
+                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
                 ];
         }
     }
     
     handleConfirmationResponse(callId, outcome) {
-        console.log('Sending confirmation response:', { callId, outcome });
-        
         try {
             // Send response to server
             this.socket.send(JSON.stringify({
@@ -1254,6 +1255,14 @@ class AuditariaWebClient {
             
         } catch (error) {
             console.error('Failed to send confirmation response:', error);
+        }
+    }
+    
+    handleToolConfirmationRemoval(removalData) {
+        // Close any confirmation dialog for this callId
+        const existingDialog = document.querySelector(`.confirmation-dialog[data-call-id="${removalData.callId}"]`);
+        if (existingDialog) {
+            existingDialog.remove();
         }
     }
     
