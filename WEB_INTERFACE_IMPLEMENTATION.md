@@ -144,7 +144,42 @@ Web Client Handling:
 - Seamless conversion from pending to final states
 - No delay between CLI and web interface for any content type
 
-### **9. Keyboard Shortcut System**
+### **9. Tool Confirmation System**
+```
+packages/cli/src/ui/contexts/
+├── ToolConfirmationContext.tsx      # Tool confirmation state context provider
+packages/cli/src/services/
+└── WebInterfaceService.ts           # Extended with confirmation broadcasting
+packages/web-client/src/
+├── client.js                        # Enhanced with confirmation UI and handling
+└── style.css                        # Professional confirmation dialog styling
+```
+
+**Features:**
+- **Real-time Tool Confirmation Display**: Tool confirmations appear instantly in web interface
+- **Professional Confirmation UI**: Modal dialog with clickable buttons matching existing design theme
+- **All Confirmation Types Supported**: Edit (file diffs), Exec (shell commands), Info (web fetches), MCP (external tools)
+- **Bidirectional Operation**: Confirmations work from both CLI and web interface
+- **Keyboard Navigation**: Arrow keys, Tab, Enter, and Escape key support
+- **Responsive Design**: Mobile-friendly with adaptive layouts
+- **Visual Distinction**: Different button types (primary, secondary, cancel) with hover effects
+
+**Message Flow:**
+```
+CLI Tool Needs Confirmation → ToolConfirmationContext → WebInterfaceService.broadcastToolConfirmation()
+→ WebSocket → Web Client → Confirmation Dialog → User Clicks Button → WebSocket Response
+→ WebInterfaceService.handleConfirmationResponse() → CLI Confirmation Callback → Tool Continues
+```
+
+**Confirmation Types:**
+| Type | Display | Button Options |
+|------|---------|----------------|
+| **Edit** | File name + diff preview | Yes once, Yes always, Modify with editor, No (esc) |
+| **Exec** | Command to execute | Yes once, Yes always "command ...", No (esc) |
+| **Info** | Description + URLs list | Yes once, Yes always, No (esc) |
+| **MCP** | Server + tool name | Yes once, Yes always tool, Yes always server, No (esc) |
+
+### **10. Keyboard Shortcut System**
 ```
 packages/web-client/src/
 └── client.js                        # KeyboardShortcutManager implementation
@@ -540,6 +575,7 @@ useEffect(() => {
 | Loading State Integration | ✅ Complete | Real-time AI thinking states in web interface |
 | Tool Execution Integration | ✅ Complete | Real-time tool state broadcasting and display |
 | Tool Output Display | ✅ Complete | Comprehensive output for all tool states |
+| Tool Confirmation System | ✅ Complete | Professional confirmation dialogs for all tool types |
 | ESC Key Interruption | ✅ Complete | Keyboard shortcut system with CLI parity |
 | Pending Item Broadcasting | ✅ Complete | Instant AI and tool response streaming |
 | History Synchronization | ✅ Complete | Full conversation history loading on connection |
@@ -558,6 +594,7 @@ useEffect(() => {
 - ✅ Visual distinction between user, AI, system, and tool messages
 - ✅ **Tool Execution Real-time Display**: Tools appear instantly and update states in real-time
 - ✅ **Tool Output Comprehensive Display**: All tool states (success, error, canceled) show outputs
+- ✅ **Tool Confirmation Support**: Professional confirmation dialogs for all tool types with clickable buttons
 - ✅ **ESC Key Interruption**: Press ESC in web to cancel AI/tool operations like CLI
 - ✅ **Pending Item Broadcasting**: Instant streaming of AI responses and tool executions
 - ✅ Professional, sober, and beautiful design
@@ -569,9 +606,25 @@ useEffect(() => {
 - ✅ **Conversation History Loading**: Web interface displays all previous conversation history when connecting
 - ✅ **Performance Optimized**: No infinite loops, clean console output
 - ✅ **Keyboard Shortcut Extensibility**: Ready for future Ctrl+C, Ctrl+S shortcuts
-- ✅ Foundation ready for future bidirectional communication
+- ✅ **Bidirectional Communication**: Complete feature parity between CLI and web interface
 
 ### **🎯 Latest Enhancements: Complete CLI Integration**
+
+#### **Tool Confirmation Integration**
+The web interface now supports complete tool confirmation functionality:
+- **Professional Confirmation UI**: Modal dialogs with clickable buttons for all confirmation types
+- **Real-time Display**: Confirmations appear instantly when tools require approval
+- **All Confirmation Types**: Edit (file diffs), Exec (commands), Info (web fetches), MCP (external tools)
+- **Keyboard Navigation**: Full keyboard accessibility with arrow keys and Escape
+- **Responsive Design**: Mobile-friendly confirmation dialogs
+- **Bidirectional Operation**: Confirmations work seamlessly from both CLI and web interface
+
+**Example Confirmation Flow:**
+1. AI calls a tool that requires confirmation (e.g., file edit, shell command)
+2. Web interface immediately displays professional confirmation dialog
+3. User clicks appropriate button (Yes once, Yes always, No, etc.)
+4. Response sent to CLI, tool execution continues normally
+5. Both CLI and web interface show identical confirmation states and outcomes
 
 #### **Footer Integration**
 The web interface footer now displays real-time CLI footer information:
@@ -646,4 +699,4 @@ Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: 
 - **Performance Optimized**: <10ms latency for real-time updates
 - **Complete Real-time Parity**: Web interface matches CLI behavior exactly for all features
 
-**The Auditaria CLI Web Interface with complete Tool Execution, ESC Key Interruption, and Real-time State Broadcasting is production-ready and successfully delivers on all requirements with professional polish.**
+**The Auditaria CLI Web Interface with complete Tool Confirmation, Tool Execution, ESC Key Interruption, and Real-time State Broadcasting achieves full feature parity with the CLI and is production-ready with professional polish. Users can now seamlessly interact with tool confirmations through the web interface, providing a unified experience across both CLI and web platforms.**

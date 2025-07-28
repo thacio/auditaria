@@ -10,9 +10,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HistoryItem } from '../ui/types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
+import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,7 @@ export class WebInterfaceService {
   private port?: number;
   private submitQueryHandler?: (query: string) => void;
   private abortHandler?: () => void;
+  private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
   private currentHistory: HistoryItem[] = [];
 
   /**
@@ -263,6 +265,35 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast tool confirmation request to all connected web clients
+   */
+  broadcastToolConfirmation(confirmation: PendingToolConfirmation): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'tool_confirmation',
+      data: confirmation,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Get current server status
    */
   getStatus(): { isRunning: boolean; port?: number; clients: number } {
@@ -288,6 +319,13 @@ export class WebInterfaceService {
   }
 
   /**
+   * Set the handler for tool confirmation responses from web interface
+   */
+  setConfirmationResponseHandler(handler: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void): void {
+    this.confirmationResponseHandler = handler;
+  }
+
+  /**
    * Set the current history for new clients
    */
   setCurrentHistory(history: HistoryItem[]): void {
@@ -297,7 +335,7 @@ export class WebInterfaceService {
   /**
    * Handle incoming messages from web clients
    */
-  private handleIncomingMessage(message: { type: string; content?: string }): void {
+  private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const query = message.content?.trim();
       if (query) {
@@ -305,6 +343,11 @@ export class WebInterfaceService {
       }
     } else if (message.type === 'interrupt_request' && this.abortHandler) {
       this.abortHandler();
+    } else if (message.type === 'tool_confirmation_response' && this.confirmationResponseHandler) {
+      if (message.callId && message.outcome) {
+        const outcome = message.outcome as ToolConfirmationOutcome;
+        this.confirmationResponseHandler(message.callId, outcome, message.payload);
+      }
     }
   }
 

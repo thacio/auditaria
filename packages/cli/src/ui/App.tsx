@@ -91,6 +91,7 @@ import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceCo
 import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 import { FooterProvider, useFooter } from './contexts/FooterContext.js';
 import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
+import { ToolConfirmationProvider, useToolConfirmation, PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -108,7 +109,9 @@ export const AppWrapper = (props: AppProps) => (
       <WebInterfaceProvider enabled={props.webEnabled}>
         <FooterProvider>
           <LoadingStateProvider>
-            <App {...props} />
+            <ToolConfirmationProvider>
+              <App {...props} />
+            </ToolConfirmationProvider>
           </LoadingStateProvider>
         </FooterProvider>
       </WebInterfaceProvider>
@@ -600,6 +603,37 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       webInterface.service.broadcastLoadingState(loadingStateContext.loadingState);
     }
   }, [loadingStateContext?.loadingState]); // Only depend on loadingState, not webInterface
+
+  // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
+  const toolConfirmationContext = useToolConfirmation();
+  useEffect(() => {
+    if (toolConfirmationContext && webInterface?.service) {
+      // Set up the confirmation response handler
+      webInterface.service?.setConfirmationResponseHandler(
+        toolConfirmationContext.handleConfirmationResponse
+      );
+    }
+  }, [toolConfirmationContext, webInterface?.service]);
+
+  // Broadcast new tool confirmations to web interface
+  const prevConfirmationsRef = useRef<PendingToolConfirmation[]>([]);
+  useEffect(() => {
+    if (toolConfirmationContext?.pendingConfirmations && webInterface?.service && webInterface.isRunning) {
+      const prevConfirmations = prevConfirmationsRef.current || [];
+      const currentConfirmations = toolConfirmationContext.pendingConfirmations;
+      
+      // Only broadcast new confirmations that weren't in the previous list
+      const newConfirmations = currentConfirmations.filter(current => 
+        !prevConfirmations.some(prev => prev.callId === current.callId)
+      );
+      
+      newConfirmations.forEach(confirmation => {
+        webInterface.service?.broadcastToolConfirmation(confirmation);
+      });
+      
+      prevConfirmationsRef.current = currentConfirmations;
+    }
+  }, [toolConfirmationContext?.pendingConfirmations]); // Only depend on pendingConfirmations
 
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {

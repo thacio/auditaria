@@ -22,13 +22,14 @@ import {
   Status as CoreStatus,
   EditorType,
 } from '@thacio/auditaria-cli-core';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
   ToolCallStatus,
   HistoryItemWithoutId,
 } from '../types.js';
+import { useToolConfirmation } from '../contexts/ToolConfirmationContext.js';
 
 export type ScheduleFn = (
   request: ToolCallRequestInfo | ToolCallRequestInfo[],
@@ -74,6 +75,8 @@ export function useReactToolScheduler(
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
+  
+  const toolConfirmationContext = useToolConfirmation();
 
   const outputUpdateHandler: OutputUpdateHandler = useCallback(
     (toolCallId, outputChunk) => {
@@ -130,6 +133,25 @@ export function useReactToolScheduler(
     },
     [setToolCallsForDisplay],
   );
+
+  // Handle tool confirmations for web interface
+  useEffect(() => {
+    if (!toolConfirmationContext) return;
+
+    toolCallsForDisplay.forEach((toolCall) => {
+      if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall) {
+        const waitingCall = toolCall as TrackedWaitingToolCall;
+        const pendingConfirmation = {
+          callId: waitingCall.request.callId,
+          toolName: waitingCall.tool?.displayName || waitingCall.request.name,
+          confirmationDetails: waitingCall.confirmationDetails,
+          timestamp: Date.now(),
+        };
+        
+        toolConfirmationContext.addPendingConfirmation(pendingConfirmation);
+      }
+    });
+  }, [toolCallsForDisplay, toolConfirmationContext]);
 
   const scheduler = useMemo(
     () =>
