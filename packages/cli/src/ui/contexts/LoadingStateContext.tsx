@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useWebInterface } from './WebInterfaceContext.js';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { StreamingState } from '../types.js';
 
 export interface LoadingStateData {
@@ -29,24 +28,17 @@ interface LoadingStateProviderProps {
 
 export function LoadingStateProvider({ children }: LoadingStateProviderProps) {
   const [loadingState, setLoadingState] = useState<LoadingStateData | null>(null);
-  const webInterface = useWebInterface();
 
   const updateLoadingState = useCallback((data: LoadingStateData) => {
     setLoadingState(data);
   }, []);
 
-  // Broadcast loading state to web interface when it changes
-  useEffect(() => {
-    if (loadingState && webInterface?.service && webInterface.isRunning) {
-      // Send loading state via WebSocket using the service method
-      webInterface.service.broadcastLoadingState(loadingState);
-    }
-  }, [loadingState, webInterface?.service, webInterface?.isRunning]);
+  // NOTE: Web interface broadcasting moved to App.tsx to avoid circular dependencies
 
-  const contextValue: LoadingStateContextValue = {
+  const contextValue: LoadingStateContextValue = useMemo(() => ({
     loadingState,
     updateLoadingState,
-  };
+  }), [loadingState, updateLoadingState]);
 
   return (
     <LoadingStateContext.Provider value={contextValue}>

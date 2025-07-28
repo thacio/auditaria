@@ -31,7 +31,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const streamingState = useStreamingContext();
   const loadingStateContext = useLoadingState();
 
-  // Update loading state for web interface
+  // Update loading state for web interface (removed loadingStateContext from dependencies)
   useEffect(() => {
     if (loadingStateContext) {
       const loadingStateData = {
@@ -44,7 +44,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       
       loadingStateContext.updateLoadingState(loadingStateData);
     }
-  }, [streamingState, currentLoadingPhrase, elapsedTime, thought, loadingStateContext]);
+  }, [streamingState, currentLoadingPhrase, elapsedTime, thought]); // Removed loadingStateContext to prevent infinite loop
 
   if (streamingState === StreamingState.Idle) {
     return null;

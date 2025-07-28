@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { useWebInterface } from './WebInterfaceContext.js';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 export interface FooterData {
   targetDir: string;
@@ -35,24 +34,17 @@ interface FooterProviderProps {
 
 export function FooterProvider({ children }: FooterProviderProps) {
   const [footerData, setFooterData] = useState<FooterData | null>(null);
-  const webInterface = useWebInterface();
 
   const updateFooterData = useCallback((data: FooterData) => {
     setFooterData(data);
   }, []);
 
-  // Broadcast footer data to web interface when it changes
-  useEffect(() => {
-    if (footerData && webInterface?.service && webInterface.isRunning) {
-      // Send footer data via WebSocket using the service method
-      webInterface.service.broadcastFooterData(footerData);
-    }
-  }, [footerData, webInterface?.service, webInterface?.isRunning]);
+  // NOTE: Web interface broadcasting moved to App.tsx to avoid circular dependencies
 
-  const contextValue: FooterContextValue = {
+  const contextValue: FooterContextValue = useMemo(() => ({
     footerData,
     updateFooterData,
-  };
+  }), [footerData, updateFooterData]);
 
   return (
     <FooterContext.Provider value={contextValue}>

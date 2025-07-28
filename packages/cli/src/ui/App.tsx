@@ -89,8 +89,8 @@ import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
 import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceContext.js';
 import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
-import { FooterProvider } from './contexts/FooterContext.js';
-import { LoadingStateProvider } from './contexts/LoadingStateContext.js';
+import { FooterProvider, useFooter } from './contexts/FooterContext.js';
+import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -535,21 +535,71 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     useLoadingIndicator(streamingState);
   const showAutoAcceptIndicator = useAutoAcceptIndicator({ config });
 
-  // Register submitQuery with the context for web interface access
-  const registerSubmitQuery = useSubmitQueryRegistration();
+  // Store current submitQuery in ref for web interface
+  const submitQueryRef = useRef(submitQuery);
   useEffect(() => {
-    if (submitQuery) {
-      registerSubmitQuery(submitQuery);
+    submitQueryRef.current = submitQuery;
+  }, [submitQuery]);
+
+  // Create a completely stable function that will never change
+  const stableWebSubmitQuery = useCallback((query: string) => {
+    if (submitQueryRef.current) {
+      submitQueryRef.current(query);
     }
-  }, [submitQuery, registerSubmitQuery]);
+  }, []); // Empty dependency array - this function never changes
+
+  // Register once and never again
+  const registerSubmitQuery = useSubmitQueryRegistration();
+  const submitQueryRegisteredRef = useRef(false);
+  useEffect(() => {
+    if (!submitQueryRegisteredRef.current) {
+      registerSubmitQuery(stableWebSubmitQuery);
+      submitQueryRegisteredRef.current = true;
+    }
+  }, []); // Empty dependency array - only run once
 
   // Register abort handler with web interface service
   const webInterface = useWebInterface();
+  const abortHandlerRegistered = useRef(false);
+  const submitHandlerRegistered = useRef(false);
+  
   useEffect(() => {
-    if (webInterface?.service && triggerAbort) {
+    if (webInterface?.service && triggerAbort && !abortHandlerRegistered.current) {
       webInterface.service.setAbortHandler(triggerAbort);
+      abortHandlerRegistered.current = true;
     }
-  }, [webInterface?.service, triggerAbort]);
+  }, [triggerAbort]); // Removed webInterface?.service from dependencies to prevent recreation
+
+  // Register with web interface service once
+  useEffect(() => {
+    const register = () => {
+      if (webInterface?.service && !submitHandlerRegistered.current) {
+        webInterface.service.setSubmitQueryHandler(stableWebSubmitQuery);
+        submitHandlerRegistered.current = true;
+        console.log('[DEBUG] Successfully registered web interface submitQuery handler');
+      }
+    };
+    
+    register();
+    const timeout = setTimeout(register, 100);
+    return () => clearTimeout(timeout);
+  }, []); // Empty dependency array - only register once
+
+  // Broadcast footer data to web interface (moved from FooterContext to avoid circular deps)
+  const footerContext = useFooter();
+  useEffect(() => {
+    if (footerContext?.footerData && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastFooterData(footerContext.footerData);
+    }
+  }, [footerContext?.footerData]); // Only depend on footerData, not webInterface
+
+  // Broadcast loading state to web interface (moved from LoadingStateContext to avoid circular deps)
+  const loadingStateContext = useLoadingState();
+  useEffect(() => {
+    if (loadingStateContext?.loadingState && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastLoadingState(loadingStateContext.loadingState);
+    }
+  }, [loadingStateContext?.loadingState]); // Only depend on loadingState, not webInterface
 
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {

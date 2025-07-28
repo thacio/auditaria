@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { WebInterfaceService, WebInterfaceConfig } from '../../services/WebInterfaceService.js';
 import { HistoryItem } from '../types.js';
 import { useSubmitQuery } from './SubmitQueryContext.js';
@@ -34,6 +34,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
   const [port, setPort] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState(0);
   const submitQuery = useSubmitQuery();
+  const submitQueryRegistered = useRef(false);
 
   const start = useCallback(async (config?: WebInterfaceConfig): Promise<number> => {
     try {
@@ -107,14 +108,9 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     return () => clearInterval(interval);
   }, [service, isRunning]);
 
-  // Auto-register submitQuery with the service when both are available
-  useEffect(() => {
-    if (submitQuery && service) {
-      service.setSubmitQueryHandler(submitQuery);
-    }
-  }, [submitQuery, service]);
+  // NOTE: submitQuery registration moved to App.tsx to avoid infinite loop
 
-  const contextValue: WebInterfaceContextValue = {
+  const contextValue: WebInterfaceContextValue = useMemo(() => ({
     service,
     isRunning,
     port,
@@ -124,7 +120,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     broadcastMessage,
     broadcastPendingItem,
     setCurrentHistory,
-  };
+  }), [service, isRunning, port, clientCount, start, stop, broadcastMessage, broadcastPendingItem, setCurrentHistory]);
 
   return (
     <WebInterfaceContext.Provider value={contextValue}>

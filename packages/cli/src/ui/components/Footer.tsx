@@ -46,7 +46,7 @@ export const Footer: React.FC<FooterProps> = ({
   const percentage = promptTokenCount / limit;
   const footerContext = useFooter();
 
-  // Update footer data for web interface
+  // Update footer data for web interface (removed footerContext from dependencies)
   useEffect(() => {
     if (footerContext) {
       // Determine sandbox status
@@ -85,8 +85,8 @@ export const Footer: React.FC<FooterProps> = ({
     corgiMode,
     showMemoryUsage,
     nightly,
-    showErrorDetails,
-    footerContext
+    showErrorDetails
+    // Removed footerContext from dependencies to prevent infinite loop
   ]);
 
   return (

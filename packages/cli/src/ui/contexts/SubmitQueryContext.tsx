@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 interface SubmitQueryContextValue {
   submitQuery: ((query: string) => void) | null;
@@ -24,10 +24,10 @@ export function SubmitQueryProvider({ children }: SubmitQueryProviderProps) {
     setSubmitQuery(() => fn);
   }, []);
 
-  const contextValue: SubmitQueryContextValue = {
+  const contextValue: SubmitQueryContextValue = useMemo(() => ({
     submitQuery,
     registerSubmitQuery,
-  };
+  }), [submitQuery, registerSubmitQuery]);
 
   return (
     <SubmitQueryContext.Provider value={contextValue}>
