@@ -878,7 +878,8 @@
   },
   "ide_context": {
     "title": "Contexto do IDE (ctrl+e para alternar)",
-    "recent_files": "Arquivos recentes:",
-    "active_file": " (ativo)"
+    "open_files": "Arquivos abertos:",
+    "active_file": " (ativo)",
+    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+e para ver)"
   }
 }

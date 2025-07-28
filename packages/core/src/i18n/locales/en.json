@@ -906,7 +906,8 @@
   },
   "ide_context": {
     "title": "IDE Context (ctrl+e to toggle)",
-    "recent_files": "Recent files:",
-    "active_file": " (active)"
+    "open_files": "Open files:",
+    "active_file": " (active)",
+    "open_files_count": "{count} open file{plural} (ctrl+e to view)"
   }
 }

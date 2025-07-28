@@ -5,25 +5,21 @@
  */
 
 import { Box, Text } from 'ink';
-import { type OpenFiles, t } from '@thacio/auditaria-cli-core';
+import { type File, type IdeContext, t } from '@thacio/auditaria-cli-core';
 import { Colors } from '../colors.js';
 import path from 'node:path';
 
 interface IDEContextDetailDisplayProps {
-  openFiles: OpenFiles | undefined;
+  ideContext: IdeContext | undefined;
 }
 
 export function IDEContextDetailDisplay({
-  openFiles,
+  ideContext,
 }: IDEContextDetailDisplayProps) {
-  if (
-    !openFiles ||
-    !openFiles.recentOpenFiles ||
-    openFiles.recentOpenFiles.length === 0
-  ) {
+  const openFiles = ideContext?.workspaceState?.openFiles;
+  if (!openFiles || openFiles.length === 0) {
     return null;
   }
-  const recentFiles = openFiles.recentOpenFiles || [];
 
   return (
     <Box
@@ -36,13 +32,13 @@ export function IDEContextDetailDisplay({
       <Text color={Colors.AccentCyan} bold>
         {t('ide_context.title', 'IDE Context (ctrl+e to toggle)')}
       </Text>
-      {recentFiles.length > 0 && (
+      {openFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
-          <Text bold>{t('ide_context.recent_files', 'Recent files:')}</Text>
-          {recentFiles.map((file) => (
-            <Text key={file.filePath}>
-              - {path.basename(file.filePath)}
-              {file.filePath === openFiles.activeFile ? t('ide_context.active_file', ' (active)') : ''}
+          <Text bold>{t('ide_context.open_files', 'Open files:')}</Text>
+          {openFiles.map((file: File) => (
+            <Text key={file.path}>
+              - {path.basename(file.path)}
+              {file.isActive ? t('ide_context.active_file', ' (active)') : ''}
             </Text>
           ))}
         </Box>
