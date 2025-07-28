@@ -3,6 +3,7 @@ class ConfirmationQueue {
         this.client = client;
         this.queue = this.loadQueue();
         this.isDialogVisible = false;
+        this.boundGlobalEscHandler = null;
 
         // Process the queue on initialization
         this.showNext();
@@ -107,12 +108,26 @@ class ConfirmationQueue {
         if (firstButton) {
             firstButton.focus();
         }
+
+        // Add global ESC listener
+        this.boundGlobalEscHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.client.handleConfirmationResponse(confirmationData.callId, 'cancel');
+            }
+        };
+        document.addEventListener('keydown', this.boundGlobalEscHandler);
     }
 
     hideConfirmationDialog() {
         const existingDialog = document.querySelector('.confirmation-dialog');
         if (existingDialog) {
             existingDialog.remove();
+        }
+
+        // Remove global ESC listener
+        if (this.boundGlobalEscHandler) {
+            document.removeEventListener('keydown', this.boundGlobalEscHandler);
+            this.boundGlobalEscHandler = null;
         }
     }
 
