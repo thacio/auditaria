@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import { ToolCallConfirmationDetails, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 
 export interface PendingToolConfirmation {
@@ -29,6 +29,8 @@ interface ToolConfirmationProviderProps {
 
 export function ToolConfirmationProvider({ children }: ToolConfirmationProviderProps) {
   const [pendingConfirmations, setPendingConfirmations] = useState<PendingToolConfirmation[]>([]);
+  const pendingConfirmationsRef = useRef(pendingConfirmations);
+  pendingConfirmationsRef.current = pendingConfirmations;
 
   const addPendingConfirmation = useCallback((confirmation: PendingToolConfirmation) => {
     setPendingConfirmations(prev => {
@@ -43,16 +45,15 @@ export function ToolConfirmationProvider({ children }: ToolConfirmationProviderP
   }, []);
 
   const handleConfirmationResponse = useCallback((callId: string, outcome: ToolConfirmationOutcome, payload?: any) => {
-    setPendingConfirmations(prev => {
-      const confirmation = prev.find(c => c.callId === callId);
-      if (confirmation) {
-        // Call the original confirmation handler
-        confirmation.confirmationDetails.onConfirm(outcome, payload);
-        // Remove the confirmation from pending list
-        return prev.filter(c => c.callId !== callId);
-      }
-      return prev;
-    });
+    const confirmationToHandle = pendingConfirmationsRef.current.find(c => c.callId === callId);
+
+    if (confirmationToHandle) {
+      // Perform side effect outside of the state updater
+      confirmationToHandle.confirmationDetails.onConfirm(outcome, payload);
+
+      // Update state
+      setPendingConfirmations(prev => prev.filter(c => c.callId !== callId));
+    }
   }, []);
 
   // NOTE: Web interface broadcasting moved to App.tsx to avoid circular dependencies
