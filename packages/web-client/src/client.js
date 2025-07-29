@@ -89,6 +89,71 @@ class AuditariaWebClient {
         this.connect();
     }
     
+    /**
+     * Clean HTML specifically for list spacing issues
+     * Targets: <ul>, <ol>, <li> and nested combinations
+     */
+    cleanListHTML(html) {
+        return html
+            // Remove extra whitespace around list containers
+            .replace(/\s*<(ul|ol)>/g, '<$1>')
+            .replace(/<\/(ul|ol)>\s*/g, '</$1>')
+            // Remove extra whitespace around list items
+            .replace(/\s*<li>/g, '<li>')
+            .replace(/<\/li>\s*/g, '</li>')
+            // Remove paragraph tags inside list items (common marked.js issue)
+            .replace(/<li><p>(.*?)<\/p><\/li>/g, '<li>$1</li>')
+            // Handle nested lists - remove extra spacing between </li> and <ul>/<ol>
+            .replace(/<\/li>\s*<(ul|ol)>/g, '</li><$1>')
+            .replace(/<\/(ul|ol)>\s*<\/li>/g, '</$1></li>')
+            // Remove trailing paragraph tags only at the end
+            .replace(/<\/p>\s*$/, '</p>')
+            .trim();
+    }
+    
+    /**
+     * Clean multiple line breaks throughout ALL HTML content
+     * Converts multiple consecutive line breaks to single ones
+     */
+    cleanMultipleLineBreaks(html) {
+        return html
+            // Convert multiple consecutive <br> tags to single ones (2 or more becomes 1)
+            .replace(/(<br\s*\/?>){2,}/gi, '<br>')
+            // Convert multiple newlines to single ones (3 or more becomes 2 to preserve paragraphs)
+            .replace(/\n{3,}/g, '\n\n')
+            // Remove multiple paragraph breaks (empty paragraphs) but preserve single ones
+            .replace(/(<p>\s*<\/p>){2,}/gi, '<p></p>')
+            // Clean up excessive spacing between paragraph tags while preserving structure
+            .replace(/(<\/p>)\s{2,}(<p>)/gi, '$1\n$2')
+            // Clean up excessive whitespace but preserve single spaces and line breaks
+            .replace(/[ \t]{2,}/g, ' ')
+            .trim();
+    }
+    
+    /**
+     * Process markdown text with marked.js and apply cleaning
+     */
+    processMarkdown(text) {
+        if (!window.marked || !text) {
+            return text;
+        }
+        
+        try {
+            // Convert markdown to HTML using marked.js
+            let html = marked.parse(text);
+            
+            // Apply cleaning functions
+            html = this.cleanListHTML(html);
+            html = this.cleanMultipleLineBreaks(html);
+            
+            return html;
+        } catch (error) {
+            console.error('Error processing markdown:', error);
+            // Return original text if markdown processing fails
+            return text;
+        }
+    }
+    
     initializeUI() {
         this.statusElement = document.getElementById('connection-status');
         this.messageCountElement = document.getElementById('message-count');
@@ -226,7 +291,16 @@ class AuditariaWebClient {
                 // Update content to final version
                 const contentEl = pendingTextEl.querySelector('.message-content');
                 if (contentEl) {
-                    contentEl.textContent = this.getMessageContent(historyItem);
+                    const textSpan = contentEl.querySelector('span');
+                    if (textSpan) {
+                        const content = this.getMessageContent(historyItem);
+                        // Use markdown processing for AI messages only
+                        if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content') {
+                            textSpan.innerHTML = this.processMarkdown(content);
+                        } else {
+                            textSpan.textContent = content;
+                        }
+                    }
                 }
                 
                 // Update timestamp
@@ -337,7 +411,16 @@ class AuditariaWebClient {
             // Update existing pending message content
             const contentEl = pendingMessageEl.querySelector('.message-content');
             if (contentEl) {
-                contentEl.textContent = this.getMessageContent(pendingItem);
+                const textSpan = contentEl.querySelector('span');
+                if (textSpan) {
+                    const content = this.getMessageContent(pendingItem);
+                    // Use markdown processing for AI messages only
+                    if (pendingItem.type === 'gemini' || pendingItem.type === 'gemini_content') {
+                        textSpan.innerHTML = this.processMarkdown(content);
+                    } else {
+                        textSpan.textContent = content;
+                    }
+                }
             }
             
             // Update timestamp
@@ -468,7 +551,14 @@ class AuditariaWebClient {
         const contentEl = document.createElement('div');
         contentEl.className = 'message-content';
         const textSpan = document.createElement('span');
-        textSpan.textContent = content;
+        
+        // Use markdown processing for AI messages only
+        if (type === 'gemini' || type === 'gemini_content') {
+            textSpan.innerHTML = this.processMarkdown(content);
+        } else {
+            textSpan.textContent = content;
+        }
+        
         contentEl.appendChild(textSpan);
         
         const timestampEl = document.createElement('div');
