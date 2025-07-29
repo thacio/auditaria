@@ -82,6 +82,7 @@ export interface GeminiCLIExtension {
   name: string;
   version: string;
   isActive: boolean;
+  path: string;
 }
 export interface FileFilteringOptions {
   respectGitIgnore: boolean;

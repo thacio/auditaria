@@ -14,6 +14,7 @@ export const EXTENSIONS_DIRECTORY_NAME = path.join('.gemini', 'extensions');
 export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
 
 export interface Extension {
+  path: string;
   config: ExtensionConfig;
   contextFiles: string[];
 }
@@ -91,6 +92,7 @@ function loadExtension(extensionDir: string): Extension | null {
       .filter((contextFilePath) => fs.existsSync(contextFilePath));
 
     return {
+      path: extensionDir,
       config,
       contextFiles,
     };
@@ -122,6 +124,7 @@ export function annotateActiveExtensions(
       name: extension.config.name,
       version: extension.config.version,
       isActive: true,
+      path: extension.path,
     }));
   }
 
@@ -137,6 +140,7 @@ export function annotateActiveExtensions(
       name: extension.config.name,
       version: extension.config.version,
       isActive: false,
+      path: extension.path,
     }));
   }
 
@@ -154,6 +158,7 @@ export function annotateActiveExtensions(
       name: extension.config.name,
       version: extension.config.version,
       isActive,
+      path: extension.path,
     });
   }
 
