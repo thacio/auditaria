@@ -240,12 +240,12 @@ export class Logger {
       throw new Error('Checkpoint file path not set.');
     }
     // Sanitize tag to prevent directory traversal attacks
-    tag = tag.replace(/[^a-zA-Z0-9-_]/g, '');
-    if (!tag) {
+    let sanitizedTag = tag.replace(/[^a-zA-Z0-9-_]/g, '');
+    if (!sanitizedTag) {
       console.error(t('checkpoint.tag_sanitized_empty', 'Sanitized tag is empty setting to "default".'));
-      tag = 'default';
+      sanitizedTag = 'default';
     }
-    return path.join(this.geminiDir, `checkpoint-${tag}.json`);
+    return path.join(this.geminiDir, `checkpoint-${sanitizedTag}.json`);
   }
 
   async saveCheckpoint(conversation: Content[], tag: string): Promise<void> {
@@ -284,11 +284,6 @@ export class Logger {
       return parsedContent as Content[];
     } catch (error) {
       console.error(`Failed to read or parse checkpoint file ${path}:`, error);
-      const nodeError = error as NodeJS.ErrnoException;
-      if (nodeError.code === 'ENOENT') {
-        // File doesn't exist, which is fine. Return empty array.
-        return [];
-      }
       return [];
     }
   }
