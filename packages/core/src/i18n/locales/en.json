@@ -904,6 +904,16 @@
     "image_safety": "Response stopped due to image safety violations.",
     "unexpected_tool_call": "Response stopped due to unexpected tool call."
   },
+  "ide": {
+    "errors": {
+      "extension_not_found": "Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.",
+      "single_workspace_required": "IDE integration requires a single workspace folder to be open in the IDE. Please ensure one folder is open and try again.",
+      "directory_mismatch": "Gemini CLI is running in a different directory ({currentDir}) from the IDE's open workspace ({workspaceDir}). Please run Gemini CLI in the same directory.",
+      "client_error": "Client error.",
+      "connection_closed": "Connection closed.",
+      "connection_failed": "Failed to connect to IDE server: {error}"
+    }
+  },
   "vscode_extension": {
     "command_title": "Auditaria CLI: Run",
     "terminal_name": "Auditaria CLI"

@@ -876,6 +876,16 @@
     "image_safety": "Resposta interrompida devido a violações de segurança da imagem.",
     "unexpected_tool_call": "Resposta interrompida devido a chamada de ferramenta inesperada."
   },
+  "ide": {
+    "errors": {
+      "extension_not_found": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
+      "single_workspace_required": "A integração do IDE requer que uma única pasta de workspace esteja aberta no IDE. Por favor, certifique-se de que uma pasta esteja aberta e tente novamente.",
+      "directory_mismatch": "O Gemini CLI está executando em um diretório diferente ({currentDir}) do workspace aberto no IDE ({workspaceDir}). Por favor, execute o Gemini CLI no mesmo diretório.",
+      "client_error": "Erro do cliente.",
+      "connection_closed": "Conexão fechada.",
+      "connection_failed": "Falha ao conectar ao servidor do IDE: {error}"
+    }
+  },
   "vscode_extension": {
     "command_title": "Auditaria CLI: Executar",
     "terminal_name": "Auditaria CLI"

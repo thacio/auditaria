@@ -7,6 +7,7 @@
 import { ideContext, IdeContextNotificationSchema } from '../ide/ideContext.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { t } from '../i18n/index.js';
 
 const logger = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,7 +16,7 @@ const logger = {
 
 export type IDEConnectionState = {
   status: IDEConnectionStatus;
-  details?: string;
+  details?: string; // User-facing
 };
 
 export enum IDEConnectionStatus {
@@ -29,41 +30,85 @@ export enum IDEConnectionStatus {
  */
 export class IdeClient {
   client: Client | undefined = undefined;
-  connectionStatus: IDEConnectionStatus = IDEConnectionStatus.Disconnected;
+  private state: IDEConnectionState = {
+    status: IDEConnectionStatus.Disconnected,
+  };
 
   constructor() {
-    this.connectToMcpServer().catch((err) => {
+    this.init().catch((err) => {
       logger.debug('Failed to initialize IdeClient:', err);
     });
   }
 
-  getConnectionStatus(): {
-    status: IDEConnectionStatus;
-    details?: string;
-  } {
-    let details: string | undefined;
-    if (this.connectionStatus === IDEConnectionStatus.Disconnected) {
-      if (!process.env['GEMINI_CLI_IDE_SERVER_PORT']) {
-        details = 'GEMINI_CLI_IDE_SERVER_PORT environment variable is not set.';
-      }
-    }
-    return {
-      status: this.connectionStatus,
-      details,
-    };
+  getConnectionStatus(): IDEConnectionState {
+    return this.state;
   }
 
-  async connectToMcpServer(): Promise<void> {
-    this.connectionStatus = IDEConnectionStatus.Connecting;
-    const idePort = process.env['GEMINI_CLI_IDE_SERVER_PORT'];
-    if (!idePort) {
-      logger.debug(
-        'Unable to connect to IDE mode MCP server. GEMINI_CLI_IDE_SERVER_PORT environment variable is not set.',
+  private setState(status: IDEConnectionStatus, details?: string) {
+    this.state = { status, details };
+
+    if (status === IDEConnectionStatus.Disconnected) {
+      logger.debug('IDE integration is disconnected. ', details);
+      ideContext.clearIdeContext();
+    }
+  }
+
+  private getPortFromEnv(): string | undefined {
+    const port = process.env['GEMINI_CLI_IDE_SERVER_PORT'];
+    if (!port) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t('ide.errors.extension_not_found', 'Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.'),
       );
-      this.connectionStatus = IDEConnectionStatus.Disconnected;
+      return undefined;
+    }
+    return port;
+  }
+
+  private validateWorkspacePath(): boolean {
+    const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
+    if (!ideWorkspacePath) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t('ide.errors.single_workspace_required', 'IDE integration requires a single workspace folder to be open in the IDE. Please ensure one folder is open and try again.'),
+      );
+      return false;
+    }
+    if (ideWorkspacePath !== process.cwd()) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t('ide.errors.directory_mismatch', 'Gemini CLI is running in a different directory ({currentDir}) from the IDE\'s open workspace ({workspaceDir}). Please run Gemini CLI in the same directory.', {
+          currentDir: process.cwd(),
+          workspaceDir: ideWorkspacePath
+        }),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  private registerClientHandlers() {
+    if (!this.client) {
       return;
     }
 
+    this.client.setNotificationHandler(
+      IdeContextNotificationSchema,
+      (notification) => {
+        ideContext.setIdeContext(notification.params);
+      },
+    );
+
+    this.client.onerror = (_error) => {
+      this.setState(IDEConnectionStatus.Disconnected, t('ide.errors.client_error', 'Client error.'));
+    };
+
+    this.client.onclose = () => {
+      this.setState(IDEConnectionStatus.Disconnected, t('ide.errors.connection_closed', 'Connection closed.'));
+    };
+  }
+
+  private async establishConnection(port: string) {
     let transport: StreamableHTTPClientTransport | undefined;
     try {
       this.client = new Client({
@@ -71,32 +116,21 @@ export class IdeClient {
         // TODO(#3487): use the CLI version here.
         version: '1.0.0',
       });
+
       transport = new StreamableHTTPClientTransport(
-        new URL(`http://localhost:${idePort}/mcp`),
+        new URL(`http://localhost:${port}/mcp`),
       );
+
+      this.registerClientHandlers();
+
       await this.client.connect(transport);
 
-      this.client.setNotificationHandler(
-        IdeContextNotificationSchema,
-        (notification) => {
-          ideContext.setIdeContext(notification.params);
-        },
-      );
-      this.client.onerror = (error) => {
-        logger.debug('IDE MCP client error:', error);
-        this.connectionStatus = IDEConnectionStatus.Disconnected;
-        ideContext.clearIdeContext();
-      };
-      this.client.onclose = () => {
-        logger.debug('IDE MCP client connection closed.');
-        this.connectionStatus = IDEConnectionStatus.Disconnected;
-        ideContext.clearIdeContext();
-      };
-
-      this.connectionStatus = IDEConnectionStatus.Connected;
+      this.setState(IDEConnectionStatus.Connected);
     } catch (error) {
-      this.connectionStatus = IDEConnectionStatus.Disconnected;
-      logger.debug('Failed to connect to MCP server:', error);
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t('ide.errors.connection_failed', 'Failed to connect to IDE server: {error}', { error: String(error) }),
+      );
       if (transport) {
         try {
           await transport.close();
@@ -105,5 +139,23 @@ export class IdeClient {
         }
       }
     }
+  }
+
+  async init(): Promise<void> {
+    if (this.state.status === IDEConnectionStatus.Connected) {
+      return;
+    }
+    this.setState(IDEConnectionStatus.Connecting);
+
+    if (!this.validateWorkspacePath()) {
+      return;
+    }
+
+    const port = this.getPortFromEnv();
+    if (!port) {
+      return;
+    }
+
+    await this.establishConnection(port);
   }
 }
