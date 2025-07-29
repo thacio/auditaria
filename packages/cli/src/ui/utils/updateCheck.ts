@@ -4,12 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import updateNotifier from 'update-notifier';
+import updateNotifier, { UpdateInfo } from 'update-notifier';
 import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
 import { t } from '@thacio/auditaria-cli-core';
 
-export async function checkForUpdates(): Promise<string | null> {
+export interface UpdateObject {
+  message: string;
+  update: UpdateInfo;
+}
+
+export async function checkForUpdates(): Promise<UpdateObject | null> {
   try {
     // Skip update check when running from source (development mode)
     if (process.env.DEV === 'true') {
@@ -31,11 +36,13 @@ export async function checkForUpdates(): Promise<string | null> {
       shouldNotifyInNpmScript: true,
     });
 
-    if (
-      notifier.update &&
-      semver.gt(notifier.update.latest, notifier.update.current)
-    ) {
-      return t('update.available', 'Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update', { current: notifier.update.current, latest: notifier.update.latest, packageName: packageJson.name });
+    const updateInfo = await notifier.fetchInfo();
+
+    if (updateInfo && semver.gt(updateInfo.latest, updateInfo.current)) {
+      return {
+        message: t('update.available', 'Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update', { current: updateInfo.current, latest: updateInfo.latest, packageName: packageJson.name }),
+        update: updateInfo,
+      };
     }
 
     return null;

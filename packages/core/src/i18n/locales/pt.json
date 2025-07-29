@@ -700,7 +700,11 @@
     "last_lines_hidden": "... últimas {count} linha{plural} oculta{plural} ..."
   },
   "update": {
-    "available": "Atualização do Gemini CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar"
+    "available": "Atualização do Gemini CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar",
+    "success": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
+    "failed": "Atualização automática falhou. Por favor, tente atualizar manualmente",
+    "failed_with_details": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: {command}, stderr: {stderr})",
+    "failed_with_error": "Atualização automática falhou. Por favor, tente atualizar manualmente. (erro: {error})"
   },
   "privacy": {
     "oauth_not_used": "OAuth não está sendo usado",

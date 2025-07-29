@@ -694,7 +694,11 @@
     "last_lines_hidden": "... last {count} line{plural} hidden ..."
   },
   "update": {
-    "available": "Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update"
+    "available": "Gemini CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update",
+    "success": "Update successful! The new version will be used on your next run.",
+    "failed": "Automatic update failed. Please try updating manually",
+    "failed_with_details": "Automatic update failed. Please try updating manually. (command: {command}, stderr: {stderr})",
+    "failed_with_error": "Automatic update failed. Please try updating manually. (error: {error})"
   },
   "shell": {
     "binary_output_detected": "[Binary output detected. Halting stream...]",
