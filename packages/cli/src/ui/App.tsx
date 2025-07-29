@@ -563,17 +563,14 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
   // Register abort handler with web interface service
   const webInterface = useWebInterface();
-  const abortHandlerRegistered = useRef(false);
-  const submitHandlerRegistered = useRef(false);
-  
   useEffect(() => {
-    if (webInterface?.service && triggerAbort && !abortHandlerRegistered.current) {
+    if (webInterface?.service && triggerAbort) {
       webInterface.service.setAbortHandler(triggerAbort);
-      abortHandlerRegistered.current = true;
     }
-  }, [triggerAbort]); // Removed webInterface?.service from dependencies to prevent recreation
+  }, [webInterface?.service, triggerAbort]);
 
   // Register with web interface service once
+  const submitHandlerRegistered = useRef(false);
   useEffect(() => {
     const register = () => {
       if (webInterface?.service && !submitHandlerRegistered.current) {
