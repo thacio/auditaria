@@ -362,6 +362,37 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast clear command to all connected web clients
+   */
+  broadcastClear(): void {
+    // Clear internal history first
+    this.currentHistory = [];
+    
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'clear',
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
   private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {

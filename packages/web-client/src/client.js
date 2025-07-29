@@ -194,6 +194,9 @@ class AuditariaWebClient {
             case 'tool_confirmation_removal':
                 this.handleToolConfirmationRemoval(message.data);
                 break;
+            case 'clear':
+                this.clearAllMessages();
+                break;
             default:
                 console.log('Unknown message type:', message.type);
         }
@@ -437,6 +440,13 @@ class AuditariaWebClient {
         
         this.updateMessageCount();
         this.scrollToBottom();
+    }
+    
+    clearAllMessages() {
+        // Clear all messages from the web interface
+        this.messagesContainer.innerHTML = '';
+        this.messageCount = 0;
+        this.updateMessageCount();
     }
     
     createChatMessage(type, label, content, historyItem = null) {
@@ -870,6 +880,12 @@ class AuditariaWebClient {
             return;
         }
         
+        // Check if this is a /clear command and show confirmation
+        if (message.toLowerCase() === '/clear') {
+            this.showClearConfirmation(message);
+            return;
+        }
+        
         try {
             // Send message to server
             this.socket.send(JSON.stringify({
@@ -888,6 +904,105 @@ class AuditariaWebClient {
         } catch (error) {
             console.error('Failed to send message:', error);
             this.updateInputStatus('Failed to send message');
+        }
+    }
+    
+    showClearConfirmation(message) {
+        // Remove any existing confirmation dialog
+        this.hideClearConfirmation();
+        
+        // Create confirmation dialog
+        const overlay = document.createElement('div');
+        overlay.className = 'clear-confirmation-overlay';
+        
+        const dialog = document.createElement('div');
+        dialog.className = 'clear-confirmation-dialog';
+        
+        const icon = document.createElement('div');
+        icon.className = 'clear-confirmation-icon';
+        icon.textContent = '⚠️';
+        
+        const title = document.createElement('h3');
+        title.className = 'clear-confirmation-title';
+        title.textContent = 'Clear Conversation History';
+        
+        const description = document.createElement('p');
+        description.className = 'clear-confirmation-description';
+        description.textContent = 'This will permanently delete all messages in the current conversation. This action cannot be undone.';
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'clear-confirmation-buttons';
+        
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'clear-confirmation-button clear-confirmation-cancel';
+        cancelButton.textContent = 'Cancel';
+        cancelButton.onclick = () => this.hideClearConfirmation();
+        
+        const confirmButton = document.createElement('button');
+        confirmButton.className = 'clear-confirmation-button clear-confirmation-confirm';
+        confirmButton.textContent = 'Clear History';
+        confirmButton.onclick = () => {
+            this.hideClearConfirmation();
+            this.executeClearCommand(message);
+        };
+        
+        buttonContainer.appendChild(cancelButton);
+        buttonContainer.appendChild(confirmButton);
+        
+        dialog.appendChild(icon);
+        dialog.appendChild(title);
+        dialog.appendChild(description);
+        dialog.appendChild(buttonContainer);
+        
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        // Focus the confirm button for accessibility
+        confirmButton.focus();
+        
+        // Handle escape key
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                this.hideClearConfirmation();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        
+        // Handle clicking outside dialog
+        overlay.onclick = (event) => {
+            if (event.target === overlay) {
+                this.hideClearConfirmation();
+            }
+        };
+    }
+    
+    hideClearConfirmation() {
+        const existingDialog = document.querySelector('.clear-confirmation-overlay');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+    }
+    
+    executeClearCommand(message) {
+        try {
+            // Send the clear command to server
+            this.socket.send(JSON.stringify({
+                type: 'user_message',
+                content: message,
+                timestamp: Date.now()
+            }));
+            
+            // Clear input
+            this.messageInput.value = '';
+            this.autoResizeTextarea();
+            
+            // Focus back to input
+            this.messageInput.focus();
+            
+        } catch (error) {
+            console.error('Failed to send clear command:', error);
+            this.updateInputStatus('Failed to send clear command');
         }
     }
     

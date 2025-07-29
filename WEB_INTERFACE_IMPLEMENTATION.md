@@ -66,6 +66,8 @@ packages/web-client/src/
 - Auto-reconnection with exponential backoff
 - Visual distinction for message types
 - Smooth animations and responsive design
+- /clear command confirmation dialog
+- CLI-to-web clear synchronization
 
 ### **4. CLI Integration**
 ```
@@ -577,6 +579,8 @@ useEffect(() => {
 | Tool Output Display | ✅ Complete | Comprehensive output for all tool states |
 | Tool Confirmation System | ✅ Complete | Professional confirmation dialogs for all tool types |
 | ESC Key Interruption | ✅ Complete | Keyboard shortcut system with CLI parity |
+| /clear Command Synchronization | ✅ Complete | CLI and web interface clear synchronization |
+| /clear Confirmation Dialog | ✅ Complete | Web interface confirmation for destructive clear command |
 | Pending Item Broadcasting | ✅ Complete | Instant AI and tool response streaming |
 | History Synchronization | ✅ Complete | Full conversation history loading on connection |
 | Build Process | ✅ Complete | Asset copying automated |
@@ -607,6 +611,8 @@ useEffect(() => {
 - ✅ **Performance Optimized**: No infinite loops, clean console output
 - ✅ **Keyboard Shortcut Extensibility**: Ready for future Ctrl+C, Ctrl+S shortcuts
 - ✅ **Bidirectional Communication**: Complete feature parity between CLI and web interface
+- ✅ **/clear Command Synchronization**: CLI `/clear` automatically clears web interface
+- ✅ **/clear Confirmation Dialog**: Web interface prevents accidental conversation clearing
 
 ### **🎯 Latest Enhancements: Complete CLI Integration**
 
@@ -692,6 +698,29 @@ The web interface now supports keyboard interruption matching CLI behavior:
 Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: Request cancelled
 ```
 
+#### **/clear Command Confirmation System**
+The web interface now provides confirmation dialogs for the `/clear` command to prevent accidental conversation history loss:
+- **Smart Detection**: Intercepts `/clear` commands before sending to server (case-insensitive)
+- **Professional Warning Dialog**: Modal with clear warning about permanent data loss
+- **Intuitive Controls**: 
+  - Cancel button (gray) and Clear History button (red)
+  - Escape key cancellation and click-outside dismissal
+  - Auto-focus on confirm button for accessibility
+- **Smooth UX**: Fade-in animations and responsive mobile design
+- **Maintains CLI Parity**: CLI `/clear` behavior unchanged, only web interface adds confirmation
+
+**Clear Confirmation Flow:**
+```
+Web: User types /clear → showClearConfirmation() → User confirms → executeClearCommand() → Normal /clear processing
+Web: User types /clear → showClearConfirmation() → User cancels → Dialog closes, no action taken
+```
+
+**User Protection Features:**
+- Warning icon (⚠️) and descriptive title "Clear Conversation History"  
+- Clear warning: "This will permanently delete all messages in the current conversation. This action cannot be undone."
+- Multiple cancellation methods: Cancel button, Escape key, click outside dialog
+- Red destructive action button to emphasize the permanent nature of the action
+
 #### **Technical Excellence**
 - **Zero Infinite Loops**: Robust React context management with stable dependencies
 - **Clean Console Output**: No debug spam, production-ready logging
@@ -699,4 +728,31 @@ Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: 
 - **Performance Optimized**: <10ms latency for real-time updates
 - **Complete Real-time Parity**: Web interface matches CLI behavior exactly for all features
 
-**The Auditaria CLI Web Interface with complete Tool Confirmation, Tool Execution, ESC Key Interruption, and Real-time State Broadcasting achieves full feature parity with the CLI and is production-ready with professional polish. Users can now seamlessly interact with tool confirmations through the web interface, providing a unified experience across both CLI and web platforms.**
+#### **/clear Command Synchronization and Confirmation**
+The web interface now provides complete `/clear` command integration with safety features:
+- **CLI-to-Web Synchronization**: When `/clear` is executed in CLI, web interface automatically clears
+- **Web Confirmation Dialog**: When `/clear` is typed in web interface, shows professional confirmation dialog
+- **Dual Protection Strategy**: 
+  - CLI `/clear` executes immediately (maintains CLI efficiency)
+  - Web `/clear` requires confirmation (prevents accidental data loss)
+- **Seamless Integration**: Uses existing WebSocket broadcast architecture for minimal code invasion
+
+**Implementation Components:**
+- **WebInterfaceService.broadcastClear()**: Broadcasts clear events to all web clients
+- **useHistoryManager enhancement**: Automatically calls web broadcast when history is cleared
+- **Web client confirmation flow**: Intercepts `/clear` commands and shows confirmation dialog
+- **Professional dialog design**: Warning icon, clear messaging, and intuitive controls
+
+**Complete Clear Flow:**
+```
+CLI /clear → clearItems() → broadcastClear() → Web clients clear instantly
+Web /clear → Confirmation dialog → User confirms → Send to CLI → Normal CLI clear processing → Web clears
+```
+
+**Safety Features:**
+- **Warning Dialog**: "This will permanently delete all messages in the current conversation. This action cannot be undone."
+- **Multiple Cancellation Options**: Cancel button, Escape key, click outside dialog
+- **Visual Hierarchy**: Red destructive action button, gray cancel button
+- **Keyboard Accessibility**: Auto-focus and keyboard navigation support
+
+**The Auditaria CLI Web Interface with complete Tool Confirmation, Tool Execution, ESC Key Interruption, /clear Command Synchronization, and Real-time State Broadcasting achieves full feature parity with the CLI and is production-ready with professional polish. Users can now seamlessly interact with all CLI features through the web interface while having additional safety protections for destructive actions, providing a unified and safe experience across both CLI and web platforms.**

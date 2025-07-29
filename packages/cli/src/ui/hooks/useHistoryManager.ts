@@ -112,7 +112,12 @@ export function useHistory(): UseHistoryManagerReturn {
   const clearItems = useCallback(() => {
     setHistory([]);
     messageIdCounterRef.current = 0;
-  }, []);
+    
+    // Broadcast clear to web interface if available
+    if (webInterface?.service) {
+      webInterface.service.broadcastClear();
+    }
+  }, [webInterface]);
 
   return {
     history,

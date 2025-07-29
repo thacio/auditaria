@@ -1028,6 +1028,102 @@ body {
   }
 }
 
+/* Clear Confirmation Dialog */
+.clear-confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.clear-confirmation-dialog {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  margin: 20px;
+  box-shadow: var(--shadow-md);
+  animation: slideIn 0.3s ease;
+  text-align: center;
+}
+
+.clear-confirmation-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.clear-confirmation-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.clear-confirmation-description {
+  color: var(--text-subtle);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.clear-confirmation-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.clear-confirmation-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.clear-confirmation-button:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.clear-confirmation-cancel {
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.clear-confirmation-cancel:hover {
+  background: var(--border);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.clear-confirmation-confirm {
+  background: var(--error);
+  color: white;
+}
+
+.clear-confirmation-confirm:hover {
+  background: #B91C1C;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.clear-confirmation-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
 /* Responsive footer info */
 @media (max-width: 768px) {
   .footer-info {
@@ -1041,5 +1137,20 @@ body {
     min-height: 24px;
     align-items: flex-start;
     justify-content: flex-start;
+  }
+  
+  .clear-confirmation-dialog {
+    margin: 10px;
+    padding: 20px;
+  }
+  
+  .clear-confirmation-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .clear-confirmation-button {
+    min-width: auto;
+    width: 100%;
   }
 }
