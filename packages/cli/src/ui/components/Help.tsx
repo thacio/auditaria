@@ -91,9 +91,15 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        {t('help.keys.enter', 'Enter')}
+        {t('help.keys.alt_left_right', 'Alt+Left/Right')}
       </Text>{' '}
-      - {t('help.shortcuts.enter', 'Send message')}
+      - {t('help.shortcuts.jump_words', 'Jump through words in the input')}
+    </Text>
+    <Text color={Colors.Foreground}>
+      <Text bold color={Colors.AccentPurple}>
+        {t('help.keys.ctrl_c', 'Ctrl+C')}
+      </Text>{' '}
+      - {t('help.shortcuts.quit', 'Quit application')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
@@ -105,21 +111,15 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        {t('help.keys.up_down', 'Up/Down')}
+        {t('help.keys.ctrl_l', 'Ctrl+L')}
       </Text>{' '}
-      - {t('help.shortcuts.cycle_history', 'Cycle through your prompt history')}
+      - {t('help.shortcuts.clear_screen', 'Clear the screen')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        {t('help.keys.alt_left_right', 'Alt+Left/Right')}
+        {process.platform === 'darwin' ? t('help.keys.ctrl_x_meta', 'Ctrl+X / Meta+Enter') : t('help.keys.ctrl_x', 'Ctrl+X')}
       </Text>{' '}
-      - {t('help.shortcuts.jump_words', 'Jump through words in the input')}
-    </Text>
-    <Text color={Colors.Foreground}>
-      <Text bold color={Colors.AccentPurple}>
-        {t('help.keys.shift_tab', 'Shift+Tab')}
-      </Text>{' '}
-      - {t('help.shortcuts.toggle_auto_accept', 'Toggle auto-accepting edits')}
+      - {t('help.shortcuts.external_editor', 'Open input in external editor')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
@@ -129,15 +129,34 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
+        {t('help.keys.enter', 'Enter')}
+      </Text>{' '}
+      - {t('help.shortcuts.enter', 'Send message')}
+    </Text>
+    <Text color={Colors.Foreground}>
+      <Text bold color={Colors.AccentPurple}>
         {t('help.keys.esc', 'Esc')}
       </Text>{' '}
       - {t('help.shortcuts.cancel', 'Cancel operation')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>
-        {t('help.keys.ctrl_c', 'Ctrl+C')}
+        {t('help.keys.shift_tab', 'Shift+Tab')}
       </Text>{' '}
-      - {t('help.shortcuts.quit', 'Quit application')}
+      - {t('help.shortcuts.toggle_auto_accept', 'Toggle auto-accepting edits')}
+    </Text>
+    <Text color={Colors.Foreground}>
+      <Text bold color={Colors.AccentPurple}>
+        {t('help.keys.up_down', 'Up/Down')}
+      </Text>{' '}
+      - {t('help.shortcuts.cycle_history', 'Cycle through your prompt history')}
+    </Text>
+    <Box height={1} />
+    <Text color={Colors.Foreground}>
+      {t('help.shortcuts.full_shortcuts_intro', 'For a full list of shortcuts, see')}{' '}
+      <Text bold color={Colors.AccentPurple}>
+        {t('help.shortcuts.docs_path', 'docs/keyboard-shortcuts.md')}
+      </Text>
     </Text>
   </Box>
 );

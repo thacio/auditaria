@@ -266,7 +266,10 @@
       "shift_tab": "Shift+Tab",
       "ctrl_y": "Ctrl+Y",
       "esc": "Esc",
-      "ctrl_c": "Ctrl+C"
+      "ctrl_c": "Ctrl+C",
+      "ctrl_l": "Ctrl+L",
+      "ctrl_x": "Ctrl+X",
+      "ctrl_x_meta": "Ctrl+X / Meta+Enter"
     },
     "shortcuts": {
       "enter": "Enviar mensagem",
@@ -277,7 +280,11 @@
       "toggle_auto_accept": "Alternar aceitação automática de edições",
       "toggle_yolo": "Alternar modo YOLO",
       "cancel": "Cancelar operação",
-      "quit": "Sair da aplicação"
+      "quit": "Sair da aplicação",
+      "clear_screen": "Limpar a tela",
+      "external_editor": "Abrir entrada no editor externo",
+      "full_shortcuts_intro": "Para uma lista completa de atalhos, consulte",
+      "docs_path": "docs/keyboard-shortcuts.md"
     }
   },
   "auth_dialog": {
