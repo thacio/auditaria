@@ -203,6 +203,32 @@ packages/cli/src/services/
 Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: Request cancelled
 ```
 
+### **11. Markdown Processing System**
+```
+bundle/web-client/
+├── marked.min.js                    # Markdown parsing library
+├── index.html                       # Script tag integration
+└── client.js                        # Processing functions and selective rendering
+```
+
+**Features:**
+- **Selective Processing**: Only AI messages (gemini/gemini_content) get markdown rendering
+- **HTML Cleaning**: List spacing fixes and multiple line break normalization
+- **Table Styling**: Professional tables with black borders and proper padding
+- **List Formatting**: Proper indentation with nested list support and different bullet/number styles
+- **Fallback Safety**: Graceful degradation to plain text if processing fails
+
+**Processing Functions:**
+- `cleanListHTML()` - Removes extra spacing around list elements and paragraph tags inside lists
+- `cleanMultipleLineBreaks()` - Converts multiple consecutive line breaks to single ones
+- `processMarkdown()` - Main function combining marked.js parsing with cleaning
+
+**Message Flow:**
+```
+AI Message → processMarkdown() → marked.parse() → cleanListHTML() → cleanMultipleLineBreaks() → Rendered HTML
+Non-AI Message → textContent (unchanged)
+```
+
 ---
 
 ## 🎨 User Experience Design
@@ -585,6 +611,7 @@ useEffect(() => {
 | History Synchronization | ✅ Complete | Full conversation history loading on connection |
 | Build Process | ✅ Complete | Asset copying automated |
 | Performance Optimization | ✅ Complete | Infinite loop prevention, debug cleanup |
+| Markdown Processing System | ✅ Complete | AI message markdown rendering with HTML cleaning |
 | Documentation | ✅ Complete | This document |
 | Testing | ✅ Complete | Manual testing completed |
 | Git Branch | ✅ Complete | feature/web-interface pushed |
@@ -613,6 +640,7 @@ useEffect(() => {
 - ✅ **Bidirectional Communication**: Complete feature parity between CLI and web interface
 - ✅ **/clear Command Synchronization**: CLI `/clear` automatically clears web interface
 - ✅ **/clear Confirmation Dialog**: Web interface prevents accidental conversation clearing
+- ✅ **Markdown Processing**: AI messages render with proper markdown formatting including lists and tables
 
 ### **🎯 Latest Enhancements: Complete CLI Integration**
 
