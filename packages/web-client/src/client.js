@@ -749,7 +749,311 @@ class AuditariaWebClient {
         messageEl.appendChild(headerEl);
         messageEl.appendChild(bubbleEl);
         
+        // Add copy buttons for messages that contain content
+        if (content && content.trim()) {
+            const copyButtonsEl = this.createCopyButtons(content, type, historyItem);
+            messageEl.appendChild(copyButtonsEl);
+        }
+        
         return messageEl;
+    }
+    
+    /**
+     * Create copy buttons for a message
+     * @param {string} content - The message content
+     * @param {string} type - The message type
+     * @param {object} historyItem - The history item object
+     * @returns {HTMLElement} The copy buttons container
+     */
+    createCopyButtons(content, type, historyItem) {
+        const copyContainer = document.createElement('div');
+        copyContainer.className = 'copy-buttons-container';
+        
+        const copyButtonsEl = document.createElement('div');
+        copyButtonsEl.className = 'copy-buttons';
+        
+        // Store message type for copy functionality
+        copyContainer.setAttribute('data-message-type', type);
+        
+        // Create markdown copy button
+        const markdownBtn = document.createElement('button');
+        markdownBtn.className = 'copy-button copy-markdown';
+        markdownBtn.title = 'Copy as Markdown';
+        markdownBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <path d="m9 9 5 12 4-12"></path>
+            </svg>
+            <span class="copy-label">Markdown</span>
+        `;
+        
+        // Create formatted text copy button
+        const formattedBtn = document.createElement('button');
+        formattedBtn.className = 'copy-button copy-formatted';
+        formattedBtn.title = 'Copy as Plain Text';
+        formattedBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+            </svg>
+            <span class="copy-label">Text</span>
+        `;
+        
+        // Add click handlers
+        markdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.copyToClipboard(content, 'markdown', markdownBtn);
+        });
+        
+        formattedBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.copyToClipboard(content, 'formatted', formattedBtn);
+        });
+        
+        copyButtonsEl.appendChild(markdownBtn);
+        copyButtonsEl.appendChild(formattedBtn);
+        copyContainer.appendChild(copyButtonsEl);
+        
+        return copyContainer;
+    }
+    
+    /**
+     * Convert HTML content to clean plain text (like CLI would display)
+     * Removes all markdown syntax and formatting, keeping only the readable text
+     * @param {string} html - HTML content to convert
+     * @returns {string} Clean plain text
+     */
+    convertHtmlToFormattedText(html) {
+        // Create a temporary DOM element to parse HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        let result = '';
+        
+        // Process each child node
+        const processNode = (node, indent = '') => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                if (text) {
+                    result += text;
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tagName = node.tagName.toLowerCase();
+                
+                switch (tagName) {
+                    case 'h1':
+                    case 'h2':
+                    case 'h3':
+                    case 'h4':
+                    case 'h5':
+                    case 'h6':
+                        if (result && !result.endsWith('\n\n')) {
+                            result += '\n\n';
+                        }
+                        result += node.textContent.trim() + '\n\n';
+                        break;
+                        
+                    case 'p':
+                        if (result && !result.endsWith('\n') && !result.endsWith('\n\n')) {
+                            result += '\n\n';
+                        }
+                        for (const child of node.childNodes) {
+                            processNode(child, indent);
+                        }
+                        result += '\n\n';
+                        break;
+                        
+                    case 'ul':
+                        result += '\n';
+                        const ulItems = Array.from(node.children).filter(child => child.tagName.toLowerCase() === 'li');
+                        ulItems.forEach(li => {
+                            result += indent + '• ' + li.textContent.trim() + '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'ol':
+                        result += '\n';
+                        const olItems = Array.from(node.children).filter(child => child.tagName.toLowerCase() === 'li');
+                        olItems.forEach((li, index) => {
+                            result += indent + (index + 1) + '. ' + li.textContent.trim() + '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'li':
+                        // Skip - handled by parent ul/ol
+                        break;
+                        
+                    case 'br':
+                        result += '\n';
+                        break;
+                        
+                    case 'strong':
+                    case 'b':
+                    case 'em':
+                    case 'i':
+                        // Just extract text content, ignore formatting
+                        result += node.textContent;
+                        break;
+                        
+                    case 'code':
+                        // Just extract text content without backticks
+                        result += node.textContent;
+                        break;
+                        
+                    case 'pre':
+                        result += '\n\n' + node.textContent + '\n\n';
+                        break;
+                        
+                    case 'blockquote':
+                        const lines = node.textContent.trim().split('\n');
+                        result += '\n';
+                        lines.forEach(line => {
+                            if (line.trim()) {
+                                result += line.trim() + '\n';
+                            }
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'table':
+                        result += '\n';
+                        const rows = node.querySelectorAll('tr');
+                        rows.forEach((row) => {
+                            const cells = row.querySelectorAll('td, th');
+                            const cellTexts = Array.from(cells).map(cell => cell.textContent.trim());
+                            result += cellTexts.join(' | ') + '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'hr':
+                        result += '\n---\n\n';
+                        break;
+                        
+                    default:
+                        // For other elements, just process their children
+                        for (const child of node.childNodes) {
+                            processNode(child, indent);
+                        }
+                        break;
+                }
+            }
+        };
+        
+        // Process all child nodes
+        for (const child of tempDiv.childNodes) {
+            processNode(child);
+        }
+        
+        // Clean up the result to match CLI output style
+        result = result
+            // Remove extra whitespace at start/end
+            .trim()
+            // Replace multiple consecutive newlines with double newlines  
+            .replace(/\n{3,}/g, '\n\n')
+            // Clean up any remaining markdown artifacts that might have slipped through
+            .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold markers
+            .replace(/\*(.*?)\*/g, '$1')      // Remove italic markers  
+            .replace(/`(.*?)`/g, '$1')        // Remove inline code markers
+            .replace(/~~(.*?)~~/g, '$1')      // Remove strikethrough markers
+            .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove link markdown, keep text
+            // Clean up any stray markdown list markers that weren't in proper HTML
+            .replace(/^\s*[-*+]\s+/gm, '• ')  // Convert markdown bullets to bullet points
+            .replace(/^\s*(\d+)\.\s+/gm, '$1. ') // Clean up numbered lists
+            // Remove any remaining HTML tags that might have been missed
+            .replace(/<[^>]*>/g, '');
+            
+        return result;
+    }
+    
+    /**
+     * Copy content to clipboard with visual feedback
+     * @param {string} content - The content to copy
+     * @param {string} format - 'markdown' or 'formatted'
+     * @param {HTMLElement} button - The button element for feedback
+     */
+    async copyToClipboard(content, format, button) {
+        try {
+            let textToCopy = content;
+            
+            // Get the complete message content (handling merged messages)
+            const messageEl = button.closest('.message');
+            const contentSpan = messageEl.querySelector('.message-content span');
+            const messageType = button.closest('.copy-buttons-container').getAttribute('data-message-type');
+            
+            if (format === 'markdown') {
+                // For markdown copy, we want the original markdown content
+                // For AI messages, check if this is a merged message
+                if ((messageType === 'gemini' || messageType === 'gemini_content') && this.lastAIMessage && this.lastAIMessage.element === messageEl) {
+                    // This is the current merged AI message, get the complete text
+                    textToCopy = this.lastAIMessage.text || content;
+                } else {
+                    // For non-AI messages or individual messages, use original content
+                    textToCopy = content;
+                }
+            } else if (format === 'formatted') {
+                // For formatted text, convert HTML to properly formatted plain text
+                if (contentSpan && contentSpan.innerHTML !== contentSpan.textContent) {
+                    // The content has been processed with HTML, convert it properly
+                    textToCopy = this.convertHtmlToFormattedText(contentSpan.innerHTML);
+                } else {
+                    // Plain text content
+                    textToCopy = contentSpan ? contentSpan.textContent : content;
+                }
+            }
+            
+            // Use the modern Clipboard API if available
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(textToCopy);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                textArea.remove();
+            }
+            
+            // Visual feedback
+            this.showCopyFeedback(button, true);
+            
+        } catch (error) {
+            console.error('Failed to copy text:', error);
+            this.showCopyFeedback(button, false);
+        }
+    }
+    
+    /**
+     * Show visual feedback for copy operation
+     * @param {HTMLElement} button - The button element
+     * @param {boolean} success - Whether the copy was successful
+     */
+    showCopyFeedback(button, success) {
+        const originalTitle = button.title;
+        const label = button.querySelector('.copy-label');
+        const originalText = label.textContent;
+        
+        // Update button appearance
+        button.classList.add(success ? 'copy-success' : 'copy-error');
+        button.title = success ? 'Copied!' : 'Copy failed';
+        label.textContent = success ? 'Copied!' : 'Failed';
+        
+        // Reset after delay
+        setTimeout(() => {
+            button.classList.remove('copy-success', 'copy-error');
+            button.title = originalTitle;
+            label.textContent = originalText;
+        }, 2000);
     }
     
     renderSpecialContent(historyItem) {
