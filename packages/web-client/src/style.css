@@ -685,7 +685,7 @@ body {
   line-height: 1.2;
 }
 
-/* Loading Indicator Styling - Floating Design */
+/* Loading Indicator Styling - Floating Design with Expandable Content */
 .loading-indicator {
   position: absolute;
   bottom: 100%;
@@ -696,16 +696,39 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px 20px;
   margin-bottom: 24px; /* Increased from 16px */
-  display: flex;
-  align-items: center;
-  gap: 12px;
   min-width: 280px;
   max-width: 90%;
   box-shadow: var(--shadow-md);
   animation: floatIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Loading Header - Clickable Area */
+.loading-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
+
+.loading-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.loading-header:active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.loading-header:focus {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .loading-indicator.hidden {
@@ -798,6 +821,48 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border);
 }
+
+/* Expand Indicator - Chevron Arrow */
+.loading-expand-indicator {
+  color: var(--text-subtle);
+  font-size: 12px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: auto;
+}
+
+.loading-indicator.expanded .loading-expand-indicator {
+  transform: rotate(180deg);
+}
+
+/* Expandable Content Container - Now above the header */
+.loading-expandable-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  border-bottom: 1px solid transparent;
+  order: -1; /* Ensure it appears above the header */
+}
+
+.loading-indicator.expanded .loading-expandable-content {
+  max-height: 200px;
+  opacity: 1;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Thought Description Content */
+.loading-description {
+  padding: 16px 20px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.02);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Removed transitioning animation to prevent jiggling */
 
 /* Input container positioning for floating effect */
 .input-container {

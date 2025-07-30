@@ -40,6 +40,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
         currentLoadingPhrase,
         elapsedTime,
         thought: thought?.subject || null,
+        thoughtObject: thought,
       };
       
       loadingStateContext.updateLoadingState(loadingStateData);
