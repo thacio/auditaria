@@ -972,6 +972,177 @@ class AuditariaWebClient {
     }
     
     /**
+     * Convert HTML content back to markdown format  
+     * This reverses the markdown processing to get the original markdown
+     * @param {string} html - HTML content to convert back to markdown
+     * @returns {string} Reconstructed markdown
+     */
+    convertHtmlToMarkdown(html) {
+        // Create a temporary DOM element to parse HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        let result = '';
+        
+        // Process each child node
+        const processNode = (node, indent = '') => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                result += node.textContent;
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tagName = node.tagName.toLowerCase();
+                
+                switch (tagName) {
+                    case 'h1':
+                        result += '\n# ' + node.textContent.trim() + '\n\n';
+                        break;
+                    case 'h2':
+                        result += '\n## ' + node.textContent.trim() + '\n\n';
+                        break;
+                    case 'h3':
+                        result += '\n### ' + node.textContent.trim() + '\n\n';
+                        break;
+                    case 'h4':
+                        result += '\n#### ' + node.textContent.trim() + '\n\n';
+                        break;
+                    case 'h5':
+                        result += '\n##### ' + node.textContent.trim() + '\n\n';
+                        break;
+                    case 'h6':
+                        result += '\n###### ' + node.textContent.trim() + '\n\n';
+                        break;
+                        
+                    case 'p':
+                        if (result && !result.endsWith('\n\n') && !result.endsWith('\n')) {
+                            result += '\n\n';
+                        }
+                        for (const child of node.childNodes) {
+                            processNode(child, indent);
+                        }
+                        result += '\n\n';
+                        break;
+                        
+                    case 'ul':
+                        result += '\n';
+                        const ulItems = Array.from(node.children).filter(child => child.tagName.toLowerCase() === 'li');
+                        ulItems.forEach(li => {
+                            result += indent + '- ';
+                            for (const child of li.childNodes) {
+                                processNode(child, indent + '  ');
+                            }
+                            result += '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'ol':
+                        result += '\n';
+                        const olItems = Array.from(node.children).filter(child => child.tagName.toLowerCase() === 'li');
+                        olItems.forEach((li, index) => {
+                            result += indent + (index + 1) + '. ';
+                            for (const child of li.childNodes) {
+                                processNode(child, indent + '   ');
+                            }
+                            result += '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'li':
+                        // Skip - handled by parent ul/ol
+                        break;
+                        
+                    case 'br':
+                        result += '\n';
+                        break;
+                        
+                    case 'strong':
+                    case 'b':
+                        result += '**' + node.textContent + '**';
+                        break;
+                        
+                    case 'em':
+                    case 'i':
+                        result += '*' + node.textContent + '*';
+                        break;
+                        
+                    case 'code':
+                        if (node.parentNode && node.parentNode.tagName.toLowerCase() === 'pre') {
+                            // Skip - handled by parent pre
+                        } else {
+                            result += '`' + node.textContent + '`';
+                        }
+                        break;
+                        
+                    case 'pre':
+                        result += '\n```\n' + node.textContent + '\n```\n\n';
+                        break;
+                        
+                    case 'blockquote':
+                        result += '\n';
+                        const lines = node.textContent.trim().split('\n');
+                        lines.forEach(line => {
+                            result += '> ' + line.trim() + '\n';
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'table':
+                        result += '\n';
+                        const rows = node.querySelectorAll('tr');
+                        rows.forEach((row, rowIndex) => {
+                            const cells = row.querySelectorAll('td, th');
+                            const cellTexts = Array.from(cells).map(cell => cell.textContent.trim());
+                            result += '| ' + cellTexts.join(' | ') + ' |\n';
+                            
+                            // Add separator after header row  
+                            if (rowIndex === 0 && row.querySelector('th')) {
+                                result += '|' + cellTexts.map(() => ' --- ').join('|') + '|\n';
+                            }
+                        });
+                        result += '\n';
+                        break;
+                        
+                    case 'hr':
+                        result += '\n---\n\n';
+                        break;
+                        
+                    case 'a':
+                        const href = node.getAttribute('href');
+                        if (href) {
+                            result += '[' + node.textContent + '](' + href + ')';
+                        } else {
+                            result += node.textContent;
+                        }
+                        break;
+                        
+                    default:
+                        // For other elements, just process their children
+                        for (const child of node.childNodes) {
+                            processNode(child, indent);
+                        }
+                        break;
+                }
+            }
+        };
+        
+        // Process all child nodes
+        for (const child of tempDiv.childNodes) {
+            processNode(child);
+        }
+        
+        // Clean up the result
+        result = result
+            .trim()
+            // Fix multiple consecutive newlines
+            .replace(/\n{3,}/g, '\n\n')
+            // Clean up list spacing
+            .replace(/\n\n-/g, '\n-')
+            .replace(/\n\n\d+\./g, '\n$&'.replace('\n\n', '\n'));
+            
+        return result;
+    }
+    
+    /**
      * Copy content to clipboard with visual feedback
      * @param {string} content - The content to copy
      * @param {string} format - 'markdown' or 'formatted'
@@ -987,14 +1158,18 @@ class AuditariaWebClient {
             const messageType = button.closest('.copy-buttons-container').getAttribute('data-message-type');
             
             if (format === 'markdown') {
-                // For markdown copy, we want the original markdown content
-                // For AI messages, check if this is a merged message
-                if ((messageType === 'gemini' || messageType === 'gemini_content') && this.lastAIMessage && this.lastAIMessage.element === messageEl) {
-                    // This is the current merged AI message, get the complete text
-                    textToCopy = this.lastAIMessage.text || content;
+                // For markdown copy, we need to reconstruct the original markdown
+                // The best approach is to get the raw text that was used to create the HTML
+                
+                // First, try to get from the current merged message if it's the latest AI message
+                if ((messageType === 'gemini' || messageType === 'gemini_content') && 
+                    this.lastAIMessage && this.lastAIMessage.element === messageEl && 
+                    this.lastAIMessage.text) {
+                    textToCopy = this.lastAIMessage.text;
                 } else {
-                    // For non-AI messages or individual messages, use original content
-                    textToCopy = content;
+                    // For other cases, we need to reverse-engineer from the HTML
+                    // This is more complex but necessary for older merged messages
+                    textToCopy = this.convertHtmlToMarkdown(contentSpan ? contentSpan.innerHTML : content);
                 }
             } else if (format === 'formatted') {
                 // For formatted text, convert HTML to properly formatted plain text
