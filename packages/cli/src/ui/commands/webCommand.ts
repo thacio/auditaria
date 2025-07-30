@@ -24,8 +24,8 @@ export const webCommand: SlashCommand = {
     }
 
     try {
-      // Start the web interface
-      const result = await context.web.start();
+      // Start the web interface on port 8629 (same as --web flag)
+      const result = await context.web.start('8629');
       
       // Get the actual port where the server started
       const actualPort = result.port?.toString() || '8629';
@@ -63,11 +63,8 @@ export const webCommand: SlashCommand = {
         }
       }, 500);
 
-      return {
-        type: 'message',
-        messageType: 'info',
-        content: t('commands.web.starting_and_opening', '🌐 Opening web interface in browser...'),
-      };
+      // Don't show immediate message to avoid duplicate with setTimeout message
+      return;
     } catch (error) {
       return {
         type: 'message',
