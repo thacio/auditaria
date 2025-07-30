@@ -38,6 +38,19 @@ export class WebInterfaceService {
   private currentSlashCommands: readonly SlashCommand[] = [];
 
   /**
+   * Start HTTP server on specified port
+   */
+  private async startServerOnPort(port: number, host: string = 'localhost'): Promise<Server> {
+    return new Promise<Server>((resolve, reject) => {
+      const server = this.app!.listen(port, host, () => {
+        // Small delay to ensure server is fully ready
+        setTimeout(() => resolve(server), 10);
+      });
+      server.on('error', reject);
+    });
+  }
+
+  /**
    * Start the web interface server
    */
   async start(config: WebInterfaceConfig = {}): Promise<number> {
@@ -86,19 +99,46 @@ export class WebInterfaceService {
         res.json({ status: 'ok', clients: this.clients.size });
       });
 
-      // Start HTTP server
-      this.server = await new Promise<Server>((resolve, reject) => {
-        const server = this.app!.listen(config.port || 0, config.host || 'localhost', () => {
-          resolve(server);
-        });
-        server.on('error', reject);
-      });
+      // Start HTTP server with port fallback
+      const requestedPort = config.port || 8629; // Default to 8629
+      const host = config.host || 'localhost';
       
+      let usedFallback = false;
+      try {
+        // Try requested port first
+        console.log(`Attempting to start web server on port ${requestedPort}...`);
+        this.server = await this.startServerOnPort(requestedPort, host);
+        console.log(`Web server started successfully on requested port ${requestedPort}`);
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE') {
+          try {
+            console.log(`Port ${requestedPort} is in use, attempting fallback to random port...`);
+            // Retry with random port (0 = random)
+            this.server = await this.startServerOnPort(0, host);
+            usedFallback = true;
+            console.log('Web server started successfully on fallback port');
+          } catch (fallbackError: any) {
+            // If fallback also fails, throw the original error with more context
+            throw new Error(`Failed to start web server on port ${requestedPort} (in use) and fallback to random port also failed: ${fallbackError.message}`);
+          }
+        } else {
+          throw error; // Re-throw non-port-conflict errors
+        }
+      }
+      
+      console.log('Getting server address...');
       const address = this.server.address();
+      console.log('Server address:', address);
       if (!address || typeof address === 'string') {
-        throw new Error('Failed to get server address');
+        throw new Error(`Failed to get server address. Address type: ${typeof address}, value: ${address}`);
       }
       this.port = address.port;
+      console.log(`Web server confirmed running on port ${this.port}`);
+
+      // Log fallback message after we have the actual assigned port
+      if (usedFallback) {
+        console.log(t('web.port_fallback', 'Port {requestedPort} is in use, using port {assignedPort} instead', { requestedPort, assignedPort: this.port }));
+      }
 
       // Set up WebSocket server
       this.wss = new WebSocketServer({ server: this.server });

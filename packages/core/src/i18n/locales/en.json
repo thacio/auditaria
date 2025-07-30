@@ -45,6 +45,7 @@
       "available_at": "🌐 Web interface available at http://localhost:{port}",
       "opening_browser": "Opening web browser...",
       "browser_open_failed": "Failed to open browser automatically. Please visit http://localhost:{port} manually.",
+      "port_fallback": "Port {requestedPort} is in use, using port {assignedPort} instead",
       "messages": {
         "connected": "Connected to Auditaria CLI"
       },
