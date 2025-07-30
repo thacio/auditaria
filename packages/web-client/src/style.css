@@ -1308,8 +1308,9 @@ body {
   }
 }
 
-/* Print Button Styles */
-.print-button {
+/* Header Button Styles (shared) */
+.print-button,
+.autoscroll-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1324,24 +1325,57 @@ body {
   transition: all 0.2s ease;
 }
 
-.print-button:hover:not(:disabled) {
+.print-button:hover:not(:disabled),
+.autoscroll-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
 
-.print-button:active:not(:disabled) {
+.print-button:active:not(:disabled),
+.autoscroll-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
-.print-button:disabled {
+.print-button:disabled,
+.autoscroll-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.print-button svg {
+.print-button svg,
+.autoscroll-button svg {
   flex-shrink: 0;
+}
+
+/* Auto-scroll Button Active State */
+.autoscroll-button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.autoscroll-button.active:hover:not(:disabled) {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.autoscroll-button.active svg {
+  opacity: 1;
+}
+
+/* Auto-scroll Button Inactive State */
+.autoscroll-button:not(.active) {
+  background: var(--surface-alt);
+  color: var(--text-subtle);
+  border-color: var(--border);
+}
+
+.autoscroll-button:not(.active) svg {
+  opacity: 0.7;
 }
 
 /* Print Media Queries */

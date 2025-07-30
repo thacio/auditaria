@@ -84,9 +84,12 @@ class AuditariaWebClient {
         this.isLoading = false;
         this.confirmationQueue = new ConfirmationQueue(this);
         
+        // Auto-scroll functionality
+        this.autoScrollEnabled = true;
+        
         // Message merging properties
         this.lastAIMessage = null;
-        this.mergeTimeframe = 5000; // 5 seconds in milliseconds
+        this.mergeTimeframe = 10000; // 5 seconds in milliseconds
         
         this.initializeUI();
         this.setupKeyboardShortcuts();
@@ -230,6 +233,7 @@ class AuditariaWebClient {
         this.messageInput = document.getElementById('message-input');
         this.sendButton = document.getElementById('send-button');
         this.printButton = document.getElementById('print-button');
+        this.autoscrollButton = document.getElementById('autoscroll-button');
         this.inputStatus = document.getElementById('input-status');
         this.loadingIndicator = document.getElementById('loading-indicator');
         this.loadingText = document.getElementById('loading-text');
@@ -1548,12 +1552,14 @@ class AuditariaWebClient {
             this.messageInput.disabled = false;
             this.sendButton.disabled = false;
             this.printButton.disabled = false;
+            this.autoscrollButton.disabled = false;
         } else {
             this.statusElement.textContent = 'Disconnected';
             this.statusElement.className = 'status-disconnected';
             this.messageInput.disabled = true;
             this.sendButton.disabled = true;
             this.printButton.disabled = true;
+            this.autoscrollButton.disabled = true;
         }
     }
     
@@ -1563,7 +1569,30 @@ class AuditariaWebClient {
     }
     
     scrollToBottom() {
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        if (this.autoScrollEnabled) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
+    }
+    
+    /**
+     * Toggle auto-scroll functionality on/off
+     */
+    toggleAutoScroll() {
+        this.autoScrollEnabled = !this.autoScrollEnabled;
+        
+        // Update button appearance and tooltip
+        if (this.autoScrollEnabled) {
+            this.autoscrollButton.classList.add('active');
+            this.autoscrollButton.title = 'Auto-scroll: On';
+        } else {
+            this.autoscrollButton.classList.remove('active');
+            this.autoscrollButton.title = 'Auto-scroll: Off';
+        }
+        
+        // If enabling auto-scroll, immediately scroll to bottom
+        if (this.autoScrollEnabled) {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        }
     }
     
     handleDisconnection() {
@@ -1644,6 +1673,11 @@ class AuditariaWebClient {
         // Print button click handler
         this.printButton.addEventListener('click', () => {
             this.printChat();
+        });
+        
+        // Auto-scroll button click handler
+        this.autoscrollButton.addEventListener('click', () => {
+            this.toggleAutoScroll();
         });
         
         // Keyboard handlers for textarea
