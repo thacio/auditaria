@@ -14,6 +14,7 @@ import { t, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
+import type { SlashCommand } from '../ui/commands/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -374,6 +375,35 @@ export class WebInterfaceService {
 
     const message = JSON.stringify({
       type: 'clear',
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
+   * Broadcast slash commands data to all connected web clients
+   */
+  broadcastSlashCommands(commands: readonly SlashCommand[]): void {
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'slash_commands',
+      data: { commands },
       timestamp: Date.now(),
     });
 

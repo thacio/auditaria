@@ -601,6 +601,13 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     }
   }, [loadingStateContext?.loadingState]); // Only depend on loadingState, not webInterface
 
+  // Broadcast slash commands to web interface when commands are loaded or web interface connects
+  useEffect(() => {
+    if (slashCommands && slashCommands.length > 0 && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastSlashCommands(slashCommands);
+    }
+  }, [slashCommands, webInterface?.isRunning]); // Depend on slashCommands and connection status
+
   // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
   const toolConfirmationContext = useToolConfirmation();
   useEffect(() => {
