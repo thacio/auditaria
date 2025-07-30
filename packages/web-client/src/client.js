@@ -84,6 +84,10 @@ class AuditariaWebClient {
         this.isLoading = false;
         this.confirmationQueue = new ConfirmationQueue(this);
         
+        // Message merging properties
+        this.lastAIMessage = null;
+        this.mergeTimeframe = 5000; // 5 seconds in milliseconds
+        
         this.initializeUI();
         this.setupKeyboardShortcuts();
         this.connect();
@@ -152,6 +156,71 @@ class AuditariaWebClient {
             // Return original text if markdown processing fails
             return text;
         }
+    }
+    
+    /**
+     * Check if a message is an AI message that can be merged
+     */
+    isAIMessage(historyItem) {
+        return historyItem && (historyItem.type === 'gemini' || historyItem.type === 'gemini_content');
+    }
+    
+    /**
+     * Check if current message can be merged with the last AI message
+     */
+    canMergeWithLast(historyItem) {
+        if (!this.lastAIMessage || !this.isAIMessage(historyItem)) {
+            return false;
+        }
+        
+        const now = Date.now();
+        const timeDiff = now - this.lastAIMessage.timestamp;
+        
+        return timeDiff <= this.mergeTimeframe;
+    }
+    
+    /**
+     * Merge current AI message with the last AI message
+     */
+    mergeWithLastAIMessage(historyItem) {
+        if (!this.lastAIMessage || !this.lastAIMessage.element) {
+            return false;
+        }
+        
+        // Get the existing message content
+        const contentEl = this.lastAIMessage.element.querySelector('.message-content span');
+        if (!contentEl) {
+            return false;
+        }
+        
+        // Get current and new content
+        const existingContent = this.lastAIMessage.text || '';
+        const newContent = this.getMessageContent(historyItem);
+        
+        // Combine content with double line break for separation
+        const combinedContent = existingContent + '\n\n' + newContent;
+        
+        // Update the DOM with combined content (apply markdown processing)
+        contentEl.innerHTML = this.processMarkdown(combinedContent);
+        
+        // Update timestamp
+        const timestampEl = this.lastAIMessage.element.querySelector('.message-timestamp');
+        if (timestampEl) {
+            const timestamp = new Date().toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            timestampEl.textContent = timestamp;
+        }
+        
+        // Update the lastAIMessage tracking
+        this.lastAIMessage.text = combinedContent;
+        this.lastAIMessage.timestamp = Date.now();
+        
+        // Scroll to bottom after merging
+        this.scrollToBottom();
+        
+        return true;
     }
     
     initializeUI() {
@@ -285,6 +354,25 @@ class AuditariaWebClient {
         if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content') {
             const pendingTextEl = this.messagesContainer.querySelector('.message-pending-text');
             if (pendingTextEl) {
+                // First check if we can merge with the last AI message instead of converting pending
+                console.log('Pending conversion - checking merge first:', {
+                    isAI: this.isAIMessage(historyItem),
+                    hasLast: !!this.lastAIMessage,
+                    canMerge: this.canMergeWithLast(historyItem),
+                    type: historyItem.type,
+                    lastType: this.lastAIMessage?.type
+                });
+                
+                if (this.isAIMessage(historyItem) && this.canMergeWithLast(historyItem)) {
+                    console.log('Merging instead of converting pending message');
+                    // Remove the pending message since we're merging with the last AI message
+                    pendingTextEl.remove();
+                    
+                    if (this.mergeWithLastAIMessage(historyItem)) {
+                        console.log('Successfully merged with last AI message instead of pending conversion');
+                        return;
+                    }
+                }
                 // Convert pending text message to final message
                 pendingTextEl.classList.remove('message-pending-text');
                 
@@ -312,6 +400,14 @@ class AuditariaWebClient {
                     });
                     timestampEl.textContent = timestamp;
                 }
+                
+                // Track this converted AI message for potential future merging
+                this.lastAIMessage = {
+                    element: pendingTextEl,
+                    text: this.getMessageContent(historyItem),
+                    timestamp: Date.now(),
+                    type: historyItem.type
+                };
                 
                 this.messageCount++;
                 this.updateMessageCount();
@@ -364,6 +460,27 @@ class AuditariaWebClient {
             }
         }
         
+        // Check if this AI message can be merged with the last AI message
+        console.log('Merge check:', {
+            isAI: this.isAIMessage(historyItem),
+            hasLast: !!this.lastAIMessage,
+            canMerge: this.canMergeWithLast(historyItem),
+            type: historyItem.type,
+            lastType: this.lastAIMessage?.type,
+            timeDiff: this.lastAIMessage ? Date.now() - this.lastAIMessage.timestamp : 'N/A'
+        });
+        
+        if (this.isAIMessage(historyItem) && this.canMergeWithLast(historyItem)) {
+            console.log('Attempting to merge AI message');
+            if (this.mergeWithLastAIMessage(historyItem)) {
+                console.log('Successfully merged AI message');
+                // Message was successfully merged, no need to create new element
+                return;
+            } else {
+                console.log('Failed to merge AI message');
+            }
+        }
+        
         // Regular new message (no pending version exists)
         const messageEl = this.createChatMessage(
             historyItem.type,
@@ -376,6 +493,19 @@ class AuditariaWebClient {
         this.messageCount++;
         this.updateMessageCount();
         this.scrollToBottom();
+        
+        // Track this message if it's an AI message for potential future merging
+        if (this.isAIMessage(historyItem)) {
+            this.lastAIMessage = {
+                element: messageEl,
+                text: this.getMessageContent(historyItem),
+                timestamp: Date.now(),
+                type: historyItem.type
+            };
+        } else {
+            // Clear AI message tracking if this is not an AI message
+            this.lastAIMessage = null;
+        }
     }
     
     updatePendingItem(pendingItem) {
@@ -507,9 +637,19 @@ class AuditariaWebClient {
         // Clear welcome message and any pending items when loading history
         this.messagesContainer.innerHTML = '';
         this.messageCount = 0;
+        this.lastAIMessage = null; // Reset AI message tracking for history loading
         
-        // Load all historical messages
+        // Load all historical messages with merging logic
         historyItems.forEach(historyItem => {
+            // Check if this AI message can be merged with the last AI message
+            if (this.isAIMessage(historyItem) && this.canMergeWithLast(historyItem)) {
+                if (this.mergeWithLastAIMessage(historyItem)) {
+                    // Message was successfully merged, no need to create new element
+                    return;
+                }
+            }
+            
+            // Create regular message
             const messageEl = this.createChatMessage(
                 historyItem.type,
                 this.getMessageTypeLabel(historyItem.type),
@@ -519,6 +659,19 @@ class AuditariaWebClient {
             
             this.messagesContainer.appendChild(messageEl);
             this.messageCount++;
+            
+            // Track this message if it's an AI message for potential future merging
+            if (this.isAIMessage(historyItem)) {
+                this.lastAIMessage = {
+                    element: messageEl,
+                    text: this.getMessageContent(historyItem),
+                    timestamp: Date.now(),
+                    type: historyItem.type
+                };
+            } else {
+                // Clear AI message tracking if this is not an AI message
+                this.lastAIMessage = null;
+            }
         });
         
         this.updateMessageCount();
@@ -529,6 +682,7 @@ class AuditariaWebClient {
         // Clear all messages from the web interface
         this.messagesContainer.innerHTML = '';
         this.messageCount = 0;
+        this.lastAIMessage = null; // Reset AI message tracking when clearing messages
         this.updateMessageCount();
     }
     
