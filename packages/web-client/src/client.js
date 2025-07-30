@@ -234,6 +234,7 @@ class AuditariaWebClient {
         this.sendButton = document.getElementById('send-button');
         this.printButton = document.getElementById('print-button');
         this.autoscrollButton = document.getElementById('autoscroll-button');
+        this.slashCommandsButton = document.getElementById('slash-commands-button');
         this.inputStatus = document.getElementById('input-status');
         this.loadingIndicator = document.getElementById('loading-indicator');
         this.loadingText = document.getElementById('loading-text');
@@ -242,6 +243,17 @@ class AuditariaWebClient {
         this.loadingExpandIndicator = document.getElementById('loading-expand-indicator');
         this.loadingExpandableContent = document.getElementById('loading-expandable-content');
         this.loadingDescription = document.getElementById('loading-description');
+        
+        // Slash Commands Modal elements
+        this.slashCommandsModal = document.getElementById('slash-commands-modal');
+        this.slashCommandsBackdrop = document.getElementById('slash-commands-backdrop');
+        this.slashCommandsClose = document.getElementById('slash-commands-close');
+        this.commandsSearch = document.getElementById('commands-search');
+        this.commandsList = document.getElementById('commands-list');
+        
+        // Initialize slash commands data
+        this.slashCommands = [];
+        this.filteredCommands = [];
         
         // Initialize expandable state
         this.isThoughtsExpanded = false;
@@ -333,6 +345,9 @@ class AuditariaWebClient {
                 break;
             case 'footer_data':
                 this.updateFooter(message.data);
+                break;
+            case 'slash_commands':
+                this.handleSlashCommands(message.data);
                 break;
             case 'history_sync':
                 this.loadHistoryItems(message.data.history);
@@ -1680,6 +1695,11 @@ class AuditariaWebClient {
             this.toggleAutoScroll();
         });
         
+        // Slash commands button click handler
+        this.slashCommandsButton.addEventListener('click', () => {
+            this.showSlashCommandsModal();
+        });
+        
         // Keyboard handlers for textarea
         this.messageInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -1703,6 +1723,32 @@ class AuditariaWebClient {
             if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
                 this.toggleThoughtsExpansion();
+            }
+        });
+        
+        this.setupSlashCommandsModal();
+    }
+    
+    setupSlashCommandsModal() {
+        // Close button handler
+        this.slashCommandsClose.addEventListener('click', () => {
+            this.hideSlashCommandsModal();
+        });
+        
+        // Backdrop click handler
+        this.slashCommandsBackdrop.addEventListener('click', () => {
+            this.hideSlashCommandsModal();
+        });
+        
+        // Search input handler
+        this.commandsSearch.addEventListener('input', (event) => {
+            this.filterCommands(event.target.value);
+        });
+        
+        // ESC key handler for modal
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.slashCommandsModal.style.display !== 'none') {
+                this.hideSlashCommandsModal();
             }
         });
     }
@@ -2145,6 +2191,93 @@ class AuditariaWebClient {
         } else {
             return `${minutes}m ${seconds}s`;
         }
+    }
+    
+    // Slash Commands Modal Methods
+    showSlashCommandsModal() {
+        this.slashCommandsModal.style.display = 'block';
+        setTimeout(() => {
+            this.slashCommandsModal.classList.add('show');
+        }, 10);
+        
+        // Focus search input
+        this.commandsSearch.focus();
+        
+        // If commands haven't been loaded yet, show loading
+        if (this.slashCommands.length === 0) {
+            this.commandsList.innerHTML = '<div class="commands-loading">Loading commands...</div>';
+        }
+    }
+    
+    hideSlashCommandsModal() {
+        this.slashCommandsModal.classList.remove('show');
+        setTimeout(() => {
+            this.slashCommandsModal.style.display = 'none';
+        }, 300);
+        
+        // Clear search
+        this.commandsSearch.value = '';
+        this.filteredCommands = [...this.slashCommands];
+    }
+    
+    handleSlashCommands(commandsData) {
+        this.slashCommands = commandsData.commands || [];
+        this.filteredCommands = [...this.slashCommands];
+        this.renderCommands();
+        
+        // Enable the button once commands are loaded
+        this.slashCommandsButton.disabled = false;
+    }
+    
+    filterCommands(searchTerm) {
+        const term = searchTerm.toLowerCase();
+        this.filteredCommands = this.slashCommands.filter(command => {
+            // Search in name, description, and aliases
+            return command.name.toLowerCase().includes(term) ||
+                   (command.description && command.description.toLowerCase().includes(term)) ||
+                   (command.altNames && command.altNames.some(alias => alias.toLowerCase().includes(term)));
+        });
+        this.renderCommands();
+    }
+    
+    renderCommands() {
+        if (this.filteredCommands.length === 0) {
+            this.commandsList.innerHTML = '<div class="commands-loading">No commands found</div>';
+            return;
+        }
+        
+        const html = this.filteredCommands.map(command => this.renderCommand(command)).join('');
+        this.commandsList.innerHTML = html;
+    }
+    
+    renderCommand(command) {
+        let html = `
+            <div class="command-item">
+                <div class="command-name">/${command.name}</div>
+                <div class="command-description">${this.escapeHtml(command.description || 'No description available')}</div>
+        `;
+        
+        // Add aliases if they exist
+        if (command.altNames && command.altNames.length > 0) {
+            html += `<div class="command-aliases">Aliases: ${command.altNames.map(alias => `/${alias}`).join(', ')}</div>`;
+        }
+        
+        // Add subcommands if they exist
+        if (command.subCommands && command.subCommands.length > 0) {
+            html += '<div class="command-subcommands">';
+            command.subCommands.forEach(subcommand => {
+                html += `
+                    <div class="subcommand-item">
+                        <div class="subcommand-name">/${command.name} ${subcommand.name}</div>
+                        <div class="subcommand-description">${this.escapeHtml(subcommand.description || 'No description available')}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        return html;
     }
 }
 

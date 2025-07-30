@@ -119,7 +119,7 @@ export const AppWrapper = (props: AppProps) => (
   </SessionStatsProvider>
 );
 
-const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
+const App = ({ config, settings, startupWarnings = [], version, webEnabled }: AppProps) => {
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
@@ -600,6 +600,13 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
       webInterface.service.broadcastLoadingState(loadingStateContext.loadingState);
     }
   }, [loadingStateContext?.loadingState]); // Only depend on loadingState, not webInterface
+
+  // Broadcast slash commands to web interface when commands are loaded or web interface connects
+  useEffect(() => {
+    if (slashCommands && slashCommands.length > 0 && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastSlashCommands(slashCommands);
+    }
+  }, [slashCommands?.length, webInterface?.isRunning]); // Only depend on length and running status
 
   // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
   const toolConfirmationContext = useToolConfirmation();

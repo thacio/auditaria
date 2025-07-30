@@ -1310,7 +1310,8 @@ body {
 
 /* Header Button Styles (shared) */
 .print-button,
-.autoscroll-button {
+.autoscroll-button,
+.slash-commands-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1326,26 +1327,30 @@ body {
 }
 
 .print-button:hover:not(:disabled),
-.autoscroll-button:hover:not(:disabled) {
+.autoscroll-button:hover:not(:disabled),
+.slash-commands-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
 
 .print-button:active:not(:disabled),
-.autoscroll-button:active:not(:disabled) {
+.autoscroll-button:active:not(:disabled),
+.slash-commands-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
 .print-button:disabled,
-.autoscroll-button:disabled {
+.autoscroll-button:disabled,
+.slash-commands-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 .print-button svg,
-.autoscroll-button svg {
+.autoscroll-button svg,
+.slash-commands-button svg {
   flex-shrink: 0;
 }
 
@@ -1709,5 +1714,213 @@ body {
   .copy-label {
     display: none;
     /* Hide labels on mobile to save space, just show icons */
+  }
+}
+
+/* Slash Commands Modal Styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modal.show {
+  opacity: 1;
+}
+
+.modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.modal-content {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  margin: 5vh auto;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-alt);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-subtle);
+  cursor: pointer;
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 0;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.commands-search {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.commands-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.commands-search input:focus {
+  border-color: var(--primary);
+}
+
+.commands-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.commands-loading {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-subtle);
+}
+
+.command-item {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.command-item:hover {
+  background: var(--surface-alt);
+}
+
+.command-item:last-child {
+  border-bottom: none;
+}
+
+.command-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.command-description {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.command-aliases {
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-family: 'Roboto Mono', monospace;
+}
+
+.command-subcommands {
+  margin-top: 12px;
+  margin-left: 16px;
+  border-left: 2px solid var(--border);
+  padding-left: 16px;
+}
+
+.subcommand-item {
+  margin-bottom: 8px;
+}
+
+.subcommand-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.subcommand-description {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+    margin: 2.5vh auto;
+  }
+  
+  .modal-header {
+    padding: 16px 20px;
+  }
+  
+  .modal-header h2 {
+    font-size: 16px;
+  }
+  
+  .commands-search {
+    padding: 12px 20px;
+  }
+  
+  .command-item {
+    padding: 12px 20px;
+  }
+  
+  .command-subcommands {
+    margin-left: 12px;
+    padding-left: 12px;
   }
 }

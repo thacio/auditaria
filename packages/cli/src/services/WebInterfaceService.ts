@@ -14,6 +14,7 @@ import { t, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
+import type { SlashCommand } from '../ui/commands/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,7 @@ export class WebInterfaceService {
   private abortHandler?: () => void;
   private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
   private currentHistory: HistoryItem[] = [];
+  private currentSlashCommands: readonly SlashCommand[] = [];
 
   /**
    * Start the web interface server
@@ -393,6 +395,38 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast slash commands data to all connected web clients
+   */
+  broadcastSlashCommands(commands: readonly SlashCommand[]): void {
+    // Store current commands for new clients
+    this.currentSlashCommands = commands;
+    
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'slash_commands',
+      data: { commands },
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
   private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {
@@ -451,6 +485,15 @@ export class WebInterfaceService {
         ws.send(JSON.stringify({
           type: 'history_sync',
           data: { history: this.currentHistory },
+          timestamp: Date.now(),
+        }));
+      }
+
+      // Send current slash commands to new client
+      if (this.currentSlashCommands.length > 0) {
+        ws.send(JSON.stringify({
+          type: 'slash_commands',
+          data: { commands: this.currentSlashCommands },
           timestamp: Date.now(),
         }));
       }
