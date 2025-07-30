@@ -347,7 +347,6 @@ class AuditariaWebClient {
                 this.updateFooter(message.data);
                 break;
             case 'slash_commands':
-                console.log('Handling slash_commands message');
                 this.handleSlashCommands(message.data);
                 break;
             case 'history_sync':
@@ -2222,14 +2221,12 @@ class AuditariaWebClient {
     }
     
     handleSlashCommands(commandsData) {
-        console.log('Received slash commands:', commandsData.commands?.length || 0, 'commands');
         this.slashCommands = commandsData.commands || [];
         this.filteredCommands = [...this.slashCommands];
         this.renderCommands();
         
         // Enable the button once commands are loaded
         this.slashCommandsButton.disabled = false;
-        console.log('Slash commands button enabled');
     }
     
     filterCommands(searchTerm) {

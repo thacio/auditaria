@@ -398,13 +398,10 @@ export class WebInterfaceService {
    * Broadcast slash commands data to all connected web clients
    */
   broadcastSlashCommands(commands: readonly SlashCommand[]): void {
-    console.log('WebInterfaceService: Broadcasting slash commands:', commands.length, 'commands to', this.clients.size, 'clients');
-    
     // Store current commands for new clients
     this.currentSlashCommands = commands;
     
     if (!this.isRunning || this.clients.size === 0) {
-      console.log('WebInterfaceService: Not broadcasting - isRunning:', this.isRunning, 'clients:', this.clients.size);
       return;
     }
 
@@ -494,14 +491,11 @@ export class WebInterfaceService {
 
       // Send current slash commands to new client
       if (this.currentSlashCommands.length > 0) {
-        console.log('WebInterfaceService: Sending', this.currentSlashCommands.length, 'slash commands to new client');
         ws.send(JSON.stringify({
           type: 'slash_commands',
           data: { commands: this.currentSlashCommands },
           timestamp: Date.now(),
         }));
-      } else {
-        console.log('WebInterfaceService: No slash commands to send to new client');
       }
     });
 
