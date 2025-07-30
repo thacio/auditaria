@@ -229,6 +229,12 @@
     "help": {
       "description": "para ajuda sobre gemini-cli"
     },
+    "init": {
+      "description": "Analisa o projeto e cria um arquivo GEMINI.md personalizado.",
+      "config_not_available": "Configuração não disponível.",
+      "file_already_exists": "Um arquivo GEMINI.md já existe neste diretório. Nenhuma alteração foi feita.",
+      "file_created": "GEMINI.md vazio criado. Agora analisando o projeto para preenchê-lo."
+    },
     "clear": {
       "description": "limpar a tela e o histórico da conversa"
     },
