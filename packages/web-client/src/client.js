@@ -2004,8 +2004,8 @@ class AuditariaWebClient {
             this.lastLoggedSubject = thoughtObject.subject;
         }
         
-        // Update the description content immediately (no jiggling transitions)
-        this.loadingDescription.textContent = this.currentThoughtObject.description || '';
+        // Update the description content with smooth fade transition
+        this.updateThoughtDescriptionWithFade(this.currentThoughtObject.description || '');
         
         // Show/hide expand indicator based on whether there's description content
         if (this.currentThoughtObject.description && this.currentThoughtObject.description.trim()) {
@@ -2024,6 +2024,28 @@ class AuditariaWebClient {
                 this.loadingIndicator.classList.remove('expanded');
             }
         }
+    }
+    
+    /**
+     * Update thought description with smooth fade out/in transition
+     */
+    updateThoughtDescriptionWithFade(newDescription) {
+        const currentDescription = this.loadingDescription.textContent;
+        
+        // Only animate if content is actually changing and element is visible
+        if (currentDescription === newDescription || !this.isThoughtsExpanded) {
+            this.loadingDescription.textContent = newDescription;
+            return;
+        }
+        
+        // Fade out current content
+        this.loadingDescription.classList.add('fading');
+        
+        // After fade out completes, update content and fade in
+        setTimeout(() => {
+            this.loadingDescription.textContent = newDescription;
+            this.loadingDescription.classList.remove('fading');
+        }, 150); // Half of the CSS transition duration for smooth crossfade
     }
     
     shortenPath(path, maxLength) {

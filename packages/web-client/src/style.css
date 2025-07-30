@@ -866,9 +866,13 @@ body {
   background: rgba(255, 255, 255, 0.02);
   white-space: pre-wrap;
   word-break: break-word;
+  transition: opacity 0.3s ease;
 }
 
-/* Removed transitioning animation to prevent jiggling */
+/* Smooth fade transition for thought content changes */
+.loading-description.fading {
+  opacity: 0;
+}
 
 /* Input container positioning for floating effect */
 .input-container {
