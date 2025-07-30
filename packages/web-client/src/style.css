@@ -56,6 +56,12 @@ body {
   z-index: 10;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .header h1 {
   color: var(--text);
   font-size: 18px;
@@ -1295,5 +1301,253 @@ body {
   .clear-confirmation-button {
     min-width: auto;
     width: 100%;
+  }
+}
+
+/* Print Button Styles */
+.print-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.print-button:hover:not(:disabled) {
+  background: var(--border);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.print-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.print-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.print-button svg {
+  flex-shrink: 0;
+}
+
+/* Print Media Queries */
+@media print {
+  /* Hide non-essential elements */
+  .header,
+  .footer,
+  .loading-indicator,
+  .welcome-message,
+  .confirmation-dialog,
+  .clear-confirmation-overlay {
+    display: none !important;
+  }
+  
+  /* Reset page margins */
+  @page {
+    margin: 0.75in;
+    size: A4;
+  }
+  
+  /* Root variables for print (light theme) */
+  :root {
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-alt: #F8F9FA;
+    --text: #111827;
+    --text-subtle: #4B5563;
+    --primary: #2563EB;
+    --primary-10: #EBF4FF;
+    --accent: #0891B2;
+    --border: #E5E7EB;
+    --success: #059669;
+    --warning: #D97706;
+    --error: #DC2626;
+    --tool-executing: #7C3AED;
+    --shadow-sm: none;
+    --shadow: none;
+    --shadow-md: none;
+  }
+  
+  /* Main layout adjustments */
+  body {
+    background: white;
+    font-size: 12pt;
+    line-height: 1.4;
+    color: black;
+  }
+  
+  #app {
+    height: auto;
+    display: block;
+  }
+  
+  .main {
+    flex: none;
+    height: auto;
+    overflow: visible;
+  }
+  
+  .messages-container {
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Message styling for print */
+  .message {
+    page-break-inside: avoid;
+    margin-bottom: 16pt;
+    break-inside: avoid;
+  }
+  
+  .message-bubble {
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    padding: 8pt 12pt;
+    background: white !important;
+  }
+  
+  /* User messages */
+  .message-user .message-bubble {
+    background: #F3F4F6 !important;
+    border: 1px solid #2563EB !important;
+    border-left: 4px solid #2563EB !important;
+  }
+  
+  /* AI messages */
+  .message-gemini .message-bubble,
+  .message-gemini_content .message-bubble {
+    background: white !important;
+    border: 1px solid #059669 !important;
+    border-left: 4px solid #059669 !important;
+  }
+  
+  /* System/Info messages */
+  .message-info .message-bubble {
+    background: #FFFBEB !important;
+    border: 1px solid #D97706 !important;
+    border-left: 4px solid #D97706 !important;
+  }
+  
+  /* Tool messages */
+  .message-tool-group .message-bubble {
+    background: #F5F3FF !important;
+    border: 1px solid #7C3AED !important;
+    border-left: 4px solid #7C3AED !important;
+  }
+  
+  /* Error messages */
+  .message-error .message-bubble {
+    background: #FEF2F2 !important;
+    border: 1px solid #DC2626 !important;
+    border-left: 4px solid #DC2626 !important;
+  }
+  
+  /* Message headers */
+  .message-header {
+    font-size: 10pt;
+    font-weight: 600;
+    color: black !important;
+    margin-bottom: 4pt;
+  }
+  
+  /* Message content */
+  .message-content {
+    font-size: 11pt;
+    line-height: 1.4;
+    color: black !important;
+    font-family: 'Times New Roman', serif;
+  }
+  
+  /* Timestamps */
+  .message-timestamp {
+    font-size: 9pt;
+    color: #4B5563 !important;
+    margin-top: 4pt;
+  }
+  
+  /* Tables in print */
+  .message-content table {
+    border-collapse: collapse;
+    border: 1px solid black;
+    margin: 8pt 0;
+    width: 100%;
+    font-size: 10pt;
+  }
+  
+  .message-content table th,
+  .message-content table td {
+    border: 1px solid black;
+    padding: 4pt 6pt;
+    text-align: left;
+  }
+  
+  .message-content table th {
+    background: #F3F4F6 !important;
+    font-weight: 600;
+  }
+  
+  /* Lists in print */
+  .message-content ul,
+  .message-content ol {
+    margin: 6pt 0;
+    padding-left: 18pt;
+  }
+  
+  .message-content li {
+    margin: 2pt 0;
+  }
+  
+  /* Tool items */
+  .tool-item {
+    background: white !important;
+    border: 1px solid #000000 !important;
+    margin-bottom: 6pt;
+    padding: 6pt 8pt;
+    page-break-inside: avoid;
+  }
+  
+  .tool-header {
+    font-size: 10pt;
+    font-weight: 600;
+    margin-bottom: 4pt;
+  }
+  
+  .tool-output {
+    font-size: 9pt;
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  
+  /* Hide interactive elements */
+  .confirmation-button,
+  .print-button,
+  button,
+  input,
+  textarea {
+    display: none !important;
+  }
+  
+  /* Page break controls */
+  .message:nth-child(10n) {
+    page-break-after: auto;
+  }
+  
+  /* Prevent orphans and widows */
+  p {
+    orphans: 2;
+    widows: 2;
   }
 }

@@ -229,6 +229,7 @@ class AuditariaWebClient {
         this.messagesContainer = document.getElementById('messages');
         this.messageInput = document.getElementById('message-input');
         this.sendButton = document.getElementById('send-button');
+        this.printButton = document.getElementById('print-button');
         this.inputStatus = document.getElementById('input-status');
         this.loadingIndicator = document.getElementById('loading-indicator');
         this.loadingText = document.getElementById('loading-text');
@@ -1065,9 +1066,15 @@ class AuditariaWebClient {
         if (this.isConnected) {
             this.statusElement.textContent = 'Connected';
             this.statusElement.className = 'status-connected';
+            this.messageInput.disabled = false;
+            this.sendButton.disabled = false;
+            this.printButton.disabled = false;
         } else {
             this.statusElement.textContent = 'Disconnected';
             this.statusElement.className = 'status-disconnected';
+            this.messageInput.disabled = true;
+            this.sendButton.disabled = true;
+            this.printButton.disabled = true;
         }
     }
     
@@ -1108,6 +1115,41 @@ class AuditariaWebClient {
         this.scrollToBottom();
     }
     
+    /**
+     * Print the entire chat conversation as PDF
+     * Prepares the content and triggers the browser's print dialog
+     */
+    printChat() {
+        // Check if there are any messages to print
+        if (this.messageCount === 0) {
+            alert('No messages to print. Start a conversation first.');
+            return;
+        }
+        
+        try {
+            // Store original title and set a print-friendly title
+            const originalTitle = document.title;
+            const timestamp = new Date().toLocaleString();
+            document.title = `Auditaria Chat - ${this.messageCount} messages - ${timestamp}`;
+            
+            // Add a CSS class to indicate we're in print mode (for any additional styling)
+            document.body.classList.add('printing');
+            
+            // Trigger the browser's print dialog
+            window.print();
+            
+            // Restore original title and remove print mode class after printing
+            setTimeout(() => {
+                document.title = originalTitle;
+                document.body.classList.remove('printing');
+            }, 100);
+            
+        } catch (error) {
+            console.error('Error printing chat:', error);
+            alert('An error occurred while preparing the chat for printing. Please try again.');
+        }
+    }
+    
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -1118,6 +1160,11 @@ class AuditariaWebClient {
         // Send button click handler
         this.sendButton.addEventListener('click', () => {
             this.sendMessage();
+        });
+        
+        // Print button click handler
+        this.printButton.addEventListener('click', () => {
+            this.printChat();
         });
         
         // Keyboard handlers for textarea
