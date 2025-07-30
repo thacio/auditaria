@@ -603,7 +603,13 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
   // Broadcast slash commands to web interface when commands are loaded or web interface connects
   useEffect(() => {
+    console.log('Slash commands effect:', {
+      commandsCount: slashCommands?.length || 0,
+      hasWebInterface: !!webInterface?.service,
+      isRunning: webInterface?.isRunning
+    });
     if (slashCommands && slashCommands.length > 0 && webInterface?.service && webInterface.isRunning) {
+      console.log('Broadcasting slash commands to web interface');
       webInterface.service.broadcastSlashCommands(slashCommands);
     }
   }, [slashCommands, webInterface?.isRunning]); // Depend on slashCommands and connection status

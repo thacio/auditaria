@@ -87,7 +87,7 @@ async function startServer() {
         server.listen(PORT, () => {
             console.log(`🚀 Auditaria Web Server running on http://localhost:${PORT}`);
             console.log(`📡 WebSocket server ready for connections`);
-            console.log(`🌐 Web client should connect to http://localhost:3000`);
+            console.log(`🌐 Web client should connect to http://localhost:`8629``);
         });
     }
     catch (error) {
