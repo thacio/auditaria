@@ -6,7 +6,7 @@ Successfully implemented a professional web interface for Auditaria CLI that dis
 
 **Branch**: `feature/web-interface`  
 **Status**: ✅ **COMPLETED**  
-**Web Interface URL**: http://localhost:8429
+**Web Interface URL**: http://localhost:8629
 
 ---
 
@@ -48,7 +48,7 @@ packages/cli/src/ui/hooks/
 
 **Features:**
 - Auto-start capability when `--web` flag is used
-- Fixed port (8429) for consistency
+- Fixed port (8629) for consistency
 - Connection status management
 - Client count tracking
 
@@ -293,7 +293,7 @@ History Sync → useHistoryManager.history → webInterface.setCurrentHistory() 
 ```
 
 ### **Connection Management**
-- **Fixed Port**: 8429 (configurable)
+- **Fixed Port**: 8629 (configurable)
 - **Auto-start**: When `--web` flag is used
 - **Auto-reconnect**: 5 attempts with 2-second delays
 - **Connection Status**: Visual indicators with pulse animations
@@ -313,7 +313,7 @@ History Sync → useHistoryManager.history → webInterface.setCurrentHistory() 
 auditaria --web
 
 # Web interface available at:
-# http://localhost:8429
+# http://localhost:8629
 ```
 
 ### **Slash Commands**
@@ -424,7 +424,7 @@ auditaria --web
 1. **Embedded Server**: Chose single-process over multi-process for simplicity
 2. **React Context**: Used context pattern for clean integration
 3. **Direct Function Calls**: Avoided IPC complexity with direct message forwarding
-4. **Fixed Port**: 8429 chosen to avoid common port conflicts
+4. **Fixed Port**: 8629 chosen to avoid common port conflicts
 5. **Static Files**: Simple static file serving over complex build systems
 
 ### **Key Lessons Learned**
@@ -631,7 +631,7 @@ useEffect(() => {
 - ✅ Professional, sober, and beautiful design
 - ✅ No additional setup required beyond `npm install -g`
 - ✅ Minimal changes to existing CLI codebase
-- ✅ Fixed port (8429) for consistent access
+- ✅ Fixed port (8629) for consistent access
 - ✅ **CLI Footer Integration**: Web footer displays same information as CLI footer
 - ✅ **Loading State Integration**: Web interface shows AI thinking states with animated indicators
 - ✅ **Conversation History Loading**: Web interface displays all previous conversation history when connecting
@@ -694,7 +694,7 @@ The web interface now loads complete conversation history when connecting:
 
 **User Experience Flow:**
 1. Start conversation in CLI with multiple exchanges
-2. Open web interface (`auditaria --web` or navigate to `http://localhost:8429`)
+2. Open web interface (`auditaria --web` or navigate to `http://localhost:8629`)
 3. Web interface immediately displays all previous conversation history
 4. Continue conversation seamlessly with new messages appearing in real-time
 

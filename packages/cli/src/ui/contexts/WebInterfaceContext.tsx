@@ -81,7 +81,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
   useEffect(() => {
     if (enabled && !isRunning) {
       console.log('Starting web interface...');
-      start({ port: 8429 }) // Fixed port for consistency
+      start({ port: 8629 }) // Fixed port for consistency
         .then((port) => {
           console.log(`🌐 Web interface available at http://localhost:${port}`);
         })
