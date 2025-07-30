@@ -9,6 +9,8 @@ import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
 import { t } from '@thacio/auditaria-cli-core';
 
+export const FETCH_TIMEOUT_MS = 2000;
+
 export interface UpdateObject {
   message: string;
   update: UpdateInfo;
@@ -35,8 +37,11 @@ export async function checkForUpdates(): Promise<UpdateObject | null> {
       // allow notifier to run in scripts
       shouldNotifyInNpmScript: true,
     });
-
-    const updateInfo = await notifier.fetchInfo();
+    // avoid blocking by waiting at most FETCH_TIMEOUT_MS for fetchInfo to resolve
+    const timeout = new Promise<null>((resolve) =>
+      setTimeout(resolve, FETCH_TIMEOUT_MS, null),
+    );
+    const updateInfo = await Promise.race([notifier.fetchInfo(), timeout]);
 
     if (updateInfo && semver.gt(updateInfo.latest, updateInfo.current)) {
       return {
