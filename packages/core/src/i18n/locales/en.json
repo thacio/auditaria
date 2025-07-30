@@ -18,8 +18,8 @@
       "description": "change language preference"
     },
     "web": {
-      "description": "manage web interface",
-      "help": "Web interface commands are not yet implemented. Use --web flag to start with web interface enabled.",
+      "description": "open web interface in browser",
+      "help": "Opens the web interface in your browser. Use --web flag when starting auditaria to enable web interface.",
       "error": {
         "not_available": "Web interface is not available in this configuration"
       },
@@ -41,6 +41,10 @@
       "not_running": "Web interface is not currently running",
       "started": "Web interface started on http://localhost:{port}",
       "stopped": "Web interface stopped",
+      "starting_and_opening": "🌐 Opening web interface in browser...",
+      "available_at": "🌐 Web interface available at http://localhost:{port}",
+      "opening_browser": "Opening web browser...",
+      "browser_open_failed": "Failed to open browser automatically. Please visit http://localhost:{port} manually.",
       "messages": {
         "connected": "Connected to Auditaria CLI"
       },

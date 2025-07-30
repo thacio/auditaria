@@ -8,6 +8,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { WebInterfaceService, WebInterfaceConfig } from '../../services/WebInterfaceService.js';
 import { HistoryItem } from '../types.js';
 import { useSubmitQuery } from './SubmitQueryContext.js';
+import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 
 interface WebInterfaceContextValue {
   service: WebInterfaceService | null;
@@ -80,10 +81,15 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
   // Auto-start if enabled
   useEffect(() => {
     if (enabled && !isRunning) {
-      console.log('Starting web interface...');
       start({ port: 8629 }) // Fixed port for consistency
-        .then((port) => {
-          console.log(`🌐 Web interface available at http://localhost:${port}`);
+        .then(async (port) => {
+          // Open browser automatically when starting with --web flag
+          try {
+            await openBrowserWithDelay(`http://localhost:${port}`, 2000);
+          } catch (error) {
+            // Browser opening failed, but web interface is still running
+            // Error will be handled in CLI message display
+          }
         })
         .catch((error) => {
           console.error('Failed to start web interface:', error);

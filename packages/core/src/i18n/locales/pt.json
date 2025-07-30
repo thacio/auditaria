@@ -18,8 +18,8 @@
       "description": "alterar preferência de idioma"
     },
     "web": {
-      "description": "gerenciar interface web",
-      "help": "Comandos da interface web ainda não foram implementados. Use a flag --web para iniciar com interface web habilitada.",
+      "description": "abrir interface web no navegador",
+      "help": "Abre a interface web no seu navegador. Use a flag --web ao iniciar o auditaria para habilitar a interface web.",
       "error": {
         "not_available": "Interface web não está disponível nesta configuração"
       },
@@ -41,6 +41,10 @@
       "not_running": "Interface web não está rodando atualmente",
       "started": "Interface web iniciada em http://localhost:{port}",
       "stopped": "Interface web parada",
+      "starting_and_opening": "🌐 Abrindo interface web no navegador...",
+      "available_at": "🌐 Interface web disponível em http://localhost:{port}",
+      "opening_browser": "Abrindo navegador web...",
+      "browser_open_failed": "Falha ao abrir navegador automaticamente. Por favor, visite http://localhost:{port} manualmente.",
       "messages": {
         "connected": "Conectado ao Auditaria CLI"
       },

@@ -12,6 +12,7 @@ export interface WebCommandResult {
   type: 'message';
   messageType: 'info' | 'error';
   content: string;
+  port?: number;
 }
 
 export function useWebCommands() {
@@ -34,6 +35,7 @@ export function useWebCommands() {
           content: t('commands.web.already_running', 'Web interface is already running on port {{port}}', { 
             port: webInterface.port?.toString() || 'unknown' 
           }),
+          port: webInterface.port || undefined,
         };
       }
 
@@ -46,6 +48,7 @@ export function useWebCommands() {
         content: t('commands.web.started', 'Web interface started on http://localhost:{{port}}', { 
           port: assignedPort.toString() 
         }),
+        port: assignedPort,
       };
     } catch (error) {
       return {

@@ -34,6 +34,7 @@ import { type CommandContext, type SlashCommand } from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
 import { FileCommandLoader } from '../../services/FileCommandLoader.js';
+import { useWebCommands } from './useWebCommands.js';
 
 /**
  * Hook to define and process slash commands (e.g., /help, /clear).
@@ -57,6 +58,7 @@ export const useSlashCommandProcessor = (
 ) => {
   const session = useSessionStats();
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
+  const { handleWebStart, handleWebStop, handleWebStatus } = useWebCommands();
   const gitService = useMemo(() => {
     if (!config?.getProjectRoot()) {
       return;
@@ -154,6 +156,11 @@ export const useSlashCommandProcessor = (
       session: {
         stats: session.stats,
       },
+      web: {
+        start: handleWebStart,
+        stop: handleWebStop,
+        status: handleWebStatus,
+      },
     }),
     [
       config,
@@ -169,6 +176,9 @@ export const useSlashCommandProcessor = (
       pendingCompressionItemRef,
       setPendingCompressionItem,
       toggleCorgiMode,
+      handleWebStart,
+      handleWebStop,
+      handleWebStatus,
     ],
   );
 

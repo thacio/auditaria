@@ -63,6 +63,12 @@ export interface CommandContext {
   session: {
     stats: SessionStatsState;
   };
+  // Web interface management
+  web?: {
+    start: (port?: string) => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string; port?: number }>;
+    stop: () => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string }>;
+    status: () => { type: 'message'; messageType: 'info' | 'error'; content: string };
+  };
 }
 
 /**

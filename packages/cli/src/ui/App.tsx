@@ -608,6 +608,8 @@ const App = ({ config, settings, startupWarnings = [], version, webEnabled }: Ap
     }
   }, [slashCommands?.length, webInterface?.isRunning]); // Only depend on length and running status
 
+  // Web interface startup message is handled by the /web command or --web flag startup
+
   // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
   const toolConfirmationContext = useToolConfirmation();
   useEffect(() => {
