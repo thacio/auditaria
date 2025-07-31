@@ -175,7 +175,6 @@ export interface ConfigParameters {
   proxy?: string;
   cwd: string;
   fileDiscoveryService?: FileDiscoveryService;
-  includeDirectories?: string[];
   bugCommand?: BugCommandSettings;
   model: string;
   extensionContextFilePaths?: string[];
@@ -231,6 +230,7 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
+  private readonly ideMode: boolean;
   private readonly ideClient: IdeClient;
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
