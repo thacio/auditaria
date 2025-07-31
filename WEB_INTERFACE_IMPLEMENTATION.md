@@ -642,7 +642,64 @@ useEffect(() => {
 - ✅ **/clear Confirmation Dialog**: Web interface prevents accidental conversation clearing
 - ✅ **Markdown Processing**: AI messages render with proper markdown formatting including lists and tables
 
-### **🎯 Latest Enhancements: Complete CLI Integration**
+## 🆕 Latest Enhancements: Enhanced Web Interface Commands & Launch Options
+
+**New Files:**
+- `packages/cli/src/utils/browserUtils.ts` - Cross-platform browser opening utilities
+- WebCommand.ts
+- useWebCommands.ts
+
+### **Some miportant Commits**
+
+#### **🌐 Enhanced /web Slash Command** (Commits: f7fc72ff, c1309616)
+- **Functional /web Command**: Complete implementation of `/web` slash command to start server and open browser
+- **Browser Auto-Launch**: Automatically opens web interface in browser when using `/web` command
+- **Cross-Platform Browser Support**: New `browserUtils.ts` with support for Windows, macOS, and Linux
+- **Smart Port Management**: Uses fixed port 8629 for consistency with `--web` flag
+- **User-Friendly Messaging**: Shows progress messages and browser opening status
+- **Command Context Integration**: Full integration with CLI command system including error handling
+
+#### **🔄 Intelligent Port Fallback System** (Commit: 623f6d55)
+- **Automatic Port Fallback**: If port 8629 is in use, automatically fallback to random available port
+- **Graceful Error Handling**: Clear error messages when port conflicts occur
+- **Smart Retry Logic**: First tries requested port, then fallback to system-assigned port
+- **Internationalized Messages**: Port fallback messages in both English and Portuguese
+- **Robust Server Startup**: Enhanced server startup reliability with proper error handling
+
+#### **🖥️ --web Launch Options** (Commit: 8d52f75e)
+- **--web no-browser Option**: Start web server without automatically opening browser
+- **Flexible CLI Arguments**: Support for both `--web` (auto-open) and `--web no-browser` (server only)
+- **Enhanced Configuration**: Updated config parsing to handle string values for web option
+- **Conditional Browser Launch**: Browser opening controlled by configuration flags
+- **Clean Startup Messages**: Proper messaging for different launch modes
+
+#### **📍 Web Address Display** (Commit: 5aa72b80)
+- **Startup Address Display**: Shows web interface URL when launching with `--web` flag
+- **Consistent Messaging**: Unified display format across all web interface launches
+- **Auto-Display Integration**: Seamlessly integrated with existing CLI message system
+- **Clean Console Output**: Removed debug logging for production-ready output
+
+### **Enhanced Command System**
+
+#### **New Slash Commands:**
+| Command | Description | Functionality |
+|---------|-------------|---------------|
+| `/web` | Open web interface in browser | Starts server on port 8629 and launches browser automatically |
+
+#### **Enhanced CLI Flags:**
+| Flag | Options | Description |
+|------|---------|-------------|
+| `--web` | boolean | Start with web interface and auto-open browser |
+| `--web no-browser` | string | Start web interface server without opening browser |
+
+#### **Smart Port Management:**
+- **Primary Port**: 8629 (consistent across all web interface launches)
+- **Fallback Logic**: Automatic random port assignment if 8629 is unavailable
+- **User Notification**: Clear messaging when fallback port is used
+- **Error Recovery**: Graceful handling of port conflicts and server startup issues
+---
+
+### **🎯 Previous Implementation: Complete CLI Integration**
 
 #### **Tool Confirmation Integration**
 The web interface now supports complete tool confirmation functionality:
