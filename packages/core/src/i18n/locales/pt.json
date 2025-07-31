@@ -197,6 +197,12 @@
       "disabled": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
       "enabled": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa"
     },
+    "ide": {
+      "description": "gerenciar integração com IDE",
+      "status": {
+        "description": "verificar status da integração com IDE"
+      }
+    },
     "restore": {
       "description": "restaurar uma chamada de ferramenta. Isso redefinirá a conversa e o histórico de arquivos para o estado em que estava quando a chamada da ferramenta foi sugerida",
       "no_directory": "Não foi possível determinar o caminho do diretório .gemini.",
@@ -909,7 +915,7 @@
     "tag_sanitized_empty": "Tag sanitizada está vazia definindo como \"default\"."
   },
   "ide_context": {
-    "title": "Contexto do IDE (ctrl+e para alternar)",
+    "title": "Contexto (ctrl+e para alternar)",
     "open_files": "Arquivos abertos:",
     "active_file": " (ativo)",
     "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+e para ver)"

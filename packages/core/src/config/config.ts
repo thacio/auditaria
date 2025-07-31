@@ -188,7 +188,7 @@ export interface ConfigParameters {
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
   ideMode?: boolean;
-  ideClient?: IdeClient;
+  ideClient: IdeClient;
 }
 
 export class Config {
@@ -231,8 +231,7 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
-  private readonly ideMode: boolean;
-  private readonly ideClient: IdeClient | undefined;
+  private readonly ideClient: IdeClient;
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
   private disableFallbackForSession: boolean = false;
@@ -629,7 +628,7 @@ export class Config {
     return this.ideMode;
   }
 
-  getIdeClient(): IdeClient | undefined {
+  getIdeClient(): IdeClient {
     return this.ideClient;
   }
 

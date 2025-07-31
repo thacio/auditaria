@@ -6,15 +6,17 @@
 
 import { Box, Text } from 'ink';
 import { type File, type IdeContext, t } from '@thacio/auditaria-cli-core';
-import { Colors } from '../colors.js';
 import path from 'node:path';
+import { Colors } from '../colors.js';
 
 interface IDEContextDetailDisplayProps {
   ideContext: IdeContext | undefined;
+  detectedIdeDisplay: string | undefined;
 }
 
 export function IDEContextDetailDisplay({
   ideContext,
+  detectedIdeDisplay,
 }: IDEContextDetailDisplayProps) {
   const openFiles = ideContext?.workspaceState?.openFiles;
   if (!openFiles || openFiles.length === 0) {
@@ -30,7 +32,9 @@ export function IDEContextDetailDisplay({
       paddingX={1}
     >
       <Text color={Colors.AccentCyan} bold>
-        {t('ide_context.title', 'IDE Context (ctrl+e to toggle)')}
+        {detectedIdeDisplay 
+          ? `${detectedIdeDisplay} ${t('ide_context.title', 'Context (ctrl+e to toggle)')}`
+          : t('ide_context.title', 'IDE Context (ctrl+e to toggle)')}
       </Text>
       {openFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
