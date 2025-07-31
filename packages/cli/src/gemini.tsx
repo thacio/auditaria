@@ -242,7 +242,8 @@ export async function main() {
           settings={settings}
           startupWarnings={startupWarnings}
           version={version}
-          webEnabled={argv.web || false}
+          webEnabled={!!argv.web}
+          webOpenBrowser={argv.web === true || (typeof argv.web === 'string' && argv.web !== 'no-browser')}
         />
       </React.StrictMode>,
       { exitOnCtrlC: false },

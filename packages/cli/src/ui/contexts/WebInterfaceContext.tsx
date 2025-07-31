@@ -27,9 +27,10 @@ const WebInterfaceContext = createContext<WebInterfaceContextValue | null>(null)
 interface WebInterfaceProviderProps {
   children: React.ReactNode;
   enabled?: boolean;
+  openBrowser?: boolean;
 }
 
-export function WebInterfaceProvider({ children, enabled = false }: WebInterfaceProviderProps) {
+export function WebInterfaceProvider({ children, enabled = false, openBrowser = true }: WebInterfaceProviderProps) {
   const [service] = useState(() => new WebInterfaceService());
   const [isRunning, setIsRunning] = useState(false);
   const [port, setPort] = useState<number | null>(null);
@@ -83,12 +84,14 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
     if (enabled && !isRunning) {
       start({ port: 8629 }) // Fixed port for consistency
         .then(async (port) => {
-          // Open browser automatically when starting with --web flag
-          try {
-            await openBrowserWithDelay(`http://localhost:${port}`, 2000);
-          } catch (error) {
-            // Browser opening failed, but web interface is still running
-            // Error will be handled in CLI message display
+          // Open browser automatically when starting with --web flag (unless no-browser is specified)
+          if (openBrowser) {
+            try {
+              await openBrowserWithDelay(`http://localhost:${port}`, 2000);
+            } catch (error) {
+              // Browser opening failed, but web interface is still running
+              // Error will be handled in CLI message display
+            }
           }
         })
         .catch((error) => {
@@ -100,7 +103,7 @@ export function WebInterfaceProvider({ children, enabled = false }: WebInterface
         stop().catch(console.error);
       }
     };
-  }, [enabled, isRunning, start, stop]);
+  }, [enabled, isRunning, start, stop, openBrowser]);
 
   // Periodic client count update
   useEffect(() => {

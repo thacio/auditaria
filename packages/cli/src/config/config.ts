@@ -62,7 +62,7 @@ export interface CliArgs {
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
   ideMode: boolean | undefined;
-  web: boolean | undefined;
+  web: boolean | string | undefined;
   proxy: string | undefined;
 }
 
@@ -199,9 +199,13 @@ export async function parseArguments(): Promise<CliArgs> {
     })
     .option('web', {
       alias: 'w',
-      type: 'boolean',
-      description: 'Start with web interface enabled?',
-      default: false,
+      type: 'string',
+      description: 'Start with web interface enabled. Use "no-browser" to disable auto browser opening.',
+      coerce: (value) => {
+        // Handle --web (no value) as true, --web no-browser as 'no-browser'
+        if (value === true || value === '') return true;
+        return value;
+      },
     })
     .option('proxy', {
       type: 'string',

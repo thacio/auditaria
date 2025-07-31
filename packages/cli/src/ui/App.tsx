@@ -101,12 +101,13 @@ interface AppProps {
   startupWarnings?: string[];
   version: string;
   webEnabled?: boolean;
+  webOpenBrowser?: boolean;
 }
 
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <SubmitQueryProvider>
-      <WebInterfaceProvider enabled={props.webEnabled}>
+      <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser}>
         <FooterProvider>
           <LoadingStateProvider>
             <ToolConfirmationProvider>
@@ -119,7 +120,7 @@ export const AppWrapper = (props: AppProps) => (
   </SessionStatsProvider>
 );
 
-const App = ({ config, settings, startupWarnings = [], version, webEnabled }: AppProps) => {
+const App = ({ config, settings, startupWarnings = [], version, webEnabled, webOpenBrowser }: AppProps) => {
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
@@ -576,7 +577,6 @@ const App = ({ config, settings, startupWarnings = [], version, webEnabled }: Ap
       if (webInterface?.service && !submitHandlerRegistered.current) {
         webInterface.service.setSubmitQueryHandler(stableWebSubmitQuery);
         submitHandlerRegistered.current = true;
-        console.log('[DEBUG] Successfully registered web interface submitQuery handler');
       }
     };
     
