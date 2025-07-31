@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PartUnion } from '@google/genai';
 import mime from 'mime-types';
+import { t } from '../i18n/index.js';
 
 // Constants for text file processing
 const DEFAULT_MAX_LINES_TEXT_FILE = 2000;
@@ -310,9 +311,39 @@ export async function processSingleFileContent(
         }
         llmTextContent += formattedLines.join('\n');
 
+        // By default, return nothing to streamline the common case of a successful read_file.
+        let returnDisplay = '';
+        if (contentRangeTruncated) {
+          returnDisplay = t(
+            'tools.read_file.truncated_lines_range',
+            `Read lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} from ${relativePathForDisplay}`,
+            {
+              startLine: String(actualStartLine + 1),
+              endLine: String(endLine),
+              totalLines: String(originalLineCount),
+              filename: relativePathForDisplay,
+            }
+          );
+          if (linesWereTruncatedInLength) {
+            returnDisplay += t(
+              'tools.read_file.some_lines_shortened',
+              ' (some lines were shortened)'
+            );
+          }
+        } else if (linesWereTruncatedInLength) {
+          returnDisplay = t(
+            'tools.read_file.all_lines_shortened',
+            `Read all ${originalLineCount} lines from ${relativePathForDisplay} (some lines were shortened)`,
+            {
+              totalLines: String(originalLineCount),
+              filename: relativePathForDisplay,
+            }
+          );
+        }
+
         return {
           llmContent: llmTextContent,
-          returnDisplay: isTruncated ? '(truncated)' : '',
+          returnDisplay,
           isTruncated,
           originalLineCount,
           linesShown: [actualStartLine + 1, endLine],

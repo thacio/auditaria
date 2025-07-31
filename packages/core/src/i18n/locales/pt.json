@@ -787,7 +787,10 @@
       "search_error": "Erro: {error}"
     },
     "read_file": {
-      "validation_error": "Erro: {error}"
+      "validation_error": "Erro: {error}",
+      "truncated_lines_range": "Lidas linhas {startLine}-{endLine} de {totalLines} de {filename}",
+      "some_lines_shortened": " (algumas linhas foram encurtadas)",
+      "all_lines_shortened": "Lidas todas as {totalLines} linhas de {filename} (algumas linhas foram encurtadas)"
     },
     "write_file": {
       "validation_error": "Erro: {error}",
