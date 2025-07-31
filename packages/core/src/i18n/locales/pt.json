@@ -760,7 +760,7 @@
       "command_exit_code": "Comando saiu com código: {code}"
     },
     "grep": {
-      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" no caminho \"{path}\"{filter}.",
+      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" {searchLocation}{filter}.",
       "no_matches": "Nenhuma correspondência encontrada",
       "invalid_parameters": "Modelo forneceu parâmetros inválidos. Erro: {error}",
       "matches_found": "Encontrado {count} {term}",

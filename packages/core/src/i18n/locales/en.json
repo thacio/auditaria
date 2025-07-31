@@ -782,7 +782,7 @@
       "command_exit_code": "Command exited with code: {code}"
     },
     "grep": {
-      "no_matches_detailed": "No matches found for pattern \"{pattern}\" in path \"{path}\"{filter}.",
+      "no_matches_detailed": "No matches found for pattern \"{pattern}\" {searchLocation}{filter}.",
       "no_matches": "No matches found",
       "invalid_parameters": "Model provided invalid parameters. Error: {error}",
       "matches_found": "Found {count} {term}",
