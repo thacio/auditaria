@@ -193,6 +193,8 @@ export const useSlashCommandProcessor = (
     ],
   );
 
+  const ideMode = config?.getIdeMode();
+
   useEffect(() => {
     const controller = new AbortController();
     const load = async () => {
@@ -213,7 +215,7 @@ export const useSlashCommandProcessor = (
     return () => {
       controller.abort();
     };
-  }, [config]);
+  }, [config, ideMode]);
 
   const handleSlashCommand = useCallback(
     async (

@@ -186,6 +186,7 @@ export interface ConfigParameters {
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
+  ideModeFeature?: boolean;
   ideMode?: boolean;
   ideClient: IdeClient;
 }
@@ -230,8 +231,9 @@ export class Config {
   private readonly model: string;
   private readonly extensionContextFilePaths: string[];
   private readonly noBrowser: boolean;
-  private readonly ideMode: boolean;
-  private readonly ideClient: IdeClient;
+  private readonly ideModeFeature: boolean;
+  private ideMode: boolean;
+  private ideClient: IdeClient;
   private modelSwitchedDuringSession: boolean = false;
   private useImprovedFallbackStrategy: boolean;
   private disableFallbackForSession: boolean = false;
@@ -304,7 +306,8 @@ export class Config {
     this._blockedMcpServers = params.blockedMcpServers ?? [];
     this.noBrowser = params.noBrowser ?? false;
     this.summarizeToolOutput = params.summarizeToolOutput;
-    this.ideMode = params.ideMode ?? false;
+    this.ideModeFeature = params.ideModeFeature ?? false;
+    this.ideMode = params.ideMode ?? true;
     this.ideClient = params.ideClient;
 
     if (params.contextFileName) {
@@ -624,12 +627,28 @@ export class Config {
     return this.summarizeToolOutput;
   }
 
-  getIdeMode(): boolean {
-    return this.ideMode;
+  getIdeModeFeature(): boolean {
+    return this.ideModeFeature;
   }
 
   getIdeClient(): IdeClient {
     return this.ideClient;
+  }
+
+  getIdeMode(): boolean {
+    return this.ideMode;
+  }
+
+  setIdeMode(value: boolean): void {
+    this.ideMode = value;
+  }
+
+  setIdeClientDisconnected(): void {
+    this.ideClient.setDisconnected();
+  }
+
+  setIdeClientConnected(): void {
+    this.ideClient.reconnect(this.ideMode && this.ideModeFeature);
   }
 
   async getGitService(): Promise<GitService> {

@@ -42,13 +42,13 @@ export class IdeClient {
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
 
-  private constructor(ideMode: boolean) {
-    if (!ideMode) {
-      return;
-    }
+  constructor(ideMode: boolean) {
     this.currentIde = detectIde();
     if (this.currentIde) {
       this.currentIdeDisplayName = getIdeDisplayName(this.currentIde);
+    }
+    if (!ideMode) {
+      return;
     }
     this.init().catch((err) => {
       logger.debug('Failed to initialize IdeClient:', err);
@@ -134,6 +134,10 @@ export class IdeClient {
     };
   }
 
+  async reconnect(ideMode: boolean) {
+    IdeClient.instance = new IdeClient(ideMode);
+  }
+
   private async establishConnection(port: string) {
     let transport: StreamableHTTPClientTransport | undefined;
     try {
@@ -193,7 +197,15 @@ export class IdeClient {
     await this.establishConnection(port);
   }
 
+  dispose() {
+    this.client?.close();
+  }
+
   getDetectedIdeDisplayName(): string | undefined {
     return this.currentIdeDisplayName;
+  }
+
+  setDisconnected() {
+    this.setState(IDEConnectionStatus.Disconnected);
   }
 }

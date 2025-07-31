@@ -200,7 +200,21 @@
     "ide": {
       "description": "gerenciar integração com IDE",
       "status": {
-        "description": "verificar status da integração com IDE"
+        "description": "verificar status da integração com IDE",
+        "connected": "🟢 Conectado",
+        "connecting": "🟡 Conectando...",
+        "disconnected": "🔴 Desconectado"
+      },
+      "install": {
+        "description": "instalar extensão companion {ide} do IDE necessária",
+        "installing": "Instalando extensão companion do IDE...",
+        "no_installer": "Nenhum instalador disponível para seu IDE configurado."
+      },
+      "enable": {
+        "description": "habilitar integração com IDE"
+      },
+      "disable": {
+        "description": "desabilitar integração com IDE"
       }
     },
     "restore": {
