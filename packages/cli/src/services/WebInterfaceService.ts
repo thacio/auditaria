@@ -10,7 +10,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HistoryItem } from '../ui/types.js';
-import { t, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
+import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
@@ -36,6 +36,7 @@ export class WebInterfaceService {
   private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
   private currentHistory: HistoryItem[] = [];
   private currentSlashCommands: readonly SlashCommand[] = [];
+  private currentMCPServers: { servers: any[]; blockedServers: any[] } = { servers: [], blockedServers: [] };
 
   /**
    * Start HTTP server on specified port
@@ -492,6 +493,65 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast MCP servers data to all connected web clients
+   */
+  broadcastMCPServers(
+    mcpServers: Record<string, MCPServerConfig>, 
+    blockedMcpServers: Array<{ name: string; extensionName: string }>,
+    serverTools: Map<string, DiscoveredMCPTool[]>,
+    serverStatuses: Map<string, string>
+  ): void {
+    // Transform the data for web client consumption
+    const serversData = Object.entries(mcpServers).map(([name, config]) => {
+      const tools = serverTools.get(name) || [];
+      const status = serverStatuses.get(name) || 'disconnected';
+      
+      return {
+        name,
+        extensionName: config.extensionName,
+        description: config.description,
+        status,
+        oauth: config.oauth,
+        tools: tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          schema: tool.schema
+        }))
+      };
+    });
+
+    // Store current MCP servers data for new clients
+    this.currentMCPServers = {
+      servers: serversData,
+      blockedServers: blockedMcpServers
+    };
+
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'mcp_servers',
+      data: this.currentMCPServers,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
   private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {
@@ -562,6 +622,13 @@ export class WebInterfaceService {
           timestamp: Date.now(),
         }));
       }
+
+      // Send current MCP servers to new client (always send, even if empty)
+      ws.send(JSON.stringify({
+        type: 'mcp_servers',
+        data: this.currentMCPServers,
+        timestamp: Date.now(),
+      }));
     });
 
     this.wss.on('error', (error) => {

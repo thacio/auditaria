@@ -251,9 +251,22 @@ class AuditariaWebClient {
         this.commandsSearch = document.getElementById('commands-search');
         this.commandsList = document.getElementById('commands-list');
         
+        // MCP Servers Modal elements
+        this.mcpServersButton = document.getElementById('mcp-servers-button');
+        this.mcpServersModal = document.getElementById('mcp-servers-modal');
+        this.mcpServersBackdrop = document.getElementById('mcp-servers-backdrop');
+        this.mcpServersClose = document.getElementById('mcp-servers-close');
+        this.mcpSearch = document.getElementById('mcp-search');
+        this.mcpServersList = document.getElementById('mcp-servers-list');
+        
         // Initialize slash commands data
         this.slashCommands = [];
         this.filteredCommands = [];
+        
+        // Initialize MCP servers data
+        this.mcpServers = [];
+        this.blockedMcpServers = [];
+        this.filteredMcpServers = [];
         
         // Initialize expandable state
         this.isThoughtsExpanded = false;
@@ -348,6 +361,9 @@ class AuditariaWebClient {
                 break;
             case 'slash_commands':
                 this.handleSlashCommands(message.data);
+                break;
+            case 'mcp_servers':
+                this.handleMCPServers(message.data);
                 break;
             case 'history_sync':
                 this.loadHistoryItems(message.data.history);
@@ -1700,6 +1716,11 @@ class AuditariaWebClient {
             this.showSlashCommandsModal();
         });
         
+        // MCP servers button click handler
+        this.mcpServersButton.addEventListener('click', () => {
+            this.showMCPServersModal();
+        });
+        
         // Keyboard handlers for textarea
         this.messageInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -1727,6 +1748,7 @@ class AuditariaWebClient {
         });
         
         this.setupSlashCommandsModal();
+        this.setupMCPServersModal();
     }
     
     setupSlashCommandsModal() {
@@ -2278,6 +2300,185 @@ class AuditariaWebClient {
         
         html += '</div>';
         return html;
+    }
+
+    // MCP Servers Modal Methods
+    setupMCPServersModal() {
+        // Close button handler
+        this.mcpServersClose.addEventListener('click', () => {
+            this.hideMCPServersModal();
+        });
+        
+        // Backdrop click handler
+        this.mcpServersBackdrop.addEventListener('click', () => {
+            this.hideMCPServersModal();
+        });
+        
+        // Search input handler
+        this.mcpSearch.addEventListener('input', (event) => {
+            this.filterMCPServers(event.target.value);
+        });
+        
+        // ESC key handler for modal
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.mcpServersModal.style.display === 'block') {
+                this.hideMCPServersModal();
+            }
+        });
+    }
+    
+    showMCPServersModal() {
+        this.mcpServersModal.style.display = 'block';
+        setTimeout(() => {
+            this.mcpServersModal.classList.add('show');
+        }, 10);
+        
+        // Focus search input
+        this.mcpSearch.focus();
+        
+        // If servers haven't been loaded yet, show loading
+        if (this.mcpServers.length === 0 && this.blockedMcpServers.length === 0) {
+            this.mcpServersList.innerHTML = '<div class="mcp-loading">Loading MCP servers...</div>';
+        }
+    }
+    
+    hideMCPServersModal() {
+        this.mcpServersModal.classList.remove('show');
+        setTimeout(() => {
+            this.mcpServersModal.style.display = 'none';
+        }, 300);
+    }
+    
+    handleMCPServers(data) {
+        this.mcpServers = data.servers || [];
+        this.blockedMcpServers = data.blockedServers || [];
+        this.filteredMcpServers = [...this.mcpServers];
+        this.renderMCPServers();
+        
+        // Enable the button once MCP data is received (even if empty)
+        this.mcpServersButton.disabled = false;
+    }
+    
+    filterMCPServers(searchTerm) {
+        const term = searchTerm.toLowerCase();
+        this.filteredMcpServers = this.mcpServers.filter(server => {
+            // Search in server name, description, and tool names/descriptions
+            const matchesServer = server.name.toLowerCase().includes(term) ||
+                                (server.description && server.description.toLowerCase().includes(term));
+            
+            const matchesTools = server.tools && server.tools.some(tool => 
+                tool.name.toLowerCase().includes(term) ||
+                (tool.description && tool.description.toLowerCase().includes(term))
+            );
+            
+            return matchesServer || matchesTools;
+        });
+        this.renderMCPServers();
+    }
+    
+    renderMCPServers() {
+        if (this.filteredMcpServers.length === 0 && this.blockedMcpServers.length === 0) {
+            this.mcpServersList.innerHTML = `
+                <div class="mcp-no-servers">
+                    <div class="mcp-no-servers-title">No MCP Servers Available</div>
+                    <div class="mcp-no-servers-description">
+                        No MCP servers are currently configured. 
+                        Configure MCP servers to extend Auditaria with additional tools and capabilities.
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        
+        // Render active servers
+        this.filteredMcpServers.forEach(server => {
+            html += this.renderMCPServer(server);
+        });
+        
+        // Render blocked servers
+        this.blockedMcpServers.forEach(server => {
+            html += this.renderBlockedMCPServer(server);
+        });
+        
+        this.mcpServersList.innerHTML = html;
+    }
+    
+    renderMCPServer(server) {
+        const statusInfo = this.getMCPServerStatusInfo(server.status);
+        const displayName = server.extensionName ? 
+            `${server.name} (from ${server.extensionName})` : 
+            server.name;
+        
+        let html = `
+            <div class="mcp-server-item">
+                <div class="mcp-server-header">
+                    <span class="mcp-server-status ${statusInfo.className}">${statusInfo.icon}</span>
+                    <div class="mcp-server-name">${this.escapeHtml(displayName)}</div>
+                    <div class="mcp-server-status-text">${statusInfo.text}</div>
+                </div>
+        `;
+        
+        if (server.description) {
+            html += `<div class="mcp-server-description">${this.escapeHtml(server.description)}</div>`;
+        }
+        
+        if (server.tools && server.tools.length > 0) {
+            html += `
+                <div class="mcp-tools-section">
+                    <div class="mcp-tools-header">Tools (${server.tools.length})</div>
+            `;
+            
+            server.tools.forEach(tool => {
+                html += `
+                    <div class="mcp-tool-item">
+                        <div class="mcp-tool-name">${this.escapeHtml(tool.name)}</div>
+                `;
+                if (tool.description) {
+                    html += `<div class="mcp-tool-description">${this.escapeHtml(tool.description)}</div>`;
+                }
+                html += `</div>`;
+            });
+            
+            html += `</div>`;
+        } else {
+            const noToolsMessage = server.status === 'connecting' ? 
+                'Tools will appear when ready' : 
+                'No tools available';
+            html += `<div class="mcp-tools-section"><div class="mcp-tools-header">${noToolsMessage}</div></div>`;
+        }
+        
+        html += `</div>`;
+        return html;
+    }
+    
+    renderBlockedMCPServer(server) {
+        const displayName = server.extensionName ? 
+            `${server.name} (from ${server.extensionName})` : 
+            server.name;
+            
+        return `
+            <div class="mcp-server-item">
+                <div class="mcp-server-header">
+                    <span class="mcp-server-status blocked">🔴</span>
+                    <div class="mcp-server-name">${this.escapeHtml(displayName)}</div>
+                    <div class="mcp-server-status-text">Blocked</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    getMCPServerStatusInfo(status) {
+        switch (status) {
+            case 'connected':
+                return { icon: '🟢', text: 'Ready', className: 'connected' };
+            case 'connecting':
+                return { icon: '🔄', text: 'Starting...', className: 'connecting' };
+            case 'disconnected':
+            default:
+                return { icon: '🔴', text: 'Disconnected', className: 'disconnected' };
+        }
     }
 }
 

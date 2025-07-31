@@ -63,6 +63,10 @@ import {
   AuthType,
   type OpenFiles,
   ideContext,
+  DiscoveredMCPTool,
+  getMCPServerStatus,
+  getAllMCPServerStatuses,
+  MCPServerStatus,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { useLogger } from './hooks/useLogger.js';
@@ -607,6 +611,48 @@ const App = ({ config, settings, startupWarnings = [], version, webEnabled, webO
       webInterface.service.broadcastSlashCommands(slashCommands);
     }
   }, [slashCommands?.length, webInterface?.isRunning]); // Only depend on length and running status
+
+  // Broadcast MCP servers to web interface when web interface connects
+  useEffect(() => {
+    const broadcastMCPData = async () => {
+      if (webInterface?.service && webInterface.isRunning) {
+        const mcpServers = config.getMcpServers() || {};
+        const blockedMcpServers = config.getBlockedMcpServers() || [];
+        
+        // Get actual server statuses from the MCP client
+        const actualServerStatuses = getAllMCPServerStatuses();
+        const serverStatuses = new Map<string, string>();
+        
+        // Convert MCPServerStatus enum values to strings
+        for (const [serverName, status] of actualServerStatuses) {
+          serverStatuses.set(serverName, status as string);
+        }
+        
+        // Get actual tools from the tool registry
+        const serverTools = new Map<string, DiscoveredMCPTool[]>();
+        try {
+          const toolRegistry = await config.getToolRegistry();
+          for (const serverName of Object.keys(mcpServers)) {
+            const tools = toolRegistry.getToolsByServer(serverName);
+            // Filter to only DiscoveredMCPTool instances
+            const mcpTools = tools.filter(tool => tool instanceof DiscoveredMCPTool) as DiscoveredMCPTool[];
+            serverTools.set(serverName, mcpTools);
+          }
+        } catch (error) {
+          console.error('Error getting tool registry:', error);
+        }
+        
+        webInterface.service.broadcastMCPServers(
+          mcpServers,
+          blockedMcpServers,
+          serverTools,
+          serverStatuses
+        );
+      }
+    };
+    
+    broadcastMCPData();
+  }, [webInterface?.isRunning]); // Broadcast when web interface is ready
 
   // Web interface startup message for --web flag
   const webStartupShownRef = useRef(false);

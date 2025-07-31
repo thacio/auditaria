@@ -44,6 +44,15 @@
                     </svg>
                     <span>Commands</span>
                 </button>
+                <button id="mcp-servers-button" class="mcp-servers-button" title="Show Available MCP Servers" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="7.5,4.21 12,6.81 16.5,4.21"></polyline>
+                        <polyline points="7.5,19.79 7.5,14.6 3,12"></polyline>
+                        <polyline points="21,12 16.5,14.6 16.5,19.79"></polyline>
+                    </svg>
+                    <span>MCPs</span>
+                </button>
                 <div class="status" id="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>
                     <span id="message-count">0 messages</span>
@@ -105,6 +114,25 @@
                 </div>
                 <div id="commands-list" class="commands-list">
                     <div class="commands-loading">Loading commands...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MCP Servers Modal -->
+    <div id="mcp-servers-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" id="mcp-servers-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Available MCP Servers</h2>
+                <button class="modal-close" id="mcp-servers-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="mcp-search">
+                    <input type="text" id="mcp-search" placeholder="Search servers and tools..." />
+                </div>
+                <div id="mcp-servers-list" class="mcp-servers-list">
+                    <div class="mcp-loading">Loading MCP servers...</div>
                 </div>
             </div>
         </div>

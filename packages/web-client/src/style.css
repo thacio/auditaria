@@ -1311,7 +1311,8 @@ body {
 /* Header Button Styles (shared) */
 .print-button,
 .autoscroll-button,
-.slash-commands-button {
+.slash-commands-button,
+.mcp-servers-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1328,7 +1329,8 @@ body {
 
 .print-button:hover:not(:disabled),
 .autoscroll-button:hover:not(:disabled),
-.slash-commands-button:hover:not(:disabled) {
+.slash-commands-button:hover:not(:disabled),
+.mcp-servers-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
@@ -1336,21 +1338,24 @@ body {
 
 .print-button:active:not(:disabled),
 .autoscroll-button:active:not(:disabled),
-.slash-commands-button:active:not(:disabled) {
+.slash-commands-button:active:not(:disabled),
+.mcp-servers-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
 .print-button:disabled,
 .autoscroll-button:disabled,
-.slash-commands-button:disabled {
+.slash-commands-button:disabled,
+.mcp-servers-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 .print-button svg,
 .autoscroll-button svg,
-.slash-commands-button svg {
+.slash-commands-button svg,
+.mcp-servers-button svg {
   flex-shrink: 0;
 }
 
@@ -1922,5 +1927,176 @@ body {
   .command-subcommands {
     margin-left: 12px;
     padding-left: 12px;
+  }
+}
+
+/* MCP Servers Modal Styles */
+.mcp-search {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mcp-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.mcp-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.mcp-servers-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.mcp-loading {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.mcp-server-item {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.mcp-server-item:hover {
+  background: var(--surface-alt);
+}
+
+.mcp-server-item:last-child {
+  border-bottom: none;
+}
+
+.mcp-server-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mcp-server-status {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mcp-server-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mcp-server-status-text {
+  font-size: 13px;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.mcp-server-description {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-bottom: 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.mcp-tools-section {
+  margin-top: 8px;
+}
+
+.mcp-tools-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mcp-tool-item {
+  padding: 4px 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--border);
+  margin-left: 8px;
+}
+
+.mcp-tool-name {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.mcp-tool-description {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+  line-height: 1.3;
+  white-space: pre-wrap;
+}
+
+.mcp-no-servers {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-subtle);
+}
+
+.mcp-no-servers-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.mcp-no-servers-description {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Status colors for MCP servers */
+.mcp-server-status.connected {
+  color: #22c55e; /* Green */
+}
+
+.mcp-server-status.connecting {
+  color: #f59e0b; /* Yellow/Orange */
+}
+
+.mcp-server-status.disconnected {
+  color: #ef4444; /* Red */
+}
+
+.mcp-server-status.blocked {
+  color: #6b7280; /* Gray */
+}
+
+/* Responsive MCP modal */
+@media (max-width: 768px) {
+  .mcp-search {
+    padding: 12px 20px;
+  }
+  
+  .mcp-server-item {
+    padding: 12px 20px;
+  }
+  
+  .mcp-tools-section {
+    margin-left: 0;
+  }
+  
+  .mcp-tool-item {
+    padding-left: 12px;
+    margin-left: 4px;
   }
 }
