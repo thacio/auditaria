@@ -63,35 +63,67 @@ export class WebInterfaceService {
       
       // Serve static files from web-client directory
       // The web client files are bundled with the CLI package
-      const possiblePaths = [
-        // For published package: web-client is in the same dist folder
+      const possiblePaths: string[] = [
+        // 1. Package-relative resolution (best for global npm installations)
+        (() => {
+          try {
+            const packageDir = path.dirname(require.resolve('@thacio/auditaria-cli/package.json'));
+            return path.join(packageDir, 'web-client');
+          } catch {
+            return null;
+          }
+        })(),
+        // 2. For published package: web-client is in the same dist folder
         path.resolve(__dirname, 'web-client'),
-        // For development: try bundle location first
+        // 3. For development: try bundle location first
         path.resolve(__dirname, '../../../bundle/web-client'), 
-        // Development fallback: source files
+        // 4. Development fallback: source files
         path.resolve(__dirname, '../../../packages/web-client/src'),
-        // Legacy development paths
+        // 5. Legacy development paths
         path.resolve(process.cwd(), 'packages/web-client/src'),
-      ];
+      ].filter((path): path is string => path !== null); // Type-safe filter to remove null values
       
       let webClientPath = '';
+      const debugMode = process.env.DEBUG || process.env.NODE_ENV === 'development';
+      
+      if (debugMode) {
+        console.log('Web client path resolution attempts:');
+        possiblePaths.forEach((testPath, index) => {
+          console.log(`  ${index + 1}. ${testPath}`);
+        });
+      }
+      
       for (const testPath of possiblePaths) {
         try {
           const fs = await import('fs');
-          if (fs.existsSync(path.join(testPath, 'index.html'))) {
+          const indexPath = path.join(testPath, 'index.html');
+          if (fs.existsSync(indexPath)) {
             webClientPath = testPath;
+            if (debugMode) {
+              console.log(`✓ Found web client files at: ${webClientPath}`);
+            }
             break;
+          } else if (debugMode) {
+            console.log(`✗ Not found: ${indexPath}`);
           }
-        } catch {
+        } catch (error) {
+          if (debugMode) {
+            console.log(`✗ Error checking ${testPath}:`, error);
+          }
           // Continue to next path
         }
       }
       
       if (!webClientPath) {
-        throw new Error('Could not find web client files');
+        const errorMsg = 'Could not find web client files in any of the attempted paths';
+        if (debugMode) {
+          console.error('❌', errorMsg);
+          console.error('Attempted paths:', possiblePaths);
+        }
+        throw new Error(errorMsg);
       }
       
-      console.log('Web client path:', webClientPath);
+      console.log('Web client serving from:', webClientPath);
       this.app.use(express.static(webClientPath));
       
       // API endpoint for current history
