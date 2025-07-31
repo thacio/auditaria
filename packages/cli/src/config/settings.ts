@@ -100,6 +100,7 @@ export interface Settings {
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
 
   vimMode?: boolean;
+  memoryImportFormat?: 'tree' | 'flat';
 
   // Flag to be removed post-launch.
   ideModeFeature?: boolean;
