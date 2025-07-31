@@ -119,7 +119,10 @@ export const ToolConfirmationMessage: React.FC<
         label: t('tool_confirmation.options.modify_editor', 'Modify with external editor'),
         value: ToolConfirmationOutcome.ModifyWithEditor,
       },
-      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
+      {
+        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
     bodyContent = (
       <DiffRenderer
@@ -143,10 +146,11 @@ export const ToolConfirmationMessage: React.FC<
         label: t('tool_confirmation.options.yes_always_ellipsis', 'Yes, allow always ...'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
+      {
+        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
-
-    options.push({ label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel });
-
     let bodyContentHeight = availableBodyContentHeight();
     if (bodyContentHeight !== undefined) {
       bodyContentHeight -= 2; // Account for padding;
@@ -181,7 +185,10 @@ export const ToolConfirmationMessage: React.FC<
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
+      {
+        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
 
     bodyContent = (
@@ -222,7 +229,10 @@ export const ToolConfirmationMessage: React.FC<
         label: t('tool_confirmation.options.yes_always_server', 'Yes, always allow all tools from server "{serverName}"', { serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysServer,
       },
-      { label: t('tool_confirmation.options.no_esc', 'No (esc)'), value: ToolConfirmationOutcome.Cancel },
+      {
+        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+        value: ToolConfirmationOutcome.Cancel,
+      },
     );
   }
 

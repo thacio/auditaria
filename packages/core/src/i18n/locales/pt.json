@@ -341,7 +341,8 @@
       "yes_always_tool": "Sim, sempre permitir ferramenta \"{toolName}\" do servidor \"{serverName}\"",
       "yes_always_server": "Sim, sempre permitir todas as ferramentas do servidor \"{serverName}\"",
       "modify_editor": "Modificar com editor externo",
-      "no_esc": "Não (esc)"
+      "no_esc": "Não (esc)",
+      "no_suggest_changes": "Não, sugerir mudanças (esc)"
     },
     "mcp_labels": {
       "server": "Servidor MCP: {serverName}",
