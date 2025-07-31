@@ -732,6 +732,9 @@
     "vertex_ai_notice_title": "Aviso do Vertex AI",
     "vertex_ai_service_terms_text": "Os Termos Específicos do Serviço {ref1} são incorporados ao acordo sob o qual o Google concordou em fornecer o Google Cloud Platform {ref2} ao Cliente (o \"Acordo\"). Se o Acordo autorizar a revenda ou fornecimento do Google Cloud Platform sob um programa de parceiro ou revendedor do Google Cloud, então, exceto na seção intitulada \"Termos Específicos do Parceiro\", todas as referências ao Cliente nos Termos Específicos do Serviço significam Parceiro ou Revendedor (conforme aplicável), e todas as referências aos Dados do Cliente nos Termos Específicos do Serviço significam Dados do Parceiro. Termos em maiúsculas usados mas não definidos nos Termos Específicos do Serviço têm o significado dado a eles no Acordo."
   },
+  "bfs_file_search": {
+    "warn_unreadable_directory": "[AVISO] Ignorando diretório ilegível: {directory} ({message})"
+  },
   "tools": {
     "edit": {
       "file_path_must_be_absolute": "Caminho do arquivo deve ser absoluto: {path}",

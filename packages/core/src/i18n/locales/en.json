@@ -755,6 +755,9 @@
     "vertex_ai_notice_title": "Vertex AI Notice",
     "vertex_ai_service_terms_text": "Service Specific Terms {ref1} are incorporated into the agreement under which Google has agreed to provide Google Cloud Platform {ref2} to Customer (the \"Agreement\"). If the Agreement authorizes the resale or supply of Google Cloud Platform under a Google Cloud partner or reseller program, then except for in the section entitled \"Partner-Specific Terms\", all references to Customer in the Service Specific Terms mean Partner or Reseller (as applicable), and all references to Customer Data in the Service Specific Terms mean Partner Data. Capitalized terms used but not defined in the Service Specific Terms have the meaning given to them in the Agreement."
   },
+  "bfs_file_search": {
+    "warn_unreadable_directory": "[WARN] Skipping unreadable directory: {directory} ({message})"
+  },
   "tools": {
     "edit": {
       "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
