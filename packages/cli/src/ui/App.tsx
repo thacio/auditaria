@@ -608,7 +608,20 @@ const App = ({ config, settings, startupWarnings = [], version, webEnabled }: Ap
     }
   }, [slashCommands?.length, webInterface?.isRunning]); // Only depend on length and running status
 
-  // Web interface startup message is handled by the /web command or --web flag startup
+  // Web interface startup message for --web flag
+  const webStartupShownRef = useRef(false);
+  useEffect(() => {
+    if (webEnabled && webInterface?.isRunning && webInterface?.port && !webStartupShownRef.current) {
+      webStartupShownRef.current = true;
+      addItem(
+        {
+          type: 'info',
+          text: t('commands.web.available_at', '🌐 Web interface available at http://localhost:{port}', { port: webInterface.port.toString() }),
+        },
+        Date.now(),
+      );
+    }
+  }, [webEnabled, webInterface?.isRunning, webInterface?.port, addItem]);
 
   // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
   const toolConfirmationContext = useToolConfirmation();
