@@ -9,7 +9,7 @@ import { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HistoryItem } from '../ui/types.js';
+import { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
 import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
@@ -37,6 +37,7 @@ export class WebInterfaceService {
   private currentHistory: HistoryItem[] = [];
   private currentSlashCommands: readonly SlashCommand[] = [];
   private currentMCPServers: { servers: any[]; blockedServers: any[] } = { servers: [], blockedServers: [] };
+  private currentConsoleMessages: ConsoleMessageItem[] = [];
 
   /**
    * Start HTTP server on specified port
@@ -552,6 +553,38 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast console messages to all connected web clients
+   */
+  broadcastConsoleMessages(messages: ConsoleMessageItem[]): void {
+    // Store current console messages for new clients
+    this.currentConsoleMessages = messages;
+
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'console_messages',
+      data: messages,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (error) {
+          // Remove failed client
+          this.clients.delete(client);
+        }
+      } else {
+        // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
   private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {
@@ -627,6 +660,13 @@ export class WebInterfaceService {
       ws.send(JSON.stringify({
         type: 'mcp_servers',
         data: this.currentMCPServers,
+        timestamp: Date.now(),
+      }));
+
+      // Send current console messages to new client (always send, even if empty)
+      ws.send(JSON.stringify({
+        type: 'console_messages',
+        data: this.currentConsoleMessages,
         timestamp: Date.now(),
       }));
     });

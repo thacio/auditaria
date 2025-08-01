@@ -654,6 +654,18 @@ const App = ({ config, settings, startupWarnings = [], version, webEnabled, webO
     broadcastMCPData();
   }, [webInterface?.isRunning]); // Broadcast when web interface is ready
 
+  // Broadcast console messages to web interface when they change
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      // Apply same filtering logic as CLI debug console
+      const messagesToBroadcast = config.getDebugMode() 
+        ? consoleMessages 
+        : consoleMessages.filter((msg) => msg.type !== 'debug');
+      
+      webInterface.service.broadcastConsoleMessages(messagesToBroadcast);
+    }
+  }, [consoleMessages, webInterface?.isRunning, config]); // Depend on console messages and debug mode
+
   // Web interface startup message for --web flag
   const webStartupShownRef = useRef(false);
   useEffect(() => {

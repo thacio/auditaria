@@ -53,6 +53,14 @@
                     </svg>
                     <span>MCPs</span>
                 </button>
+                <button id="debug-logs-button" class="debug-logs-button" title="Show Debug Console Logs" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="M7,15 L10,12 L7,9"></path>
+                        <line x1="17" y1="17" x2="17" y2="17"></line>
+                    </svg>
+                    <span>Debug</span>
+                </button>
                 <div class="status" id="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>
                     <span id="message-count">0 messages</span>
@@ -133,6 +141,25 @@
                 </div>
                 <div id="mcp-servers-list" class="mcp-servers-list">
                     <div class="mcp-loading">Loading MCP servers...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Debug Logs Modal -->
+    <div id="debug-logs-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" id="debug-logs-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Debug Console</h2>
+                <button class="modal-close" id="debug-logs-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="debug-search">
+                    <input type="text" id="debug-search" placeholder="Search debug logs..." />
+                </div>
+                <div id="debug-logs-list" class="debug-logs-list">
+                    <div class="debug-loading">Loading debug logs...</div>
                 </div>
             </div>
         </div>

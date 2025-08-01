@@ -259,6 +259,14 @@ class AuditariaWebClient {
         this.mcpSearch = document.getElementById('mcp-search');
         this.mcpServersList = document.getElementById('mcp-servers-list');
         
+        // Debug Logs Modal elements
+        this.debugLogsButton = document.getElementById('debug-logs-button');
+        this.debugLogsModal = document.getElementById('debug-logs-modal');
+        this.debugLogsBackdrop = document.getElementById('debug-logs-backdrop');
+        this.debugLogsClose = document.getElementById('debug-logs-close');
+        this.debugSearch = document.getElementById('debug-search');
+        this.debugLogsList = document.getElementById('debug-logs-list');
+        
         // Initialize slash commands data
         this.slashCommands = [];
         this.filteredCommands = [];
@@ -267,6 +275,10 @@ class AuditariaWebClient {
         this.mcpServers = [];
         this.blockedMcpServers = [];
         this.filteredMcpServers = [];
+        
+        // Initialize debug logs data
+        this.debugLogs = [];
+        this.filteredDebugLogs = [];
         
         // Initialize expandable state
         this.isThoughtsExpanded = false;
@@ -364,6 +376,9 @@ class AuditariaWebClient {
                 break;
             case 'mcp_servers':
                 this.handleMCPServers(message.data);
+                break;
+            case 'console_messages':
+                this.handleConsoleMessages(message.data);
                 break;
             case 'history_sync':
                 this.loadHistoryItems(message.data.history);
@@ -1721,6 +1736,11 @@ class AuditariaWebClient {
             this.showMCPServersModal();
         });
         
+        // Debug logs button click handler
+        this.debugLogsButton.addEventListener('click', () => {
+            this.showDebugLogsModal();
+        });
+        
         // Keyboard handlers for textarea
         this.messageInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -1749,6 +1769,7 @@ class AuditariaWebClient {
         
         this.setupSlashCommandsModal();
         this.setupMCPServersModal();
+        this.setupDebugLogsModal();
     }
     
     setupSlashCommandsModal() {
@@ -2478,6 +2499,124 @@ class AuditariaWebClient {
             case 'disconnected':
             default:
                 return { icon: '🔴', text: 'Disconnected', className: 'disconnected' };
+        }
+    }
+
+    // Debug Logs Modal Methods
+    setupDebugLogsModal() {
+        // Close button handler
+        this.debugLogsClose.addEventListener('click', () => {
+            this.hideDebugLogsModal();
+        });
+        
+        // Backdrop click handler
+        this.debugLogsBackdrop.addEventListener('click', () => {
+            this.hideDebugLogsModal();
+        });
+        
+        // Search input handler
+        this.debugSearch.addEventListener('input', (event) => {
+            this.filterDebugLogs(event.target.value);
+        });
+        
+        // ESC key handler for modal
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && this.debugLogsModal.style.display === 'block') {
+                this.hideDebugLogsModal();
+            }
+        });
+    }
+    
+    showDebugLogsModal() {
+        this.debugLogsModal.style.display = 'block';
+        setTimeout(() => {
+            this.debugLogsModal.classList.add('show');
+        }, 10);
+        
+        // Focus search input
+        this.debugSearch.focus();
+        
+        // If logs haven't been loaded yet, show loading
+        if (this.debugLogs.length === 0) {
+            this.debugLogsList.innerHTML = '<div class="debug-loading">Loading debug logs...</div>';
+        }
+    }
+    
+    hideDebugLogsModal() {
+        this.debugLogsModal.classList.remove('show');
+        setTimeout(() => {
+            this.debugLogsModal.style.display = 'none';
+        }, 300);
+    }
+    
+    handleConsoleMessages(messages) {
+        this.debugLogs = messages || [];
+        this.filteredDebugLogs = [...this.debugLogs];
+        this.renderDebugLogs();
+        
+        // Enable the button once console messages are received (even if empty)
+        this.debugLogsButton.disabled = false;
+    }
+    
+    filterDebugLogs(searchTerm) {
+        const term = searchTerm.toLowerCase();
+        this.filteredDebugLogs = this.debugLogs.filter(log => {
+            return log.content.toLowerCase().includes(term) ||
+                   log.type.toLowerCase().includes(term);
+        });
+        this.renderDebugLogs();
+    }
+    
+    renderDebugLogs() {
+        if (this.filteredDebugLogs.length === 0) {
+            this.debugLogsList.innerHTML = `
+                <div class="debug-no-logs">
+                    <div class="debug-no-logs-title">No Debug Logs Available</div>
+                    <div class="debug-no-logs-description">
+                        No console messages have been captured yet. 
+                        Debug logs will appear here when the CLI generates console output.
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        
+        this.filteredDebugLogs.forEach(log => {
+            html += this.renderDebugLogItem(log);
+        });
+        
+        this.debugLogsList.innerHTML = html;
+    }
+    
+    renderDebugLogItem(log) {
+        const { icon, color } = this.getDebugLogIconAndColor(log.type);
+        const countDisplay = log.count && log.count > 1 ? ` <span class="debug-log-count">(x${log.count})</span>` : '';
+        
+        return `
+            <div class="debug-log-item">
+                <div class="debug-log-header">
+                    <span class="debug-log-icon" style="color: ${color};">${icon}</span>
+                    <span class="debug-log-type">${log.type.toUpperCase()}</span>
+                    ${countDisplay}
+                </div>
+                <div class="debug-log-content">${this.escapeHtml(log.content)}</div>
+            </div>
+        `;
+    }
+    
+    getDebugLogIconAndColor(type) {
+        switch (type) {
+            case 'error':
+                return { icon: '✖', color: '#ef4444' }; // Red
+            case 'warn':
+                return { icon: '⚠', color: '#f59e0b' }; // Yellow/Orange
+            case 'debug':
+                return { icon: '🔍', color: '#6b7280' }; // Gray
+            case 'log':
+            default:
+                return { icon: 'ℹ', color: '#3b82f6' }; // Blue
         }
     }
 }

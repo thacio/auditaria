@@ -1312,7 +1312,8 @@ body {
 .print-button,
 .autoscroll-button,
 .slash-commands-button,
-.mcp-servers-button {
+.mcp-servers-button,
+.debug-logs-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1330,7 +1331,8 @@ body {
 .print-button:hover:not(:disabled),
 .autoscroll-button:hover:not(:disabled),
 .slash-commands-button:hover:not(:disabled),
-.mcp-servers-button:hover:not(:disabled) {
+.mcp-servers-button:hover:not(:disabled),
+.debug-logs-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
@@ -1339,7 +1341,8 @@ body {
 .print-button:active:not(:disabled),
 .autoscroll-button:active:not(:disabled),
 .slash-commands-button:active:not(:disabled),
-.mcp-servers-button:active:not(:disabled) {
+.mcp-servers-button:active:not(:disabled),
+.debug-logs-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
@@ -1347,7 +1350,8 @@ body {
 .print-button:disabled,
 .autoscroll-button:disabled,
 .slash-commands-button:disabled,
-.mcp-servers-button:disabled {
+.mcp-servers-button:disabled,
+.debug-logs-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1355,7 +1359,8 @@ body {
 .print-button svg,
 .autoscroll-button svg,
 .slash-commands-button svg,
-.mcp-servers-button svg {
+.mcp-servers-button svg,
+.debug-logs-button svg {
   flex-shrink: 0;
 }
 
@@ -2098,5 +2103,122 @@ body {
   .mcp-tool-item {
     padding-left: 12px;
     margin-left: 4px;
+  }
+}
+
+/* Debug Logs Modal Styles */
+.debug-search {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.debug-search input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.debug-search input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.debug-logs-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.debug-loading {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.debug-log-item {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s ease;
+}
+
+.debug-log-item:hover {
+  background: var(--surface-alt);
+}
+
+.debug-log-item:last-child {
+  border-bottom: none;
+}
+
+.debug-log-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.debug-log-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.debug-log-type {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.debug-log-count {
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-weight: 500;
+}
+
+.debug-log-content {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.debug-no-logs {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-subtle);
+}
+
+.debug-no-logs-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.debug-no-logs-description {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Responsive Debug modal */
+@media (max-width: 768px) {
+  .debug-search {
+    padding: 12px 20px;
+  }
+  
+  .debug-log-item {
+    padding: 12px 20px;
+  }
+  
+  .debug-log-content {
+    font-size: 12px;
   }
 }
