@@ -62,6 +62,7 @@ export interface Settings {
   customThemes?: Record<string, CustomTheme>;
   selectedAuthType?: AuthType;
   language?: SupportedLanguage;
+  useExternalAuth?: boolean;
   sandbox?: boolean | string;
   coreTools?: string[];
   excludeTools?: string[];
