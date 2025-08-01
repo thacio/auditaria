@@ -45,7 +45,11 @@ import { getCurrentLanguage } from '../i18n/index.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ideContext } from '../ide/ideContext.js';
 import { logNextSpeakerCheck } from '../telemetry/loggers.js';
-import { NextSpeakerCheckEvent } from '../telemetry/types.js';
+import {
+  MalformedJsonResponseEvent,
+  NextSpeakerCheckEvent,
+} from '../telemetry/types.js';
+import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 
 function isThinkingSupported(model: string) {
   if (model.startsWith('gemini-2.5')) return true;
@@ -511,7 +515,7 @@ export class GeminiClient {
         disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
 
-      const text = getResponseText(result);
+      let text = getResponseText(result);
       if (!text) {
         const error = new Error(
           'API returned an empty response for generateJson.',
@@ -524,6 +528,18 @@ export class GeminiClient {
         );
         throw error;
       }
+
+      const prefix = '```json';
+      const suffix = '```';
+      if (text.startsWith(prefix) && text.endsWith(suffix)) {
+        ClearcutLogger.getInstance(this.config)?.logMalformedJsonResponseEvent(
+          new MalformedJsonResponseEvent(modelToUse),
+        );
+        text = text
+          .substring(prefix.length, text.length - suffix.length)
+          .trim();
+      }
+
       try {
         return JSON.parse(text);
       } catch (parseError) {
@@ -537,7 +553,9 @@ export class GeminiClient {
           'generateJson-parse',
         );
         throw new Error(
-          `Failed to parse API response as JSON: ${getErrorMessage(parseError)}`,
+          `Failed to parse API response as JSON: ${getErrorMessage(
+            parseError,
+          )}`,
         );
       }
     } catch (error) {
