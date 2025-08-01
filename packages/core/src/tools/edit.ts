@@ -18,6 +18,7 @@ import {
   ToolResult,
   ToolResultDisplay,
 } from './tools.js';
+import { ToolErrorType } from './tool-error.js';
 import { Type } from '@google/genai';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
@@ -63,7 +64,7 @@ interface CalculatedEdit {
   currentContent: string | null;
   newContent: string;
   occurrences: number;
-  error?: { display: string; raw: string };
+  error?: { display: string; raw: string; type: ToolErrorType };
   isNewFile: boolean;
 }
 
@@ -192,7 +193,9 @@ Expectation for required parameters:
     let finalNewString = params.new_string;
     let finalOldString = params.old_string;
     let occurrences = 0;
-    let error: { display: string; raw: string } | undefined = undefined;
+    let error:
+      | { display: string; raw: string; type: ToolErrorType }
+      | undefined = undefined;
 
     try {
       currentContent = fs.readFileSync(params.file_path, 'utf8');
@@ -215,6 +218,7 @@ Expectation for required parameters:
       error = {
         display: t('tools.edit.file_not_found_create', 'File not found. Cannot apply edit. Use an empty old_string to create a new file.'),
         raw: t('tools.edit.file_not_found_raw', 'File not found: {path}', { path: params.file_path }),
+        type: ToolErrorType.FILE_NOT_FOUND,
       };
     } else if (currentContent !== null) {
       // Editing an existing file
@@ -234,11 +238,13 @@ Expectation for required parameters:
         error = {
           display: t('tools.edit.failed_create_exists', 'Failed to edit. Attempted to create a file that already exists.'),
           raw: `File already exists, cannot create: ${params.file_path}`,
+          type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
         };
       } else if (occurrences === 0) {
         error = {
           display: t('tools.edit.failed_find_string', 'Failed to edit, could not find the string to replace.'),
           raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
+          type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
         };
       } else if (occurrences !== expectedReplacements) {
         const occurrenceTerm =
@@ -247,11 +253,13 @@ Expectation for required parameters:
         error = {
           display: t('tools.edit.failed_replacement_count', 'Failed to edit, expected {expected} {term} but found {found}.', { expected: expectedReplacements, term: occurrenceTerm, found: occurrences }),
           raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
+          type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
         };
       } else if (finalOldString === finalNewString) {
         error = {
           display: t('tools.edit.no_changes_identical', 'No changes to apply. The old_string and new_string are identical.'),
           raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
+          type: ToolErrorType.EDIT_NO_CHANGE,
         };
       }
     } else {
@@ -259,6 +267,7 @@ Expectation for required parameters:
       error = {
         display: `Failed to read content of file.`,
         raw: `Failed to read content of existing file: ${params.file_path}`,
+        type: ToolErrorType.READ_CONTENT_FAILURE,
       };
     }
 
@@ -375,6 +384,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error: Invalid parameters provided. Reason: ${validationError}`,
         returnDisplay: t('tools.edit.validation_error', 'Error: {error}', { error: validationError }),
+        error: {
+          message: validationError,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
       };
     }
 
@@ -386,6 +399,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error preparing edit: ${errorMsg}`,
         returnDisplay: t('tools.edit.error_preparing_edit', 'Error preparing edit: {error}', { error: errorMsg }),
+        error: {
+          message: errorMsg,
+          type: ToolErrorType.EDIT_PREPARATION_FAILURE,
+        },
       };
     }
 
@@ -393,6 +410,10 @@ Expectation for required parameters:
       return {
         llmContent: editData.error.raw,
         returnDisplay: t('tools.edit.error_display', 'Error: {error}', { error: editData.error.display }),
+        error: {
+          message: editData.error.raw,
+          type: editData.error.type,
+        },
       };
     }
 
@@ -443,6 +464,10 @@ Expectation for required parameters:
       return {
         llmContent: `Error executing edit: ${errorMsg}`,
         returnDisplay: t('tools.edit.error_writing_file', 'Error writing file: {error}', { error: errorMsg }),
+        error: {
+          message: errorMsg,
+          type: ToolErrorType.FILE_WRITE_FAILURE,
+        },
       };
     }
   }

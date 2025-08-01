@@ -11,6 +11,7 @@ import {
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
+  ToolErrorType,
   t,
 } from '@thacio/auditaria-cli-core';
 import { Content, Part, FunctionCall } from '@google/genai';
@@ -97,15 +98,11 @@ export async function runNonInteractive(
           );
 
           if (toolResponse.error) {
-            const isToolNotFound = toolResponse.error.message.includes(
-              'not found in registry',
-            );
             console.error(
               t('non_interactive.tool_execution_error', 'Error executing tool {toolName}: {error}', { toolName: fc.name ?? 'unknown', error: toolResponse.error.message }),
             );
-            if (!isToolNotFound) {
+            if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
               process.exit(1);
-            }
           }
 
           if (toolResponse.responseParts) {
