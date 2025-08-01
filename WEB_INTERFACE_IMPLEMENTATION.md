@@ -203,7 +203,36 @@ packages/cli/src/services/
 Web: ESC pressed → WebSocket: interrupt_request → Service: abort() → CLI: Request cancelled
 ```
 
-### **11. Markdown Processing System**
+### **11. Header Modal System (Commands, MCPs, Debug)**
+```
+bundle/web-client/
+├── index.html                       # Modal HTML structures 
+├── client.js                        # Modal functionality and data handling
+└── style.css                        # Modal styling and layouts
+```
+
+**Features:**
+- **Commands Modal**: Displays all available CLI slash commands with search functionality
+- **MCP Servers Modal**: Shows MCP servers, their tools, and connection status
+- **Debug Console Modal**: Provides access to CLI console messages matching Ctrl+O behavior
+- **Consistent UI**: All modals follow same design patterns with professional styling
+- **Search & Filter**: Each modal includes search capabilities for better usability
+- **Real-time Updates**: Data updates automatically as CLI state changes
+
+**Modal Components:**
+| Modal | Button Icon | Data Source | Search Target |
+|-------|-------------|-------------|---------------|
+| **Commands** | Terminal prompt | `slash_commands` WebSocket | Command names, descriptions |
+| **MCPs** | Hexagon network | `mcp_servers` WebSocket | Server names, tool names |
+| **Debug** | Terminal window | `console_messages` WebSocket | Message content, message types |
+
+**Modal Message Flow:**
+```
+CLI Data Changes → WebInterfaceService.broadcast*() → WebSocket → Web Client → Modal Data Update
+User Clicks Button → showModal() → Display Data → Search/Filter → Render Results
+```
+
+### **12. Markdown Processing System**
 ```
 bundle/web-client/
 ├── marked.min.js                    # Markdown parsing library
@@ -329,12 +358,18 @@ auditaria --web
 4. **Tool State Transitions**: Watch tools progress from Pending → Executing → Success/Error/Canceled
 5. **Tool Output Display**: Comprehensive output for all tool states including errors and cancellations
 6. **ESC Key Interruption**: Press ESC during AI/tool processing to cancel operations
-7. **Connection Status**: Live connection indicator with client count
-8. **Auto-scroll**: Messages automatically scroll to bottom
-9. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
-10. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
-11. **Conversation History Loading**: When opening web interface, displays all previous conversation history
-12. **Responsive**: Works on desktop and mobile browsers
+7. **Header Modals**: Click Commands/MCPs/Debug buttons to access CLI information
+8. **Connection Status**: Live connection indicator with client count
+9. **Auto-scroll**: Messages automatically scroll to bottom
+10. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
+11. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
+12. **Conversation History Loading**: When opening web interface, displays all previous conversation history
+13. **Responsive**: Works on desktop and mobile browsers
+
+### **Header Modal Usage**
+- **Commands Button** (⌘): View all available slash commands with descriptions and search
+- **MCPs Button** (⬡): Browse MCP servers, their tools, and connection status
+- **Debug Button** (□): Access console messages (same as CLI Ctrl+O) with search and filtering
 
 ---
 
@@ -612,6 +647,7 @@ useEffect(() => {
 | Build Process | ✅ Complete | Asset copying automated |
 | Performance Optimization | ✅ Complete | Infinite loop prevention, debug cleanup |
 | Markdown Processing System | ✅ Complete | AI message markdown rendering with HTML cleaning |
+| Header Modal System | ✅ Complete | Commands, MCPs, and Debug modals with search functionality |
 | Documentation | ✅ Complete | This document |
 | Testing | ✅ Complete | Manual testing completed |
 | Git Branch | ✅ Complete | feature/web-interface pushed |
@@ -641,6 +677,9 @@ useEffect(() => {
 - ✅ **/clear Command Synchronization**: CLI `/clear` automatically clears web interface
 - ✅ **/clear Confirmation Dialog**: Web interface prevents accidental conversation clearing
 - ✅ **Markdown Processing**: AI messages render with proper markdown formatting including lists and tables
+- ✅ **Slash Commands Modal**: View and search all available CLI commands in web interface
+- ✅ **MCP Servers Modal**: Browse MCP servers and their tools with status indicators
+- ✅ **Debug Console Modal**: View console messages (errors, warnings, logs) from CLI with search functionality
 
 ## 🆕 Latest Enhancements: Enhanced Web Interface Commands & Launch Options
 
