@@ -270,6 +270,21 @@
       "error": "Falha ao copiar para a área de transferência.",
       "no_text": "A última saída da IA não contém texto para copiar."
     },
+    "directory": {
+      "description": "Gerenciar diretórios do espaço de trabalho",
+      "config_not_available": "Configuração não está disponível.",
+      "add": {
+        "description": "Adicionar diretórios ao espaço de trabalho. Use vírgula para separar múltiplos caminhos",
+        "provide_path": "Por favor, forneça pelo menos um caminho para adicionar.",
+        "restrictive_sandbox": "O comando /directory add não é suportado em perfis de sandbox restritivos. Por favor, use --include-directories ao iniciar a sessão.",
+        "error_adding": "Erro ao adicionar '{path}': {error}",
+        "success": "Diretórios adicionados com sucesso:\n- {directories}"
+      },
+      "show": {
+        "description": "Mostrar todos os diretórios no espaço de trabalho",
+        "current_directories": "Diretórios atuais do espaço de trabalho:\n{directories}"
+      }
+    },
     "file_command": {
       "default_description": "Comando personalizado de {filename}"
     }

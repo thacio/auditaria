@@ -265,6 +265,21 @@
       "error": "Failed to copy to the clipboard.",
       "no_text": "Last AI output contains no text to copy."
     },
+    "directory": {
+      "description": "Manage workspace directories",
+      "config_not_available": "Configuration is not available.",
+      "add": {
+        "description": "Add directories to the workspace. Use comma to separate multiple paths",
+        "provide_path": "Please provide at least one path to add.",
+        "restrictive_sandbox": "The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.",
+        "error_adding": "Error adding '{path}': {error}",
+        "success": "Successfully added directories:\n- {directories}"
+      },
+      "show": {
+        "description": "Show all directories in the workspace",
+        "current_directories": "Current workspace directories:\n{directories}"
+      }
+    },
     "file_command": {
       "default_description": "Custom command from {filename}"
     }
