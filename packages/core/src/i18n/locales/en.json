@@ -280,6 +280,12 @@
         "current_directories": "Current workspace directories:\n{directories}"
       }
     },
+    "setup_github": {
+      "description": "Set up GitHub Actions",
+      "error_git_root": "Unable to determine the Git root directory.",
+      "tool_description": "Setting up GitHub Actions to triage issues and review PRs with Gemini.",
+      "success_message": "Workflows downloaded successfully."
+    },
     "file_command": {
       "default_description": "Custom command from {filename}"
     }
