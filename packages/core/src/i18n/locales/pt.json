@@ -916,6 +916,9 @@
     "initialization_error": "Erro de Inicialização: {error}",
     "check_api_config": "Por favor, verifique a chave de API e configuração."
   },
+  "dns": {
+    "invalid_resolution_order": "Valor inválido para dnsResolutionOrder nas configurações: \"{order}\". Usando padrão \"{defaultValue}\"."
+  },
   "loop_detection": {
     "message": "Um possível loop foi detectado. Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. A solicitação foi interrompida."
   },

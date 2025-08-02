@@ -944,6 +944,9 @@
       "prompt_interactive_stdin": "Error: The --prompt-interactive flag is not supported when piping input from stdin."
     }
   },
+  "dns": {
+    "invalid_resolution_order": "Invalid value for dnsResolutionOrder in settings: \"{order}\". Using default \"{defaultValue}\"."
+  },
   "loop_detection": {
     "message": "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted."
   },
