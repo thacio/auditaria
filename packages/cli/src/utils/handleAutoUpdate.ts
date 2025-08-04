@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { spawn } from 'node:child_process';
 import { UpdateObject } from '../ui/utils/updateCheck.js';
 import { LoadedSettings } from '../config/settings.js';
 import { getInstallationInfo } from './installationInfo.js';
 import { updateEventEmitter } from './updateEventEmitter.js';
 import { HistoryItem, MessageType } from '../ui/types.js';
 import { t } from '@thacio/auditaria-cli-core';
+import { spawnWrapper } from './spawnWrapper.js';
+import { spawn } from 'child_process';
 
 export function handleAutoUpdate(
   info: UpdateObject | null,
   settings: LoadedSettings,
   projectRoot: string,
+  spawnFn: typeof spawn = spawnWrapper,
 ) {
   if (!info) {
     return;
@@ -38,13 +40,13 @@ export function handleAutoUpdate(
   if (!installationInfo.updateCommand || settings.merged.disableAutoUpdate) {
     return;
   }
+  const isNightly = info.update.latest.includes('nightly');
 
   const updateCommand = installationInfo.updateCommand.replace(
     '@latest',
-    `@${info.update.latest}`,
+    isNightly ? '@nightly' : `@${info.update.latest}`,
   );
-
-  const updateProcess = spawn(updateCommand, { stdio: 'pipe', shell: true });
+  const updateProcess = spawnFn(updateCommand, { stdio: 'pipe', shell: true });
   let errorOutput = '';
   updateProcess.stderr.on('data', (data) => {
     errorOutput += data.toString();
