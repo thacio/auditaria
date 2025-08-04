@@ -7,10 +7,12 @@ import { t } from '@thacio/auditaria-cli-core';
 
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
+import { PrepareLabel } from './PrepareLabel.js';
 export interface Suggestion {
   label: string;
   value: string;
   description?: string;
+  matchedIndex?: number;
 }
 interface SuggestionsDisplayProps {
   suggestions: Suggestion[];
@@ -59,18 +61,25 @@ export function SuggestionsDisplay({
         const originalIndex = startIndex + index;
         const isActive = originalIndex === activeIndex;
         const textColor = isActive ? Colors.AccentPurple : Colors.Gray;
+        const labelElement = (
+          <PrepareLabel
+            label={suggestion.label}
+            matchedIndex={suggestion.matchedIndex}
+            userInput={userInput}
+            textColor={textColor}
+          />
+        );
 
         return (
-          <Box key={`${suggestion}-${originalIndex}`} width={width}>
+          <Box key={`${suggestion.value}-${originalIndex}`} width={width}>
             <Box flexDirection="row">
               {userInput.startsWith('/') ? (
                 // only use box model for (/) command mode
                 <Box width={20} flexShrink={0}>
-                  <Text color={textColor}>{suggestion.label}</Text>
+                  {labelElement}
                 </Box>
               ) : (
-                // use regular text for other modes (@ context)
-                <Text color={textColor}>{suggestion.label}</Text>
+                labelElement
               )}
               {suggestion.description ? (
                 <Box flexGrow={1}>
