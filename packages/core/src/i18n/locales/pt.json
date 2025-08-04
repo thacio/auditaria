@@ -749,7 +749,8 @@
     "last_lines_hidden": "... últimas {count} linha{plural} oculta{plural} ..."
   },
   "update": {
-    "available": "Atualização do Gemini CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar",
+    "available": "Atualização do Auditaria CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar",
+    "available_nightly": "Uma nova versão do Auditaria CLI está disponível! {current} → {latest}",
     "success": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
     "failed": "Atualização automática falhou. Por favor, tente atualizar manualmente",
     "failed_with_details": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: {command}, stderr: {stderr})",
