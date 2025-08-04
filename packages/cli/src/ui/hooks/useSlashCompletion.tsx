@@ -16,7 +16,7 @@ import {
   Config,
   FileDiscoveryService,
   DEFAULT_FILE_FILTERING_OPTIONS,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { Suggestion } from '../components/SuggestionsDisplay.js';
 import { CommandContext, SlashCommand } from '../commands/types.js';
 import {
