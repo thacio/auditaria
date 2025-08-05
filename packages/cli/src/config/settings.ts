@@ -128,6 +128,10 @@ export interface Settings {
   // Environment variables to exclude from project .env files
   excludedProjectEnvVars?: string[];
   dnsResolutionOrder?: DnsResolutionOrder;
+
+  includeDirectories?: string[];
+
+  loadMemoryFromIncludeDirectories?: boolean;
 }
 
 export interface SettingsError {
@@ -183,6 +187,11 @@ export class LoadedSettings {
         ...(workspace.mcpServers || {}),
         ...(system.mcpServers || {}),
       },
+      includeDirectories: [
+        ...(system.includeDirectories || []),
+        ...(user.includeDirectories || []),
+        ...(workspace.includeDirectories || []),
+      ],
     };
   }
 

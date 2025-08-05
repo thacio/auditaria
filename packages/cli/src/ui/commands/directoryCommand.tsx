@@ -9,6 +9,7 @@ import { MessageType } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 import * as os from 'os';
 import * as path from 'path';
+import { loadServerHierarchicalMemory } from '@google/gemini-cli-core';
 
 export function expandHomeDir(p: string): string {
   if (!p) {
@@ -17,7 +18,7 @@ export function expandHomeDir(p: string): string {
   let expandedPath = p;
   if (p.toLowerCase().startsWith('%userprofile%')) {
     expandedPath = os.homedir() + p.substring('%userprofile%'.length);
-  } else if (p.startsWith('~')) {
+  } else if (p === '~' || p.startsWith('~/')) {
     expandedPath = os.homedir() + p.substring(1);
   }
   return path.normalize(expandedPath);
@@ -87,6 +88,37 @@ export const directoryCommand: SlashCommand = {
             const error = e as Error;
             errors.push(t('commands.directory.add.error_adding', `Error adding '{path}': {error}`, { path: pathToAdd.trim(), error: error.message }));
           }
+        }
+
+        try {
+          if (config.shouldLoadMemoryFromIncludeDirectories()) {
+            const { memoryContent, fileCount } =
+              await loadServerHierarchicalMemory(
+                config.getWorkingDir(),
+                [
+                  ...config.getWorkspaceContext().getDirectories(),
+                  ...pathsToAdd,
+                ],
+                config.getDebugMode(),
+                config.getFileService(),
+                config.getExtensionContextFilePaths(),
+                context.services.settings.merged.memoryImportFormat || 'tree', // Use setting or default to 'tree'
+                config.getFileFilteringOptions(),
+                context.services.settings.merged.memoryDiscoveryMaxDirs,
+              );
+            config.setUserMemory(memoryContent);
+            config.setGeminiMdFileCount(fileCount);
+            context.ui.setGeminiMdFileCount(fileCount);
+          }
+          addItem(
+            {
+              type: MessageType.INFO,
+              text: t('commands.directory.add.memory_files_added', `Successfully added GEMINI.md files from the following directories if there are:\n- {directories}`, { directories: added.join('\n- ') }),
+            },
+            Date.now(),
+          );
+        } catch (error) {
+          errors.push(t('commands.directory.add.memory_refresh_error', `Error refreshing memory: {error}`, { error: (error as Error).message }));
         }
 
         if (added.length > 0) {

@@ -281,7 +281,9 @@
         "provide_path": "Por favor, forneça pelo menos um caminho para adicionar.",
         "restrictive_sandbox": "O comando /directory add não é suportado em perfis de sandbox restritivos. Por favor, use --include-directories ao iniciar a sessão.",
         "error_adding": "Erro ao adicionar '{path}': {error}",
-        "success": "Diretórios adicionados com sucesso:\n- {directories}"
+        "success": "Diretórios adicionados com sucesso:\n- {directories}",
+        "memory_files_added": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\n- {directories}",
+        "memory_refresh_error": "Erro ao atualizar a memória: {error}"
       },
       "show": {
         "description": "Mostrar todos os diretórios no espaço de trabalho",

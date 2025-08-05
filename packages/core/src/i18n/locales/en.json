@@ -276,7 +276,9 @@
         "provide_path": "Please provide at least one path to add.",
         "restrictive_sandbox": "The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.",
         "error_adding": "Error adding '{path}': {error}",
-        "success": "Successfully added directories:\n- {directories}"
+        "success": "Successfully added directories:\n- {directories}",
+        "memory_files_added": "Successfully added GEMINI.md files from the following directories if there are:\n- {directories}",
+        "memory_refresh_error": "Error refreshing memory: {error}"
       },
       "show": {
         "description": "Show all directories in the workspace",
