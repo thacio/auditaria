@@ -72,7 +72,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
           return {
             type: 'message',
             messageType: 'info',
-            content: t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() }),
+            content: t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' }),
           } as const;
         case IDEConnectionStatus.Connecting:
           return {
@@ -98,7 +98,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
   const installCommand: SlashCommand = {
     name: 'install',
     get description() {
-      return t('commands.ide.install.description', 'install required IDE companion for {ide}', { ide: ideClient.getDetectedIdeDisplayName() });
+      return t('commands.ide.install.description', 'install required IDE companion for {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
     },
     kind: CommandKind.BUILT_IN,
     action: async (context) => {
@@ -110,7 +110,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
             text: t(
               'commands.ide.install.no_installer_with_ide',
               'No installer is available for {ide}. Please install the IDE companion manually from its marketplace.',
-              { ide: ideClient.getDetectedIdeDisplayName() },
+              { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' },
             ),
           },
           Date.now(),
