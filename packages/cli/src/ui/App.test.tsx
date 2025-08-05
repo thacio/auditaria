@@ -338,7 +338,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(true);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -365,7 +365,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -395,7 +395,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -425,7 +425,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -458,7 +458,7 @@ describe('App UI', () => {
       process.env.GEMINI_CLI_DISABLE_AUTOUPDATER = 'true';
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
