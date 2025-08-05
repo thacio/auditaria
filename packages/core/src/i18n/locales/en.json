@@ -197,13 +197,15 @@
       "status": {
         "description": "check status of IDE integration",
         "connected": "🟢 Connected",
+        "connected_to": "🟢 Connected to {ide}",
         "connecting": "🟡 Connecting...",
         "disconnected": "🔴 Disconnected"
       },
       "install": {
-        "description": "install required IDE companion {ide} extension",
-        "installing": "Installing IDE companion extension...",
-        "no_installer": "No installer available for your configured IDE."
+        "description": "install required IDE companion for {ide}",
+        "installing": "Installing IDE companion...",
+        "no_installer": "No installer available for your configured IDE.",
+        "no_installer_with_ide": "No installer is available for {ide}. Please install the IDE companion manually from its marketplace."
       },
       "enable": {
         "description": "enable IDE integration"
@@ -974,7 +976,8 @@
       "directory_mismatch": "Gemini CLI is running in a different directory ({currentDir}) from the IDE's open workspace ({workspaceDir}). Please run Gemini CLI in the same directory.",
       "client_error": "Client error.",
       "connection_closed": "Connection closed.",
-      "connection_failed": "Failed to connect to IDE server: {error}"
+      "connection_failed": "Failed to connect to IDE server: {error}",
+      "not_supported": "IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: {supportedIDEs}"
     }
   },
   "vscode_extension": {
