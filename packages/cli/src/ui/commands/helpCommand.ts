@@ -4,21 +4,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CommandKind, OpenDialogActionReturn, SlashCommand } from './types.js';
+import { CommandKind, SlashCommand } from './types.js';
+import { MessageType, type HistoryItemHelp } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const helpCommand: SlashCommand = {
   name: 'help',
   altNames: ['?'],
+  kind: CommandKind.BUILT_IN,
   get description() {
     return t('commands.help.description', 'for help on gemini-cli');
   },
-  kind: CommandKind.BUILT_IN,
-  action: (_context, _args): OpenDialogActionReturn => {
-    console.debug('Opening help UI ...');
-    return {
-      type: 'dialog',
-      dialog: 'help',
+  action: async (context) => {
+    const helpItem: Omit<HistoryItemHelp, 'id'> = {
+      type: MessageType.HELP,
+      timestamp: new Date(),
     };
+
+    context.ui.addItem(helpItem, Date.now());
   },
 };
