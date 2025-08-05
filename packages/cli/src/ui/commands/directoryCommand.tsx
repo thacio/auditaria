@@ -9,7 +9,7 @@ import { MessageType } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 import * as os from 'os';
 import * as path from 'path';
-import { loadServerHierarchicalMemory } from '@google/gemini-cli-core';
+import { loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
 
 export function expandHomeDir(p: string): string {
   if (!p) {
