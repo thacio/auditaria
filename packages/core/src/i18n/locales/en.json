@@ -288,6 +288,7 @@
     "setup_github": {
       "description": "Set up GitHub Actions",
       "error_git_root": "Unable to determine the Git root directory.",
+      "error_not_github_repo": "Unable to determine the GitHub repository. /setup-github must be run from a git repository.",
       "tool_description": "Setting up GitHub Actions to triage issues and review PRs with Gemini.",
       "success_message": "Workflows downloaded successfully.",
       "success_message_with_next_steps": "Workflows downloaded successfully. Follow steps in https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (skipping the /setup-github step) to complete setup."

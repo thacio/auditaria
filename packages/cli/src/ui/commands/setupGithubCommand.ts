@@ -20,12 +20,23 @@ export const setupGithubCommand: SlashCommand = {
   description: t('commands.setup_github.description', 'Set up GitHub Actions'),
   kind: CommandKind.BUILT_IN,
   action: (): SlashCommandActionReturn => {
-    const gitRootRepo = execSync('git rev-parse --show-toplevel', {
-      encoding: 'utf-8',
-    }).trim();
-
     if (!isGitHubRepository()) {
-      throw new Error(t('commands.setup_github.error_git_root', 'Unable to determine the Git root directory.'));
+      throw new Error(t(
+        'commands.setup_github.error_not_github_repo', 
+        'Unable to determine the GitHub repository. /setup-github must be run from a git repository.'
+      ));
+    }
+
+    let gitRootRepo: string;
+    try {
+      gitRootRepo = execSync('git rev-parse --show-toplevel', {
+        encoding: 'utf-8',
+      }).trim();
+    } catch {
+      throw new Error(t(
+        'commands.setup_github.error_not_github_repo', 
+        'Unable to determine the GitHub repository. /setup-github must be run from a git repository.'
+      ));
     }
 
     const version = 'v0';
