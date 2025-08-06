@@ -45,7 +45,8 @@ export const setupGithubCommand: SlashCommand = {
         const fileName = path.basename(workflow);
         return `curl -fsSL -o "${gitRootRepo}/.github/workflows/${fileName}" "${workflowBaseUrl}/${workflow}"`;
       }),
-      `echo "${t('commands.setup_github.success_message', 'Workflows downloaded successfully.')}"`
+      `echo "${t('commands.setup_github.success_message_with_next_steps', 'Workflows downloaded successfully. Follow steps in https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (skipping the /setup-github step) to complete setup.')}"`,
+      'open https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start',
     ].join(' && ');
     return {
       type: 'tool',

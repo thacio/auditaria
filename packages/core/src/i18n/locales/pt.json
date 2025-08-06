@@ -294,7 +294,8 @@
       "description": "Configurar GitHub Actions",
       "error_git_root": "Não foi possível determinar o diretório raiz do Git.",
       "tool_description": "Configurando GitHub Actions para triagem de issues e revisão de PRs com Gemini.",
-      "success_message": "Workflows baixados com sucesso."
+      "success_message": "Workflows baixados com sucesso.",
+      "success_message_with_next_steps": "Workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (pulando o passo /setup-github) para completar a configuração."
     },
     "file_command": {
       "default_description": "Comando personalizado de {filename}"
