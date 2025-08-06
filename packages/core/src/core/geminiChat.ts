@@ -34,7 +34,7 @@ import {
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import { isStructuredError } from '../utils/quotaErrorDetection.js';
-import { t } from '../i18n/i18nManager.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Returns true if the response is valid, false otherwise.
