@@ -128,7 +128,7 @@ export class IdeClient {
         t(
           'ide.errors.extension_connection_failed',
           `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
-          { ide: this.currentIdeDisplayName }
+          { ide: this.currentIdeDisplayName || 'IDE' }
         )
       );
       return false;
@@ -139,7 +139,7 @@ export class IdeClient {
         t(
           'ide.errors.single_workspace_required',
           `To use this feature, please open a single workspace folder in {ide} and try again.`,
-          { ide: this.currentIdeDisplayName }
+          { ide: this.currentIdeDisplayName || 'IDE' }
         )
       );
       return false;
@@ -150,7 +150,7 @@ export class IdeClient {
         t(
           'ide.errors.directory_mismatch',
           `Directory mismatch. Gemini CLI is running in a different location than the open workspace in {ide}. Please run the CLI from the same directory as your project's root folder.`,
-          { ide: this.currentIdeDisplayName }
+          { ide: this.currentIdeDisplayName || 'IDE' }
         )
       );
       return false;
@@ -166,7 +166,7 @@ export class IdeClient {
         t(
           'ide.errors.extension_connection_failed',
           `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
-          { ide: this.currentIdeDisplayName }
+          { ide: this.currentIdeDisplayName || 'IDE' }
         )
       );
       return undefined;
@@ -225,7 +225,7 @@ export class IdeClient {
         t(
           'ide.errors.extension_connection_failed',
           `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
-          { ide: this.currentIdeDisplayName }
+          { ide: this.currentIdeDisplayName || 'IDE' }
         )
       );
       if (transport) {
