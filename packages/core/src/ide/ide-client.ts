@@ -34,156 +34,39 @@ export enum IDEConnectionStatus {
  * Manages the connection to and interaction with the IDE server.
  */
 export class IdeClient {
-  client: Client | undefined = undefined;
+  private static instance: IdeClient;
+  private client: Client | undefined = undefined;
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
+    details: t(
+      'ide.errors.integration_disabled',
+      'IDE integration is currently disabled. To enable it, run /ide enable.'
+    ),
   };
-  private static instance: IdeClient;
   private readonly currentIde: DetectedIde | undefined;
   private readonly currentIdeDisplayName: string | undefined;
 
-  constructor(ideMode: boolean) {
+  private constructor() {
     this.currentIde = detectIde();
     if (this.currentIde) {
       this.currentIdeDisplayName = getIdeDisplayName(this.currentIde);
     }
-    if (!ideMode) {
-      return;
-    }
-    this.init().catch((err) => {
-      logger.debug('Failed to initialize IdeClient:', err);
-    });
   }
 
-  static getInstance(ideMode: boolean): IdeClient {
+  static getInstance(): IdeClient {
     if (!IdeClient.instance) {
-      IdeClient.instance = new IdeClient(ideMode);
+      IdeClient.instance = new IdeClient();
     }
     return IdeClient.instance;
   }
 
-  getCurrentIde(): DetectedIde | undefined {
-    return this.currentIde;
-  }
-
-  getConnectionStatus(): IDEConnectionState {
-    return this.state;
-  }
-
-  private setState(status: IDEConnectionStatus, details?: string) {
-    this.state = { status, details };
-
-    if (status === IDEConnectionStatus.Disconnected) {
-      logger.debug('IDE integration is disconnected. ', details);
-      ideContext.clearIdeContext();
-    }
-  }
-
-  private getPortFromEnv(): string | undefined {
-    const port = process.env['GEMINI_CLI_IDE_SERVER_PORT'];
-    if (!port) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t('ide.errors.extension_not_found', 'Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.'),
-      );
-      return undefined;
-    }
-    return port;
-  }
-
-  private validateWorkspacePath(): boolean {
-    const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
-    if (!ideWorkspacePath) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t('ide.errors.single_workspace_required', 'IDE integration requires a single workspace folder to be open in the IDE. Please ensure one folder is open and try again.'),
-      );
-      return false;
-    }
-    if (ideWorkspacePath !== process.cwd()) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t('ide.errors.directory_mismatch', 'Gemini CLI is running in a different directory ({currentDir}) from the IDE\'s open workspace ({workspaceDir}). Please run Gemini CLI in the same directory.', {
-          currentDir: process.cwd(),
-          workspaceDir: ideWorkspacePath
-        }),
-      );
-      return false;
-    }
-    return true;
-  }
-
-  private registerClientHandlers() {
-    if (!this.client) {
-      return;
-    }
-
-    this.client.setNotificationHandler(
-      IdeContextNotificationSchema,
-      (notification) => {
-        ideContext.setIdeContext(notification.params);
-      },
-    );
-
-    this.client.onerror = (_error) => {
-      this.setState(IDEConnectionStatus.Disconnected, t('ide.errors.client_error', 'Client error.'));
-    };
-
-    this.client.onclose = () => {
-      this.setState(IDEConnectionStatus.Disconnected, t('ide.errors.connection_closed', 'Connection closed.'));
-    };
-  }
-
-  async reconnect(ideMode: boolean) {
-    IdeClient.instance = new IdeClient(ideMode);
-  }
-
-  private async establishConnection(port: string) {
-    let transport: StreamableHTTPClientTransport | undefined;
-    try {
-      this.client = new Client({
-        name: 'streamable-http-client',
-        // TODO(#3487): use the CLI version here.
-        version: '1.0.0',
-      });
-
-      transport = new StreamableHTTPClientTransport(
-        new URL(`http://localhost:${port}/mcp`),
-      );
-
-      this.registerClientHandlers();
-
-      await this.client.connect(transport);
-
-      this.setState(IDEConnectionStatus.Connected);
-    } catch (error) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t('ide.errors.connection_failed', 'Failed to connect to IDE server: {error}', { error: String(error) }),
-      );
-      if (transport) {
-        try {
-          await transport.close();
-        } catch (closeError) {
-          logger.debug('Failed to close transport:', closeError);
-        }
-      }
-    }
-  }
-
-  async init(): Promise<void> {
-    if (this.state.status === IDEConnectionStatus.Connected) {
-      return;
-    }
-    if (!this.currentIde) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        'Not running in a supported IDE, skipping connection.',
-      );
-      return;
-    }
-
+  async connect(): Promise<void> {
     this.setState(IDEConnectionStatus.Connecting);
+
+    if (!this.currentIde || !this.currentIdeDisplayName) {
+      this.setState(IDEConnectionStatus.Disconnected);
+      return;
+    }
 
     if (!this.validateWorkspacePath()) {
       return;
@@ -197,15 +80,161 @@ export class IdeClient {
     await this.establishConnection(port);
   }
 
-  dispose() {
+  disconnect() {
+    this.setState(
+      IDEConnectionStatus.Disconnected,
+      t(
+        'ide.errors.integration_disabled_reenable',
+        'IDE integration disabled. To enable it again, run /ide enable.'
+      )
+    );
     this.client?.close();
+  }
+
+  getCurrentIde(): DetectedIde | undefined {
+    return this.currentIde;
+  }
+
+  getConnectionStatus(): IDEConnectionState {
+    return this.state;
   }
 
   getDetectedIdeDisplayName(): string | undefined {
     return this.currentIdeDisplayName;
   }
 
-  setDisconnected() {
-    this.setState(IDEConnectionStatus.Disconnected);
+  private setState(status: IDEConnectionStatus, details?: string) {
+    const isAlreadyDisconnected =
+      this.state.status === IDEConnectionStatus.Disconnected &&
+      status === IDEConnectionStatus.Disconnected;
+
+    // Only update details if the state wasn't already disconnected, so that
+    // the first detail message is preserved.
+    if (!isAlreadyDisconnected) {
+      this.state = { status, details };
+    }
+
+    if (status === IDEConnectionStatus.Disconnected) {
+      logger.debug('IDE integration disconnected:', details);
+      ideContext.clearIdeContext();
+    }
+  }
+
+  private validateWorkspacePath(): boolean {
+    const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
+    if (ideWorkspacePath === undefined) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.extension_connection_failed',
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          { ide: this.currentIdeDisplayName }
+        )
+      );
+      return false;
+    }
+    if (ideWorkspacePath === '') {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.single_workspace_required',
+          `To use this feature, please open a single workspace folder in {ide} and try again.`,
+          { ide: this.currentIdeDisplayName }
+        )
+      );
+      return false;
+    }
+    if (ideWorkspacePath !== process.cwd()) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.directory_mismatch',
+          `Directory mismatch. Gemini CLI is running in a different location than the open workspace in {ide}. Please run the CLI from the same directory as your project's root folder.`,
+          { ide: this.currentIdeDisplayName }
+        )
+      );
+      return false;
+    }
+    return true;
+  }
+
+  private getPortFromEnv(): string | undefined {
+    const port = process.env['GEMINI_CLI_IDE_SERVER_PORT'];
+    if (!port) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.extension_connection_failed',
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          { ide: this.currentIdeDisplayName }
+        )
+      );
+      return undefined;
+    }
+    return port;
+  }
+
+  private registerClientHandlers() {
+    if (!this.client) {
+      return;
+    }
+
+    this.client.setNotificationHandler(
+      IdeContextNotificationSchema,
+      (notification) => {
+        ideContext.setIdeContext(notification.params);
+      },
+    );
+    this.client.onerror = (_error) => {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.connection_lost',
+          'IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable'
+        )
+      );
+    };
+    this.client.onclose = () => {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.connection_lost',
+          'IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable'
+        )
+      );
+    };
+  }
+
+  private async establishConnection(port: string) {
+    let transport: StreamableHTTPClientTransport | undefined;
+    try {
+      this.client = new Client({
+        name: 'streamable-http-client',
+        // TODO(#3487): use the CLI version here.
+        version: '1.0.0',
+      });
+      transport = new StreamableHTTPClientTransport(
+        new URL(`http://localhost:${port}/mcp`),
+      );
+      await this.client.connect(transport);
+      this.registerClientHandlers();
+      this.setState(IDEConnectionStatus.Connected);
+    } catch (_error) {
+      this.setState(
+        IDEConnectionStatus.Disconnected,
+        t(
+          'ide.errors.extension_connection_failed',
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          { ide: this.currentIdeDisplayName }
+        )
+      );
+      if (transport) {
+        try {
+          await transport.close();
+        } catch (closeError) {
+          logger.debug('Failed to close transport:', closeError);
+        }
+      }
+    }
   }
 }

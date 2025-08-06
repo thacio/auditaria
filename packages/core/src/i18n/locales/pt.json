@@ -947,12 +947,16 @@
   "ide": {
     "errors": {
       "extension_not_found": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
-      "single_workspace_required": "A integração do IDE requer que uma única pasta de workspace esteja aberta no IDE. Por favor, certifique-se de que uma pasta esteja aberta e tente novamente.",
-      "directory_mismatch": "O Gemini CLI está executando em um diretório diferente ({currentDir}) do workspace aberto no IDE ({workspaceDir}). Por favor, execute o Gemini CLI no mesmo diretório.",
+      "single_workspace_required": "Para usar este recurso, por favor abra uma única pasta de workspace em {ide} e tente novamente.",
+      "directory_mismatch": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI no mesmo diretório da pasta raiz do seu projeto.",
       "client_error": "Erro do cliente.",
       "connection_closed": "Conexão fechada.",
       "connection_failed": "Falha ao conectar ao servidor do IDE: {error}",
-      "not_supported": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: {supportedIDEs}"
+      "not_supported": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: {supportedIDEs}",
+      "integration_disabled": "A integração do IDE está atualmente desabilitada. Para habilitá-la, execute /ide enable.",
+      "integration_disabled_reenable": "Integração do IDE desabilitada. Para habilitá-la novamente, execute /ide enable.",
+      "extension_connection_failed": "Falha ao conectar à extensão companion do IDE para {ide}. Por favor, certifique-se de que a extensão está em execução e tente atualizar seu terminal. Para instalar a extensão, execute /ide install.",
+      "connection_lost": "Erro de conexão do IDE. A conexão foi perdida inesperadamente. Por favor, tente reconectar executando /ide enable"
     }
   },
   "vscode_extension": {

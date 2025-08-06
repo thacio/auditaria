@@ -11,6 +11,7 @@ import {
   IDEConnectionStatus,
   getIdeDisplayName,
   getIdeInstaller,
+  IdeClient,
 } from '@thacio/auditaria-cli-core';
 import {
   CommandContext,
@@ -19,6 +20,35 @@ import {
   CommandKind,
 } from './types.js';
 import { SettingScope } from '../../config/settings.js';
+
+function getIdeStatusMessage(ideClient: IdeClient): {
+  messageType: 'info' | 'error';
+  content: string;
+} {
+  const connection = ideClient.getConnectionStatus();
+  switch (connection.status) {
+    case IDEConnectionStatus.Connected:
+      return {
+        messageType: 'info',
+        content: t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' }),
+      };
+    case IDEConnectionStatus.Connecting:
+      return {
+        messageType: 'info',
+        content: t('commands.ide.status.connecting', '🟡 Connecting...'),
+      };
+    default: {
+      let content = t('commands.ide.status.disconnected', '🔴 Disconnected');
+      if (connection?.details) {
+        content += `: ${connection.details}`;
+      }
+      return {
+        messageType: 'error',
+        content,
+      };
+    }
+  }
+}
 
 export const ideCommand = (config: Config | null): SlashCommand | null => {
   if (!config || !config.getIdeModeFeature()) {
@@ -65,33 +95,13 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       return t('commands.ide.status.description', 'check status of IDE integration');
     },
     kind: CommandKind.BUILT_IN,
-    action: (_context: CommandContext): SlashCommandActionReturn => {
-      const connection = ideClient.getConnectionStatus();
-      switch (connection.status) {
-        case IDEConnectionStatus.Connected:
-          return {
-            type: 'message',
-            messageType: 'info',
-            content: t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' }),
-          } as const;
-        case IDEConnectionStatus.Connecting:
-          return {
-            type: 'message',
-            messageType: 'info',
-            content: t('commands.ide.status.connecting', '🟡 Connecting...'),
-          } as const;
-        default: {
-          let content = t('commands.ide.status.disconnected', '🔴 Disconnected');
-          if (connection?.details) {
-            content += `: ${connection.details}`;
-          }
-          return {
-            type: 'message',
-            messageType: 'error',
-            content,
-          } as const;
-        }
-      }
+    action: (): SlashCommandActionReturn => {
+      const { messageType, content } = getIdeStatusMessage(ideClient);
+      return {
+        type: 'message',
+        messageType,
+        content,
+      } as const;
     },
   };
 
@@ -127,6 +137,10 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
       );
 
       const result = await installer.install();
+      if (result.success) {
+        config.setIdeMode(true);
+        context.services.settings.setValue(SettingScope.User, 'ideMode', true);
+      }
       context.ui.addItem(
         {
           type: result.success ? 'info' : 'error',
@@ -145,8 +159,15 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {
       context.services.settings.setValue(SettingScope.User, 'ideMode', true);
-      config.setIdeMode(true);
-      config.setIdeClientConnected();
+      await config.setIdeModeAndSyncConnection(true);
+      const { messageType, content } = getIdeStatusMessage(ideClient);
+      context.ui.addItem(
+        {
+          type: messageType,
+          text: content,
+        },
+        Date.now(),
+      );
     },
   };
 
@@ -158,8 +179,15 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {
       context.services.settings.setValue(SettingScope.User, 'ideMode', false);
-      config.setIdeMode(false);
-      config.setIdeClientDisconnected();
+      await config.setIdeModeAndSyncConnection(false);
+      const { messageType, content } = getIdeStatusMessage(ideClient);
+      context.ui.addItem(
+        {
+          type: messageType,
+          text: content,
+        },
+        Date.now(),
+      );
     },
   };
 
