@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditaria CLI - Web Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1>❖ Auditaria</h1>
+            <div class="header-controls">
+                <button id="autoscroll-button" class="autoscroll-button active" title="Auto-scroll: On" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3v3"></path>
+                        <path d="M16 3v3"></path>
+                        <path d="M12 21v-7"></path>
+                        <path d="M12 8v5"></path>
+                        <path d="M8 17l4 4 4-4"></path>
+                    </svg>
+                    <span>Auto-scroll</span>
+                </button>
+                <button id="print-button" class="print-button" title="Print Chat as PDF" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6,9 6,2 18,2 18,9"></polyline>
+                        <path d="M6,18H4a2,2,0,0,1-2-2V11a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2v5a2,2,0,0,1-2,2H18"></path>
+                        <polyline points="6,14 18,14 18,18 6,18"></polyline>
+                    </svg>
+                    <span>Print</span>
+                </button>
+                <button id="slash-commands-button" class="slash-commands-button" title="Show Slash Commands" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 9l3 3-3 3"></path>
+                        <path d="M4 6h3"></path>
+                        <path d="M14 6h6"></path>
+                        <path d="M4 12h6"></path>
+                        <path d="M14 12h6"></path>
+                        <path d="M4 18h6"></path>
+                        <path d="M14 18h6"></path>
+                    </svg>
+                    <span>Commands</span>
+                </button>
+                <button id="mcp-servers-button" class="mcp-servers-button" title="Show Available MCP Servers" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="7.5,4.21 12,6.81 16.5,4.21"></polyline>
+                        <polyline points="7.5,19.79 7.5,14.6 3,12"></polyline>
+                        <polyline points="21,12 16.5,14.6 16.5,19.79"></polyline>
+                    </svg>
+                    <span>MCPs</span>
+                </button>
+                <button id="debug-logs-button" class="debug-logs-button" title="Show Debug Console Logs" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <path d="M7,15 L10,12 L7,9"></path>
+                        <line x1="17" y1="17" x2="17" y2="17"></line>
+                    </svg>
+                    <span>Debug</span>
+                </button>
+                <div class="status" id="status">
+                    <span id="connection-status" class="status-disconnected">Disconnected</span>
+                    <span id="message-count">0 messages</span>
+                </div>
+            </div>
+        </header>
+        
+        <main class="main">
+            <div id="messages" class="messages-container">
+                <div class="welcome-message">
+                    <h2>Welcome to Auditaria CLI Web Interface</h2>
+                    <p>Connecting to CLI session...</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <div class="input-section">
+                <div class="input-container">
+                    <!-- Loading Indicator - positioned relative to input container -->
+                    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                        <div class="loading-expandable-content" id="loading-expandable-content">
+                            <div class="loading-description" id="loading-description"></div>
+                        </div>
+                        <div class="loading-header" id="loading-header" tabindex="0" role="button" aria-label="Expand AI thoughts">
+                            <div class="loading-spinner">⠋</div>
+                            <div class="loading-text" id="loading-text">Thinking...</div>
+                            <div class="loading-time" id="loading-time">(0s)</div>
+                            <div class="loading-expand-indicator" id="loading-expand-indicator" style="display: none;">▼</div>
+                        </div>
+                    </div>
+                    
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Type your message and press Enter to send (Shift+Enter for new line)..."
+                        rows="1"
+                        disabled
+                    ></textarea>
+                    <button id="send-button" disabled>Send</button>
+                </div>
+                <div class="input-status" id="input-status">
+                    <span>Connecting...</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Slash Commands Modal -->
+    <div id="slash-commands-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" id="slash-commands-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Available Slash Commands</h2>
+                <button class="modal-close" id="slash-commands-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="commands-search">
+                    <input type="text" id="commands-search" placeholder="Search commands..." />
+                </div>
+                <div id="commands-list" class="commands-list">
+                    <div class="commands-loading">Loading commands...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MCP Servers Modal -->
+    <div id="mcp-servers-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" id="mcp-servers-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Available MCP Servers</h2>
+                <button class="modal-close" id="mcp-servers-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="mcp-search">
+                    <input type="text" id="mcp-search" placeholder="Search servers and tools..." />
+                </div>
+                <div id="mcp-servers-list" class="mcp-servers-list">
+                    <div class="mcp-loading">Loading MCP servers...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Debug Logs Modal -->
+    <div id="debug-logs-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" id="debug-logs-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Debug Console</h2>
+                <button class="modal-close" id="debug-logs-close" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="debug-search">
+                    <input type="text" id="debug-search" placeholder="Search debug logs..." />
+                </div>
+                <div id="debug-logs-list" class="debug-logs-list">
+                    <div class="debug-loading">Loading debug logs...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CLI Action Required Modal (non-dismissible) -->
+    <div id="cli-action-modal" class="cli-action-modal" style="display: none;">
+        <div class="cli-action-backdrop"></div>
+        <div class="cli-action-content">
+            <div class="cli-action-icon">⚠️</div>
+            <h2 id="cli-action-title">CLI Action Required</h2>
+            <p id="cli-action-message">Please complete the action in the CLI terminal.</p>
+            <div class="cli-action-info">
+                <small>This modal will close automatically when the action is completed.</small>
+            </div>
+        </div>
+    </div>
+    
+    <script src="marked.min.js"></script>
+    <script src="confirmation-queue.js"></script>
+    <script type="module" src="client.js"></script>
+</body>
+</html>

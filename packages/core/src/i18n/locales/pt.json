@@ -17,6 +17,42 @@
     "language": {
       "description": "alterar preferência de idioma"
     },
+    "web": {
+      "description": "abrir interface web no navegador",
+      "help": "Abre a interface web no seu navegador. Use a flag --web ao iniciar o auditaria para habilitar a interface web.",
+      "error": {
+        "not_available": "Interface web não está disponível nesta configuração"
+      },
+      "start": {
+        "description": "iniciar servidor da interface web",
+        "pending": "Iniciando interface web...",
+        "error": "Falha ao iniciar interface web: {error}"
+      },
+      "stop": {
+        "description": "parar servidor da interface web",
+        "error": "Falha ao parar interface web: {error}"
+      },
+      "status": {
+        "description": "mostrar status da interface web",
+        "running": "Interface web está rodando na porta {port} com {clients} cliente(s) conectado(s)",
+        "stopped": "Interface web não está rodando"
+      },
+      "already_running": "Interface web já está rodando na porta {port}",
+      "not_running": "Interface web não está rodando atualmente",
+      "started": "Interface web iniciada em http://localhost:{port}",
+      "stopped": "Interface web parada",
+      "starting_and_opening": "🌐 Abrindo interface web no navegador...",
+      "available_at": "🌐 Interface web disponível em http://localhost:{port}",
+      "opening_browser": "Abrindo navegador web...",
+      "browser_open_failed": "Falha ao abrir navegador automaticamente. Por favor, visite http://localhost:{port} manualmente.",
+      "port_fallback": "Porta {requestedPort} está em uso, usando porta {assignedPort} ao invés",
+      "messages": {
+        "connected": "Conectado ao Auditaria CLI"
+      },
+      "errors": {
+        "already_running": "Interface web já está rodando"
+      }
+    },
     "privacy": {
       "description": "exibir o aviso de privacidade"
     },

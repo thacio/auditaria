@@ -1,0 +1,1 @@
+{"version":3,"file":"api.d.ts","sourceRoot":"","sources":["../../src/routes/api.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,EAAE,OAAO,EAAqB,MAAM,SAAS,CAAC;AACrD,OAAO,EAAE,gBAAgB,EAAE,MAAM,8BAA8B,CAAC;AAEhE;;GAEG;AACH,wBAAgB,cAAc,CAAC,GAAG,EAAE,OAAO,EAAE,aAAa,EAAE,gBAAgB,QA2F3E"}
