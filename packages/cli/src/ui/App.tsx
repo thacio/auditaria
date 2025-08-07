@@ -69,7 +69,6 @@ import {
   IdeIntegrationNudge,
   IdeIntegrationNudgeResult,
 } from './IdeIntegrationNudge.js';
-import { t } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { useLogger } from './hooks/useLogger.js';
 import { StreamingContext } from './contexts/StreamingContext.js';
