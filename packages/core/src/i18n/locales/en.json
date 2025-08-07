@@ -391,7 +391,7 @@
       "use_enter": "(Use Enter to select)",
       "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
       "auth_timeout": "Authentication timed out. Please try again.",
-      "waiting_for_auth": "Waiting for auth... (Press ESC to cancel)",
+      "waiting_for_auth": "Waiting for auth... (Press ESC or CTRL+C to cancel)",
       "failed_login": "Failed to login. Message: {error}"
     }
   },

@@ -19,8 +19,8 @@ export function AuthInProgress({
 }: AuthInProgressProps): React.JSX.Element {
   const [timedOut, setTimedOut] = useState(false);
 
-  useInput((_, key) => {
-    if (key.escape) {
+  useInput((input, key) => {
+    if (key.escape || (key.ctrl && (input === 'c' || input === 'C'))) {
       onTimeout();
     }
   });
@@ -49,7 +49,7 @@ export function AuthInProgress({
       ) : (
         <Box>
           <Text>
-            <Spinner type="dots" /> {t('auth_dialog.messages.waiting_for_auth', 'Waiting for auth... (Press ESC to cancel)')}
+            <Spinner type="dots" /> {t('auth_dialog.messages.waiting_for_auth', 'Waiting for auth... (Press ESC or CTRL+C to cancel)')}
           </Text>
         </Box>
       )}
