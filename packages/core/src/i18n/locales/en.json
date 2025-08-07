@@ -877,6 +877,7 @@
     },
     "read_file": {
       "validation_error": "Error: {error}",
+      "error_reading_file": "Error reading file",
       "truncated_lines_range": "Read lines {startLine}-{endLine} of {totalLines} from {filename}",
       "some_lines_shortened": " (some lines were shortened)",
       "all_lines_shortened": "Read all {totalLines} lines from {filename} (some lines were shortened)"
