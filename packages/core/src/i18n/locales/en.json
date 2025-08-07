@@ -1048,5 +1048,10 @@
     "yes": "Yes",
     "no_esc": "No (esc)",
     "no_dont_ask": "No, don't ask again"
+  },
+  "settings": {
+    "chatCompression": {
+      "invalid_threshold": "Invalid value for chatCompression.contextPercentageThreshold: \"{threshold}\". Please use a value between 0 and 1. Using default compression settings."
+    }
   }
 }
