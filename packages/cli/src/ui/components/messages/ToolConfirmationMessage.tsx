@@ -34,6 +34,7 @@ export const ToolConfirmationMessage: React.FC<
   ToolConfirmationMessageProps
 > = ({
   confirmationDetails,
+  config,
   isFocused = true,
   availableTerminalHeight,
   terminalWidth,
@@ -41,14 +42,29 @@ export const ToolConfirmationMessage: React.FC<
   const { onConfirm } = confirmationDetails;
   const childWidth = terminalWidth - 2; // 2 for padding
 
+  const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
+    if (confirmationDetails.type === 'edit') {
+      const ideClient = config?.getIdeClient();
+      if (config?.getIdeMode() && config?.getIdeModeFeature()) {
+        const cliOutcome =
+          outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
+        await ideClient?.resolveDiffFromCli(
+          confirmationDetails.filePath,
+          cliOutcome,
+        );
+      }
+    }
+    onConfirm(outcome);
+  };
+
   useInput((_, key) => {
     if (!isFocused) return;
     if (key.escape) {
-      onConfirm(ToolConfirmationOutcome.Cancel);
+      handleConfirm(ToolConfirmationOutcome.Cancel);
     }
   });
 
-  const handleSelect = (item: ToolConfirmationOutcome) => onConfirm(item);
+  const handleSelect = (item: ToolConfirmationOutcome) => handleConfirm(item);
 
   let bodyContent: React.ReactNode | null = null; // Removed contextDisplay here
   let question: string;
@@ -86,6 +102,7 @@ export const ToolConfirmationMessage: React.FC<
       HEIGHT_OPTIONS;
     return Math.max(availableTerminalHeight - surroundingElementsHeight, 1);
   }
+
   if (confirmationDetails.type === 'edit') {
     if (confirmationDetails.isModifying) {
       return (
@@ -115,15 +132,25 @@ export const ToolConfirmationMessage: React.FC<
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
       },
-      {
+    );
+    if (config?.getIdeMode() && config?.getIdeModeFeature()) {
+      options.push({
+        label: t('tool_confirmation.options.no_esc', 'No (esc)'),
+        value: ToolConfirmationOutcome.Cancel,
+      });
+    } else {
+      // TODO(chrstnb): support edit tool in IDE mode.
+
+      options.push({
         label: t('tool_confirmation.options.modify_editor', 'Modify with external editor'),
         value: ToolConfirmationOutcome.ModifyWithEditor,
-      },
-      {
+      });
+      options.push({
         label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
         value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+
     bodyContent = (
       <DiffRenderer
         diffContent={confirmationDetails.fileDiff}
