@@ -1025,5 +1025,8 @@
     "chatCompression": {
       "invalid_threshold": "Valor inválido para chatCompression.contextPercentageThreshold: \"{threshold}\". Por favor, use um valor entre 0 e 1. Usando configurações de compressão padrão."
     }
+  },
+  "utils": {
+    "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}."
   }
 }

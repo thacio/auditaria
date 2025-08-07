@@ -11,6 +11,7 @@ import {
   getGitRepoRoot,
   getLatestGitHubRelease,
   isGitHubRepository,
+  getGitHubRepoInfo,
 } from '../../utils/gitUtils.js';
 import { t } from '@thacio/auditaria-cli-core';
 
@@ -19,6 +20,27 @@ import {
   SlashCommand,
   SlashCommandActionReturn,
 } from './types.js';
+import { getUrlOpenCommand } from '../../ui/utils/commandUtils.js';
+
+// Generate OS-specific commands to open the GitHub pages needed for setup.
+function getOpenUrlsCommands(readmeUrl: string): string[] {
+  // Determine the OS-specific command to open URLs, ex: 'open', 'xdg-open', etc
+  const openCmd = getUrlOpenCommand();
+
+  // Build a list of URLs to open
+  const urlsToOpen = [readmeUrl];
+
+  const repoInfo = getGitHubRepoInfo();
+  if (repoInfo) {
+    urlsToOpen.push(
+      `https://github.com/${repoInfo.owner}/${repoInfo.repo}/settings/secrets/actions`,
+    );
+  }
+
+  // Create and join the individual commands
+  const commands = urlsToOpen.map((url) => `${openCmd} "${url}"`);
+  return commands;
+}
 
 export const setupGithubCommand: SlashCommand = {
   name: 'setup-github',
@@ -74,15 +96,16 @@ export const setupGithubCommand: SlashCommand = {
       commands.push(curlCommand);
     }
 
+    const readmeUrl = `https://github.com/google-github-actions/run-gemini-cli/blob/${releaseTag}/README.md#quick-start`;
+    
     const successMessage = t(
       'commands.setup_github.success_message_dynamic',
-      `Successfully downloaded ${workflows.length} workflows. Follow the steps in https://github.com/google-github-actions/run-gemini-cli/blob/${releaseTag}/README.md#quick-start (skipping the /setup-github step) to complete setup.`,
-      { count: workflows.length, releaseTag }
+      `Successfully downloaded ${workflows.length} workflows. Follow the steps in ${readmeUrl} (skipping the /setup-github step) to complete setup.`,
+      { count: workflows.length, releaseTag, readmeUrl }
     );
-    commands.push(
-      `echo "${successMessage}"`,
-      `open https://github.com/google-github-actions/run-gemini-cli/blob/${releaseTag}/README.md#quick-start`,
-    );
+    commands.push(`echo "${successMessage}"`);
+
+    commands.push(...getOpenUrlsCommands(readmeUrl));
 
     const command = `(${commands.join(' && ')})`;
     return {
