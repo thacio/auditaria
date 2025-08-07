@@ -1,6 +1,6 @@
 # Auditaria CLI Companion
 
-The Auditaria CLI Companion extension seamlessly integrates [Auditaria CLI](https://github.com/thacio/auditoria-cli.git) into your VS Code environment. This integration enables Auditaria CLI to access active information like your open files.
+The Auditaria CLI Companion extension seamlessly integrates [Auditaria CLI](https://github.com/thacio/auditaria.git) into your VS Code environment. This integration enables Auditaria CLI to access active information like your open files.
 
 # Features
 

@@ -7,7 +7,7 @@
   "icon": "assets/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thacio/auditoria-cli.git",
+    "url": "https://github.com/thacio/auditaria.git",
     "directory": "packages/vscode-ide-companion"
   },
   "engines": {
