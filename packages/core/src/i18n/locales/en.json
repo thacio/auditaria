@@ -37,6 +37,44 @@
     },
     "mcp": {
       "description": "list configured MCP servers and tools",
+      "manage": {
+        "description": "Manage MCP servers",
+        "need_command": "You need at least one command before continuing.",
+        "add": {
+          "description": "Add a server",
+          "usage": "Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]",
+          "name_description": "Name of the server",
+          "command_url_description": "Command (stdio) or URL (sse, http)",
+          "scope_description": "Configuration scope (user or project)",
+          "transport_description": "Transport type (stdio, sse, http)",
+          "env_description": "Set environment variables (e.g. -e KEY=value)",
+          "header_description": "Set HTTP headers for SSE and HTTP transports (e.g. -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")",
+          "timeout_description": "Set connection timeout in milliseconds",
+          "trust_description": "Trust the server (bypass all tool call confirmation prompts)",
+          "description_description": "Set the description for the server",
+          "include_tools_description": "A comma-separated list of tools to include",
+          "exclude_tools_description": "A comma-separated list of tools to exclude",
+          "already_configured": "MCP server \"{name}\" is already configured within {scope} settings.",
+          "updated": "MCP server \"{name}\" updated in {scope} settings.",
+          "added": "MCP server \"{name}\" added to {scope} settings. ({transport})"
+        },
+        "remove": {
+          "description": "Remove a server",
+          "usage": "Usage: auditaria mcp remove [options] <name>",
+          "name_description": "Name of the server",
+          "scope_description": "Configuration scope (user or project)",
+          "not_found": "Server \"{name}\" not found in {scope} settings.",
+          "removed": "Server \"{name}\" removed from {scope} settings."
+        },
+        "list": {
+          "description": "List all configured MCP servers",
+          "no_servers": "No MCP servers configured.",
+          "configured_servers": "Configured MCP servers:\n",
+          "status_connected": "Connected",
+          "status_connecting": "Connecting",
+          "status_disconnected": "Disconnected"
+        }
+      },
       "no_servers": "No MCP servers configured. Opening documentation in your browser: {url}",
       "no_servers_sandbox": "No MCP servers configured. Please open the following URL in your browser to view documentation:\n{url}",
       "no_servers_docs_command": "No MCP servers configured. Please view MCP documentation in your browser: {url} or use the cli /docs command",

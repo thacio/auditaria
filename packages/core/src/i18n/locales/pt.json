@@ -37,6 +37,44 @@
     },
     "mcp": {
       "description": "listar servidores MCP configurados e ferramentas",
+      "manage": {
+        "description": "Gerenciar servidores MCP",
+        "need_command": "Você precisa de pelo menos um comando antes de continuar.",
+        "add": {
+          "description": "Adicionar um servidor",
+          "usage": "Uso: auditaria mcp add [opções] <nome> <comandoOuUrl> [args...]",
+          "name_description": "Nome do servidor",
+          "command_url_description": "Comando (stdio) ou URL (sse, http)",
+          "scope_description": "Escopo de configuração (usuário ou projeto)",
+          "transport_description": "Tipo de transporte (stdio, sse, http)",
+          "env_description": "Definir variáveis de ambiente (ex: -e KEY=valor)",
+          "header_description": "Definir cabeçalhos HTTP para transportes SSE e HTTP (ex: -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")",
+          "timeout_description": "Definir tempo limite de conexão em milissegundos",
+          "trust_description": "Confiar no servidor (ignorar todos os prompts de confirmação de chamada de ferramenta)",
+          "description_description": "Definir a descrição do servidor",
+          "include_tools_description": "Uma lista separada por vírgulas de ferramentas para incluir",
+          "exclude_tools_description": "Uma lista separada por vírgulas de ferramentas para excluir",
+          "already_configured": "Servidor MCP \"{name}\" já está configurado nas configurações de {scope}.",
+          "updated": "Servidor MCP \"{name}\" atualizado nas configurações de {scope}.",
+          "added": "Servidor MCP \"{name}\" adicionado às configurações de {scope}. ({transport})"
+        },
+        "remove": {
+          "description": "Remover um servidor",
+          "usage": "Uso: auditaria mcp remove [opções] <nome>",
+          "name_description": "Nome do servidor",
+          "scope_description": "Escopo de configuração (usuário ou projeto)",
+          "not_found": "Servidor \"{name}\" não encontrado nas configurações de {scope}.",
+          "removed": "Servidor \"{name}\" removido das configurações de {scope}."
+        },
+        "list": {
+          "description": "Listar todos os servidores MCP configurados",
+          "no_servers": "Nenhum servidor MCP configurado.",
+          "configured_servers": "Servidores MCP configurados:\n",
+          "status_connected": "Conectado",
+          "status_connecting": "Conectando",
+          "status_disconnected": "Desconectado"
+        }
+      },
       "no_servers": "Nenhum servidor MCP configurado. Abrindo documentação no seu navegador: {url}",
       "no_servers_sandbox": "Nenhum servidor MCP configurado. Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n{url}",
       "no_servers_docs_command": "Nenhum servidor MCP configurado. Por favor, visualize a documentação MCP no seu navegador: {url} ou use o comando /docs",
