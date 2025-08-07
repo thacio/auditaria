@@ -1040,5 +1040,12 @@
     "open_files": "Open files:",
     "active_file": " (active)",
     "open_files_count": "{count} open file{plural} (ctrl+e to view)"
+  },
+  "ide_integration_nudge": {
+    "question": "Do you want to connect your VS Code editor to Auditaria CLI?",
+    "description": "If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in VS Code.",
+    "yes": "Yes",
+    "no_esc": "No (esc)",
+    "no_dont_ask": "No, don't ask again"
   }
 }
