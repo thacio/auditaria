@@ -23,6 +23,12 @@ export function IDEContextDetailDisplay({
     return null;
   }
 
+  const basenameCounts = new Map<string, number>();
+  for (const file of openFiles) {
+    const basename = path.basename(file.path);
+    basenameCounts.set(basename, (basenameCounts.get(basename) || 0) + 1);
+  }
+
   return (
     <Box
       flexDirection="column"
@@ -39,12 +45,21 @@ export function IDEContextDetailDisplay({
       {openFiles.length > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text bold>{t('ide_context.open_files', 'Open files:')}</Text>
-          {openFiles.map((file: File) => (
-            <Text key={file.path}>
-              - {path.basename(file.path)}
-              {file.isActive ? t('ide_context.active_file', ' (active)') : ''}
-            </Text>
-          ))}
+          {openFiles.map((file: File) => {
+            const basename = path.basename(file.path);
+            const isDuplicate = (basenameCounts.get(basename) || 0) > 1;
+            const parentDir = path.basename(path.dirname(file.path));
+            const displayName = isDuplicate
+              ? `${basename} (/${parentDir})`
+              : basename;
+
+            return (
+              <Text key={file.path}>
+                - {displayName}
+                {file.isActive ? t('ide_context.active_file', ' (active)') : ''}
+              </Text>
+            );
+          })}
         </Box>
       )}
     </Box>
