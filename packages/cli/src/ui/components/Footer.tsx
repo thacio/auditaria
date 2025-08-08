@@ -5,16 +5,19 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
-import { shortenPath, tildeifyPath } from '@thacio/auditaria-cli-core';
+import { shortenPath, tildeifyPath, tokenLimit } from '@thacio/auditaria-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import Gradient from 'ink-gradient';
 import { MemoryUsageDisplay } from './MemoryUsageDisplay.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
 import { DebugProfiler } from './DebugProfiler.js';
+// WEB_INTERFACE_START: Footer context import for web interface integration
+import { useFooter } from '../contexts/FooterContext.js';
+// WEB_INTERFACE_END
 
 interface FooterProps {
   model: string;
@@ -44,7 +47,60 @@ export const Footer: React.FC<FooterProps> = ({
   promptTokenCount,
   nightly,
   vimMode,
-}) => (
+}) => {
+  const limit = tokenLimit(model);
+  const percentage = promptTokenCount / limit;
+  
+  // WEB_INTERFACE_START: Footer context for broadcasting data to web interface
+  const footerContext = useFooter();
+
+  // Update footer data for web interface (removed footerContext from dependencies)
+  useEffect(() => {
+    if (footerContext) {
+      // Determine sandbox status
+      let sandboxStatus = 'no sandbox';
+      if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
+        sandboxStatus = process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '');
+      } else if (process.env.SANDBOX === 'sandbox-exec') {
+        sandboxStatus = 'macOS Seatbelt';
+      }
+
+      const footerData = {
+        targetDir,
+        branchName,
+        model,
+        contextPercentage: (1 - percentage) * 100, // Remaining context percentage
+        sandboxStatus,
+        errorCount,
+        debugMode,
+        debugMessage,
+        corgiMode,
+        showMemoryUsage: !!showMemoryUsage,
+        nightly,
+        showErrorDetails,
+        vimMode,
+      };
+      
+      footerContext.updateFooterData(footerData);
+    }
+  }, [
+    model,
+    targetDir, 
+    branchName,
+    debugMode,
+    debugMessage,
+    errorCount,
+    percentage,
+    corgiMode,
+    showMemoryUsage,
+    nightly,
+    showErrorDetails,
+    vimMode
+    // Removed footerContext from dependencies to prevent infinite loop
+  ]);
+  // WEB_INTERFACE_END
+
+  return (
   <Box justifyContent="space-between" width="100%">
     <Box>
       {debugMode && <DebugProfiler />}
@@ -121,4 +177,5 @@ export const Footer: React.FC<FooterProps> = ({
       {showMemoryUsage && <MemoryUsageDisplay />}
     </Box>
   </Box>
-);
+  );
+};

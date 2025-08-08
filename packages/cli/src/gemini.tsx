@@ -295,6 +295,10 @@ export async function main() {
           settings={settings}
           startupWarnings={startupWarnings}
           version={version}
+          // WEB_INTERFACE_START: Pass web interface flags to App component
+          webEnabled={!!argv.web}
+          webOpenBrowser={argv.web === true || (typeof argv.web === 'string' && argv.web !== 'no-browser')}
+          // WEB_INTERFACE_END
         />
       </React.StrictMode>,
       { exitOnCtrlC: false },

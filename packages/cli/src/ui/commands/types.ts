@@ -67,6 +67,14 @@ export interface CommandContext {
     /** A transient list of shell commands the user has approved for this session. */
     sessionShellAllowlist: Set<string>;
   };
+  // WEB_INTERFACE_START: Web interface management in command context
+  // Web interface management
+  web?: {
+    start: (port?: string) => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string; port?: number }>;
+    stop: () => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string }>;
+    status: () => { type: 'message'; messageType: 'info' | 'error'; content: string };
+  };
+  // WEB_INTERFACE_END
 }
 
 /**

@@ -21,14 +21,16 @@ import {
   Status as CoreStatus,
   EditorType,
 } from '@thacio/auditaria-cli-core';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
   ToolCallStatus,
   HistoryItemWithoutId,
 } from '../types.js';
-
+// WEB_INTERFACE_START
+import { useToolConfirmation } from '../contexts/ToolConfirmationContext.js';
+// WEB_INTERFACE_START
 export type ScheduleFn = (
   request: ToolCallRequestInfo | ToolCallRequestInfo[],
   signal: AbortSignal,
@@ -74,7 +76,9 @@ export function useReactToolScheduler(
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
-
+  // WEB_INTERFACE_START
+  const toolConfirmationContext = useToolConfirmation();
+  // WEB_INTERFACE_END
   const outputUpdateHandler: OutputUpdateHandler = useCallback(
     (toolCallId, outputChunk) => {
       setPendingHistoryItem((prevItem) => {
@@ -130,7 +134,47 @@ export function useReactToolScheduler(
     },
     [setToolCallsForDisplay],
   );
+  // WEB_INTERFACE_START
+  // Handle tool confirmations for web interface
+  const prevAwaitingApprovalIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!toolConfirmationContext) return;
 
+    // Get current call IDs that are awaiting approval
+    const currentAwaitingApprovalIds = new Set(
+      toolCallsForDisplay
+        .filter(tc => tc.status === 'awaiting_approval')
+        .map(tc => tc.request.callId)
+    );
+
+    const prevAwaitingApprovalIds = prevAwaitingApprovalIdsRef.current;
+
+    // Add new confirmations (only those not seen before)
+    toolCallsForDisplay.forEach((toolCall) => {
+      if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall && !prevAwaitingApprovalIds.has(toolCall.request.callId)) {
+        const waitingCall = toolCall as TrackedWaitingToolCall;
+        const pendingConfirmation = {
+          callId: waitingCall.request.callId,
+          toolName: waitingCall.tool?.displayName || waitingCall.request.name,
+          confirmationDetails: waitingCall.confirmationDetails,
+          timestamp: Date.now(),
+        };
+
+        toolConfirmationContext.addPendingConfirmation(pendingConfirmation);
+      }
+    });
+
+    // Remove confirmations that are no longer awaiting approval (based on previous state)
+    prevAwaitingApprovalIds.forEach(prevCallId => {
+      if (!currentAwaitingApprovalIds.has(prevCallId)) {
+        toolConfirmationContext.removePendingConfirmation(prevCallId);
+      }
+    });
+
+    // Update the ref for next time
+    prevAwaitingApprovalIdsRef.current = currentAwaitingApprovalIds;
+  }, [toolCallsForDisplay]); // Only depend on toolCallsForDisplay
+  // WEB_INTERFACE_END
   const scheduler = useMemo(
     () =>
       new CoreToolScheduler({
