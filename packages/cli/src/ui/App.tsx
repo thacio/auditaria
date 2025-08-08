@@ -157,6 +157,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   const [idePromptAnswered, setIdePromptAnswered] = useState(false);
   const currentIDE = config.getIdeClient().getCurrentIde();
+  useEffect(() => {
+    registerCleanup(() => config.getIdeClient().disconnect());
+  }, [config]);
   const shouldShowIdePrompt =
     config.getIdeModeFeature() &&
     currentIDE &&
