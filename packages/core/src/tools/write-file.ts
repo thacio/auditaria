@@ -26,7 +26,7 @@ import {
   ensureCorrectEdit,
   ensureCorrectFileContent,
 } from '../utils/editCorrector.js';
-import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
+import { DEFAULT_DIFF_OPTIONS, getDiffStat } from './diffOptions.js';
 import { ModifiableDeclarativeTool, ModifyContext } from './modifiable-tool.js';
 import { getSpecificMimeType } from '../utils/fileUtils.js';
 import {
@@ -53,6 +53,11 @@ export interface WriteFileToolParams {
    * Whether the proposed content was modified by the user.
    */
   modified_by_user?: boolean;
+
+  /**
+   * Initially proposed content.
+   */
+  ai_proposed_content?: string;
 }
 
 interface GetCorrectedFileContentResult {
@@ -284,6 +289,15 @@ export class WriteFileTool
         DEFAULT_DIFF_OPTIONS,
       );
 
+      const originallyProposedContent =
+        params.ai_proposed_content || params.content;
+      const diffStat = getDiffStat(
+        fileName,
+        currentContentForDiff,
+        originallyProposedContent,
+        params.content,
+      );
+
       const llmSuccessMessageParts = [
         isNewFile
           ? `Successfully created and wrote to new file: ${params.file_path}.`
@@ -300,6 +314,7 @@ export class WriteFileTool
         fileName,
         originalContent: correctedContentResult.originalContent,
         newContent: correctedContentResult.correctedContent,
+        diffStat,
       };
 
       const lines = fileContent.split('\n').length;
@@ -312,6 +327,7 @@ export class WriteFileTool
           lines,
           mimetype,
           extension,
+          diffStat,
         );
       } else {
         recordFileOperationMetric(
@@ -320,6 +336,7 @@ export class WriteFileTool
           lines,
           mimetype,
           extension,
+          diffStat,
         );
       }
 
@@ -419,11 +436,15 @@ export class WriteFileTool
         _oldContent: string,
         modifiedProposedContent: string,
         originalParams: WriteFileToolParams,
-      ) => ({
-        ...originalParams,
-        content: modifiedProposedContent,
-        modified_by_user: true,
-      }),
+      ) => {
+        const content = originalParams.content;
+        return {
+          ...originalParams,
+          ai_proposed_content: content,
+          content: modifiedProposedContent,
+          modified_by_user: true,
+        };
+      },
     };
   }
 }
