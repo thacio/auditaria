@@ -1087,6 +1087,15 @@
     "no_esc": "No (esc)",
     "no_dont_ask": "No, don't ask again"
   },
+  "folder_trust_dialog": {
+    "title": "Do you trust this folder?",
+    "description": "Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.",
+    "options": {
+      "trust_folder": "Trust folder",
+      "trust_parent": "Trust parent folder",
+      "dont_trust": "Don't trust (esc)"
+    }
+  },
   "settings": {
     "chatCompression": {
       "invalid_threshold": "Invalid value for chatCompression.contextPercentageThreshold: \"{threshold}\". Please use a value between 0 and 1. Using default compression settings."

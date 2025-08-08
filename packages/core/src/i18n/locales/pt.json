@@ -1059,6 +1059,15 @@
     "no_esc": "Não (esc)",
     "no_dont_ask": "Não, não pergunte novamente"
   },
+  "folder_trust_dialog": {
+    "title": "Você confia nesta pasta?",
+    "description": "Confiar em uma pasta permite que o Auditaria execute comandos sugeridos. Este é um recurso de segurança para evitar execução acidental em diretórios não confiáveis.",
+    "options": {
+      "trust_folder": "Confiar na pasta",
+      "trust_parent": "Confiar na pasta pai",
+      "dont_trust": "Não confiar (esc)"
+    }
+  },
   "settings": {
     "chatCompression": {
       "invalid_threshold": "Valor inválido para chatCompression.contextPercentageThreshold: \"{threshold}\". Por favor, use um valor entre 0 e 1. Usando configurações de compressão padrão."

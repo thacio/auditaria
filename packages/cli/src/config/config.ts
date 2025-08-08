@@ -510,8 +510,8 @@ export async function loadCliConfig(
     ideModeFeature,
     chatCompression: settings.chatCompression,
     folderTrustFeature,
-    interactive,
     folderTrust,
+    interactive,
   });
 }
 
