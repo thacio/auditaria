@@ -64,6 +64,12 @@ import {
   AuthType,
   type IdeContext,
   ideContext,
+  // WEB_INTERFACE_START: Additional imports for MCP server broadcasting
+  DiscoveredMCPTool,
+  getMCPServerStatus,
+  getAllMCPServerStatuses,
+  MCPServerStatus,
+  // WEB_INTERFACE_END
 } from '@thacio/auditaria-cli-core';
 import {
   IdeIntegrationNudge,
@@ -91,6 +97,13 @@ import {
 } from '@thacio/auditaria-cli-core';
 import { UpdateObject } from './utils/updateCheck.js';
 import ansiEscapes from 'ansi-escapes';
+// WEB_INTERFACE_START: Web interface context imports
+import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceContext.js';
+import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
+import { FooterProvider, useFooter } from './contexts/FooterContext.js';
+import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
+import { ToolConfirmationProvider, useToolConfirmation, PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
+// WEB_INTERFACE_END
 import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
 import { PrivacyNotice } from './privacy/PrivacyNotice.js';
@@ -104,17 +117,36 @@ interface AppProps {
   settings: LoadedSettings;
   startupWarnings?: string[];
   version: string;
+  // WEB_INTERFACE_START: Web interface props
+  webEnabled?: boolean;
+  webOpenBrowser?: boolean;
+  // WEB_INTERFACE_END
 }
 
 export const AppWrapper = (props: AppProps) => (
   <SessionStatsProvider>
     <VimModeProvider settings={props.settings}>
+
+    {/* WEB_INTERFACE_START: Web interface provider wrappers */}
+    <SubmitQueryProvider>
+      <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser}>
+        <FooterProvider>
+          <LoadingStateProvider>
+            <ToolConfirmationProvider>
+              {/* WEB_INTERFACE_END */}
       <App {...props} />
+              {/* WEB_INTERFACE_START: Close web interface providers */}
+            </ToolConfirmationProvider>
+          </LoadingStateProvider>
+        </FooterProvider>
+      </WebInterfaceProvider>
+    </SubmitQueryProvider>
+    {/* WEB_INTERFACE_END */}
     </VimModeProvider>
   </SessionStatsProvider>
 );
 
-const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
+const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE_START */ webEnabled, webOpenBrowser /* WEB_INTERFACE_END */ }: AppProps) => {
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
@@ -161,6 +193,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
 
   const [geminiMdFileCount, setGeminiMdFileCount] = useState<number>(0);
   const [debugMessage, setDebugMessage] = useState<string>('');
+  const [showHelp, setShowHelp] = useState<boolean>(false);
   const [themeError, setThemeError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -519,6 +552,7 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     initError,
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
+    triggerAbort,
   } = useGeminiStream(
     config.getGeminiClient(),
     history,
@@ -650,6 +684,233 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     }
   }, [config, config.getGeminiMdFileCount]);
 
+  // WEB_INTERFACE_START: Web interface integration - submitQuery registration and abort handler
+  // Store current submitQuery in ref for web interface
+  const submitQueryRef = useRef(submitQuery);
+  useEffect(() => {
+    submitQueryRef.current = submitQuery;
+  }, [submitQuery]);
+
+  // Create a completely stable function that will never change
+  const stableWebSubmitQuery = useCallback((query: string) => {
+    if (submitQueryRef.current) {
+      submitQueryRef.current(query);
+    }
+  }, []); // Empty dependency array - this function never changes
+
+  // Register once and never again
+  const registerSubmitQuery = useSubmitQueryRegistration();
+  const submitQueryRegisteredRef = useRef(false);
+  useEffect(() => {
+    if (!submitQueryRegisteredRef.current) {
+      registerSubmitQuery(stableWebSubmitQuery);
+      submitQueryRegisteredRef.current = true;
+    }
+  }, []); // Empty dependency array - only run once
+
+  // Register abort handler with web interface service
+  const webInterface = useWebInterface();
+  useEffect(() => {
+    if (webInterface?.service && triggerAbort) {
+      webInterface.service.setAbortHandler(triggerAbort);
+    }
+  }, [webInterface?.service, triggerAbort]);
+  // WEB_INTERFACE_END
+
+  // Register with web interface service once
+  const submitHandlerRegistered = useRef(false);
+  useEffect(() => {
+    const register = () => {
+      if (webInterface?.service && !submitHandlerRegistered.current) {
+        webInterface.service.setSubmitQueryHandler(stableWebSubmitQuery);
+        submitHandlerRegistered.current = true;
+      }
+    };
+    
+    register();
+    const timeout = setTimeout(register, 100);
+    return () => clearTimeout(timeout);
+  }, []); // Empty dependency array - only register once
+
+  // WEB_INTERFACE_START: Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
+  // Broadcast footer data to web interface (moved from FooterContext to avoid circular deps)
+  const footerContext = useFooter();
+  useEffect(() => {
+    if (footerContext?.footerData && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastFooterData(footerContext.footerData);
+    }
+  }, [footerContext?.footerData]); // Only depend on footerData, not webInterface
+
+  // Broadcast loading state to web interface (moved from LoadingStateContext to avoid circular deps)
+  const loadingStateContext = useLoadingState();
+  useEffect(() => {
+    if (loadingStateContext?.loadingState && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastLoadingState(loadingStateContext.loadingState);
+    }
+  }, [loadingStateContext?.loadingState]); // Only depend on loadingState, not webInterface
+
+  // Broadcast slash commands to web interface when commands are loaded or web interface connects
+  useEffect(() => {
+    if (slashCommands && slashCommands.length > 0 && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastSlashCommands(slashCommands);
+    }
+  }, [slashCommands?.length, webInterface?.isRunning]); // Only depend on length and running status
+
+  // Broadcast MCP servers to web interface when web interface connects
+  useEffect(() => {
+    const broadcastMCPData = async () => {
+      if (webInterface?.service && webInterface.isRunning) {
+        const mcpServers = config.getMcpServers() || {};
+        const blockedMcpServers = config.getBlockedMcpServers() || [];
+        
+        // Get actual server statuses from the MCP client
+        const actualServerStatuses = getAllMCPServerStatuses();
+        const serverStatuses = new Map<string, string>();
+        
+        // Convert MCPServerStatus enum values to strings
+        for (const [serverName, status] of actualServerStatuses) {
+          serverStatuses.set(serverName, status as string);
+        }
+        
+        // Get actual tools from the tool registry
+        const serverTools = new Map<string, DiscoveredMCPTool[]>();
+        try {
+          const toolRegistry = await config.getToolRegistry();
+          for (const serverName of Object.keys(mcpServers)) {
+            const tools = toolRegistry.getToolsByServer(serverName);
+            // Filter to only DiscoveredMCPTool instances
+            const mcpTools = tools.filter(tool => tool instanceof DiscoveredMCPTool) as DiscoveredMCPTool[];
+            serverTools.set(serverName, mcpTools);
+          }
+        } catch (error) {
+          console.error('Error getting tool registry:', error);
+        }
+        
+        webInterface.service.broadcastMCPServers(
+          mcpServers,
+          blockedMcpServers,
+          serverTools,
+          serverStatuses
+        );
+      }
+    };
+    
+    broadcastMCPData();
+  }, [webInterface?.isRunning]); // Broadcast when web interface is ready
+
+  // Broadcast console messages to web interface when they change
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      // Apply same filtering logic as CLI debug console
+      const messagesToBroadcast = config.getDebugMode() 
+        ? consoleMessages 
+        : consoleMessages.filter((msg) => msg.type !== 'debug');
+      
+      webInterface.service.broadcastConsoleMessages(messagesToBroadcast);
+    }
+  }, [consoleMessages, webInterface?.isRunning, config]); // Depend on console messages and debug mode
+
+  // Broadcast CLI action required state when interactive screens are shown
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      let reason = '';
+      let message = '';
+      
+      // Check for any active dialog/screen
+      if (isAuthDialogOpen || isAuthenticating) {
+        reason = 'authentication';
+        message = isAuthenticating 
+          ? t('web.cli_action.auth_in_progress', 'Authentication is in progress. Please check the CLI terminal.')
+          : t('web.cli_action.auth_required', 'Authentication is required. Please complete the authentication process in the CLI terminal.');
+      } else if (isThemeDialogOpen) {
+        reason = 'theme_selection';
+        message = t('web.cli_action.theme_selection', 'Theme selection is open. Please choose a theme in the CLI terminal.');
+      } else if (isEditorDialogOpen) {
+        reason = 'editor_settings';
+        message = t('web.cli_action.editor_settings', 'Editor settings are open. Please configure your editor in the CLI terminal.');
+      } else if (isLanguageDialogOpen) {
+        reason = 'language_selection';
+        message = t('web.cli_action.language_selection', 'Language selection is open. Please choose a language in the CLI terminal.');
+      } else if (showPrivacyNotice) {
+        reason = 'privacy_notice';
+        message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review it in the CLI terminal.');
+      }
+      
+      const isActionRequired = !!reason;
+      
+      if (isActionRequired) {
+        const title = t('web.cli_action.title', 'CLI Action Required');
+        webInterface.service.broadcastCliActionRequired(true, reason, title, message);
+      } else {
+        // Clear the action required state when all dialogs are closed
+        webInterface.service.broadcastCliActionRequired(false);
+      }
+    }
+  }, [
+    isAuthDialogOpen, 
+    isAuthenticating, 
+    isThemeDialogOpen,
+    isEditorDialogOpen,
+    isLanguageDialogOpen,
+    showPrivacyNotice,
+    webInterface?.isRunning
+  ]); // Monitor all interactive screen states
+
+  // Web interface startup message for --web flag
+  const webStartupShownRef = useRef(false);
+  useEffect(() => {
+    if (webEnabled && webInterface?.isRunning && webInterface?.port && !webStartupShownRef.current) {
+      webStartupShownRef.current = true;
+      addItem(
+        {
+          type: 'info',
+          text: t('commands.web.available_at', '🌐 Web interface available at http://localhost:{port}', { port: webInterface.port.toString() }),
+        },
+        Date.now(),
+      );
+    }
+  }, [webEnabled, webInterface?.isRunning, webInterface?.port, addItem]);
+
+  // Handle tool confirmations for web interface (moved from ToolConfirmationContext to avoid circular deps)
+  const toolConfirmationContext = useToolConfirmation();
+  useEffect(() => {
+    if (toolConfirmationContext && webInterface?.service) {
+      // Set up the confirmation response handler
+      webInterface.service?.setConfirmationResponseHandler(
+        toolConfirmationContext.handleConfirmationResponse
+      );
+    }
+  }, [toolConfirmationContext, webInterface?.service]);
+
+  // Broadcast new tool confirmations to web interface
+  const prevConfirmationsRef = useRef<PendingToolConfirmation[]>([]);
+  useEffect(() => {
+    if (toolConfirmationContext?.pendingConfirmations && webInterface?.service && webInterface.isRunning) {
+      const prevConfirmations = prevConfirmationsRef.current || [];
+      const currentConfirmations = toolConfirmationContext.pendingConfirmations;
+      
+      // Only broadcast new confirmations that weren't in the previous list
+      const newConfirmations = currentConfirmations.filter(current => 
+        !prevConfirmations.some(prev => prev.callId === current.callId)
+      );
+      
+      newConfirmations.forEach(confirmation => {
+        webInterface.service?.broadcastToolConfirmation(confirmation);
+      });
+      
+      // Also broadcast removals for confirmations that were removed
+      const removedConfirmations = prevConfirmations.filter(prev => 
+        !currentConfirmations.some(current => current.callId === prev.callId)
+      );
+      
+      removedConfirmations.forEach(removedConfirmation => {
+        webInterface.service?.broadcastToolConfirmationRemoval(removedConfirmation.callId);
+      });
+      
+      prevConfirmationsRef.current = currentConfirmations;
+    }
+  }, [toolConfirmationContext?.pendingConfirmations]); // Only depend on pendingConfirmations
+  // WEB_INTERFACE_END
   const logger = useLogger();
 
   useEffect(() => {
@@ -1077,8 +1338,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                   shellModeActive={shellModeActive}
                   setShellModeActive={setShellModeActive}
                   focus={isFocused}
-                  vimHandleInput={vimHandleInput}
-                  placeholder={placeholder}
                 />
               )}
             </>
@@ -1130,7 +1389,6 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
             }
             promptTokenCount={sessionStats.lastPromptTokenCount}
             nightly={nightly}
-            vimMode={vimModeEnabled ? vimMode : undefined}
           />
         </Box>
       </Box>

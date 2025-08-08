@@ -56,6 +56,9 @@ import {
   TrackedCancelledToolCall,
 } from './useReactToolScheduler.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
+// WEB_INTERFACE_START
+import { useWebInterface } from '../contexts/WebInterfaceContext.js';
+// WEB_INTERFACE_END
 
 export function mergePartListUnions(list: PartListUnion[]): PartListUnion {
   const resultParts: PartListUnion = [];
@@ -107,12 +110,30 @@ export const useGeminiStream = (
   const processedMemoryToolsRef = useRef<Set<string>>(new Set());
   const { startNewPrompt, getPromptCount } = useSessionStats();
   const logger = useLogger();
+  // WEB_INTERFACE_START
+  const webInterface = useWebInterface();
+  // WEB_INTERFACE_END
   const gitService = useMemo(() => {
     if (!config.getProjectRoot()) {
       return;
     }
     return new GitService(config.getProjectRoot());
   }, [config]);
+
+  // WEB_INTERFACE_START
+  // Broadcast pending items to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingHistoryItemRef.current) {
+      // Create a proper HistoryItem with an ID for broadcasting
+      const pendingItemWithId: HistoryItem = {
+        ...pendingHistoryItemRef.current,
+        id: -1, // Temporary ID for pending items
+      } as HistoryItem;
+
+      webInterface.broadcastPendingItem(pendingItemWithId);
+    }
+  }, [pendingHistoryItemRef.current, webInterface]);
+  // WEB_INTERFACE_END
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
     useReactToolScheduler(
@@ -144,6 +165,34 @@ export const useGeminiStream = (
       toolCalls.length ? mapTrackedToolCallsToDisplay(toolCalls) : undefined,
     [toolCalls],
   );
+
+  // WEB_INTERFACE_START
+  // Broadcast pending tool calls to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingToolCallGroupDisplay) {
+      // Only broadcast tools that are actually still pending/executing (not completed)
+      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(tool =>
+        tool.status === 'Pending' ||
+        tool.status === 'Executing' ||
+        tool.status === 'Confirming'
+      );
+
+      // Only broadcast if there are actually pending tools
+      if (activePendingTools.length > 0) {
+        const pendingToolItemWithId: HistoryItem = {
+          ...pendingToolCallGroupDisplay,
+          tools: activePendingTools,
+          id: -2, // Temporary ID for pending tool calls (different from text responses)
+        } as HistoryItem;
+
+        webInterface.broadcastPendingItem(pendingToolItemWithId);
+      } else {
+        // If no pending tools, broadcast null to clear any existing pending display
+        webInterface.broadcastPendingItem(null);
+      }
+    }
+  }, [pendingToolCallGroupDisplay, webInterface]);
+  // WEB_INTERFACE_END
 
   const loopDetectedRef = useRef(false);
 
@@ -943,11 +992,35 @@ export const useGeminiStream = (
     saveRestorableToolCalls();
   }, [toolCalls, config, onDebugMessage, gitService, history, geminiClient]);
 
+  // WEB_INTERFACE_START
+  const triggerAbort = useCallback(() => {
+    if (streamingState === StreamingState.Responding && !turnCancelledRef.current) {
+      turnCancelledRef.current = true;
+      abortControllerRef.current?.abort();
+      if (pendingHistoryItemRef.current) {
+        addItem(pendingHistoryItemRef.current, Date.now());
+      }
+      addItem(
+        {
+          type: MessageType.INFO,
+          text: t('gemini_stream.request_cancelled', 'Request cancelled.'),
+        },
+        Date.now(),
+      );
+      setPendingHistoryItem(null);
+      setIsResponding(false);
+    }
+  }, [streamingState, pendingHistoryItemRef, addItem, setPendingHistoryItem]);
+  // WEB_INTERFACE_END
+
   return {
     streamingState,
     submitQuery,
     initError,
     pendingHistoryItems,
     thought,
+    // WEB_INTERFACE_START: Export triggerAbort for web interface ESC key support
+    triggerAbort,
+    // WEB_INTERFACE_END
   };
 };

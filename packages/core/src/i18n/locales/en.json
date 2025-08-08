@@ -17,6 +17,42 @@
     "language": {
       "description": "change language preference"
     },
+    "web": {
+      "description": "open web interface in browser",
+      "help": "Opens the web interface in your browser. Use --web flag when starting auditaria to enable web interface.",
+      "error": {
+        "not_available": "Web interface is not available in this configuration"
+      },
+      "start": {
+        "description": "start web interface server",
+        "pending": "Starting web interface...",
+        "error": "Failed to start web interface: {error}"
+      },
+      "stop": {
+        "description": "stop web interface server",
+        "error": "Failed to stop web interface: {error}"
+      },
+      "status": {
+        "description": "show web interface status",
+        "running": "Web interface is running on port {port} with {clients} connected client(s)",
+        "stopped": "Web interface is not running"
+      },
+      "already_running": "Web interface is already running on port {port}",
+      "not_running": "Web interface is not currently running",
+      "started": "Web interface started on http://localhost:{port}",
+      "stopped": "Web interface stopped",
+      "starting_and_opening": "🌐 Opening web interface in browser...",
+      "available_at": "🌐 Web interface available at http://localhost:{port}",
+      "opening_browser": "Opening web browser...",
+      "browser_open_failed": "Failed to open browser automatically. Please visit http://localhost:{port} manually.",
+      "port_fallback": "Port {requestedPort} is in use, using port {assignedPort} instead",
+      "messages": {
+        "connected": "Connected to Auditaria CLI"
+      },
+      "errors": {
+        "already_running": "Web interface is already running"
+      }
+    },
     "privacy": {
       "description": "display the privacy notice"
     },

@@ -32,6 +32,9 @@ import {
   HistoryItem,
   SlashCommandProcessorResult,
 } from '../types.js';
+// WEB_INTERFACE_START: Web commands hook import
+import { useWebCommands } from './useWebCommands.js';
+// WEB_INTERFACE_END
 import { LoadedSettings } from '../../config/settings.js';
 import { type CommandContext, type SlashCommand } from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
@@ -62,6 +65,9 @@ export const useSlashCommandProcessor = (
   setGeminiMdFileCount: (count: number) => void,
 ) => {
   const session = useSessionStats();
+  // WEB_INTERFACE_START: Web commands handlers
+  const { handleWebStart, handleWebStop, handleWebStatus } = useWebCommands();
+  // WEB_INTERFACE_END
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
   const [shellConfirmationRequest, setShellConfirmationRequest] =
     useState<null | {
@@ -178,6 +184,13 @@ export const useSlashCommandProcessor = (
         stats: session.stats,
         sessionShellAllowlist,
       },
+      // WEB_INTERFACE_START: Web interface command context
+      web: {
+        start: handleWebStart,
+        stop: handleWebStop,
+        status: handleWebStatus,
+      },
+      // WEB_INTERFACE_END
     }),
     [
       config,
@@ -196,6 +209,11 @@ export const useSlashCommandProcessor = (
       toggleVimEnabled,
       sessionShellAllowlist,
       setGeminiMdFileCount,
+      // WEB_INTERFACE_START
+      handleWebStart,
+      handleWebStop,
+      handleWebStatus,
+      // WEB_INTERFACE_END
     ],
   );
 
