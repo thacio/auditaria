@@ -18,6 +18,7 @@ import {
   ToolConfirmationOutcome,
   Icon,
 } from './tools.js';
+import { ToolErrorType } from './tool-error.js';
 import { Type } from '@google/genai';
 import { SchemaValidator } from '../utils/schemaValidator.js';
 import { getErrorMessage } from '../utils/errors.js';
@@ -187,8 +188,12 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
     });
     if (validationError) {
       return {
-        llmContent: validationError,
+        llmContent: `Could not execute command due to invalid parameters: ${validationError}`,
         returnDisplay: t('tools.shell.validation_error', 'Error: {error}', { error: validationError }),
+        error: {
+          message: validationError,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
       };
     }
 
