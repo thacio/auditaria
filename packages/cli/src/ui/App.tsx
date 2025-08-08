@@ -51,7 +51,6 @@ import { registerCleanup } from '../utils/cleanup.js';
 import { DetailedMessagesDisplay } from './components/DetailedMessagesDisplay.js';
 import { HistoryItemDisplay } from './components/HistoryItemDisplay.js';
 import { ContextSummaryDisplay } from './components/ContextSummaryDisplay.js';
-import { IDEContextDetailDisplay } from './components/IDEContextDetailDisplay.js';
 import { useHistory } from './hooks/useHistoryManager.js';
 import process from 'node:process';
 import {
@@ -211,8 +210,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
   const [showToolDescriptions, setShowToolDescriptions] =
     useState<boolean>(false);
-  const [showIDEContextDetail, setShowIDEContextDetail] =
-    useState<boolean>(false);
+
   const [ctrlCPressedOnce, setCtrlCPressedOnce] = useState(false);
   const [quittingMessages, setQuittingMessages] = useState<
     HistoryItem[] | null
@@ -670,7 +668,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       config.getIdeMode() &&
       ideContextState
     ) {
-      setShowIDEContextDetail((prev) => !prev);
+      handleSlashCommand('/ide status');
     } else if (key.ctrl && (input === 'c' || input === 'C')) {
       if (isAuthenticating) {
         // Let AuthInProgress component handle the input.
@@ -1310,14 +1308,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
                   {shellModeActive && <ShellModeIndicator />}
                 </Box>
               </Box>
-              {showIDEContextDetail && (
-                <IDEContextDetailDisplay
-                  ideContext={ideContextState}
-                  detectedIdeDisplay={config
-                    .getIdeClient()
-                    .getDetectedIdeDisplayName()}
-                />
-              )}
+
               {showErrorDetails && (
                 <OverflowProvider>
                   <Box flexDirection="column">
