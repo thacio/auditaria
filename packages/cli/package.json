@@ -60,6 +60,11 @@
     "ws": "^8.18.0",
     "express": "^4.21.2"
   },
+    "_webInterfaceMetadata": {
+    "_comment": "WEB_INTERFACE_FEATURE: Tracks web interface dependencies",
+    "dependencies": ["ws", "express"],
+    "devDependencies": ["@types/ws", "@types/express"]
+  },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
     "@testing-library/react": "^16.3.0",
@@ -84,10 +89,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "_webInterfaceMetadata": {
-    "_comment": "WEB_INTERFACE_FEATURE: Tracks web interface dependencies",
-    "dependencies": ["ws", "express"],
-    "devDependencies": ["@types/ws", "@types/express"]
   }
 }
