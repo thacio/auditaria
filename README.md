@@ -51,18 +51,18 @@ Com o Auditaria CLI você pode:
 2. **Execute a CLI:** Execute o seguinte comando em seu terminal:
 
    ```bash
-   npx https://github.com/thacio/auditaria-cli
+   npx https://github.com/thacio/auditaria
    ```
 
    Ou instale globalmente com:
    ```bash
-   npm install -g https://github.com/thacio/auditaria-cli/releases/latest/download/auditaria-cli-latest.tgz
+   npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
    ```
    ou instale globalmente clonando este repositório
    
    ```bash
-   git clone https://github.com/thacio/auditaria-cli
-   cd ./auditaria-cli
+   git clone https://github.com/thacio/auditaria
+   cd ./auditaria
    npm run build
    npm install -g .
    ```
@@ -210,8 +210,8 @@ auditaria
 Ou trabalhar com um projeto existente:
 
 ```sh
-git clone https://github.com/thacio/auditaria-cli
-cd auditaria-cli
+git clone https://github.com/thacio/auditaria
+cd auditaria
 auditaria
 > Me dê um resumo de todas as mudanças que entraram ontem
 ```
@@ -337,18 +337,18 @@ With Auditaria CLI you can:
 2. **Run the CLI:** Execute the following command in your terminal:
 
    ```bash
-   npx https://github.com/thacio/auditaria-cli
+   npx https://github.com/thacio/auditaria
    ```
 
    Or install it globally with:
    ```bash
-   npm install -g https://github.com/thacio/auditaria-cli/releases/latest/download/auditaria-cli-latest.tgz
+   npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
    ```
    or install globally by clones this repository
    
    ```bash
-   git clone https://github.com/thacio/auditaria-cli
-   cd ./auditaria-cli
+   git clone https://github.com/thacio/auditaria
+   cd ./auditaria
    npm run build
    npm install -g .
    ```
@@ -491,16 +491,16 @@ You can start a project from a new directory:
 
 ```sh
 cd new-project/
-gemini
+auditaria
 > Write me a Gemini Discord bot that answers questions using a FAQ.md file I will provide
 ```
 
 Or work with an existing project:
 
 ```sh
-git clone https://github.com/google-gemini/gemini-cli
-cd gemini-cli
-gemini
+git clone https://github.com/thacio/auditaria
+cd auditaria
+auditaria
 > Give me a summary of all of the changes that went in yesterday
 ```
 
@@ -531,7 +531,7 @@ Integrate Gemini CLI directly into your GitHub workflows with the [**Gemini CLI 
 
 ### Explore a new codebase
 
-Start by `cd`ing into an existing or newly-cloned repository and running `gemini`.
+Start by `cd`ing into an existing or newly-cloned repository and running `auditaria`.
 
 ```text
 > Describe the main pieces of this system's architecture.
