@@ -22,6 +22,7 @@ O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.c
 - **🔄 Estratégia de Retry Melhorada**: 7 tentativas com delays de 2 segundos e reset automático para Gemini Pro a cada mensagem do usuário
 - **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar e trabalhar com dados de auditoria
+- **🌐 Interface Web**: Interface web integrada para interação baseada em navegador (porta padrão 8629, usa porta aleatória se ocupada)
 
 ### Suporte a Idiomas
 
@@ -30,6 +31,16 @@ Atualmente suporta:
 - **Português** (pt)
 
 Use o comando `/language` para alternar entre idiomas suportados durante a execução.
+
+### Interface Web
+
+A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI através do seu navegador:
+
+- **Iniciar com interface web**: `auditaria --web` (abre automaticamente o navegador)
+- **Iniciar sem abrir navegador**: `auditaria --web no-browser`
+- **Comando durante execução**: Use `/web` para abrir a interface web a qualquer momento
+- **Porta padrão**: 8629 (usa uma porta aleatória se estiver ocupada)
+- **Recursos**: Sincronização em tempo real de mensagens, exibição de execução de ferramentas, histórico completo da conversa
 
 ---
 
@@ -75,7 +86,22 @@ Com o Auditaria CLI você pode:
 
 ### Configuração de Firewall Corporativo (MITM)
 
-Se você estiver usando o Auditaria CLI atrás de um firewall corporativo que realiza inspeção de certificado man-in-the-middle (MITM), você pode encontrar erros de certificado SSL quando a CLI tentar se conectar ao servidor do Google. Veja como resolver isso:
+**⚠️ AVISO DE SEGURANÇA**: Desabilitar a verificação SSL pode representar uma falha de segurança. No entanto, em ambientes corporativos com firewall MITM, o npm recusará a instalação porque o firewall substitui os certificados SSL originais por seus próprios certificados para inspecionar o tráfego. Isso faz com que o npm detecte um certificado "não confiável" e bloqueie a instalação. **Use estas configurações apenas em redes corporativas confiáveis onde a TI controla a infraestrutura.**
+
+Se você estiver usando o Auditaria CLI atrás de um firewall corporativo que realiza inspeção de certificado man-in-the-middle (MITM), você pode encontrar erros de certificado SSL. Veja como resolver isso:
+
+#### Configuração do NPM para Instalação
+
+Se você encontrar erros SSL durante a instalação com npm, use o flag inline para desabilitar temporariamente a verificação SSL estrita:
+
+```bash
+# Instalar o Auditaria CLI com verificação SSL desabilitada
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz --strict-ssl=false
+```
+
+#### Configuração de Execução
+
+Quando a CLI tentar se conectar ao servidor do Google, configure a variável de ambiente:
 
 #### Windows Command Prompt (cmd)
 ```cmd
@@ -304,6 +330,7 @@ Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.co
 - **🔄 Improved Retry Strategy**: 7 retries with 2-second delays and automatic reset to Gemini Pro on each user message
 - **🎯 Audit-Focused Features**: Specialized system prompts and capabilities tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working with audit data
+- **🌐 Web Interface**: Built-in web interface for browser-based interaction (default port 8629, uses random port if occupied)
 
 ### Language Support
 
@@ -312,6 +339,16 @@ Currently supports:
 - **Portuguese** (pt)
 
 Use the `/language` command to switch between supported languages at runtime.
+
+### Web Interface
+
+The web interface provides an alternative way to interact with Auditaria CLI through your browser:
+
+- **Start with web interface**: `auditaria --web` (automatically opens browser)
+- **Start without opening browser**: `auditaria --web no-browser`
+- **Command during runtime**: Use `/web` to open the web interface at any time
+- **Default port**: 8629 (uses a random port if occupied)
+- **Features**: Real-time message sync, tool execution display, full conversation history
 
 ---
 
@@ -363,7 +400,22 @@ With Auditaria CLI you can:
 
 ### Corporate Firewall (MITM) Setup
 
-If you're using Auditaria CLI behind a corporate firewall that performs man-in-the-middle (MITM) certificate inspection, you may encounter SSL certificate errors when the CLI tries to connect to to Google's server. Here's how to resolve this:
+**⚠️ SECURITY WARNING**: Disabling SSL verification may represent a security flaw. However, in corporate environments with MITM firewalls, npm will refuse to install because the firewall replaces the original SSL certificates with its own certificates to inspect traffic. This causes npm to detect an "untrusted" certificate and block the installation. **Use these settings only in trusted corporate networks where IT controls the infrastructure.**
+
+If you're using Auditaria CLI behind a corporate firewall that performs man-in-the-middle (MITM) certificate inspection, you may encounter SSL certificate errors. Here's how to resolve this:
+
+#### NPM Configuration for Installation
+
+If you encounter SSL errors during npm installation, use the inline flag to temporarily disable strict SSL verification:
+
+```bash
+# Install Auditaria CLI with SSL verification disabled
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz --strict-ssl=false
+```
+
+#### Runtime Configuration
+
+When the CLI tries to connect to Google's server, set the environment variable:
 
 #### Windows Command Prompt (cmd)
 ```cmd
