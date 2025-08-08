@@ -11,6 +11,7 @@ import { Colors } from '../colors.js';
 import { shortenPath, tildeifyPath, tokenLimit } from '@thacio/auditaria-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
+import path from 'node:path';
 import Gradient from 'ink-gradient';
 import { MemoryUsageDisplay } from './MemoryUsageDisplay.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
@@ -18,6 +19,9 @@ import { DebugProfiler } from './DebugProfiler.js';
 // WEB_INTERFACE_START: Footer context import for web interface integration
 import { useFooter } from '../contexts/FooterContext.js';
 // WEB_INTERFACE_END
+
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 
 interface FooterProps {
   model: string;
@@ -48,6 +52,8 @@ export const Footer: React.FC<FooterProps> = ({
   nightly,
   vimMode,
 }) => {
+  const { columns: terminalWidth } = useTerminalSize();
+  const isNarrow = isNarrowWidth(terminalWidth);
   const limit = tokenLimit(model);
   const percentage = promptTokenCount / limit;
   
@@ -100,82 +106,95 @@ export const Footer: React.FC<FooterProps> = ({
   ]);
   // WEB_INTERFACE_END
 
+  // Adjust path length based on terminal width
+  const pathLength = Math.max(20, Math.floor(terminalWidth * 0.4));
+  const displayPath = isNarrow
+    ? path.basename(tildeifyPath(targetDir))
+    : shortenPath(tildeifyPath(targetDir), pathLength);
+
   return (
-  <Box justifyContent="space-between" width="100%">
-    <Box>
-      {debugMode && <DebugProfiler />}
-      {vimMode && <Text color={Colors.Gray}>[{vimMode}] </Text>}
-      {nightly ? (
-        <Gradient colors={Colors.GradientColors}>
-          <Text>
-            {shortenPath(tildeifyPath(targetDir), 70)}
-            {branchName && <Text> ({branchName}*)</Text>}
-          </Text>
-        </Gradient>
-      ) : (
-        <Text color={Colors.LightBlue}>
-          {shortenPath(tildeifyPath(targetDir), 70)}
-          {branchName && <Text color={Colors.Gray}> ({branchName}*)</Text>}
-        </Text>
-      )}
-      {debugMode && (
-        <Text color={Colors.AccentRed}>
-          {' ' + (debugMessage || t('footer.debug_mode', '--debug'))}
-        </Text>
-      )}
-    </Box>
-
-    {/* Middle Section: Centered Sandbox Info */}
     <Box
-      flexGrow={1}
-      alignItems="center"
-      justifyContent="center"
-      display="flex"
+      justifyContent="space-between"
+      width="100%"
+      flexDirection={isNarrow ? 'column' : 'row'}
+      alignItems={isNarrow ? 'flex-start' : 'center'}
     >
-      {process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec' ? (
-        <Text color="green">
-          {process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '')}
-        </Text>
-      ) : process.env.SANDBOX === 'sandbox-exec' ? (
-        <Text color={Colors.AccentYellow}>
-          {t('footer.macos_seatbelt', 'macOS Seatbelt')}{' '}
-          <Text color={Colors.Gray}>({process.env.SEATBELT_PROFILE})</Text>
-        </Text>
-      ) : (
-        <Text color={Colors.AccentRed}>
-          {t('footer.no_sandbox', 'no sandbox')} <Text color={Colors.Gray}>{t('footer.see_docs', '(see /docs)')}</Text>
-        </Text>
-      )}
-    </Box>
+      <Box>
+        {debugMode && <DebugProfiler />}
+        {vimMode && <Text color={Colors.Gray}>[{vimMode}] </Text>}
+        {nightly ? (
+          <Gradient colors={Colors.GradientColors}>
+            <Text>
+              {displayPath}
+              {branchName && <Text> ({branchName}*)</Text>}
+            </Text>
+          </Gradient>
+        ) : (
+          <Text color={Colors.LightBlue}>
+            {displayPath}
+            {branchName && <Text color={Colors.Gray}> ({branchName}*)</Text>}
+          </Text>
+        )}
+        {debugMode && (
+          <Text color={Colors.AccentRed}>
+            {' ' + (debugMessage || t('footer.debug_mode', '--debug'))}
+          </Text>
+        )}
+      </Box>
 
-    {/* Right Section: Gemini Label and Console Summary */}
-    <Box alignItems="center">
-      <Text color={Colors.AccentBlue}>
-        {' '}
-        {model}{' '}
-        <ContextUsageDisplay
-          promptTokenCount={promptTokenCount}
-          model={model}
-        />
-      </Text>
-      {corgiMode && (
-        <Text>
-          <Text color={Colors.Gray}>| </Text>
-          <Text color={Colors.AccentRed}>▼</Text>
-          <Text color={Colors.Foreground}>(´</Text>
-          <Text color={Colors.AccentRed}>ᴥ</Text>
-          <Text color={Colors.Foreground}>`)</Text>
-          <Text color={Colors.AccentRed}>▼ </Text>
+      {/* Middle Section: Centered Sandbox Info */}
+      <Box
+        flexGrow={isNarrow ? 0 : 1}
+        alignItems="center"
+        justifyContent={isNarrow ? 'flex-start' : 'center'}
+        display="flex"
+        paddingX={isNarrow ? 0 : 1}
+        paddingTop={isNarrow ? 1 : 0}
+      >
+        {process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec' ? (
+          <Text color="green">
+            {process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '')}
+          </Text>
+        ) : process.env.SANDBOX === 'sandbox-exec' ? (
+          <Text color={Colors.AccentYellow}>
+            {t('footer.macos_seatbelt', 'macOS Seatbelt')}{' '}
+            <Text color={Colors.Gray}>({process.env.SEATBELT_PROFILE})</Text>
+          </Text>
+        ) : (
+          <Text color={Colors.AccentRed}>
+            {t('footer.no_sandbox', 'no sandbox')} <Text color={Colors.Gray}>{t('footer.see_docs', '(see /docs)')}</Text>
+          </Text>
+        )}
+      </Box>
+
+      {/* Right Section: Gemini Label and Console Summary */}
+      <Box alignItems="center" paddingTop={isNarrow ? 1 : 0}>
+        <Text color={Colors.AccentBlue}>
+          {isNarrow ? '' : ' '}
+          {model}{' '}
+          <ContextUsageDisplay
+            promptTokenCount={promptTokenCount}
+            model={model}
+          />
         </Text>
-      )}
-      {!showErrorDetails && errorCount > 0 && (
-        <Box>
-          <Text color={Colors.Gray}>| </Text>
-          <ConsoleSummaryDisplay errorCount={errorCount} />
-        </Box>
-      )}
-      {showMemoryUsage && <MemoryUsageDisplay />}
+        {corgiMode && (
+          <Text>
+            <Text color={Colors.Gray}>| </Text>
+            <Text color={Colors.AccentRed}>▼</Text>
+            <Text color={Colors.Foreground}>(´</Text>
+            <Text color={Colors.AccentRed}>ᴥ</Text>
+            <Text color={Colors.Foreground}>`)</Text>
+            <Text color={Colors.AccentRed}>▼ </Text>
+          </Text>
+        )}
+        {!showErrorDetails && errorCount > 0 && (
+          <Box>
+            <Text color={Colors.Gray}>| </Text>
+            <ConsoleSummaryDisplay errorCount={errorCount} />
+          </Box>
+        )}
+        {showMemoryUsage && <MemoryUsageDisplay />}
+      </Box>
     </Box>
-  </Box>
   );
 };

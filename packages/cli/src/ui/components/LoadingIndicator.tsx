@@ -16,6 +16,8 @@ import { formatDuration } from '../utils/formatters.js';
 // WEB_INTERFACE_START: Loading state context import for web interface integration
 import { useLoadingState } from '../contexts/LoadingStateContext.js';
 // WEB_INTERFACE_END
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 
 interface LoadingIndicatorProps {
   currentLoadingPhrase?: string;
@@ -31,6 +33,9 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   thought,
 }) => {
   const streamingState = useStreamingContext();
+  const { columns: terminalWidth } = useTerminalSize();
+  const isNarrow = isNarrowWidth(terminalWidth);
+  
   // WEB_INTERFACE_START: Loading state context for broadcasting to web interface
   const loadingStateContext = useLoadingState();
 
@@ -57,30 +62,49 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
   const primaryText = thought?.subject || currentLoadingPhrase;
 
+  const cancelAndTimerContent =
+    streamingState !== StreamingState.WaitingForConfirmation
+      ? t('loading_indicator.esc_to_cancel', '(esc to cancel, {time})', {
+          time: elapsedTime < 60 
+            ? t('loading_indicator.seconds', '{elapsed}s', { elapsed: elapsedTime }) 
+            : formatDuration(elapsedTime * 1000)
+        })
+      : null;
+
   return (
-    <Box marginTop={1} paddingLeft={0} flexDirection="column">
+    <Box paddingLeft={0} flexDirection="column">
       {/* Main loading line */}
-      <Box>
-        <Box marginRight={1}>
-          <GeminiRespondingSpinner
-            nonRespondingDisplay={
-              streamingState === StreamingState.WaitingForConfirmation
-                ? '⠏'
-                : ''
-            }
-          />
+      <Box
+        width="100%"
+        flexDirection={isNarrow ? 'column' : 'row'}
+        alignItems={isNarrow ? 'flex-start' : 'center'}
+      >
+        <Box>
+          <Box marginRight={1}>
+            <GeminiRespondingSpinner
+              nonRespondingDisplay={
+                streamingState === StreamingState.WaitingForConfirmation
+                  ? '⠏'
+                  : ''
+              }
+            />
+          </Box>
+          {primaryText && (
+            <Text color={Colors.AccentPurple}>{primaryText}</Text>
+          )}
+          {!isNarrow && cancelAndTimerContent && (
+            <Text color={Colors.Gray}> {cancelAndTimerContent}</Text>
+          )}
         </Box>
-        {primaryText && <Text color={Colors.AccentPurple}>{primaryText}</Text>}
-        <Text color={Colors.Gray}>
-          {streamingState === StreamingState.WaitingForConfirmation
-            ? ''
-            : t('loading_indicator.esc_to_cancel', ' (esc to cancel, {time})', {
-                time: elapsedTime < 60 ? t('loading_indicator.seconds', '{elapsed}s', { elapsed: elapsedTime }) : formatDuration(elapsedTime * 1000)
-              })}
-        </Text>
-        <Box flexGrow={1}>{/* Spacer */}</Box>
-        {rightContent && <Box>{rightContent}</Box>}
+        {!isNarrow && <Box flexGrow={1}>{/* Spacer */}</Box>}
+        {!isNarrow && rightContent && <Box>{rightContent}</Box>}
       </Box>
+      {isNarrow && cancelAndTimerContent && (
+        <Box>
+          <Text color={Colors.Gray}>{cancelAndTimerContent}</Text>
+        </Box>
+      )}
+      {isNarrow && rightContent && <Box>{rightContent}</Box>}
     </Box>
   );
 };

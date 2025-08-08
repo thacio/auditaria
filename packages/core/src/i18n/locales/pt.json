@@ -741,6 +741,8 @@
   },
   "context_summary": {
     "using": "Usando ",
+    "using_label": "Usando:",
+    "list_item_prefix": "  - ",
     "and": " e ",
     "context_files": "{count} arquivo{plural} {name}",
     "mcp_servers": "{count} servidor{plural} MCP",
