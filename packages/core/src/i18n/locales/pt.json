@@ -224,7 +224,10 @@
       "save": {
         "missing_tag": "Tag ausente. Uso: /chat save <tag>",
         "saved": "Checkpoint de conversa salvo com tag: {tag}.",
-        "no_conversation": "Nenhuma conversa encontrada para salvar."
+        "no_conversation": "Nenhuma conversa encontrada para salvar.",
+        "no_client": "Nenhum cliente de chat disponível para salvar conversa.",
+        "overwrite_confirmation_prefix": "Um checkpoint com a tag ",
+        "overwrite_confirmation_suffix": " já existe. Deseja sobrescrevê-lo?"
       },
       "resume": {
         "missing_tag": "Tag ausente. Uso: /chat resume <tag>",
@@ -465,7 +468,9 @@
       "yes_always_server": "Sim, sempre permitir todas as ferramentas do servidor \"{serverName}\"",
       "modify_editor": "Modificar com editor externo",
       "no_esc": "Não (esc)",
-      "no_suggest_changes": "Não, sugerir mudanças (esc)"
+      "no_suggest_changes": "Não, sugerir mudanças (esc)",
+      "yes": "Sim",
+      "no": "Não"
     },
     "mcp_labels": {
       "server": "Servidor MCP: {serverName}",
@@ -1075,5 +1080,8 @@
   },
   "utils": {
     "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}."
+  },
+  "general": {
+    "operation_cancelled": "Operação cancelada."
   }
 }
