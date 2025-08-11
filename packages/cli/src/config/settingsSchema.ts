@@ -102,7 +102,7 @@ export const SETTINGS_SCHEMA = {
     label: 'Enable Usage Statistics',
     category: 'General',
     requiresRestart: true,
-    default: false,
+    default: true,
     description: 'Enable collection of usage statistics',
     showInDialog: true,
   },
