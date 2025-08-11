@@ -73,7 +73,12 @@ function formatFileList(openFiles: File[]): string {
     })
     .join('\n');
 
-  return `\n\n${t('ide_context.open_files', 'Open files:')}\n${fileList}`;
+  const infoMessage = t(
+    'ide_context.file_list_note',
+    '\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)'
+  );
+
+  return `\n\n${t('ide_context.open_files', 'Open files:')}\n${fileList}${infoMessage}`;
 }
 
 async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{

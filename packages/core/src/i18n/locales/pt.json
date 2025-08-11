@@ -1050,7 +1050,7 @@
       "not_supported": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: {supportedIDEs}",
       "integration_disabled": "A integração do IDE está atualmente desabilitada. Para habilitá-la, execute /ide enable.",
       "integration_disabled_reenable": "Integração do IDE desabilitada. Para habilitá-la novamente, execute /ide enable.",
-      "extension_connection_failed": "Falha ao conectar à extensão companion do IDE para {ide}. Por favor, certifique-se de que a extensão está em execução e tente atualizar seu terminal. Para instalar a extensão, execute /ide install.",
+      "extension_connection_failed": "Falha ao conectar à extensão companion do IDE para {ide}. Por favor, certifique-se de que a extensão está em execução e tente reiniciar seu terminal. Para instalar a extensão, execute /ide install.",
       "connection_lost": "Erro de conexão do IDE. A conexão foi perdida inesperadamente. Por favor, tente reconectar executando /ide enable"
     }
   },
@@ -1065,7 +1065,8 @@
     "title": "Contexto (ctrl+e para alternar)",
     "open_files": "Arquivos abertos:",
     "active_file": " (ativo)",
-    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+e para ver)"
+    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+e para ver)",
+    "file_list_note": "\n(Nota: A lista de arquivos é limitada a um número de arquivos acessados recentemente em seu workspace e inclui apenas arquivos locais no disco)"
   },
   "ide_integration_nudge": {
     "question": "Você deseja conectar o editor VS Code ao Auditaria CLI?",

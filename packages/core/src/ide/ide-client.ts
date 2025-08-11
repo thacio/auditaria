@@ -221,13 +221,18 @@ export class IdeClient {
     // disconnected, so that the first detail message is preserved.
     if (!isAlreadyDisconnected) {
       this.state = { status, details };
-      if (logToConsole) {
-        logger.error(details);
+      if (details) {
+        if (logToConsole) {
+          logger.error(details);
+        } else {
+          // We only want to log disconnect messages to debug
+          // if they are not already being logged to the console.
+          logger.debug(details);
+        }
       }
     }
 
     if (status === IDEConnectionStatus.Disconnected) {
-      logger.debug(details);
       ideContext.clearIdeContext();
     }
   }
@@ -280,10 +285,10 @@ export class IdeClient {
         IDEConnectionStatus.Disconnected,
         t(
           'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
           { ide: this.currentIdeDisplayName || 'IDE' }
         ),
-        true
+        true,
       );
       return undefined;
     }
@@ -369,10 +374,10 @@ export class IdeClient {
         IDEConnectionStatus.Disconnected,
         t(
           'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
           { ide: this.currentIdeDisplayName || 'IDE' }
         ),
-        true
+        true,
       );
       if (transport) {
         try {
