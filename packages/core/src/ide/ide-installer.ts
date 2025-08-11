@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
 import { DetectedIde } from './detect-ide.js';
-import { t } from '../i18n/i18n-manager.js';
+import { t } from '../i18n/index.js';
 
 const VSCODE_COMMAND = process.platform === 'win32' ? 'code.cmd' : 'code';
 const VSCODE_COMPANION_EXTENSION_FOLDER = 'vscode-ide-companion';
