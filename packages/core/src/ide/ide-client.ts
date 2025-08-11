@@ -5,6 +5,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   detectIde,
   DetectedIde,
@@ -263,7 +264,11 @@ export class IdeClient {
       );
       return false;
     }
-    if (getRealPath(ideWorkspacePath) !== getRealPath(process.cwd())) {
+
+    const idePath = getRealPath(ideWorkspacePath).toLocaleLowerCase();
+    const cwd = getRealPath(process.cwd()).toLocaleLowerCase();
+    const rel = path.relative(idePath, cwd);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
       this.setState(
         IDEConnectionStatus.Disconnected,
         t(
