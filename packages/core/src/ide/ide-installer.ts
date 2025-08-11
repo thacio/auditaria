@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
 import { DetectedIde } from './detect-ide.js';
+import { t } from '../i18n/i18n-manager.js';
 
 const VSCODE_COMMAND = process.platform === 'win32' ? 'code.cmd' : 'code';
 const VSCODE_COMPANION_EXTENSION_FOLDER = 'vscode-ide-companion';
@@ -99,7 +100,7 @@ class VsCodeInstaller implements IdeInstaller {
     if (!commandPath) {
       return {
         success: false,
-        message: `VS Code CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the companion extension manually from the VS Code marketplace.`,
+        message: t('ide_installer.vscode_cli_not_found', `VS Code CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the companion extension manually from the VS Code marketplace.`),
       };
     }
 
@@ -124,8 +125,7 @@ class VsCodeInstaller implements IdeInstaller {
     if (vsixFiles.length === 0) {
       return {
         success: false,
-        message:
-          'Could not find the required VS Code companion extension. Please file a bug via /bug.',
+        message: t('ide_installer.companion_not_found', 'Could not find the required VS Code companion extension. Please file a bug via /bug.'),
       };
     }
 
@@ -135,13 +135,31 @@ class VsCodeInstaller implements IdeInstaller {
       child_process.execSync(command, { stdio: 'pipe' });
       return {
         success: true,
-        message:
-          'VS Code companion extension was installed successfully. Please restart your terminal to complete the setup.',
+        message: t('ide_installer.vscode_install_success', 'VS Code companion extension was installed successfully. Please restart your terminal to complete the setup.'),
       };
     } catch (_error) {
       return {
         success: false,
-        message: `Failed to install VS Code companion extension. Please try installing it manually from the VS Code marketplace.`,
+        message: t('ide_installer.vscode_install_failed', 'Failed to install VS Code companion extension. Please try installing it manually from the VS Code marketplace.'),
+      };
+    }
+  }
+}
+
+class OpenVSXInstaller implements IdeInstaller {
+  async install(): Promise<InstallResult> {
+    // TODO: Use the correct extension path.
+    const command = `npx ovsx get google.gemini-cli-vscode-ide-companion`;
+    try {
+      child_process.execSync(command, { stdio: 'pipe' });
+      return {
+        success: true,
+        message: t('ide_installer.openvsx_install_success', 'VS Code companion extension was installed successfully from OpenVSX. Please restart your terminal to complete the setup.'),
+      };
+    } catch (_error) {
+      return {
+        success: false,
+        message: t('ide_installer.openvsx_install_failed', 'Failed to install VS Code companion extension from OpenVSX. Please try installing it manually.'),
       };
     }
   }
@@ -152,6 +170,6 @@ export function getIdeInstaller(ide: DetectedIde): IdeInstaller | null {
     case DetectedIde.VSCode:
       return new VsCodeInstaller();
     default:
-      return null;
+      return new OpenVSXInstaller();
   }
 }

@@ -1069,8 +1069,8 @@
     "file_list_note": "\n(Nota: A lista de arquivos é limitada a um número de arquivos acessados recentemente em seu workspace e inclui apenas arquivos locais no disco)"
   },
   "ide_integration_nudge": {
-    "question": "Você deseja conectar o editor VS Code ao Auditaria CLI?",
-    "description": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no VS Code.",
+    "question": "Você deseja conectar o editor {ideName} ao Auditaria CLI?",
+    "description": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no {ideName}.",
     "yes": "Sim",
     "no_esc": "Não (esc)",
     "no_dont_ask": "Não, não pergunte novamente"
@@ -1091,6 +1091,14 @@
   },
   "utils": {
     "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}."
+  },
+  "ide_installer": {
+    "vscode_cli_not_found": "CLI do VS Code não encontrado. Por favor, certifique-se de que 'code' está no PATH do seu sistema. Para ajuda, veja https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. Você também pode instalar a extensão companheira manualmente no marketplace do VS Code.",
+    "companion_not_found": "Não foi possível encontrar a extensão companheira do VS Code necessária. Por favor, registre um bug via /bug.",
+    "vscode_install_success": "Extensão companheira do VS Code instalada com sucesso. Por favor, reinicie seu terminal para completar a configuração.",
+    "vscode_install_failed": "Falha ao instalar a extensão companheira do VS Code. Por favor, tente instalá-la manualmente no marketplace do VS Code.",
+    "openvsx_install_success": "Extensão companheira do VS Code instalada com sucesso do OpenVSX. Por favor, reinicie seu terminal para completar a configuração.",
+    "openvsx_install_failed": "Falha ao instalar a extensão companheira do VS Code do OpenVSX. Por favor, tente instalá-la manualmente."
   },
   "general": {
     "operation_cancelled": "Operação cancelada."

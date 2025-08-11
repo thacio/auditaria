@@ -1099,8 +1099,8 @@
     "file_list_note": "\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)"
   },
   "ide_integration_nudge": {
-    "question": "Do you want to connect your VS Code editor to Auditaria CLI?",
-    "description": "If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in VS Code.",
+    "question": "Do you want to connect your {ideName} editor to Auditaria CLI?",
+    "description": "If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in {ideName}.",
     "yes": "Yes",
     "no_esc": "No (esc)",
     "no_dont_ask": "No, don't ask again"
@@ -1121,6 +1121,14 @@
   },
   "utils": {
     "unknown_platform_url_open": "Unknown platform: {platform}. Attempting to open URLs with: {openCmd}."
+  },
+  "ide_installer": {
+    "vscode_cli_not_found": "VS Code CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the companion extension manually from the VS Code marketplace.",
+    "companion_not_found": "Could not find the required VS Code companion extension. Please file a bug via /bug.",
+    "vscode_install_success": "VS Code companion extension was installed successfully. Please restart your terminal to complete the setup.",
+    "vscode_install_failed": "Failed to install VS Code companion extension. Please try installing it manually from the VS Code marketplace.",
+    "openvsx_install_success": "VS Code companion extension was installed successfully from OpenVSX. Please restart your terminal to complete the setup.",
+    "openvsx_install_failed": "Failed to install VS Code companion extension from OpenVSX. Please try installing it manually."
   },
   "general": {
     "operation_cancelled": "Operation cancelled."
