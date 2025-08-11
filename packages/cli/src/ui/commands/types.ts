@@ -110,7 +110,7 @@ export interface MessageActionReturn {
  */
 export interface OpenDialogActionReturn {
   type: 'dialog';
-  dialog: 'auth' | 'theme' | 'editor' | 'privacy' | 'language';
+  dialog: 'help' | 'auth' | 'theme' | 'editor' | 'privacy' | 'language' | 'settings';
 }
 
 /**

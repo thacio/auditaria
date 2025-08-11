@@ -13,6 +13,10 @@ import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { DiffRenderer } from './messages/DiffRenderer.js';
 import { colorizeCode } from '../utils/CodeColorizer.js';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import {
+  getScopeItems,
+  getScopeMessageForSetting,
+} from '../../utils/dialogScopeUtils.js';
 
 interface ThemeDialogProps {
   /** Callback function when a theme is selected */
@@ -77,11 +81,15 @@ export function ThemeDialog({
   // If not found, fall back to the first theme
   const safeInitialThemeIndex = initialThemeIndex >= 0 ? initialThemeIndex : 0;
 
+<<<<<<< HEAD
   const scopeItems = [
     { label: t('theme_dialog.scope_options.user_settings', 'User Settings'), value: SettingScope.User },
     { label: t('theme_dialog.scope_options.workspace_settings', 'Workspace Settings'), value: SettingScope.Workspace },
     { label: t('theme_dialog.scope_options.system_settings', 'System Settings'), value: SettingScope.System },
   ];
+=======
+  const scopeItems = getScopeItems();
+>>>>>>> 8a9a9275
 
   const handleThemeSelect = useCallback(
     (themeName: string) => {
@@ -121,23 +129,12 @@ export function ThemeDialog({
     }
   });
 
-  const otherScopes = Object.values(SettingScope).filter(
-    (scope) => scope !== selectedScope,
+  // Generate scope message for theme setting
+  const otherScopeModifiedMessage = getScopeMessageForSetting(
+    'theme',
+    selectedScope,
+    settings,
   );
-
-  const modifiedInOtherScopes = otherScopes.filter(
-    (scope) => settings.forScope(scope).settings.theme !== undefined,
-  );
-
-  let otherScopeModifiedMessage = '';
-  if (modifiedInOtherScopes.length > 0) {
-    const modifiedScopesStr = modifiedInOtherScopes.join(', ');
-    otherScopeModifiedMessage =
-      settings.forScope(selectedScope).settings.theme !== undefined
-        ? t('theme_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: modifiedScopesStr })
-        : t('theme_dialog.messages.modified_in', '(Modified in {scope})', { scope: modifiedScopesStr });
-  }
-
   // Constants for calculating preview pane layout.
   // These values are based on the JSX structure below.
   const PREVIEW_PANE_WIDTH_PERCENTAGE = 0.55;

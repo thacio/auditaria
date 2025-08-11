@@ -56,6 +56,9 @@
     "privacy": {
       "description": "display the privacy notice"
     },
+    "settings": {
+      "description": "View and edit Gemini CLI settings"
+    },
     "stats": {
       "description": "check session stats. Usage: /stats [model|tools]",
       "alt_name": "usage",
@@ -641,6 +644,14 @@
       "modified_in": "(Modified in {scope})",
       "use_enter_select": "(Use Enter to select",
       "tab_to_change_focus": ", Tab to change focus)"
+    }
+  },
+  "settings_dialog": {
+    "title": "Settings",
+    "apply_to": "Apply To",
+    "messages": {
+      "use_enter_tab": "(Use Enter to select, Tab to change focus)",
+      "restart_required": "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now."
     }
   },
   "editor_dialog": {

@@ -649,6 +649,14 @@
       "tab_to_change_focus": ", Tab para mudar o foco)"
     }
   },
+  "settings_dialog": {
+    "title": "Configurações",
+    "apply_to": "Aplicar Para",
+    "messages": {
+      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco)",
+      "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora."
+    }
+  },
   "editor_dialog": {
     "title": "Selecionar Editor",
     "apply_to": "Aplicar Para",

@@ -37,6 +37,7 @@ import { webCommand } from '../ui/commands/webCommand.js';
 import { fallbackImprovedCommand } from '../ui/commands/fallbackImprovedCommand.js';
 import { modelSwitchCommand } from '../ui/commands/modelSwitchCommand.js';
 import { stayProCommand } from '../ui/commands/stayProCommand.js';
+import { settingsCommand } from '../ui/commands/settingsCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
 import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
 
@@ -86,6 +87,9 @@ export class BuiltinCommandLoader implements ICommandLoader {
       // WEB_INTERFACE_START: Add web command to builtin commands
       webCommand,
       // WEB_INTERFACE_END
+      settingsCommand,
+      vimCommand,
+      setupGithubCommand,
     ];
 
     return allDefinitions.filter((cmd): cmd is SlashCommand => cmd !== null);
