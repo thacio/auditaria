@@ -441,7 +441,8 @@
     "debug_mode": "--debug"
   },
   "input": {
-    "placeholder": "  Type your message or @path/to/file"
+    "placeholder": "  Type your message or @path/to/file",
+    "escape_to_clear": "Press Esc again to clear."
   },
   "tool_confirmation": {
     "modify_in_progress": "Modify in progress: ",

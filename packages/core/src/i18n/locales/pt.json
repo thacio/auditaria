@@ -447,7 +447,8 @@
     "debug_mode": "--debug"
   },
   "input": {
-    "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo"
+    "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo",
+    "escape_to_clear": "Pressione Esc novamente para limpar."
   },
   "tool_confirmation": {
     "modify_in_progress": "Modificação em andamento: ",

@@ -227,6 +227,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   const [ideContextState, setIdeContextState] = useState<
     IdeContext | undefined
   >();
+  const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   useEffect(() => {
@@ -261,6 +262,11 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   const openPrivacyNotice = useCallback(() => {
     setShowPrivacyNotice(true);
   }, []);
+
+  const handleEscapePromptChange = useCallback((showPrompt: boolean) => {
+    setShowEscapePrompt(showPrompt);
+  }, []);
+
   const initialPromptSubmitted = useRef(false);
 
   const errorCount = useMemo(
@@ -1325,6 +1331,8 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
                     <Text color={Colors.AccentYellow}>
                       {t('app.press_ctrl_d_exit', 'Press Ctrl+D again to exit.')}
                     </Text>
+                  ) : showEscapePrompt ? (
+                    <Text color={Colors.Gray}>{t('input.escape_to_clear', 'Press Esc again to clear.')}</Text>
                   ) : (
                     <ContextSummaryDisplay
                       ideContext={ideContextState}
@@ -1375,6 +1383,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
                   commandContext={commandContext}
                   shellModeActive={shellModeActive}
                   setShellModeActive={setShellModeActive}
+                  onEscapePromptChange={handleEscapePromptChange}
                   focus={isFocused}
                 />
               )}
