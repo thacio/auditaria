@@ -1072,6 +1072,7 @@
   "ide_integration_nudge": {
     "question": "Você deseja conectar o editor {ideName} ao Auditaria CLI?",
     "description": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no {ideName}.",
+    "description_installed": "Se você selecionar Sim, o CLI terá acesso aos seus arquivos abertos e exibirá diffs diretamente no {ideName}.",
     "yes": "Sim",
     "no_esc": "Não (esc)",
     "no_dont_ask": "Não, não pergunte novamente"

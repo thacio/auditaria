@@ -1100,8 +1100,9 @@
     "file_list_note": "\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)"
   },
   "ide_integration_nudge": {
-    "question": "Do you want to connect your {ideName} editor to Auditaria CLI?",
+    "question": "Do you want to connect {ideName} editor to Auditaria CLI?",
     "description": "If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in {ideName}.",
+    "description_installed": "If you select Yes, the CLI will have access to your open files and display diffs directly in {ideName}.",
     "yes": "Yes",
     "no_esc": "No (esc)",
     "no_dont_ask": "No, don't ask again"

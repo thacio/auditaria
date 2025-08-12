@@ -605,14 +605,18 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   const handleIdePromptComplete = useCallback(
     (result: IdeIntegrationNudgeResult) => {
-      if (result === 'yes') {
-        handleSlashCommand('/ide install');
+      if (result.userSelection === 'yes') {
+        if (result.isExtensionPreInstalled) {
+          handleSlashCommand('/ide enable');
+        } else {
+          handleSlashCommand('/ide install');
+        }
         settings.setValue(
           SettingScope.User,
           'hasSeenIdeIntegrationNudge',
           true,
         );
-      } else if (result === 'dismiss') {
+      } else if (result.userSelection === 'dismiss') {
         settings.setValue(
           SettingScope.User,
           'hasSeenIdeIntegrationNudge',
@@ -1198,9 +1202,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
             </Box>
           )}
 
-          {shouldShowIdePrompt ? (
+          {shouldShowIdePrompt && currentIDE ? (
             <IdeIntegrationNudge
-              ideName={config.getIdeClient().getDetectedIdeDisplayName()}
+              ide={currentIDE}
               onComplete={handleIdePromptComplete}
             />
           ) : isLanguageDialogOpen ? (
