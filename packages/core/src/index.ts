@@ -46,6 +46,13 @@ export * from './utils/filesearch/fileSearch.js';
 export * from './services/fileDiscoveryService.js';
 export * from './services/gitService.js';
 
+// Export telemetry
+export { logIdeConnection } from './telemetry/loggers.js';
+export {
+  IdeConnectionEvent,
+  IdeConnectionType,
+} from './telemetry/types.js';
+
 // Export IDE specific logic
 export * from './ide/ide-client.js';
 export * from './ide/ideContext.js';
