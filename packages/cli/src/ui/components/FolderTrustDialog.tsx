@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import React from 'react';
 import { t } from '@thacio/auditaria-cli-core';
 import { Colors } from '../colors.js';
@@ -12,6 +12,7 @@ import {
   RadioButtonSelect,
   RadioSelectItem,
 } from './shared/RadioButtonSelect.js';
+import { useKeypress } from '../hooks/useKeypress.js';
 
 export enum FolderTrustChoice {
   TRUST_FOLDER = 'trust_folder',
@@ -26,11 +27,14 @@ interface FolderTrustDialogProps {
 export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
   onSelect,
 }) => {
-  useInput((_, key) => {
-    if (key.escape) {
-      onSelect(FolderTrustChoice.DO_NOT_TRUST);
-    }
-  });
+  useKeypress(
+    (key) => {
+      if (key.name === 'escape') {
+        onSelect(FolderTrustChoice.DO_NOT_TRUST);
+      }
+    },
+    { isActive: true },
+  );
 
   const options: Array<RadioSelectItem<FolderTrustChoice>> = [
     {

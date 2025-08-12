@@ -5,12 +5,13 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import { Box, Newline, Text, useInput } from 'ink';
+import { Box, Newline, Text } from 'ink';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
 import { usePrivacySettings } from '../hooks/usePrivacySettings.js';
 import { CloudPaidPrivacyNotice } from './CloudPaidPrivacyNotice.js';
 import { Config } from '@thacio/auditaria-cli-core';
 import { Colors } from '../colors.js';
+import { useKeypress } from '../hooks/useKeypress.js';
 
 interface CloudFreePrivacyNoticeProps {
   config: Config;
@@ -24,11 +25,14 @@ export const CloudFreePrivacyNotice = ({
   const { privacyState, updateDataCollectionOptIn } =
     usePrivacySettings(config);
 
-  useInput((input, key) => {
-    if (privacyState.error && key.escape) {
-      onExit();
-    }
-  });
+  useKeypress(
+    (key) => {
+      if (privacyState.error && key.name === 'escape') {
+        onExit();
+      }
+    },
+    { isActive: true },
+  );
 
   if (privacyState.isLoading) {
     return <Text color={Colors.Gray}>{t('privacy.loading', 'Loading...')}</Text>;

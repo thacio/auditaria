@@ -5,10 +5,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import { Colors } from '../colors.js';
 import { t } from '@thacio/auditaria-cli-core';
+import { useKeypress } from '../hooks/useKeypress.js';
 
 interface AuthInProgressProps {
   onTimeout: () => void;
@@ -19,11 +20,14 @@ export function AuthInProgress({
 }: AuthInProgressProps): React.JSX.Element {
   const [timedOut, setTimedOut] = useState(false);
 
-  useInput((input, key) => {
-    if (key.escape || (key.ctrl && (input === 'c' || input === 'C'))) {
-      onTimeout();
-    }
-  });
+  useKeypress(
+    (key) => {
+      if (key.name === 'escape' || (key.ctrl && key.name === 'c')) {
+        onTimeout();
+      }
+    },
+    { isActive: true },
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {

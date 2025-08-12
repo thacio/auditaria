@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DetectedIde, getIdeInfo } from '@thacio/auditaria-cli-core';
-import { Box, Text, useInput } from 'ink';
-import { t } from '@thacio/auditaria-cli-core';
+import { DetectedIde, getIdeInfo, t } from '@thacio/auditaria-cli-core';
+import { Box, Text } from 'ink';
 import {
   RadioButtonSelect,
   RadioSelectItem,
 } from './components/shared/RadioButtonSelect.js';
+import { useKeypress } from './hooks/useKeypress.js';
 
 export type IdeIntegrationNudgeResult = {
   userSelection: 'yes' | 'no' | 'dismiss';
@@ -26,14 +26,17 @@ export function IdeIntegrationNudge({
   ide,
   onComplete,
 }: IdeIntegrationNudgeProps) {
-  useInput((_input, key) => {
-    if (key.escape) {
-      onComplete({
-        userSelection: 'no',
-        isExtensionPreInstalled: false,
-      });
-    }
-  });
+  useKeypress(
+    (key) => {
+      if (key.name === 'escape') {
+        onComplete({
+          userSelection: 'no',
+          isExtensionPreInstalled: false,
+        });
+      }
+    },
+    { isActive: true },
+  );
 
   const { displayName: ideName } = getIdeInfo(ide);
   // Assume extension is already installed if the env variables are set.
