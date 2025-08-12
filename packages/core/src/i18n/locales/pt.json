@@ -1018,6 +1018,14 @@
     "initialization_error": "Erro de Inicialização: {error}",
     "check_api_config": "Por favor, verifique a chave de API e configuração."
   },
+  "cli": {
+    "errors": {
+      "prompt_interactive_conflict": "Não é possível usar --prompt (-p) e --prompt-interactive (-i) juntos",
+      "prompt_interactive_stdin": "Erro: A flag --prompt-interactive não é suportada ao receber entrada de stdin.",
+      "yolo_approval_conflict": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
+      "invalid_approval_mode": "Modo de aprovação inválido: {mode}. Valores válidos são: yolo, auto_edit, default"
+    }
+  },
   "dns": {
     "invalid_resolution_order": "Valor inválido para dnsResolutionOrder nas configurações: \"{order}\". Usando padrão \"{defaultValue}\"."
   },
