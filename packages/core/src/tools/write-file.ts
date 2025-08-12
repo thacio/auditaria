@@ -196,7 +196,6 @@ export class WriteFileTool
 
     const ideClient = this.config.getIdeClient();
     const ideConfirmation =
-      this.config.getIdeModeFeature() &&
       this.config.getIdeMode() &&
       ideClient.getConnectionStatus().status === IDEConnectionStatus.Connected
         ? ideClient.openDiff(params.file_path, correctedContent)

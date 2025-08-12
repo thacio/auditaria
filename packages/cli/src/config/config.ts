@@ -68,7 +68,6 @@ export interface CliArgs {
   experimentalAcp: boolean | undefined;
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
-  ideModeFeature: boolean | undefined;
   // WEB_INTERFACE_START: Web interface flag
   web: boolean | string | undefined;
   // WEB_INTERFACE_END
@@ -204,10 +203,6 @@ export async function parseArguments(): Promise<CliArgs> {
           type: 'boolean',
           description: 'List all available extensions and exit.',
         })
-        .option('ide-mode-feature', {
-          type: 'boolean',
-          description: 'Run in IDE mode?',
-        })
     // WEB_INTERFACE_START: Web interface command-line option
     .option('web', {
       alias: 'w',
@@ -331,8 +326,6 @@ export async function loadCliConfig(
   const memoryImportFormat = settings.memoryImportFormat || 'tree';
 
   const ideMode = settings.ideMode ?? false;
-  const ideModeFeature =
-    argv.ideModeFeature ?? settings.ideModeFeature ?? false;
 
   const folderTrustFeature = settings.folderTrustFeature ?? false;
   const folderTrustSetting = settings.folderTrust ?? false;
@@ -498,7 +491,6 @@ export async function loadCliConfig(
     noBrowser: !!process.env.NO_BROWSER,
     summarizeToolOutput: settings.summarizeToolOutput,
     ideMode,
-    ideModeFeature,
     chatCompression: settings.chatCompression,
     folderTrustFeature,
     folderTrust,

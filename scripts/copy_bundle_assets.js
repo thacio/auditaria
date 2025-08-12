@@ -50,14 +50,7 @@ for (const file of localeFiles) {
   copyFileSync(join(root, file), join(localesDir, fileName));
 }
 
-// Find and copy all .vsix files from packages to the root of the bundle directory
-const vsixFiles = glob.sync('packages/vscode-ide-companion/*.vsix', {
-  cwd: root,
-});
-for (const file of vsixFiles) {
-  copyFileSync(join(root, file), join(bundleDir, basename(file)));
-}
-
+// WEB_INTERFACE_START: Copy web client files
 // Copy web client files to bundle directory
 const webClientSrc = join(root, 'packages/web-client/src');
 const webClientDest = join(bundleDir, 'web-client');
@@ -87,5 +80,6 @@ if (existsSync(webClientSrc)) {
   
   console.log('Web client files copied to bundle/web-client/');
 }
+// WEB_INTERFACE_END
 
 console.log('Assets and locale files copied to bundle/');

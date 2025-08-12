@@ -165,7 +165,6 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     registerCleanup(() => config.getIdeClient().disconnect());
   }, [config]);
   const shouldShowIdePrompt =
-    config.getIdeModeFeature() &&
     currentIDE &&
     !config.getIdeMode() &&
     !settings.merged.hasSeenIdeIntegrationNudge &&
