@@ -5,36 +5,36 @@
  */
 
 import { BaseTool, ToolResult, Icon } from './tools.js';
-import { FunctionDeclaration, Type } from '@google/genai';
+import { FunctionDeclaration } from '@google/genai';
 
 const todoToolSchemaData: FunctionDeclaration = {
   name: 'TodoWrite',
   description: `Use this tool to create and manage a structured task list for your current coding session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
 It also helps the user understand the progress of the task and overall progress of their requests.`,
-  parameters: {
-    type: Type.OBJECT,
+  parametersJsonSchema: {
+    type: 'object',
     properties: {
       todos: {
-        type: Type.ARRAY,
+        type: 'array',
         description: 'The updated todo list',
         items: {
-          type: Type.OBJECT,
+          type: 'object',
           properties: {
             content: {
-              type: Type.STRING,
+              type: 'string',
               description: 'The task description',
             },
             id: {
-              type: Type.STRING,
+              type: 'string',
               description: 'Unique identifier for the task',
             },
             priority: {
-              type: Type.STRING,
+              type: 'string',
               description: 'Task priority level',
               enum: ['high', 'medium', 'low'],
             },
             status: {
-              type: Type.STRING,
+              type: 'string',
               description: 'Current task state',
               enum: ['pending', 'in_progress', 'completed'],
             },
@@ -128,7 +128,7 @@ export class TodoTool extends BaseTool<TodoWriteParams, ToolResult> {
       'TodoWrite',
       todoToolDescription,
       Icon.LightBulb,
-      todoToolSchemaData.parameters as Record<string, unknown>,
+      todoToolSchemaData.parametersJsonSchema as Record<string, unknown>,
     );
   }
 
