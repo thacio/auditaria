@@ -1133,5 +1133,8 @@
   },
   "general": {
     "operation_cancelled": "Operation cancelled."
+  },
+  "gemini_stream": {
+    "request_cancelled": "Request cancelled."
   }
 }

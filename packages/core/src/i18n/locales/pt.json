@@ -1103,5 +1103,8 @@
   },
   "general": {
     "operation_cancelled": "Operação cancelada."
+  },
+  "gemini_stream": {
+    "request_cancelled": "Requisição cancelada."
   }
 }

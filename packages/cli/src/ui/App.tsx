@@ -574,7 +574,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     initError,
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
-    triggerAbort,
+    cancelOngoingRequest,
   } = useGeminiStream(
     config.getGeminiClient(),
     history,
@@ -685,6 +685,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
         if (isAuthenticating) {
           return;
         }
+        if (!ctrlCPressedOnce) {
+          cancelOngoingRequest?.();
+        }
         handleExit(ctrlCPressedOnce, setCtrlCPressedOnce, ctrlCTimerRef);
       } else if (keyMatchers[Command.EXIT](key)) {
         if (buffer.text.length > 0) {
@@ -716,6 +719,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       ctrlDTimerRef,
       handleSlashCommand,
       isAuthenticating,
+      cancelOngoingRequest,
     ],
   );
 
@@ -754,10 +758,10 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   // Register abort handler with web interface service
   const webInterface = useWebInterface();
   useEffect(() => {
-    if (webInterface?.service && triggerAbort) {
-      webInterface.service.setAbortHandler(triggerAbort);
+    if (webInterface?.service && cancelOngoingRequest) {
+      webInterface.service.setAbortHandler(cancelOngoingRequest);
     }
-  }, [webInterface?.service, triggerAbort]);
+  }, [webInterface?.service, cancelOngoingRequest]);
   // WEB_INTERFACE_END
 
   // Register with web interface service once

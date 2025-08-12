@@ -233,26 +233,39 @@ export const useGeminiStream = (
     return StreamingState.Idle;
   }, [isResponding, toolCalls]);
 
+  const cancelOngoingRequest = useCallback(() => {
+    if (streamingState !== StreamingState.Responding) {
+      return;
+    }
+    if (turnCancelledRef.current) {
+      return;
+    }
+    turnCancelledRef.current = true;
+    abortControllerRef.current?.abort();
+    if (pendingHistoryItemRef.current) {
+      addItem(pendingHistoryItemRef.current, Date.now());
+    }
+    addItem(
+      {
+        type: MessageType.INFO,
+        text: t('gemini_stream.request_cancelled', 'Request cancelled.'),
+      },
+      Date.now(),
+    );
+    setPendingHistoryItem(null);
+    onCancelSubmit();
+    setIsResponding(false);
+  }, [
+    streamingState,
+    addItem,
+    setPendingHistoryItem,
+    onCancelSubmit,
+    pendingHistoryItemRef,
+  ]);
+
   useInput((_input, key) => {
-    if (streamingState === StreamingState.Responding && key.escape) {
-      if (turnCancelledRef.current) {
-        return;
-      }
-      turnCancelledRef.current = true;
-      abortControllerRef.current?.abort();
-      if (pendingHistoryItemRef.current) {
-        addItem(pendingHistoryItemRef.current, Date.now());
-      }
-      addItem(
-        {
-          type: MessageType.INFO,
-          text: 'Request cancelled.',
-        },
-        Date.now(),
-      );
-      setPendingHistoryItem(null);
-      onCancelSubmit();
-      setIsResponding(false);
+    if (key.escape) {
+      cancelOngoingRequest();
     }
   });
 
@@ -992,35 +1005,14 @@ export const useGeminiStream = (
     saveRestorableToolCalls();
   }, [toolCalls, config, onDebugMessage, gitService, history, geminiClient]);
 
-  // WEB_INTERFACE_START
-  const triggerAbort = useCallback(() => {
-    if (streamingState === StreamingState.Responding && !turnCancelledRef.current) {
-      turnCancelledRef.current = true;
-      abortControllerRef.current?.abort();
-      if (pendingHistoryItemRef.current) {
-        addItem(pendingHistoryItemRef.current, Date.now());
-      }
-      addItem(
-        {
-          type: MessageType.INFO,
-          text: t('gemini_stream.request_cancelled', 'Request cancelled.'),
-        },
-        Date.now(),
-      );
-      setPendingHistoryItem(null);
-      setIsResponding(false);
-    }
-  }, [streamingState, pendingHistoryItemRef, addItem, setPendingHistoryItem]);
-  // WEB_INTERFACE_END
-
   return {
     streamingState,
     submitQuery,
     initError,
     pendingHistoryItems,
     thought,
-    // WEB_INTERFACE_START: Export triggerAbort for web interface ESC key support
-    triggerAbort,
+    // WEB_INTERFACE_START: Export cancelOngoingRequest for web interface ESC key support
+    cancelOngoingRequest,
     // WEB_INTERFACE_END
   };
 };
