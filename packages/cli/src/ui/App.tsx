@@ -881,6 +881,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       } else if (isLanguageDialogOpen) {
         reason = 'language_selection';
         message = t('web.cli_action.language_selection', 'Language selection is open. Please choose a language in the CLI terminal.');
+      } else if (isSettingsDialogOpen) {
+        reason = 'settings';
+        message = t('web.cli_action.settings', 'Settings dialog is open. Please configure your settings in the CLI terminal.');
       } else if (showPrivacyNotice) {
         reason = 'privacy_notice';
         message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review it in the CLI terminal.');
@@ -902,6 +905,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     isThemeDialogOpen,
     isEditorDialogOpen,
     isLanguageDialogOpen,
+    isSettingsDialogOpen,
     showPrivacyNotice,
     webInterface?.isRunning
   ]); // Monitor all interactive screen states
