@@ -666,6 +666,25 @@
       "restart_required": "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.",
       "also_modified_in": "(Also modified in {scope})",
       "modified_in": "(Modified in {scope})"
+    },
+    "labels": {
+      "show_memory_usage": "Show Memory Usage",
+      "enable_usage_statistics": "Enable Usage Statistics",
+      "auto_configure_max_old_space_size": "Auto Configure Max Old Space Size",
+      "hide_window_title": "Hide Window Title",
+      "hide_tips": "Hide Tips",
+      "hide_banner": "Hide Banner",
+      "vim_mode": "Vim Mode",
+      "ide_mode": "IDE Mode",
+      "disable_loading_phrases": "Disable Loading Phrases",
+      "respect_gitignore": "Respect .gitignore",
+      "respect_geminiignore": "Respect .geminiignore",
+      "enable_recursive_file_search": "Enable Recursive File Search",
+      "disable_auto_update": "Disable Auto Update",
+      "load_memory_from_include_directories": "Load Memory From Include Directories",
+      "folder_trust_feature": "Folder Trust Feature",
+      "folder_trust": "Folder Trust",
+      "show_line_numbers": "Show Line Numbers"
     }
   },
   "editor_dialog": {

@@ -666,6 +666,25 @@
       "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora.",
       "also_modified_in": "(Também modificado em {scope})",
       "modified_in": "(Modificado em {scope})"
+    },
+    "labels": {
+      "show_memory_usage": "Mostrar Uso de Memória",
+      "enable_usage_statistics": "Habilitar Estatísticas de Uso",
+      "auto_configure_max_old_space_size": "Configurar Automaticamente Tamanho Máximo de Memória",
+      "hide_window_title": "Ocultar Título da Janela",
+      "hide_tips": "Ocultar Dicas",
+      "hide_banner": "Ocultar Banner",
+      "vim_mode": "Modo Vim",
+      "ide_mode": "Modo IDE",
+      "disable_loading_phrases": "Desabilitar Frases de Carregamento",
+      "respect_gitignore": "Respeitar .gitignore",
+      "respect_geminiignore": "Respeitar .geminiignore",
+      "enable_recursive_file_search": "Habilitar Busca Recursiva de Arquivos",
+      "disable_auto_update": "Desabilitar Atualização Automática",
+      "load_memory_from_include_directories": "Carregar Memória de Diretórios Incluídos",
+      "folder_trust_feature": "Recurso de Confiança de Pasta",
+      "folder_trust": "Confiança de Pasta",
+      "show_line_numbers": "Mostrar Números de Linha"
     }
   },
   "editor_dialog": {

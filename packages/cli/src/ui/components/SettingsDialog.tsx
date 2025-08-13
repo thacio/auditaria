@@ -124,9 +124,15 @@ export function SettingsDialog({
     return settingKeys.map((key: string) => {
       const currentValue = getSettingValue(key, pendingSettings, {});
       const definition = getSettingDefinition(key);
+      
+      // Convert key to snake_case for i18n lookup
+      // Handle nested keys like 'accessibility.disableLoadingPhrases'
+      const lastPart = key.split('.').pop() || key;
+      const i18nKey = lastPart.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+      const label = t(`settings_dialog.labels.${i18nKey}`, definition?.label || key);
 
       return {
-        label: definition?.label || key,
+        label: label,
         value: key,
         checked: currentValue,
         toggle: () => {
