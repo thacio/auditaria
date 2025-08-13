@@ -17,7 +17,7 @@ import {
   KittySequenceOverflowEvent,
   logKittySequenceOverflow,
   Config,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { FOCUS_IN, FOCUS_OUT } from './useFocus.js';
 
 const ESC = '\u001B';

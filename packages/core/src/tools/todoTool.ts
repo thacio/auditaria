@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BaseTool, ToolResult, Icon } from './tools.js';
+import { BaseTool, ToolResult, Kind } from './tools.js';
 import { FunctionDeclaration } from '@google/genai';
 
 const todoToolSchemaData: FunctionDeclaration = {
@@ -127,7 +127,7 @@ export class TodoTool extends BaseTool<TodoWriteParams, ToolResult> {
       TodoTool.Name,
       'TodoWrite',
       todoToolDescription,
-      Icon.LightBulb,
+      Kind.Other,
       todoToolSchemaData.parametersJsonSchema as Record<string, unknown>,
     );
   }
