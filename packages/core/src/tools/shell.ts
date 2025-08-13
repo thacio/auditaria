@@ -16,7 +16,7 @@ import {
   ToolCallConfirmationDetails,
   ToolExecuteConfirmationDetails,
   ToolConfirmationOutcome,
-  Icon,
+  Kind,
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { SchemaValidator } from '../utils/schemaValidator.js';
@@ -62,7 +62,7 @@ export class ShellTool extends BaseTool<ShellToolParams, ToolResult> {
       Signal: Signal number or \`(none)\` if no signal was received.
       Background PIDs: List of background processes started or \`(none)\`.
       Process Group PGID: Process group started or \`(none)\``,
-      Icon.Terminal,
+      Kind.Execute,
       {
         type: 'object',
         properties: {

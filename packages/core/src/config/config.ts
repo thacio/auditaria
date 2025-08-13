@@ -187,7 +187,7 @@ export interface ConfigParameters {
   extensionContextFilePaths?: string[];
   useImprovedFallbackStrategy?: boolean;
   maxSessionTurns?: number;
-  experimentalAcp?: boolean;
+  experimentalZedIntegration?: boolean;
   listExtensions?: boolean;
   extensions?: GeminiCLIExtension[];
   blockedMcpServers?: Array<{ name: string; extensionName: string }>;
@@ -261,7 +261,7 @@ export class Config {
   private readonly summarizeToolOutput:
     | Record<string, SummarizeToolOutputSettings>
     | undefined;
-  private readonly experimentalAcp: boolean = false;
+  private readonly experimentalZedIntegration: boolean = false;
   private readonly loadMemoryFromIncludeDirectories: boolean = false;
   private readonly chatCompression: ChatCompressionSettings | undefined;
   private readonly interactive: boolean;
@@ -315,7 +315,8 @@ export class Config {
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
     this.useImprovedFallbackStrategy = params.useImprovedFallbackStrategy ?? true;
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
-    this.experimentalAcp = params.experimentalAcp ?? false;
+    this.experimentalZedIntegration =
+      params.experimentalZedIntegration ?? false;
     this.listExtensions = params.listExtensions ?? false;
     this._extensions = params.extensions ?? [];
     this._blockedMcpServers = params.blockedMcpServers ?? [];
@@ -656,8 +657,8 @@ export class Config {
     this.disableFallbackForSession = disabled;
   }
 
-  getExperimentalAcp(): boolean {
-    return this.experimentalAcp;
+  getExperimentalZedIntegration(): boolean {
+    return this.experimentalZedIntegration;
   }
 
   getListExtensions(): boolean {

@@ -328,6 +328,7 @@ export async function loadCliConfig(
   extensions: Extension[],
   sessionId: string,
   argv: CliArgs,
+  cwd: string = process.cwd(),
 ): Promise<Config> {
   const debugMode =
     argv.debug ||
@@ -367,7 +368,7 @@ export async function loadCliConfig(
     (e) => e.contextFiles,
   );
 
-  const fileService = new FileDiscoveryService(process.cwd());
+  const fileService = new FileDiscoveryService(cwd);
 
   const fileFiltering = {
     ...DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
@@ -380,7 +381,7 @@ export async function loadCliConfig(
 
   // Call the (now wrapper) loadHierarchicalGeminiMemory which calls the server's version
   const { memoryContent, fileCount } = await loadHierarchicalGeminiMemory(
-    process.cwd(),
+    cwd,
     settings.loadMemoryFromIncludeDirectories ? includeDirectories : [],
     debugMode,
     fileService,
@@ -422,7 +423,7 @@ export async function loadCliConfig(
     !!argv.promptInteractive || (process.stdin.isTTY && question.length === 0);
   // In non-interactive mode, exclude tools that require a prompt.
   const extraExcludes: string[] = [];
-  if (!interactive) {
+  if (!interactive && !argv.experimentalAcp) {
     switch (approvalMode) {
       case ApprovalMode.DEFAULT:
         // In default non-interactive mode, all tools that require approval are excluded.
@@ -481,7 +482,7 @@ export async function loadCliConfig(
     sessionId,
     embeddingModel: DEFAULT_GEMINI_EMBEDDING_MODEL,
     sandbox: sandboxConfig,
-    targetDir: process.cwd(),
+    targetDir: cwd,
     includeDirectories,
     loadMemoryFromIncludeDirectories:
       settings.loadMemoryFromIncludeDirectories || false,
@@ -529,13 +530,13 @@ export async function loadCliConfig(
       process.env.https_proxy ||
       process.env.HTTP_PROXY ||
       process.env.http_proxy,
-    cwd: process.cwd(),
+    cwd,
     fileDiscoveryService: fileService,
     bugCommand: settings.bugCommand,
     model: argv.model || settings.model || DEFAULT_GEMINI_MODEL,
     extensionContextFilePaths,
     maxSessionTurns: settings.maxSessionTurns ?? -1,
-    experimentalAcp: argv.experimentalAcp || false,
+    experimentalZedIntegration: argv.experimentalAcp || false,
     listExtensions: argv.listExtensions || false,
     extensions: allExtensions,
     blockedMcpServers,

@@ -109,7 +109,7 @@ async function relaunchWithAdditionalArgs(additionalArgs: string[]) {
   await new Promise((resolve) => child.on('close', resolve));
   process.exit(0);
 }
-import { runAcpPeer } from './acp/acpPeer.js';
+import { runZedIntegration } from './zed-integration/zedIntegration.js';
 
 function detectLanguage(): SupportedLanguage {
   // For testing, check if Portuguese is explicitly set
@@ -276,8 +276,8 @@ export async function main() {
     await getOauthClient(settings.merged.selectedAuthType, config);
   }
 
-  if (config.getExperimentalAcp()) {
-    return runAcpPeer(config, settings);
+  if (config.getExperimentalZedIntegration()) {
+    return runZedIntegration(config, settings, extensions, argv);
   }
 
   let input = config.getQuestion();
