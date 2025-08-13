@@ -212,7 +212,13 @@
     "bug": {
       "description": "submit a bug report",
       "submit_message": "To submit your bug report, please open the following URL in your browser:\n{url}",
-      "browser_error": "Could not open URL in browser: {error}"
+      "browser_error": "Could not open URL in browser: {error}",
+      "no_sandbox": "no sandbox",
+      "unknown_profile": "unknown",
+      "unknown_model": "Unknown"
+    },
+    "corgi": {
+      "description": "Toggle corgi mode."
     },
     "chat": {
       "description": "Manage conversation history. Usage: /chat <list|save|resume|delete> <tag>",
@@ -650,9 +656,16 @@
   "settings_dialog": {
     "title": "Settings",
     "apply_to": "Apply To",
+    "scope_options": {
+      "user_settings": "User Settings",
+      "workspace_settings": "Workspace Settings",
+      "system_settings": "System Settings"
+    },
     "messages": {
       "use_enter_tab": "(Use Enter to select, Tab to change focus)",
-      "restart_required": "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now."
+      "restart_required": "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.",
+      "also_modified_in": "(Also modified in {scope})",
+      "modified_in": "(Modified in {scope})"
     }
   },
   "editor_dialog": {
@@ -779,7 +792,8 @@
       "interaction_summary": "Interaction Summary",
       "performance": "Performance",
       "model_usage": "Model Usage",
-      "user_decision_summary": "User Decision Summary"
+      "user_decision_summary": "User Decision Summary",
+      "api": "API"
     },
     "labels": {
       "tool_calls": "Tool Calls:",

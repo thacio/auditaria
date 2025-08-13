@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '@thacio/auditaria-cli-core';
 import { SettingScope, LoadedSettings } from '../config/settings.js';
 import { settingExistsInScope } from './settingsUtils.js';
 
@@ -11,9 +12,9 @@ import { settingExistsInScope } from './settingsUtils.js';
  * Shared scope labels for dialog components that need to display setting scopes
  */
 export const SCOPE_LABELS = {
-  [SettingScope.User]: 'User Settings',
-  [SettingScope.Workspace]: 'Workspace Settings',
-  [SettingScope.System]: 'System Settings',
+  [SettingScope.User]: t('settings_dialog.scope_options.user_settings', 'User Settings'),
+  [SettingScope.Workspace]: t('settings_dialog.scope_options.workspace_settings', 'Workspace Settings'),
+  [SettingScope.System]: t('settings_dialog.scope_options.system_settings', 'System Settings'),
 } as const;
 
 /**
@@ -59,6 +60,6 @@ export function getScopeMessageForSetting(
   );
 
   return existsInCurrentScope
-    ? `(Also modified in ${modifiedScopesStr})`
-    : `(Modified in ${modifiedScopesStr})`;
+    ? t('settings_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: modifiedScopesStr })
+    : t('settings_dialog.messages.modified_in', '(Modified in {scope})', { scope: modifiedScopesStr });
 }

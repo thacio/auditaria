@@ -56,6 +56,9 @@
     "privacy": {
       "description": "exibir o aviso de privacidade"
     },
+    "settings": {
+      "description": "Visualizar e editar configurações do Gemini CLI"
+    },
     "stats": {
       "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
       "alt_name": "uso",
@@ -653,9 +656,16 @@
   "settings_dialog": {
     "title": "Configurações",
     "apply_to": "Aplicar Para",
+    "scope_options": {
+      "user_settings": "Configurações do Usuário",
+      "workspace_settings": "Configurações do Espaço de Trabalho",
+      "system_settings": "Configurações do Sistema"
+    },
     "messages": {
       "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco)",
-      "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora."
+      "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora.",
+      "also_modified_in": "(Também modificado em {scope})",
+      "modified_in": "(Modificado em {scope})"
     }
   },
   "editor_dialog": {
@@ -856,6 +866,35 @@
     "failed_with_details": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: {command}, stderr: {stderr})",
     "failed_with_error": "Atualização automática falhou. Por favor, tente atualizar manualmente. (erro: {error})"
   },
+  "shell": {
+    "binary_output_detected": "[Saída binária detectada. Interrompendo stream...]",
+    "receiving_binary_output": "[Recebendo saída binária... {size} recebido]",
+    "binary_output_not_shown": "[Comando produziu saída binária, que não é mostrada.]",
+    "no_output": "(Comando não produziu saída)",
+    "command_cancelled": "Comando foi cancelado.",
+    "command_terminated_signal": "Comando terminado por sinal: {signal}.",
+    "command_exit_code": "Comando saiu com código {code}.",
+    "directory_change_warning": "AVISO: modo shell é sem estado; a mudança de diretório para '{directory}' não persistirá.",
+    "unexpected_error": "Ocorreu um erro inesperado: {error}"
+  },
+  "at_command": {
+    "tool_not_found": "Erro: ferramenta read_many_files não encontrada.",
+    "invalid_command": "Erro: Comando @ inválido '{command}'. Nenhum caminho especificado.",
+    "successfully_read": "Lido com sucesso: {files}",
+    "content_header": "\n--- Conteúdo dos arquivos referenciados ---",
+    "content_from_file": "\nConteúdo de @{file}:\n",
+    "content_footer": "\n--- Fim do conteúdo ---",
+    "error_reading_files": "Erro ao ler arquivos ({files}): {error}"
+  },
+  "theme": {
+    "no_color_env": "Configuração de tema indisponível devido à variável de ambiente NO_COLOR.",
+    "not_found": "Tema \"{theme}\" não encontrado."
+  },
+  "editor": {
+    "preference_set": "Preferência do editor definida para \"{editor}\" nas configurações de {scope}.",
+    "preference_cleared": "Preferência do editor removida nas configurações de {scope}.",
+    "failed_to_set": "Falha ao definir preferência do editor: {error}"
+  },
   "privacy": {
     "oauth_not_used": "OAuth não está sendo usado",
     "no_current_tier": "Usuário não possui um nível atual",
@@ -880,7 +919,6 @@
   },
   "tools": {
     "edit": {
-      "file_path_must_be_absolute": "Caminho do arquivo deve ser absoluto: {path}",
       "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
       "file_not_found_raw": "Arquivo não encontrado: {path}",
       "failed_create_exists": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
