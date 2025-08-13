@@ -18,6 +18,7 @@ import { useShellHistory } from '../hooks/useShellHistory.js';
 import { useReverseSearchCompletion } from '../hooks/useReverseSearchCompletion.js';
 import { useCommandCompletion } from '../hooks/useCommandCompletion.js';
 import { useKeypress, Key } from '../hooks/useKeypress.js';
+import { useKittyKeyboardProtocol } from '../hooks/useKittyKeyboardProtocol.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import { CommandContext, SlashCommand } from '../commands/types.js';
 import { Config } from '@thacio/auditaria-cli-core';
@@ -67,6 +68,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   const [escPressCount, setEscPressCount] = useState(0);
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const escapeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const kittyProtocolStatus = useKittyKeyboardProtocol();
 
   const [dirs, setDirs] = useState<readonly string[]>(
     config.getWorkspaceContext().getDirectories(),
@@ -526,7 +528,11 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     ],
   );
 
-  useKeypress(handleInput, { isActive: true });
+  useKeypress(handleInput, {
+    isActive: true,
+    kittyProtocolEnabled: kittyProtocolStatus.enabled,
+    config,
+  });
 
   const linesToRender = buffer.viewportVisualLines;
   const [cursorVisualRowAbsolute, cursorVisualColAbsolute] =

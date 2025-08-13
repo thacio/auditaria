@@ -386,6 +386,21 @@
     },
     "file_command": {
       "default_description": "Custom command from {filename}"
+    },
+    "terminal_setup": {
+      "description": "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)",
+      "restart_required": "Please restart your terminal for the changes to take effect.",
+      "failed_configure": "Failed to configure terminal: {error}",
+      "existing_keybindings": "Existing keybindings detected. Will not modify to avoid conflicts.",
+      "shift_enter_exists": "- Shift+Enter binding already exists",
+      "ctrl_enter_exists": "- Ctrl+Enter binding already exists",
+      "check_manually": "Please check and modify manually if needed: {file}",
+      "added_keybindings": "Added Shift+Enter and Ctrl+Enter keybindings to {terminal}.\nModified: {file}",
+      "already_configured": "{terminal} keybindings already configured.",
+      "failed_terminal": "Failed to configure {terminal}.\nFile: {file}\nError: {error}",
+      "optimal_configured": "Your terminal is already configured for an optimal experience with multiline input (Shift+Enter and Ctrl+Enter).",
+      "not_detected": "Could not detect terminal type. Supported terminals: VS Code, Cursor, and Windsurf.",
+      "not_supported": "Terminal \"{terminal}\" is not supported yet."
     }
   },
   "help": {

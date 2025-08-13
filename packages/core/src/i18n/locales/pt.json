@@ -386,6 +386,21 @@
     },
     "file_command": {
       "default_description": "Comando personalizado de {filename}"
+    },
+    "terminal_setup": {
+      "description": "Configurar atalhos de teclado do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
+      "restart_required": "Por favor, reinicie seu terminal para que as alterações tenham efeito.",
+      "failed_configure": "Falha ao configurar terminal: {error}",
+      "existing_keybindings": "Atalhos de teclado existentes detectados. Não será modificado para evitar conflitos.",
+      "shift_enter_exists": "- Atalho Shift+Enter já existe",
+      "ctrl_enter_exists": "- Atalho Ctrl+Enter já existe",
+      "check_manually": "Por favor, verifique e modifique manualmente se necessário: {file}",
+      "added_keybindings": "Adicionados atalhos Shift+Enter e Ctrl+Enter ao {terminal}.\nModificado: {file}",
+      "already_configured": "Atalhos de teclado do {terminal} já configurados.",
+      "failed_terminal": "Falha ao configurar {terminal}.\nArquivo: {file}\nErro: {error}",
+      "optimal_configured": "Seu terminal já está configurado para uma experiência ideal com entrada multilinha (Shift+Enter e Ctrl+Enter).",
+      "not_detected": "Não foi possível detectar o tipo de terminal. Terminais suportados: VS Code, Cursor e Windsurf.",
+      "not_supported": "Terminal \"{terminal}\" ainda não é suportado."
     }
   },
   "help": {
