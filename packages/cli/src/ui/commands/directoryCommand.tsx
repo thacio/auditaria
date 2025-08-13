@@ -27,12 +27,16 @@ export function expandHomeDir(p: string): string {
 export const directoryCommand: SlashCommand = {
   name: 'directory',
   altNames: ['dir'],
-  description: t('commands.directory.description', 'Manage workspace directories'),
+  get description() {
+    return t('commands.directory.description', 'Manage workspace directories');
+  },
   kind: CommandKind.BUILT_IN,
   subCommands: [
     {
       name: 'add',
-      description: t('commands.directory.add.description', 'Add directories to the workspace. Use comma to separate multiple paths'),
+      get description() {
+        return t('commands.directory.add.description', 'Add directories to the workspace. Use comma to separate multiple paths');
+      },
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext, args: string) => {
         const {
@@ -148,7 +152,9 @@ export const directoryCommand: SlashCommand = {
     },
     {
       name: 'show',
-      description: t('commands.directory.show.description', 'Show all directories in the workspace'),
+      get description() {
+        return t('commands.directory.show.description', 'Show all directories in the workspace');
+      },
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext) => {
         const {

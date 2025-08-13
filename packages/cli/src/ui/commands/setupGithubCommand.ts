@@ -47,7 +47,9 @@ function getOpenUrlsCommands(readmeUrl: string): string[] {
 
 export const setupGithubCommand: SlashCommand = {
   name: 'setup-github',
-  description: t('commands.setup_github.description', 'Set up GitHub Actions'),
+  get description() {
+    return t('commands.setup_github.description', 'Set up GitHub Actions');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,

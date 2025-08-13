@@ -163,6 +163,7 @@
         "requires_auth_config": "MCP server '{serverName}' requires authentication. Please configure OAuth or check server settings."
       },
       "auth": {
+        "description": "Authenticate with an OAuth-enabled MCP server",
         "config_not_loaded": "Config not loaded.",
         "no_oauth_servers": "No MCP servers configured with OAuth authentication.",
         "oauth_servers_list": "MCP servers with OAuth authentication:\n{servers}\n\nUse /mcp auth <server-name> to authenticate.",
@@ -225,6 +226,7 @@
       "no_client": "No chat client available for conversation status.",
       "missing_command": "Missing command\nUsage: /chat <list|save|resume|delete> <tag>",
       "save": {
+        "description": "Save the current conversation as a checkpoint. Usage: /chat save <tag>",
         "missing_tag": "Missing tag. Usage: /chat save <tag>",
         "saved": "Conversation checkpoint saved with tag: {tag}.",
         "no_conversation": "No conversation found to save.",
@@ -233,10 +235,12 @@
         "overwrite_confirmation_suffix": " already exists. Do you want to overwrite it?"
       },
       "resume": {
+        "description": "Resume a conversation from a checkpoint. Usage: /chat resume <tag>",
         "missing_tag": "Missing tag. Usage: /chat resume <tag>",
         "not_found": "No saved checkpoint found with tag: {tag}."
       },
       "list": {
+        "description": "List saved conversation checkpoints",
         "saved_conversations": "list of saved conversations: {tags}",
         "no_checkpoints": "No saved conversation checkpoints found.",
         "header": "List of saved conversations:\n\n",

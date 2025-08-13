@@ -9,7 +9,9 @@ import { t } from '@thacio/auditaria-cli-core';
 
 export const vimCommand: SlashCommand = {
   name: 'vim',
-  description: t('commands.vim.description', 'toggle vim mode on/off', {}),
+  get description() {
+    return t('commands.vim.description', 'toggle vim mode on/off');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const newVimState = await context.ui.toggleVimEnabled();

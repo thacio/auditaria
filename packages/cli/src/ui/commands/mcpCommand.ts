@@ -319,7 +319,9 @@ const getMcpStatus = async (
 
 const authCommand: SlashCommand = {
   name: 'auth',
-  description: 'Authenticate with an OAuth-enabled MCP server',
+  get description() {
+    return t('commands.mcp.auth.description', 'Authenticate with an OAuth-enabled MCP server');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,
@@ -475,7 +477,9 @@ const listCommand: SlashCommand = {
 
 const refreshCommand: SlashCommand = {
   name: 'refresh',
-  description: t('commands.mcp.refresh.description', 'Refresh the list of MCP servers and tools'),
+  get description() {
+    return t('commands.mcp.refresh.description', 'Refresh the list of MCP servers and tools');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,
@@ -520,8 +524,9 @@ const refreshCommand: SlashCommand = {
 
 export const mcpCommand: SlashCommand = {
   name: 'mcp',
-  description:
-    'list configured MCP servers and tools, or authenticate with OAuth-enabled servers',
+  get description() {
+    return t('commands.mcp.description', 'list configured MCP servers and tools');
+  },
   kind: CommandKind.BUILT_IN,
   subCommands: [listCommand, authCommand, refreshCommand],
   // Default action when no subcommand is provided

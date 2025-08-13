@@ -16,7 +16,9 @@ import {
 
 export const initCommand: SlashCommand = {
   name: 'init',
-  description: t('commands.init.description', 'Analyzes the project and creates a tailored GEMINI.md file.'),
+  get description() {
+    return t('commands.init.description', 'Analyzes the project and creates a tailored GEMINI.md file.');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,

@@ -63,7 +63,9 @@ const getSavedChatTags = async (
 
 const listCommand: SlashCommand = {
   name: 'list',
-  description: 'List saved conversation checkpoints',
+  get description() {
+    return t('commands.chat.list.description', 'List saved conversation checkpoints');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context): Promise<MessageActionReturn> => {
     const chatDetails = await getSavedChatTags(context, false);
@@ -98,8 +100,9 @@ const listCommand: SlashCommand = {
 
 const saveCommand: SlashCommand = {
   name: 'save',
-  description:
-    'Save the current conversation as a checkpoint. Usage: /chat save <tag>',
+  get description() {
+    return t('commands.chat.save.description', 'Save the current conversation as a checkpoint. Usage: /chat save <tag>');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context, args): Promise<SlashCommandActionReturn | void> => {
     const tag = args.trim();
@@ -163,8 +166,9 @@ const saveCommand: SlashCommand = {
 const resumeCommand: SlashCommand = {
   name: 'resume',
   altNames: ['load'],
-  description:
-    'Resume a conversation from a checkpoint. Usage: /chat resume <tag>',
+  get description() {
+    return t('commands.chat.resume.description', 'Resume a conversation from a checkpoint. Usage: /chat resume <tag>');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context, args) => {
     const tag = args.trim();
