@@ -48,7 +48,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (openFileCount === 0) {
       return '';
     }
-    return t('ide_context.open_files_count', '{count} open file{plural} (ctrl+e to view)', {
+    return t('ide_context.open_files_count', '{count} open file{plural} (ctrl+g to view)', {
       count: openFileCount,
       plural: openFileCount > 1 ? 's' : ''
     });

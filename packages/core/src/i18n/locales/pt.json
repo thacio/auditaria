@@ -1147,10 +1147,10 @@
     "tag_sanitized_empty": "Tag sanitizada está vazia definindo como \"default\"."
   },
   "ide_context": {
-    "title": "Contexto (ctrl+e para alternar)",
+    "title": "Contexto (ctrl+g para alternar)",
     "open_files": "Arquivos abertos:",
     "active_file": " (ativo)",
-    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+e para ver)",
+    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+g para ver)",
     "file_list_note": "\n(Nota: A lista de arquivos é limitada a um número de arquivos acessados recentemente em seu workspace e inclui apenas arquivos locais no disco)"
   },
   "ide_integration_nudge": {

@@ -1147,10 +1147,10 @@
     "tag_sanitized_empty": "Sanitized tag is empty setting to \"default\"."
   },
   "ide_context": {
-    "title": "Context (ctrl+e to toggle)",
+    "title": "Context (ctrl+g to toggle)",
     "open_files": "Open files:",
     "active_file": " (active)",
-    "open_files_count": "{count} open file{plural} (ctrl+e to view)",
+    "open_files_count": "{count} open file{plural} (ctrl+g to view)",
     "file_list_note": "\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)"
   },
   "ide_integration_nudge": {
