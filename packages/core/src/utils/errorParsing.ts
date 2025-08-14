@@ -3,18 +3,20 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '../i18n/index.js';
 
 import {
-  AuthType,
-  UserTierId,
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_MODEL,
   isProQuotaExceededError,
   isGenericQuotaExceededError,
   isApiError,
   isStructuredError,
-} from '@thacio/auditaria-cli-core';
+} from './quotaErrorDetection.js';
+import {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FLASH_MODEL,
+} from '../config/models.js';
+import { UserTierId } from '../code_assist/types.js';
+import { AuthType } from '../core/contentGenerator.js';
 
 // Free Tier message functions
 const getRateLimitErrorMessageGoogleFree = (

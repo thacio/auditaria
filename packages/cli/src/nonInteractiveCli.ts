@@ -12,11 +12,11 @@ import {
   isTelemetrySdkInitialized,
   GeminiEventType,
   ToolErrorType,
+  parseAndFormatApiError,
   t,
 } from '@thacio/auditaria-cli-core';
 import { Content, Part, FunctionCall } from '@google/genai';
 
-import { parseAndFormatApiError } from './ui/utils/errorParsing.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 
 export async function runNonInteractive(
