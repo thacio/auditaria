@@ -1191,5 +1191,9 @@
   },
   "gemini_stream": {
     "request_cancelled": "Request cancelled."
+  },
+  "trusted_folders": {
+    "error_saving": "Error saving trusted folders file: {error}",
+    "error_loading": "Error loading trusted folders config from {path}: {message}"
   }
 }
