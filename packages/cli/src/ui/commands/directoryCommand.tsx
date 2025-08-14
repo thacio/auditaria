@@ -141,13 +141,11 @@ export const directoryCommand: SlashCommand = {
 
         if (errors.length > 0) {
           addItem(
-            {
-              type: MessageType.ERROR,
-              text: errors.join('\n'),
-            },
+            { type: MessageType.ERROR, text: errors.join('\n') },
             Date.now(),
           );
         }
+        return;
       },
     },
     {
