@@ -1,6 +1,6 @@
 # Auditaria CLI Companion
 
-The Auditaria CLI Companion extension seamlessly integrates [Auditaria CLI](https://github.com/thacio/auditaria.git) into your IDE.
+The Auditaria CLI Companion extension pairs with [Auditaria CLI](https://github.com/thacio/auditaria.git). This extension is compatible with both VS Code and VS Code forks.
 
 # Features
 
