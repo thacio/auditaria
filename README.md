@@ -498,15 +498,6 @@ auditaria
 > Give me a summary of all of the changes that went in yesterday
 ```
 
-## 🔗 GitHub Integration
-
-Integrate Auditaria CLI directly into your GitHub workflows with the [**Gemini CLI GitHub Action**](https://github.com/google-github-actions/run-gemini-cli):
-
-- **Pull Request Reviews**: Automatically review pull requests when they're opened
-- **Issue Triage**: Automatically triage and label GitHub issues
-- **On-demand Collaboration**: Mention `@gemini-cli` in issues and pull requests for assistance
-- **Custom Workflows**: Set up your own scheduled tasks and event-driven automations
-
 ## 📚 Documentation
 
 ### Getting Started
