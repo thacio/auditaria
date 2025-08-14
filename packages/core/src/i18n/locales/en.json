@@ -467,7 +467,8 @@
     "no_sandbox": "no sandbox",
     "see_docs": "(see /docs)",
     "context_left": "({percentage}% context left)",
-    "debug_mode": "--debug"
+    "debug_mode": "--debug",
+    "untrusted": "untrusted"
   },
   "input": {
     "placeholder": "  Type your message or @path/to/file",

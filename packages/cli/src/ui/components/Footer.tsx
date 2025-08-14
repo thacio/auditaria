@@ -36,6 +36,7 @@ interface FooterProps {
   promptTokenCount: number;
   nightly: boolean;
   vimMode?: string;
+  isTrustedFolder?: boolean;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -51,6 +52,7 @@ export const Footer: React.FC<FooterProps> = ({
   promptTokenCount,
   nightly,
   vimMode,
+  isTrustedFolder,
 }) => {
   const { columns: terminalWidth } = useTerminalSize();
   const isNarrow = isNarrowWidth(terminalWidth);
@@ -144,7 +146,7 @@ export const Footer: React.FC<FooterProps> = ({
         )}
       </Box>
 
-      {/* Middle Section: Centered Sandbox Info */}
+      {/* Middle Section: Centered Trust/Sandbox Info */}
       <Box
         flexGrow={isNarrow ? 0 : 1}
         alignItems="center"
@@ -153,7 +155,9 @@ export const Footer: React.FC<FooterProps> = ({
         paddingX={isNarrow ? 0 : 1}
         paddingTop={isNarrow ? 1 : 0}
       >
-        {process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec' ? (
+        {isTrustedFolder === false ? (
+          <Text color={theme.status.warning}>{t('footer.untrusted', 'untrusted')}</Text>
+        ) : process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec' ? (
           <Text color="green">
             {process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '')}
           </Text>

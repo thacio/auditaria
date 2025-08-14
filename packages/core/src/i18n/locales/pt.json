@@ -467,7 +467,8 @@
     "no_sandbox": "sem sandbox",
     "see_docs": "(ver /docs)",
     "context_left": "({percentage}% contexto restante)",
-    "debug_mode": "--debug"
+    "debug_mode": "--debug",
+    "untrusted": "não confiável"
   },
   "input": {
     "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo",
