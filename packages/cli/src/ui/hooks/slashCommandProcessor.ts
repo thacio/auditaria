@@ -71,6 +71,11 @@ export const useSlashCommandProcessor = (
   const { handleWebStart, handleWebStop, handleWebStatus } = useWebCommands();
   // WEB_INTERFACE_END
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const reloadCommands = useCallback(() => {
+    setReloadTrigger((v) => v + 1);
+  }, []);
   const [shellConfirmationRequest, setShellConfirmationRequest] =
     useState<null | {
       commands: string[];
@@ -186,6 +191,7 @@ export const useSlashCommandProcessor = (
         toggleCorgiMode,
         toggleVimEnabled,
         setGeminiMdFileCount,
+        reloadCommands,
       },
       session: {
         stats: session.stats,
@@ -216,6 +222,7 @@ export const useSlashCommandProcessor = (
       toggleVimEnabled,
       sessionShellAllowlist,
       setGeminiMdFileCount,
+      reloadCommands,
       // WEB_INTERFACE_START
       handleWebStart,
       handleWebStop,
@@ -246,7 +253,7 @@ export const useSlashCommandProcessor = (
     return () => {
       controller.abort();
     };
-  }, [config, ideMode]);
+  }, [config, ideMode, reloadTrigger]);
 
   const handleSlashCommand = useCallback(
     async (
