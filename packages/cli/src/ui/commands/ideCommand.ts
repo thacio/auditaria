@@ -8,6 +8,7 @@ import {
   Config,
   t,
   DetectedIde,
+  GEMINI_CLI_COMPANION_EXTENSION_NAME,
   IDEConnectionStatus,
   getIdeInfo,
   getIdeInstaller,
@@ -187,7 +188,7 @@ export const ideCommand = (config: Config | null): SlashCommand | null => {
             type: 'error',
             text: t(
               'commands.ide.install.no_installer_with_ide',
-              'No installer is available for {ide}. Please install the IDE companion manually from its marketplace.',
+              `No installer is available for {ide}. Please install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the marketplace.`,
               { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' },
             ),
           },

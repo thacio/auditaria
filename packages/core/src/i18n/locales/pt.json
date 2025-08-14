@@ -295,7 +295,7 @@
         "description": "instalar companion do IDE necessário para {ide}",
         "installing": "Instalando companion do IDE...",
         "no_installer": "Nenhum instalador disponível para seu IDE configurado.",
-        "no_installer_with_ide": "Nenhum instalador está disponível para {ide}. Por favor, instale o companion do IDE manualmente do marketplace."
+        "no_installer_with_ide": "Nenhum instalador está disponível para {ide}. Por favor, instale a extensão 'Gemini CLI Companion' manualmente do marketplace."
       },
       "enable": {
         "description": "habilitar integração com IDE"
@@ -1179,10 +1179,10 @@
     "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}."
   },
   "ide_installer": {
-    "vscode_cli_not_found": "CLI do VS Code não encontrado. Por favor, certifique-se de que 'code' está no PATH do seu sistema. Para ajuda, veja https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. Você também pode instalar a extensão companheira manualmente no marketplace do VS Code.",
+    "vscode_cli_not_found": "CLI do VS Code não encontrado. Por favor, certifique-se de que 'code' está no PATH do seu sistema. Para ajuda, veja https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. Você também pode instalar a extensão 'Gemini CLI Companion' manualmente no marketplace do VS Code.",
     "companion_not_found": "Não foi possível encontrar a extensão companheira do VS Code necessária. Por favor, registre um bug via /bug.",
     "vscode_install_success": "Extensão companheira do VS Code instalada com sucesso. Por favor, reinicie seu terminal para completar a configuração.",
-    "vscode_install_failed": "Falha ao instalar a extensão companheira do VS Code. Por favor, tente instalá-la manualmente no marketplace do VS Code.",
+    "vscode_install_failed": "Falha ao instalar a extensão companheira do VS Code. Por favor, tente instalar 'Gemini CLI Companion' manualmente no marketplace de extensões do VS Code.",
     "openvsx_install_success": "Extensão companheira do VS Code instalada com sucesso do OpenVSX. Por favor, reinicie seu terminal para completar a configuração.",
     "openvsx_install_failed": "Falha ao instalar a extensão companheira do VS Code do OpenVSX. Por favor, tente instalá-la manualmente."
   },
