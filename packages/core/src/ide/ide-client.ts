@@ -5,6 +5,7 @@
  */
 
 import * as fs from 'node:fs';
+import { isSubpath } from '../utils/paths.js';
 import { detectIde, DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
 import {
   ideContext,
@@ -96,7 +97,14 @@ export class IdeClient {
 
     this.setState(IDEConnectionStatus.Connecting);
 
-    if (!this.validateWorkspacePath()) {
+    const { isValid, error } = IdeClient.validateWorkspacePath(
+      process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'],
+      this.currentIdeDisplayName,
+      process.cwd(),
+    );
+
+    if (!isValid) {
+      this.setState(IDEConnectionStatus.Disconnected, error, true);
       return;
     }
 
@@ -255,49 +263,52 @@ export class IdeClient {
     }
   }
 
-  private validateWorkspacePath(): boolean {
-    const ideWorkspacePath = process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
+  static validateWorkspacePath(
+    ideWorkspacePath: string | undefined,
+    currentIdeDisplayName: string | undefined,
+    cwd: string,
+  ): { isValid: boolean; error?: string } {
     if (ideWorkspacePath === undefined) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t(
+      return {
+        isValid: false,
+        error: t(
           'ide.errors.extension_connection_failed',
           `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
-          { ide: this.currentIdeDisplayName || 'IDE' }
+          { ide: currentIdeDisplayName || 'IDE' }
         ),
-        true
-      );
-      return false;
-    }
-    if (ideWorkspacePath === '') {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t(
-          'ide.errors.single_workspace_required',
-          `To use this feature, please open a single workspace folder in {ide} and try again.`,
-          { ide: this.currentIdeDisplayName || 'IDE' }
-        ),
-        true
-      );
-      return false;
+      };
     }
 
-    const idePath = getRealPath(ideWorkspacePath).toLocaleLowerCase();
-    const cwd = getRealPath(process.cwd()).toLocaleLowerCase();
-    const rel = path.relative(idePath, cwd);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
-      this.setState(
-        IDEConnectionStatus.Disconnected,
-        t(
-          'ide.errors.directory_mismatch',
-          `Directory mismatch. Gemini CLI is running in a different location than the open workspace in {ide}. Please run the CLI from the same directory as your project's root folder.`,
-          { ide: this.currentIdeDisplayName || 'IDE' }
+    if (ideWorkspacePath === '') {
+      return {
+        isValid: false,
+        error: t(
+          'ide.errors.single_workspace_required',
+          `To use this feature, please open a workspace folder in {ide} and try again.`,
+          { ide: currentIdeDisplayName || 'IDE' }
         ),
-        true
-      );
-      return false;
+      };
     }
-    return true;
+
+    const ideWorkspacePaths = ideWorkspacePath.split(':');
+    const realCwd = getRealPath(cwd);
+    const isWithinWorkspace = ideWorkspacePaths.some((workspacePath) => {
+      const idePath = getRealPath(workspacePath);
+      return isSubpath(idePath, realCwd);
+    });
+
+    if (!isWithinWorkspace) {
+      const directories = ideWorkspacePaths.join(', ');
+      return {
+        isValid: false,
+        error: t(
+          'ide.errors.directory_mismatch_multi',
+          `Directory mismatch. Gemini CLI is running in a different location than the open workspace in {ide}. Please run the CLI from one of the following directories: {directories}`,
+          { ide: currentIdeDisplayName || 'IDE', directories }
+        ),
+      };
+    }
+    return { isValid: true };
   }
 
   private getPortFromEnv(): string | undefined {

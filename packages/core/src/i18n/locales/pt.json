@@ -1128,8 +1128,9 @@
   "ide": {
     "errors": {
       "extension_not_found": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
-      "single_workspace_required": "Para usar este recurso, por favor abra uma única pasta de workspace em {ide} e tente novamente.",
+      "single_workspace_required": "Para usar este recurso, por favor abra uma pasta de workspace em {ide} e tente novamente.",
       "directory_mismatch": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI no mesmo diretório da pasta raiz do seu projeto.",
+      "directory_mismatch_multi": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI em um dos seguintes diretórios: {directories}",
       "client_error": "Erro do cliente.",
       "connection_closed": "Conexão fechada.",
       "connection_failed": "Falha ao conectar ao servidor do IDE: {error}",
