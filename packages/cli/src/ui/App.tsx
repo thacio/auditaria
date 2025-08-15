@@ -89,6 +89,7 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useVimMode, VimModeProvider } from './contexts/VimModeContext.js';
 import { useVim } from './hooks/vim.js';
 import { useKeypress, Key } from './hooks/useKeypress.js';
+import { KeypressProvider } from './contexts/KeypressContext.js';
 import { useKittyKeyboardProtocol } from './hooks/useKittyKeyboardProtocol.js';
 import { keyMatchers, Command } from './keyMatchers.js';
 import * as fs from 'fs';
@@ -129,28 +130,35 @@ interface AppProps {
   // WEB_INTERFACE_END
 }
 
-export const AppWrapper = (props: AppProps) => (
-  <SessionStatsProvider>
-    <VimModeProvider settings={props.settings}>
-
-    {/* WEB_INTERFACE_START: Web interface provider wrappers */}
-    <SubmitQueryProvider>
-      <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser}>
-        <FooterProvider>
-          <LoadingStateProvider>
-            <ToolConfirmationProvider>
-              {/* WEB_INTERFACE_END */}
-      <App {...props} />
-              {/* WEB_INTERFACE_START: Close web interface providers */}
-            </ToolConfirmationProvider>
-          </LoadingStateProvider>
-        </FooterProvider>
-      </WebInterfaceProvider>
-    </SubmitQueryProvider>
-    {/* WEB_INTERFACE_END */}
-    </VimModeProvider>
-  </SessionStatsProvider>
-);
+export const AppWrapper = (props: AppProps) => {
+  const kittyProtocolStatus = useKittyKeyboardProtocol();
+  return (
+    <KeypressProvider
+      kittyProtocolEnabled={kittyProtocolStatus.enabled}
+      config={props.config}
+    >
+      <SessionStatsProvider>
+        <VimModeProvider settings={props.settings}>
+          {/* WEB_INTERFACE_START: Web interface provider wrappers */}
+          <SubmitQueryProvider>
+            <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser}>
+              <FooterProvider>
+                <LoadingStateProvider>
+                  <ToolConfirmationProvider>
+                    {/* WEB_INTERFACE_END */}
+                    <App {...props} />
+                    {/* WEB_INTERFACE_START: Close web interface providers */}
+                  </ToolConfirmationProvider>
+                </LoadingStateProvider>
+              </FooterProvider>
+            </WebInterfaceProvider>
+          </SubmitQueryProvider>
+          {/* WEB_INTERFACE_END */}
+        </VimModeProvider>
+      </SessionStatsProvider>
+    </KeypressProvider>
+  );
+};
 
 const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE_START */ webEnabled, webOpenBrowser /* WEB_INTERFACE_END */ }: AppProps) => {
   const isFocused = useFocus();
@@ -640,7 +648,6 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   const { elapsedTime, currentLoadingPhrase } =
     useLoadingIndicator(streamingState);
   const showAutoAcceptIndicator = useAutoAcceptIndicator({ config });
-  const kittyProtocolStatus = useKittyKeyboardProtocol();
 
   const handleExit = useCallback(
     (
@@ -735,8 +742,6 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   useKeypress(handleGlobalKeypress, {
     isActive: true,
-    kittyProtocolEnabled: kittyProtocolStatus.enabled,
-    config,
   });
 
   useEffect(() => {
