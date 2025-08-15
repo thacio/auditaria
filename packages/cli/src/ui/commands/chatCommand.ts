@@ -15,9 +15,9 @@ import {
   CommandKind,
   SlashCommandActionReturn,
 } from './types.js';
+import { decodeTagName, t } from '@thacio/auditaria-cli-core';
 import path from 'path';
 import { HistoryItemWithoutId, MessageType } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
 
 interface ChatDetail {
   name: string;
@@ -42,8 +42,9 @@ const getSavedChatTags = async (
       if (file.startsWith(file_head) && file.endsWith(file_tail)) {
         const filePath = path.join(geminiDir, file);
         const stats = await fsPromises.stat(filePath);
+        const tagName = file.slice(file_head.length, -file_tail.length);
         chatDetails.push({
-          name: file.slice(file_head.length, -file_tail.length),
+          name: decodeTagName(tagName),
           mtime: stats.mtime,
         });
       }
@@ -151,7 +152,7 @@ const saveCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.save.saved', 'Conversation checkpoint saved with tag: {tag}.', { tag }),
+        content: t('commands.chat.save.saved', 'Conversation checkpoint saved with tag: {tag}.', { tag: decodeTagName(tag) }),
       };
     } else {
       return {
@@ -188,7 +189,7 @@ const resumeCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.resume.not_found', 'No saved checkpoint found with tag: {tag}.', { tag }),
+        content: t('commands.chat.resume.not_found', 'No saved checkpoint found with tag: {tag}.', { tag: decodeTagName(tag) }),
       };
     }
 
@@ -259,13 +260,13 @@ const deleteCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.delete.deleted', "Conversation checkpoint '{tag}' has been deleted.", { tag }),
+        content: t('commands.chat.delete.deleted', "Conversation checkpoint '{tag}' has been deleted.", { tag: decodeTagName(tag) }),
       };
     } else {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.delete.not_found', "Error: No checkpoint found with tag '{tag}'.", { tag }),
+        content: t('commands.chat.delete.not_found', "Error: No checkpoint found with tag '{tag}'.", { tag: decodeTagName(tag) }),
       };
     }
   },
