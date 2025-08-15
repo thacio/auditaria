@@ -1243,6 +1243,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
               {confirmationRequest.prompt}
               <Box paddingY={1}>
                 <RadioButtonSelect
+                  isFocused={!!confirmationRequest}
                   items={[
                     { label: t('tool_confirmation.options.yes', 'Yes'), value: true },
                     { label: t('tool_confirmation.options.no', 'No'), value: false },
