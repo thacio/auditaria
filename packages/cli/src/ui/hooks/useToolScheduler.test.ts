@@ -34,6 +34,13 @@ import {
   HistoryItemToolGroup,
 } from '../types.js';
 
+vi.mock('./useTerminalSize', () => ({
+  useTerminalSize: () => ({
+    columns: 80,
+    rows: 24,
+  }),
+}));
+
 // Mocks
 vi.mock('@thacio/auditaria-cli-core', async () => {
   const actual = await vi.importActual('@thacio/auditaria-cli-core');
@@ -179,6 +186,8 @@ describe('useReactToolScheduler in YOLO Mode', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
+      80,
+      24,
     );
 
     // Check that onComplete was called with success
@@ -326,6 +335,8 @@ describe('useReactToolScheduler', () => {
       request.args,
       expect.any(AbortSignal),
       undefined,
+      80,
+      24,
     );
     expect(onComplete).toHaveBeenCalledWith([
       expect.objectContaining({
