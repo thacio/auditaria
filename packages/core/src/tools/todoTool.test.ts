@@ -4,36 +4,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TodoTool } from './todoTool.js';
+import { Config } from '../config/config.js';
 
 describe('TodoTool', () => {
   let todoTool: TodoTool;
+  let mockConfig: Config;
 
   beforeEach(() => {
-    todoTool = new TodoTool();
+    mockConfig = {} as Config;
+    todoTool = new TodoTool(mockConfig);
     TodoTool.clearTodos(); // Clear any existing todos before each test
   });
 
   describe('Basic functionality', () => {
     it('should have correct static properties', () => {
       expect(TodoTool.Name).toBe('TodoWrite');
-      expect(todoTool.name).toBe('TodoWrite');
-      expect(todoTool.displayName).toBe('TodoWrite');
+      expect(todoTool.schema.name).toBe('TodoWrite');
     });
 
     it('should have correct schema', () => {
       const schema = todoTool.schema;
       expect(schema.name).toBe('TodoWrite');
       expect(schema.description).toContain('structured task list');
-      expect(schema.parameters).toBeDefined();
+      expect(schema.parametersJsonSchema).toBeDefined();
     });
   });
 
   describe('Parameter validation', () => {
     it('should reject non-array todos parameter', async () => {
-      const result = await todoTool.execute(
-        { todos: 'invalid' as any },
+      const invocation = todoTool.build({ todos: 'invalid' as any });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -51,8 +53,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: invalidTodos as any },
+      const invocation = todoTool.build({ todos: invalidTodos as any });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -70,8 +72,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: invalidTodos as any },
+      const invocation = todoTool.build({ todos: invalidTodos as any });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -89,8 +91,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: invalidTodos as any },
+      const invocation = todoTool.build({ todos: invalidTodos as any });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -108,8 +110,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: invalidTodos },
+      const invocation = todoTool.build({ todos: invalidTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -127,8 +129,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: invalidTodos },
+      const invocation = todoTool.build({ todos: invalidTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -148,8 +150,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: validTodos },
+      const invocation = todoTool.build({ todos: validTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -185,8 +187,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: validTodos },
+      const invocation = todoTool.build({ todos: validTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -210,7 +212,7 @@ describe('TodoTool', () => {
         }
       ];
 
-      await todoTool.execute({ todos: firstTodos }, new AbortController().signal);
+      await todoTool.build({ todos: firstTodos }).execute(new AbortController().signal);
       
       // Updated set
       const updatedTodos = [
@@ -228,8 +230,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: updatedTodos },
+      const invocation = todoTool.build({ todos: updatedTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -242,8 +244,8 @@ describe('TodoTool', () => {
     });
 
     it('should handle empty todos list', async () => {
-      const result = await todoTool.execute(
-        { todos: [] },
+      const invocation = todoTool.build({ todos: [] });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -267,8 +269,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: validTodos },
+      const invocation = todoTool.build({ todos: validTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -288,8 +290,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: validTodos },
+      const invocation = todoTool.build({ todos: validTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -307,8 +309,8 @@ describe('TodoTool', () => {
         }
       ];
 
-      const result = await todoTool.execute(
-        { todos: validTodos },
+      const invocation = todoTool.build({ todos: validTodos });
+      const result = await invocation.execute(
         new AbortController().signal,
       );
       
@@ -328,7 +330,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.execute({ todos: validTodos }, new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
       
       const currentTodos = TodoTool.getCurrentTodos();
       expect(currentTodos).toEqual(validTodos);
@@ -345,7 +347,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.execute({ todos: validTodos }, new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
       
       // Verify todos exist
       expect(TodoTool.getCurrentTodos()).toHaveLength(1);
@@ -368,7 +370,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.execute({ todos: validTodos }, new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
       
       const currentTodos = TodoTool.getCurrentTodos();
       
@@ -400,8 +402,8 @@ describe('TodoTool', () => {
           }
         ];
 
-        const result = await todoTool.execute(
-          { todos: validTodos },
+        const invocation = todoTool.build({ todos: validTodos });
+        const result = await invocation.execute(
           new AbortController().signal,
         );
         
@@ -422,8 +424,8 @@ describe('TodoTool', () => {
           }
         ];
 
-        const result = await todoTool.execute(
-          { todos: validTodos },
+        const invocation = todoTool.build({ todos: validTodos });
+        const result = await invocation.execute(
           new AbortController().signal,
         );
         

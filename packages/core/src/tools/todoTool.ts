@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BaseTool, ToolResult, Kind } from './tools.js';
+import { BaseDeclarativeTool, BaseToolInvocation, ToolResult, Kind } from './tools.js';
+import { Config } from '../config/config.js';
 import { FunctionDeclaration } from '@google/genai';
 
 const todoToolSchemaData: FunctionDeclaration = {
@@ -119,24 +120,27 @@ interface TodoWriteParams {
 // Global todo list storage
 let currentTodoList: TodoItem[] = [];
 
-export class TodoTool extends BaseTool<TodoWriteParams, ToolResult> {
-  static readonly Name: string = todoToolSchemaData.name!;
-  
-  constructor() {
-    super(
-      TodoTool.Name,
-      'TodoWrite',
-      todoToolDescription,
-      Kind.Other,
-      todoToolSchemaData.parametersJsonSchema as Record<string, unknown>,
-    );
+class TodoToolInvocation extends BaseToolInvocation<TodoWriteParams, ToolResult> {
+  constructor(
+    params: TodoWriteParams,
+    private readonly config: Config,
+  ) {
+    super(params);
+  }
+
+  getDescription(): string {
+    const todoCount = this.params.todos.length;
+    const pending = this.params.todos.filter(t => t.status === 'pending').length;
+    const inProgress = this.params.todos.filter(t => t.status === 'in_progress').length;
+    const completed = this.params.todos.filter(t => t.status === 'completed').length;
+    return `Update todo list (${todoCount} total: ${pending} pending, ${inProgress} in progress, ${completed} completed)`;
   }
 
   async execute(
-    params: TodoWriteParams,
     _signal: AbortSignal,
+    _updateOutput?: (output: string) => void,
   ): Promise<ToolResult> {
-    const { todos } = params;
+    const { todos } = this.params;
 
     // Validate todos array
     if (!Array.isArray(todos)) {
@@ -204,6 +208,26 @@ export class TodoTool extends BaseTool<TodoWriteParams, ToolResult> {
         returnDisplay: `Error updating todo list: ${errorMessage}`,
       };
     }
+  }
+}
+
+export class TodoTool extends BaseDeclarativeTool<TodoWriteParams, ToolResult> {
+  static readonly Name: string = todoToolSchemaData.name!;
+  
+  constructor(private readonly config: Config) {
+    super(
+      TodoTool.Name,
+      'TodoWrite',
+      todoToolDescription,
+      Kind.Other,
+      todoToolSchemaData.parametersJsonSchema as Record<string, unknown>,
+      false, // output is not markdown
+      false, // output cannot be updated
+    );
+  }
+
+  protected createInvocation(params: TodoWriteParams): TodoToolInvocation {
+    return new TodoToolInvocation(params, this.config);
   }
 
   /**
