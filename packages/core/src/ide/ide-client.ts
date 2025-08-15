@@ -128,7 +128,7 @@ export class IdeClient {
       IDEConnectionStatus.Disconnected,
       t(
         'ide.errors.extension_connection_failed',
-        `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
+        `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running. To install the extension, run /ide install.`,
         { ide: this.currentIdeDisplayName || 'IDE' }
       ),
       true,
@@ -273,7 +273,7 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try refreshing your terminal. To install the extension, run /ide install.`,
+          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running. To install the extension, run /ide install.`,
           { ide: currentIdeDisplayName || 'IDE' }
         ),
       };

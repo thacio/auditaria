@@ -107,7 +107,7 @@ class VsCodeInstaller implements IdeInstaller {
       child_process.execSync(command, { stdio: 'pipe' });
       return {
         success: true,
-        message: t('ide_installer.vscode_install_success', 'VS Code companion extension was installed successfully. Please restart your terminal to complete the setup.'),
+        message: t('ide_installer.vscode_install_success', 'VS Code companion extension was installed successfully.'),
       };
     } catch (_error) {
       return {
