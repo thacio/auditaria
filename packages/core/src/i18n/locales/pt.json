@@ -914,7 +914,11 @@
     "command_terminated_signal": "Comando terminado por sinal: {signal}.",
     "command_exit_code": "Comando saiu com código {code}.",
     "directory_change_warning": "AVISO: modo shell é sem estado; a mudança de diretório para '{directory}' não persistirá.",
-    "unexpected_error": "Ocorreu um erro inesperado: {error}"
+    "unexpected_error": "Ocorreu um erro inesperado: {error}",
+    "permissions": {
+      "commands_not_on_allowlist": "Comando(s) não estão na lista de permissões global ou da sessão. Comandos não permitidos: {commands}",
+      "commands_not_in_allowed_list": "Comando(s) não estão na lista de comandos permitidos. Comandos não permitidos: {commands}"
+    }
   },
   "at_command": {
     "tool_not_found": "Erro: ferramenta read_many_files não encontrada.",

@@ -38,7 +38,7 @@ describe('isCommandAllowed', () => {
     config.getCoreTools = () => ['ShellTool(ls -l)'];
     const result = isCommandAllowed('rm -rf /', config);
     expect(result.allowed).toBe(false);
-    expect(result.reason).toBe(`Command(s) not in the allowed commands list.`);
+    expect(result.reason).toContain(`Disallowed commands: "rm -rf /"`);
   });
 
   it('should block a command if it is in the blocked list', () => {
@@ -157,7 +157,7 @@ describe('checkCommandPermissions', () => {
       expect(result).toEqual({
         allAllowed: false,
         disallowedCommands: ['git status'],
-        blockReason: `Command(s) not in the allowed commands list.`,
+        blockReason: expect.stringContaining(`Disallowed commands: "git status"`),
         isHardDenial: false,
       });
     });
