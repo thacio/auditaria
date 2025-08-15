@@ -130,6 +130,10 @@ export const addCommand: CommandModule = {
   builder: (yargs) =>
     yargs
       .usage(t('commands.mcp.manage.add.usage', 'Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]'))
+      .parserConfiguration({
+        'unknown-options-as-args': true, // Pass unknown options as server args
+        'populate--': true, // Populate server args after -- separator
+      })
       .positional('name', {
         describe: t('commands.mcp.manage.add.name_description', 'Name of the server'),
         type: 'string',
@@ -189,6 +193,13 @@ export const addCommand: CommandModule = {
         describe: t('commands.mcp.manage.add.exclude_tools_description', 'A comma-separated list of tools to exclude'),
         type: 'array',
         string: true,
+      })
+      .middleware((argv) => {
+        // Handle -- separator args as server args if present
+        if (argv['--']) {
+          const existingArgs = (argv.args as Array<string | number>) || [];
+          argv.args = [...existingArgs, ...(argv['--'] as string[])];
+        }
       }),
   handler: async (argv) => {
     await addMcpServer(
