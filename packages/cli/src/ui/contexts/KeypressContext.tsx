@@ -8,7 +8,7 @@ import {
   Config,
   KittySequenceOverflowEvent,
   logKittySequenceOverflow,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { useStdin } from 'ink';
 import React, {
   createContext,
