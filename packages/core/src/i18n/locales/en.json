@@ -835,6 +835,7 @@
       "api": "API"
     },
     "labels": {
+      "session_id": "Session ID:",
       "tool_calls": "Tool Calls:",
       "success_rate": "Success Rate:",
       "user_agreement": "User Agreement:",

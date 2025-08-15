@@ -200,32 +200,33 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
       {renderTitle()}
       <Box height={1} />
 
-      {tools.totalCalls > 0 && (
-        <Section title={t('stats.sections.interaction_summary','Interaction Summary')}>
-          <StatRow title={t('stats.labels.tool_calls','Tool Calls:')}>
-            <Text>
-              {tools.totalCalls} ({' '}
-              <Text color={Colors.AccentGreen}>✔ {tools.totalSuccess}</Text>{' '}
-              <Text color={Colors.AccentRed}>✖ {tools.totalFail}</Text> )
+      <Section title={t('stats.sections.interaction_summary','Interaction Summary')}>
+        <StatRow title={t('stats.labels.session_id','Session ID:')}>
+          <Text>{stats.sessionId}</Text>
+        </StatRow>
+        <StatRow title={t('stats.labels.tool_calls','Tool Calls:')}>
+          <Text>
+            {tools.totalCalls} ({' '}
+            <Text color={Colors.AccentGreen}>✔ {tools.totalSuccess}</Text>{' '}
+            <Text color={Colors.AccentRed}>✖ {tools.totalFail}</Text> )
+          </Text>
+        </StatRow>
+        <StatRow title={t('stats.labels.success_rate','Success Rate:')}>
+          <Text color={successColor}>{computed.successRate.toFixed(1)}%</Text>
+        </StatRow>
+        {computed.totalDecisions > 0 && (
+          <StatRow title={t('stats.labels.user_agreement','User Agreement:')}>
+            <Text color={agreementColor}>
+              {computed.agreementRate.toFixed(1)}%{' '}
+              <Text color={Colors.Gray}>
+                {t('stats.messages.reviewed_count', '({count} reviewed)', {
+                  count: computed.totalDecisions
+                })}
+              </Text>
             </Text>
           </StatRow>
-          <StatRow title={t('stats.labels.success_rate','Success Rate:')}>
-            <Text color={successColor}>{computed.successRate.toFixed(1)}%</Text>
-          </StatRow>
-          {computed.totalDecisions > 0 && (
-            <StatRow title={t('stats.labels.user_agreement','User Agreement:')}>
-              <Text color={agreementColor}>
-                {computed.agreementRate.toFixed(1)}%{' '}
-                <Text color={Colors.Gray}>
-                  {t('stats.messages.reviewed_count', '({count} reviewed)', {
-                    count: computed.totalDecisions
-                  })}
-                </Text>
-              </Text>
-            </StatRow>
-          )}
-        </Section>
-      )}
+        )}
+      </Section>
 
       <Section title={t('stats.sections.performance','Performance')}>
         <StatRow title={t('stats.labels.wall_time','Wall Time:')}>
