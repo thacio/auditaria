@@ -17,6 +17,7 @@ interface AboutBoxProps {
   modelVersion: string;
   selectedAuthType: string;
   gcpProject: string;
+  ideClient: string;
 }
 
 export const AboutBox: React.FC<AboutBoxProps> = ({
@@ -26,6 +27,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   modelVersion,
   selectedAuthType,
   gcpProject,
+  ideClient,
 }) => (
   <Box
     borderStyle="round"
@@ -113,6 +115,18 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
         </Box>
         <Box>
           <Text>{gcpProject}</Text>
+        </Box>
+      </Box>
+    )}
+    {ideClient && (
+      <Box flexDirection="row">
+        <Box width="35%">
+          <Text bold color={Colors.LightBlue}>
+            {t('about_box.labels.ide_client', 'IDE Client')}
+          </Text>
+        </Box>
+        <Box>
+          <Text>{ideClient}</Text>
         </Box>
       </Box>
     )}

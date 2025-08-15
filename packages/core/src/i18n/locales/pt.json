@@ -769,7 +769,8 @@
       "sandbox": "Sandbox",
       "os": "SO",
       "auth_method": "Método de Autenticação",
-      "gcp_project": "Projeto GCP"
+      "gcp_project": "Projeto GCP",
+      "ide_client": "Cliente IDE"
     }
   },
   "tips": {

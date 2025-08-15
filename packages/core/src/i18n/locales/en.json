@@ -769,7 +769,8 @@
       "sandbox": "Sandbox",
       "os": "OS",
       "auth_method": "Auth Method",
-      "gcp_project": "GCP Project"
+      "gcp_project": "GCP Project",
+      "ide_client": "IDE Client"
     }
   },
   "tips": {
