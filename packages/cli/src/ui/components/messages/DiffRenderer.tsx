@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import { colorizeCode, colorizeLine } from '../../utils/CodeColorizer.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { t } from '@thacio/auditaria-cli-core';
+import { theme } from '../../semantic-colors.js';
 
 interface DiffLine {
   type: 'add' | 'del' | 'context' | 'hunk' | 'other';
@@ -288,7 +289,16 @@ const renderDiffContent = (
 
         acc.push(
           <Box key={lineKey} flexDirection="row">
-            <Text color={Colors.Gray}>
+            <Text
+              color={theme.text.secondary}
+              backgroundColor={
+                line.type === 'add'
+                  ? theme.background.diff.added
+                  : line.type === 'del'
+                    ? theme.background.diff.removed
+                    : undefined
+              }
+            >
               {gutterNumStr.padStart(gutterWidth)}{' '}
             </Text>
             {line.type === 'context' ? (
@@ -301,11 +311,22 @@ const renderDiffContent = (
             ) : (
               <Text
                 backgroundColor={
-                  line.type === 'add' ? Colors.DiffAdded : Colors.DiffRemoved
+                  line.type === 'add'
+                    ? theme.background.diff.added
+                    : theme.background.diff.removed
                 }
                 wrap="wrap"
               >
-                {prefixSymbol} {colorizeLine(displayContent, language)}
+                <Text
+                  color={
+                    line.type === 'add'
+                      ? theme.status.success
+                      : theme.status.error
+                  }
+                >
+                  {prefixSymbol}
+                </Text>{' '}
+                {colorizeLine(displayContent, language)}
               </Text>
             )}
           </Box>,
