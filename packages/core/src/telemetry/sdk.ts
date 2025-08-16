@@ -110,7 +110,6 @@ export function initializeTelemetry(config: Config): void {
   const otlpProtocol = config.getTelemetryOtlpProtocol();
   const parsedEndpoint = parseOtlpEndpoint(otlpEndpoint, otlpProtocol);
   const useOtlp = !!parsedEndpoint;
-
   let spanExporter:
     | OTLPTraceExporter
     | OTLPTraceExporterHttp
