@@ -82,6 +82,7 @@ export interface TelemetrySettings {
   enabled?: boolean;
   target?: TelemetryTarget;
   otlpEndpoint?: string;
+  otlpProtocol?: 'grpc' | 'http';
   logPrompts?: boolean;
   outfile?: string;
 }
@@ -297,6 +298,7 @@ export class Config {
       enabled: params.telemetry?.enabled ?? false,
       target: params.telemetry?.target ?? DEFAULT_TELEMETRY_TARGET,
       otlpEndpoint: params.telemetry?.otlpEndpoint ?? DEFAULT_OTLP_ENDPOINT,
+      otlpProtocol: params.telemetry?.otlpProtocol,
       logPrompts: params.telemetry?.logPrompts ?? true,
       outfile: params.telemetry?.outfile,
     };
@@ -581,6 +583,10 @@ export class Config {
 
   getTelemetryOtlpEndpoint(): string {
     return this.telemetrySettings.otlpEndpoint ?? DEFAULT_OTLP_ENDPOINT;
+  }
+
+  getTelemetryOtlpProtocol(): 'grpc' | 'http' {
+    return this.telemetrySettings.otlpProtocol ?? 'grpc';
   }
 
   getTelemetryTarget(): TelemetryTarget {
