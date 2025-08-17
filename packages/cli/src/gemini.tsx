@@ -83,7 +83,7 @@ function getNodeMemoryArgs(config: Config): string[] {
     );
   }
 
-  if (process.env.GEMINI_CLI_NO_RELAUNCH) {
+  if (process.env['GEMINI_CLI_NO_RELAUNCH']) {
     return [];
   }
 
@@ -167,7 +167,7 @@ export async function main() {
   if (settings.errors.length > 0) {
     for (const error of settings.errors) {
       let errorMessage = `Error in ${error.path}: ${error.message}`;
-      if (!process.env.NO_COLOR) {
+      if (!process.env['NO_COLOR']) {
         errorMessage = `\x1b[31m${errorMessage}\x1b[0m`;
       }
       console.error(errorMessage);
@@ -213,7 +213,7 @@ export async function main() {
 
   // Set a default auth type if one isn't set.
   if (!settings.merged.selectedAuthType) {
-    if (process.env.CLOUD_SHELL === 'true') {
+    if (process.env['CLOUD_SHELL'] === 'true') {
       settings.setValue(
         SettingScope.User,
         'selectedAuthType',
@@ -243,7 +243,7 @@ export async function main() {
   }
 
   // hop into sandbox if we are outside and sandboxing is enabled
-  if (!process.env.SANDBOX) {
+  if (!process.env['SANDBOX']) {
     const memoryArgs = settings.merged.autoConfigureMaxOldSpaceSize
       ? getNodeMemoryArgs(config)
       : [];
@@ -368,7 +368,9 @@ export async function main() {
 
 function setWindowTitle(title: string, settings: LoadedSettings) {
   if (!settings.merged.hideWindowTitle) {
-    const windowTitle = (process.env.CLI_TITLE || `Gemini - ${title}`).replace(
+    const windowTitle = (
+      process.env['CLI_TITLE'] || `Gemini - ${title}`
+    ).replace(
       // eslint-disable-next-line no-control-regex
       /[\x00-\x1F\x7F]/g,
       '',

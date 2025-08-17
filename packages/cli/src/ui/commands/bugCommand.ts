@@ -29,11 +29,11 @@ export const bugCommand: SlashCommand = {
 
     const osVersion = `${process.platform} ${process.version}`;
     let sandboxEnv = t('commands.bug.no_sandbox', 'no sandbox');
-    if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
-      sandboxEnv = process.env.SANDBOX.replace(/^gemini-(?:code-)?/, '');
-    } else if (process.env.SANDBOX === 'sandbox-exec') {
+    if (process.env['SANDBOX'] && process.env['SANDBOX'] !== 'sandbox-exec') {
+      sandboxEnv = process.env['SANDBOX'].replace(/^gemini-(?:code-)?/, '');
+    } else if (process.env['SANDBOX'] === 'sandbox-exec') {
       sandboxEnv = `sandbox-exec (${
-        process.env.SEATBELT_PROFILE || t('commands.bug.unknown_profile', 'unknown')
+        process.env['SEATBELT_PROFILE'] || t('commands.bug.unknown_profile', 'unknown')
       })`;
     }
     const modelVersion = config?.getModel() || t('commands.bug.unknown_model', 'Unknown');

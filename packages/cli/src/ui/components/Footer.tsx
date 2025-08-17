@@ -67,9 +67,9 @@ export const Footer: React.FC<FooterProps> = ({
     if (footerContext) {
       // Determine sandbox status
       let sandboxStatus = 'no sandbox';
-      if (process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec') {
-        sandboxStatus = process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '');
-      } else if (process.env.SANDBOX === 'sandbox-exec') {
+      if (process.env['SANDBOX'] && process.env['SANDBOX'] !== 'sandbox-exec') {
+        sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+      } else if (process.env['SANDBOX'] === 'sandbox-exec') {
         sandboxStatus = 'macOS Seatbelt';
       }
 
@@ -157,15 +157,16 @@ export const Footer: React.FC<FooterProps> = ({
       >
         {isTrustedFolder === false ? (
           <Text color={theme.status.warning}>{t('footer.untrusted', 'untrusted')}</Text>
-        ) : process.env.SANDBOX && process.env.SANDBOX !== 'sandbox-exec' ? (
+        ) : process.env['SANDBOX'] &&
+          process.env['SANDBOX'] !== 'sandbox-exec' ? (
           <Text color="green">
-            {process.env.SANDBOX.replace(/^gemini-(?:cli-)?/, '')}
+            {process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '')}
           </Text>
-        ) : process.env.SANDBOX === 'sandbox-exec' ? (
+        ) : process.env['SANDBOX'] === 'sandbox-exec' ? (
           <Text color={theme.status.warning}>
             {t('footer.macos_seatbelt', 'macOS Seatbelt')}{' '}
             <Text color={theme.text.secondary}>
-              ({process.env.SEATBELT_PROFILE})
+              ({process.env['SEATBELT_PROFILE']})
             </Text>
           </Text>
         ) : (

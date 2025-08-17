@@ -43,21 +43,21 @@ export function AuthDialog({
     }
 
     const defaultAuthType = parseDefaultAuthType(
-      process.env.GEMINI_DEFAULT_AUTH_TYPE,
+      process.env['GEMINI_DEFAULT_AUTH_TYPE'],
     );
 
-    if (process.env.GEMINI_DEFAULT_AUTH_TYPE && defaultAuthType === null) {
+    if (process.env['GEMINI_DEFAULT_AUTH_TYPE'] && defaultAuthType === null) {
       return t('auth_dialog.messages.invalid_default_auth_type', 
         'Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "{defaultAuthType}". Valid values are: {validValues}.', 
         { 
-          defaultAuthType: process.env.GEMINI_DEFAULT_AUTH_TYPE,
+          defaultAuthType: process.env['GEMINI_DEFAULT_AUTH_TYPE'],
           validValues: Object.values(AuthType).join(', ')
         }
       );
     }
 
     if (
-      process.env.GEMINI_API_KEY &&
+      process.env['GEMINI_API_KEY'] &&
       (!defaultAuthType || defaultAuthType === AuthType.USE_GEMINI)
     ) {
       return t('auth_dialog.messages.api_key_detected', 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.');
@@ -69,7 +69,7 @@ export function AuthDialog({
       label: t('auth_dialog.options.login_google', 'Login with Google'),
       value: AuthType.LOGIN_WITH_GOOGLE,
     },
-    ...(process.env.CLOUD_SHELL === 'true'
+    ...(process.env['CLOUD_SHELL'] === 'true'
       ? [
           {
             label: t('auth_dialog.options.cloud_shell', 'Use Cloud Shell user credentials'),
@@ -90,13 +90,13 @@ export function AuthDialog({
     }
 
     const defaultAuthType = parseDefaultAuthType(
-      process.env.GEMINI_DEFAULT_AUTH_TYPE,
+      process.env['GEMINI_DEFAULT_AUTH_TYPE'],
     );
     if (defaultAuthType) {
       return item.value === defaultAuthType;
     }
 
-    if (process.env.GEMINI_API_KEY) {
+    if (process.env['GEMINI_API_KEY']) {
       return item.value === AuthType.USE_GEMINI;
     }
 
