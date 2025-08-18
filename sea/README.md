@@ -4,12 +4,12 @@ This directory contains the build script for creating a standalone Windows execu
 
 ## Files
 
-- `build-bun-exe.cjs` - Build script that creates the standalone executable with embedded locales
+- `build-bun-unified.cjs` - Build script that creates the standalone executable with embedded locales
 
 ## How to Build
 
 ```bash
-node sea/build-bun-exe.cjs
+node sea/build-bun-unified.cjs
 ```
 
 This creates `auditaria-standalone.exe` (~120MB) in the project root.

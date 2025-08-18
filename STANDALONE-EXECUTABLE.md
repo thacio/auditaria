@@ -34,7 +34,7 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 bun build --compile --minify bundle/gemini.js --outfile auditaria-standalone.exe
 
 # Option 2: Using build script
-node sea/build-bun-exe.cjs
+node sea/build-bun-unified.cjs
 ```
 
 ## Testing

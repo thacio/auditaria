@@ -263,22 +263,29 @@ const unifiedBunServer = `
             try {
               const data = JSON.parse(message.toString());
               
-              // Handle different message types
+              // Handle different message types - these are already being processed
+              // so we don't need to trigger mock handlers for them
+              let messageHandled = false;
+              
               if (data.type === 'user_message' && messageHandlers.submitQuery) {
                 const query = data.content?.trim();
                 if (query) {
                   messageHandlers.submitQuery(query);
+                  messageHandled = true;
                 }
               } else if (data.type === 'interrupt_request' && messageHandlers.abort) {
                 messageHandlers.abort();
+                messageHandled = true;
               } else if (data.type === 'tool_confirmation_response' && messageHandlers.confirmation) {
                 if (data.callId && data.outcome) {
                   messageHandlers.confirmation(data.callId, data.outcome, data.payload);
+                  messageHandled = true;
                 }
               }
               
-              // Also trigger mock handlers if they exist
-              if (ws._mockWs && ws._handlers && ws._handlers.message) {
+              // Only trigger mock handlers for unhandled message types
+              // to avoid duplicate processing
+              if (!messageHandled && ws._mockWs && ws._handlers && ws._handlers.message) {
                 ws._handlers.message(message);
               }
             } catch (error) {
