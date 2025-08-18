@@ -1,0 +1,89 @@
+name: Build Windows Executable
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create a release with the executable'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Bun
+        run: |
+          powershell -c "irm bun.sh/install.ps1 | iex"
+          echo "$env:USERPROFILE\.bun\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build bundle
+        run: npm run bundle
+      
+      - name: Build Windows executable with Bun
+        run: |
+          # Use our custom build script that includes WebSocket fixes
+          $env:Path += ";$env:USERPROFILE\.bun\bin"
+          node sea/build-bun-unified.cjs
+          # Rename output to match expected name
+          if (Test-Path "auditaria-standalone.exe") {
+            Move-Item -Path "auditaria-standalone.exe" -Destination "auditaria-windows.exe" -Force
+          }
+        shell: pwsh
+      
+      - name: Test executable
+        run: |
+          ./auditaria-windows.exe --version
+        shell: pwsh
+      
+      - name: Upload executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditaria-windows-executable
+          path: auditaria-windows.exe
+      
+      - name: Create Release
+        if: ${{ github.event.inputs.release == 'true' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Windows Executable Build ${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: auditaria-windows.exe
+          body: |
+            ## Windows Standalone Executable
+            
+            This release contains a standalone Windows executable for Auditaria CLI.
+            
+            ### Features
+            - No Node.js or npm required
+            - Single .exe file (~125MB)
+            - Full Auditaria CLI functionality
+            - Built with Bun compiler
+            - Working web interface with WebSocket support (`-w` flag)
+            
+            ### Usage
+            Download `auditaria-windows.exe` and run:
+            ```
+            auditaria-windows.exe --help
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

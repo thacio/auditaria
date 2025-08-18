@@ -45,3 +45,11 @@ packages/vscode-ide-companion/*.vsix
 
 # Package tarballs
 *.tgz
+
+# SEA/Bun build artifacts
+sea/bun-final.js
+*.blob
+auditaria.exe
+auditaria-*.exe
+auditaria-standalone.exe
+nul
