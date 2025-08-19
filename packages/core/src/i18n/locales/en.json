@@ -688,6 +688,7 @@
       "modified_in": "(Modified in {scope})"
     },
     "labels": {
+      "code_changes": "Code Changes:",
       "max_session_turns": "Max Session Turns",
       "memory_discovery_max_dirs": "Memory Discovery Max Dirs",
       "show_memory_usage": "Show Memory Usage",

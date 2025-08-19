@@ -7,7 +7,7 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import Gradient from 'ink-gradient';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { formatDuration } from '../utils/formatters.js';
 import { useSessionStats, ModelMetrics } from '../contexts/SessionContext.js';
 import {
@@ -30,7 +30,7 @@ const StatRow: React.FC<StatRowProps> = ({ title, children }) => (
   <Box>
     {/* Fixed width for the label creates a clean "gutter" for alignment */}
     <Box width={28}>
-      <Text color={Colors.LightBlue}>{title}</Text>
+      <Text color={theme.text.link}>{title}</Text>
     </Box>
     {children}
   </Box>
@@ -112,12 +112,12 @@ const ModelUsageTable: React.FC<{
             <Text>{modelMetrics.api.totalRequests}</Text>
           </Box>
           <Box width={inputTokensWidth} justifyContent="flex-end">
-            <Text color={Colors.AccentYellow}>
+            <Text color={theme.status.warning}>
               {modelMetrics.tokens.prompt.toLocaleString()}
             </Text>
           </Box>
           <Box width={outputTokensWidth} justifyContent="flex-end">
-            <Text color={Colors.AccentYellow}>
+            <Text color={theme.status.warning}>
               {modelMetrics.tokens.candidates.toLocaleString()}
             </Text>
           </Box>
@@ -126,14 +126,14 @@ const ModelUsageTable: React.FC<{
       {cacheEfficiency > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text>
-            <Text color={Colors.AccentGreen}>{t('stats.labels.savings_highlight','Savings Highlight:')} </Text>
+            <Text color={theme.status.success}>{t('stats.labels.savings_highlight','Savings Highlight:')} </Text>
             {t('stats.messages.cached_tokens', '{count} ({percentage}%) of input tokens were served from the cache, reducing costs.', {
               count: totalCachedTokens.toLocaleString(),
               percentage: cacheEfficiency.toFixed(1)
             })}
           </Text>
           <Box height={1} />
-          <Text color={Colors.Gray}>
+          <Text color={theme.text.secondary}>
             {t('stats.tip_full_breakdown','» Tip: For a full token breakdown, run `/stats model`.')}
           </Text>
         </Box>
@@ -153,7 +153,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
 }) => {
   const { stats } = useSessionStats();
   const { metrics } = stats;
-  const { models, tools } = metrics;
+  const { models, tools, files } = metrics;
   const computed = computeSessionStats(metrics);
 
   const successThresholds = {
@@ -172,18 +172,18 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
 
   const renderTitle = () => {
     if (title) {
-      return Colors.GradientColors && Colors.GradientColors.length > 0 ? (
-        <Gradient colors={Colors.GradientColors}>
+      return theme.ui.gradient && theme.ui.gradient.length > 0 ? (
+        <Gradient colors={theme.ui.gradient}>
           <Text bold>{title}</Text>
         </Gradient>
       ) : (
-        <Text bold color={Colors.AccentPurple}>
+        <Text bold color={theme.text.accent}>
           {title}
         </Text>
       );
     }
     return (
-      <Text bold color={Colors.AccentPurple}>
+      <Text bold color={theme.text.accent}>
         {t('stats.session_stats','Session Stats')}
       </Text>
     );
@@ -192,7 +192,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   return (
     <Box
       borderStyle="round"
-      borderColor={Colors.Gray}
+      borderColor={theme.border.default}
       flexDirection="column"
       paddingY={1}
       paddingX={2}
@@ -207,8 +207,8 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <StatRow title={t('stats.labels.tool_calls','Tool Calls:')}>
           <Text>
             {tools.totalCalls} ({' '}
-            <Text color={Colors.AccentGreen}>✔ {tools.totalSuccess}</Text>{' '}
-            <Text color={Colors.AccentRed}>✖ {tools.totalFail}</Text> )
+            <Text color={theme.status.success}>✔ {tools.totalSuccess}</Text>{' '}
+            <Text color={theme.status.error}>✖ {tools.totalFail}</Text> )
           </Text>
         </StatRow>
         <StatRow title={t('stats.labels.success_rate','Success Rate:')}>
@@ -218,7 +218,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
           <StatRow title={t('stats.labels.user_agreement','User Agreement:')}>
             <Text color={agreementColor}>
               {computed.agreementRate.toFixed(1)}%{' '}
-              <Text color={Colors.Gray}>
+              <Text color={theme.text.secondary}>
                 {t('stats.messages.reviewed_count', '({count} reviewed)', {
                   count: computed.totalDecisions
                 })}
@@ -226,6 +226,19 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </Text>
           </StatRow>
         )}
+        {files &&
+          (files.totalLinesAdded > 0 || files.totalLinesRemoved > 0) && (
+            <StatRow title={t('stats.labels.code_changes','Code Changes:')}>
+              <Text>
+                <Text color={theme.status.success}>
+                  +{files.totalLinesAdded}
+                </Text>{' '}
+                <Text color={theme.status.error}>
+                  -{files.totalLinesRemoved}
+                </Text>
+              </Text>
+            </StatRow>
+          )}
       </Section>
 
       <Section title={t('stats.sections.performance','Performance')}>
@@ -238,7 +251,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <SubStatRow title={t('stats.labels.api_time','API Time:')}>
           <Text>
             {formatDuration(computed.totalApiTime)}{' '}
-            <Text color={Colors.Gray}>
+            <Text color={theme.text.secondary}>
               ({computed.apiTimePercent.toFixed(1)}%)
             </Text>
           </Text>
@@ -246,7 +259,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         <SubStatRow title={t('stats.labels.tool_time','Tool Time:')}>
           <Text>
             {formatDuration(computed.totalToolTime)}{' '}
-            <Text color={Colors.Gray}>
+            <Text color={theme.text.secondary}>
               ({computed.toolTimePercent.toFixed(1)}%)
             </Text>
           </Text>
