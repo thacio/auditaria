@@ -688,6 +688,8 @@
       "modified_in": "(Modificado em {scope})"
     },
     "labels": {
+      "max_session_turns": "Turnos Máximos da Sessão",
+      "memory_discovery_max_dirs": "Diretórios Máximos de Descoberta de Memória",
       "show_memory_usage": "Mostrar Uso de Memória",
       "enable_usage_statistics": "Habilitar Estatísticas de Uso",
       "auto_configure_max_old_space_size": "Configurar Automaticamente Tamanho Máximo de Memória",

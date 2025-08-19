@@ -688,6 +688,8 @@
       "modified_in": "(Modified in {scope})"
     },
     "labels": {
+      "max_session_turns": "Max Session Turns",
+      "memory_discovery_max_dirs": "Memory Discovery Max Dirs",
       "show_memory_usage": "Show Memory Usage",
       "enable_usage_statistics": "Enable Usage Statistics",
       "auto_configure_max_old_space_size": "Auto Configure Max Old Space Size",
