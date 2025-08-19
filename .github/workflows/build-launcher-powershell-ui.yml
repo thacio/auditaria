@@ -1,0 +1,150 @@
+name: Build Launcher with PowerShell UI
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create a release with the launcher'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      version_tag:
+        description: 'Version tag for release (e.g., launcher-v1.0.0)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Bun
+        run: |
+          powershell -c "irm bun.sh/install.ps1 | iex"
+          echo "$env:USERPROFILE\.bun\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build bundle
+        run: npm run bundle
+      
+      - name: Build Launcher with PowerShell UI
+        run: |
+          # Use the renamed build script with PowerShell UI
+          $env:Path += ";$env:USERPROFILE\.bun\bin"
+          node sea/build-bun-launcher-powershellui.cjs
+        shell: pwsh
+      
+      - name: Test launcher executable
+        run: |
+          # Check if the launcher was built successfully
+          if (Test-Path "auditaria-launcher.exe") {
+            Write-Host "✅ Launcher executable found"
+            # Get file info
+            $fileInfo = Get-Item "auditaria-launcher.exe"
+            Write-Host "File size: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
+            Write-Host "Created: $($fileInfo.CreationTime)"
+          } else {
+            Write-Host "❌ Launcher executable not found"
+            exit 1
+          }
+        shell: pwsh
+      
+      - name: Upload launcher as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditaria-launcher-powershell-ui
+          path: auditaria-launcher.exe
+          retention-days: 30
+      
+      - name: Create Release
+        if: ${{ github.event.inputs.release == 'true' && github.event.inputs.version_tag != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: Auditaria Launcher with PowerShell UI - ${{ github.event.inputs.version_tag }}
+          draft: false
+          prerelease: false
+          files: auditaria-launcher.exe
+          body: |
+            ## Auditaria Launcher with PowerShell UI
+            
+            This release contains a standalone Windows launcher for Auditaria with an embedded PowerShell GUI.
+            
+            ### Features
+            - 🎨 **Native Windows GUI** - Professional PowerShell-based interface
+            - 📁 **Folder Selection** - Browse and select working directory
+            - 🌐 **Web Interface Support** - Option to launch with web interface
+            - 🔒 **Security Settings** - SSL verification toggle for corporate firewalls
+            - ✅ **Approval Modes** - Choose between Default, Auto Edit, or YOLO mode
+            - 🚀 **Self-contained** - All Auditaria functionality embedded in single executable
+            - 📦 **No dependencies** - No Node.js or npm required
+            - 💾 **Size** - ~125MB standalone executable
+            
+            ### How to Use
+            1. Download `auditaria-launcher.exe`
+            2. Double-click to run
+            3. Select your working directory
+            4. Configure launch options:
+               - Web interface (enabled by default)
+               - SSL verification (for corporate networks)
+               - Approval mode (Default/Auto Edit/YOLO)
+            5. Click "Start Auditaria"
+            
+            ### UI Improvements
+            - Resizable window (560x520 default size)
+            - Clean "Auditaria" branding (no CLI mentions)
+            - Organized settings in logical groups
+            - Color-coded warnings for security options
+            
+            ### System Requirements
+            - Windows 10 or later
+            - 64-bit processor
+            - 4GB RAM recommended
+            
+            ### Notes
+            - The launcher will look for files in the selected working directory
+            - Web interface runs on port 8629 by default
+            - SSL verification can be disabled for corporate MITM firewalls
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create Auto-versioned Release
+        if: ${{ github.event.inputs.release == 'true' && github.event.inputs.version_tag == '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: launcher-build-${{ github.run_number }}
+          name: Auditaria Launcher Build ${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: auditaria-launcher.exe
+          body: |
+            ## Auditaria Launcher with PowerShell UI
+            
+            Automated build #${{ github.run_number }} of the Auditaria Launcher.
+            
+            ### Quick Start
+            Download `auditaria-launcher.exe` and run it to launch Auditaria with a native Windows GUI.
+            
+            ### Build Information
+            - Build Number: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            - Built with: Bun compiler + PowerShell UI
+            
+            See the main release notes for full feature list and usage instructions.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

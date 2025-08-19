@@ -523,7 +523,34 @@ fs.writeFileSync(tempPath, bundleContent);
 console.log(`   ✓ Bundle size: ${(bundleContent.length / 1024 / 1024).toFixed(2)} MB`);
 
 console.log('\n🚀 Compiling...');
-const bunPath = 'C:\\Users\\thaci\\.bun\\bin\\bun.exe';
+
+// Detect Bun path - try multiple locations
+let bunPath = '';
+const possibleBunPaths = [
+  path.join(process.env.USERPROFILE || '', '.bun', 'bin', 'bun.exe'), // User profile (Windows)
+  path.join(process.env.HOME || '', '.bun', 'bin', 'bun.exe'), // Home directory
+  'C:\\Users\\thaci\\.bun\\bin\\bun.exe', // Local development fallback
+  'bun.exe', // In PATH (Windows)
+  'bun' // In PATH (cross-platform)
+];
+
+for (const testPath of possibleBunPaths) {
+  try {
+    // Test if the command works
+    execSync(`"${testPath}" --version`, { stdio: 'ignore' });
+    bunPath = testPath;
+    console.log(`   ✓ Found Bun at: ${bunPath}`);
+    break;
+  } catch (e) {
+    // Continue to next path
+  }
+}
+
+if (!bunPath) {
+  console.error('\n❌ Could not find Bun executable. Please ensure Bun is installed.');
+  console.error('   Tried paths:', possibleBunPaths);
+  process.exit(1);
+}
 
 try {
   execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --outfile "${OUTPUT_PATH}"`, {

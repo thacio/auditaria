@@ -92,7 +92,7 @@ export class WebInterfaceService {
       const debugMode = process.env.DEBUG || process.env.NODE_ENV === 'development';
       
       if (debugMode) {
-        console.log('Web client path resolution attempts:');
+        // console.log('Web client path resolution attempts:');
         possiblePaths.forEach((testPath, index) => {
           console.log(`  ${index + 1}. ${testPath}`);
         });
@@ -105,15 +105,15 @@ export class WebInterfaceService {
           if (fs.existsSync(indexPath)) {
             webClientPath = testPath;
             if (debugMode) {
-              console.log(`✓ Found web client files at: ${webClientPath}`);
+              // console.log(`✓ Found web client files at: ${webClientPath}`);
             }
             break;
           } else if (debugMode) {
-            console.log(`✗ Not found: ${indexPath}`);
+            // console.log(`✗ Not found: ${indexPath}`);
           }
         } catch (error) {
           if (debugMode) {
-            console.log(`✗ Error checking ${testPath}:`, error);
+            // console.log(`✗ Error checking ${testPath}:`, error);
           }
           // Continue to next path
         }

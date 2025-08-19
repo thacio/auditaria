@@ -41,10 +41,19 @@ jobs:
         run: |
           # Use our custom build script that includes WebSocket fixes
           $env:Path += ";$env:USERPROFILE\.bun\bin"
+          
+          # Run the build script
           node sea/build-bun-unified.cjs
-          # Rename output to match expected name
+          
+          # Check if the executable was created
           if (Test-Path "auditaria-standalone.exe") {
+            Write-Host "✅ Build successful - auditaria-standalone.exe created"
+            # Rename output to match expected name
             Move-Item -Path "auditaria-standalone.exe" -Destination "auditaria-windows.exe" -Force
+            Write-Host "✅ Renamed to auditaria-windows.exe"
+          } else {
+            Write-Host "❌ Build failed - auditaria-standalone.exe not found"
+            exit 1
           }
         shell: pwsh
       
@@ -76,9 +85,11 @@ jobs:
             ### Features
             - No Node.js or npm required
             - Single .exe file (~125MB)
-            - Full Auditaria CLI functionality
+            - Full Auditaria functionality
             - Built with Bun compiler
-            - Working web interface with WebSocket support (`-w` flag)
+            - Working web interface with WebSocket support (`--web` or `-w` flag)
+            - Embedded locale files for internationalization
+            - Unified Bun server for HTTP + WebSocket
             
             ### Usage
             Download `auditaria-windows.exe` and run:
