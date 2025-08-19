@@ -47,6 +47,7 @@ export * from './utils/errorParsing.js';
 export * from './services/fileDiscoveryService.js';
 export * from './services/gitService.js';
 export * from './services/shellExecutionService.js';
+export * from './services/fileSystemService.js';
 
 // Export telemetry
 export { logIdeConnection } from './telemetry/loggers.js';
