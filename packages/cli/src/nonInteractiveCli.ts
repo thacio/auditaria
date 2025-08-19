@@ -11,7 +11,6 @@ import {
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
-  ToolErrorType,
   parseAndFormatApiError,
   t,
 } from '@thacio/auditaria-cli-core';
@@ -109,8 +108,6 @@ export async function runNonInteractive(
             console.error(
               t('non_interactive.tool_execution_error', 'Error executing tool {toolName}: {error}', { toolName: fc.name ?? 'unknown', error: toolResponse.error.message }),
             );
-            if (toolResponse.errorType === ToolErrorType.UNHANDLED_EXCEPTION)
-              process.exit(1);
           }
 
           if (toolResponse.responseParts) {
