@@ -46,7 +46,7 @@ export * from './utils/errorParsing.js';
 // Export services
 export * from './services/fileDiscoveryService.js';
 export * from './services/gitService.js';
-export * from './services/shellExecutionService.js';
+export * from './services/chatRecordingService.js';
 export * from './services/fileSystemService.js';
 
 // Export telemetry
