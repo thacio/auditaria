@@ -1205,6 +1205,9 @@
     "error_saving": "Error saving trusted folders file: {error}",
     "error_loading": "Error loading trusted folders config from {path}: {message}"
   },
+  "telemetry": {
+    "data_collection_disabled": "Data collection is disabled."
+  },
   "stdin": {
     "truncated_warning": "Warning: stdin input truncated to {size} bytes."
   }

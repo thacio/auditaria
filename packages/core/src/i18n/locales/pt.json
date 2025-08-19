@@ -1205,6 +1205,9 @@
     "error_saving": "Erro ao salvar arquivo de pastas confiáveis: {error}",
     "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}"
   },
+  "telemetry": {
+    "data_collection_disabled": "A coleta de dados está desabilitada."
+  },
   "stdin": {
     "truncated_warning": "Aviso: entrada stdin truncada para {size} bytes."
   }
