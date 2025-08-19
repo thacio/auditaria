@@ -177,6 +177,7 @@ export function logToolCall(config: Config, event: ToolCallEvent): void {
     event.duration_ms,
     event.success,
     event.decision,
+    event.tool_type,
   );
   */
 }
