@@ -6,7 +6,12 @@
 import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Config, CodeAssistServer, UserTierId } from '@thacio/auditaria-cli-core';
+import {
+  Config,
+  CodeAssistServer,
+  UserTierId,
+  LoggingContentGenerator,
+} from '@thacio/auditaria-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;
@@ -81,7 +86,13 @@ export const usePrivacySettings = (config: Config) => {
 };
 
 function getCodeAssistServer(config: Config): CodeAssistServer {
-  const server = config.getGeminiClient().getContentGenerator();
+  let server = config.getGeminiClient().getContentGenerator();
+
+  // Unwrap LoggingContentGenerator if present
+  if (server instanceof LoggingContentGenerator) {
+    server = server.getWrapped();
+  }
+
   // Neither of these cases should ever happen.
   if (!(server instanceof CodeAssistServer)) {
     throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
