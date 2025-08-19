@@ -93,6 +93,9 @@ const unifiedBunServer = `
   let unifiedServer = null;
   let serverPort = null;
   
+  // Store embedded files globally for Express static middleware override
+  globalThis.__EMBEDDED_WEB_FILES = WEB_CLIENT_FILES;
+  
   // Message handlers storage
   let messageHandlers = {
     submitQuery: null,
@@ -395,6 +398,8 @@ const unifiedBunServer = `
     });
   } catch (e) {}
   
+  // Note: Express.static override removed - the unified Bun server handles static files directly
+  
   // Create global broadcast function
   globalThis.bunBroadcast = function(message) {
     const payload = JSON.stringify({ ...message, timestamp: Date.now() });
@@ -427,6 +432,41 @@ const unifiedBunServer = `
 
 // Inject the unified server
 bundleContent = unifiedBunServer + '\n' + bundleContent;
+
+// Fix 3: Patch WebInterfaceService to skip file checks in Bun and serve from embedded files
+bundleContent = bundleContent.replace(
+  /for \(const testPath of possiblePaths\) \{[\s\S]*?\}[\s]*if \(!webClientPath\) \{/g,
+  `// In Bun runtime, skip file checks and use embedded files
+  if (typeof Bun !== 'undefined' && globalThis.__EMBEDDED_WEB_FILES) {
+    webClientPath = '/$bunfs/embedded-web-client';
+    if (debugMode) {
+      console.log('✓ Using embedded web client files in Bun runtime');
+    }
+  } else {
+    for (const testPath of possiblePaths) {
+      try {
+        const fs = await import('fs');
+        const indexPath = path.join(testPath, 'index.html');
+        if (fs.existsSync(indexPath)) {
+          webClientPath = testPath;
+          if (debugMode) {
+            console.log(\`✓ Found web client files at: \${webClientPath}\`);
+          }
+          break;
+        } else if (debugMode) {
+          console.log(\`✗ Not found: \${indexPath}\`);
+        }
+      } catch (error) {
+        if (debugMode) {
+          console.log(\`✗ Error checking \${testPath}:\`, error);
+        }
+        // Continue to next path
+      }
+    }
+  }
+  
+  if (!webClientPath) {`
+);
 
 // Fix 3: Patch WebSocketServer instantiation
 bundleContent = bundleContent.replace(
