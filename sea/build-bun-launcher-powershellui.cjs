@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * Unified Bun WebSocket solution - Single server handling both HTTP and WebSocket
+ * Auditaria Launcher with Embedded GUI - Improved Version
+ * 
+ * This script builds a single Windows executable that contains:
+ * 1. A PowerShell-based GUI for selecting launch options
+ * 2. The entire Auditaria application with all unified fixes
+ * 3. Embedded web client files
+ * 4. Embedded locale files
+ * 5. Unified Bun WebSocket server for web interface
+ * 
+ * When run, it displays a native Windows GUI first, then launches the embedded application.
  */
 
 const fs = require('fs');
@@ -9,17 +18,21 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini.js');
-const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-standalone.exe');
+const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-launcher.exe');
+const LAUNCHER_ENTRY_PATH = path.join(__dirname, '..', 'bundle', 'gemini-launcher-entry.js');
 const WEB_CLIENT_PATH = path.join(__dirname, '..', 'packages', 'web-client', 'src');
 
-console.log('🔧 Building Auditaria CLI with unified Bun server...\n');
+console.log('🚀 Building Auditaria with embedded GUI launcher (Improved Version)...\n');
 
+// Step 1: Ensure the application bundle exists
 if (!fs.existsSync(BUNDLE_PATH)) {
-  console.error('❌ Bundle not found');
+  console.error(`❌ Application bundle not found at: ${BUNDLE_PATH}`);
+  console.error('Please run "npm run bundle" first.');
   process.exit(1);
 }
+console.log('✓ Application bundle found.');
 
-// Embed locale files
+// Step 2: Embed locale files
 console.log('📦 Embedding locale files...');
 const LOCALE_PATH = path.join(__dirname, '..', 'bundle', 'locales');
 let localeData = {};
@@ -36,7 +49,7 @@ if (fs.existsSync(LOCALE_PATH)) {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
 }
 
-// Embed web client files
+// Step 3: Embed web client files
 console.log('\n📦 Embedding web client files...');
 const webClientFiles = {};
 
@@ -59,23 +72,25 @@ if (fs.existsSync(WEB_CLIENT_PATH)) {
   console.log(`   ✓ Embedded ${Object.keys(webClientFiles).length} files`);
 }
 
+// Step 4: Read and prepare the application bundle
 console.log('\n📖 Reading bundle...');
 let bundleContent = fs.readFileSync(BUNDLE_PATH, 'utf8');
 
-// Remove shebang
+// Remove shebang if it exists
 if (bundleContent.startsWith('#!/')) {
   bundleContent = bundleContent.slice(bundleContent.indexOf('\n') + 1);
 }
 
-console.log('🔨 Applying fixes...');
+// Step 5: Apply all fixes from unified script
+console.log('🔨 Applying unified fixes...');
 
-// Fix 1: Interactive mode
+// Fix 1: Interactive mode - include web mode
 bundleContent = bundleContent.replace(
   /const interactive = !!argv\.promptInteractive \|\| process33\.stdin\.isTTY && question\.length === 0;/,
   'const interactive = !!argv.promptInteractive || !!argv.web || (process33.stdin.isTTY && question.length === 0);'
 );
 
-// Fix 2: Unified Bun server that handles EVERYTHING
+// Fix 2: Unified Bun server for HTTP + WebSocket
 const unifiedBunServer = `
 // UNIFIED BUN SERVER FOR HTTP + WEBSOCKET
 (function() {
@@ -121,7 +136,7 @@ const unifiedBunServer = `
       
       // Only create server once
       if (unifiedServer) {
-        // console.log('[Bun] Server already exists on port', serverPort);
+        //console.log('[Bun] Server already exists on port', serverPort);
         return;
       }
       
@@ -198,7 +213,7 @@ const unifiedBunServer = `
             // Send initial connection message
             ws.send(JSON.stringify({
               type: 'connection',
-              data: { message: 'Connected to Auditaria CLI' },
+              data: { message: 'Connected to Auditaria' },
               timestamp: Date.now()
             }));
             
@@ -266,8 +281,7 @@ const unifiedBunServer = `
             try {
               const data = JSON.parse(message.toString());
               
-              // Handle different message types - these are already being processed
-              // so we don't need to trigger mock handlers for them
+              // Handle different message types
               let messageHandled = false;
               
               if (data.type === 'user_message' && messageHandlers.submitQuery) {
@@ -287,12 +301,11 @@ const unifiedBunServer = `
               }
               
               // Only trigger mock handlers for unhandled message types
-              // to avoid duplicate processing
               if (!messageHandled && ws._mockWs && ws._handlers && ws._handlers.message) {
                 ws._handlers.message(message);
               }
             } catch (error) {
-              // console.error('[Bun] Error handling message:', error);
+              console.error('[Bun] Error handling message:', error);
             }
           },
           
@@ -468,13 +481,13 @@ bundleContent = bundleContent.replace(
   if (!webClientPath) {`
 );
 
-// Fix 3: Patch WebSocketServer instantiation
+// Fix 4: Patch WebSocketServer instantiation
 bundleContent = bundleContent.replace(
   /new import_websocket_server\.(default|WebSocketServer)\(/g,
   'new (globalThis.WebSocketServer || import_websocket_server.default)('
 );
 
-// Fix 4: Patch WebInterfaceService methods to use global broadcast
+// Fix 5: Patch WebInterfaceService methods to use global broadcast
 bundleContent = bundleContent.replace(
   /broadcastMessage\(historyItem\)\s*{/g,
   `broadcastMessage(historyItem) {
@@ -493,8 +506,7 @@ bundleContent = bundleContent.replace(
     }`
 );
 
-// Fix 4: Suppress locale warnings
-console.log('   ✓ Suppressing locale warnings...');
+// Fix 6: Suppress locale warnings
 bundleContent = bundleContent.replace(
   /console\.warn\("Could not read locales directory, falling back to defaults:", error\);/g,
   '// Warning suppressed for Bun executable'
@@ -505,7 +517,7 @@ bundleContent = bundleContent.replace(
   '// Warning suppressed for Bun executable'
 );
 
-// Fix 5: Replace file reading with embedded data check
+// Fix 7: Replace file reading with embedded data check
 bundleContent = bundleContent.replace(
   /const fileContent = await fs\d+\.readFile\(filePath, "utf-8"\);[\s]*const translations = JSON\.parse\(fileContent\);/g,
   `let translations;
@@ -517,29 +529,363 @@ bundleContent = bundleContent.replace(
    }`
 );
 
-// Write modified bundle
-const tempPath = path.join(__dirname, '..', 'bundle', 'gemini-bun-unified.js');
-fs.writeFileSync(tempPath, bundleContent);
+console.log(`   ✓ All unified fixes applied`);
 console.log(`   ✓ Bundle size: ${(bundleContent.length / 1024 / 1024).toFixed(2)} MB`);
 
-console.log('\n🚀 Compiling...');
+// Step 6: Define the improved PowerShell GUI script
+const powershellScript = `
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$ErrorActionPreference = 'Stop'
+
+# Create the main form
+$form = New-Object System.Windows.Forms.Form
+$form.Text = 'Auditaria Launcher'
+$form.Size = New-Object System.Drawing.Size(540, 540)
+$form.MinimumSize = New-Object System.Drawing.Size(540, 540)
+$form.StartPosition = 'CenterScreen'
+$form.FormBorderStyle = 'Sizable'
+$form.MaximizeBox = $false
+$form.Icon = [System.Drawing.SystemIcons]::Application
+$form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+
+# Create title label
+$titleLabel = New-Object System.Windows.Forms.Label
+$titleLabel.Location = New-Object System.Drawing.Point(20, 20)
+$titleLabel.Size = New-Object System.Drawing.Size(460, 30)
+$titleLabel.Text = 'Auditaria - AI-Powered Audit Assistant'
+$titleLabel.Font = New-Object System.Drawing.Font('Segoe UI', 14, [System.Drawing.FontStyle]::Bold)
+$titleLabel.ForeColor = [System.Drawing.Color]::FromArgb(0, 51, 102)
+$form.Controls.Add($titleLabel)
+
+# Create working directory label and textbox
+$dirLabel = New-Object System.Windows.Forms.Label
+$dirLabel.Location = New-Object System.Drawing.Point(20, 65)
+$dirLabel.Size = New-Object System.Drawing.Size(150, 20)
+$dirLabel.Text = 'Working Directory:'
+$dirLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$form.Controls.Add($dirLabel)
+
+$dirTextBox = New-Object System.Windows.Forms.TextBox
+$dirTextBox.Location = New-Object System.Drawing.Point(20, 90)
+$dirTextBox.Size = New-Object System.Drawing.Size(380, 25)
+$dirTextBox.Text = [Environment]::GetFolderPath('MyDocuments')
+$dirTextBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$form.Controls.Add($dirTextBox)
+
+# Create browse button
+$browseButton = New-Object System.Windows.Forms.Button
+$browseButton.Location = New-Object System.Drawing.Point(410, 89)
+$browseButton.Size = New-Object System.Drawing.Size(75, 27)
+$browseButton.Text = 'Browse...'
+$browseButton.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$browseButton.FlatStyle = 'Standard'
+$browseButton.Add_Click({
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.Description = 'Select the folder where Auditaria will have access'
+    $folderBrowser.SelectedPath = $dirTextBox.Text
+    $folderBrowser.ShowNewFolderButton = $true
+    if ($folderBrowser.ShowDialog() -eq 'OK') {
+        $dirTextBox.Text = $folderBrowser.SelectedPath
+    }
+})
+$form.Controls.Add($browseButton)
+
+# Create launch options group box
+$optionsGroup = New-Object System.Windows.Forms.GroupBox
+$optionsGroup.Location = New-Object System.Drawing.Point(20, 130)
+$optionsGroup.Size = New-Object System.Drawing.Size(465, 80)
+$optionsGroup.Text = 'Launch Options'
+$optionsGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$form.Controls.Add($optionsGroup)
+
+$webCheckBox = New-Object System.Windows.Forms.CheckBox
+$webCheckBox.Location = New-Object System.Drawing.Point(15, 25)
+$webCheckBox.Size = New-Object System.Drawing.Size(430, 25)
+$webCheckBox.Text = 'Launch with Web Interface (--web)'
+$webCheckBox.Checked = $true
+$webCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$optionsGroup.Controls.Add($webCheckBox)
+
+$noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
+$noBrowserCheckBox.Location = New-Object System.Drawing.Point(35, 50)
+$noBrowserCheckBox.Size = New-Object System.Drawing.Size(410, 25)
+$noBrowserCheckBox.Text = "Don't open browser automatically (no-browser)"
+$noBrowserCheckBox.Checked = $false
+$noBrowserCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$noBrowserCheckBox.Enabled = $true
+$optionsGroup.Controls.Add($noBrowserCheckBox)
+
+# Create security group box
+$securityGroup = New-Object System.Windows.Forms.GroupBox
+$securityGroup.Location = New-Object System.Drawing.Point(20, 220)
+$securityGroup.Size = New-Object System.Drawing.Size(465, 55)
+$securityGroup.Text = 'Security Settings'
+$securityGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$form.Controls.Add($securityGroup)
+
+$sslCheckBox = New-Object System.Windows.Forms.CheckBox
+$sslCheckBox.Location = New-Object System.Drawing.Point(15, 25)
+$sslCheckBox.Size = New-Object System.Drawing.Size(440, 25)
+$sslCheckBox.Text = 'Disable SSL verification (for corporate firewalls with MITM)'
+$sslCheckBox.Checked = $false
+$sslCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$sslCheckBox.ForeColor = [System.Drawing.Color]::FromArgb(139, 69, 19)
+$securityGroup.Controls.Add($sslCheckBox)
+
+# Create approval mode group box
+$approvalGroup = New-Object System.Windows.Forms.GroupBox
+$approvalGroup.Location = New-Object System.Drawing.Point(20, 285)
+$approvalGroup.Size = New-Object System.Drawing.Size(465, 100)
+$approvalGroup.Text = 'Approval Mode'
+$approvalGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$form.Controls.Add($approvalGroup)
+
+$approvalDefaultRadio = New-Object System.Windows.Forms.RadioButton
+$approvalDefaultRadio.Location = New-Object System.Drawing.Point(15, 25)
+$approvalDefaultRadio.Size = New-Object System.Drawing.Size(440, 20)
+$approvalDefaultRadio.Text = 'Default - Prompt for approval on tool use'
+$approvalDefaultRadio.Checked = $true
+$approvalDefaultRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$approvalGroup.Controls.Add($approvalDefaultRadio)
+
+$approvalAutoEditRadio = New-Object System.Windows.Forms.RadioButton
+$approvalAutoEditRadio.Location = New-Object System.Drawing.Point(15, 48)
+$approvalAutoEditRadio.Size = New-Object System.Drawing.Size(440, 20)
+$approvalAutoEditRadio.Text = 'Auto Edit - Auto-approve edit tools only'
+$approvalAutoEditRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$approvalGroup.Controls.Add($approvalAutoEditRadio)
+
+$approvalYoloRadio = New-Object System.Windows.Forms.RadioButton
+$approvalYoloRadio.Location = New-Object System.Drawing.Point(15, 71)
+$approvalYoloRadio.Size = New-Object System.Drawing.Size(440, 20)
+$approvalYoloRadio.Text = 'YOLO - Auto-approve all tools (use with caution)'
+$approvalYoloRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb(255, 69, 0)
+$approvalGroup.Controls.Add($approvalYoloRadio)
+
+# Enable/disable no-browser based on web checkbox
+$webCheckBox.Add_CheckedChanged({
+    $noBrowserCheckBox.Enabled = $webCheckBox.Checked
+    if (-not $webCheckBox.Checked) {
+        $noBrowserCheckBox.Checked = $false
+    }
+})
+
+# Create Start and Cancel buttons
+$startButton = New-Object System.Windows.Forms.Button
+$startButton.Location = New-Object System.Drawing.Point(310, 440)
+$startButton.Size = New-Object System.Drawing.Size(100, 35)
+$startButton.Text = 'Start Auditaria'
+$startButton.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+$startButton.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 212)
+$startButton.ForeColor = [System.Drawing.Color]::White
+$startButton.FlatStyle = 'Flat'
+$startButton.FlatAppearance.BorderSize = 0
+$startButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$form.Controls.Add($startButton)
+
+$cancelButton = New-Object System.Windows.Forms.Button
+$cancelButton.Location = New-Object System.Drawing.Point(420, 440)
+$cancelButton.Size = New-Object System.Drawing.Size(85, 35)
+$cancelButton.Text = 'Cancel'
+$cancelButton.Font = New-Object System.Drawing.Font('Segoe UI', 10)
+$cancelButton.FlatStyle = 'Flat'
+$cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+$form.Controls.Add($cancelButton)
+
+$form.AcceptButton = $startButton
+$form.CancelButton = $cancelButton
+
+# Show the dialog and process the result
+$result = $form.ShowDialog()
+
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+    $workingDir = $dirTextBox.Text
+    
+    # Validate directory exists
+    if (-not (Test-Path -Path $workingDir -PathType Container)) {
+        [System.Windows.Forms.MessageBox]::Show(
+            'The selected directory does not exist. Please choose a valid directory.',
+            'Invalid Directory',
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        exit 1
+    }
+    
+    # Build command line arguments
+    $args = @()
+    if ($webCheckBox.Checked) {
+        if ($noBrowserCheckBox.Checked) {
+            $args += '--web', 'no-browser'
+        } else {
+            $args += '--web'
+        }
+    }
+    
+    # Add approval mode
+    if ($approvalAutoEditRadio.Checked) {
+        $args += '--approval-mode', 'auto_edit'
+    } elseif ($approvalYoloRadio.Checked) {
+        $args += '--approval-mode', 'yolo'
+    }
+    # Default mode doesn't need explicit parameter
+    
+    # Output the configuration as a JSON object
+    $output = @{
+        workingDir = $workingDir
+        args = $args
+        disableSSL = $sslCheckBox.Checked
+    }
+    Write-Output ($output | ConvertTo-Json -Compress)
+    exit 0
+} else {
+    # User cancelled
+    exit 1
+}
+`;
+
+console.log('✓ PowerShell GUI script defined.');
+
+// Step 7: Create the launcher entry point script
+const launcherEntryPoint = `
+// Launcher Entry Point with Embedded GUI
+(function() {
+  const powershellScript = \`${powershellScript.replace(/`/g, '``').replace(/\$/g, '\\$')}\`;
+  
+  let powershell;
+  if (typeof Bun !== 'undefined') {
+    // Bun runtime
+    powershell = Bun.spawnSync(['powershell.exe',
+      '-NoProfile',
+      '-ExecutionPolicy', 'Bypass', 
+      '-WindowStyle', 'Hidden',
+      '-Command',
+      powershellScript
+    ], {
+      stdout: 'pipe',
+      stderr: 'pipe'
+    });
+    
+    // Convert Bun result to Node-like format
+    const textDecoder = new TextDecoder();
+    powershell = {
+      status: powershell.exitCode,
+      stdout: powershell.stdout ? textDecoder.decode(powershell.stdout) : '',
+      stderr: powershell.stderr ? textDecoder.decode(powershell.stderr) : '',
+      error: powershell.exitCode !== 0 && !powershell.stdout ? new Error('PowerShell failed') : null
+    };
+  } else {
+    // Node.js runtime (fallback)
+    const { spawnSync } = require('child_process');
+    powershell = spawnSync('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy', 'Bypass',
+      '-WindowStyle', 'Hidden',
+      '-Command',
+      powershellScript
+    ], { encoding: 'utf8', shell: false });
+  }
+
+  if (powershell.error) {
+    console.error('Failed to start PowerShell:', powershell.error);
+    process.exit(1);
+  }
+
+  if (powershell.status !== 0) {
+    // User likely cancelled, or an error occurred in PowerShell
+    process.exit(powershell.status || 0);
+  }
+
+  const output = powershell.stdout?.trim();
+  if (!output) {
+    // No output means the user cancelled
+    process.exit(0);
+  }
+
+  let config;
+  try {
+    config = JSON.parse(output);
+  } catch (e) {
+    console.error('Failed to parse configuration from GUI:', e);
+    console.error('Received:', output);
+    process.exit(1);
+  }
+
+  // Configuration successful, now prepare to run the app
+
+  // 1. Change the working directory
+  try {
+    process.chdir(config.workingDir);
+    console.log(\`Working directory: \${config.workingDir}\`);
+  } catch (e) {
+    console.error(\`Failed to change working directory to: \${config.workingDir}\`);
+    console.error(e);
+    process.exit(1);
+  }
+
+  // 2. Handle SSL setting for corporate firewalls
+  if (config.disableSSL) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    console.log('⚠️  SSL verification disabled for corporate firewall');
+  }
+
+  // 3. Set the process arguments
+  // process.argv will be [executable, script, ...args]
+  process.argv = [
+    process.execPath,
+    __filename,
+    ...config.args
+  ];
+
+// 4. Run the embedded application bundle with all fixes
+})();
+
+${bundleContent}
+`;
+
+console.log('✓ Launcher entry point script created.');
+
+// Step 8: Write the launcher entry point to a temporary file
+try {
+  fs.writeFileSync(LAUNCHER_ENTRY_PATH, launcherEntryPoint);
+  console.log(`✓ Launcher entry point written to: ${LAUNCHER_ENTRY_PATH}`);
+} catch (error) {
+  console.error('❌ Failed to write launcher entry point file:', error);
+  process.exit(1);
+}
+
+// Step 9: Compile the launcher entry point with Bun
+console.log('\n📦 Compiling with Bun...');
 const bunPath = 'C:\\Users\\thaci\\.bun\\bin\\bun.exe';
 
 try {
-  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --outfile "${OUTPUT_PATH}"`, {
+  execSync(`"${bunPath}" build "${LAUNCHER_ENTRY_PATH}" --compile --target=bun-windows-x64 --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
   
-  console.log('\n✅ Build successful!');
-  console.log('\n📋 Test instructions:');
-  console.log('   1. Run: auditaria-standalone.exe -w no-browser');
-  console.log('   2. Open: http://localhost:8629');
-  console.log('   3. Check: WebSocket should show "Connected"');
+  console.log(`\n✅ Build successful! Executable created at: ${OUTPUT_PATH}`);
+  console.log('\n📋 Features:');
+  console.log('   ✓ Native Windows GUI for launch options');
+  console.log('   ✓ Embedded web client files');
+  console.log('   ✓ Embedded locale files');
+  console.log('   ✓ Unified Bun WebSocket server');
+  console.log('   ✓ All fixes from unified build applied');
+  console.log('\n🚀 To test:');
+  console.log('   1. Run: auditaria-launcher.exe');
+  console.log('   2. Select folder and options in GUI');
+  console.log('   3. Click "Start Auditaria"');
   
 } catch (error) {
-  console.error('\n❌ Build failed:', error.message);
+  console.error('\n❌ Bun compilation failed:', error.message);
+  process.exit(1);
 } finally {
-  if (fs.existsSync(tempPath)) {
-    fs.unlinkSync(tempPath);
+  // Step 10: Clean up the temporary entry point file
+  if (fs.existsSync(LAUNCHER_ENTRY_PATH)) {
+    fs.unlinkSync(LAUNCHER_ENTRY_PATH);
+    console.log(`✓ Cleaned up temporary file: ${LAUNCHER_ENTRY_PATH}`);
   }
 }
+
+console.log('\n✨ Done!');

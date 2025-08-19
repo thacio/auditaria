@@ -1,5 +1,5 @@
 @echo off
-:: Auditaria CLI Launcher with Native Windows UI
+:: Auditaria Launcher with Native Windows UI
 :: This launcher provides a GUI for selecting working directory and launch options
 
 :: Create a temporary PowerShell script
@@ -12,10 +12,11 @@ echo $ErrorActionPreference = 'Stop'
 echo.
 echo # Create the main form
 echo $form = New-Object System.Windows.Forms.Form
-echo $form.Text = 'Auditaria CLI Launcher'
-echo $form.Size = New-Object System.Drawing.Size^(520, 380^)
+echo $form.Text = 'Auditaria Launcher'
+echo $form.Size = New-Object System.Drawing.Size^(540, 540^)
+echo $form.MinimumSize = New-Object System.Drawing.Size^(540, 540^)
 echo $form.StartPosition = 'CenterScreen'
-echo $form.FormBorderStyle = 'FixedDialog'
+echo $form.FormBorderStyle = 'Sizable'
 echo $form.MaximizeBox = $false
 echo $form.Icon = [System.Drawing.SystemIcons]::Application
 echo $form.BackColor = [System.Drawing.Color]::FromArgb^(240, 240, 240^)
@@ -24,7 +25,7 @@ echo # Create title label
 echo $titleLabel = New-Object System.Windows.Forms.Label
 echo $titleLabel.Location = New-Object System.Drawing.Point^(20, 20^)
 echo $titleLabel.Size = New-Object System.Drawing.Size^(460, 30^)
-echo $titleLabel.Text = 'Auditaria CLI - AI-Powered Audit Assistant'
+echo $titleLabel.Text = 'Auditaria - AI-Powered Audit Assistant'
 echo $titleLabel.Font = New-Object System.Drawing.Font^('Segoe UI', 14, [System.Drawing.FontStyle]::Bold^)
 echo $titleLabel.ForeColor = [System.Drawing.Color]::FromArgb^(0, 51, 102^)
 echo $form.Controls.Add^($titleLabel^)
@@ -63,17 +64,17 @@ echo     }
 echo }^)
 echo $form.Controls.Add^($browseButton^)
 echo.
-echo # Create options group box
+echo # Create launch options group box
 echo $optionsGroup = New-Object System.Windows.Forms.GroupBox
 echo $optionsGroup.Location = New-Object System.Drawing.Point^(20, 130^)
-echo $optionsGroup.Size = New-Object System.Drawing.Size^(465, 150^)
+echo $optionsGroup.Size = New-Object System.Drawing.Size^(465, 80^)
 echo $optionsGroup.Text = 'Launch Options'
 echo $optionsGroup.Font = New-Object System.Drawing.Font^('Segoe UI', 10^)
 echo $form.Controls.Add^($optionsGroup^)
 echo.
 echo # Create web interface checkbox
 echo $webCheckBox = New-Object System.Windows.Forms.CheckBox
-echo $webCheckBox.Location = New-Object System.Drawing.Point^(15, 30^)
+echo $webCheckBox.Location = New-Object System.Drawing.Point^(15, 25^)
 echo $webCheckBox.Size = New-Object System.Drawing.Size^(430, 25^)
 echo $webCheckBox.Text = 'Launch with Web Interface ^(--web^)'
 echo $webCheckBox.Checked = $true
@@ -82,7 +83,7 @@ echo $optionsGroup.Controls.Add^($webCheckBox^)
 echo.
 echo # Create no-browser checkbox
 echo $noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
-echo $noBrowserCheckBox.Location = New-Object System.Drawing.Point^(35, 55^)
+echo $noBrowserCheckBox.Location = New-Object System.Drawing.Point^(35, 50^)
 echo $noBrowserCheckBox.Size = New-Object System.Drawing.Size^(410, 25^)
 echo $noBrowserCheckBox.Text = 'Don''t open browser automatically ^(no-browser^)'
 echo $noBrowserCheckBox.Checked = $false
@@ -90,23 +91,55 @@ echo $noBrowserCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
 echo $noBrowserCheckBox.Enabled = $true
 echo $optionsGroup.Controls.Add^($noBrowserCheckBox^)
 echo.
-echo # Create interactive mode checkbox
-echo $interactiveCheckBox = New-Object System.Windows.Forms.CheckBox
-echo $interactiveCheckBox.Location = New-Object System.Drawing.Point^(15, 85^)
-echo $interactiveCheckBox.Size = New-Object System.Drawing.Size^(430, 25^)
-echo $interactiveCheckBox.Text = 'Interactive Mode ^(--prompt-interactive^)'
-echo $interactiveCheckBox.Checked = $false
-echo $interactiveCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
-echo $optionsGroup.Controls.Add^($interactiveCheckBox^)
+echo # Create security group box
+echo $securityGroup = New-Object System.Windows.Forms.GroupBox
+echo $securityGroup.Location = New-Object System.Drawing.Point^(20, 220^)
+echo $securityGroup.Size = New-Object System.Drawing.Size^(465, 55^)
+echo $securityGroup.Text = 'Security Settings'
+echo $securityGroup.Font = New-Object System.Drawing.Font^('Segoe UI', 10^)
+echo $form.Controls.Add^($securityGroup^)
 echo.
-echo # Create verbose checkbox
-echo $verboseCheckBox = New-Object System.Windows.Forms.CheckBox
-echo $verboseCheckBox.Location = New-Object System.Drawing.Point^(15, 110^)
-echo $verboseCheckBox.Size = New-Object System.Drawing.Size^(430, 25^)
-echo $verboseCheckBox.Text = 'Verbose Output ^(--verbose^)'
-echo $verboseCheckBox.Checked = $false
-echo $verboseCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
-echo $optionsGroup.Controls.Add^($verboseCheckBox^)
+echo # Create SSL checkbox
+echo $sslCheckBox = New-Object System.Windows.Forms.CheckBox
+echo $sslCheckBox.Location = New-Object System.Drawing.Point^(15, 25^)
+echo $sslCheckBox.Size = New-Object System.Drawing.Size^(440, 25^)
+echo $sslCheckBox.Text = 'Disable SSL verification ^(for corporate firewalls with MITM^)'
+echo $sslCheckBox.Checked = $false
+echo $sslCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
+echo $sslCheckBox.ForeColor = [System.Drawing.Color]::FromArgb^(139, 69, 19^)
+echo $securityGroup.Controls.Add^($sslCheckBox^)
+echo.
+echo # Create approval mode group box
+echo $approvalGroup = New-Object System.Windows.Forms.GroupBox
+echo $approvalGroup.Location = New-Object System.Drawing.Point^(20, 285^)
+echo $approvalGroup.Size = New-Object System.Drawing.Size^(465, 100^)
+echo $approvalGroup.Text = 'Approval Mode'
+echo $approvalGroup.Font = New-Object System.Drawing.Font^('Segoe UI', 10^)
+echo $form.Controls.Add^($approvalGroup^)
+echo.
+echo # Create approval mode radio buttons
+echo $approvalDefaultRadio = New-Object System.Windows.Forms.RadioButton
+echo $approvalDefaultRadio.Location = New-Object System.Drawing.Point^(15, 25^)
+echo $approvalDefaultRadio.Size = New-Object System.Drawing.Size^(440, 20^)
+echo $approvalDefaultRadio.Text = 'Default - Prompt for approval on tool use'
+echo $approvalDefaultRadio.Checked = $true
+echo $approvalDefaultRadio.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
+echo $approvalGroup.Controls.Add^($approvalDefaultRadio^)
+echo.
+echo $approvalAutoEditRadio = New-Object System.Windows.Forms.RadioButton
+echo $approvalAutoEditRadio.Location = New-Object System.Drawing.Point^(15, 48^)
+echo $approvalAutoEditRadio.Size = New-Object System.Drawing.Size^(440, 20^)
+echo $approvalAutoEditRadio.Text = 'Auto Edit - Auto-approve edit tools only'
+echo $approvalAutoEditRadio.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
+echo $approvalGroup.Controls.Add^($approvalAutoEditRadio^)
+echo.
+echo $approvalYoloRadio = New-Object System.Windows.Forms.RadioButton
+echo $approvalYoloRadio.Location = New-Object System.Drawing.Point^(15, 71^)
+echo $approvalYoloRadio.Size = New-Object System.Drawing.Size^(440, 20^)
+echo $approvalYoloRadio.Text = 'YOLO - Auto-approve all tools ^(use with caution^)'
+echo $approvalYoloRadio.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
+echo $approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb^(255, 69, 0^)
+echo $approvalGroup.Controls.Add^($approvalYoloRadio^)
 echo.
 echo # Update no-browser checkbox state based on web checkbox
 echo $webCheckBox.Add_CheckedChanged^({
@@ -118,7 +151,7 @@ echo }^)
 echo.
 echo # Create Start button
 echo $startButton = New-Object System.Windows.Forms.Button
-echo $startButton.Location = New-Object System.Drawing.Point^(290, 295^)
+echo $startButton.Location = New-Object System.Drawing.Point^(310, 440^)
 echo $startButton.Size = New-Object System.Drawing.Size^(100, 35^)
 echo $startButton.Text = 'Start Auditaria'
 echo $startButton.Font = New-Object System.Drawing.Font^('Segoe UI', 10, [System.Drawing.FontStyle]::Bold^)
@@ -131,7 +164,7 @@ echo $form.Controls.Add^($startButton^)
 echo.
 echo # Create Cancel button
 echo $cancelButton = New-Object System.Windows.Forms.Button
-echo $cancelButton.Location = New-Object System.Drawing.Point^(400, 295^)
+echo $cancelButton.Location = New-Object System.Drawing.Point^(420, 440^)
 echo $cancelButton.Size = New-Object System.Drawing.Size^(85, 35^)
 echo $cancelButton.Text = 'Cancel'
 echo $cancelButton.Font = New-Object System.Drawing.Font^('Segoe UI', 10^)
@@ -169,19 +202,21 @@ echo         } else {
 echo             $args += '--web'
 echo         }
 echo     }
-echo     if ^($interactiveCheckBox.Checked^) {
-echo         $args += '--prompt-interactive'
-echo     }
-echo     if ^($verboseCheckBox.Checked^) {
-echo         $args += '--verbose'
-echo     }
 echo.
-echo     # Find the executable path - look in the same directory as this script
-echo     $scriptDir = Split-Path -Parent ^([Environment]::GetCommandLineArgs^(^)[0]^)
-echo     if ^([string]::IsNullOrEmpty^($scriptDir^)^) {
-echo         $scriptDir = Get-Location
+echo     # Add approval mode
+echo     if ^($approvalAutoEditRadio.Checked^) {
+echo         $args += '--approval-mode', 'auto_edit'
+echo     } elseif ^($approvalYoloRadio.Checked^) {
+echo         $args += '--approval-mode', 'yolo'
 echo     }
-echo     $exePath = Join-Path $scriptDir 'auditaria-standalone.exe'
+echo     # Default mode doesn't need explicit parameter
+echo.
+echo     # Find the executable path
+echo     $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+echo     if ^([string]::IsNullOrEmpty^($scriptPath^)^) {
+echo         $scriptPath = Get-Location
+echo     }
+echo     $exePath = Join-Path $scriptPath 'auditaria-standalone.exe'
 echo.
 echo     # Check if executable exists
 echo     if ^(-not ^(Test-Path -Path $exePath^)^) {
@@ -200,6 +235,12 @@ echo     }
 echo.
 echo     # Change to the selected directory and start Auditaria
 echo     Set-Location -Path $workingDir
+echo.
+echo     # Handle SSL setting for corporate firewalls
+echo     if ^($sslCheckBox.Checked^) {
+echo         $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
+echo         Write-Host '⚠️  SSL verification disabled for corporate firewall' -ForegroundColor Yellow
+echo     }
 echo.
 echo     # Start the process
 echo     if ^($args.Count -gt 0^) {
