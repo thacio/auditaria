@@ -818,7 +818,8 @@
   "compression": {
     "compressing": "Compressing chat history",
     "compressed": "Chat history compressed from {original} to {new} tokens.",
-    "unknown": "unknown"
+    "unknown": "unknown",
+    "error_determine_tokens": "Could not determine compressed history token count."
   },
   "stats": {
     "session_stats": "Session Stats",
