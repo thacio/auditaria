@@ -393,6 +393,15 @@ export const useSlashCommandProcessor = (
                   );
                   return { type: 'handled' };
                 case 'dialog':
+                  // WEB_INTERFACE_START: Pre-start terminal capture for immediate-render dialogs
+                  // Some dialogs render immediately upon state change, so we need to start
+                  // capturing BEFORE the dialog opens to catch the initial render
+                  const needsPreCapture = ['auth', 'theme', 'editor'].includes(result.dialog);
+                  if (needsPreCapture && (global as any).__preStartTerminalCapture) {
+                    (global as any).__preStartTerminalCapture();
+                  }
+                  // WEB_INTERFACE_END
+                  
                   switch (result.dialog) {
                     case 'auth':
                       openAuthDialog();

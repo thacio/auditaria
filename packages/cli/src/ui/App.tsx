@@ -97,7 +97,7 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useVimMode, VimModeProvider } from './contexts/VimModeContext.js';
 import { useVim } from './hooks/vim.js';
 import { useKeypress, Key } from './hooks/useKeypress.js';
-import { KeypressProvider } from './contexts/KeypressContext.js';
+import { KeypressProvider, useKeypressContext } from './contexts/KeypressContext.js';
 import { useKittyKeyboardProtocol } from './hooks/useKittyKeyboardProtocol.js';
 import { keyMatchers, Command } from './keyMatchers.js';
 import * as fs from 'fs';
@@ -115,6 +115,8 @@ import { SubmitQueryProvider, useSubmitQueryRegistration } from './contexts/Subm
 import { FooterProvider, useFooter } from './contexts/FooterContext.js';
 import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
 import { ToolConfirmationProvider, useToolConfirmation, PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
+import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
+import { TerminalCaptureWrapper } from './components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
 import { OverflowProvider } from './contexts/OverflowContext.js';
 import { ShowMoreLines } from './components/ShowMoreLines.js';
@@ -162,9 +164,11 @@ export const AppWrapper = (props: AppProps) => {
               <FooterProvider>
                 <LoadingStateProvider>
                   <ToolConfirmationProvider>
-                    {/* WEB_INTERFACE_END */}
-                    <App {...props} />
-                    {/* WEB_INTERFACE_START: Close web interface providers */}
+                    <TerminalCaptureWrapper>
+                      {/* WEB_INTERFACE_END */}
+                      <App {...props} />
+                      {/* WEB_INTERFACE_START: Close web interface providers */}
+                    </TerminalCaptureWrapper>
                   </ToolConfirmationProvider>
                 </LoadingStateProvider>
               </FooterProvider>
@@ -791,6 +795,8 @@ const App = ({ config, startupWarnings = [], version, /* WEB_INTERFACE_START */ 
   }, [config, config.getGeminiMdFileCount]);
 
   // WEB_INTERFACE_START: Web interface integration - submitQuery registration and abort handler
+  const webInterface = useWebInterface();
+  
   // Store current submitQuery in ref for web interface
   const submitQueryRef = useRef(submitQuery);
   useEffect(() => {
@@ -815,7 +821,7 @@ const App = ({ config, startupWarnings = [], version, /* WEB_INTERFACE_START */ 
   }, []); // Empty dependency array - only run once
 
   // Register abort handler with web interface service
-  const webInterface = useWebInterface();
+  // (webInterface already declared above)
   useEffect(() => {
     if (webInterface?.service && cancelOngoingRequest) {
       webInterface.service.setAbortHandler(cancelOngoingRequest);
@@ -838,6 +844,93 @@ const App = ({ config, startupWarnings = [], version, /* WEB_INTERFACE_START */ 
     return () => clearTimeout(timeout);
   }, []); // Empty dependency array - only register once
 
+  // WEB_INTERFACE_START: Terminal capture for interactive screens
+  const terminalCapture = useTerminalCapture();
+  // webInterface already declared above
+  const { subscribe: subscribeToKeypress } = useKeypressContext();
+  
+  // Create a function to pre-start capture for dialogs that render immediately
+  // This is exposed to slash command processor to start capture BEFORE opening dialogs
+  const preStartTerminalCapture = useCallback(() => {
+    // Start capture immediately to catch the initial render
+    terminalCapture.setInteractiveScreenActive(true);
+  }, [terminalCapture]);
+  
+  // Expose the pre-start function globally for the slash command processor
+  useEffect(() => {
+    if (webInterface?.service) {
+      (global as any).__preStartTerminalCapture = preStartTerminalCapture;
+    }
+    return () => {
+      delete (global as any).__preStartTerminalCapture;
+    };
+  }, [preStartTerminalCapture, webInterface]);
+  
+  // Detect when any interactive screen is shown
+  const isAnyInteractiveScreenOpen = 
+    isAuthDialogOpen || 
+    isAuthenticating || 
+    isThemeDialogOpen ||
+    isEditorDialogOpen ||
+    isLanguageDialogOpen ||
+    isSettingsDialogOpen ||
+    showPrivacyNotice ||
+    shouldShowIdePrompt ||
+    isFolderTrustDialogOpen ||
+    !!shellConfirmationRequest ||
+    !!confirmationRequest;
+  
+  // Start/stop terminal capture when interactive screens change
+  useEffect(() => {
+    // Start capture slightly before the screen actually opens
+    // to ensure we capture the initial render
+    if (isAnyInteractiveScreenOpen) {
+      terminalCapture.setInteractiveScreenActive(true);
+    } else {
+      // Add a small delay before stopping to ensure we capture the closing animation
+      const timer = setTimeout(() => {
+        terminalCapture.setInteractiveScreenActive(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAnyInteractiveScreenOpen, terminalCapture]);
+  
+  // Handle keyboard input from web interface
+  useEffect(() => {
+    if (!webInterface?.service) return;
+    
+    const handleTerminalInput = (keyData: any) => {
+      // Create a synthetic key event that matches the Ink key format
+      const syntheticKey = {
+        name: keyData.name,
+        sequence: keyData.sequence,
+        ctrl: keyData.ctrl || false,
+        meta: keyData.meta || false,
+        shift: keyData.shift || false,
+        alt: keyData.alt || false,
+        raw: keyData.sequence || '',
+      };
+      
+      // Emit synthetic keypress event to all listeners
+      // This will be picked up by any useKeypress hooks in the dialogs
+      if (isAnyInteractiveScreenOpen) {
+        // Directly trigger keypress handlers
+        // Note: We need to use the KeypressContext to emit events
+        // We'll emit the event through the context's event system
+        process.stdin.emit('keypress', keyData.sequence, syntheticKey);
+      }
+    };
+    
+    // Listen for terminal input events from web interface
+    webInterface.service.on('terminal_input', handleTerminalInput);
+    
+    return () => {
+      webInterface?.service?.off('terminal_input', handleTerminalInput);
+    };
+  }, [webInterface?.service, isAnyInteractiveScreenOpen]);
+  
+  // WEB_INTERFACE_END
+  
   // WEB_INTERFACE_START: Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
   // Broadcast footer data to web interface (moved from FooterContext to avoid circular deps)
   const footerContext = useFooter();
@@ -1025,6 +1118,7 @@ const App = ({ config, startupWarnings = [], version, /* WEB_INTERFACE_START */ 
     }
   }, [toolConfirmationContext?.pendingConfirmations]); // Only depend on pendingConfirmations
   // WEB_INTERFACE_END
+  
   const logger = useLogger(config.storage);
 
   useEffect(() => {

@@ -30,6 +30,14 @@ export const useFolderTrust = (
       folderTrustFeature,
     } as Settings);
     setIsTrusted(trusted);
+    
+    // WEB_INTERFACE_START: Pre-start terminal capture for folder trust dialog
+    // If dialog will open, start capture before setting state to catch initial render
+    if (trusted === undefined && (global as any).__preStartTerminalCapture) {
+      (global as any).__preStartTerminalCapture();
+    }
+    // WEB_INTERFACE_END
+    
     setIsFolderTrustDialogOpen(trusted === undefined);
     onTrustChange(trusted);
   }, [onTrustChange, folderTrust, folderTrustFeature]);

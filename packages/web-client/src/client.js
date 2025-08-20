@@ -8,6 +8,7 @@ import { MessageManager } from './managers/MessageManager.js';
 import { ModalManager } from './managers/ModalManager.js';
 import { KeyboardManager } from './managers/KeyboardManager.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
+import { TerminalDisplay } from './components/TerminalDisplay.js';
 import { shortenPath } from './utils/formatters.js';
 
 class AuditariaWebClient {
@@ -18,6 +19,7 @@ class AuditariaWebClient {
         this.modalManager = new ModalManager();
         this.keyboardManager = new KeyboardManager();
         this.loadingIndicator = new LoadingIndicator();
+        this.terminalDisplay = new TerminalDisplay(this.wsManager);
         
         // Initialize confirmation queue (keep existing module)
         this.confirmationQueue = new ConfirmationQueue(this);
@@ -97,8 +99,18 @@ class AuditariaWebClient {
         });
         
         this.wsManager.addEventListener('cli_action_required', (e) => {
-            this.modalManager.handleCliActionRequired(e.detail);
+            // Don't show the old modal, terminal capture will handle it
+            // this.modalManager.handleCliActionRequired(e.detail);
             this.updateInputStateForCliAction(e.detail.active);
+        });
+        
+        this.wsManager.addEventListener('terminal_capture', (e) => {
+            // Show terminal display instead of CLI action modal
+            if (e.detail && e.detail.content) {
+                this.terminalDisplay.show(e.detail);
+            } else {
+                this.terminalDisplay.hide();
+            }
         });
         
         this.wsManager.addEventListener('history_sync', (e) => {

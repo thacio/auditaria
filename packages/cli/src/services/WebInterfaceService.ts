@@ -17,6 +17,8 @@ import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
 import type { SlashCommand } from '../ui/commands/types.js';
+import type { TerminalCaptureData } from '../ui/contexts/TerminalCaptureContext.js';
+import { EventEmitter } from 'events';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +28,7 @@ export interface WebInterfaceConfig {
   host?: string;
 }
 
-export class WebInterfaceService {
+export class WebInterfaceService extends EventEmitter {
   private app?: Express;
   private server?: Server;
   private wss?: WebSocketServer;
@@ -41,6 +43,7 @@ export class WebInterfaceService {
   private currentMCPServers: { servers: any[]; blockedServers: any[] } = { servers: [], blockedServers: [] };
   private currentConsoleMessages: ConsoleMessageItem[] = [];
   private currentCliActionState: { active: boolean; reason: string; title: string; message: string } | null = null;
+  private currentTerminalCapture: TerminalCaptureData | null = null;
 
   /**
    * Start HTTP server on specified port
@@ -629,9 +632,43 @@ export class WebInterfaceService {
   }
 
   /**
+   * Broadcast terminal capture to all connected web clients
+   */
+  broadcastTerminalCapture(data: TerminalCaptureData): void {
+    // Store current terminal capture for new clients
+    if (data.content) {
+      this.currentTerminalCapture = data;
+    } else {
+      this.currentTerminalCapture = null;
+    }
+    
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const message = JSON.stringify({
+      type: 'terminal_capture',
+      data,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+        } catch (_error) {
+          this.clients.delete(client);
+        }
+      } else {
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  /**
    * Handle incoming messages from web clients
    */
-  private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any }): void {
+  private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any; key?: any }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const query = message.content?.trim();
       if (query) {
@@ -644,6 +681,9 @@ export class WebInterfaceService {
         const outcome = message.outcome as ToolConfirmationOutcome;
         this.confirmationResponseHandler(message.callId, outcome, message.payload);
       }
+    } else if (message.type === 'terminal_input' && message.key) {
+      // Emit keyboard event for terminal input
+      this.emit('terminal_input', message.key);
     }
   }
 
@@ -719,6 +759,15 @@ export class WebInterfaceService {
         ws.send(JSON.stringify({
           type: 'cli_action_required',
           data: this.currentCliActionState,
+          timestamp: Date.now(),
+        }));
+      }
+      
+      // Send current terminal capture to new client if available
+      if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
+        ws.send(JSON.stringify({
+          type: 'terminal_capture',
+          data: this.currentTerminalCapture,
           timestamp: Date.now(),
         }));
       }
