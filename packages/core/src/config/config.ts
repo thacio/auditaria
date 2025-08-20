@@ -206,6 +206,7 @@ export interface ConfigParameters {
   interactive?: boolean;
   trustedFolder?: boolean;
   shouldUseNodePtyShell?: boolean;
+  skipNextSpeakerCheck?: boolean;
 }
 
 export class Config {
@@ -275,6 +276,7 @@ export class Config {
   private readonly interactive: boolean;
   private readonly trustedFolder: boolean | undefined;
   private readonly shouldUseNodePtyShell: boolean;
+  private readonly skipNextSpeakerCheck: boolean;
   private initialized: boolean = false;
 
   constructor(params: ConfigParameters) {
@@ -344,6 +346,7 @@ export class Config {
     this.interactive = params.interactive ?? false;
     this.trustedFolder = params.trustedFolder;
     this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
+    this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -769,6 +772,10 @@ export class Config {
 
   getShouldUseNodePtyShell(): boolean {
     return this.shouldUseNodePtyShell;
+  }
+
+  getSkipNextSpeakerCheck(): boolean {
+    return this.skipNextSpeakerCheck;
   }
 
   async getGitService(): Promise<GitService> {

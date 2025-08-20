@@ -709,7 +709,8 @@
       "folder_trust_feature": "Folder Trust Feature",
       "folder_trust": "Folder Trust",
       "show_line_numbers": "Show Line Numbers",
-      "use_node_pty_shell": "Use node-pty for Shell Execution"
+      "use_node_pty_shell": "Use node-pty for Shell Execution",
+      "skip_next_speaker_check": "Skip Next Speaker Check"
     }
   },
   "editor_dialog": {
