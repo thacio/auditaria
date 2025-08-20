@@ -24,7 +24,7 @@ export function renderToolGroup(tools) {
  */
 function renderToolItem(tool) {
     const toolItemEl = document.createElement('div');
-    toolItemEl.className = 'tool-item';
+    toolItemEl.className = 'tool-item tool-item-expanded'; // Start expanded
     
     // Add data attribute with callId for tracking
     if (tool.callId) {
@@ -35,19 +35,31 @@ function renderToolItem(tool) {
     const toolHeaderEl = createToolHeader(tool);
     toolItemEl.appendChild(toolHeaderEl);
     
+    // Create collapsible content container
+    const collapsibleContentEl = document.createElement('div');
+    collapsibleContentEl.className = 'tool-collapsible-content';
+    
     // Tool description
     if (tool.description) {
         const toolDescEl = document.createElement('div');
         toolDescEl.className = 'tool-description';
         toolDescEl.textContent = tool.description;
-        toolItemEl.appendChild(toolDescEl);
+        collapsibleContentEl.appendChild(toolDescEl);
     }
     
     // Tool output/result display
     const toolOutputEl = createToolOutput(tool);
     if (toolOutputEl) {
-        toolItemEl.appendChild(toolOutputEl);
+        collapsibleContentEl.appendChild(toolOutputEl);
     }
+    
+    toolItemEl.appendChild(collapsibleContentEl);
+    
+    // Add click handler for collapsing/expanding
+    toolHeaderEl.addEventListener('click', () => {
+        toolItemEl.classList.toggle('tool-item-expanded');
+        toolItemEl.classList.toggle('tool-item-collapsed');
+    });
     
     return toolItemEl;
 }
@@ -57,7 +69,12 @@ function renderToolItem(tool) {
  */
 function createToolHeader(tool) {
     const toolHeaderEl = document.createElement('div');
-    toolHeaderEl.className = 'tool-header';
+    toolHeaderEl.className = 'tool-header tool-header-clickable';
+    
+    // Add expand/collapse indicator
+    const expandIndicatorEl = document.createElement('span');
+    expandIndicatorEl.className = 'tool-expand-indicator';
+    expandIndicatorEl.textContent = '▼'; // Down arrow when expanded
     
     const toolStatusIndicatorEl = document.createElement('span');
     toolStatusIndicatorEl.className = `tool-status-indicator tool-status-${tool.status.toLowerCase()}`;
@@ -71,6 +88,7 @@ function createToolHeader(tool) {
     toolStatusEl.className = `tool-status tool-status-${tool.status.toLowerCase()}`;
     toolStatusEl.textContent = tool.status;
     
+    toolHeaderEl.appendChild(expandIndicatorEl);
     toolHeaderEl.appendChild(toolStatusIndicatorEl);
     toolHeaderEl.appendChild(toolNameEl);
     toolHeaderEl.appendChild(toolStatusEl);
