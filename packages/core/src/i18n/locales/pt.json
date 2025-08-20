@@ -697,6 +697,7 @@
       "hide_window_title": "Ocultar Título da Janela",
       "hide_tips": "Ocultar Dicas",
       "hide_banner": "Ocultar Banner",
+      "hide_footer": "Ocultar Rodapé",
       "vim_mode": "Modo Vim",
       "ide_mode": "Modo IDE",
       "disable_loading_phrases": "Desabilitar Frases de Carregamento",

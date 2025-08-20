@@ -697,6 +697,7 @@
       "hide_window_title": "Hide Window Title",
       "hide_tips": "Hide Tips",
       "hide_banner": "Hide Banner",
+      "hide_footer": "Hide Footer",
       "vim_mode": "Vim Mode",
       "ide_mode": "IDE Mode",
       "disable_loading_phrases": "Disable Loading Phrases",
