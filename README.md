@@ -22,6 +22,7 @@ O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.c
 - **⚙️ Controle avançado de modelo**: Comandos especializados para gerenciamento de IA
 - **🔄 Estratégia de retry melhorada**: 7 tentativas com delays otimizados
 - **🌐 Interface Web**: Interface web integrada para interação baseada em navegador
+- **📦 Executáveis Windows**: Executáveis standalone compilados com Bun (sem necessidade de instalação de Node.js)
 - **🛡️ Código aberto**: Licenciado sob Apache 2.0
 
 ## 📋 Principais Recursos
@@ -56,7 +57,21 @@ O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.c
 
 ## 📦 Instalação
 
-### Instalação Rápida
+### Executáveis Windows Standalone (Sem Node.js)
+
+#### Download Direto
+
+Baixe os executáveis Windows pré-compilados da [página de releases](https://github.com/thacio/auditaria/releases):
+
+- **`auditaria-windows.exe`** - CLI executável standalone (~125MB)
+- **`auditaria-launcher.exe`** - Launcher com interface gráfica para selecionar diretório de trabalho (~125MB)
+
+**⚠️ Aviso de Segurança Corporativa**: Os executáveis são compilados usando Bun e não são assinados digitalmente. Políticas corporativas de segurança podem bloquear a execução. Você pode precisar:
+- Adicionar uma exceção no antivírus
+- Executar como administrador
+- Usar a instalação via npm como alternativa
+
+### Instalação Rápida com Node.js
 
 #### Executar instantaneamente com npx
 
@@ -309,6 +324,7 @@ Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.co
 - **⚙️ Advanced model control**: Specialized commands for AI management
 - **🔄 Improved retry strategy**: 7 retries with optimized delays
 - **🌐 Web Interface**: Built-in web interface for browser-based interaction
+- **📦 Windows Executables**: Standalone executables compiled with Bun (no Node.js installation required)
 - **🛡️ Open source**: Apache 2.0 licensed
 
 ## 📋 Key Features
@@ -343,7 +359,21 @@ Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.co
 
 ## 📦 Installation
 
-### Quick Install
+### Windows Standalone Executables (No Node.js Required)
+
+#### Direct Download
+
+Download pre-compiled Windows executables from the [releases page](https://github.com/thacio/auditaria/releases):
+
+- **`auditaria-windows.exe`** - Standalone CLI executable (~125MB)
+- **`auditaria-launcher.exe`** - GUI launcher to select working directory (~125MB)
+
+**⚠️ Corporate Security Warning**: The executables are compiled using Bun and are not digitally signed. Corporate security policies may block execution. You may need to:
+- Add an antivirus exception
+- Run as administrator  
+- Use npm installation as an alternative
+
+### Quick Install with Node.js
 
 #### Run instantly with npx
 
