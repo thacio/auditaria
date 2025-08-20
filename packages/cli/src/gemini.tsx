@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import React from 'react';
 import { render } from 'ink';
 import { MainComponent } from './ui/MainComponent.js';
 import { loadCliConfig, parseArguments } from './config/config.js';
@@ -299,7 +300,6 @@ export async function main() {
     // Detect and enable Kitty keyboard protocol once at startup
     await detectAndEnableKittyProtocol();
     setWindowTitle(basename(workspaceRoot), settings);
-
     const instance = render(
       <MainComponent
         initialConfig={config}
