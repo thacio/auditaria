@@ -542,6 +542,7 @@ The web interface provides an alternative way to interact with Auditaria CLI thr
 ### Quick Examples
 
 #### Start a new project
+
 ```bash
 cd new-project/
 auditaria
@@ -549,6 +550,7 @@ auditaria
 ```
 
 #### Analyze existing code
+
 ```bash
 git clone https://github.com/thacio/auditaria
 cd auditaria
