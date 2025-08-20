@@ -381,7 +381,7 @@
       "tool_description": "Configurando GitHub Actions para triagem de issues e revisão de PRs com Gemini.",
       "success_message": "Workflows baixados com sucesso.",
       "success_message_with_next_steps": "Workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
-      "success_message_dynamic": "{count} workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/{releaseTag}/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
+      "success_message_dynamic": "{count} workflows baixados com sucesso e .gitignore atualizado. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/{releaseTag}/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
       "error_mkdir_failed": "Não foi possível criar o diretório {directory}. Você tem permissões de arquivo no diretório atual?"
     },
     "file_command": {
