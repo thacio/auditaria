@@ -6,12 +6,13 @@
 import { t } from '@thacio/auditaria-cli-core';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
 import { discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
 import type { LanguageInfo, SupportedLanguage } from '@thacio/auditaria-cli-core';
+import { useKeypress } from '../hooks/useKeypress.js';
 
 interface LanguageSelectionDialogProps {
   /** Callback function when a language is selected */
@@ -96,15 +97,18 @@ export function LanguageSelectionDialog({
     'language',
   );
 
-  useInput((input, key) => {
-    if (key.tab && !isFirstTimeSetup) {
-      setFocusedSection((prev) => (prev === 'language' ? 'scope' : 'language'));
-    }
-    if (key.escape && !isFirstTimeSetup) {
-      // Only allow escape if not first-time setup
-      onSelect(undefined, selectedScope);
-    }
-  });
+  useKeypress(
+    (key) => {
+      if (key.name === 'tab' && !isFirstTimeSetup) {
+        setFocusedSection((prev) => (prev === 'language' ? 'scope' : 'language'));
+      }
+      if (key.name === 'escape' && !isFirstTimeSetup) {
+        // Only allow escape if not first-time setup
+        onSelect(undefined, selectedScope);
+      }
+    },
+    { isActive: true }
+  );
 
   // Calculate scope messages
   let otherScopeModifiedMessage = '';
