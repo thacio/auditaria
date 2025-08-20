@@ -435,6 +435,7 @@
       "toggle_auto_accept": "Toggle auto-accepting edits",
       "toggle_yolo": "Toggle YOLO mode",
       "cancel": "Cancel operation",
+      "cancel_clear": "Cancel operation / Clear input (double press)",
       "quit": "Quit application",
       "clear_screen": "Clear the screen",
       "external_editor": "Open input in external editor",

@@ -435,6 +435,7 @@
       "toggle_auto_accept": "Alternar aceitação automática de edições",
       "toggle_yolo": "Alternar modo YOLO",
       "cancel": "Cancelar operação",
+      "cancel_clear": "Cancelar operação / Limpar entrada (pressione duas vezes)",
       "quit": "Sair da aplicação",
       "clear_screen": "Limpar a tela",
       "external_editor": "Abrir entrada no editor externo",
