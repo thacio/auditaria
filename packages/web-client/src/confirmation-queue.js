@@ -137,14 +137,29 @@ class ConfirmationQueue {
 
         switch (confirmationDetails.type) {
             case 'edit':
-                container.innerHTML = `
-                    <div class="confirmation-edit">
-                        <p><strong>File:</strong> ${confirmationDetails.fileName}</p>
-                        <div class="confirmation-diff">
-                            <pre>${confirmationDetails.fileDiff || 'No diff available'}</pre>
-                        </div>
-                    </div>
-                `;
+                const editDiv = document.createElement('div');
+                editDiv.className = 'confirmation-edit';
+                
+                const fileP = document.createElement('p');
+                fileP.innerHTML = `<strong>File:</strong> ${this.escapeHtml(confirmationDetails.fileName)}`;
+                editDiv.appendChild(fileP);
+                
+                const diffDiv = document.createElement('div');
+                diffDiv.className = 'confirmation-diff';
+                
+                const diffPre = document.createElement('pre');
+                diffPre.className = 'diff-content';
+                
+                // Format the diff with proper styling
+                if (confirmationDetails.fileDiff) {
+                    diffPre.innerHTML = this.formatDiffContent(confirmationDetails.fileDiff);
+                } else {
+                    diffPre.textContent = 'No diff available';
+                }
+                
+                diffDiv.appendChild(diffPre);
+                editDiv.appendChild(diffDiv);
+                container.appendChild(editDiv);
                 break;
             case 'exec':
                 container.innerHTML = `
@@ -256,5 +271,47 @@ class ConfirmationQueue {
                     { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
                 ];
         }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    /**
+     * Format diff content with proper styling
+     */
+    formatDiffContent(diffText) {
+        const lines = diffText.split('\n');
+        return lines.map(line => {
+            let className = 'diff-line';
+            let displayLine = line;
+            
+            if (line.startsWith('+')) {
+                className += ' diff-line-add';
+                displayLine = line; // Keep the + prefix
+            } else if (line.startsWith('-')) {
+                className += ' diff-line-remove';
+                displayLine = line; // Keep the - prefix
+            } else if (line.startsWith('@@')) {
+                className += ' diff-line-header';
+                displayLine = line;
+            } else if (line.startsWith(' ')) {
+                className += ' diff-line-context';
+                displayLine = line;
+            } else {
+                // Other lines (file headers, etc.)
+                className += ' diff-line-context';
+                displayLine = line;
+            }
+            
+            // Escape HTML to prevent XSS
+            const escaped = this.escapeHtml(displayLine);
+            return `<span class="${className}">${escaped}</span>`;
+        }).join('\n');
     }
 }

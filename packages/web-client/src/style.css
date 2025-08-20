@@ -547,6 +547,32 @@ body {
   margin: 0;
 }
 
+/* Diff line styling */
+.diff-line {
+  display: block;
+  padding: 2px 4px;
+  margin: 0 -4px;
+}
+
+.diff-line-add {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.diff-line-remove {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.diff-line-context {
+  color: var(--text-subtle);
+}
+
+.diff-line-header {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .tool-output-object {
   background: var(--surface-alt);
   border: 1px solid var(--border);
@@ -1071,6 +1097,11 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--text);
+}
+
+.confirmation-diff .diff-content {
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .confirmation-command {

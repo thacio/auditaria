@@ -182,10 +182,51 @@ function createDiffOutput(outputContent) {
     
     const diffContentEl = document.createElement('pre');
     diffContentEl.className = 'diff-content';
-    diffContentEl.textContent = outputContent.fileDiff;
+    
+    // Parse and style the diff content
+    if (outputContent.fileDiff) {
+        const styledDiff = formatDiffContent(outputContent.fileDiff);
+        diffContentEl.innerHTML = styledDiff;
+    } else {
+        diffContentEl.textContent = 'No diff available';
+    }
+    
     diffEl.appendChild(diffContentEl);
     
     return diffEl;
+}
+
+/**
+ * Format diff content with proper styling
+ */
+function formatDiffContent(diffText) {
+    const lines = diffText.split('\n');
+    return lines.map(line => {
+        let className = 'diff-line';
+        let displayLine = line;
+        
+        if (line.startsWith('+')) {
+            className += ' diff-line-add';
+            displayLine = line; // Keep the + prefix
+        } else if (line.startsWith('-')) {
+            className += ' diff-line-remove';
+            displayLine = line; // Keep the - prefix
+        } else if (line.startsWith('@@')) {
+            className += ' diff-line-header';
+            displayLine = line;
+        } else if (line.startsWith(' ')) {
+            className += ' diff-line-context';
+            displayLine = line;
+        } else {
+            // Other lines (file headers, etc.)
+            className += ' diff-line-context';
+            displayLine = line;
+        }
+        
+        // Escape HTML to prevent XSS
+        const escaped = escapeHtml(displayLine);
+        return `<span class="${className}">${escaped}</span>`;
+    }).join('\n');
 }
 
 /**
