@@ -400,6 +400,34 @@ npm install -g .
 - Node.js version 20 or higher
 - macOS, Linux, or Windows
 
+## Release Cadence and Tags
+
+See [Releases](./docs/releases.md) for more details.
+
+### Preview
+
+New preview releases will be published each week at UTC 2359 on Tuesdays. These releases will not have been fully vetted and may contain regressions or other outstanding issues. Please help us test and install with `preview` tag.
+
+```bash
+npm install -g @thacio/auditaria-cli@preview
+```
+
+### Stable
+
+- New stable releases will be published each week at UTC 2000 on Tuesdays, this will be the full promotion of last week's `preview` release + any bug fixes and validations. Use `latest` tag.
+
+```bash
+npm install -g @thacio/auditaria-cli@latest
+```
+
+### Nightly
+
+- New releases will be published each week at UTC 0000 each day, This will be all changes from the main branch as represted at time of release. It should be assumed there are pending validations and issues. Use `nightly` tag.
+
+```bash
+npm install -g @thacio/auditaria-cli@nightly
+```
+
 ### Corporate Firewall (MITM) Setup
 
 **⚠️ SECURITY WARNING**: Disabling SSL verification may represent a security flaw. However, in corporate environments with MITM firewalls, npm will refuse to install because the firewall replaces the original SSL certificates with its own certificates to inspect traffic. This causes npm to detect an "untrusted" certificate and block the installation. **Use these settings only in trusted corporate networks where IT controls the infrastructure.**
