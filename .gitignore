@@ -53,3 +53,6 @@ auditaria.exe
 auditaria-*.exe
 auditaria-standalone.exe
 nul
+
+# GHA credentials
+gha-creds-*.json

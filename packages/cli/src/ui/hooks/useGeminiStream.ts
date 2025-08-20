@@ -109,7 +109,8 @@ export const useGeminiStream = (
     useStateAndRef<HistoryItemWithoutId | null>(null);
   const processedMemoryToolsRef = useRef<Set<string>>(new Set());
   const { startNewPrompt, getPromptCount } = useSessionStats();
-  const logger = useLogger();
+  const storage = config.storage;
+  const logger = useLogger(storage);
   // WEB_INTERFACE_START
   const webInterface = useWebInterface();
   // WEB_INTERFACE_END
@@ -117,8 +118,8 @@ export const useGeminiStream = (
     if (!config.getProjectRoot()) {
       return;
     }
-    return new GitService(config.getProjectRoot());
-  }, [config]);
+    return new GitService(config.getProjectRoot(), storage);
+  }, [config, storage]);
 
   // WEB_INTERFACE_START
   // Broadcast pending items to web interface when they change
@@ -921,9 +922,7 @@ export const useGeminiStream = (
       );
 
       if (restorableToolCalls.length > 0) {
-        const checkpointDir = config.getProjectTempDir()
-          ? path.join(config.getProjectTempDir(), 'checkpoints')
-          : undefined;
+        const checkpointDir = storage.getProjectTempCheckpointsDir();
 
         if (!checkpointDir) {
           return;
@@ -1006,7 +1005,15 @@ export const useGeminiStream = (
       }
     };
     saveRestorableToolCalls();
-  }, [toolCalls, config, onDebugMessage, gitService, history, geminiClient]);
+  }, [
+    toolCalls,
+    config,
+    onDebugMessage,
+    gitService,
+    history,
+    geminiClient,
+    storage,
+  ]);
 
   return {
     streamingState,

@@ -137,7 +137,7 @@ export const Help: React.FC<Help> = ({ commands }) => (
       <Text bold color={Colors.AccentPurple}>
         {t('help.keys.esc', 'Esc')}
       </Text>{' '}
-      - {t('help.shortcuts.cancel', 'Cancel operation')}
+      - {t('help.shortcuts.cancel_clear', 'Cancel operation / Clear input (double press)')}
     </Text>
     <Text color={Colors.Foreground}>
       <Text bold color={Colors.AccentPurple}>

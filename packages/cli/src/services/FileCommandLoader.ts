@@ -11,8 +11,7 @@ import { glob } from 'glob';
 import { z } from 'zod';
 import {
   Config,
-  getProjectCommandsDir,
-  getUserCommandsDir,
+  Storage,
   t,
 } from '@thacio/auditaria-cli-core';
 import { ICommandLoader } from './types.js';
@@ -131,11 +130,13 @@ export class FileCommandLoader implements ICommandLoader {
   private getCommandDirectories(): CommandDirectory[] {
     const dirs: CommandDirectory[] = [];
 
+    const storage = this.config?.storage ?? new Storage(this.projectRoot);
+
     // 1. User commands
-    dirs.push({ path: getUserCommandsDir() });
+    dirs.push({ path: Storage.getUserCommandsDir() });
 
     // 2. Project commands (override user commands)
-    dirs.push({ path: getProjectCommandsDir(this.projectRoot) });
+    dirs.push({ path: storage.getProjectCommandsDir() });
 
     // 3. Extension commands (processed last to detect all conflicts)
     if (this.config) {

@@ -8,12 +8,30 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { listMcpServers } from './list.js';
 import { loadSettings } from '../../config/settings.js';
 import { loadExtensions } from '../../config/extension.js';
-import { createTransport } from '@google/gemini-cli-core';
+import { createTransport } from '@thacio/auditaria-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
-vi.mock('../../config/settings.js');
-vi.mock('../../config/extension.js');
-vi.mock('@thacio/auditaria-cli-core');
+vi.mock('../../config/settings.js', () => ({
+  loadSettings: vi.fn(),
+}));
+vi.mock('../../config/extension.js', () => ({
+  loadExtensions: vi.fn(),
+}));
+vi.mock('@thacio/auditaria-cli-core', () => ({
+  createTransport: vi.fn(),
+  MCPServerStatus: {
+    CONNECTED: 'CONNECTED',
+    CONNECTING: 'CONNECTING',
+    DISCONNECTED: 'DISCONNECTED',
+  },
+  Storage: vi.fn().mockImplementation((_cwd: string) => ({
+    getGlobalSettingsPath: () => '/tmp/gemini/settings.json',
+    getWorkspaceSettingsPath: () => '/tmp/gemini/workspace-settings.json',
+    getProjectTempDir: () => '/test/home/.gemini/tmp/mocked_hash',
+  })),
+  GEMINI_CONFIG_DIR: '.gemini',
+  getErrorMessage: (e: unknown) => (e instanceof Error ? e.message : String(e)),
+}));
 vi.mock('@modelcontextprotocol/sdk/client/index.js');
 
 const mockedLoadSettings = loadSettings as vi.Mock;
