@@ -1005,7 +1005,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     }
   }, [toolConfirmationContext?.pendingConfirmations]); // Only depend on pendingConfirmations
   // WEB_INTERFACE_END
-  const logger = useLogger();
+  const logger = useLogger(config.storage);
 
   useEffect(() => {
     const fetchUserMessages = async () => {
