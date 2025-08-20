@@ -123,6 +123,17 @@ export class WebSocketManager extends EventTarget {
     }
     
     /**
+     * Send terminal keyboard input
+     */
+    sendTerminalInput(key) {
+        return this.send({
+            type: 'terminal_input',
+            key: key,
+            timestamp: Date.now()
+        });
+    }
+    
+    /**
      * Handle disconnection
      */
     handleDisconnection() {
