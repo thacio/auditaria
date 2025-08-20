@@ -45,7 +45,7 @@ const getMcpStatus = async (
     };
   }
 
-  const toolRegistry = await config.getToolRegistry();
+  const toolRegistry = config.getToolRegistry();
   if (!toolRegistry) {
     return {
       type: 'message',
@@ -407,7 +407,7 @@ const authCommand: SlashCommand = {
       );
 
       // Trigger tool re-discovery to pick up authenticated server
-      const toolRegistry = await config.getToolRegistry();
+      const toolRegistry = config.getToolRegistry();
       if (toolRegistry) {
         context.ui.addItem(
           {
@@ -496,7 +496,7 @@ const refreshCommand: SlashCommand = {
       };
     }
 
-    const toolRegistry = await config.getToolRegistry();
+    const toolRegistry = config.getToolRegistry();
     if (!toolRegistry) {
       return {
         type: 'message',
