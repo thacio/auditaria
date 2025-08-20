@@ -392,13 +392,19 @@ function getCachedCredentialPath(): string {
   return path.join(os.homedir(), GEMINI_DIR, CREDENTIAL_FILENAME);
 }
 
+export function clearOauthClientCache() {
+  oauthClientPromises.clear();
+}
+
 export async function clearCachedCredentialFile() {
   try {
     await fs.rm(getCachedCredentialPath(), { force: true });
     // Clear the Google Account ID cache when credentials are cleared
     await clearCachedGoogleAccount();
-  } catch (_) {
-    /* empty */
+    // Clear the in-memory OAuth client cache to force re-authentication
+    clearOauthClientCache();
+  } catch (e) {
+    console.error(t('oauth2.clear_credentials_failed', 'Failed to clear cached credentials: {error}', { error: String(e) }));
   }
 }
 

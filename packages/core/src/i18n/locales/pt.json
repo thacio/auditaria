@@ -1090,6 +1090,9 @@
     "code_received": "Código de autorização recebido: \"{code}\"",
     "restart_cli_message": "Logando com Google... Por favor, reinicie o Gemini CLI para continuar."
   },
+  "oauth2": {
+    "clear_credentials_failed": "Falha ao limpar credenciais em cache: {error}"
+  },
   "app": {
     "memory_refreshing": "Atualizando memória hierárquica (GEMINI.md ou outros arquivos de contexto)...",
     "memory_refreshed_success": "Memória atualizada com sucesso. Carregados {chars} caracteres de {count} arquivo(s).",
