@@ -351,10 +351,6 @@ export class Config {
     }
 
     logCliConfiguration(this, new StartSessionEvent(this));
-
-    if (!this.getUsageStatisticsEnabled()) {
-      console.log(t('telemetry.data_collection_disabled', 'Data collection is disabled.'));
-    }
   }
 
   /**
