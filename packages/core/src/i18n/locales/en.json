@@ -133,8 +133,8 @@
       "no_tools_or_prompts": "No tools or prompts available",
       "parameters": "Parameters:",
       "refresh": {
-        "description": "Refresh the list of MCP servers and tools",
-        "refreshing": "Refreshing MCP servers and tools..."
+        "description": "Restarts MCP servers.",
+        "restarting": "Restarting MCP servers..."
       },
       "oauth": {
         "requires_auth": "🔐 '{serverName}' requires OAuth authentication",

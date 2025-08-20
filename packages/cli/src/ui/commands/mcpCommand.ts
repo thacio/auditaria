@@ -481,7 +481,7 @@ const listCommand: SlashCommand = {
 const refreshCommand: SlashCommand = {
   name: 'refresh',
   get description() {
-    return t('commands.mcp.refresh.description', 'Refresh the list of MCP servers and tools');
+    return t('commands.mcp.refresh.description', 'Restarts MCP servers.');
   },
   kind: CommandKind.BUILT_IN,
   action: async (
@@ -508,12 +508,12 @@ const refreshCommand: SlashCommand = {
     context.ui.addItem(
       {
         type: 'info',
-        text: t('commands.mcp.refresh.refreshing', 'Refreshing MCP servers and tools...'),
+        text: t('commands.mcp.refresh.restarting', 'Restarting MCP servers...'),
       },
       Date.now(),
     );
 
-    await toolRegistry.discoverMcpTools();
+    await toolRegistry.restartMcpServers();
 
     // Update the client with the new tools
     const geminiClient = config.getGeminiClient();

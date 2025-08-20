@@ -133,8 +133,8 @@
       "no_tools_or_prompts": "Nenhuma ferramenta ou prompt disponível",
       "parameters": "Parâmetros:",
       "refresh": {
-        "description": "Atualizar a lista de servidores MCP e ferramentas",
-        "refreshing": "Atualizando servidores MCP e ferramentas..."
+        "description": "Reinicia os servidores MCP.",
+        "restarting": "Reiniciando servidores MCP..."
       },
       "oauth": {
         "requires_auth": "🔐 '{serverName}' requer autenticação OAuth",
