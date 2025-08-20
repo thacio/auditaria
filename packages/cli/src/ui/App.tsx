@@ -923,6 +923,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       } else if (showPrivacyNotice) {
         reason = 'privacy_notice';
         message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review it in the CLI terminal.');
+      } else if (shouldShowIdePrompt) {
+        reason = 'ide_integration';
+        message = t('web.cli_action.ide_integration', 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.');
       }
       
       const isActionRequired = !!reason;
@@ -943,6 +946,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     isLanguageDialogOpen,
     isSettingsDialogOpen,
     showPrivacyNotice,
+    shouldShowIdePrompt,
     webInterface?.isRunning
   ]); // Monitor all interactive screen states
 

@@ -1225,5 +1225,18 @@
   },
   "message_queue": {
     "more_messages": "... (+{count} mais)"
+  },
+  "web": {
+    "cli_action": {
+      "title": "Ação Necessária no CLI",
+      "auth_in_progress": "Autenticação em andamento. Por favor, verifique o terminal do CLI.",
+      "auth_required": "Autenticação necessária. Por favor, complete o processo de autenticação no terminal do CLI.",
+      "theme_selection": "Seleção de tema aberta. Por favor, escolha um tema no terminal do CLI.",
+      "editor_settings": "Configurações do editor abertas. Por favor, configure seu editor no terminal do CLI.",
+      "language_selection": "Seleção de idioma aberta. Por favor, escolha um idioma no terminal do CLI.",
+      "settings": "Diálogo de configurações aberto. Por favor, configure suas preferências no terminal do CLI.",
+      "privacy_notice": "Aviso de privacidade exibido. Por favor, revise no terminal do CLI.",
+      "ide_integration": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal."
+    }
   }
 }
