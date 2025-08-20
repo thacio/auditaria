@@ -549,9 +549,8 @@ body {
 
 /* Diff line styling */
 .diff-line {
-  display: block;
+  display: inline;
   padding: 2px 4px;
-  margin: 0 -4px;
 }
 
 .diff-line-add {
