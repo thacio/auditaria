@@ -5,14 +5,15 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import { useState, useCallback } from 'react';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import { useState, useCallback, useContext } from 'react';
+import { SettingScope } from '../../config/settings.js';
 import { type HistoryItem, MessageType } from '../types.js';
 import {
   allowEditorTypeInSandbox,
   checkHasEditorType,
   EditorType,
 } from '@thacio/auditaria-cli-core';
+import { SettingsContext } from '../contexts/SettingsContext.js';
 
 interface UseEditorSettingsReturn {
   isEditorDialogOpen: boolean;
@@ -25,11 +26,11 @@ interface UseEditorSettingsReturn {
 }
 
 export const useEditorSettings = (
-  loadedSettings: LoadedSettings,
   setEditorError: (error: string | null) => void,
   addItem: (item: Omit<HistoryItem, 'id'>, timestamp: number) => void,
 ): UseEditorSettingsReturn => {
   const [isEditorDialogOpen, setIsEditorDialogOpen] = useState(false);
+  const settingsContext = useContext(SettingsContext);
 
   const openEditorDialog = useCallback(() => {
     setIsEditorDialogOpen(true);
@@ -46,7 +47,11 @@ export const useEditorSettings = (
       }
 
       try {
-        loadedSettings.setValue(scope, 'preferredEditor', editorType);
+        settingsContext?.settings.setValue(
+          scope,
+          'preferredEditor',
+          editorType,
+        );
         addItem(
           {
             type: MessageType.INFO,
@@ -62,7 +67,7 @@ export const useEditorSettings = (
         setEditorError(t('editor.failed_to_set', 'Failed to set editor preference: {error}', { error: error instanceof Error ? error.message : String(error) }));
       }
     },
-    [loadedSettings, setEditorError, addItem],
+    [settingsContext, setEditorError, addItem],
   );
 
   const exitEditorDialog = useCallback(() => {
