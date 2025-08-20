@@ -205,6 +205,7 @@ export interface ConfigParameters {
   chatCompression?: ChatCompressionSettings;
   interactive?: boolean;
   trustedFolder?: boolean;
+  shouldUseNodePtyShell?: boolean;
 }
 
 export class Config {
@@ -273,6 +274,7 @@ export class Config {
   private readonly chatCompression: ChatCompressionSettings | undefined;
   private readonly interactive: boolean;
   private readonly trustedFolder: boolean | undefined;
+  private readonly shouldUseNodePtyShell: boolean;
   private initialized: boolean = false;
 
   constructor(params: ConfigParameters) {
@@ -341,6 +343,7 @@ export class Config {
     this.chatCompression = params.chatCompression;
     this.interactive = params.interactive ?? false;
     this.trustedFolder = params.trustedFolder;
+    this.shouldUseNodePtyShell = params.shouldUseNodePtyShell ?? false;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -762,6 +765,10 @@ export class Config {
 
   isInteractive(): boolean {
     return this.interactive;
+  }
+
+  getShouldUseNodePtyShell(): boolean {
+    return this.shouldUseNodePtyShell;
   }
 
   async getGitService(): Promise<GitService> {

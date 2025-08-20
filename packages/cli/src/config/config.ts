@@ -563,6 +563,7 @@ export async function loadCliConfig(
     folderTrust,
     interactive,
     trustedFolder,
+    shouldUseNodePtyShell: settings.shouldUseNodePtyShell,
   });
 }
 

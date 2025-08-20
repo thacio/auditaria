@@ -708,7 +708,8 @@
       "load_memory_from_include_directories": "Carregar Memória de Diretórios Incluídos",
       "folder_trust_feature": "Recurso de Confiança de Pasta",
       "folder_trust": "Confiança de Pasta",
-      "show_line_numbers": "Mostrar Números de Linha"
+      "show_line_numbers": "Mostrar Números de Linha",
+      "use_node_pty_shell": "Usar node-pty para Execução de Shell"
     }
   },
   "editor_dialog": {
