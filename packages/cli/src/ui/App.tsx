@@ -26,6 +26,7 @@ import { useEditorSettings } from './hooks/useEditorSettings.js';
 import { useLanguageSettings } from './hooks/useLanguageSettings.js';
 import { useSlashCommandProcessor } from './hooks/slashCommandProcessor.js';
 import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
+import { useMessageQueue } from './hooks/useMessageQueue.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
 import { Header } from './components/Header.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
@@ -118,6 +119,8 @@ import { appEvents, AppEvent } from '../utils/events.js';
 import { isNarrowWidth } from './utils/isNarrowWidth.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
+// Maximum number of queued messages to display in UI to prevent performance issues
+const MAX_DISPLAYED_QUEUED_MESSAGES = 3;
 
 interface AppProps {
   config: Config;
@@ -574,12 +577,8 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   const [userMessages, setUserMessages] = useState<string[]>([]);
 
-  const handleUserCancel = useCallback(() => {
-    const lastUserMessage = userMessages.at(-1);
-    if (lastUserMessage) {
-      buffer.setText(lastUserMessage);
-    }
-  }, [buffer, userMessages]);
+  // Stable reference for cancel handler to avoid circular dependency
+  const cancelHandlerRef = useRef<() => void>(() => {});
 
   const {
     streamingState,
@@ -602,18 +601,39 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     modelSwitchedFromQuotaError,
     setModelSwitchedFromQuotaError,
     refreshStatic,
-    handleUserCancel,
+    () => cancelHandlerRef.current(),
   );
 
-  // Input handling
+  // Message queue for handling input during streaming
+  const { messageQueue, addMessage, clearQueue, getQueuedMessagesText } =
+    useMessageQueue({
+      streamingState,
+      submitQuery,
+    });
+
+  // Update the cancel handler with message queue support
+  cancelHandlerRef.current = useCallback(() => {
+    const lastUserMessage = userMessages.at(-1);
+    let textToSet = lastUserMessage || '';
+
+    // Append queued messages if any exist
+    const queuedText = getQueuedMessagesText();
+    if (queuedText) {
+      textToSet = textToSet ? `${textToSet}\n\n${queuedText}` : queuedText;
+      clearQueue();
+    }
+
+    if (textToSet) {
+      buffer.setText(textToSet);
+    }
+  }, [buffer, userMessages, getQueuedMessagesText, clearQueue]);
+
+  // Input handling - queue messages for processing
   const handleFinalSubmit = useCallback(
     (submittedValue: string) => {
-      const trimmedValue = submittedValue.trim();
-      if (trimmedValue.length > 0) {
-        submitQuery(trimmedValue);
-      }
+      addMessage(submittedValue);
     },
-    [submitQuery],
+    [addMessage],
   );
 
   const handleIdePromptComplete = useCallback(
@@ -653,7 +673,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     (
       pressedOnce: boolean,
       setPressedOnce: (value: boolean) => void,
-      timerRef: React.MutableRefObject<NodeJS.Timeout | null>,
+      timerRef: ReturnType<typeof useRef<NodeJS.Timeout | null>>,
     ) => {
       if (pressedOnce) {
         if (timerRef.current) {
@@ -1020,7 +1040,10 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   }, [history, logger]);
 
   const isInputActive =
-    streamingState === StreamingState.Idle && !initError && !isProcessing;
+    (streamingState === StreamingState.Idle ||
+      streamingState === StreamingState.Responding) &&
+    !initError &&
+    !isProcessing;
 
   const handleClearScreen = useCallback(() => {
     clearItems();
@@ -1352,6 +1375,38 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
                 }
                 elapsedTime={elapsedTime}
               />
+
+              {/* Display queued messages below loading indicator */}
+              {messageQueue.length > 0 && (
+                <Box flexDirection="column" marginTop={1}>
+                  {messageQueue
+                    .slice(0, MAX_DISPLAYED_QUEUED_MESSAGES)
+                    .map((message, index) => {
+                      // Ensure multi-line messages are collapsed for the preview.
+                      // Replace all whitespace (including newlines) with a single space.
+                      const preview = message.replace(/\s+/g, ' ');
+
+                      return (
+                        // Ensure the Box takes full width so truncation calculates correctly
+                        <Box key={index} paddingLeft={2} width="100%">
+                          {/* Use wrap="truncate" to ensure it fits the terminal width and doesn't wrap */}
+                          <Text dimColor wrap="truncate">
+                            {preview}
+                          </Text>
+                        </Box>
+                      );
+                    })}
+                  {messageQueue.length > MAX_DISPLAYED_QUEUED_MESSAGES && (
+                    <Box paddingLeft={2}>
+                      <Text dimColor>
+                        {t('message_queue.more_messages', '... (+{count} more)', {
+                          count: messageQueue.length - MAX_DISPLAYED_QUEUED_MESSAGES
+                        })}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               <Box
                 marginTop={1}

@@ -1213,5 +1213,8 @@
   },
   "stdin": {
     "truncated_warning": "Warning: stdin input truncated to {size} bytes."
+  },
+  "message_queue": {
+    "more_messages": "... (+{count} more)"
   }
 }
