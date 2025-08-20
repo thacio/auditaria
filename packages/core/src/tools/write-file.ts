@@ -22,7 +22,6 @@ import {
   ToolResult,
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
-import { SchemaValidator } from '../utils/schemaValidator.js';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import { getErrorMessage, isNodeError } from '../utils/errors.js';
 import {
@@ -418,17 +417,9 @@ export class WriteFileTool
     );
   }
 
-  protected override validateToolParams(
+  protected override validateToolParamValues(
     params: WriteFileToolParams,
   ): string | null {
-    const errors = SchemaValidator.validate(
-      this.schema.parametersJsonSchema,
-      params,
-    );
-    if (errors) {
-      return errors;
-    }
-
     const filePath = params.file_path;
 
     if (!filePath) {
