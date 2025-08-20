@@ -1155,6 +1155,9 @@
       "integration_disabled_reenable": "IDE integration disabled. To enable it again, run /ide enable.",
       "extension_connection_failed": "Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.",
       "connection_lost": "IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable"
+    },
+    "process_utils": {
+      "shell_not_found": "Failed to find shell process in the process tree. Falling back to top-level process, which may be inaccurate. If you see this, please file a bug via /bug."
     }
   },
   "vscode_extension": {
