@@ -295,7 +295,8 @@
         "description": "instalar companion do IDE necessário para {ide}",
         "installing": "Instalando companion do IDE...",
         "no_installer": "Nenhum instalador disponível para seu IDE configurado.",
-        "no_installer_with_ide": "Nenhum instalador está disponível para {ide}. Por favor, instale a extensão 'Gemini CLI Companion' manualmente do marketplace."
+        "no_installer_with_ide": "Nenhum instalador está disponível para {ide}. Por favor, instale a extensão 'Gemini CLI Companion' manualmente do marketplace.",
+        "auto_enable_failed": "Falha ao habilitar automaticamente a integração com IDE. Para corrigir, execute o CLI em uma nova janela de terminal."
       },
       "enable": {
         "description": "habilitar integração com IDE"
