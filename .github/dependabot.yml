@@ -18,6 +18,7 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+    open-pull-requests-limit: 0
 
   - package-ecosystem: 'github-actions'
     directory: '/'
@@ -27,3 +28,6 @@ updates:
     commit-message:
       prefix: 'chore(deps)'
       include: 'scope'
+    reviewers:
+      - 'google-gemini/gemini-cli-askmode-approvers'
+    open-pull-requests-limit: 0
