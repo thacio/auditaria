@@ -235,6 +235,86 @@
         <img class="image-modal-content" id="image-modal-content">
     </div>
     
+    <!-- Audio Player Modal -->
+    <div id="audio-player-modal" class="audio-player-modal">
+        <div class="audio-player-container">
+            <!-- Header -->
+            <div class="audio-player-header">
+                <div class="audio-player-title">
+                    <span class="audio-player-icon">🎵</span>
+                    <span id="audio-file-name">Audio File</span>
+                </div>
+                <button class="audio-player-close" id="audio-modal-close" aria-label="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Waveform Visualization -->
+            <div class="audio-player-waveform" id="audio-waveform"></div>
+            
+            <!-- Controls -->
+            <div class="audio-player-controls">
+                <!-- Play/Pause Button -->
+                <button class="audio-control-btn audio-play-pause" id="audio-play-pause" aria-label="Play">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"></path>
+                    </svg>
+                </button>
+                
+                <!-- Progress Section -->
+                <div class="audio-progress-section">
+                    <!-- Time Display -->
+                    <div class="audio-time-display">
+                        <span id="audio-current-time">0:00</span>
+                        <span class="audio-time-separator">/</span>
+                        <span id="audio-duration">0:00</span>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="audio-progress-container">
+                        <div class="audio-progress-bar" id="audio-progress-bar">
+                            <div class="audio-progress-fill" id="audio-progress-fill"></div>
+                            <div class="audio-progress-thumb" id="audio-progress-thumb">
+                                <div class="audio-progress-thumb-inner"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Volume Control -->
+                <div class="audio-volume-control">
+                    <button class="audio-volume-icon" id="audio-volume-icon" aria-label="Volume">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 5L6 9H2v6h4l5 4V5z"></path>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    </button>
+                    <input type="range" class="audio-volume-slider" id="audio-volume-slider" 
+                           min="0" max="100" value="100" aria-label="Volume slider">
+                </div>
+            </div>
+            
+            <!-- Download Section -->
+            <div class="audio-player-footer">
+                <button class="audio-download-btn" id="audio-download-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Download Audio</span>
+                </button>
+            </div>
+            
+            <!-- Error Message (hidden by default) -->
+            <div class="audio-error-message" id="audio-error-message" style="display: none;"></div>
+        </div>
+    </div>
+    
     <script src="marked.min.js"></script>
     <script src="confirmation-queue.js"></script>
     <script type="module" src="client.js"></script>

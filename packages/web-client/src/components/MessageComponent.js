@@ -5,6 +5,8 @@
 import { processMarkdown } from '../utils/markdown.js';
 import { createCopyButtons } from '../utils/clipboard.js';
 import { renderToolGroup, renderAboutInfo } from './ToolRenderer.js';
+import { audioPlayerModal } from './AudioPlayerModal.js';
+import { attachmentCacheManager } from '../managers/AttachmentCacheManager.js';
 
 /**
  * Create a chat message element
@@ -113,13 +115,25 @@ function renderSpecialContent(historyItem) {
 function renderAttachments(attachments) {
     if (!attachments || attachments.length === 0) return null;
     
+    // Rehydrate attachments with cached data
+    const rehydratedAttachments = attachmentCacheManager.rehydrateAttachments(attachments);
+    
     const attachmentsEl = document.createElement('div');
     attachmentsEl.className = 'message-attachments';
     
-    attachments.forEach(attachment => {
+    rehydratedAttachments.forEach(attachment => {
         const attachmentEl = document.createElement('div');
         attachmentEl.className = 'message-attachment';
         attachmentEl.title = attachment.name;
+        
+        // Check if it's an audio file
+        const isAudio = attachment.type === 'audio' || 
+                       (attachment.mimeType && attachment.mimeType.startsWith('audio/')) ||
+                       attachment.icon === '🎙️' || attachment.icon === '🎵';
+        
+        if (isAudio) {
+            attachmentEl.classList.add('audio-attachment');
+        }
         
         // Thumbnail or icon
         if (attachment.thumbnail) {
@@ -142,6 +156,16 @@ function renderAttachments(attachments) {
             icon.className = 'message-attachment-icon';
             icon.textContent = attachment.icon || '📎';
             attachmentEl.appendChild(icon);
+        }
+        
+        // Add click handler for audio files
+        if (isAudio) {
+            attachmentEl.style.cursor = 'pointer';
+            attachmentEl.onclick = () => {
+                if (audioPlayerModal) {
+                    audioPlayerModal.open(attachment);
+                }
+            };
         }
         
         // Info

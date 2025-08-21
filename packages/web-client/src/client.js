@@ -12,6 +12,8 @@ import { TerminalDisplay } from './components/TerminalDisplay.js';
 import { shortenPath } from './utils/formatters.js';
 import { FileHandler } from './utils/fileHandler.js';
 import { AudioRecorder } from './utils/audioRecorder.js';
+import { audioPlayerModal } from './components/AudioPlayerModal.js';
+import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 
 class AuditariaWebClient {
     constructor() {
@@ -280,6 +282,11 @@ class AuditariaWebClient {
         
         // Check if this is a slash command (starts with /)
         const isSlashCommand = message.startsWith('/');
+        
+        // Cache attachments before sending (so we can rehydrate them later)
+        if (!isSlashCommand && this.attachments.length > 0) {
+            attachmentCacheManager.cacheAttachments(this.attachments);
+        }
         
         // Send message with attachments (but not for slash commands)
         if (this.wsManager.sendUserMessage(message, isSlashCommand ? [] : this.attachments)) {
