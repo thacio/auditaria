@@ -96,10 +96,7 @@ export class AudioPlayerModal {
     if (this.downloadBtn) {
       this.downloadBtn.addEventListener('click', () => this.downloadAudio());
     }
-    
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => this.handleKeyPress(e));
-    
+
     // Drag events
     document.addEventListener('mousemove', (e) => this.handleDragging(e));
     document.addEventListener('mouseup', () => this.stopDragging());
