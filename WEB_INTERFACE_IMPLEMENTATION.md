@@ -232,7 +232,45 @@ CLI Data Changes → WebInterfaceService.broadcast*() → WebSocket → Web Clie
 User Clicks Button → showModal() → Display Data → Search/Filter → Render Results
 ```
 
-### **12. Markdown Processing System**
+### **12. File Attachment & Multimodal System**
+```
+packages/web-client/src/
+├── utils/fileHandler.js             # File processing, validation, and conversion
+├── index.html                       # Attachment UI elements (+ button, preview area, modals)
+├── style.css                        # Attachment styling (preview, thumbnails, drag & drop)
+└── client.js                        # Attachment management and UI handling
+
+packages/cli/src/
+├── services/WebInterfaceService.ts   # WeakMap metadata storage and multimodal Part creation
+├── ui/hooks/useGeminiStream.ts      # Multimodal message handling and history creation
+├── ui/types.ts                      # Enhanced HistoryItemUser type with attachments
+└── ui/contexts/SubmitQueryContext.tsx # PartListUnion support for multimodal queries
+```
+
+**Features:**
+- **Universal File Support**: Images, documents, audio, video with proper validation
+- **Multiple Input Methods**: + button, drag & drop, paste support for all file types
+- **Real-time Preview**: Thumbnails for images, icons for other files with size/name display
+- **Attachment Management**: Add/remove files before sending with visual feedback
+- **Intelligent MIME Detection**: Browser compatibility with extension-based fallbacks
+- **API Safety**: WeakMap-based metadata storage prevents API pollution
+- **Transparent Display**: Subtle attachment visualization in message history
+
+**File Processing Functions:**
+- `validateFile()` - Size, type, and count validation per Gemini API limits
+- `fileToBase64()` - Secure file conversion for API transmission
+- `generateImageThumbnail()` - Automatic thumbnail creation for images
+- `createAttachment()` - Complete attachment object creation with metadata
+- `getTypeByExtension()` - MIME type fallback detection by file extension
+
+**Multimodal Message Flow:**
+```
+File Selection → fileHandler.js → Base64 + Metadata → WebSocket → WebInterfaceService
+→ createPartFromBase64() + WeakMap metadata → useGeminiStream → PartListUnion → Gemini API
+CLI Display ← Text extraction + attachment info ← History with attachments ← API Response
+```
+
+### **13. Markdown Processing System**
 ```
 bundle/web-client/
 ├── marked.min.js                    # Markdown parsing library
@@ -354,17 +392,21 @@ auditaria --web
 ### **Features in Action**
 1. **Real-time Messaging**: Type in CLI → appears instantly on web
 2. **Message Distinction**: Different colors/alignment for user vs AI vs system vs tools
-3. **Tool Visualization**: Real-time tool execution with status indicators and output display
-4. **Tool State Transitions**: Watch tools progress from Pending → Executing → Success/Error/Canceled
-5. **Tool Output Display**: Comprehensive output for all tool states including errors and cancellations
-6. **ESC Key Interruption**: Press ESC during AI/tool processing to cancel operations
-7. **Header Modals**: Click Commands/MCPs/Debug buttons to access CLI information
-8. **Connection Status**: Live connection indicator with client count
-9. **Auto-scroll**: Messages automatically scroll to bottom
-10. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
-11. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
-12. **Conversation History Loading**: When opening web interface, displays all previous conversation history
-13. **Responsive**: Works on desktop and mobile browsers
+3. **File Attachments**: Drag & drop, click +, or paste images/files directly into messages
+4. **Multimodal AI Processing**: Send text + images/documents/audio for AI analysis
+5. **Attachment Preview**: View thumbnails and file info before sending, remove unwanted files
+6. **Tool Visualization**: Real-time tool execution with status indicators and output display
+7. **Tool State Transitions**: Watch tools progress from Pending → Executing → Success/Error/Canceled
+8. **Tool Output Display**: Comprehensive output for all tool states including errors and cancellations
+9. **ESC Key Interruption**: Press ESC during AI/tool processing to cancel operations
+10. **Header Modals**: Click Commands/MCPs/Debug buttons to access CLI information
+11. **Connection Status**: Live connection indicator with client count
+12. **Auto-scroll**: Messages automatically scroll to bottom
+13. **CLI Footer Integration**: Web footer shows same info as CLI (directory, branch, model, context %, errors)
+14. **Loading State Display**: AI thinking indicators appear above input area with animated spinner
+15. **Conversation History Loading**: When opening web interface, displays all previous conversation history with attachments
+16. **Full-Size Image Viewer**: Click image thumbnails to view full-size images in modal
+17. **Responsive**: Works on desktop and mobile browsers with all attachment features
 
 ### **Header Modal Usage**
 - **Commands Button** (⌘): View all available slash commands with descriptions and search
@@ -655,6 +697,11 @@ useEffect(() => {
 | TODO Rendering | ✅ Complete | Special rendering for TodoWrite tool results |
 | About Info Display | ✅ Complete | Version and system info rendering |
 | Code Architecture | ✅ Complete | Modular refactoring into 11 focused modules |
+| File Attachment System | ✅ Complete | Universal file upload with preview and validation |
+| Multimodal AI Processing | ✅ Complete | Full support for text + files via Gemini API |
+| Attachment UI/UX | ✅ Complete | Drag & drop, + button, paste, thumbnails, modals |
+| File Type Compatibility | ✅ Complete | MIME detection with extension fallbacks |
+| Attachment History Display | ✅ Complete | Transparent thumbnails in message history |
 | Documentation | ✅ Complete | This document |
 | Testing | ✅ Complete | Manual testing completed |
 | Git Branch | ✅ Complete | feature/web-interface pushed |
@@ -693,10 +740,58 @@ useEffect(() => {
 - ✅ **Message Merging**: Sequential AI messages within 10 seconds merge automatically
 - ✅ **TODO List Rendering**: TodoWrite tool results display as formatted task lists
 - ✅ **Modular Architecture**: Clean separation into 11 focused modules for maintainability
+- ✅ **File Attachment Support**: Upload and send images, documents, audio, and video files
+- ✅ **Multimodal AI Processing**: Full support for text + file analysis by Gemini API
+- ✅ **Attachment Preview Management**: Add, preview, and remove files before sending
+- ✅ **Multiple Input Methods**: + button, drag & drop, and paste support for file uploads
+- ✅ **Intelligent File Handling**: MIME type detection with extension fallbacks for compatibility
+- ✅ **Attachment History Display**: View thumbnails and file information in message history
+- ✅ **Full-Size Image Viewer**: Click images to view full-size with modal overlay
 
 ## 🆕 Latest Enhancements
 
-### **🏗️ Modular Code Refactoring** (Latest)
+### **📎 File Attachment & Multimodal Support** (Latest - January 2025)
+Complete implementation of file and image attachment functionality for the web interface with full multimodal AI processing:
+
+**Core Features:**
+- **Universal File Support**: Images, PDFs, audio, video, and documents
+- **Multiple Input Methods**: Click + button, drag & drop, or paste images directly
+- **Real-time Preview**: Thumbnail generation and file information display
+- **Attachment Management**: Add/remove files before sending with visual preview
+- **Full Multimodal AI Processing**: Gemini processes text + attachments together
+- **Cross-Platform Compatibility**: Robust MIME type detection with extension fallbacks
+
+**Technical Implementation:**
+- **Web Client**: `packages/web-client/src/utils/fileHandler.js` - Generic file processing utility
+- **Server Integration**: WeakMap-based metadata storage to avoid API pollution
+- **CLI Display**: Extracts text from multimodal messages for CLI display
+- **History Sync**: Complete attachment metadata preserved in message history
+- **API Safety**: Clean Part objects sent to Gemini API without extra properties
+
+**Supported File Types:**
+| Category | Formats | Max Size | Max Count |
+|----------|---------|----------|-----------|
+| **Images** | PNG, JPEG, WebP, GIF, BMP, SVG | 7MB | 3000 |
+| **Documents** | PDF, TXT, Markdown, CSV | 50MB | 3000 |
+| **Audio** | M4A, MP3, WAV, FLAC, AAC, Opus | 20MB | 1 |
+| **Video** | MP4, WebM, MOV, AVI, 3GP | 20MB | 10 |
+
+**User Experience Flow:**
+1. **Attach Files**: Click + button, drag & drop, or paste images
+2. **Preview & Manage**: View thumbnails with file info, remove unwanted files
+3. **Send Message**: Text + attachments sent together for AI analysis
+4. **AI Processing**: Gemini analyzes all content (text + files) in single request
+5. **History Display**: Both CLI and web show message with attachment info
+
+**Advanced Features:**
+- **Intelligent MIME Detection**: Handles browser variations (e.g., `audio/x-m4a` vs `audio/m4a`)
+- **Extension Fallbacks**: Uses file extensions when MIME type detection fails
+- **Thumbnail Generation**: Automatic thumbnails for images, icons for other files
+- **File Validation**: Size limits, type checking, and count restrictions per Gemini API
+- **Transparent Display**: Subtle, non-intrusive attachment display in messages
+- **Full-Size Viewer**: Click images to view full-size with modal overlay
+
+### **🏗️ Modular Code Refactoring**
 Complete architectural refactoring of the web client codebase:
 
 **New Module Structure:**

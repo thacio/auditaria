@@ -19,6 +19,12 @@ import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationCon
 import type { SlashCommand } from '../ui/commands/types.js';
 import type { TerminalCaptureData } from '../ui/contexts/TerminalCaptureContext.js';
 import { EventEmitter } from 'events';
+// WEB_INTERFACE_START: Import for multimodal support
+import { type PartListUnion, createPartFromBase64 } from '@google/genai';
+
+// WeakMap to store attachment metadata without polluting the Part objects
+export const attachmentMetadataMap = new WeakMap<any, any>();
+// WEB_INTERFACE_END
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +41,9 @@ export class WebInterfaceService extends EventEmitter {
   private clients: Set<WebSocket> = new Set();
   private isRunning = false;
   private port?: number;
-  private submitQueryHandler?: (query: string) => void;
+  // WEB_INTERFACE_START: Updated to accept PartListUnion for multimodal support
+  private submitQueryHandler?: (query: PartListUnion) => void;
+  // WEB_INTERFACE_END
   private abortHandler?: () => void;
   private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
   private currentHistory: HistoryItem[] = [];
@@ -411,9 +419,11 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Set the handler for submit query function
    */
-  setSubmitQueryHandler(handler: (query: string) => void): void {
+  // WEB_INTERFACE_START: Updated to accept PartListUnion for multimodal support
+  setSubmitQueryHandler(handler: (query: PartListUnion) => void): void {
     this.submitQueryHandler = handler;
   }
+  // WEB_INTERFACE_END
 
   /**
    * Set the handler for aborting current AI processing from web interface
@@ -668,13 +678,55 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle incoming messages from web clients
    */
-  private handleIncomingMessage(message: { type: string; content?: string; callId?: string; outcome?: string; payload?: any; key?: any }): void {
+  // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support
+  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
-      const query = message.content?.trim();
-      if (query) {
-        this.submitQueryHandler(query);
+      const text = message.content?.trim() || '';
+      
+      // Convert attachments to multimodal Parts
+      if (message.attachments && message.attachments.length > 0) {
+        const parts: any[] = [];
+        
+        // Add text part if present
+        if (text) {
+          parts.push({ text });
+        }
+        
+        // Add attachment parts and store metadata in WeakMap
+        for (const attachment of message.attachments) {
+          if (attachment.data && attachment.mimeType) {
+            try {
+              // Create inline data part for images and files
+              const part = createPartFromBase64(attachment.data, attachment.mimeType);
+              
+              // Store metadata in WeakMap for later retrieval
+              attachmentMetadataMap.set(part, {
+                type: attachment.type,
+                mimeType: attachment.mimeType,
+                name: attachment.name,
+                size: attachment.size,
+                thumbnail: attachment.thumbnail,
+                icon: attachment.icon,
+                displaySize: attachment.displaySize
+              });
+              
+              parts.push(part);
+            } catch (error) {
+              console.error('Failed to create part from attachment:', error);
+            }
+          }
+        }
+        
+        // Send multimodal message 
+        if (parts.length > 0) {
+          this.submitQueryHandler(parts as PartListUnion);
+        }
+      } else if (text) {
+        // Send text-only message
+        this.submitQueryHandler(text);
       }
     } else if (message.type === 'interrupt_request' && this.abortHandler) {
+    // WEB_INTERFACE_END
       this.abortHandler();
     } else if (message.type === 'tool_confirmation_response' && this.confirmationResponseHandler) {
       if (message.callId && message.outcome) {

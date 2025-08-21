@@ -90,12 +90,13 @@ export class WebSocketManager extends EventTarget {
     }
     
     /**
-     * Send a user message
+     * Send a user message with optional attachments
      */
-    sendUserMessage(content) {
+    sendUserMessage(content, attachments = []) {
         return this.send({
             type: 'user_message',
             content: content,
+            attachments: attachments,
             timestamp: Date.now()
         });
     }

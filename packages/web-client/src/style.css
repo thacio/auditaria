@@ -2473,3 +2473,394 @@ body {
     font-size: 14px;
   }
 }
+
+/* ============================================
+   Attachment UI Styles
+   ============================================ */
+
+/* Attachment button */
+.attach-button {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+}
+
+.attach-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.attach-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attach-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Attachment preview area */
+.attachment-preview {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 8px;
+  padding: 8px;
+  padding-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 130px;
+  overflow-x: scroll; /* Always show scrollbar space */
+  overflow-y: hidden;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Hide scrollbar when not needed */
+.attachment-preview:not(:hover) {
+  overflow-x: auto;
+}
+
+/* Always show scrollbar on hover */
+.attachment-preview:hover {
+  overflow-x: scroll;
+}
+
+/* Custom scrollbar for attachment preview */
+.attachment-preview::-webkit-scrollbar {
+  height: 10px;
+}
+
+.attachment-preview::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  margin: 0 8px;
+}
+
+.attachment-preview::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.5);
+  border-radius: 5px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.attachment-preview::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.7);
+}
+
+/* Firefox scrollbar styling */
+.attachment-preview {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.5) rgba(0, 0, 0, 0.2);
+}
+
+.attachment-items {
+  display: inline-flex; /* Use inline-flex to allow width to exceed container */
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-bottom: 4px; /* Space for scrollbar */
+  min-height: 90px; /* Ensure consistent height */
+}
+
+/* Scroll indicators - shadows at edges */
+.attachment-preview::before,
+.attachment-preview::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 14px; /* Don't cover scrollbar */
+  width: 20px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.attachment-preview::before {
+  left: 0;
+  background: linear-gradient(to right, var(--surface), transparent);
+}
+
+.attachment-preview::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface), transparent);
+}
+
+/* Individual attachment item */
+.attachment-item {
+  position: relative;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 100px;
+  max-width: 100px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.attachment-item:hover {
+  background: var(--surface-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Attachment thumbnail */
+.attachment-thumbnail {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+/* File icon for non-image files */
+.attachment-icon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  background: var(--surface);
+  border-radius: 4px;
+}
+
+/* Attachment info */
+.attachment-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.attachment-name {
+  font-size: 12px;
+  color: var(--text);
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Remove attachment button */
+.attachment-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(218, 54, 51, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  z-index: 1;
+}
+
+.attachment-remove:hover {
+  background: #da3633;
+  transform: scale(1.1);
+}
+
+/* Message attachments display */
+.message-attachments {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.message-attachment {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.message-attachment:hover {
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-attachment-thumbnail {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.message-attachment-icon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background: var(--surface-alt);
+  border-radius: 4px;
+}
+
+.message-attachment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.message-attachment-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.message-attachment-size {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Full size image modal */
+.image-modal {
+  display: none;
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+  animation: fadeIn 0.2s ease;
+}
+
+.image-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.image-modal-close {
+  position: absolute;
+  top: 20px;
+  right: 40px;
+  color: white;
+  font-size: 40px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-modal-close:hover {
+  color: #da3633;
+  transform: scale(1.1);
+}
+
+/* Drag and drop overlay */
+.drop-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(31, 111, 235, 0.1);
+  border: 3px dashed var(--accent);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.drop-overlay.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drop-overlay-content {
+  background: var(--surface);
+  padding: 24px 48px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.drop-overlay-icon {
+  font-size: 48px;
+}
+
+.drop-overlay-text {
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .attachment-preview {
+    max-height: 100px;
+    padding: 6px;
+    padding-bottom: 10px;
+  }
+  
+  .attachment-item {
+    min-width: 80px;
+    max-width: 80px;
+    padding: 6px;
+  }
+  
+  .attachment-thumbnail,
+  .attachment-icon {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .attachment-icon {
+    font-size: 28px;
+  }
+  
+  .attachment-name {
+    font-size: 11px;
+  }
+  
+  .attachment-size {
+    font-size: 10px;
+  }
+}
