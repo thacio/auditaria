@@ -898,7 +898,8 @@
     "rate_limit_vertex": "\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method",
     "rate_limit_default": "\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.",
     "unhandled_rejection": "=========================================\nThis is an unexpected error. Please file a bug report using the /bug tool.\nCRITICAL: Unhandled Promise Rejection!\n=========================================\nReason: {reason}{stack}",
-    "cyclic_schema_error": "\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them:\n\n - "
+    "cyclic_schema_error": "\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them:\n\n - ",
+    "at_command_processing_error": "Exiting due to an error processing the @ command."
   },
   "diff": {
     "no_content": "No diff content.",

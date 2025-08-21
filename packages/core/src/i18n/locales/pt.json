@@ -898,7 +898,8 @@
     "rate_limit_vertex": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do Vertex, ou mude para outro método /auth",
     "rate_limit_default": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão.",
     "unhandled_rejection": "=========================================\nEste é um erro inesperado. Por favor, relate um bug usando a ferramenta /bug.\nCRÍTICO: Rejeição de Promise Não Tratada!\n=========================================\nRazão: {reason}{stack}",
-    "cyclic_schema_error": "\n\nEste erro provavelmente foi causado por referências de esquema cíclicas em uma das seguintes ferramentas, tente desabilitá-las:\n\n - "
+    "cyclic_schema_error": "\n\nEste erro provavelmente foi causado por referências de esquema cíclicas em uma das seguintes ferramentas, tente desabilitá-las:\n\n - ",
+    "at_command_processing_error": "Saindo devido a um erro ao processar o comando @."
   },
   "diff": {
     "no_content": "Nenhum conteúdo de diff.",
