@@ -11,6 +11,7 @@ import { LoadingIndicator } from './components/LoadingIndicator.js';
 import { TerminalDisplay } from './components/TerminalDisplay.js';
 import { shortenPath } from './utils/formatters.js';
 import { FileHandler } from './utils/fileHandler.js';
+import { AudioRecorder } from './utils/audioRecorder.js';
 
 class AuditariaWebClient {
     constructor() {
@@ -28,6 +29,7 @@ class AuditariaWebClient {
         // State properties
         this.hasFooterData = false;
         this.attachments = []; // Store current attachments
+        this.audioRecorder = null; // Audio recorder instance
         
         // Initialize UI elements
         this.initializeUI();
@@ -63,6 +65,12 @@ class AuditariaWebClient {
         this.imageModal = document.getElementById('image-modal');
         this.imageModalContent = document.getElementById('image-modal-content');
         this.imageModalClose = document.getElementById('image-modal-close');
+        
+        // Audio recording elements
+        this.micButton = document.getElementById('mic-button');
+        this.recordingIndicator = document.getElementById('recording-indicator');
+        this.recordingTime = document.getElementById('recording-time');
+        this.recordingStop = document.getElementById('recording-stop');
     }
     
     setupWebSocketHandlers() {
@@ -247,6 +255,15 @@ class AuditariaWebClient {
                 this.imageModal.style.display = 'none';
             }
         });
+        
+        // Audio recording handlers
+        this.micButton.addEventListener('click', () => {
+            this.toggleRecording();
+        });
+        
+        this.recordingStop.addEventListener('click', () => {
+            this.stopRecording();
+        });
     }
     
     sendMessage() {
@@ -411,6 +428,114 @@ class AuditariaWebClient {
     clearAttachments() {
         this.attachments = [];
         this.updateAttachmentPreview();
+    }
+    
+    // Audio Recording Methods
+    async toggleRecording() {
+        if (!this.audioRecorder) {
+            this.audioRecorder = new AudioRecorder();
+        }
+        
+        if (this.audioRecorder.isRecording) {
+            this.stopRecording();
+        } else {
+            this.startRecording();
+        }
+    }
+    
+    async startRecording() {
+        try {
+            // Check if browser supports recording
+            if (!AudioRecorder.isSupported()) {
+                console.error('Audio recording is not supported in your browser');
+                return;
+            }
+            
+            // Initialize audio recorder
+            if (!this.audioRecorder) {
+                this.audioRecorder = new AudioRecorder();
+            }
+            
+            // Set up callbacks
+            this.audioRecorder.onStop = (audioFile, duration) => {
+                this.handleRecordingComplete(audioFile, duration);
+            };
+            
+            this.audioRecorder.onError = (error) => {
+                console.error('Recording error:', error);
+                this.hideRecordingIndicator();
+            };
+            
+            this.audioRecorder.onTimeUpdate = (timeString) => {
+                this.recordingTime.textContent = timeString;
+            };
+            
+            // Start recording
+            const started = await this.audioRecorder.start();
+            if (started) {
+                this.showRecordingIndicator();
+                this.micButton.classList.add('recording');
+            }
+        } catch (error) {
+            console.error('Failed to start recording:', error);
+            // Just log the error, don't show in footer
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                console.error('Microphone permission denied. Please allow microphone access.');
+            }
+        }
+    }
+    
+    stopRecording() {
+        if (this.audioRecorder && this.audioRecorder.isRecording) {
+            this.audioRecorder.stop();
+            this.hideRecordingIndicator();
+            this.micButton.classList.remove('recording');
+        }
+    }
+    
+    async handleRecordingComplete(audioFile, duration) {
+        try {
+            // Convert audio file to attachment
+            const attachment = await FileHandler.createAttachment(audioFile, this.attachments);
+            
+            // Add custom properties for audio
+            attachment.duration = Math.round(duration / 1000); // Duration in seconds
+            attachment.icon = '🎙️'; // Use microphone icon for audio
+            
+            // Add to attachments
+            this.attachments.push(attachment);
+            this.updateAttachmentPreview();
+        } catch (error) {
+            console.error('Failed to process audio recording:', error);
+        }
+    }
+    
+    showRecordingIndicator() {
+        this.recordingIndicator.style.display = 'block';
+        this.recordingTime.textContent = '0:00';
+        
+        // Disable input controls during recording
+        this.messageInput.disabled = true;
+        this.sendButton.disabled = true;
+        this.attachButton.disabled = true;
+    }
+    
+    hideRecordingIndicator() {
+        this.recordingIndicator.style.display = 'none';
+        
+        // Re-enable input controls
+        this.messageInput.disabled = false;
+        this.sendButton.disabled = false;
+        this.attachButton.disabled = false;
+        
+        // Re-focus on input
+        this.messageInput.focus();
+    }
+    
+    formatDuration(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
     
     showClearConfirmation(message) {
@@ -640,5 +765,12 @@ class AuditariaWebClient {
 
 // Initialize the client when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new AuditariaWebClient();
+    const client = new AuditariaWebClient();
+    
+    // Clean up audio recorder on page unload
+    window.addEventListener('beforeunload', () => {
+        if (client.audioRecorder) {
+            client.audioRecorder.cleanup();
+        }
+    });
 });

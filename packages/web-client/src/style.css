@@ -2864,3 +2864,248 @@ body {
     font-size: 10px;
   }
 }
+
+/* ============================================
+   Voice Recording Styles
+   ============================================ */
+
+/* Microphone button */
+.mic-button {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+}
+
+.mic-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.mic-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mic-button.recording {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+  animation: pulse-recording 2s ease-in-out infinite;
+}
+
+.mic-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Recording indicator bar */
+.recording-indicator {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(400px, calc(100% - 32px));
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  animation: slideUpFade 0.3s ease-out;
+}
+
+.recording-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+}
+
+/* Recording pulse indicator */
+.recording-pulse {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  position: relative;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.recording-pulse::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 50%;
+  animation: pulse-ring 1.5s ease-in-out infinite;
+}
+
+/* Recording text */
+.recording-text {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+/* Recording timer */
+.recording-time {
+  font-size: 14px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* Stop recording button */
+.recording-stop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ef4444;
+  border: none;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.recording-stop:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.recording-stop svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Animations for recording */
+@keyframes pulse-recording {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Audio waveform visualization (optional future enhancement) */
+.audio-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  margin: 0 8px;
+}
+
+.audio-waveform-bar {
+  width: 3px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  animation: wave 0.5s ease-in-out infinite;
+}
+
+.audio-waveform-bar:nth-child(1) { animation-delay: 0s; height: 40%; }
+.audio-waveform-bar:nth-child(2) { animation-delay: 0.1s; height: 60%; }
+.audio-waveform-bar:nth-child(3) { animation-delay: 0.2s; height: 50%; }
+.audio-waveform-bar:nth-child(4) { animation-delay: 0.3s; height: 70%; }
+.audio-waveform-bar:nth-child(5) { animation-delay: 0.4s; height: 45%; }
+
+@keyframes wave {
+  0%, 100% {
+    transform: scaleY(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1.5);
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments for recording UI */
+@media (max-width: 768px) {
+  .recording-indicator {
+    width: min(350px, calc(100% - 24px));
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+  
+  .recording-content {
+    gap: 10px;
+  }
+  
+  .recording-text {
+    font-size: 13px;
+  }
+  
+  .recording-time {
+    font-size: 13px;
+    padding: 3px 8px;
+  }
+  
+  .recording-stop {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  
+  .recording-pulse {
+    width: 8px;
+    height: 8px;
+  }
+}
