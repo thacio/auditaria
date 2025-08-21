@@ -65,6 +65,18 @@ export interface HistoryItemBase {
 export type HistoryItemUser = HistoryItemBase & {
   type: 'user';
   text: string;
+  // WEB_INTERFACE_START: Add attachments support for multimodal messages
+  attachments?: Array<{
+    type: string;
+    mimeType: string;
+    name: string;
+    size: number;
+    data?: string; // Base64 data
+    thumbnail?: string;
+    icon?: string;
+    displaySize?: string;
+  }>;
+  // WEB_INTERFACE_END
 };
 
 export type HistoryItemGemini = HistoryItemBase & {

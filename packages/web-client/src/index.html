@@ -93,6 +93,24 @@
                         </div>
                     </div>
                     
+                    <!-- Attachment Preview Area -->
+                    <div id="attachment-preview" class="attachment-preview" style="display: none;">
+                        <div class="attachment-items" id="attachment-items"></div>
+                    </div>
+                    
+                    <!-- Hidden file input for attachment selection -->
+                    <input type="file" id="file-input" multiple style="display: none;" 
+                           accept="image/png,image/jpeg,image/webp,application/pdf,text/plain,.txt,.flv,.mov,.mpeg,.mpg,.mp4,.webm,.wmv,.3gpp,.aac,.flac,.mp3,.m4a,.mpga,.opus,.pcm,.wav" />
+                    
+                    <!-- Attachment button -->
+                    <button id="attach-button" class="attach-button" title="Add photos & files" aria-label="Add photos & files">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="16"></line>
+                            <line x1="8" y1="12" x2="16" y2="12"></line>
+                        </svg>
+                    </button>
+                    
                     <textarea 
                         id="message-input" 
                         placeholder="Type your message and press Enter to send (Shift+Enter for new line)..."
@@ -176,6 +194,20 @@
                 <small>This modal will close automatically when the action is completed.</small>
             </div>
         </div>
+    </div>
+    
+    <!-- Drop overlay for drag and drop -->
+    <div class="drop-overlay" id="drop-overlay">
+        <div class="drop-overlay-content">
+            <div class="drop-overlay-icon">📎</div>
+            <div class="drop-overlay-text">Drop files here to attach</div>
+        </div>
+    </div>
+    
+    <!-- Image modal for full size view -->
+    <div id="image-modal" class="image-modal">
+        <span class="image-modal-close" id="image-modal-close">&times;</span>
+        <img class="image-modal-content" id="image-modal-content">
     </div>
     
     <script src="marked.min.js"></script>

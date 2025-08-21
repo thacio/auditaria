@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { t } from '@thacio/auditaria-cli-core';
+// WEB_INTERFACE_START: Import for multimodal support
+import { type PartListUnion } from '@google/genai';
+// WEB_INTERFACE_END
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
@@ -783,12 +786,14 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     submitQueryRef.current = submitQuery;
   }, [submitQuery]);
 
+  // WEB_INTERFACE_START: Updated to accept PartListUnion for multimodal support
   // Create a completely stable function that will never change
-  const stableWebSubmitQuery = useCallback((query: string) => {
+  const stableWebSubmitQuery = useCallback((query: PartListUnion) => {
     if (submitQueryRef.current) {
       submitQueryRef.current(query);
     }
   }, []); // Empty dependency array - this function never changes
+  // WEB_INTERFACE_END
 
   // Register once and never again
   const registerSubmitQuery = useSubmitQueryRegistration();

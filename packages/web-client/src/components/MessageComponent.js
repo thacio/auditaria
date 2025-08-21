@@ -79,14 +79,121 @@ export function createChatMessageWithCopy(type, label, content, historyItem, cop
 function renderSpecialContent(historyItem) {
     if (!historyItem) return null;
     
+    const container = document.createElement('div');
+    
+    // Add attachments if present
+    if (historyItem.attachments && historyItem.attachments.length > 0) {
+        const attachmentsEl = renderAttachments(historyItem.attachments);
+        if (attachmentsEl) {
+            container.appendChild(attachmentsEl);
+        }
+    }
+    
+    // Add other special content
+    let specialContent = null;
     switch (historyItem.type) {
         case 'tool_group':
-            return renderToolGroup(historyItem.tools || []);
+            specialContent = renderToolGroup(historyItem.tools || []);
+            break;
         case 'about':
-            return renderAboutInfo(historyItem);
-        default:
-            return null;
+            specialContent = renderAboutInfo(historyItem);
+            break;
     }
+    
+    if (specialContent) {
+        container.appendChild(specialContent);
+    }
+    
+    return container.children.length > 0 ? container : null;
+}
+
+/**
+ * Render attachments in a message
+ */
+function renderAttachments(attachments) {
+    if (!attachments || attachments.length === 0) return null;
+    
+    const attachmentsEl = document.createElement('div');
+    attachmentsEl.className = 'message-attachments';
+    
+    attachments.forEach(attachment => {
+        const attachmentEl = document.createElement('div');
+        attachmentEl.className = 'message-attachment';
+        attachmentEl.title = attachment.name;
+        
+        // Thumbnail or icon
+        if (attachment.thumbnail) {
+            const img = document.createElement('img');
+            img.src = attachment.thumbnail;
+            img.className = 'message-attachment-thumbnail';
+            img.alt = attachment.name;
+            
+            // Click to view full size for images
+            if (attachment.type === 'image') {
+                attachmentEl.style.cursor = 'pointer';
+                attachmentEl.onclick = () => {
+                    showImageModal(attachment);
+                };
+            }
+            
+            attachmentEl.appendChild(img);
+        } else {
+            const icon = document.createElement('div');
+            icon.className = 'message-attachment-icon';
+            icon.textContent = attachment.icon || '📎';
+            attachmentEl.appendChild(icon);
+        }
+        
+        // Info
+        const info = document.createElement('div');
+        info.className = 'message-attachment-info';
+        
+        const name = document.createElement('div');
+        name.className = 'message-attachment-name';
+        name.textContent = attachment.name;
+        
+        const size = document.createElement('div');
+        size.className = 'message-attachment-size';
+        size.textContent = attachment.displaySize || formatFileSize(attachment.size);
+        
+        info.appendChild(name);
+        info.appendChild(size);
+        attachmentEl.appendChild(info);
+        
+        attachmentsEl.appendChild(attachmentEl);
+    });
+    
+    return attachmentsEl;
+}
+
+/**
+ * Show image in modal
+ */
+function showImageModal(attachment) {
+    const modal = document.getElementById('image-modal');
+    const modalContent = document.getElementById('image-modal-content');
+    
+    if (modal && modalContent) {
+        // For base64 images, construct data URL
+        const dataUrl = attachment.data ? 
+            `data:${attachment.mimeType};base64,${attachment.data}` : 
+            attachment.thumbnail;
+            
+        modalContent.src = dataUrl;
+        modalContent.alt = attachment.name;
+        modal.style.display = 'block';
+    }
+}
+
+/**
+ * Format file size
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
 /**

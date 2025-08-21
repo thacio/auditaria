@@ -29,6 +29,9 @@ import {
   t,
 } from '@thacio/auditaria-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
+// WEB_INTERFACE_START: Import WeakMap for attachment metadata
+import { attachmentMetadataMap } from '../../services/WebInterfaceService.js';
+// WEB_INTERFACE_END
 import {
   StreamingState,
   HistoryItem,
@@ -377,8 +380,97 @@ export const useGeminiStream = (
           localQueryToSendToGemini = trimmedQuery;
         }
       } else {
-        // It's a function response (PartListUnion that isn't a string)
+        // WEB_INTERFACE_START: Handle multimodal messages from web interface
+        // It's a PartListUnion (array of parts or single part)
         localQueryToSendToGemini = query;
+        
+        // Extract text and attachments from multimodal parts for display
+        let displayText = '';
+        const attachments: any[] = [];
+        
+        if (Array.isArray(query)) {
+          // It's an array of parts
+          for (const part of query) {
+            if (typeof part === 'string') {
+              displayText = part;
+            } else if (part && typeof part === 'object') {
+              if ('text' in part && part.text) {
+                displayText = part.text;
+              } else if ('inlineData' in part && part.inlineData) {
+                // Extract attachment info from inline data
+                // Check if we have metadata in the WeakMap
+                const metadata = attachmentMetadataMap.get(part);
+                if (metadata) {
+                  attachments.push({
+                    type: metadata.type || 'file',
+                    mimeType: metadata.mimeType || part.inlineData.mimeType || 'application/octet-stream',
+                    name: metadata.name || 'Attached file',
+                    size: metadata.size || 0,
+                    thumbnail: metadata.thumbnail,
+                    icon: metadata.icon || '📎',
+                    displaySize: metadata.displaySize
+                  });
+                } else {
+                  // Fallback for attachments without metadata
+                  attachments.push({
+                    type: 'file',
+                    mimeType: part.inlineData.mimeType || 'application/octet-stream',
+                    name: 'Attached file',
+                    size: 0,
+                    icon: '📎',
+                  });
+                }
+              }
+            }
+          }
+        } else if (typeof query === 'object' && query) {
+          // Single part object
+          if ('text' in query && query.text) {
+            displayText = query.text;
+          } else if ('inlineData' in query && query.inlineData) {
+            const metadata = attachmentMetadataMap.get(query);
+            if (metadata) {
+              attachments.push({
+                type: metadata.type || 'file',
+                mimeType: metadata.mimeType || query.inlineData.mimeType || 'application/octet-stream',
+                name: metadata.name || 'Attached file',
+                size: metadata.size || 0,
+                thumbnail: metadata.thumbnail,
+                icon: metadata.icon || '📎',
+                displaySize: metadata.displaySize
+              });
+            } else {
+              attachments.push({
+                type: 'file',
+                mimeType: query.inlineData.mimeType || 'application/octet-stream',
+                name: 'Attached file',
+                size: 0,
+                icon: '📎',
+              });
+            }
+          }
+        }
+        
+        // If no text but has attachments, show a placeholder
+        if (!displayText && attachments.length > 0) {
+          displayText = '📎 File(s) attached';
+        }
+        
+        // Add user message to history with attachments info
+        if (displayText || attachments.length > 0) {
+          const historyItem: any = { 
+            type: MessageType.USER, 
+            text: displayText || '📎 File(s) attached'
+          };
+          
+          // Include attachments if present (for web interface display)
+          if (attachments.length > 0) {
+            historyItem.attachments = attachments;
+          }
+          
+          addItem(historyItem, userMessageTimestamp);
+        }
+        // WEB_INTERFACE_END
       }
 
       if (localQueryToSendToGemini === null) {

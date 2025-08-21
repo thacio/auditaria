@@ -10,6 +10,7 @@ import { KeyboardManager } from './managers/KeyboardManager.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
 import { TerminalDisplay } from './components/TerminalDisplay.js';
 import { shortenPath } from './utils/formatters.js';
+import { FileHandler } from './utils/fileHandler.js';
 
 class AuditariaWebClient {
     constructor() {
@@ -26,6 +27,7 @@ class AuditariaWebClient {
         
         // State properties
         this.hasFooterData = false;
+        this.attachments = []; // Store current attachments
         
         // Initialize UI elements
         this.initializeUI();
@@ -51,6 +53,16 @@ class AuditariaWebClient {
         this.printButton = document.getElementById('print-button');
         this.autoscrollButton = document.getElementById('autoscroll-button');
         this.inputStatus = document.getElementById('input-status');
+        
+        // Attachment elements
+        this.attachButton = document.getElementById('attach-button');
+        this.fileInput = document.getElementById('file-input');
+        this.attachmentPreview = document.getElementById('attachment-preview');
+        this.attachmentItems = document.getElementById('attachment-items');
+        this.dropOverlay = document.getElementById('drop-overlay');
+        this.imageModal = document.getElementById('image-modal');
+        this.imageModalContent = document.getElementById('image-modal-content');
+        this.imageModalClose = document.getElementById('image-modal-close');
     }
     
     setupWebSocketHandlers() {
@@ -183,11 +195,63 @@ class AuditariaWebClient {
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
         });
+        
+        // Attachment button
+        this.attachButton.addEventListener('click', () => {
+            this.fileInput.click();
+        });
+        
+        // File input change
+        this.fileInput.addEventListener('change', async (event) => {
+            await this.handleFileSelection(event.target.files);
+            event.target.value = ''; // Reset input so same file can be selected again
+        });
+        
+        // Paste event for images
+        this.messageInput.addEventListener('paste', async (event) => {
+            const files = FileHandler.getFilesFromPasteEvent(event);
+            if (files.length > 0) {
+                event.preventDefault();
+                await this.handleFileSelection(files);
+            }
+        });
+        
+        // Drag and drop
+        document.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            this.dropOverlay.classList.add('active');
+        });
+        
+        document.addEventListener('dragleave', (event) => {
+            if (event.clientX === 0 && event.clientY === 0) {
+                this.dropOverlay.classList.remove('active');
+            }
+        });
+        
+        document.addEventListener('drop', async (event) => {
+            event.preventDefault();
+            this.dropOverlay.classList.remove('active');
+            const files = Array.from(event.dataTransfer.files);
+            if (files.length > 0) {
+                await this.handleFileSelection(files);
+            }
+        });
+        
+        // Image modal close
+        this.imageModalClose.addEventListener('click', () => {
+            this.imageModal.style.display = 'none';
+        });
+        
+        this.imageModal.addEventListener('click', (event) => {
+            if (event.target === this.imageModal) {
+                this.imageModal.style.display = 'none';
+            }
+        });
     }
     
     sendMessage() {
         const message = this.messageInput.value.trim();
-        if (!message || !this.wsManager.getState().isConnected) {
+        if ((!message && this.attachments.length === 0) || !this.wsManager.getState().isConnected) {
             return;
         }
         
@@ -197,13 +261,156 @@ class AuditariaWebClient {
             return;
         }
         
-        if (this.wsManager.sendUserMessage(message)) {
+        // Check if this is a slash command (starts with /)
+        const isSlashCommand = message.startsWith('/');
+        
+        // Send message with attachments (but not for slash commands)
+        if (this.wsManager.sendUserMessage(message, isSlashCommand ? [] : this.attachments)) {
             this.messageInput.value = '';
+            // Only clear attachments if we're not sending a slash command
+            if (!isSlashCommand) {
+                this.clearAttachments();
+            }
             this.autoResizeTextarea();
             this.messageInput.focus();
         } else {
             this.updateInputStatus('Failed to send message');
         }
+    }
+    
+    async handleFileSelection(files) {
+        // Check if we've reached the maximum number of attachments
+        const maxAttachments = 20;
+        const remainingSlots = maxAttachments - this.attachments.length;
+        
+        if (remainingSlots <= 0) {
+            alert(`Maximum ${maxAttachments} attachments allowed`);
+            return;
+        }
+        
+        // Filter out duplicate files
+        const existingFiles = new Set(this.attachments.map(att => `${att.name}_${att.size}`));
+        const duplicateFiles = [];
+        const uniqueFiles = Array.from(files).filter(file => {
+            const fileKey = `${file.name}_${file.size}`;
+            if (existingFiles.has(fileKey)) {
+                duplicateFiles.push(file.name);
+                return false;
+            }
+            return true;
+        });
+        
+        if (uniqueFiles.length === 0 && duplicateFiles.length > 0) {
+            alert(`File(s) already attached: ${duplicateFiles.join(', ')}`);
+            return;
+        }
+        
+        // Only process files up to the remaining slots
+        const filesToProcess = uniqueFiles.slice(0, remainingSlots);
+        
+        if (uniqueFiles.length > filesToProcess.length) {
+            alert(`Only ${filesToProcess.length} of ${uniqueFiles.length} files added (max ${maxAttachments} attachments)`);
+        }
+        
+        let addedCount = 0;
+        let errors = [];
+        
+        for (const file of filesToProcess) {
+            try {
+                // Double-check for duplicates (in case of race conditions)
+                const isDuplicate = this.attachments.some(att => 
+                    att.name === file.name && att.size === file.size
+                );
+                
+                if (isDuplicate) {
+                    continue;
+                }
+                
+                const attachment = await FileHandler.createAttachment(file, this.attachments);
+                this.attachments.push(attachment);
+                this.updateAttachmentPreview();
+                addedCount++;
+            } catch (error) {
+                console.error('Failed to process file:', error);
+                errors.push(`${file.name}: ${error.message}`);
+            }
+        }
+        
+        // Show error alert if there were any errors
+        if (errors.length > 0) {
+            alert(`Failed to attach files:\n\n${errors.join('\n')}`);
+        }
+        
+        // Show summary if we had partial success
+        if (duplicateFiles.length > 0 && addedCount > 0) {
+            console.log(`Added ${addedCount} files, skipped ${duplicateFiles.length} duplicates`);
+        }
+    }
+    
+    updateAttachmentPreview() {
+        if (this.attachments.length === 0) {
+            this.attachmentPreview.style.display = 'none';
+            this.attachmentItems.innerHTML = '';
+            return;
+        }
+        
+        this.attachmentPreview.style.display = 'block';
+        this.attachmentItems.innerHTML = '';
+        
+        this.attachments.forEach((attachment, index) => {
+            const item = document.createElement('div');
+            item.className = 'attachment-item';
+            
+            // Thumbnail or icon
+            if (attachment.thumbnail) {
+                const img = document.createElement('img');
+                img.src = attachment.thumbnail;
+                img.className = 'attachment-thumbnail';
+                img.alt = attachment.name;
+                item.appendChild(img);
+            } else {
+                const icon = document.createElement('div');
+                icon.className = 'attachment-icon';
+                icon.textContent = attachment.icon;
+                item.appendChild(icon);
+            }
+            
+            // Info
+            const info = document.createElement('div');
+            info.className = 'attachment-info';
+            
+            const name = document.createElement('div');
+            name.className = 'attachment-name';
+            name.textContent = attachment.name;
+            name.title = attachment.name;
+            
+            const size = document.createElement('div');
+            size.className = 'attachment-size';
+            size.textContent = attachment.displaySize;
+            
+            info.appendChild(name);
+            info.appendChild(size);
+            item.appendChild(info);
+            
+            // Remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'attachment-remove';
+            removeBtn.textContent = '×';
+            removeBtn.onclick = () => this.removeAttachment(index);
+            item.appendChild(removeBtn);
+            
+            this.attachmentItems.appendChild(item);
+        });
+    }
+    
+    removeAttachment(index) {
+        this.attachments.splice(index, 1);
+        this.updateAttachmentPreview();
+    }
+    
+    clearAttachments() {
+        this.attachments = [];
+        this.updateAttachmentPreview();
     }
     
     showClearConfirmation(message) {
