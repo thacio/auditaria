@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { render } from 'ink';
-import { MainComponent } from './ui/MainComponent.js';
+import { AppWrapper } from './ui/App.js';
 import { loadCliConfig, parseArguments } from './config/config.js';
 import { readStdin } from './utils/readStdin.js';
 import { basename } from 'node:path';
@@ -49,6 +49,7 @@ import { detectAndEnableKittyProtocol } from './ui/utils/kittyProtocolDetector.j
 import { checkForUpdates } from './ui/utils/updateCheck.js';
 import { handleAutoUpdate } from './utils/handleAutoUpdate.js';
 import { appEvents, AppEvent } from './utils/events.js';
+import { SettingsContext } from './ui/contexts/SettingsContext.js';
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -62,7 +63,7 @@ export function validateDnsResolutionOrder(
   }
   // We don't want to throw here, just warn and use the default.
   console.warn(
-    t('dns.invalid_resolution_order', `Invalid value for dnsResolutionOrder in settings: "${order}". Using default "${defaultValue}".`, { order, defaultValue }),
+    `Invalid value for dnsResolutionOrder in settings: "${order}". Using default "${defaultValue}".`,
   );
   return defaultValue;
 }
@@ -117,15 +118,15 @@ function detectLanguage(): SupportedLanguage {
   if (process.env.AUDITARIA_LANG === 'pt') {
     return 'pt';
   }
-  
+
   // Check system locale environment variables
   const locale = process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || '';
-  
+
   // Simple detection - if locale contains 'pt', use Portuguese
   if (locale.toLowerCase().includes('pt')) {
     return 'pt';
   }
-  
+
   // Default to Portuguese
   return 'en';
 }
@@ -133,8 +134,8 @@ function detectLanguage(): SupportedLanguage {
 export function setupUnhandledRejectionHandler() {
   let unhandledRejectionOccurred = false;
   process.on('unhandledRejection', (reason, _promise) => {
-    const stackTrace = reason instanceof Error && reason.stack 
-      ? `\nStack trace:\n${reason.stack}` 
+    const stackTrace = reason instanceof Error && reason.stack
+      ? `\nStack trace:\n${reason.stack}`
       : '';
     const errorMessage = t(
       'errors.unhandled_rejection',
@@ -157,7 +158,7 @@ export async function main() {
   setupUnhandledRejectionHandler();
   const workspaceRoot = process.cwd();
   const settings = loadSettings(workspaceRoot);
-  
+
   // Initialize i18n system with settings-based language or fallback to detection
   const language = settings.merged.language || detectLanguage();
   await initI18n(language);
@@ -300,23 +301,28 @@ export async function main() {
     // Detect and enable Kitty keyboard protocol once at startup
     await detectAndEnableKittyProtocol();
     setWindowTitle(basename(workspaceRoot), settings);
+    
+    // WEB_INTERFACE_START: Extract web interface flags from argv
+    const webEnabled = !!argv.web;
+    const webOpenBrowser = argv.web !== 'no-browser';
+    // WEB_INTERFACE_END
+    
     const instance = render(
-      <MainComponent
-        initialConfig={config}
-        settings={settings}
-        startupWarnings={startupWarnings}
-        version={version}
-        workspaceRoot={workspaceRoot}
-        extensions={extensions}
-        argv={argv}
-        // WEB_INTERFACE_START: Pass web interface flags
-        webEnabled={!!argv.web}
-        webOpenBrowser={argv.web === true || (typeof argv.web === 'string' && argv.web !== 'no-browser')}
-        // WEB_INTERFACE_END
-      />,
-      {
-        exitOnCtrlC: false,
-      },
+      <React.StrictMode>
+        <SettingsContext.Provider value={settings}>
+          <AppWrapper
+            config={config}
+            settings={settings}
+            startupWarnings={startupWarnings}
+            version={version}
+            // WEB_INTERFACE_START: Pass web interface flags
+            webEnabled={webEnabled}
+            webOpenBrowser={webOpenBrowser}
+          // WEB_INTERFACE_END
+          />
+        </SettingsContext.Provider>
+      </React.StrictMode>,
+      { exitOnCtrlC: false },
     );
 
     checkForUpdates()

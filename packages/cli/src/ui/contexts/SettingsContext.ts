@@ -4,21 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, useContext } from 'react';
+import React, { useContext } from 'react';
 import { LoadedSettings } from '../../config/settings.js';
 
-export interface SettingsContextType {
-  settings: LoadedSettings;
-  recomputeSettings: () => void;
-}
+export const SettingsContext = React.createContext<LoadedSettings | undefined>(
+  undefined,
+);
 
-// This context is initialized in gemini.tsx with the loaded settings.
-export const SettingsContext = createContext<SettingsContextType | null>(null);
-
-export function useSettings(): LoadedSettings {
+export const useSettings = () => {
   const context = useContext(SettingsContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useSettings must be used within a SettingsProvider');
   }
-  return context.settings;
-}
+  return context;
+};
