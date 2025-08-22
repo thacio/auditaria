@@ -80,6 +80,19 @@
         <footer class="footer">
             <div class="input-section">
                 <div class="input-container">
+                    <!-- Loading Indicator - positioned relative to input container -->
+                    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                        <div class="loading-expandable-content" id="loading-expandable-content">
+                            <div class="loading-description" id="loading-description"></div>
+                        </div>
+                        <div class="loading-header" id="loading-header" tabindex="0" role="button" aria-label="Expand AI thoughts">
+                            <div class="loading-spinner">⠋</div>
+                            <div class="loading-text" id="loading-text">Thinking...</div>
+                            <div class="loading-time" id="loading-time">(0s)</div>
+                            <div class="loading-expand-indicator" id="loading-expand-indicator" style="display: none;">▼</div>
+                        </div>
+                    </div>
+                    
                     <!-- Recording Indicator - Shows when recording audio -->
                     <div id="recording-indicator" class="recording-indicator" style="display: none;">
                         <div class="recording-content">
@@ -92,19 +105,6 @@
                                 </svg>
                                 Stop
                             </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Loading Indicator - positioned relative to input container -->
-                    <div id="loading-indicator" class="loading-indicator" style="display: none;">
-                        <div class="loading-expandable-content" id="loading-expandable-content">
-                            <div class="loading-description" id="loading-description"></div>
-                        </div>
-                        <div class="loading-header" id="loading-header" tabindex="0" role="button" aria-label="Expand AI thoughts">
-                            <div class="loading-spinner">⠋</div>
-                            <div class="loading-text" id="loading-text">Thinking...</div>
-                            <div class="loading-time" id="loading-time">(0s)</div>
-                            <div class="loading-expand-indicator" id="loading-expand-indicator" style="display: none;">▼</div>
                         </div>
                     </div>
                     

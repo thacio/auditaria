@@ -3034,7 +3034,7 @@ body {
   border-radius: 16px;
   padding: 14px 18px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+  z-index: 1100;
   animation: slideUpFade 0.3s ease-out;
 }
 
