@@ -946,7 +946,11 @@
   },
   "theme": {
     "no_color_env": "Theme configuration unavailable due to NO_COLOR env variable.",
-    "not_found": "Theme \"{theme}\" not found."
+    "not_found": "Theme \"{theme}\" not found.",
+    "file_outside_home": "Theme file at \"{themePath}\" is outside your home directory. Only load themes from trusted sources.",
+    "invalid_file_theme": "Invalid custom theme from file \"{themePath}\": {error}",
+    "file_theme_warning": "Theme from \"{themePath}\": {warning}",
+    "could_not_load_file": "Could not load theme from file \"{themePath}\":"
   },
   "editor": {
     "preference_set": "Editor preference set to \"{editor}\" in {scope} settings.",

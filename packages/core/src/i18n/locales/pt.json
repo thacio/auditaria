@@ -943,7 +943,11 @@
   },
   "theme": {
     "no_color_env": "Configuração de tema indisponível devido à variável de ambiente NO_COLOR.",
-    "not_found": "Tema \"{theme}\" não encontrado."
+    "not_found": "Tema \"{theme}\" não encontrado.",
+    "file_outside_home": "Arquivo de tema em \"{themePath}\" está fora do seu diretório home. Carregue apenas temas de fontes confiáveis.",
+    "invalid_file_theme": "Tema personalizado inválido do arquivo \"{themePath}\": {error}",
+    "file_theme_warning": "Tema do arquivo \"{themePath}\": {warning}",
+    "could_not_load_file": "Não foi possível carregar tema do arquivo \"{themePath}\":"
   },
   "editor": {
     "preference_set": "Preferência do editor definida para \"{editor}\" nas configurações de {scope}.",
