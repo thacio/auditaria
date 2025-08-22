@@ -70,9 +70,32 @@ jobs:
           name: auditaria-launcher-powershell-ui
           path: auditaria-launcher.exe
           retention-days: 30
+
+  sign-launcher:
+    needs: build
+    uses: ./.github/workflows/sign-windows-artifacts.yml
+    with:
+      artifact-name: auditaria-launcher-powershell-ui
+      files-to-sign: auditaria-launcher.exe
+      use-attestations: true
+    secrets:
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+  create-release:
+    needs: sign-launcher
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.release == 'true' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed launcher
+        uses: actions/download-artifact@v4
+        with:
+          name: auditaria-launcher-powershell-ui-signed
       
-      - name: Create Release
-        if: ${{ github.event.inputs.release == 'true' && github.event.inputs.version_tag != '' }}
+      - name: Create Release with Version Tag
+        if: ${{ github.event.inputs.version_tag != '' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.inputs.version_tag }}
@@ -124,7 +147,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Create Auto-versioned Release
-        if: ${{ github.event.inputs.release == 'true' && github.event.inputs.version_tag == '' }}
+        if: ${{ github.event.inputs.version_tag == '' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: launcher-build-${{ github.run_number }}

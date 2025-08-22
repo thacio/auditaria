@@ -1,10 +1,26 @@
-name: Release
+name: Release (Non-Signed)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_name:
+        description: 'Release name'
+        required: false
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-npm-package:
@@ -113,21 +129,8 @@ jobs:
             auditaria-windows.exe
             auditaria-launcher.exe
 
-  sign-windows-executables:
-    needs: build-windows-executables
-    uses: ./.github/workflows/sign-windows-artifacts.yml
-    with:
-      artifact-name: windows-executables
-      files-to-sign: |
-        auditaria-windows.exe
-        auditaria-launcher.exe
-      use-attestations: true
-    secrets:
-      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-
   create-release:
-    needs: [build-npm-package, sign-windows-executables]
+    needs: [build-npm-package, build-windows-executables]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,10 +140,10 @@ jobs:
         with:
           name: npm-package
       
-      - name: Download signed Windows executables
+      - name: Download Windows executables
         uses: actions/download-artifact@v4
         with:
-          name: windows-executables-signed
+          name: windows-executables
       
       - name: List artifacts
         run: ls -la
@@ -148,14 +151,19 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.release_name || github.event.inputs.tag_name }}
           files: |
             auditaria-cli-latest.tgz
             auditaria-windows.exe
             auditaria-launcher.exe
           generate_release_notes: true
-          draft: false
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           body: |
-            ## Auditaria Release
+            ## Auditaria Release (Non-Signed)
+            
+            ⚠️ **Note**: These executables are NOT signed. For signed releases, use the main release workflow.
             
             ### 📦 Package Distribution
             - **npm package**: `auditaria-cli-latest.tgz` - Install with `npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz`

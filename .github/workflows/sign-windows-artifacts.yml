@@ -1,0 +1,374 @@
+name: Sign Windows Artifacts
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: 'Name of the artifact containing executables to sign'
+        required: true
+        type: string
+      files-to-sign:
+        description: 'Files to sign (multiline string)'
+        required: true
+        type: string
+      use-attestations:
+        description: 'Generate GitHub attestations'
+        required: false
+        default: true
+        type: boolean
+    secrets:
+      WINDOWS_CERTIFICATE_BASE64:
+        required: false
+      WINDOWS_CERTIFICATE_PASSWORD:
+        required: false
+
+jobs:
+  sign-and-attest:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      attestations: write
+      id-token: write
+    
+    steps:
+      - name: Download artifacts to sign
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+      
+      - name: List files to sign
+        run: |
+          Write-Host "Files in current directory:"
+          Get-ChildItem -Name
+          
+          Write-Host "`nFiles to sign:"
+          '${{ inputs.files-to-sign }}' -split "`n" | ForEach-Object {
+            $file = $_.Trim()
+            if ($file -and (Test-Path $file)) {
+              Write-Host "✅ Found: $file"
+            } elseif ($file) {
+              Write-Host "❌ Missing: $file"
+            }
+          }
+        shell: pwsh
+      
+      # Self-signing section (automatic based on secrets)
+      - name: Check for signing certificate
+        id: check-cert
+        run: |
+          $hasCert = "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" -ne ""
+          if ($hasCert) {
+            Write-Host "✅ Signing certificate found in secrets - will sign executables"
+            echo "has-cert=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "ℹ️ No signing certificate in secrets - skipping self-signing"
+            echo "has-cert=false" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+      
+      - name: Setup Certificate
+        if: ${{ steps.check-cert.outputs.has-cert == 'true' }}
+        run: |
+          Write-Host "Setting up code signing certificate..."
+          
+          # Decode certificate from secrets
+          $certBase64 = "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}"
+          $certPassword = "${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}"
+          
+          if (-not $certPassword) {
+            Write-Error "Certificate password not found in secrets"
+            exit 1
+          }
+          
+          # Save certificate to file
+          try {
+            $certBytes = [Convert]::FromBase64String($certBase64)
+            $pfxPath = "$env:RUNNER_TEMP\auditaria-cert.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, $certBytes)
+            Write-Host "Certificate file created at: $pfxPath"
+          } catch {
+            Write-Error "Failed to decode certificate: $_"
+            exit 1
+          }
+          
+          # Import certificate to store
+          try {
+            # Try method 1: Import-PfxCertificate
+            $securePwd = ConvertTo-SecureString -String $certPassword -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath $pfxPath `
+              -CertStoreLocation "Cert:\CurrentUser\My" `
+              -Password $securePwd `
+              -Exportable
+            
+            Write-Host "✅ Certificate imported successfully (method 1)"
+            Write-Host "   Thumbprint: $($cert.Thumbprint)"
+            Write-Host "   Subject: $($cert.Subject)"
+          } catch {
+            Write-Warning "Method 1 failed: $($_.Exception.Message)"
+            Write-Warning "Trying alternative import method..."
+            
+            # Try method 2: Using X509Certificate2 directly
+            try {
+              $keyStorageFlags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::PersistKeySet
+              $keyStorageFlags = $keyStorageFlags -bor [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable
+              
+              $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+                $pfxPath,
+                $certPassword,
+                $keyStorageFlags
+              )
+              
+              $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("My", "CurrentUser")
+              $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+              $store.Add($cert)
+              $store.Close()
+              
+              Write-Host "✅ Certificate imported successfully (method 2)"
+              Write-Host "   Thumbprint: $($cert.Thumbprint)"
+              Write-Host "   Subject: $($cert.Subject)"
+            } catch {
+              Write-Warning "Method 2 failed: $($_.Exception.Message)"
+              Write-Warning "Trying method 3..."
+              
+              # Try method 3: Simplest approach
+              try {
+                # Use the certutil command line tool
+                $result = certutil -f -p $certPassword -importpfx $pfxPath
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "✅ Certificate imported successfully (method 3 - certutil)"
+                  
+                  # Find the imported certificate
+                  $cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | 
+                          Where-Object {$_.Subject -match "CN=Auditaria"} | 
+                          Select-Object -First 1
+                  
+                  if ($cert) {
+                    Write-Host "   Thumbprint: $($cert.Thumbprint)"
+                    Write-Host "   Subject: $($cert.Subject)"
+                  }
+                } else {
+                  throw "Certutil import failed with exit code: $LASTEXITCODE"
+                }
+              } catch {
+                Write-Error "Failed to import certificate with all methods: $_"
+                Write-Error "Ensure WINDOWS_CERTIFICATE_PASSWORD secret is set correctly"
+                Write-Error "Password should not contain quotes or special escaping"
+                exit 1
+              }
+            }
+          }
+        shell: pwsh
+      
+      - name: Sign Executables
+        if: ${{ steps.check-cert.outputs.has-cert == 'true' }}
+        run: |
+          # Find the certificate (match just "Auditaria" to be flexible)
+          $cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | 
+                  Where-Object {$_.Subject -match "CN=Auditaria"}
+          
+          if (-not $cert) {
+            Write-Error "Certificate not found in store!"
+            Write-Host "Available certificates:"
+            Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | ForEach-Object {
+              Write-Host "  - Subject: $($_.Subject)"
+              Write-Host "    Thumbprint: $($_.Thumbprint)"
+            }
+            exit 1
+          }
+          
+          Write-Host "Found certificate: $($cert.Subject)"
+          
+          # Timestamp servers (use multiple for redundancy)
+          $timestampServers = @(
+            "http://timestamp.digicert.com",
+            "http://timestamp.sectigo.com",
+            "http://timestamp.comodoca.com"
+          )
+          
+          # Sign each file
+          '${{ inputs.files-to-sign }}' -split "`n" | ForEach-Object {
+            $file = $_.Trim()
+            if ($file -and (Test-Path $file)) {
+              Write-Host "Signing $file..."
+              Write-Host "  File size: $((Get-Item $file).Length) bytes"
+              
+              $signed = $false
+              $lastError = ""
+              
+              # First try without timestamp to see if basic signing works
+              Write-Host "  Testing basic signing without timestamp..."
+              try {
+                $result = Set-AuthenticodeSignature -FilePath $file `
+                  -Certificate $cert `
+                  -HashAlgorithm SHA256 `
+                  -Force
+                
+                Write-Host "  Basic signing result: $($result.Status)"
+                if ($result.StatusMessage) {
+                  Write-Host "  Status message: $($result.StatusMessage)"
+                }
+                
+                # UnknownError with self-signed certificates is expected - the signature is applied but not trusted
+                if ($result.Status -eq "UnknownError" -and $result.StatusMessage -match "root certificate which is not trusted") {
+                  Write-Host "  ⚠️ Self-signed certificate detected (expected for personal certificates)"
+                  Write-Host "  The signature has been applied but won't be trusted by Windows by default"
+                  Write-Host "  This is normal behavior for self-signed certificates"
+                  
+                  # Verify the signature was actually applied
+                  $verify = Get-AuthenticodeSignature -FilePath $file
+                  if ($verify.SignerCertificate) {
+                    Write-Host "  ✅ Signature was successfully applied"
+                    Write-Host "  Signer: $($verify.SignerCertificate.Subject)"
+                  } else {
+                    Write-Error "Signature was not applied to the file"
+                    exit 1
+                  }
+                } elseif ($result.Status -eq "Valid") {
+                  Write-Host "  ✅ Basic signing successful with trusted certificate"
+                } else {
+                  Write-Error "Basic signing failed: $($result.Status) - $($result.StatusMessage)"
+                  Write-Host "Certificate details:"
+                  Write-Host "  Subject: $($cert.Subject)"
+                  Write-Host "  Thumbprint: $($cert.Thumbprint)"
+                  Write-Host "  HasPrivateKey: $($cert.HasPrivateKey)"
+                  exit 1
+                }
+                
+                Write-Host "  Now trying to add timestamp..."
+              } catch {
+                Write-Error "Basic signing exception: $_"
+                exit 1
+              }
+              
+              # Now try with timestamp servers
+              foreach ($tsServer in $timestampServers) {
+                Write-Host "  Trying timestamp server: $tsServer"
+                try {
+                  $result = Set-AuthenticodeSignature -FilePath $file `
+                    -Certificate $cert `
+                    -TimestampServer $tsServer `
+                    -HashAlgorithm SHA256 `
+                    -Force
+                  
+                  Write-Host "  Result status: $($result.Status)"
+                  if ($result.StatusMessage) {
+                    Write-Host "  Status message: $($result.StatusMessage)"
+                  }
+                  
+                  # Accept both Valid and UnknownError (self-signed) statuses
+                  if ($result.Status -eq "Valid") {
+                    Write-Host "✅ Signed $file with timestamp from $tsServer"
+                    $signed = $true
+                    break
+                  } elseif ($result.Status -eq "UnknownError" -and $result.StatusMessage -match "root certificate which is not trusted") {
+                    Write-Host "✅ Signed $file with timestamp from $tsServer (self-signed certificate)"
+                    Write-Host "  Note: Signature applied but not trusted by Windows (expected for self-signed)"
+                    $signed = $true
+                    break
+                  } else {
+                    $lastError = "Status: $($result.Status), Message: $($result.StatusMessage)"
+                    Write-Warning "  Signing returned: $lastError"
+                  }
+                } catch {
+                  $lastError = $_.Exception.Message
+                  Write-Warning "  Exception with $tsServer - $lastError"
+                }
+              }
+              
+              if (-not $signed) {
+                Write-Error "Failed to sign $file with any timestamp server"
+                Write-Error "Last error: $lastError"
+                Write-Host "Certificate details:"
+                Write-Host "  Subject: $($cert.Subject)"
+                Write-Host "  Thumbprint: $($cert.Thumbprint)"
+                Write-Host "  HasPrivateKey: $($cert.HasPrivateKey)"
+                Write-Host "  NotBefore: $($cert.NotBefore)"
+                Write-Host "  NotAfter: $($cert.NotAfter)"
+                exit 1
+              }
+            } else {
+              Write-Warning "File not found: $file"
+            }
+          }
+          
+          Write-Host "`nVerifying signatures..."
+          '${{ inputs.files-to-sign }}' -split "`n" | ForEach-Object {
+            $file = $_.Trim()
+            if ($file -and (Test-Path $file)) {
+              $sig = Get-AuthenticodeSignature -FilePath $file
+              
+              if ($sig.SignerCertificate) {
+                Write-Host "✅ $file is signed"
+                Write-Host "  Status: $($sig.Status)"
+                Write-Host "  Signer: $($sig.SignerCertificate.Subject)"
+                Write-Host "  Thumbprint: $($sig.SignerCertificate.Thumbprint)"
+                
+                if ($sig.TimeStamperCertificate) {
+                  Write-Host "  Timestamped: Yes"
+                } else {
+                  Write-Host "  Timestamped: No"
+                }
+                
+                if ($sig.Status -eq "UnknownError") {
+                  Write-Host "  Note: Self-signed certificate (not trusted by Windows by default)"
+                }
+              } else {
+                Write-Error "❌ $file is NOT signed"
+                exit 1
+              }
+            }
+          }
+        shell: pwsh
+      
+      - name: Cleanup Certificate
+        if: ${{ steps.check-cert.outputs.has-cert == 'true' }}
+        continue-on-error: true
+        run: |
+          # Remove certificate from store (match just "Auditaria" to be flexible)
+          Get-ChildItem -Path Cert:\CurrentUser\My | 
+            Where-Object {$_.Subject -match "CN=Auditaria"} | 
+            Remove-Item -Force
+          
+          # Delete certificate file
+          if (Test-Path "$env:RUNNER_TEMP\auditaria-cert.pfx") {
+            Remove-Item "$env:RUNNER_TEMP\auditaria-cert.pfx" -Force
+          }
+          
+          Write-Host "✅ Certificate cleaned up"
+        shell: pwsh
+      
+      # GitHub Attestations section (recommended)
+      - name: Generate attestations
+        if: ${{ inputs.use-attestations }}
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ inputs.files-to-sign }}
+      
+      - name: Generate SBOM attestation
+        if: ${{ inputs.use-attestations }}
+        continue-on-error: true
+        uses: actions/attest-sbom@v1
+        with:
+          subject-path: ${{ inputs.files-to-sign }}
+          sbom-path: 'sbom.json'
+      
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}-signed
+          path: |
+            ${{ inputs.files-to-sign }}
+          overwrite: true
+      
+      - name: Display attestation info
+        if: ${{ inputs.use-attestations }}
+        run: |
+          Write-Host "======================================"
+          Write-Host "GitHub Attestations have been created!"
+          Write-Host "======================================"
+          Write-Host ""
+          Write-Host "Users can verify these artifacts with:"
+          Write-Host "  gh attestation verify <file> --owner thacio"
+          Write-Host ""
+          Write-Host "Or check the Provenance badge on GitHub Releases"
+        shell: pwsh
