@@ -448,7 +448,6 @@ export async function handleAtCommand({
           processedQueryParts.push(part);
         }
       }
-      processedQueryParts.push({ text: t('at_command.content_footer', '\n--- End of content ---') });
     } else {
       onDebugMessage(
         'read_many_files tool returned no content or empty content.',
