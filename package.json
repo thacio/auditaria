@@ -94,6 +94,7 @@
   },
   "dependencies": {
     "ansi-to-html": "^0.7.2",
+    "ink": "^6.2.2",
     "node-fetch": "^3.3.2",
     "strip-ansi": "^7.1.0"
   },

@@ -108,7 +108,7 @@ export async function runNonInteractive(
             console.error(
               t('non_interactive.tool_execution_error', 'Error executing tool {toolName}: {error}', { 
                 toolName: requestInfo.name, 
-                error: toolResponse.resultDisplay || toolResponse.error.message 
+                error: String(toolResponse.resultDisplay || toolResponse.error.message)
               }),
             );
           }
