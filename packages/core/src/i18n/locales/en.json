@@ -1001,6 +1001,26 @@
       "matches_found": "Found {count} {term}",
       "search_error": "Error: {error}"
     },
+    "ripgrep": {
+      "path_outside_workspace": "Path validation failed: Attempted path \"{path}\" resolves outside the allowed workspace directories: {directories}",
+      "path_not_directory": "Path is not a directory: {path}",
+      "path_not_exist": "Path does not exist: {path}",
+      "path_access_failed": "Failed to access path stats for {path}: {error}",
+      "no_matches_detailed": "No matches found for pattern \"{pattern}\" {searchLocation}{filter}.",
+      "no_matches": "No matches found",
+      "matches_found_detailed": "Found {count} {term} for pattern \"{pattern}\" {searchLocation}{filter}",
+      "matches_limited": " (results limited to {limit} matches for performance)",
+      "matches_found": "Found {count} {term}",
+      "matches_found_limited": "Found {count} {term} (limited)",
+      "search_error": "Error during grep search operation: {error}",
+      "search_error_display": "Error: {error}",
+      "ripgrep_start_failed": "Failed to start ripgrep: {error}. Please ensure @lvce-editor/ripgrep is properly installed.",
+      "ripgrep_exit_error": "ripgrep exited with code {code}: {error}",
+      "ripgrep_failed": "GrepLogic: ripgrep failed: {error}",
+      "search_location_workspace_multiple": "across {count} workspace directories",
+      "search_location_workspace_single": "in the workspace directory",
+      "search_location_path": "in path \"{path}\""
+    },
     "read_file": {
       "validation_error": "Error: {error}",
       "error_reading_file": "Error reading file",

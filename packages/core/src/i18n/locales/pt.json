@@ -1001,6 +1001,26 @@
       "matches_found": "Encontrado {count} {term}",
       "search_error": "Erro: {error}"
     },
+    "ripgrep": {
+      "path_outside_workspace": "Validação de caminho falhou: Caminho tentado \"{path}\" resolve fora dos diretórios de workspace permitidos: {directories}",
+      "path_not_directory": "O caminho não é um diretório: {path}",
+      "path_not_exist": "O caminho não existe: {path}",
+      "path_access_failed": "Falha ao acessar estatísticas do caminho {path}: {error}",
+      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" {searchLocation}{filter}.",
+      "no_matches": "Nenhuma correspondência encontrada",
+      "matches_found_detailed": "Encontrado {count} {term} para o padrão \"{pattern}\" {searchLocation}{filter}",
+      "matches_limited": " (resultados limitados a {limit} correspondências por desempenho)",
+      "matches_found": "Encontrado {count} {term}",
+      "matches_found_limited": "Encontrado {count} {term} (limitado)",
+      "search_error": "Erro durante operação de pesquisa grep: {error}",
+      "search_error_display": "Erro: {error}",
+      "ripgrep_start_failed": "Falha ao iniciar ripgrep: {error}. Por favor, certifique-se de que @lvce-editor/ripgrep está instalado corretamente.",
+      "ripgrep_exit_error": "ripgrep saiu com código {code}: {error}",
+      "ripgrep_failed": "GrepLogic: ripgrep falhou: {error}",
+      "search_location_workspace_multiple": "em {count} diretórios de workspace",
+      "search_location_workspace_single": "no diretório de workspace",
+      "search_location_path": "no caminho \"{path}\""
+    },
     "read_file": {
       "validation_error": "Erro: {error}",
       "error_reading_file": "Erro ao ler arquivo",
