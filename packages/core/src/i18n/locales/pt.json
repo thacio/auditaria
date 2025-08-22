@@ -449,6 +449,8 @@
     "dialog_question": "Como você gostaria de autenticar para este projeto?",
     "options": {
       "login_google": "Fazer login com Google",
+      "login_google_free": "Fazer login com Google - Nível Gratuito",
+      "login_google_gca": "Fazer login com Google - Gemini Code Assist (Requer GOOGLE_CLOUD_PROJECT)",
       "cloud_shell": "Usar credenciais do usuário Cloud Shell",
       "gemini_api": "Usar Chave API Gemini",
       "vertex_ai": "Vertex AI"
@@ -768,6 +770,15 @@
     "welcome_message": "Bem-vindo! O idioma foi definido para {language}. Você pode alterá-lo a qualquer momento usando o comando /language.",
     "save_failed": "Falha ao salvar configuração de idioma. Tente novamente."
   },
+  "license": {
+    "free_tier": "Nível Gratuito (Login com Google)",
+    "gca_standard": "Gemini Code Assist Standard (Google Workspace)",
+    "gca_enterprise": "Gemini Code Assist Enterprise (Google Workspace)",
+    "gca_generic": "Gemini Code Assist (Google Workspace)",
+    "gemini_api_key": "Chave API Gemini",
+    "vertex_ai": "Vertex AI",
+    "cloud_shell": "Cloud Shell"
+  },
   "about_box": {
     "title": "Sobre Gemini CLI",
     "labels": {
@@ -777,6 +788,7 @@
       "sandbox": "Sandbox",
       "os": "SO",
       "auth_method": "Método de Autenticação",
+      "license": "Licença",
       "gcp_project": "Projeto GCP",
       "ide_client": "Cliente IDE"
     }
@@ -1041,6 +1053,7 @@
   "auth_errors": {
     "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione-a ao seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
     "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
+    "gca_project_not_set": "[Erro] GOOGLE_CLOUD_PROJECT não está definido.\nPor favor, defina usando:\n  export GOOGLE_CLOUD_PROJECT=<seu-id-projeto>\ne tente novamente.",
     "invalid_method": "Método de autenticação inválido selecionado."
   },
   "memory": {

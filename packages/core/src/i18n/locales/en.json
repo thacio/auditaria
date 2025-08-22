@@ -452,6 +452,8 @@
     "dialog_question": "How would you like to authenticate for this project?",
     "options": {
       "login_google": "Login with Google",
+      "login_google_free": "Login with Google - Free Tier",
+      "login_google_gca": "Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)",
       "cloud_shell": "Use Cloud Shell user credentials",
       "gemini_api": "Use Gemini API Key",
       "vertex_ai": "Vertex AI"
@@ -771,6 +773,15 @@
     "welcome_message": "Welcome! Language has been set to {language}. You can change it anytime using the /language command.",
     "save_failed": "Failed to save language setting. Please try again."
   },
+  "license": {
+    "free_tier": "Free Tier (Login with Google)",
+    "gca_standard": "Gemini Code Assist Standard (Google Workspace)",
+    "gca_enterprise": "Gemini Code Assist Enterprise (Google Workspace)",
+    "gca_generic": "Gemini Code Assist (Google Workspace)",
+    "gemini_api_key": "Gemini API Key",
+    "vertex_ai": "Vertex AI",
+    "cloud_shell": "Cloud Shell"
+  },
   "about_box": {
     "title": "About Gemini CLI",
     "labels": {
@@ -780,6 +791,7 @@
       "sandbox": "Sandbox",
       "os": "OS",
       "auth_method": "Auth Method",
+      "license": "License",
       "gcp_project": "GCP Project",
       "ide_client": "IDE Client"
     }
@@ -1044,6 +1056,7 @@
   "auth_errors": {
     "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
     "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
+    "gca_project_not_set": "[Error] GOOGLE_CLOUD_PROJECT is not set.\nPlease set it using:\n  export GOOGLE_CLOUD_PROJECT=<your-project-id>\nand try again.",
     "invalid_method": "Invalid auth method selected."
   },
   "memory": {

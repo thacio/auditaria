@@ -66,8 +66,12 @@ export function AuthDialog({
   });
   const items = [
     {
-      label: t('auth_dialog.options.login_google', 'Login with Google'),
+      label: t('auth_dialog.options.login_google_free', 'Login with Google - Free Tier'),
       value: AuthType.LOGIN_WITH_GOOGLE,
+    },
+    {
+      label: t('auth_dialog.options.login_google_gca', 'Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)'),
+      value: AuthType.LOGIN_WITH_GOOGLE_GCA,
     },
     ...(process.env['CLOUD_SHELL'] === 'true'
       ? [

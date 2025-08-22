@@ -7,6 +7,7 @@
 import {
   ToolCallConfirmationDetails,
   ToolResultDisplay,
+  UserTierId,
 } from '@thacio/auditaria-cli-core';
 
 // Only defining the state enum needed by the UI
@@ -108,6 +109,7 @@ export type HistoryItemAbout = HistoryItemBase & {
   selectedAuthType: string;
   gcpProject: string;
   ideClient: string;
+  userTier?: UserTierId;
 };
 
 export type HistoryItemHelp = HistoryItemBase & {
