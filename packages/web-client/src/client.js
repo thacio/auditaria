@@ -389,6 +389,25 @@ class AuditariaWebClient {
             const item = document.createElement('div');
             item.className = 'attachment-item';
             
+            // Check if this is an audio file
+            const isAudio = attachment.type === 'audio' || 
+                           (attachment.mimeType && attachment.mimeType.startsWith('audio/'));
+            
+            // Add click handler for audio files to preview them
+            if (isAudio) {
+                item.style.cursor = 'pointer';
+                item.onclick = (e) => {
+                    // Don't trigger if clicking the remove button
+                    if (e.target.classList.contains('attachment-remove')) {
+                        return;
+                    }
+                    // Open audio player modal with the attachment
+                    if (audioPlayerModal) {
+                        audioPlayerModal.open(attachment);
+                    }
+                };
+            }
+            
             // Thumbnail or icon
             if (attachment.thumbnail) {
                 const img = document.createElement('img');
