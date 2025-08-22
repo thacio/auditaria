@@ -293,7 +293,6 @@ body {
 }
 
 .message-collapsible-content {
-  max-height: 1000px; /* Or a large enough value */
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.3s ease, margin-top 0.3s ease;
   opacity: 1;
