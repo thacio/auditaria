@@ -45,18 +45,47 @@ export function createChatMessage(type, label, content, historyItem = null) {
     timestampEl.className = 'message-timestamp';
     timestampEl.textContent = timestamp;
     
-    bubbleEl.appendChild(contentEl);
+    const collapsibleContentEl = document.createElement('div');
+    collapsibleContentEl.className = 'message-collapsible-content';
+
+    collapsibleContentEl.appendChild(contentEl);
     
     // Add special content for specific message types
     const specialContent = renderSpecialContent(historyItem);
     if (specialContent) {
-        bubbleEl.appendChild(specialContent);
+        collapsibleContentEl.appendChild(specialContent);
     }
     
-    bubbleEl.appendChild(timestampEl);
+    collapsibleContentEl.appendChild(timestampEl);
+
+    bubbleEl.appendChild(collapsibleContentEl);
+
+    const collapsedIndicatorEl = document.createElement('div');
+    collapsedIndicatorEl.className = 'message-collapsed-indicator';
+    collapsedIndicatorEl.textContent = 'Show message...';
+    collapsedIndicatorEl.addEventListener('click', () => {
+        messageEl.classList.toggle('message-expanded');
+        messageEl.classList.toggle('message-collapsed');
+    });
     
     messageEl.appendChild(headerEl);
     messageEl.appendChild(bubbleEl);
+    messageEl.appendChild(collapsedIndicatorEl);
+
+    if (type === 'user' || type === 'gemini' || type === 'gemini_content') {
+        messageEl.classList.add('message-expanded');
+        headerEl.classList.add('message-header-clickable');
+
+        const expandIndicatorEl = document.createElement('span');
+        expandIndicatorEl.className = 'message-expand-indicator';
+        expandIndicatorEl.textContent = '▼';
+        headerEl.insertBefore(expandIndicatorEl, headerEl.firstChild);
+
+        headerEl.addEventListener('click', () => {
+            messageEl.classList.toggle('message-expanded');
+            messageEl.classList.toggle('message-collapsed');
+        });
+    }
     
     return messageEl;
 }
