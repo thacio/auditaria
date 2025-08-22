@@ -354,7 +354,7 @@ class GrepToolInvocation extends BaseToolInvocation<
             reject(
               new Error(
                 t('tools.ripgrep.ripgrep_exit_error', 'ripgrep exited with code {code}: {error}', 
-                  { code, error: stderrData }
+                  { code: code ?? 'unknown', error: stderrData }
                 ),
               ),
             );
