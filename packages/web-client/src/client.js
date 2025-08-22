@@ -14,6 +14,7 @@ import { FileHandler } from './utils/fileHandler.js';
 import { AudioRecorder } from './utils/audioRecorder.js';
 import { audioPlayerModal } from './components/AudioPlayerModal.js';
 import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
+import { ttsManager } from './providers/tts/TTSManager.js';
 
 class AuditariaWebClient {
     constructor() {
@@ -27,6 +28,9 @@ class AuditariaWebClient {
         
         // Initialize confirmation queue (keep existing module)
         this.confirmationQueue = new ConfirmationQueue(this);
+        
+        // Initialize TTS manager
+        ttsManager.initialize();
         
         // State properties
         this.hasFooterData = false;
@@ -774,10 +778,12 @@ class AuditariaWebClient {
 document.addEventListener('DOMContentLoaded', () => {
     const client = new AuditariaWebClient();
     
-    // Clean up audio recorder on page unload
+    // Clean up audio recorder and TTS on page unload
     window.addEventListener('beforeunload', () => {
         if (client.audioRecorder) {
             client.audioRecorder.cleanup();
         }
+        // Stop any ongoing TTS
+        ttsManager.stop();
     });
 });

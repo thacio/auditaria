@@ -7,6 +7,7 @@ import { createCopyButtons } from '../utils/clipboard.js';
 import { renderToolGroup, renderAboutInfo } from './ToolRenderer.js';
 import { audioPlayerModal } from './AudioPlayerModal.js';
 import { attachmentCacheManager } from '../managers/AttachmentCacheManager.js';
+import { createTTSButton } from './TTSButton.js';
 
 /**
  * Create a chat message element
@@ -66,10 +67,23 @@ export function createChatMessage(type, label, content, historyItem = null) {
 export function createChatMessageWithCopy(type, label, content, historyItem, copyHandler) {
     const messageEl = createChatMessage(type, label, content, historyItem);
     
-    // Add copy buttons for messages that contain content
+    // Create button container for copy and TTS buttons
     if (content && content.trim()) {
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.className = 'message-buttons-container';
+        
+        // Add copy buttons
         const copyButtonsEl = createCopyButtons(content, type, copyHandler);
-        messageEl.appendChild(copyButtonsEl);
+        buttonsContainer.appendChild(copyButtonsEl);
+        
+        // Add TTS button for AI messages only
+        if (type === 'gemini' || type === 'gemini_content') {
+            const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const ttsButtonEl = createTTSButton(content, messageId);
+            buttonsContainer.appendChild(ttsButtonEl);
+        }
+        
+        messageEl.appendChild(buttonsContainer);
     }
     
     return messageEl;

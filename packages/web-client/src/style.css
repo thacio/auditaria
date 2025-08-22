@@ -1680,7 +1680,8 @@ body {
 
 /* Copy Buttons Styling */
 .copy-buttons-container {
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
@@ -1712,6 +1713,11 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   opacity: 0.7;
+  outline: none;
+}
+
+.copy-button:focus {
+  outline: none;
 }
 
 .copy-button:hover {
@@ -1792,6 +1798,114 @@ body {
   .copy-label {
     display: none;
     /* Hide labels on mobile to save space, just show icons */
+  }
+}
+
+/* Message Buttons Container */
+.message-buttons-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.message:hover .message-buttons-container {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* TTS Button Styles */
+.tts-button-container {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.tts-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  min-width: 32px;
+  height: 28px;
+  outline: none;
+}
+
+.tts-button:focus {
+  outline: none;
+}
+
+.tts-button:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.tts-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.tts-button.playing {
+  background: var(--surface-alt);
+  border-color: var(--border);
+  color: var(--text-subtle);
+  opacity: 0.9;
+}
+
+.tts-button.playing:hover {
+  background: var(--border);
+  color: var(--text);
+  opacity: 1;
+}
+
+.tts-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tts-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* TTS animations removed - keeping same style for play/stop states */
+
+/* Responsive TTS button */
+@media (max-width: 768px) {
+  .message-buttons-container {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  .tts-button {
+    min-width: 36px;
+    height: 32px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Print styles - hide TTS button */
+@media print {
+  .tts-button-container {
+    display: none !important;
   }
 }
 

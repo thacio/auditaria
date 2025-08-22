@@ -427,6 +427,15 @@ export class MessageManager {
         // Update timestamp
         updateMessageTimestamp(this.lastAIMessage.element);
         
+        // Update TTS button with combined content
+        const ttsContainer = this.lastAIMessage.element.querySelector('.tts-button-container');
+        if (ttsContainer && ttsContainer.ttsButtonInstance) {
+            ttsContainer.ttsButtonInstance.updateText(combinedContent);
+        }
+        
+        // Update copy buttons with combined content
+        this.updateCopyButtonsContent(this.lastAIMessage.element, combinedContent);
+        
         // Update the lastAIMessage tracking
         this.lastAIMessage.text = combinedContent;
         this.lastAIMessage.timestamp = Date.now();
@@ -435,6 +444,29 @@ export class MessageManager {
         this.scrollToBottom();
         
         return true;
+    }
+    
+    /**
+     * Update copy buttons with new content
+     */
+    updateCopyButtonsContent(messageEl, newContent) {
+        const copyButtons = messageEl.querySelectorAll('.copy-button');
+        
+        copyButtons.forEach(button => {
+            if (button.classList.contains('copy-markdown')) {
+                // Update markdown copy button
+                button.onclick = (e) => {
+                    e.stopPropagation();
+                    copyToClipboard(newContent, 'markdown', button, { lastAIMessage: this.lastAIMessage });
+                };
+            } else if (button.classList.contains('copy-formatted')) {
+                // Update formatted copy button
+                button.onclick = (e) => {
+                    e.stopPropagation();
+                    copyToClipboard(newContent, 'formatted', button, { lastAIMessage: this.lastAIMessage });
+                };
+            }
+        });
     }
     
     /**
