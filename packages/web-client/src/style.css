@@ -605,6 +605,8 @@ body {
 
 .input-section {
   padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
 }
 
 .input-container {
@@ -2626,88 +2628,21 @@ body {
 
 /* Attachment preview area */
 .attachment-preview {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  right: 0;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   padding: 8px;
-  padding-bottom: 14px;
-  background: var(--surface);
+  background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: 8px;
-  max-height: 130px;
-  overflow-x: scroll; /* Always show scrollbar space */
-  overflow-y: hidden;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Hide scrollbar when not needed */
-.attachment-preview:not(:hover) {
+  max-height: 140px;
   overflow-x: auto;
-}
-
-/* Always show scrollbar on hover */
-.attachment-preview:hover {
-  overflow-x: scroll;
-}
-
-/* Custom scrollbar for attachment preview */
-.attachment-preview::-webkit-scrollbar {
-  height: 10px;
-}
-
-.attachment-preview::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 5px;
-  margin: 0 8px;
-}
-
-.attachment-preview::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.5);
-  border-radius: 5px;
-  border: 1px solid rgba(128, 128, 128, 0.3);
-}
-
-.attachment-preview::-webkit-scrollbar-thumb:hover {
-  background: rgba(128, 128, 128, 0.7);
-}
-
-/* Firefox scrollbar styling */
-.attachment-preview {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.5) rgba(0, 0, 0, 0.2);
+  overflow-y: hidden;
 }
 
 .attachment-items {
-  display: inline-flex; /* Use inline-flex to allow width to exceed container */
+  display: flex;
   gap: 8px;
   flex-wrap: nowrap;
   align-items: center;
-  padding-bottom: 4px; /* Space for scrollbar */
-  min-height: 90px; /* Ensure consistent height */
-}
-
-/* Scroll indicators - shadows at edges */
-.attachment-preview::before,
-.attachment-preview::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 14px; /* Don't cover scrollbar */
-  width: 20px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.attachment-preview::before {
-  left: 0;
-  background: linear-gradient(to right, var(--surface), transparent);
-}
-
-.attachment-preview::after {
-  right: 0;
-  background: linear-gradient(to left, var(--surface), transparent);
 }
 
 /* Individual attachment item */
