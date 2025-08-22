@@ -553,7 +553,8 @@ if (!bunPath) {
 }
 
 try {
-  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --outfile "${OUTPUT_PATH}"`, {
+  const iconPath = path.join(__dirname, '..', 'assets', 'auditaria.ico');
+  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
   
