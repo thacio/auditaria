@@ -483,7 +483,6 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       }
       if (keyMatchers[Command.END](key)) {
         buffer.move('end');
-        buffer.moveToOffset(cpLen(buffer.text));
         return;
       }
       // Ctrl+C (Clear input)
