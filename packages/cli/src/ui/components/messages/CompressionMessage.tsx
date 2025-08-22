@@ -10,6 +10,7 @@ import { Box, Text } from 'ink';
 import { CompressionProps } from '../../types.js';
 import Spinner from 'ink-spinner';
 import { Colors } from '../../colors.js';
+import { SCREEN_READER_MODEL_PREFIX } from '../../constants.js';
 
 export interface CompressionDisplayProps {
   compression: CompressionProps;
@@ -43,6 +44,7 @@ export const CompressionMessage: React.FC<CompressionDisplayProps> = ({
           color={
             compression.isPending ? Colors.AccentPurple : Colors.AccentGreen
           }
+          aria-label={SCREEN_READER_MODEL_PREFIX}
         >
           {text}
         </Text>

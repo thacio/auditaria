@@ -17,3 +17,7 @@ export const UI_WIDTH =
 export const STREAM_DEBOUNCE_MS = 100;
 
 export const SHELL_COMMAND_NAME = t('tools.shell.name', 'Shell Command');
+
+export const SCREEN_READER_USER_PREFIX = 'User: ';
+
+export const SCREEN_READER_MODEL_PREFIX = 'Model: ';
