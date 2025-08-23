@@ -17,6 +17,7 @@ interface WebInterfaceContextValue {
   isRunning: boolean;
   port: number | null;
   clientCount: number;
+  defaultPort: number;
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
@@ -30,15 +31,17 @@ interface WebInterfaceProviderProps {
   children: React.ReactNode;
   enabled?: boolean;
   openBrowser?: boolean;
+  port?: number;
 }
 
-export function WebInterfaceProvider({ children, enabled = false, openBrowser = true }: WebInterfaceProviderProps) {
+export function WebInterfaceProvider({ children, enabled = false, openBrowser = true, port: configuredPort }: WebInterfaceProviderProps) {
   const [service] = useState(() => new WebInterfaceService());
   const [isRunning, setIsRunning] = useState(false);
   const [port, setPort] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState(0);
   const submitQuery = useSubmitQuery();
   const submitQueryRegistered = useRef(false);
+  const defaultPort = configuredPort !== undefined ? 8629 : configuredPort;
 
   const start = useCallback(async (config?: WebInterfaceConfig): Promise<number> => {
     try {
@@ -84,7 +87,7 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
   // Auto-start if enabled
   useEffect(() => {
     if (enabled && !isRunning) {
-      start({ port: 8629 }) // Fixed port for consistency
+      start({ port: defaultPort }) // Use configured port or default
         .then(async (port) => {
           // Open browser automatically when starting with --web flag (unless no-browser is specified)
           if (openBrowser) {
@@ -105,7 +108,7 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
         stop().catch(console.error);
       }
     };
-  }, [enabled, isRunning, start, stop, openBrowser]);
+  }, [enabled, isRunning, start, stop, openBrowser, defaultPort]);
 
   // Periodic client count update
   useEffect(() => {
@@ -126,12 +129,13 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
     isRunning,
     port,
     clientCount,
+    defaultPort,
     start,
     stop,
     broadcastMessage,
     broadcastPendingItem,
     setCurrentHistory,
-  }), [service, isRunning, port, clientCount, start, stop, broadcastMessage, broadcastPendingItem, setCurrentHistory]);
+  }), [service, isRunning, port, clientCount, defaultPort, start, stop, broadcastMessage, broadcastPendingItem, setCurrentHistory]);
 
   return (
     <WebInterfaceContext.Provider value={contextValue}>

@@ -135,6 +135,7 @@ interface AppProps {
   // WEB_INTERFACE_START: Web interface props
   webEnabled?: boolean;
   webOpenBrowser?: boolean;
+  webPort?: number;
   // WEB_INTERFACE_END
 }
 
@@ -149,7 +150,7 @@ export const AppWrapper = (props: AppProps) => {
         <VimModeProvider settings={props.settings}>
           {/* WEB_INTERFACE_START: Web interface provider wrappers */}
           <SubmitQueryProvider>
-            <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser}>
+            <WebInterfaceProvider enabled={props.webEnabled} openBrowser={props.webOpenBrowser} port={props.webPort}>
               <FooterProvider>
                 <LoadingStateProvider>
                   <ToolConfirmationProvider>
@@ -170,7 +171,7 @@ export const AppWrapper = (props: AppProps) => {
   );
 };
 
-const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE_START */ webEnabled, webOpenBrowser /* WEB_INTERFACE_END */ }: AppProps) => {
+const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE_START */ webEnabled, webOpenBrowser, webPort /* WEB_INTERFACE_END */ }: AppProps) => {
   const isFocused = useFocus();
   useBracketedPaste();
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
@@ -1045,6 +1046,24 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     shouldShowIdePrompt,
     webInterface?.isRunning
   ]); // Monitor all interactive screen states
+
+  // Web interface port validation message
+  const portValidationShownRef = useRef(false);
+  useEffect(() => {
+    if (webEnabled && webPort !== undefined && !portValidationShownRef.current) {
+      portValidationShownRef.current = true;
+      // Check if port is invalid
+      if (isNaN(webPort) || webPort < 0 || webPort > 65535) {
+        addItem(
+          {
+            type: 'error',
+            text: t('web.invalid_port', `⚠️ Invalid port number: {port}. Port must be between 0-65535. Starting in another port.`, { port: webPort }),
+          },
+          Date.now(),
+        );
+      }
+    }
+  }, [webEnabled, webPort, addItem]);
 
   // Web interface startup message for --web flag
   const webStartupShownRef = useRef(false);

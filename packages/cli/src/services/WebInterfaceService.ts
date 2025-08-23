@@ -254,8 +254,16 @@ export class WebInterfaceService extends EventEmitter {
       });
 
       // Start HTTP server with port fallback
-      const requestedPort = config.port || 8629; // Default to 8629
+      let requestedPort = config.port || 8629; // Default to 8629
       const host = config.host || 'localhost';
+      
+      // Validate port number
+      if (config.port !== undefined && config.port !== null) {
+        if (isNaN(config.port) || config.port < 0 || config.port > 65535) {
+          console.error(`Invalid port number: ${config.port}. Port must be between 0-65535. Starting in another port.`);
+          requestedPort = 8629;
+        }
+      }
       
       let usedFallback = false;
       try {

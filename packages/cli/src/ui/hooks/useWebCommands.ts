@@ -41,7 +41,7 @@ export function useWebCommands() {
         };
       }
 
-      const port = portStr ? parseInt(portStr, 10) : undefined;
+      const port = portStr ? parseInt(portStr, 10) : webInterface.defaultPort;
       const assignedPort = await webInterface.start({ port });
       
       return {

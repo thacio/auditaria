@@ -26,8 +26,8 @@ export const webCommand: SlashCommand = {
     }
 
     try {
-      // Start the web interface on port 8629 (same as --web flag)
-      const result = await context.web.start('8629');
+      // Start the web interface using configured port
+      const result = await context.web.start();
       
       // Get the actual port where the server started
       const actualPort = result.port?.toString() || '8629';

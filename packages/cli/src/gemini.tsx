@@ -335,6 +335,7 @@ export async function main() {
     // WEB_INTERFACE_START: Extract web interface flags from argv
     const webEnabled = !!argv.web;
     const webOpenBrowser = argv.web !== 'no-browser';
+    const webPort = argv.port;
     // WEB_INTERFACE_END
     
     const instance = render(
@@ -348,6 +349,7 @@ export async function main() {
             // WEB_INTERFACE_START: Pass web interface flags
             webEnabled={webEnabled}
             webOpenBrowser={webOpenBrowser}
+            webPort={webPort}
           // WEB_INTERFACE_END
           />
         </SettingsContext.Provider>

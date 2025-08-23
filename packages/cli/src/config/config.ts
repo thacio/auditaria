@@ -74,6 +74,7 @@ export interface CliArgs {
   listExtensions: boolean | undefined;
   // WEB_INTERFACE_START: Web interface flag
   web: boolean | string | undefined;
+  port: number | undefined;
   // WEB_INTERFACE_END
   proxy: string | undefined;
   includeDirectories: string[] | undefined;
@@ -230,6 +231,10 @@ export async function parseArguments(): Promise<CliArgs> {
         if (value === true || value === '') return true;
         return value;
       },
+    })
+    .option('port', {
+      type: 'number',
+      description: 'Port number for the web interface (default: 8629)',
     })
     // WEB_INTERFACE_END
         .option('proxy', {
