@@ -125,7 +125,21 @@ const unifiedBunServer = `
         return;
       }
       
-      const port = options.port || (options.server && options.server.address?.()?.port) || 8629;
+      // Get port from command line arguments or use default
+      let requestedPort = 8629;
+      
+      // Parse --port argument from process.argv
+      const portArgIndex = process.argv.indexOf('--port');
+      if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+        const parsedPort = parseInt(process.argv[portArgIndex + 1], 10);
+        if (!isNaN(parsedPort) && parsedPort >= 0 && parsedPort <= 65535) {
+          requestedPort = parsedPort;
+        } else {
+          console.error(\`⚠️ Invalid port number: \${process.argv[portArgIndex + 1]}. Port must be between 0-65535. Starting in another port.\`);
+        }
+      }
+      
+      const port = options.port || (options.server && options.server.address?.()?.port) || requestedPort;
       
       // Create the unified Bun server
       unifiedServer = Bun.serve({
@@ -561,7 +575,8 @@ try {
   console.log('\n✅ Build successful!');
   console.log('\n📋 Test instructions:');
   console.log('   1. Run: auditaria-standalone.exe -w no-browser');
-  console.log('   2. Open: http://localhost:8629');
+  console.log('      Or with custom port: auditaria-standalone.exe -w no-browser --port 3000');
+  console.log('   2. Open: http://localhost:8629 (or your custom port)');
   console.log('   3. Check: WebSocket should show "Connected"');
   
 } catch (error) {

@@ -140,7 +140,21 @@ const unifiedBunServer = `
         return;
       }
       
-      const port = options.port || (options.server && options.server.address?.()?.port) || 8629;
+      // Get port from command line arguments or use default
+      let requestedPort = 8629;
+      
+      // Parse --port argument from process.argv
+      const portArgIndex = process.argv.indexOf('--port');
+      if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+        const parsedPort = parseInt(process.argv[portArgIndex + 1], 10);
+        if (!isNaN(parsedPort) && parsedPort >= 0 && parsedPort <= 65535) {
+          requestedPort = parsedPort;
+        } else {
+          console.error(\`⚠️ Invalid port number: \${process.argv[portArgIndex + 1]}. Port must be between 0-65535. Starting in another port.\`);
+        }
+      }
+      
+      const port = options.port || (options.server && options.server.address?.()?.port) || requestedPort;
       
       // Create the unified Bun server
       unifiedServer = Bun.serve({
@@ -541,8 +555,8 @@ $ErrorActionPreference = 'Stop'
 # Create the main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Auditaria Launcher'
-$form.Size = New-Object System.Drawing.Size(540, 540)
-$form.MinimumSize = New-Object System.Drawing.Size(540, 540)
+$form.Size = New-Object System.Drawing.Size(540, 590)
+$form.MinimumSize = New-Object System.Drawing.Size(540, 590)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'Sizable'
 $form.MaximizeBox = $false
@@ -594,7 +608,7 @@ $form.Controls.Add($browseButton)
 # Create launch options group box
 $optionsGroup = New-Object System.Windows.Forms.GroupBox
 $optionsGroup.Location = New-Object System.Drawing.Point(20, 130)
-$optionsGroup.Size = New-Object System.Drawing.Size(465, 80)
+$optionsGroup.Size = New-Object System.Drawing.Size(465, 130)
 $optionsGroup.Text = 'Launch Options'
 $optionsGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($optionsGroup)
@@ -616,9 +630,36 @@ $noBrowserCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $noBrowserCheckBox.Enabled = $true
 $optionsGroup.Controls.Add($noBrowserCheckBox)
 
+# Custom port checkbox and textbox
+$customPortCheckBox = New-Object System.Windows.Forms.CheckBox
+$customPortCheckBox.Location = New-Object System.Drawing.Point(35, 75)
+$customPortCheckBox.Size = New-Object System.Drawing.Size(120, 25)
+$customPortCheckBox.Text = 'Custom port:'
+$customPortCheckBox.Checked = $false
+$customPortCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$customPortCheckBox.Enabled = $true
+$optionsGroup.Controls.Add($customPortCheckBox)
+
+$portTextBox = New-Object System.Windows.Forms.TextBox
+$portTextBox.Location = New-Object System.Drawing.Point(160, 75)
+$portTextBox.Size = New-Object System.Drawing.Size(80, 25)
+$portTextBox.Text = '8629'
+$portTextBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$portTextBox.Enabled = $false
+$portTextBox.MaxLength = 5
+$optionsGroup.Controls.Add($portTextBox)
+
+$portInfoLabel = New-Object System.Windows.Forms.Label
+$portInfoLabel.Location = New-Object System.Drawing.Point(250, 78)
+$portInfoLabel.Size = New-Object System.Drawing.Size(180, 20)
+$portInfoLabel.Text = '(0-65535, default: 8629)'
+$portInfoLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$portInfoLabel.ForeColor = [System.Drawing.Color]::Gray
+$optionsGroup.Controls.Add($portInfoLabel)
+
 # Create security group box
 $securityGroup = New-Object System.Windows.Forms.GroupBox
-$securityGroup.Location = New-Object System.Drawing.Point(20, 220)
+$securityGroup.Location = New-Object System.Drawing.Point(20, 270)
 $securityGroup.Size = New-Object System.Drawing.Size(465, 55)
 $securityGroup.Text = 'Security Settings'
 $securityGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
@@ -635,7 +676,7 @@ $securityGroup.Controls.Add($sslCheckBox)
 
 # Create approval mode group box
 $approvalGroup = New-Object System.Windows.Forms.GroupBox
-$approvalGroup.Location = New-Object System.Drawing.Point(20, 285)
+$approvalGroup.Location = New-Object System.Drawing.Point(20, 335)
 $approvalGroup.Size = New-Object System.Drawing.Size(465, 100)
 $approvalGroup.Text = 'Approval Mode'
 $approvalGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
@@ -664,17 +705,25 @@ $approvalYoloRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb(255, 69, 0)
 $approvalGroup.Controls.Add($approvalYoloRadio)
 
-# Enable/disable no-browser based on web checkbox
+# Enable/disable no-browser and custom port based on web checkbox
 $webCheckBox.Add_CheckedChanged({
     $noBrowserCheckBox.Enabled = $webCheckBox.Checked
+    $customPortCheckBox.Enabled = $webCheckBox.Checked
     if (-not $webCheckBox.Checked) {
         $noBrowserCheckBox.Checked = $false
+        $customPortCheckBox.Checked = $false
+        $portTextBox.Enabled = $false
     }
+})
+
+# Enable/disable port textbox based on custom port checkbox
+$customPortCheckBox.Add_CheckedChanged({
+    $portTextBox.Enabled = $customPortCheckBox.Checked
 })
 
 # Create Start and Cancel buttons
 $startButton = New-Object System.Windows.Forms.Button
-$startButton.Location = New-Object System.Drawing.Point(310, 440)
+$startButton.Location = New-Object System.Drawing.Point(310, 490)
 $startButton.Size = New-Object System.Drawing.Size(100, 35)
 $startButton.Text = 'Start Auditaria'
 $startButton.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
@@ -686,7 +735,7 @@ $startButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
 $form.Controls.Add($startButton)
 
 $cancelButton = New-Object System.Windows.Forms.Button
-$cancelButton.Location = New-Object System.Drawing.Point(420, 440)
+$cancelButton.Location = New-Object System.Drawing.Point(420, 490)
 $cancelButton.Size = New-Object System.Drawing.Size(85, 35)
 $cancelButton.Text = 'Cancel'
 $cancelButton.Font = New-Object System.Drawing.Font('Segoe UI', 10)
@@ -721,6 +770,35 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $args += '--web', 'no-browser'
         } else {
             $args += '--web'
+        }
+        
+        # Add custom port if specified
+        if ($customPortCheckBox.Checked) {
+            $port = $portTextBox.Text.Trim()
+            
+            # Validate port number
+            $portNum = 0
+            if ([int]::TryParse($port, [ref]$portNum)) {
+                if ($portNum -ge 0 -and $portNum -le 65535) {
+                    $args += '--port', $port
+                } else {
+                    [System.Windows.Forms.MessageBox]::Show(
+                        "Invalid port number: $port. Port must be between 0-65535. Using default port 8629.",
+                        'Invalid Port',
+                        [System.Windows.Forms.MessageBoxButtons]::OK,
+                        [System.Windows.Forms.MessageBoxIcon]::Warning
+                    )
+                    # Continue without adding the port argument
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "Invalid port number: $port. Please enter a valid number.",
+                    'Invalid Port',
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Warning
+                )
+                # Continue without adding the port argument
+            }
         }
     }
     
