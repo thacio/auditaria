@@ -153,6 +153,11 @@ export class WebInterfaceService extends EventEmitter {
   private currentConsoleMessages: ConsoleMessageItem[] = [];
   private currentCliActionState: { active: boolean; reason: string; title: string; message: string } | null = null;
   private currentTerminalCapture: TerminalCaptureData | null = null;
+  // WEB_INTERFACE_START: Track ephemeral states for reconnection
+  private currentPendingItem: HistoryItem | null = null;
+  private currentLoadingState: LoadingStateData | null = null;
+  private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
+  // WEB_INTERFACE_END
 
   /**
    * Start HTTP server on specified port
@@ -356,6 +361,11 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast a message to all connected web clients
    */
   broadcastMessage(historyItem: HistoryItem): void {
+    // Clear pending item when it becomes final (AI message or tool group)
+    if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content' || historyItem.type === 'tool_group') {
+      this.currentPendingItem = null;
+    }
+    
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
@@ -434,6 +444,9 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast loading state data to all connected web clients
    */
   broadcastLoadingState(loadingState: LoadingStateData): void {
+    // Store current loading state for new clients
+    this.currentLoadingState = loadingState;
+    
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
@@ -474,6 +487,9 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast pending history item (streaming content) to all connected web clients
    */
   broadcastPendingItem(pendingItem: HistoryItem | null): void {
+    // Store current pending item for new clients
+    this.currentPendingItem = pendingItem;
+    
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
@@ -556,6 +572,11 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast tool confirmation request to all connected web clients
    */
   broadcastToolConfirmation(confirmation: PendingToolConfirmation): void {
+    // Store active tool confirmation for new clients
+    if (confirmation.callId) {
+      this.activeToolConfirmations.set(confirmation.callId, confirmation);
+    }
+    
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('tool_confirmation', confirmation);
     // WEB_INTERFACE_END
@@ -565,6 +586,9 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast tool confirmation removal to all connected web clients
    */
   broadcastToolConfirmationRemoval(callId: string): void {
+    // Remove from active confirmations
+    this.activeToolConfirmations.delete(callId);
+    
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('tool_confirmation_removal', { callId });
     // WEB_INTERFACE_END
@@ -624,8 +648,11 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast clear command to all connected web clients
    */
   broadcastClear(): void {
-    // Clear internal history first
+    // Clear internal history and ephemeral states
     this.currentHistory = [];
+    this.currentPendingItem = null;
+    this.currentLoadingState = null;
+    this.activeToolConfirmations.clear();
     
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('clear', null);
@@ -959,6 +986,23 @@ export class WebInterfaceService extends EventEmitter {
     if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
       sendAndStore('terminal_capture', this.currentTerminalCapture);
     }
+    
+    // WEB_INTERFACE_START: Send ephemeral states that are still relevant
+    // Send current loading state if active
+    if (this.currentLoadingState) {
+      sendAndStore('loading_state', this.currentLoadingState);
+    }
+    
+    // Send current pending item if exists
+    if (this.currentPendingItem) {
+      sendAndStore('pending_item', this.currentPendingItem);
+    }
+    
+    // Send all active tool confirmations
+    for (const [callId, confirmation] of this.activeToolConfirmations) {
+      sendAndStore('tool_confirmation', confirmation);
+    }
+    // WEB_INTERFACE_END
   }
   // WEB_INTERFACE_END
 }
