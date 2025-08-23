@@ -380,7 +380,9 @@ export async function main() {
     }
   }
   if (!input) {
-    console.error('No input provided via stdin.');
+    console.error(
+      t('stdin.no_input_error', 'No input provided via stdin. Input can be provided by piping data into auditaria or using the --prompt option.'),
+    );
     process.exit(1);
   }
 

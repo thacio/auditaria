@@ -1264,7 +1264,8 @@
     "data_collection_disabled": "Data collection is disabled."
   },
   "stdin": {
-    "truncated_warning": "Warning: stdin input truncated to {size} bytes."
+    "truncated_warning": "Warning: stdin input truncated to {size} bytes.",
+    "no_input_error": "No input provided via stdin. Input can be provided by piping data into auditaria or using the --prompt option."
   },
   "message_queue": {
     "more_messages": "... (+{count} more)"

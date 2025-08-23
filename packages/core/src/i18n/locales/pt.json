@@ -1261,7 +1261,8 @@
     "data_collection_disabled": "A coleta de dados está desabilitada."
   },
   "stdin": {
-    "truncated_warning": "Aviso: entrada stdin truncada para {size} bytes."
+    "truncated_warning": "Aviso: entrada stdin truncada para {size} bytes.",
+    "no_input_error": "Nenhuma entrada fornecida via stdin. A entrada pode ser fornecida canalizando dados para o auditaria ou usando a opção --prompt."
   },
   "message_queue": {
     "more_messages": "... (+{count} mais)"
