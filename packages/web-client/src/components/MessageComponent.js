@@ -313,11 +313,27 @@ export function addSpecialContentToMessage(messageEl, historyItem, preserveExist
     // Add new special content
     const specialContent = renderSpecialContent(historyItem);
     if (specialContent) {
+        // Find the timestamp element (it might be inside .message-collapsible-content)
         const timestampEl = bubbleEl.querySelector('.message-timestamp');
-        if (timestampEl) {
+        if (timestampEl && timestampEl.parentNode === bubbleEl) {
+            // Timestamp is a direct child of bubble
             bubbleEl.insertBefore(specialContent, timestampEl);
         } else {
-            bubbleEl.appendChild(specialContent);
+            // Look for collapsible content container
+            const collapsibleEl = bubbleEl.querySelector('.message-collapsible-content');
+            if (collapsibleEl) {
+                // Find timestamp inside collapsible content
+                const innerTimestampEl = collapsibleEl.querySelector('.message-timestamp');
+                if (innerTimestampEl) {
+                    collapsibleEl.insertBefore(specialContent, innerTimestampEl);
+                } else {
+                    // Add before the end of collapsible content
+                    collapsibleEl.appendChild(specialContent);
+                }
+            } else {
+                // Fallback: just append to bubble
+                bubbleEl.appendChild(specialContent);
+            }
         }
     }
 }

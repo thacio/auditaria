@@ -49,7 +49,10 @@ class AuditariaWebClient {
         // Set up input handlers
         this.setupInputHandlers();
         
-        // Connect to WebSocket
+        // Set up visibility change detection
+        this.setupVisibilityHandling();
+        
+        // Connect to WebSocket AFTER all handlers are set up
         this.wsManager.connect();
     }
     
@@ -165,6 +168,13 @@ class AuditariaWebClient {
         this.wsManager.addEventListener('clear', () => {
             this.messageManager.clearAllMessages();
             this.loadingIndicator.resetThoughtsExpansion();
+        });
+        
+        // Handle force resync (buffer overrun)
+        this.wsManager.addEventListener('force_resync', () => {
+            this.messageManager.clearAllMessages();
+            this.loadingIndicator.resetThoughtsExpansion();
+            // The WebSocketManager will request full state automatically
         });
     }
     
@@ -790,6 +800,38 @@ class AuditariaWebClient {
     handleConfirmationResponse(callId, outcome) {
         this.wsManager.sendConfirmationResponse(callId, outcome);
         this.confirmationQueue.next();
+    }
+    
+    setupVisibilityHandling() {
+        let wasHidden = false;
+        
+        // Handle visibility changes
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && wasHidden) {
+                // Tab became visible after being hidden
+                console.log('Tab became visible, checking for missed messages');
+                this.wsManager.checkForMissedMessages();
+                wasHidden = false;
+            } else if (document.visibilityState === 'hidden') {
+                wasHidden = true;
+                // Send any pending acknowledgments before tab goes hidden
+                this.wsManager.sendAcknowledgment();
+            }
+        });
+        
+        // Also handle focus events as a backup
+        window.addEventListener('focus', () => {
+            if (wasHidden) {
+                console.log('Window focused, checking for missed messages');
+                this.wsManager.checkForMissedMessages();
+                wasHidden = false;
+            }
+        });
+        
+        window.addEventListener('blur', () => {
+            // Send any pending acknowledgments when window loses focus
+            this.wsManager.sendAcknowledgment();
+        });
     }
 }
 

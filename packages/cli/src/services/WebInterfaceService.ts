@@ -26,6 +26,83 @@ import { type PartListUnion, createPartFromBase64 } from '@google/genai';
 export const attachmentMetadataMap = new WeakMap<any, any>();
 // WEB_INTERFACE_END
 
+// WEB_INTERFACE_START: Message resilience system
+interface SequencedMessage {
+  sequence: number;
+  message: string;
+  timestamp: number;
+  ephemeral?: boolean;
+}
+
+class CircularMessageBuffer {
+  private buffer: (SequencedMessage | null)[];
+  private head: number = 0;
+  private tail: number = 0;
+  private size: number = 0;
+  private capacity: number;
+
+  constructor(capacity: number = 100) {
+    this.capacity = capacity;
+    this.buffer = new Array(capacity).fill(null);
+  }
+
+  add(message: SequencedMessage): void {
+    this.buffer[this.tail] = message;
+    this.tail = (this.tail + 1) % this.capacity;
+    
+    if (this.size < this.capacity) {
+      this.size++;
+    } else {
+      // Buffer is full, advance head
+      this.head = (this.head + 1) % this.capacity;
+    }
+  }
+
+  getMessagesFrom(sequence: number, persistentOnly: boolean = false): SequencedMessage[] {
+    const messages: SequencedMessage[] = [];
+    let current = this.head;
+    
+    for (let i = 0; i < this.size; i++) {
+      const msg = this.buffer[current];
+      if (msg && msg.sequence > sequence) {
+        // If persistentOnly is true, skip ephemeral messages
+        if (!persistentOnly || !msg.ephemeral) {
+          messages.push(msg);
+        }
+      }
+      current = (current + 1) % this.capacity;
+    }
+    
+    return messages.sort((a, b) => a.sequence - b.sequence);
+  }
+
+  hasSequence(sequence: number): boolean {
+    let current = this.head;
+    
+    for (let i = 0; i < this.size; i++) {
+      const msg = this.buffer[current];
+      if (msg && msg.sequence === sequence) {
+        return true;
+      }
+      current = (current + 1) % this.capacity;
+    }
+    
+    return false;
+  }
+
+  getOldestSequence(): number | null {
+    if (this.size === 0) return null;
+    const msg = this.buffer[this.head];
+    return msg ? msg.sequence : null;
+  }
+}
+
+interface ClientState {
+  messageBuffer: CircularMessageBuffer;
+  lastAcknowledgedSequence: number;
+}
+// WEB_INTERFACE_END
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -41,6 +118,12 @@ export class WebInterfaceService extends EventEmitter {
   private clients: Set<WebSocket> = new Set();
   private isRunning = false;
   private port?: number;
+  // WEB_INTERFACE_START: Message resilience system
+  private sequenceNumber: number = 0;
+  private clientStates: WeakMap<WebSocket, ClientState> = new WeakMap();
+  private readonly MESSAGE_BUFFER_SIZE = 200;
+  private readonly MAX_SEQUENCE_NUMBER = Number.MAX_SAFE_INTEGER - 1000000; // Leave headroom before overflow
+  // WEB_INTERFACE_END
   // WEB_INTERFACE_START: Updated to accept PartListUnion for multimodal support
   private submitQueryHandler?: (query: PartListUnion) => void;
   // WEB_INTERFACE_END
@@ -239,16 +322,26 @@ export class WebInterfaceService extends EventEmitter {
       return;
     }
 
+    // WEB_INTERFACE_START: Add sequence number
+    const sequence = this.getNextSequence();
     const message = JSON.stringify({
       type: 'history_item',
       data: historyItem,
+      sequence,
       timestamp: Date.now(),
     });
+    // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          // WEB_INTERFACE_START: Store in client's buffer
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+          }
+          // WEB_INTERFACE_END
         } catch (_error) {
           // Remove failed client
           this.clients.delete(client);
@@ -268,16 +361,26 @@ export class WebInterfaceService extends EventEmitter {
       return;
     }
 
+    // WEB_INTERFACE_START: Add sequence number
+    const sequence = this.getNextSequence();
     const message = JSON.stringify({
       type: 'footer_data',
       data: footerData,
+      sequence,
       timestamp: Date.now(),
     });
+    // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          // WEB_INTERFACE_START: Store in client's buffer
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+          }
+          // WEB_INTERFACE_END
         } catch (error) {
           // Remove failed client
           this.clients.delete(client);
@@ -297,16 +400,27 @@ export class WebInterfaceService extends EventEmitter {
       return;
     }
 
+    // WEB_INTERFACE_START: Add sequence number with ephemeral flag
+    const sequence = this.getNextSequence();
     const message = JSON.stringify({
       type: 'loading_state',
       data: loadingState,
+      sequence,
+      ephemeral: true,  // Mark as ephemeral - not saved in history
       timestamp: Date.now(),
     });
+    // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          // WEB_INTERFACE_START: Store in client's buffer with ephemeral flag
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now(), ephemeral: true });
+          }
+          // WEB_INTERFACE_END
         } catch (error) {
           // Remove failed client
           this.clients.delete(client);
@@ -326,16 +440,27 @@ export class WebInterfaceService extends EventEmitter {
       return;
     }
 
+    // WEB_INTERFACE_START: Add sequence number with ephemeral flag
+    const sequence = this.getNextSequence();
     const message = JSON.stringify({
       type: 'pending_item',
       data: pendingItem,
+      sequence,
+      ephemeral: true,  // Mark as ephemeral - not saved in history
       timestamp: Date.now(),
     });
+    // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
+          // WEB_INTERFACE_START: Store in client's buffer with ephemeral flag
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now(), ephemeral: true });
+          }
+          // WEB_INTERFACE_END
         } catch (error) {
           // Remove failed client
           this.clients.delete(client);
@@ -347,62 +472,73 @@ export class WebInterfaceService extends EventEmitter {
     });
   }
 
-  /**
-   * Broadcast tool confirmation request to all connected web clients
-   */
-  broadcastToolConfirmation(confirmation: PendingToolConfirmation): void {
+  // WEB_INTERFACE_START: Safely increment sequence number with overflow protection
+  private getNextSequence(): number {
+    if (this.sequenceNumber >= this.MAX_SEQUENCE_NUMBER) {
+      this.sequenceNumber = 0;
+      console.log('Sequence number wrapped around to 0');
+    }
+    return ++this.sequenceNumber;
+  }
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: Generic broadcast helper with sequence numbers
+  private broadcastWithSequence(type: string, data: any): void {
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
-
+    
+    const sequence = this.getNextSequence();
     const message = JSON.stringify({
-      type: 'tool_confirmation',
-      data: confirmation,
+      type,
+      data,
+      sequence,
       timestamp: Date.now(),
     });
-
+    
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
-        } catch (error) {
-          // Remove failed client
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+          }
+        } catch (_error) {
           this.clients.delete(client);
         }
       } else {
-        // Remove disconnected client
         this.clients.delete(client);
       }
     });
+  }
+  // WEB_INTERFACE_END
+
+  /**
+   * Broadcast tool confirmation request to all connected web clients
+   */
+  broadcastToolConfirmation(confirmation: PendingToolConfirmation): void {
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('tool_confirmation', confirmation);
+    // WEB_INTERFACE_END
   }
 
   /**
    * Broadcast tool confirmation removal to all connected web clients
    */
   broadcastToolConfirmationRemoval(callId: string): void {
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('tool_confirmation_removal', { callId });
+    // WEB_INTERFACE_END
+  }
 
-    const message = JSON.stringify({
-      type: 'tool_confirmation_removal',
-      data: { callId },
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+  /**
+   * Broadcast tool call result to all connected web clients
+   */
+  broadcastToolResult(callId: string, isOk: boolean, result: any): void {
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('tool_result', { callId, isOk, result });
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -453,28 +589,9 @@ export class WebInterfaceService extends EventEmitter {
     // Clear internal history first
     this.currentHistory = [];
     
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const message = JSON.stringify({
-      type: 'clear',
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('clear', null);
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -484,29 +601,9 @@ export class WebInterfaceService extends EventEmitter {
     // Store current commands for new clients
     this.currentSlashCommands = commands;
     
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const message = JSON.stringify({
-      type: 'slash_commands',
-      data: { commands },
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('slash_commands', { commands });
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -543,29 +640,9 @@ export class WebInterfaceService extends EventEmitter {
       blockedServers: blockedMcpServers
     };
 
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const message = JSON.stringify({
-      type: 'mcp_servers',
-      data: this.currentMCPServers,
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('mcp_servers', this.currentMCPServers);
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -575,29 +652,9 @@ export class WebInterfaceService extends EventEmitter {
     // Store current console messages for new clients
     this.currentConsoleMessages = messages;
 
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const message = JSON.stringify({
-      type: 'console_messages',
-      data: messages,
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('console_messages', messages);
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -611,34 +668,14 @@ export class WebInterfaceService extends EventEmitter {
       this.currentCliActionState = null;
     }
     
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const payload = JSON.stringify({
-      type: 'cli_action_required',
-      data: {
-        active,
-        reason,
-        title,
-        message
-      },
-      timestamp: Date.now(),
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('cli_action_required', {
+      active,
+      reason,
+      title,
+      message
     });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(payload);
-        } catch (error) {
-          // Remove failed client
-          this.clients.delete(client);
-        }
-      } else {
-        // Remove disconnected client
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -652,32 +689,58 @@ export class WebInterfaceService extends EventEmitter {
       this.currentTerminalCapture = null;
     }
     
-    if (!this.isRunning || this.clients.size === 0) {
-      return;
-    }
-
-    const message = JSON.stringify({
-      type: 'terminal_capture',
-      data,
-      timestamp: Date.now(),
-    });
-
-    this.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.send(message);
-        } catch (_error) {
-          this.clients.delete(client);
-        }
-      } else {
-        this.clients.delete(client);
-      }
-    });
+    // WEB_INTERFACE_START: Use sequence-enabled broadcast
+    this.broadcastWithSequence('terminal_capture', data);
+    // WEB_INTERFACE_END
   }
 
   /**
    * Handle incoming messages from web clients
    */
+  // WEB_INTERFACE_START: Handle acknowledgment messages
+  private handleAcknowledgment(ws: WebSocket, message: { lastSequence: number }): void {
+    const state = this.clientStates.get(ws);
+    if (state && message.lastSequence) {
+      state.lastAcknowledgedSequence = message.lastSequence;
+    }
+  }
+
+  // Handle resync requests
+  private handleResyncRequest(ws: WebSocket, message: { from: number; persistentOnly?: boolean }): void {
+    const state = this.clientStates.get(ws);
+    if (!state) return;
+
+    const fromSequence = message.from || 0;
+    const persistentOnly = message.persistentOnly === true;
+    
+    // Check if we have the requested sequence in our buffer
+    const oldestSequence = state.messageBuffer.getOldestSequence();
+    if (oldestSequence !== null && fromSequence < oldestSequence) {
+      // Buffer overrun - client is too far behind
+      ws.send(JSON.stringify({
+        type: 'force_resync',
+        currentSequence: this.sequenceNumber,
+        timestamp: Date.now()
+      }));
+      
+      // Send current state as if it's a new connection
+      this.sendInitialState(ws);
+    } else {
+      // We can fulfill the resync request - only send persistent messages if requested
+      const messages = state.messageBuffer.getMessagesFrom(fromSequence, persistentOnly);
+      messages.forEach(msg => {
+        if (ws.readyState === WebSocket.OPEN) {
+          try {
+            ws.send(msg.message);
+          } catch (error) {
+            console.error('Error sending resync message:', error);
+          }
+        }
+      });
+    }
+  }
+  // WEB_INTERFACE_END
+
   // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support
   private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
@@ -747,9 +810,17 @@ export class WebInterfaceService extends EventEmitter {
 
     this.wss.on('connection', (ws: WebSocket) => {
       this.clients.add(ws);
+      
+      // WEB_INTERFACE_START: Initialize client state for message resilience
+      this.clientStates.set(ws, {
+        messageBuffer: new CircularMessageBuffer(this.MESSAGE_BUFFER_SIZE),
+        lastAcknowledgedSequence: 0
+      });
+      // WEB_INTERFACE_END
 
       ws.on('close', () => {
         this.clients.delete(ws);
+        // Client state will be automatically cleaned up by WeakMap
       });
 
       ws.on('error', (error) => {
@@ -761,72 +832,86 @@ export class WebInterfaceService extends EventEmitter {
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString());
-          this.handleIncomingMessage(message);
+          // WEB_INTERFACE_START: Handle new message types for resilience
+          if (message.type === 'ack') {
+            this.handleAcknowledgment(ws, message);
+          } else if (message.type === 'resync_request') {
+            this.handleResyncRequest(ws, message);
+          } else {
+            this.handleIncomingMessage(message);
+          }
+          // WEB_INTERFACE_END
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
       });
 
-      // Send welcome message
-      ws.send(JSON.stringify({
-        type: 'connection',
-        data: { message: t('web.messages.connected', 'Connected to Auditaria CLI') },
-        timestamp: Date.now(),
-      }));
-
-      // Send current history to new client
-      if (this.currentHistory.length > 0) {
-        ws.send(JSON.stringify({
-          type: 'history_sync',
-          data: { history: this.currentHistory },
-          timestamp: Date.now(),
-        }));
-      }
-
-      // Send current slash commands to new client
-      if (this.currentSlashCommands.length > 0) {
-        ws.send(JSON.stringify({
-          type: 'slash_commands',
-          data: { commands: this.currentSlashCommands },
-          timestamp: Date.now(),
-        }));
-      }
-
-      // Send current MCP servers to new client (always send, even if empty)
-      ws.send(JSON.stringify({
-        type: 'mcp_servers',
-        data: this.currentMCPServers,
-        timestamp: Date.now(),
-      }));
-
-      // Send current console messages to new client (always send, even if empty)
-      ws.send(JSON.stringify({
-        type: 'console_messages',
-        data: this.currentConsoleMessages,
-        timestamp: Date.now(),
-      }));
-
-      // Send current CLI action state to new client if active
-      if (this.currentCliActionState && this.currentCliActionState.active) {
-        ws.send(JSON.stringify({
-          type: 'cli_action_required',
-          data: this.currentCliActionState,
-          timestamp: Date.now(),
-        }));
-      }
-      
-      // Send current terminal capture to new client if available
-      if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
-        ws.send(JSON.stringify({
-          type: 'terminal_capture',
-          data: this.currentTerminalCapture,
-          timestamp: Date.now(),
-        }));
-      }
+      // Send initial state to the client
+      this.sendInitialState(ws);
     });
 
     this.wss.on('error', (error) => {
       console.error('WebSocket server error:', error);
     });
   }
+  
+  
+  // WEB_INTERFACE_START: Send initial state to a client
+  private sendInitialState(ws: WebSocket): void {
+    const state = this.clientStates.get(ws);
+    if (!state) return;
+    
+    // Helper to send and store message
+    const sendAndStore = (type: string, data: any) => {
+      const sequence = this.getNextSequence();
+      const message = JSON.stringify({
+        type,
+        data,
+        sequence,
+        timestamp: Date.now(),
+      });
+      
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(message);
+          state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+        } catch (error) {
+          console.error(`Error sending ${type}:`, error);
+        }
+      }
+    };
+    
+    // Send welcome message with starting sequence
+    sendAndStore('connection', { 
+      message: t('web.messages.connected', 'Connected to Auditaria CLI'),
+      startingSequence: this.sequenceNumber 
+    });
+    
+    // Send current history to new client
+    if (this.currentHistory.length > 0) {
+      sendAndStore('history_sync', { history: this.currentHistory });
+    }
+    
+    // Send current slash commands to new client
+    if (this.currentSlashCommands.length > 0) {
+      sendAndStore('slash_commands', { commands: this.currentSlashCommands });
+    }
+    
+    // Send current MCP servers to new client (always send, even if empty)
+    sendAndStore('mcp_servers', this.currentMCPServers);
+    
+    // Send current console messages to new client (always send, even if empty)
+    sendAndStore('console_messages', this.currentConsoleMessages);
+    
+    // Send current CLI action state to new client if active
+    if (this.currentCliActionState && this.currentCliActionState.active) {
+      sendAndStore('cli_action_required', this.currentCliActionState);
+    }
+    
+    // Send current terminal capture to new client if available
+    if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
+      sendAndStore('terminal_capture', this.currentTerminalCapture);
+    }
+  }
+  // WEB_INTERFACE_END
 }

@@ -270,7 +270,86 @@ File Selection → fileHandler.js → Base64 + Metadata → WebSocket → WebInt
 CLI Display ← Text extraction + attachment info ← History with attachments ← API Response
 ```
 
-### **13. Markdown Processing System**
+### **13. WebSocket Message Resilience System**
+```
+packages/cli/src/services/
+└── WebInterfaceService.ts           # Server-side message queue and sequence management
+
+packages/web-client/src/managers/
+└── WebSocketManager.js              # Client-side sequence tracking and gap detection
+```
+
+**Features:**
+- **Message Sequence Numbering**: Every server-to-client message gets a unique, incrementing sequence number
+- **Circular Message Buffer**: Server maintains last 200 messages per client for resync requests
+- **Ephemeral vs Persistent Messages**: Differentiates between temporary (loading states) and permanent (history) messages
+- **Smart Gap Detection**: Client only checks for gaps in persistent messages, ignoring ephemeral ones
+- **Automatic Resync**: Client requests missed persistent messages when gaps detected
+- **Browser Tab Resilience**: Handles browser tab throttling and visibility changes gracefully
+- **Overflow Protection**: Sequence numbers wrap safely at MAX_SAFE_INTEGER
+- **Per-Client State Tracking**: Uses WeakMap to prevent memory leaks
+
+**Message Resilience Architecture:**
+```
+Server Side:
+- CircularMessageBuffer class: Stores last 200 messages with sequence numbers
+- getNextSequence(): Safely increments with overflow protection
+- handleResyncRequest(): Filters and resends only persistent messages
+- Per-client tracking via WeakMap<WebSocket, ClientState>
+
+Client Side:
+- lastReceivedSequence: Tracks all messages (including ephemeral)
+- lastPersistentSequence: Tracks only non-ephemeral messages
+- Gap detection only for persistent messages
+- Batched acknowledgments every 500ms
+- Page Visibility API integration for tab focus changes
+```
+
+**Ephemeral Message Types:**
+- `loading_state`: AI thinking indicators (not saved in history)
+- `pending_item`: Streaming AI responses and tool executions (replaced by final messages)
+
+**Persistent Message Types:**
+- `history_item`: Final AI responses and user messages
+- `tool_confirmation`: Tool approval requests
+- `slash_commands`, `mcp_servers`: Configuration data
+- All other non-marked messages
+
+**Message Flow Example:**
+```
+Seq 398: User message (persistent) → Client tracks in lastPersistentSequence
+Seq 399: Loading state (ephemeral) → Client ignores for gap detection
+Seq 400: Pending item (ephemeral) → Client ignores for gap detection  
+Seq 401: AI response (persistent) → Client sees 398→401, no gap in persistent messages
+```
+
+**Resync Protocol:**
+```
+1. Client detects gap in persistent messages
+2. Sends: { type: 'resync_request', from: lastPersistentSequence, persistentOnly: true }
+3. Server filters buffer for non-ephemeral messages after sequence
+4. Server sends only persistent messages client missed
+5. Client processes messages, updates sequence tracking
+```
+
+**Browser Tab Focus Handling:**
+- Page Visibility API detects when tab loses/gains focus
+- On tab refocus: Client checks for missed messages via `checkForMissedMessages()`
+- Acknowledgments sent before tab goes hidden to ensure server knows client state
+- Automatic resync on visibility change if messages were missed
+
+**Overflow Protection:**
+- MAX_SEQUENCE_NUMBER set to `Number.MAX_SAFE_INTEGER - 1000000`
+- Sequence wraps to 0 when limit reached
+- All arithmetic remains safe within JavaScript number limits
+
+**Buffer Limits:**
+- MESSAGE_BUFFER_SIZE: 200 messages per client
+- MAX_PROCESSED_SEQUENCES: 1000 sequences tracked for deduplication
+- ACK_BATCH_DELAY: 500ms between acknowledgment batches
+- Automatic pruning of old processed sequences
+
+### **14. Markdown Processing System**
 ```
 bundle/web-client/
 ├── marked.min.js                    # Markdown parsing library

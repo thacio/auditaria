@@ -47,14 +47,14 @@ export class MessageManager {
      * Add a history item message
      */
     addHistoryItem(historyItem) {
-        // Log tool groups for debugging
-        if (historyItem.type === 'tool_group') {
-            console.log('[MessageManager] Received history tool group:', {
-                toolCount: historyItem.tools?.length,
-                callIds: historyItem.tools?.map(t => t.callId),
-                statuses: historyItem.tools?.map(t => t.status)
-            });
-        }
+        // // Log tool groups for debugging
+        // if (historyItem.type === 'tool_group') {
+        //     console.log('[MessageManager] Received history tool group:', {
+        //         toolCount: historyItem.tools?.length,
+        //         callIds: historyItem.tools?.map(t => t.callId),
+        //         statuses: historyItem.tools?.map(t => t.status)
+        //     });
+        // }
         
         // Check if this is converting a pending message to final
         if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content') {
@@ -246,11 +246,11 @@ export class MessageManager {
         }
         
         if (pendingItem.type === 'tool_group') {
-            console.log('[MessageManager] Updating pending tool group:', {
-                toolCount: pendingItem.tools?.length,
-                callIds: pendingItem.tools?.map(t => t.callId),
-                statuses: pendingItem.tools?.map(t => t.status)
-            });
+            // console.log('[MessageManager] Updating pending tool group:', {
+            //     toolCount: pendingItem.tools?.length,
+            //     callIds: pendingItem.tools?.map(t => t.callId),
+            //     statuses: pendingItem.tools?.map(t => t.status)
+            // });
             this.updatePendingToolGroup(pendingItem);
         } else {
             this.updatePendingTextMessage(pendingItem);
