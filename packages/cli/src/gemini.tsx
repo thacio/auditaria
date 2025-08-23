@@ -154,6 +154,54 @@ Reason: {reason}{stack}`,
   });
 }
 
+export async function startInteractiveUI(
+  config: Config,
+  settings: LoadedSettings,
+  startupWarnings: string[],
+  workspaceRoot: string,
+  // WEB_INTERFACE_START: Add web interface parameters
+  webEnabled?: boolean,
+  webOpenBrowser?: boolean,
+  webPort?: number,
+  // WEB_INTERFACE_END
+) {
+  const version = await getCliVersion();
+  // Detect and enable Kitty keyboard protocol once at startup
+  await detectAndEnableKittyProtocol();
+  setWindowTitle(basename(workspaceRoot), settings);
+  const instance = render(
+    <React.StrictMode>
+      <SettingsContext.Provider value={settings}>
+        <AppWrapper
+          config={config}
+          settings={settings}
+          startupWarnings={startupWarnings}
+          version={version}
+          // WEB_INTERFACE_START: Pass web interface flags
+          webEnabled={webEnabled}
+          webOpenBrowser={webOpenBrowser}
+          webPort={webPort}
+          // WEB_INTERFACE_END
+        />
+      </SettingsContext.Provider>
+    </React.StrictMode>,
+    { exitOnCtrlC: false, isScreenReaderEnabled: config.getScreenReader() },
+  );
+
+  checkForUpdates()
+    .then((info) => {
+      handleAutoUpdate(info, settings, config.getProjectRoot());
+    })
+    .catch((err) => {
+      // Silently ignore update check errors.
+      if (config.getDebugMode()) {
+        console.error('Update check failed:', err);
+      }
+    });
+
+  registerCleanup(() => instance.unmount());
+}
+
 export async function main() {
   setupUnhandledRejectionHandler();
   const workspaceRoot = process.cwd();
@@ -327,48 +375,23 @@ export async function main() {
 
   // Render UI, passing necessary config values. Check that there is no command line question.
   if (config.isInteractive()) {
-    const version = await getCliVersion();
-    // Detect and enable Kitty keyboard protocol once at startup
-    await detectAndEnableKittyProtocol();
-    setWindowTitle(basename(workspaceRoot), settings);
-    
     // WEB_INTERFACE_START: Extract web interface flags from argv
     const webEnabled = !!argv.web;
     const webOpenBrowser = argv.web !== 'no-browser';
     const webPort = argv.port;
     // WEB_INTERFACE_END
     
-    const instance = render(
-      <React.StrictMode>
-        <SettingsContext.Provider value={settings}>
-          <AppWrapper
-            config={config}
-            settings={settings}
-            startupWarnings={startupWarnings}
-            version={version}
-            // WEB_INTERFACE_START: Pass web interface flags
-            webEnabled={webEnabled}
-            webOpenBrowser={webOpenBrowser}
-            webPort={webPort}
-          // WEB_INTERFACE_END
-          />
-        </SettingsContext.Provider>
-      </React.StrictMode>,
-      { exitOnCtrlC: false, isScreenReaderEnabled: config.getScreenReader() },
+    await startInteractiveUI(
+      config, 
+      settings, 
+      startupWarnings, 
+      workspaceRoot,
+      // WEB_INTERFACE_START: Pass web interface flags
+      webEnabled,
+      webOpenBrowser,
+      webPort,
+      // WEB_INTERFACE_END
     );
-
-    checkForUpdates()
-      .then((info) => {
-        handleAutoUpdate(info, settings, config.getProjectRoot());
-      })
-      .catch((err) => {
-        // Silently ignore update check errors.
-        if (config.getDebugMode()) {
-          console.error('Update check failed:', err);
-        }
-      });
-
-    registerCleanup(() => instance.unmount());
     return;
   }
   // If not a TTY, read from stdin
