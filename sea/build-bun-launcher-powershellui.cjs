@@ -552,6 +552,61 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
 
+# Define settings file path and version
+$SETTINGS_VERSION = '1.0'
+$settingsDir = Join-Path $env:USERPROFILE '.auditaria'
+$settingsFile = Join-Path $settingsDir 'launcher-settings.json'
+
+# Function to load saved settings
+function Load-Settings {
+    if (Test-Path $settingsFile) {
+        try {
+            $content = Get-Content $settingsFile -Raw | ConvertFrom-Json
+            
+            # Check version compatibility
+            if ($content.version -eq $SETTINGS_VERSION) {
+                return $content.settings
+            } else {
+                Write-Warning "Settings file version mismatch. Using defaults."
+                return $null
+            }
+        } catch {
+            Write-Warning "Failed to load settings: $_"
+            return $null
+        }
+    }
+    return $null
+}
+
+# Function to save settings
+function Save-Settings {
+    param($settings)
+    
+    try {
+        # Create directory if it doesn't exist
+        if (-not (Test-Path $settingsDir)) {
+            New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
+        }
+        
+        # Create settings object with metadata
+        $settingsObj = @{
+            version = $SETTINGS_VERSION
+            lastUsed = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+            settings = $settings
+        }
+        
+        # Save to file
+        $settingsObj | ConvertTo-Json -Depth 10 | Set-Content $settingsFile -Encoding UTF8
+        return $true
+    } catch {
+        Write-Warning "Failed to save settings: $_"
+        return $false
+    }
+}
+
+# Load saved settings
+$savedSettings = Load-Settings
+
 # Create the main form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Auditaria Launcher'
@@ -583,7 +638,12 @@ $form.Controls.Add($dirLabel)
 $dirTextBox = New-Object System.Windows.Forms.TextBox
 $dirTextBox.Location = New-Object System.Drawing.Point(20, 90)
 $dirTextBox.Size = New-Object System.Drawing.Size(380, 25)
-$dirTextBox.Text = [Environment]::GetFolderPath('MyDocuments')
+# Use saved setting or default to MyDocuments
+if ($savedSettings -and $savedSettings.workingDirectory) {
+    $dirTextBox.Text = $savedSettings.workingDirectory
+} else {
+    $dirTextBox.Text = [Environment]::GetFolderPath('MyDocuments')
+}
 $dirTextBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $form.Controls.Add($dirTextBox)
 
@@ -617,7 +677,12 @@ $webCheckBox = New-Object System.Windows.Forms.CheckBox
 $webCheckBox.Location = New-Object System.Drawing.Point(15, 25)
 $webCheckBox.Size = New-Object System.Drawing.Size(430, 25)
 $webCheckBox.Text = 'Launch with Web Interface (--web)'
-$webCheckBox.Checked = $true
+# Use saved setting or default to true
+if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'webInterface') {
+    $webCheckBox.Checked = $savedSettings.webInterface
+} else {
+    $webCheckBox.Checked = $true
+}
 $webCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $optionsGroup.Controls.Add($webCheckBox)
 
@@ -625,9 +690,14 @@ $noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
 $noBrowserCheckBox.Location = New-Object System.Drawing.Point(35, 50)
 $noBrowserCheckBox.Size = New-Object System.Drawing.Size(410, 25)
 $noBrowserCheckBox.Text = "Don't open browser automatically (no-browser)"
-$noBrowserCheckBox.Checked = $false
+# Use saved setting or default to false
+if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'noBrowser') {
+    $noBrowserCheckBox.Checked = $savedSettings.noBrowser
+} else {
+    $noBrowserCheckBox.Checked = $false
+}
 $noBrowserCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$noBrowserCheckBox.Enabled = $true
+$noBrowserCheckBox.Enabled = $webCheckBox.Checked
 $optionsGroup.Controls.Add($noBrowserCheckBox)
 
 # Custom port checkbox and textbox
@@ -635,17 +705,27 @@ $customPortCheckBox = New-Object System.Windows.Forms.CheckBox
 $customPortCheckBox.Location = New-Object System.Drawing.Point(35, 75)
 $customPortCheckBox.Size = New-Object System.Drawing.Size(120, 25)
 $customPortCheckBox.Text = 'Custom port:'
-$customPortCheckBox.Checked = $false
+# Use saved setting or default to false
+if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'customPort') {
+    $customPortCheckBox.Checked = $savedSettings.customPort
+} else {
+    $customPortCheckBox.Checked = $false
+}
 $customPortCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$customPortCheckBox.Enabled = $true
+$customPortCheckBox.Enabled = $webCheckBox.Checked
 $optionsGroup.Controls.Add($customPortCheckBox)
 
 $portTextBox = New-Object System.Windows.Forms.TextBox
 $portTextBox.Location = New-Object System.Drawing.Point(160, 75)
 $portTextBox.Size = New-Object System.Drawing.Size(80, 25)
-$portTextBox.Text = '8629'
+# Use saved port or default to 8629
+if ($savedSettings -and $savedSettings.port) {
+    $portTextBox.Text = $savedSettings.port
+} else {
+    $portTextBox.Text = '8629'
+}
 $portTextBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$portTextBox.Enabled = $false
+$portTextBox.Enabled = $customPortCheckBox.Checked
 $portTextBox.MaxLength = 5
 $optionsGroup.Controls.Add($portTextBox)
 
@@ -669,7 +749,12 @@ $sslCheckBox = New-Object System.Windows.Forms.CheckBox
 $sslCheckBox.Location = New-Object System.Drawing.Point(15, 25)
 $sslCheckBox.Size = New-Object System.Drawing.Size(440, 25)
 $sslCheckBox.Text = 'Disable SSL verification (for corporate firewalls with MITM)'
-$sslCheckBox.Checked = $false
+# Use saved setting or default to false
+if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'disableSSL') {
+    $sslCheckBox.Checked = $savedSettings.disableSSL
+} else {
+    $sslCheckBox.Checked = $false
+}
 $sslCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $sslCheckBox.ForeColor = [System.Drawing.Color]::FromArgb(139, 69, 19)
 $securityGroup.Controls.Add($sslCheckBox)
@@ -686,7 +771,6 @@ $approvalDefaultRadio = New-Object System.Windows.Forms.RadioButton
 $approvalDefaultRadio.Location = New-Object System.Drawing.Point(15, 25)
 $approvalDefaultRadio.Size = New-Object System.Drawing.Size(440, 20)
 $approvalDefaultRadio.Text = 'Default - Prompt for approval on tool use'
-$approvalDefaultRadio.Checked = $true
 $approvalDefaultRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalGroup.Controls.Add($approvalDefaultRadio)
 
@@ -704,6 +788,18 @@ $approvalYoloRadio.Text = 'YOLO - Auto-approve all tools (use with caution)'
 $approvalYoloRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb(255, 69, 0)
 $approvalGroup.Controls.Add($approvalYoloRadio)
+
+# Set approval mode from saved settings
+if ($savedSettings -and $savedSettings.approvalMode) {
+    switch ($savedSettings.approvalMode) {
+        'default' { $approvalDefaultRadio.Checked = $true }
+        'auto_edit' { $approvalAutoEditRadio.Checked = $true }
+        'yolo' { $approvalYoloRadio.Checked = $true }
+        default { $approvalDefaultRadio.Checked = $true }
+    }
+} else {
+    $approvalDefaultRadio.Checked = $true
+}
 
 # Enable/disable no-browser and custom port based on web checkbox
 $webCheckBox.Add_CheckedChanged({
@@ -762,6 +858,28 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         )
         exit 1
     }
+    
+    # Determine approval mode
+    $approvalMode = 'default'
+    if ($approvalAutoEditRadio.Checked) {
+        $approvalMode = 'auto_edit'
+    } elseif ($approvalYoloRadio.Checked) {
+        $approvalMode = 'yolo'
+    }
+    
+    # Save current settings for next time
+    $currentSettings = @{
+        workingDirectory = $workingDir
+        webInterface = $webCheckBox.Checked
+        noBrowser = $noBrowserCheckBox.Checked
+        customPort = $customPortCheckBox.Checked
+        port = $portTextBox.Text
+        disableSSL = $sslCheckBox.Checked
+        approvalMode = $approvalMode
+    }
+    
+    # Try to save settings (don't fail if it doesn't work)
+    Save-Settings -settings $currentSettings | Out-Null
     
     # Build command line arguments
     $args = @()
