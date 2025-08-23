@@ -18,7 +18,7 @@ import {
   loadSettings,
 } from './config/settings.js';
 import { appEvents, AppEvent } from './utils/events.js';
-import { Config } from '@google/gemini-cli-core';
+import { Config } from '@thacio/auditaria-cli-core';
 
 // Custom error to identify mock process.exit calls
 class MockProcessExitError extends Error {

@@ -41,7 +41,7 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
   const [clientCount, setClientCount] = useState(0);
   const submitQuery = useSubmitQuery();
   const submitQueryRegistered = useRef(false);
-  const defaultPort = configuredPort !== undefined ? 8629 : configuredPort;
+  const defaultPort = configuredPort !== undefined ? configuredPort : 8629;
 
   const start = useCallback(async (config?: WebInterfaceConfig): Promise<number> => {
     try {
