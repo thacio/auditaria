@@ -95,6 +95,24 @@ class CircularMessageBuffer {
     const msg = this.buffer[this.head];
     return msg ? msg.sequence : null;
   }
+  
+  // Prune messages that have been acknowledged
+  pruneAcknowledged(acknowledgedSequence: number): number {
+    let pruned = 0;
+    let current = this.head;
+    
+    for (let i = 0; i < this.size; i++) {
+      const msg = this.buffer[current];
+      if (msg && msg.sequence <= acknowledgedSequence) {
+        // This message has been acknowledged, can be nullified to free memory
+        this.buffer[current] = null;
+        pruned++;
+      }
+      current = (current + 1) % this.capacity;
+    }
+    
+    return pruned;
+  }
 }
 
 interface ClientState {
@@ -264,8 +282,28 @@ export class WebInterfaceService extends EventEmitter {
         console.log(t('web.port_fallback', 'Port {requestedPort} is in use, using port {assignedPort} instead', { requestedPort, assignedPort: this.port }));
       }
 
-      // Set up WebSocket server
-      this.wss = new WebSocketServer({ server: this.server });
+      // Set up WebSocket server with compression enabled
+      this.wss = new WebSocketServer({ 
+        server: this.server,
+        perMessageDeflate: {
+          zlibDeflateOptions: {
+            // See zlib defaults
+            chunkSize: 1024,
+            memLevel: 7,
+            level: 3
+          },
+          zlibInflateOptions: {
+            chunkSize: 10 * 1024
+          },
+          // Other options settable:
+          clientNoContextTakeover: true, // Defaults to negotiated value
+          serverNoContextTakeover: true, // Defaults to negotiated value
+          serverMaxWindowBits: 10, // Defaults to negotiated value
+          // Below options specified as default values
+          concurrencyLimit: 10, // Limits zlib concurrency for perf
+          threshold: 1024 // Size (in bytes) below which messages should not be compressed
+        }
+      });
       this.setupWebSocketHandlers();
 
       this.isRunning = true;
@@ -701,7 +739,16 @@ export class WebInterfaceService extends EventEmitter {
   private handleAcknowledgment(ws: WebSocket, message: { lastSequence: number }): void {
     const state = this.clientStates.get(ws);
     if (state && message.lastSequence) {
+      const previousAck = state.lastAcknowledgedSequence;
       state.lastAcknowledgedSequence = message.lastSequence;
+      
+      // Prune acknowledged messages from the buffer to free memory
+      if (message.lastSequence > previousAck) {
+        const pruned = state.messageBuffer.pruneAcknowledged(message.lastSequence);
+        if (pruned > 0) {
+          // console.log(`Pruned ${pruned} acknowledged messages for client`);
+        }
+      }
     }
   }
 

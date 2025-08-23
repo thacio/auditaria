@@ -99,7 +99,10 @@ export class WebSocketManager extends EventTarget {
             // Only check for gaps in PERSISTENT messages
             if (!isEphemeral) {
                 // Check if we missed any persistent messages
-                if (this.lastPersistentSequence > 0 && message.sequence > this.lastPersistentSequence + 1) {
+                // Handle sequence wrap-around: if last sequence was near MAX and new is near 0
+                const isLikelyWrap = this.lastPersistentSequence > Number.MAX_SAFE_INTEGER - 1000000 && message.sequence < 1000;
+                
+                if (this.lastPersistentSequence > 0 && !isLikelyWrap && message.sequence > this.lastPersistentSequence + 1) {
                     // We might have missed persistent messages - need to check with server
                     // console.log(`Potential gap in persistent messages: last was ${this.lastPersistentSequence}, got ${message.sequence}`);
                     this.requestResync(this.lastPersistentSequence);
@@ -310,10 +313,10 @@ export class WebSocketManager extends EventTarget {
      * Check for missed messages (called when tab becomes visible)
      */
     checkForMissedMessages() {
-        // If we're connected and have received messages, request resync of any gaps
-        if (this.isConnected && this.lastReceivedSequence > 0) {
-            // Send a resync request to ensure we haven't missed anything
-            this.requestResync(this.lastReceivedSequence);
+        // If we're connected and have received persistent messages, request resync of any gaps
+        if (this.isConnected && this.lastPersistentSequence > 0) {
+            // Send a resync request for persistent messages we might have missed
+            this.requestResync(this.lastPersistentSequence);
         }
     }
 }
