@@ -552,6 +552,162 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
 
+# Detect Windows language
+$currentCulture = [System.Globalization.CultureInfo]::CurrentUICulture
+$langCode = $currentCulture.TwoLetterISOLanguageName
+
+# Define language strings
+$strings = @{
+    'en' = @{
+        'title' = 'Auditaria Launcher'
+        'subtitle' = 'Auditaria - AI-Powered Audit Assistant'
+        'workingDir' = 'Working Directory:'
+        'browse' = 'Browse...'
+        'launchOptions' = 'Launch Options'
+        'webInterface' = 'Launch with Web Interface (--web)'
+        'noBrowser' = "Don't open browser automatically (no-browser)"
+        'customPort' = 'Custom port:'
+        'portInfo' = '(0-65535, default: 8629)'
+        'securitySettings' = 'Security Settings'
+        'disableSSL' = 'Disable SSL verification (for corporate firewalls with MITM)'
+        'approvalMode' = 'Approval Mode'
+        'approvalDefault' = 'Default - Prompt for approval on tool use'
+        'approvalAutoEdit' = 'Auto Edit - Auto-approve edit tools only'
+        'approvalYolo' = 'YOLO - Auto-approve all tools (use with caution)'
+        'startButton' = 'Start Auditaria'
+        'cancelButton' = 'Cancel'
+        'folderDialogDesc' = 'Select the folder where Auditaria will have access'
+        'invalidDirTitle' = 'Invalid Directory'
+        'invalidDirMsg' = 'The selected directory does not exist. Please choose a valid directory.'
+        'invalidPortTitle' = 'Invalid Port'
+        'invalidPortMsg1' = 'Invalid port number: {0}. Port must be between 0-65535. Using default port 8629.'
+        'invalidPortMsg2' = 'Invalid port number: {0}. Please enter a valid number.'
+        'settingsWarning' = 'Settings file version mismatch. Using defaults.'
+        'loadSettingsError' = 'Failed to load settings: {0}'
+        'saveSettingsError' = 'Failed to save settings: {0}'
+    }
+    'pt' = @{
+        'title' = 'Iniciador Auditaria'
+        'subtitle' = 'Auditaria - Assistente de Auditoria com IA'
+        'workingDir' = 'Diretório de Trabalho:'
+        'browse' = 'Procurar...'
+        'launchOptions' = 'Opções de Inicialização'
+        'webInterface' = 'Iniciar com Interface Web (--web)'
+        'noBrowser' = 'Não abrir navegador automaticamente (no-browser)'
+        'customPort' = 'Porta personalizada:'
+        'portInfo' = '(0-65535, padrão: 8629)'
+        'securitySettings' = 'Configurações de Segurança'
+        'disableSSL' = 'Desativar verificação SSL (para firewalls corporativos com MITM)'
+        'approvalMode' = 'Modo de Aprovação'
+        'approvalDefault' = 'Padrão - Solicitar aprovação ao usar ferramentas'
+        'approvalAutoEdit' = 'Auto Edição - Aprovar automaticamente apenas ferramentas de edição'
+        'approvalYolo' = 'YOLO - Aprovar automaticamente todas as ferramentas (use com cuidado)'
+        'startButton' = 'Iniciar Auditaria'
+        'cancelButton' = 'Cancelar'
+        'folderDialogDesc' = 'Selecione a pasta onde a Auditaria terá acesso'
+        'invalidDirTitle' = 'Diretório Inválido'
+        'invalidDirMsg' = 'O diretório selecionado não existe. Por favor, escolha um diretório válido.'
+        'invalidPortTitle' = 'Porta Inválida'
+        'invalidPortMsg1' = 'Número de porta inválido: {0}. A porta deve estar entre 0-65535. Usando porta padrão 8629.'
+        'invalidPortMsg2' = 'Número de porta inválido: {0}. Por favor, digite um número válido.'
+        'settingsWarning' = 'Versão do arquivo de configurações incompatível. Usando padrões.'
+        'loadSettingsError' = 'Falha ao carregar configurações: {0}'
+        'saveSettingsError' = 'Falha ao salvar configurações: {0}'
+    }
+    'es' = @{
+        'title' = 'Lanzador Auditaria'
+        'subtitle' = 'Auditaria - Asistente de Auditoría con IA'
+        'workingDir' = 'Directorio de Trabajo:'
+        'browse' = 'Examinar...'
+        'launchOptions' = 'Opciones de Inicio'
+        'webInterface' = 'Iniciar con Interfaz Web (--web)'
+        'noBrowser' = 'No abrir navegador automáticamente (no-browser)'
+        'customPort' = 'Puerto personalizado:'
+        'portInfo' = '(0-65535, predeterminado: 8629)'
+        'securitySettings' = 'Configuración de Seguridad'
+        'disableSSL' = 'Desactivar verificación SSL (para firewalls corporativos con MITM)'
+        'approvalMode' = 'Modo de Aprobación'
+        'approvalDefault' = 'Predeterminado - Solicitar aprobación al usar herramientas'
+        'approvalAutoEdit' = 'Auto Edición - Aprobar automáticamente solo herramientas de edición'
+        'approvalYolo' = 'YOLO - Aprobar automáticamente todas las herramientas (usar con precaución)'
+        'startButton' = 'Iniciar Auditaria'
+        'cancelButton' = 'Cancelar'
+        'folderDialogDesc' = 'Seleccione la carpeta donde Auditaria tendrá acceso'
+        'invalidDirTitle' = 'Directorio Inválido'
+        'invalidDirMsg' = 'El directorio seleccionado no existe. Por favor, elija un directorio válido.'
+        'invalidPortTitle' = 'Puerto Inválido'
+        'invalidPortMsg1' = 'Número de puerto inválido: {0}. El puerto debe estar entre 0-65535. Usando puerto predeterminado 8629.'
+        'invalidPortMsg2' = 'Número de puerto inválido: {0}. Por favor, ingrese un número válido.'
+        'settingsWarning' = 'Versión del archivo de configuración incompatible. Usando valores predeterminados.'
+        'loadSettingsError' = 'Error al cargar configuración: {0}'
+        'saveSettingsError' = 'Error al guardar configuración: {0}'
+    }
+    'fr' = @{
+        'title' = 'Lanceur Auditaria'
+        'subtitle' = 'Auditaria - Assistant d''Audit avec IA'
+        'workingDir' = 'Répertoire de Travail:'
+        'browse' = 'Parcourir...'
+        'launchOptions' = 'Options de Lancement'
+        'webInterface' = 'Lancer avec Interface Web (--web)'
+        'noBrowser' = 'Ne pas ouvrir le navigateur automatiquement (no-browser)'
+        'customPort' = 'Port personnalisé:'
+        'portInfo' = '(0-65535, par défaut: 8629)'
+        'securitySettings' = 'Paramètres de Sécurité'
+        'disableSSL' = 'Désactiver la vérification SSL (pour pare-feu d''entreprise avec MITM)'
+        'approvalMode' = 'Mode d''Approbation'
+        'approvalDefault' = 'Par défaut - Demander l''approbation lors de l''utilisation d''outils'
+        'approvalAutoEdit' = 'Auto Édition - Approuver automatiquement uniquement les outils d''édition'
+        'approvalYolo' = 'YOLO - Approuver automatiquement tous les outils (utiliser avec prudence)'
+        'startButton' = 'Démarrer Auditaria'
+        'cancelButton' = 'Annuler'
+        'folderDialogDesc' = 'Sélectionnez le dossier où Auditaria aura accès'
+        'invalidDirTitle' = 'Répertoire Invalide'
+        'invalidDirMsg' = 'Le répertoire sélectionné n''existe pas. Veuillez choisir un répertoire valide.'
+        'invalidPortTitle' = 'Port Invalide'
+        'invalidPortMsg1' = 'Numéro de port invalide: {0}. Le port doit être entre 0-65535. Utilisation du port par défaut 8629.'
+        'invalidPortMsg2' = 'Numéro de port invalide: {0}. Veuillez entrer un numéro valide.'
+        'settingsWarning' = 'Version du fichier de configuration incompatible. Utilisation des valeurs par défaut.'
+        'loadSettingsError' = 'Échec du chargement de la configuration: {0}'
+        'saveSettingsError' = 'Échec de la sauvegarde de la configuration: {0}'
+    }
+    'hi' = @{
+        'title' = 'Auditaria लॉन्चर'
+        'subtitle' = 'Auditaria - AI संचालित ऑडिट सहायक'
+        'workingDir' = 'कार्य निर्देशिका:'
+        'browse' = 'ब्राउज़...'
+        'launchOptions' = 'प्रारंभ विकल्प'
+        'webInterface' = 'वेब इंटरफ़ेस के साथ प्रारंभ करें (--web)'
+        'noBrowser' = 'ब्राउज़र स्वचालित रूप से न खोलें (no-browser)'
+        'customPort' = 'कस्टम पोर्ट:'
+        'portInfo' = '(0-65535, डिफ़ॉल्ट: 8629)'
+        'securitySettings' = 'सुरक्षा सेटिंग्स'
+        'disableSSL' = 'SSL सत्यापन अक्षम करें (MITM के साथ कॉर्पोरेट फ़ायरवॉल के लिए)'
+        'approvalMode' = 'अनुमोदन मोड'
+        'approvalDefault' = 'डिफ़ॉल्ट - टूल उपयोग पर अनुमोदन का अनुरोध करें'
+        'approvalAutoEdit' = 'ऑटो संपादन - केवल संपादन टूल को स्वचालित रूप से अनुमोदित करें'
+        'approvalYolo' = 'YOLO - सभी टूल को स्वचालित रूप से अनुमोदित करें (सावधानी से उपयोग करें)'
+        'startButton' = 'Auditaria प्रारंभ करें'
+        'cancelButton' = 'रद्द करें'
+        'folderDialogDesc' = 'वह फ़ोल्डर चुनें जहाँ Auditaria की पहुँच होगी'
+        'invalidDirTitle' = 'अमान्य निर्देशिका'
+        'invalidDirMsg' = 'चयनित निर्देशिका मौजूद नहीं है। कृपया एक मान्य निर्देशिका चुनें।'
+        'invalidPortTitle' = 'अमान्य पोर्ट'
+        'invalidPortMsg1' = 'अमान्य पोर्ट संख्या: {0}। पोर्ट 0-65535 के बीच होना चाहिए। डिफ़ॉल्ट पोर्ट 8629 का उपयोग।'
+        'invalidPortMsg2' = 'अमान्य पोर्ट संख्या: {0}। कृपया एक मान्य संख्या दर्ज करें।'
+        'settingsWarning' = 'कॉन्फ़िगरेशन फ़ाइल संस्करण असंगत। डिफ़ॉल्ट का उपयोग।'
+        'loadSettingsError' = 'सेटिंग्स लोड करने में विफल: {0}'
+        'saveSettingsError' = 'सेटिंग्स सहेजने में विफल: {0}'
+    }
+}
+
+# Select language strings based on detected language
+# Default to English if language not supported
+if ($strings.ContainsKey($langCode)) {
+    $lang = $strings[$langCode]
+} else {
+    $lang = $strings['en']
+}
+
 # Define settings file path and version
 $SETTINGS_VERSION = '1.0'
 $settingsDir = Join-Path $env:USERPROFILE '.auditaria'
@@ -567,11 +723,11 @@ function Load-Settings {
             if ($content.version -eq $SETTINGS_VERSION) {
                 return $content.settings
             } else {
-                Write-Warning "Settings file version mismatch. Using defaults."
+                Write-Warning $lang.settingsWarning
                 return $null
             }
         } catch {
-            Write-Warning "Failed to load settings: $_"
+            Write-Warning ($lang.loadSettingsError -f $_)
             return $null
         }
     }
@@ -599,7 +755,7 @@ function Save-Settings {
         $settingsObj | ConvertTo-Json -Depth 10 | Set-Content $settingsFile -Encoding UTF8
         return $true
     } catch {
-        Write-Warning "Failed to save settings: $_"
+        Write-Warning ($lang.saveSettingsError -f $_)
         return $false
     }
 }
@@ -609,9 +765,9 @@ $savedSettings = Load-Settings
 
 # Create the main form
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Auditaria Launcher'
-$form.Size = New-Object System.Drawing.Size(540, 590)
-$form.MinimumSize = New-Object System.Drawing.Size(540, 590)
+$form.Text = $lang.title
+$form.Size = New-Object System.Drawing.Size(600, 620)
+$form.MinimumSize = New-Object System.Drawing.Size(600, 620)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'Sizable'
 $form.MaximizeBox = $false
@@ -621,8 +777,8 @@ $form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
 # Create title label
 $titleLabel = New-Object System.Windows.Forms.Label
 $titleLabel.Location = New-Object System.Drawing.Point(20, 20)
-$titleLabel.Size = New-Object System.Drawing.Size(460, 30)
-$titleLabel.Text = 'Auditaria - AI-Powered Audit Assistant'
+$titleLabel.Size = New-Object System.Drawing.Size(520, 30)
+$titleLabel.Text = $lang.subtitle
 $titleLabel.Font = New-Object System.Drawing.Font('Segoe UI', 14, [System.Drawing.FontStyle]::Bold)
 $titleLabel.ForeColor = [System.Drawing.Color]::FromArgb(0, 51, 102)
 $form.Controls.Add($titleLabel)
@@ -631,13 +787,13 @@ $form.Controls.Add($titleLabel)
 $dirLabel = New-Object System.Windows.Forms.Label
 $dirLabel.Location = New-Object System.Drawing.Point(20, 65)
 $dirLabel.Size = New-Object System.Drawing.Size(150, 20)
-$dirLabel.Text = 'Working Directory:'
+$dirLabel.Text = $lang.workingDir
 $dirLabel.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($dirLabel)
 
 $dirTextBox = New-Object System.Windows.Forms.TextBox
 $dirTextBox.Location = New-Object System.Drawing.Point(20, 90)
-$dirTextBox.Size = New-Object System.Drawing.Size(380, 25)
+$dirTextBox.Size = New-Object System.Drawing.Size(430, 25)
 # Use saved setting or default to MyDocuments
 if ($savedSettings -and $savedSettings.workingDirectory) {
     $dirTextBox.Text = $savedSettings.workingDirectory
@@ -649,14 +805,14 @@ $form.Controls.Add($dirTextBox)
 
 # Create browse button
 $browseButton = New-Object System.Windows.Forms.Button
-$browseButton.Location = New-Object System.Drawing.Point(410, 89)
-$browseButton.Size = New-Object System.Drawing.Size(75, 27)
-$browseButton.Text = 'Browse...'
+$browseButton.Location = New-Object System.Drawing.Point(460, 89)
+$browseButton.Size = New-Object System.Drawing.Size(85, 27)
+$browseButton.Text = $lang.browse
 $browseButton.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $browseButton.FlatStyle = 'Standard'
 $browseButton.Add_Click({
     $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-    $folderBrowser.Description = 'Select the folder where Auditaria will have access'
+    $folderBrowser.Description = $lang.folderDialogDesc
     $folderBrowser.SelectedPath = $dirTextBox.Text
     $folderBrowser.ShowNewFolderButton = $true
     if ($folderBrowser.ShowDialog() -eq 'OK') {
@@ -668,15 +824,15 @@ $form.Controls.Add($browseButton)
 # Create launch options group box
 $optionsGroup = New-Object System.Windows.Forms.GroupBox
 $optionsGroup.Location = New-Object System.Drawing.Point(20, 130)
-$optionsGroup.Size = New-Object System.Drawing.Size(465, 130)
-$optionsGroup.Text = 'Launch Options'
+$optionsGroup.Size = New-Object System.Drawing.Size(525, 140)
+$optionsGroup.Text = $lang.launchOptions
 $optionsGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($optionsGroup)
 
 $webCheckBox = New-Object System.Windows.Forms.CheckBox
 $webCheckBox.Location = New-Object System.Drawing.Point(15, 25)
-$webCheckBox.Size = New-Object System.Drawing.Size(430, 25)
-$webCheckBox.Text = 'Launch with Web Interface (--web)'
+$webCheckBox.Size = New-Object System.Drawing.Size(490, 25)
+$webCheckBox.Text = $lang.webInterface
 # Use saved setting or default to true
 if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'webInterface') {
     $webCheckBox.Checked = $savedSettings.webInterface
@@ -688,8 +844,8 @@ $optionsGroup.Controls.Add($webCheckBox)
 
 $noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
 $noBrowserCheckBox.Location = New-Object System.Drawing.Point(35, 50)
-$noBrowserCheckBox.Size = New-Object System.Drawing.Size(410, 25)
-$noBrowserCheckBox.Text = "Don't open browser automatically (no-browser)"
+$noBrowserCheckBox.Size = New-Object System.Drawing.Size(470, 25)
+$noBrowserCheckBox.Text = $lang.noBrowser
 # Use saved setting or default to false
 if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'noBrowser') {
     $noBrowserCheckBox.Checked = $savedSettings.noBrowser
@@ -703,8 +859,8 @@ $optionsGroup.Controls.Add($noBrowserCheckBox)
 # Custom port checkbox and textbox
 $customPortCheckBox = New-Object System.Windows.Forms.CheckBox
 $customPortCheckBox.Location = New-Object System.Drawing.Point(35, 75)
-$customPortCheckBox.Size = New-Object System.Drawing.Size(120, 25)
-$customPortCheckBox.Text = 'Custom port:'
+$customPortCheckBox.Size = New-Object System.Drawing.Size(150, 25)
+$customPortCheckBox.Text = $lang.customPort
 # Use saved setting or default to false
 if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'customPort') {
     $customPortCheckBox.Checked = $savedSettings.customPort
@@ -716,7 +872,7 @@ $customPortCheckBox.Enabled = $webCheckBox.Checked
 $optionsGroup.Controls.Add($customPortCheckBox)
 
 $portTextBox = New-Object System.Windows.Forms.TextBox
-$portTextBox.Location = New-Object System.Drawing.Point(160, 75)
+$portTextBox.Location = New-Object System.Drawing.Point(190, 75)
 $portTextBox.Size = New-Object System.Drawing.Size(80, 25)
 # Use saved port or default to 8629
 if ($savedSettings -and $savedSettings.port) {
@@ -730,25 +886,25 @@ $portTextBox.MaxLength = 5
 $optionsGroup.Controls.Add($portTextBox)
 
 $portInfoLabel = New-Object System.Windows.Forms.Label
-$portInfoLabel.Location = New-Object System.Drawing.Point(250, 78)
+$portInfoLabel.Location = New-Object System.Drawing.Point(280, 78)
 $portInfoLabel.Size = New-Object System.Drawing.Size(180, 20)
-$portInfoLabel.Text = '(0-65535, default: 8629)'
+$portInfoLabel.Text = $lang.portInfo
 $portInfoLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8)
 $portInfoLabel.ForeColor = [System.Drawing.Color]::Gray
 $optionsGroup.Controls.Add($portInfoLabel)
 
 # Create security group box
 $securityGroup = New-Object System.Windows.Forms.GroupBox
-$securityGroup.Location = New-Object System.Drawing.Point(20, 270)
-$securityGroup.Size = New-Object System.Drawing.Size(465, 55)
-$securityGroup.Text = 'Security Settings'
+$securityGroup.Location = New-Object System.Drawing.Point(20, 280)
+$securityGroup.Size = New-Object System.Drawing.Size(525, 60)
+$securityGroup.Text = $lang.securitySettings
 $securityGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($securityGroup)
 
 $sslCheckBox = New-Object System.Windows.Forms.CheckBox
 $sslCheckBox.Location = New-Object System.Drawing.Point(15, 25)
-$sslCheckBox.Size = New-Object System.Drawing.Size(440, 25)
-$sslCheckBox.Text = 'Disable SSL verification (for corporate firewalls with MITM)'
+$sslCheckBox.Size = New-Object System.Drawing.Size(500, 25)
+$sslCheckBox.Text = $lang.disableSSL
 # Use saved setting or default to false
 if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'disableSSL') {
     $sslCheckBox.Checked = $savedSettings.disableSSL
@@ -761,30 +917,30 @@ $securityGroup.Controls.Add($sslCheckBox)
 
 # Create approval mode group box
 $approvalGroup = New-Object System.Windows.Forms.GroupBox
-$approvalGroup.Location = New-Object System.Drawing.Point(20, 335)
-$approvalGroup.Size = New-Object System.Drawing.Size(465, 100)
-$approvalGroup.Text = 'Approval Mode'
+$approvalGroup.Location = New-Object System.Drawing.Point(20, 350)
+$approvalGroup.Size = New-Object System.Drawing.Size(525, 110)
+$approvalGroup.Text = $lang.approvalMode
 $approvalGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($approvalGroup)
 
 $approvalDefaultRadio = New-Object System.Windows.Forms.RadioButton
 $approvalDefaultRadio.Location = New-Object System.Drawing.Point(15, 25)
-$approvalDefaultRadio.Size = New-Object System.Drawing.Size(440, 20)
-$approvalDefaultRadio.Text = 'Default - Prompt for approval on tool use'
+$approvalDefaultRadio.Size = New-Object System.Drawing.Size(500, 25)
+$approvalDefaultRadio.Text = $lang.approvalDefault
 $approvalDefaultRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalGroup.Controls.Add($approvalDefaultRadio)
 
 $approvalAutoEditRadio = New-Object System.Windows.Forms.RadioButton
-$approvalAutoEditRadio.Location = New-Object System.Drawing.Point(15, 48)
-$approvalAutoEditRadio.Size = New-Object System.Drawing.Size(440, 20)
-$approvalAutoEditRadio.Text = 'Auto Edit - Auto-approve edit tools only'
+$approvalAutoEditRadio.Location = New-Object System.Drawing.Point(15, 50)
+$approvalAutoEditRadio.Size = New-Object System.Drawing.Size(500, 25)
+$approvalAutoEditRadio.Text = $lang.approvalAutoEdit
 $approvalAutoEditRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalGroup.Controls.Add($approvalAutoEditRadio)
 
 $approvalYoloRadio = New-Object System.Windows.Forms.RadioButton
-$approvalYoloRadio.Location = New-Object System.Drawing.Point(15, 71)
-$approvalYoloRadio.Size = New-Object System.Drawing.Size(440, 20)
-$approvalYoloRadio.Text = 'YOLO - Auto-approve all tools (use with caution)'
+$approvalYoloRadio.Location = New-Object System.Drawing.Point(15, 78)
+$approvalYoloRadio.Size = New-Object System.Drawing.Size(500, 25)
+$approvalYoloRadio.Text = $lang.approvalYolo
 $approvalYoloRadio.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 $approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb(255, 69, 0)
 $approvalGroup.Controls.Add($approvalYoloRadio)
@@ -819,9 +975,9 @@ $customPortCheckBox.Add_CheckedChanged({
 
 # Create Start and Cancel buttons
 $startButton = New-Object System.Windows.Forms.Button
-$startButton.Location = New-Object System.Drawing.Point(310, 490)
-$startButton.Size = New-Object System.Drawing.Size(100, 35)
-$startButton.Text = 'Start Auditaria'
+$startButton.Location = New-Object System.Drawing.Point(340, 520)
+$startButton.Size = New-Object System.Drawing.Size(120, 35)
+$startButton.Text = $lang.startButton
 $startButton.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
 $startButton.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 212)
 $startButton.ForeColor = [System.Drawing.Color]::White
@@ -831,9 +987,9 @@ $startButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
 $form.Controls.Add($startButton)
 
 $cancelButton = New-Object System.Windows.Forms.Button
-$cancelButton.Location = New-Object System.Drawing.Point(420, 490)
-$cancelButton.Size = New-Object System.Drawing.Size(85, 35)
-$cancelButton.Text = 'Cancel'
+$cancelButton.Location = New-Object System.Drawing.Point(470, 520)
+$cancelButton.Size = New-Object System.Drawing.Size(95, 35)
+$cancelButton.Text = $lang.cancelButton
 $cancelButton.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $cancelButton.FlatStyle = 'Flat'
 $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
@@ -851,8 +1007,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     # Validate directory exists
     if (-not (Test-Path -Path $workingDir -PathType Container)) {
         [System.Windows.Forms.MessageBox]::Show(
-            'The selected directory does not exist. Please choose a valid directory.',
-            'Invalid Directory',
+            $lang.invalidDirMsg,
+            $lang.invalidDirTitle,
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Warning
         )
@@ -901,8 +1057,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
                     $args += '--port', $port
                 } else {
                     [System.Windows.Forms.MessageBox]::Show(
-                        "Invalid port number: $port. Port must be between 0-65535. Using default port 8629.",
-                        'Invalid Port',
+                        ($lang.invalidPortMsg1 -f $port),
+                        $lang.invalidPortTitle,
                         [System.Windows.Forms.MessageBoxButtons]::OK,
                         [System.Windows.Forms.MessageBoxIcon]::Warning
                     )
@@ -910,8 +1066,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
                 }
             } else {
                 [System.Windows.Forms.MessageBox]::Show(
-                    "Invalid port number: $port. Please enter a valid number.",
-                    'Invalid Port',
+                    ($lang.invalidPortMsg2 -f $port),
+                    $lang.invalidPortTitle,
                     [System.Windows.Forms.MessageBoxButtons]::OK,
                     [System.Windows.Forms.MessageBoxIcon]::Warning
                 )
