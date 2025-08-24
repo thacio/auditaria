@@ -14,7 +14,7 @@ import {
   createTmpDir,
   cleanupTmpDir,
   FileSystemStructure,
-} from '@google/gemini-cli-test-utils';
+} from '@thacio/auditaria-cli-test-utils';
 import { useState } from 'react';
 import { Suggestion } from '../components/SuggestionsDisplay.js';
 
