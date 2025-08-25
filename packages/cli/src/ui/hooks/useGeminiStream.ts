@@ -25,6 +25,9 @@ import {
   UnauthorizedError,
   UserPromptEvent,
   DEFAULT_GEMINI_FLASH_MODEL,
+  logConversationFinishedEvent,
+  ConversationFinishedEvent,
+  ApprovalMode,
   parseAndFormatApiError,
   t,
 } from '@thacio/auditaria-cli-core';
@@ -224,6 +227,27 @@ export const useGeminiStream = (
     }
     return StreamingState.Idle;
   }, [isResponding, toolCalls]);
+
+  useEffect(() => {
+    if (
+      config.getApprovalMode() === ApprovalMode.YOLO &&
+      streamingState === StreamingState.Idle
+    ) {
+      const lastUserMessageIndex = history.findLastIndex(
+        (item: HistoryItem) => item.type === MessageType.USER,
+      );
+
+      const turnCount =
+        lastUserMessageIndex === -1 ? 0 : history.length - lastUserMessageIndex;
+
+      if (turnCount > 0) {
+        logConversationFinishedEvent(
+          config,
+          new ConversationFinishedEvent(config.getApprovalMode(), turnCount),
+        );
+      }
+    }
+  }, [streamingState, config, history]);
 
   const cancelOngoingRequest = useCallback(() => {
     if (streamingState !== StreamingState.Responding) {
