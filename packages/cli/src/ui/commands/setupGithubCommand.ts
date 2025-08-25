@@ -16,7 +16,7 @@ import {
   isGitHubRepository,
   getGitHubRepoInfo,
 } from '../../utils/gitUtils.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import {
   CommandKind,

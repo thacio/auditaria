@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import {
   HistoryItemWithoutId,
@@ -17,7 +17,7 @@ import {
   isBinary,
   ShellExecutionResult,
   ShellExecutionService,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type PartListUnion } from '@google/genai';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';

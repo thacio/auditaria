@@ -3,8 +3,8 @@
  * Copyright 2025 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
-import { Config, GeminiClient } from '@thacio/auditaria-cli-core';
-import { HistoryItem, HistoryItemWithoutId } from '@thacio/auditaria-cli';
+import { Config, GeminiClient } from '@google/gemini-cli-core';
+import { HistoryItem, HistoryItemWithoutId } from '@google/gemini-cli';
 export interface WebSession {
     id: string;
     config: Config;

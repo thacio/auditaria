@@ -14,7 +14,7 @@ import {
   SupportedLanguage,
   t,
   Storage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';

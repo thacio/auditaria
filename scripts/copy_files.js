@@ -58,7 +58,7 @@ copyFilesRecursive(sourceDir, targetDir);
 const packageJsonPath = path.join(process.cwd(), 'package.json');
 if (fs.existsSync(packageJsonPath)) {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-  if (packageJson.name === '@thacio/auditaria-cli') {
+  if (packageJson.name === '@google/gemini-cli') {
     // Copy web client files from bundle to CLI package dist
     const webClientSrc = path.resolve(process.cwd(), '../../bundle/web-client');
     const webClientDest = path.join(process.cwd(), 'dist', 'web-client');

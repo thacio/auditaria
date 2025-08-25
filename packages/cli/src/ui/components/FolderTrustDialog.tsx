@@ -6,7 +6,7 @@
 
 import { Box, Text } from 'ink';
 import React from 'react';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { Colors } from '../colors.js';
 import {
   RadioButtonSelect,

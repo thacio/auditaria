@@ -10,7 +10,7 @@ import {
   FileSearch,
   FileSearchFactory,
   escapePath,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   Suggestion,
   MAX_SUGGESTIONS_TO_SHOW,

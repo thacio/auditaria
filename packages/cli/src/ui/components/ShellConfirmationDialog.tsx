@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ToolConfirmationOutcome, t } from '@thacio/auditaria-cli-core';
+import { ToolConfirmationOutcome, t } from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
 import React from 'react';
 import { Colors } from '../colors.js';

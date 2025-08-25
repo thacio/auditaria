@@ -3,13 +3,13 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
-import { UserTierId } from '@thacio/auditaria-cli-core';
+import { UserTierId } from '@google/gemini-cli-core';
 import { getLicenseDisplay } from '../../utils/license.js';
 
 interface AboutBoxProps {

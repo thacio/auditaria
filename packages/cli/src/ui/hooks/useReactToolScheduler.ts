@@ -20,7 +20,7 @@ import {
   ToolCall,
   Status as CoreStatus,
   EditorType,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import {
   HistoryItemToolGroup,

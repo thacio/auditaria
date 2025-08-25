@@ -13,12 +13,12 @@ import {
   UserTierId,
   GeminiClient,
   ContentGenerator,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { OAuth2Client } from 'google-auth-library';
 import { usePrivacySettings } from './usePrivacySettings.js';
 
 // Mock the dependencies
-vi.mock('@thacio/auditaria-cli-core', () => {
+vi.mock('@google/gemini-cli-core', () => {
   // Mock classes for instanceof checks
   class MockCodeAssistServer {
     projectId = 'test-project-id';

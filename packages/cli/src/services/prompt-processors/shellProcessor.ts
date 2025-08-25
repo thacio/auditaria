@@ -10,7 +10,7 @@ import {
   escapeShellArg,
   getShellConfiguration,
   ShellExecutionService,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 import { CommandContext } from '../../ui/commands/types.js';
 import {

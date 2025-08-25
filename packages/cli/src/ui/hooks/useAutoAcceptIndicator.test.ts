@@ -20,14 +20,14 @@ import {
   Config,
   Config as ActualConfigType,
   ApprovalMode,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useKeypress, Key } from './useKeypress.js';
 
 vi.mock('./useKeypress.js');
 
-vi.mock('@thacio/auditaria-cli-core', async () => {
+vi.mock('@google/gemini-cli-core', async () => {
   const actualServerModule = (await vi.importActual(
-    '@thacio/auditaria-cli-core',
+    '@google/gemini-cli-core',
   )) as Record<string, unknown>;
   return {
     ...actualServerModule,

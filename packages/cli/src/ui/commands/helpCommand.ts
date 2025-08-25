@@ -6,7 +6,7 @@
 
 import { CommandKind, SlashCommand } from './types.js';
 import { MessageType, type HistoryItemHelp } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const helpCommand: SlashCommand = {
   name: 'help',

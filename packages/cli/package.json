@@ -1,5 +1,5 @@
 {
-  "name": "@thacio/auditaria-cli",
+  "name": "@google/gemini-cli",
   "version": "0.1.21",
   "description": "Auditaria CLI",
   "repository": {
@@ -28,7 +28,7 @@
     "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.21"
   },
   "dependencies": {
-    "@thacio/auditaria-cli-core": "file:../core",
+    "@google/gemini-cli-core": "file:../core",
     "@google/genai": "1.13.0",
     "@iarna/toml": "^2.2.5",
     "@modelcontextprotocol/sdk": "^1.15.1",
@@ -85,7 +85,7 @@
     "react-dom": "^19.1.0",
     "typescript": "^5.3.3",
     "vitest": "^3.1.1",
-    "@thacio/auditaria-cli-test-utils": "file:../test-utils"
+    "@google/gemini-cli-test-utils": "file:../test-utils"
   },
   "engines": {
     "node": ">=20"

@@ -26,7 +26,7 @@ import {
   validateCustomTheme,
 } from './theme.js';
 import { SemanticColors } from './semantic-tokens.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { ANSI } from './ansi.js';
 import { ANSILight } from './ansi-light.js';
 import { NoColorTheme } from './no-color.js';

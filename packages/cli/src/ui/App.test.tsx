@@ -17,7 +17,7 @@ import {
   GeminiClient,
   ideContext,
   type AuthType,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { LoadedSettings, SettingsFile, Settings } from '../config/settings.js';
 import process from 'node:process';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
@@ -90,10 +90,10 @@ interface MockServerConfig {
   getScreenReader: Mock<() => boolean>;
 }
 
-// Mock @thacio/auditaria-cli-core and its Config class
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+// Mock @google/gemini-cli-core and its Config class
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actualCore =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   const ConfigClassMock = vi
     .fn()
     .mockImplementation((optionsPassedToConstructor) => {
@@ -265,7 +265,7 @@ vi.mock('../hooks/useTerminalSize.js', () => ({
 
 const mockedCheckForUpdates = vi.mocked(checkForUpdates);
 const { isGitRepository: mockedIsGitRepository } = vi.mocked(
-  await import('@thacio/auditaria-cli-core'),
+  await import('@google/gemini-cli-core'),
 );
 
 vi.mock('node:child_process');
@@ -375,7 +375,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(true);
       const info: UpdateObject = {
         update: {
-          name: '@thacio/auditaria-cli',
+          name: '@google/gemini-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -402,7 +402,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@thacio/auditaria-cli',
+          name: '@google/gemini-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -432,7 +432,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@thacio/auditaria-cli',
+          name: '@google/gemini-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -462,7 +462,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@thacio/auditaria-cli',
+          name: '@google/gemini-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -495,7 +495,7 @@ describe('App UI', () => {
       process.env.GEMINI_CLI_DISABLE_AUTOUPDATER = 'true';
       const info: UpdateObject = {
         update: {
-          name: '@thacio/auditaria-cli',
+          name: '@google/gemini-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },

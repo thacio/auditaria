@@ -9,7 +9,7 @@ import {
   getErrorMessage,
   getMCPServerPrompts,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   CommandContext,
   CommandKind,

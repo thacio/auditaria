@@ -30,7 +30,7 @@ import {
   ApprovalMode,
   parseAndFormatApiError,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 // WEB_INTERFACE_START: Import WeakMap for attachment metadata
 import { attachmentMetadataMap } from '../../services/WebInterfaceService.js';

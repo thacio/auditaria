@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 // WEB_INTERFACE_START: Import for multimodal support
 import { type PartListUnion } from '@google/genai';
 // WEB_INTERFACE_END
@@ -74,7 +74,7 @@ import {
   getAllMCPServerStatuses,
   MCPServerStatus,
   // WEB_INTERFACE_END
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   IdeIntegrationNudge,
   IdeIntegrationNudgeResult,
@@ -102,7 +102,7 @@ import {
   isProQuotaExceededError,
   isGenericQuotaExceededError,
   UserTierId,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { UpdateObject } from './utils/updateCheck.js';
 import ansiEscapes from 'ansi-escapes';
 // WEB_INTERFACE_START: Web interface context imports

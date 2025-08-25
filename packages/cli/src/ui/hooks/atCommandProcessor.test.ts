@@ -15,7 +15,7 @@ import {
   ToolRegistry,
   COMMON_IGNORE_PATTERNS,
   DEFAULT_FILE_EXCLUDES,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import * as os from 'node:os';
 import { ToolCallStatus } from '../types.js';
 import { UseHistoryManagerReturn } from './useHistoryManager.js';

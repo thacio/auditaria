@@ -1,5 +1,5 @@
 {
-  "name": "@thacio/auditaria-cli-core",
+  "name": "@google/gemini-cli-core",
   "version": "0.1.21",
   "description": "Auditaria CLI Core",
   "repository": {
@@ -67,7 +67,7 @@
     "@lydell/node-pty-win32-x64": "1.1.0"
   },
   "devDependencies": {
-    "@thacio/auditaria-cli-test-utils": "file:../test-utils",
+    "@google/gemini-cli-test-utils": "file:../test-utils",
     "@types/diff": "^7.0.2",
     "@types/dotenv": "^6.1.1",
     "@types/micromatch": "^4.0.8",

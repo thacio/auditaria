@@ -1,5 +1,5 @@
 {
-  "name": "@thacio/auditaria-cli",
+  "name": "@google/gemini-cli",
   "version": "0.1.21",
   "engines": {
     "node": ">=20.0.0"

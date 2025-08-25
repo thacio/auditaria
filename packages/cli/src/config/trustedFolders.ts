@@ -7,7 +7,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
-import { getErrorMessage, isWithinRoot, t } from '@thacio/auditaria-cli-core';
+import { getErrorMessage, isWithinRoot, t } from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
 import stripJsonComments from 'strip-json-comments';
 

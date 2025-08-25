@@ -18,7 +18,7 @@ import {
   SessionMetrics,
   ModelMetrics,
   sessionId,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 // --- Interface Definitions ---
 

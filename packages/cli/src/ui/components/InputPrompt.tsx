@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Box, Text } from 'ink';
@@ -20,7 +20,7 @@ import { useCommandCompletion } from '../hooks/useCommandCompletion.js';
 import { useKeypress, Key } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import { CommandContext, SlashCommand } from '../commands/types.js';
-import { Config } from '@thacio/auditaria-cli-core';
+import { Config } from '@google/gemini-cli-core';
 import {
   clipboardHasImage,
   saveClipboardImage,

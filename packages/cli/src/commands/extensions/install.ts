@@ -5,7 +5,7 @@
  */
 
 import { CommandModule } from 'yargs';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import {
   installExtension,
   ExtensionInstallMetadata,

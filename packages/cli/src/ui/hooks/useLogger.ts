@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { sessionId, Logger, Storage } from '@thacio/auditaria-cli-core';
+import { sessionId, Logger, Storage } from '@google/gemini-cli-core';
 
 /**
  * Hook to manage the logger instance.

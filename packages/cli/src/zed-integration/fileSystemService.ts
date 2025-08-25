@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FileSystemService } from '@thacio/auditaria-cli-core';
+import { FileSystemService } from '@google/gemini-cli-core';
 import * as acp from './acp.js';
 
 /**

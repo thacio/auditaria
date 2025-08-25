@@ -8,9 +8,9 @@ const { logSlashCommand } = vi.hoisted(() => ({
   logSlashCommand: vi.fn(),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
 
   return {
     ...original,
@@ -77,7 +77,7 @@ import {
   ConfirmShellCommandsActionReturn,
   SlashCommand,
 } from '../commands/types.js';
-import { ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
+import { ToolConfirmationOutcome } from '@google/gemini-cli-core';
 import { LoadedSettings } from '../../config/settings.js';
 import { MessageType } from '../types.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
@@ -87,7 +87,7 @@ import {
   SlashCommandStatus,
   makeFakeConfig,
   type IdeClient,
-} from '@thacio/auditaria-cli-core/index.js';
+} from '@google/gemini-cli-core/index.js';
 
 function createTestCommand(
   overrides: Partial<SlashCommand>,

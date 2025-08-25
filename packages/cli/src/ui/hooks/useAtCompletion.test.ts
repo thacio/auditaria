@@ -9,12 +9,12 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAtCompletion } from './useAtCompletion.js';
-import { Config, FileSearch, FileSearchFactory } from '@thacio/auditaria-cli-core';
+import { Config, FileSearch, FileSearchFactory } from '@google/gemini-cli-core';
 import {
   createTmpDir,
   cleanupTmpDir,
   FileSystemStructure,
-} from '@thacio/auditaria-cli-test-utils';
+} from '@google/gemini-cli-test-utils';
 import { useState } from 'react';
 import { Suggestion } from '../components/SuggestionsDisplay.js';
 

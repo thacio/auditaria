@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_FLASH_MODEL, t } from '@thacio/auditaria-cli-core';
+import { DEFAULT_GEMINI_MODEL, DEFAULT_GEMINI_FLASH_MODEL, t } from '@google/gemini-cli-core';
 import { type SlashCommand, CommandKind } from './types.js';
 
 export const modelSwitchCommand: SlashCommand = {

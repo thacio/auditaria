@@ -15,12 +15,12 @@ import {
 } from 'vitest';
 import { ideCommand } from './ideCommand.js';
 import { type CommandContext } from './types.js';
-import { type Config, DetectedIde } from '@thacio/auditaria-cli-core';
-import * as core from '@thacio/auditaria-cli-core';
+import { type Config, DetectedIde } from '@google/gemini-cli-core';
+import * as core from '@google/gemini-cli-core';
 
 vi.mock('child_process');
 vi.mock('glob');
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original = await importOriginal<typeof core>();
   return {
     ...original,

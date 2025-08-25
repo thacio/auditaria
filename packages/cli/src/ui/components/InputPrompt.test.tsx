@@ -8,7 +8,7 @@ import { renderWithProviders } from '../../test-utils/render.js';
 import { waitFor } from '@testing-library/react';
 import { InputPrompt, InputPromptProps } from './InputPrompt.js';
 import type { TextBuffer } from './shared/text-buffer.js';
-import { Config } from '@thacio/auditaria-cli-core';
+import { Config } from '@google/gemini-cli-core';
 import * as path from 'node:path';
 import {
   CommandContext,

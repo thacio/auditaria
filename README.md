@@ -409,7 +409,7 @@ See [Releases](./docs/releases.md) for more details.
 New preview releases will be published each week at UTC 2359 on Tuesdays. These releases will not have been fully vetted and may contain regressions or other outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@preview
+npm install -g @google/gemini-cli@preview
 ```
 
 ### Stable
@@ -417,7 +417,7 @@ npm install -g @thacio/auditaria-cli@preview
 - New stable releases will be published each week at UTC 2000 on Tuesdays, this will be the full promotion of last week's `preview` release + any bug fixes and validations. Use `latest` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@latest
+npm install -g @google/gemini-cli@latest
 ```
 
 ### Nightly
@@ -425,7 +425,7 @@ npm install -g @thacio/auditaria-cli@latest
 - New releases will be published each week at UTC 0000 each day, This will be all changes from the main branch as represented at time of release. It should be assumed there are pending validations and issues. Use `nightly` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@nightly
+npm install -g @google/gemini-cli@nightly
 ```
 
 ### Corporate Firewall (MITM) Setup

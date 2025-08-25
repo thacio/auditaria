@@ -8,7 +8,7 @@
 
 import { useCallback } from 'react';
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export interface WebCommandResult {
   type: 'message';

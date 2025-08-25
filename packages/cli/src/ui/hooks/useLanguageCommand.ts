@@ -3,8 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t, setLanguage } from '@thacio/auditaria-cli-core';
-import type { SupportedLanguage } from '@thacio/auditaria-cli-core';
+import { t, setLanguage } from '@google/gemini-cli-core';
+import type { SupportedLanguage } from '@google/gemini-cli-core';
 
 import { useState, useCallback } from 'react';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';

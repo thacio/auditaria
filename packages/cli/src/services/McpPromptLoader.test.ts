@@ -5,7 +5,7 @@
  */
 
 import { McpPromptLoader } from './McpPromptLoader.js';
-import { Config } from '@thacio/auditaria-cli-core';
+import { Config } from '@google/gemini-cli-core';
 import { PromptArgument } from '@modelcontextprotocol/sdk/types.js';
 import { describe, it, expect } from 'vitest';
 

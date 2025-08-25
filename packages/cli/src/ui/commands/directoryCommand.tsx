@@ -6,10 +6,10 @@
 
 import { SlashCommand, CommandContext, CommandKind } from './types.js';
 import { MessageType } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
+import { loadServerHierarchicalMemory } from '@google/gemini-cli-core';
 
 export function expandHomeDir(p: string): string {
   if (!p) {

@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uiTelemetryService } from '@thacio/auditaria-cli-core';
+import { uiTelemetryService } from '@google/gemini-cli-core';
 import { CommandKind, SlashCommand } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const clearCommand: SlashCommand = {
   name: 'clear',

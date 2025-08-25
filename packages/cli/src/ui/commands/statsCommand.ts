@@ -11,7 +11,7 @@ import {
   type SlashCommand,
   CommandKind,
 } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const statsCommand: SlashCommand = {
   name: 'stats',

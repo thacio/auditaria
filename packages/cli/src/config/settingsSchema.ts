@@ -11,7 +11,7 @@ import {
   AuthType,
   ChatCompressionSettings,
   SupportedLanguage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { CustomTheme } from '../ui/themes/theme.js';
 
 export interface SettingDefinition {

@@ -3,12 +3,12 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
-import { ApprovalMode } from '@thacio/auditaria-cli-core';
+import { ApprovalMode } from '@google/gemini-cli-core';
 
 interface AutoAcceptIndicatorProps {
   approvalMode: ApprovalMode;

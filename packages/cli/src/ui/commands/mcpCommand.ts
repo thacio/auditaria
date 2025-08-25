@@ -21,7 +21,7 @@ import {
   mcpServerRequiresOAuth,
   getErrorMessage,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 const COLOR_GREEN = '\u001b[32m';
 const COLOR_YELLOW = '\u001b[33m';
@@ -144,7 +144,7 @@ const getMcpStatus = async (
       needsAuthHint = true;
       try {
         const { MCPOAuthTokenStorage } = await import(
-          '@thacio/auditaria-cli-core'
+          '@google/gemini-cli-core'
         );
         const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
         if (hasToken) {
@@ -383,7 +383,7 @@ const authCommand: SlashCommand = {
       );
 
       // Import dynamically to avoid circular dependencies
-      const { MCPOAuthProvider } = await import('@thacio/auditaria-cli-core');
+      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
 
       let oauthConfig = server.oauth;
       if (!oauthConfig) {

@@ -29,7 +29,7 @@ import {
   WriteFileTool,
   MCPServerConfig,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
 
 import { Extension, annotateActiveExtensions } from './extension.js';

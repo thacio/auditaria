@@ -15,7 +15,7 @@ import {
   IdeClient,
   type File,
   ideContext,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import path from 'node:path';
 import {
   CommandContext,

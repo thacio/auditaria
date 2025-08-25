@@ -9,7 +9,7 @@ import {
   Config,
   DEFAULT_GEMINI_FLASH_LITE_MODEL,
   getResponseText,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { Content, GenerateContentConfig } from '@google/genai';
 import { TextBuffer } from '../components/shared/text-buffer.js';
 

@@ -8,7 +8,7 @@ import {
   ToolCallConfirmationDetails,
   ToolResultDisplay,
   UserTierId,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 // Only defining the state enum needed by the UI
 export enum StreamingState {

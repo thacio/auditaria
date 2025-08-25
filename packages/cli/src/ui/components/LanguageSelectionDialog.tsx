@@ -3,15 +3,15 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { LoadedSettings, SettingScope } from '../../config/settings.js';
-import { discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
-import type { LanguageInfo, SupportedLanguage } from '@thacio/auditaria-cli-core';
+import { discoverAvailableLanguages } from '@google/gemini-cli-core';
+import type { LanguageInfo, SupportedLanguage } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface LanguageSelectionDialogProps {

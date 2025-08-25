@@ -11,7 +11,7 @@ import { createMockCommandContext } from '../../test-utils/mockCommandContext.js
 import * as versionUtils from '../../utils/version.js';
 import { MessageType } from '../types.js';
 
-import type { IdeClient } from '@thacio/auditaria-cli-core';
+import type { IdeClient } from '@google/gemini-cli-core';
 
 vi.mock('../../utils/version.js', () => ({
   getCliVersion: vi.fn(),

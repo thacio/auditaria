@@ -7,10 +7,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getStartupWarnings } from './startupWarnings.js';
 import * as fs from 'node:fs/promises';
-import { getErrorMessage } from '@thacio/auditaria-cli-core';
+import { getErrorMessage } from '@google/gemini-cli-core';
 
 vi.mock('fs/promises');
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

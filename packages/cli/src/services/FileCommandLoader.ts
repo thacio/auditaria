@@ -13,7 +13,7 @@ import {
   Config,
   Storage,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ICommandLoader } from './types.js';
 import {
   CommandContext,

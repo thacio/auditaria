@@ -12,7 +12,7 @@ import {
   GeminiEventType,
   parseAndFormatApiError,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';

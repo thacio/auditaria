@@ -5,7 +5,7 @@
  */
 
 import { spawn, SpawnOptions } from 'node:child_process';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 /**
  * Checks if a query string potentially represents an '@' command.

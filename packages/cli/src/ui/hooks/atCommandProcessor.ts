@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -14,7 +14,7 @@ import {
   getErrorMessage,
   isNodeError,
   unescapePath,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   HistoryItem,
   IndividualToolCallDisplay,

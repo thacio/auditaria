@@ -12,7 +12,7 @@ import {
   clearCachedCredentialFile,
   getErrorMessage,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { runExitCleanup } from '../../utils/cleanup.js';
 
 export const useAuthCommand = (
