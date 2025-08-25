@@ -5,8 +5,8 @@
  */
 import { t } from '../i18n/index.js';
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import * as Diff from 'diff';
 import { Config, ApprovalMode } from '../config/config.js';
 import {

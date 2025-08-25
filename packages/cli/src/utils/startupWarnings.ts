@@ -5,8 +5,8 @@
  */
 import { t } from '@thacio/auditaria-cli-core';
 
-import fs from 'fs/promises';
-import os from 'os';
+import fs from 'node:fs/promises';
+import os from 'node:os';
 import { join as pathJoin } from 'node:path';
 import { getErrorMessage } from '@thacio/auditaria-cli-core';
 

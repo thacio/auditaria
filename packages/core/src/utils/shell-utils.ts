@@ -6,7 +6,7 @@
 
 import { Config } from '../config/config.js';
 import { t } from '../i18n/index.js';
-import os from 'os';
+import os from 'node:os';
 import { quote } from 'shell-quote';
 
 /**

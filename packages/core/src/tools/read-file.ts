@@ -5,7 +5,7 @@
  */
 import { t } from '../i18n/index.js';
 
-import path from 'path';
+import path from 'node:path';
 import { makeRelative, shortenPath } from '../utils/paths.js';
 import {
   BaseDeclarativeTool,
