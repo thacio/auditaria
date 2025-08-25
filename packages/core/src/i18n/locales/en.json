@@ -199,7 +199,18 @@
     "extensions": {
       "description": "list active extensions",
       "no_extensions": "No active extensions.",
-      "active_extensions": "Active extensions:"
+      "active_extensions": "Active extensions:",
+      "manage": {
+        "description": "Manage Auditaria CLI extensions.",
+        "need_command": "You need at least one command before continuing."
+      },
+      "install": {
+        "description": "Installs an extension from a git repository or a local path.",
+        "source_description": "The git URL of the extension to install.",
+        "path_description": "Path to a local extension directory.",
+        "missing_source_or_path": "Either a git URL --source or a --path must be provided.",
+        "success": "Extension \"{extensionName}\" installed successfully and enabled."
+      }
     },
     "tools": {
       "description": "list available Gemini CLI tools",

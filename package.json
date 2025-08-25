@@ -98,6 +98,7 @@
     "ansi-to-html": "^0.7.2",
     "ink": "^6.2.2",
     "node-fetch": "^3.3.2",
+    "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0"
   },
   "optionalDependencies": {
