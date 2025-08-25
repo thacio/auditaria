@@ -88,7 +88,7 @@ export function IdeIntegrationNudge({
       <Box marginBottom={1} flexDirection="column">
         <Text>
           <Text color="yellow">{'> '}</Text>
-          {t('ide_integration_nudge.question', `Do you want to connect ${ideName ?? 'your'} editor to Auditaria CLI?`, { ideName: ideName ?? 'your' })}
+          {t('ide_integration_nudge.question', `Do you want to connect ${ideName ?? 'your editor'} to Auditaria CLI?`, { ideName: ideName ?? 'your editor' })}
         </Text>
         <Text dimColor>{installText}</Text>
       </Box>
