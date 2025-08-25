@@ -8,6 +8,7 @@ import { CommandModule } from 'yargs';
 import { t } from '@thacio/auditaria-cli-core';
 import { installCommand } from './extensions/install.js';
 import { uninstallCommand } from './extensions/uninstall.js';
+import { listCommand } from './extensions/list.js';
 
 export const extensionsCommand: CommandModule = {
   command: 'extensions <command>',
@@ -16,6 +17,7 @@ export const extensionsCommand: CommandModule = {
     yargs
       .command(installCommand)
       .command(uninstallCommand)
+      .command(listCommand)
       .demandCommand(1, t('commands.extensions.manage.need_command', 'You need at least one command before continuing.'))
       .version(false),
   handler: () => {

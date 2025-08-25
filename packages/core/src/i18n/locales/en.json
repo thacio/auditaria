@@ -217,6 +217,10 @@
         "missing_name": "Please include the name of the extension to uninstall as a positional argument.",
         "success": "Extension \"{name}\" successfully uninstalled.",
         "not_found": "Error: Extension \"{extensionName}\" not found."
+      },
+      "list": {
+        "description": "Lists installed extensions.",
+        "no_extensions": "No extensions installed."
       }
     },
     "tools": {

@@ -214,6 +214,10 @@
         "missing_name": "Por favor, inclua o nome da extensão a desinstalar como um argumento posicional.",
         "success": "Extensão \"{name}\" desinstalada com sucesso.",
         "not_found": "Erro: Extensão \"{extensionName}\" não encontrada."
+      },
+      "list": {
+        "description": "Lista extensões instaladas.",
+        "no_extensions": "Nenhuma extensão instalada."
       }
     },
     "tools": {
