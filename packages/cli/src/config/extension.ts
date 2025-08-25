@@ -39,6 +39,11 @@ export interface ExtensionInstallMetadata {
   type: 'git' | 'local';
 }
 
+export interface ExtensionUpdateInfo {
+  originalVersion: string;
+  updatedVersion: string;
+}
+
 export class ExtensionStorage {
   private readonly extensionName: string;
 
@@ -321,7 +326,7 @@ export async function installExtension(
       )
     ) {
       throw new Error(
-        `Error: Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
+        `Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
       );
     }
 
@@ -346,7 +351,7 @@ export async function uninstallExtension(extensionName: string): Promise<void> {
       (installed) => installed.config.name === extensionName,
     )
   ) {
-    throw new Error(t('commands.extensions.uninstall.not_found', `Error: Extension "${extensionName}" not found.`, { extensionName }));
+    throw new Error(t('commands.extensions.uninstall.not_found', `Extension "${extensionName}" not found.`, { extensionName }));
   }
   const storage = new ExtensionStorage(extensionName);
   return await fs.promises.rm(storage.getExtensionDir(), {
@@ -380,4 +385,46 @@ export function toOutputString(extension: Extension): string {
     });
   }
   return output;
+}
+
+export async function updateExtension(
+  extensionName: string,
+): Promise<ExtensionUpdateInfo | undefined> {
+  const installedExtensions = loadUserExtensions();
+  const extension = installedExtensions.find(
+    (installed) => installed.config.name === extensionName,
+  );
+  if (!extension) {
+    throw new Error(
+      t('commands.extensions.update.not_found', `Extension "${extensionName}" not found. Run auditaria extensions list to see available extensions.`, { extensionName }),
+    );
+  }
+  if (!extension.installMetadata) {
+    throw new Error(
+      t('commands.extensions.update.missing_metadata', `Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.`),
+    );
+  }
+  const originalVersion = extension.config.version;
+  const tempDir = await ExtensionStorage.createTmpDir();
+  try {
+    await copyExtension(extension.path, tempDir);
+    await uninstallExtension(extensionName);
+    await installExtension(extension.installMetadata);
+
+    const updatedExtension = loadExtension(extension.path);
+    if (!updatedExtension) {
+      throw new Error(t('commands.extensions.update.not_found_after_install', 'Updated extension not found after installation.'));
+    }
+    const updatedVersion = updatedExtension.config.version;
+    return {
+      originalVersion,
+      updatedVersion,
+    };
+  } catch (e) {
+    console.error(t('commands.extensions.update.error_rolling_back', `Error updating extension, rolling back. ${e}`, { error: String(e) }));
+    await copyExtension(tempDir, extension.path);
+    throw e;
+  } finally {
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
+  }
 }
