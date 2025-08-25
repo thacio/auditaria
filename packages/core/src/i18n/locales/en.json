@@ -210,6 +210,13 @@
         "path_description": "Path to a local extension directory.",
         "missing_source_or_path": "Either a git URL --source or a --path must be provided.",
         "success": "Extension \"{extensionName}\" installed successfully and enabled."
+      },
+      "uninstall": {
+        "description": "Uninstalls an extension.",
+        "name_description": "The name of the extension to uninstall.",
+        "missing_name": "Please include the name of the extension to uninstall as a positional argument.",
+        "success": "Extension \"{name}\" successfully uninstalled.",
+        "not_found": "Error: Extension \"{extensionName}\" not found."
       }
     },
     "tools": {

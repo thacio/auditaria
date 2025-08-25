@@ -207,6 +207,13 @@
         "path_description": "Caminho para um diretório de extensão local.",
         "missing_source_or_path": "Um URL git --source ou um --path deve ser fornecido.",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada."
+      },
+      "uninstall": {
+        "description": "Desinstala uma extensão.",
+        "name_description": "O nome da extensão a desinstalar.",
+        "missing_name": "Por favor, inclua o nome da extensão a desinstalar como um argumento posicional.",
+        "success": "Extensão \"{name}\" desinstalada com sucesso.",
+        "not_found": "Erro: Extensão \"{extensionName}\" não encontrada."
       }
     },
     "tools": {
