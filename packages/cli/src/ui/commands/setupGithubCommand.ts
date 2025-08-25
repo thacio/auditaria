@@ -25,6 +25,14 @@ import {
 } from './types.js';
 import { getUrlOpenCommand } from '../../ui/utils/commandUtils.js';
 
+export const GITHUB_WORKFLOW_PATHS = [
+  'gemini-dispatch/gemini-dispatch.yml',
+  'gemini-assistant/gemini-invoke.yml',
+  'issue-triage/gemini-triage.yml',
+  'issue-triage/gemini-scheduled-triage.yml',
+  'pr-review/gemini-review.yml',
+];
+
 // Generate OS-specific commands to open the GitHub pages needed for setup.
 function getOpenUrlsCommands(readmeUrl: string): string[] {
   // Determine the OS-specific command to open URLs, ex: 'open', 'xdg-open', etc
@@ -139,15 +147,8 @@ export const setupGithubCommand: SlashCommand = {
 
     // Download each workflow in parallel - there aren't enough files to warrant
     // a full workerpool model here.
-    const workflows = [
-      'gemini-cli/gemini-cli.yml',
-      'issue-triage/gemini-issue-automated-triage.yml',
-      'issue-triage/gemini-issue-scheduled-triage.yml',
-      'pr-review/gemini-pr-review.yml',
-    ];
-
     const downloads = [];
-    for (const workflow of workflows) {
+    for (const workflow of GITHUB_WORKFLOW_PATHS) {
       downloads.push(
         (async () => {
           const endpoint = `https://raw.githubusercontent.com/google-github-actions/run-gemini-cli/refs/tags/${releaseTag}/examples/workflows/${workflow}`;
@@ -202,8 +203,8 @@ export const setupGithubCommand: SlashCommand = {
     commands.push('set -eEuo pipefail');
     const successMessage = t(
       'commands.setup_github.success_message_dynamic',
-      `Successfully downloaded {count} workflows and updated .gitignore. Follow the steps in https://github.com/google-github-actions/run-gemini-cli/blob/{releaseTag}/README.md#quick-start (skipping the /setup-github step) to complete setup.`,
-      { count: workflows.length, releaseTag }
+      `Successfully downloaded {count} workflows and updated .gitignore. Follow the steps in {readmeUrl} (skipping the /setup-github step) to complete setup.`,
+      { count: GITHUB_WORKFLOW_PATHS.length, readmeUrl }
     );
     commands.push(`echo "${successMessage}"`);
     commands.push(...getOpenUrlsCommands(readmeUrl));
