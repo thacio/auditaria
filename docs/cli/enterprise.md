@@ -1,28 +1,32 @@
-# Gemini CLI for the Enterprise
+# Auditaria CLI for the Enterprise
 
-This document outlines configuration patterns and best practices for deploying and managing Gemini CLI in an enterprise environment. By leveraging system-level settings, administrators can enforce security policies, manage tool access, and ensure a consistent experience for all users.
+This document outlines configuration patterns and best practices for deploying and managing Auditaria CLI in an enterprise environment. By leveraging system-level settings, administrators can enforce security policies, manage tool access, and ensure a consistent experience for all users.
 
-> **A Note on Security:** The patterns described in this document are intended to help administrators create a more controlled and secure environment for using Gemini CLI. However, they should not be considered a foolproof security boundary. A determined user with sufficient privileges on their local machine may still be able to circumvent these configurations. These measures are designed to prevent accidental misuse and enforce corporate policy in a managed environment, not to defend against a malicious actor with local administrative rights.
+> **A Note on Security:** The patterns described in this document are intended to help administrators create a more controlled and secure environment for using Auditaria CLI. However, they should not be considered a foolproof security boundary. A determined user with sufficient privileges on their local machine may still be able to circumvent these configurations. These measures are designed to prevent accidental misuse and enforce corporate policy in a managed environment, not to defend against a malicious actor with local administrative rights.
 
 ## Centralized Configuration: The System Settings File
 
-The most powerful tool for enterprise administration is the system-wide `settings.json` file. This file allows you to define a baseline configuration that applies to all users on a machine. For a complete overview of configuration options, see the [Configuration documentation](./configuration.md). Settings from system, user, and project-level `settings.json` files are merged together. For most settings, the system-wide configuration takes precedence, overriding any conflicting user or project-level settings. However, some settings, like `customThemes`, `mcpServers`, and `includeDirectories`, are merged from all configuration files, and if there are conflicting values (e.g., both workspace and system settings have a 'github' MCP server defined), the system value will take precedence.
+The most powerful tools for enterprise administration are the system-wide settings files. These files allow you to define a baseline configuration (`system-defaults.json`) and a set of overrides (`settings.json`) that apply to all users on a machine. For a complete overview of configuration options, see the [Configuration documentation](./configuration.md).
+
+Settings are merged from four files. The precedence order for single-value settings (like `theme`) is:
+
+1. System Defaults (`system-defaults.json`)
+2. User Settings (`~/.gemini/settings.json`)
+3. Workspace Settings (`<project>/.gemini/settings.json`)
+4. System Overrides (`settings.json`)
+
+This means the System Overrides file has the final say. For settings that are arrays (`includeDirectories`) or objects (`mcpServers`), the values are merged.
 
 **Example of Merging and Precedence:**
 
 Here is how settings from different levels are combined.
 
-- **System `settings.json`:**
+- **System Defaults `system-defaults.json`:**
 
   ```json
   {
-    "theme": "system-enforced-theme",
-    "mcpServers": {
-      "corp-server": {
-        "command": "/usr/local/bin/corp-server-prod"
-      }
-    },
-    "includeDirectories": ["/etc/gemini-cli/global-context"]
+    "theme": "default-corporate-theme",
+    "includeDirectories": ["/etc/auditaria-cli/common-context"]
   }
   ```
 
@@ -44,6 +48,7 @@ Here is how settings from different levels are combined.
   ```
 
 - **Workspace `settings.json` (`<project>/.gemini/settings.json`):**
+
   ```json
   {
     "theme": "project-specific-light-theme",
@@ -53,6 +58,19 @@ Here is how settings from different levels are combined.
       }
     },
     "includeDirectories": ["./project-context"]
+  }
+  ```
+
+- **System Overrides `settings.json`:**
+  ```json
+  {
+    "theme": "system-enforced-theme",
+    "mcpServers": {
+      "corp-server": {
+        "command": "/usr/local/bin/corp-server-prod"
+      }
+    },
+    "includeDirectories": ["/etc/auditaria-cli/global-context"]
   }
   ```
 
@@ -74,23 +92,24 @@ This results in the following merged configuration:
       }
     },
     "includeDirectories": [
-      "/etc/gemini-cli/global-context",
+      "/etc/auditaria-cli/common-context",
       "~/gemini-context",
-      "./project-context"
+      "./project-context",
+      "/etc/auditaria-cli/global-context"
     ]
   }
   ```
 
 **Why:**
 
-- **`theme`**: The value from the system settings is used, overriding both user and workspace settings.
-- **`mcpServers`**: The objects are merged. The `corp-server` definition from the system settings takes precedence over the user's definition. The unique `user-tool` and `project-tool` are included.
-- **`includeDirectories`**: The arrays are concatenated in the order of System, User, and then Workspace.
+- **`theme`**: The value from the system overrides (`system-enforced-theme`) is used, as it has the highest precedence.
+- **`mcpServers`**: The objects are merged. The `corp-server` definition from the system overrides takes precedence over the user's definition. The unique `user-tool` and `project-tool` are included.
+- **`includeDirectories`**: The arrays are concatenated in the order of System Defaults, User, Workspace, and then System Overrides.
 
 - **Location**:
-  - **Linux**: `/etc/gemini-cli/settings.json`
-  - **Windows**: `C:\ProgramData\gemini-cli\settings.json`
-  - **macOS**: `/Library/Application Support/GeminiCli/settings.json`
+  - **Linux**: `/etc/auditaria-cli/settings.json`
+  - **Windows**: `C:\ProgramData\auditaria-cli\settings.json`
+  - **macOS**: `/Library/Application Support/AuditariaCli/settings.json`
   - The path can be overridden using the `GEMINI_CLI_SYSTEM_SETTINGS_PATH` environment variable.
 - **Control**: This file should be managed by system administrators and protected with appropriate file permissions to prevent unauthorized modification by users.
 
@@ -98,7 +117,7 @@ By using the system settings file, you can enforce the security and configuratio
 
 ## Restricting Tool Access
 
-You can significantly enhance security by controlling which tools the Gemini model can use. This is achieved through the `coreTools` and `excludeTools` settings. For a list of available tools, see the [Tools documentation](../tools/index.md).
+You can significantly enhance security by controlling which tools the Auditaria model can use. This is achieved through the `coreTools` and `excludeTools` settings. For a list of available tools, see the [Tools documentation](../tools/index.md).
 
 ### Allowlisting with `coreTools`
 
@@ -132,7 +151,7 @@ If your organization uses custom tools via [Model-Context Protocol (MCP) servers
 
 ### How MCP Server Configurations are Merged
 
-Gemini CLI loads `settings.json` files from three levels: System, Workspace, and User. When it comes to the `mcpServers` object, these configurations are **merged**:
+Auditaria CLI loads `settings.json` files from three levels: System, Workspace, and User. When it comes to the `mcpServers` object, these configurations are **merged**:
 
 1.  **Merging:** The lists of servers from all three levels are combined into a single list.
 2.  **Precedence:** If a server with the **same name** is defined at multiple levels (e.g., a server named `corp-api` exists in both system and user settings), the definition from the highest-precedence level is used. The order of precedence is: **System > Workspace > User**.
@@ -231,7 +250,7 @@ You can also specify a custom, hardened Docker image for the sandbox using the `
 
 ## Controlling Network Access via Proxy
 
-In corporate environments with strict network policies, you can configure Gemini CLI to route all outbound traffic through a corporate proxy. This can be set via an environment variable, but it can also be enforced for custom tools via the `mcpServers` configuration.
+In corporate environments with strict network policies, you can configure Auditaria CLI to route all outbound traffic through a corporate proxy. This can be set via an environment variable, but it can also be enforced for custom tools via the `mcpServers` configuration.
 
 **Example (for an MCP Server):**
 
@@ -252,7 +271,7 @@ In corporate environments with strict network policies, you can configure Gemini
 
 ## Telemetry and Auditing
 
-For auditing and monitoring purposes, you can configure Gemini CLI to send telemetry data to a central location. This allows you to track tool usage and other events. For more information, see the [telemetry documentation](../telemetry.md).
+For auditing and monitoring purposes, you can configure Auditaria CLI to send telemetry data to a central location. This allows you to track tool usage and other events. For more information, see the [telemetry documentation](../telemetry.md).
 
 **Example:** Enable telemetry and send it to a local OTLP collector. If `otlpEndpoint` is not specified, it defaults to `http://localhost:4317`.
 
@@ -270,7 +289,7 @@ For auditing and monitoring purposes, you can configure Gemini CLI to send telem
 
 ## Putting It All Together: Example System `settings.json`
 
-Here is an example of a system `settings.json` file that combines several of the patterns discussed above to create a secure, controlled environment for Gemini CLI.
+Here is an example of a system `settings.json` file that combines several of the patterns discussed above to create a secure, controlled environment for Auditaria CLI.
 
 ```json
 {
@@ -286,7 +305,7 @@ Here is an example of a system `settings.json` file that combines several of the
 
   "mcpServers": {
     "corp-tools": {
-      "command": "/opt/gemini-tools/start.sh",
+      "command": "/opt/auditaria-tools/start.sh",
       "timeout": 5000
     }
   },
