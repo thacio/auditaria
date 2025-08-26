@@ -420,6 +420,10 @@ export async function main() {
     config,
   );
 
+  if (config.getDebugMode()) {
+    console.log(t('stats.labels.session_id', 'Session ID:'), sessionId);
+  }
+
   await runNonInteractive(nonInteractiveConfig, input, prompt_id);
   process.exit(0);
 }
