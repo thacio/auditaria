@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { AnyToolInvocation } from '../index.js';
 import type { Config } from '../config/config.js';
 import { t } from '../i18n/index.js';
 import os from 'node:os';
 import { quote } from 'shell-quote';
+import { doesToolInvocationMatch } from './tool-utils.js';
+
+const SHELL_TOOL_NAMES = ['run_shell_command', 'ShellTool'];
 
 /**
  * An identifier for the shell type.
@@ -320,32 +324,19 @@ export function checkCommandPermissions(
     };
   }
 
-  const SHELL_TOOL_NAMES = ['run_shell_command', 'ShellTool'];
   const normalize = (cmd: string): string => cmd.trim().replace(/\s+/g, ' ');
-
-  const isPrefixedBy = (cmd: string, prefix: string): boolean => {
-    if (!cmd.startsWith(prefix)) {
-      return false;
-    }
-    return cmd.length === prefix.length || cmd[prefix.length] === ' ';
-  };
-
-  const extractCommands = (tools: string[]): string[] =>
-    tools.flatMap((tool) => {
-      for (const toolName of SHELL_TOOL_NAMES) {
-        if (tool.startsWith(`${toolName}(`) && tool.endsWith(')')) {
-          return [normalize(tool.slice(toolName.length + 1, -1))];
-        }
-      }
-      return [];
-    });
-
-  const coreTools = config.getCoreTools() || [];
-  const excludeTools = config.getExcludeTools() || [];
   const commandsToValidate = splitCommands(command).map(normalize);
+  const invocation: AnyToolInvocation & { params: { command: string } } = {
+    params: { command: '' },
+  } as AnyToolInvocation & { params: { command: string } };
 
   // 1. Blocklist Check (Highest Priority)
-  if (SHELL_TOOL_NAMES.some((name) => excludeTools.includes(name))) {
+  const excludeTools = config.getExcludeTools() || [];
+  const isWildcardBlocked = SHELL_TOOL_NAMES.some((name) =>
+    excludeTools.includes(name),
+  );
+
+  if (isWildcardBlocked) {
     return {
       allAllowed: false,
       disallowedCommands: commandsToValidate,
@@ -353,9 +344,12 @@ export function checkCommandPermissions(
       isHardDenial: true,
     };
   }
-  const blockedCommands = extractCommands(excludeTools);
+
   for (const cmd of commandsToValidate) {
-    if (blockedCommands.some((blocked) => isPrefixedBy(cmd, blocked))) {
+    invocation.params['command'] = cmd;
+    if (
+      doesToolInvocationMatch('run_shell_command', invocation, excludeTools)
+    ) {
       return {
         allAllowed: false,
         disallowedCommands: [cmd],
@@ -365,7 +359,7 @@ export function checkCommandPermissions(
     }
   }
 
-  const globallyAllowedCommands = extractCommands(coreTools);
+  const coreTools = config.getCoreTools() || [];
   const isWildcardAllowed = SHELL_TOOL_NAMES.some((name) =>
     coreTools.includes(name),
   );
@@ -376,18 +370,30 @@ export function checkCommandPermissions(
     return { allAllowed: true, disallowedCommands: [] };
   }
 
+  const disallowedCommands: string[] = [];
+
   if (sessionAllowlist) {
     // "DEFAULT DENY" MODE: A session allowlist is provided.
     // All commands must be in either the session or global allowlist.
-    const disallowedCommands: string[] = [];
+    const normalizedSessionAllowlist = new Set(
+      [...sessionAllowlist].flatMap((cmd) =>
+        SHELL_TOOL_NAMES.map((name) => `${name}(${cmd})`),
+      ),
+    );
+
     for (const cmd of commandsToValidate) {
-      const isSessionAllowed = [...sessionAllowlist].some((allowed) =>
-        isPrefixedBy(cmd, normalize(allowed)),
+      invocation.params['command'] = cmd;
+      const isSessionAllowed = doesToolInvocationMatch(
+        'run_shell_command',
+        invocation,
+        [...normalizedSessionAllowlist],
       );
       if (isSessionAllowed) continue;
 
-      const isGloballyAllowed = globallyAllowedCommands.some((allowed) =>
-        isPrefixedBy(cmd, allowed),
+      const isGloballyAllowed = doesToolInvocationMatch(
+        'run_shell_command',
+        invocation,
+        coreTools,
       );
       if (isGloballyAllowed) continue;
 
@@ -410,12 +416,18 @@ export function checkCommandPermissions(
     }
   } else {
     // "DEFAULT ALLOW" MODE: No session allowlist.
-    const hasSpecificAllowedCommands = globallyAllowedCommands.length > 0;
+    const hasSpecificAllowedCommands =
+      coreTools.filter((tool) =>
+        SHELL_TOOL_NAMES.some((name) => tool.startsWith(`${name}(`)),
+      ).length > 0;
+
     if (hasSpecificAllowedCommands) {
-      const disallowedCommands: string[] = [];
       for (const cmd of commandsToValidate) {
-        const isGloballyAllowed = globallyAllowedCommands.some((allowed) =>
-          isPrefixedBy(cmd, allowed),
+        invocation.params['command'] = cmd;
+        const isGloballyAllowed = doesToolInvocationMatch(
+          'run_shell_command',
+          invocation,
+          coreTools,
         );
         if (!isGloballyAllowed) {
           disallowedCommands.push(cmd);
