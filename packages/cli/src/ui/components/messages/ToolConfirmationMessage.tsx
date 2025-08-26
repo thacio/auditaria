@@ -126,16 +126,16 @@ export const ToolConfirmationMessage: React.FC<
     }
 
     question = t('tool_confirmation.questions.apply_change', 'Apply this change?');
-    options.push(
-      {
-        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
-        value: ToolConfirmationOutcome.ProceedOnce,
-      },
-      {
+    options.push({
+      label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
+      value: ToolConfirmationOutcome.ProceedOnce,
+    });
+    if (config?.isTrustedFolder()) {
+      options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
-      },
-    );
+      });
+    }
     if (config?.getIdeMode()) {
       options.push({
         label: t('tool_confirmation.options.no_esc', 'No (esc)'),
@@ -165,20 +165,20 @@ export const ToolConfirmationMessage: React.FC<
       confirmationDetails as ToolExecuteConfirmationDetails;
 
     question = t('tool_confirmation.questions.allow_execution_of', 'Allow execution of: \'{command}\'?', { command: executionProps.rootCommand });
-    options.push(
-      {
-        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
-        value: ToolConfirmationOutcome.ProceedOnce,
-      },
-      {
+    options.push({
+      label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
+      value: ToolConfirmationOutcome.ProceedOnce,
+    });
+    if (config?.isTrustedFolder()) {
+      options.push({
         label: t('tool_confirmation.options.yes_always_ellipsis', 'Yes, allow always ...'),
         value: ToolConfirmationOutcome.ProceedAlways,
-      },
-      {
-        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
-        value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+    options.push({
+      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      value: ToolConfirmationOutcome.Cancel,
+    });
     let bodyContentHeight = availableBodyContentHeight();
     if (bodyContentHeight !== undefined) {
       bodyContentHeight -= 2; // Account for padding;
@@ -204,20 +204,20 @@ export const ToolConfirmationMessage: React.FC<
       !(infoProps.urls.length === 1 && infoProps.urls[0] === infoProps.prompt);
 
     question = t('tool_confirmation.questions.do_you_want_proceed', 'Do you want to proceed?');
-    options.push(
-      {
-        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
-        value: ToolConfirmationOutcome.ProceedOnce,
-      },
-      {
+    options.push({
+      label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
+      value: ToolConfirmationOutcome.ProceedOnce,
+    });
+    if (config?.isTrustedFolder()) {
+      options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
-      },
-      {
-        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
-        value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+    options.push({
+      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      value: ToolConfirmationOutcome.Cancel,
+    });
 
     bodyContent = (
       <Box flexDirection="column" paddingX={1} marginLeft={1}>
@@ -249,24 +249,24 @@ export const ToolConfirmationMessage: React.FC<
     );
 
     question = t('tool_confirmation.questions.allow_mcp_tool', 'Allow execution of MCP tool "{toolName}" from server "{serverName}"?', { toolName: mcpProps.toolName, serverName: mcpProps.serverName });
-    options.push(
-      {
-        label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
-        value: ToolConfirmationOutcome.ProceedOnce,
-      },
-      {
+    options.push({
+      label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
+      value: ToolConfirmationOutcome.ProceedOnce,
+    });
+    if (config?.isTrustedFolder()) {
+      options.push({
         label: t('tool_confirmation.options.yes_always_tool', 'Yes, always allow tool "{toolName}" from server "{serverName}"', { toolName: mcpProps.toolName, serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysTool, // Cast until types are updated
-      },
-      {
+      });
+      options.push({
         label: t('tool_confirmation.options.yes_always_server', 'Yes, always allow all tools from server "{serverName}"', { serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysServer,
-      },
-      {
-        label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
-        value: ToolConfirmationOutcome.Cancel,
-      },
-    );
+      });
+    }
+    options.push({
+      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      value: ToolConfirmationOutcome.Cancel,
+    });
   }
 
   return (

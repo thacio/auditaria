@@ -1290,7 +1290,9 @@
   },
   "trusted_folders": {
     "error_saving": "Error saving trusted folders file: {error}",
-    "error_loading": "Error loading trusted folders config from {path}: {message}"
+    "error_loading": "Error loading trusted folders config from {path}: {message}",
+    "cannot_enable_privileged_modes": "Cannot enable privileged approval modes in an untrusted folder.",
+    "approval_mode_overridden": "Approval mode overridden to \"default\" because the current folder is not trusted."
   },
   "telemetry": {
     "data_collection_disabled": "Data collection is disabled."

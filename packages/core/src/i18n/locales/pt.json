@@ -1287,7 +1287,9 @@
   },
   "trusted_folders": {
     "error_saving": "Erro ao salvar arquivo de pastas confiáveis: {error}",
-    "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}"
+    "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}",
+    "cannot_enable_privileged_modes": "Não é possível ativar modos de aprovação privilegiados em uma pasta não confiável.",
+    "approval_mode_overridden": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável."
   },
   "telemetry": {
     "data_collection_disabled": "A coleta de dados está desabilitada."
