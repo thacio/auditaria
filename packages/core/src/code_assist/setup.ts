@@ -89,11 +89,11 @@ export async function setupUser(
   let loadRes: LoadCodeAssistResponse;
   try {
     loadRes = await caServer.loadCodeAssist({
-      cloudaicompanionProject: projectId,
-      metadata: {
-        ...coreClientMetadata,
-        duetProject: projectId,
-      },
+    cloudaicompanionProject: projectId,
+    metadata: {
+      ...coreClientMetadata,
+      duetProject: projectId,
+    },
     });
   } catch (error) {
     // If GCA login failed with a project, throw a clear error
