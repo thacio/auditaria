@@ -363,6 +363,7 @@ export async function loadCliConfig(
   const allExtensions = annotateActiveExtensions(
     extensions,
     argv.extensions || [],
+    cwd,
   );
 
   const activeExtensions = extensions.filter(

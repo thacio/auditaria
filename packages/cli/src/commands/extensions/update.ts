@@ -7,6 +7,7 @@
 import type { CommandModule } from 'yargs';
 import { updateExtension } from '../../config/extension.js';
 import { t } from '@thacio/auditaria-cli-core';
+import { getErrorMessage } from '../../utils/errors.js';
 
 interface UpdateArgs {
   name: string;
@@ -24,7 +25,7 @@ export async function handleUpdate(args: UpdateArgs) {
       t('commands.extensions.update.success', `Extension "${args.name}" successfully updated: ${updatedExtensionInfo.originalVersion} → ${updatedExtensionInfo.updatedVersion}.`, { name: args.name, originalVersion: updatedExtensionInfo.originalVersion, updatedVersion: updatedExtensionInfo.updatedVersion }),
     );
   } catch (error) {
-    console.error((error as Error).message);
+    console.error(getErrorMessage(error));
     process.exit(1);
   }
 }

@@ -11,6 +11,8 @@ import {
 } from '../../config/extension.js';
 import { t } from '@thacio/auditaria-cli-core';
 
+import { getErrorMessage } from '../../utils/errors.js';
+
 interface InstallArgs {
   source?: string;
   path?: string;
@@ -27,7 +29,7 @@ export async function handleInstall(args: InstallArgs) {
       t('commands.extensions.install.success', `Extension "${extensionName}" installed successfully and enabled.`, { extensionName }),
     );
   } catch (error) {
-    console.error((error as Error).message);
+    console.error(getErrorMessage(error));
     process.exit(1);
   }
 }
