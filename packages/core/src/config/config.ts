@@ -584,7 +584,7 @@ export class Config {
   }
 
   setApprovalMode(mode: ApprovalMode): void {
-    if (!this.isTrustedFolder() && mode !== ApprovalMode.DEFAULT) {
+    if (this.isTrustedFolder() === false && mode !== ApprovalMode.DEFAULT) {
       throw new Error(
         t('trusted_folders.cannot_enable_privileged_modes', 'Cannot enable privileged approval modes in an untrusted folder.'),
       );

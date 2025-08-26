@@ -57,6 +57,8 @@ export const ToolConfirmationMessage: React.FC<
     onConfirm(outcome);
   };
 
+  const isTrustedFolder = config?.isTrustedFolder() !== false;
+
   useKeypress(
     (key) => {
       if (!isFocused) return;
@@ -130,7 +132,7 @@ export const ToolConfirmationMessage: React.FC<
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
     });
-    if (config?.isTrustedFolder()) {
+    if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
@@ -169,7 +171,7 @@ export const ToolConfirmationMessage: React.FC<
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
     });
-    if (config?.isTrustedFolder()) {
+    if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always_ellipsis', 'Yes, allow always ...'),
         value: ToolConfirmationOutcome.ProceedAlways,
@@ -208,7 +210,7 @@ export const ToolConfirmationMessage: React.FC<
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
     });
-    if (config?.isTrustedFolder()) {
+    if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
@@ -253,7 +255,7 @@ export const ToolConfirmationMessage: React.FC<
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
     });
-    if (config?.isTrustedFolder()) {
+    if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always_tool', 'Yes, always allow tool "{toolName}" from server "{serverName}"', { toolName: mcpProps.toolName, serverName: mcpProps.serverName }),
         value: ToolConfirmationOutcome.ProceedAlwaysTool, // Cast until types are updated
