@@ -228,6 +228,19 @@
         "missing_metadata": "A extensão não pode ser atualizada porque está faltando o arquivo .gemini-extension-install.json. Para atualizar manualmente, desinstale e reinstale a versão atualizada.",
         "not_found_after_install": "Extensão atualizada não encontrada após a instalação.",
         "error_rolling_back": "Erro ao atualizar extensão, revertendo. {error}"
+      },
+      "disable": {
+        "description": "Desabilita uma extensão.",
+        "name_description": "O nome da extensão para desabilitar.",
+        "scope_description": "O escopo para desabilitar a extensão.",
+        "success": "Extensão \"{name}\" desabilitada com sucesso para o escopo \"{scope}\"."
+      },
+      "enable": {
+        "description": "Habilita uma extensão.",
+        "name_description": "O nome da extensão para habilitar.",
+        "scope_description": "O escopo para habilitar a extensão. Se não definido, será habilitado em todos os escopos.",
+        "success_with_scope": "Extensão \"{name}\" habilitada com sucesso para o escopo \"{scope}\".",
+        "success_all_scopes": "Extensão \"{name}\" habilitada com sucesso em todos os escopos."
       }
     },
     "tools": {

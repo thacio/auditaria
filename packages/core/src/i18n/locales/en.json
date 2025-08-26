@@ -231,6 +231,19 @@
         "missing_metadata": "Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.",
         "not_found_after_install": "Updated extension not found after installation.",
         "error_rolling_back": "Error updating extension, rolling back. {error}"
+      },
+      "disable": {
+        "description": "Disables an extension.",
+        "name_description": "The name of the extension to disable.",
+        "scope_description": "The scope to disable the extension in.",
+        "success": "Extension \"{name}\" successfully disabled for scope \"{scope}\"."
+      },
+      "enable": {
+        "description": "Enables an extension.",
+        "name_description": "The name of the extension to enable.",
+        "scope_description": "The scope to enable the extension in. If not set, will be enabled in all scopes.",
+        "success_with_scope": "Extension \"{name}\" successfully enabled for scope \"{scope}\".",
+        "success_all_scopes": "Extension \"{name}\" successfully enabled in all scopes."
       }
     },
     "tools": {
