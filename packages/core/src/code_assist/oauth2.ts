@@ -18,7 +18,7 @@ import open from 'open';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { Config } from '../config/config.js';
-import { getErrorMessage } from '../utils/errors.js';
+import { getErrorMessage, FatalAuthenticationError } from '../utils/errors.js';
 import { UserAccountManager } from '../utils/userAccountManager.js';
 import { AuthType } from '../core/contentGenerator.js';
 import readline from 'node:readline';
@@ -143,7 +143,9 @@ async function initOauthClient(
       }
     }
     if (!success) {
-      process.exit(1);
+      throw new FatalAuthenticationError(
+        t('errors.auth_failed_user_code', 'Failed to authenticate with user code.'),
+      );
     }
   } else {
     const webLogin = await authWithWeb(client);
@@ -167,7 +169,7 @@ async function initOauthClient(
         console.error(
           'Failed to open browser automatically. Please try running again with NO_BROWSER=true set.',
         );
-        process.exit(1);
+        throw new FatalAuthenticationError(t('errors.auth_failed_browser', 'Failed to open browser.'));
       });
     } catch (err) {
       console.error(
@@ -175,7 +177,7 @@ async function initOauthClient(
         err,
         '\nPlease try running again with NO_BROWSER=true set.',
       );
-      process.exit(1);
+      throw new FatalAuthenticationError('Failed to open browser.');
     }
     console.log('Waiting for authentication...');
 

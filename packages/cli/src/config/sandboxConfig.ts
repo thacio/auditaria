@@ -5,6 +5,7 @@
  */
 
 import type { SandboxConfig } from '@thacio/auditaria-cli-core';
+import { FatalSandboxError, t } from '@thacio/auditaria-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
 import { getPackageJson } from '../utils/package.js';
@@ -51,21 +52,17 @@ function getSandboxCommand(
 
   if (typeof sandbox === 'string' && sandbox) {
     if (!isSandboxCommand(sandbox)) {
-      console.error(
-        `ERROR: invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(
-          ', ',
-        )}`,
+      throw new FatalSandboxError(
+        t('errors.sandbox_invalid_command', `Invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(', ')}`, { command: sandbox, commands: VALID_SANDBOX_COMMANDS.join(', ') }),
       );
-      process.exit(1);
     }
     // confirm that specified command exists
     if (commandExists.sync(sandbox)) {
       return sandbox;
     }
-    console.error(
-      `ERROR: missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`,
+    throw new FatalSandboxError(
+      t('errors.sandbox_missing_command', `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`, { command: sandbox }),
     );
-    process.exit(1);
   }
 
   // look for seatbelt, docker, or podman, in that order
@@ -80,11 +77,9 @@ function getSandboxCommand(
 
   // throw an error if user requested sandbox but no command was found
   if (sandbox === true) {
-    console.error(
-      'ERROR: GEMINI_SANDBOX is true but failed to determine command for sandbox; ' +
-        'install docker or podman or specify command in GEMINI_SANDBOX',
+    throw new FatalSandboxError(
+      t('errors.sandbox_true_no_command', 'GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX'),
     );
-    process.exit(1);
   }
 
   return '';
