@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DetectedIde, getIdeInfo, t } from '@google/gemini-cli-core';
+import type { DetectedIde } from '@thacio/auditaria-cli-core';
+import { getIdeInfo, t } from '@thacio/auditaria-cli-core';
 import { Box, Text } from 'ink';
-import {
-  RadioButtonSelect,
-  RadioSelectItem,
-} from './components/shared/RadioButtonSelect.js';
+import type { RadioSelectItem } from './components/shared/RadioButtonSelect.js';
+import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
 import { useKeypress } from './hooks/useKeypress.js';
 
 export type IdeIntegrationNudgeResult = {

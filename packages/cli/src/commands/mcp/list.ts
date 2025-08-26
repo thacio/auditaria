@@ -7,12 +7,8 @@
 // File for 'gemini mcp list' command
 import type { CommandModule } from 'yargs';
 import { loadSettings } from '../../config/settings.js';
-import {
-  MCPServerConfig,
-  MCPServerStatus,
-  createTransport,
-  t,
-} from '@google/gemini-cli-core';
+import type { MCPServerConfig } from '@thacio/auditaria-cli-core';
+import { MCPServerStatus, createTransport, t } from '@thacio/auditaria-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { loadExtensions } from '../../config/extension.js';
 

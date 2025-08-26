@@ -4,27 +4,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import type { Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders } from '../test-utils/render.js';
 import { AppWrapper as App } from './App.js';
-import {
-  Config as ServerConfig,
-  MCPServerConfig,
-  ApprovalMode,
-  ToolRegistry,
+import type {
   AccessibilitySettings,
+  MCPServerConfig,
+  ToolRegistry,
   SandboxConfig,
   GeminiClient,
+  AuthType,
+} from '@thacio/auditaria-cli-core';
+import {
+  ApprovalMode,
   ideContext,
-  type AuthType,
-} from '@google/gemini-cli-core';
-import { LoadedSettings, SettingsFile, Settings } from '../config/settings.js';
+  Config as ServerConfig,
+} from '@thacio/auditaria-cli-core';
+import type { SettingsFile, Settings } from '../config/settings.js';
+import { LoadedSettings } from '../config/settings.js';
 import process from 'node:process';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
-import { StreamingState, ConsoleMessageItem } from './types.js';
+import type { ConsoleMessageItem } from './types.js';
+import { StreamingState } from './types.js';
 import { Tips } from './components/Tips.js';
-import { checkForUpdates, UpdateObject } from './utils/updateCheck.js';
+import type { UpdateObject } from './utils/updateCheck.js';
+import { checkForUpdates } from './utils/updateCheck.js';
 import { EventEmitter } from 'node:events';
 import { updateEventEmitter } from '../utils/updateEventEmitter.js';
 import * as auth from '../config/auth.js';
@@ -90,10 +96,10 @@ interface MockServerConfig {
   getScreenReader: Mock<() => boolean>;
 }
 
-// Mock @google/gemini-cli-core and its Config class
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+// Mock @thacio/auditaria-cli-core and its Config class
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
   const actualCore =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
   const ConfigClassMock = vi
     .fn()
     .mockImplementation((optionsPassedToConstructor) => {
@@ -265,7 +271,7 @@ vi.mock('../hooks/useTerminalSize.js', () => ({
 
 const mockedCheckForUpdates = vi.mocked(checkForUpdates);
 const { isGitRepository: mockedIsGitRepository } = vi.mocked(
-  await import('@google/gemini-cli-core'),
+  await import('@thacio/auditaria-cli-core'),
 );
 
 vi.mock('node:child_process');
@@ -375,7 +381,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(true);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -402,7 +408,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -432,7 +438,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -462,7 +468,7 @@ describe('App UI', () => {
       mockedIsGitRepository.mockResolvedValue(false);
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },
@@ -495,7 +501,7 @@ describe('App UI', () => {
       process.env.GEMINI_CLI_DISABLE_AUTOUPDATER = 'true';
       const info: UpdateObject = {
         update: {
-          name: '@google/gemini-cli',
+          name: '@thacio/auditaria-cli',
           latest: '1.1.0',
           current: '1.0.0',
         },

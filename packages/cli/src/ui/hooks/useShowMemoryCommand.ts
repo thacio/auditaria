@@ -3,11 +3,12 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
-import { Message, MessageType } from '../types.js';
-import { Config } from '@google/gemini-cli-core';
-import { LoadedSettings } from '../../config/settings.js';
+import type { Message } from '../types.js';
+import { MessageType } from '../types.js';
+import type { Config } from '@thacio/auditaria-cli-core';
+import type { LoadedSettings } from '../../config/settings.js';
 
 export function createShowMemoryAction(
   config: Config | null,

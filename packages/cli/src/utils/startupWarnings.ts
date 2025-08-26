@@ -3,12 +3,12 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { join as pathJoin } from 'node:path';
-import { getErrorMessage } from '@google/gemini-cli-core';
+import { getErrorMessage } from '@thacio/auditaria-cli-core';
 
 const warningsFilePath = pathJoin(os.tmpdir(), 'gemini-cli-warnings.txt');
 

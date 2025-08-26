@@ -6,10 +6,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { PartUnion } from '@google/genai';
+import type { PartUnion } from '@google/genai';
 import mime from 'mime-types';
 import { t } from '../i18n/index.js';
-import { FileSystemService } from '../services/fileSystemService.js';
+import type { FileSystemService } from '../services/fileSystemService.js';
 import { ToolErrorType } from '../tools/tool-error.js';
 import { BINARY_EXTENSIONS } from './ignorePatterns.js';
 

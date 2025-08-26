@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { HistoryItemCompression, MessageType } from '../types.js';
-import { CommandKind, SlashCommand } from './types.js';
-import { t } from '@google/gemini-cli-core';
+import type { HistoryItemCompression } from '../types.js';
+import { MessageType } from '../types.js';
+import type { SlashCommand } from './types.js';
+import { CommandKind } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const compressCommand: SlashCommand = {
   name: 'compress',

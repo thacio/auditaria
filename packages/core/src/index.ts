@@ -63,7 +63,8 @@ export {
 export * from './ide/ide-client.js';
 export * from './ide/ideContext.js';
 export * from './ide/ide-installer.js';
-export { getIdeInfo, DetectedIde, IdeInfo } from './ide/detect-ide.js';
+export { getIdeInfo, DetectedIde } from './ide/detect-ide.js';
+export { type IdeInfo } from './ide/detect-ide.js';
 export * from './ide/constants.js';
 
 // Export Shell Execution Service
@@ -95,11 +96,11 @@ export * from './tools/mcp-tool.js';
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';
-export {
+export type {
   MCPOAuthToken,
   MCPOAuthCredentials,
-  MCPOAuthTokenStorage,
 } from './mcp/oauth-token-storage.js';
+export { MCPOAuthTokenStorage } from './mcp/oauth-token-storage.js';
 export type { MCPOAuthConfig } from './mcp/oauth-provider.js';
 export type {
   OAuthAuthorizationServerMetadata,

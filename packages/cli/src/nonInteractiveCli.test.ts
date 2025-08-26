@@ -4,24 +4,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   Config,
-  executeToolCall,
   ToolRegistry,
+  ServerGeminiStreamEvent,
+} from '@thacio/auditaria-cli-core';
+import {
+  executeToolCall,
   ToolErrorType,
   shutdownTelemetry,
   GeminiEventType,
-  ServerGeminiStreamEvent,
-} from '@google/gemini-cli-core';
-import { Part } from '@google/genai';
+} from '@thacio/auditaria-cli-core';
+import type { Part } from '@google/genai';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import { vi } from 'vitest';
 
 // Mock core modules
 vi.mock('./ui/hooks/atCommandProcessor.js');
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
   return {
     ...original,
     executeToolCall: vi.fn(),

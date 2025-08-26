@@ -3,17 +3,17 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
+import type { Config, ToolCallRequestInfo } from '@thacio/auditaria-cli-core';
 import {
-  Config,
-  ToolCallRequestInfo,
   executeToolCall,
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
   parseAndFormatApiError,
   t,
-} from '@google/gemini-cli-core';
-import { Content, Part } from '@google/genai';
+} from '@thacio/auditaria-cli-core';
+import type { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';

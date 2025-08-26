@@ -7,7 +7,8 @@
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
-import { ToolCallConfirmationDetails, ToolConfirmationOutcome } from '@google/gemini-cli-core';
+import type { ToolCallConfirmationDetails } from '@thacio/auditaria-cli-core';
+import { ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 
 export interface PendingToolConfirmation {
   callId: string;

@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   SlashCommand,
   SlashCommandActionReturn,
   CommandContext,
-  CommandKind,
   MessageActionReturn,
 } from './types.js';
+import { CommandKind } from './types.js';
+import type { DiscoveredMCPPrompt } from '@thacio/auditaria-cli-core';
 import {
-  DiscoveredMCPPrompt,
   DiscoveredMCPTool,
   getMCPDiscoveryState,
   getMCPServerStatus,
@@ -21,7 +21,7 @@ import {
   mcpServerRequiresOAuth,
   getErrorMessage,
   t,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
 const COLOR_GREEN = '\u001b[32m';
 const COLOR_YELLOW = '\u001b[33m';
@@ -144,7 +144,7 @@ const getMcpStatus = async (
       needsAuthHint = true;
       try {
         const { MCPOAuthTokenStorage } = await import(
-          '@google/gemini-cli-core'
+          '@thacio/auditaria-cli-core'
         );
         const hasToken = await MCPOAuthTokenStorage.getToken(serverName);
         if (hasToken) {
@@ -383,7 +383,7 @@ const authCommand: SlashCommand = {
       );
 
       // Import dynamically to avoid circular dependencies
-      const { MCPOAuthProvider } = await import('@google/gemini-cli-core');
+      const { MCPOAuthProvider } = await import('@thacio/auditaria-cli-core');
 
       let oauthConfig = server.oauth;
       if (!oauthConfig) {

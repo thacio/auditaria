@@ -5,7 +5,7 @@
  */
 
 import { type SlashCommand, CommandKind } from './types.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const languageCommand: SlashCommand = {
   name: 'language',

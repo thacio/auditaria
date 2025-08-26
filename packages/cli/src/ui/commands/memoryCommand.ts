@@ -8,13 +8,10 @@ import {
   getErrorMessage,
   loadServerHierarchicalMemory,
   t
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { MessageType } from '../types.js';
-import {
-  CommandKind,
-  SlashCommand,
-  SlashCommandActionReturn,
-} from './types.js';
+import type { SlashCommand, SlashCommandActionReturn } from './types.js';
+import { CommandKind } from './types.js';
 
 export const memoryCommand: SlashCommand = {
   name: 'memory',

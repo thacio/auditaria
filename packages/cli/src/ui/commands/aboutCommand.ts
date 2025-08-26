@@ -5,10 +5,11 @@
  */
 
 import { getCliVersion } from '../../utils/version.js';
-import { CommandKind, SlashCommand } from './types.js';
+import type { SlashCommand } from './types.js';
+import { CommandKind } from './types.js';
 import process from 'node:process';
 import { MessageType, type HistoryItemAbout } from '../types.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',

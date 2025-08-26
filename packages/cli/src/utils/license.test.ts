@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { getLicenseDisplay } from './license.js';
-import { AuthType, UserTierId } from '@google/gemini-cli-core';
+import { AuthType, UserTierId } from '@thacio/auditaria-cli-core';
 
 describe('getLicenseDisplay', () => {
   describe('Free Tier (Login with Google)', () => {

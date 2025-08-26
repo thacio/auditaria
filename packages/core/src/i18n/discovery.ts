@@ -6,7 +6,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { SupportedLanguage, LanguageInfo } from './types.js';
+import type { SupportedLanguage, LanguageInfo } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

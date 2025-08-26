@@ -7,9 +7,9 @@
 import { useCallback, useMemo, useEffect, useState } from 'react';
 import { type PartListUnion } from '@google/genai';
 import process from 'node:process';
-import { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { Config } from '@thacio/auditaria-cli-core';
 import {
-  Config,
   GitService,
   Logger,
   MCPDiscoveryState,
@@ -24,20 +24,20 @@ import {
   ToolConfirmationOutcome,
   Storage,
   t,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
-import {
+import type {
   Message,
-  MessageType,
   HistoryItemWithoutId,
   HistoryItem,
   SlashCommandProcessorResult,
 } from '../types.js';
+import { MessageType } from '../types.js';
 // WEB_INTERFACE_START: Web commands hook import
 import { useWebCommands } from './useWebCommands.js';
 // WEB_INTERFACE_END
-import { LoadedSettings } from '../../config/settings.js';
+import type { LoadedSettings } from '../../config/settings.js';
 import { type CommandContext, type SlashCommand } from '../commands/types.js';
 import { CommandService } from '../../services/CommandService.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';

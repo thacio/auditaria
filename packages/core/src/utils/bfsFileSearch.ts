@@ -6,8 +6,8 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
-import { FileFilteringOptions } from '../config/config.js';
+import type { FileDiscoveryService } from '../services/fileDiscoveryService.js';
+import type { FileFilteringOptions } from '../config/config.js';
 import { t } from '../i18n/index.js';
 // Simple console logger for now.
 // TODO: Integrate with a more robust server-side logger.

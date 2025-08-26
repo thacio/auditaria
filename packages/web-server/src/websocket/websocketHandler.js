@@ -5,7 +5,7 @@
  */
 import { WebSocket } from 'ws';
 import { URL } from 'url';
-import { GeminiEventType, t } from '@google/gemini-cli-core';
+import { GeminiEventType, t } from '@thacio/auditaria-cli-core';
 /**
  * Handles WebSocket connections and real-time communication
  */

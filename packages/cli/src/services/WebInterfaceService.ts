@@ -6,13 +6,14 @@
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
-import express, { Express } from 'express';
+import express from 'express';
+import type { Express } from 'express';
 import { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
-import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
+import type { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
+import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
@@ -189,7 +190,7 @@ export class WebInterfaceService extends EventEmitter {
         // 1. Package-relative resolution (best for global npm installations)
         (() => {
           try {
-            const packageDir = path.dirname(require.resolve('@google/gemini-cli/package.json'));
+            const packageDir = path.dirname(require.resolve('@thacio/auditaria-cli/package.json'));
             return path.join(packageDir, 'web-client');
           } catch {
             return null;

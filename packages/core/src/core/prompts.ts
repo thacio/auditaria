@@ -19,7 +19,8 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { MemoryTool, GEMINI_CONFIG_DIR } from '../tools/memoryTool.js';
 import { TodoTool } from '../tools/todoTool.js';
-import { LANGUAGE_MAP, SupportedLanguage } from '../i18n/index.js';
+import type { SupportedLanguage } from '../i18n/index.js';
+import { LANGUAGE_MAP } from '../i18n/index.js';
 
 export function getCoreSystemPrompt(
   userMemory?: string,

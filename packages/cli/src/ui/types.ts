@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   ToolCallConfirmationDetails,
   ToolResultDisplay,
   UserTierId,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
 // Only defining the state enum needed by the UI
 export enum StreamingState {

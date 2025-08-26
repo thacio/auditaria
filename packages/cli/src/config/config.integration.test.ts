@@ -8,11 +8,11 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tmpdir } from 'node:os';
-import {
-  Config,
+import type {
   ConfigParameters,
   ContentGeneratorConfig,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
+import { Config } from '@thacio/auditaria-cli-core';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
@@ -40,8 +40,8 @@ const TEST_CONTENT_GENERATOR_CONFIG: ContentGeneratorConfig = {
 };
 
 // Mock file discovery service and tool registry
-vi.mock('@google/gemini-cli-core', async () => {
-  const actual = await vi.importActual('@google/gemini-cli-core');
+vi.mock('@thacio/auditaria-cli-core', async () => {
+  const actual = await vi.importActual('@thacio/auditaria-cli-core');
   return {
     ...actual,
     FileDiscoveryService: vi.fn().mockImplementation(() => ({

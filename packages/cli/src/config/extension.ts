@@ -3,12 +3,11 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { 
-  t,
-  MCPServerConfig, 
+import type {
+  MCPServerConfig,
   GeminiCLIExtension,
-  Storage,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
+import { Storage, t } from '@thacio/auditaria-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';

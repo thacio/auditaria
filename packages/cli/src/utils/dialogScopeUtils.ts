@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
-import { SettingScope, LoadedSettings } from '../config/settings.js';
+import { t } from '@thacio/auditaria-cli-core';
+import type { LoadedSettings } from '../config/settings.js';
+import { SettingScope } from '../config/settings.js';
 import { settingExistsInScope } from './settingsUtils.js';
 
 /**

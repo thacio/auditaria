@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SlashCommand, CommandContext, CommandKind } from './types.js';
+import type { SlashCommand, CommandContext } from './types.js';
+import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { loadServerHierarchicalMemory } from '@google/gemini-cli-core';
+import { loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
 
 export function expandHomeDir(p: string): string {
   if (!p) {

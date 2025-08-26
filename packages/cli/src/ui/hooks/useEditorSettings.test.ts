@@ -16,18 +16,19 @@ import {
 import { act } from 'react';
 import { renderHook } from '@testing-library/react';
 import { useEditorSettings } from './useEditorSettings.js';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import type { LoadedSettings } from '../../config/settings.js';
+import { SettingScope } from '../../config/settings.js';
 import { MessageType, type HistoryItem } from '../types.js';
 import {
   type EditorType,
   checkHasEditorType,
   allowEditorTypeInSandbox,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { SettingsContext } from '../contexts/SettingsContext.js';
 import { type ReactNode } from 'react';
 
-vi.mock('@google/gemini-cli-core', async () => {
-  const actual = await vi.importActual('@google/gemini-cli-core');
+vi.mock('@thacio/auditaria-cli-core', async () => {
+  const actual = await vi.importActual('@thacio/auditaria-cli-core');
   return {
     ...actual,
     checkHasEditorType: vi.fn(() => true),

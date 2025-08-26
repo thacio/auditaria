@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CommandModule } from 'yargs';
-import { t } from '@google/gemini-cli-core';
+import type { CommandModule } from 'yargs';
 import { loadUserExtensions, toOutputString } from '../../config/extension.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export async function handleList() {
   try {

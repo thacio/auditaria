@@ -8,9 +8,9 @@ const { logSlashCommand } = vi.hoisted(() => ({
   logSlashCommand: vi.fn(),
 }));
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
 
   return {
     ...original,
@@ -71,14 +71,14 @@ vi.mock('../../utils/cleanup.js', () => ({
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest';
 import { useSlashCommandProcessor } from './slashCommandProcessor.js';
-import {
+import type {
   CommandContext,
-  CommandKind,
   ConfirmShellCommandsActionReturn,
   SlashCommand,
 } from '../commands/types.js';
-import { ToolConfirmationOutcome } from '@google/gemini-cli-core';
-import { LoadedSettings } from '../../config/settings.js';
+import { CommandKind } from '../commands/types.js';
+import { ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
+import type { LoadedSettings } from '../../config/settings.js';
 import { MessageType } from '../types.js';
 import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
 import { FileCommandLoader } from '../../services/FileCommandLoader.js';
@@ -87,7 +87,7 @@ import {
   SlashCommandStatus,
   makeFakeConfig,
   type IdeClient,
-} from '@google/gemini-cli-core/index.js';
+} from '@thacio/auditaria-cli-core/index.js';
 
 function createTestCommand(
   overrides: Partial<SlashCommand>,

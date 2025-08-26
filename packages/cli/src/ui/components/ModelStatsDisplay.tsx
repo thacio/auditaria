@@ -3,9 +3,9 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
-import React from 'react';
+import type React from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { formatDuration } from '../utils/formatters.js';
@@ -14,7 +14,8 @@ import {
   calculateCacheHitRate,
   calculateErrorRate,
 } from '../utils/computeStats.js';
-import { useSessionStats, ModelMetrics } from '../contexts/SessionContext.js';
+import type { ModelMetrics } from '../contexts/SessionContext.js';
+import { useSessionStats } from '../contexts/SessionContext.js';
 
 const METRIC_COL_WIDTH = 28;
 const MODEL_COL_WIDTH = 22;

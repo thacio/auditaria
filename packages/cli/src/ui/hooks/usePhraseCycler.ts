@@ -3,8 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { getTranslationData } from '@google/gemini-cli-core';
-import { t } from '@google/gemini-cli-core';
+import { getTranslationData } from '@thacio/auditaria-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useRef } from 'react';
 

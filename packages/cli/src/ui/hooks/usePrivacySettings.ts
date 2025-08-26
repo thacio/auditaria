@@ -3,15 +3,15 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useCallback } from 'react';
+import type { Config } from '@thacio/auditaria-cli-core';
 import {
-  Config,
   CodeAssistServer,
   UserTierId,
   LoggingContentGenerator,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;

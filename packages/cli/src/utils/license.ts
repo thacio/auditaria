@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuthType, UserTierId, t } from '@google/gemini-cli-core';
+import { AuthType, UserTierId, t } from '@thacio/auditaria-cli-core';
 
 /**
  * Get human-readable license display text based on auth type and user tier.

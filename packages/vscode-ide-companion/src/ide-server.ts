@@ -5,7 +5,7 @@
  */
 
 import * as vscode from 'vscode';
-import { IdeContextNotificationSchema } from '@google/gemini-cli-core';
+import { IdeContextNotificationSchema } from '@thacio/auditaria-cli-core';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -16,7 +16,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { z } from 'zod';
-import { DiffManager } from './diff-manager.js';
+import type { DiffManager } from './diff-manager.js';
 import { OpenFilesManager } from './open-files-manager.js';
 
 const MCP_SESSION_ID_HEADER = 'mcp-session-id';

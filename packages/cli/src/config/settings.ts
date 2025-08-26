@@ -8,18 +8,18 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { homedir, platform } from 'node:os';
 import * as dotenv from 'dotenv';
+import type { SupportedLanguage } from '@thacio/auditaria-cli-core';
 import {
   GEMINI_CONFIG_DIR as GEMINI_DIR,
   getErrorMessage,
-  SupportedLanguage,
   t,
   Storage,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
 import { DefaultDark } from '../ui/themes/default.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
-import { Settings, MemoryImportFormat } from './settingsSchema.js';
+import type { Settings, MemoryImportFormat } from './settingsSchema.js';
 
 export type { Settings, MemoryImportFormat };
 

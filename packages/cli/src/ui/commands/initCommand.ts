@@ -6,13 +6,13 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { t } from '@google/gemini-cli-core';
-import {
+import { t } from '@thacio/auditaria-cli-core';
+import type {
   CommandContext,
   SlashCommand,
   SlashCommandActionReturn,
-  CommandKind,
 } from './types.js';
+import { CommandKind } from './types.js';
 
 export const initCommand: SlashCommand = {
   name: 'init',

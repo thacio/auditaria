@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   Config,
   ToolCallRequestInfo,
   ExecutingToolCall,
@@ -13,24 +13,24 @@ import {
   WaitingToolCall,
   CompletedToolCall,
   CancelledToolCall,
-  CoreToolScheduler,
   OutputUpdateHandler,
   AllToolCallsCompleteHandler,
   ToolCallsUpdateHandler,
   ToolCall,
   Status as CoreStatus,
   EditorType,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
+import { CoreToolScheduler } from '@thacio/auditaria-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
-import {
+import type {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
-  ToolCallStatus,
   HistoryItemWithoutId,
 } from '../types.js';
+import { ToolCallStatus } from '../types.js';
 // WEB_INTERFACE_START
 import { useToolConfirmation } from '../contexts/ToolConfirmationContext.js';
-// WEB_INTERFACE_START
+// WEB_INTERFACE_END
 export type ScheduleFn = (
   request: ToolCallRequestInfo | ToolCallRequestInfo[],
   signal: AbortSignal,

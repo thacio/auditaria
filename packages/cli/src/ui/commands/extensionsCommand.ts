@@ -10,7 +10,7 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType } from '../types.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const extensionsCommand: SlashCommand = {
   name: 'extensions',

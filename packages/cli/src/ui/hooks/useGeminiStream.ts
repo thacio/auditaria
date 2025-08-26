@@ -5,23 +5,25 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import {
+import type {
   Config,
   GeminiClient,
-  GeminiEventType as ServerGeminiEventType,
   ServerGeminiStreamEvent as GeminiEvent,
   ServerGeminiContentEvent as ContentEvent,
   ServerGeminiErrorEvent as ErrorEvent,
   ServerGeminiChatCompressedEvent,
   ServerGeminiFinishedEvent,
+  ToolCallRequestInfo,
+  EditorType,
+  ThoughtSummary,
+} from '@thacio/auditaria-cli-core';
+import {
+  GeminiEventType as ServerGeminiEventType,
   getErrorMessage,
   isNodeError,
   MessageSenderType,
-  ToolCallRequestInfo,
   logUserPrompt,
   GitService,
-  EditorType,
-  ThoughtSummary,
   UnauthorizedError,
   UserPromptEvent,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -30,35 +32,35 @@ import {
   ApprovalMode,
   parseAndFormatApiError,
   t,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 // WEB_INTERFACE_START: Import WeakMap for attachment metadata
 import { attachmentMetadataMap } from '../../services/WebInterfaceService.js';
 // WEB_INTERFACE_END
-import {
-  StreamingState,
+import type {
   HistoryItem,
   HistoryItemWithoutId,
   HistoryItemToolGroup,
-  MessageType,
   SlashCommandProcessorResult,
-  ToolCallStatus,
 } from '../types.js';
+import { StreamingState, MessageType, ToolCallStatus } from '../types.js';
 import { isAtCommand } from '../utils/commandUtils.js';
 import { useShellCommandProcessor } from './shellCommandProcessor.js';
 import { handleAtCommand } from './atCommandProcessor.js';
 import { findLastSafeSplitPoint } from '../utils/markdownUtilities.js';
 import { useStateAndRef } from './useStateAndRef.js';
-import { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useLogger } from './useLogger.js';
+import type {
+  TrackedToolCall,
+  TrackedCompletedToolCall,
+  TrackedCancelledToolCall,
+} from './useReactToolScheduler.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
   useReactToolScheduler,
   mapToDisplay as mapTrackedToolCallsToDisplay,
-  TrackedToolCall,
-  TrackedCompletedToolCall,
-  TrackedCancelledToolCall,
 } from './useReactToolScheduler.js';
 import { useSessionStats } from '../contexts/SessionContext.js';
 // WEB_INTERFACE_START

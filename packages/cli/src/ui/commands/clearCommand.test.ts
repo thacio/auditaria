@@ -4,13 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
+import type { Mock } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { clearCommand } from './clearCommand.js';
 import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 // Mock the telemetry service
-vi.mock('@google/gemini-cli-core', async () => {
-  const actual = await vi.importActual('@google/gemini-cli-core');
+vi.mock('@thacio/auditaria-cli-core', async () => {
+  const actual = await vi.importActual('@thacio/auditaria-cli-core');
   return {
     ...actual,
     uiTelemetryService: {
@@ -19,7 +20,8 @@ vi.mock('@google/gemini-cli-core', async () => {
   };
 });
 
-import { GeminiClient, uiTelemetryService } from '@google/gemini-cli-core';
+import type { GeminiClient } from '@thacio/auditaria-cli-core';
+import { uiTelemetryService } from '@thacio/auditaria-cli-core';
 
 describe('clearCommand', () => {
   let mockContext: CommandContext;

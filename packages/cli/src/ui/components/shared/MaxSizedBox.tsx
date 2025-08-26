@@ -10,7 +10,7 @@ import stringWidth from 'string-width';
 import { Colors } from '../../colors.js';
 import { toCodePoints } from '../../utils/textUtils.js';
 import { useOverflowActions } from '../../contexts/OverflowContext.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 let enableDebugLog = false;
 

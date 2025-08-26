@@ -6,7 +6,7 @@
 
 import { Text } from 'ink';
 import { Colors } from '../colors.js';
-import { t, tokenLimit } from '@google/gemini-cli-core';
+import { t, tokenLimit } from '@thacio/auditaria-cli-core';
 
 export const ContextUsageDisplay = ({
   promptTokenCount,

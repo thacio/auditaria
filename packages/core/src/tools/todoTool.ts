@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BaseDeclarativeTool, BaseToolInvocation, ToolResult, Kind } from './tools.js';
-import { Config } from '../config/config.js';
-import { FunctionDeclaration } from '@google/genai';
+import type { ToolResult } from './tools.js';
+import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
+import type { Config } from '../config/config.js';
+import type { FunctionDeclaration } from '@google/genai';
 
 const todoToolSchemaData: FunctionDeclaration = {
   name: 'TodoWrite',

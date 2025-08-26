@@ -9,7 +9,7 @@ import {
   type OpenDialogActionReturn,
   type SlashCommand,
 } from './types.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const editorCommand: SlashCommand = {
   name: 'editor',

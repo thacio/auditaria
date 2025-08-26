@@ -5,14 +5,13 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import type { LoadedSettings, SettingScope } from '../../config/settings.js';
+import { AuthType, type Config } from '@thacio/auditaria-cli-core';
 import {
-  AuthType,
-  Config,
   clearCachedCredentialFile,
   getErrorMessage,
   t,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { runExitCleanup } from '../../utils/cleanup.js';
 
 export const useAuthCommand = (

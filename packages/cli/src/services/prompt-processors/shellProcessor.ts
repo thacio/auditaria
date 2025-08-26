@@ -10,11 +10,11 @@ import {
   escapeShellArg,
   getShellConfiguration,
   ShellExecutionService,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
-import { CommandContext } from '../../ui/commands/types.js';
+import type { CommandContext } from '../../ui/commands/types.js';
+import type { IPromptProcessor } from './types.js';
 import {
-  IPromptProcessor,
   SHELL_INJECTION_TRIGGER,
   SHORTHAND_ARGS_PLACEHOLDER,
 } from './types.js';

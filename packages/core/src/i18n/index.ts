@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SupportedLanguage, TranslationData, TranslationConfig, LoadedTranslations } from './types.js';
+import type { SupportedLanguage, TranslationData, TranslationConfig, LoadedTranslations } from './types.js';
 import { translationLoader } from './loader.js';
 
 class I18nManager {

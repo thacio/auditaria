@@ -9,7 +9,7 @@ We will follow https://semver.org/ as closely as possible but will call out when
 New preview releases will be published each week at UTC 2359 on Tuesdays. These releases will not have been fully vetted and may contain regressions or other outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
-npm install -g @google/gemini-cli@preview
+npm install -g @thacio/auditaria-cli@preview
 ```
 
 ### Stable
@@ -17,7 +17,7 @@ npm install -g @google/gemini-cli@preview
 - New stable releases will be published each week at UTC 2000 on Tuesdays, this will be the full promotion of last week's release + any bug fixes and validations. Use `latest` tag.
 
 ```bash
-npm install -g @google/gemini-cli@latest
+npm install -g @thacio/auditaria-cli@latest
 ```
 
 ### Nightly
@@ -25,7 +25,7 @@ npm install -g @google/gemini-cli@latest
 - New releases will be published each week at UTC 0000 each day, This will be all changes from the main branch as represted at time of release. It should be assumed there are pending validations and issues. Use `nightly` tag.
 
 ```bash
-npm install -g @google/gemini-cli@nightly
+npm install -g @thacio/auditaria-cli@nightly
 ```
 
 # Release Process.
@@ -202,9 +202,9 @@ We also run a Google cloud build called [release-docker.yml](../.gcp/release-doc
 
 After pushing a new release smoke testing should be performed to ensure that the packages are working as expected. This can be done by installing the packages locally and running a set of tests to ensure that they are functioning correctly.
 
-- `npx -y @google/gemini-cli@latest --version` to validate the push worked as expected if you were not doing a rc or dev tag
-- `npx -y @google/gemini-cli@<release tag> --version` to validate the tag pushed appropriately
-- _This is destructive locally_ `npm uninstall @google/gemini-cli && npm uninstall -g @google/gemini-cli && npm cache clean --force &&  npm install @google/gemini-cli@<version>`
+- `npx -y @thacio/auditaria-cli@latest --version` to validate the push worked as expected if you were not doing a rc or dev tag
+- `npx -y @thacio/auditaria-cli@<release tag> --version` to validate the tag pushed appropriately
+- _This is destructive locally_ `npm uninstall @thacio/auditaria-cli && npm uninstall -g @thacio/auditaria-cli && npm cache clean --force &&  npm install @thacio/auditaria-cli@<version>`
 - Smoke testing a basic run through of exercising a few llm commands and tools is recommended to ensure that the packages are working as expected. We'll codify this more in the future.
 
 ## Local Testing and Validation: Changes to the Packaging and Publishing Process

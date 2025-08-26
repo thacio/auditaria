@@ -5,40 +5,40 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import type { Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   useReactToolScheduler,
   mapToDisplay,
 } from './useReactToolScheduler.js';
-import { PartUnion, FunctionResponse } from '@google/genai';
-import {
+import type { PartUnion, FunctionResponse } from '@google/genai';
+import type {
   Config,
   ToolCallRequestInfo,
   ToolRegistry,
   ToolResult,
   ToolCallConfirmationDetails,
-  ToolConfirmationOutcome,
   ToolCallResponseInfo,
   ToolCall, // Import from core
   Status as ToolCallStatusType,
+  ToolInvocation,
+  AnyDeclarativeTool,
+  AnyToolInvocation,
+} from '@thacio/auditaria-cli-core';
+import {
+  ToolConfirmationOutcome,
   ApprovalMode,
   Kind,
   BaseDeclarativeTool,
   BaseToolInvocation,
-  ToolInvocation,
-  AnyDeclarativeTool,
-  AnyToolInvocation,
-} from '@google/gemini-cli-core';
-import {
-  HistoryItemWithoutId,
-  ToolCallStatus,
-  HistoryItemToolGroup,
-} from '../types.js';
+} from '@thacio/auditaria-cli-core';
+import type { HistoryItemWithoutId, HistoryItemToolGroup } from '../types.js';
+import { ToolCallStatus } from '../types.js';
 
 // Mocks
-vi.mock('@google/gemini-cli-core', async () => {
-  const actual = await vi.importActual('@google/gemini-cli-core');
+vi.mock('@thacio/auditaria-cli-core', async () => {
+  const actual = await vi.importActual('@thacio/auditaria-cli-core');
   return {
     ...actual,
     ToolRegistry: vi.fn(),

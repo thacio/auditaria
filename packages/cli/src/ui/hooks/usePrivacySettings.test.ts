@@ -6,19 +6,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import {
+import type {
   Config,
+  GeminiClient,
+  ContentGenerator,
+} from '@thacio/auditaria-cli-core';
+import {
   CodeAssistServer,
   LoggingContentGenerator,
   UserTierId,
-  GeminiClient,
-  ContentGenerator,
-} from '@google/gemini-cli-core';
-import { OAuth2Client } from 'google-auth-library';
+} from '@thacio/auditaria-cli-core';
+import type { OAuth2Client } from 'google-auth-library';
 import { usePrivacySettings } from './usePrivacySettings.js';
 
 // Mock the dependencies
-vi.mock('@google/gemini-cli-core', () => {
+vi.mock('@thacio/auditaria-cli-core', () => {
   // Mock classes for instanceof checks
   class MockCodeAssistServer {
     projectId = 'test-project-id';

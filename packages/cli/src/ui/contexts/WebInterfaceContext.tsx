@@ -7,8 +7,9 @@
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { WebInterfaceService, WebInterfaceConfig } from '../../services/WebInterfaceService.js';
-import { HistoryItem } from '../types.js';
+import type { WebInterfaceConfig } from '../../services/WebInterfaceService.js';
+import { WebInterfaceService } from '../../services/WebInterfaceService.js';
+import type { HistoryItem } from '../types.js';
 import { useSubmitQuery } from './SubmitQueryContext.js';
 import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 

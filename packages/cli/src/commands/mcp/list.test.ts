@@ -8,7 +8,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { listMcpServers } from './list.js';
 import { loadSettings } from '../../config/settings.js';
 import { loadExtensions } from '../../config/extension.js';
-import { createTransport } from '@google/gemini-cli-core';
+import { createTransport } from '@thacio/auditaria-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 
 vi.mock('../../config/settings.js', () => ({
@@ -17,7 +17,7 @@ vi.mock('../../config/settings.js', () => ({
 vi.mock('../../config/extension.js', () => ({
   loadExtensions: vi.fn(),
 }));
-vi.mock('@google/gemini-cli-core', () => ({
+vi.mock('@thacio/auditaria-cli-core', () => ({
   createTransport: vi.fn(),
   MCPServerStatus: {
     CONNECTED: 'CONNECTED',

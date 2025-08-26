@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
+import type {
   MCPServerConfig,
   BugCommandSettings,
   TelemetrySettings,
   AuthType,
   ChatCompressionSettings,
   SupportedLanguage,
-} from '@google/gemini-cli-core';
-import { CustomTheme } from '../ui/themes/theme.js';
+} from '@thacio/auditaria-cli-core';
+import type { CustomTheme } from '../ui/themes/theme.js';
 
 export interface SettingDefinition {
   type: 'boolean' | 'string' | 'number' | 'array' | 'object';

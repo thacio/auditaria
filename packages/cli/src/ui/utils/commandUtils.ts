@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { spawn, SpawnOptions } from 'node:child_process';
-import { t } from '@google/gemini-cli-core';
+import type { SpawnOptions } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { t } from '@thacio/auditaria-cli-core';
 
 /**
  * Checks if a query string potentially represents an '@' command.

@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { MessageActionReturn, SlashCommand, CommandKind } from './types.js';
+import type { MessageActionReturn, SlashCommand } from './types.js';
+import { CommandKind } from './types.js';
 import { terminalSetup } from '../utils/terminalSetup.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 /**
  * Command to configure terminal keybindings for multiline input support.

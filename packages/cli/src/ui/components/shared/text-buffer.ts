@@ -10,14 +10,15 @@ import os from 'node:os';
 import pathMod from 'node:path';
 import { useState, useCallback, useEffect, useMemo, useReducer } from 'react';
 import stringWidth from 'string-width';
-import { unescapePath } from '@google/gemini-cli-core';
+import { unescapePath } from '@thacio/auditaria-cli-core';
 import {
   toCodePoints,
   cpLen,
   cpSlice,
   stripUnsafeCharacters,
 } from '../../utils/textUtils.js';
-import { handleVimAction, VimAction } from './vim-buffer-actions.js';
+import type { VimAction } from './vim-buffer-actions.js';
+import { handleVimAction } from './vim-buffer-actions.js';
 
 export type Direction =
   | 'left'

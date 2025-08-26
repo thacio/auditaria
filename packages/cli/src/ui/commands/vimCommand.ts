@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CommandKind, SlashCommand } from './types.js';
-import { t } from '@google/gemini-cli-core';
+import type { SlashCommand } from './types.js';
+import { CommandKind } from './types.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 export const vimCommand: SlashCommand = {
   name: 'vim',

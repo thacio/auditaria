@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { HistoryItem } from '../types.js';
+import type { HistoryItem } from '../types.js';
 // WEB_INTERFACE_START: Web interface context import
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 // WEB_INTERFACE_END

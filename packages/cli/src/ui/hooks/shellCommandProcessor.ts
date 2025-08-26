@@ -3,23 +3,22 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
-import {
+import type {
   HistoryItemWithoutId,
   IndividualToolCallDisplay,
-  ToolCallStatus,
 } from '../types.js';
+import { ToolCallStatus } from '../types.js';
 import { useCallback } from 'react';
-import {
+import type {
   Config,
   GeminiClient,
-  isBinary,
   ShellExecutionResult,
-  ShellExecutionService,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
+import { isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
 import { type PartListUnion } from '@google/genai';
-import { UseHistoryManagerReturn } from './useHistoryManager.js';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import crypto from 'node:crypto';

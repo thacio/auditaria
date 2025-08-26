@@ -4,12 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import type React from 'react';
 import { Box, Text } from 'ink';
 import Gradient from 'ink-gradient';
 import { theme } from '../semantic-colors.js';
 import { formatDuration } from '../utils/formatters.js';
-import { useSessionStats, ModelMetrics } from '../contexts/SessionContext.js';
+import type { ModelMetrics } from '../contexts/SessionContext.js';
+import { useSessionStats } from '../contexts/SessionContext.js';
 import {
   getStatusColor,
   TOOL_SUCCESS_RATE_HIGH,
@@ -18,7 +19,7 @@ import {
   USER_AGREEMENT_RATE_MEDIUM,
 } from '../utils/displayUtils.js';
 import { computeSessionStats } from '../utils/computeStats.js';
-import { t } from '@google/gemini-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 
 // A more flexible and powerful StatRow component
 interface StatRowProps {
