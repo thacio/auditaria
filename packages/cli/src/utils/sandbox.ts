@@ -17,7 +17,7 @@ import {
 } from '../config/settings.js';
 import { promisify } from 'node:util';
 import type { Config, SandboxConfig } from '@thacio/auditaria-cli-core';
-import { FatalSandboxError } from '@thacio/auditaria-cli-core';
+import { FatalSandboxError, t } from '@thacio/auditaria-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
 
 const execAsync = promisify(exec);
@@ -330,7 +330,7 @@ export async function start_sandbox(
             process.kill(-sandboxProcess.pid, 'SIGTERM');
           }
           throw new FatalSandboxError(
-            `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`,
+            t('errors.sandbox_proxy_failed', `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`, { command: proxyCommand, code: String(code), signal: String(signal) }),
           );
         });
         console.log('waiting for proxy to start ...');
@@ -775,7 +775,7 @@ export async function start_sandbox(
           process.kill(-sandboxProcess.pid, 'SIGTERM');
         }
         throw new FatalSandboxError(
-          t('errors.sandbox_proxy_container_failed', `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`, { command: proxyContainerCommand, code: code, signal: signal }),
+          t('errors.sandbox_proxy_container_failed', `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`, { command: proxyContainerCommand, code: String(code), signal: String(signal) }),
         );
       });
       console.log('waiting for proxy to start ...');
