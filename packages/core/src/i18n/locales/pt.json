@@ -973,7 +973,10 @@
     "sandbox_mount_missing": "Caminho de montagem ausente '{path}' listado em SANDBOX_MOUNTS",
     "sandbox_env_invalid": "SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
     "auth_failed_user_code": "Falha ao autenticar com código de usuário.",
-    "auth_failed_browser": "Falha ao abrir navegador."
+    "auth_failed_browser": "Falha ao abrir navegador.",
+    "tool_not_found": "Ferramenta \"{toolName}\" não encontrada no registro. As ferramentas devem usar os nomes exatos que estão registrados.{suggestion}",
+    "tool_suggestion_single": " Você quis dizer \"{suggestedName}\"?",
+    "tool_suggestion_multiple": " Você quis dizer uma das: {suggestedNames}?"
   },
   "diff": {
     "no_content": "Nenhum conteúdo de diff.",
