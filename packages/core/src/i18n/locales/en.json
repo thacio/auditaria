@@ -1349,5 +1349,15 @@
       "privacy_notice": "Privacy notice is displayed. Please review it in the CLI terminal.",
       "ide_integration": "IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal."
     }
+  },
+  "workspace_migration": {
+    "deprecated": "Workspace-level extensions are deprecated",
+    "prompt": "Would you like to install them at the user level?",
+    "definition_note": "The extension definition will remain in your workspace directory.",
+    "skip_note": "If you opt to skip, you can install them manually using the extensions install command.",
+    "install_all": "Install all",
+    "skip": "Skip",
+    "failed_with_errors": "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.",
+    "complete": "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit."
   }
 }
