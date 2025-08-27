@@ -10,7 +10,7 @@ import { HistoryItemDisplay } from './HistoryItemDisplay.js';
 import type { HistoryItem } from '../types.js';
 import { MessageType } from '../types.js';
 import { SessionStatsProvider } from '../contexts/SessionContext.js';
-import type { Config } from '@google/gemini-cli-core';
+import type { Config } from '@thacio/auditaria-cli-core';
 
 // Mock child components
 vi.mock('./messages/ToolGroupMessage.js', () => ({
