@@ -248,6 +248,7 @@
     },
     "tools": {
       "description": "list available Gemini CLI tools",
+      "description_with_usage": "list available Gemini CLI tools. Usage: /tools [desc]",
       "available_tools": "Available Gemini CLI tools:",
       "no_tools": "No tools available",
       "error_retrieve": "Could not retrieve tools."

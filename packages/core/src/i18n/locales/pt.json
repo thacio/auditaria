@@ -245,6 +245,7 @@
     },
     "tools": {
       "description": "listar ferramentas disponíveis do Gemini CLI",
+      "description_with_usage": "listar ferramentas disponíveis do Gemini CLI. Uso: /tools [desc]",
       "available_tools": "Ferramentas disponíveis do Gemini CLI:",
       "no_tools": "Nenhuma ferramenta disponível",
       "error_retrieve": "Não foi possível recuperar as ferramentas."
