@@ -24,7 +24,7 @@ import { useKeypress } from '../../hooks/useKeypress.js';
 
 export interface ToolConfirmationMessageProps {
   confirmationDetails: ToolCallConfirmationDetails;
-  config?: Config;
+  config: Config;
   isFocused?: boolean;
   availableTerminalHeight?: number;
   terminalWidth: number;
@@ -44,8 +44,8 @@ export const ToolConfirmationMessage: React.FC<
 
   const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
-      const ideClient = config?.getIdeClient();
-      if (config?.getIdeMode()) {
+      const ideClient = config.getIdeClient();
+      if (config.getIdeMode()) {
         const cliOutcome =
           outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
         await ideClient?.resolveDiffFromCli(
@@ -57,7 +57,7 @@ export const ToolConfirmationMessage: React.FC<
     onConfirm(outcome);
   };
 
-  const isTrustedFolder = config?.isTrustedFolder() !== false;
+  const isTrustedFolder = config.isTrustedFolder() !== false;
 
   useKeypress(
     (key) => {
@@ -138,7 +138,7 @@ export const ToolConfirmationMessage: React.FC<
         value: ToolConfirmationOutcome.ProceedAlways,
       });
     }
-    if (config?.getIdeMode()) {
+    if (config.getIdeMode()) {
       options.push({
         label: t('tool_confirmation.options.no_esc', 'No (esc)'),
         value: ToolConfirmationOutcome.Cancel,
