@@ -9,9 +9,22 @@ import { type PartListUnion } from '@google/genai';
 // WEB_INTERFACE_END
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import type { DOMElement } from 'ink';
-import { Box, measureElement, Static, Text, useStdin, useStdout } from 'ink';
-import { StreamingState, type HistoryItem, MessageType } from './types.js';
+import {
+  Box,
+  type DOMElement,
+  measureElement,
+  Static,
+  Text,
+  useStdin,
+  useStdout,
+} from 'ink';
+import {
+  StreamingState,
+  type HistoryItem,
+  MessageType,
+  ToolCallStatus,
+  type HistoryItemWithoutId,
+} from './types.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
@@ -127,6 +140,17 @@ interface AppProps {
   webOpenBrowser?: boolean;
   webPort?: number;
   // WEB_INTERFACE_END
+}
+
+function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
+  return pendingHistoryItems.some((item) => {
+    if (item && item.type === 'tool_group') {
+      return item.tools.some(
+        (tool) => ToolCallStatus.Executing === tool.status,
+      );
+    }
+    return false;
+  });
 }
 
 export const AppWrapper = (props: AppProps) => {
@@ -601,6 +625,11 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     () => cancelHandlerRef.current(),
   );
 
+  const pendingHistoryItems = useMemo(
+    () => [...pendingSlashCommandHistoryItems, ...pendingGeminiHistoryItems],
+    [pendingSlashCommandHistoryItems, pendingGeminiHistoryItems],
+  );
+
   // Message queue for handling input during streaming
   const { messageQueue, addMessage, clearQueue, getQueuedMessagesText } =
     useMessageQueue({
@@ -610,6 +639,11 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   // Update the cancel handler with message queue support
   cancelHandlerRef.current = useCallback(() => {
+    if (isToolExecuting(pendingHistoryItems)) {
+      buffer.setText(''); // Just clear the prompt
+      return;
+    }
+
     const lastUserMessage = userMessages.at(-1);
     let textToSet = lastUserMessage || '';
 
@@ -623,7 +657,13 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     if (textToSet) {
       buffer.setText(textToSet);
     }
-  }, [buffer, userMessages, getQueuedMessagesText, clearQueue]);
+  }, [
+    buffer,
+    userMessages,
+    getQueuedMessagesText,
+    clearQueue,
+    pendingHistoryItems,
+  ]);
 
   // Input handling - queue messages for processing
   const handleFinalSubmit = useCallback(
@@ -659,8 +699,6 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   );
 
   const { handleInput: vimHandleInput } = useVim(buffer, handleFinalSubmit);
-  const pendingHistoryItems = [...pendingSlashCommandHistoryItems];
-  pendingHistoryItems.push(...pendingGeminiHistoryItems);
 
   const { elapsedTime, currentLoadingPhrase } =
     useLoadingIndicator(streamingState);
