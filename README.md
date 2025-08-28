@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/github/license/thacio/auditaria)](https://github.com/thacio/auditaria/blob/main/LICENSE)
 
 
+
 - [Jump to English Instructions](#english)
 - [Instruções em Português (BR)](#português)
 
