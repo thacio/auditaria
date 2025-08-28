@@ -1356,5 +1356,15 @@
     "skip": "Pular",
     "failed_with_errors": "As seguintes extensões falharam ao migrar. Por favor, tente instalá-las manualmente. Para ver outras mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
     "complete": "Migração concluída. Para ver as mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair."
+  },
+  "pathReader": {
+    "errors": {
+      "absolutePathOutside": "Caminho absoluto está fora do workspace permitido: {path}",
+      "pathNotFound": "Caminho não encontrado no workspace: {path}"
+    }
+  },
+  "atFile": {
+    "fileIgnored": "Arquivo '@{{path}}' foi ignorado pelo .gitignore ou .geminiignore e não foi incluído no prompt.",
+    "failedToInject": "Falha ao injetar conteúdo para '@{{path}}': {error}"
   }
 }

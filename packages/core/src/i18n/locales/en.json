@@ -1359,5 +1359,15 @@
     "skip": "Skip",
     "failed_with_errors": "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.",
     "complete": "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit."
+  },
+  "pathReader": {
+    "errors": {
+      "absolutePathOutside": "Absolute path is outside of the allowed workspace: {path}",
+      "pathNotFound": "Path not found in workspace: {path}"
+    }
+  },
+  "atFile": {
+    "fileIgnored": "File '@{{path}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.",
+    "failedToInject": "Failed to inject content for '@{{path}}': {error}"
   }
 }

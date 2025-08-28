@@ -44,7 +44,9 @@ export * from './utils/formatters.js';
 export * from './utils/generateContentResponseUtilities.js';
 export * from './utils/filesearch/fileSearch.js';
 export * from './utils/errorParsing.js';
+export * from './utils/workspaceContext.js';
 export * from './utils/ignorePatterns.js';
+export * from './utils/partUtils.js';
 
 // Export services
 export * from './services/fileDiscoveryService.js';
@@ -116,3 +118,9 @@ export { Storage } from './config/storage.js';
 
 // Export i18n functions
 export * from './i18n/index.js';
+
+// Export test utils
+export * from './test-utils/index.js';
+
+// Export pathReader for @file injection support
+export * from './utils/pathReader.js';
