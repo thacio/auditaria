@@ -207,7 +207,8 @@
         "source_description": "A URL git da extensão a instalar.",
         "path_description": "Caminho para um diretório de extensão local.",
         "missing_source_or_path": "Um URL git --source ou um --path deve ser fornecido.",
-        "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada."
+        "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
+        "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}"
       },
       "uninstall": {
         "description": "Desinstala uma extensão.",

@@ -210,7 +210,8 @@
         "source_description": "The git URL of the extension to install.",
         "path_description": "Path to a local extension directory.",
         "missing_source_or_path": "Either a git URL --source or a --path must be provided.",
-        "success": "Extension \"{extensionName}\" installed successfully and enabled."
+        "success": "Extension \"{extensionName}\" installed successfully and enabled.",
+        "untrusted_folder": "Could not install extension from untrusted folder at {source}"
       },
       "uninstall": {
         "description": "Uninstalls an extension.",

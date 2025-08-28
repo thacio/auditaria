@@ -7,7 +7,7 @@ import type {
   MCPServerConfig,
   GeminiCLIExtension,
 } from '@thacio/auditaria-cli-core';
-import { Storage, t } from '@thacio/auditaria-cli-core';
+import { GEMINI_DIR, Storage, t } from '@thacio/auditaria-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -15,8 +15,9 @@ import { simpleGit } from 'simple-git';
 import { SettingScope, loadSettings } from '../config/settings.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { recursivelyHydrateStrings } from './extensions/variables.js';
+import { isWorkspaceTrusted } from './trustedFolders.js';
 
-export const EXTENSIONS_DIRECTORY_NAME = '.gemini/extensions';
+export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
 export const EXTENSIONS_CONFIG_FILENAME = 'gemini-extension.json';
 export const INSTALL_METADATA_FILENAME = '.gemini-extension-install.json';
@@ -111,7 +112,10 @@ export function loadExtensions(workspaceDir: string): Extension[] {
   const disabledExtensions = settings.extensions?.disabled ?? [];
   const allExtensions = [...loadUserExtensions()];
 
-  if (!settings.experimental?.extensionManagement) {
+  if (
+    (isWorkspaceTrusted(settings) ?? true) &&
+    !settings.experimental?.extensionManagement
+  ) {
     allExtensions.push(...getWorkspaceExtensions(workspaceDir));
   }
 
@@ -320,6 +324,13 @@ export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
   cwd: string = process.cwd(),
 ): Promise<string> {
+  const settings = loadSettings(cwd).merged;
+  if (!isWorkspaceTrusted(settings)) {
+    throw new Error(
+      t('extensions.install.untrusted_folder', `Could not install extension from untrusted folder at ${installMetadata.source}`, { source: installMetadata.source }),
+    );
+  }
+
   const extensionsDir = ExtensionStorage.getUserExtensionsDir();
   await fs.promises.mkdir(extensionsDir, { recursive: true });
 
