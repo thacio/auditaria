@@ -5,6 +5,7 @@
  */
 
 import type {
+  CompressionStatus,
   ToolCallConfirmationDetails,
   ToolResultDisplay,
   UserTierId,
@@ -57,6 +58,7 @@ export interface CompressionProps {
   isPending: boolean;
   originalTokenCount: number | null;
   newTokenCount: number | null;
+  compressionStatus: CompressionStatus | null;
 }
 
 export interface HistoryItemBase {

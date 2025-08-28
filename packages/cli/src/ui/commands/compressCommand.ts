@@ -36,6 +36,7 @@ export const compressCommand: SlashCommand = {
         isPending: true,
         originalTokenCount: null,
         newTokenCount: null,
+        compressionStatus: null,
       },
     };
 
@@ -53,6 +54,7 @@ export const compressCommand: SlashCommand = {
               isPending: false,
               originalTokenCount: compressed.originalTokenCount,
               newTokenCount: compressed.newTokenCount,
+              compressionStatus: compressed.compressionStatus,
             },
           } as HistoryItemCompression,
           Date.now(),
