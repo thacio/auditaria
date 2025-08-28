@@ -8,6 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { Colors } from '../colors.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 interface ProQuotaDialogProps {
   currentModel: string;
@@ -22,11 +23,11 @@ export function ProQuotaDialog({
 }: ProQuotaDialogProps): React.JSX.Element {
   const items = [
     {
-      label: 'Change auth (executes the /auth command)',
+      label: t('pro_quota_dialog.change_auth', 'Change auth (executes the /auth command)'),
       value: 'auth' as const,
     },
     {
-      label: `Continue with ${fallbackModel}`,
+      label: t('pro_quota_dialog.continue_with_model', 'Continue with {model}', { model: fallbackModel }),
       value: 'continue' as const,
     },
   ];
@@ -38,7 +39,7 @@ export function ProQuotaDialog({
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
       <Text bold color={Colors.AccentYellow}>
-        Pro quota limit reached for {currentModel}.
+        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', { model: currentModel })}
       </Text>
       <Box marginTop={1}>
         <RadioButtonSelect

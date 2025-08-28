@@ -1212,6 +1212,9 @@
     "quota_exceeded_generic_free": "⚡ Você atingiu seu limite diário de cota.\n⚡ Alternando automaticamente de {model} para {fallback} pelo restante desta sessão.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
     "fallback_default_paid": "⚡ Alternando automaticamente de {model} para {fallback} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do {model}\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
     "fallback_default_free": "⚡ Alternando automaticamente de {model} para {fallback} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do {model}\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+    "quota_exceeded_pro_paid_dialog": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+    "quota_exceeded_pro_free_dialog": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+    "switched_to_fallback_tip": "Alterado para modelo de fallback. Dica: Pressione Ctrl+P para recuperar seu prompt anterior e enviá-lo novamente se desejar.",
     "auth_timeout": "Autenticação expirou. Por favor, tente novamente.",
     "press_ctrl_c_exit": "Pressione Ctrl+C novamente para sair.",
     "press_ctrl_d_exit": "Pressione Ctrl+D novamente para sair.",
@@ -1374,5 +1377,10 @@
   "atFile": {
     "fileIgnored": "Arquivo '@{{path}}' foi ignorado pelo .gitignore ou .geminiignore e não foi incluído no prompt.",
     "failedToInject": "Falha ao injetar conteúdo para '@{{path}}': {error}"
+  },
+  "pro_quota_dialog": {
+    "title": "Limite de cota Pro atingido para {model}.",
+    "change_auth": "Alterar autenticação (executa o comando /auth)",
+    "continue_with_model": "Continuar com {model}"
   }
 }

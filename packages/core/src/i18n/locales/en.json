@@ -1211,10 +1211,13 @@
     "reauth_required": "reauth required",
     "quota_exceeded_pro_paid": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "quota_exceeded_pro_free": "⚡ You have reached your daily {model} quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "quota_exceeded_pro_paid_dialog": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
+    "quota_exceeded_pro_free_dialog": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
     "quota_exceeded_generic_paid": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "quota_exceeded_generic_free": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
     "fallback_default_paid": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "fallback_default_free": "⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "switched_to_fallback_tip": "Switched to fallback model. Tip: Press Ctrl+P to recall your previous prompt and submit it again if you wish.",
     "auth_timeout": "Authentication timed out. Please try again.",
     "press_ctrl_c_exit": "Press Ctrl+C again to exit.",
     "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
@@ -1377,5 +1380,10 @@
   "atFile": {
     "fileIgnored": "File '@{{path}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.",
     "failedToInject": "Failed to inject content for '@{{path}}': {error}"
+  },
+  "pro_quota_dialog": {
+    "title": "Pro quota limit reached for {model}.",
+    "change_auth": "Change auth (executes the /auth command)",
+    "continue_with_model": "Continue with {model}"
   }
 }
