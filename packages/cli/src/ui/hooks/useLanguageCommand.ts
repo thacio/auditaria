@@ -78,7 +78,7 @@ export const useLanguageCommand = (
 
       try {
         // Save the language setting
-        loadedSettings.setValue(scope, 'language', languageCode);
+        loadedSettings.setValue(scope, 'ui.language', languageCode);
         
         // Apply the language
         const success = await applyLanguage(languageCode);

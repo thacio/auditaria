@@ -66,7 +66,7 @@ export function LanguageSelectionDialog({
 
   // Determine which language should be initially selected
   // Priority: settings > current language > English > first available
-  const currentLanguage = settings.merged.language;
+  const currentLanguage = settings.merged.ui?.language;
   const initialLanguageIndex = languageItems.findIndex((item) => {
     if (currentLanguage) {
       return item.value === currentLanguage;
@@ -117,9 +117,9 @@ export function LanguageSelectionDialog({
       selectedScope === SettingScope.User
         ? SettingScope.Workspace
         : SettingScope.User;
-    if (settings.forScope(otherScope).settings.language !== undefined) {
+    if (settings.forScope(otherScope).settings.ui?.language !== undefined) {
       otherScopeModifiedMessage =
-        settings.forScope(selectedScope).settings.language !== undefined
+        settings.forScope(selectedScope).settings.ui?.language !== undefined
           ? t('language_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: otherScope })
           : t('language_dialog.messages.modified_in', '(Modified in {scope})', { scope: otherScope });
     }

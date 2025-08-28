@@ -24,13 +24,13 @@ export function handleAutoUpdate(
     return;
   }
 
-  if (settings.merged.disableUpdateNag) {
+  if (settings.merged.general?.disableUpdateNag) {
     return;
   }
 
   const installationInfo = getInstallationInfo(
     projectRoot,
-    settings.merged.disableAutoUpdate ?? false,
+    settings.merged.general?.disableAutoUpdate ?? false,
   );
 
   let combinedMessage = info.message;
@@ -42,7 +42,10 @@ export function handleAutoUpdate(
     message: combinedMessage,
   });
 
-  if (!installationInfo.updateCommand || settings.merged.disableAutoUpdate) {
+  if (
+    !installationInfo.updateCommand ||
+    settings.merged.general?.disableAutoUpdate
+  ) {
     return;
   }
   const isNightly = info.update.latest.includes('nightly');

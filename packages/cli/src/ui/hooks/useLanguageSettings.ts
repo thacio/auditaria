@@ -27,7 +27,7 @@ export const useLanguageSettings = (
   refreshStatic?: () => void,
 ): UseLanguageSettingsReturn => {
   // Determine if this is first-time setup (no language setting exists)
-  const hasLanguageSetting = loadedSettings.merged.language !== undefined;
+  const hasLanguageSetting = loadedSettings.merged.ui?.language !== undefined;
   const isFirstTimeSetup = !hasLanguageSetting;
 
   // Initial state: Open dialog if no language is set
@@ -35,7 +35,7 @@ export const useLanguageSettings = (
 
   // Apply initial language on component mount
   useEffect(() => {
-    const currentLanguage = loadedSettings.merged.language;
+    const currentLanguage = loadedSettings.merged.ui?.language;
     
     if (currentLanguage) {
       // Language is already set, initialize with that language
@@ -54,7 +54,7 @@ export const useLanguageSettings = (
         console.error('Failed to initialize i18n with fallback language:', error);
       });
     }
-  }, [loadedSettings.merged.language, isFirstTimeSetup, setLanguageError]);
+  }, [loadedSettings.merged.ui?.language, isFirstTimeSetup, setLanguageError]);
 
   const openLanguageDialog = useCallback(() => {
     setIsLanguageDialogOpen(true);
@@ -113,7 +113,7 @@ export const useLanguageSettings = (
 
       try {
         // Save the language setting
-        loadedSettings.setValue(scope, 'language', languageCode);
+        loadedSettings.setValue(scope, 'ui.language', languageCode);
         
         // Apply the language
         const success = await applyLanguage(languageCode);

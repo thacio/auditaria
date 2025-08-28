@@ -33,7 +33,11 @@ describe('aboutCommand', () => {
         },
         settings: {
           merged: {
-            selectedAuthType: 'oauth-gca',
+            security: {
+              auth: {
+                selectedType: 'oauth-gca',
+              },
+            },
           },
         },
       },
@@ -133,7 +137,7 @@ describe('aboutCommand', () => {
 
   it('should not show ide client when it is not detected', async () => {
     // Change to oauth type that doesn't use GCP project
-    mockContext.services.settings.merged.selectedAuthType = 'oauth';
+    mockContext.services.settings.merged.security!.auth!.selectedType = 'oauth';
 
     vi.spyOn(mockContext.services.config!, 'getIdeClient').mockReturnValue({
       getDetectedIdeDisplayName: vi.fn().mockReturnValue(undefined),
