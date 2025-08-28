@@ -118,6 +118,7 @@
       "no_servers_sandbox": "No MCP servers configured. Please open the following URL in your browser to view documentation:\n{url}",
       "no_servers_docs_command": "No MCP servers configured. Please view MCP documentation in your browser: {url} or use the cli /docs command",
       "servers_starting": "⏳ MCP servers are starting up ({count} initializing)...",
+      "connecting_servers": "Connecting to MCP servers... ({connected}/{total})",
       "first_startup_note": "Note: First startup may take longer. Tool availability will update automatically.",
       "configured_servers": "Configured MCP servers:",
       "status": {
