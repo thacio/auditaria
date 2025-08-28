@@ -119,8 +119,5 @@ export { Storage } from './config/storage.js';
 // Export i18n functions
 export * from './i18n/index.js';
 
-// Export test utils
-export * from './test-utils/index.js';
-
 // Export pathReader for @file injection support
 export * from './utils/pathReader.js';

@@ -32,7 +32,6 @@ import {
   Kind,
   BaseDeclarativeTool,
   BaseToolInvocation,
-  MockTool,
 } from '@thacio/auditaria-cli-core';
 import type { HistoryItemWithoutId, HistoryItemToolGroup } from '../types.js';
 import { ToolCallStatus } from '../types.js';
