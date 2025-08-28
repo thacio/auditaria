@@ -1355,7 +1355,8 @@
       "language_selection": "Seleção de idioma aberta. Por favor, escolha um idioma no terminal do CLI.",
       "settings": "Diálogo de configurações aberto. Por favor, configure suas preferências no terminal do CLI.",
       "privacy_notice": "Aviso de privacidade exibido. Por favor, revise no terminal do CLI.",
-      "ide_integration": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal."
+      "ide_integration": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal.",
+      "pro_quota_dialog": "Limite de cota Pro atingido. Por favor, escolha se deseja alterar a autenticação ou continuar com o modelo de fallback no terminal CLI."
     }
   },
   "workspace_migration": {

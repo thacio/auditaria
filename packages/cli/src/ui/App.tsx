@@ -959,6 +959,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     showPrivacyNotice ||
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
+    isProQuotaDialogOpen ||
     !!shellConfirmationRequest ||
     !!confirmationRequest;
   
@@ -1094,10 +1095,25 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   // Broadcast CLI action required state when interactive screens are shown
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
+      // Special handling for IDE prompt with delay
+      if (shouldShowIdePrompt && currentIDE) {
+        // Wait 3 seconds before broadcasting IDE prompt
+        const timer = setTimeout(() => {
+          if (webInterface?.service && webInterface.isRunning) {
+            const reason = 'ide_integration';
+            const message = t('web.cli_action.ide_integration', 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.');
+            const title = t('web.cli_action.title', 'CLI Action Required');
+            webInterface.service.broadcastCliActionRequired(true, reason, title, message);
+          }
+        }, 3000);
+        
+        return () => clearTimeout(timer);
+      }
+      
       let reason = '';
       let message = '';
       
-      // Check for any active dialog/screen
+      // Check for any active dialog/screen (except IDE prompt which is handled above)
       if (isAuthDialogOpen || isAuthenticating) {
         reason = 'authentication';
         message = isAuthenticating 
@@ -1118,9 +1134,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       } else if (showPrivacyNotice) {
         reason = 'privacy_notice';
         message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review it in the CLI terminal.');
-      } else if (shouldShowIdePrompt) {
-        reason = 'ide_integration';
-        message = t('web.cli_action.ide_integration', 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.');
+      } else if (isProQuotaDialogOpen) {
+        reason = 'pro_quota_dialog';
+        message = t('web.cli_action.pro_quota_dialog', 'Pro quota limit reached. Please choose whether to change authentication or continue with the fallback model in the CLI terminal.');
       }
       
       const isActionRequired = !!reason;
@@ -1142,6 +1158,8 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     isSettingsDialogOpen,
     showPrivacyNotice,
     shouldShowIdePrompt,
+    currentIDE,
+    isProQuotaDialogOpen,
     webInterface?.isRunning
   ]); // Monitor all interactive screen states
 

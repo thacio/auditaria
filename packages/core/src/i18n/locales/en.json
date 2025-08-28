@@ -1358,7 +1358,8 @@
       "language_selection": "Language selection is open. Please choose a language in the CLI terminal.",
       "settings": "Settings dialog is open. Please configure your settings in the CLI terminal.",
       "privacy_notice": "Privacy notice is displayed. Please review it in the CLI terminal.",
-      "ide_integration": "IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal."
+      "ide_integration": "IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.",
+      "pro_quota_dialog": "Pro quota limit reached. Please choose whether to change authentication or continue with the fallback model in the CLI terminal."
     }
   },
   "workspace_migration": {
