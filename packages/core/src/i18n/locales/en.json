@@ -1320,6 +1320,12 @@
   "general": {
     "operation_cancelled": "Operation cancelled."
   },
+  "screen_reader": {
+    "user_prefix": "User: ",
+    "model_prefix": "Model: ",
+    "loading": "loading",
+    "responding": "responding"
+  },
   "gemini_stream": {
     "request_cancelled": "Request cancelled."
   },
