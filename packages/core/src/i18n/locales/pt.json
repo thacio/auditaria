@@ -1308,7 +1308,7 @@
     "description": "Confiar em uma pasta permite que o Auditaria execute comandos sugeridos. Este é um recurso de segurança para evitar execução acidental em diretórios não confiáveis.",
     "options": {
       "trust_folder": "Confiar na pasta",
-      "trust_parent": "Confiar na pasta pai",
+      "trust_parent": "Confiar na pasta pai ({parentFolder})",
       "dont_trust": "Não confiar (esc)"
     }
   },
