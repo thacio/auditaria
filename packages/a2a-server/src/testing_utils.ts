@@ -9,7 +9,7 @@ import type {
   TaskStatusUpdateEvent,
   SendStreamingMessageSuccessResponse,
 } from '@a2a-js/sdk';
-import { ApprovalMode } from '@google/gemini-cli-core';
+import { ApprovalMode } from '@thacio/auditaria-cli-core';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
