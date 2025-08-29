@@ -121,3 +121,6 @@ export * from './i18n/index.js';
 
 // Export pathReader for @file injection support
 export * from './utils/pathReader.js';
+
+// Export test utils
+export * from './test-utils/index.js';
