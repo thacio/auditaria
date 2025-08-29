@@ -10,6 +10,7 @@ import type {
   EditorType,
   GeminiClient,
   ServerGeminiChatCompressedEvent,
+  ServerGeminiCitationEvent,
   ServerGeminiContentEvent as ContentEvent,
   ServerGeminiFinishedEvent,
   ServerGeminiStreamEvent as GeminiEvent,
@@ -764,7 +765,7 @@ export const useGeminiStream = (
             );
             break;
           case ServerGeminiEventType.Citation:
-            handleCitationEvent(event.value, userMessageTimestamp);
+            handleCitationEvent((event as ServerGeminiCitationEvent).value, userMessageTimestamp);
             break;
           case ServerGeminiEventType.LoopDetected:
             // handle later because we want to move pending history to history
