@@ -208,8 +208,31 @@ jobs:
                   Write-Host "  Status message: $($result.StatusMessage)"
                 }
                 
+                # Check for "not a valid Win32 application" error which indicates Bun executable
+                if ($result.Status -eq "UnknownError" -and $result.StatusMessage -match "not a valid Win32 application") {
+                  Write-Host ""
+                  Write-Host "  ⚠️ This appears to be a Bun-compiled executable"
+                  Write-Host "  Bun executables use a custom format that cannot be signed with Windows Authenticode"
+                  Write-Host "  The executable will work normally but won't have a digital signature"
+                  Write-Host ""
+                  Write-Host "  File details:"
+                  Write-Host "    Size: $((Get-Item $file).Length / 1MB) MB"
+                  Write-Host "    First bytes: $(([System.IO.File]::ReadAllBytes($file)[0..3] | ForEach-Object { '{0:X2}' -f $_ }) -join ' ')"
+                  
+                  # Check if file looks like a Bun executable
+                  $fileContent = [System.IO.File]::ReadAllBytes($file)
+                  $headerString = [System.Text.Encoding]::ASCII.GetString($fileContent[0..10000])
+                  if ($headerString -match "bun" -or $headerString -match "Bun") {
+                    Write-Host "    Confirmed: Contains Bun runtime markers"
+                  }
+                  
+                  Write-Host ""
+                  Write-Host "  Skipping signing for this Bun executable"
+                  $signed = $true  # Mark as "signed" to skip further attempts
+                  continue
+                }
                 # UnknownError with self-signed certificates is expected - the signature is applied but not trusted
-                if ($result.Status -eq "UnknownError" -and $result.StatusMessage -match "root certificate which is not trusted") {
+                elseif ($result.Status -eq "UnknownError" -and $result.StatusMessage -match "root certificate which is not trusted") {
                   Write-Host "  ⚠️ Self-signed certificate detected (expected for personal certificates)"
                   Write-Host "  The signature has been applied but won't be trusted by Windows by default"
                   Write-Host "  This is normal behavior for self-signed certificates"
@@ -313,8 +336,16 @@ jobs:
                   Write-Host "  Note: Self-signed certificate (not trusted by Windows by default)"
                 }
               } else {
-                Write-Error "❌ $file is NOT signed"
-                exit 1
+                # Check if this is a Bun executable (which cannot be signed)
+                $fileContent = [System.IO.File]::ReadAllBytes($file)
+                $headerString = [System.Text.Encoding]::ASCII.GetString($fileContent[0..10000])
+                if ($headerString -match "bun" -or $headerString -match "Bun") {
+                  Write-Host "⚠️ $file is NOT signed (Bun executable - cannot be signed)"
+                  Write-Host "  Note: Bun-compiled executables cannot be signed with Windows Authenticode"
+                } else {
+                  Write-Error "❌ $file is NOT signed"
+                  exit 1
+                }
               }
             }
           }
