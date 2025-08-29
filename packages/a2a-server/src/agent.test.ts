@@ -34,7 +34,7 @@ import {
   createStreamMessageRequest,
   createMockConfig,
 } from './testing_utils.js';
-import { MockTool } from '@google/gemini-cli-core';
+import { MockTool } from '@thacio/auditaria-cli-core';
 
 const mockToolConfirmationFn = async () =>
   ({}) as unknown as ToolCallConfirmationDetails;
