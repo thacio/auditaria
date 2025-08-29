@@ -1231,6 +1231,9 @@
       "prompt_interactive_stdin": "Error: The --prompt-interactive flag is not supported when piping input from stdin.",
       "yolo_approval_conflict": "Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.",
       "invalid_approval_mode": "Invalid approval mode: {mode}. Valid values are: yolo, auto_edit, default"
+    },
+    "options": {
+      "session_summary": "File to write session summary to."
     }
   },
   "dns": {

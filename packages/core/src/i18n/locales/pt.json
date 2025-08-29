@@ -1228,6 +1228,9 @@
       "prompt_interactive_stdin": "Erro: A flag --prompt-interactive não é suportada ao receber entrada de stdin.",
       "yolo_approval_conflict": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
       "invalid_approval_mode": "Modo de aprovação inválido: {mode}. Valores válidos são: yolo, auto_edit, default"
+    },
+    "options": {
+      "session_summary": "Arquivo para escrever o resumo da sessão."
     }
   },
   "dns": {
