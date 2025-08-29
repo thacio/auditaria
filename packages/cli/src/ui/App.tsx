@@ -535,6 +535,11 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
           // Show the ProQuotaDialog and wait for user's choice
           const shouldContinueWithFallback = await new Promise<boolean>(
             (resolve) => {
+              // WEB_INTERFACE_START: Pre-start terminal capture for ProQuotaDialog
+              if ((global as any).__preStartTerminalCapture) {
+                (global as any).__preStartTerminalCapture();
+              }
+              // WEB_INTERFACE_END
               setIsProQuotaDialogOpen(true);
               setProQuotaDialogResolver(() => resolve);
             },
