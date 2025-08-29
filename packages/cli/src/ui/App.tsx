@@ -420,6 +420,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
         config.getFileService(),
         settings.merged,
         config.getExtensionContextFilePaths(),
+        config.getFolderTrust(),
         settings.merged.context?.importFormat || 'tree', // Use setting or default to 'tree'
         config.getFileFilteringOptions(),
       );
