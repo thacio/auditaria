@@ -43,6 +43,7 @@ export interface ExtensionInstallMetadata {
 }
 
 export interface ExtensionUpdateInfo {
+  name: string;
   originalVersion: string;
   updatedVersion: string;
 }
@@ -441,10 +442,10 @@ export function toOutputString(extension: Extension): string {
   return output;
 }
 
-export async function updateExtension(
+export async function updateExtensionByName(
   extensionName: string,
   cwd: string = process.cwd(),
-): Promise<ExtensionUpdateInfo | undefined> {
+): Promise<ExtensionUpdateInfo> {
   const installedExtensions = loadUserExtensions();
   const extension = installedExtensions.find(
     (installed) => installed.config.name === extensionName,
@@ -454,16 +455,27 @@ export async function updateExtension(
       t('commands.extensions.update.not_found', `Extension "${extensionName}" not found. Run auditaria extensions list to see available extensions.`, { extensionName }),
     );
   }
+  return await updateExtension(extension, cwd);
+}
+
+export async function updateExtension(
+  extension: Extension,
+  cwd: string = process.cwd(),
+): Promise<ExtensionUpdateInfo> {
   if (!extension.installMetadata) {
     throw new Error(
-      t('commands.extensions.update.missing_metadata', `Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.`),
+      t(
+        'commands.extensions.update.cannot_update',
+        `Extension ${extension.config.name} cannot be updated.`,
+        { name: extension.config.name },
+      ),
     );
   }
   const originalVersion = extension.config.version;
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
     await copyExtension(extension.path, tempDir);
-    await uninstallExtension(extensionName, cwd);
+    await uninstallExtension(extension.config.name, cwd);
     await installExtension(extension.installMetadata, cwd);
 
     const updatedExtension = loadExtension(extension.path);
@@ -472,6 +484,7 @@ export async function updateExtension(
     }
     const updatedVersion = updatedExtension.config.version;
     return {
+      name: extension.config.name,
       originalVersion,
       updatedVersion,
     };
@@ -533,4 +546,15 @@ function removeFromDisabledExtensions(
     );
     settings.setValue(scope, 'extensions', extensionSettings);
   }
+}
+
+export async function updateAllUpdatableExtensions(
+  cwd: string = process.cwd(),
+): Promise<ExtensionUpdateInfo[]> {
+  const extensions = loadExtensions(cwd).filter(
+    (extension) => !!extension.installMetadata,
+  );
+  return await Promise.all(
+    extensions.map((extension) => updateExtension(extension, cwd)),
+  );
 }

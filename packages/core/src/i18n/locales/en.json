@@ -225,14 +225,18 @@
         "no_extensions": "No extensions installed."
       },
       "update": {
-        "description": "Updates an extension.",
+        "description": "Updates all extensions or a named extension to the latest version.",
         "name_description": "The name of the extension to update.",
+        "all_description": "Update all extensions.",
         "success": "Extension \"{name}\" successfully updated: {originalVersion} → {updatedVersion}.",
         "failed": "Extension \"{name}\" failed to update.",
         "not_found": "Extension \"{extensionName}\" not found. Run auditaria extensions list to see available extensions.",
         "missing_metadata": "Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.",
         "not_found_after_install": "Updated extension not found after installation.",
-        "error_rolling_back": "Error updating extension, rolling back. {error}"
+        "error_rolling_back": "Error updating extension, rolling back. {error}",
+        "no_extensions": "No extensions to update.",
+        "missing_argument": "Either an extension name or --all must be provided",
+        "cannot_update": "Extension {name} cannot be updated."
       },
       "disable": {
         "description": "Disables an extension.",
