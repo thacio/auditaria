@@ -228,6 +228,15 @@ export const SETTINGS_SCHEMA = {
         description: 'The preferred language for the interface.',
         showInDialog: false,
       },
+      showCitations: {
+        type: 'boolean',
+        label: 'Show Citations',
+        category: 'UI',
+        requiresRestart: false,
+        default: false,
+        description: 'Show citations for generated text in the chat.',
+        showInDialog: true,
+      },
       accessibility: {
         type: 'object',
         label: 'Accessibility',

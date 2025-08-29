@@ -761,6 +761,7 @@
       "folder_trust_feature": "Recurso de Confiança de Pasta",
       "folder_trust": "Confiança de Pasta",
       "show_line_numbers": "Mostrar Números de Linha",
+      "show_citations": "Mostrar Citações",
       "use_node_pty_shell": "Usar node-pty para Execução de Shell",
       "skip_next_speaker_check": "Pular Verificação do Próximo Orador"
     }
@@ -1237,6 +1238,9 @@
   },
   "warnings": {
     "ide_server_reserved": "Ignorando configuração MCP do servidor definida pelo usuário para \"{serverName}\" pois é um nome reservado."
+  },
+  "citations": {
+    "title": "Citações:"
   },
   "finish_reasons": {
     "max_tokens": "Resposta truncada devido aos limites de token.",

@@ -681,6 +681,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     history,
     addItem,
     config,
+    settings,
     setDebugMessage,
     handleSlashCommand,
     shellModeActive,
