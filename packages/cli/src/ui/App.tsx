@@ -997,10 +997,10 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       // Emit synthetic keypress event to all listeners
       // This will be picked up by any useKeypress hooks in the dialogs
       if (isAnyInteractiveScreenOpen) {
-        // Directly trigger keypress handlers
-        // Note: We need to use the KeypressContext to emit events
-        // We'll emit the event through the context's event system
-        process.stdin.emit('keypress', keyData.sequence, syntheticKey);
+        // WEB_INTERFACE_START: Fix for VSCode terminal ESC key handling
+        // Use the correct sequence from syntheticKey, not keyData
+        process.stdin.emit('keypress', syntheticKey.sequence, syntheticKey);
+        // WEB_INTERFACE_END
       }
     };
     

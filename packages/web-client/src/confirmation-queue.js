@@ -112,6 +112,17 @@ class ConfirmationQueue {
         // Add global ESC listener
         this.boundGlobalEscHandler = (e) => {
             if (e.key === 'Escape') {
+                // Send ESC key as terminal input to trigger dialog dismissal in CLI
+                if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
+                    this.client.wsManager.sendTerminalInput({
+                        name: 'escape',
+                        sequence: '\x1b',
+                        ctrl: false,
+                        meta: false,
+                        shift: false
+                    });
+                }
+                // Also send the cancel response for backward compatibility
                 this.client.handleConfirmationResponse(confirmationData.callId, 'cancel');
             }
         };
@@ -217,7 +228,20 @@ class ConfirmationQueue {
             const button = document.createElement('button');
             button.className = `confirmation-button ${buttonConfig.type}`;
             button.textContent = buttonConfig.label;
-            button.onclick = () => this.client.handleConfirmationResponse(confirmationData.callId, buttonConfig.outcome);
+            button.onclick = () => {
+                // Send ENTER key as terminal input when button is clicked
+                if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
+                    this.client.wsManager.sendTerminalInput({
+                        name: 'return',
+                        sequence: '\r',
+                        ctrl: false,
+                        meta: false,
+                        shift: false
+                    });
+                }
+                // Also send the confirmation response
+                this.client.handleConfirmationResponse(confirmationData.callId, buttonConfig.outcome);
+            };
 
             button.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -228,7 +252,32 @@ class ConfirmationQueue {
                     e.preventDefault();
                     const prevButton = container.children[(index - 1 + buttons.length) % buttons.length];
                     prevButton.focus();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // Send ENTER key as terminal input
+                    if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
+                        this.client.wsManager.sendTerminalInput({
+                            name: 'return',
+                            sequence: '\r',
+                            ctrl: false,
+                            meta: false,
+                            shift: false
+                        });
+                    }
+                    // Also send the confirmation response
+                    this.client.handleConfirmationResponse(confirmationData.callId, buttonConfig.outcome);
                 } else if (e.key === 'Escape') {
+                    // Send ESC key as terminal input to trigger dialog dismissal in CLI
+                    if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
+                        this.client.wsManager.sendTerminalInput({
+                            name: 'escape',
+                            sequence: '\x1b',
+                            ctrl: false,
+                            meta: false,
+                            shift: false
+                        });
+                    }
+                    // Also send the cancel response for backward compatibility
                     this.client.handleConfirmationResponse(confirmationData.callId, 'cancel');
                 }
             });
