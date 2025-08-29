@@ -1074,6 +1074,20 @@
       "created_file": "Criado {file}",
       "error_writing_file": "Erro ao escrever arquivo: {error}"
     },
+    "smart_edit": {
+      "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
+      "failed_replacement_count": "Falha ao editar, esperava {expectedReplacements} {occurrenceTerm} mas encontrou {occurrences}.",
+      "no_changes_identical": "Sem alterações para aplicar. A old_string e new_string são idênticas.",
+      "no_changes_required": "Nenhuma alteração necessária. O arquivo já atende às condições especificadas.",
+      "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
+      "failed_read_file": "Falha ao ler conteúdo do arquivo.",
+      "failed_create_exists": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
+      "error_preparing_edit": "Erro ao preparar edição: {errorMsg}",
+      "error_display": "Erro: {error}",
+      "created_file_short": "Criado {file}",
+      "created_new_file": "Criado novo arquivo: {file} com conteúdo fornecido.",
+      "modified_file": "Arquivo modificado com sucesso: {file} ({occurrences} substituições)."
+    },
     "shell": {
       "name": "Comando Shell",
       "validation_error": "Erro: {error}",

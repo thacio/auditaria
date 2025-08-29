@@ -1077,6 +1077,20 @@
       "created_file": "Created {file}",
       "error_writing_file": "Error writing file: {error}"
     },
+    "smart_edit": {
+      "failed_find_string": "Failed to edit, could not find the string to replace.",
+      "failed_replacement_count": "Failed to edit, expected {expectedReplacements} {occurrenceTerm} but found {occurrences}.",
+      "no_changes_identical": "No changes to apply. The old_string and new_string are identical.",
+      "no_changes_required": "No changes required. The file already meets the specified conditions.",
+      "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
+      "failed_read_file": "Failed to read content of file.",
+      "failed_create_exists": "Failed to edit. Attempted to create a file that already exists.",
+      "error_preparing_edit": "Error preparing edit: {errorMsg}",
+      "error_display": "Error: {error}",
+      "created_file_short": "Created {file}",
+      "created_new_file": "Created new file: {file} with provided content.",
+      "modified_file": "Successfully modified file: {file} ({occurrences} replacements)."
+    },
     "shell": {
       "name": "Shell Command",
       "validation_error": "Error: {error}",
