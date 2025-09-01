@@ -118,7 +118,6 @@ ${result.llmContent}`;
         lines,
         mimetype,
         path.extname(this.params.absolute_path),
-        undefined,
         programming_language,
       ),
     );
