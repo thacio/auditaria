@@ -203,10 +203,11 @@
         "need_command": "Você precisa de pelo menos um comando antes de continuar."
       },
       "install": {
-        "description": "Instala uma extensão de um repositório git ou de um caminho local.",
-        "source_description": "A URL git da extensão a instalar.",
+        "description": "Instala uma extensão de um repositório git (URL ou \"org/repo\") ou de um caminho local.",
+        "source_description": "A URL git ou \"org/repo\" da extensão a instalar.",
         "path_description": "Caminho para um diretório de extensão local.",
-        "missing_source_or_path": "Um URL git --source ou um --path deve ser fornecido.",
+        "missing_source_or_path": "Ou --source ou --path deve ser fornecido.",
+        "invalid_source_format": "A fonte \"{source}\" não é uma URL válida ou formato \"org/repo\".",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
         "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}"
       },
