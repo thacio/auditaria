@@ -1044,7 +1044,7 @@
   },
   "privacy": {
     "oauth_not_used": "Oauth not being used",
-    "no_current_tier": "User does not have a current tier",
+    "no_current_tier": "CodeAssist server is missing a project ID",
     "loading": "Loading...",
     "error_loading_optin": "Error loading Opt-in settings: {error}",
     "press_esc_exit": "Press Esc to exit.",

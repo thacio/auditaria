@@ -1041,7 +1041,7 @@
   },
   "privacy": {
     "oauth_not_used": "OAuth não está sendo usado",
-    "no_current_tier": "Usuário não possui um nível atual",
+    "no_current_tier": "Servidor CodeAssist está sem ID de projeto",
     "loading": "Carregando...",
     "error_loading_optin": "Erro ao carregar configurações de Opt-in: {error}",
     "press_esc_exit": "Pressione Esc para sair.",

@@ -6,11 +6,11 @@
 import { t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { Config } from '@thacio/auditaria-cli-core';
 import {
-  CodeAssistServer,
+  type Config,
+  type CodeAssistServer,
   UserTierId,
-  LoggingContentGenerator,
+  getCodeAssistServer,
 } from '@thacio/auditaria-cli-core';
 
 export interface PrivacyState {
@@ -31,7 +31,7 @@ export const usePrivacySettings = (config: Config) => {
         isLoading: true,
       });
       try {
-        const server = getCodeAssistServer(config);
+        const server = getCodeAssistServerOrFail(config);
         const tier = await getTier(server);
         if (tier !== UserTierId.FREE) {
           // We don't need to fetch opt-out info since non-free tier
@@ -62,7 +62,7 @@ export const usePrivacySettings = (config: Config) => {
   const updateDataCollectionOptIn = useCallback(
     async (optIn: boolean) => {
       try {
-        const server = getCodeAssistServer(config);
+        const server = getCodeAssistServerOrFail(config);
         const updatedOptIn = await setRemoteDataCollectionOptIn(server, optIn);
         setPrivacyState({
           isLoading: false,
@@ -85,19 +85,12 @@ export const usePrivacySettings = (config: Config) => {
   };
 };
 
-function getCodeAssistServer(config: Config): CodeAssistServer {
-  let server = config.getGeminiClient().getContentGenerator();
-
-  // Unwrap LoggingContentGenerator if present
-  if (server instanceof LoggingContentGenerator) {
-    server = server.getWrapped();
-  }
-
-  // Neither of these cases should ever happen.
-  if (!(server instanceof CodeAssistServer)) {
+function getCodeAssistServerOrFail(config: Config): CodeAssistServer {
+  const server = getCodeAssistServer(config);
+  if (server === undefined) {
     throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
-  } else if (!server.projectId) {
-    throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
+  } else if (server.projectId === undefined) {
+    throw new Error(t('privacy.no_current_tier', 'CodeAssist server is missing a project ID'));
   }
   return server;
 }
