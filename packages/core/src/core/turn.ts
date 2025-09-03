@@ -11,6 +11,7 @@ import type {
   FunctionCall,
   FunctionDeclaration,
   FinishReason,
+  GenerateContentResponseUsageMetadata,
 } from '@google/genai';
 import type {
   ToolCallConfirmationDetails,
@@ -65,6 +66,11 @@ export interface StructuredError {
 
 export interface GeminiErrorEventValue {
   error: StructuredError;
+}
+
+export interface GeminiFinishedEventValue {
+  reason: FinishReason | undefined;
+  usageMetadata: GenerateContentResponseUsageMetadata | undefined;
 }
 
 export interface ToolCallRequestInfo {
@@ -158,7 +164,7 @@ export type ServerGeminiMaxSessionTurnsEvent = {
 
 export type ServerGeminiFinishedEvent = {
   type: GeminiEventType.Finished;
-  value: FinishReason;
+  value: GeminiFinishedEventValue;
 };
 
 export type ServerGeminiLoopDetectedEvent = {
@@ -273,11 +279,14 @@ export class Turn {
           }
 
           this.finishReason = finishReason;
-          yield {
-            type: GeminiEventType.Finished,
-            value: finishReason as FinishReason,
-          };
         }
+        yield {
+          type: GeminiEventType.Finished,
+          value: {
+            reason: finishReason ? finishReason : undefined,
+            usageMetadata: resp.usageMetadata,
+          },
+        };
       }
     } catch (e) {
       if (signal.aborted) {
