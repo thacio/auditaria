@@ -433,7 +433,7 @@ export const SETTINGS_SCHEMA = {
         label: 'Skip Next Speaker Check',
         category: 'Model',
         requiresRestart: false,
-        default: false,
+        default: true,
         description: 'Skip the next speaker check.',
         showInDialog: true,
       },
