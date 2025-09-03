@@ -289,7 +289,7 @@ async function authWithWeb(client: OAuth2Client): Promise<OauthWebLogin> {
           res.end();
           reject(
             new FatalAuthenticationError(
-              t('oauth2.oauth_callback_not_received', 'OAuth callback not received. Unexpected request: {url}', { url: req.url }),
+              t('oauth2.oauth_callback_not_received', 'OAuth callback not received. Unexpected request: {url}', { url: req.url || 'unknown' }),
             ),
           );
         }
