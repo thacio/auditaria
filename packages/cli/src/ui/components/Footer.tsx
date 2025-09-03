@@ -146,6 +146,7 @@ export const Footer: React.FC<FooterProps> = ({
               {branchName && (
                 <Text color={theme.text.secondary}> ({branchName}*)</Text>
               )}
+            </Text>
           )}
           {debugMode && (
             <Text color={theme.status.error}>
