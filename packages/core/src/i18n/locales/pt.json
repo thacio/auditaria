@@ -781,7 +781,11 @@
       "show_line_numbers": "Mostrar Números de Linha",
       "show_citations": "Mostrar Citações",
       "use_node_pty_shell": "Usar node-pty para Execução de Shell",
-      "skip_next_speaker_check": "Pular Verificação do Próximo Orador"
+      "skip_next_speaker_check": "Pular Verificação do Próximo Orador",
+      "custom_witty_phrases": "Frases Espirituosas Personalizadas"
+    },
+    "descriptions": {
+      "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento."
     }
   },
   "editor_dialog": {

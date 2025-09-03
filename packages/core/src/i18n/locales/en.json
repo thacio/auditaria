@@ -784,7 +784,11 @@
       "show_line_numbers": "Show Line Numbers",
       "show_citations": "Show Citations",
       "use_node_pty_shell": "Use node-pty for Shell Execution",
-      "skip_next_speaker_check": "Skip Next Speaker Check"
+      "skip_next_speaker_check": "Skip Next Speaker Check",
+      "custom_witty_phrases": "Custom Witty Phrases"
+    },
+    "descriptions": {
+      "custom_witty_phrases": "Custom witty phrases to display during loading."
     }
   },
   "editor_dialog": {

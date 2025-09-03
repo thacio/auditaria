@@ -11,6 +11,7 @@ import type {
   AuthType,
   ChatCompressionSettings,
 } from '@thacio/auditaria-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 
 export interface SettingDefinition {
@@ -285,6 +286,15 @@ export const SETTINGS_SCHEMA = {
         default: false,
         description: 'Show citations for generated text in the chat.',
         showInDialog: true,
+      },
+      customWittyPhrases: {
+        type: 'array',
+        label: t('settings_dialog.labels.custom_witty_phrases', 'Custom Witty Phrases'),
+        category: 'UI',
+        requiresRestart: false,
+        default: [] as string[],
+        description: t('settings_dialog.descriptions.custom_witty_phrases', 'Custom witty phrases to display during loading.'),
+        showInDialog: false,
       },
       accessibility: {
         type: 'object',

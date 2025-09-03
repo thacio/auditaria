@@ -158,9 +158,18 @@ const getWittyLoadingPhrases = (): string[] => {
  * @param isWaiting Whether to show a specific waiting phrase.
  * @returns The current loading phrase.
  */
-export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
+export const usePhraseCycler = (
+  isActive: boolean,
+  isWaiting: boolean,
+  customPhrases?: string[],
+) => {
+  const loadingPhrases =
+    customPhrases && customPhrases.length > 0
+      ? customPhrases
+      : getWittyLoadingPhrases();
+
   const [currentLoadingPhrase, setCurrentLoadingPhrase] = useState(
-    getWittyLoadingPhrases()[0],
+    loadingPhrases[0],
   );
   const phraseIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -176,19 +185,15 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
         clearInterval(phraseIntervalRef.current);
       }
       // Select an initial random phrase
-      const phrases = getWittyLoadingPhrases();
       const initialRandomIndex = Math.floor(
-        Math.random() * phrases.length,
+        Math.random() * loadingPhrases.length,
       );
-      setCurrentLoadingPhrase(phrases[initialRandomIndex]);
+      setCurrentLoadingPhrase(loadingPhrases[initialRandomIndex]);
 
       phraseIntervalRef.current = setInterval(() => {
         // Select a new random phrase
-        const phrases = getWittyLoadingPhrases();
-        const randomIndex = Math.floor(
-          Math.random() * phrases.length,
-        );
-        setCurrentLoadingPhrase(phrases[randomIndex]);
+        const randomIndex = Math.floor(Math.random() * loadingPhrases.length);
+        setCurrentLoadingPhrase(loadingPhrases[randomIndex]);
       }, PHRASE_CHANGE_INTERVAL_MS);
     } else {
       // Idle or other states, clear the phrase interval
@@ -197,7 +202,7 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
         clearInterval(phraseIntervalRef.current);
         phraseIntervalRef.current = null;
       }
-      setCurrentLoadingPhrase(getWittyLoadingPhrases()[0]);
+      setCurrentLoadingPhrase(loadingPhrases[0]);
     }
 
     return () => {
@@ -206,7 +211,7 @@ export const usePhraseCycler = (isActive: boolean, isWaiting: boolean) => {
         phraseIntervalRef.current = null;
       }
     };
-  }, [isActive, isWaiting]);
+  }, [isActive, isWaiting, loadingPhrases]);
 
   return currentLoadingPhrase;
 };
