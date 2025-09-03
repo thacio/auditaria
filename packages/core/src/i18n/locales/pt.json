@@ -248,6 +248,19 @@
         "scope_description": "O escopo para habilitar a extensão. Se não definido, será habilitado em todos os escopos.",
         "success_with_scope": "Extensão \"{name}\" habilitada com sucesso para o escopo \"{scope}\".",
         "success_all_scopes": "Extensão \"{name}\" habilitada com sucesso em todos os escopos."
+      },
+      "link": {
+        "description": "Vincula uma extensão de um caminho local. Atualizações feitas no caminho local sempre serão refletidas.",
+        "path_description": "O nome da extensão para vincular.",
+        "success": "Extensão \"{extensionName}\" vinculada com sucesso e habilitada."
+      },
+      "new": {
+        "description": "Criar uma nova extensão a partir de um exemplo modelo.",
+        "path_description": "O caminho para criar a extensão.",
+        "template_description": "O modelo de exemplo para usar.",
+        "success": "Nova extensão criada com sucesso a partir do modelo \"{template}\" em {path}.",
+        "install_help": "Você pode instalar isso usando \"gemini extensions link {path}\" para testar.",
+        "path_exists": "Caminho já existe: {path}"
       }
     },
     "tools": {

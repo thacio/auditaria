@@ -40,7 +40,7 @@ export interface ExtensionConfig {
 
 export interface ExtensionInstallMetadata {
   source: string;
-  type: 'git' | 'local';
+  type: 'git' | 'local' | 'link';
 }
 
 export interface ExtensionUpdateInfo {
@@ -174,10 +174,20 @@ export function loadExtension(extensionDir: string): Extension | null {
     return null;
   }
 
-  const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  const installMetadata = loadInstallMetadata(extensionDir);
+  let effectiveExtensionPath = extensionDir;
+
+  if (installMetadata?.type === 'link') {
+    effectiveExtensionPath = installMetadata.source;
+  }
+
+  const configFilePath = path.join(
+    effectiveExtensionPath,
+    EXTENSIONS_CONFIG_FILENAME,
+  );
   if (!fs.existsSync(configFilePath)) {
     console.error(
-      t('extension.missing_config', 'Warning: extension directory {dir} does not contain a config file {config}.', { dir: extensionDir, config: configFilePath }),
+      t('extension.missing_config', 'Warning: extension directory {dir} does not contain a config file {config}.', { dir: effectiveExtensionPath, config: configFilePath }),
     );
     return null;
   }
@@ -199,14 +209,16 @@ export function loadExtension(extensionDir: string): Extension | null {
     config = resolveEnvVarsInObject(config);
 
     const contextFiles = getContextFileNames(config)
-      .map((contextFileName) => path.join(extensionDir, contextFileName))
+      .map((contextFileName) =>
+        path.join(effectiveExtensionPath, contextFileName),
+      )
       .filter((contextFilePath) => fs.existsSync(contextFilePath));
 
     return {
-      path: extensionDir,
+      path: effectiveExtensionPath,
       config,
       contextFiles,
-      installMetadata: loadInstallMetadata(extensionDir),
+      installMetadata,
     };
   } catch (e) {
     console.error(
@@ -340,32 +352,38 @@ export async function installExtension(
 
   // Convert relative paths to absolute paths for the metadata file.
   if (
-    installMetadata.type === 'local' &&
-    !path.isAbsolute(installMetadata.source)
+    !path.isAbsolute(installMetadata.source) &&
+    (installMetadata.type === 'local' || installMetadata.type === 'link')
   ) {
     installMetadata.source = path.resolve(cwd, installMetadata.source);
   }
 
   let localSourcePath: string;
   let tempDir: string | undefined;
+  let newExtensionName: string | undefined;
+
   if (installMetadata.type === 'git') {
     tempDir = await ExtensionStorage.createTmpDir();
     await cloneFromGit(installMetadata.source, tempDir);
     localSourcePath = tempDir;
-  } else {
+  } else if (
+    installMetadata.type === 'local' ||
+    installMetadata.type === 'link'
+  ) {
     localSourcePath = installMetadata.source;
+  } else {
+    throw new Error(`Unsupported install type: ${installMetadata.type}`);
   }
-  let newExtensionName: string | undefined;
+
   try {
-    const newExtension = loadExtension(localSourcePath);
-    if (!newExtension) {
+    const newExtensionConfig = await loadExtensionConfig(localSourcePath);
+    if (!newExtensionConfig) {
       throw new Error(
         `Invalid extension at ${installMetadata.source}. Please make sure it has a valid gemini-extension.json file.`,
       );
     }
 
-    // ~/.gemini/extensions/{ExtensionConfig.name}.
-    newExtensionName = newExtension.config.name;
+    newExtensionName = newExtensionConfig.name;
     const extensionStorage = new ExtensionStorage(newExtensionName);
     const destinationPath = extensionStorage.getExtensionDir();
 
@@ -380,7 +398,11 @@ export async function installExtension(
       );
     }
 
-    await copyExtension(localSourcePath, destinationPath);
+    await fs.promises.mkdir(destinationPath, { recursive: true });
+
+    if (installMetadata.type === 'local' || installMetadata.type === 'git') {
+      await copyExtension(localSourcePath, destinationPath);
+    }
 
     const metadataString = JSON.stringify(installMetadata, null, 2);
     const metadataPath = path.join(destinationPath, INSTALL_METADATA_FILENAME);
@@ -392,6 +414,29 @@ export async function installExtension(
   }
 
   return newExtensionName;
+}
+
+async function loadExtensionConfig(
+  extensionDir: string,
+): Promise<ExtensionConfig | null> {
+  const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
+  if (!fs.existsSync(configFilePath)) {
+    return null;
+  }
+  try {
+    const configContent = fs.readFileSync(configFilePath, 'utf-8');
+    const config = recursivelyHydrateStrings(JSON.parse(configContent), {
+      extensionPath: extensionDir,
+      '/': path.sep,
+      pathSeparator: path.sep,
+    }) as unknown as ExtensionConfig;
+    if (!config.name || !config.version) {
+      return null;
+    }
+    return config;
+  } catch (_) {
+    return null;
+  }
 }
 
 export async function uninstallExtension(
@@ -422,7 +467,7 @@ export function toOutputString(extension: Extension): string {
   let output = `${extension.config.name} (${extension.config.version})`;
   output += `\n Path: ${extension.path}`;
   if (extension.installMetadata) {
-    output += `\n Source: ${extension.installMetadata.source}`;
+    output += `\n Source: ${extension.installMetadata.source} (Type: ${extension.installMetadata.type})`;
   }
   if (extension.contextFiles.length > 0) {
     output += `\n Context files:`;
@@ -474,14 +519,21 @@ export async function updateExtension(
       ),
     );
   }
+  if (extension.installMetadata.type === 'link') {
+    throw new Error(`Extension is linked so does not need to be updated`);
+  }
   const originalVersion = extension.config.version;
+
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
     await copyExtension(extension.path, tempDir);
     await uninstallExtension(extension.config.name, cwd);
     await installExtension(extension.installMetadata, cwd);
 
-    const updatedExtension = loadExtension(extension.path);
+    const updatedExtensionStorage = new ExtensionStorage(extension.config.name);
+    const updatedExtension = loadExtension(
+      updatedExtensionStorage.getExtensionDir(),
+    );
     if (!updatedExtension) {
       throw new Error(t('commands.extensions.update.not_found_after_install', 'Updated extension not found after installation.'));
     }

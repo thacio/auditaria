@@ -251,6 +251,19 @@
         "scope_description": "The scope to enable the extension in. If not set, will be enabled in all scopes.",
         "success_with_scope": "Extension \"{name}\" successfully enabled for scope \"{scope}\".",
         "success_all_scopes": "Extension \"{name}\" successfully enabled in all scopes."
+      },
+      "link": {
+        "description": "Links an extension from a local path. Updates made to the local path will always be reflected.",
+        "path_description": "The name of the extension to link.",
+        "success": "Extension \"{extensionName}\" linked successfully and enabled."
+      },
+      "new": {
+        "description": "Create a new extension from a boilerplate example.",
+        "path_description": "The path to create the extension in.",
+        "template_description": "The boilerplate template to use.",
+        "success": "Successfully created new extension from template \"{template}\" at {path}.",
+        "install_help": "You can install this using \"gemini extensions link {path}\" to test it out.",
+        "path_exists": "Path already exists: {path}"
       }
     },
     "tools": {

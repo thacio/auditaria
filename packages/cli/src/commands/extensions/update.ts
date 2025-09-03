@@ -46,7 +46,6 @@ export async function handleUpdate(args: UpdateArgs) {
     } catch (error) {
       console.error(getErrorMessage(error));
     }
-    return;
   }
   if (args.name)
     try {
