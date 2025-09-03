@@ -785,9 +785,11 @@
       "show_citations": "Show Citations",
       "use_node_pty_shell": "Use node-pty for Shell Execution",
       "skip_next_speaker_check": "Skip Next Speaker Check",
+      "auto_accept": "Auto Accept",
       "custom_witty_phrases": "Custom Witty Phrases"
     },
     "descriptions": {
+      "auto_accept": "Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).",
       "custom_witty_phrases": "Custom witty phrases to display during loading."
     }
   },

@@ -782,9 +782,11 @@
       "show_citations": "Mostrar Citações",
       "use_node_pty_shell": "Usar node-pty para Execução de Shell",
       "skip_next_speaker_check": "Pular Verificação do Próximo Orador",
+      "auto_accept": "Aceitar Automaticamente",
       "custom_witty_phrases": "Frases Espirituosas Personalizadas"
     },
     "descriptions": {
+      "auto_accept": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
       "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento."
     }
   },
