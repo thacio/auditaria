@@ -1238,7 +1238,17 @@
     "restart_cli_message": "Logging in with Google... Please restart Gemini CLI to continue."
   },
   "oauth2": {
-    "clear_credentials_failed": "Failed to clear cached credentials: {error}"
+    "clear_credentials_failed": "Failed to clear cached credentials: {error}",
+    "browser_failed": "Failed to open browser: {error}",
+    "auth_timeout": "Authentication timed out after 5 minutes. The browser tab may have gotten stuck in a loading state. Please try again or use NO_BROWSER=true for manual authentication.",
+    "google_oauth_error": "Google OAuth error: {error}. {description}",
+    "auth_failed_user_code": "Failed to authenticate with user code.",
+    "oauth_callback_not_received": "OAuth callback not received. Unexpected request: {url}",
+    "oauth_state_mismatch": "OAuth state mismatch. Possible CSRF attack or browser session issue.",
+    "token_exchange_failed": "Failed to exchange authorization code for tokens: {error}",
+    "no_auth_code": "No authorization code received from Google OAuth. Please try authenticating again.",
+    "unexpected_oauth_error": "Unexpected error during OAuth authentication: {error}",
+    "oauth_server_error": "OAuth callback server error: {error}"
   },
   "app": {
     "memory_refreshing": "Refreshing hierarchical memory (GEMINI.md or other context files)...",
