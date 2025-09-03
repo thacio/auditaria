@@ -1088,7 +1088,7 @@
       "created_file": "Criado {file}",
       "error_writing_file": "Erro ao escrever arquivo: {error}"
     },
-    "smart_edit": {
+    "replace": {
       "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
       "failed_replacement_count": "Falha ao editar, esperava {expectedReplacements} {occurrenceTerm} mas encontrou {occurrences}.",
       "no_changes_identical": "Sem alterações para aplicar. A old_string e new_string são idênticas.",
