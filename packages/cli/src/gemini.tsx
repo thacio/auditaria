@@ -41,7 +41,6 @@ import {
   logIdeConnection,
   IdeConnectionEvent,
   IdeConnectionType,
-  FatalConfigError,
   uiTelemetryService,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from './config/auth.js';
@@ -197,7 +196,7 @@ export async function startInteractiveUI(
   config: Config,
   settings: LoadedSettings,
   startupWarnings: string[],
-  workspaceRoot: string,
+  workspaceRoot: string = process.cwd(),
   // WEB_INTERFACE_START: Add web interface parameters
   webEnabled?: boolean,
   webOpenBrowser?: boolean,
@@ -243,25 +242,16 @@ export async function startInteractiveUI(
 
 export async function main() {
   setupUnhandledRejectionHandler();
-  const workspaceRoot = process.cwd();
-  const settings = loadSettings(workspaceRoot);
+  const settings = loadSettings();
 
   // Initialize i18n system with settings-based language or fallback to detection
   const language = settings.merged.ui?.language || detectLanguage();
   await initI18n(language);
 
   await cleanupCheckpoints();
-  if (settings.errors.length > 0) {
-    const errorMessages = settings.errors.map(
-      (error) => `Error in ${error.path}: ${error.message}`,
-    );
-    throw new FatalConfigError(
-      t('errors.config_error', `${errorMessages.join('\n')}\nPlease fix the configuration file(s) and try again.`, { errors: errorMessages.join('\n') }),
-    );
-  }
 
   const argv = await parseArguments(settings.merged);
-  const extensions = loadExtensions(workspaceRoot);
+  const extensions = loadExtensions();
   const config = await loadCliConfig(
     settings.merged,
     extensions,
@@ -436,7 +426,7 @@ export async function main() {
   let input = config.getQuestion();
   const startupWarnings = [
     ...(await getStartupWarnings()),
-    ...(await getUserStartupWarnings(workspaceRoot)),
+    ...(await getUserStartupWarnings()),
   ];
 
   // Render UI, passing necessary config values. Check that there is no command line question.
@@ -451,7 +441,7 @@ export async function main() {
       config, 
       settings, 
       startupWarnings, 
-      workspaceRoot,
+      process.cwd(), // Updated to match upstream default parameter
       // WEB_INTERFACE_START: Pass web interface flags
       webEnabled,
       webOpenBrowser,
