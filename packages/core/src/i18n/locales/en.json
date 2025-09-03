@@ -1259,7 +1259,8 @@
     "press_ctrl_c_exit": "Press Ctrl+C again to exit.",
     "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
     "initialization_error": "Initialization Error: {error}",
-    "check_api_config": "Please check API key and configuration."
+    "check_api_config": "Please check API key and configuration.",
+    "ide_trust_changed": "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes."
   },
   "cli": {
     "errors": {
