@@ -645,7 +645,9 @@ export async function discoverTools(
   cliConfig: Config,
 ): Promise<DiscoveredMCPTool[]> {
   try {
-    const mcpCallableTool = mcpToTool(mcpClient);
+    const mcpCallableTool = mcpToTool(mcpClient, {
+      timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
+    });
     const tool = await mcpCallableTool.tool();
 
     if (!Array.isArray(tool.functionDeclarations)) {
@@ -676,7 +678,6 @@ export async function discoverTools(
             funcDecl.name!,
             funcDecl.description ?? '',
             funcDecl.parametersJsonSchema ?? { type: 'object', properties: {} },
-            mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
             mcpServerConfig.trust,
             undefined,
             cliConfig,
@@ -871,18 +872,6 @@ export async function connectToMcpServer(
     unlistenDirectories?.();
     unlistenDirectories = undefined;
   };
-
-  // patch Client.callTool to use request timeout as genai McpCallTool.callTool does not do it
-  // TODO: remove this hack once GenAI SDK does callTool with request options
-  if ('callTool' in mcpClient) {
-    const origCallTool = mcpClient.callTool.bind(mcpClient);
-    mcpClient.callTool = function (params, resultSchema, options) {
-      return origCallTool(params, resultSchema, {
-        ...options,
-        timeout: mcpServerConfig.timeout ?? MCP_DEFAULT_TIMEOUT_MSEC,
-      });
-    };
-  }
 
   try {
     const transport = await createTransport(
