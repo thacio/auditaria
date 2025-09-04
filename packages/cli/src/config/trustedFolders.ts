@@ -151,7 +151,7 @@ export function saveTrustedFolders(
     fs.writeFileSync(
       trustedFoldersFile.path,
       JSON.stringify(trustedFoldersFile.config, null, 2),
-      'utf-8',
+      { encoding: 'utf-8', mode: 0o600 },
     );
   } catch (error) {
     console.error(t('trusted_folders.error_saving', 'Error saving trusted folders file: {error}', { error: String(error) }));
