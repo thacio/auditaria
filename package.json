@@ -95,7 +95,6 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
-    "@lvce-editor/ripgrep": "^1.6.0",
     "ansi-to-html": "^0.7.2",
     "node-fetch": "^3.3.2",
     "simple-git": "^3.28.0",

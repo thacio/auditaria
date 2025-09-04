@@ -15,10 +15,10 @@ import { createMockWorkspaceContext } from '../test-utils/mockWorkspaceContext.j
 import type { ChildProcess } from 'node:child_process';
 import { spawn } from 'node:child_process';
 
-// Mock @lvce-editor/ripgrep for testing
-vi.mock('@lvce-editor/ripgrep', () => ({
-  rgPath: '/mock/rg/path',
-}));
+// Mock @lvce-editor/ripgrep for testing (commented out due to corporate firewall restrictions)
+// vi.mock('@lvce-editor/ripgrep', () => ({
+//   rgPath: '/mock/rg/path',
+// }));
 
 // Mock child_process for ripgrep calls
 vi.mock('child_process', () => ({

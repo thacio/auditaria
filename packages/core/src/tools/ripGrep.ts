@@ -8,7 +8,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EOL } from 'node:os';
 import { spawn } from 'node:child_process';
-import { rgPath } from '@lvce-editor/ripgrep';
+// import { rgPath } from '@lvce-editor/ripgrep'; // Commented out due to corporate firewall restrictions
+
+// Dummy rgPath variable to replace the imported one
+const rgPath = 'ripgrep-disabled-due-to-corporate-firewall';
 import { t } from '../i18n/index.js';
 import type { ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
@@ -305,6 +308,11 @@ class GrepToolInvocation extends BaseToolInvocation<
     rgArgs.push(absolutePath);
 
     try {
+      // Check if ripgrep is disabled due to corporate firewall restrictions
+      if (rgPath === 'ripgrep-disabled-due-to-corporate-firewall') {
+        throw new Error('Ripgrep is not available due to corporate firewall restrictions. Please disable ripgrep in /settings to use alternative search methods.');
+      }
+
       const output = await new Promise<string>((resolve, reject) => {
         const child = spawn(rgPath, rgArgs, {
           windowsHide: true,
