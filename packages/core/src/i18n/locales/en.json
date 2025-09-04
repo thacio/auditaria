@@ -1163,7 +1163,9 @@
     "gemini_api_key_not_found": "GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!",
     "vertex_ai_env_vars_missing": "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!",
     "gca_project_not_set": "[Error] GOOGLE_CLOUD_PROJECT is not set.\nPlease set it using:\n  export GOOGLE_CLOUD_PROJECT=<your-project-id>\nand try again.",
-    "invalid_method": "Invalid auth method selected."
+    "invalid_method": "Invalid auth method selected.",
+    "enforced_auth_mismatch": "Authentication is enforced to be {enforcedType}, but you are currently using {currentType}.",
+    "enforced_auth_type_mismatch_env": "The configured auth type is {enforcedType}, but the current auth type is {currentType}. Please re-authenticate with the correct type."
   },
   "memory": {
     "config_not_available": "Configuration not available. Cannot show memory.",

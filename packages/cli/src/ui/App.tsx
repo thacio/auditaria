@@ -378,6 +378,19 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
 
   useEffect(() => {
     if (
+      settings.merged.security?.auth?.enforcedType &&
+      settings.merged.security?.auth.selectedType &&
+      settings.merged.security?.auth.enforcedType !==
+        settings.merged.security?.auth.selectedType
+    ) {
+      setAuthError(
+        t('auth_errors.enforced_auth_mismatch', `Authentication is enforced to be ${settings.merged.security?.auth.enforcedType}, but you are currently using ${settings.merged.security?.auth.selectedType}.`, {
+          enforcedType: settings.merged.security?.auth.enforcedType,
+          currentType: settings.merged.security?.auth.selectedType,
+        }),
+      );
+      openAuthDialog();
+    } else if (
       settings.merged.security?.auth?.selectedType &&
       !settings.merged.security?.auth?.useExternal
     ) {
@@ -391,6 +404,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     }
   }, [
     settings.merged.security?.auth?.selectedType,
+    settings.merged.security?.auth?.enforcedType,
     settings.merged.security?.auth?.useExternal,
     openAuthDialog,
     setAuthError,

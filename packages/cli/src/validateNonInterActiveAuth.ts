@@ -8,6 +8,7 @@ import type { Config } from '@thacio/auditaria-cli-core';
 import { AuthType, t } from '@thacio/auditaria-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
 import { validateAuthMethod } from './config/auth.js';
+import { type LoadedSettings } from './config/settings.js';
 
 export interface NonInteractiveConfig {
   refreshAuth: (authType: AuthType) => Promise<unknown>;
@@ -30,8 +31,24 @@ export async function validateNonInteractiveAuth(
   configuredAuthType: AuthType | undefined,
   useExternalAuth: boolean | undefined,
   nonInteractiveConfig: Config,
+  settings: LoadedSettings,
 ) {
-  const effectiveAuthType = configuredAuthType || getAuthTypeFromEnv();
+  const enforcedType = settings.merged.security?.auth?.enforcedType;
+  if (enforcedType) {
+    const currentAuthType = getAuthTypeFromEnv();
+    if (currentAuthType !== enforcedType) {
+      console.error(
+        t('auth_errors.enforced_auth_type_mismatch_env', `The configured auth type is ${enforcedType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`, {
+          enforcedType,
+          currentType: currentAuthType,
+        }),
+      );
+      process.exit(1);
+    }
+  }
+
+  const effectiveAuthType =
+    enforcedType || getAuthTypeFromEnv() || configuredAuthType;
 
   if (!effectiveAuthType) {
     console.error(
