@@ -385,8 +385,8 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
     ) {
       setAuthError(
         t('auth_errors.enforced_auth_mismatch', `Authentication is enforced to be ${settings.merged.security?.auth.enforcedType}, but you are currently using ${settings.merged.security?.auth.selectedType}.`, {
-          enforcedType: settings.merged.security?.auth.enforcedType,
-          currentType: settings.merged.security?.auth.selectedType,
+          enforcedType: String(settings.merged.security?.auth.enforcedType),
+          currentType: String(settings.merged.security?.auth.selectedType),
         }),
       );
       openAuthDialog();

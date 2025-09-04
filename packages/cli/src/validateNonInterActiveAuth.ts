@@ -39,8 +39,8 @@ export async function validateNonInteractiveAuth(
     if (currentAuthType !== enforcedType) {
       console.error(
         t('auth_errors.enforced_auth_type_mismatch_env', `The configured auth type is ${enforcedType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`, {
-          enforcedType,
-          currentType: currentAuthType,
+          enforcedType: String(enforcedType),
+          currentType: String(currentAuthType),
         }),
       );
       process.exit(1);
