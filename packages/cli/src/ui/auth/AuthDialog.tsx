@@ -109,7 +109,7 @@ export function AuthDialog({
           console.log(
             `
 ----------------------------------------------------------------
-Logging in with Google... Please restart Gemini CLI to continue.
+${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Auditaria CLI to continue.')}
 ----------------------------------------------------------------
             `,
           );
@@ -140,13 +140,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
         }
         if (settings.merged.security?.auth?.selectedType === undefined) {
           // Prevent exiting if no auth method is set
-<<<<<<< HEAD:packages/cli/src/ui/components/AuthDialog.tsx
-          setErrorMessage(
-            t('auth_dialog.messages.must_select_auth', 'You must select an auth method to proceed. Press Ctrl+C twice to exit.'),
-=======
           onAuthError(
-            'You must select an auth method to proceed. Press Ctrl+C twice to exit.',
->>>>>>> 7239c5cd9:packages/cli/src/ui/auth/AuthDialog.tsx
+            t('auth_dialog.messages.must_select_auth', 'You must select an auth method to proceed. Press Ctrl+C twice to exit.'),
           );
           return;
         }

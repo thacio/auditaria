@@ -973,9 +973,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
   }, [preStartTerminalCapture, webInterface]);
   
   // Detect when any interactive screen is shown
-  const isAnyInteractiveScreenOpen = 
-    isAuthDialogOpen || 
-    isAuthenticating || 
+  const isAnyInteractiveScreenOpen =
+    authState === AuthState.Updating ||
+    authState === AuthState.Unauthenticated ||
     isThemeDialogOpen ||
     isEditorDialogOpen ||
     isLanguageDialogOpen ||
@@ -1138,9 +1138,9 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       let message = '';
       
       // Check for any active dialog/screen (except IDE prompt which is handled above)
-      if (isAuthDialogOpen || isAuthenticating) {
+      if (authState === AuthState.Updating || authState === AuthState.Unauthenticated) {
         reason = 'authentication';
-        message = isAuthenticating 
+        message = authState === AuthState.Unauthenticated
           ? t('web.cli_action.auth_in_progress', 'Authentication is in progress. Please check the CLI terminal.')
           : t('web.cli_action.auth_required', 'Authentication is required. Please complete the authentication process in the CLI terminal.');
       } else if (isThemeDialogOpen) {
@@ -1174,8 +1174,7 @@ const App = ({ config, settings, startupWarnings = [], version, /* WEB_INTERFACE
       }
     }
   }, [
-    isAuthDialogOpen, 
-    isAuthenticating, 
+    authState,
     isThemeDialogOpen,
     isEditorDialogOpen,
     isLanguageDialogOpen,

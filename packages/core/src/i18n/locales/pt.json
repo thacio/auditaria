@@ -525,6 +525,8 @@
       "api_key_detected": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
       "invalid_default_auth_type": "Valor inválido para GEMINI_DEFAULT_AUTH_TYPE: \"{defaultAuthType}\". Valores válidos são: {validValues}.",
       "must_select_auth": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
+      "no_auth_selected": "Nenhum método de autenticação selecionado.",
+      "authenticated_via": "Autenticado via \"{authType}\".",
       "use_enter": "(Use Enter para selecionar)",
       "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
       "auth_timeout": "Autenticação expirou. Tente novamente.",
@@ -1236,7 +1238,7 @@
     "enter_code": "Digite o código de autorização: ",
     "code_required": "Código de autorização é obrigatório.",
     "code_received": "Código de autorização recebido: \"{code}\"",
-    "restart_cli_message": "Logando com Google... Por favor, reinicie o Gemini CLI para continuar."
+    "restart_cli_message": "Logando com Google... Por favor, reinicie o Auditaria CLI para continuar."
   },
   "oauth2": {
     "clear_credentials_failed": "Falha ao limpar credenciais em cache: {error}",
