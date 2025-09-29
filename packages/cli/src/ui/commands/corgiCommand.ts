@@ -13,6 +13,7 @@ export const corgiCommand: SlashCommand = {
     return t('commands.corgi.description', 'Toggles corgi mode.');
   },
   kind: CommandKind.BUILT_IN,
+  hidden: true,
   action: (context, _args) => {
     context.ui.toggleCorgiMode();
   },
