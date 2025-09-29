@@ -28,11 +28,12 @@ import {
 } from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
-import type {
-  Message,
-  HistoryItemWithoutId,
-  HistoryItem,
-  SlashCommandProcessorResult,
+import {
+  type Message,
+  type HistoryItemWithoutId,
+  type HistoryItem,
+  type SlashCommandProcessorResult,
+  AuthState,
 } from '../types.js';
 import { MessageType } from '../types.js';
 // WEB_INTERFACE_START: Web commands hook import
@@ -57,7 +58,7 @@ export const useSlashCommandProcessor = (
   refreshStatic: () => void,
   onDebugMessage: (message: string) => void,
   openThemeDialog: () => void,
-  openAuthDialog: () => void,
+  setAuthState: (state: AuthState) => void,
   openEditorDialog: () => void,
   openLanguageDialog: () => void,
   toggleCorgiMode: () => void,
@@ -410,7 +411,7 @@ export const useSlashCommandProcessor = (
                   
                   switch (result.dialog) {
                     case 'auth':
-                      openAuthDialog();
+                      setAuthState(AuthState.Updating);
                       return { type: 'handled' };
                     case 'theme':
                       openThemeDialog();
@@ -592,7 +593,7 @@ export const useSlashCommandProcessor = (
     [
       config,
       addItem,
-      openAuthDialog,
+      setAuthState,
       commands,
       commandContext,
       addMessage,
