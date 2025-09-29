@@ -1083,6 +1083,7 @@
     "warn_unreadable_directory": "[AVISO] Ignorando diretório ilegível: {directory} ({message})"
   },
   "tools": {
+    "output_saved": "Saída muito longa e foi salva em: {outputFile}",
     "edit": {
       "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
       "file_not_found_raw": "Arquivo não encontrado: {path}",
@@ -1363,6 +1364,16 @@
     }
   },
   "settings": {
+    "tools": {
+      "truncate_output_threshold": {
+        "label": "Limite de Truncamento de Saída de Ferramenta",
+        "description": "Truncar saída da ferramenta se for maior que este número de caracteres. Defina como -1 para desativar."
+      },
+      "truncate_output_lines": {
+        "label": "Linhas de Truncamento de Saída de Ferramenta",
+        "description": "O número de linhas a manter ao truncar a saída da ferramenta."
+      }
+    },
     "chatCompression": {
       "invalid_threshold": "Valor inválido para chatCompression.contextPercentageThreshold: \"{threshold}\". Por favor, use um valor entre 0 e 1. Usando configurações de compressão padrão."
     }

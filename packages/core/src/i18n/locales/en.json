@@ -1086,6 +1086,7 @@
     "warn_unreadable_directory": "[WARN] Skipping unreadable directory: {directory} ({message})"
   },
   "tools": {
+    "output_saved": "Output too long and was saved to: {outputFile}",
     "edit": {
       "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
       "file_not_found_raw": "File not found: {path}",
@@ -1366,6 +1367,16 @@
     }
   },
   "settings": {
+    "tools": {
+      "truncate_output_threshold": {
+        "label": "Tool Output Truncation Threshold",
+        "description": "Truncate tool output if it is larger than this many characters. Set to -1 to disable."
+      },
+      "truncate_output_lines": {
+        "label": "Tool Output Truncation Lines",
+        "description": "The number of lines to keep when truncating tool output."
+      }
+    },
     "chatCompression": {
       "invalid_threshold": "Invalid value for chatCompression.contextPercentageThreshold: \"{threshold}\". Please use a value between 0 and 1. Using default compression settings."
     }

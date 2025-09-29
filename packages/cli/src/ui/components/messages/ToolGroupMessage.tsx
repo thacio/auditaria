@@ -6,13 +6,14 @@
 
 import type React from 'react';
 import { useMemo } from 'react';
-import { Box } from 'ink';
+import { Box, Text } from 'ink';
 import type { IndividualToolCallDisplay } from '../../types.js';
 import { ToolCallStatus } from '../../types.js';
 import { ToolMessage } from './ToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { Colors } from '../../colors.js';
 import type { Config } from '@thacio/auditaria-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 import { SHELL_COMMAND_NAME } from '../../constants.js';
 
 interface ToolGroupMessageProps {
@@ -121,6 +122,11 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
                   terminalWidth={innerWidth}
                 />
               )}
+            {tool.outputFile && (
+              <Box marginX={1}>
+                <Text>{t('tools.output_saved', 'Output too long and was saved to: {outputFile}', { outputFile: tool.outputFile })}</Text>
+              </Box>
+            )}
           </Box>
         );
       })}

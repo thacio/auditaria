@@ -11,7 +11,11 @@ import type {
   AuthType,
   ChatCompressionSettings,
 } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import {
+  t,
+  DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
+  DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
+} from '@thacio/auditaria-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 
 export enum MergeStrategy {
@@ -661,6 +665,26 @@ export const SETTINGS_SCHEMA = {
         default: false,
         description:
           'Use ripgrep for file content search instead of the fallback implementation. Provides faster search performance.',
+        showInDialog: true,
+      },
+      truncateToolOutputThreshold: {
+        type: 'number',
+        label: t('settings.tools.truncate_output_threshold.label', 'Tool Output Truncation Threshold'),
+        category: 'General',
+        requiresRestart: false,
+        default: DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
+        description: t('settings.tools.truncate_output_threshold.description',
+          'Truncate tool output if it is larger than this many characters. Set to -1 to disable.'),
+        showInDialog: true,
+      },
+      truncateToolOutputLines: {
+        type: 'number',
+        label: t('settings.tools.truncate_output_lines.label', 'Tool Output Truncation Lines'),
+        category: 'General',
+        requiresRestart: false,
+        default: DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
+        description: t('settings.tools.truncate_output_lines.description',
+          'The number of lines to keep when truncating tool output.'),
         showInDialog: true,
       },
     },
