@@ -482,6 +482,7 @@
     "shell_mode": "Shell mode",
     "shell_mode_help": "Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).",
     "shell_command": "shell command",
+    "mcp_command": "Model Context Protocol command (from external servers)",
     "keys": {
       "enter": "Enter",
       "ctrl_enter": "Ctrl+Enter",
