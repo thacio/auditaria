@@ -54,11 +54,11 @@ describe('MCPOAuthTokenStorage', () => {
     vi.restoreAllMocks();
   });
 
-  describe('loadTokens', () => {
+  describe('getAllCredentials', () => {
     it('should return empty map when token file does not exist', async () => {
       vi.mocked(fs.readFile).mockRejectedValue({ code: 'ENOENT' });
 
-      const tokens = await tokenStorage.loadTokens();
+      const tokens = await tokenStorage.getAllCredentials();
 
       expect(tokens.size).toBe(0);
       expect(console.error).not.toHaveBeenCalled();
@@ -68,12 +68,12 @@ describe('MCPOAuthTokenStorage', () => {
       const tokensArray = [mockCredentials];
       vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(tokensArray));
 
-      const tokens = await tokenStorage.loadTokens();
+      const tokens = await tokenStorage.getAllCredentials();
 
       expect(tokens.size).toBe(1);
       expect(tokens.get('test-server')).toEqual(mockCredentials);
       expect(fs.readFile).toHaveBeenCalledWith(
-        path.join('/mock/home', '.gemini', 'mcp-oauth-tokens.json'),
+        path.join('/mock/home', '.auditaria', 'mcp-oauth-tokens.json'),
         'utf-8',
       );
     });
@@ -81,7 +81,7 @@ describe('MCPOAuthTokenStorage', () => {
     it('should handle corrupted token file gracefully', async () => {
       vi.mocked(fs.readFile).mockResolvedValue('invalid json');
 
-      const tokens = await tokenStorage.loadTokens();
+      const tokens = await tokenStorage.getAllCredentials();
 
       expect(tokens.size).toBe(0);
       expect(console.error).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe('MCPOAuthTokenStorage', () => {
       const error = new Error('Permission denied');
       vi.mocked(fs.readFile).mockRejectedValue(error);
 
-      const tokens = await tokenStorage.loadTokens();
+      const tokens = await tokenStorage.getAllCredentials();
 
       expect(tokens.size).toBe(0);
       expect(console.error).toHaveBeenCalledWith(
@@ -116,11 +116,11 @@ describe('MCPOAuthTokenStorage', () => {
       );
 
       expect(fs.mkdir).toHaveBeenCalledWith(
-        path.join('/mock/home', '.gemini'),
+        path.join('/mock/home', '.auditaria'),
         { recursive: true },
       );
       expect(fs.writeFile).toHaveBeenCalledWith(
-        path.join('/mock/home', '.gemini', 'mcp-oauth-tokens.json'),
+        path.join('/mock/home', '.auditaria', 'mcp-oauth-tokens.json'),
         expect.stringContaining('test-server'),
         { mode: 0o600 },
       );
@@ -163,13 +163,13 @@ describe('MCPOAuthTokenStorage', () => {
     });
   });
 
-  describe('getToken', () => {
+  describe('getCredentials', () => {
     it('should return token for existing server', async () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify([mockCredentials]),
       );
 
-      const result = await tokenStorage.getToken('test-server');
+      const result = await tokenStorage.getCredentials('test-server');
 
       expect(result).toEqual(mockCredentials);
     });
@@ -179,7 +179,7 @@ describe('MCPOAuthTokenStorage', () => {
         JSON.stringify([mockCredentials]),
       );
 
-      const result = await tokenStorage.getToken('non-existent');
+      const result = await tokenStorage.getCredentials('non-existent');
 
       expect(result).toBeNull();
     });
@@ -187,13 +187,13 @@ describe('MCPOAuthTokenStorage', () => {
     it('should return null when no tokens file exists', async () => {
       vi.mocked(fs.readFile).mockRejectedValue({ code: 'ENOENT' });
 
-      const result = await tokenStorage.getToken('test-server');
+      const result = await tokenStorage.getCredentials('test-server');
 
       expect(result).toBeNull();
     });
   });
 
-  describe('removeToken', () => {
+  describe('deleteCredentials', () => {
     it('should remove token for specific server', async () => {
       const credentials1 = { ...mockCredentials, serverName: 'server1' };
       const credentials2 = { ...mockCredentials, serverName: 'server2' };
@@ -202,7 +202,7 @@ describe('MCPOAuthTokenStorage', () => {
       );
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
 
-      await tokenStorage.removeToken('server1');
+      await tokenStorage.deleteCredentials('server1');
 
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0];
       const savedData = JSON.parse(writeCall[1] as string);
@@ -217,10 +217,10 @@ describe('MCPOAuthTokenStorage', () => {
       );
       vi.mocked(fs.unlink).mockResolvedValue(undefined);
 
-      await tokenStorage.removeToken('test-server');
+      await tokenStorage.deleteCredentials('test-server');
 
       expect(fs.unlink).toHaveBeenCalledWith(
-        path.join('/mock/home', '.gemini', 'mcp-oauth-tokens.json'),
+        path.join('/mock/home', '.auditaria', 'mcp-oauth-tokens.json'),
       );
       expect(fs.writeFile).not.toHaveBeenCalled();
     });
@@ -230,7 +230,7 @@ describe('MCPOAuthTokenStorage', () => {
         JSON.stringify([mockCredentials]),
       );
 
-      await tokenStorage.removeToken('non-existent');
+      await tokenStorage.deleteCredentials('non-existent');
 
       expect(fs.writeFile).not.toHaveBeenCalled();
       expect(fs.unlink).not.toHaveBeenCalled();
@@ -242,7 +242,7 @@ describe('MCPOAuthTokenStorage', () => {
       );
       vi.mocked(fs.unlink).mockRejectedValue(new Error('Permission denied'));
 
-      await tokenStorage.removeToken('test-server');
+      await tokenStorage.deleteCredentials('test-server');
 
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to remove MCP OAuth token'),
@@ -294,21 +294,21 @@ describe('MCPOAuthTokenStorage', () => {
     });
   });
 
-  describe('clearAllTokens', () => {
+  describe('clearAll', () => {
     it('should remove token file successfully', async () => {
       vi.mocked(fs.unlink).mockResolvedValue(undefined);
 
-      await tokenStorage.clearAllTokens();
+      await tokenStorage.clearAll();
 
       expect(fs.unlink).toHaveBeenCalledWith(
-        path.join('/mock/home', '.gemini', 'mcp-oauth-tokens.json'),
+        path.join('/mock/home', '.auditaria', 'mcp-oauth-tokens.json'),
       );
     });
 
     it('should handle non-existent file gracefully', async () => {
       vi.mocked(fs.unlink).mockRejectedValue({ code: 'ENOENT' });
 
-      await tokenStorage.clearAllTokens();
+      await tokenStorage.clearAll();
 
       expect(console.error).not.toHaveBeenCalled();
     });
@@ -316,7 +316,7 @@ describe('MCPOAuthTokenStorage', () => {
     it('should handle other file errors gracefully', async () => {
       vi.mocked(fs.unlink).mockRejectedValue(new Error('Permission denied'));
 
-      await tokenStorage.clearAllTokens();
+      await tokenStorage.clearAll();
 
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to clear MCP OAuth tokens'),

@@ -148,7 +148,7 @@ const getMcpStatus = async (
           '@thacio/auditaria-cli-core'
         );
         const tokenStorage = new MCPOAuthTokenStorage();
-        const hasToken = await tokenStorage.getToken(serverName);
+        const hasToken = await tokenStorage.getCredentials(serverName);
         if (hasToken) {
           const isExpired = tokenStorage.isTokenExpired(hasToken.token);
           if (isExpired) {
