@@ -5,11 +5,11 @@
  */
 
 import { getCliVersion } from '../../utils/version.js';
-import type { SlashCommand } from './types.js';
+import type { CommandContext, SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 import process from 'node:process';
 import { MessageType, type HistoryItemAbout } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t, IdeClient } from '@thacio/auditaria-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',
@@ -38,10 +38,7 @@ export const aboutCommand: SlashCommand = {
       selectedAuthType === 'cloud-shell'
         ? process.env['GOOGLE_CLOUD_PROJECT'] || ''
         : '';
-    const ideClient =
-      (context.services.config?.getIdeMode() &&
-        context.services.config?.getIdeClient()?.getDetectedIdeDisplayName()) ||
-      '';
+    const ideClient = await getIdeClientName(context);
     const userTier = context.services.config?.getGeminiClient()?.getUserTier();
 
     const aboutItem: Omit<HistoryItemAbout, 'id'> = {
@@ -59,3 +56,11 @@ export const aboutCommand: SlashCommand = {
     context.ui.addItem(aboutItem, Date.now());
   },
 };
+
+async function getIdeClientName(context: CommandContext) {
+  if (!context.services.config?.getIdeMode()) {
+    return '';
+  }
+  const ideClient = await IdeClient.getInstance();
+  return ideClient?.getDetectedIdeDisplayName() ?? '';
+}

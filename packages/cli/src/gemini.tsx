@@ -38,9 +38,6 @@ import {
   initI18n,
   getOauthClient,
   t,
-  logIdeConnection,
-  IdeConnectionEvent,
-  IdeConnectionType,
   uiTelemetryService,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from './config/auth.js';
@@ -325,11 +322,6 @@ export async function main() {
     await new Promise((f) => setTimeout(f, 100));
     spinnerInstance.clear();
     spinnerInstance.unmount();
-  }
-
-  if (config.getIdeMode()) {
-    await config.getIdeClient().connect();
-    logIdeConnection(config, new IdeConnectionEvent(IdeConnectionType.START));
   }
 
   // Load custom themes from settings

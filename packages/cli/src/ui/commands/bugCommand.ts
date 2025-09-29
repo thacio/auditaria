@@ -12,7 +12,7 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType } from '../types.js';
-import { t, sessionId } from '@thacio/auditaria-cli-core';
+import { t, sessionId, IdeClient } from '@thacio/auditaria-cli-core';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
@@ -39,10 +39,7 @@ export const bugCommand: SlashCommand = {
     const modelVersion = config?.getModel() || t('commands.bug.unknown_model', 'Unknown');
     const cliVersion = await getCliVersion();
     const memoryUsage = formatMemoryUsage(process.memoryUsage().rss);
-    const ideClient =
-      (context.services.config?.getIdeMode() &&
-        context.services.config?.getIdeClient()?.getDetectedIdeDisplayName()) ||
-      '';
+    const ideClient = await getIdeClientName(context);
 
     let info = `
 * **CLI Version:** ${cliVersion}
@@ -92,3 +89,11 @@ export const bugCommand: SlashCommand = {
     }
   },
 };
+
+async function getIdeClientName(context: CommandContext) {
+  if (!context.services.config?.getIdeMode()) {
+    return '';
+  }
+  const ideClient = await IdeClient.getInstance();
+  return ideClient.getDetectedIdeDisplayName() ?? '';
+}

@@ -16,7 +16,7 @@ import type {
   ToolMcpConfirmationDetails,
   Config,
 } from '@thacio/auditaria-cli-core';
-import { ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
+import { IdeClient, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 import type { RadioSelectItem } from '../shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from '../shared/RadioButtonSelect.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
@@ -44,10 +44,10 @@ export const ToolConfirmationMessage: React.FC<
 
   const handleConfirm = async (outcome: ToolConfirmationOutcome) => {
     if (confirmationDetails.type === 'edit') {
-      const ideClient = config.getIdeClient();
       if (config.getIdeMode()) {
         const cliOutcome =
           outcome === ToolConfirmationOutcome.Cancel ? 'rejected' : 'accepted';
+        const ideClient = await IdeClient.getInstance();
         await ideClient?.resolveDiffFromCli(
           confirmationDetails.filePath,
           cliOutcome,

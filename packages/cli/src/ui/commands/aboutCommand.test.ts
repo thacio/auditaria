@@ -10,8 +10,20 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import * as versionUtils from '../../utils/version.js';
 import { MessageType } from '../types.js';
+import { IdeClient } from '@thacio/auditaria-cli-core';
 
-import type { IdeClient } from '@thacio/auditaria-cli-core';
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+  return {
+    ...actual,
+    IdeClient: {
+      getInstance: vi.fn().mockResolvedValue({
+        getDetectedIdeDisplayName: vi.fn().mockReturnValue('test-ide'),
+      }),
+    },
+  };
+});
 
 vi.mock('../../utils/version.js', () => ({
   getCliVersion: vi.fn(),
@@ -27,7 +39,6 @@ describe('aboutCommand', () => {
       services: {
         config: {
           getModel: vi.fn(),
-          getIdeClient: vi.fn(),
           getIdeMode: vi.fn().mockReturnValue(true),
           getGeminiClient: vi.fn(),
         },
@@ -54,9 +65,6 @@ describe('aboutCommand', () => {
     Object.defineProperty(process, 'platform', {
       value: 'test-os',
     });
-    vi.spyOn(mockContext.services.config!, 'getIdeClient').mockReturnValue({
-      getDetectedIdeDisplayName: vi.fn().mockReturnValue('test-ide'),
-    } as Partial<IdeClient> as IdeClient);
     vi.spyOn(mockContext.services.config!, 'getGeminiClient').mockReturnValue({
       getUserTier: vi.fn().mockReturnValue(undefined),
     } as unknown as ReturnType<
@@ -139,9 +147,9 @@ describe('aboutCommand', () => {
     // Change to oauth type that doesn't use GCP project
     mockContext.services.settings.merged.security!.auth!.selectedType = 'oauth';
 
-    vi.spyOn(mockContext.services.config!, 'getIdeClient').mockReturnValue({
+    vi.mocked(IdeClient.getInstance).mockResolvedValue({
       getDetectedIdeDisplayName: vi.fn().mockReturnValue(undefined),
-    } as Partial<IdeClient> as IdeClient);
+    } as unknown as IdeClient);
 
     process.env['SANDBOX'] = '';
     if (!aboutCommand.action) {

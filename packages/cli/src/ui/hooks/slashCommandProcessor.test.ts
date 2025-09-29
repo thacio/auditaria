@@ -86,7 +86,6 @@ import {
   SlashCommandStatus,
   ToolConfirmationOutcome,
   makeFakeConfig,
-  ToolConfirmationOutcome,
   type IdeClient,
 } from '@thacio/auditaria-cli-core';
 
@@ -111,11 +110,6 @@ describe('useSlashCommandProcessor', () => {
   const mockSetQuittingMessages = vi.fn();
 
   const mockConfig = makeFakeConfig({});
-  vi.spyOn(mockConfig, 'getIdeClient').mockReturnValue({
-    addStatusChangeListener: vi.fn(),
-    removeStatusChangeListener: vi.fn(),
-  } as unknown as IdeClient);
-
   const mockSettings = {} as LoadedSettings;
 
   beforeEach(() => {
