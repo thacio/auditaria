@@ -1472,5 +1472,11 @@
     "fallback_paid": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de {failedModel}\n⚡ Para continuar acessando o modelo {failedModel} hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
     "fallback_free": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de {failedModel}\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
     "switched_to_fallback": "Alternado para modelo de fallback. Dica: Pressione Ctrl+P (ou Seta para Cima) para recuperar seu prompt anterior e enviá-lo novamente se desejar."
+  },
+  "ui": {
+    "initialization": {
+      "initializing": "Inicializando...",
+      "connecting_mcp_servers": "Conectando aos servidores MCP... ({connected}/{total})"
+    }
   }
 }

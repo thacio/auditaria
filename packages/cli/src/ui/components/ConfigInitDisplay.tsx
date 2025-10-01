@@ -1,0 +1,49 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { useEffect, useState } from 'react';
+import { appEvents } from './../../utils/events.js';
+import { Box, Text } from 'ink';
+import { useConfig } from '../contexts/ConfigContext.js';
+import { type McpClient, MCPServerStatus, t } from '@thacio/auditaria-cli-core';
+import { GeminiSpinner } from './GeminiRespondingSpinner.js';
+
+export const ConfigInitDisplay = () => {
+  const config = useConfig();
+  const [message, setMessage] = useState(t('ui.initialization.initializing', 'Initializing...'));
+
+  useEffect(() => {
+    const onChange = (clients?: Map<string, McpClient>) => {
+      if (!clients || clients.size === 0) {
+        setMessage(t('ui.initialization.initializing', 'Initializing...'));
+        return;
+      }
+      let connected = 0;
+      for (const client of clients.values()) {
+        if (client.getStatus() === MCPServerStatus.CONNECTED) {
+          connected++;
+        }
+      }
+      setMessage(t('ui.initialization.connecting_mcp_servers', 'Connecting to MCP servers... ({connected}/{total})', {
+        connected: String(connected),
+        total: String(clients.size)
+      }));
+    };
+
+    appEvents.on('mcp-client-update', onChange);
+    return () => {
+      appEvents.off('mcp-client-update', onChange);
+    };
+  }, [config]);
+
+  return (
+    <Box marginTop={1}>
+      <Text>
+        <GeminiSpinner /> {message}
+      </Text>
+    </Box>
+  );
+};
