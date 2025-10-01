@@ -37,7 +37,7 @@ import {
 } from '../config/models.js';
 import { getCurrentLanguage, t } from '../i18n/index.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
-import { ideContext } from '../ide/ideContext.js';
+import { ideContextStore } from '../ide/ideContext.js';
 import {
   logChatCompression,
   logNextSpeakerCheck,
@@ -265,7 +265,7 @@ export class GeminiClient {
     contextParts: string[];
     newIdeContext: IdeContext | undefined;
   } {
-    const currentIdeContext = ideContext.getIdeContext();
+    const currentIdeContext = ideContextStore.get();
     if (!currentIdeContext) {
       return { contextParts: [], newIdeContext: undefined };
     }

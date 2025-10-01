@@ -11,14 +11,12 @@ import {
   logIdeConnection,
   IdeConnectionEvent,
   IdeConnectionType,
-} from '@thacio/auditaria-cli-core';
-import {
   t,
-  GEMINI_CLI_COMPANION_EXTENSION_NAME,
-  IDEConnectionStatus,
   getIdeInstaller,
+  IDEConnectionStatus,
+  ideContextStore,
+  GEMINI_CLI_COMPANION_EXTENSION_NAME,
   getIdeInfo,
-  ideContext,
   DetectedIde,
 } from '@thacio/auditaria-cli-core';
 import path from 'node:path';
@@ -95,7 +93,7 @@ async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
   switch (connection.status) {
     case IDEConnectionStatus.Connected: {
       let content = t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
-      const context = ideContext.getIdeContext();
+      const context = ideContextStore.get();
       const openFiles = context?.workspaceState?.openFiles;
       if (openFiles && openFiles.length > 0) {
         content += formatFileList(openFiles);
