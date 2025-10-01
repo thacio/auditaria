@@ -1244,7 +1244,11 @@
     "all_disabled": "Todas as extensões estão desabilitadas.",
     "activated": "Extensão ativada: {name} (versão: {version})",
     "disabled": "Extensão desabilitada: {name}",
-    "not_found": "Extensão não encontrada: {name}"
+    "not_found": "Extensão não encontrada: {name}",
+    "mcp_servers_prompt": "Esta extensão executará os seguintes servidores MCP: ",
+    "context_append_info": "A extensão adicionará informações ao seu contexto gemini.md",
+    "continue_prompt": "Deseja continuar? (s/n): ",
+    "installation_cancelled": "Instalação cancelada pelo usuário."
   },
   "oauth": {
     "auth_failed": "\nFalha na autenticação com código do usuário.",
