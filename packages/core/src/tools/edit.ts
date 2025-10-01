@@ -34,6 +34,7 @@ import type {
   ModifyContext,
 } from './modifiable-tool.js';
 import { IdeClient } from '../ide/ide-client.js';
+import { safeLiteralReplace } from '../utils/textUtils.js';
 
 export function applyReplacement(
   currentContent: string | null,
@@ -52,7 +53,9 @@ export function applyReplacement(
   if (oldString === '' && !isNewFile) {
     return currentContent;
   }
-  return currentContent.replaceAll(oldString, newString);
+
+  // Use intelligent replacement that handles $ sequences safely
+  return safeLiteralReplace(currentContent, oldString, newString);
 }
 
 /**
