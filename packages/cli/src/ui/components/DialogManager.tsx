@@ -23,7 +23,7 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { useUIActions } from '../contexts/UIActionsContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
-import { DEFAULT_GEMINI_FLASH_MODEL, t } from '@thacio/auditaria-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 import process from 'node:process';
 
 // Props for DialogManager
@@ -57,11 +57,11 @@ export const DialogManager = () => {
       />
     );
   }
-  if (uiState.isProQuotaDialogOpen) {
+  if (uiState.proQuotaRequest) {
     return (
       <ProQuotaDialog
-        currentModel={uiState.currentModel}
-        fallbackModel={DEFAULT_GEMINI_FLASH_MODEL}
+        failedModel={uiState.proQuotaRequest.failedModel}
+        fallbackModel={uiState.proQuotaRequest.fallbackModel}
         onChoice={uiActions.handleProQuotaChoice}
       />
     );

@@ -11,13 +11,13 @@ import { Colors } from '../colors.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 interface ProQuotaDialogProps {
-  currentModel: string;
+  failedModel: string;
   fallbackModel: string;
   onChoice: (choice: 'auth' | 'continue') => void;
 }
 
 export function ProQuotaDialog({
-  currentModel,
+  failedModel,
   fallbackModel,
   onChoice,
 }: ProQuotaDialogProps): React.JSX.Element {
@@ -39,7 +39,7 @@ export function ProQuotaDialog({
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
       <Text bold color={Colors.AccentYellow}>
-        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', { model: currentModel })}
+        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', { model: failedModel })}
       </Text>
       <Box marginTop={1}>
         <RadioButtonSelect
