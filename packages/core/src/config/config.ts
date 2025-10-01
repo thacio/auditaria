@@ -41,7 +41,9 @@ import {
   initializeTelemetry,
   DEFAULT_TELEMETRY_TARGET,
   DEFAULT_OTLP_ENDPOINT,
+  uiTelemetryService,
 } from '../telemetry/index.js';
+import { tokenLimit } from '../core/tokenLimits.js';
 import { StartSessionEvent } from '../telemetry/index.js';
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
@@ -948,7 +950,12 @@ export class Config {
   }
 
   getTruncateToolOutputThreshold(): number {
-    return this.truncateToolOutputThreshold;
+    return Math.min(
+      // Estimate remaining context window in characters (1 token ~= 4 chars).
+      4 *
+        (tokenLimit(this.model) - uiTelemetryService.getLastPromptTokenCount()),
+      this.truncateToolOutputThreshold,
+    );
   }
 
   getTruncateToolOutputLines(): number {
