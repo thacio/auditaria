@@ -20,7 +20,6 @@ import type { ServerGeminiStreamEvent, ChatCompressionInfo } from './turn.js';
 import { CompressionStatus } from './turn.js';
 import { Turn, GeminiEventType } from './turn.js';
 import type { Config } from '../config/config.js';
-import type { UserTierId } from '../code_assist/types.js';
 import { getCoreSystemPrompt, getCompressionPrompt } from './prompts.js';
 import { getResponseText } from '../utils/partUtils.js';
 import { checkNextSpeaker } from '../utils/nextSpeakerChecker.js';
@@ -31,12 +30,8 @@ import { getErrorMessage } from '../utils/errors.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { tokenLimit } from './tokenLimits.js';
 import type { ChatRecordingService } from '../services/chatRecordingService.js';
-import type {
-  ContentGenerator,
-  ContentGeneratorConfig,
-} from './contentGenerator.js';
-import { AuthType, createContentGenerator } from './contentGenerator.js';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import type { ContentGenerator } from './contentGenerator.js';
+import { AuthType } from './contentGenerator.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_THINKING_MODE,
@@ -116,8 +111,6 @@ const COMPRESSION_PRESERVE_THRESHOLD = 0.3;
 
 export class GeminiClient {
   private chat?: GeminiChat;
-  private contentGenerator?: ContentGenerator;
-  private readonly embeddingModel: string;
   private readonly generateContentConfig: GenerateContentConfig = {
     temperature: 0,
     topP: 1,
@@ -136,33 +129,19 @@ export class GeminiClient {
   private hasFailedCompressionAttempt = false;
 
   constructor(private readonly config: Config) {
-    if (config.getProxy()) {
-      setGlobalDispatcher(new ProxyAgent(config.getProxy() as string));
-    }
-
-    this.embeddingModel = config.getEmbeddingModel();
     this.loopDetector = new LoopDetectionService(config);
     this.lastPromptId = this.config.getSessionId();
   }
 
-  async initialize(contentGeneratorConfig: ContentGeneratorConfig) {
-    this.contentGenerator = await createContentGenerator(
-      contentGeneratorConfig,
-      this.config,
-      this.config.getSessionId(),
-    );
+  async initialize() {
     this.chat = await this.startChat();
   }
 
-  getContentGenerator(): ContentGenerator {
-    if (!this.contentGenerator) {
+  private getContentGeneratorOrFail(): ContentGenerator {
+    if (!this.config.getContentGenerator()) {
       throw new Error('Content generator not initialized');
     }
-    return this.contentGenerator;
-  }
-
-  getUserTier(): UserTierId | undefined {
-    return this.contentGenerator?.userTier;
+    return this.config.getContentGenerator();
   }
 
   async addHistory(content: Content) {
@@ -177,39 +156,19 @@ export class GeminiClient {
   }
 
   isInitialized(): boolean {
-    return this.chat !== undefined && this.contentGenerator !== undefined;
+    return this.chat !== undefined;
   }
 
   getHistory(): Content[] {
     return this.getChat().getHistory();
   }
 
-  setHistory(
-    history: Content[],
-    { stripThoughts = false }: { stripThoughts?: boolean } = {},
-  ) {
-    const historyToSet = stripThoughts
-      ? history.map((content) => {
-          const newContent = { ...content };
-          if (newContent.parts) {
-            newContent.parts = newContent.parts.map((part) => {
-              if (
-                part &&
-                typeof part === 'object' &&
-                'thoughtSignature' in part
-              ) {
-                const newPart = { ...part };
-                delete (newPart as { thoughtSignature?: string })
-                  .thoughtSignature;
-                return newPart;
-              }
-              return part;
-            });
-          }
-          return newContent;
-        })
-      : history;
-    this.getChat().setHistory(historyToSet);
+  stripThoughtsFromHistory() {
+    this.getChat().stripThoughtsFromHistory();
+  }
+
+  setHistory(history: Content[]) {
+    this.getChat().setHistory(history);
     this.forceFullIdeContext = true;
   }
 
@@ -243,9 +202,11 @@ export class GeminiClient {
     this.forceFullIdeContext = true;
     this.hasFailedCompressionAttempt = false;
     const envParts = await getEnvironmentContext(this.config);
+
     const toolRegistry = this.config.getToolRegistry();
     const toolDeclarations = toolRegistry.getFunctionDeclarations();
     const tools: Tool[] = [{ functionDeclarations: toolDeclarations }];
+
     const history: Content[] = [
       {
         role: 'user',
@@ -276,7 +237,6 @@ export class GeminiClient {
         : this.generateContentConfig;
       return new GeminiChat(
         this.config,
-        this.getContentGenerator(),
         {
           systemInstruction,
           ...generateContentConfigWithThinking,
@@ -603,7 +563,7 @@ export class GeminiClient {
       };
 
       const apiCall = () =>
-        this.getContentGenerator().generateContent(
+        this.getContentGeneratorOrFail().generateContent(
           {
             model,
             config: {
@@ -717,7 +677,7 @@ export class GeminiClient {
       };
 
       const apiCall = () =>
-        this.getContentGenerator().generateContent(
+        this.getContentGeneratorOrFail().generateContent(
           {
             model,
             config: requestConfig,
@@ -759,12 +719,12 @@ export class GeminiClient {
       return [];
     }
     const embedModelParams: EmbedContentParameters = {
-      model: this.embeddingModel,
+      model: this.config.getEmbeddingModel(),
       contents: texts,
     };
 
     const embedContentResponse =
-      await this.getContentGenerator().embedContent(embedModelParams);
+      await this.getContentGeneratorOrFail().embedContent(embedModelParams);
     if (
       !embedContentResponse.embeddings ||
       embedContentResponse.embeddings.length === 0
@@ -810,7 +770,7 @@ export class GeminiClient {
     const model = this.config.getModel();
 
     const { totalTokens: originalTokenCount } =
-      await this.getContentGenerator().countTokens({
+      await this.getContentGeneratorOrFail().countTokens({
         model,
         contents: curatedHistory,
       });
@@ -885,7 +845,7 @@ export class GeminiClient {
     this.forceFullIdeContext = true;
 
     const { totalTokens: newTokenCount } =
-      await this.getContentGenerator().countTokens({
+      await this.getContentGeneratorOrFail().countTokens({
         // model might change after calling `sendMessage`, so we get the newest value from config
         model: this.config.getModel(),
         contents: chat.getHistory(),
