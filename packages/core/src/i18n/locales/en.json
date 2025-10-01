@@ -1306,7 +1306,17 @@
     "invalid_resolution_order": "Invalid value for dnsResolutionOrder in settings: \"{order}\". Using default \"{defaultValue}\"."
   },
   "loop_detection": {
-    "message": "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted."
+    "message": "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted.",
+    "disabled": "Loop detection has been disabled for this session. Please try your request again.",
+    "confirmation": {
+      "title": "A potential loop was detected",
+      "description": "This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?",
+      "aria_label": "Loop detected:",
+      "options": {
+        "keep": "Keep loop detection enabled (esc)",
+        "disable": "Disable loop detection for this session"
+      }
+    }
   },
   "warnings": {
     "ide_server_reserved": "Ignoring user-defined MCP server config for \"{serverName}\" as it is a reserved name."

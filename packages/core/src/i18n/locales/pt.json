@@ -1303,7 +1303,17 @@
     "invalid_resolution_order": "Valor inválido para dnsResolutionOrder nas configurações: \"{order}\". Usando padrão \"{defaultValue}\"."
   },
   "loop_detection": {
-    "message": "Um possível loop foi detectado. Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. A solicitação foi interrompida."
+    "message": "Um possível loop foi detectado. Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. A solicitação foi interrompida.",
+    "disabled": "A detecção de loop foi desabilitada para esta sessão. Por favor, tente sua solicitação novamente.",
+    "confirmation": {
+      "title": "Um possível loop foi detectado",
+      "description": "Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. Deseja manter a detecção de loop ativada ou desativá-la para esta sessão?",
+      "aria_label": "Loop detectado:",
+      "options": {
+        "keep": "Manter detecção de loop ativada (esc)",
+        "disable": "Desativar detecção de loop para esta sessão"
+      }
+    }
   },
   "warnings": {
     "ide_server_reserved": "Ignorando configuração MCP do servidor definida pelo usuário para \"{serverName}\" pois é um nome reservado."

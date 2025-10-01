@@ -532,6 +532,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
     cancelOngoingRequest,
+    loopDetectionConfirmationRequest,
   } = useGeminiStream(
     config.getGeminiClient(),
     historyManager.history,
@@ -933,6 +934,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isFolderTrustDialogOpen ||
       !!shellConfirmationRequest ||
       !!confirmationRequest ||
+      !!loopDetectionConfirmationRequest ||
       isThemeDialogOpen ||
       isSettingsDialogOpen ||
       isAuthenticating ||
@@ -947,6 +949,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isFolderTrustDialogOpen,
       shellConfirmationRequest,
       confirmationRequest,
+      loopDetectionConfirmationRequest,
       isThemeDialogOpen,
       isSettingsDialogOpen,
       isAuthenticating,
@@ -1279,6 +1282,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,
       initError,
@@ -1353,6 +1357,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,
       initError,
