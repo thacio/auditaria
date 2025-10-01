@@ -550,7 +550,10 @@
   "input": {
     "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo",
     "placeholder_vim": "  Pressione 'i' para modo INSERT e 'Esc' para modo NORMAL.",
-    "escape_to_clear": "Pressione Esc novamente para limpar."
+    "escape_to_clear": "Pressione Esc novamente para limpar.",
+    "aria_shell_mode": "Modo shell",
+    "aria_yolo_mode": "Modo YOLO",
+    "aria_accepting_edits": "Aceitando edições"
   },
   "tool_confirmation": {
     "modify_in_progress": "Modificação em andamento: ",

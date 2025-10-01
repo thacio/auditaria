@@ -553,7 +553,10 @@
   "input": {
     "placeholder": "  Type your message or @path/to/file",
     "placeholder_vim": "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode.",
-    "escape_to_clear": "Press Esc again to clear."
+    "escape_to_clear": "Press Esc again to clear.",
+    "aria_shell_mode": "Shell mode",
+    "aria_yolo_mode": "YOLO mode",
+    "aria_accepting_edits": "Accepting edits"
   },
   "tool_confirmation": {
     "modify_in_progress": "Modify in progress: ",
