@@ -212,6 +212,7 @@ export class Turn {
   ) {}
   // The run method yields simpler events suitable for server logic
   async *run(
+    model: string,
     req: PartListUnion,
     signal: AbortSignal,
   ): AsyncGenerator<ServerGeminiStreamEvent> {
@@ -219,6 +220,7 @@ export class Turn {
       // Note: This assumes `sendMessageStream` yields events like
       // { type: StreamEventType.RETRY } or { type: StreamEventType.CHUNK, value: GenerateContentResponse }
       const responseStream = await this.chat.sendMessageStream(
+        model,
         {
           message: req,
           config: {
