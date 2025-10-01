@@ -22,6 +22,7 @@ import { ToolStatsDisplay } from './ToolStatsDisplay.js';
 import { SessionSummaryDisplay } from './SessionSummaryDisplay.js';
 import { Help } from './Help.js';
 import type { SlashCommand } from '../commands/types.js';
+import { ExtensionsList } from './views/ExtensionsList.js';
 
 interface HistoryItemDisplayProps {
   item: HistoryItem;
@@ -97,5 +98,6 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
     {item.type === 'compression' && (
       <CompressionMessage compression={item.compression} />
     )}
+    {item.type === 'extensions_list' && <ExtensionsList />}
   </Box>
 );

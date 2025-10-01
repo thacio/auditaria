@@ -221,7 +221,14 @@
       },
       "list": {
         "description": "Lista extensões instaladas.",
-        "no_extensions": "Nenhuma extensão instalada."
+        "no_extensions": "Nenhuma extensão instalada.",
+        "installed_extensions": "Extensões instaladas:",
+        "status": {
+          "active": "ativa",
+          "disabled": "desabilitada",
+          "unknown": "estado desconhecido"
+        },
+        "unhandled_state_error": "ExtensionUpdateState não tratado {state}"
       },
       "update": {
         "description": "Atualiza todas as extensões ou uma extensão nomeada para a versão mais recente.",
@@ -237,7 +244,10 @@
         "no_extensions": "Nenhuma extensão para atualizar.",
         "missing_argument": "Um nome de extensão ou --all deve ser fornecido",
         "cannot_update": "Extensão {name} não pode ser atualizada.",
-        "restart_required": "Reinicie o Auditaria CLI para ver as alterações."
+        "restart_required": "Reinicie o Auditaria CLI para ver as alterações.",
+        "already_up_to_date": "Extensão \"{name}\" já está atualizada.",
+        "cannot_update_type_unknown": "Extensão {name} não pode ser atualizada, tipo desconhecido.",
+        "linked_no_update": "A extensão está vinculada e não precisa ser atualizada"
       },
       "disable": {
         "description": "Desabilita uma extensão.",

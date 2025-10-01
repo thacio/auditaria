@@ -19,75 +19,58 @@ import {
 import { t } from '@thacio/auditaria-cli-core';
 
 async function listAction(context: CommandContext) {
-  const activeExtensions = context.services.config
-    ?.getExtensions()
-    .filter((ext) => ext.isActive);
-  if (!activeExtensions || activeExtensions.length === 0) {
-    context.ui.addItem(
-      {
-        type: MessageType.INFO,
-        text: t('commands.extensions.no_extensions', 'No active extensions.'),
-      },
-      Date.now(),
-    );
-    return;
-  }
-
-  const extensionLines = activeExtensions.map(
-    (ext) => `  - \u001b[36m${ext.name} (v${ext.version})\u001b[0m`,
-  );
-  const message = `${t('commands.extensions.active_extensions', 'Active extensions:')}\n\n${extensionLines.join('\n')}\n`;
-
   context.ui.addItem(
     {
-      type: MessageType.INFO,
-      text: message,
+      type: MessageType.EXTENSIONS_LIST,
     },
     Date.now(),
   );
 }
-
-const updateOutput = (info: ExtensionUpdateInfo) =>
-  t(
-    'commands.extensions.update.success',
-    'Extension "{name}" successfully updated: {originalVersion} → {updatedVersion}.',
-    {
-      name: info.name,
-      originalVersion: info.originalVersion,
-      updatedVersion: info.updatedVersion,
-    },
-  );
 
 async function updateAction(context: CommandContext, args: string) {
   const updateArgs = args.split(' ').filter((value) => value.length > 0);
   const all = updateArgs.length === 1 && updateArgs[0] === '--all';
   const names = all ? undefined : updateArgs;
   let updateInfos: ExtensionUpdateInfo[] = [];
+
+  if (!all && names?.length === 0) {
+    context.ui.addItem(
+      {
+        type: MessageType.ERROR,
+        text: 'Usage: /extensions update <extension-names>|--all',
+      },
+      Date.now(),
+    );
+    return;
+  }
+
   try {
+    context.ui.setPendingItem({
+      type: MessageType.EXTENSIONS_LIST,
+    });
     if (all) {
-      updateInfos = await updateAllUpdatableExtensions();
+      updateInfos = await updateAllUpdatableExtensions(
+        context.services.config!.getWorkingDir(),
+        context.services.config!.getExtensions(),
+        context.ui.extensionsUpdateState,
+        context.ui.setExtensionsUpdateState,
+      );
     } else if (names?.length) {
       for (const name of names) {
-        updateInfos.push(await updateExtensionByName(name));
-      }
-    } else {
-      context.ui.addItem(
-        {
-          type: MessageType.ERROR,
-          text: t(
-            'commands.extensions.update.usage',
-            'Usage: /extensions update <extension-names>|--all',
+        updateInfos.push(
+          await updateExtensionByName(
+            name,
+            context.services.config!.getWorkingDir(),
+            context.services.config!.getExtensions(),
+            (updateState) => {
+              const newState = new Map(context.ui.extensionsUpdateState);
+              newState.set(name, updateState);
+              context.ui.setExtensionsUpdateState(newState);
+            },
           ),
-        },
-        Date.now(),
-      );
-      return;
+        );
+      }
     }
-
-    // Filter to the actually updated ones.
-    updateInfos = updateInfos.filter(
-      (info) => info.originalVersion !== info.updatedVersion,
-    );
 
     if (updateInfos.length === 0) {
       context.ui.addItem(
@@ -102,20 +85,6 @@ async function updateAction(context: CommandContext, args: string) {
       );
       return;
     }
-
-    context.ui.addItem(
-      {
-        type: MessageType.INFO,
-        text: [
-          ...updateInfos.map((info) => updateOutput(info)),
-          t(
-            'commands.extensions.update.restart_required',
-            'Restart Auditaria CLI to see the changes.',
-          ),
-        ].join('\n'),
-      },
-      Date.now(),
-    );
   } catch (error) {
     context.ui.addItem(
       {
@@ -124,6 +93,14 @@ async function updateAction(context: CommandContext, args: string) {
       },
       Date.now(),
     );
+  } finally {
+    context.ui.addItem(
+      {
+        type: MessageType.EXTENSIONS_LIST,
+      },
+      Date.now(),
+    );
+    context.ui.setPendingItem(null);
   }
 }
 

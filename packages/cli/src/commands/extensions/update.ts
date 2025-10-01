@@ -9,6 +9,9 @@ import {
   updateExtensionByName,
   updateAllUpdatableExtensions,
   type ExtensionUpdateInfo,
+  loadExtensions,
+  annotateActiveExtensions,
+  checkForAllExtensionUpdates,
 } from '../../config/extension.js';
 import { t } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
@@ -30,9 +33,25 @@ const updateOutput = (info: ExtensionUpdateInfo) =>
   );
 
 export async function handleUpdate(args: UpdateArgs) {
+  const workingDir = process.cwd();
+  const allExtensions = loadExtensions();
+  const extensions = annotateActiveExtensions(
+    allExtensions,
+    allExtensions.map((e) => e.config.name),
+    workingDir,
+  );
+
   if (args.all) {
     try {
-      const updateInfos = await updateAllUpdatableExtensions();
+      let updateInfos = await updateAllUpdatableExtensions(
+        workingDir,
+        extensions,
+        await checkForAllExtensionUpdates(extensions, (_) => {}),
+        () => {},
+      );
+      updateInfos = updateInfos.filter(
+        (info) => info.originalVersion !== info.updatedVersion,
+      );
       if (updateInfos.length === 0) {
         console.log(
           t(
@@ -50,18 +69,26 @@ export async function handleUpdate(args: UpdateArgs) {
   if (args.name)
     try {
       // TODO(chrstnb): we should list extensions if the requested extension is not installed.
-      const updatedExtensionInfo = await updateExtensionByName(args.name);
-      console.log(
-        t(
-          'commands.extensions.update.success',
-          `Extension "${args.name}" successfully updated: ${updatedExtensionInfo.originalVersion} → ${updatedExtensionInfo.updatedVersion}.`,
-          {
-            name: args.name,
-            originalVersion: updatedExtensionInfo.originalVersion,
-            updatedVersion: updatedExtensionInfo.updatedVersion,
-          },
-        ),
+      const updatedExtensionInfo = await updateExtensionByName(
+        args.name,
+        workingDir,
+        extensions,
+        () => {},
       );
+      if (
+        updatedExtensionInfo.originalVersion !==
+        updatedExtensionInfo.updatedVersion
+      ) {
+        console.log(updateOutput(updatedExtensionInfo));
+      } else {
+        console.log(
+          t(
+            'commands.extensions.update.already_up_to_date',
+            `Extension "${args.name}" already up to date.`,
+            { name: args.name },
+          ),
+        );
+      }
     } catch (error) {
       console.error(getErrorMessage(error));
     }

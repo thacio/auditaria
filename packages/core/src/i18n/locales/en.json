@@ -224,7 +224,14 @@
       },
       "list": {
         "description": "Lists installed extensions.",
-        "no_extensions": "No extensions installed."
+        "no_extensions": "No extensions installed.",
+        "installed_extensions": "Installed extensions:",
+        "status": {
+          "active": "active",
+          "disabled": "disabled",
+          "unknown": "unknown state"
+        },
+        "unhandled_state_error": "Unhandled ExtensionUpdateState {state}"
       },
       "update": {
         "description": "Updates all extensions or a named extension to the latest version.",
@@ -240,7 +247,10 @@
         "no_extensions": "No extensions to update.",
         "missing_argument": "Either an extension name or --all must be provided",
         "cannot_update": "Extension {name} cannot be updated.",
-        "restart_required": "Restart Auditaria CLI to see the changes."
+        "restart_required": "Restart Auditaria CLI to see the changes.",
+        "already_up_to_date": "Extension \"{name}\" already up to date.",
+        "cannot_update_type_unknown": "Extension {name} cannot be updated, type is unknown.",
+        "linked_no_update": "Extension is linked so does not need to be updated"
       },
       "disable": {
         "description": "Disables an extension.",
