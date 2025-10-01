@@ -80,15 +80,14 @@ import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
 import { useWorkspaceMigration } from './hooks/useWorkspaceMigration.js';
 import { useSessionStats } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
-// WEB_INTERFACE_START: Import for web interface support
-import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceContext.js';
+// WEB_INTERFACE_START: Import hooks for web interface support
+import { useWebInterface } from './contexts/WebInterfaceContext.js';
 import { type PartListUnion } from '@google/genai';  // For multimodal support
 import { useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
-import { FooterProvider, useFooter } from './contexts/FooterContext.js';
-import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
-import { ToolConfirmationProvider, useToolConfirmation, type PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
+import { useFooter } from './contexts/FooterContext.js';
+import { useLoadingState } from './contexts/LoadingStateContext.js';
+import { useToolConfirmation, type PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
 import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
-import { TerminalCaptureWrapper } from './components/TerminalCaptureWrapper.js';
 import { useKeypressContext } from './contexts/KeypressContext.js';
 // WEB_INTERFACE_END
 
@@ -111,11 +110,6 @@ interface AppContainerProps {
   startupWarnings?: string[];
   version: string;
   initializationResult: InitializationResult;
-  // WEB_INTERFACE_START: Add web interface parameters
-  webEnabled?: boolean;
-  webOpenBrowser?: boolean;
-  webPort?: number;
-  // WEB_INTERFACE_END
 }
 
 export const AppContainer = (props: AppContainerProps) => {
@@ -1601,23 +1595,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
               startupWarnings: props.startupWarnings || [],
             }}
           >
-            {/* WEB_INTERFACE_START: Wrap App with all necessary providers */}
-            <WebInterfaceProvider
-              enabled={props.webEnabled}
-              openBrowser={props.webOpenBrowser}
-              port={props.webPort}
-            >
-              <FooterProvider>
-                <LoadingStateProvider>
-                  <ToolConfirmationProvider>
-                    <TerminalCaptureWrapper>
-                      <App />
-                    </TerminalCaptureWrapper>
-                  </ToolConfirmationProvider>
-                </LoadingStateProvider>
-              </FooterProvider>
-            </WebInterfaceProvider>
-            {/* WEB_INTERFACE_END */}
+            <App />
           </AppContext.Provider>
         </ConfigContext.Provider>
       </UIActionsContext.Provider>

@@ -57,8 +57,13 @@ import { SessionStatsProvider } from './ui/contexts/SessionContext.js';
 import { VimModeProvider } from './ui/contexts/VimModeContext.js';
 import { KeypressProvider } from './ui/contexts/KeypressContext.js';
 import { useKittyKeyboardProtocol } from './ui/hooks/useKittyKeyboardProtocol.js';
-// WEB_INTERFACE_START: Import for SubmitQueryProvider
+// WEB_INTERFACE_START: Import all providers needed by AppContainer
 import { SubmitQueryProvider } from './ui/contexts/SubmitQueryContext.js';
+import { WebInterfaceProvider } from './ui/contexts/WebInterfaceContext.js';
+import { FooterProvider } from './ui/contexts/FooterContext.js';
+import { LoadingStateProvider } from './ui/contexts/LoadingStateContext.js';
+import { ToolConfirmationProvider } from './ui/contexts/ToolConfirmationContext.js';
+import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
 
 export function validateDnsResolutionOrder(
@@ -227,20 +232,30 @@ export async function startInteractiveUI(
         >
           <SessionStatsProvider>
             <VimModeProvider settings={settings}>
-              {/* WEB_INTERFACE_START: Wrap with SubmitQueryProvider */}
+              {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
               <SubmitQueryProvider>
-                <AppContainer
-                  config={config}
-                  settings={settings}
-                  startupWarnings={startupWarnings}
-                  version={version}
-                  initializationResult={initializationResult}
-                  // WEB_INTERFACE_START: Pass web interface flags
-                  webEnabled={webEnabled}
-                  webOpenBrowser={webOpenBrowser}
-                  webPort={webPort}
-                  // WEB_INTERFACE_END
-                />
+                <WebInterfaceProvider
+                  enabled={webEnabled}
+                  openBrowser={webOpenBrowser}
+                  port={webPort}
+                >
+                  <FooterProvider>
+                    <LoadingStateProvider>
+                      <ToolConfirmationProvider>
+                        <TerminalCaptureWrapper>
+                          <AppContainer
+                            config={config}
+                            settings={settings}
+                            startupWarnings={startupWarnings}
+                            version={version}
+                            initializationResult={initializationResult}
+                            // Pass web interface flags (already handled in WebInterfaceProvider)
+                          />
+                        </TerminalCaptureWrapper>
+                      </ToolConfirmationProvider>
+                    </LoadingStateProvider>
+                  </FooterProvider>
+                </WebInterfaceProvider>
               </SubmitQueryProvider>
               {/* WEB_INTERFACE_END */}
             </VimModeProvider>
