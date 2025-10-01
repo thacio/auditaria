@@ -1,12 +1,12 @@
-# Gemini CLI Extensions
+# Auditaria CLI Extensions
 
 _This documentation is up-to-date with the v0.4.0 release._
 
-Gemini CLI extensions package prompts, MCP servers, and custom commands into a familiar and user-friendly format. With extensions, you can expand the capabilities of Gemini CLI and share those capabilities with others. They are designed to be easily installable and shareable.
+Auditaria CLI extensions package prompts, MCP servers, and custom commands into a familiar and user-friendly format. With extensions, you can expand the capabilities of Auditaria CLI and share those capabilities with others. They are designed to be easily installable and shareable.
 
 ## Extension management
 
-We offer a suite of extension management tools using `gemini extensions` commands.
+We offer a suite of extension management tools using `auditaria extensions` commands.
 
 Note that these commands are not supported from within the CLI, although you can list installed extensions using the `/extensions list` subcommand.
 
@@ -14,42 +14,42 @@ Note that all of these commands will only be reflected in active CLI sessions on
 
 ### Installing an extension
 
-You can install an extension using `gemini extensions install` with either a GitHub URL source or `--path=some/local/path`.
+You can install an extension using `auditaria extensions install` with either a GitHub URL source or `--path=some/local/path`.
 
-Note that we create a copy of the installed extension, so you will need to run `gemini extensions update` to pull in changes from both locally-defined extensions and those on GitHub.
+Note that we create a copy of the installed extension, so you will need to run `auditaria extensions update` to pull in changes from both locally-defined extensions and those on GitHub.
 
 ```
-gemini extensions install https://github.com/google-gemini/gemini-cli-security
+auditaria extensions install https://github.com/google-gemini/gemini-cli-security
 ```
 
 This will install the Gemini CLI Security extension, which offers support for a `/security:analyze` command.
 
 ### Uninstalling an extension
 
-To uninstall, run `gemini extensions uninstall extension-name`, so, in the case of the install example:
+To uninstall, run `auditaria extensions uninstall extension-name`, so, in the case of the install example:
 
 ```
-gemini extensions uninstall gemini-cli-security
+auditaria extensions uninstall gemini-cli-security
 ```
 
 ### Disabling an extension
 
 Extensions are, by default, enabled across all workspaces. You can disable an extension entirely or for specific workspace.
 
-For example, `gemini extensions disable extension-name` will disable the extension at the user level, so it will be disabled everywhere. `gemini extensions disable extension-name --scope=Workspace` will only disable the extension in the current workspace.
+For example, `auditaria extensions disable extension-name` will disable the extension at the user level, so it will be disabled everywhere. `auditaria extensions disable extension-name --scope=Workspace` will only disable the extension in the current workspace.
 
 ### Enabling an extension
 
-You can re-enable extensions using `gemini extensions enable extension-name`. Note that if an extension is disabled at the user-level, enabling it at the workspace level will not do anything.
+You can re-enable extensions using `auditaria extensions enable extension-name`. Note that if an extension is disabled at the user-level, enabling it at the workspace level will not do anything.
 
 ### Updating an extension
 
-For extensions installed from a local path or a git repository, you can explicitly update to the latest version (as reflected in the `gemini-extension.json` `version` field) with `gemini extensions update extension-name`.
+For extensions installed from a local path or a git repository, you can explicitly update to the latest version (as reflected in the `gemini-extension.json` `version` field) with `auditaria extensions update extension-name`.
 
 You can update all extensions with:
 
 ```
-gemini extensions update --all
+auditaria extensions update --all
 ```
 
 ## Extension creation
@@ -63,22 +63,22 @@ We offer several example extensions `context`, `custom-commands`, `exclude-tools
 To copy one of these examples into a development directory using the type of your choosing, run:
 
 ```
-gemini extensions new --path=path/to/directory --type=custom-commands
+auditaria extensions new --path=path/to/directory --type=custom-commands
 ```
 
 ### Link a local extension
 
-The `gemini extensions link` command will create a symbolic link from the extension installation directory to the development path.
+The `auditaria extensions link` command will create a symbolic link from the extension installation directory to the development path.
 
-This is useful so you don't have to run `gemini extensions update` every time you make changes you'd like to test.
+This is useful so you don't have to run `auditaria extensions update` every time you make changes you'd like to test.
 
 ```
-gemini extensions link path/to/directory
+auditaria extensions link path/to/directory
 ```
 
 ## How it works
 
-On startup, Gemini CLI looks for extensions in `<home>/.gemini/extensions`
+On startup, Auditaria CLI looks for extensions in `<home>/.gemini/extensions`
 
 Extensions exist as a directory that contains a `gemini-extension.json` file. For example:
 
@@ -108,7 +108,7 @@ The `gemini-extension.json` file contains the configuration for the extension. T
 - `contextFileName`: The name of the file that contains the context for the extension. This will be used to load the context from the extension directory. If this property is not used but a `GEMINI.md` file is present in your extension directory, then that file will be loaded.
 - `excludeTools`: An array of tool names to exclude from the model. You can also specify command-specific restrictions for tools that support it, like the `run_shell_command` tool. For example, `"excludeTools": ["run_shell_command(rm -rf)"]` will block the `rm -rf` command.
 
-When Gemini CLI starts, it loads all the extensions and merges their configurations. If there are any conflicts, the workspace configuration takes precedence.
+When Auditaria CLI starts, it loads all the extensions and merges their configurations. If there are any conflicts, the workspace configuration takes precedence.
 
 ### Custom commands
 
@@ -146,7 +146,7 @@ For example, if both a user and the `gcp` extension define a `deploy` command:
 
 ## Variables
 
-Gemini CLI extensions allow variable substitution in `gemini-extension.json`. This can be useful if e.g., you need the current directory to run an MCP server using `"cwd": "${extensionPath}${/}run.ts"`.
+Auditaria CLI extensions allow variable substitution in `gemini-extension.json`. This can be useful if e.g., you need the current directory to run an MCP server using `"cwd": "${extensionPath}${/}run.ts"`.
 
 **Supported variables:**
 
