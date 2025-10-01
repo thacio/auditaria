@@ -1,6 +1,6 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -14,11 +14,11 @@
     "url": "git+https://github.com/thacio/auditaria.git"
   },
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.3.3"
+    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.3.4"
   },
   "scripts": {
     "start": "node scripts/start.js",
-    "start:a2a-server": "CODER_AGENT_PORT=41242 npm run start --workspace @google/gemini-cli-a2a-server",
+    "start:a2a-server": "CODER_AGENT_PORT=41242 npm run start --workspace @thacio/auditaria-cli-a2a-server",
     "debug": "cross-env DEBUG=1 node --inspect-brk scripts/start.js",
     "auth:npm": "npx google-artifactregistry-auth",
     "auth:docker": "gcloud auth configure-docker us-west1-docker.pkg.dev",
