@@ -68,13 +68,9 @@ export const ToolStatsDisplay: React.FC = () => {
         paddingY={1}
         paddingX={2}
       >
-<<<<<<< HEAD
-        <Text>{t('stats.no_tool_calls', 'No tool calls have been made in this session.')}</Text>
-=======
         <Text color={theme.text.primary}>
-          No tool calls have been made in this session.
+          {t('stats.no_tool_calls', 'No tool calls have been made in this session.')}
         </Text>
->>>>>>> b9b6fe1f7
       </Box>
     );
   }
@@ -107,50 +103,24 @@ export const ToolStatsDisplay: React.FC = () => {
       paddingX={2}
       width={70}
     >
-<<<<<<< HEAD
-      <Text bold color={Colors.AccentPurple}>
-        {t('stats.tool_stats_title', 'Tool Stats For Nerds')}
-=======
       <Text bold color={theme.text.accent}>
-        Tool Stats For Nerds
->>>>>>> b9b6fe1f7
+        {t('stats.tool_stats_title', 'Tool Stats For Nerds')}
       </Text>
       <Box height={1} />
 
       {/* Header */}
       <Box>
         <Box width={TOOL_NAME_COL_WIDTH}>
-<<<<<<< HEAD
-          <Text bold>{t('stats.labels.tool_name', 'Tool Name')}</Text>
+          <Text bold color={theme.text.primary}>{t('stats.labels.tool_name', 'Tool Name')}</Text>
         </Box>
         <Box width={CALLS_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>{t('stats.labels.calls', 'Calls')}</Text>
+          <Text bold color={theme.text.primary}>{t('stats.labels.calls', 'Calls')}</Text>
         </Box>
         <Box width={SUCCESS_RATE_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>{t('stats.labels.success_rate', 'Success Rate')}</Text>
+          <Text bold color={theme.text.primary}>{t('stats.labels.success_rate', 'Success Rate')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
-          <Text bold>{t('stats.labels.avg_duration', 'Avg Duration')}</Text>
-=======
-          <Text bold color={theme.text.primary}>
-            Tool Name
-          </Text>
-        </Box>
-        <Box width={CALLS_COL_WIDTH} justifyContent="flex-end">
-          <Text bold color={theme.text.primary}>
-            Calls
-          </Text>
-        </Box>
-        <Box width={SUCCESS_RATE_COL_WIDTH} justifyContent="flex-end">
-          <Text bold color={theme.text.primary}>
-            Success Rate
-          </Text>
-        </Box>
-        <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
-          <Text bold color={theme.text.primary}>
-            Avg Duration
-          </Text>
->>>>>>> b9b6fe1f7
+          <Text bold color={theme.text.primary}>{t('stats.labels.avg_duration', 'Avg Duration')}</Text>
         </Box>
       </Box>
 
@@ -173,22 +143,14 @@ export const ToolStatsDisplay: React.FC = () => {
       <Box height={1} />
 
       {/* User Decision Summary */}
-<<<<<<< HEAD
-      <Text bold>{t('stats.sections.user_decision_summary', 'User Decision Summary')}</Text>
-=======
       <Text bold color={theme.text.primary}>
-        User Decision Summary
+        {t('stats.sections.user_decision_summary', 'User Decision Summary')}
       </Text>
->>>>>>> b9b6fe1f7
       <Box>
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-<<<<<<< HEAD
-          <Text color={Colors.LightBlue}>{t('stats.labels.total_reviewed', 'Total Reviewed Suggestions:')}</Text>
-=======
-          <Text color={theme.text.link}>Total Reviewed Suggestions:</Text>
->>>>>>> b9b6fe1f7
+          <Text color={theme.text.link}>{t('stats.labels.total_reviewed', 'Total Reviewed Suggestions:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={theme.text.primary}>{totalReviewed}</Text>
@@ -198,11 +160,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-<<<<<<< HEAD
-          <Text>{t('stats.labels.accepted', ' » Accepted:')}</Text>
-=======
-          <Text color={theme.text.primary}> » Accepted:</Text>
->>>>>>> b9b6fe1f7
+          <Text color={theme.text.primary}>{t('stats.labels.accepted', ' » Accepted:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={theme.status.success}>{totalDecisions.accept}</Text>
@@ -212,11 +170,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-<<<<<<< HEAD
-          <Text>{t('stats.labels.rejected', ' » Rejected:')}</Text>
-=======
-          <Text color={theme.text.primary}> » Rejected:</Text>
->>>>>>> b9b6fe1f7
+          <Text color={theme.text.primary}>{t('stats.labels.rejected', ' » Rejected:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={theme.status.error}>{totalDecisions.reject}</Text>
@@ -226,11 +180,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-<<<<<<< HEAD
-          <Text>{t('stats.labels.modified', ' » Modified:')}</Text>
-=======
-          <Text color={theme.text.primary}> » Modified:</Text>
->>>>>>> b9b6fe1f7
+          <Text color={theme.text.primary}>{t('stats.labels.modified', ' » Modified:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text color={theme.status.warning}>{totalDecisions.modify}</Text>
@@ -252,11 +202,7 @@ export const ToolStatsDisplay: React.FC = () => {
         <Box
           width={TOOL_NAME_COL_WIDTH + CALLS_COL_WIDTH + SUCCESS_RATE_COL_WIDTH}
         >
-<<<<<<< HEAD
-          <Text>{t('stats.labels.overall_agreement', ' Overall Agreement Rate:')}</Text>
-=======
-          <Text color={theme.text.primary}> Overall Agreement Rate:</Text>
->>>>>>> b9b6fe1f7
+          <Text color={theme.text.primary}>{t('stats.labels.overall_agreement', ' Overall Agreement Rate:')}</Text>
         </Box>
         <Box width={AVG_DURATION_COL_WIDTH} justifyContent="flex-end">
           <Text bold color={totalReviewed > 0 ? agreementColor : undefined}>

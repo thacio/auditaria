@@ -9,13 +9,9 @@ import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import crypto from 'node:crypto';
 import { colorizeCode, colorizeLine } from '../../utils/CodeColorizer.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
-<<<<<<< HEAD
 import { t } from '@thacio/auditaria-cli-core';
-import { theme } from '../../semantic-colors.js';
-=======
 import { theme as semanticTheme } from '../../semantic-colors.js';
 import type { Theme } from '../../themes/theme.js';
->>>>>>> b9b6fe1f7
 
 interface DiffLine {
   type: 'add' | 'del' | 'context' | 'hunk' | 'other';
@@ -105,28 +101,19 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
 }) => {
   const screenReaderEnabled = useIsScreenReaderEnabled();
   if (!diffContent || typeof diffContent !== 'string') {
-<<<<<<< HEAD
-    return <Text color={Colors.AccentYellow}>{t('diff.no_content', 'No diff content.')}</Text>;
-=======
-    return <Text color={semanticTheme.status.warning}>No diff content.</Text>;
->>>>>>> b9b6fe1f7
+    return <Text color={semanticTheme.status.warning}>{t('diff.no_content', 'No diff content.')}</Text>;
   }
 
   const parsedLines = parseDiffWithLineNumbers(diffContent);
 
   if (parsedLines.length === 0) {
     return (
-<<<<<<< HEAD
-      <Box borderStyle="round" borderColor={Colors.Gray} padding={1}>
-        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
-=======
       <Box
         borderStyle="round"
         borderColor={semanticTheme.border.default}
         padding={1}
       >
-        <Text dimColor>No changes detected.</Text>
->>>>>>> b9b6fe1f7
+        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
       </Box>
     );
   }
@@ -205,17 +192,12 @@ const renderDiffContent = (
 
   if (displayableLines.length === 0) {
     return (
-<<<<<<< HEAD
-      <Box borderStyle="round" borderColor={Colors.Gray} padding={1}>
-        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
-=======
       <Box
         borderStyle="round"
         borderColor={semanticTheme.border.default}
         padding={1}
       >
-        <Text dimColor>No changes detected.</Text>
->>>>>>> b9b6fe1f7
+        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
       </Box>
     );
   }

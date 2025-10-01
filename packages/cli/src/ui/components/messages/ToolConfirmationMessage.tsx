@@ -119,15 +119,9 @@ export const ToolConfirmationMessage: React.FC<
           padding={1}
           overflow="hidden"
         >
-<<<<<<< HEAD
-          <Text>{t('tool_confirmation.modify_in_progress', 'Modify in progress: ')}</Text>
-          <Text color={Colors.AccentGreen}>
-            {t('tool_confirmation.save_close_editor', 'Save and close external editor to continue')}
-=======
-          <Text color={theme.text.primary}>Modify in progress: </Text>
+          <Text color={theme.text.primary}>{t('tool_confirmation.modify_in_progress', 'Modify in progress: ')}</Text>
           <Text color={theme.status.success}>
-            Save and close external editor to continue
->>>>>>> b9b6fe1f7
+            {t('tool_confirmation.save_close_editor', 'Save and close external editor to continue')}
           </Text>
         </Box>
       );
@@ -234,11 +228,7 @@ export const ToolConfirmationMessage: React.FC<
         </Text>
         {displayUrls && infoProps.urls && infoProps.urls.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
-<<<<<<< HEAD
-            <Text>{t('tool_confirmation.info.urls_to_fetch', 'URLs to fetch:')}</Text>
-=======
-            <Text color={theme.text.primary}>URLs to fetch:</Text>
->>>>>>> b9b6fe1f7
+            <Text color={theme.text.primary}>{t('tool_confirmation.info.urls_to_fetch', 'URLs to fetch:')}</Text>
             {infoProps.urls.map((url) => (
               <Text key={url}>
                 {' '}
@@ -255,13 +245,8 @@ export const ToolConfirmationMessage: React.FC<
 
     bodyContent = (
       <Box flexDirection="column" paddingX={1} marginLeft={1}>
-<<<<<<< HEAD
-        <Text color={Colors.AccentCyan}>{t('tool_confirmation.mcp_labels.server', 'MCP Server: {serverName}', { serverName: mcpProps.serverName })}</Text>
-        <Text color={Colors.AccentCyan}>{t('tool_confirmation.mcp_labels.tool', 'Tool: {toolName}', { toolName: mcpProps.toolName })}</Text>
-=======
-        <Text color={theme.text.link}>MCP Server: {mcpProps.serverName}</Text>
-        <Text color={theme.text.link}>Tool: {mcpProps.toolName}</Text>
->>>>>>> b9b6fe1f7
+        <Text color={theme.text.link}>{t('tool_confirmation.mcp_labels.server', 'MCP Server: {serverName}', { serverName: mcpProps.serverName })}</Text>
+        <Text color={theme.text.link}>{t('tool_confirmation.mcp_labels.tool', 'Tool: {toolName}', { toolName: mcpProps.toolName })}</Text>
       </Box>
     );
 

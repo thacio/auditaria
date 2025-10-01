@@ -196,15 +196,10 @@ export function ThemeDialog({
           {/* Left Column: Selection */}
           <Box flexDirection="column" width="45%" paddingRight={2}>
             <Text bold={mode === 'theme'} wrap="truncate">
-<<<<<<< HEAD
               {mode === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
-              <Text color={Colors.Gray}>{otherScopeModifiedMessage}</Text>
-=======
-              {mode === 'theme' ? '> ' : '  '}Select Theme{' '}
               <Text color={theme.text.secondary}>
                 {otherScopeModifiedMessage}
               </Text>
->>>>>>> b9b6fe1f7
             </Text>
             <RadioButtonSelect
               items={themeItems}
@@ -274,17 +269,11 @@ def fibonacci(n):
         />
       )}
       <Box marginTop={1}>
-<<<<<<< HEAD
-        <Text color={Colors.Gray} wrap="truncate">
+        <Text color={theme.text.secondary} wrap="truncate">
           {t('theme_dialog.messages.use_enter_with_mode', '(Use Enter to {action}, Tab to {switchAction})', {
             action: mode === 'theme' ? t('theme_dialog.messages.select', 'select') : t('theme_dialog.messages.apply_scope', 'apply scope'),
             switchAction: mode === 'theme' ? t('theme_dialog.messages.configure_scope', 'configure scope') : t('theme_dialog.messages.select_theme', 'select theme')
           })}
-=======
-        <Text color={theme.text.secondary} wrap="truncate">
-          (Use Enter to {mode === 'theme' ? 'select' : 'apply scope'}, Tab to{' '}
-          {mode === 'theme' ? 'configure scope' : 'select theme'})
->>>>>>> b9b6fe1f7
         </Text>
       </Box>
     </Box>

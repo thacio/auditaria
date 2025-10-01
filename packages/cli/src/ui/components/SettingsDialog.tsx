@@ -670,13 +670,8 @@ export function SettingsDialog({
       height="100%"
     >
       <Box flexDirection="column" flexGrow={1}>
-<<<<<<< HEAD
-        <Text bold color={Colors.AccentBlue}>
-          {t('settings_dialog.title', 'Settings')}
-=======
         <Text bold color={theme.text.link}>
-          Settings
->>>>>>> b9b6fe1f7
+          {t('settings_dialog.title', 'Settings')}
         </Text>
         <Box height={1} />
         {showScrollUp && <Text color={theme.text.secondary}>▲</Text>}
@@ -814,22 +809,12 @@ export function SettingsDialog({
         </Box>
 
         <Box height={1} />
-<<<<<<< HEAD
-        <Text color={Colors.Gray}>
+        <Text color={theme.text.secondary}>
           {t('settings_dialog.messages.use_enter_tab', '(Use Enter to select, Tab to change focus)')}
         </Text>
         {showRestartPrompt && (
-          <Text color={Colors.AccentYellow}>
-            {t('settings_dialog.messages.restart_required', 'To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.')}
-=======
-        <Text color={theme.text.secondary}>
-          (Use Enter to select, Tab to change focus)
-        </Text>
-        {showRestartPrompt && (
           <Text color={theme.status.warning}>
-            To see changes, Gemini CLI must be restarted. Press r to exit and
-            apply changes now.
->>>>>>> b9b6fe1f7
+            {t('settings_dialog.messages.restart_required', 'To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.')}
           </Text>
         )}
       </Box>
