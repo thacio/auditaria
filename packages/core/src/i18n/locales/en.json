@@ -548,6 +548,7 @@
   },
   "input": {
     "placeholder": "  Type your message or @path/to/file",
+    "placeholder_vim": "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode.",
     "escape_to_clear": "Press Esc again to clear."
   },
   "tool_confirmation": {

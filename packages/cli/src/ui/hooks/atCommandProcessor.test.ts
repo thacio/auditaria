@@ -15,7 +15,6 @@ import {
   StandardFileSystemService,
   ToolRegistry,
   COMMON_IGNORE_PATTERNS,
-  DEFAULT_FILE_EXCLUDES,
 } from '@thacio/auditaria-cli-core';
 import * as os from 'node:os';
 import { ToolCallStatus } from '../types.js';
@@ -74,10 +73,10 @@ describe('handleAtCommand', () => {
       getDebugMode: () => false,
       getFileExclusions: () => ({
         getCoreIgnorePatterns: () => COMMON_IGNORE_PATTERNS,
-        getDefaultExcludePatterns: () => DEFAULT_FILE_EXCLUDES,
-        getGlobExcludes: () => COMMON_IGNORE_PATTERNS,
-        buildExcludePatterns: () => DEFAULT_FILE_EXCLUDES,
-        getReadManyFilesExcludes: () => DEFAULT_FILE_EXCLUDES,
+        getDefaultExcludePatterns: () => [],
+        getGlobExcludes: () => [],
+        buildExcludePatterns: () => [],
+        getReadManyFilesExcludes: () => [],
       }),
       getUsageStatisticsEnabled: () => false,
     } as unknown as Config;

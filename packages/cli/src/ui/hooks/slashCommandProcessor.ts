@@ -27,13 +27,11 @@ import {
   IdeClient,
 } from '@thacio/auditaria-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
-import { runExitCleanup } from '../../utils/cleanup.js';
-import {
-  type Message,
-  type HistoryItemWithoutId,
-  type HistoryItem,
-  type SlashCommandProcessorResult,
-  AuthState,
+import type {
+  Message,
+  HistoryItemWithoutId,
+  SlashCommandProcessorResult,
+  HistoryItem,
 } from '../types.js';
 import { MessageType } from '../types.js';
 // WEB_INTERFACE_START: Web commands hook import
@@ -46,6 +44,18 @@ import { BuiltinCommandLoader } from '../../services/BuiltinCommandLoader.js';
 import { FileCommandLoader } from '../../services/FileCommandLoader.js';
 import { McpPromptLoader } from '../../services/McpPromptLoader.js';
 
+interface SlashCommandProcessorActions {
+  openAuthDialog: () => void;
+  openThemeDialog: () => void;
+  openEditorDialog: () => void;
+  openLanguageDialog: () => void;
+  openPrivacyNotice: () => void;
+  openSettingsDialog: () => void;
+  quit: (messages: HistoryItem[]) => void;
+  setDebugMessage: (message: string) => void;
+  toggleCorgiMode: () => void;
+}
+
 /**
  * Hook to define and process slash commands (e.g., /help, /clear).
  */
@@ -56,18 +66,10 @@ export const useSlashCommandProcessor = (
   clearItems: UseHistoryManagerReturn['clearItems'],
   loadHistory: UseHistoryManagerReturn['loadHistory'],
   refreshStatic: () => void,
-  onDebugMessage: (message: string) => void,
-  openThemeDialog: () => void,
-  setAuthState: (state: AuthState) => void,
-  openEditorDialog: () => void,
-  openLanguageDialog: () => void,
-  toggleCorgiMode: () => void,
-  setQuittingMessages: (message: HistoryItem[]) => void,
-  openPrivacyNotice: () => void,
-  openSettingsDialog: () => void,
   toggleVimEnabled: () => Promise<boolean>,
   setIsProcessing: (isProcessing: boolean) => void,
   setGeminiMdFileCount: (count: number) => void,
+  actions: SlashCommandProcessorActions,
 ) => {
   const session = useSessionStats();
   // WEB_INTERFACE_START: Web commands handlers
@@ -192,10 +194,10 @@ export const useSlashCommandProcessor = (
           refreshStatic();
         },
         loadHistory,
-        setDebugMessage: onDebugMessage,
+        setDebugMessage: actions.setDebugMessage,
         pendingItem: pendingCompressionItem,
         setPendingItem: setPendingCompressionItem,
-        toggleCorgiMode,
+        toggleCorgiMode: actions.toggleCorgiMode,
         toggleVimEnabled,
         setGeminiMdFileCount,
         reloadCommands,
@@ -222,10 +224,9 @@ export const useSlashCommandProcessor = (
       clearItems,
       refreshStatic,
       session.stats,
-      onDebugMessage,
+      actions,
       pendingCompressionItem,
       setPendingCompressionItem,
-      toggleCorgiMode,
       toggleVimEnabled,
       sessionShellAllowlist,
       setGeminiMdFileCount,
@@ -408,25 +409,25 @@ export const useSlashCommandProcessor = (
                     (global as any).__preStartTerminalCapture();
                   }
                   // WEB_INTERFACE_END
-                  
+
                   switch (result.dialog) {
                     case 'auth':
-                      setAuthState(AuthState.Updating);
+                      actions.openAuthDialog();
                       return { type: 'handled' };
                     case 'theme':
-                      openThemeDialog();
+                      actions.openThemeDialog();
                       return { type: 'handled' };
                     case 'editor':
-                      openEditorDialog();
+                      actions.openEditorDialog();
                       return { type: 'handled' };
                     case 'language':
-                      openLanguageDialog();
+                      actions.openLanguageDialog();
                       return { type: 'handled' };
                     case 'privacy':
-                      openPrivacyNotice();
+                      actions.openPrivacyNotice();
                       return { type: 'handled' };
                     case 'settings':
-                      openSettingsDialog();
+                      actions.openSettingsDialog();
                       return { type: 'handled' };
                     case 'help':
                       return { type: 'handled' };
@@ -448,11 +449,7 @@ export const useSlashCommandProcessor = (
                   return { type: 'handled' };
                 }
                 case 'quit':
-                  setQuittingMessages(result.messages);
-                  setTimeout(async () => {
-                    await runExitCleanup();
-                    process.exit(0);
-                  }, 100);
+                  actions.quit(result.messages);
                   return { type: 'handled' };
 
                 case 'submit_prompt':
@@ -593,16 +590,10 @@ export const useSlashCommandProcessor = (
     [
       config,
       addItem,
-      setAuthState,
+      actions,
       commands,
       commandContext,
       addMessage,
-      openThemeDialog,
-      openPrivacyNotice,
-      openEditorDialog,
-      openLanguageDialog,
-      setQuittingMessages,
-      openSettingsDialog,
       setShellConfirmationRequest,
       setSessionShellAllowlist,
       setIsProcessing,

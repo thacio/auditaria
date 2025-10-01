@@ -545,6 +545,7 @@
   },
   "input": {
     "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo",
+    "placeholder_vim": "  Pressione 'i' para modo INSERT e 'Esc' para modo NORMAL.",
     "escape_to_clear": "Pressione Esc novamente para limpar."
   },
   "tool_confirmation": {

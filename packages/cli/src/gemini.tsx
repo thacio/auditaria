@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { render, Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
-import { AppWrapper } from './ui/App.js';
+import { AppContainer } from './ui/AppContainer.js';
 import { loadCliConfig, parseArguments } from './config/config.js';
 import { readStdin } from './utils/readStdin.js';
 import { basename } from 'node:path';
@@ -40,6 +40,10 @@ import {
   t,
   uiTelemetryService,
 } from '@thacio/auditaria-cli-core';
+import {
+  initializeApp,
+  type InitializationResult,
+} from './core/initializer.js';
 import { validateAuthMethod } from './config/auth.js';
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
 import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
@@ -49,6 +53,10 @@ import { handleAutoUpdate } from './utils/handleAutoUpdate.js';
 import { appEvents, AppEvent } from './utils/events.js';
 import { SettingsContext } from './ui/contexts/SettingsContext.js';
 import { writeFileSync } from 'node:fs';
+import { SessionStatsProvider } from './ui/contexts/SessionContext.js';
+import { VimModeProvider } from './ui/contexts/VimModeContext.js';
+import { KeypressProvider } from './ui/contexts/KeypressContext.js';
+import { useKittyKeyboardProtocol } from './ui/hooks/useKittyKeyboardProtocol.js';
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -194,6 +202,7 @@ export async function startInteractiveUI(
   settings: LoadedSettings,
   startupWarnings: string[],
   workspaceRoot: string = process.cwd(),
+  initializationResult: InitializationResult,
   // WEB_INTERFACE_START: Add web interface parameters
   webEnabled?: boolean,
   webOpenBrowser?: boolean,
@@ -202,23 +211,46 @@ export async function startInteractiveUI(
 ) {
   const version = await getCliVersion();
   setWindowTitle(basename(workspaceRoot), settings);
+
+  // Create wrapper component to use hooks inside render
+  const AppWrapper = () => {
+    const kittyProtocolStatus = useKittyKeyboardProtocol();
+    return (
+      <SettingsContext.Provider value={settings}>
+        <KeypressProvider
+          kittyProtocolEnabled={kittyProtocolStatus.enabled}
+          config={config}
+          debugKeystrokeLogging={settings.merged.general?.debugKeystrokeLogging}
+        >
+          <SessionStatsProvider>
+            <VimModeProvider settings={settings}>
+              <AppContainer
+                config={config}
+                settings={settings}
+                startupWarnings={startupWarnings}
+                version={version}
+                initializationResult={initializationResult}
+                // WEB_INTERFACE_START: Pass web interface flags
+                webEnabled={webEnabled}
+                webOpenBrowser={webOpenBrowser}
+                webPort={webPort}
+                // WEB_INTERFACE_END
+              />
+            </VimModeProvider>
+          </SessionStatsProvider>
+        </KeypressProvider>
+      </SettingsContext.Provider>
+    );
+  };
+
   const instance = render(
     <React.StrictMode>
-      <SettingsContext.Provider value={settings}>
-        <AppWrapper
-          config={config}
-          settings={settings}
-          startupWarnings={startupWarnings}
-          version={version}
-          // WEB_INTERFACE_START: Pass web interface flags
-          webEnabled={webEnabled}
-          webOpenBrowser={webOpenBrowser}
-          webPort={webPort}
-          // WEB_INTERFACE_END
-        />
-      </SettingsContext.Provider>
+      <AppWrapper />
     </React.StrictMode>,
-    { exitOnCtrlC: false, isScreenReaderEnabled: config.getScreenReader() },
+    {
+      exitOnCtrlC: false,
+      isScreenReaderEnabled: config.getScreenReader(),
+    },
   );
 
   checkForUpdates()
@@ -346,10 +378,12 @@ export async function main() {
   if (settings.merged.ui?.theme) {
     if (!themeManager.setActiveTheme(settings.merged.ui?.theme)) {
       // If the theme is not found during initial load, log a warning and continue.
-      // The useThemeCommand hook in App.tsx will handle opening the dialog.
+      // The useThemeCommand hook in AppContainer.tsx will handle opening the dialog.
       console.warn(`Warning: Theme "${settings.merged.ui?.theme}" not found.`);
     }
   }
+
+  const initializationResult = await initializeApp(config, settings);
 
   // hop into sandbox if we are outside and sandboxing is enabled
   if (!process.env['SANDBOX']) {
@@ -452,7 +486,8 @@ export async function main() {
       config,
       settings,
       startupWarnings,
-      process.cwd(), // Updated to match upstream default parameter
+      process.cwd(),
+      initializationResult,
       // WEB_INTERFACE_START: Pass web interface flags
       webEnabled,
       webOpenBrowser,

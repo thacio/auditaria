@@ -20,9 +20,6 @@ vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
     IdeClient: {
       getInstance: vi.fn(),
     },
-    ideContext: {
-      getIdeContext: vi.fn(),
-    },
   };
 });
 
