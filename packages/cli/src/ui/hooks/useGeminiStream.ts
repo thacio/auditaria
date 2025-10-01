@@ -110,6 +110,10 @@ export const useGeminiStream = (
   setModelSwitchedFromQuotaError: React.Dispatch<React.SetStateAction<boolean>>,
   onEditorClose: () => void,
   onCancelSubmit: () => void,
+  setShellInputFocused: (value: boolean) => void,
+  terminalWidth: number,
+  terminalHeight: number,
+  isShellFocused?: boolean,
 ) => {
   const [initError, setInitError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -167,7 +171,6 @@ export const useGeminiStream = (
         }
       },
       config,
-      setPendingHistoryItem,
       getPreferredEditor,
       onEditorClose,
     );
@@ -206,6 +209,17 @@ export const useGeminiStream = (
   }, [pendingToolCallGroupDisplay, webInterface]);
   // WEB_INTERFACE_END
 
+  const activeToolPtyId = useMemo(() => {
+    const executingShellTool = toolCalls?.find(
+      (tc) =>
+        tc.status === 'executing' && tc.request.name === 'run_shell_command',
+    );
+    if (executingShellTool) {
+      return (executingShellTool as { pid?: number }).pid;
+    }
+    return undefined;
+  }, [toolCalls]);
+
   const loopDetectedRef = useRef(false);
   const [
     loopDetectionConfirmationRequest,
@@ -219,14 +233,25 @@ export const useGeminiStream = (
     await done;
     setIsResponding(false);
   }, []);
-  const { handleShellCommand } = useShellCommandProcessor(
+  const { handleShellCommand, activeShellPtyId } = useShellCommandProcessor(
     addItem,
     setPendingHistoryItem,
     onExec,
     onDebugMessage,
     config,
     geminiClient,
+    setShellInputFocused,
+    terminalWidth,
+    terminalHeight,
   );
+
+  const activePtyId = activeShellPtyId || activeToolPtyId;
+
+  useEffect(() => {
+    if (!activePtyId) {
+      setShellInputFocused(false);
+    }
+  }, [activePtyId, setShellInputFocused]);
 
   const streamingState = useMemo(() => {
     if (toolCalls.some((tc) => tc.status === 'awaiting_approval')) {
@@ -294,17 +319,19 @@ export const useGeminiStream = (
     setPendingHistoryItem(null);
     onCancelSubmit();
     setIsResponding(false);
+    setShellInputFocused(false);
   }, [
     streamingState,
     addItem,
     setPendingHistoryItem,
     onCancelSubmit,
     pendingHistoryItemRef,
+    setShellInputFocused,
   ]);
 
   useKeypress(
     (key) => {
-      if (key.name === 'escape') {
+      if (key.name === 'escape' && !isShellFocused) {
         cancelOngoingRequest();
       }
     },
@@ -1213,6 +1240,7 @@ export const useGeminiStream = (
     // WEB_INTERFACE_START: Export cancelOngoingRequest for web interface ESC key support
     cancelOngoingRequest,
     // WEB_INTERFACE_END
+    activePtyId,
     loopDetectionConfirmationRequest,
   };
 };
