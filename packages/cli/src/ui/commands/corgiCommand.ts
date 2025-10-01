@@ -12,8 +12,8 @@ export const corgiCommand: SlashCommand = {
   get description() {
     return t('commands.corgi.description', 'Toggles corgi mode.');
   },
-  kind: CommandKind.BUILT_IN,
   hidden: true,
+  kind: CommandKind.BUILT_IN,
   action: (context, _args) => {
     context.ui.toggleCorgiMode();
   },

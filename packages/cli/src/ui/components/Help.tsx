@@ -53,7 +53,7 @@ export const Help: React.FC<Help> = ({ commands }) => (
       {t('help.section_commands', 'Commands:')}
     </Text>
     {commands
-      .filter((command) => command.description)
+      .filter((command) => command.description && !command.hidden)
       .map((command: SlashCommand) => (
         <Box key={command.name} flexDirection="column">
           <Text color={Colors.Foreground}>
@@ -67,15 +67,17 @@ export const Help: React.FC<Help> = ({ commands }) => (
             {command.description && ' - ' + command.description}
           </Text>
           {command.subCommands &&
-            command.subCommands.map((subCommand) => (
-              <Text key={subCommand.name} color={Colors.Foreground}>
-                <Text bold color={Colors.AccentPurple}>
-                  {'   '}
-                  {subCommand.name}
+            command.subCommands
+              .filter((subCommand) => !subCommand.hidden)
+              .map((subCommand) => (
+                <Text key={subCommand.name} color={Colors.Foreground}>
+                  <Text bold color={Colors.AccentPurple}>
+                    {'   '}
+                    {subCommand.name}
+                  </Text>
+                  {subCommand.description && ' - ' + subCommand.description}
                 </Text>
-                {subCommand.description && ' - ' + subCommand.description}
-              </Text>
-            ))}
+              ))}
         </Box>
       ))}
     <Text color={Colors.Foreground}>
