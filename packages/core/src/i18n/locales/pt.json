@@ -333,7 +333,15 @@
         "deleted": "Checkpoint de conversa '{tag}' foi deletado.",
         "not_found": "Erro: Nenhum checkpoint encontrado com tag '{tag}'."
       },
-      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume, delete"
+      "share": {
+        "description": "Compartilhar a conversa atual para um arquivo markdown ou json. Uso: /chat share <arquivo>",
+        "invalid_format": "Formato de arquivo inválido. Somente .md e .json são suportados.",
+        "no_client": "Nenhum cliente de chat disponível para compartilhar conversa.",
+        "no_conversation": "Nenhuma conversa encontrada para compartilhar.",
+        "shared": "Conversa compartilhada para {filePath}",
+        "error": "Erro ao compartilhar conversa: {error}"
+      },
+      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume, delete, share"
     },
     "quit": {
       "description": "sair do cli",

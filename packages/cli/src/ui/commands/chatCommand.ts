@@ -19,6 +19,7 @@ import { decodeTagName, t } from '@thacio/auditaria-cli-core';
 import path from 'node:path';
 import type { HistoryItemWithoutId } from '../types.js';
 import { MessageType } from '../types.js';
+import type { Content } from '@google/genai';
 
 interface ChatDetail {
   name: string;
@@ -280,11 +281,99 @@ const deleteCommand: SlashCommand = {
   },
 };
 
+export function serializeHistoryToMarkdown(history: Content[]): string {
+  return history
+    .map((item) => {
+      const text =
+        item.parts
+          ?.filter((m) => !!m.text)
+          .map((m) => m.text)
+          .join('') || '';
+      return `**${item.role}**:\n\n${text}`;
+    })
+    .join('\n\n---\n\n');
+}
+
+const shareCommand: SlashCommand = {
+  name: 'share',
+  get description() {
+    return t('commands.chat.share.description', 'Share the current conversation to a markdown or json file. Usage: /chat share <file>');
+  },
+  kind: CommandKind.BUILT_IN,
+  action: async (context, args): Promise<MessageActionReturn> => {
+    let filePathArg = args.trim();
+    if (!filePathArg) {
+      filePathArg = `gemini-conversation-${Date.now()}.json`;
+    }
+
+    const filePath = path.resolve(filePathArg);
+    const extension = path.extname(filePath);
+    if (extension !== '.md' && extension !== '.json') {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.chat.share.invalid_format', 'Invalid file format. Only .md and .json are supported.'),
+      };
+    }
+
+    const chat = await context.services.config?.getGeminiClient()?.getChat();
+    if (!chat) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.chat.share.no_client', 'No chat client available to share conversation.'),
+      };
+    }
+
+    const history = chat.getHistory();
+
+    // An empty conversation has two hidden messages that setup the context for
+    // the chat. Thus, to check whether a conversation has been started, we
+    // can't check for length 0.
+    if (history.length <= 2) {
+      return {
+        type: 'message',
+        messageType: 'info',
+        content: t('commands.chat.share.no_conversation', 'No conversation found to share.'),
+      };
+    }
+
+    let content = '';
+    if (extension === '.json') {
+      content = JSON.stringify(history, null, 2);
+    } else {
+      content = serializeHistoryToMarkdown(history);
+    }
+
+    try {
+      await fsPromises.writeFile(filePath, content);
+      return {
+        type: 'message',
+        messageType: 'info',
+        content: t('commands.chat.share.shared', 'Conversation shared to {filePath}', { filePath }),
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t('commands.chat.share.error', 'Error sharing conversation: {error}', { error: errorMessage }),
+      };
+    }
+  },
+};
+
 export const chatCommand: SlashCommand = {
   name: 'chat',
   get description() {
     return t('commands.chat.description', 'Manage conversation history. Usage: /chat <list|save|resume> <tag>');
   },
   kind: CommandKind.BUILT_IN,
-  subCommands: [listCommand, saveCommand, resumeCommand, deleteCommand],
+  subCommands: [
+    listCommand,
+    saveCommand,
+    resumeCommand,
+    deleteCommand,
+    shareCommand,
+  ],
 };

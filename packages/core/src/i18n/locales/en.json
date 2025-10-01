@@ -336,7 +336,15 @@
         "deleted": "Conversation checkpoint '{tag}' has been deleted.",
         "not_found": "Error: No checkpoint found with tag '{tag}'."
       },
-      "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume, delete"
+      "share": {
+        "description": "Share the current conversation to a markdown or json file. Usage: /chat share <file>",
+        "invalid_format": "Invalid file format. Only .md and .json are supported.",
+        "no_client": "No chat client available to share conversation.",
+        "no_conversation": "No conversation found to share.",
+        "shared": "Conversation shared to {filePath}",
+        "error": "Error sharing conversation: {error}"
+      },
+      "unknown_command": "Unknown /chat command: {command}. Available: list, save, resume, delete, share"
     },
     "quit": {
       "description": "exit the cli",
