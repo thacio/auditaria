@@ -10,16 +10,22 @@ import {
   shutdownTelemetry,
   isTelemetrySdkInitialized,
   GeminiEventType,
-  parseAndFormatApiError,
-  t,
   FatalInputError,
-  FatalTurnLimitedError,
   promptIdContext,
+  OutputFormat,
+  JsonFormatter,
+  uiTelemetryService,
 } from '@thacio/auditaria-cli-core';
 import type { Content, Part } from '@google/genai';
 
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';
+import {
+  handleError,
+  handleToolError,
+  handleCancellationError,
+  handleMaxTurnsExceededError,
+} from './utils/errors.js';
 
 export async function runNonInteractive(
   config: Config,
@@ -74,9 +80,7 @@ export async function runNonInteractive(
           config.getMaxSessionTurns() >= 0 &&
           turnCount > config.getMaxSessionTurns()
         ) {
-          throw new FatalTurnLimitedError(
-            t('errors.turn_limit_reached', 'Reached max session turns for this session. Increase the number of turns by specifying maxSessionTurns in settings.json.'),
-          );
+          handleMaxTurnsExceededError(config);
         }
         const toolCallRequests: ToolCallRequestInfo[] = [];
 
@@ -86,14 +90,18 @@ export async function runNonInteractive(
           prompt_id,
         );
 
+        let responseText = '';
         for await (const event of responseStream) {
           if (abortController.signal.aborted) {
-            console.error(t('non_interactive.operation_cancelled', 'Operation cancelled.'));
-            return;
+            handleCancellationError(config);
           }
 
           if (event.type === GeminiEventType.Content) {
-            process.stdout.write(event.value);
+            if (config.getOutputFormat() === OutputFormat.JSON) {
+              responseText += event.value;
+            } else {
+              process.stdout.write(event.value);
+            }
           } else if (event.type === GeminiEventType.ToolCallRequest) {
             toolCallRequests.push(event.value);
           }
@@ -109,11 +117,14 @@ export async function runNonInteractive(
             );
 
             if (toolResponse.error) {
-              console.error(
-                t('non_interactive.tool_execution_error', 'Error executing tool {toolName}: {error}', {
-                  toolName: requestInfo.name,
-                  error: String(toolResponse.resultDisplay || toolResponse.error.message)
-                }),
+              handleToolError(
+                requestInfo.name,
+                toolResponse.error,
+                config,
+                toolResponse.errorType || 'TOOL_EXECUTION_ERROR',
+                typeof toolResponse.resultDisplay === 'string'
+                  ? toolResponse.resultDisplay
+                  : undefined,
               );
             }
 
@@ -123,18 +134,18 @@ export async function runNonInteractive(
           }
           currentMessages = [{ role: 'user', parts: toolResponseParts }];
         } else {
-          process.stdout.write('\n'); // Ensure a final newline
+          if (config.getOutputFormat() === OutputFormat.JSON) {
+            const formatter = new JsonFormatter();
+            const stats = uiTelemetryService.getMetrics();
+            process.stdout.write(formatter.format(responseText, stats));
+          } else {
+            process.stdout.write('\n'); // Ensure a final newline
+          }
           return;
         }
       }
     } catch (error) {
-      console.error(
-        parseAndFormatApiError(
-          error,
-          config.getContentGeneratorConfig()?.authType,
-        ),
-      );
-      throw error;
+      handleError(error, config);
     } finally {
       consolePatcher.cleanup();
       if (isTelemetrySdkInitialized()) {

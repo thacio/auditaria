@@ -237,6 +237,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       promptWords: undefined,
       web: undefined,
       port: undefined,
+      outputFormat: undefined,
     });
 
     await main();
