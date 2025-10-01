@@ -5,7 +5,7 @@
  */
 
 import * as osActual from 'node:os';
-import { ideContextStore } from '@google/gemini-cli-core';
+import { ideContextStore } from '@thacio/auditaria-cli-core';
 import {
   describe,
   it,

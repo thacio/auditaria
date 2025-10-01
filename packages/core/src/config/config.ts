@@ -532,11 +532,7 @@ export class Config {
       return;
     }
 
-    if (this.contentGeneratorConfig) {
-      this.contentGeneratorConfig.model = newModel;
-      this.modelSwitchedDuringSession = true;
-    }
-
+    this.modelSwitchedDuringSession = true;
     this.model = newModel;
   }
 
@@ -553,10 +549,7 @@ export class Config {
   }
 
   resetModelToDefault(): void {
-    if (this.contentGeneratorConfig) {
-      this.contentGeneratorConfig.model = this.model; // Reset to the original default model
-      this.modelSwitchedDuringSession = false;
-    }
+    this.modelSwitchedDuringSession = false;
   }
 
   setFallbackModelHandler(handler: FallbackModelHandler): void {
