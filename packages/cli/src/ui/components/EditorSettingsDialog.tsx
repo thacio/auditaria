@@ -155,7 +155,7 @@ export function EditorSettingsDialog({
       </Box>
 
       <Box flexDirection="column" width="55%" paddingLeft={2}>
-        <Text bold>{t('editor_dialog.editor_preference', 'Editor Preference')}</Text>
+        <Text bold color={theme.text.primary}>{t('editor_dialog.editor_preference', 'Editor Preference')}</Text>
         <Box flexDirection="column" gap={1} marginTop={1}>
           <Text color={theme.text.secondary}>
             {t('editor_dialog.messages.supported_editors', 'These editors are currently supported. Please note that some editors cannot be used in sandbox mode.')}

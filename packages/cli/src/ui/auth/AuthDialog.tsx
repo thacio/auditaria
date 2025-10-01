@@ -159,7 +159,7 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
       padding={1}
       width="100%"
     >
-      <Text bold>{t('auth_dialog.dialog_title', 'Get started')}</Text>
+      <Text bold color={theme.text.primary}>{t('auth_dialog.dialog_title', 'Get started')}</Text>
       <Box marginTop={1}>
         <Text color={theme.text.primary}>{t('auth_dialog.dialog_question', 'How would you like to authenticate for this project?')}</Text>
       </Box>
