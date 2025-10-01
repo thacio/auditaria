@@ -748,7 +748,12 @@
       "also_modified_in": "(Also modified in {scope})",
       "modified_in": "(Modified in {scope})",
       "use_enter_select": "(Use Enter to select",
-      "tab_to_change_focus": ", Tab to change focus)"
+      "tab_to_change_focus": ", Tab to change focus)",
+      "use_enter_with_mode": "(Use Enter to {action}, Tab to {switchAction})",
+      "select": "select",
+      "apply_scope": "apply scope",
+      "configure_scope": "configure scope",
+      "select_theme": "select theme"
     }
   },
   "settings_dialog": {
