@@ -7,7 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 interface ProQuotaDialogProps {
@@ -38,7 +38,7 @@ export function ProQuotaDialog({
 
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
-      <Text bold color={Colors.AccentYellow}>
+      <Text bold color={theme.status.warning}>
         {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', { model: failedModel })}
       </Text>
       <Box marginTop={1}>

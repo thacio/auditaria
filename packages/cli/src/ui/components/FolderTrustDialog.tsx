@@ -7,7 +7,7 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { t } from '@thacio/auditaria-cli-core';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { useKeypress } from '../hooks/useKeypress.js';
@@ -70,14 +70,14 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       <Box
         flexDirection="column"
         borderStyle="round"
-        borderColor={Colors.AccentYellow}
+        borderColor={theme.status.warning}
         padding={1}
         width="100%"
         marginLeft={1}
       >
         <Box flexDirection="column" marginBottom={1}>
-          <Text bold>{t('folder_trust_dialog.title', 'Do you trust this folder?')}</Text>
-          <Text>
+          <Text bold color={theme.text.primary}>{t('folder_trust_dialog.title', 'Do you trust this folder?')}</Text>
+          <Text color={theme.text.primary}>
             {t('folder_trust_dialog.description', 'Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.')}
           </Text>
         </Box>
@@ -90,7 +90,7 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       </Box>
       {isRestarting && (
         <Box marginLeft={1} marginTop={1}>
-          <Text color={Colors.AccentYellow}>
+          <Text color={theme.status.warning}>
             {t('settings_dialog.messages.restart_required', 'To see changes, Auditaria CLI must be restarted. Press r to exit and apply changes now.')}
           </Text>
         </Box>

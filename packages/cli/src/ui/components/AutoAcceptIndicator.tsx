@@ -7,7 +7,7 @@ import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { ApprovalMode } from '@thacio/auditaria-cli-core';
 
 interface AutoAcceptIndicatorProps {
@@ -23,12 +23,12 @@ export const AutoAcceptIndicator: React.FC<AutoAcceptIndicatorProps> = ({
 
   switch (approvalMode) {
     case ApprovalMode.AUTO_EDIT:
-      textColor = Colors.AccentGreen;
+      textColor = theme.status.success;
       textContent = t('auto_accept.accepting_edits', 'accepting edits');
       subText = t('auto_accept.shift_tab_toggle', ' (shift + tab to toggle)');
       break;
     case ApprovalMode.YOLO:
-      textColor = Colors.AccentRed;
+      textColor = theme.status.error;
       textContent = t('auto_accept.yolo_mode', 'YOLO mode');
       subText = t('auto_accept.ctrl_y_toggle', ' (ctrl + y to toggle)');
       break;
@@ -41,7 +41,7 @@ export const AutoAcceptIndicator: React.FC<AutoAcceptIndicatorProps> = ({
     <Box>
       <Text color={textColor}>
         {textContent}
-        {subText && <Text color={Colors.Gray}>{subText}</Text>}
+        {subText && <Text color={theme.text.secondary}>{subText}</Text>}
       </Text>
     </Box>
   );

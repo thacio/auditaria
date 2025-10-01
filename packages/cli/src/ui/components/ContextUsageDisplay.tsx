@@ -5,7 +5,7 @@
  */
 
 import { Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { t, tokenLimit } from '@thacio/auditaria-cli-core';
 
 export const ContextUsageDisplay = ({
@@ -18,7 +18,7 @@ export const ContextUsageDisplay = ({
   const percentage = promptTokenCount / tokenLimit(model);
 
   return (
-    <Text color={Colors.Gray}>
+    <Text color={theme.text.secondary}>
       {t('footer.context_left', '({percentage}% context left)', { percentage: ((1 - percentage) * 100).toFixed(0) })}
     </Text>
   );

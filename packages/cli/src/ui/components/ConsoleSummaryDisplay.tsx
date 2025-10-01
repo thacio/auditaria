@@ -7,7 +7,7 @@ import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 
 interface ConsoleSummaryDisplayProps {
   errorCount: number;
@@ -26,9 +26,9 @@ export const ConsoleSummaryDisplay: React.FC<ConsoleSummaryDisplayProps> = ({
   return (
     <Box>
       {errorCount > 0 && (
-        <Text color={Colors.AccentRed}>
+        <Text color={theme.status.error}>
           {errorIcon} {t('console_summary.error_count', '{count} error{plural}', { count: errorCount, plural: errorCount > 1 ? 's' : '' })}{' '}
-          <Text color={Colors.Gray}>{t('console_summary.ctrl_o_details', '(ctrl+o for details)')}</Text>
+          <Text color={theme.text.secondary}>{t('console_summary.ctrl_o_details', '(ctrl+o for details)')}</Text>
         </Text>
       )}
     </Box>

@@ -9,8 +9,13 @@ import { Box, Newline, Text } from 'ink';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
 import { usePrivacySettings } from '../hooks/usePrivacySettings.js';
 import { CloudPaidPrivacyNotice } from './CloudPaidPrivacyNotice.js';
+<<<<<<< HEAD
 import type { Config } from '@thacio/auditaria-cli-core';
 import { Colors } from '../colors.js';
+=======
+import type { Config } from '@google/gemini-cli-core';
+import { theme } from '../semantic-colors.js';
+>>>>>>> b9b6fe1f7
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface CloudFreePrivacyNoticeProps {
@@ -35,16 +40,27 @@ export const CloudFreePrivacyNotice = ({
   );
 
   if (privacyState.isLoading) {
+<<<<<<< HEAD
     return <Text color={Colors.Gray}>{t('privacy.loading', 'Loading...')}</Text>;
+=======
+    return <Text color={theme.text.secondary}>Loading...</Text>;
+>>>>>>> b9b6fe1f7
   }
 
   if (privacyState.error) {
     return (
       <Box flexDirection="column" marginY={1}>
+<<<<<<< HEAD
         <Text color={Colors.AccentRed}>
           {t('privacy.error_loading_optin', 'Error loading Opt-in settings: {error}', { error: privacyState.error })}
         </Text>
         <Text color={Colors.Gray}>{t('privacy.press_esc_exit', 'Press Esc to exit.')}</Text>
+=======
+        <Text color={theme.status.error}>
+          Error loading Opt-in settings: {privacyState.error}
+        </Text>
+        <Text color={theme.text.secondary}>Press Esc to exit.</Text>
+>>>>>>> b9b6fe1f7
       </Box>
     );
   }
@@ -60,6 +76,7 @@ export const CloudFreePrivacyNotice = ({
 
   return (
     <Box flexDirection="column" marginY={1}>
+<<<<<<< HEAD
       <Text bold color={Colors.AccentPurple}>
         {t('privacy.gemini_code_assist_notice_title', 'Gemini Code Assist for Individuals Privacy Notice')}
       </Text>
@@ -79,6 +96,41 @@ export const CloudFreePrivacyNotice = ({
       <Box flexDirection="column">
         <Text>
           {t('privacy.allow_data_usage_question', 'Allow Google to use this data to develop and improve our products?')}
+=======
+      <Text bold color={theme.text.accent}>
+        Gemini Code Assist for Individuals Privacy Notice
+      </Text>
+      <Newline />
+      <Text color={theme.text.primary}>
+        This notice and our Privacy Policy
+        <Text color={theme.text.link}>[1]</Text> describe how Gemini Code Assist
+        handles your data. Please read them carefully.
+      </Text>
+      <Newline />
+      <Text color={theme.text.primary}>
+        When you use Gemini Code Assist for individuals with Gemini CLI, Google
+        collects your prompts, related code, generated output, code edits,
+        related feature usage information, and your feedback to provide,
+        improve, and develop Google products and services and machine learning
+        technologies.
+      </Text>
+      <Newline />
+      <Text color={theme.text.primary}>
+        To help with quality and improve our products (such as generative
+        machine-learning models), human reviewers may read, annotate, and
+        process the data collected above. We take steps to protect your privacy
+        as part of this process. This includes disconnecting the data from your
+        Google Account before reviewers see or annotate it, and storing those
+        disconnected copies for up to 18 months. Please don&apos;t submit
+        confidential information or any data you wouldn&apos;t want a reviewer
+        to see or Google to use to improve our products, services and
+        machine-learning technologies.
+      </Text>
+      <Newline />
+      <Box flexDirection="column">
+        <Text color={theme.text.primary}>
+          Allow Google to use this data to develop and improve our products?
+>>>>>>> b9b6fe1f7
         </Text>
         <RadioButtonSelect
           items={items}
@@ -94,11 +146,17 @@ export const CloudFreePrivacyNotice = ({
       </Box>
       <Newline />
       <Text>
-        <Text color={Colors.AccentBlue}>[1]</Text>{' '}
+        <Text color={theme.text.link}>[1]</Text>{' '}
         https://policies.google.com/privacy
       </Text>
       <Newline />
+<<<<<<< HEAD
       <Text color={Colors.Gray}>{t('privacy.press_enter_choose_exit', 'Press Enter to choose an option and exit.')}</Text>
+=======
+      <Text color={theme.text.secondary}>
+        Press Enter to choose an option and exit.
+      </Text>
+>>>>>>> b9b6fe1f7
     </Box>
   );
 };

@@ -8,7 +8,7 @@ import { t } from '@thacio/auditaria-cli-core';
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import { Box, Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { themeManager, DEFAULT_THEME } from '../themes/theme-manager.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { DiffRenderer } from './messages/DiffRenderer.js';
@@ -183,7 +183,7 @@ export function ThemeDialog({
   return (
     <Box
       borderStyle="round"
-      borderColor={Colors.Gray}
+      borderColor={theme.border.default}
       flexDirection="column"
       paddingTop={includePadding ? 1 : 0}
       paddingBottom={includePadding ? 1 : 0}
@@ -196,8 +196,15 @@ export function ThemeDialog({
           {/* Left Column: Selection */}
           <Box flexDirection="column" width="45%" paddingRight={2}>
             <Text bold={mode === 'theme'} wrap="truncate">
+<<<<<<< HEAD
               {mode === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
               <Text color={Colors.Gray}>{otherScopeModifiedMessage}</Text>
+=======
+              {mode === 'theme' ? '> ' : '  '}Select Theme{' '}
+              <Text color={theme.text.secondary}>
+                {otherScopeModifiedMessage}
+              </Text>
+>>>>>>> b9b6fe1f7
             </Text>
             <RadioButtonSelect
               items={themeItems}
@@ -223,7 +230,7 @@ export function ThemeDialog({
               return (
                 <Box
                   borderStyle="single"
-                  borderColor={Colors.Gray}
+                  borderColor={theme.border.default}
                   paddingTop={includePadding ? 1 : 0}
                   paddingBottom={includePadding ? 1 : 0}
                   paddingLeft={1}
@@ -267,11 +274,17 @@ def fibonacci(n):
         />
       )}
       <Box marginTop={1}>
+<<<<<<< HEAD
         <Text color={Colors.Gray} wrap="truncate">
           {t('theme_dialog.messages.use_enter_with_mode', '(Use Enter to {action}, Tab to {switchAction})', {
             action: mode === 'theme' ? t('theme_dialog.messages.select', 'select') : t('theme_dialog.messages.apply_scope', 'apply scope'),
             switchAction: mode === 'theme' ? t('theme_dialog.messages.configure_scope', 'configure scope') : t('theme_dialog.messages.select_theme', 'select theme')
           })}
+=======
+        <Text color={theme.text.secondary} wrap="truncate">
+          (Use Enter to {mode === 'theme' ? 'select' : 'apply scope'}, Tab to{' '}
+          {mode === 'theme' ? 'configure scope' : 'select theme'})
+>>>>>>> b9b6fe1f7
         </Text>
       </Box>
     </Box>

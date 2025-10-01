@@ -7,7 +7,7 @@
 import * as fsPromises from 'node:fs/promises';
 import React from 'react';
 import { Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import type {
   CommandContext,
   SlashCommand,
@@ -129,7 +129,7 @@ const saveCommand: SlashCommand = {
             Text,
             null,
             t('commands.chat.save.overwrite_confirmation_prefix', 'A checkpoint with the tag '),
-            React.createElement(Text, { color: Colors.AccentPurple }, tag),
+            React.createElement(Text, { color: theme.text.accent }, tag),
             t('commands.chat.save.overwrite_confirmation_suffix', ' already exists. Do you want to overwrite it?'),
           ),
           originalInvocation: {

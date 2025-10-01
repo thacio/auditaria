@@ -7,7 +7,7 @@ import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { type IdeContext, type MCPServerConfig } from '@thacio/auditaria-cli-core';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { isNarrowWidth } from '../utils/isNarrowWidth.js';
@@ -106,9 +106,9 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   if (isNarrow) {
     return (
       <Box flexDirection="column">
-        <Text color={Colors.Gray}>{t('context_summary.using_label', 'Using:')}</Text>
+        <Text color={theme.text.secondary}>{t('context_summary.using_label', 'Using:')}</Text>
         {summaryParts.map((part, index) => (
-          <Text key={index} color={Colors.Gray}>
+          <Text key={index} color={theme.text.secondary}>
             {t('context_summary.list_item_prefix', '  - ')}{part}
           </Text>
         ))}
@@ -118,7 +118,7 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
 
   return (
     <Box>
-      <Text color={Colors.Gray}>{t('context_summary.using', 'Using: ')}{summaryParts.join(' | ')}</Text>
+      <Text color={theme.text.secondary}>{t('context_summary.using', 'Using: ')}{summaryParts.join(' | ')}</Text>
     </Box>
   );
 };

@@ -18,7 +18,7 @@ import { LanguageSelectionDialog } from './LanguageSelectionDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
 import { WorkspaceMigrationDialog } from './WorkspaceMigrationDialog.js';
 import { ProQuotaDialog } from './ProQuotaDialog.js';
-import { Colors } from '../colors.js';
+import { theme } from '../semantic-colors.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useUIActions } from '../contexts/UIActionsContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
@@ -38,8 +38,8 @@ export const DialogManager = () => {
 
   if (uiState.showIdeRestartPrompt) {
     return (
-      <Box borderStyle="round" borderColor={Colors.AccentYellow} paddingX={1}>
-        <Text color={Colors.AccentYellow}>
+      <Box borderStyle="round" borderColor={theme.status.warning} paddingX={1}>
+        <Text color={theme.status.warning}>
           {t(
             'app.ide_trust_changed',
             "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes."
@@ -113,7 +113,7 @@ export const DialogManager = () => {
       <Box flexDirection="column">
         {uiState.themeError && (
           <Box marginBottom={1}>
-            <Text color={Colors.AccentRed}>{uiState.themeError}</Text>
+            <Text color={theme.status.error}>{uiState.themeError}</Text>
           </Box>
         )}
         <ThemeDialog
@@ -166,7 +166,7 @@ export const DialogManager = () => {
       <Box flexDirection="column">
         {uiState.editorError && (
           <Box marginBottom={1}>
-            <Text color={Colors.AccentRed}>{uiState.editorError}</Text>
+            <Text color={theme.status.error}>{uiState.editorError}</Text>
           </Box>
         )}
         <EditorSettingsDialog
@@ -182,7 +182,7 @@ export const DialogManager = () => {
       <Box flexDirection="column">
         {uiState.languageError && (
           <Box marginBottom={1}>
-            <Text color={Colors.AccentRed}>{uiState.languageError}</Text>
+            <Text color={theme.status.error}>{uiState.languageError}</Text>
           </Box>
         )}
         <LanguageSelectionDialog
