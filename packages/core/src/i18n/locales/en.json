@@ -229,6 +229,7 @@
         "description": "Updates all extensions or a named extension to the latest version.",
         "name_description": "The name of the extension to update.",
         "all_description": "Update all extensions.",
+        "usage": "Usage: /extensions update <extension-names>|--all",
         "success": "Extension \"{name}\" successfully updated: {originalVersion} → {updatedVersion}.",
         "failed": "Extension \"{name}\" failed to update.",
         "not_found": "Extension \"{extensionName}\" not found. Run auditaria extensions list to see available extensions.",
@@ -237,7 +238,8 @@
         "error_rolling_back": "Error updating extension, rolling back. {error}",
         "no_extensions": "No extensions to update.",
         "missing_argument": "Either an extension name or --all must be provided",
-        "cannot_update": "Extension {name} cannot be updated."
+        "cannot_update": "Extension {name} cannot be updated.",
+        "restart_required": "Restart Auditaria CLI to see the changes."
       },
       "disable": {
         "description": "Disables an extension.",
