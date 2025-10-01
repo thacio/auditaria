@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '../i18n/index.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { EOL } from 'node:os';
