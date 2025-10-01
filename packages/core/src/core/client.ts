@@ -33,7 +33,10 @@ import type { ChatRecordingService } from '../services/chatRecordingService.js';
 import type { ContentGenerator } from './contentGenerator.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_MODEL_AUTO,
   DEFAULT_THINKING_MODE,
+  getEffectiveModel,
 } from '../config/models.js';
 import { getCurrentLanguage, t } from '../i18n/index.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
@@ -53,14 +56,14 @@ import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
 
 export function isThinkingSupported(model: string) {
-  if (model.startsWith('gemini-2.5')) return true;
-  return false;
+  return model.startsWith('gemini-2.5') || model === DEFAULT_GEMINI_MODEL_AUTO;
 }
 
 export function isThinkingDefault(model: string) {
-  if (model.startsWith('gemini-2.5-flash-lite')) return false;
-  if (model.startsWith('gemini-2.5')) return true;
-  return false;
+  if (model.startsWith('gemini-2.5-flash-lite')) {
+    return false;
+  }
+  return model.startsWith('gemini-2.5') || model === DEFAULT_GEMINI_MODEL_AUTO;
 }
 
 /**
@@ -229,23 +232,21 @@ export class GeminiClient {
       const currentLanguage = getCurrentLanguage();
       const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
       const model = this.config.getModel();
-      const generateContentConfigWithThinking = isThinkingSupported(model)
-        ? {
-            ...this.generateContentConfig,
-            thinkingConfig: {
-              thinkingBudget: -1,
-              includeThoughts: true,
-              ...(!isThinkingDefault(model)
-                ? { thinkingBudget: DEFAULT_THINKING_MODE }
-                : {}),
-            },
-          }
-        : this.generateContentConfig;
+
+      const config: GenerateContentConfig = { ...this.generateContentConfig };
+
+      if (isThinkingSupported(model)) {
+        config.thinkingConfig = {
+          includeThoughts: true,
+          thinkingBudget: DEFAULT_THINKING_MODE,
+        };
+      }
+
       return new GeminiChat(
         this.config,
         {
           systemInstruction,
-          ...generateContentConfigWithThinking,
+          ...config,
           tools,
         },
         history,
@@ -798,6 +799,18 @@ export class GeminiClient {
     prompt_id: string,
     force: boolean = false,
   ): Promise<ChatCompressionInfo> {
+    // If the model is 'auto', we will use a placeholder model to check.
+    // Compression occurs before we choose a model, so calling `count_tokens`
+    // before the model is chosen would result in an error.
+    const configModel = this.config.getModel();
+    let model: string =
+      configModel === DEFAULT_GEMINI_MODEL_AUTO
+        ? DEFAULT_GEMINI_MODEL
+        : configModel;
+
+    // Check if the model needs to be a fallback
+    model = getEffectiveModel(this.config.isInFallbackMode(), model);
+
     const curatedHistory = this.getChat().getHistory(true);
 
     // Regardless of `force`, don't do anything if the history is empty.
@@ -811,8 +824,6 @@ export class GeminiClient {
         compressionStatus: CompressionStatus.NOOP,
       };
     }
-
-    const model = this.config.getModel();
 
     const { totalTokens: originalTokenCount } =
       await this.getContentGeneratorOrFail().countTokens({

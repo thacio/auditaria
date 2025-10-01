@@ -232,6 +232,7 @@ export class GeminiChat {
         : [params.message];
       const userMessageContent = partListUnionToString(toParts(userMessage));
       this.chatRecordingService.recordMessage({
+        model,
         type: 'user',
         content: userMessageContent,
       });
@@ -374,7 +375,7 @@ export class GeminiChat {
       disableFallbackForSession: this.config.getDisableFallbackForSession(),
     });
 
-    return this.processStreamResponse(streamResponse, userContent);
+    return this.processStreamResponse(model, streamResponse, userContent);
   }
 
   /**
@@ -479,6 +480,7 @@ export class GeminiChat {
   }
 
   private async *processStreamResponse(
+    model: string,
     streamResponse: AsyncGenerator<GenerateContentResponse>,
     userInput: Content,
   ): AsyncGenerator<GenerateContentResponse> {
@@ -557,6 +559,7 @@ export class GeminiChat {
 
       if (responseText.trim()) {
         this.chatRecordingService.recordMessage({
+          model,
           type: 'gemini',
           content: responseText,
         });
@@ -667,7 +670,10 @@ export class GeminiChat {
    * Records completed tool calls with full metadata.
    * This is called by external components when tool calls complete, before sending responses to Gemini.
    */
-  recordCompletedToolCalls(toolCalls: CompletedToolCall[]): void {
+  recordCompletedToolCalls(
+    model: string,
+    toolCalls: CompletedToolCall[],
+  ): void {
     const toolCallRecords = toolCalls.map((call) => {
       const resultDisplayRaw = call.response?.resultDisplay;
       const resultDisplay =
@@ -684,7 +690,7 @@ export class GeminiChat {
       };
     });
 
-    this.chatRecordingService.recordToolCalls(toolCallRecords);
+    this.chatRecordingService.recordToolCalls(model, toolCallRecords);
   }
 
   /**
