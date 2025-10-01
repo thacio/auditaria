@@ -10,7 +10,7 @@ import { homedir } from 'node:os';
 import {
   getErrorMessage,
   isWithinRoot,
-  getIdeTrust,
+  ideContextStore,
   t,
 } from '@thacio/auditaria-cli-core';
 import type { Settings } from './settings.js';
@@ -186,7 +186,7 @@ export function isWorkspaceTrusted(settings: Settings): boolean | undefined {
     return true;
   }
 
-  const ideTrust = getIdeTrust();
+  const ideTrust = ideContextStore.get()?.workspaceState?.isTrusted;
   if (ideTrust !== undefined) {
     return ideTrust;
   }
