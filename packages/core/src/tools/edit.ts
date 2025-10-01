@@ -33,7 +33,7 @@ import type {
   ModifiableDeclarativeTool,
   ModifyContext,
 } from './modifiable-tool.js';
-import { IdeClient, IDEConnectionStatus } from '../ide/ide-client.js';
+import { IdeClient } from '../ide/ide-client.js';
 
 export function applyReplacement(
   currentContent: string | null,
@@ -269,8 +269,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     );
     const ideClient = await IdeClient.getInstance();
     const ideConfirmation =
-      this.config.getIdeMode() &&
-      ideClient?.getConnectionStatus().status === IDEConnectionStatus.Connected
+      this.config.getIdeMode() && ideClient.isDiffingEnabled()
         ? ideClient.openDiff(this.params.file_path, editData.newContent)
         : undefined;
 
