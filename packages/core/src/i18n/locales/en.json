@@ -206,11 +206,11 @@
         "need_command": "You need at least one command before continuing."
       },
       "install": {
-        "description": "Installs an extension from a git repository (URL or \"org/repo\") or a local path.",
-        "source_description": "The git URL or \"org/repo\" of the extension to install.",
+        "description": "Installs an extension from a git repository URL or a local path.",
+        "source_description": "The git URL of the extension to install.",
         "path_description": "Path to a local extension directory.",
         "missing_source_or_path": "Either --source or --path must be provided.",
-        "invalid_source_format": "The source \"{source}\" is not a valid URL or \"org/repo\" format.",
+        "invalid_source_format": "The source \"{source}\" is not a valid URL format.",
         "success": "Extension \"{extensionName}\" installed successfully and enabled.",
         "untrusted_folder": "Could not install extension from untrusted folder at {source}"
       },
