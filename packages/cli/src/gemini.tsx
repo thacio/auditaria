@@ -57,6 +57,9 @@ import { SessionStatsProvider } from './ui/contexts/SessionContext.js';
 import { VimModeProvider } from './ui/contexts/VimModeContext.js';
 import { KeypressProvider } from './ui/contexts/KeypressContext.js';
 import { useKittyKeyboardProtocol } from './ui/hooks/useKittyKeyboardProtocol.js';
+// WEB_INTERFACE_START: Import for SubmitQueryProvider
+import { SubmitQueryProvider } from './ui/contexts/SubmitQueryContext.js';
+// WEB_INTERFACE_END
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -224,18 +227,22 @@ export async function startInteractiveUI(
         >
           <SessionStatsProvider>
             <VimModeProvider settings={settings}>
-              <AppContainer
-                config={config}
-                settings={settings}
-                startupWarnings={startupWarnings}
-                version={version}
-                initializationResult={initializationResult}
-                // WEB_INTERFACE_START: Pass web interface flags
-                webEnabled={webEnabled}
-                webOpenBrowser={webOpenBrowser}
-                webPort={webPort}
-                // WEB_INTERFACE_END
-              />
+              {/* WEB_INTERFACE_START: Wrap with SubmitQueryProvider */}
+              <SubmitQueryProvider>
+                <AppContainer
+                  config={config}
+                  settings={settings}
+                  startupWarnings={startupWarnings}
+                  version={version}
+                  initializationResult={initializationResult}
+                  // WEB_INTERFACE_START: Pass web interface flags
+                  webEnabled={webEnabled}
+                  webOpenBrowser={webOpenBrowser}
+                  webPort={webPort}
+                  // WEB_INTERFACE_END
+                />
+              </SubmitQueryProvider>
+              {/* WEB_INTERFACE_END */}
             </VimModeProvider>
           </SessionStatsProvider>
         </KeypressProvider>

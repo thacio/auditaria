@@ -19,6 +19,7 @@ import {
   ToolCallStatus,
   type HistoryItemWithoutId,
   AuthState,
+  StreamingState,
 } from './types.js';
 import { MessageType } from './types.js';
 import {
@@ -80,7 +81,15 @@ import { useWorkspaceMigration } from './hooks/useWorkspaceMigration.js';
 import { useSessionStats } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
 // WEB_INTERFACE_START: Import for web interface support
-import { WebInterfaceProvider } from './contexts/WebInterfaceContext.js';
+import { WebInterfaceProvider, useWebInterface } from './contexts/WebInterfaceContext.js';
+import { type PartListUnion } from '@google/genai';  // For multimodal support
+import { useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
+import { FooterProvider, useFooter } from './contexts/FooterContext.js';
+import { LoadingStateProvider, useLoadingState } from './contexts/LoadingStateContext.js';
+import { ToolConfirmationProvider, useToolConfirmation, type PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
+import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
+import { TerminalCaptureWrapper } from './components/TerminalCaptureWrapper.js';
+import { useKeypressContext } from './contexts/KeypressContext.js';
 // WEB_INTERFACE_END
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
@@ -139,6 +148,9 @@ export const AppContainer = (props: AppContainerProps) => {
   const [proQuotaDialogResolver, setProQuotaDialogResolver] = useState<
     ((value: boolean) => void) | null
   >(null);
+
+  // TODO: Add showHelp state if needed
+  // const [showHelp, setShowHelp] = useState<boolean>(false);
 
   // Auto-accept indicator
   const showAutoAcceptIndicator = useAutoAcceptIndicator({
@@ -443,7 +455,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     historyManager.addItem(
       {
         type: MessageType.INFO,
-        text: 'Refreshing hierarchical memory (GEMINI.md or other context files)...',
+        text: t('app.memory_refreshing', 'Refreshing hierarchical memory (GEMINI.md or other context files)...'),
       },
       Date.now(),
     );
@@ -469,11 +481,14 @@ Logging in with Google... Please restart Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.INFO,
-          text: `Memory refreshed successfully. ${
+          text:
             memoryContent.length > 0
-              ? `Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
-              : 'No memory content found.'
-          }`,
+              ? t(
+                  'app.memory_refreshed_success',
+                  'Memory refreshed successfully. Loaded {chars} characters from {count} file(s).',
+                  { chars: memoryContent.length, count: fileCount }
+                )
+              : t('app.memory_refreshed_no_content', 'Memory refreshed successfully. No memory content found.'),
         },
         Date.now(),
       );
@@ -490,7 +505,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.ERROR,
-          text: `Error refreshing memory: ${errorMessage}`,
+          text: t('app.memory_refresh_error', 'Error refreshing memory: {error}', { error: errorMessage }),
         },
         Date.now(),
       );
@@ -524,41 +539,47 @@ Logging in with Google... Please restart Gemini CLI to continue.
         // Check if this is a Pro quota exceeded error
         if (error && isProQuotaExceededError(error)) {
           if (isPaidTier) {
-            message = `⚡ You have reached your daily ${currentModel} quota limit.
-⚡ You can choose to authenticate with a paid API key or continue with the fallback model.
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+            message = t(
+              'app.quota_exceeded_pro_paid_dialog',
+              '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
+              { model: currentModel }
+            );
           } else {
-            message = `⚡ You have reached your daily ${currentModel} quota limit.
-⚡ You can choose to authenticate with a paid API key or continue with the fallback model.
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+            message = t(
+              'app.quota_exceeded_pro_free_dialog',
+              '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
+              { model: currentModel }
+            );
           }
         } else if (error && isGenericQuotaExceededError(error)) {
           if (isPaidTier) {
-            message = `⚡ You have reached your daily quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+            message = t(
+              'app.quota_exceeded_generic_paid',
+              '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
+              { model: currentModel, fallback: fallbackModel }
+            );
           } else {
-            message = `⚡ You have reached your daily quota limit.
-⚡ Automatically switching from ${currentModel} to ${fallbackModel} for the remainder of this session.
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+            message = t(
+              'app.quota_exceeded_generic_free',
+              '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {model} to {fallback} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
+              { model: currentModel, fallback: fallbackModel }
+            );
           }
         } else {
           if (isPaidTier) {
             // Default fallback message for other cases (like consecutive 429s)
-            message = `⚡ Automatically switching from ${currentModel} to ${fallbackModel} for faster responses for the remainder of this session.
-⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily ${currentModel} quota limit
-⚡ To continue accessing the ${currentModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+            message = t(
+              'app.fallback_default_paid',
+              '⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
+              { model: currentModel, fallback: fallbackModel }
+            );
           } else {
             // Default fallback message for other cases (like consecutive 429s)
-            message = `⚡ Automatically switching from ${currentModel} to ${fallbackModel} for faster responses for the remainder of this session.
-⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily ${currentModel} quota limit
-⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
-⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
-⚡ You can switch authentication methods by typing /auth`;
+            message = t(
+              'app.fallback_default_free',
+              '⚡ Automatically switching from {model} to {fallback} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {model} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
+              { model: currentModel, fallback: fallbackModel }
+            );
           }
         }
 
@@ -581,6 +602,11 @@ Logging in with Google... Please restart Gemini CLI to continue.
           // Show the ProQuotaDialog and wait for user's choice
           const shouldContinueWithFallback = await new Promise<boolean>(
             (resolve) => {
+              // WEB_INTERFACE_START: Pre-start terminal capture for ProQuotaDialog
+              if ((global as any).__preStartTerminalCapture) {
+                (global as any).__preStartTerminalCapture();
+              }
+              // WEB_INTERFACE_END
               setIsProQuotaDialogOpen(true);
               setProQuotaDialogResolver(() => resolve);
             },
@@ -743,6 +769,26 @@ Logging in with Google... Please restart Gemini CLI to continue.
         : [fromSettings]
       : getAllGeminiMdFilenames();
   }, [settings.merged.context?.fileName]);
+
+  // IDE prompt related state (moved here for web interface dependencies)
+  const [idePromptAnswered, setIdePromptAnswered] = useState(false);
+  const [currentIDE, setCurrentIDE] = useState<DetectedIde | null>(null);
+
+  useEffect(() => {
+    const getIde = async () => {
+      const ideClient = await IdeClient.getInstance();
+      const currentIde = ideClient.getCurrentIde();
+      setCurrentIDE(currentIde || null);
+    };
+    getIde();
+  }, []);
+  const shouldShowIdePrompt = Boolean(
+    currentIDE &&
+      !config.getIdeMode() &&
+      !settings.merged.ide?.hasSeenNudge &&
+      !idePromptAnswered,
+  );
+
   // Initial prompt handling
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
   const initialPromptSubmitted = useRef(false);
@@ -772,24 +818,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
     showPrivacyNotice,
     geminiClient,
   ]);
-
-  const [idePromptAnswered, setIdePromptAnswered] = useState(false);
-  const [currentIDE, setCurrentIDE] = useState<DetectedIde | null>(null);
-
-  useEffect(() => {
-    const getIde = async () => {
-      const ideClient = await IdeClient.getInstance();
-      const currentIde = ideClient.getCurrentIde();
-      setCurrentIDE(currentIde || null);
-    };
-    getIde();
-  }, []);
-  const shouldShowIdePrompt = Boolean(
-    currentIDE &&
-      !config.getIdeMode() &&
-      !settings.merged.ide?.hasSeenNudge &&
-      !idePromptAnswered,
-  );
 
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
   const [showToolDescriptions, setShowToolDescriptions] =
@@ -1067,6 +1095,298 @@ Logging in with Google... Please restart Gemini CLI to continue.
     [pendingSlashCommandHistoryItems, pendingGeminiHistoryItems],
   );
 
+  // WEB_INTERFACE_START: Web interface integration - submitQuery registration and abort handler
+  const webInterface = useWebInterface();
+
+  // Store current submitQuery in ref for web interface
+  const submitQueryRef = useRef(submitQuery);
+  useEffect(() => {
+    submitQueryRef.current = submitQuery;
+  }, [submitQuery]);
+
+  // Create a completely stable function that will never change
+  const stableWebSubmitQuery = useCallback((query: PartListUnion) => {
+    if (submitQueryRef.current) {
+      submitQueryRef.current(query);
+    }
+  }, []); // Empty dependency array - this function never changes
+
+  // Register once and never again
+  const registerSubmitQuery = useSubmitQueryRegistration();
+  const submitQueryRegisteredRef = useRef(false);
+  useEffect(() => {
+    if (!submitQueryRegisteredRef.current) {
+      registerSubmitQuery(stableWebSubmitQuery);
+      submitQueryRegisteredRef.current = true;
+    }
+  }, []); // Empty dependency array - only run once
+
+  // Register abort handler with web interface service
+  useEffect(() => {
+    if (webInterface?.service && cancelOngoingRequest) {
+      webInterface.service.setAbortHandler(cancelOngoingRequest);
+    }
+  }, [webInterface?.service, cancelOngoingRequest]);
+
+  // Register with web interface service once
+  const submitHandlerRegistered = useRef(false);
+  useEffect(() => {
+    const register = () => {
+      if (webInterface?.service && !submitHandlerRegistered.current) {
+        webInterface.service.setSubmitQueryHandler(stableWebSubmitQuery);
+        submitHandlerRegistered.current = true;
+      }
+    };
+
+    register();
+    const timeout = setTimeout(register, 100);
+    return () => clearTimeout(timeout);
+  }, []); // Empty dependency array - only register once
+
+  // Terminal capture for interactive screens
+  const terminalCapture = useTerminalCapture();
+  const { subscribe: subscribeToKeypress } = useKeypressContext();
+
+  // Create a function to pre-start capture for dialogs that render immediately
+  const preStartTerminalCapture = useCallback(() => {
+    // Start capture immediately to catch the initial render
+    terminalCapture.setInteractiveScreenActive(true);
+  }, [terminalCapture]);
+
+  // Expose the pre-start function globally for the slash command processor
+  useEffect(() => {
+    if (webInterface?.service) {
+      (global as any).__preStartTerminalCapture = preStartTerminalCapture;
+    }
+    return () => {
+      delete (global as any).__preStartTerminalCapture;
+    };
+  }, [preStartTerminalCapture, webInterface]);
+
+  // Detect when any interactive screen is shown
+  const isAnyInteractiveScreenOpen =
+    authState === AuthState.Updating ||
+    authState === AuthState.Unauthenticated ||
+    isThemeDialogOpen ||
+    isEditorDialogOpen ||
+    isLanguageDialogOpen ||
+    isSettingsDialogOpen ||
+    showPrivacyNotice ||
+    shouldShowIdePrompt ||
+    isFolderTrustDialogOpen ||
+    isProQuotaDialogOpen ||
+    !!shellConfirmationRequest ||
+    !!confirmationRequest;
+
+  // Start/stop terminal capture when interactive screens change
+  useEffect(() => {
+    if (isAnyInteractiveScreenOpen) {
+      terminalCapture.setInteractiveScreenActive(true);
+    } else {
+      const timer = setTimeout(() => {
+        terminalCapture.setInteractiveScreenActive(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAnyInteractiveScreenOpen, terminalCapture]);
+
+  // Handle keyboard input from web interface
+  useEffect(() => {
+    if (!webInterface?.service) return;
+
+    const handleTerminalInput = (keyData: any) => {
+      // Create a synthetic key event that matches the Ink key format
+      const syntheticKey = {
+        name: keyData.name,
+        sequence: keyData.sequence,
+        ctrl: keyData.ctrl || false,
+        meta: keyData.meta || false,
+        shift: keyData.shift || false,
+        alt: keyData.alt || false,
+        raw: keyData.sequence || '',
+      };
+
+      // Emit synthetic keypress event to all listeners
+      if (isAnyInteractiveScreenOpen) {
+        // Fix for VSCode terminal ESC key handling
+        process.stdin.emit('keypress', syntheticKey.sequence, syntheticKey);
+      }
+    };
+
+    // Listen for terminal input events from web interface
+    webInterface.service.on('terminal_input', handleTerminalInput);
+
+    return () => {
+      webInterface?.service?.off('terminal_input', handleTerminalInput);
+    };
+  }, [webInterface?.service, isAnyInteractiveScreenOpen]);
+
+  // Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
+  const footerContext = useFooter();
+  useEffect(() => {
+    if (footerContext?.footerData && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastFooterData(footerContext.footerData);
+    }
+  }, [footerContext?.footerData, webInterface?.service, webInterface?.isRunning]);
+
+  const loadingStateContext = useLoadingState();
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastLoadingState({
+        isLoading: streamingState === StreamingState.Responding || isProcessing,
+        streamingState,
+        elapsedTime,
+        currentLoadingPhrase,
+        thought: typeof thought === 'string' ? thought : null,
+      });
+    }
+  }, [webInterface?.service, webInterface?.isRunning, streamingState, elapsedTime, currentLoadingPhrase, isProcessing, thought]);
+
+  // Broadcast slash commands
+  useEffect(() => {
+    if (slashCommands && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastSlashCommands(slashCommands);
+    }
+  }, [slashCommands, webInterface?.service, webInterface?.isRunning]);
+
+  // Broadcast MCP servers when they change
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      const mcpServers = config.getMcpServers();
+      if (mcpServers) {
+        // For now, pass empty arrays/maps for the additional parameters
+        // These would need to be obtained from the actual MCP system
+        const blockedServers: Array<{ name: string; extensionName: string }> = [];
+        const serverTools = new Map<string, any[]>();
+        const serverStatuses = new Map<string, string>();
+
+        // Set all servers as connected for now
+        Object.keys(mcpServers).forEach(name => {
+          serverStatuses.set(name, 'connected');
+          serverTools.set(name, []);
+        });
+
+        webInterface.service.broadcastMCPServers(mcpServers, blockedServers, serverTools, serverStatuses);
+      }
+    }
+  }, [config, webInterface?.service, webInterface?.isRunning]);
+
+  // Broadcast console messages
+  useEffect(() => {
+    if (filteredConsoleMessages && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastConsoleMessages(filteredConsoleMessages);
+    }
+  }, [filteredConsoleMessages, webInterface?.service, webInterface?.isRunning]);
+
+  // Broadcast CLI action required messages for different dialogs
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      let message = '';
+      let title = t('web.cli_action.title', 'CLI Action Required');
+      let reason = 'general';
+
+      if (shouldShowIdePrompt) {
+        message = t('web.cli_action.ide_integration', 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.');
+        reason = 'ide_integration';
+      } else if (isAuthenticating || isAuthDialogOpen) {
+        const authMessageKey = isAuthenticating ? 'web.cli_action.auth_in_progress' : 'web.cli_action.auth_required';
+        const authMessageFallback = isAuthenticating
+          ? 'Authentication is in progress. Please check the CLI terminal.'
+          : 'Authentication is required. Please complete the authentication process in the CLI terminal.';
+        message = t(authMessageKey, authMessageFallback);
+        reason = 'authentication';
+      } else if (isThemeDialogOpen) {
+        message = t('web.cli_action.theme_selection', 'Theme selection is open. Please choose a theme in the CLI terminal.');
+        reason = 'theme_selection';
+      } else if (isEditorDialogOpen) {
+        message = t('web.cli_action.editor_settings', 'Editor settings are open. Please configure your editor in the CLI terminal.');
+        reason = 'editor_settings';
+      } else if (isLanguageDialogOpen) {
+        message = t('web.cli_action.language_selection', 'Language selection is open. Please choose a language in the CLI terminal.');
+        reason = 'language_selection';
+      } else if (isSettingsDialogOpen) {
+        message = t('web.cli_action.settings', 'Settings dialog is open. Please configure settings in the CLI terminal.');
+        reason = 'settings';
+      } else if (isFolderTrustDialogOpen) {
+        message = t('web.cli_action.folder_trust', 'Folder trust dialog is open. Please respond in the CLI terminal.');
+        reason = 'folder_trust';
+      } else if (showPrivacyNotice) {
+        message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review in the CLI terminal.');
+        reason = 'privacy_notice';
+      } else if (isProQuotaDialogOpen) {
+        message = t('web.cli_action.quota_exceeded', 'Quota exceeded dialog is open. Please choose an option in the CLI terminal.');
+        reason = 'quota_exceeded';
+      } else if (shellConfirmationRequest) {
+        message = t('web.cli_action.shell_confirmation', 'Shell command confirmation required. Please respond in the CLI terminal.');
+        reason = 'shell_confirmation';
+      } else if (confirmationRequest) {
+        message = t('web.cli_action.confirmation', 'Confirmation required. Please respond in the CLI terminal.');
+        reason = 'confirmation';
+      }
+
+      if (message) {
+        webInterface.service.broadcastCliActionRequired(true, reason, title, message);
+      } else {
+        webInterface.service.broadcastCliActionRequired(false);
+      }
+    }
+  }, [
+    webInterface?.service,
+    webInterface?.isRunning,
+    shouldShowIdePrompt,
+    isAuthenticating,
+    isAuthDialogOpen,
+    isThemeDialogOpen,
+    isEditorDialogOpen,
+    isLanguageDialogOpen,
+    isSettingsDialogOpen,
+    isFolderTrustDialogOpen,
+    showPrivacyNotice,
+    isProQuotaDialogOpen,
+    shellConfirmationRequest,
+    confirmationRequest,
+  ]);
+
+  // Broadcast startup message once
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning && initializationResult.geminiMdFileCount) {
+      const startupMessage = t('web.startup_message', 'Auditaria CLI is ready. Loaded {count} context file(s).', {
+        count: initializationResult.geminiMdFileCount,
+      });
+      // Use a generic broadcast since there's no specific setStartupMessage method
+      webInterface.service.broadcastMessage({
+        id: Date.now(),
+        type: 'info',
+        text: startupMessage,
+      } as HistoryItem);
+    }
+  }, [webInterface?.service, webInterface?.isRunning, initializationResult.geminiMdFileCount]);
+
+  // Tool confirmation broadcasting
+  const toolConfirmationContext = useToolConfirmation();
+  useEffect(() => {
+    const pendingConfirmation = toolConfirmationContext?.pendingConfirmations?.[0];
+    if (pendingConfirmation && webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastToolConfirmation(pendingConfirmation);
+    }
+  }, [toolConfirmationContext?.pendingConfirmations, webInterface?.service, webInterface?.isRunning]);
+
+  // Broadcast history updates
+  useEffect(() => {
+    if (historyManager.history && webInterface?.service) {
+      webInterface.service.setCurrentHistory(historyManager.history);
+    }
+  }, [historyManager.history, webInterface?.service]);
+
+  // Broadcast pending items
+  const pendingItem = pendingHistoryItems.length > 0 ? pendingHistoryItems[0] as HistoryItem : null;
+  useEffect(() => {
+    if (webInterface?.service) {
+      webInterface.service.broadcastPendingItem(pendingItem);
+    }
+  }, [pendingItem, webInterface?.service]);
+  // WEB_INTERFACE_END
+
   const uiState: UIState = useMemo(
     () => ({
       history: historyManager.history,
@@ -1281,13 +1601,21 @@ Logging in with Google... Please restart Gemini CLI to continue.
               startupWarnings: props.startupWarnings || [],
             }}
           >
-            {/* WEB_INTERFACE_START: Wrap App with WebInterfaceProvider */}
+            {/* WEB_INTERFACE_START: Wrap App with all necessary providers */}
             <WebInterfaceProvider
               enabled={props.webEnabled}
               openBrowser={props.webOpenBrowser}
               port={props.webPort}
             >
-              <App />
+              <FooterProvider>
+                <LoadingStateProvider>
+                  <ToolConfirmationProvider>
+                    <TerminalCaptureWrapper>
+                      <App />
+                    </TerminalCaptureWrapper>
+                  </ToolConfirmationProvider>
+                </LoadingStateProvider>
+              </FooterProvider>
             </WebInterfaceProvider>
             {/* WEB_INTERFACE_END */}
           </AppContext.Provider>
