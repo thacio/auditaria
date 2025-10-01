@@ -44,7 +44,7 @@ export const TOGGLE_TYPES: ReadonlySet<SettingsType | undefined> = new Set([
   'enum',
 ]);
 
-interface SettingEnumOption {
+export interface SettingEnumOption {
   value: string | number;
   label: string;
 }
