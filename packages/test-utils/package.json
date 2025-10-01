@@ -1,6 +1,6 @@
 {
-  "name": "@thacio/auditaria-cli-test-utils",
-  "version": "0.3.4",
+  "name": "@thacio/auditoria-cli-test-utils",
+  "version": "0.4.0",
   "private": true,
   "main": "src/index.ts",
   "license": "Apache-2.0",
