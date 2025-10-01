@@ -1047,7 +1047,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
     isFolderTrustDialogOpen ||
     !!proQuotaRequest ||
     !!shellConfirmationRequest ||
-    !!confirmationRequest;
+    !!confirmationRequest ||
+    !!loopDetectionConfirmationRequest;
 
   // Start/stop terminal capture when interactive screens change
   useEffect(() => {
@@ -1194,6 +1195,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
       } else if (confirmationRequest) {
         message = t('web.cli_action.confirmation', 'Confirmation required. Please respond in the CLI terminal.');
         reason = 'confirmation';
+      } else if (loopDetectionConfirmationRequest) {
+        message = t('web.cli_action.loop_detection', 'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.');
+        reason = 'loop_detection';
       }
 
       if (message) {
@@ -1217,6 +1221,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     proQuotaRequest,
     shellConfirmationRequest,
     confirmationRequest,
+    loopDetectionConfirmationRequest,
   ]);
 
   // Broadcast startup message once
