@@ -459,6 +459,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     setIsProcessing,
     setGeminiMdFileCount,
     slashCommandActions,
+    isConfigInitialized,
   );
 
   const performMemoryRefresh = useCallback(async () => {
