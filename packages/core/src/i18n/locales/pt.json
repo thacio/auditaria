@@ -531,6 +531,7 @@
       "use_enter": "(Use Enter para selecionar)",
       "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
       "auth_timeout": "Autenticação expirou. Tente novamente.",
+      "auth_cancelled": "Autenticação cancelada.",
       "waiting_for_auth": "Aguardando autenticação... (Pressione ESC ou CTRL+C para cancelar)",
       "failed_login": "Falha no login. Mensagem: {error}"
     }
