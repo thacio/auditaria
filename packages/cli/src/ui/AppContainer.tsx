@@ -1231,7 +1231,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
         streamingState,
         elapsedTime,
         currentLoadingPhrase,
-        thought: typeof thought === 'string' ? thought : null,
+        thought: typeof thought === 'string' ? thought : (thought?.subject || null),
+        thoughtObject: typeof thought === 'object' && thought !== null ? thought : null,
       });
     }
   }, [webInterface?.service, webInterface?.isRunning, streamingState, elapsedTime, currentLoadingPhrase, isProcessing, thought]);
