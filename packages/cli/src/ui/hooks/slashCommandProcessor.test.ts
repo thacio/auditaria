@@ -23,7 +23,7 @@ import {
   SlashCommandStatus,
   ToolConfirmationOutcome,
   makeFakeConfig,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
 const { logSlashCommand } = vi.hoisted(() => ({
   logSlashCommand: vi.fn(),

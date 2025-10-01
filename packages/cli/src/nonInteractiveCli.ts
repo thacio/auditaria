@@ -15,6 +15,7 @@ import {
   OutputFormat,
   JsonFormatter,
   uiTelemetryService,
+  t
 } from '@thacio/auditaria-cli-core';
 import type { Content, Part } from '@google/genai';
 
