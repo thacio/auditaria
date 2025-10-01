@@ -60,7 +60,8 @@
   "files": [
     "bundle/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "npm-shrinkwrap.json"
   ],
   "devDependencies": {
     "@types/chardet": "^0.8.3",
