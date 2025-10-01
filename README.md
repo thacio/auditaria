@@ -462,7 +462,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 auditaria
 
 Choose the authentication method that best fits your needs:
 
-### Option 1: OAuth login (Using your Google Account)
+### Option 1: Login with Google (OAuth login using your Google Account)
 
 **✨ Best for:** Individual developers as well as anyone who has a Gemini Code Assist License
 
@@ -472,9 +472,10 @@ Choose the authentication method that best fits your needs:
 - **No API key management** - just sign in with your Google account
 - **Automatic updates** to latest models
 
+#### Start Auditaria CLI, then choose _Login with Google_ and follow the browser authentication flow when prompted
+
 ```bash
 auditaria
-# Choose OAuth and follow the browser authentication flow
 ```
 
 ### Option 2: Gemini API Key
