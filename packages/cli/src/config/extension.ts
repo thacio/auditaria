@@ -14,6 +14,7 @@ import {
   ClearcutLogger,
   Config,
   ExtensionInstallEvent,
+  ExtensionUninstallEvent,
 } from '@thacio/auditaria-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -121,6 +122,18 @@ export async function performWorkspaceExtensionMigration(
     }
   }
   return failedInstallNames;
+}
+
+function getClearcutLogger(cwd: string) {
+  const config = new Config({
+    sessionId: randomUUID(),
+    targetDir: cwd,
+    cwd,
+    model: '',
+    debugMode: false,
+  });
+  const logger = ClearcutLogger.getInstance(config);
+  return logger;
 }
 
 export function loadExtensions(
@@ -401,14 +414,7 @@ export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
   cwd: string = process.cwd(),
 ): Promise<string> {
-  const config = new Config({
-    sessionId: randomUUID(),
-    targetDir: process.cwd(),
-    cwd: process.cwd(),
-    model: '',
-    debugMode: false,
-  });
-  const logger = ClearcutLogger.getInstance(config);
+  const logger = getClearcutLogger(cwd);
   let newExtensionConfig: ExtensionConfig | null = null;
   let localSourcePath: string | undefined;
 
@@ -561,6 +567,7 @@ export async function uninstallExtension(
   extensionName: string,
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const logger = getClearcutLogger(cwd);
   const installedExtensions = loadUserExtensions();
   if (
     !installedExtensions.some(
@@ -575,10 +582,14 @@ export async function uninstallExtension(
     cwd,
   );
   const storage = new ExtensionStorage(extensionName);
-  return await fs.promises.rm(storage.getExtensionDir(), {
+
+  await fs.promises.rm(storage.getExtensionDir(), {
     recursive: true,
     force: true,
   });
+  logger?.logExtensionUninstallEvent(
+    new ExtensionUninstallEvent(extensionName, 'success'),
+  );
 }
 
 export function toOutputString(extension: Extension): string {
