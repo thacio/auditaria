@@ -39,7 +39,7 @@ export const aboutCommand: SlashCommand = {
         ? process.env['GOOGLE_CLOUD_PROJECT'] || ''
         : '';
     const ideClient = await getIdeClientName(context);
-    const userTier = context.services.config?.getGeminiClient()?.getUserTier();
+    const userTier = context.services.config?.getUserTier();
 
     const aboutItem: Omit<HistoryItemAbout, 'id'> = {
       type: MessageType.ABOUT,
