@@ -33,6 +33,7 @@ import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
 import { TodoTool } from '../tools/todoTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { GeminiClient } from '../core/client.js';
+import { BaseLlmClient } from '../core/baseLlmClient.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { GitService } from '../services/gitService.js';
 import type { TelemetryTarget } from '../telemetry/index.js';
@@ -260,6 +261,7 @@ export class Config {
   private readonly telemetrySettings: TelemetrySettings;
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
+  private baseLlmClient!: BaseLlmClient;
   private readonly fileFiltering: {
     respectGitIgnore: boolean;
     respectGeminiIgnore: boolean;
@@ -461,6 +463,9 @@ export class Config {
     // Only assign to instance properties after successful initialization
     this.contentGeneratorConfig = newContentGeneratorConfig;
 
+    // Initialize BaseLlmClient now that the ContentGenerator is available
+    this.baseLlmClient = new BaseLlmClient(this.contentGenerator, this);
+
     // Reset the session flags since we're explicitly changing auth and using default model
     this.inFallbackMode = false;
     this.modelSwitchedDuringSession = false;
@@ -468,6 +473,26 @@ export class Config {
 
   getUserTier(): UserTierId | undefined {
     return this.contentGenerator?.userTier;
+  }
+
+  /**
+   * Provides access to the BaseLlmClient for stateless LLM operations.
+   */
+  getBaseLlmClient(): BaseLlmClient {
+    if (!this.baseLlmClient) {
+      // Handle cases where initialization might be deferred or authentication failed
+      if (this.contentGenerator) {
+        this.baseLlmClient = new BaseLlmClient(
+          this.getContentGenerator(),
+          this,
+        );
+      } else {
+        throw new Error(
+          'BaseLlmClient not initialized. Ensure authentication has occurred and ContentGenerator is ready.',
+        );
+      }
+    }
+    return this.baseLlmClient;
   }
 
   getSessionId(): string {
