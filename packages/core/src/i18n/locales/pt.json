@@ -206,6 +206,7 @@
         "description": "Instala uma extensão de um repositório git URL ou de um caminho local.",
         "source_description": "A URL git da extensão a instalar.",
         "path_description": "Caminho para um diretório de extensão local.",
+        "ref_description": "A referência git para instalar.",
         "missing_source_or_path": "Ou --source ou --path deve ser fornecido.",
         "invalid_source_format": "A fonte \"{source}\" não é uma URL válida.",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",

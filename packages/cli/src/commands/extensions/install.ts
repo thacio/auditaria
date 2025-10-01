@@ -16,6 +16,7 @@ import { getErrorMessage } from '../../utils/errors.js';
 interface InstallArgs {
   source?: string;
   path?: string;
+  ref?: string;
 }
 
 export async function handleInstall(args: InstallArgs) {
@@ -32,6 +33,7 @@ export async function handleInstall(args: InstallArgs) {
         installMetadata = {
           source,
           type: 'git',
+          ref: args.ref,
         };
       } else {
         throw new Error(
@@ -71,7 +73,12 @@ export const installCommand: CommandModule = {
         describe: t('commands.extensions.install.path_description', 'Path to a local extension directory.'),
         type: 'string',
       })
+      .option('ref', {
+        describe: t('commands.extensions.install.ref_description', 'The git ref to install from.'),
+        type: 'string',
+      })
       .conflicts('source', 'path')
+      .conflicts('path', 'ref')
       .check((argv) => {
         if (!argv.source && !argv.path) {
           throw new Error(
@@ -84,6 +91,7 @@ export const installCommand: CommandModule = {
     await handleInstall({
       source: argv['source'] as string | undefined,
       path: argv['path'] as string | undefined,
+      ref: argv['ref'] as string | undefined,
     });
   },
 };
