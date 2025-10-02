@@ -1368,7 +1368,7 @@
       "directory_mismatch": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI no mesmo diretório da pasta raiz do seu projeto.",
       "directory_mismatch_multi": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI em um dos seguintes diretórios: {directories}",
       "client_error": "Erro do cliente.",
-      "connection_closed": "Conexão fechada.",
+      "connection_closed": "Conexão do IDE fechada. Para reconectar, execute /ide enable.",
       "connection_failed": "Falha ao conectar ao servidor do IDE: {error}",
       "not_supported": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: {supportedIDEs}",
       "integration_disabled": "A integração do IDE está atualmente desabilitada. Para habilitá-la, execute /ide enable.",
