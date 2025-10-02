@@ -15,7 +15,7 @@ import {
   loadExtension,
 } from '../extension.js';
 import { checkForAllExtensionUpdates, updateExtension } from './update.js';
-import { GEMINI_DIR } from '@google/gemini-cli-core';
+import { GEMINI_DIR } from '@thacio/auditaria-cli-core';
 import { isWorkspaceTrusted } from '../trustedFolders.js';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import { createExtension } from '../../test-utils/createExtension.js';
@@ -55,9 +55,9 @@ vi.mock('../trustedFolders.js', async (importOriginal) => {
   };
 });
 
-vi.mock('@google/gemini-cli-core', async (importOriginal) => {
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@google/gemini-cli-core')>();
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
   const mockLogExtensionInstallEvent = vi.fn();
   const mockLogExtensionUninstallEvent = vi.fn();
   return {
