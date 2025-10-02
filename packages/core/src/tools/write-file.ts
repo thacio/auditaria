@@ -122,6 +122,7 @@ export async function getCorrectedFileContent(
         file_path: filePath,
       },
       config.getGeminiClient(),
+      config.getBaseLlmClient(),
       abortSignal,
     );
     correctedContent = correctedParams.new_string;
@@ -129,7 +130,7 @@ export async function getCorrectedFileContent(
     // This implies new file (ENOENT)
     correctedContent = await ensureCorrectFileContent(
       proposedContent,
-      config.getGeminiClient(),
+      config.getBaseLlmClient(),
       abortSignal,
     );
   }
