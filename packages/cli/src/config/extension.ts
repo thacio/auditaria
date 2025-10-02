@@ -479,8 +479,11 @@ export async function installExtension(
       );
       if (mcpServerEntries.length) {
         console.info(t('extension.mcp_servers_prompt', 'This extension will run the following MCP servers: '));
-        for (const [key, value] of mcpServerEntries) {
-          console.info(`  * ${key}: ${value.description}`);
+        for (const [key, mcpServer] of mcpServerEntries) {
+          const isLocal = !!mcpServer.command;
+          console.info(
+            `  * ${key} (${isLocal ? t('extension.mcp_local', 'local') : t('extension.mcp_remote', 'remote')}): ${mcpServer.description}`,
+          );
         }
         console.info(
           t('extension.context_append_info', 'The extension will append info to your gemini.md context'),

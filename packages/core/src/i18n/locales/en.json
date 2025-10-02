@@ -1267,6 +1267,8 @@
     "disabled": "Disabled extension: {name}",
     "not_found": "Extension not found: {name}",
     "mcp_servers_prompt": "This extension will run the following MCP servers: ",
+    "mcp_local": "local",
+    "mcp_remote": "remote",
     "context_append_info": "The extension will append info to your gemini.md context",
     "continue_prompt": "Do you want to continue? (y/n): ",
     "installation_cancelled": "Installation cancelled by user."
