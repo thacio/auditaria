@@ -455,9 +455,6 @@ describe('MCPOAuthTokenStorage', () => {
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Failed to clear MCP OAuth tokens'),
       );
-=======
-      expect(mockHybridTokenStorage.clearAll).toHaveBeenCalled();
->>>>>>> e28a043f3
     });
   });
 });
