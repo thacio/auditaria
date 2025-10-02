@@ -416,6 +416,7 @@ async function promptForContinuation(prompt: string): Promise<boolean> {
 
 export async function installExtension(
   installMetadata: ExtensionInstallMetadata,
+  askConsent: boolean = false,
   cwd: string = process.cwd(),
 ): Promise<string> {
   const logger = getClearcutLogger(cwd);
@@ -480,30 +481,9 @@ export async function installExtension(
           `Extension "${newExtensionName}" is already installed. Please uninstall it first.`,
         );
       }
-
-      const mcpServerEntries = Object.entries(
-        newExtensionConfig.mcpServers || {},
-      );
-      if (mcpServerEntries.length) {
-        console.info(t('extension.mcp_servers_prompt', 'This extension will run the following MCP servers: '));
-        for (const [key, mcpServer] of mcpServerEntries) {
-          const isLocal = !!mcpServer.command;
-          console.info(
-            `  * ${key} (${isLocal ? t('extension.mcp_local', 'local') : t('extension.mcp_remote', 'remote')}): ${mcpServer.description}`,
-          );
-        }
-        console.info(
-          t('extension.context_append_info', 'The extension will append info to your gemini.md context'),
-        );
-
-        const shouldContinue = await promptForContinuation(
-          t('extension.continue_prompt', 'Do you want to continue? (y/n): '),
-        );
-        if (!shouldContinue) {
-          throw new Error(t('extension.installation_cancelled', 'Installation cancelled by user.'));
-        }
+      if (askConsent) {
+        await requestConsent(newExtensionConfig);
       }
-
       await fs.promises.mkdir(destinationPath, { recursive: true });
 
       if (installMetadata.type === 'local' || installMetadata.type === 'git') {
@@ -551,6 +531,29 @@ export async function installExtension(
       ),
     );
     throw error;
+  }
+}
+
+async function requestConsent(extensionConfig: ExtensionConfig) {
+  const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
+  if (mcpServerEntries.length) {
+    console.info(t('extension.mcp_servers_prompt', 'This extension will run the following MCP servers: '));
+    for (const [key, mcpServer] of mcpServerEntries) {
+      const isLocal = !!mcpServer.command;
+      console.info(
+        `  * ${key} (${isLocal ? t('extension.mcp_local', 'local') : t('extension.mcp_remote', 'remote')}): ${mcpServer.description}`,
+      );
+    }
+    console.info(
+      t('extension.context_append_info', 'The extension will append info to your gemini.md context'),
+    );
+
+    const shouldContinue = await promptForContinuation(
+      t('extension.continue_prompt', 'Do you want to continue? (y/n): '),
+    );
+    if (!shouldContinue) {
+      throw new Error(t('extension.installation_cancelled', 'Installation cancelled by user.'));
+    }
   }
 }
 
@@ -691,6 +694,7 @@ export async function updateExtension(
         type: extension.type,
         ref: extension.ref,
       },
+      false,
       cwd,
     );
 
