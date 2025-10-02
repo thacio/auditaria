@@ -1,12 +1,12 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.7.0-nightly.20250917.0b10ba2c",
+  "version": "0.7.0-nightly.20250918.2722473a",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@thacio/auditaria-cli",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "workspaces": [
         "packages/*"
       ],
@@ -3757,10 +3757,6 @@
       "link": true
     },
     "node_modules/@thacio/auditaria-cli-test-utils": {
-      "resolved": "packages/test-utils",
-      "link": true
-    },
-    "node_modules/@thacio/auditoria-cli-test-utils": {
       "resolved": "packages/test-utils",
       "link": true
     },
@@ -16287,7 +16283,7 @@
     },
     "packages/a2a-server": {
       "name": "@thacio/auditaria-cli-a2a-server",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "dependencies": {
         "@a2a-js/sdk": "^0.3.2",
         "@google-cloud/storage": "^7.16.0",
@@ -16558,7 +16554,7 @@
     },
     "packages/cli": {
       "name": "@thacio/auditaria-cli",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "dependencies": {
         "@google/genai": "1.16.0",
         "@iarna/toml": "^2.2.5",
@@ -16755,7 +16751,7 @@
     },
     "packages/core": {
       "name": "@thacio/auditaria-cli-core",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "dependencies": {
         "@google-cloud/logging": "^11.2.1",
         "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.21.0",
@@ -16899,8 +16895,8 @@
       }
     },
     "packages/test-utils": {
-      "name": "@thacio/auditoria-cli-test-utils",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "name": "@thacio/auditaria-cli-test-utils",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "dev": true,
       "license": "Apache-2.0",
       "devDependencies": {
@@ -16912,7 +16908,7 @@
     },
     "packages/vscode-ide-companion": {
       "name": "auditaria-cli-vscode-ide-companion",
-      "version": "0.7.0-nightly.20250917.0b10ba2c",
+      "version": "0.7.0-nightly.20250918.2722473a",
       "license": "LICENSE",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.15.1",
