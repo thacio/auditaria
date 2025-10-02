@@ -1,12 +1,12 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.6.0-nightly",
+  "version": "0.7.0-nightly.20250917.0b10ba2c",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
       "name": "@thacio/auditaria-cli",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "workspaces": [
         "packages/*"
       ],
@@ -16287,7 +16287,7 @@
     },
     "packages/a2a-server": {
       "name": "@thacio/auditaria-cli-a2a-server",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "dependencies": {
         "@a2a-js/sdk": "^0.3.2",
         "@google-cloud/storage": "^7.16.0",
@@ -16558,7 +16558,7 @@
     },
     "packages/cli": {
       "name": "@thacio/auditaria-cli",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "dependencies": {
         "@google/genai": "1.16.0",
         "@iarna/toml": "^2.2.5",
@@ -16755,7 +16755,7 @@
     },
     "packages/core": {
       "name": "@thacio/auditaria-cli-core",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "dependencies": {
         "@google-cloud/logging": "^11.2.1",
         "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.21.0",
@@ -16900,7 +16900,7 @@
     },
     "packages/test-utils": {
       "name": "@thacio/auditoria-cli-test-utils",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "dev": true,
       "license": "Apache-2.0",
       "devDependencies": {
@@ -16912,7 +16912,7 @@
     },
     "packages/vscode-ide-companion": {
       "name": "auditaria-cli-vscode-ide-companion",
-      "version": "0.6.0-nightly",
+      "version": "0.7.0-nightly.20250917.0b10ba2c",
       "license": "LICENSE",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.15.1",
