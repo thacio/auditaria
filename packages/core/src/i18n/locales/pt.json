@@ -1519,5 +1519,10 @@
       "initializing": "Inicializando...",
       "connecting_mcp_servers": "Conectando aos servidores MCP... ({connected}/{total})"
     }
+  },
+  "system": {
+    "memory": {
+      "high_usage_warning": "Alto uso de memória detectado: {usage} GB. Se você tiver uma falha, por favor reporte o bug executando `/bug`"
+    }
   }
 }
