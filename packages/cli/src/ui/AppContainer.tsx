@@ -32,7 +32,7 @@ import {
 import {
   type EditorType,
   type Config,
-  type DetectedIde,
+  type IdeInfo,
   type IdeContext,
   type UserTierId,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -702,24 +702,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
       : getAllGeminiMdFilenames();
   }, [settings.merged.context?.fileName]);
 
-  // IDE prompt related state (moved here for web interface dependencies)
-  const [idePromptAnswered, setIdePromptAnswered] = useState(false);
-  const [currentIDE, setCurrentIDE] = useState<DetectedIde | null>(null);
-
-  useEffect(() => {
-    const getIde = async () => {
-      const ideClient = await IdeClient.getInstance();
-      const currentIde = ideClient.getCurrentIde();
-      setCurrentIDE(currentIde || null);
-    };
-    getIde();
-  }, []);
-  const shouldShowIdePrompt = Boolean(
-    currentIDE &&
-      !config.getIdeMode() &&
-      !settings.merged.ide?.hasSeenNudge &&
-      !idePromptAnswered,
-  );
 
   // Initial prompt handling
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
@@ -762,6 +744,24 @@ Logging in with Google... Please restart Gemini CLI to continue.
     showPrivacyNotice,
     geminiClient,
   ]);
+
+  const [idePromptAnswered, setIdePromptAnswered] = useState(false);
+  const [currentIDE, setCurrentIDE] = useState<IdeInfo | null>(null);
+
+  useEffect(() => {
+    const getIde = async () => {
+      const ideClient = await IdeClient.getInstance();
+      const currentIde = ideClient.getCurrentIde();
+      setCurrentIDE(currentIde || null);
+    };
+    getIde();
+  }, []);
+  const shouldShowIdePrompt = Boolean(
+    currentIDE &&
+      !config.getIdeMode() &&
+      !settings.merged.ide?.hasSeenNudge &&
+      !idePromptAnswered,
+  );
 
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
   const [showToolDescriptions, setShowToolDescriptions] =

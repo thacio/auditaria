@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs';
 import { isSubpath } from '../utils/paths.js';
-import { detectIde, type DetectedIde, getIdeInfo } from '../ide/detect-ide.js';
+import { detectIde, type IdeInfo } from '../ide/detect-ide.js';
 import { ideContextStore } from './ideContext.js';
 import {
   IdeContextNotificationSchema,
@@ -88,8 +88,7 @@ export class IdeClient {
       'IDE integration is currently disabled. To enable it, run /ide enable.'
     ),
   };
-  private currentIde: DetectedIde | undefined;
-  private currentIdeDisplayName: string | undefined;
+  private currentIde: IdeInfo | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
   private authToken: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
@@ -111,11 +110,6 @@ export class IdeClient {
         const client = new IdeClient();
         client.ideProcessInfo = await getIdeProcessInfo();
         client.currentIde = detectIde(client.ideProcessInfo);
-        if (client.currentIde) {
-          client.currentIdeDisplayName = getIdeInfo(
-            client.currentIde,
-          ).displayName;
-        }
         return client;
       })();
     }
@@ -139,7 +133,7 @@ export class IdeClient {
   }
 
   async connect(): Promise<void> {
-    if (!this.currentIde || !this.currentIdeDisplayName) {
+    if (!this.currentIde) {
       this.setState(
         IDEConnectionStatus.Disconnected,
         `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks`,
@@ -160,7 +154,7 @@ export class IdeClient {
 
     const { isValid, error } = IdeClient.validateWorkspacePath(
       workspacePath,
-      this.currentIdeDisplayName,
+      this.currentIde.displayName,
       process.cwd(),
     );
 
@@ -208,8 +202,8 @@ export class IdeClient {
       IDEConnectionStatus.Disconnected,
       t(
         'ide.errors.extension_connection_failed',
-        `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
-        { ide: this.currentIdeDisplayName || 'IDE' }
+        `Failed to connect to IDE companion extension in {ide}. Please ensure the extension is running. To install the extension, run /ide install.`,
+        { ide: this.currentIde.displayName }
       ),
       true,
     );
@@ -417,7 +411,7 @@ export class IdeClient {
     this.client?.close();
   }
 
-  getCurrentIde(): DetectedIde | undefined {
+  getCurrentIde(): IdeInfo | undefined {
     return this.currentIde;
   }
 
@@ -426,7 +420,7 @@ export class IdeClient {
   }
 
   getDetectedIdeDisplayName(): string | undefined {
-    return this.currentIdeDisplayName;
+    return this.currentIde?.displayName;
   }
 
   isDiffingEnabled(): boolean {
@@ -657,7 +651,7 @@ export class IdeClient {
       }
       const { isValid } = IdeClient.validateWorkspacePath(
         content.workspacePath,
-        this.currentIdeDisplayName,
+        this.currentIde?.displayName,
         process.cwd(),
       );
       return isValid;

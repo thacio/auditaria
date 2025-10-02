@@ -16,8 +16,8 @@ import {
   IDEConnectionStatus,
   ideContextStore,
   GEMINI_CLI_COMPANION_EXTENSION_NAME,
-  getIdeInfo,
-  DetectedIde,
+  
+  IDE_DEFINITIONS,
 } from '@thacio/auditaria-cli-core';
 import path from 'node:path';
 import type {
@@ -138,7 +138,7 @@ async function setIdeModeAndSyncConnection(
 export const ideCommand = async (): Promise<SlashCommand> => {
   const ideClient = await IdeClient.getInstance();
   const currentIDE = ideClient.getCurrentIde();
-  if (!currentIDE || !ideClient.getDetectedIdeDisplayName()) {
+  if (!currentIDE) {
     return {
       name: 'ide',
       get description() {
@@ -153,8 +153,8 @@ export const ideCommand = async (): Promise<SlashCommand> => {
             'ide.errors.not_supported',
             'IDE integration is not supported in your current environment. To use this feature, run Auditaria CLI in one of these supported IDEs: {supportedIDEs}',
             {
-              supportedIDEs: Object.values(DetectedIde)
-                .map((ide) => getIdeInfo(ide).displayName)
+              supportedIDEs: Object.values(IDE_DEFINITIONS)
+                .map((ide) => ide.displayName)
                 .join(', '),
             },
           ),

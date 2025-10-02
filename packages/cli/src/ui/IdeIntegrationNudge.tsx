@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DetectedIde } from '@thacio/auditaria-cli-core';
-import { getIdeInfo, t } from '@thacio/auditaria-cli-core';
+import type { IdeInfo } from '@thacio/auditaria-cli-core';
+import { t } from '@thacio/auditaria-cli-core';
 import { Box, Text } from 'ink';
 import type { RadioSelectItem } from './components/shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
@@ -18,7 +18,7 @@ export type IdeIntegrationNudgeResult = {
 };
 
 interface IdeIntegrationNudgeProps {
-  ide: DetectedIde;
+  ide: IdeInfo;
   onComplete: (result: IdeIntegrationNudgeResult) => void;
 }
 
@@ -38,7 +38,7 @@ export function IdeIntegrationNudge({
     { isActive: true },
   );
 
-  const { displayName: ideName } = getIdeInfo(ide);
+  const { displayName: ideName } = ide;
   // Assume extension is already installed if the env variables are set.
   const isExtensionPreInstalled =
     !!process.env['GEMINI_CLI_IDE_SERVER_PORT'] &&
