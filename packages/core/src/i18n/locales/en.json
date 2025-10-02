@@ -1072,6 +1072,10 @@
     "command_exit_code": "Command exited with code {code}.",
     "directory_change_warning": "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
     "unexpected_error": "An unexpected error occurred: {error}",
+    "focus": {
+      "focused": "(Focused)",
+      "focus_hint": "(ctrl+f to focus)"
+    },
     "permissions": {
       "commands_not_on_allowlist": "Command(s) not on the global or session allowlist. Disallowed commands: {commands}",
       "commands_not_in_allowed_list": "Command(s) not in the allowed commands list. Disallowed commands: {commands}"

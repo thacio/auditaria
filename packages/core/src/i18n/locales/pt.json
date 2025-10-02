@@ -1069,6 +1069,10 @@
     "command_exit_code": "Comando saiu com código {code}.",
     "directory_change_warning": "AVISO: modo shell é sem estado; a mudança de diretório para '{directory}' não persistirá.",
     "unexpected_error": "Ocorreu um erro inesperado: {error}",
+    "focus": {
+      "focused": "(Focado)",
+      "focus_hint": "(ctrl+f para focar)"
+    },
     "permissions": {
       "commands_not_on_allowlist": "Comando(s) não estão na lista de permissões global ou da sessão. Comandos não permitidos: {commands}",
       "commands_not_in_allowed_list": "Comando(s) não estão na lista de comandos permitidos. Comandos não permitidos: {commands}"
