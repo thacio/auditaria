@@ -153,4 +153,5 @@ Auditaria CLI extensions allow variable substitution in `gemini-extension.json`.
 | variable                   | description                                                                                                                                                     |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `${extensionPath}`         | The fully-qualified path of the extension in the user's filesystem e.g., '/Users/username/.gemini/extensions/example-extension'. This will not unwrap symlinks. |
+| `${workspacePath}`         | The fully-qualified path of the current workspace.                                                                                                              |
 | `${/} or ${pathSeparator}` | The path separator (differs per OS).                                                                                                                            |
