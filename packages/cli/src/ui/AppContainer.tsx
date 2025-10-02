@@ -98,6 +98,7 @@ import { useToolConfirmation, type PendingToolConfirmation } from './contexts/To
 import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
 import { useKeypressContext } from './contexts/KeypressContext.js';
 // WEB_INTERFACE_END
+import { FocusContext } from './contexts/FocusContext.js';
 import type { ExtensionUpdateState } from './state/extensions.js';
 import { checkForAllExtensionUpdates } from '../config/extension.js';
 
@@ -1563,7 +1564,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
               startupWarnings: props.startupWarnings || [],
             }}
           >
-            <App />
+            <FocusContext.Provider value={isFocused}>
+              <App />
+            </FocusContext.Provider>
           </AppContext.Provider>
         </ConfigContext.Provider>
       </UIActionsContext.Provider>
