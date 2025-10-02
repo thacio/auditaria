@@ -1,6 +1,6 @@
 # Shell Tool (`run_shell_command`)
 
-This document describes the `run_shell_command` tool for the Gemini CLI.
+This document describes the `run_shell_command` tool for the Auditaria CLI.
 
 ## Description
 
@@ -16,7 +16,7 @@ On Windows, commands are executed with `cmd.exe /c`. On other platforms, they ar
 - `description` (string, optional): A brief description of the command's purpose, which will be shown to the user.
 - `directory` (string, optional): The directory (relative to the project root) in which to execute the command. If not provided, the command runs in the project root.
 
-## How to use `run_shell_command` with the Gemini CLI
+## How to use `run_shell_command` with the Auditaria CLI
 
 When using `run_shell_command`, the command is executed as a subprocess. `run_shell_command` can start background processes using `&`. The tool returns detailed information about the execution, including:
 
@@ -57,7 +57,7 @@ run_shell_command(command="npm run dev &", description="Start development server
 
 ## Configuration
 
-You can configure the behavior of the `run_shell_command` tool by modifying your `settings.json` file or by using the `/setting` command in the Gemini CLI.
+You can configure the behavior of the `run_shell_command` tool by modifying your `settings.json` file or by using the `/settings` command in the Auditaria CLI.
 
 ### Enabling Interactive Commands
 
@@ -109,7 +109,7 @@ You can set a custom pager for the shell output by setting the `tools.shell.page
 
 The `run_shell_command` tool now supports interactive commands by integrating a pseudo-terminal (pty). This allows you to run commands that require real-time user input, such as text editors (`vim`, `nano`), terminal-based UIs (`htop`), and interactive version control operations (`git rebase -i`).
 
-When an interactive command is running, you can send input to it from the Gemini CLI. To focus on the interactive shell, press `ctrl+f`. The terminal output, including complex TUIs, will be rendered correctly.
+When an interactive command is running, you can send input to it from the Auditaria CLI. To focus on the interactive shell, press `ctrl+f`. The terminal output, including complex TUIs, will be rendered correctly.
 
 ## Important notes
 
@@ -119,7 +119,7 @@ When an interactive command is running, you can send input to it from the Gemini
 
 ## Environment Variables
 
-When `run_shell_command` executes a command, it sets the `GEMINI_CLI=1` environment variable in the subprocess's environment. This allows scripts or tools to detect if they are being run from within the Gemini CLI.
+When `run_shell_command` executes a command, it sets the `GEMINI_CLI=1` environment variable in the subprocess's environment. This allows scripts or tools to detect if they are being run from within the Auditaria CLI.
 
 ## Command Restrictions
 
