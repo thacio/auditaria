@@ -10,7 +10,7 @@ import { t } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 
 interface UninstallArgs {
-  name: string;
+  name: string; // can be extension name or source URL.
 }
 
 export async function handleUninstall(args: UninstallArgs) {
@@ -29,7 +29,7 @@ export const uninstallCommand: CommandModule = {
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t('commands.extensions.uninstall.name_description', 'The name of the extension to uninstall.'),
+        describe: t('commands.extensions.uninstall.name_description', 'The name or source path of the extension to uninstall.'),
         type: 'string',
       })
       .check((argv) => {

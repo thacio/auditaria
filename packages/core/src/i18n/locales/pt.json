@@ -214,10 +214,10 @@
       },
       "uninstall": {
         "description": "Desinstala uma extensão.",
-        "name_description": "O nome da extensão a desinstalar.",
+        "name_description": "O nome ou caminho de origem da extensão a desinstalar.",
         "missing_name": "Por favor, inclua o nome da extensão a desinstalar como um argumento posicional.",
         "success": "Extensão \"{name}\" desinstalada com sucesso.",
-        "not_found": "Erro: Extensão \"{extensionName}\" não encontrada."
+        "not_found": "Extensão não encontrada."
       },
       "list": {
         "description": "Lista extensões instaladas.",

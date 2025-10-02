@@ -217,10 +217,10 @@
       },
       "uninstall": {
         "description": "Uninstalls an extension.",
-        "name_description": "The name of the extension to uninstall.",
+        "name_description": "The name or source path of the extension to uninstall.",
         "missing_name": "Please include the name of the extension to uninstall as a positional argument.",
         "success": "Extension \"{name}\" successfully uninstalled.",
-        "not_found": "Error: Extension \"{extensionName}\" not found."
+        "not_found": "Extension not found."
       },
       "list": {
         "description": "Lists installed extensions.",
