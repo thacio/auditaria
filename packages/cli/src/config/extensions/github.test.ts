@@ -13,7 +13,7 @@ import {
 import { simpleGit, type SimpleGit } from 'simple-git';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import type * as os from 'node:os';
-import type { ExtensionInstallMetadata } from '@google/gemini-cli-core';
+import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
 
 const mockPlatform = vi.hoisted(() => vi.fn());
 const mockArch = vi.hoisted(() => vi.fn());
