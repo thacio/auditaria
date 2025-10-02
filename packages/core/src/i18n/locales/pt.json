@@ -210,7 +210,11 @@
         "missing_source_or_path": "Ou --source ou --path deve ser fornecido.",
         "invalid_source_format": "A fonte \"{source}\" não é uma URL válida.",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
-        "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}"
+        "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}",
+        "github": {
+          "invalid_source": "Fonte de repositório GitHub inválida: {source}. Esperado \"proprietário/repo\" ou uma URI de repositório github.",
+          "ssh_not_supported": "Extensões baseadas em releases do GitHub não são suportadas para SSH. Você deve usar uma URI HTTPS com um token de acesso pessoal para baixar releases de repositórios privados. Você pode definir seu token de acesso pessoal na variável de ambiente GITHUB_TOKEN e instalar a extensão via SSH."
+        }
       },
       "uninstall": {
         "description": "Desinstala uma extensão.",
