@@ -33,6 +33,7 @@ import {
   ApprovalMode,
   parseAndFormatApiError,
   t,
+  ToolConfirmationOutcome,
   getCodeAssistServer,
   UserTierId,
   promptIdContext,
@@ -55,17 +56,16 @@ import { findLastSafeSplitPoint } from '../utils/markdownUtilities.js';
 import { useStateAndRef } from './useStateAndRef.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useLogger } from './useLogger.js';
-import type {
-  TrackedToolCall,
-  TrackedCompletedToolCall,
-  TrackedCancelledToolCall,
-} from './useReactToolScheduler.js';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import {
   useReactToolScheduler,
   mapToDisplay as mapTrackedToolCallsToDisplay,
+  type TrackedToolCall,
+  type TrackedCompletedToolCall,
+  type TrackedCancelledToolCall,
+  type TrackedWaitingToolCall,
 } from './useReactToolScheduler.js';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { useSessionStats } from '../contexts/SessionContext.js';
 // WEB_INTERFACE_START
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
@@ -78,6 +78,8 @@ enum StreamProcessingStatus {
   UserCancelled,
   Error,
 }
+
+const EDIT_TOOL_NAMES = new Set(['replace', 'write_file']);
 
 function showCitations(settings: LoadedSettings, config: Config): boolean {
   const enabled = settings?.merged?.ui?.showCitations;
@@ -984,6 +986,45 @@ export const useGeminiStream = (
     ],
   );
 
+  const handleApprovalModeChange = useCallback(
+    async (newApprovalMode: ApprovalMode) => {
+      // Auto-approve pending tool calls when switching to auto-approval modes
+      if (
+        newApprovalMode === ApprovalMode.YOLO ||
+        newApprovalMode === ApprovalMode.AUTO_EDIT
+      ) {
+        let awaitingApprovalCalls = toolCalls.filter(
+          (call): call is TrackedWaitingToolCall =>
+            call.status === 'awaiting_approval',
+        );
+
+        // For AUTO_EDIT mode, only approve edit tools (replace, write_file)
+        if (newApprovalMode === ApprovalMode.AUTO_EDIT) {
+          awaitingApprovalCalls = awaitingApprovalCalls.filter((call) =>
+            EDIT_TOOL_NAMES.has(call.request.name),
+          );
+        }
+
+        // Process pending tool calls sequentially to reduce UI chaos
+        for (const call of awaitingApprovalCalls) {
+          if (call.confirmationDetails?.onConfirm) {
+            try {
+              await call.confirmationDetails.onConfirm(
+                ToolConfirmationOutcome.ProceedOnce,
+              );
+            } catch (error) {
+              console.error(
+                `Failed to auto-approve tool call ${call.request.callId}:`,
+                error,
+              );
+            }
+          }
+        }
+      }
+    },
+    [toolCalls],
+  );
+
   const handleCompletedTools = useCallback(
     async (completedToolCallsFromScheduler: TrackedToolCall[]) => {
       if (isResponding) {
@@ -1118,8 +1159,7 @@ export const useGeminiStream = (
       }
       const restorableToolCalls = toolCalls.filter(
         (toolCall) =>
-          (toolCall.request.name === 'replace' ||
-            toolCall.request.name === 'write_file') &&
+          EDIT_TOOL_NAMES.has(toolCall.request.name) &&
           toolCall.status === 'awaiting_approval',
       );
 
@@ -1240,6 +1280,8 @@ export const useGeminiStream = (
     // WEB_INTERFACE_START: Export cancelOngoingRequest for web interface ESC key support
     cancelOngoingRequest,
     // WEB_INTERFACE_END
+    pendingToolCalls: toolCalls,
+    handleApprovalModeChange,
     activePtyId,
     loopDetectionConfirmationRequest,
   };

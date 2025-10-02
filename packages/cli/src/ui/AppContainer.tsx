@@ -176,12 +176,6 @@ export const AppContainer = (props: AppContainerProps) => {
 
   const [isConfigInitialized, setConfigInitialized] = useState(false);
 
-  // Auto-accept indicator
-  const showAutoAcceptIndicator = useAutoAcceptIndicator({
-    config,
-    addItem: historyManager.addItem,
-  });
-
   const logger = useLogger(config.storage);
   const [userMessages, setUserMessages] = useState<string[]>([]);
 
@@ -563,6 +557,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     pendingHistoryItems: pendingGeminiHistoryItems,
     thought,
     cancelOngoingRequest,
+    handleApprovalModeChange,
     activePtyId,
     loopDetectionConfirmationRequest,
   } = useGeminiStream(
@@ -586,6 +581,13 @@ Logging in with Google... Please restart Gemini CLI to continue.
     terminalHeight,
     shellFocused,
   );
+
+  // Auto-accept indicator
+  const showAutoAcceptIndicator = useAutoAcceptIndicator({
+    config,
+    addItem: historyManager.addItem,
+    onApprovalModeChange: handleApprovalModeChange,
+  });
 
   const { messageQueue, addMessage, clearQueue, getQueuedMessagesText } =
     useMessageQueue({
