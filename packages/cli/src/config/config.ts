@@ -86,7 +86,6 @@ export interface CliArgs {
   includeDirectories: string[] | undefined;
   screenReader: boolean | undefined;
   useSmartEdit: boolean | undefined;
-  sessionSummary: string | undefined;
   promptWords: string[] | undefined;
   outputFormat: string | undefined;
 }
@@ -252,13 +251,6 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           type: 'boolean',
           description: 'Enable screen reader mode for accessibility.',
           default: false,
-        })
-        .option('session-summary', {
-          type: 'string',
-          description: t(
-            'cli.options.session_summary',
-            'File to write session summary to.',
-          ),
         })
         .option('output-format', {
           type: 'string',
