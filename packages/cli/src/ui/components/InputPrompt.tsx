@@ -8,8 +8,8 @@ import { t } from '@thacio/auditaria-cli-core';
 import type React from 'react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Box, Text } from 'ink';
+import { SuggestionsDisplay, MAX_WIDTH } from './SuggestionsDisplay.js';
 import { theme } from '../semantic-colors.js';
-import { SuggestionsDisplay } from './SuggestionsDisplay.js';
 import { useInputHistory } from '../hooks/useInputHistory.js';
 import type { TextBuffer } from './shared/text-buffer.js';
 import { logicalPosToOffset } from './shared/text-buffer.js';
@@ -33,7 +33,6 @@ import {
 } from '../utils/clipboardUtils.js';
 import * as path from 'node:path';
 import { SCREEN_READER_USER_PREFIX } from '../textConstants.js';
-
 export interface InputPromptProps {
   buffer: TextBuffer;
   onSubmit: (value: string) => void;
@@ -90,12 +89,15 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     }
   }, [dirs.length, dirsChanged]);
   const [reverseSearchActive, setReverseSearchActive] = useState(false);
+  const [commandSearchActive, setCommandSearchActive] = useState(false);
   const [textBeforeReverseSearch, setTextBeforeReverseSearch] = useState('');
   const [cursorPosition, setCursorPosition] = useState<[number, number]>([
     0, 0,
   ]);
-  const shellHistory = useShellHistory(config.getProjectRoot(), config.storage);
-  const historyData = shellHistory.history;
+  const [expandedSuggestionIndex, setExpandedSuggestionIndex] =
+    useState<number>(-1);
+  const shellHistory = useShellHistory(config.getProjectRoot());
+  const shellHistoryData = shellHistory.history;
 
   const completion = useCommandCompletion(
     buffer,
@@ -109,12 +111,21 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
 
   const reverseSearchCompletion = useReverseSearchCompletion(
     buffer,
-    historyData,
+    shellHistoryData,
     reverseSearchActive,
   );
+
+  const commandSearchCompletion = useReverseSearchCompletion(
+    buffer,
+    userMessages,
+    commandSearchActive,
+  );
+
   const resetCompletionState = completion.resetCompletionState;
   const resetReverseSearchCompletionState =
     reverseSearchCompletion.resetCompletionState;
+  const resetCommandSearchCompletionState =
+    commandSearchCompletion.resetCompletionState;
 
   const resetEscapeState = useCallback(() => {
     if (escapeTimerRef.current) {
@@ -190,6 +201,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     if (justNavigatedHistory) {
       resetCompletionState();
       resetReverseSearchCompletionState();
+      resetCommandSearchCompletionState();
+      setExpandedSuggestionIndex(-1);
       setJustNavigatedHistory(false);
     }
   }, [
@@ -198,6 +211,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
     resetCompletionState,
     setJustNavigatedHistory,
     resetReverseSearchCompletionState,
+    resetCommandSearchCompletionState,
   ]);
 
   // Handle clipboard image pasting with Ctrl+V
@@ -297,9 +311,12 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       }
 
       if (keyMatchers[Command.ESCAPE](key)) {
-        if (reverseSearchActive) {
-          setReverseSearchActive(false);
-          reverseSearchCompletion.resetCompletionState();
+        const cancelSearch = (
+          setActive: (active: boolean) => void,
+          resetCompletion: () => void,
+        ) => {
+          setActive(false);
+          resetCompletion();
           buffer.setText(textBeforeReverseSearch);
           const offset = logicalPosToOffset(
             buffer.lines,
@@ -307,8 +324,24 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
             cursorPosition[1],
           );
           buffer.moveToOffset(offset);
+          setExpandedSuggestionIndex(-1);
+        };
+
+        if (reverseSearchActive) {
+          cancelSearch(
+            setReverseSearchActive,
+            reverseSearchCompletion.resetCompletionState,
+          );
           return;
         }
+        if (commandSearchActive) {
+          cancelSearch(
+            setCommandSearchActive,
+            commandSearchCompletion.resetCompletionState,
+          );
+          return;
+        }
+
         if (shellModeActive) {
           setShellModeActive(false);
           resetEscapeState();
@@ -317,6 +350,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
 
         if (completion.showSuggestions) {
           completion.resetCompletionState();
+          setExpandedSuggestionIndex(-1);
           resetEscapeState();
           return;
         }
@@ -355,14 +389,24 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         return;
       }
 
-      if (reverseSearchActive) {
+      if (reverseSearchActive || commandSearchActive) {
+        const isCommandSearch = commandSearchActive;
+
+        const sc = isCommandSearch
+          ? commandSearchCompletion
+          : reverseSearchCompletion;
+
         const {
           activeSuggestionIndex,
           navigateUp,
           navigateDown,
           showSuggestions,
           suggestions,
-        } = reverseSearchCompletion;
+        } = sc;
+        const setActive = isCommandSearch
+          ? setCommandSearchActive
+          : setReverseSearchActive;
+        const resetState = sc.resetCompletionState;
 
         if (showSuggestions) {
           if (keyMatchers[Command.NAVIGATION_UP](key)) {
@@ -373,10 +417,22 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
             navigateDown();
             return;
           }
+          if (keyMatchers[Command.COLLAPSE_SUGGESTION](key)) {
+            if (suggestions[activeSuggestionIndex].value.length >= MAX_WIDTH) {
+              setExpandedSuggestionIndex(-1);
+              return;
+            }
+          }
+          if (keyMatchers[Command.EXPAND_SUGGESTION](key)) {
+            if (suggestions[activeSuggestionIndex].value.length >= MAX_WIDTH) {
+              setExpandedSuggestionIndex(activeSuggestionIndex);
+              return;
+            }
+          }
           if (keyMatchers[Command.ACCEPT_SUGGESTION_REVERSE_SEARCH](key)) {
-            reverseSearchCompletion.handleAutocomplete(activeSuggestionIndex);
-            reverseSearchCompletion.resetCompletionState();
-            setReverseSearchActive(false);
+            sc.handleAutocomplete(activeSuggestionIndex);
+            resetState();
+            setActive(false);
             return;
           }
         }
@@ -387,8 +443,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
               ? suggestions[activeSuggestionIndex].value
               : buffer.text;
           handleSubmitAndClear(textToSubmit);
-          reverseSearchCompletion.resetCompletionState();
-          setReverseSearchActive(false);
+          resetState();
+          setActive(false);
           return;
         }
 
@@ -411,10 +467,12 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         if (completion.suggestions.length > 1) {
           if (keyMatchers[Command.COMPLETION_UP](key)) {
             completion.navigateUp();
+            setExpandedSuggestionIndex(-1); // Reset expansion when navigating
             return;
           }
           if (keyMatchers[Command.COMPLETION_DOWN](key)) {
             completion.navigateDown();
+            setExpandedSuggestionIndex(-1); // Reset expansion when navigating
             return;
           }
         }
@@ -427,6 +485,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
                 : completion.activeSuggestionIndex;
             if (targetIndex < completion.suggestions.length) {
               completion.handleAutocomplete(targetIndex);
+              setExpandedSuggestionIndex(-1); // Reset expansion after selection
             }
           }
           return;
@@ -444,6 +503,13 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       }
 
       if (!shellModeActive) {
+        if (keyMatchers[Command.REVERSE_SEARCH](key)) {
+          setCommandSearchActive(true);
+          setTextBeforeReverseSearch(buffer.text);
+          setCursorPosition(buffer.cursor);
+          return;
+        }
+
         if (keyMatchers[Command.HISTORY_UP](key)) {
           inputHistory.navigateUp();
           return;
@@ -567,6 +633,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         !key.meta
       ) {
         completion.promptCompletion.clear();
+        setExpandedSuggestionIndex(-1);
       }
     },
     [
@@ -590,6 +657,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       textBeforeReverseSearch,
       cursorPosition,
       recentPasteTime,
+      commandSearchActive,
+      commandSearchCompletion,
     ],
   );
 
@@ -714,6 +783,14 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   ]);
 
   const { inlineGhost, additionalLines } = getGhostTextLines();
+  const getActiveCompletion = () => {
+    if (commandSearchActive) return commandSearchCompletion;
+    if (reverseSearchActive) return reverseSearchCompletion;
+    return completion;
+  };
+
+  const activeCompletion = getActiveCompletion();
+  const shouldShowSuggestions = activeCompletion.showSuggestions;
 
   const showAutoAcceptStyling =
     !shellModeActive && approvalMode === ApprovalMode.AUTO_EDIT;
@@ -757,6 +834,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
             ) : (
               '!'
             )
+          ) : commandSearchActive ? (
+            <Text color={theme.text.accent}>(r:) </Text>
           ) : showYoloStyling ? (
             '*'
           ) : (
@@ -887,27 +966,23 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
           )}
         </Box>
       </Box>
-      {completion.showSuggestions && (
+      {shouldShowSuggestions && (
         <Box paddingRight={2}>
           <SuggestionsDisplay
-            suggestions={completion.suggestions}
-            activeIndex={completion.activeSuggestionIndex}
-            isLoading={completion.isLoadingSuggestions}
+            suggestions={activeCompletion.suggestions}
+            activeIndex={activeCompletion.activeSuggestionIndex}
+            isLoading={activeCompletion.isLoadingSuggestions}
             width={suggestionsWidth}
-            scrollOffset={completion.visibleStartIndex}
+            scrollOffset={activeCompletion.visibleStartIndex}
             userInput={buffer.text}
-          />
-        </Box>
-      )}
-      {reverseSearchActive && (
-        <Box paddingRight={2}>
-          <SuggestionsDisplay
-            suggestions={reverseSearchCompletion.suggestions}
-            activeIndex={reverseSearchCompletion.activeSuggestionIndex}
-            isLoading={reverseSearchCompletion.isLoadingSuggestions}
-            width={suggestionsWidth}
-            scrollOffset={reverseSearchCompletion.visibleStartIndex}
-            userInput={buffer.text}
+            mode={
+              buffer.text.startsWith('/') &&
+              !reverseSearchActive &&
+              !commandSearchActive
+                ? 'slash'
+                : 'reverse'
+            }
+            expandedIndex={expandedSuggestionIndex}
           />
         </Box>
       )}
