@@ -18,6 +18,8 @@ export const STREAM_DEBOUNCE_MS = 100;
 
 export const SHELL_COMMAND_NAME = t('tools.shell.name', 'Shell Command');
 
+export const SHELL_NAME = 'Shell';
+
 // Tool status symbols used in ToolMessage component
 export const TOOL_STATUS = {
   SUCCESS: '✓',

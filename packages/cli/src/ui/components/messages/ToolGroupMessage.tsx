@@ -13,7 +13,7 @@ import { ToolMessage } from './ToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { theme } from '../../semantic-colors.js';
 import { t } from '@thacio/auditaria-cli-core';
-import { SHELL_COMMAND_NAME } from '../../constants.js';
+import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
 import { useConfig } from '../../contexts/ConfigContext.js';
 
 interface ToolGroupMessageProps {
@@ -48,11 +48,15 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
   );
 
   const config = useConfig();
-  const isShellCommand = toolCalls.some((t) => t.name === SHELL_COMMAND_NAME);
+  const isShellCommand = toolCalls.some(
+    (t) => t.name === SHELL_COMMAND_NAME || t.name === SHELL_NAME,
+  );
   const borderColor =
-    hasPending || isShellCommand || isShellFocused
-      ? theme.status.warning
-      : theme.border.default;
+    isShellCommand || isShellFocused
+      ? theme.ui.symbol
+      : hasPending
+        ? theme.status.warning
+        : theme.border.default;
 
   const staticHeight = /* border */ 2 + /* marginBottom */ 1;
   // This is a bit of a magic number, but it accounts for the border and
