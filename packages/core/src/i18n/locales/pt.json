@@ -1504,6 +1504,9 @@
   "trusted_folders": {
     "error_saving": "Erro ao salvar arquivo de pastas confiáveis: {error}",
     "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}",
+    "error_in_path": "Erro em {path}: {message}",
+    "fix_config": "Por favor, corrija o arquivo de configuração e tente novamente.",
+    "not_valid_json": "O arquivo de pastas confiáveis não é um objeto JSON válido.",
     "cannot_enable_privileged_modes": "Não é possível ativar modos de aprovação privilegiados em uma pasta não confiável.",
     "approval_mode_overridden": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável."
   },
