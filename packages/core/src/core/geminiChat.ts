@@ -162,13 +162,16 @@ function extractCuratedHistory(comprehensiveHistory: Content[]): Content[] {
 }
 
 /**
- * Custom error to signal that a stream completed without valid content,
+ * Custom error to signal that a stream completed with invalid content,
  * which should trigger a retry.
  */
-export class EmptyStreamError extends Error {
-  constructor(message: string) {
+export class InvalidStreamError extends Error {
+  readonly type: 'NO_FINISH_REASON' | 'NO_RESPONSE_TEXT';
+
+  constructor(message: string, type: 'NO_FINISH_REASON' | 'NO_RESPONSE_TEXT') {
     super(message);
-    this.name = 'EmptyStreamError';
+    this.name = 'InvalidStreamError';
+    this.type = type;
   }
 }
 
@@ -285,7 +288,7 @@ export class GeminiChat {
             break;
           } catch (error) {
             lastError = error;
-            const isContentError = error instanceof EmptyStreamError;
+            const isContentError = error instanceof InvalidStreamError;
 
             if (isContentError) {
               // Check if we have more attempts left.
@@ -294,7 +297,7 @@ export class GeminiChat {
                   self.config,
                   new ContentRetryEvent(
                     attempt,
-                    'EmptyStreamError',
+                    (error as InvalidStreamError).type,
                     INVALID_CONTENT_RETRY_OPTIONS.initialDelayMs,
                   ),
                 );
@@ -313,12 +316,12 @@ export class GeminiChat {
         }
 
         if (lastError) {
-          if (lastError instanceof EmptyStreamError) {
+          if (lastError instanceof InvalidStreamError) {
             logContentRetryFailure(
               self.config,
               new ContentRetryFailureEvent(
                 INVALID_CONTENT_RETRY_OPTIONS.maxAttempts,
-                'EmptyStreamError',
+                (lastError as InvalidStreamError).type,
               ),
             );
           }
@@ -479,9 +482,11 @@ export class GeminiChat {
       }
       if (cyclicSchemaTools.length > 0) {
         const extraDetails =
-          t('errors.cyclic_schema_error',
+          t(
+            'errors.cyclic_schema_error',
             `\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them with excludeTools:\n\n - `,
-            {}) +
+            {},
+          ) +
           cyclicSchemaTools.join(`\n - `) +
           `\n`;
         error.message += extraDetails;
@@ -569,9 +574,17 @@ export class GeminiChat {
     // - No finish reason, OR
     // - Empty response text (e.g., only thoughts with no actual content)
     if (!hasToolCall && (!hasFinishReason || !responseText)) {
-      throw new EmptyStreamError(
-        'Model stream ended with an invalid chunk or missing finish reason.',
-      );
+      if (!hasFinishReason) {
+        throw new InvalidStreamError(
+          'Model stream ended without a finish reason.',
+          'NO_FINISH_REASON',
+        );
+      } else {
+        throw new InvalidStreamError(
+          'Model stream ended with empty response text.',
+          'NO_RESPONSE_TEXT',
+        );
+      }
     }
 
     this.history.push({ role: 'model', parts: consolidatedParts });
