@@ -5,6 +5,8 @@
  */
 
 import type { Config, ToolCallRequestInfo } from '@thacio/auditaria-cli-core';
+import { isSlashCommand } from './ui/utils/commandUtils.js';
+import type { LoadedSettings } from './config/settings.js';
 import {
   executeToolCall,
   shutdownTelemetry,
@@ -17,8 +19,10 @@ import {
   uiTelemetryService,
   t
 } from '@thacio/auditaria-cli-core';
+
 import type { Content, Part } from '@google/genai';
 
+import { handleSlashCommand } from './nonInteractiveCliCommands.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
 import { handleAtCommand } from './ui/hooks/atCommandProcessor.js';
 import {
@@ -30,6 +34,7 @@ import {
 
 export async function runNonInteractive(
   config: Config,
+  settings: LoadedSettings,
   input: string,
   prompt_id: string,
 ): Promise<void> {
@@ -53,26 +58,44 @@ export async function runNonInteractive(
 
       const abortController = new AbortController();
 
-      const { processedQuery, shouldProceed } = await handleAtCommand({
-        query: input,
-        config,
-        addItem: (_item, _timestamp) => 0,
-        onDebugMessage: () => {},
-        messageId: Date.now(),
-        signal: abortController.signal,
-      });
+      let query: Part[] | undefined;
 
-      if (!shouldProceed || !processedQuery) {
-        // An error occurred during @include processing (e.g., file not found).
-        // The error message is already logged by handleAtCommand.
-        throw new FatalInputError(
-          t('errors.at_command_processing_error', 'Exiting due to an error processing the @ command.'),
+      if (isSlashCommand(input)) {
+        const slashCommandResult = await handleSlashCommand(
+          input,
+          abortController,
+          config,
+          settings,
         );
+        // If a slash command is found and returns a prompt, use it.
+        // Otherwise, slashCommandResult fall through to the default prompt
+        // handling.
+        if (slashCommandResult) {
+          query = slashCommandResult as Part[];
+        }
       }
 
-      let currentMessages: Content[] = [
-        { role: 'user', parts: processedQuery as Part[] },
-      ];
+      if (!query) {
+        const { processedQuery, shouldProceed } = await handleAtCommand({
+          query: input,
+          config,
+          addItem: (_item, _timestamp) => 0,
+          onDebugMessage: () => {},
+          messageId: Date.now(),
+          signal: abortController.signal,
+        });
+
+        if (!shouldProceed || !processedQuery) {
+          // An error occurred during @include processing (e.g., file not found).
+          // The error message is already logged by handleAtCommand.
+          throw new FatalInputError(
+            t('errors.at_command_processing_error', 'Exiting due to an error processing the @ command.'),
+          );
+        }
+        query = processedQuery as Part[];
+      }
+
+      let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
       let turnCount = 0;
       while (true) {

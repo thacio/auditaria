@@ -1023,6 +1023,8 @@
     "unhandled_rejection": "=========================================\nEste é um erro inesperado. Por favor, relate um bug usando a ferramenta /bug.\nCRÍTICO: Rejeição de Promise Não Tratada!\n=========================================\nRazão: {reason}{stack}",
     "cyclic_schema_error": "\n\nEste erro provavelmente foi causado por referências de esquema cíclicas em uma das seguintes ferramentas, tente desabilitá-las:\n\n - ",
     "at_command_processing_error": "Saindo devido a um erro ao processar o comando @.",
+    "command_confirmation_required": "Saindo devido a uma solicitação de confirmação pelo comando.",
+    "command_result_unsupported_noninteractive": "Saindo devido a resultado do comando que não é suportado no modo não-interativo.",
     "turn_limit_reached": "Limite máximo de turnos de sessão atingido. Aumente o número de turnos especificando maxSessionTurns em settings.json.",
     "config_error": "{errors}\nPor favor corrija o(s) arquivo(s) de configuração e tente novamente.",
     "sandbox_invalid_command": "Comando sandbox inválido '{command}'. Deve ser um de {commands}",

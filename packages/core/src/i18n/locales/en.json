@@ -1026,6 +1026,8 @@
     "unhandled_rejection": "=========================================\nThis is an unexpected error. Please file a bug report using the /bug tool.\nCRITICAL: Unhandled Promise Rejection!\n=========================================\nReason: {reason}{stack}",
     "cyclic_schema_error": "\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them:\n\n - ",
     "at_command_processing_error": "Exiting due to an error processing the @ command.",
+    "command_confirmation_required": "Exiting due to a confirmation prompt requested by the command.",
+    "command_result_unsupported_noninteractive": "Exiting due to command result that is not supported in non-interactive mode.",
     "turn_limit_reached": "Reached max session turns for this session. Increase the number of turns by specifying maxSessionTurns in settings.json.",
     "config_error": "{errors}\nPlease fix the configuration file(s) and try again.",
     "sandbox_invalid_command": "Invalid sandbox command '{command}'. Must be one of {commands}",
