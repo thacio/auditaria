@@ -37,7 +37,11 @@ export async function handleInstall(args: InstallArgs) {
         };
       } else {
         throw new Error(
-          t('commands.extensions.install.invalid_source_format', `The source "${source}" is not a valid URL format.`, { source }),
+          t(
+            'commands.extensions.install.invalid_source_format',
+            `The source "${source}" is not a valid URL format.`,
+            { source },
+          ),
         );
       }
     } else if (args.path) {
@@ -53,7 +57,11 @@ export async function handleInstall(args: InstallArgs) {
 
     const name = await installExtension(installMetadata, true);
     console.log(
-      t('commands.extensions.install.success', `Extension "${name}" installed successfully and enabled.`, { name }),
+      t(
+        'commands.extensions.install.success',
+        `Extension "${name}" installed successfully and enabled.`,
+        { name },
+      ),
     );
   } catch (error) {
     console.error(getErrorMessage(error));
@@ -62,20 +70,32 @@ export async function handleInstall(args: InstallArgs) {
 }
 
 export const installCommand: CommandModule = {
-  command: 'install [source]',
-  describe: t('commands.extensions.install.description', 'Installs an extension from a git repository URL or a local path.'),
+  command: 'install [<source>] [--path] [--ref] [--auto-update]',
+  describe: t(
+    'commands.extensions.install.description',
+    'Installs an extension from a git repository URL or a local path.',
+  ),
   builder: (yargs) =>
     yargs
       .positional('source', {
-        describe: t('commands.extensions.install.source_description', 'The git URL of the extension to install.'),
+        describe: t(
+          'commands.extensions.install.source_description',
+          'The git URL of the extension to install.',
+        ),
         type: 'string',
       })
       .option('path', {
-        describe: t('commands.extensions.install.path_description', 'Path to a local extension directory.'),
+        describe: t(
+          'commands.extensions.install.path_description',
+          'Path to a local extension directory.',
+        ),
         type: 'string',
       })
       .option('ref', {
-        describe: t('commands.extensions.install.ref_description', 'The git ref to install from.'),
+        describe: t(
+          'commands.extensions.install.ref_description',
+          'The git ref to install from.',
+        ),
         type: 'string',
       })
       .option('auto-update', {
@@ -88,7 +108,10 @@ export const installCommand: CommandModule = {
       .check((argv) => {
         if (!argv.source && !argv.path) {
           throw new Error(
-            t('commands.extensions.install.missing_source_or_path', 'Either source or --path must be provided.'),
+            t(
+              'commands.extensions.install.missing_source_or_path',
+              'Either source or --path must be provided.',
+            ),
           );
         }
         return true;

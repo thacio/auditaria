@@ -362,7 +362,7 @@ export function annotateActiveExtensions(
 /**
  * Asks users a prompt and awaits for a y/n response
  * @param prompt A yes/no prompt to ask the user
- * @returns Whether or not the user answers 'y' (yes)
+ * @returns Whether or not the user answers 'y' (yes). Defaults to 'yes' on enter.
  */
 async function promptForContinuation(prompt: string): Promise<boolean> {
   const readline = await import('node:readline');
@@ -374,7 +374,7 @@ async function promptForContinuation(prompt: string): Promise<boolean> {
   return new Promise((resolve) => {
     rl.question(prompt, (answer) => {
       rl.close();
-      resolve(answer.toLowerCase() === 'y');
+      resolve(['y', ''].includes(answer.trim().toLowerCase()));
     });
   });
 }
@@ -418,12 +418,12 @@ export async function installExtension(
     ) {
       tempDir = await ExtensionStorage.createTmpDir();
       try {
-        const tagName = await downloadFromGitHubRelease(
+        const result = await downloadFromGitHubRelease(
           installMetadata,
           tempDir,
         );
-        installMetadata.type = 'github-release';
-        installMetadata.releaseTag = tagName;
+        installMetadata.type = result.type;
+        installMetadata.releaseTag = result.tagName;
       } catch (_error) {
         await cloneFromGit(installMetadata, tempDir);
         installMetadata.type = 'git';
@@ -522,38 +522,67 @@ export async function installExtension(
 }
 
 async function requestConsent(extensionConfig: ExtensionConfig) {
+  const output: string[] = [];
   const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
+  output.push(
+    t(
+      'extension.unexpected_behavior_warning',
+      'Extensions may introduce unexpected behavior.',
+    ),
+  );
+  output.push(
+    t(
+      'extension.trust_author_warning',
+      'Ensure you have investigated the extension source and trust the author.',
+    ),
+  );
+
   if (mcpServerEntries.length) {
-    console.info(
+    output.push(
       t(
         'extension.mcp_servers_prompt',
-        'This extension will run the following MCP servers: ',
+        'This extension will run the following MCP servers:',
       ),
     );
     for (const [key, mcpServer] of mcpServerEntries) {
       const isLocal = !!mcpServer.command;
-      console.info(
-        `  * ${key} (${isLocal ? t('extension.mcp_local', 'local') : t('extension.mcp_remote', 'remote')}): ${mcpServer.description}`,
+      const source =
+        mcpServer.httpUrl ??
+        `${mcpServer.command || ''}${mcpServer.args ? ' ' + mcpServer.args.join(' ') : ''}`;
+      output.push(
+        `  * ${key} (${isLocal ? t('extension.mcp_local', 'local') : t('extension.mcp_remote', 'remote')}): ${source}`,
       );
     }
-    console.info(
+  }
+  if (extensionConfig.contextFileName) {
+    const contextFileNameStr = Array.isArray(extensionConfig.contextFileName)
+      ? extensionConfig.contextFileName.join(', ')
+      : extensionConfig.contextFileName;
+    output.push(
       t(
-        'extension.context_append_info',
-        'The extension will append info to your gemini.md context',
+        'extension.context_with_filename',
+        'This extension will append info to your gemini.md context using {contextFileName}',
+        { contextFileName: contextFileNameStr },
       ),
     );
-
-    const shouldContinue = await promptForContinuation(
-      t('extension.continue_prompt', 'Do you want to continue? (y/n): '),
+  }
+  if (extensionConfig.excludeTools) {
+    output.push(
+      t(
+        'extension.exclude_tools_info',
+        'This extension will exclude the following core tools: {excludeTools}',
+        { excludeTools: extensionConfig.excludeTools.join(', ') },
+      ),
     );
-    if (!shouldContinue) {
-      throw new Error(
-        t(
-          'extension.installation_cancelled',
-          'Installation cancelled by user.',
-        ),
-      );
-    }
+  }
+  console.info(output.join('\n'));
+  const shouldContinue = await promptForContinuation(
+    t('extension.continue_prompt', 'Do you want to continue? [Y/n]: '),
+  );
+  if (!shouldContinue) {
+    throw new Error(
+      t('extension.installation_cancelled', 'Installation cancelled by user.'),
+    );
   }
 }
 
