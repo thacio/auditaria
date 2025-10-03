@@ -94,12 +94,12 @@ import { type PartListUnion } from '@google/genai';  // For multimodal support
 import { useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 import { useFooter } from './contexts/FooterContext.js';
 import { useLoadingState } from './contexts/LoadingStateContext.js';
-import { useToolConfirmation, type PendingToolConfirmation } from './contexts/ToolConfirmationContext.js';
+import { useToolConfirmation } from './contexts/ToolConfirmationContext.js';
 import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
 import { useKeypressContext } from './contexts/KeypressContext.js';
 // WEB_INTERFACE_END
 import { useExtensionUpdates } from './hooks/useExtensionUpdates.js';
-import { FocusContext } from './contexts/FocusContext.js';
+import { ShellFocusContext } from './contexts/ShellFocusContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 
@@ -148,7 +148,7 @@ export const AppContainer = (props: AppContainerProps) => {
     initializationResult.themeError,
   );
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [shellFocused, setShellFocused] = useState(false);
+  const [embeddedShellFocused, setEmbeddedShellFocused] = useState(false);
 
   const [geminiMdFileCount, setGeminiMdFileCount] = useState<number>(
     initializationResult.geminiMdFileCount,
@@ -584,10 +584,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
     setModelSwitchedFromQuotaError,
     refreshStatic,
     () => cancelHandlerRef.current(),
-    setShellFocused,
+    setEmbeddedShellFocused,
     terminalWidth,
     terminalHeight,
-    shellFocused,
+    embeddedShellFocused,
   );
 
   // Auto-accept indicator
@@ -946,8 +946,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
       ) {
         setConstrainHeight(false);
       } else if (keyMatchers[Command.TOGGLE_SHELL_INPUT_FOCUS](key)) {
-        if (activePtyId || shellFocused) {
-          setShellFocused((prev) => !prev);
+        if (activePtyId || embeddedShellFocused) {
+          setEmbeddedShellFocused((prev) => !prev);
         }
       }
     },
@@ -970,7 +970,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleSlashCommand,
       cancelOngoingRequest,
       activePtyId,
-      shellFocused,
+      embeddedShellFocused,
       settings.merged.general?.debugKeystrokeLogging,
     ],
   );
@@ -1088,11 +1088,12 @@ Logging in with Google... Please restart Gemini CLI to continue.
     register();
     const timeout = setTimeout(register, 100);
     return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only register once
 
   // Terminal capture for interactive screens
   const terminalCapture = useTerminalCapture();
-  const { subscribe: subscribeToKeypress } = useKeypressContext();
+  useKeypressContext(); // Required for keypress context initialization
 
   // Create a function to pre-start capture for dialogs that render immediately
   const preStartTerminalCapture = useCallback(() => {
@@ -1103,11 +1104,12 @@ Logging in with Google... Please restart Gemini CLI to continue.
   // Expose the pre-start function globally for the slash command processor
   useEffect(() => {
     if (webInterface?.service) {
-      (global as any).__preStartTerminalCapture = preStartTerminalCapture;
+      (global as Record<string, unknown>).__preStartTerminalCapture = preStartTerminalCapture;
     }
     return () => {
-      delete (global as any).__preStartTerminalCapture;
+      delete (global as Record<string, unknown>).__preStartTerminalCapture;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preStartTerminalCapture, webInterface]);
 
   // Detect when any interactive screen is shown
@@ -1142,7 +1144,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
   useEffect(() => {
     if (!webInterface?.service) return;
 
-    const handleTerminalInput = (keyData: any) => {
+    const handleTerminalInput = (keyData: { name?: string; sequence?: string; ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean }) => {
       // Create a synthetic key event that matches the Ink key format
       const syntheticKey = {
         name: keyData.name,
@@ -1177,7 +1179,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     }
   }, [footerContext?.footerData, webInterface?.service, webInterface?.isRunning]);
 
-  const loadingStateContext = useLoadingState();
+  useLoadingState(); // Required for loading state context initialization
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
       webInterface.service.broadcastLoadingState({
@@ -1417,7 +1419,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isRestarting,
       extensionsUpdateState,
       activePtyId,
-      shellFocused,
+      embeddedShellFocused,
     }),
     [
       historyManager.history,
@@ -1495,7 +1497,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentModel,
       extensionsUpdateState,
       activePtyId,
-      shellFocused,
+      embeddedShellFocused,
     ],
   );
 
@@ -1559,9 +1561,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
               startupWarnings: props.startupWarnings || [],
             }}
           >
-            <FocusContext.Provider value={isFocused}>
+            <ShellFocusContext.Provider value={isFocused}>
               <App />
-            </FocusContext.Provider>
+            </ShellFocusContext.Provider>
           </AppContext.Provider>
         </ConfigContext.Provider>
       </UIActionsContext.Provider>
