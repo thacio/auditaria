@@ -266,22 +266,23 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           type: 'boolean',
           description: 'List all available extensions and exit.',
         })
-    // WEB_INTERFACE_START: Web interface command-line option
-    .option('web', {
-      alias: 'w',
-      type: 'string',
-      description: 'Start with web interface enabled. Use "no-browser" to disable auto browser opening.',
-      coerce: (value) => {
-        // Handle --web (no value) as true, --web no-browser as 'no-browser'
-        if (value === true || value === '') return true;
-        return value;
-      },
-    })
-    .option('port', {
-      type: 'number',
-      description: 'Port number for the web interface (default: 8629)',
-    })
-    // WEB_INTERFACE_END
+        // WEB_INTERFACE_START: Web interface command-line option
+        .option('web', {
+          alias: 'w',
+          type: 'string',
+          description:
+            'Start with web interface enabled. Use "no-browser" to disable auto browser opening.',
+          coerce: (value) => {
+            // Handle --web (no value) as true, --web no-browser as 'no-browser'
+            if (value === true || value === '') return true;
+            return value;
+          },
+        })
+        .option('port', {
+          type: 'number',
+          description: 'Port number for the web interface (default: 8629)',
+        })
+        // WEB_INTERFACE_END
         .option('include-directories', {
           type: 'array',
           string: true,
@@ -325,7 +326,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           const promptWords = argv['promptWords'] as string[] | undefined;
           if (argv['prompt'] && promptWords && promptWords.length > 0) {
             throw new Error(
-              t('cli.errors.prompt_positional_conflict', 'Cannot use both a positional prompt and the --prompt (-p) flag together'),
+              t(
+                'cli.errors.prompt_positional_conflict',
+                'Cannot use both a positional prompt and the --prompt (-p) flag together',
+              ),
             );
           }
           if (argv['prompt'] && argv['promptInteractive']) {
@@ -335,7 +339,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           }
           if (argv.yolo && argv['approvalMode']) {
             throw new Error(
-              t('cli.errors.yolo_approval_conflict', 'Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.'),
+              t(
+                'cli.errors.yolo_approval_conflict',
+                'Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.',
+              ),
             );
           }
           return true;
@@ -357,7 +364,10 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     .check((argv) => {
       if (argv.prompt && argv.promptInteractive) {
         throw new Error(
-          t('cli.errors.prompt_interactive_conflict', 'Cannot use both --prompt (-p) and --prompt-interactive (-i) together'),
+          t(
+            'cli.errors.prompt_interactive_conflict',
+            'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
+          ),
         );
       }
       return true;
@@ -425,6 +435,15 @@ export async function loadHierarchicalGeminiMemory(
   );
 }
 
+export function isDebugMode(argv: CliArgs): boolean {
+  return (
+    argv.debug ||
+    [process.env['DEBUG'], process.env['DEBUG_MODE']].some(
+      (v) => v === 'true' || v === '1',
+    )
+  );
+}
+
 export async function loadCliConfig(
   settings: Settings,
   extensions: Extension[],
@@ -432,12 +451,8 @@ export async function loadCliConfig(
   argv: CliArgs,
   cwd: string = process.cwd(),
 ): Promise<Config> {
-  const debugMode =
-    argv.debug ||
-    [process.env['DEBUG'], process.env['DEBUG_MODE']].some(
-      (v) => v === 'true' || v === '1',
-    ) ||
-    false;
+  const debugMode = isDebugMode(argv);
+
   const memoryImportFormat = settings.context?.importFormat || 'tree';
 
   const ideMode = settings.ide?.enabled ?? false;
@@ -516,7 +531,11 @@ export async function loadCliConfig(
         break;
       default:
         throw new Error(
-          t('cli.errors.invalid_approval_mode', `Invalid approval mode: ${argv.approvalMode}. Valid values are: yolo, auto_edit, default`, { mode: argv.approvalMode }),
+          t(
+            'cli.errors.invalid_approval_mode',
+            `Invalid approval mode: ${argv.approvalMode}. Valid values are: yolo, auto_edit, default`,
+            { mode: argv.approvalMode },
+          ),
         );
     }
   } else {
@@ -528,7 +547,10 @@ export async function loadCliConfig(
   // Force approval mode to default if the folder is not trusted.
   if (!trustedFolder && approvalMode !== ApprovalMode.DEFAULT) {
     logger.warn(
-      t('trusted_folders.approval_mode_overridden', 'Approval mode overridden to "default" because the current folder is not trusted.'),
+      t(
+        'trusted_folders.approval_mode_overridden',
+        'Approval mode overridden to "default" because the current folder is not trusted.',
+      ),
     );
     approvalMode = ApprovalMode.DEFAULT;
   }

@@ -1501,6 +1501,9 @@
   "gemini_stream": {
     "request_cancelled": "Requisição cancelada."
   },
+  "relaunch": {
+    "fatal_error": "Erro fatal: Falha ao reiniciar o processo CLI."
+  },
   "trusted_folders": {
     "error_saving": "Erro ao salvar arquivo de pastas confiáveis: {error}",
     "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}",
