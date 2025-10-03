@@ -1463,6 +1463,10 @@
       "truncate_output_lines": {
         "label": "Linhas de Truncamento de Saída de Ferramenta",
         "description": "O número de linhas a manter ao truncar a saída da ferramenta."
+      },
+      "enable_message_bus_integration": {
+        "label": "Habilitar Integração de Barramento de Mensagens",
+        "description": "Habilitar confirmação de ferramenta baseada em política através da integração do barramento de mensagens. Quando habilitado, as ferramentas respeitarão automaticamente as decisões do mecanismo de políticas (PERMITIR/NEGAR/PERGUNTAR_USUÁRIO) sem exigir implementações individuais de ferramentas."
       }
     },
     "chatCompression": {

@@ -1466,6 +1466,10 @@
       "truncate_output_lines": {
         "label": "Tool Output Truncation Lines",
         "description": "The number of lines to keep when truncating tool output."
+      },
+      "enable_message_bus_integration": {
+        "label": "Enable Message Bus Integration",
+        "description": "Enable policy-based tool confirmation via message bus integration. When enabled, tools will automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations."
       }
     },
     "chatCompression": {
