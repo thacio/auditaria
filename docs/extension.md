@@ -65,7 +65,7 @@ We offer several example extensions `context`, `custom-commands`, `exclude-tools
 To copy one of these examples into a development directory using the type of your choosing, run:
 
 ```
-auditaria extensions new --path=path/to/directory --type=custom-commands
+auditaria extensions new path/to/directory custom-commands
 ```
 
 ### Link a local extension
