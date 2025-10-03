@@ -59,6 +59,9 @@
     "settings": {
       "description": "View and edit Gemini CLI settings"
     },
+    "permissions": {
+      "description": "Manage folder trust settings"
+    },
     "stats": {
       "description": "check session stats. Usage: /stats [model|tools]",
       "alt_name": "usage",
@@ -1427,6 +1430,31 @@
       "trust_folder": "Trust folder ({dirName})",
       "trust_parent": "Trust parent folder ({parentFolder})",
       "dont_trust": "Don't trust (esc)"
+    }
+  },
+  "permissions_dialog": {
+    "title": "Modify Trust Level",
+    "folder_label": "Folder:",
+    "current_level_label": "Current Level:",
+    "not_set": "Not Set",
+    "trust_options": {
+      "trust_folder": "Trust this folder",
+      "trust_parent": "Trust parent folder",
+      "dont_trust": "Don't trust"
+    },
+    "notes": {
+      "inherited_from_parent": "Note: This folder behaves as a trusted folder because one of the parent folders is trusted. It will remain trusted even if you set a different trust level here. To change this, you need to modify the trust setting in the parent folder.",
+      "inherited_from_ide": "Note: This folder behaves as a trusted folder because the connected IDE workspace is trusted. It will remain trusted even if you set a different trust level here."
+    },
+    "instructions": {
+      "use_enter_select": "(Use Enter to select)"
+    },
+    "restart": {
+      "message": "To apply the trust changes, Auditaria CLI must be restarted. Press 'r' to restart CLI now."
+    },
+    "warnings": {
+      "still_trusted_ide": "Note: This folder is still trusted because the connected IDE workspace is trusted.",
+      "still_trusted_parent": "Note: This folder is still trusted because a parent folder is trusted."
     }
   },
   "settings": {

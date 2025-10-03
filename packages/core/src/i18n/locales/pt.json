@@ -59,6 +59,9 @@
     "settings": {
       "description": "Visualizar e editar configurações do Gemini CLI"
     },
+    "permissions": {
+      "description": "Gerenciar configurações de confiança de pastas"
+    },
     "stats": {
       "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
       "alt_name": "uso",
@@ -1424,6 +1427,31 @@
       "trust_folder": "Confiar na pasta ({dirName})",
       "trust_parent": "Confiar na pasta pai ({parentFolder})",
       "dont_trust": "Não confiar (esc)"
+    }
+  },
+  "permissions_dialog": {
+    "title": "Modificar Nível de Confiança",
+    "folder_label": "Pasta:",
+    "current_level_label": "Nível Atual:",
+    "not_set": "Não Definido",
+    "trust_options": {
+      "trust_folder": "Confiar nesta pasta",
+      "trust_parent": "Confiar na pasta pai",
+      "dont_trust": "Não confiar"
+    },
+    "notes": {
+      "inherited_from_parent": "Nota: Esta pasta se comporta como uma pasta confiável porque uma das pastas pai é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui. Para alterar isso, você precisa modificar a configuração de confiança na pasta pai.",
+      "inherited_from_ide": "Nota: Esta pasta se comporta como uma pasta confiável porque o workspace IDE conectado é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui."
+    },
+    "instructions": {
+      "use_enter_select": "(Use Enter para selecionar)"
+    },
+    "restart": {
+      "message": "Para aplicar as mudanças de confiança, o Auditaria CLI deve ser reiniciado. Pressione 'r' para reiniciar o CLI agora."
+    },
+    "warnings": {
+      "still_trusted_ide": "Nota: Esta pasta ainda é confiável porque o workspace IDE conectado é confiável.",
+      "still_trusted_parent": "Nota: Esta pasta ainda é confiável porque uma pasta pai é confiável."
     }
   },
   "settings": {

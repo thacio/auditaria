@@ -25,7 +25,7 @@ export const useFolderTrust = (
   const folderTrust = settings.merged.security?.folderTrust?.enabled;
 
   useEffect(() => {
-    const trusted = isWorkspaceTrusted(settings.merged);
+    const { isTrusted: trusted } = isWorkspaceTrusted(settings.merged);
     setIsTrusted(trusted);
     
     // WEB_INTERFACE_START: Pre-start terminal capture for folder trust dialog

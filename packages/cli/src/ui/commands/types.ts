@@ -115,7 +115,16 @@ export interface MessageActionReturn {
  */
 export interface OpenDialogActionReturn {
   type: 'dialog';
-  dialog: 'help' | 'auth' | 'theme' | 'editor' | 'privacy' | 'language' | 'settings';
+
+  dialog:
+    | 'help'
+    | 'auth'
+    | 'theme'
+    | 'editor'
+    | 'privacy'
+    | 'language'
+    | 'settings'
+    | 'permissions';
 }
 
 /**
