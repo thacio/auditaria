@@ -221,6 +221,9 @@ export function initializeTelemetry(config: Config): void {
   process.on('SIGINT', () => {
     shutdownTelemetry(config);
   });
+  process.on('exit', () => {
+    shutdownTelemetry(config);
+  });
 }
 
 export async function shutdownTelemetry(config: Config): Promise<void> {
