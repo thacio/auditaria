@@ -233,8 +233,8 @@ auditaria -p "List programming languages" | grep -i "python"
 
 Key command-line options for headless usage:
 
-| Option                  | Description                        | Example                                            |
-| ----------------------- | ---------------------------------- | -------------------------------------------------- |
+| Option                  | Description                        | Example                                               |
+| ----------------------- | ---------------------------------- | ----------------------------------------------------- |
 | `--prompt`, `-p`        | Run in headless mode               | `auditaria -p "query"`                                |
 | `--output-format`       | Specify output format (text, json) | `auditaria -p "query" --output-format json`           |
 | `--model`, `-m`         | Specify the Gemini model           | `auditaria -p "query" -m gemini-2.5-flash`            |
@@ -244,7 +244,7 @@ Key command-line options for headless usage:
 | `--yolo`, `-y`          | Auto-approve all actions           | `auditaria -p "query" --yolo`                         |
 | `--approval-mode`       | Set approval mode                  | `auditaria -p "query" --approval-mode auto_edit`      |
 
-For complete details on all available configuration options, settings files, and environment variables, see the [Configuration Guide](./configuration.md).
+For complete details on all available configuration options, settings files, and environment variables, see the [Configuration Guide](./cli/configuration.md).
 
 ## Examples
 
@@ -317,7 +317,7 @@ tail -5 usage.log
 
 ## Resources
 
-- [CLI Configuration](./configuration.md) - Complete configuration guide
-- [Authentication](./authentication.md) - Setup authentication
-- [Commands](./commands.md) - Interactive commands reference
-- [Tutorials](./tutorials.md) - Step-by-step automation guides
+- [CLI Configuration](./cli/configuration.md) - Complete configuration guide
+- [Authentication](./cli/authentication.md) - Setup authentication
+- [Commands](./cli/commands.md) - Interactive commands reference
+- [Tutorials](./cli/tutorials.md) - Step-by-step automation guides
