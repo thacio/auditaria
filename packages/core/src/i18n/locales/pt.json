@@ -95,7 +95,8 @@
           "exclude_tools_description": "Uma lista separada por vírgulas de ferramentas para excluir",
           "already_configured": "Servidor MCP \"{name}\" já está configurado nas configurações de {scope}.",
           "updated": "Servidor MCP \"{name}\" atualizado nas configurações de {scope}.",
-          "added": "Servidor MCP \"{name}\" adicionado às configurações de {scope}. ({transport})"
+          "added": "Servidor MCP \"{name}\" adicionado às configurações de {scope}. ({transport})",
+          "error_home_directory": "Erro: Use --scope user para editar configurações no diretório home."
         },
         "remove": {
           "description": "Remover um servidor",

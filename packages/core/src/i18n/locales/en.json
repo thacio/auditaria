@@ -95,7 +95,8 @@
           "exclude_tools_description": "A comma-separated list of tools to exclude",
           "already_configured": "MCP server \"{name}\" is already configured within {scope} settings.",
           "updated": "MCP server \"{name}\" updated in {scope} settings.",
-          "added": "MCP server \"{name}\" added to {scope} settings. ({transport})"
+          "added": "MCP server \"{name}\" added to {scope} settings. ({transport})",
+          "error_home_directory": "Error: Please use --scope user to edit settings in the home directory."
         },
         "remove": {
           "description": "Remove a server",

@@ -37,9 +37,19 @@ async function addMcpServer(
     includeTools,
     excludeTools,
   } = options;
+
+  const settings = loadSettings(process.cwd());
+  const inHome = settings.workspace.path === settings.user.path;
+
+  if (scope === 'project' && inHome) {
+    console.error(
+      t('commands.mcp.manage.add.error_home_directory', 'Error: Please use --scope user to edit settings in the home directory.'),
+    );
+    process.exit(1);
+  }
+
   const settingsScope =
     scope === 'user' ? SettingScope.User : SettingScope.Workspace;
-  const settings = loadSettings();
 
   let newServer: Partial<MCPServerConfig> = {};
 
