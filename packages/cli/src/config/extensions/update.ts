@@ -147,6 +147,7 @@ export async function checkForAllExtensionUpdates(
   setExtensionsUpdateState: Dispatch<
     SetStateAction<Map<string, ExtensionUpdateState>>
   >,
+  cwd: string = process.cwd(),
 ): Promise<Map<string, ExtensionUpdateState>> {
   for (const extension of extensions) {
     const initialState = extensionsUpdateState.get(extension.name);
@@ -162,13 +163,17 @@ export async function checkForAllExtensionUpdates(
         });
         continue;
       }
-      await checkForExtensionUpdate(extension, (updatedState) => {
-        setExtensionsUpdateState((prev) => {
-          extensionsUpdateState = new Map(prev);
-          extensionsUpdateState.set(extension.name, updatedState);
-          return extensionsUpdateState;
-        });
-      });
+      await checkForExtensionUpdate(
+        extension,
+        (updatedState) => {
+          setExtensionsUpdateState((prev) => {
+            extensionsUpdateState = new Map(prev);
+            extensionsUpdateState.set(extension.name, updatedState);
+            return extensionsUpdateState;
+          });
+        },
+        cwd,
+      );
     }
   }
   return extensionsUpdateState;

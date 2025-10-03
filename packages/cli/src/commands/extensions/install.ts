@@ -21,7 +21,6 @@ interface InstallArgs {
 export async function handleInstall(args: InstallArgs) {
   try {
     let installMetadata: ExtensionInstallMetadata;
-
     if (args.source) {
       const { source } = args;
       if (

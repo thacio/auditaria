@@ -1077,6 +1077,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   // Register with web interface service once
   const submitHandlerRegistered = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const register = () => {
       if (webInterface?.service && !submitHandlerRegistered.current) {
@@ -1088,7 +1089,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
     register();
     const timeout = setTimeout(register, 100);
     return () => clearTimeout(timeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only register once
 
   // Terminal capture for interactive screens
