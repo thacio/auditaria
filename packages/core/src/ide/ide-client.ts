@@ -61,8 +61,8 @@ type StdioConfig = {
 
 type ConnectionConfig = {
   port?: string;
-  stdio?: StdioConfig;
   authToken?: string;
+  stdio?: StdioConfig;
 };
 
 function getRealPath(path: string): string {
@@ -90,6 +90,9 @@ export class IdeClient {
   };
   private currentIde: IdeInfo | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
+  private connectionConfig:
+    | (ConnectionConfig & { workspacePath?: string; ideInfo?: IdeInfo })
+    | undefined;
   private authToken: string | undefined;
   private diffResponses = new Map<string, (result: DiffUpdateResult) => void>();
   private statusListeners = new Set<(state: IDEConnectionState) => void>();
@@ -109,7 +112,11 @@ export class IdeClient {
       IdeClient.instancePromise = (async () => {
         const client = new IdeClient();
         client.ideProcessInfo = await getIdeProcessInfo();
-        client.currentIde = detectIde(client.ideProcessInfo);
+        client.connectionConfig = await client.getConnectionConfigFromFile();
+        client.currentIde = detectIde(
+          client.ideProcessInfo,
+          client.connectionConfig?.ideInfo,
+        );
         return client;
       })();
     }
@@ -144,17 +151,16 @@ export class IdeClient {
 
     this.setState(IDEConnectionStatus.Connecting);
 
-    const configFromFile = await this.getConnectionConfigFromFile();
-    if (configFromFile?.authToken) {
-      this.authToken = configFromFile.authToken;
+    this.connectionConfig = await this.getConnectionConfigFromFile();
+    if (this.connectionConfig?.authToken) {
+      this.authToken = this.connectionConfig.authToken;
     }
     const workspacePath =
-      configFromFile?.workspacePath ??
+      this.connectionConfig?.workspacePath ??
       process.env['GEMINI_CLI_IDE_WORKSPACE_PATH'];
 
     const { isValid, error } = IdeClient.validateWorkspacePath(
       workspacePath,
-      this.currentIde.displayName,
       process.cwd(),
     );
 
@@ -163,18 +169,18 @@ export class IdeClient {
       return;
     }
 
-    if (configFromFile) {
-      if (configFromFile.port) {
+    if (this.connectionConfig) {
+      if (this.connectionConfig.port) {
         const connected = await this.establishHttpConnection(
-          configFromFile.port,
+          this.connectionConfig.port,
         );
         if (connected) {
           return;
         }
       }
-      if (configFromFile.stdio) {
+      if (this.connectionConfig.stdio) {
         const connected = await this.establishStdioConnection(
-          configFromFile.stdio,
+          this.connectionConfig.stdio,
         );
         if (connected) {
           return;
@@ -504,7 +510,6 @@ export class IdeClient {
 
   static validateWorkspacePath(
     ideWorkspacePath: string | undefined,
-    currentIdeDisplayName: string | undefined,
     cwd: string,
   ): { isValid: boolean; error?: string } {
     if (ideWorkspacePath === undefined) {
@@ -512,8 +517,7 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension for {ide}. Please ensure the extension is running and try restarting your terminal. To install the extension, run /ide install.`,
-          { ide: currentIdeDisplayName || 'IDE' }
+          `Failed to connect to IDE companion extension. Please ensure the extension is running. To install the extension, run /ide install.`
         ),
       };
     }
@@ -523,8 +527,7 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.single_workspace_required',
-          `To use this feature, please open a workspace folder in {ide} and try again.`,
-          { ide: currentIdeDisplayName || 'IDE' }
+          `To use this feature, please open a workspace folder in your IDE and try again.`
         ),
       };
     }
@@ -542,8 +545,8 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.directory_mismatch_multi',
-          `Directory mismatch. Gemini CLI is running in a different location than the open workspace in {ide}. Please run the CLI from one of the following directories: {directories}`,
-          { ide: currentIdeDisplayName || 'IDE', directories }
+          `Directory mismatch. Auditaria CLI is running in a different location than the open workspace in the IDE. Please run the CLI from one of the following directories: {directories}`,
+          { directories }
         ),
       };
     }
@@ -585,7 +588,8 @@ export class IdeClient {
   }
 
   private async getConnectionConfigFromFile(): Promise<
-    (ConnectionConfig & { workspacePath?: string }) | undefined
+    | (ConnectionConfig & { workspacePath?: string; ideInfo?: IdeInfo })
+    | undefined
   > {
     if (!this.ideProcessInfo) {
       return undefined;
@@ -612,6 +616,10 @@ export class IdeClient {
       portFiles = await fs.promises.readdir(portFileDir);
     } catch (e) {
       logger.debug('Failed to read IDE connection directory:', e);
+      return undefined;
+    }
+
+    if (!portFiles) {
       return undefined;
     }
 
@@ -651,7 +659,6 @@ export class IdeClient {
       }
       const { isValid } = IdeClient.validateWorkspacePath(
         content.workspacePath,
-        this.currentIde?.displayName,
         process.cwd(),
       );
       return isValid;
