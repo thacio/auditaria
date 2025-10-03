@@ -17,13 +17,10 @@ interface DisableArgs {
 
 export function handleDisable(args: DisableArgs) {
   try {
-    if (args.scope?.toLowerCase() === 'workspace') {
-      disableExtension(args.name, SettingScope.Workspace);
-    } else {
-      disableExtension(args.name, SettingScope.User);
-    }
+    const scope = args.scope?.toLowerCase() === 'workspace' ? SettingScope.Workspace : SettingScope.User;
+    disableExtension(args.name, scope);
     console.log(
-      t('commands.extensions.disable.success', `Extension "${args.name}" successfully disabled for scope "${args.scope}".`, { name: args.name, scope: args.scope }),
+      t('commands.extensions.disable.success', `Extension "${args.name}" successfully disabled for scope "${args.scope ?? scope}".`, { name: args.name, scope: args.scope ?? scope }),
     );
   } catch (error) {
     console.error(getErrorMessage(error));
