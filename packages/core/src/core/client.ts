@@ -242,7 +242,10 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
+      const systemInstruction = getCoreSystemPrompt(
+        userMemory,
+        currentLanguage,
+      );
       const model = this.config.getModel();
 
       const config: GenerateContentConfig = { ...this.generateContentConfig };
@@ -597,7 +600,10 @@ export class GeminiClient {
     try {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(userMemory, currentLanguage);
+      const systemInstruction = getCoreSystemPrompt(
+        userMemory,
+        currentLanguage,
+      );
 
       const requestConfig: GenerateContentConfig = {
         abortSignal,
@@ -630,7 +636,8 @@ export class GeminiClient {
       const result = await retryWithBackoff(apiCall, {
         onPersistent429: onPersistent429Callback,
         authType: this.config.getContentGeneratorConfig()?.authType,
-        useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
+        useImprovedFallbackStrategy:
+          this.config.getUseImprovedFallbackStrategy(),
         disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
       return result;
@@ -763,12 +770,16 @@ export class GeminiClient {
 
     const { totalTokens: newTokenCount } =
       await this.getContentGeneratorOrFail().countTokens({
-        // model might change after calling `sendMessage`, so we get the newest value from config
-        model: this.config.getModel(),
+        model,
         contents: chat.getHistory(),
       });
     if (newTokenCount === undefined) {
-      console.warn(t('compression.error_determine_tokens', 'Could not determine compressed history token count.'));
+      console.warn(
+        t(
+          'compression.error_determine_tokens',
+          'Could not determine compressed history token count.',
+        ),
+      );
       this.hasFailedCompressionAttempt = !force && true;
       return {
         originalTokenCount,
