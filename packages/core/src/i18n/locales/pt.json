@@ -1279,7 +1279,11 @@
     "mcp_remote": "remoto",
     "context_append_info": "A extensão adicionará informações ao seu contexto gemini.md",
     "continue_prompt": "Deseja continuar? (s/n): ",
-    "installation_cancelled": "Instalação cancelada pelo usuário."
+    "installation_cancelled": "Instalação cancelada pelo usuário.",
+    "skip_error": "Aviso: Pulando extensão em {path}: {error}",
+    "config_not_found": "Arquivo de configuração não encontrado em {path}",
+    "config_missing_field": "Configuração inválida em {path}: {field} ausente",
+    "config_load_failed": "Falha ao carregar configuração de extensão de {path}: {error}"
   },
   "oauth": {
     "auth_failed": "\nFalha na autenticação com código do usuário.",

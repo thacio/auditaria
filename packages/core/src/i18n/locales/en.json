@@ -1282,7 +1282,11 @@
     "mcp_remote": "remote",
     "context_append_info": "The extension will append info to your gemini.md context",
     "continue_prompt": "Do you want to continue? (y/n): ",
-    "installation_cancelled": "Installation cancelled by user."
+    "installation_cancelled": "Installation cancelled by user.",
+    "skip_error": "Warning: Skipping extension in {path}: {error}",
+    "config_not_found": "Configuration file not found at {path}",
+    "config_missing_field": "Invalid configuration in {path}: missing {field}",
+    "config_load_failed": "Failed to load extension config from {path}: {error}"
   },
   "oauth": {
     "auth_failed": "\nFailed to authenticate with user code.",

@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import type {
   MCPServerConfig,
   GeminiCLIExtension,
@@ -211,31 +212,11 @@ export function loadExtension(context: LoadExtensionContext): Extension | null {
     effectiveExtensionPath = installMetadata.source;
   }
 
-  const configFilePath = path.join(
-    effectiveExtensionPath,
-    EXTENSIONS_CONFIG_FILENAME,
-  );
-  if (!fs.existsSync(configFilePath)) {
-    console.error(
-      t('extension.missing_config', 'Warning: extension directory {dir} does not contain a config file {config}.', { dir: effectiveExtensionPath, config: configFilePath }),
-    );
-    return null;
-  }
-
   try {
-    const configContent = fs.readFileSync(configFilePath, 'utf-8');
-    let config = recursivelyHydrateStrings(JSON.parse(configContent), {
-      extensionPath: extensionDir,
-      workspacePath: workspaceDir,
-      '/': path.sep,
-      pathSeparator: path.sep,
-    }) as unknown as ExtensionConfig;
-    if (!config.name || !config.version) {
-      console.error(
-        t('extension.invalid_config', 'Invalid extension config in {path}: missing name or version.', { path: configFilePath }),
-      );
-      return null;
-    }
+    let config = loadExtensionConfig({
+      extensionDir: effectiveExtensionPath,
+      workspaceDir,
+    });
 
     config = resolveEnvVarsInObject(config);
 
@@ -262,7 +243,11 @@ export function loadExtension(context: LoadExtensionContext): Extension | null {
     };
   } catch (e) {
     console.error(
-      t('extension.parse_error', 'Warning: error parsing extension config in {path}: {error}', { path: configFilePath, error: getErrorMessage(e) }),
+      t(
+        'extension.skip_error',
+        'Warning: Skipping extension in {path}: {error}',
+        { path: effectiveExtensionPath, error: getErrorMessage(e) },
+      ),
     );
     return null;
   }
@@ -359,7 +344,11 @@ export function annotateActiveExtensions(
   }
 
   for (const requestedName of notFoundNames) {
-    console.error(t('extension.not_found', 'Extension not found: {name}', { name: requestedName }));
+    console.error(
+      t('extension.not_found', 'Extension not found: {name}', {
+        name: requestedName,
+      }),
+    );
   }
 
   return annotatedExtensions;
@@ -398,7 +387,11 @@ export async function installExtension(
     const settings = loadSettings(cwd).merged;
     if (!isWorkspaceTrusted(settings)) {
       throw new Error(
-        t('extensions.install.untrusted_folder', `Could not install extension from untrusted folder at ${installMetadata.source}`, { source: installMetadata.source }),
+        t(
+          'extensions.install.untrusted_folder',
+          `Could not install extension from untrusted folder at ${installMetadata.source}`,
+          { source: installMetadata.source },
+        ),
       );
     }
 
@@ -441,15 +434,10 @@ export async function installExtension(
     }
 
     try {
-      newExtensionConfig = await loadExtensionConfig({
+      newExtensionConfig = loadExtensionConfig({
         extensionDir: localSourcePath,
         workspaceDir: cwd,
       });
-      if (!newExtensionConfig) {
-        throw new Error(
-          `Invalid extension at ${installMetadata.source}. Please make sure it has a valid gemini-extension.json file.`,
-        );
-      }
 
       const newExtensionName = newExtensionConfig.name;
       const extensionStorage = new ExtensionStorage(newExtensionName);
@@ -505,10 +493,14 @@ export async function installExtension(
     // Attempt to load config from the source path even if installation fails
     // to get the name and version for logging.
     if (!newExtensionConfig && localSourcePath) {
-      newExtensionConfig = await loadExtensionConfig({
-        extensionDir: localSourcePath,
-        workspaceDir: cwd,
-      });
+      try {
+        newExtensionConfig = loadExtensionConfig({
+          extensionDir: localSourcePath,
+          workspaceDir: cwd,
+        });
+      } catch {
+        // Ignore error, this is just for logging.
+      }
     }
     logger?.logExtensionInstallEvent(
       new ExtensionInstallEvent(
@@ -540,7 +532,12 @@ async function updateExtensionVersion(
 async function requestConsent(extensionConfig: ExtensionConfig) {
   const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
   if (mcpServerEntries.length) {
-    console.info(t('extension.mcp_servers_prompt', 'This extension will run the following MCP servers: '));
+    console.info(
+      t(
+        'extension.mcp_servers_prompt',
+        'This extension will run the following MCP servers: ',
+      ),
+    );
     for (const [key, mcpServer] of mcpServerEntries) {
       const isLocal = !!mcpServer.command;
       console.info(
@@ -548,25 +545,39 @@ async function requestConsent(extensionConfig: ExtensionConfig) {
       );
     }
     console.info(
-      t('extension.context_append_info', 'The extension will append info to your gemini.md context'),
+      t(
+        'extension.context_append_info',
+        'The extension will append info to your gemini.md context',
+      ),
     );
 
     const shouldContinue = await promptForContinuation(
       t('extension.continue_prompt', 'Do you want to continue? (y/n): '),
     );
     if (!shouldContinue) {
-      throw new Error(t('extension.installation_cancelled', 'Installation cancelled by user.'));
+      throw new Error(
+        t(
+          'extension.installation_cancelled',
+          'Installation cancelled by user.',
+        ),
+      );
     }
   }
 }
 
-export async function loadExtensionConfig(
+export function loadExtensionConfig(
   context: LoadExtensionContext,
-): Promise<ExtensionConfig | null> {
+): ExtensionConfig {
   const { extensionDir, workspaceDir } = context;
   const configFilePath = path.join(extensionDir, EXTENSIONS_CONFIG_FILENAME);
   if (!fs.existsSync(configFilePath)) {
-    return null;
+    throw new Error(
+      t(
+        'extension.config_not_found',
+        'Configuration file not found at {path}',
+        { path: configFilePath },
+      ),
+    );
   }
   try {
     const configContent = fs.readFileSync(configFilePath, 'utf-8');
@@ -577,11 +588,26 @@ export async function loadExtensionConfig(
       pathSeparator: path.sep,
     }) as unknown as ExtensionConfig;
     if (!config.name || !config.version) {
-      return null;
+      throw new Error(
+        t(
+          'extension.config_missing_field',
+          'Invalid configuration in {path}: missing {field}',
+          {
+            path: configFilePath,
+            field: !config.name ? '"name"' : '"version"',
+          },
+        ),
+      );
     }
     return config;
-  } catch (_) {
-    return null;
+  } catch (e) {
+    throw new Error(
+      t(
+        'extension.config_load_failed',
+        'Failed to load extension config from {path}: {error}',
+        { path: configFilePath, error: getErrorMessage(e) },
+      ),
+    );
   }
 }
 
@@ -599,7 +625,9 @@ export async function uninstallExtension(
         extensionIdentifier.toLowerCase(),
   )?.config.name;
   if (!extensionName) {
-    throw new Error(t('commands.extensions.uninstall.not_found', `Extension not found.`));
+    throw new Error(
+      t('commands.extensions.uninstall.not_found', `Extension not found.`),
+    );
   }
   const manager = new ExtensionEnablementManager(
     ExtensionStorage.getUserExtensionsDir(),
