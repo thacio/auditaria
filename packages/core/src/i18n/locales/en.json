@@ -1115,6 +1115,7 @@
     "loading": "Loading...",
     "error_loading_optin": "Error loading Opt-in settings: {error}",
     "press_esc_exit": "Press Esc to exit.",
+    "auditaria_privacy_notice_title": "Auditaria CLI Privacy Notice",
     "yes": "Yes",
     "no": "No",
     "gemini_code_assist_notice_title": "Gemini Code Assist for Individuals Privacy Notice",

@@ -8,7 +8,7 @@ import { t } from '@thacio/auditaria-cli-core';
 import { Box, Newline, Text } from 'ink';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
 import { usePrivacySettings } from '../hooks/usePrivacySettings.js';
-import { CloudPaidPrivacyNotice } from './CloudPaidPrivacyNotice.js';
+
 import type { Config } from '@thacio/auditaria-cli-core';
 import { theme } from '../semantic-colors.js';
 import { useKeypress } from '../hooks/useKeypress.js';
@@ -27,7 +27,10 @@ export const CloudFreePrivacyNotice = ({
 
   useKeypress(
     (key) => {
-      if (privacyState.error && key.name === 'escape') {
+      if (
+        (privacyState.error || privacyState.isFreeTier === false) &&
+        key.name === 'escape'
+      ) {
         onExit();
       }
     },
@@ -50,7 +53,19 @@ export const CloudFreePrivacyNotice = ({
   }
 
   if (privacyState.isFreeTier === false) {
-    return <CloudPaidPrivacyNotice onExit={onExit} />;
+    return (
+      <Box flexDirection="column" marginY={1}>
+        <Text bold color={theme.text.accent}>
+          {t('privacy.auditaria_privacy_notice_title', 'Auditaria CLI Privacy Notice')}
+        </Text>
+        <Newline />
+        <Text>
+          https://developers.google.com/gemini-code-assist/resources/privacy-notices
+        </Text>
+        <Newline />
+        <Text color={theme.text.secondary}>{t('privacy.press_esc_exit', 'Press Esc to exit.')}</Text>
+      </Box>
+    );
   }
 
   const items = [

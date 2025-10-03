@@ -1112,6 +1112,7 @@
     "loading": "Carregando...",
     "error_loading_optin": "Erro ao carregar configurações de Opt-in: {error}",
     "press_esc_exit": "Pressione Esc para sair.",
+    "auditaria_privacy_notice_title": "Aviso de Privacidade do Auditaria CLI",
     "yes": "Sim",
     "no": "Não",
     "gemini_code_assist_notice_title": "Aviso de Privacidade do Gemini Code Assist para Indivíduos",
