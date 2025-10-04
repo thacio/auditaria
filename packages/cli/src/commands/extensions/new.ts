@@ -32,22 +32,39 @@ async function pathExists(path: string) {
 
 async function copyDirectory(template: string, path: string) {
   if (await pathExists(path)) {
-    throw new Error(t('commands.extensions.new.path_exists', 'Path already exists: {path}', { path }));
+    throw new Error(
+      t('commands.extensions.new.path_exists', 'Path already exists: {path}', {
+        path,
+      }),
+    );
   }
 
   const examplePath = join(EXAMPLES_PATH, template);
   await mkdir(path, { recursive: true });
-  await cp(examplePath, path, { recursive: true });
+  const entries = await readdir(examplePath, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = join(examplePath, entry.name);
+    const destPath = join(path, entry.name);
+    await cp(srcPath, destPath, { recursive: true });
+  }
 }
 
 async function handleNew(args: NewArgs) {
   try {
     await copyDirectory(args.template, args.path);
     console.log(
-      t('commands.extensions.new.success', 'Successfully created new extension from template "{template}" at {path}.', { template: args.template, path: args.path }),
+      t(
+        'commands.extensions.new.success',
+        'Successfully created new extension from template "{template}" at {path}.',
+        { template: args.template, path: args.path },
+      ),
     );
     console.log(
-      t('commands.extensions.new.install_help', 'You can install this using "gemini extensions link {path}" to test it out.', { path: args.path }),
+      t(
+        'commands.extensions.new.install_help',
+        'You can install this using "gemini extensions link {path}" to test it out.',
+        { path: args.path },
+      ),
     );
   } catch (error) {
     console.error(getErrorMessage(error));
@@ -64,16 +81,25 @@ async function getBoilerplateChoices() {
 
 export const newCommand: CommandModule = {
   command: 'new <path> <template>',
-  describe: t('commands.extensions.new.description', 'Create a new extension from a boilerplate example.'),
+  describe: t(
+    'commands.extensions.new.description',
+    'Create a new extension from a boilerplate example.',
+  ),
   builder: async (yargs) => {
     const choices = await getBoilerplateChoices();
     return yargs
       .positional('path', {
-        describe: t('commands.extensions.new.path_description', 'The path to create the extension in.'),
+        describe: t(
+          'commands.extensions.new.path_description',
+          'The path to create the extension in.',
+        ),
         type: 'string',
       })
       .positional('template', {
-        describe: t('commands.extensions.new.template_description', 'The boilerplate template to use.'),
+        describe: t(
+          'commands.extensions.new.template_description',
+          'The boilerplate template to use.',
+        ),
         type: 'string',
         choices,
       });
