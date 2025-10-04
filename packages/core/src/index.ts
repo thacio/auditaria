@@ -55,6 +55,7 @@ export * from './utils/workspaceContext.js';
 export * from './utils/ignorePatterns.js';
 export * from './utils/partUtils.js';
 export * from './utils/promptIdContext.js';
+export * from './utils/thoughtUtils.js';
 
 // Export services
 export * from './services/fileDiscoveryService.js';
@@ -64,10 +65,7 @@ export * from './services/fileSystemService.js';
 
 // Export telemetry
 export { logIdeConnection } from './telemetry/loggers.js';
-export {
-  IdeConnectionEvent,
-  IdeConnectionType,
-} from './telemetry/types.js';
+export { IdeConnectionEvent, IdeConnectionType } from './telemetry/types.js';
 
 // Export IDE specific logic
 export * from './ide/ide-client.js';
