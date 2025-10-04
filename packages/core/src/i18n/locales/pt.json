@@ -1159,6 +1159,10 @@
   },
   "tools": {
     "output_saved": "Saída muito longa e foi salva em: {outputFile}",
+    "execution": {
+      "user_cancelled": "Usuário cancelou a execução da ferramenta.",
+      "call_aborted": "Chamada de ferramenta abortada"
+    },
     "edit": {
       "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
       "file_not_found_raw": "Arquivo não encontrado: {path}",

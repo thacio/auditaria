@@ -1091,17 +1091,28 @@ export class CoreToolScheduler {
             }
           })
           .catch((executionError: Error) => {
-            this.setStatusInternal(
-              callId,
-              'error',
-              createErrorResponse(
-                scheduledCall.request,
-                executionError instanceof Error
-                  ? executionError
-                  : new Error(String(executionError)),
-                ToolErrorType.UNHANDLED_EXCEPTION,
-              ),
-            );
+            if (signal.aborted) {
+              this.setStatusInternal(
+                callId,
+                'cancelled',
+                t(
+                  'tools.execution.user_cancelled',
+                  'User cancelled tool execution.',
+                ),
+              );
+            } else {
+              this.setStatusInternal(
+                callId,
+                'error',
+                createErrorResponse(
+                  scheduledCall.request,
+                  executionError instanceof Error
+                    ? executionError
+                    : new Error(String(executionError)),
+                  ToolErrorType.UNHANDLED_EXCEPTION,
+                ),
+              );
+            }
           });
       });
     }

@@ -1162,6 +1162,10 @@
   },
   "tools": {
     "output_saved": "Output too long and was saved to: {outputFile}",
+    "execution": {
+      "user_cancelled": "User cancelled tool execution.",
+      "call_aborted": "Tool call aborted"
+    },
     "edit": {
       "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
       "file_not_found_raw": "File not found: {path}",
