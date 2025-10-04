@@ -76,6 +76,10 @@ export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options?: Partial<RetryOptions>,
 ): Promise<T> {
+  if (options?.maxAttempts !== undefined && options.maxAttempts <= 0) {
+    throw new Error('maxAttempts must be a positive number.');
+  }
+
   const {
     initialDelayMs,
     maxDelayMs,
@@ -91,7 +95,9 @@ export async function retryWithBackoff<T>(
 
   // Adjust maxAttempts based on fallback strategy
   const threshold = useImprovedFallbackStrategy ? 7 : 2;
-  const maxAttempts = options?.maxAttempts ?? Math.max(DEFAULT_RETRY_OPTIONS.maxAttempts, threshold + 1);
+  const maxAttempts =
+    options?.maxAttempts ??
+    Math.max(DEFAULT_RETRY_OPTIONS.maxAttempts, threshold + 1);
 
   let attempt = 0;
   let currentDelay = initialDelayMs;
@@ -193,10 +199,14 @@ export async function retryWithBackoff<T>(
       // Check if we've exhausted retries or shouldn't retry
       if (attempt >= maxAttempts || !shouldRetry(error as Error)) {
         // If we're staying on Pro and hit 429s, provide helpful error message
-        if (disableFallbackForSession && errorStatus === 429 && consecutive429Count >= threshold) {
+        if (
+          disableFallbackForSession &&
+          errorStatus === 429 &&
+          consecutive429Count >= threshold
+        ) {
           throw new Error(
             'Gemini Pro is currently rate limited and fallback to Flash is disabled for this session. ' +
-            'Please try again later or use /stay-pro to enable fallback to Flash.'
+              'Please try again later or use /stay-pro to enable fallback to Flash.',
           );
         }
         throw error;
