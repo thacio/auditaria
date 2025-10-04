@@ -19,6 +19,7 @@ import { promisify } from 'node:util';
 import type { Config, SandboxConfig } from '@thacio/auditaria-cli-core';
 import { FatalSandboxError, t } from '@thacio/auditaria-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
+import { randomBytes } from 'node:crypto';
 
 const execAsync = promisify(exec);
 
@@ -330,7 +331,15 @@ export async function start_sandbox(
             process.kill(-sandboxProcess.pid, 'SIGTERM');
           }
           throw new FatalSandboxError(
-            t('errors.sandbox_proxy_failed', `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`, { command: proxyCommand, code: String(code), signal: String(signal) }),
+            t(
+              'errors.sandbox_proxy_failed',
+              `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`,
+              {
+                command: proxyCommand,
+                code: String(code),
+                signal: String(signal),
+              },
+            ),
           );
         });
         console.log('waiting for proxy to start ...');
@@ -558,18 +567,29 @@ export async function start_sandbox(
       }
     }
 
-    // name container after image, plus numeric suffix to avoid conflicts
+    // name container after image, plus random suffix to avoid conflicts
     const imageName = parseImageName(image);
-    let index = 0;
-    const containerNameCheck = execSync(
-      `${config.command} ps -a --format "{{.Names}}"`,
-    )
-      .toString()
-      .trim();
-    while (containerNameCheck.includes(`${imageName}-${index}`)) {
-      index++;
+    const isIntegrationTest =
+      process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true';
+    let containerName;
+    if (isIntegrationTest) {
+      containerName = `gemini-cli-integration-test-${randomBytes(4).toString(
+        'hex',
+      )}`;
+      console.log(`ContainerName: ${containerName}`);
+    } else {
+      let index = 0;
+      const containerNameCheck = execSync(
+        `${config.command} ps -a --format "{{.Names}}"`,
+      )
+        .toString()
+        .trim();
+      while (containerNameCheck.includes(`${imageName}-${index}`)) {
+        index++;
+      }
+      containerName = `${imageName}-${index}`;
+      console.log(`ContainerName (regular): ${containerName}`);
     }
-    const containerName = `${imageName}-${index}`;
     args.push('--name', containerName, '--hostname', containerName);
 
     // copy GEMINI_API_KEY(s)
@@ -784,7 +804,15 @@ export async function start_sandbox(
           process.kill(-sandboxProcess.pid, 'SIGTERM');
         }
         throw new FatalSandboxError(
-          t('errors.sandbox_proxy_container_failed', `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`, { command: proxyContainerCommand, code: String(code), signal: String(signal) }),
+          t(
+            'errors.sandbox_proxy_container_failed',
+            `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`,
+            {
+              command: proxyContainerCommand,
+              code: String(code),
+              signal: String(signal),
+            },
+          ),
         );
       });
       console.log('waiting for proxy to start ...');
