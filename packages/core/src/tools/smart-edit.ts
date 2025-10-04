@@ -319,8 +319,8 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
             'tools.replace.no_changes_required',
             'No changes required. The file already meets the specified conditions.',
           ),
-          raw: `A secondary check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${initialError.raw}`,
-          type: ToolErrorType.EDIT_NO_CHANGE,
+          raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${initialError.raw}`,
+          type: ToolErrorType.EDIT_NO_CHANGE_LLM_JUDGEMENT,
         },
         originalLineEnding,
       };
