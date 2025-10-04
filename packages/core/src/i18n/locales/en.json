@@ -1181,7 +1181,11 @@
       "error_display": "Error: {error}",
       "no_changes_identical": "No changes to apply. The old_string and new_string are identical.",
       "created_file": "Created {file}",
-      "error_writing_file": "Error writing file: {error}"
+      "error_writing_file": "Error writing file: {error}",
+      "file_path_empty": "The 'file_path' parameter must be non-empty.",
+      "file_not_found_not_absolute": "File not found for '{path}' and path is not absolute.",
+      "file_path_ambiguous": "The file path '{path}' is too ambiguous and matches multiple files. Please provide a more specific path. Matches: {matches}",
+      "file_path_outside_workspace": "File path must be within one of the workspace directories: {directories}"
     },
     "replace": {
       "failed_find_string": "Failed to edit, could not find the string to replace.",

@@ -1178,7 +1178,11 @@
       "error_display": "Erro: {error}",
       "no_changes_identical": "Nenhuma alteração a aplicar. A old_string e new_string são idênticas.",
       "created_file": "Criado {file}",
-      "error_writing_file": "Erro ao escrever arquivo: {error}"
+      "error_writing_file": "Erro ao escrever arquivo: {error}",
+      "file_path_empty": "O parâmetro 'file_path' não pode estar vazio.",
+      "file_not_found_not_absolute": "Arquivo não encontrado para '{path}' e o caminho não é absoluto.",
+      "file_path_ambiguous": "O caminho do arquivo '{path}' é muito ambíguo e corresponde a vários arquivos. Por favor, forneça um caminho mais específico. Correspondências: {matches}",
+      "file_path_outside_workspace": "O caminho do arquivo deve estar dentro de um dos diretórios do espaço de trabalho: {directories}"
     },
     "replace": {
       "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
