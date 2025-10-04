@@ -26,10 +26,12 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { ApprovalMode, t } from '@thacio/auditaria-cli-core';
 import { StreamingState } from '../types.js';
 import { ConfigInitDisplay } from '../components/ConfigInitDisplay.js';
+import { useLayoutConfig } from '../hooks/useLayoutConfig.js';
 
 export const Composer = () => {
   const config = useConfig();
   const settings = useSettings();
+  const layout = useLayoutConfig();
   const uiState = useUIState();
   const uiActions = useUIActions();
   const { vimEnabled, vimMode } = useVimMode();
@@ -174,17 +176,14 @@ export const Composer = () => {
             vimEnabled
               ? t(
                   'input.placeholder_vim',
-                  "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
+                  "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode.",
                 )
-              : t(
-                  'input.placeholder',
-                  '  Type your message or @path/to/file'
-                )
+              : t('input.placeholder', '  Type your message or @path/to/file')
           }
         />
       )}
 
-      {!settings.merged.ui?.hideFooter && (
+      {!settings.merged.ui?.hideFooter && layout.shouldShowFooterInComposer && (
         <Footer {...footerProps} vimMode={vimEnabled ? vimMode : undefined} />
       )}
     </Box>
