@@ -12,14 +12,14 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
+  ModelSlashCommandEvent,
+  logModelSlashCommand,
   t,
 } from '@thacio/auditaria-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
-import { ModelSlashCommandEvent } from '@thacio/auditaria-cli-core/src/telemetry/types.js';
-import { logModelSlashCommand } from '@thacio/auditaria-cli-core/src/telemetry/loggers.js';
 
 interface ModelDialogProps {
   onClose: () => void;
