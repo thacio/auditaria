@@ -88,7 +88,7 @@ export function parseGitHubRepoForReleases(source: string): {
   const parsedUrl = URL.parse(source, 'https://github.com');
   // The pathname should be "/owner/repo".
   const parts = parsedUrl?.pathname.substring(1).split('/');
-  if (parts?.length !== 2) {
+  if (parts?.length !== 2 || parsedUrl?.host !== 'github.com') {
     throw new Error(
       t(
         'commands.extensions.install.github.invalid_source',
