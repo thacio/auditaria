@@ -17,6 +17,7 @@ import {
   loadExtension,
   loadInstallMetadata,
   ExtensionStorage,
+  loadExtensionConfig,
 } from '../extension.js';
 import { checkForExtensionUpdate } from './github.js';
 
@@ -29,6 +30,7 @@ export interface ExtensionUpdateInfo {
 export async function updateExtension(
   extension: GeminiCLIExtension,
   cwd: string = process.cwd(),
+  requestConsent: (consent: string) => Promise<boolean>,
   currentState: ExtensionUpdateState,
   setExtensionUpdateState: (updateState: ExtensionUpdateState) => void,
 ): Promise<ExtensionUpdateInfo | undefined> {
@@ -62,8 +64,17 @@ export async function updateExtension(
   const tempDir = await ExtensionStorage.createTmpDir();
   try {
     await copyExtension(extension.path, tempDir);
+    const previousExtensionConfig = await loadExtensionConfig({
+      extensionDir: extension.path,
+      workspaceDir: cwd,
+    });
     await uninstallExtension(extension.name, cwd);
-    await installExtension(installMetadata, false, cwd);
+    await installExtension(
+      installMetadata,
+      requestConsent,
+      cwd,
+      previousExtensionConfig,
+    );
 
     const updatedExtensionStorage = new ExtensionStorage(extension.name);
     const updatedExtension = loadExtension({
@@ -104,6 +115,7 @@ export async function updateExtension(
 
 export async function updateAllUpdatableExtensions(
   cwd: string = process.cwd(),
+  requestConsent: (consent: string) => Promise<boolean>,
   extensions: GeminiCLIExtension[],
   extensionsState: Map<string, ExtensionUpdateState>,
   setExtensionsUpdateState: Dispatch<
@@ -122,6 +134,7 @@ export async function updateAllUpdatableExtensions(
           updateExtension(
             extension,
             cwd,
+            requestConsent,
             extensionsState.get(extension.name)!,
             (updateState) => {
               setExtensionsUpdateState((prev) => {

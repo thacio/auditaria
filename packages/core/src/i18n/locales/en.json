@@ -1324,6 +1324,7 @@
     "exclude_tools_info": "This extension will exclude the following core tools: {excludeTools}",
     "continue_prompt": "Do you want to continue? [Y/n]: ",
     "installation_cancelled": "Installation cancelled by user.",
+    "update_consent_required": "Tried to update an extension but it has some changes that require consent, please use `auditaria extensions update`.",
     "skip_error": "Warning: Skipping extension in {path}: {error}",
     "config_not_found": "Configuration file not found at {path}",
     "config_missing_field": "Invalid configuration in {path}: missing {field}",

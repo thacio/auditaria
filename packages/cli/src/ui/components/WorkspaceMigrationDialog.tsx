@@ -24,8 +24,11 @@ export function WorkspaceMigrationDialog(props: {
   const [failedExtensions, setFailedExtensions] = useState<string[]>([]);
   onOpen();
   const onMigrate = async () => {
-    const failed =
-      await performWorkspaceExtensionMigration(workspaceExtensions);
+    const failed = await performWorkspaceExtensionMigration(
+      workspaceExtensions,
+      // We aren't updating extensions, just moving them around, don't need to ask for consent.
+      async (_) => true,
+    );
     setFailedExtensions(failed);
     setMigrationComplete(true);
   };
@@ -47,8 +50,10 @@ export function WorkspaceMigrationDialog(props: {
         {failedExtensions.length > 0 ? (
           <>
             <Text color={theme.text.primary}>
-              {t('workspace_migration.failed_with_errors',
-                "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.")}
+              {t(
+                'workspace_migration.failed_with_errors',
+                "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.",
+              )}
             </Text>
             <Box flexDirection="column" marginTop={1} marginLeft={2}>
               {failedExtensions.map((failed) => (
@@ -58,8 +63,10 @@ export function WorkspaceMigrationDialog(props: {
           </>
         ) : (
           <Text color={theme.text.primary}>
-            {t('workspace_migration.complete',
-              "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit.")}
+            {t(
+              'workspace_migration.complete',
+              "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit.",
+            )}
           </Text>
         )}
       </Box>
@@ -73,13 +80,30 @@ export function WorkspaceMigrationDialog(props: {
       borderColor={theme.border.default}
       padding={1}
     >
-      <Text bold color={theme.text.primary}>{t('workspace_migration.deprecated', 'Workspace-level extensions are deprecated')}{'\n'}</Text>
-      <Text color={theme.text.primary}>{t('workspace_migration.prompt', 'Would you like to install them at the user level?')}</Text>
-      <Text color={theme.text.primary}>
-        {t('workspace_migration.definition_note', 'The extension definition will remain in your workspace directory.')}
+      <Text bold color={theme.text.primary}>
+        {t(
+          'workspace_migration.deprecated',
+          'Workspace-level extensions are deprecated',
+        )}
+        {'\n'}
       </Text>
       <Text color={theme.text.primary}>
-        {t('workspace_migration.skip_note', 'If you opt to skip, you can install them manually using the extensions install command.')}
+        {t(
+          'workspace_migration.prompt',
+          'Would you like to install them at the user level?',
+        )}
+      </Text>
+      <Text color={theme.text.primary}>
+        {t(
+          'workspace_migration.definition_note',
+          'The extension definition will remain in your workspace directory.',
+        )}
+      </Text>
+      <Text color={theme.text.primary}>
+        {t(
+          'workspace_migration.skip_note',
+          'If you opt to skip, you can install them manually using the extensions install command.',
+        )}
       </Text>
 
       <Box flexDirection="column" marginTop={1} marginLeft={2}>
@@ -90,7 +114,10 @@ export function WorkspaceMigrationDialog(props: {
       <Box marginTop={1}>
         <RadioButtonSelect
           items={[
-            { label: t('workspace_migration.install_all', 'Install all'), value: 'migrate' },
+            {
+              label: t('workspace_migration.install_all', 'Install all'),
+              value: 'migrate',
+            },
             { label: t('workspace_migration.skip', 'Skip'), value: 'skip' },
           ]}
           onSelect={(value: string) => {

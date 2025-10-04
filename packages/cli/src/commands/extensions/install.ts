@@ -5,7 +5,10 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { installExtension } from '../../config/extension.js';
+import {
+  installExtension,
+  requestConsentNonInteractive,
+} from '../../config/extension.js';
 import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
 import { t } from '@thacio/auditaria-cli-core';
 
@@ -55,7 +58,10 @@ export async function handleInstall(args: InstallArgs) {
       throw new Error('Either --source or --path must be provided.');
     }
 
-    const name = await installExtension(installMetadata, true);
+    const name = await installExtension(
+      installMetadata,
+      requestConsentNonInteractive,
+    );
     console.log(
       t(
         'commands.extensions.install.success',

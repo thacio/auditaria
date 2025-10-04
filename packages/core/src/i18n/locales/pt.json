@@ -1321,6 +1321,7 @@
     "exclude_tools_info": "Esta extensão excluirá as seguintes ferramentas principais: {excludeTools}",
     "continue_prompt": "Deseja continuar? [S/n]: ",
     "installation_cancelled": "Instalação cancelada pelo usuário.",
+    "update_consent_required": "Tentou atualizar uma extensão, mas ela tem algumas alterações que requerem consentimento, por favor use `auditaria extensions update`.",
     "skip_error": "Aviso: Pulando extensão em {path}: {error}",
     "config_not_found": "Arquivo de configuração não encontrado em {path}",
     "config_missing_field": "Configuração inválida em {path}: {field} ausente",
