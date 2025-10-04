@@ -285,7 +285,9 @@
         "success": "Nova extensão criada com sucesso a partir do modelo \"{template}\" em {path}.",
         "install_help": "Você pode instalar isso usando \"gemini extensions link {path}\" para testar.",
         "path_exists": "Caminho já existe: {path}"
-      }
+      },
+      "updates_available_singular": "Você tem 1 extensão com atualização disponível, execute \"/extensions list\" para mais informações.",
+      "updates_available_plural": "Você tem {count} extensões com atualização disponível, execute \"/extensions list\" para mais informações."
     },
     "tools": {
       "description": "listar ferramentas disponíveis do Gemini CLI",

@@ -15,7 +15,10 @@ import {
 } from '../../config/extension.js';
 import { createExtension } from '../../test-utils/createExtension.js';
 import { useExtensionUpdates } from './useExtensionUpdates.js';
-import { GEMINI_DIR, type GeminiCLIExtension } from '@thacio/auditaria-cli-core';
+import {
+  GEMINI_DIR,
+  type GeminiCLIExtension,
+} from '@thacio/auditaria-cli-core';
 import { isWorkspaceTrusted } from '../../config/trustedFolders.js';
 import { renderHook, waitFor } from '@testing-library/react';
 import { MessageType } from '../types.js';
@@ -143,7 +146,7 @@ describe('useExtensionUpdates', () => {
       expect(addItem).toHaveBeenCalledWith(
         {
           type: MessageType.INFO,
-          text: 'Extension test-extension has an update available, run "/extensions update test-extension" to install it.',
+          text: 'You have 1 extension with an update available, run "/extensions list" for more information.',
         },
         expect.any(Number),
       );

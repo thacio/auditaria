@@ -288,7 +288,9 @@
         "success": "Successfully created new extension from template \"{template}\" at {path}.",
         "install_help": "You can install this using \"gemini extensions link {path}\" to test it out.",
         "path_exists": "Path already exists: {path}"
-      }
+      },
+      "updates_available_singular": "You have 1 extension with an update available, run \"/extensions list\" for more information.",
+      "updates_available_plural": "You have {count} extensions with an update available, run \"/extensions list\" for more information."
     },
     "tools": {
       "description": "list available Gemini CLI tools",
