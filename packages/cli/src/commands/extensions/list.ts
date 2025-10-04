@@ -5,12 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import {
-  loadUserExtensions,
-  toOutputString,
-  ExtensionStorage,
-} from '../../config/extension.js';
-import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
+import { loadUserExtensions, toOutputString } from '../../config/extension.js';
 import { t } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 
@@ -23,16 +18,9 @@ export async function handleList() {
       );
       return;
     }
-    const manager = new ExtensionEnablementManager(
-      ExtensionStorage.getUserExtensionsDir(),
-    );
-    const cwd = process.cwd();
     console.log(
       extensions
-        .map((extension): string => {
-          const isEnabled = manager.isEnabled(extension.config.name, cwd);
-          return toOutputString(extension, isEnabled);
-        })
+        .map((extension, _): string => toOutputString(extension, process.cwd()))
         .join('\n\n'),
     );
   } catch (error) {
