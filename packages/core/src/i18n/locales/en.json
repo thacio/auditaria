@@ -59,6 +59,9 @@
     "settings": {
       "description": "View and edit Gemini CLI settings"
     },
+    "model": {
+      "description": "Opens a dialog to configure the model"
+    },
     "permissions": {
       "description": "Manage folder trust settings"
     },
@@ -850,6 +853,31 @@
       "supported_editors": "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.",
       "preferred_editor": "Your preferred editor is:",
       "none": "None"
+    }
+  },
+  "model_dialog": {
+    "title": "Select Model",
+    "options": {
+      "auto": {
+        "title": "Auto (recommended)",
+        "description": "Let the system choose the best model for your task"
+      },
+      "pro": {
+        "title": "Pro",
+        "description": "For complex tasks that require deep reasoning and creativity"
+      },
+      "flash": {
+        "title": "Flash",
+        "description": "For tasks that need a balance of speed and reasoning"
+      },
+      "flash_lite": {
+        "title": "Flash-Lite",
+        "description": "For simple tasks that need to be done quickly"
+      }
+    },
+    "messages": {
+      "model_flag_help": "> To use a specific Gemini model, use the --model flag.",
+      "press_esc_to_close": "(Press Esc to close)"
     }
   },
   "language_dialog": {

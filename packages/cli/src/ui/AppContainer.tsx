@@ -56,6 +56,7 @@ import { useQuotaAndFallback } from './hooks/useQuotaAndFallback.js';
 import { useEditorSettings } from './hooks/useEditorSettings.js';
 import { useSettingsCommand } from './hooks/useSettingsCommand.js';
 import { useLanguageCommand } from './hooks/useLanguageCommand.js';
+import { useModelCommand } from './hooks/useModelCommand.js';
 import { useSlashCommandProcessor } from './hooks/slashCommandProcessor.js';
 import { useVimMode } from './contexts/VimModeContext.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
@@ -440,6 +441,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
   const { isSettingsDialogOpen, openSettingsDialog, closeSettingsDialog } =
     useSettingsCommand();
 
+  const { isModelDialogOpen, openModelDialog, closeModelDialog } =
+    useModelCommand();
+
   const {
     showWorkspaceMigrationDialog,
     workspaceExtensions,
@@ -457,6 +461,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       openLanguageDialog,
       openPrivacyNotice: () => setShowPrivacyNotice(true),
       openSettingsDialog,
+      openModelDialog,
       openPermissionsDialog,
       quit: (messages: HistoryItem[]) => {
         setQuittingMessages(messages);
@@ -475,6 +480,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       openEditorDialog,
       openLanguageDialog,
       openSettingsDialog,
+      openModelDialog,
       setQuittingMessages,
       setDebugMessage,
       setShowPrivacyNotice,
@@ -1027,6 +1033,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       !!loopDetectionConfirmationRequest ||
       isThemeDialogOpen ||
       isSettingsDialogOpen ||
+      isModelDialogOpen ||
       isPermissionsDialogOpen ||
       isAuthenticating ||
       isAuthDialogOpen ||
@@ -1043,6 +1050,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       loopDetectionConfirmationRequest,
       isThemeDialogOpen,
       isSettingsDialogOpen,
+      isModelDialogOpen,
       isPermissionsDialogOpen,
       isAuthenticating,
       isAuthDialogOpen,
@@ -1377,6 +1385,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isModelDialogOpen,
       isPermissionsDialogOpen,
       slashCommands,
       pendingSlashCommandHistoryItems,
@@ -1455,6 +1464,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isModelDialogOpen,
       isPermissionsDialogOpen,
       slashCommands,
       pendingSlashCommandHistoryItems,
@@ -1532,6 +1542,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleLanguageSelect,
       exitPrivacyNotice: () => setShowPrivacyNotice(false),
       closeSettingsDialog,
+      closeModelDialog,
       closePermissionsDialog,
       setShellModeActive,
       vimHandleInput,
@@ -1556,6 +1567,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       exitEditorDialog,
       handleLanguageSelect,
       closeSettingsDialog,
+      closeModelDialog,
       closePermissionsDialog,
       setShellModeActive,
       vimHandleInput,
