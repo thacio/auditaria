@@ -1560,7 +1560,12 @@
       "editor_settings": "Configurações do editor abertas. Por favor, configure seu editor no terminal do CLI.",
       "language_selection": "Seleção de idioma aberta. Por favor, escolha um idioma no terminal do CLI.",
       "settings": "Diálogo de configurações aberto. Por favor, configure suas preferências no terminal do CLI.",
+      "model_selection": "Seleção de modelo aberta. Por favor, escolha um modelo no terminal do CLI.",
+      "folder_trust": "Diálogo de confiança de pasta aberto. Por favor, responda no terminal do CLI.",
       "privacy_notice": "Aviso de privacidade exibido. Por favor, revise no terminal do CLI.",
+      "quota_exceeded": "Diálogo de cota excedida aberto. Por favor, escolha uma opção no terminal do CLI.",
+      "shell_confirmation": "Confirmação de comando shell necessária. Por favor, responda no terminal do CLI.",
+      "confirmation": "Confirmação necessária. Por favor, responda no terminal do CLI.",
       "ide_integration": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal.",
       "pro_quota_dialog": "Limite de cota Pro atingido. Por favor, escolha se deseja alterar a autenticação ou continuar com o modelo de fallback no terminal CLI.",
       "loop_detection": "Confirmação de detecção de loop necessária. Por favor, escolha se deseja manter ou desativar a detecção de loop no terminal CLI."

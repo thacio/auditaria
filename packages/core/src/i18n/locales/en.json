@@ -1563,7 +1563,12 @@
       "editor_settings": "Editor settings are open. Please configure your editor in the CLI terminal.",
       "language_selection": "Language selection is open. Please choose a language in the CLI terminal.",
       "settings": "Settings dialog is open. Please configure your settings in the CLI terminal.",
+      "model_selection": "Model selection is open. Please choose a model in the CLI terminal.",
+      "folder_trust": "Folder trust dialog is open. Please respond in the CLI terminal.",
       "privacy_notice": "Privacy notice is displayed. Please review it in the CLI terminal.",
+      "quota_exceeded": "Quota exceeded dialog is open. Please choose an option in the CLI terminal.",
+      "shell_confirmation": "Shell command confirmation required. Please respond in the CLI terminal.",
+      "confirmation": "Confirmation required. Please respond in the CLI terminal.",
       "ide_integration": "IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.",
       "pro_quota_dialog": "Pro quota limit reached. Please choose whether to change authentication or continue with the fallback model in the CLI terminal.",
       "loop_detection": "Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal."

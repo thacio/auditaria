@@ -1144,6 +1144,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     isEditorDialogOpen ||
     isLanguageDialogOpen ||
     isSettingsDialogOpen ||
+    isModelDialogOpen ||
     showPrivacyNotice ||
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
@@ -1282,6 +1283,9 @@ Logging in with Google... Please restart Gemini CLI to continue.
       } else if (isSettingsDialogOpen) {
         message = t('web.cli_action.settings', 'Settings dialog is open. Please configure settings in the CLI terminal.');
         reason = 'settings';
+      } else if (isModelDialogOpen) {
+        message = t('web.cli_action.model_selection', 'Model selection is open. Please choose a model in the CLI terminal.');
+        reason = 'model_selection';
       } else if (isFolderTrustDialogOpen) {
         message = t('web.cli_action.folder_trust', 'Folder trust dialog is open. Please respond in the CLI terminal.');
         reason = 'folder_trust';
@@ -1318,6 +1322,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     isEditorDialogOpen,
     isLanguageDialogOpen,
     isSettingsDialogOpen,
+    isModelDialogOpen,
     isFolderTrustDialogOpen,
     showPrivacyNotice,
     proQuotaRequest,
