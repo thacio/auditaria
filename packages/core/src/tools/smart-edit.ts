@@ -204,7 +204,10 @@ export function getErrorReplaceResult(
     undefined;
   if (occurrences === 0) {
     error = {
-      display: t('tools.replace.failed_find_string', 'Failed to edit, could not find the string to replace.'),
+      display: t(
+        'tools.replace.failed_find_string',
+        'Failed to edit, could not find the string to replace.',
+      ),
       raw: `Failed to edit, 0 occurrences found for old_string (${finalOldString}). Original old_string was (${params.old_string}) in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
@@ -213,13 +216,20 @@ export function getErrorReplaceResult(
       expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
     error = {
-      display: t('tools.replace.failed_replacement_count', `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`, { expectedReplacements, occurrenceTerm, occurrences }),
+      display: t(
+        'tools.replace.failed_replacement_count',
+        `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
+        { expectedReplacements, occurrenceTerm, occurrences },
+      ),
       raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
       type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
     };
   } else if (finalOldString === finalNewString) {
     error = {
-      display: t('tools.replace.no_changes_identical', 'No changes to apply. The old_string and new_string are identical.'),
+      display: t(
+        'tools.replace.no_changes_identical',
+        'No changes to apply. The old_string and new_string are identical.',
+      ),
       raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
       type: ToolErrorType.EDIT_NO_CHANGE,
     };
@@ -305,7 +315,10 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t('tools.replace.no_changes_required', 'No changes required. The file already meets the specified conditions.'),
+          display: t(
+            'tools.replace.no_changes_required',
+            'No changes required. The file already meets the specified conditions.',
+          ),
           raw: `A secondary check determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${initialError.raw}`,
           type: ToolErrorType.EDIT_NO_CHANGE,
         },
@@ -403,7 +416,10 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t('tools.replace.file_not_found_create', 'File not found. Cannot apply edit. Use an empty old_string to create a new file.'),
+          display: t(
+            'tools.replace.file_not_found_create',
+            'File not found. Cannot apply edit. Use an empty old_string to create a new file.',
+          ),
           raw: `File not found: ${params.file_path}`,
           type: ToolErrorType.FILE_NOT_FOUND,
         },
@@ -418,7 +434,10 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t('tools.replace.failed_read_file', 'Failed to read content of file.'),
+          display: t(
+            'tools.replace.failed_read_file',
+            'Failed to read content of file.',
+          ),
           raw: `Failed to read content of existing file: ${params.file_path}`,
           type: ToolErrorType.READ_CONTENT_FAILURE,
         },
@@ -433,7 +452,10 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t('tools.replace.failed_create_exists', 'Failed to edit. Attempted to create a file that already exists.'),
+          display: t(
+            'tools.replace.failed_create_exists',
+            'Failed to edit. Attempted to create a file that already exists.',
+          ),
           raw: `File already exists, cannot create: ${params.file_path}`,
           type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
         },
@@ -491,13 +513,26 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     try {
       editData = await this.calculateEdit(this.params, abortSignal);
     } catch (error) {
+      if (abortSignal.aborted) {
+        throw error;
+      }
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log(t('tools.replace.error_preparing_edit', `Error preparing edit: ${errorMsg}`, { errorMsg }));
+      console.log(
+        t(
+          'tools.replace.error_preparing_edit',
+          `Error preparing edit: ${errorMsg}`,
+          { errorMsg },
+        ),
+      );
       return false;
     }
 
     if (editData.error) {
-      console.log(t('tools.replace.error_display', `Error: ${editData.error.display}`, { error: editData.error.display }));
+      console.log(
+        t('tools.replace.error_display', `Error: ${editData.error.display}`, {
+          error: editData.error.display,
+        }),
+      );
       return false;
     }
 
@@ -576,6 +611,9 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     try {
       editData = await this.calculateEdit(this.params, signal);
     } catch (error) {
+      if (signal.aborted) {
+        throw error;
+      }
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         llmContent: `Error preparing edit: ${errorMsg}`,
@@ -612,7 +650,15 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
 
       let displayResult: ToolResultDisplay;
       if (editData.isNewFile) {
-        displayResult = t('tools.replace.created_file_short', `Created ${shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir()))}`, { file: shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir())) });
+        displayResult = t(
+          'tools.replace.created_file_short',
+          `Created ${shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir()))}`,
+          {
+            file: shortenPath(
+              makeRelative(this.params.file_path, this.config.getTargetDir()),
+            ),
+          },
+        );
       } else {
         // Generate diff for display, even though core logic doesn't technically need it
         // The CLI wrapper will use this part of the ToolResult
@@ -644,8 +690,19 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
 
       const llmSuccessMessageParts = [
         editData.isNewFile
-          ? t('tools.replace.created_new_file', `Created new file: ${this.params.file_path} with provided content.`, { file: this.params.file_path })
-          : t('tools.replace.modified_file', `Successfully modified file: ${this.params.file_path} (${editData.occurrences} replacements).`, { file: this.params.file_path, occurrences: editData.occurrences }),
+          ? t(
+              'tools.replace.created_new_file',
+              `Created new file: ${this.params.file_path} with provided content.`,
+              { file: this.params.file_path },
+            )
+          : t(
+              'tools.replace.modified_file',
+              `Successfully modified file: ${this.params.file_path} (${editData.occurrences} replacements).`,
+              {
+                file: this.params.file_path,
+                occurrences: editData.occurrences,
+              },
+            ),
       ];
       if (this.params.modified_by_user) {
         llmSuccessMessageParts.push(

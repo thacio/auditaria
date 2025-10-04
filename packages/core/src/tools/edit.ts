@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '../i18n/index.js';
 
 import * as fs from 'node:fs';
@@ -154,8 +155,13 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     } else if (!fileExists) {
       // Trying to edit a nonexistent file (and old_string is not empty)
       error = {
-        display: t('tools.edit.file_not_found_create', 'File not found. Cannot apply edit. Use an empty old_string to create a new file.'),
-        raw: t('tools.edit.file_not_found_raw', 'File not found: {path}', { path: params.file_path }),
+        display: t(
+          'tools.edit.file_not_found_create',
+          'File not found. Cannot apply edit. Use an empty old_string to create a new file.',
+        ),
+        raw: t('tools.edit.file_not_found_raw', 'File not found: {path}', {
+          path: params.file_path,
+        }),
         type: ToolErrorType.FILE_NOT_FOUND,
       };
     } else if (currentContent !== null) {
@@ -175,13 +181,19 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       if (params.old_string === '') {
         // Error: Trying to create a file that already exists
         error = {
-          display: t('tools.edit.failed_create_exists', 'Failed to edit. Attempted to create a file that already exists.'),
+          display: t(
+            'tools.edit.failed_create_exists',
+            'Failed to edit. Attempted to create a file that already exists.',
+          ),
           raw: `File already exists, cannot create: ${params.file_path}`,
           type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
         };
       } else if (occurrences === 0) {
         error = {
-          display: t('tools.edit.failed_find_string', 'Failed to edit, could not find the string to replace.'),
+          display: t(
+            'tools.edit.failed_find_string',
+            'Failed to edit, could not find the string to replace.',
+          ),
           raw: `Failed to edit, 0 occurrences found for old_string in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${ReadFileTool.Name} tool to verify.`,
           type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
         };
@@ -190,13 +202,24 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
           expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
         error = {
-          display: t('tools.edit.failed_replacement_count', 'Failed to edit, expected {expected} {term} but found {found}.', { expected: expectedReplacements, term: occurrenceTerm, found: occurrences }),
+          display: t(
+            'tools.edit.failed_replacement_count',
+            'Failed to edit, expected {expected} {term} but found {found}.',
+            {
+              expected: expectedReplacements,
+              term: occurrenceTerm,
+              found: occurrences,
+            },
+          ),
           raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
           type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
         };
       } else if (finalOldString === finalNewString) {
         error = {
-          display: t('tools.edit.no_changes_identical', 'No changes to apply. The old_string and new_string are identical.'),
+          display: t(
+            'tools.edit.no_changes_identical',
+            'No changes to apply. The old_string and new_string are identical.',
+          ),
           raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
           type: ToolErrorType.EDIT_NO_CHANGE,
         };
@@ -252,6 +275,9 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     try {
       editData = await this.calculateEdit(this.params, abortSignal);
     } catch (error) {
+      if (abortSignal.aborted) {
+        throw error;
+      }
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.log(`Error preparing edit: ${errorMsg}`);
       return false;
@@ -337,10 +363,17 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     try {
       editData = await this.calculateEdit(this.params, signal);
     } catch (error) {
+      if (signal.aborted) {
+        throw error;
+      }
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         llmContent: `Error preparing edit: ${errorMsg}`,
-        returnDisplay: t('tools.edit.error_preparing_edit', 'Error preparing edit: {error}', { error: errorMsg }),
+        returnDisplay: t(
+          'tools.edit.error_preparing_edit',
+          'Error preparing edit: {error}',
+          { error: errorMsg },
+        ),
         error: {
           message: errorMsg,
           type: ToolErrorType.EDIT_PREPARATION_FAILURE,
@@ -351,7 +384,9 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     if (editData.error) {
       return {
         llmContent: editData.error.raw,
-        returnDisplay: t('tools.edit.error_display', 'Error: {error}', { error: editData.error.display }),
+        returnDisplay: t('tools.edit.error_display', 'Error: {error}', {
+          error: editData.error.display,
+        }),
         error: {
           message: editData.error.raw,
           type: editData.error.type,
@@ -432,7 +467,11 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         llmContent: `Error executing edit: ${errorMsg}`,
-        returnDisplay: t('tools.edit.error_writing_file', 'Error writing file: {error}', { error: errorMsg }),
+        returnDisplay: t(
+          'tools.edit.error_writing_file',
+          'Error writing file: {error}',
+          { error: errorMsg },
+        ),
         error: {
           message: errorMsg,
           type: ToolErrorType.FILE_WRITE_FAILURE,
