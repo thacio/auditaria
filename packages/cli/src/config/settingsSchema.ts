@@ -363,11 +363,17 @@ const SETTINGS_SCHEMA = {
       },
       customWittyPhrases: {
         type: 'array',
-        label: t('settings_dialog.labels.custom_witty_phrases', 'Custom Witty Phrases'),
+        label: t(
+          'settings_dialog.labels.custom_witty_phrases',
+          'Custom Witty Phrases',
+        ),
         category: 'UI',
         requiresRestart: false,
         default: [] as string[],
-        description: t('settings_dialog.descriptions.custom_witty_phrases', 'Custom witty phrases to display during loading.'),
+        description: t(
+          'settings_dialog.descriptions.custom_witty_phrases',
+          'Custom witty phrases to display during loading.',
+        ),
         showInDialog: false,
       },
       accessibility: {
@@ -695,7 +701,10 @@ const SETTINGS_SCHEMA = {
         category: 'Tools',
         requiresRestart: false,
         default: false,
-        description: t('settings_dialog.descriptions.auto_accept', 'Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).'),
+        description: t(
+          'settings_dialog.descriptions.auto_accept',
+          'Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).',
+        ),
         showInDialog: true,
       },
       core: {
@@ -766,32 +775,47 @@ const SETTINGS_SCHEMA = {
       },
       truncateToolOutputThreshold: {
         type: 'number',
-        label: t('settings.tools.truncate_output_threshold.label', 'Tool Output Truncation Threshold'),
+        label: t(
+          'settings.tools.truncate_output_threshold.label',
+          'Tool Output Truncation Threshold',
+        ),
         category: 'General',
         requiresRestart: true,
         default: DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
-        description: t('settings.tools.truncate_output_threshold.description',
-          'Truncate tool output if it is larger than this many characters. Set to -1 to disable.'),
+        description: t(
+          'settings.tools.truncate_output_threshold.description',
+          'Truncate tool output if it is larger than this many characters. Set to -1 to disable.',
+        ),
         showInDialog: true,
       },
       truncateToolOutputLines: {
         type: 'number',
-        label: t('settings.tools.truncate_output_lines.label', 'Tool Output Truncation Lines'),
+        label: t(
+          'settings.tools.truncate_output_lines.label',
+          'Tool Output Truncation Lines',
+        ),
         category: 'General',
         requiresRestart: true,
         default: DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
-        description: t('settings.tools.truncate_output_lines.description',
-          'The number of lines to keep when truncating tool output.'),
+        description: t(
+          'settings.tools.truncate_output_lines.description',
+          'The number of lines to keep when truncating tool output.',
+        ),
         showInDialog: true,
       },
       enableMessageBusIntegration: {
         type: 'boolean',
-        label: t('settings.tools.enable_message_bus_integration.label', 'Enable Message Bus Integration'),
+        label: t(
+          'settings.tools.enable_message_bus_integration.label',
+          'Enable Message Bus Integration',
+        ),
         category: 'Tools',
         requiresRestart: true,
         default: false,
-        description: t('settings.tools.enable_message_bus_integration.description',
-          'Enable policy-based tool confirmation via message bus integration. When enabled, tools will automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations.'),
+        description: t(
+          'settings.tools.enable_message_bus_integration.description',
+          'Enable policy-based tool confirmation via message bus integration. When enabled, tools will automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations.',
+        ),
         showInDialog: true,
       },
     },
@@ -996,10 +1020,10 @@ const SETTINGS_SCHEMA = {
         label: 'Use Model Router',
         category: 'Experimental',
         requiresRestart: true,
-        default: false,
+        default: true,
         description:
           'Enable model routing to route requests to the best model based on complexity.',
-        showInDialog: false,
+        showInDialog: true,
       },
     },
   },
