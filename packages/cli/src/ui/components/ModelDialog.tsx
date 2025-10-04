@@ -18,6 +18,8 @@ import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
+import { ModelSlashCommandEvent } from '@thacio/auditaria-cli-core/src/telemetry/types.js';
+import { logModelSlashCommand } from '@thacio/auditaria-cli-core/src/telemetry/loggers.js';
 
 interface ModelDialogProps {
   onClose: () => void;
@@ -27,22 +29,34 @@ const MODEL_OPTIONS = [
   {
     value: DEFAULT_GEMINI_MODEL_AUTO,
     title: t('model_dialog.options.auto.title', 'Auto (recommended)'),
-    description: t('model_dialog.options.auto.description', 'Let the system choose the best model for your task'),
+    description: t(
+      'model_dialog.options.auto.description',
+      'Let the system choose the best model for your task',
+    ),
   },
   {
     value: DEFAULT_GEMINI_MODEL,
     title: t('model_dialog.options.pro.title', 'Pro'),
-    description: t('model_dialog.options.pro.description', 'For complex tasks that require deep reasoning and creativity'),
+    description: t(
+      'model_dialog.options.pro.description',
+      'For complex tasks that require deep reasoning and creativity',
+    ),
   },
   {
     value: DEFAULT_GEMINI_FLASH_MODEL,
     title: t('model_dialog.options.flash.title', 'Flash'),
-    description: t('model_dialog.options.flash.description', 'For tasks that need a balance of speed and reasoning'),
+    description: t(
+      'model_dialog.options.flash.description',
+      'For tasks that need a balance of speed and reasoning',
+    ),
   },
   {
     value: DEFAULT_GEMINI_FLASH_LITE_MODEL,
     title: t('model_dialog.options.flash_lite.title', 'Flash-Lite'),
-    description: t('model_dialog.options.flash_lite.description', 'For simple tasks that need to be done quickly'),
+    description: t(
+      'model_dialog.options.flash_lite.description',
+      'For simple tasks that need to be done quickly',
+    ),
   },
 ];
 
@@ -72,6 +86,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     (model: string) => {
       if (config) {
         config.setModel(model);
+        const event = new ModelSlashCommandEvent(model);
+        logModelSlashCommand(config, event);
       }
       onClose();
     },
@@ -97,11 +113,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       </Box>
       <Box flexDirection="column">
         <Text color={theme.text.secondary}>
-          {t('model_dialog.messages.model_flag_help', '> To use a specific Gemini model, use the --model flag.')}
+          {t(
+            'model_dialog.messages.model_flag_help',
+            '> To use a specific Gemini model, use the --model flag.',
+          )}
         </Text>
       </Box>
       <Box marginTop={1} flexDirection="column">
-        <Text color={theme.text.secondary}>{t('model_dialog.messages.press_esc_to_close', '(Press Esc to close)')}</Text>
+        <Text color={theme.text.secondary}>
+          {t(
+            'model_dialog.messages.press_esc_to_close',
+            '(Press Esc to close)',
+          )}
+        </Text>
       </Box>
     </Box>
   );
