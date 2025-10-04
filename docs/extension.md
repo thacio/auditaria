@@ -19,7 +19,7 @@ You can install an extension using `auditaria extensions install` with either a 
 Note that we create a copy of the installed extension, so you will need to run `auditaria extensions update` to pull in changes from both locally-defined extensions and those on GitHub.
 
 ```
-auditaria extensions install https://github.com/google-gemini/gemini-cli-security
+auditaria extensions install https://github.com/gemini-cli-extensions/security
 ```
 
 This will install the Gemini CLI Security extension, which offers support for a `/security:analyze` command.
