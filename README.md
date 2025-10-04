@@ -3,8 +3,6 @@
 [![Version](https://img.shields.io/github/v/release/thacio/auditaria)](https://github.com/thacio/auditaria/releases)
 [![License](https://img.shields.io/github/license/thacio/auditaria)](https://github.com/thacio/auditaria/blob/main/LICENSE)
 
-
-
 - [Jump to English Instructions](#english)
 - [Instruções em Português (BR)](#português)
 
@@ -69,6 +67,7 @@ Baixe os executáveis Windows pré-compilados da [página de releases](https://g
 - **`auditaria-launcher.exe`** - Launcher com interface gráfica para selecionar diretório de trabalho (~125MB)
 
 **⚠️ Aviso de Segurança Corporativa**: Os executáveis são compilados usando Bun e não são assinados digitalmente. Políticas corporativas de segurança podem bloquear a execução. Você pode precisar:
+
 - Adicionar uma exceção no antivírus
 - Executar como administrador
 - Usar a instalação via npm como alternativa
@@ -102,8 +101,6 @@ npm install -g .
 
 ### Configuração de Firewall Corporativo (MITM)
 
-
-
 **⚠️ AVISO DE SEGURANÇA**: Desabilitar a verificação SSL pode representar uma falha de segurança. No entanto, em ambientes corporativos com firewall MITM, o npm recusará a instalação porque o firewall substitui os certificados SSL originais por seus próprios certificados para inspecionar o tráfego. Isso faz com que o npm detecte um certificado "não confiável" e bloqueie a instalação. **Use estas configurações apenas em redes corporativas confiáveis onde a TI controla a infraestrutura.**
 
 #### Configuração do NPM para Instalação
@@ -116,16 +113,19 @@ npm install -g https://github.com/thacio/auditaria/releases/latest/download/audi
 #### Configuração de Execução
 
 ##### Windows Command Prompt (cmd)
+
 ```cmd
 set NODE_TLS_REJECT_UNAUTHORIZED=0 && auditaria
 ```
 
 ##### Windows PowerShell
+
 ```powershell
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"; auditaria
 ```
 
 ##### Linux/macOS
+
 ```bash
 NODE_TLS_REJECT_UNAUTHORIZED=0 auditaria
 ```
@@ -139,6 +139,7 @@ Escolha o método de autenticação que melhor atende às suas necessidades:
 **✨ Melhor para:** Desenvolvedores individuais e qualquer pessoa com licença Gemini Code Assist
 
 **Benefícios:**
+
 - **Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia
 - **Gemini 2.5 Pro** com janela de contexto de 1M tokens
 - **Sem gerenciamento de chave API** - apenas faça login com sua conta Google
@@ -154,6 +155,7 @@ auditaria
 **✨ Melhor para:** Desenvolvedores que precisam de controle específico do modelo ou acesso pago
 
 **Benefícios:**
+
 - **Nível gratuito**: 100 solicitações/dia com Gemini 2.5 Pro
 - **Seleção de modelo**: Escolha modelos Gemini específicos
 - **Cobrança baseada em uso**: Atualize para limites mais altos quando necessário
@@ -169,6 +171,7 @@ auditaria
 **✨ Melhor para:** Equipes empresariais e cargas de trabalho de produção
 
 **Benefícios:**
+
 - **Recursos empresariais**: Segurança e conformidade avançadas
 - **Escalável**: Limites de taxa mais altos com conta de cobrança
 - **Integração**: Funciona com infraestrutura existente do Google Cloud
@@ -185,21 +188,25 @@ auditaria
 ### Uso Básico
 
 #### Iniciar no diretório atual
+
 ```bash
 auditaria
 ```
 
 #### Incluir múltiplos diretórios
+
 ```bash
 auditaria --include-directories ../lib,../docs
 ```
 
 #### Usar modelo específico
+
 ```bash
 auditaria -m gemini-2.5-flash
 ```
 
 #### Modo não interativo para scripts
+
 ```bash
 auditaria -p "Explique a arquitetura desta base de código"
 ```
@@ -216,6 +223,7 @@ A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI
 ### Exemplos Rápidos
 
 #### Iniciar um novo projeto
+
 ```bash
 cd novo-projeto/
 auditaria
@@ -223,6 +231,7 @@ auditaria
 ```
 
 #### Analisar código existente
+
 ```bash
 git clone https://github.com/thacio/auditaria
 cd auditaria
@@ -311,6 +320,7 @@ Veja o [Guia de Desinstalação](docs/Uninstall.md) para instruções de remoç�
 ---
 
 <a id="english"></a>
+
 # Auditaria CLI
 
 ![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
@@ -371,8 +381,9 @@ Download pre-compiled Windows executables from the [releases page](https://githu
 - **`auditaria-launcher.exe`** - GUI launcher to select working directory (~125MB)
 
 **⚠️ Corporate Security Warning**: The executables are compiled using Bun and are not digitally signed. Corporate security policies may block execution. You may need to:
+
 - Add an antivirus exception
-- Run as administrator  
+- Run as administrator
 - Use npm installation as an alternative
 
 ### Quick Install with Node.js
@@ -444,16 +455,19 @@ npm install -g https://github.com/thacio/auditaria/releases/latest/download/audi
 #### Runtime Configuration
 
 ##### Windows Command Prompt (cmd)
+
 ```cmd
 set NODE_TLS_REJECT_UNAUTHORIZED=0 && auditaria
 ```
 
 ##### Windows PowerShell
+
 ```powershell
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"; auditaria
 ```
 
 ##### Linux/macOS
+
 ```bash
 NODE_TLS_REJECT_UNAUTHORIZED=0 auditaria
 ```
@@ -464,13 +478,20 @@ Choose the authentication method that best fits your needs:
 
 ### Option 1: Login with Google (OAuth login using your Google Account)
 
-**✨ Best for:** Individual developers as well as anyone who has a Gemini Code Assist License
+**✨ Best for:**
+
+- Individual developers.
+- Google AI Pro and AI Ultra subscribers.
+- Anyone who has a Gemini Code Assist license.
+
+_See [quota limits and terms of service](https://cloud.google.com/gemini/docs/quotas) for details._
 
 **Benefits:**
-- **Free tier**: 60 requests/min and 1,000 requests/day
-- **Gemini 2.5 Pro** with 1M token context window
+
+- **Free tier** with 60 requests/min and 1,000 requests/day
+- **Gemini 2.5 Pro and Flash** with 1M token context window
 - **No API key management** - just sign in with your Google account
-- **Automatic updates** to latest models
+- **Automatic updates** to our latest models
 
 #### Start Auditaria CLI, then choose _Login with Google_ and follow the browser authentication flow when prompted
 
@@ -483,6 +504,7 @@ auditaria
 **✨ Best for:** Developers who need specific model control or paid tier access
 
 **Benefits:**
+
 - **Free tier**: 100 requests/day with Gemini 2.5 Pro
 - **Model selection**: Choose specific Gemini models
 - **Usage-based billing**: Upgrade for higher limits when needed
@@ -498,6 +520,7 @@ auditaria
 **✨ Best for:** Enterprise teams and production workloads
 
 **Benefits:**
+
 - **Enterprise features**: Advanced security and compliance
 - **Scalable**: Higher rate limits with billing account
 - **Integration**: Works with existing Google Cloud infrastructure
@@ -514,16 +537,19 @@ auditaria
 ### Basic Usage
 
 #### Start in current directory
+
 ```bash
 auditaria
 ```
 
 #### Include multiple directories
+
 ```bash
 auditaria --include-directories ../lib,../docs
 ```
 
 #### Use specific model
+
 ```bash
 auditaria -m gemini-2.5-flash
 ```
