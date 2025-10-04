@@ -80,6 +80,10 @@ export async function retryWithBackoff<T>(
     throw new Error('maxAttempts must be a positive number.');
   }
 
+  const cleanOptions = options
+    ? Object.fromEntries(Object.entries(options).filter(([_, v]) => v != null))
+    : {};
+
   const {
     initialDelayMs,
     maxDelayMs,
@@ -90,7 +94,7 @@ export async function retryWithBackoff<T>(
     disableFallbackForSession,
   } = {
     ...DEFAULT_RETRY_OPTIONS,
-    ...options,
+    ...cleanOptions,
   };
 
   // Adjust maxAttempts based on fallback strategy
