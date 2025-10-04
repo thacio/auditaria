@@ -1114,7 +1114,8 @@
     },
     "permissions": {
       "commands_not_on_allowlist": "Command(s) not on the global or session allowlist. Disallowed commands: {commands}",
-      "commands_not_in_allowed_list": "Command(s) not in the allowed commands list. Disallowed commands: {commands}"
+      "commands_not_in_allowed_list": "Command(s) not in the allowed commands list. Disallowed commands: {commands}",
+      "command_substitution_not_allowed": "Command substitution using $(), `` ` ``, <(), or >() is not allowed for security reasons"
     }
   },
   "at_command": {

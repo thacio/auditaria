@@ -267,6 +267,11 @@ export function detectCommandSubstitution(command: string): boolean {
         return true;
       }
 
+      // >(...) process substitution - works unquoted only (not in double quotes)
+      if (char === '>' && nextChar === '(' && !inDoubleQuotes && !inBackticks) {
+        return true;
+      }
+
       // Backtick command substitution - check for opening backtick
       // (We track the state above, so this catches the start of backtick substitution)
       if (char === '`' && !inBackticks) {
@@ -319,8 +324,10 @@ export function checkCommandPermissions(
     return {
       allAllowed: false,
       disallowedCommands: [command],
-      blockReason:
-        'Command substitution using $(), <(), or >() is not allowed for security reasons',
+      blockReason: t(
+        'shell.permissions.command_substitution_not_allowed',
+        'Command substitution using $(), `` ` ``, <(), or >() is not allowed for security reasons',
+      ),
       isHardDenial: true,
     };
   }
