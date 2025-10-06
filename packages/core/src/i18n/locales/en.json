@@ -435,6 +435,11 @@
         "success_with_content": "Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).",
         "success_no_content": "Memory refreshed successfully. No memory content found.",
         "error": "Error refreshing memory: {error}"
+      },
+      "list": {
+        "description": "Lists the paths of the GEMINI.md files in use.",
+        "no_files": "No GEMINI.md files in use.",
+        "files_in_use": "There are {fileCount} GEMINI.md file(s) in use:\n\n{filePaths}"
       }
     },
     "help": {

@@ -432,6 +432,11 @@
         "success_with_content": "Memória atualizada com sucesso. Carregados {charCount} caracteres de {fileCount} arquivo(s).",
         "success_no_content": "Memória atualizada com sucesso. Nenhum conteúdo de memória encontrado.",
         "error": "Erro ao atualizar memória: {error}"
+      },
+      "list": {
+        "description": "Lista os caminhos dos arquivos GEMINI.md em uso.",
+        "no_files": "Nenhum arquivo GEMINI.md em uso.",
+        "files_in_use": "Existem {fileCount} arquivo(s) GEMINI.md em uso:\n\n{filePaths}"
       }
     },
     "help": {
