@@ -35,6 +35,8 @@ import { applyReplacement } from './edit.js';
 import { safeLiteralReplace } from '../utils/textUtils.js';
 import { SmartEditStrategyEvent } from '../telemetry/types.js';
 import { logSmartEditStrategy } from '../telemetry/loggers.js';
+import { SmartEditCorrectionEvent } from '../telemetry/types.js';
+import { logSmartEditCorrectionEvent } from '../telemetry/loggers.js';
 
 interface ReplacementContext {
   params: EditToolParams;
@@ -430,7 +432,10 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
     );
 
     if (secondError) {
-      // The fix failed, return the original error
+      // The fix failed, log failure and return the original error
+      const event = new SmartEditCorrectionEvent('failure');
+      logSmartEditCorrectionEvent(this.config, event);
+
       return {
         currentContent,
         newContent: currentContent,
@@ -440,6 +445,9 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         originalLineEnding,
       };
     }
+
+    const event = new SmartEditCorrectionEvent('success');
+    logSmartEditCorrectionEvent(this.config, event);
 
     return {
       currentContent,
