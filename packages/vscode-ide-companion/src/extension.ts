@@ -20,11 +20,9 @@ const INFO_MESSAGE_SHOWN_KEY = 'geminiCliInfoMessageShown';
 export const DIFF_SCHEME = 'gemini-diff';
 
 /**
- * IDE environments where the installation greeting is hidden.  In these
- * environments we either are pre-installed and the installation message is
- * confusing or we just want to be quiet.
+ * In these environments the companion extension is installed and managed by the IDE instead of the user.
  */
-const HIDE_INSTALLATION_GREETING_IDES: ReadonlySet<IdeInfo['name']> = new Set([
+const MANAGED_EXTENSION_SURFACES: ReadonlySet<IdeInfo['name']> = new Set([
   IDE_DEFINITIONS.firebasestudio.name,
   IDE_DEFINITIONS.cloudshell.name,
 ]);
@@ -37,6 +35,7 @@ let log: (message: string) => void = () => {};
 async function checkForUpdates(
   context: vscode.ExtensionContext,
   log: (message: string) => void,
+  isManagedExtensionSurface: boolean,
 ) {
   try {
     const currentVersion = context.extension.packageJSON.version;
@@ -81,7 +80,11 @@ async function checkForUpdates(
     // The versions are sorted by date, so the first one is the latest.
     const latestVersion = extension?.versions?.[0]?.version;
 
-    if (latestVersion && semver.gt(latestVersion, currentVersion)) {
+    if (
+      !isManagedExtensionSurface &&
+      latestVersion &&
+      semver.gt(latestVersion, currentVersion)
+    ) {
       const selection = await vscode.window.showInformationMessage(
         `A new version (${latestVersion}) of the Gemini CLI Companion extension is available.`,
         'Update to latest version',
@@ -105,7 +108,11 @@ export async function activate(context: vscode.ExtensionContext) {
   log = createLogger(context, logger);
   log('Extension activated');
 
-  checkForUpdates(context, log);
+  const isManagedExtensionSurface = MANAGED_EXTENSION_SURFACES.has(
+    detectIdeFromEnv().name,
+  );
+
+  checkForUpdates(context, log, isManagedExtensionSurface);
 
   const diffContentProvider = new DiffContentProvider();
   const diffManager = new DiffManager(log, diffContentProvider);
@@ -148,11 +155,10 @@ export async function activate(context: vscode.ExtensionContext) {
     log(`Failed to start IDE server: ${message}`);
   }
 
-  const infoMessageEnabled = !HIDE_INSTALLATION_GREETING_IDES.has(
-    detectIdeFromEnv().name,
-  );
-
-  if (!context.globalState.get(INFO_MESSAGE_SHOWN_KEY) && infoMessageEnabled) {
+  if (
+    !context.globalState.get(INFO_MESSAGE_SHOWN_KEY) &&
+    !isManagedExtensionSurface
+  ) {
     void vscode.window.showInformationMessage(
       'Gemini CLI Companion extension successfully installed.',
     );
@@ -166,34 +172,37 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidGrantWorkspaceTrust(() => {
       ideServer.syncEnvVars();
     }),
-    vscode.commands.registerCommand('auditaria-cli.runAuditariaCLI', async () => {
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders || workspaceFolders.length === 0) {
-        vscode.window.showInformationMessage(
-          'No folder open. Please open a folder to run Auditaria CLI.',
-        );
-        return;
-      }
+    vscode.commands.registerCommand(
+      'auditaria-cli.runAuditariaCLI',
+      async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+          vscode.window.showInformationMessage(
+            'No folder open. Please open a folder to run Auditaria CLI.',
+          );
+          return;
+        }
 
-      let selectedFolder: vscode.WorkspaceFolder | undefined;
-      if (workspaceFolders.length === 1) {
-        selectedFolder = workspaceFolders[0];
-      } else {
-        selectedFolder = await vscode.window.showWorkspaceFolderPick({
-          placeHolder: 'Select a folder to run Auditaria CLI in',
-        });
-      }
+        let selectedFolder: vscode.WorkspaceFolder | undefined;
+        if (workspaceFolders.length === 1) {
+          selectedFolder = workspaceFolders[0];
+        } else {
+          selectedFolder = await vscode.window.showWorkspaceFolderPick({
+            placeHolder: 'Select a folder to run Auditaria CLI in',
+          });
+        }
 
-      if (selectedFolder) {
-        const auditariaCmd = 'auditaria';
-        const terminal = vscode.window.createTerminal({
-          name: `Auditaria CLI (${selectedFolder.name})`,
-          cwd: selectedFolder.uri.fsPath,
-        });
-        terminal.show();
-        terminal.sendText(auditariaCmd);
-      }
-    }),
+        if (selectedFolder) {
+          const auditariaCmd = 'auditaria';
+          const terminal = vscode.window.createTerminal({
+            name: `Auditaria CLI (${selectedFolder.name})`,
+            cwd: selectedFolder.uri.fsPath,
+          });
+          terminal.show();
+          terminal.sendText(auditariaCmd);
+        }
+      },
+    ),
     vscode.commands.registerCommand('auditaria-cli.showNotices', async () => {
       const noticePath = vscode.Uri.joinPath(
         context.extensionUri,
