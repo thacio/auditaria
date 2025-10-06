@@ -33,6 +33,8 @@ import { FixLLMEditWithInstruction } from '../utils/llm-edit-fixer.js';
 import { t } from '../i18n/index.js';
 import { applyReplacement } from './edit.js';
 import { safeLiteralReplace } from '../utils/textUtils.js';
+import { SmartEditStrategyEvent } from '../telemetry/types.js';
+import { logSmartEditStrategy } from '../telemetry/loggers.js';
 
 interface ReplacementContext {
   params: EditToolParams;
@@ -230,6 +232,7 @@ function detectLineEnding(content: string): '\r\n' | '\n' {
 }
 
 export async function calculateReplacement(
+  config: Config,
   context: ReplacementContext,
 ): Promise<ReplacementResult> {
   const { currentContent, params } = context;
@@ -248,16 +251,22 @@ export async function calculateReplacement(
 
   const exactResult = await calculateExactReplacement(context);
   if (exactResult) {
+    const event = new SmartEditStrategyEvent('exact');
+    logSmartEditStrategy(config, event);
     return exactResult;
   }
 
   const flexibleResult = await calculateFlexibleReplacement(context);
   if (flexibleResult) {
+    const event = new SmartEditStrategyEvent('flexible');
+    logSmartEditStrategy(config, event);
     return flexibleResult;
   }
 
   const regexResult = await calculateRegexReplacement(context);
   if (regexResult) {
+    const event = new SmartEditStrategyEvent('regex');
+    logSmartEditStrategy(config, event);
     return regexResult;
   }
 
@@ -402,7 +411,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       };
     }
 
-    const secondAttemptResult = await calculateReplacement({
+    const secondAttemptResult = await calculateReplacement(this.config, {
       params: {
         ...params,
         old_string: fixedEdit.search,
@@ -539,7 +548,7 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
       };
     }
 
-    const replacementResult = await calculateReplacement({
+    const replacementResult = await calculateReplacement(this.config, {
       params,
       currentContent,
       abortSignal,
