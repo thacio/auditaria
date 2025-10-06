@@ -3,20 +3,28 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
 
-import React, { useState, useEffect } from 'react';
+import { t , discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
+
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
-import { discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
-import type { LanguageInfo, SupportedLanguage } from '@thacio/auditaria-cli-core';
+import type { LoadedSettings} from '../../config/settings.js';
+import { SettingScope } from '../../config/settings.js';
+import type {
+  LanguageInfo,
+  SupportedLanguage,
+} from '@thacio/auditaria-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface LanguageSelectionDialogProps {
   /** Callback function when a language is selected */
-  onSelect: (languageCode: SupportedLanguage | undefined, scope: SettingScope) => void;
+  onSelect: (
+    languageCode: SupportedLanguage | undefined,
+    scope: SettingScope,
+  ) => void;
   /** The settings object */
   settings: LoadedSettings;
   /** Whether this is the first-time setup (prevents escape exit) */
@@ -31,7 +39,9 @@ export function LanguageSelectionDialog({
   const [selectedScope, setSelectedScope] = useState<SettingScope>(
     SettingScope.User,
   );
-  const [availableLanguages, setAvailableLanguages] = useState<LanguageInfo[]>([]);
+  const [availableLanguages, setAvailableLanguages] = useState<LanguageInfo[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -43,11 +53,16 @@ export function LanguageSelectionDialog({
         setAvailableLanguages(languages);
       } catch (error) {
         console.error('Failed to load available languages:', error);
-        setErrorMessage(t('language_dialog.errors.failed_to_load', 'Failed to load available languages. Using defaults.'));
+        setErrorMessage(
+          t(
+            'language_dialog.errors.failed_to_load',
+            'Failed to load available languages. Using defaults.',
+          ),
+        );
         // Fallback to default languages
         setAvailableLanguages([
           { code: 'en', name: 'English', nativeName: 'English' },
-          { code: 'pt', name: 'Portuguese', nativeName: 'Português' }
+          { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
         ]);
       } finally {
         setIsLoading(false);
@@ -62,6 +77,7 @@ export function LanguageSelectionDialog({
     label: `${lang.nativeName} (${lang.name})`,
     value: lang.code,
     languageInfo: lang,
+    key: lang.code,
   }));
 
   // Determine which language should be initially selected
@@ -76,8 +92,19 @@ export function LanguageSelectionDialog({
   });
 
   const scopeItems = [
-    { label: t('language_dialog.scope_options.user_settings', 'User Settings'), value: SettingScope.User },
-    { label: t('language_dialog.scope_options.workspace_settings', 'Workspace Settings'), value: SettingScope.Workspace },
+    {
+      label: t('language_dialog.scope_options.user_settings', 'User Settings'),
+      value: SettingScope.User,
+      key: SettingScope.User,
+    },
+    {
+      label: t(
+        'language_dialog.scope_options.workspace_settings',
+        'Workspace Settings',
+      ),
+      value: SettingScope.Workspace,
+      key: SettingScope.Workspace,
+    },
   ];
 
   const handleLanguageSelect = (languageCode: SupportedLanguage) => {
@@ -100,14 +127,16 @@ export function LanguageSelectionDialog({
   useKeypress(
     (key) => {
       if (key.name === 'tab' && !isFirstTimeSetup) {
-        setFocusedSection((prev) => (prev === 'language' ? 'scope' : 'language'));
+        setFocusedSection((prev) =>
+          prev === 'language' ? 'scope' : 'language',
+        );
       }
       if (key.name === 'escape' && !isFirstTimeSetup) {
         // Only allow escape if not first-time setup
         onSelect(undefined, selectedScope);
       }
     },
-    { isActive: true }
+    { isActive: true },
   );
 
   // Calculate scope messages
@@ -120,8 +149,14 @@ export function LanguageSelectionDialog({
     if (settings.forScope(otherScope).settings.ui?.language !== undefined) {
       otherScopeModifiedMessage =
         settings.forScope(selectedScope).settings.ui?.language !== undefined
-          ? t('language_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: otherScope })
-          : t('language_dialog.messages.modified_in', '(Modified in {scope})', { scope: otherScope });
+          ? t(
+              'language_dialog.messages.also_modified_in',
+              '(Also modified in {scope})',
+              { scope: otherScope },
+            )
+          : t('language_dialog.messages.modified_in', '(Modified in {scope})', {
+              scope: otherScope,
+            });
     }
   }
 
@@ -135,9 +170,16 @@ export function LanguageSelectionDialog({
         padding={1}
         width="100%"
       >
-        <Text bold>{t('language_dialog.loading_title', 'Loading Available Languages...')}</Text>
+        <Text bold>
+          {t('language_dialog.loading_title', 'Loading Available Languages...')}
+        </Text>
         <Box marginTop={1}>
-          <Text color={Colors.Gray}>{t('language_dialog.loading_message', 'Discovering available language options...')}</Text>
+          <Text color={Colors.Gray}>
+            {t(
+              'language_dialog.loading_message',
+              'Discovering available language options...',
+            )}
+          </Text>
         </Box>
       </Box>
     );
@@ -158,13 +200,19 @@ export function LanguageSelectionDialog({
         </Text>
         <Box marginTop={1}>
           <Text>
-            {t('language_dialog.no_languages_available', 'No language files found. Please ensure translation files are available.')}
+            {t(
+              'language_dialog.no_languages_available',
+              'No language files found. Please ensure translation files are available.',
+            )}
           </Text>
         </Box>
         {!isFirstTimeSetup && (
           <Box marginTop={1}>
             <Text color={Colors.Gray}>
-              {t('language_dialog.messages.press_escape', 'Press Esc to continue with default language.')}
+              {t(
+                'language_dialog.messages.press_escape',
+                'Press Esc to continue with default language.',
+              )}
             </Text>
           </Box>
         )}
@@ -183,16 +231,21 @@ export function LanguageSelectionDialog({
       width="100%"
     >
       <Text bold>
-        {isFirstTimeSetup 
-          ? t('language_dialog.first_time_title', 'Welcome! Select Your Language')
-          : t('language_dialog.title', 'Language Selection')
-        }
+        {isFirstTimeSetup
+          ? t(
+              'language_dialog.first_time_title',
+              'Welcome! Select Your Language',
+            )
+          : t('language_dialog.title', 'Language Selection')}
       </Text>
-      
+
       {isFirstTimeSetup && (
         <Box marginTop={1}>
           <Text>
-            {t('language_dialog.first_time_description', 'Choose your preferred language for the interface. You can change this later using the /language command.')}
+            {t(
+              'language_dialog.first_time_description',
+              'Choose your preferred language for the interface. You can change this later using the /language command.',
+            )}
           </Text>
         </Box>
       )}
@@ -203,7 +256,7 @@ export function LanguageSelectionDialog({
           {t('language_dialog.select_language', 'Select Language')}{' '}
           <Text color={Colors.Gray}>{otherScopeModifiedMessage}</Text>
         </Text>
-        
+
         <RadioButtonSelect
           items={languageItems}
           initialIndex={Math.max(0, initialLanguageIndex)}
@@ -238,9 +291,19 @@ export function LanguageSelectionDialog({
 
       <Box marginTop={1}>
         <Text color={Colors.Gray} wrap="truncate">
-          {t('language_dialog.messages.use_enter_select', '(Use Enter to select')}
-          {showScopeSelection ? t('language_dialog.messages.tab_to_change_focus', ', Tab to change focus') : ''}
-          {!isFirstTimeSetup ? t('language_dialog.messages.escape_to_cancel', ', Esc to cancel') : ''}
+          {t(
+            'language_dialog.messages.use_enter_select',
+            '(Use Enter to select',
+          )}
+          {showScopeSelection
+            ? t(
+                'language_dialog.messages.tab_to_change_focus',
+                ', Tab to change focus',
+              )
+            : ''}
+          {!isFirstTimeSetup
+            ? t('language_dialog.messages.escape_to_cancel', ', Esc to cancel')
+            : ''}
           )
         </Text>
       </Box>
@@ -248,7 +311,11 @@ export function LanguageSelectionDialog({
       {isFirstTimeSetup && availableLanguages.length > 0 && (
         <Box marginTop={1}>
           <Text color={Colors.AccentBlue}>
-            {t('language_dialog.languages_count', 'Available languages: {count}', { count: availableLanguages.length.toString() })}
+            {t(
+              'language_dialog.languages_count',
+              'Available languages: {count}',
+              { count: availableLanguages.length.toString() },
+            )}
           </Text>
         </Box>
       )}
