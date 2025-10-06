@@ -2,7 +2,7 @@
   "name": "auditaria-cli-vscode-ide-companion",
   "displayName": "Auditaria CLI Companion",
   "description": "Enable Auditaria CLI with direct access to your IDE workspace.",
-  "version": "0.8.0-nightly.20250925.b1da8c21",
+  "version": "0.9.0-nightly.20251001.163dba7e",
   "publisher": "google",
   "icon": "assets/icon.png",
   "repository": {
