@@ -9,7 +9,6 @@ import * as path from 'node:path';
 import { homedir, platform } from 'node:os';
 import * as dotenv from 'dotenv';
 import process from 'node:process';
-import type { SupportedLanguage } from '@thacio/auditaria-cli-core';
 import {
   FatalConfigError,
   GEMINI_CONFIG_DIR as GEMINI_DIR,
@@ -89,6 +88,7 @@ const MIGRATION_MAP: Record<string, string> = {
   folderTrust: 'security.folderTrust.enabled',
   hasSeenIdeIntegrationNudge: 'ide.hasSeenNudge',
   hideWindowTitle: 'ui.hideWindowTitle',
+  showStatusInTitle: 'ui.showStatusInTitle',
   hideTips: 'ui.hideTips',
   hideBanner: 'ui.hideBanner',
   hideFooter: 'ui.hideFooter',
