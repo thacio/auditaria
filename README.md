@@ -499,6 +499,14 @@ _See [quota limits and terms of service](https://cloud.google.com/gemini/docs/qu
 auditaria
 ```
 
+#### If you are using a paid Code Assist License from your organization, remember to set the Google Cloud Project
+
+```bash
+# Set your Google Cloud Project
+export GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
+auditaria
+```
+
 ### Option 2: Gemini API Key
 
 **✨ Best for:** Developers who need specific model control or paid tier access
