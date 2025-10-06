@@ -163,7 +163,7 @@ export const Help: React.FC<Help> = ({ commands }) => (
     <Text color={theme.text.primary}>
       {t('help.shortcuts.full_shortcuts_intro', 'For a full list of shortcuts, see')}{' '}
       <Text bold color={theme.text.accent}>
-        {t('help.shortcuts.docs_path', 'docs/keyboard-shortcuts.md')}
+        {t('help.shortcuts.docs_path', 'docs/cli/keyboard-shortcuts.md')}
       </Text>
     </Text>
   </Box>
