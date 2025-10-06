@@ -17,14 +17,13 @@ import type {
 import { CommandKind } from './types.js';
 import { decodeTagName, t } from '@thacio/auditaria-cli-core';
 import path from 'node:path';
-import type { HistoryItemWithoutId } from '../types.js';
+import type {
+  HistoryItemWithoutId,
+  HistoryItemChatList,
+  ChatDetail,
+} from '../types.js';
 import { MessageType } from '../types.js';
 import type { Content } from '@google/genai';
-
-interface ChatDetail {
-  name: string;
-  mtime: Date;
-}
 
 const getSavedChatTags = async (
   context: CommandContext,
@@ -39,7 +38,7 @@ const getSavedChatTags = async (
     const file_head = 'checkpoint-';
     const file_tail = '.json';
     const files = await fsPromises.readdir(geminiDir);
-    const chatDetails: Array<{ name: string; mtime: Date }> = [];
+    const chatDetails: ChatDetail[] = [];
 
     for (const file of files) {
       if (file.startsWith(file_head) && file.endsWith(file_tail)) {
@@ -48,15 +47,15 @@ const getSavedChatTags = async (
         const tagName = file.slice(file_head.length, -file_tail.length);
         chatDetails.push({
           name: decodeTagName(tagName),
-          mtime: stats.mtime,
+          mtime: stats.mtime.toISOString(),
         });
       }
     }
 
     chatDetails.sort((a, b) =>
       mtSortDesc
-        ? b.mtime.getTime() - a.mtime.getTime()
-        : a.mtime.getTime() - b.mtime.getTime(),
+        ? b.mtime.localeCompare(a.mtime)
+        : a.mtime.localeCompare(b.mtime),
     );
 
     return chatDetails;
@@ -71,34 +70,15 @@ const listCommand: SlashCommand = {
     return t('commands.chat.list.description', 'List saved conversation checkpoints');
   },
   kind: CommandKind.BUILT_IN,
-  action: async (context): Promise<MessageActionReturn> => {
+  action: async (context): Promise<void> => {
     const chatDetails = await getSavedChatTags(context, false);
-    if (chatDetails.length === 0) {
-      return {
-        type: 'message',
-        messageType: 'info',
-        content: t('commands.chat.list.no_checkpoints', 'No saved conversation checkpoints found.'),
-      };
-    }
 
-    const maxNameLength = Math.max(
-      ...chatDetails.map((chat) => chat.name.length),
-    );
-
-    let message = t('commands.chat.list.header', 'List of saved conversations:\n\n');
-    for (const chat of chatDetails) {
-      const paddedName = chat.name.padEnd(maxNameLength, ' ');
-      const isoString = chat.mtime.toISOString();
-      const match = isoString.match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/);
-      const formattedDate = match ? `${match[1]} ${match[2]}` : t('commands.chat.list.invalid_date', 'Invalid Date');
-      message += `  - \u001b[36m${paddedName}\u001b[0m  \u001b[90m${t('commands.chat.list.saved_on', '(saved on {date})', { date: formattedDate })}\u001b[0m\n`;
-    }
-    message += `\n\u001b[90m${t('commands.chat.list.note', 'Note: Newest last, oldest first')}\u001b[0m`;
-    return {
-      type: 'message',
-      messageType: 'info',
-      content: message,
+    const item: HistoryItemChatList = {
+      type: MessageType.CHAT_LIST,
+      chats: chatDetails,
     };
+
+    context.ui.addItem(item, Date.now());
   },
 };
 

@@ -29,6 +29,7 @@ import { ExtensionsList } from './views/ExtensionsList.js';
 import { getMCPServerStatus } from '@thacio/auditaria-cli-core';
 import { ToolsList } from './views/ToolsList.js';
 import { McpStatus } from './views/McpStatus.js';
+import { ChatList } from './views/ChatList.js';
 
 interface HistoryItemDisplayProps {
   item: HistoryItem;
@@ -140,6 +141,9 @@ export const HistoryItemDisplay: React.FC<HistoryItemDisplayProps> = ({
       )}
       {itemForDisplay.type === 'mcp_status' && (
         <McpStatus {...itemForDisplay} serverStatus={getMCPServerStatus} />
+      )}
+      {itemForDisplay.type === 'chat_list' && (
+        <ChatList chats={itemForDisplay.chats} />
       )}
     </Box>
   );
