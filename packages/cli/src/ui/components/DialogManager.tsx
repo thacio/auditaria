@@ -50,7 +50,7 @@ export const DialogManager = ({ addItem }: DialogManagerProps) => {
         <Text color={theme.status.warning}>
           {t(
             'app.ide_trust_changed',
-            "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes."
+            "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes.",
           )}
         </Text>
       </Box>
@@ -109,10 +109,15 @@ export const DialogManager = ({ addItem }: DialogManagerProps) => {
         <Box paddingY={1}>
           <RadioButtonSelect
             items={[
-              { label: t('tool_confirmation.options.yes', 'Yes'), value: true },
+              {
+                label: t('tool_confirmation.options.yes', 'Yes'),
+                value: true,
+                key: 'Yes',
+              },
               {
                 label: t('tool_confirmation.options.no', 'No'),
                 value: false,
+                key: 'No',
               },
             ]}
             onSelect={(value: boolean) => {
@@ -162,7 +167,12 @@ export const DialogManager = ({ addItem }: DialogManagerProps) => {
     return (
       <AuthInProgress
         onTimeout={() => {
-          uiActions.onAuthError(t('auth_dialog.messages.auth_cancelled', 'Authentication cancelled.'));
+          uiActions.onAuthError(
+            t(
+              'auth_dialog.messages.auth_cancelled',
+              'Authentication cancelled.',
+            ),
+          );
         }}
       />
     );

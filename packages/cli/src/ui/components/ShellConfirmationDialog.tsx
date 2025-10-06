@@ -51,16 +51,28 @@ export const ShellConfirmationDialog: React.FC<
 
   const options: Array<RadioSelectItem<ToolConfirmationOutcome>> = [
     {
-      label: t('tool_confirmation.shell_confirmation.options.yes_once', 'Yes, allow once'),
+      label: t(
+        'tool_confirmation.shell_confirmation.options.yes_once',
+        'Yes, allow once',
+      ),
       value: ToolConfirmationOutcome.ProceedOnce,
+      key: 'Yes, allow once',
     },
     {
-      label: t('tool_confirmation.shell_confirmation.options.yes_always_session', 'Yes, allow always for this session'),
+      label: t(
+        'tool_confirmation.shell_confirmation.options.yes_always_session',
+        'Yes, allow always for this session',
+      ),
       value: ToolConfirmationOutcome.ProceedAlways,
+      key: 'Yes, allow always for this session',
     },
     {
-      label: t('tool_confirmation.shell_confirmation.options.no_esc', 'No (esc)'),
+      label: t(
+        'tool_confirmation.shell_confirmation.options.no_esc',
+        'No (esc)',
+      ),
       value: ToolConfirmationOutcome.Cancel,
+      key: 'No (esc)',
     },
   ];
 
@@ -74,8 +86,18 @@ export const ShellConfirmationDialog: React.FC<
       marginLeft={1}
     >
       <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={theme.text.primary}>{t('tool_confirmation.shell_confirmation.title', 'Shell Command Execution')}</Text>
-        <Text color={theme.text.primary}>{t('tool_confirmation.shell_confirmation.description', 'A custom command wants to run the following shell commands:')}</Text>
+        <Text bold color={theme.text.primary}>
+          {t(
+            'tool_confirmation.shell_confirmation.title',
+            'Shell Command Execution',
+          )}
+        </Text>
+        <Text color={theme.text.primary}>
+          {t(
+            'tool_confirmation.shell_confirmation.description',
+            'A custom command wants to run the following shell commands:',
+          )}
+        </Text>
         <Box
           flexDirection="column"
           borderStyle="round"
@@ -92,7 +114,12 @@ export const ShellConfirmationDialog: React.FC<
       </Box>
 
       <Box marginBottom={1}>
-        <Text color={theme.text.primary}>{t('tool_confirmation.shell_confirmation.question', 'Do you want to proceed?')}</Text>
+        <Text color={theme.text.primary}>
+          {t(
+            'tool_confirmation.shell_confirmation.question',
+            'Do you want to proceed?',
+          )}
+        </Text>
       </Box>
 
       <RadioButtonSelect items={options} onSelect={handleSelect} isFocused />

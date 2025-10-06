@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '@thacio/auditaria-cli-core';
 
 import React, { useState, useEffect } from 'react';
@@ -123,15 +124,21 @@ export function SettingsDialog({
 
     return settingKeys.map((key: string) => {
       const definition = getSettingDefinition(key);
-      
+
       // Convert key to snake_case for i18n lookup
       // Handle nested keys like 'accessibility.disableLoadingPhrases'
       const lastPart = key.split('.').pop() || key;
-      const i18nKey = lastPart.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
-      const label = t(`settings_dialog.labels.${i18nKey}`, definition?.label || key);
+      const i18nKey = lastPart
+        .replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
+        .replace(/^_/, '');
+      const label = t(
+        `settings_dialog.labels.${i18nKey}`,
+        definition?.label || key,
+      );
 
       return {
-        label: label,
+        label,
         value: key,
         type: definition?.type,
         toggle: () => {
@@ -365,7 +372,10 @@ export function SettingsDialog({
   };
 
   // Scope selector items
-  const scopeItems = getScopeItems();
+  const scopeItems = getScopeItems().map((item) => ({
+    ...item,
+    key: item.value,
+  }));
 
   const handleScopeHighlight = (scope: SettingScope) => {
     setSelectedScope(scope);
@@ -756,7 +766,8 @@ export function SettingsDialog({
     >
       <Box flexDirection="column" flexGrow={1}>
         <Text bold={focusSection === 'settings'} wrap="truncate">
-          {focusSection === 'settings' ? '> ' : '  '}{t('settings_dialog.title', 'Settings')}
+          {focusSection === 'settings' ? '> ' : '  '}
+          {t('settings_dialog.title', 'Settings')}
         </Text>
         <Box height={1} />
         {showScrollUp && <Text color={theme.text.secondary}>▲</Text>}
@@ -883,7 +894,8 @@ export function SettingsDialog({
         {showScopeSelection && (
           <Box marginTop={1} flexDirection="column">
             <Text bold={focusSection === 'scope'} wrap="truncate">
-              {focusSection === 'scope' ? '> ' : '  '}{t('settings_dialog.apply_to', 'Apply To')}
+              {focusSection === 'scope' ? '> ' : '  '}
+              {t('settings_dialog.apply_to', 'Apply To')}
             </Text>
             <RadioButtonSelect
               items={scopeItems}
@@ -900,11 +912,17 @@ export function SettingsDialog({
 
         <Box height={1} />
         <Text color={theme.text.secondary}>
-          {t('settings_dialog.messages.use_enter_tab', '(Use Enter to select, Tab to change focus)')}
+          {t(
+            'settings_dialog.messages.use_enter_tab',
+            '(Use Enter to select, Tab to change focus)',
+          )}
         </Text>
         {showRestartPrompt && (
           <Text color={theme.status.warning}>
-            {t('settings_dialog.messages.restart_required', 'To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.')}
+            {t(
+              'settings_dialog.messages.restart_required',
+              'To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.',
+            )}
           </Text>
         )}
       </Box>

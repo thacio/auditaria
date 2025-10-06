@@ -117,8 +117,13 @@ export function WorkspaceMigrationDialog(props: {
             {
               label: t('workspace_migration.install_all', 'Install all'),
               value: 'migrate',
+              key: 'migrate',
             },
-            { label: t('workspace_migration.skip', 'Skip'), value: 'skip' },
+            {
+              label: t('workspace_migration.skip', 'Skip'),
+              value: 'skip',
+              key: 'skip',
+            },
           ]}
           onSelect={(value: string) => {
             if (value === 'migrate') {

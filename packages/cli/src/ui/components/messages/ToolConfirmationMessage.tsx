@@ -3,7 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+
+import { t , IdeClient, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
@@ -16,7 +17,6 @@ import type {
   ToolMcpConfirmationDetails,
   Config,
 } from '@thacio/auditaria-cli-core';
-import { IdeClient, ToolConfirmationOutcome } from '@thacio/auditaria-cli-core';
 import type { RadioSelectItem } from '../shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from '../shared/RadioButtonSelect.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
@@ -139,35 +139,53 @@ export const ToolConfirmationMessage: React.FC<
           padding={1}
           overflow="hidden"
         >
-          <Text color={theme.text.primary}>{t('tool_confirmation.modify_in_progress', 'Modify in progress: ')}</Text>
+          <Text color={theme.text.primary}>
+            {t('tool_confirmation.modify_in_progress', 'Modify in progress: ')}
+          </Text>
           <Text color={theme.status.success}>
-            {t('tool_confirmation.save_close_editor', 'Save and close external editor to continue')}
+            {t(
+              'tool_confirmation.save_close_editor',
+              'Save and close external editor to continue',
+            )}
           </Text>
         </Box>
       );
     }
 
-    question = t('tool_confirmation.questions.apply_change', 'Apply this change?');
+    question = t(
+      'tool_confirmation.questions.apply_change',
+      'Apply this change?',
+    );
     options.push({
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
+      key: 'Yes, allow once',
     });
     if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
+        key: 'Yes, allow always',
       });
     }
     if (!config.getIdeMode() || !isDiffingEnabled) {
       options.push({
-        label: t('tool_confirmation.options.modify_editor', 'Modify with external editor'),
+        label: t(
+          'tool_confirmation.options.modify_editor',
+          'Modify with external editor',
+        ),
         value: ToolConfirmationOutcome.ModifyWithEditor,
+        key: 'Modify with external editor',
       });
     }
 
     options.push({
-      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      label: t(
+        'tool_confirmation.options.no_suggest_changes',
+        'No, suggest changes (esc)',
+      ),
       value: ToolConfirmationOutcome.Cancel,
+      key: 'No, suggest changes (esc)',
     });
 
     bodyContent = (
@@ -182,20 +200,33 @@ export const ToolConfirmationMessage: React.FC<
     const executionProps =
       confirmationDetails as ToolExecuteConfirmationDetails;
 
-    question = t('tool_confirmation.questions.allow_execution_of', 'Allow execution of: \'{command}\'?', { command: executionProps.rootCommand });
+    question = t(
+      'tool_confirmation.questions.allow_execution_of',
+      "Allow execution of: '{command}'?",
+      { command: executionProps.rootCommand },
+    );
     options.push({
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
+      key: 'Yes, allow once',
     });
     if (isTrustedFolder) {
       options.push({
-        label: t('tool_confirmation.options.yes_always_ellipsis', 'Yes, allow always ...'),
+        label: t(
+          'tool_confirmation.options.yes_always_ellipsis',
+          'Yes, allow always ...',
+        ),
         value: ToolConfirmationOutcome.ProceedAlways,
+        key: `Yes, allow always ...`,
       });
     }
     options.push({
-      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      label: t(
+        'tool_confirmation.options.no_suggest_changes',
+        'No, suggest changes (esc)',
+      ),
       value: ToolConfirmationOutcome.Cancel,
+      key: 'No, suggest changes (esc)',
     });
     let bodyContentHeight = availableBodyContentHeight();
     if (bodyContentHeight !== undefined) {
@@ -221,20 +252,29 @@ export const ToolConfirmationMessage: React.FC<
       infoProps.urls &&
       !(infoProps.urls.length === 1 && infoProps.urls[0] === infoProps.prompt);
 
-    question = t('tool_confirmation.questions.do_you_want_proceed', 'Do you want to proceed?');
+    question = t(
+      'tool_confirmation.questions.do_you_want_proceed',
+      'Do you want to proceed?',
+    );
     options.push({
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
+      key: 'Yes, allow once',
     });
     if (isTrustedFolder) {
       options.push({
         label: t('tool_confirmation.options.yes_always', 'Yes, allow always'),
         value: ToolConfirmationOutcome.ProceedAlways,
+        key: 'Yes, allow always',
       });
     }
     options.push({
-      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      label: t(
+        'tool_confirmation.options.no_suggest_changes',
+        'No, suggest changes (esc)',
+      ),
       value: ToolConfirmationOutcome.Cancel,
+      key: 'No, suggest changes (esc)',
     });
 
     bodyContent = (
@@ -244,7 +284,9 @@ export const ToolConfirmationMessage: React.FC<
         </Text>
         {displayUrls && infoProps.urls && infoProps.urls.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
-            <Text color={theme.text.primary}>{t('tool_confirmation.info.urls_to_fetch', 'URLs to fetch:')}</Text>
+            <Text color={theme.text.primary}>
+              {t('tool_confirmation.info.urls_to_fetch', 'URLs to fetch:')}
+            </Text>
             {infoProps.urls.map((url) => (
               <Text key={url}>
                 {' '}
@@ -261,29 +303,58 @@ export const ToolConfirmationMessage: React.FC<
 
     bodyContent = (
       <Box flexDirection="column" paddingX={1} marginLeft={1}>
-        <Text color={theme.text.link}>{t('tool_confirmation.mcp_labels.server', 'MCP Server: {serverName}', { serverName: mcpProps.serverName })}</Text>
-        <Text color={theme.text.link}>{t('tool_confirmation.mcp_labels.tool', 'Tool: {toolName}', { toolName: mcpProps.toolName })}</Text>
+        <Text color={theme.text.link}>
+          {t(
+            'tool_confirmation.mcp_labels.server',
+            'MCP Server: {serverName}',
+            { serverName: mcpProps.serverName },
+          )}
+        </Text>
+        <Text color={theme.text.link}>
+          {t('tool_confirmation.mcp_labels.tool', 'Tool: {toolName}', {
+            toolName: mcpProps.toolName,
+          })}
+        </Text>
       </Box>
     );
 
-    question = t('tool_confirmation.questions.allow_mcp_tool', 'Allow execution of MCP tool "{toolName}" from server "{serverName}"?', { toolName: mcpProps.toolName, serverName: mcpProps.serverName });
+    question = t(
+      'tool_confirmation.questions.allow_mcp_tool',
+      'Allow execution of MCP tool "{toolName}" from server "{serverName}"?',
+      { toolName: mcpProps.toolName, serverName: mcpProps.serverName },
+    );
     options.push({
       label: t('tool_confirmation.options.yes_once', 'Yes, allow once'),
       value: ToolConfirmationOutcome.ProceedOnce,
+      key: 'Yes, allow once',
     });
     if (isTrustedFolder) {
       options.push({
-        label: t('tool_confirmation.options.yes_always_tool', 'Yes, always allow tool "{toolName}" from server "{serverName}"', { toolName: mcpProps.toolName, serverName: mcpProps.serverName }),
+        label: t(
+          'tool_confirmation.options.yes_always_tool',
+          'Yes, always allow tool "{toolName}" from server "{serverName}"',
+          { toolName: mcpProps.toolName, serverName: mcpProps.serverName },
+        ),
         value: ToolConfirmationOutcome.ProceedAlwaysTool, // Cast until types are updated
+        key: `Yes, always allow tool "${mcpProps.toolName}" from server "${mcpProps.serverName}"`,
       });
       options.push({
-        label: t('tool_confirmation.options.yes_always_server', 'Yes, always allow all tools from server "{serverName}"', { serverName: mcpProps.serverName }),
+        label: t(
+          'tool_confirmation.options.yes_always_server',
+          'Yes, always allow all tools from server "{serverName}"',
+          { serverName: mcpProps.serverName },
+        ),
         value: ToolConfirmationOutcome.ProceedAlwaysServer,
+        key: `Yes, always allow all tools from server "${mcpProps.serverName}"`,
       });
     }
     options.push({
-      label: t('tool_confirmation.options.no_suggest_changes', 'No, suggest changes (esc)'),
+      label: t(
+        'tool_confirmation.options.no_suggest_changes',
+        'No, suggest changes (esc)',
+      ),
       value: ToolConfirmationOutcome.Cancel,
+      key: 'No, suggest changes (esc)',
     });
   }
 

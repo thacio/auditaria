@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
@@ -39,26 +40,43 @@ export function AuthDialog({
 }: AuthDialogProps): React.JSX.Element {
   let items = [
     {
-      label: t('auth_dialog.options.login_google_free', 'Login with Google - Free Tier'),
+      label: t(
+        'auth_dialog.options.login_google_free',
+        'Login with Google - Free Tier',
+      ),
       value: AuthType.LOGIN_WITH_GOOGLE,
+      key: AuthType.LOGIN_WITH_GOOGLE,
     },
     {
-      label: t('auth_dialog.options.login_google_gca', 'Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)'),
+      label: t(
+        'auth_dialog.options.login_google_gca',
+        'Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)',
+      ),
       value: AuthType.LOGIN_WITH_GOOGLE_GCA,
+      key: AuthType.LOGIN_WITH_GOOGLE_GCA,
     },
     ...(process.env['CLOUD_SHELL'] === 'true'
       ? [
           {
-            label: t('auth_dialog.options.cloud_shell', 'Use Cloud Shell user credentials'),
+            label: t(
+              'auth_dialog.options.cloud_shell',
+              'Use Cloud Shell user credentials',
+            ),
             value: AuthType.CLOUD_SHELL,
+            key: AuthType.CLOUD_SHELL,
           },
         ]
       : []),
     {
       label: t('auth_dialog.options.gemini_api', 'Use Gemini API Key'),
       value: AuthType.USE_GEMINI,
+      key: AuthType.USE_GEMINI,
     },
-    { label: t('auth_dialog.options.vertex_ai', 'Vertex AI'), value: AuthType.USE_VERTEX_AI },
+    {
+      label: t('auth_dialog.options.vertex_ai', 'Vertex AI'),
+      value: AuthType.USE_VERTEX_AI,
+      key: AuthType.USE_VERTEX_AI,
+    },
   ];
 
   if (settings.merged.security?.auth?.enforcedType) {
@@ -141,7 +159,10 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
         if (settings.merged.security?.auth?.selectedType === undefined) {
           // Prevent exiting if no auth method is set
           onAuthError(
-            t('auth_dialog.messages.must_select_auth', 'You must select an auth method to proceed. Press Ctrl+C twice to exit.'),
+            t(
+              'auth_dialog.messages.must_select_auth',
+              'You must select an auth method to proceed. Press Ctrl+C twice to exit.',
+            ),
           );
           return;
         }
@@ -159,9 +180,16 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
       padding={1}
       width="100%"
     >
-      <Text bold color={theme.text.primary}>{t('auth_dialog.dialog_title', 'Get started')}</Text>
+      <Text bold color={theme.text.primary}>
+        {t('auth_dialog.dialog_title', 'Get started')}
+      </Text>
       <Box marginTop={1}>
-        <Text color={theme.text.primary}>{t('auth_dialog.dialog_question', 'How would you like to authenticate for this project?')}</Text>
+        <Text color={theme.text.primary}>
+          {t(
+            'auth_dialog.dialog_question',
+            'How would you like to authenticate for this project?',
+          )}
+        </Text>
       </Box>
       <Box marginTop={1}>
         <RadioButtonSelect
@@ -176,10 +204,17 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
         </Box>
       )}
       <Box marginTop={1}>
-        <Text color={theme.text.secondary}>{t('auth_dialog.messages.use_enter', '(Use Enter to select)')}</Text>
+        <Text color={theme.text.secondary}>
+          {t('auth_dialog.messages.use_enter', '(Use Enter to select)')}
+        </Text>
       </Box>
       <Box marginTop={1}>
-        <Text color={theme.text.primary}>{t('auth_dialog.messages.terms_privacy', 'Terms of Services and Privacy Notice for Gemini CLI')}</Text>
+        <Text color={theme.text.primary}>
+          {t(
+            'auth_dialog.messages.terms_privacy',
+            'Terms of Services and Privacy Notice for Gemini CLI',
+          )}
+        </Text>
       </Box>
       <Box marginTop={1}>
         <Text color={theme.text.link}>

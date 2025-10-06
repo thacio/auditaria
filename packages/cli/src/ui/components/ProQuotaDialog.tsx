@@ -23,12 +23,21 @@ export function ProQuotaDialog({
 }: ProQuotaDialogProps): React.JSX.Element {
   const items = [
     {
-      label: t('pro_quota_dialog.change_auth', 'Change auth (executes the /auth command)'),
+      label: t(
+        'pro_quota_dialog.change_auth',
+        'Change auth (executes the /auth command)',
+      ),
       value: 'auth' as const,
+      key: 'auth',
     },
     {
-      label: t('pro_quota_dialog.continue_with_model', 'Continue with {model}', { model: fallbackModel }),
+      label: t(
+        'pro_quota_dialog.continue_with_model',
+        'Continue with {model}',
+        { model: fallbackModel },
+      ),
       value: 'continue' as const,
+      key: 'continue',
     },
   ];
 
@@ -39,7 +48,9 @@ export function ProQuotaDialog({
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
       <Text bold color={theme.status.warning}>
-        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', { model: failedModel })}
+        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', {
+          model: failedModel,
+        })}
       </Text>
       <Box marginTop={1}>
         <RadioButtonSelect

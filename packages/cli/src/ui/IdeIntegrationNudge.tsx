@@ -51,6 +51,7 @@ export function IdeIntegrationNudge({
         userSelection: 'yes',
         isExtensionPreInstalled,
       },
+      key: 'Yes',
     },
     {
       label: t('ide_integration_nudge.no_esc', 'No (esc)'),
@@ -58,6 +59,7 @@ export function IdeIntegrationNudge({
         userSelection: 'no',
         isExtensionPreInstalled,
       },
+      key: 'No (esc)',
     },
     {
       label: t('ide_integration_nudge.no_dont_ask', "No, don't ask again"),
@@ -65,16 +67,21 @@ export function IdeIntegrationNudge({
         userSelection: 'dismiss',
         isExtensionPreInstalled,
       },
+      key: "No, don't ask again",
     },
   ];
 
   const installText = isExtensionPreInstalled
-    ? t('ide_integration_nudge.description_installed', 
-        `If you select Yes, the CLI will have access to your open files and display diffs directly in ${ideName ?? 'your editor'}.`, 
-        { ideName: ideName ?? 'your editor' })
-    : t('ide_integration_nudge.description', 
-        `If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in ${ideName ?? 'your editor'}.`, 
-        { ideName: ideName ?? 'your editor' });
+    ? t(
+        'ide_integration_nudge.description_installed',
+        `If you select Yes, the CLI will have access to your open files and display diffs directly in ${ideName ?? 'your editor'}.`,
+        { ideName: ideName ?? 'your editor' },
+      )
+    : t(
+        'ide_integration_nudge.description',
+        `If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in ${ideName ?? 'your editor'}.`,
+        { ideName: ideName ?? 'your editor' },
+      );
 
   return (
     <Box
@@ -88,7 +95,11 @@ export function IdeIntegrationNudge({
       <Box marginBottom={1} flexDirection="column">
         <Text>
           <Text color={theme.status.warning}>{'> '}</Text>
-          {t('ide_integration_nudge.question', `Do you want to connect ${ideName ?? 'your editor'} to Auditaria CLI?`, { ideName: ideName ?? 'your editor' })}
+          {t(
+            'ide_integration_nudge.question',
+            `Do you want to connect ${ideName ?? 'your editor'} to Auditaria CLI?`,
+            { ideName: ideName ?? 'your editor' },
+          )}
         </Text>
         <Text color={theme.text.secondary}>{installText}</Text>
       </Box>

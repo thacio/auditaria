@@ -33,6 +33,7 @@ const MODEL_OPTIONS = [
       'model_dialog.options.auto.description',
       'Let the system choose the best model for your task',
     ),
+    key: DEFAULT_GEMINI_MODEL_AUTO,
   },
   {
     value: DEFAULT_GEMINI_MODEL,
@@ -41,6 +42,7 @@ const MODEL_OPTIONS = [
       'model_dialog.options.pro.description',
       'For complex tasks that require deep reasoning and creativity',
     ),
+    key: DEFAULT_GEMINI_MODEL,
   },
   {
     value: DEFAULT_GEMINI_FLASH_MODEL,
@@ -49,6 +51,7 @@ const MODEL_OPTIONS = [
       'model_dialog.options.flash.description',
       'For tasks that need a balance of speed and reasoning',
     ),
+    key: DEFAULT_GEMINI_FLASH_MODEL,
   },
   {
     value: DEFAULT_GEMINI_FLASH_LITE_MODEL,
@@ -57,6 +60,7 @@ const MODEL_OPTIONS = [
       'model_dialog.options.flash_lite.description',
       'For simple tasks that need to be done quickly',
     ),
+    key: DEFAULT_GEMINI_FLASH_LITE_MODEL,
   },
 ];
 

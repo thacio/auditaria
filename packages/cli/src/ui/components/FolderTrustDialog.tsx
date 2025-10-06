@@ -56,16 +56,27 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
 
   const options: Array<RadioSelectItem<FolderTrustChoice>> = [
     {
-      label: t('folder_trust_dialog.options.trust_folder', 'Trust folder ({dirName})', { dirName }),
+      label: t(
+        'folder_trust_dialog.options.trust_folder',
+        'Trust folder ({dirName})',
+        { dirName },
+      ),
       value: FolderTrustChoice.TRUST_FOLDER,
+      key: `Trust folder (${dirName})`,
     },
     {
-      label: t('folder_trust_dialog.options.trust_parent', `Trust parent folder (${parentFolder})`, { parentFolder }),
+      label: t(
+        'folder_trust_dialog.options.trust_parent',
+        `Trust parent folder (${parentFolder})`,
+        { parentFolder },
+      ),
       value: FolderTrustChoice.TRUST_PARENT,
+      key: `Trust parent folder (${parentFolder})`,
     },
     {
       label: t('folder_trust_dialog.options.dont_trust', "Don't trust (esc)"),
       value: FolderTrustChoice.DO_NOT_TRUST,
+      key: "Don't trust (esc)",
     },
   ];
 
@@ -80,9 +91,14 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
         marginLeft={1}
       >
         <Box flexDirection="column" marginBottom={1}>
-          <Text bold color={theme.text.primary}>{t('folder_trust_dialog.title', 'Do you trust this folder?')}</Text>
+          <Text bold color={theme.text.primary}>
+            {t('folder_trust_dialog.title', 'Do you trust this folder?')}
+          </Text>
           <Text color={theme.text.primary}>
-            {t('folder_trust_dialog.description', 'Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.')}
+            {t(
+              'folder_trust_dialog.description',
+              'Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.',
+            )}
           </Text>
         </Box>
 
@@ -95,7 +111,10 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       {isRestarting && (
         <Box marginLeft={1} marginTop={1}>
           <Text color={theme.status.warning}>
-            {t('folder_trust_dialog.restarting', 'Auditaria CLI is restarting to apply the trust changes...')}
+            {t(
+              'folder_trust_dialog.restarting',
+              'Auditaria CLI is restarting to apply the trust changes...',
+            )}
           </Text>
         </Box>
       )}

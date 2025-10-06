@@ -28,7 +28,10 @@ export function ScopeSelector({
   isFocused,
   initialScope,
 }: ScopeSelectorProps): React.JSX.Element {
-  const scopeItems = getScopeItems();
+  const scopeItems = getScopeItems().map((item) => ({
+    ...item,
+    key: item.value,
+  }));
 
   const initialIndex = scopeItems.findIndex(
     (item) => item.value === initialScope,
@@ -38,7 +41,8 @@ export function ScopeSelector({
   return (
     <Box flexDirection="column">
       <Text bold={isFocused} wrap="truncate">
-        {isFocused ? '> ' : '  '}{t('theme_dialog.apply_to', 'Apply To')}
+        {isFocused ? '> ' : '  '}
+        {t('theme_dialog.apply_to', 'Apply To')}
       </Text>
       <RadioButtonSelect
         items={scopeItems}

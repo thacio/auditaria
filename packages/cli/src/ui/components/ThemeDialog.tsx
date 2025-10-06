@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
@@ -64,12 +65,14 @@ export function ThemeDialog({
       value: theme.name,
       themeNameDisplay: theme.name,
       themeTypeDisplay: capitalize(theme.type),
+      key: theme.name,
     })),
     ...customThemeNames.map((name) => ({
       label: name,
       value: name,
       themeNameDisplay: name,
       themeTypeDisplay: t('theme_dialog.custom_type', 'Custom'),
+      key: name,
     })),
   ];
 
@@ -196,7 +199,8 @@ export function ThemeDialog({
           {/* Left Column: Selection */}
           <Box flexDirection="column" width="45%" paddingRight={2}>
             <Text bold={mode === 'theme'} wrap="truncate">
-              {mode === 'theme' ? '> ' : '  '}{t('theme_dialog.title', 'Select Theme')}{' '}
+              {mode === 'theme' ? '> ' : '  '}
+              {t('theme_dialog.title', 'Select Theme')}{' '}
               <Text color={theme.text.secondary}>
                 {otherScopeModifiedMessage}
               </Text>
@@ -215,7 +219,9 @@ export function ThemeDialog({
 
           {/* Right Column: Preview */}
           <Box flexDirection="column" width="55%" paddingLeft={2}>
-            <Text bold color={theme.text.primary}>{t('theme_dialog.preview', 'Preview')}</Text>
+            <Text bold color={theme.text.primary}>
+              {t('theme_dialog.preview', 'Preview')}
+            </Text>
             {/* Get the Theme object for the highlighted theme, fall back to default if not found */}
             {(() => {
               const previewTheme =
@@ -270,10 +276,23 @@ def fibonacci(n):
       )}
       <Box marginTop={1}>
         <Text color={theme.text.secondary} wrap="truncate">
-          {t('theme_dialog.messages.use_enter_with_mode', '(Use Enter to {action}, Tab to {switchAction})', {
-            action: mode === 'theme' ? t('theme_dialog.messages.select', 'select') : t('theme_dialog.messages.apply_scope', 'apply scope'),
-            switchAction: mode === 'theme' ? t('theme_dialog.messages.configure_scope', 'configure scope') : t('theme_dialog.messages.select_theme', 'select theme')
-          })}
+          {t(
+            'theme_dialog.messages.use_enter_with_mode',
+            '(Use Enter to {action}, Tab to {switchAction})',
+            {
+              action:
+                mode === 'theme'
+                  ? t('theme_dialog.messages.select', 'select')
+                  : t('theme_dialog.messages.apply_scope', 'apply scope'),
+              switchAction:
+                mode === 'theme'
+                  ? t(
+                      'theme_dialog.messages.configure_scope',
+                      'configure scope',
+                    )
+                  : t('theme_dialog.messages.select_theme', 'select theme'),
+            },
+          )}
         </Text>
       </Box>
     </Box>
