@@ -1379,7 +1379,13 @@
     "press_ctrl_d_exit": "Press Ctrl+D again to exit.",
     "initialization_error": "Initialization Error: {error}",
     "check_api_config": "Please check API key and configuration.",
-    "ide_trust_changed": "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes."
+    "ide_trust_changed": "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes.",
+    "ide_trust_change": {
+      "message_generic": "Workspace trust has changed.",
+      "message_connection": "Workspace trust has changed due to a change in the IDE connection.",
+      "message_trust": "Workspace trust has changed due to a change in the IDE trust.",
+      "restart_instruction": "Press 'r' to restart Auditaria to apply the changes."
+    }
   },
   "cli": {
     "errors": {

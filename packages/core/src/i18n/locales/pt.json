@@ -1376,7 +1376,13 @@
     "press_ctrl_d_exit": "Pressione Ctrl+D novamente para sair.",
     "initialization_error": "Erro de Inicialização: {error}",
     "check_api_config": "Por favor, verifique a chave de API e configuração.",
-    "ide_trust_changed": "A confiança do workspace foi alterada. Pressione 'r' para reiniciar o Auditaria e aplicar as alterações."
+    "ide_trust_changed": "A confiança do workspace foi alterada. Pressione 'r' para reiniciar o Auditaria e aplicar as alterações.",
+    "ide_trust_change": {
+      "message_generic": "A confiança do workspace foi alterada.",
+      "message_connection": "A confiança do workspace foi alterada devido a uma mudança na conexão do IDE.",
+      "message_trust": "A confiança do workspace foi alterada devido a uma mudança na confiança do IDE.",
+      "restart_instruction": "Pressione 'r' para reiniciar o Auditaria e aplicar as alterações."
+    }
   },
   "cli": {
     "errors": {

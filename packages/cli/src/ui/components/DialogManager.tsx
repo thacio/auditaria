@@ -29,6 +29,7 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { t } from '@thacio/auditaria-cli-core';
 import process from 'node:process';
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
+import { IdeTrustChangeDialog } from './IdeTrustChangeDialog.js';
 
 interface DialogManagerProps {
   addItem: UseHistoryManagerReturn['addItem'];
@@ -45,16 +46,7 @@ export const DialogManager = ({ addItem }: DialogManagerProps) => {
     uiState;
 
   if (uiState.showIdeRestartPrompt) {
-    return (
-      <Box borderStyle="round" borderColor={theme.status.warning} paddingX={1}>
-        <Text color={theme.status.warning}>
-          {t(
-            'app.ide_trust_changed',
-            "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes.",
-          )}
-        </Text>
-      </Box>
-    );
+    return <IdeTrustChangeDialog reason={uiState.ideTrustRestartReason} />;
   }
   if (uiState.showWorkspaceMigrationDialog) {
     return (

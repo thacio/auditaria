@@ -808,7 +808,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
     useFolderTrust(settings, setIsTrustedFolder);
-  const { needsRestart: ideNeedsRestart } = useIdeTrustListener();
+  const {
+    needsRestart: ideNeedsRestart,
+    restartReason: ideTrustRestartReason,
+  } = useIdeTrustListener();
   const isInitialMount = useRef(true);
 
   useEffect(() => {
@@ -1002,14 +1005,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
   );
 
   useKeypress(handleGlobalKeypress, { isActive: true });
-  useKeypress(
-    (key) => {
-      if (key.name === 'r' || key.name === 'R') {
-        process.exit(0);
-      }
-    },
-    { isActive: showIdeRestartPrompt },
-  );
 
   // Update terminal title with Gemini CLI status and thoughts
   useEffect(() => {
@@ -1082,6 +1077,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isEditorDialogOpen ||
       isLanguageDialogOpen ||
       showPrivacyNotice ||
+      showIdeRestartPrompt ||
       !!proQuotaRequest,
     [
       showWorkspaceMigrationDialog,
@@ -1099,6 +1095,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isEditorDialogOpen,
       isLanguageDialogOpen,
       showPrivacyNotice,
+      showIdeRestartPrompt,
       proQuotaRequest,
     ],
   );
@@ -1490,6 +1487,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentIDE,
       updateInfo,
       showIdeRestartPrompt,
+      ideTrustRestartReason,
       isRestarting,
       extensionsUpdateState,
       activePtyId,
@@ -1568,6 +1566,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentIDE,
       updateInfo,
       showIdeRestartPrompt,
+      ideTrustRestartReason,
       isRestarting,
       currentModel,
       extensionsUpdateState,
