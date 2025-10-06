@@ -243,6 +243,7 @@ export class GeminiClient {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
       const systemInstruction = getCoreSystemPrompt(
+        this.config,
         userMemory,
         currentLanguage,
       );
@@ -601,6 +602,7 @@ export class GeminiClient {
       const userMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage();
       const systemInstruction = getCoreSystemPrompt(
+        this.config,
         userMemory,
         currentLanguage,
       );
