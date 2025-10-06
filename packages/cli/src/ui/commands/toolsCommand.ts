@@ -9,7 +9,7 @@ import {
   type SlashCommand,
   CommandKind,
 } from './types.js';
-import { MessageType } from '../types.js';
+import { MessageType, type HistoryItemToolsList } from '../types.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 export const toolsCommand: SlashCommand = {
@@ -43,32 +43,16 @@ export const toolsCommand: SlashCommand = {
     // Filter out MCP tools by checking for the absence of a serverName property
     const geminiTools = tools.filter((tool) => !('serverName' in tool));
 
-    let message = t('commands.tools.available_tools', 'Available Gemini CLI tools:') + '\n\n';
+    const toolsListItem: HistoryItemToolsList = {
+      type: MessageType.TOOLS_LIST,
+      tools: geminiTools.map((tool) => ({
+        name: tool.name,
+        displayName: tool.displayName,
+        description: tool.description,
+      })),
+      showDescriptions: useShowDescriptions,
+    };
 
-    if (geminiTools.length > 0) {
-      geminiTools.forEach((tool) => {
-        if (useShowDescriptions && tool.description) {
-          message += `  - \u001b[36m${tool.displayName} (${tool.name})\u001b[0m:\n`;
-
-          const greenColor = '\u001b[32m';
-          const resetColor = '\u001b[0m';
-
-          // Handle multi-line descriptions
-          const descLines = tool.description.trim().split('\n');
-          for (const descLine of descLines) {
-            message += `      ${greenColor}${descLine}${resetColor}\n`;
-          }
-        } else {
-          message += `  - \u001b[36m${tool.displayName}\u001b[0m\n`;
-        }
-      });
-    } else {
-      message += '  ' + t('commands.tools.no_tools', 'No tools available') + '\n';
-    }
-    message += '\n';
-
-    message += '\u001b[0m';
-
-    context.ui.addItem({ type: MessageType.INFO, text: message }, Date.now());
+    context.ui.addItem(toolsListItem, Date.now());
   },
 };
