@@ -39,6 +39,7 @@ import type {
   HistoryItemWithoutId,
   SlashCommandProcessorResult,
   HistoryItem,
+  ConfirmationRequest,
 } from '../types.js';
 import { MessageType } from '../types.js';
 // WEB_INTERFACE_START: Web commands hook import
@@ -68,6 +69,7 @@ interface SlashCommandProcessorActions {
   setExtensionsUpdateState: Dispatch<
     SetStateAction<Map<string, ExtensionUpdateState>>
   >;
+  addConfirmUpdateExtensionRequest: (request: ConfirmationRequest) => void;
 }
 
 /**
@@ -220,6 +222,8 @@ export const useSlashCommandProcessor = (
         reloadCommands,
         extensionsUpdateState,
         setExtensionsUpdateState: actions.setExtensionsUpdateState,
+        addConfirmUpdateExtensionRequest:
+          actions.addConfirmUpdateExtensionRequest,
       },
       session: {
         stats: session.stats,

@@ -166,12 +166,16 @@ export const AppContainer = (props: AppContainerProps) => {
   );
 
   const extensions = config.getExtensions();
-  const { extensionsUpdateState, setExtensionsUpdateState } =
-    useExtensionUpdates(
-      extensions,
-      historyManager.addItem,
-      config.getWorkingDir(),
-    );
+  const {
+    extensionsUpdateState,
+    setExtensionsUpdateState,
+    confirmUpdateExtensionRequests,
+    addConfirmUpdateExtensionRequest,
+  } = useExtensionUpdates(
+    extensions,
+    historyManager.addItem,
+    config.getWorkingDir(),
+  );
 
   const [isPermissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const openPermissionsDialog = useCallback(
@@ -479,6 +483,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setDebugMessage,
       toggleCorgiMode: () => setCorgiMode((prev) => !prev),
       setExtensionsUpdateState,
+      addConfirmUpdateExtensionRequest,
     }),
     [
       setAuthState,
@@ -493,6 +498,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setCorgiMode,
       setExtensionsUpdateState,
       openPermissionsDialog,
+      addConfirmUpdateExtensionRequest,
     ],
   );
 
@@ -1067,6 +1073,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isFolderTrustDialogOpen ||
       !!shellConfirmationRequest ||
       !!confirmationRequest ||
+      confirmUpdateExtensionRequests.length > 0 ||
       !!loopDetectionConfirmationRequest ||
       isThemeDialogOpen ||
       isSettingsDialogOpen ||
@@ -1085,6 +1092,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       isFolderTrustDialogOpen,
       shellConfirmationRequest,
       confirmationRequest,
+      confirmUpdateExtensionRequests,
       loopDetectionConfirmationRequest,
       isThemeDialogOpen,
       isSettingsDialogOpen,
@@ -1436,6 +1444,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      confirmUpdateExtensionRequests,
       loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,
@@ -1516,6 +1525,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       commandContext,
       shellConfirmationRequest,
       confirmationRequest,
+      confirmUpdateExtensionRequests,
       loopDetectionConfirmationRequest,
       geminiMdFileCount,
       streamingState,

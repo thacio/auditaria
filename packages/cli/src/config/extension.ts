@@ -38,8 +38,8 @@ import {
 } from './extensions/github.js';
 import type { LoadExtensionContext } from './extensions/variableSchema.js';
 import { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
-import type { UseHistoryManagerReturn } from '../ui/hooks/useHistoryManager.js';
 import chalk from 'chalk';
+import type { ConfirmationRequest } from '../ui/types.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -350,7 +350,7 @@ export async function requestConsentNonInteractive(
   consentDescription: string,
 ): Promise<boolean> {
   console.info(consentDescription);
-  const result = await promptForContinuationNonInteractive(
+  const result = await promptForConsentNonInteractive(
     'Do you want to continue? [Y/n]: ',
   );
   return result;
@@ -362,23 +362,17 @@ export async function requestConsentNonInteractive(
  * This should not be called from non-interactive mode as it will not work.
  *
  * @param consentDescription The description of the thing they will be consenting to.
+ * @param setExtensionUpdateConfirmationRequest A function to actually add a prompt to the UI.
  * @returns boolean, whether they consented or not.
  */
 export async function requestConsentInteractive(
-  _consentDescription: string,
-  addHistoryItem: UseHistoryManagerReturn['addItem'],
+  consentDescription: string,
+  addExtensionUpdateConfirmationRequest: (value: ConfirmationRequest) => void,
 ): Promise<boolean> {
-  addHistoryItem(
-    {
-      type: 'info',
-      text: t(
-        'extension.update_consent_required',
-        'Tried to update an extension but it has some changes that require consent, please use `auditaria extensions update`.',
-      ),
-    },
-    Date.now(),
+  return await promptForConsentInteractive(
+    consentDescription + '\n\n' + t('extension.consent_prompt', 'Do you want to continue?'),
+    addExtensionUpdateConfirmationRequest,
   );
-  return false;
 }
 
 /**
@@ -389,7 +383,7 @@ export async function requestConsentInteractive(
  * @param prompt A yes/no prompt to ask the user
  * @returns Whether or not the user answers 'y' (yes). Defaults to 'yes' on enter.
  */
-async function promptForContinuationNonInteractive(
+async function promptForConsentNonInteractive(
   prompt: string,
 ): Promise<boolean> {
   const readline = await import('node:readline');
@@ -402,6 +396,29 @@ async function promptForContinuationNonInteractive(
     rl.question(prompt, (answer) => {
       rl.close();
       resolve(['y', ''].includes(answer.trim().toLowerCase()));
+    });
+  });
+}
+
+/**
+ * Asks users an interactive yes/no prompt.
+ *
+ * This should not be called from non-interactive mode as it will break the CLI.
+ *
+ * @param prompt A markdown prompt to ask the user
+ * @param setExtensionUpdateConfirmationRequest Function to update the UI state with the confirmation request.
+ * @returns Whether or not the user answers yes.
+ */
+async function promptForConsentInteractive(
+  prompt: string,
+  addExtensionUpdateConfirmationRequest: (value: ConfirmationRequest) => void,
+): Promise<boolean> {
+  return await new Promise<boolean>((resolve) => {
+    addExtensionUpdateConfirmationRequest({
+      prompt,
+      onConfirm: (resolvedConfirmed) => {
+        resolve(resolvedConfirmed);
+      },
     });
   });
 }
@@ -560,14 +577,15 @@ function extensionConsentString(extensionConfig: ExtensionConfig): string {
   const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
   output.push(
     t(
-      'extension.unexpected_behavior_warning',
-      'Extensions may introduce unexpected behavior.',
+      'extension.installing_extension',
+      'Installing extension "{name}".',
+      { name: extensionConfig.name },
     ),
   );
   output.push(
     t(
-      'extension.trust_author_warning',
-      'Ensure you have investigated the extension source and trust the author.',
+      'extension.unexpected_behavior_warning_markdown',
+      '**Extensions may introduce unexpected behavior. Ensure you have investigated the extension source and trust the author.**',
     ),
   );
 
@@ -637,7 +655,11 @@ async function maybeRequestConsentOrFail(
   }
   if (!(await requestConsent(extensionConsent))) {
     throw new Error(
-      t('extension.installation_cancelled', 'Installation cancelled.'),
+      t(
+        'extension.installation_cancelled_for',
+        'Installation cancelled for "{name}".',
+        { name: extensionConfig.name },
+      ),
     );
   }
 }
