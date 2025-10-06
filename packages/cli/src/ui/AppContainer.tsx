@@ -168,7 +168,8 @@ export const AppContainer = (props: AppContainerProps) => {
   const extensions = config.getExtensions();
   const {
     extensionsUpdateState,
-    setExtensionsUpdateState,
+    extensionsUpdateStateInternal,
+    dispatchExtensionStateUpdate,
     confirmUpdateExtensionRequests,
     addConfirmUpdateExtensionRequest,
   } = useExtensionUpdates(
@@ -482,7 +483,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       },
       setDebugMessage,
       toggleCorgiMode: () => setCorgiMode((prev) => !prev),
-      setExtensionsUpdateState,
+      dispatchExtensionStateUpdate,
       addConfirmUpdateExtensionRequest,
     }),
     [
@@ -496,7 +497,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       setDebugMessage,
       setShowPrivacyNotice,
       setCorgiMode,
-      setExtensionsUpdateState,
+      dispatchExtensionStateUpdate,
       openPermissionsDialog,
       addConfirmUpdateExtensionRequest,
     ],
@@ -520,7 +521,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     setIsProcessing,
     setGeminiMdFileCount,
     slashCommandActions,
-    extensionsUpdateState,
+    extensionsUpdateStateInternal,
     isConfigInitialized,
   );
 
