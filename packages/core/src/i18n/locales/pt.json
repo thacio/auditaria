@@ -575,6 +575,8 @@
     "no_sandbox": "sem sandbox",
     "see_docs": "(ver /docs)",
     "context_left": "({percentage}% contexto restante)",
+    "context_left_short": "%",
+    "context_left_full": "% contexto restante",
     "debug_mode": "--debug",
     "untrusted": "não confiável"
   },

@@ -11,15 +11,23 @@ import { t, tokenLimit } from '@thacio/auditaria-cli-core';
 export const ContextUsageDisplay = ({
   promptTokenCount,
   model,
+  terminalWidth,
 }: {
   promptTokenCount: number;
   model: string;
+  terminalWidth: number;
 }) => {
   const percentage = promptTokenCount / tokenLimit(model);
+  const percentageLeft = ((1 - percentage) * 100).toFixed(0);
+
+  const label = terminalWidth < 100
+    ? t('footer.context_left_short', '%', {})
+    : t('footer.context_left_full', '% context left', {});
 
   return (
     <Text color={theme.text.secondary}>
-      {t('footer.context_left', '({percentage}% context left)', { percentage: ((1 - percentage) * 100).toFixed(0) })}
+      ({percentageLeft}
+      {label})
     </Text>
   );
 };

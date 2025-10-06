@@ -4,29 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t ,
-  shortenPath,
-  tildeifyPath,
-  tokenLimit,
-} from '@thacio/auditaria-cli-core';
-
 import type React from 'react';
-import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
+import { shortenPath, tildeifyPath } from '@thacio/auditaria-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
-import path from 'node:path';
 import Gradient from 'ink-gradient';
 import { MemoryUsageDisplay } from './MemoryUsageDisplay.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
 import { DebugProfiler } from './DebugProfiler.js';
-// WEB_INTERFACE_START: Footer context import for web interface integration
-import { useFooter } from '../contexts/FooterContext.js';
-// WEB_INTERFACE_END
-
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 
 import { useUIState } from '../contexts/UIStateContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
@@ -73,65 +61,9 @@ export const Footer: React.FC = () => {
   const hideModelInfo = settings.merged.ui?.footer?.hideModelInfo || false;
 
   const { columns: terminalWidth } = useTerminalSize();
-  const isNarrow = isNarrowWidth(terminalWidth);
-  const limit = tokenLimit(model);
-  const percentage = promptTokenCount / limit;
 
-  // WEB_INTERFACE_START: Footer context for broadcasting data to web interface
-  const footerContext = useFooter();
-
-  // Update footer data for web interface (removed footerContext from dependencies)
-  useEffect(() => {
-    if (footerContext) {
-      // Determine sandbox status
-      let sandboxStatus = 'no sandbox';
-      if (process.env['SANDBOX'] && process.env['SANDBOX'] !== 'sandbox-exec') {
-        sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
-      } else if (process.env['SANDBOX'] === 'sandbox-exec') {
-        sandboxStatus = 'macOS Seatbelt';
-      }
-
-      const footerData = {
-        targetDir,
-        branchName,
-        model,
-        contextPercentage: (1 - percentage) * 100, // Remaining context percentage
-        sandboxStatus,
-        errorCount,
-        debugMode,
-        debugMessage,
-        corgiMode,
-        showMemoryUsage: !!showMemoryUsage,
-        nightly,
-        showErrorDetails,
-        vimMode,
-      };
-
-      footerContext.updateFooterData(footerData);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    model,
-    targetDir,
-    branchName,
-    debugMode,
-    debugMessage,
-    errorCount,
-    percentage,
-    corgiMode,
-    showMemoryUsage,
-    nightly,
-    showErrorDetails,
-    vimMode,
-    // Removed footerContext from dependencies to prevent infinite loop
-  ]);
-  // WEB_INTERFACE_END
-
-  // Adjust path length based on terminal width
-  const pathLength = Math.max(20, Math.floor(terminalWidth * 0.4));
-  const displayPath = isNarrow
-    ? path.basename(tildeifyPath(targetDir))
-    : shortenPath(tildeifyPath(targetDir), pathLength);
+  const pathLength = Math.max(20, Math.floor(terminalWidth * 0.25));
+  const displayPath = shortenPath(tildeifyPath(targetDir), pathLength);
 
   const justifyContent = hideCWD && hideModelInfo ? 'center' : 'space-between';
   const displayVimMode = vimEnabled ? vimMode : undefined;
@@ -140,8 +72,8 @@ export const Footer: React.FC = () => {
     <Box
       justifyContent={justifyContent}
       width="100%"
-      flexDirection={isNarrow ? 'column' : 'row'}
-      alignItems={isNarrow ? 'flex-start' : 'center'}
+      flexDirection="row"
+      alignItems="center"
     >
       {(debugMode || displayVimMode || !hideCWD) && (
         <Box>
@@ -176,17 +108,13 @@ export const Footer: React.FC = () => {
       {/* Middle Section: Centered Trust/Sandbox Info */}
       {!hideSandboxStatus && (
         <Box
-          flexGrow={isNarrow || hideCWD || hideModelInfo ? 0 : 1}
+          flexGrow={1}
           alignItems="center"
-          justifyContent={isNarrow || hideCWD ? 'flex-start' : 'center'}
+          justifyContent="center"
           display="flex"
-          paddingX={isNarrow ? 0 : 1}
-          paddingTop={isNarrow ? 1 : 0}
         >
           {isTrustedFolder === false ? (
-            <Text color={theme.status.warning}>
-              {t('footer.untrusted', 'untrusted')}
-            </Text>
+            <Text color={theme.status.warning}>untrusted</Text>
           ) : process.env['SANDBOX'] &&
             process.env['SANDBOX'] !== 'sandbox-exec' ? (
             <Text color="green">
@@ -194,45 +122,40 @@ export const Footer: React.FC = () => {
             </Text>
           ) : process.env['SANDBOX'] === 'sandbox-exec' ? (
             <Text color={theme.status.warning}>
-              {t('footer.macos_seatbelt', 'macOS Seatbelt')}{' '}
+              macOS Seatbelt{' '}
               <Text color={theme.text.secondary}>
                 ({process.env['SEATBELT_PROFILE']})
               </Text>
             </Text>
           ) : (
             <Text color={theme.status.error}>
-              {t('footer.no_sandbox', 'no sandbox')}{' '}
-              <Text color={theme.text.secondary}>
-                {t('footer.see_docs', '(see /docs)')}
-              </Text>
+              no sandbox
+              {terminalWidth >= 100 && (
+                <Text color={theme.text.secondary}> (see /docs)</Text>
+              )}
             </Text>
           )}
         </Box>
       )}
 
       {/* Right Section: Gemini Label and Console Summary */}
-      {(!hideModelInfo ||
-        showMemoryUsage ||
-        corgiMode ||
-        (!showErrorDetails && errorCount > 0)) && (
-        <Box alignItems="center" paddingTop={isNarrow ? 1 : 0}>
-          {!hideModelInfo && (
-            <Box alignItems="center">
-              <Text color={theme.text.accent}>
-                {isNarrow ? '' : ' '}
-                {model}{' '}
-                <ContextUsageDisplay
-                  promptTokenCount={promptTokenCount}
-                  model={model}
-                />
-              </Text>
-              {showMemoryUsage && <MemoryUsageDisplay />}
-            </Box>
-          )}
+      {!hideModelInfo && (
+        <Box alignItems="center" justifyContent="flex-end">
+          <Box alignItems="center">
+            <Text color={theme.text.accent}>
+              {model}{' '}
+              <ContextUsageDisplay
+                promptTokenCount={promptTokenCount}
+                model={model}
+                terminalWidth={terminalWidth}
+              />
+            </Text>
+            {showMemoryUsage && <MemoryUsageDisplay />}
+          </Box>
           <Box alignItems="center" paddingLeft={2}>
             {corgiMode && (
               <Text>
-                {!hideModelInfo && <Text color={theme.ui.comment}>| </Text>}
+                <Text color={theme.ui.symbol}>| </Text>
                 <Text color={theme.status.error}>▼</Text>
                 <Text color={theme.text.primary}>(´</Text>
                 <Text color={theme.status.error}>ᴥ</Text>
@@ -242,7 +165,7 @@ export const Footer: React.FC = () => {
             )}
             {!showErrorDetails && errorCount > 0 && (
               <Box>
-                {!hideModelInfo && <Text color={theme.ui.comment}>| </Text>}
+                <Text color={theme.ui.symbol}>| </Text>
                 <ConsoleSummaryDisplay errorCount={errorCount} />
               </Box>
             )}
