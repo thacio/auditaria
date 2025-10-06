@@ -663,10 +663,13 @@ See our [Contributing Guide](./CONTRIBUTING.md) for development setup, coding st
 
 ## 📖 Resources
 
-- **[Official Roadmap](./ROADMAP.md)** - See what's coming next
-- **[GitHub Repository](https://github.com/thacio/auditaria)** - Source code
-- **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs or request features
-- **[Releases](https://github.com/thacio/auditaria/releases)** - Available versions
+- **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
+- **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
+- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria-cli)** - Package registry.
+- **[GitHub Repository](https://github.com/thacio/auditaria)** - Source code.
+- **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs or request features.
+- **[Security Advisories](https://github.com/thacio/auditaria/security/advisories)** - Security updates.
+- **[Releases](https://github.com/thacio/auditaria/releases)** - Available versions.
 
 ### Uninstall
 
