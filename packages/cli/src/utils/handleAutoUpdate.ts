@@ -6,7 +6,7 @@
 
 import type { UpdateObject } from '../ui/utils/updateCheck.js';
 import type { LoadedSettings } from '../config/settings.js';
-import { getInstallationInfo } from './installationInfo.js';
+import { getInstallationInfo, PackageManager } from './installationInfo.js';
 import { updateEventEmitter } from './updateEventEmitter.js';
 import type { HistoryItem } from '../ui/types.js';
 import { MessageType } from '../ui/types.js';
@@ -32,6 +32,14 @@ export function handleAutoUpdate(
     projectRoot,
     settings.merged.general?.disableAutoUpdate ?? false,
   );
+
+  if (
+    [PackageManager.NPX, PackageManager.PNPX, PackageManager.BUNX].includes(
+      installationInfo.packageManager,
+    )
+  ) {
+    return;
+  }
 
   let combinedMessage = info.message;
   if (installationInfo.updateMessage) {
@@ -63,18 +71,29 @@ export function handleAutoUpdate(
   updateProcess.on('close', (code) => {
     if (code === 0) {
       updateEventEmitter.emit('update-success', {
-        message: t('update.success', 'Update successful! The new version will be used on your next run.'),
+        message: t(
+          'update.success',
+          'Update successful! The new version will be used on your next run.',
+        ),
       });
     } else {
       updateEventEmitter.emit('update-failed', {
-        message: t('update.failed_with_details', 'Automatic update failed. Please try updating manually. (command: {command}, stderr: {stderr})', { command: updateCommand, stderr: errorOutput.trim() }),
+        message: t(
+          'update.failed_with_details',
+          'Automatic update failed. Please try updating manually. (command: {command}, stderr: {stderr})',
+          { command: updateCommand, stderr: errorOutput.trim() },
+        ),
       });
     }
   });
 
   updateProcess.on('error', (err) => {
     updateEventEmitter.emit('update-failed', {
-      message: t('update.failed_with_error', 'Automatic update failed. Please try updating manually. (error: {error})', { error: err.message }),
+      message: t(
+        'update.failed_with_error',
+        'Automatic update failed. Please try updating manually. (error: {error})',
+        { error: err.message },
+      ),
     });
   });
   return updateProcess;
@@ -107,7 +126,10 @@ export function setUpdateHandler(
     addItem(
       {
         type: MessageType.ERROR,
-        text: t('update.failed', 'Automatic update failed. Please try updating manually'),
+        text: t(
+          'update.failed',
+          'Automatic update failed. Please try updating manually',
+        ),
       },
       Date.now(),
     );
@@ -119,7 +141,10 @@ export function setUpdateHandler(
     addItem(
       {
         type: MessageType.INFO,
-        text: t('update.success', 'Update successful! The new version will be used on your next run.'),
+        text: t(
+          'update.success',
+          'Update successful! The new version will be used on your next run.',
+        ),
       },
       Date.now(),
     );
