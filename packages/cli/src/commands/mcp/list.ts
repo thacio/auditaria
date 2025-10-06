@@ -8,9 +8,14 @@
 import type { CommandModule } from 'yargs';
 import { loadSettings } from '../../config/settings.js';
 import type { MCPServerConfig } from '@thacio/auditaria-cli-core';
-import { MCPServerStatus, createTransport, t } from '@thacio/auditaria-cli-core';
+import {
+  MCPServerStatus,
+  createTransport,
+  t,
+} from '@thacio/auditaria-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { loadExtensions } from '../../config/extension.js';
+import { ExtensionStorage, loadExtensions } from '../../config/extension.js';
+import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
 
 const COLOR_GREEN = '\u001b[32m';
 const COLOR_YELLOW = '\u001b[33m';
@@ -21,7 +26,9 @@ async function getMcpServersFromConfig(): Promise<
   Record<string, MCPServerConfig>
 > {
   const settings = loadSettings();
-  const extensions = loadExtensions();
+  const extensions = loadExtensions(
+    new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
+  );
   const mcpServers = { ...(settings.merged.mcpServers || {}) };
   for (const extension of extensions) {
     Object.entries(extension.config.mcpServers || {}).forEach(
@@ -85,11 +92,18 @@ export async function listMcpServers(): Promise<void> {
   const serverNames = Object.keys(mcpServers);
 
   if (serverNames.length === 0) {
-    console.log(t('commands.mcp.manage.list.no_servers', 'No MCP servers configured.'));
+    console.log(
+      t('commands.mcp.manage.list.no_servers', 'No MCP servers configured.'),
+    );
     return;
   }
 
-  console.log(t('commands.mcp.manage.list.configured_servers', 'Configured MCP servers:\n'));
+  console.log(
+    t(
+      'commands.mcp.manage.list.configured_servers',
+      'Configured MCP servers:\n',
+    ),
+  );
 
   for (const serverName of serverNames) {
     const server = mcpServers[serverName];
@@ -101,16 +115,25 @@ export async function listMcpServers(): Promise<void> {
     switch (status) {
       case MCPServerStatus.CONNECTED:
         statusIndicator = COLOR_GREEN + '✓' + RESET_COLOR;
-        statusText = t('commands.mcp.manage.list.status_connected', 'Connected');
+        statusText = t(
+          'commands.mcp.manage.list.status_connected',
+          'Connected',
+        );
         break;
       case MCPServerStatus.CONNECTING:
         statusIndicator = COLOR_YELLOW + '…' + RESET_COLOR;
-        statusText = t('commands.mcp.manage.list.status_connecting', 'Connecting');
+        statusText = t(
+          'commands.mcp.manage.list.status_connecting',
+          'Connecting',
+        );
         break;
       case MCPServerStatus.DISCONNECTED:
       default:
         statusIndicator = COLOR_RED + '✗' + RESET_COLOR;
-        statusText = t('commands.mcp.manage.list.status_disconnected', 'Disconnected');
+        statusText = t(
+          'commands.mcp.manage.list.status_disconnected',
+          'Disconnected',
+        );
         break;
     }
 
@@ -129,7 +152,10 @@ export async function listMcpServers(): Promise<void> {
 
 export const listCommand: CommandModule = {
   command: 'list',
-  describe: t('commands.mcp.manage.list.description', 'List all configured MCP servers'),
+  describe: t(
+    'commands.mcp.manage.list.description',
+    'List all configured MCP servers',
+  ),
   handler: async () => {
     await listMcpServers();
   },
