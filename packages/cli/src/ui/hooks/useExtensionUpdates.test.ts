@@ -15,7 +15,10 @@ import {
 } from '../../config/extension.js';
 import { createExtension } from '../../test-utils/createExtension.js';
 import { useExtensionUpdates } from './useExtensionUpdates.js';
-import { GEMINI_DIR, type GeminiCLIExtension } from '@thacio/auditaria-cli-core';
+import {
+  GEMINI_DIR,
+  type GeminiCLIExtension,
+} from '@thacio/auditaria-cli-core';
 import { renderHook, waitFor } from '@testing-library/react';
 import { MessageType } from '../types.js';
 import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
@@ -76,7 +79,7 @@ describe('useExtensionUpdates', () => {
     const cwd = '/test/cwd';
 
     vi.mocked(checkForAllExtensionUpdates).mockImplementation(
-      async (extensions, dispatch) => {
+      async (_extensions, dispatch, _cwd) => {
         dispatch({
           type: 'SET_STATE',
           payload: {
@@ -122,7 +125,7 @@ describe('useExtensionUpdates', () => {
     const addItem = vi.fn();
 
     vi.mocked(checkForAllExtensionUpdates).mockImplementation(
-      async (extensions, dispatch) => {
+      async (_extensions, dispatch, _cwd) => {
         dispatch({
           type: 'SET_STATE',
           payload: {
@@ -195,7 +198,7 @@ describe('useExtensionUpdates', () => {
     const addItem = vi.fn();
 
     vi.mocked(checkForAllExtensionUpdates).mockImplementation(
-      async (extensions, dispatch) => {
+      async (_extensions, dispatch, _cwd) => {
         dispatch({
           type: 'SET_STATE',
           payload: {
@@ -280,7 +283,7 @@ describe('useExtensionUpdates', () => {
     const cwd = '/test/cwd';
 
     vi.mocked(checkForAllExtensionUpdates).mockImplementation(
-      async (extensions, dispatch) => {
+      async (_extensions, dispatch, _cwd) => {
         dispatch({ type: 'BATCH_CHECK_START' });
         dispatch({
           type: 'SET_STATE',
