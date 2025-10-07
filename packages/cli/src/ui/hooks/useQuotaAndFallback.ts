@@ -9,8 +9,7 @@ import {
   type Config,
   type FallbackModelHandler,
   type FallbackIntent,
-  isGenericQuotaExceededError,
-  isProQuotaExceededError,
+  TerminalQuotaError,
   UserTierId,
   t,
 } from '@thacio/auditaria-cli-core';
@@ -64,34 +63,19 @@ export function useQuotaAndFallback({
 
       let message: string;
 
-      if (error && isProQuotaExceededError(error)) {
+      if (error instanceof TerminalQuotaError) {
         // Pro Quota specific messages (Interactive)
         if (isPaidTier) {
           message = t(
             'quota.pro_exceeded_paid',
             '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
-            { model: failedModel }
+            { model: failedModel },
           );
         } else {
           message = t(
             'quota.pro_exceeded_free',
             '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
-            { model: failedModel }
-          );
-        }
-      } else if (error && isGenericQuotaExceededError(error)) {
-        // Generic Quota (Automatic fallback)
-        if (isPaidTier) {
-          message = t(
-            'quota.generic_exceeded_paid',
-            '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {failedModel} to {fallbackModel} for the remainder of this session.\n⚡ To continue accessing the {failedModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
-            { failedModel, fallbackModel }
-          );
-        } else {
-          message = t(
-            'quota.generic_exceeded_free',
-            '⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {failedModel} to {fallbackModel} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
-            { failedModel, fallbackModel }
+            { model: failedModel },
           );
         }
       } else {
@@ -100,13 +84,13 @@ export function useQuotaAndFallback({
           message = t(
             'quota.fallback_paid',
             '⚡ Automatically switching from {failedModel} to {fallbackModel} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {failedModel} quota limit\n⚡ To continue accessing the {failedModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey',
-            { failedModel, fallbackModel }
+            { failedModel, fallbackModel },
           );
         } else {
           message = t(
             'quota.fallback_free',
             '⚡ Automatically switching from {failedModel} to {fallbackModel} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {failedModel} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
-            { failedModel, fallbackModel }
+            { failedModel, fallbackModel },
           );
         }
       }
@@ -124,7 +108,7 @@ export function useQuotaAndFallback({
       config.setQuotaErrorOccurred(true);
 
       // Interactive Fallback for Pro quota
-      if (error && isProQuotaExceededError(error)) {
+      if (error instanceof TerminalQuotaError) {
         if (isDialogPending.current) {
           return 'stop'; // A dialog is already active, so just stop this request.
         }
@@ -166,7 +150,7 @@ export function useQuotaAndFallback({
             type: MessageType.INFO,
             text: t(
               'quota.switched_to_fallback',
-              'Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish.'
+              'Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish.',
             ),
           },
           Date.now(),
