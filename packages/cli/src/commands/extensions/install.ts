@@ -11,12 +11,11 @@ import {
 } from '../../config/extension.js';
 import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
 import { t } from '@thacio/auditaria-cli-core';
-
 import { getErrorMessage } from '../../utils/errors.js';
+import { stat } from 'node:fs/promises';
 
 interface InstallArgs {
-  source?: string;
-  path?: string;
+  source: string;
   ref?: string;
   autoUpdate?: boolean;
 }
@@ -24,38 +23,42 @@ interface InstallArgs {
 export async function handleInstall(args: InstallArgs) {
   try {
     let installMetadata: ExtensionInstallMetadata;
-    if (args.source) {
-      const { source } = args;
-      if (
-        source.startsWith('http://') ||
-        source.startsWith('https://') ||
-        source.startsWith('git@') ||
-        source.startsWith('sso://')
-      ) {
-        installMetadata = {
-          source,
-          type: 'git',
-          ref: args.ref,
-          autoUpdate: args.autoUpdate,
-        };
-      } else {
-        throw new Error(
-          t(
-            'commands.extensions.install.invalid_source_format',
-            `The source "${source}" is not a valid URL format.`,
-            { source },
-          ),
-        );
-      }
-    } else if (args.path) {
+    const { source } = args;
+    if (
+      source.startsWith('http://') ||
+      source.startsWith('https://') ||
+      source.startsWith('git@') ||
+      source.startsWith('sso://')
+    ) {
       installMetadata = {
-        source: args.path,
-        type: 'local',
+        source,
+        type: 'git',
+        ref: args.ref,
         autoUpdate: args.autoUpdate,
       };
     } else {
-      // This should not be reached due to the yargs check.
-      throw new Error('Either --source or --path must be provided.');
+      if (args.ref || args.autoUpdate) {
+        throw new Error(
+          t(
+            'commands.extensions.install.local_no_ref_auto_update',
+            '--ref and --auto-update are not applicable for local extensions.',
+          ),
+        );
+      }
+      try {
+        await stat(source);
+        installMetadata = {
+          source,
+          type: 'local',
+        };
+      } catch {
+        throw new Error(
+          t(
+            'commands.extensions.install.source_not_found',
+            'Install source not found.',
+          ),
+        );
+      }
     }
 
     const name = await installExtension(
@@ -76,7 +79,7 @@ export async function handleInstall(args: InstallArgs) {
 }
 
 export const installCommand: CommandModule = {
-  command: 'install [<source>] [--path] [--ref] [--auto-update]',
+  command: 'install <source>',
   describe: t(
     'commands.extensions.install.description',
     'Installs an extension from a git repository URL or a local path.',
@@ -86,16 +89,10 @@ export const installCommand: CommandModule = {
       .positional('source', {
         describe: t(
           'commands.extensions.install.source_description',
-          'The git URL of the extension to install.',
+          'The github URL or local path of the extension to install.',
         ),
         type: 'string',
-      })
-      .option('path', {
-        describe: t(
-          'commands.extensions.install.path_description',
-          'Path to a local extension directory.',
-        ),
-        type: 'string',
+        demandOption: true,
       })
       .option('ref', {
         describe: t(
@@ -108,15 +105,12 @@ export const installCommand: CommandModule = {
         describe: 'Enable auto-update for this extension.',
         type: 'boolean',
       })
-      .conflicts('source', 'path')
-      .conflicts('path', 'ref')
-      .conflicts('path', 'auto-update')
       .check((argv) => {
-        if (!argv.source && !argv.path) {
+        if (!argv.source) {
           throw new Error(
             t(
-              'commands.extensions.install.missing_source_or_path',
-              'Either source or --path must be provided.',
+              'commands.extensions.install.source_required',
+              'The source argument must be provided.',
             ),
           );
         }
@@ -124,8 +118,7 @@ export const installCommand: CommandModule = {
       }),
   handler: async (argv) => {
     await handleInstall({
-      source: argv['source'] as string | undefined,
-      path: argv['path'] as string | undefined,
+      source: argv['source'] as string,
       ref: argv['ref'] as string | undefined,
       autoUpdate: argv['auto-update'] as boolean | undefined,
     });

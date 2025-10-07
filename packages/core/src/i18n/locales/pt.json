@@ -211,11 +211,11 @@
       },
       "install": {
         "description": "Instala uma extensão de um repositório git URL ou de um caminho local.",
-        "source_description": "A URL git da extensão a instalar.",
-        "path_description": "Caminho para um diretório de extensão local.",
+        "source_description": "A URL do github ou caminho local da extensão a instalar.",
         "ref_description": "A referência git para instalar.",
-        "missing_source_or_path": "Ou --source ou --path deve ser fornecido.",
-        "invalid_source_format": "A fonte \"{source}\" não é uma URL válida.",
+        "source_required": "O argumento source deve ser fornecido.",
+        "local_no_ref_auto_update": "--ref e --auto-update não são aplicáveis para extensões locais.",
+        "source_not_found": "Fonte de instalação não encontrada.",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
         "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}",
         "github": {

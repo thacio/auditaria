@@ -214,11 +214,11 @@
       },
       "install": {
         "description": "Installs an extension from a git repository URL or a local path.",
-        "source_description": "The git URL of the extension to install.",
-        "path_description": "Path to a local extension directory.",
+        "source_description": "The github URL or local path of the extension to install.",
         "ref_description": "The git ref to install from.",
-        "missing_source_or_path": "Either --source or --path must be provided.",
-        "invalid_source_format": "The source \"{source}\" is not a valid URL format.",
+        "source_required": "The source argument must be provided.",
+        "local_no_ref_auto_update": "--ref and --auto-update are not applicable for local extensions.",
+        "source_not_found": "Install source not found.",
         "success": "Extension \"{extensionName}\" installed successfully and enabled.",
         "untrusted_folder": "Could not install extension from untrusted folder at {source}",
         "github": {
