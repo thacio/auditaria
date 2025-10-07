@@ -283,7 +283,8 @@
         "path_description": "O caminho para criar a extensão.",
         "template_description": "O modelo de exemplo para usar.",
         "success": "Nova extensão criada com sucesso a partir do modelo \"{template}\" em {path}.",
-        "install_help": "Você pode instalar isso usando \"gemini extensions link {path}\" para testar.",
+        "success_no_template": "Nova extensão criada com sucesso em {path}.",
+        "install_help": "Você pode instalar isso usando \"auditaria extensions link {path}\" para testar.",
         "path_exists": "Caminho já existe: {path}"
       },
       "updates_available_singular": "Você tem 1 extensão com atualização disponível, execute \"/extensions list\" para mais informações.",
