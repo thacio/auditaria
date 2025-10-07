@@ -208,6 +208,10 @@ export class GeminiClient {
     return this.loopDetector;
   }
 
+  getCurrentSequenceModel(): string | null {
+    return this.currentSequenceModel;
+  }
+
   async addDirectoryContext(): Promise<void> {
     if (!this.chat) {
       return;

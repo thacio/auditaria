@@ -147,7 +147,7 @@ export const useGeminiStream = (
 
       webInterface.broadcastPendingItem(pendingItemWithId);
     }
-  }, [pendingHistoryItemRef.current, webInterface]);
+  }, [pendingHistoryItemRef, webInterface]);
   // WEB_INTERFACE_END
 
   const [toolCalls, scheduleToolCalls, markToolsAsSubmitted] =
@@ -162,6 +162,24 @@ export const useGeminiStream = (
             ),
             Date.now(),
           );
+
+          // Record tool calls with full metadata before sending responses.
+          try {
+            const currentModel =
+              config.getGeminiClient().getCurrentSequenceModel() ??
+              config.getModel();
+            config
+              .getGeminiClient()
+              .getChat()
+              .recordCompletedToolCalls(
+                currentModel,
+                completedToolCallsFromScheduler,
+              );
+          } catch (error) {
+            console.error(
+              `Error recording completed tool call information: ${error}`,
+            );
+          }
 
           // Handle tool response submission immediately when tools complete
           await handleCompletedTools(
@@ -185,10 +203,11 @@ export const useGeminiStream = (
   useEffect(() => {
     if (webInterface && pendingToolCallGroupDisplay) {
       // Only broadcast tools that are actually still pending/executing (not completed)
-      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(tool =>
-        tool.status === 'Pending' ||
-        tool.status === 'Executing' ||
-        tool.status === 'Confirming'
+      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(
+        (tool) =>
+          tool.status === 'Pending' ||
+          tool.status === 'Executing' ||
+          tool.status === 'Confirming',
       );
 
       // Only broadcast if there are actually pending tools
@@ -437,11 +456,19 @@ export const useGeminiStream = (
         // WEB_INTERFACE_START: Handle multimodal messages from web interface
         // It's a PartListUnion (array of parts or single part)
         localQueryToSendToGemini = query;
-        
+
         // Extract text and attachments from multimodal parts for display
         let displayText = '';
-        const attachments: any[] = [];
-        
+        const attachments: Array<{
+          type: string;
+          mimeType: string;
+          name: string;
+          size: number;
+          thumbnail?: string;
+          icon: string;
+          displaySize?: string;
+        }> = [];
+
         if (Array.isArray(query)) {
           // It's an array of parts
           for (const part of query) {
@@ -457,18 +484,22 @@ export const useGeminiStream = (
                 if (metadata) {
                   attachments.push({
                     type: metadata.type || 'file',
-                    mimeType: metadata.mimeType || part.inlineData.mimeType || 'application/octet-stream',
+                    mimeType:
+                      metadata.mimeType ||
+                      part.inlineData.mimeType ||
+                      'application/octet-stream',
                     name: metadata.name || 'Attached file',
                     size: metadata.size || 0,
                     thumbnail: metadata.thumbnail,
                     icon: metadata.icon || '📎',
-                    displaySize: metadata.displaySize
+                    displaySize: metadata.displaySize,
                   });
                 } else {
                   // Fallback for attachments without metadata
                   attachments.push({
                     type: 'file',
-                    mimeType: part.inlineData.mimeType || 'application/octet-stream',
+                    mimeType:
+                      part.inlineData.mimeType || 'application/octet-stream',
                     name: 'Attached file',
                     size: 0,
                     icon: '📎',
@@ -486,17 +517,21 @@ export const useGeminiStream = (
             if (metadata) {
               attachments.push({
                 type: metadata.type || 'file',
-                mimeType: metadata.mimeType || query.inlineData.mimeType || 'application/octet-stream',
+                mimeType:
+                  metadata.mimeType ||
+                  query.inlineData.mimeType ||
+                  'application/octet-stream',
                 name: metadata.name || 'Attached file',
                 size: metadata.size || 0,
                 thumbnail: metadata.thumbnail,
                 icon: metadata.icon || '📎',
-                displaySize: metadata.displaySize
+                displaySize: metadata.displaySize,
               });
             } else {
               attachments.push({
                 type: 'file',
-                mimeType: query.inlineData.mimeType || 'application/octet-stream',
+                mimeType:
+                  query.inlineData.mimeType || 'application/octet-stream',
                 name: 'Attached file',
                 size: 0,
                 icon: '📎',
@@ -504,24 +539,36 @@ export const useGeminiStream = (
             }
           }
         }
-        
+
         // If no text but has attachments, show a placeholder
         if (!displayText && attachments.length > 0) {
           displayText = '📎 File(s) attached';
         }
-        
+
         // Add user message to history with attachments info
         if (displayText || attachments.length > 0) {
-          const historyItem: any = { 
-            type: MessageType.USER, 
-            text: displayText || '📎 File(s) attached'
+          const historyItem: {
+            type: typeof MessageType.USER;
+            text: string;
+            attachments?: Array<{
+              type: string;
+              mimeType: string;
+              name: string;
+              size: number;
+              thumbnail?: string;
+              icon: string;
+              displaySize?: string;
+            }>;
+          } = {
+            type: MessageType.USER,
+            text: displayText || '📎 File(s) attached',
           };
-          
+
           // Include attachments if present (for web interface display)
           if (attachments.length > 0) {
             historyItem.attachments = attachments;
           }
-          
+
           addItem(historyItem, userMessageTimestamp);
         }
         // WEB_INTERFACE_END
@@ -691,17 +738,50 @@ export const useGeminiStream = (
       const finishReasonMessages: Record<FinishReason, string | undefined> = {
         [FinishReason.FINISH_REASON_UNSPECIFIED]: undefined,
         [FinishReason.STOP]: undefined,
-        [FinishReason.MAX_TOKENS]: t('finish_reasons.max_tokens', 'Response truncated due to token limits.'),
-        [FinishReason.SAFETY]: t('finish_reasons.safety', 'Response stopped due to safety reasons.'),
-        [FinishReason.RECITATION]: t('finish_reasons.recitation', 'Response stopped due to recitation policy.'),
-        [FinishReason.LANGUAGE]: t('finish_reasons.language', 'Response stopped due to unsupported language.'),
-        [FinishReason.BLOCKLIST]: t('finish_reasons.blocklist', 'Response stopped due to forbidden terms.'),
-        [FinishReason.PROHIBITED_CONTENT]: t('finish_reasons.prohibited_content', 'Response stopped due to prohibited content.'),
-        [FinishReason.SPII]: t('finish_reasons.spii', 'Response stopped due to sensitive personally identifiable information.'),
-        [FinishReason.OTHER]: t('finish_reasons.other', 'Response stopped for other reasons.'),
-        [FinishReason.MALFORMED_FUNCTION_CALL]: t('finish_reasons.malformed_function_call', 'Response stopped due to malformed function call.'),
-        [FinishReason.IMAGE_SAFETY]: t('finish_reasons.image_safety', 'Response stopped due to image safety violations.'),
-        [FinishReason.UNEXPECTED_TOOL_CALL]: t('finish_reasons.unexpected_tool_call', 'Response stopped due to unexpected tool call.'),
+        [FinishReason.MAX_TOKENS]: t(
+          'finish_reasons.max_tokens',
+          'Response truncated due to token limits.',
+        ),
+        [FinishReason.SAFETY]: t(
+          'finish_reasons.safety',
+          'Response stopped due to safety reasons.',
+        ),
+        [FinishReason.RECITATION]: t(
+          'finish_reasons.recitation',
+          'Response stopped due to recitation policy.',
+        ),
+        [FinishReason.LANGUAGE]: t(
+          'finish_reasons.language',
+          'Response stopped due to unsupported language.',
+        ),
+        [FinishReason.BLOCKLIST]: t(
+          'finish_reasons.blocklist',
+          'Response stopped due to forbidden terms.',
+        ),
+        [FinishReason.PROHIBITED_CONTENT]: t(
+          'finish_reasons.prohibited_content',
+          'Response stopped due to prohibited content.',
+        ),
+        [FinishReason.SPII]: t(
+          'finish_reasons.spii',
+          'Response stopped due to sensitive personally identifiable information.',
+        ),
+        [FinishReason.OTHER]: t(
+          'finish_reasons.other',
+          'Response stopped for other reasons.',
+        ),
+        [FinishReason.MALFORMED_FUNCTION_CALL]: t(
+          'finish_reasons.malformed_function_call',
+          'Response stopped due to malformed function call.',
+        ),
+        [FinishReason.IMAGE_SAFETY]: t(
+          'finish_reasons.image_safety',
+          'Response stopped due to image safety violations.',
+        ),
+        [FinishReason.UNEXPECTED_TOOL_CALL]: t(
+          'finish_reasons.unexpected_tool_call',
+          'Response stopped due to unexpected tool call.',
+        ),
       };
 
       const message = finishReasonMessages[finishReason];
@@ -765,7 +845,10 @@ export const useGeminiStream = (
         addItem(
           {
             type: 'info',
-            text: t('loop_detection.disabled', 'Loop detection has been disabled for this session. Please try your request again.'),
+            text: t(
+              'loop_detection.disabled',
+              'Loop detection has been disabled for this session. Please try your request again.',
+            ),
           },
           Date.now(),
         );
@@ -773,7 +856,10 @@ export const useGeminiStream = (
         addItem(
           {
             type: 'info',
-            text: t('loop_detection.message', 'A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted.'),
+            text: t(
+              'loop_detection.message',
+              'A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted.',
+            ),
           },
           Date.now(),
         );
@@ -835,7 +921,10 @@ export const useGeminiStream = (
             );
             break;
           case ServerGeminiEventType.Citation:
-            handleCitationEvent((event as ServerGeminiCitationEvent).value, userMessageTimestamp);
+            handleCitationEvent(
+              (event as ServerGeminiCitationEvent).value,
+              userMessageTimestamp,
+            );
             break;
           case ServerGeminiEventType.LoopDetected:
             // handle later because we want to move pending history to history
