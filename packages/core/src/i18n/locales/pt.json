@@ -65,6 +65,10 @@
     "permissions": {
       "description": "Gerenciar configurações de confiança de pastas"
     },
+    "profile": {
+      "description": "Alternar exibição do perfil de depuração",
+      "toggled": "Exibição do perfil alternada."
+    },
     "stats": {
       "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
       "alt_name": "uso",

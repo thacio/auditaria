@@ -65,6 +65,10 @@
     "permissions": {
       "description": "Manage folder trust settings"
     },
+    "profile": {
+      "description": "Toggle the debug profile display",
+      "toggled": "Toggled profile display."
+    },
     "stats": {
       "description": "check session stats. Usage: /stats [model|tools]",
       "alt_name": "usage",
