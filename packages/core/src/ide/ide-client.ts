@@ -85,7 +85,7 @@ export class IdeClient {
     status: IDEConnectionStatus.Disconnected,
     details: t(
       'ide.errors.integration_disabled',
-      'IDE integration is currently disabled. To enable it, run /ide enable.'
+      'IDE integration is currently disabled. To enable it, run /ide enable.',
     ),
   };
   private currentIde: IdeInfo | undefined;
@@ -209,7 +209,7 @@ export class IdeClient {
       t(
         'ide.errors.extension_connection_failed',
         `Failed to connect to IDE companion extension in {ide}. Please ensure the extension is running. To install the extension, run /ide install.`,
-        { ide: this.currentIde.displayName }
+        { ide: this.currentIde.displayName },
       ),
       true,
     );
@@ -411,8 +411,8 @@ export class IdeClient {
       IDEConnectionStatus.Disconnected,
       t(
         'ide.errors.integration_disabled_reenable',
-        'IDE integration disabled. To enable it again, run /ide enable.'
-      )
+        'IDE integration disabled. To enable it again, run /ide enable.',
+      ),
     );
     this.client?.close();
   }
@@ -517,7 +517,7 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension. Please ensure the extension is running. To install the extension, run /ide install.`
+          `Failed to connect to IDE companion extension. Please ensure the extension is running. To install the extension, run /ide install.`,
         ),
       };
     }
@@ -527,7 +527,7 @@ export class IdeClient {
         isValid: false,
         error: t(
           'ide.errors.single_workspace_required',
-          `To use this feature, please open a workspace folder in your IDE and try again.`
+          `To use this feature, please open a workspace folder in your IDE and try again.`,
         ),
       };
     }
@@ -546,7 +546,7 @@ export class IdeClient {
         error: t(
           'ide.errors.directory_mismatch_multi',
           `Directory mismatch. Auditaria CLI is running in a different location than the open workspace in the IDE. Please run the CLI from one of the following directories: {directories}`,
-          { directories }
+          { directories },
         ),
       };
     }
@@ -686,10 +686,10 @@ export class IdeClient {
   }
 
   private createProxyAwareFetch() {
-    // ignore proxy for 'localhost' by deafult to allow connecting to the ide mcp server
+    // ignore proxy for '127.0.0.1' by deafult to allow connecting to the ide mcp server
     const existingNoProxy = process.env['NO_PROXY'] || '';
     const agent = new EnvHttpProxyAgent({
-      noProxy: [existingNoProxy, 'localhost'].filter(Boolean).join(','),
+      noProxy: [existingNoProxy, '127.0.0.1'].filter(Boolean).join(','),
     });
     const undiciPromise = import('undici');
     return async (url: string | URL, init?: RequestInit): Promise<Response> => {
@@ -731,9 +731,9 @@ export class IdeClient {
         IDEConnectionStatus.Disconnected,
         t(
           'ide.errors.connection_lost',
-          'IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable'
+          'IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable',
         ) + `\n${errorMessage}`,
-        true
+        true,
       );
     };
     this.client.onclose = () => {
@@ -741,9 +741,9 @@ export class IdeClient {
         IDEConnectionStatus.Disconnected,
         t(
           'ide.errors.connection_closed',
-          'IDE connection closed. To reconnect, run /ide enable.'
+          'IDE connection closed. To reconnect, run /ide enable.',
         ),
-        true
+        true,
       );
     };
     this.client.setNotificationHandler(
@@ -866,5 +866,5 @@ export class IdeClient {
 function getIdeServerHost() {
   const isInContainer =
     fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv');
-  return isInContainer ? 'host.docker.internal' : 'localhost';
+  return isInContainer ? 'host.docker.internal' : '127.0.0.1';
 }
