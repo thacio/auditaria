@@ -114,7 +114,10 @@ class VsCodeInstaller implements IdeInstaller {
     if (!commandPath) {
       return {
         success: false,
-        message: t('ide_installer.vscode_cli_not_found', `${this.ideInfo.displayName} CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the ${this.ideInfo.displayName} marketplace.`),
+        message: t(
+          'ide_installer.vscode_cli_not_found',
+          `${this.ideInfo.displayName} CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the ${this.ideInfo.displayName} marketplace.`,
+        ),
       };
     }
 
@@ -126,7 +129,7 @@ class VsCodeInstaller implements IdeInstaller {
           'google.gemini-cli-vscode-ide-companion',
           '--force',
         ],
-        { stdio: 'pipe' },
+        { stdio: 'pipe', shell: this.platform === 'win32' },
       );
 
       if (result.status !== 0) {
@@ -137,12 +140,18 @@ class VsCodeInstaller implements IdeInstaller {
 
       return {
         success: true,
-        message: t('ide_installer.vscode_install_success', `${this.ideInfo.displayName} companion extension was installed successfully.`),
+        message: t(
+          'ide_installer.vscode_install_success',
+          `${this.ideInfo.displayName} companion extension was installed successfully.`,
+        ),
       };
     } catch (_error) {
       return {
         success: false,
-        message: t('ide_installer.vscode_install_failed', `Failed to install ${this.ideInfo.displayName} companion extension. Please try installing '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' manually from the ${this.ideInfo.displayName} extension marketplace.`),
+        message: t(
+          'ide_installer.vscode_install_failed',
+          `Failed to install ${this.ideInfo.displayName} companion extension. Please try installing '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' manually from the ${this.ideInfo.displayName} extension marketplace.`,
+        ),
       };
     }
   }
