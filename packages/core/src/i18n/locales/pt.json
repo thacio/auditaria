@@ -217,6 +217,8 @@
         "description": "Instala uma extensão de um repositório git URL ou de um caminho local.",
         "source_description": "A URL do github ou caminho local da extensão a instalar.",
         "ref_description": "A referência git para instalar.",
+        "auto_update_description": "Habilitar atualização automática para esta extensão.",
+        "pre_release_description": "Habilitar versões pré-lançamento para esta extensão.",
         "source_required": "O argumento source deve ser fornecido.",
         "local_no_ref_auto_update": "--ref e --auto-update não são aplicáveis para extensões locais.",
         "source_not_found": "Fonte de instalação não encontrada.",

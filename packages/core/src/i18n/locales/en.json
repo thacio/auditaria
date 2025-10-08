@@ -220,6 +220,8 @@
         "description": "Installs an extension from a git repository URL or a local path.",
         "source_description": "The github URL or local path of the extension to install.",
         "ref_description": "The git ref to install from.",
+        "auto_update_description": "Enable auto-update for this extension.",
+        "pre_release_description": "Enable pre-release versions for this extension.",
         "source_required": "The source argument must be provided.",
         "local_no_ref_auto_update": "--ref and --auto-update are not applicable for local extensions.",
         "source_not_found": "Install source not found.",

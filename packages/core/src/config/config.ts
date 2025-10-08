@@ -141,6 +141,7 @@ export interface ExtensionInstallMetadata {
   releaseTag?: string; // Only present for github-release installs.
   ref?: string;
   autoUpdate?: boolean;
+  allowPreRelease?: boolean;
 }
 
 import type { FileFilteringOptions } from './constants.js';

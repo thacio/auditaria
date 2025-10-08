@@ -18,6 +18,7 @@ interface InstallArgs {
   source: string;
   ref?: string;
   autoUpdate?: boolean;
+  allowPreRelease?: boolean;
 }
 
 export async function handleInstall(args: InstallArgs) {
@@ -35,6 +36,7 @@ export async function handleInstall(args: InstallArgs) {
         type: 'git',
         ref: args.ref,
         autoUpdate: args.autoUpdate,
+        allowPreRelease: args.allowPreRelease,
       };
     } else {
       if (args.ref || args.autoUpdate) {
@@ -79,7 +81,7 @@ export async function handleInstall(args: InstallArgs) {
 }
 
 export const installCommand: CommandModule = {
-  command: 'install <source>',
+  command: 'install <source> [--auto-update] [--pre-release]',
   describe: t(
     'commands.extensions.install.description',
     'Installs an extension from a git repository URL or a local path.',
@@ -102,7 +104,17 @@ export const installCommand: CommandModule = {
         type: 'string',
       })
       .option('auto-update', {
-        describe: 'Enable auto-update for this extension.',
+        describe: t(
+          'commands.extensions.install.auto_update_description',
+          'Enable auto-update for this extension.',
+        ),
+        type: 'boolean',
+      })
+      .option('pre-release', {
+        describe: t(
+          'commands.extensions.install.pre_release_description',
+          'Enable pre-release versions for this extension.',
+        ),
         type: 'boolean',
       })
       .check((argv) => {
@@ -121,6 +133,7 @@ export const installCommand: CommandModule = {
       source: argv['source'] as string,
       ref: argv['ref'] as string | undefined,
       autoUpdate: argv['auto-update'] as boolean | undefined,
+      allowPreRelease: argv['pre-release'] as boolean | undefined,
     });
   },
 };
