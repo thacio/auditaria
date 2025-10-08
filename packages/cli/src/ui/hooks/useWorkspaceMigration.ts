@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { GeminiCLIExtension } from '@google/gemini-cli-core';
+import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
 import { getWorkspaceExtensions } from '../../config/extension.js';
 import { type LoadedSettings, SettingScope } from '../../config/settings.js';
 import process from 'node:process';

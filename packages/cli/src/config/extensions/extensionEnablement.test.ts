@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ExtensionEnablementManager, Override } from './extensionEnablement.js';
-import type { GeminiCLIExtension } from '@google/gemini-cli-core';
+import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
 
 // Helper to create a temporary directory for testing
 function createTestDir() {

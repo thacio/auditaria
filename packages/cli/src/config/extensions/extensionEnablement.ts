@@ -6,7 +6,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type { GeminiCLIExtension } from '@google/gemini-cli-core';
+import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
 
 export interface ExtensionEnablementConfig {
   overrides: string[];
