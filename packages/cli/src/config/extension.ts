@@ -40,6 +40,7 @@ import type { LoadExtensionContext } from './extensions/variableSchema.js';
 import { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
 import chalk from 'chalk';
 import type { ConfirmationRequest } from '../ui/types.js';
+import { escapeAnsiCtrlCodes } from '../ui/utils/textUtils.js';
 
 export const EXTENSIONS_DIRECTORY_NAME = path.join(GEMINI_DIR, 'extensions');
 
@@ -577,11 +578,12 @@ export async function installExtension(
  * extensionConfig.
  */
 function extensionConsentString(extensionConfig: ExtensionConfig): string {
+  const sanitizedConfig = escapeAnsiCtrlCodes(extensionConfig);
   const output: string[] = [];
-  const mcpServerEntries = Object.entries(extensionConfig.mcpServers || {});
+  const mcpServerEntries = Object.entries(sanitizedConfig.mcpServers || {});
   output.push(
     t('extension.installing_extension', 'Installing extension "{name}".', {
-      name: extensionConfig.name,
+      name: sanitizedConfig.name,
     }),
   );
   output.push(
@@ -608,10 +610,10 @@ function extensionConsentString(extensionConfig: ExtensionConfig): string {
       );
     }
   }
-  if (extensionConfig.contextFileName) {
-    const contextFileNameStr = Array.isArray(extensionConfig.contextFileName)
-      ? extensionConfig.contextFileName.join(', ')
-      : extensionConfig.contextFileName;
+  if (sanitizedConfig.contextFileName) {
+    const contextFileNameStr = Array.isArray(sanitizedConfig.contextFileName)
+      ? sanitizedConfig.contextFileName.join(', ')
+      : sanitizedConfig.contextFileName;
     output.push(
       t(
         'extension.context_with_filename',
@@ -620,12 +622,12 @@ function extensionConsentString(extensionConfig: ExtensionConfig): string {
       ),
     );
   }
-  if (extensionConfig.excludeTools) {
+  if (sanitizedConfig.excludeTools) {
     output.push(
       t(
         'extension.exclude_tools_info',
         'This extension will exclude the following core tools: {excludeTools}',
-        { excludeTools: extensionConfig.excludeTools.join(', ') },
+        { excludeTools: sanitizedConfig.excludeTools.join(', ') },
       ),
     );
   }
