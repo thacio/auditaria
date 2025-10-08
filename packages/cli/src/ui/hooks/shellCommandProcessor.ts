@@ -3,7 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+
+import { t , isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
 
 import type {
   HistoryItemWithoutId,
@@ -17,7 +18,6 @@ import type {
   GeminiClient,
   ShellExecutionResult,
 } from '@thacio/auditaria-cli-core';
-import { isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
 import { type PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';
@@ -160,7 +160,7 @@ export const useShellCommandProcessor = (
                   if (isBinaryStream) break;
                   // PTY provides the full screen state, so we just replace.
                   // Child process provides chunks, so we append.
-                  if (config.getShouldUseNodePtyShell()) {
+                  if (config.getEnableInteractiveShell()) {
                     cumulativeStdout = event.chunk;
                     shouldUpdate = true;
                   } else if (
@@ -188,9 +188,16 @@ export const useShellCommandProcessor = (
               let currentDisplayOutput: string | AnsiOutput;
               if (isBinaryStream) {
                 if (binaryBytesReceived > 0) {
-                  currentDisplayOutput = t('shell.receiving_binary_output', '[Receiving binary output... {size} received]', { size: formatMemoryUsage(binaryBytesReceived) });
+                  currentDisplayOutput = t(
+                    'shell.receiving_binary_output',
+                    '[Receiving binary output... {size} received]',
+                    { size: formatMemoryUsage(binaryBytesReceived) },
+                  );
                 } else {
-                  currentDisplayOutput = t('shell.binary_output_detected', '[Binary output detected. Halting stream...]');
+                  currentDisplayOutput = t(
+                    'shell.binary_output_detected',
+                    '[Binary output detected. Halting stream...]',
+                  );
                 }
               } else {
                 currentDisplayOutput = cumulativeStdout;
@@ -218,7 +225,7 @@ export const useShellCommandProcessor = (
               }
             },
             abortSignal,
-            config.getShouldUseNodePtyShell(),
+            config.getEnableInteractiveShell(),
             shellExecutionConfig,
           );
 
@@ -247,10 +254,14 @@ export const useShellCommandProcessor = (
               let mainContent: string;
 
               if (isBinary(result.rawOutput)) {
-                mainContent = t('shell.binary_output_not_shown', '[Command produced binary output, which is not shown.]');
+                mainContent = t(
+                  'shell.binary_output_not_shown',
+                  '[Command produced binary output, which is not shown.]',
+                );
               } else {
                 mainContent =
-                  result.output.trim() || t('shell.no_output', '(Command produced no output)');
+                  result.output.trim() ||
+                  t('shell.no_output', '(Command produced no output)');
               }
 
               let finalOutput = mainContent;
@@ -273,7 +284,11 @@ export const useShellCommandProcessor = (
               if (pwdFilePath && fs.existsSync(pwdFilePath)) {
                 const finalPwd = fs.readFileSync(pwdFilePath, 'utf8').trim();
                 if (finalPwd && finalPwd !== targetDir) {
-                  const warning = t('shell.directory_change_warning', 'WARNING: shell mode is stateless; the directory change to \'{directory}\' will not persist.', { directory: finalPwd });
+                  const warning = t(
+                    'shell.directory_change_warning',
+                    "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
+                    { directory: finalPwd },
+                  );
                   finalOutput = `${warning}\n\n${finalOutput}`;
                 }
               }
@@ -307,7 +322,11 @@ export const useShellCommandProcessor = (
               addItemToHistory(
                 {
                   type: 'error',
-                  text: t('shell.unexpected_error', 'An unexpected error occurred: {error}', { error: errorMessage }),
+                  text: t(
+                    'shell.unexpected_error',
+                    'An unexpected error occurred: {error}',
+                    { error: errorMessage },
+                  ),
                 },
                 userMessageTimestamp,
               );
@@ -328,7 +347,11 @@ export const useShellCommandProcessor = (
           addItemToHistory(
             {
               type: 'error',
-              text: t('shell.unexpected_error', 'An unexpected error occurred: {error}', { error: errorMessage }),
+              text: t(
+                'shell.unexpected_error',
+                'An unexpected error occurred: {error}',
+                { error: errorMessage },
+              ),
             },
             userMessageTimestamp,
           );

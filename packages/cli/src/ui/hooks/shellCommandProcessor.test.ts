@@ -70,7 +70,7 @@ describe('useShellCommandProcessor', () => {
     setShellInputFocusedMock = vi.fn();
     mockConfig = {
       getTargetDir: () => '/test/dir',
-      getShouldUseNodePtyShell: () => false,
+      getEnableInteractiveShell: () => false,
       getShellExecutionConfig: () => ({
         terminalHeight: 20,
         terminalWidth: 80,
