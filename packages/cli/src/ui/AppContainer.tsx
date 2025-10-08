@@ -1405,12 +1405,39 @@ Logging in with Google... Please restart Gemini CLI to continue.
     }
   }, [webInterface?.service, webInterface?.isRunning, initializationResult.geminiMdFileCount]);
 
-  // Tool confirmation broadcasting
+  // Tool confirmation broadcasting and response handling
   const toolConfirmationContext = useToolConfirmation();
+
+  // Register confirmation response handler from web interface
+  useEffect(() => {
+    if (toolConfirmationContext && webInterface?.service) {
+      webInterface.service.setConfirmationResponseHandler((callId, outcome, payload) => {
+        toolConfirmationContext.handleConfirmationResponse(callId, outcome, payload);
+      });
+    }
+  }, [toolConfirmationContext, webInterface?.service]);
+
+  // Broadcast pending confirmations
   useEffect(() => {
     const pendingConfirmation = toolConfirmationContext?.pendingConfirmations?.[0];
     if (pendingConfirmation && webInterface?.service && webInterface.isRunning) {
       webInterface.service.broadcastToolConfirmation(pendingConfirmation);
+    }
+  }, [toolConfirmationContext?.pendingConfirmations, webInterface?.service, webInterface?.isRunning]);
+
+  // Broadcast confirmation removal when confirmations are resolved
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      // When a confirmation is removed from the queue, broadcast the removal
+      const activeConfirmations = toolConfirmationContext?.pendingConfirmations || [];
+      const trackedConfirmations = [...(webInterface.service as any).activeToolConfirmations?.keys() || []];
+
+      // Find confirmations that were tracked but are no longer pending
+      trackedConfirmations.forEach(callId => {
+        if (!activeConfirmations.some(c => c.callId === callId)) {
+          webInterface.service!.broadcastToolConfirmationRemoval(callId);
+        }
+      });
     }
   }, [toolConfirmationContext?.pendingConfirmations, webInterface?.service, webInterface?.isRunning]);
 

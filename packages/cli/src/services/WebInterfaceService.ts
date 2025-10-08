@@ -876,7 +876,32 @@ export class WebInterfaceService extends EventEmitter {
       this.abortHandler();
     } else if (message.type === 'tool_confirmation_response' && this.confirmationResponseHandler) {
       if (message.callId && message.outcome) {
-        const outcome = message.outcome as ToolConfirmationOutcome;
+        // Map string values to enum values
+        let outcome: ToolConfirmationOutcome;
+        switch (message.outcome) {
+          case 'proceed_once':
+            outcome = ToolConfirmationOutcome.ProceedOnce;
+            break;
+          case 'proceed_always':
+            outcome = ToolConfirmationOutcome.ProceedAlways;
+            break;
+          case 'proceed_always_server':
+            outcome = ToolConfirmationOutcome.ProceedAlwaysServer;
+            break;
+          case 'proceed_always_tool':
+            outcome = ToolConfirmationOutcome.ProceedAlwaysTool;
+            break;
+          case 'modify_with_editor':
+            outcome = ToolConfirmationOutcome.ModifyWithEditor;
+            break;
+          case 'cancel':
+            outcome = ToolConfirmationOutcome.Cancel;
+            break;
+          default:
+            console.error(`Unknown confirmation outcome: ${message.outcome}`);
+            return;
+        }
+
         this.confirmationResponseHandler(message.callId, outcome, message.payload);
       }
     } else if (message.type === 'terminal_input' && message.key) {

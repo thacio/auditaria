@@ -15,6 +15,7 @@ import { AudioRecorder } from './utils/audioRecorder.js';
 import { audioPlayerModal } from './components/AudioPlayerModal.js';
 import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 import { ttsManager } from './providers/tts/TTSManager.js';
+import { ConfirmationQueue } from './confirmation-queue.js';
 
 class AuditariaWebClient {
     constructor() {
@@ -797,8 +798,8 @@ class AuditariaWebClient {
         this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
     }
     
-    handleConfirmationResponse(callId, outcome) {
-        this.wsManager.sendConfirmationResponse(callId, outcome);
+    handleConfirmationResponse(callId, outcome, payload) {
+        this.wsManager.sendConfirmationResponse(callId, outcome, payload);
         this.confirmationQueue.next();
     }
     

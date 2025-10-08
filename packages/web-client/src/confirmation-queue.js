@@ -1,41 +1,18 @@
-class ConfirmationQueue {
+export class ConfirmationQueue {
     constructor(client) {
         this.client = client;
-        this.queue = this.loadQueue();
+        this.queue = []; // Start with empty queue - will be populated from server
         this.isDialogVisible = false;
         this.boundGlobalEscHandler = null;
 
-        // Process the queue on initialization
-        this.showNext();
-    }
-
-    loadQueue() {
-        try {
-            const storedQueue = sessionStorage.getItem('confirmationQueue');
-            const queue = storedQueue ? JSON.parse(storedQueue) : [];
-            // Basic validation of queue items
-            if (Array.isArray(queue) && queue.every(item => item && item.callId)) {
-                return queue;
-            }
-        } catch (e) {
-            console.error("Failed to load or parse confirmation queue:", e);
-        }
-        return [];
-    }
-
-    saveQueue() {
-        try {
-            sessionStorage.setItem('confirmationQueue', JSON.stringify(this.queue));
-        } catch (e) {
-            console.error("Failed to save confirmation queue:", e);
-        }
+        // Don't process queue on initialization - wait for server state
     }
 
     add(confirmation) {
         // Avoid adding duplicates
         if (!this.queue.some(c => c.callId === confirmation.callId)) {
             this.queue.push(confirmation);
-            this.saveQueue();
+            // No sessionStorage save - keep confirmations in memory only
         }
         this.showNext();
     }
@@ -43,7 +20,7 @@ class ConfirmationQueue {
     remove(callId) {
         const wasVisible = this.isDialogVisible && this.queue[0]?.callId === callId;
         this.queue = this.queue.filter(c => c.callId !== callId);
-        this.saveQueue();
+        // No sessionStorage save - keep confirmations in memory only
 
         if (wasVisible) {
             this.hideConfirmationDialog();
@@ -55,7 +32,7 @@ class ConfirmationQueue {
     next() {
         if (this.queue.length > 0) {
             this.queue.shift(); // Remove the confirmation that was just handled
-            this.saveQueue();
+            // No sessionStorage save - keep confirmations in memory only
         }
         this.isDialogVisible = false;
         this.hideConfirmationDialog();
@@ -112,17 +89,7 @@ class ConfirmationQueue {
         // Add global ESC listener
         this.boundGlobalEscHandler = (e) => {
             if (e.key === 'Escape') {
-                // Send ESC key as terminal input to trigger dialog dismissal in CLI
-                if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
-                    this.client.wsManager.sendTerminalInput({
-                        name: 'escape',
-                        sequence: '\x1b',
-                        ctrl: false,
-                        meta: false,
-                        shift: false
-                    });
-                }
-                // Also send the cancel response for backward compatibility
+                // Send cancel response directly without keyboard input
                 this.client.handleConfirmationResponse(confirmationData.callId, 'cancel');
             }
         };
@@ -229,17 +196,8 @@ class ConfirmationQueue {
             button.className = `confirmation-button ${buttonConfig.type}`;
             button.textContent = buttonConfig.label;
             button.onclick = () => {
-                // Send ENTER key as terminal input when button is clicked
-                if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
-                    this.client.wsManager.sendTerminalInput({
-                        name: 'return',
-                        sequence: '\r',
-                        ctrl: false,
-                        meta: false,
-                        shift: false
-                    });
-                }
-                // Also send the confirmation response
+                // Only send the confirmation response, not keyboard input
+                // The keyboard input was interfering with the actual confirmation response
                 this.client.handleConfirmationResponse(confirmationData.callId, buttonConfig.outcome);
             };
 
@@ -254,30 +212,11 @@ class ConfirmationQueue {
                     prevButton.focus();
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    // Send ENTER key as terminal input
-                    if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
-                        this.client.wsManager.sendTerminalInput({
-                            name: 'return',
-                            sequence: '\r',
-                            ctrl: false,
-                            meta: false,
-                            shift: false
-                        });
-                    }
-                    // Also send the confirmation response
+                    // Only send the confirmation response, not keyboard input
                     this.client.handleConfirmationResponse(confirmationData.callId, buttonConfig.outcome);
                 } else if (e.key === 'Escape') {
-                    // Send ESC key as terminal input to trigger dialog dismissal in CLI
-                    if (this.client.wsManager && this.client.wsManager.sendTerminalInput) {
-                        this.client.wsManager.sendTerminalInput({
-                            name: 'escape',
-                            sequence: '\x1b',
-                            ctrl: false,
-                            meta: false,
-                            shift: false
-                        });
-                    }
-                    // Also send the cancel response for backward compatibility
+                    e.preventDefault();
+                    // Send cancel response
                     this.client.handleConfirmationResponse(confirmationData.callId, 'cancel');
                 }
             });

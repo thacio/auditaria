@@ -182,11 +182,12 @@ export class WebSocketManager extends EventTarget {
     /**
      * Send tool confirmation response
      */
-    sendConfirmationResponse(callId, outcome) {
+    sendConfirmationResponse(callId, outcome, payload) {
         return this.send({
             type: 'tool_confirmation_response',
             callId: callId,
             outcome: outcome,
+            payload: payload,
             timestamp: Date.now()
         });
     }
