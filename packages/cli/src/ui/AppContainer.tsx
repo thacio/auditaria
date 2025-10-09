@@ -1627,6 +1627,11 @@ Logging in with Google... Please restart Gemini CLI to continue.
     ],
   );
 
+  const exitPrivacyNotice = useCallback(
+    () => setShowPrivacyNotice(false),
+    [setShowPrivacyNotice],
+  );
+
   const uiActions: UIActions = useMemo(
     () => ({
       handleThemeSelect,
@@ -1637,7 +1642,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleEditorSelect,
       exitEditorDialog,
       handleLanguageSelect,
-      exitPrivacyNotice: () => setShowPrivacyNotice(false),
+      exitPrivacyNotice,
       closeSettingsDialog,
       closeModelDialog,
       closePermissionsDialog,
@@ -1663,6 +1668,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       handleEditorSelect,
       exitEditorDialog,
       handleLanguageSelect,
+      exitPrivacyNotice,
       closeSettingsDialog,
       closeModelDialog,
       closePermissionsDialog,

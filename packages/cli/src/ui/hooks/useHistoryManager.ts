@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { HistoryItem } from '../types.js';
 // WEB_INTERFACE_START: Web interface context import
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
@@ -127,11 +127,14 @@ export function useHistory(): UseHistoryManagerReturn {
     // WEB_INTERFACE_END
   }, [/* WEB_INTERFACE_START */ webInterface /* WEB_INTERFACE_END */]);
 
-  return {
-    history,
-    addItem,
-    updateItem,
-    clearItems,
-    loadHistory,
-  };
+  return useMemo(
+    () => ({
+      history,
+      addItem,
+      updateItem,
+      clearItems,
+      loadHistory,
+    }),
+    [history, addItem, updateItem, clearItems, loadHistory],
+  );
 }
