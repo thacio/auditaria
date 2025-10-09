@@ -18,7 +18,7 @@ import { AuthType } from '../core/contentGenerator.js';
 export class ProjectIdRequiredError extends Error {
   constructor() {
     super(
-      'This account requires setting the GOOGLE_CLOUD_PROJECT env var. See https://goo.gle/gemini-cli-auth-docs#workspace-gca',
+      'This account requires setting the GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_PROJECT_ID env var. See https://goo.gle/gemini-cli-auth-docs#workspace-gca',
     );
   }
 }
@@ -77,7 +77,9 @@ export async function setupUser(
   const projectId =
     authType === AuthType.LOGIN_WITH_GOOGLE_GCA ||
     authType === AuthType.CLOUD_SHELL
-      ? process.env['GOOGLE_CLOUD_PROJECT'] || undefined
+      ? process.env['GOOGLE_CLOUD_PROJECT'] ||
+        process.env['GOOGLE_CLOUD_PROJECT_ID'] ||
+        undefined
       : undefined;
   const caServer = new CodeAssistServer(client, projectId, {}, '', undefined);
   const coreClientMetadata: ClientMetadata = {
