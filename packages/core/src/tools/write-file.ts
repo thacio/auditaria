@@ -3,11 +3,13 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '../i18n/index.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
 import * as Diff from 'diff';
+import { WRITE_FILE_TOOL_NAME } from './tool-names.js';
 import type { Config } from '../config/config.js';
 import { ApprovalMode } from '../config/config.js';
 import type {
@@ -243,7 +245,11 @@ class WriteFileToolInvocation extends BaseToolInvocation<
         : `Error checking existing file: ${errDetails.message}`;
       return {
         llmContent: errorMsg,
-        returnDisplay: t('tools.write_file.file_check_error', 'Error checking existing file: {error}', { error: errDetails.message }),
+        returnDisplay: t(
+          'tools.write_file.file_check_error',
+          'Error checking existing file: {error}',
+          { error: errDetails.message },
+        ),
         error: {
           message: errorMsg,
           type: ToolErrorType.FILE_WRITE_FAILURE,
@@ -373,7 +379,9 @@ class WriteFileToolInvocation extends BaseToolInvocation<
 
       return {
         llmContent: errorMsg,
-        returnDisplay: t('tools.write_file.write_error', 'Error: {error}', { error: errorMsg }),
+        returnDisplay: t('tools.write_file.write_error', 'Error: {error}', {
+          error: errorMsg,
+        }),
         error: {
           message: errorMsg,
           type: errorType,
@@ -390,7 +398,7 @@ export class WriteFileTool
   extends BaseDeclarativeTool<WriteFileToolParams, ToolResult>
   implements ModifiableDeclarativeTool<WriteFileToolParams>
 {
-  static readonly Name: string = 'write_file';
+  static readonly Name: string = WRITE_FILE_TOOL_NAME;
 
   constructor(private readonly config: Config) {
     super(

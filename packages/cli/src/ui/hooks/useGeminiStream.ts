@@ -35,6 +35,7 @@ import {
   t,
   ToolConfirmationOutcome,
   promptIdContext,
+  WRITE_FILE_TOOL_NAME,
 } from '@thacio/auditaria-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 // WEB_INTERFACE_START: Import WeakMap for attachment metadata
@@ -77,7 +78,7 @@ enum StreamProcessingStatus {
   Error,
 }
 
-const EDIT_TOOL_NAMES = new Set(['replace', 'write_file']);
+const EDIT_TOOL_NAMES = new Set(['replace', WRITE_FILE_TOOL_NAME]);
 
 function showCitations(settings: LoadedSettings): boolean {
   const enabled = settings?.merged?.ui?.showCitations;
