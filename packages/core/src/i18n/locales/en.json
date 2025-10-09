@@ -1284,7 +1284,8 @@
     "root_directory_warning": "Warning: You are running Auditaria CLI in the root directory. Your entire folder structure will be used for context. It is strongly recommended to run in a project-specific directory.",
     "directory_verification_error": "Could not verify the current directory due to a file system error.",
     "cannot_delete_warnings_file": "Warning: Could not delete temporary warnings file.",
-    "error_reading_warnings_file": "Error checking/reading warnings file: {error}"
+    "error_reading_warnings_file": "Error checking/reading warnings file: {error}",
+    "untrusted_folder_message": "This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level."
   },
   "non_interactive": {
     "operation_cancelled": "Operation cancelled.",
