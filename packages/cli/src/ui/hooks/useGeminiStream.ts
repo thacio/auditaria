@@ -36,6 +36,7 @@ import {
   ToolConfirmationOutcome,
   promptIdContext,
   WRITE_FILE_TOOL_NAME,
+  tokenLimit,
 } from '@thacio/auditaria-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 // WEB_INTERFACE_START: Import WeakMap for attachment metadata
@@ -841,22 +842,38 @@ export const useGeminiStream = (
     (estimatedRequestTokenCount: number, remainingTokenCount: number) => {
       onCancelSubmit();
 
+      const limit = tokenLimit(config.getModel());
+
+      const isLessThan75Percent =
+        limit > 0 && remainingTokenCount < limit * 0.75;
+
+      let text = t(
+        'errors.context_window_overflow.base',
+        `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the remaining context window limit (${remainingTokenCount} tokens).`,
+        {
+          estimatedRequestTokenCount: estimatedRequestTokenCount.toString(),
+          remainingTokenCount: remainingTokenCount.toString(),
+        },
+      );
+
+      if (isLessThan75Percent) {
+        text +=
+          ' ' +
+          t(
+            'errors.context_window_overflow.suggestion',
+            'Please try reducing the size of your message or use the `/compress` command to compress the chat history.',
+          );
+      }
+
       addItem(
         {
           type: 'info',
-          text: t(
-            'errors.context_window_overflow',
-            `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the remaining context window limit (${remainingTokenCount} tokens). Please try reducing the size of your message or use the \`/compress\` command to compress the chat history.`,
-            {
-              estimatedRequestTokenCount: estimatedRequestTokenCount.toString(),
-              remainingTokenCount: remainingTokenCount.toString(),
-            },
-          ),
+          text,
         },
         Date.now(),
       );
     },
-    [addItem, onCancelSubmit],
+    [addItem, onCancelSubmit, config],
   );
 
   const handleLoopDetectionConfirmation = useCallback(
