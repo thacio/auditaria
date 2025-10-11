@@ -27,6 +27,7 @@ import {
   toFriendlyError,
 } from '../utils/errors.js';
 import type { GeminiChat } from './geminiChat.js';
+import { InvalidStreamError } from './geminiChat.js';
 import { t } from '../i18n/index.js';
 import { parseThought, type ThoughtSummary } from '../utils/thoughtUtils.js';
 import { createUserContent } from '@google/genai';
@@ -61,6 +62,7 @@ export enum GeminiEventType {
   Citation = 'citation',
   Retry = 'retry',
   ContextWindowWillOverflow = 'context_window_will_overflow',
+  InvalidStream = 'invalid_stream',
 }
 
 export type ServerGeminiRetryEvent = {
@@ -73,6 +75,10 @@ export type ServerGeminiContextWindowWillOverflowEvent = {
     estimatedRequestTokenCount: number;
     remainingTokenCount: number;
   };
+};
+
+export type ServerGeminiInvalidStreamEvent = {
+  type: GeminiEventType.InvalidStream;
 };
 
 export interface StructuredError {
@@ -204,7 +210,8 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiToolCallResponseEvent
   | ServerGeminiUserCancelledEvent
   | ServerGeminiRetryEvent
-  | ServerGeminiContextWindowWillOverflowEvent;
+  | ServerGeminiContextWindowWillOverflowEvent
+  | ServerGeminiInvalidStreamEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {
@@ -310,6 +317,11 @@ export class Turn {
       if (signal.aborted) {
         yield { type: GeminiEventType.UserCancelled };
         // Regular cancellation error, fail gracefully.
+        return;
+      }
+
+      if (e instanceof InvalidStreamError) {
+        yield { type: GeminiEventType.InvalidStream };
         return;
       }
 

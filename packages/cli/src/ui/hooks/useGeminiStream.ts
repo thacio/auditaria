@@ -978,6 +978,7 @@ export const useGeminiStream = (
             loopDetectedRef.current = true;
             break;
           case ServerGeminiEventType.Retry:
+          case ServerGeminiEventType.InvalidStream:
             // Will add the missing logic later
             break;
           default: {
