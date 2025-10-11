@@ -41,6 +41,7 @@ import {
   initI18n,
   getOauthClient,
   t,
+  UserPromptEvent,
 } from '@thacio/auditaria-cli-core';
 import {
   initializeApp,
@@ -514,14 +515,15 @@ export async function main() {
     }
 
     const prompt_id = Math.random().toString(16).slice(2);
-    logUserPrompt(config, {
-      'event.name': 'user_prompt',
-      'event.timestamp': new Date().toISOString(),
-      prompt: input,
-      prompt_id,
-      auth_type: config.getContentGeneratorConfig()?.authType,
-      prompt_length: input.length,
-    });
+    logUserPrompt(
+      config,
+      new UserPromptEvent(
+        input.length,
+        prompt_id,
+        config.getContentGeneratorConfig()?.authType,
+        input,
+      ),
+    );
 
     const nonInteractiveConfig = await validateNonInteractiveAuth(
       settings.merged.security?.auth?.selectedType,
