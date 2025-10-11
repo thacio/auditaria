@@ -845,6 +845,7 @@
       "folder_trust": "Folder Trust",
       "show_line_numbers": "Show Line Numbers",
       "show_citations": "Show Citations",
+      "use_full_width": "Use Full Width",
       "use_node_pty_shell": "Use node-pty for Shell Execution",
       "skip_next_speaker_check": "Skip Next Speaker Check",
       "auto_accept": "Auto Accept",
@@ -852,7 +853,8 @@
     },
     "descriptions": {
       "auto_accept": "Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).",
-      "custom_witty_phrases": "Custom witty phrases to display during loading."
+      "custom_witty_phrases": "Custom witty phrases to display during loading.",
+      "use_full_width": "Use the entire width of the terminal for output."
     }
   },
   "editor_dialog": {

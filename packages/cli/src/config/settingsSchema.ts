@@ -421,6 +421,15 @@ const SETTINGS_SCHEMA = {
         description: 'Show citations for generated text in the chat.',
         showInDialog: true,
       },
+      useFullWidth: {
+        type: 'boolean',
+        label: t('settings_dialog.labels.use_full_width', 'Use Full Width'),
+        category: 'UI',
+        requiresRestart: false,
+        default: false,
+        description: t('settings_dialog.descriptions.use_full_width', 'Use the entire width of the terminal for output.'),
+        showInDialog: true,
+      },
       customWittyPhrases: {
         type: 'array',
         label: t(

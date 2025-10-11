@@ -842,6 +842,7 @@
       "folder_trust": "Confiança de Pasta",
       "show_line_numbers": "Mostrar Números de Linha",
       "show_citations": "Mostrar Citações",
+      "use_full_width": "Usar Largura Total",
       "use_node_pty_shell": "Usar node-pty para Execução de Shell",
       "skip_next_speaker_check": "Pular Verificação do Próximo Orador",
       "auto_accept": "Aceitar Automaticamente",
@@ -849,7 +850,8 @@
     },
     "descriptions": {
       "auto_accept": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
-      "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento."
+      "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento.",
+      "use_full_width": "Usar toda a largura do terminal para saída."
     }
   },
   "editor_dialog": {
