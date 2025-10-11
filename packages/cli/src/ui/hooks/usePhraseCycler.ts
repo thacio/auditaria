@@ -3,8 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { getTranslationData } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+
+import { getTranslationData , t } from '@thacio/auditaria-cli-core';
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -138,10 +138,10 @@ export const WITTY_LOADING_PHRASES = [
   'Have you tried turning it off and on again? (The loading screen, not me.)',
   'Constructing additional pylons...',
   'New line? That’s Ctrl+J.',
+  'Releasing the HypnoDrones...',
 ];
 
 export const PHRASE_CHANGE_INTERVAL_MS = 15000;
-
 
 const getWittyLoadingPhrases = (): string[] => {
   try {
@@ -175,7 +175,9 @@ export const usePhraseCycler = (
 
   useEffect(() => {
     if (isWaiting) {
-      setCurrentLoadingPhrase(t('loading.waiting_confirmation', 'Waiting for user confirmation...'));
+      setCurrentLoadingPhrase(
+        t('loading.waiting_confirmation', 'Waiting for user confirmation...'),
+      );
       if (phraseIntervalRef.current) {
         clearInterval(phraseIntervalRef.current);
         phraseIntervalRef.current = null;
