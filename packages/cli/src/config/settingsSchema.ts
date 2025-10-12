@@ -427,7 +427,10 @@ const SETTINGS_SCHEMA = {
         category: 'UI',
         requiresRestart: false,
         default: false,
-        description: t('settings_dialog.descriptions.use_full_width', 'Use the entire width of the terminal for output.'),
+        description: t(
+          'settings_dialog.descriptions.use_full_width',
+          'Use the entire width of the terminal for output.',
+        ),
         showInDialog: true,
       },
       customWittyPhrases: {
@@ -468,7 +471,7 @@ const SETTINGS_SCHEMA = {
             label: 'Screen Reader Mode',
             category: 'UI',
             requiresRestart: true,
-            default: undefined as boolean | undefined,
+            default: false,
             description:
               'Render output in plain-text to be more screen reader accessible',
             showInDialog: true,

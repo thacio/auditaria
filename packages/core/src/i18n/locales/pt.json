@@ -1569,7 +1569,8 @@
     "user_prefix": "Usuário: ",
     "model_prefix": "Modelo: ",
     "loading": "carregando",
-    "responding": "respondendo"
+    "responding": "respondendo",
+    "mode_notification": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\"."
   },
   "gemini_stream": {
     "request_cancelled": "Requisição cancelada."
