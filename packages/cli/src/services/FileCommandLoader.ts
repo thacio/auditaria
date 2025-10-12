@@ -64,11 +64,11 @@ const TomlCommandDefSchema = z.object({
 export class FileCommandLoader implements ICommandLoader {
   private readonly projectRoot: string;
   private readonly folderTrustEnabled: boolean;
-  private readonly folderTrust: boolean;
+  private readonly isTrustedFolder: boolean;
 
   constructor(private readonly config: Config | null) {
-    this.folderTrustEnabled = !!config?.getFolderTrustFeature();
-    this.folderTrust = !!config?.getFolderTrust();
+    this.folderTrustEnabled = !!config?.getFolderTrust();
+    this.isTrustedFolder = !!config?.isTrustedFolder();
     this.projectRoot = config?.getProjectRoot() || process.cwd();
   }
 
@@ -101,7 +101,7 @@ export class FileCommandLoader implements ICommandLoader {
           cwd: dirInfo.path,
         });
 
-        if (this.folderTrustEnabled && !this.folderTrust) {
+        if (this.folderTrustEnabled && !this.isTrustedFolder) {
           return [];
         }
 
@@ -226,7 +226,11 @@ export class FileCommandLoader implements ICommandLoader {
       .join(':');
 
     // Add extension name tag for extension commands
-    const defaultDescription = t('commands.file_command.default_description', 'Custom command from {filename}', { filename: path.basename(filePath) });
+    const defaultDescription = t(
+      'commands.file_command.default_description',
+      'Custom command from {filename}',
+      { filename: path.basename(filePath) },
+    );
     let description = validDef.description || defaultDescription;
     if (extensionName) {
       description = `[${extensionName}] ${description}`;
