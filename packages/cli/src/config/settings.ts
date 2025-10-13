@@ -11,7 +11,7 @@ import * as dotenv from 'dotenv';
 import process from 'node:process';
 import {
   FatalConfigError,
-  GEMINI_CONFIG_DIR as GEMINI_DIR,
+  GEMINI_DIR,
   getErrorMessage,
   t,
   Storage,
@@ -49,8 +49,6 @@ function getMergeStrategyForPath(path: string[]): MergeStrategy | undefined {
 }
 
 export type { Settings, MemoryImportFormat };
-
-export const SETTINGS_DIRECTORY_NAME = '.auditaria';
 
 export const USER_SETTINGS_PATH = Storage.getGlobalSettingsPath();
 export const USER_SETTINGS_DIR = path.dirname(USER_SETTINGS_PATH);

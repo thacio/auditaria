@@ -11,8 +11,8 @@ import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { promises as fs } from 'node:fs';
+import { GEMINI_DIR } from '../utils/paths.js';
 
-const GEMINI_DIR = '.auditaria';
 const KEYCHAIN_SERVICE_NAME = 'auditaria-cli-oauth';
 const MAIN_ACCOUNT_KEY = 'main-account';
 
