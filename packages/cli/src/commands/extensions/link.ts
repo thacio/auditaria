@@ -6,7 +6,7 @@
 
 import type { CommandModule } from 'yargs';
 import {
-  installExtension,
+  installOrUpdateExtension,
   requestConsentNonInteractive,
 } from '../../config/extension.js';
 import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
@@ -24,7 +24,7 @@ export async function handleLink(args: InstallArgs) {
       source: args.path,
       type: 'link',
     };
-    const extensionName = await installExtension(
+    const extensionName = await installOrUpdateExtension(
       installMetadata,
       requestConsentNonInteractive,
     );

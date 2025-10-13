@@ -15,7 +15,7 @@ interface UninstallArgs {
 
 export async function handleUninstall(args: UninstallArgs) {
   try {
-    await uninstallExtension(args.name);
+    await uninstallExtension(args.name, false);
     console.log(t('commands.extensions.uninstall.success', `Extension "${args.name}" successfully uninstalled.`, { name: args.name }));
   } catch (error) {
     console.error(getErrorMessage(error));
