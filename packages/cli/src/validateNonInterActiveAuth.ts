@@ -35,20 +35,20 @@ export async function validateNonInteractiveAuth(
   settings: LoadedSettings,
 ) {
   try {
-    const enforcedType = settings.merged.security?.auth?.enforcedType;
-    if (enforcedType) {
-      const currentAuthType = getAuthTypeFromEnv();
-      if (currentAuthType !== enforcedType) {
-        const message = t('auth_errors.enforced_auth_type_mismatch_env', `The configured auth type is ${enforcedType}, but the current auth type is ${currentAuthType}. Please re-authenticate with the correct type.`, {
-          enforcedType: String(enforcedType),
-          currentType: String(currentAuthType),
-        });
-        throw new Error(message);
-      }
-    }
+    const effectiveAuthType = configuredAuthType || getAuthTypeFromEnv();
 
-    const effectiveAuthType =
-      enforcedType || getAuthTypeFromEnv() || configuredAuthType;
+    const enforcedType = settings.merged.security?.auth?.enforcedType;
+    if (enforcedType && effectiveAuthType !== enforcedType) {
+      const message = effectiveAuthType
+        ? t('auth_errors.enforced_auth_type_mismatch', `The enforced authentication type is '${enforcedType}', but the current type is '${effectiveAuthType}'. Please re-authenticate with the correct type.`, {
+            enforcedType: String(enforcedType),
+            currentType: String(effectiveAuthType),
+          })
+        : t('auth_errors.enforced_auth_no_config', `The auth type '${enforcedType}' is enforced, but no authentication is configured.`, {
+            enforcedType: String(enforcedType),
+          });
+      throw new Error(message);
+    }
 
     if (!effectiveAuthType) {
       const message = t('non_interactive.auth_method_required', `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA`, { settingsPath: USER_SETTINGS_PATH });
