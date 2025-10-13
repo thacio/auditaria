@@ -11,6 +11,7 @@ import { theme } from '../semantic-colors.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { debugNumSpinners } from './CliSpinner.js';
 import { appEvents, AppEvent } from '../../utils/events.js';
+import { t } from '@thacio/auditaria-cli-core';
 
 // Frames that render at least this far before or after an action are considered
 // idle frames.
@@ -23,6 +24,8 @@ export const FRAME_TIMESTAMP_CAPACITY = 2048;
 export const profiler = {
   numFrames: 0,
   totalIdleFrames: 0,
+  totalFlickerFrames: 0,
+  hasLoggedFirstFlicker: false,
   lastFrameStartTime: 0,
   openedDebugConsole: false,
   lastActionTimestamp: 0,
@@ -108,16 +111,46 @@ export const profiler = {
       }
       appEvents.emit(
         AppEvent.LogError,
-        `${idleInPastSecond} frames rendered while the app was ` +
-          `idle in the past second. This likely indicates severe infinite loop ` +
-          `React state management bugs.`,
+        t(
+          'debug_profiler.idle_frames_warning',
+          '{count} frames rendered while the app was idle in the past second. This likely indicates severe infinite loop React state management bugs.',
+          { count: idleInPastSecond }
+        ),
       );
     }
+  },
+
+  registerFlickerHandler(constrainHeight: boolean) {
+    const flickerHandler = () => {
+      // If we are not constraining the height, we are intentionally
+      // overflowing the screen.
+      if (!constrainHeight) {
+        return;
+      }
+
+      this.totalFlickerFrames++;
+      this.reportAction();
+
+      if (!this.hasLoggedFirstFlicker) {
+        this.hasLoggedFirstFlicker = true;
+        appEvents.emit(
+          AppEvent.LogError,
+          t(
+            'debug_profiler.flicker_detected',
+            'A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.'
+          ),
+        );
+      }
+    };
+    appEvents.on(AppEvent.Flicker, flickerHandler);
+    return () => {
+      appEvents.off(AppEvent.Flicker, flickerHandler);
+    };
   },
 };
 
 export const DebugProfiler = () => {
-  const { showDebugProfiler } = useUIState();
+  const { showDebugProfiler, constrainHeight } = useUIState();
   const [forceRefresh, setForceRefresh] = useState(0);
 
   // Effect for listening to stdin for keypresses and stdout for resize events.
@@ -170,6 +203,11 @@ export const DebugProfiler = () => {
     return () => clearInterval(updateInterval);
   }, []);
 
+  useEffect(
+    () => profiler.registerFlickerHandler(constrainHeight),
+    [constrainHeight],
+  );
+
   // Effect for updating stats
   useEffect(() => {
     if (!showDebugProfiler) {
@@ -190,8 +228,14 @@ export const DebugProfiler = () => {
 
   return (
     <Text color={theme.status.warning} key={forceRefresh}>
-      Renders: {profiler.numFrames} (total),{' '}
-      <Text color={theme.status.error}>{profiler.totalIdleFrames} (idle) </Text>
+      {t('debug_profiler.renders_label', 'Renders:')} {profiler.numFrames}{' '}
+      {t('debug_profiler.total_label', '(total)')},{' '}
+      <Text color={theme.status.error}>
+        {profiler.totalIdleFrames} {t('debug_profiler.idle_label', '(idle)')}
+      </Text>,{' '}
+      <Text color={theme.status.error}>
+        {profiler.totalFlickerFrames} {t('debug_profiler.flicker_label', '(flicker)')}
+      </Text>
     </Text>
   );
 };

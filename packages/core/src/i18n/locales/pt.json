@@ -1572,6 +1572,14 @@
     "responding": "respondendo",
     "mode_notification": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\"."
   },
+  "debug_profiler": {
+    "idle_frames_warning": "{count} frames foram renderizados enquanto o aplicativo estava ocioso no último segundo. Isso provavelmente indica bugs graves de loop infinito no gerenciamento de estado do React.",
+    "flicker_detected": "Um frame de flicker foi detectado. Isso causará instabilidade na UI. Digite `/profile` para mais informações.",
+    "renders_label": "Renderizações:",
+    "total_label": "(total)",
+    "idle_label": "(ociosas)",
+    "flicker_label": "(flicker)"
+  },
   "gemini_stream": {
     "request_cancelled": "Requisição cancelada."
   },

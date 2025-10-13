@@ -1501,6 +1501,14 @@
     "no_esc": "No (esc)",
     "no_dont_ask": "No, don't ask again"
   },
+  "debug_profiler": {
+    "idle_frames_warning": "{count} frames rendered while the app was idle in the past second. This likely indicates severe infinite loop React state management bugs.",
+    "flicker_detected": "A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.",
+    "renders_label": "Renders:",
+    "total_label": "(total)",
+    "idle_label": "(idle)",
+    "flicker_label": "(flicker)"
+  },
   "folder_trust_dialog": {
     "title": "Do you trust this folder?",
     "description": "Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.",
