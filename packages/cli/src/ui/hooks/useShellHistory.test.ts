@@ -10,7 +10,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
-import { GEMINI_DIR } from '@google/gemini-cli-core';
+import { GEMINI_DIR } from '@thacio/auditaria-cli-core';
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),

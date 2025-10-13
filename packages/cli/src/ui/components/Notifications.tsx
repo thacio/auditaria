@@ -10,9 +10,8 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { theme } from '../semantic-colors.js';
 import { StreamingState } from '../types.js';
 import { UpdateNotification } from './UpdateNotification.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t , GEMINI_DIR } from '@thacio/auditaria-cli-core';
 
-import { GEMINI_DIR } from '@google/gemini-cli-core';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
