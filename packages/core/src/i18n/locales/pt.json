@@ -1505,8 +1505,10 @@
     "options": {
       "trust_folder": "Confiar na pasta ({dirName})",
       "trust_parent": "Confiar na pasta pai ({parentFolder})",
-      "dont_trust": "Não confiar (esc)"
-    }
+      "dont_trust": "Não confiar"
+    },
+    "restarting": "O Auditaria CLI está reiniciando para aplicar as mudanças de confiança...",
+    "exiting": "Um nível de confiança de pasta deve ser selecionado para continuar. Saindo pois a tecla escape foi pressionada."
   },
   "permissions_dialog": {
     "title": "Modificar Nível de Confiança",

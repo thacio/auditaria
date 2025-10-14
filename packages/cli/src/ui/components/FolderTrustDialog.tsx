@@ -6,7 +6,7 @@
 
 import { Box, Text } from 'ink';
 import type React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { t } from '@thacio/auditaria-cli-core';
 import { theme } from '../semantic-colors.js';
 import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
@@ -31,6 +31,7 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
   onSelect,
   isRestarting,
 }) => {
+  const [exiting, setExiting] = useState(false);
   useEffect(() => {
     const doRelaunch = async () => {
       if (isRestarting) {
@@ -45,7 +46,10 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        onSelect(FolderTrustChoice.DO_NOT_TRUST);
+        setExiting(true);
+        setTimeout(() => {
+          process.exit(1);
+        }, 100);
       }
     },
     { isActive: !isRestarting },
@@ -74,9 +78,9 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       key: `Trust parent folder (${parentFolder})`,
     },
     {
-      label: t('folder_trust_dialog.options.dont_trust', "Don't trust (esc)"),
+      label: t('folder_trust_dialog.options.dont_trust', "Don't trust"),
       value: FolderTrustChoice.DO_NOT_TRUST,
-      key: "Don't trust (esc)",
+      key: "Don't trust",
     },
   ];
 
@@ -114,6 +118,16 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
             {t(
               'folder_trust_dialog.restarting',
               'Auditaria CLI is restarting to apply the trust changes...',
+            )}
+          </Text>
+        </Box>
+      )}
+      {exiting && (
+        <Box marginLeft={1} marginTop={1}>
+          <Text color={theme.status.warning}>
+            {t(
+              'folder_trust_dialog.exiting',
+              'A folder trust level must be selected to continue. Exiting since escape was pressed.',
             )}
           </Text>
         </Box>

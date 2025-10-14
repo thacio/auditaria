@@ -1516,8 +1516,10 @@
     "options": {
       "trust_folder": "Trust folder ({dirName})",
       "trust_parent": "Trust parent folder ({parentFolder})",
-      "dont_trust": "Don't trust (esc)"
-    }
+      "dont_trust": "Don't trust"
+    },
+    "restarting": "Auditaria CLI is restarting to apply the trust changes...",
+    "exiting": "A folder trust level must be selected to continue. Exiting since escape was pressed."
   },
   "permissions_dialog": {
     "title": "Modify Trust Level",
