@@ -281,6 +281,7 @@ export interface ConfigParameters {
   enableMessageBusIntegration?: boolean;
   codebaseInvestigatorSettings?: CodebaseInvestigatorSettings;
   continueOnFailedApiCall?: boolean;
+  enableShellOutputEfficiency?: boolean;
 }
 
 export class Config {
@@ -376,6 +377,7 @@ export class Config {
   private readonly enableMessageBusIntegration: boolean;
   private readonly codebaseInvestigatorSettings?: CodebaseInvestigatorSettings;
   private readonly continueOnFailedApiCall: boolean;
+  private readonly enableShellOutputEfficiency: boolean;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -472,6 +474,8 @@ export class Config {
       params.enableMessageBusIntegration ?? false;
     this.codebaseInvestigatorSettings = params.codebaseInvestigatorSettings;
     this.continueOnFailedApiCall = params.continueOnFailedApiCall ?? true;
+    this.enableShellOutputEfficiency =
+      params.enableShellOutputEfficiency ?? true;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -1000,6 +1004,10 @@ export class Config {
 
   getContinueOnFailedApiCall(): boolean {
     return this.continueOnFailedApiCall;
+  }
+
+  getEnableShellOutputEfficiency(): boolean {
+    return this.enableShellOutputEfficiency;
   }
 
   getShellExecutionConfig(): ShellExecutionConfig {
