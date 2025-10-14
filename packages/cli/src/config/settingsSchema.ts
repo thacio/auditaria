@@ -185,6 +185,16 @@ const SETTINGS_SCHEMA = {
           'Enable AI-powered prompt completion suggestions while typing.',
         showInDialog: true,
       },
+      retryFetchErrors: {
+        type: 'boolean',
+        label: 'Retry Fetch Errors',
+        category: 'General',
+        requiresRestart: false,
+        default: false,
+        description:
+          'Retry on "exception TypeError: fetch failed sending request" errors.',
+        showInDialog: false,
+      },
       debugKeystrokeLogging: {
         type: 'boolean',
         label: 'Debug Keystroke Logging',

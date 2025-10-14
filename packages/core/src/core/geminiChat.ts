@@ -25,7 +25,6 @@ import {
 } from '../config/models.js';
 import { hasCycleInSchema } from '../tools/tools.js';
 import type { StructuredError } from './turn.js';
-import { t } from '../i18n/index.js';
 import type { CompletedToolCall } from './coreToolScheduler.js';
 import {
   logContentRetry,
@@ -383,8 +382,7 @@ export class GeminiChat {
     const streamResponse = await retryWithBackoff(apiCall, {
       onPersistent429: onPersistent429Callback,
       authType: this.config.getContentGeneratorConfig()?.authType,
-      useImprovedFallbackStrategy: this.config.getUseImprovedFallbackStrategy(),
-      disableFallbackForSession: this.config.getDisableFallbackForSession(),
+      retryFetchErrors: this.config.getRetryFetchErrors(),
     });
 
     return this.processStreamResponse(model, streamResponse);
@@ -481,11 +479,7 @@ export class GeminiChat {
       }
       if (cyclicSchemaTools.length > 0) {
         const extraDetails =
-          t(
-            'errors.cyclic_schema_error',
-            `\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them with excludeTools:\n\n - `,
-            {},
-          ) +
+          `\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them with excludeTools:\n\n - ` +
           cyclicSchemaTools.join(`\n - `) +
           `\n`;
         error.message += extraDetails;

@@ -13,6 +13,9 @@ import {
   TerminalQuotaError,
 } from './googleQuotaErrors.js';
 
+const FETCH_FAILED_MESSAGE =
+  'exception TypeError: fetch failed sending request';
+
 export interface HttpError extends Error {
   status?: number;
 }
@@ -21,15 +24,14 @@ export interface RetryOptions {
   maxAttempts: number;
   initialDelayMs: number;
   maxDelayMs: number;
-  shouldRetryOnError: (error: Error) => boolean;
+  shouldRetryOnError: (error: Error, retryFetchErrors?: boolean) => boolean;
   shouldRetryOnContent?: (content: GenerateContentResponse) => boolean;
   onPersistent429?: (
     authType?: string,
     error?: unknown,
   ) => Promise<string | boolean | null>;
   authType?: string;
-  useImprovedFallbackStrategy?: boolean;
-  disableFallbackForSession?: boolean;
+  retryFetchErrors?: boolean;
 }
 
 const DEFAULT_RETRY_OPTIONS: RetryOptions = {
@@ -43,9 +45,21 @@ const DEFAULT_RETRY_OPTIONS: RetryOptions = {
  * Default predicate function to determine if a retry should be attempted.
  * Retries on 429 (Too Many Requests) and 5xx server errors.
  * @param error The error object.
+ * @param retryFetchErrors Whether to retry on specific fetch errors.
  * @returns True if the error is a transient error, false otherwise.
  */
-function defaultShouldRetry(error: Error | unknown): boolean {
+function defaultShouldRetry(
+  error: Error | unknown,
+  retryFetchErrors?: boolean,
+): boolean {
+  if (
+    retryFetchErrors &&
+    error instanceof Error &&
+    error.message.includes(FETCH_FAILED_MESSAGE)
+  ) {
+    return true;
+  }
+
   // Priority check for ApiError
   if (error instanceof ApiError) {
     // Explicitly do not retry 400 (Bad Request)
@@ -91,24 +105,18 @@ export async function retryWithBackoff<T>(
     : {};
 
   const {
+    maxAttempts,
     initialDelayMs,
     maxDelayMs,
     onPersistent429,
     authType,
     shouldRetryOnError,
     shouldRetryOnContent,
-    useImprovedFallbackStrategy,
-    disableFallbackForSession: _disableFallbackForSession,
+    retryFetchErrors,
   } = {
     ...DEFAULT_RETRY_OPTIONS,
     ...cleanOptions,
   };
-
-  // Adjust maxAttempts based on fallback strategy
-  const threshold = useImprovedFallbackStrategy ? 7 : 2;
-  const maxAttempts =
-    options?.maxAttempts ??
-    Math.max(DEFAULT_RETRY_OPTIONS.maxAttempts, threshold + 1);
 
   let attempt = 0;
   let currentDelay = initialDelayMs;
@@ -164,24 +172,21 @@ export async function retryWithBackoff<T>(
       }
 
       // Generic retry logic for other errors
-      if (attempt >= maxAttempts || !shouldRetryOnError(error as Error)) {
+      if (
+        attempt >= maxAttempts ||
+        !shouldRetryOnError(error as Error, retryFetchErrors)
+      ) {
         throw error;
       }
 
       const errorStatus = getErrorStatus(error);
       logRetryAttempt(attempt, error, errorStatus);
 
-      // Exponential backoff with jitter for non-quota errors, or fixed 2s delay for improved strategy
-      if (useImprovedFallbackStrategy && errorStatus === 429) {
-        // Fixed 2-second delay for rate limit errors when using improved strategy
-        await delay(2000);
-      } else {
-        // Exponential backoff with jitter for other errors or when using original strategy
-        const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
-        const delayWithJitter = Math.max(0, currentDelay + jitter);
-        await delay(delayWithJitter);
-        currentDelay = Math.min(maxDelayMs, currentDelay * 2);
-      }
+      // Exponential backoff with jitter for non-quota errors
+      const jitter = currentDelay * 0.3 * (Math.random() * 2 - 1);
+      const delayWithJitter = Math.max(0, currentDelay + jitter);
+      await delay(delayWithJitter);
+      currentDelay = Math.min(maxDelayMs, currentDelay * 2);
     }
   }
 
