@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config, ToolCallRequestInfo } from '@thacio/auditaria-cli-core';
+import type {
+  Config,
+  ToolCallRequestInfo,
+  CompletedToolCall,
+} from '@thacio/auditaria-cli-core';
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
 import {
@@ -17,7 +21,6 @@ import {
   OutputFormat,
   JsonFormatter,
   uiTelemetryService,
-  t
 } from '@thacio/auditaria-cli-core';
 
 import type { Content, Part } from '@google/genai';
@@ -89,7 +92,7 @@ export async function runNonInteractive(
           // An error occurred during @include processing (e.g., file not found).
           // The error message is already logged by handleAtCommand.
           throw new FatalInputError(
-            t('errors.at_command_processing_error', 'Exiting due to an error processing the @ command.'),
+            'Exiting due to an error processing the @ command.',
           );
         }
         query = processedQuery as Part[];
@@ -133,12 +136,17 @@ export async function runNonInteractive(
 
         if (toolCallRequests.length > 0) {
           const toolResponseParts: Part[] = [];
+          const completedToolCalls: CompletedToolCall[] = [];
+
           for (const requestInfo of toolCallRequests) {
-            const toolResponse = await executeToolCall(
+            const completedToolCall = await executeToolCall(
               config,
               requestInfo,
               abortController.signal,
             );
+            const toolResponse = completedToolCall.response;
+
+            completedToolCalls.push(completedToolCall);
 
             if (toolResponse.error) {
               handleToolError(
@@ -156,6 +164,20 @@ export async function runNonInteractive(
               toolResponseParts.push(...toolResponse.responseParts);
             }
           }
+
+          // Record tool calls with full metadata before sending responses to Gemini
+          try {
+            const currentModel =
+              geminiClient.getCurrentSequenceModel() ?? config.getModel();
+            geminiClient
+              .getChat()
+              .recordCompletedToolCalls(currentModel, completedToolCalls);
+          } catch (error) {
+            console.error(
+              `Error recording completed tool call information: ${error}`,
+            );
+          }
+
           currentMessages = [{ role: 'user', parts: toolResponseParts }];
         } else {
           if (config.getOutputFormat() === OutputFormat.JSON) {
