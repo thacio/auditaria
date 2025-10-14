@@ -1001,7 +1001,8 @@
     "compressing": "Comprimindo histórico do chat",
     "compressed": "Histórico do chat comprimido de {original} para {new} tokens.",
     "unknown": "desconhecido",
-    "error_determine_tokens": "Não foi possível determinar a contagem de tokens do histórico comprimido."
+    "error_determine_tokens": "Não foi possível determinar a contagem de tokens do histórico comprimido.",
+    "nothing_to_compress": "Nada para comprimir."
   },
   "stats": {
     "session_stats": "Estatísticas da Sessão",
