@@ -1,4 +1,4 @@
-name: Release (Non-Signed)
+name: Release Auditaria (Non-Signed)
 
 on:
   workflow_dispatch:
