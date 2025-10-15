@@ -4,7 +4,11 @@ _This documentation is up-to-date with the v0.4.0 release._
 
 Auditaria CLI extensions package prompts, MCP servers, and custom commands into a familiar and user-friendly format. With extensions, you can expand the capabilities of Auditaria CLI and share those capabilities with others. They are designed to be easily installable and shareable.
 
-See [getting started docs](getting-started-extensions.md) for a guide on creating your first extension.
+To see examples of extensions, you can browse a gallery of
+[Auditaria CLI extensions](https://geminicli.com/extensions/browse/).
+
+See [getting started docs](getting-started-extensions.md) for a guide on
+creating your first extension.
 
 See [releasing docs](extension-releasing.md) for an advanced guide on setting up GitHub releases.
 
