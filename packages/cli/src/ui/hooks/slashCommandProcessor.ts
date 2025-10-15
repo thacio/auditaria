@@ -391,14 +391,14 @@ export const useSlashCommandProcessor = (
                     'editor',
                     'model',
                   ].includes(result.dialog);
+                  const globalWithPreCapture = global as typeof global & {
+                    __preStartTerminalCapture?: () => void;
+                  };
                   if (
                     needsPreCapture &&
-                    (global as Record<string, unknown>)
-                      .__preStartTerminalCapture
+                    globalWithPreCapture.__preStartTerminalCapture
                   ) {
-                    (
-                      global as Record<string, unknown>
-                    ).__preStartTerminalCapture();
+                    globalWithPreCapture.__preStartTerminalCapture();
                   }
                   // WEB_INTERFACE_END
 
