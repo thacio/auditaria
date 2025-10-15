@@ -12,12 +12,6 @@ import type { Config } from '@thacio/auditaria-cli-core';
 import {
   GitService,
   Logger,
-  MCPDiscoveryState,
-  MCPServerStatus,
-  getMCPDiscoveryState,
-  getMCPServerStatus,
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_GEMINI_FLASH_MODEL,
   logSlashCommand,
   makeSlashCommandEvent,
   SlashCommandStatus,
@@ -387,13 +381,24 @@ export const useSlashCommandProcessor = (
                     Date.now(),
                   );
                   return { type: 'handled' };
-                case 'dialog':
+                case 'dialog': {
                   // WEB_INTERFACE_START: Pre-start terminal capture for immediate-render dialogs
                   // Some dialogs render immediately upon state change, so we need to start
                   // capturing BEFORE the dialog opens to catch the initial render
-                  const needsPreCapture = ['auth', 'theme', 'editor'].includes(result.dialog);
-                  if (needsPreCapture && (global as any).__preStartTerminalCapture) {
-                    (global as any).__preStartTerminalCapture();
+                  const needsPreCapture = [
+                    'auth',
+                    'theme',
+                    'editor',
+                    'model',
+                  ].includes(result.dialog);
+                  if (
+                    needsPreCapture &&
+                    (global as Record<string, unknown>)
+                      .__preStartTerminalCapture
+                  ) {
+                    (
+                      global as Record<string, unknown>
+                    ).__preStartTerminalCapture();
                   }
                   // WEB_INTERFACE_END
 
@@ -431,6 +436,7 @@ export const useSlashCommandProcessor = (
                       );
                     }
                   }
+                }
                 case 'load_history': {
                   config?.getGeminiClient()?.setHistory(result.clientHistory);
                   config?.getGeminiClient()?.stripThoughtsFromHistory();
@@ -506,7 +512,10 @@ export const useSlashCommandProcessor = (
                     addItem(
                       {
                         type: MessageType.INFO,
-                        text: t('general.operation_cancelled', 'Operation cancelled.'),
+                        text: t(
+                          'general.operation_cancelled',
+                          'Operation cancelled.',
+                        ),
                       },
                       Date.now(),
                     );
@@ -544,7 +553,9 @@ export const useSlashCommandProcessor = (
 
         addMessage({
           type: MessageType.ERROR,
-          content: t('errors.unknown_command', 'Unknown command: {command}', { command: trimmed }),
+          content: t('errors.unknown_command', 'Unknown command: {command}', {
+            command: trimmed,
+          }),
           timestamp: new Date(),
         });
 
