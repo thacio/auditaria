@@ -9,7 +9,8 @@ import {
   type Config,
   type FallbackModelHandler,
   type FallbackIntent,
-  TerminalQuotaError,
+  isGenericQuotaExceededError,
+  isProQuotaExceededError,
   UserTierId,
   t,
 } from '@thacio/auditaria-cli-core';
@@ -63,7 +64,7 @@ export function useQuotaAndFallback({
 
       let message: string;
 
-      if (error instanceof TerminalQuotaError) {
+      if (error && isProQuotaExceededError(error)) {
         // Pro Quota specific messages (Interactive)
         if (isPaidTier) {
           message = t(
@@ -77,6 +78,19 @@ export function useQuotaAndFallback({
             '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
             { model: failedModel },
           );
+        }
+      } else if (error && isGenericQuotaExceededError(error)) {
+        // Generic Quota (Automatic fallback)
+        const actionMessage = `⚡ You have reached your daily quota limit.\n⚡ Automatically switching from ${failedModel} to ${fallbackModel} for the remainder of this session.`;
+
+        if (isPaidTier) {
+          message = `${actionMessage}
+⚡ To continue accessing the ${failedModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey`;
+        } else {
+          message = `${actionMessage}
+⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist
+⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key
+⚡ You can switch authentication methods by typing /auth`;
         }
       } else {
         // Consecutive 429s or other errors (Automatic fallback)
@@ -108,7 +122,7 @@ export function useQuotaAndFallback({
       config.setQuotaErrorOccurred(true);
 
       // Interactive Fallback for Pro quota
-      if (error instanceof TerminalQuotaError) {
+      if (error && isProQuotaExceededError(error)) {
         if (isDialogPending.current) {
           return 'stop'; // A dialog is already active, so just stop this request.
         }
