@@ -1,0 +1,206 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-npm-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '${{ github.event.inputs.ref || github.sha }}'
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Bundle
+        run: npm run bundle
+      
+      - name: Create tarball with built assets
+        run: |
+          npm pack
+          # Create generic filename for consistent downloads
+          cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
+          # List files to debug
+          ls -la *.tgz
+      
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: auditaria-cli-latest.tgz
+
+  build-windows-executables:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Bun
+        run: |
+          # Install specific Bun version for consistency
+          powershell -c "irm bun.sh/install.ps1 | iex"
+          echo "$env:USERPROFILE\.bun\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          
+          # Show Bun version for debugging
+          $env:Path += ";$env:USERPROFILE\.bun\bin"
+          bun --version
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build bundle
+        run: npm run bundle
+      
+      - name: Build Windows CLI executable
+        run: |
+          $env:Path += ";$env:USERPROFILE\.bun\bin"
+          node sea/build-bun-unified.cjs
+          
+          if (Test-Path "auditaria-standalone.exe") {
+            Write-Host "✅ CLI executable built successfully"
+            Move-Item -Path "auditaria-standalone.exe" -Destination "auditaria-windows.exe" -Force
+          } else {
+            Write-Host "❌ CLI executable build failed"
+            exit 1
+          }
+        shell: pwsh
+      
+      - name: Build Launcher with PowerShell UI
+        run: |
+          $env:Path += ";$env:USERPROFILE\.bun\bin"
+          node sea/build-bun-launcher-powershellui.cjs
+          
+          if (Test-Path "auditaria-launcher.exe") {
+            Write-Host "✅ Launcher executable built successfully"
+          } else {
+            Write-Host "❌ Launcher executable build failed"
+            exit 1
+          }
+        shell: pwsh
+      
+      - name: Test executables
+        run: |
+          Write-Host "Testing CLI executable..."
+          ./auditaria-windows.exe --version
+          
+          Write-Host "Checking launcher executable..."
+          if (Test-Path "auditaria-launcher.exe") {
+            $fileInfo = Get-Item "auditaria-launcher.exe"
+            Write-Host "Launcher size: $([math]::Round($fileInfo.Length / 1MB, 2)) MB"
+          }
+        shell: pwsh
+      
+      - name: Upload Windows executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executables
+          path: |
+            auditaria-windows.exe
+            auditaria-launcher.exe
+  sign-windows-executables:
+    needs: build-windows-executables
+    uses: ./.github/workflows/sign-windows-artifacts.yml
+    with:
+      artifact-name: windows-executables
+      files-to-sign: |
+        auditaria-windows.exe
+        auditaria-launcher.exe
+      use-attestations: true
+    secrets:
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+
+  create-release:
+    needs: [build-npm-package, sign-windows-executables]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download npm package
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+      
+      - name: Download signed Windows executables
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executables-signed
+      
+      - name: List artifacts
+        run: ls -la
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            auditaria-cli-latest.tgz
+            auditaria-windows.exe
+            auditaria-launcher.exe
+          generate_release_notes: true
+          draft: false
+          body: |
+            ## Auditaria Release
+            
+            ### 📦 Package Distribution
+            - **npm package**: `auditaria-cli-latest.tgz` - Install with `npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz`
+            
+            ### 🪟 Windows Executables
+            - **CLI executable**: `auditaria-windows.exe` - Standalone command-line interface
+            - **GUI launcher**: `auditaria-launcher.exe` - Windows launcher with UI to choose startup folder
+            
+            ### Features
+            
+            #### CLI Executable (`auditaria-windows.exe`)
+            - Full Auditaria CLI functionality
+            - No Node.js or npm required
+            - WebSocket-enabled web interface using `--web` flag)
+            
+            #### GUI Launcher (`auditaria-launcher.exe`)
+            - Native Windows GUI for easy launching
+            - Browse and select working directory
+            - Configure launch options:
+              - Web interface toggle
+              - SSL verification settings
+              - Approval modes (Default/Auto Edit/YOLO)
+            
+            ### Usage
+            
+            #### Command Line
+            ```bash
+            # Run CLI directly
+            auditaria-windows.exe --help
+            auditaria-windows.exe --web
+            auditaria-windows.exe [args]
+            ```
+            
+            #### GUI Launcher
+            1. Double-click `auditaria-launcher.exe`
+            2. Select your working directory
+            3. Configure options
+            4. Click "Start Auditaria"
+            
+            ### System Requirements
+            - Windows 10 or later (64-bit)
+            - 4GB RAM recommended
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
