@@ -71,11 +71,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
-      - name: Install Bun
-        run: |
-          powershell -c "irm bun.sh/install.ps1 | iex"
-          echo "$env:USERPROFILE\.bun\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      
+      - name: Setup Bun (pinned version)
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: 1.2.20  # Pinned to verified working version
+
+      - name: Verify Bun installation
+        run: bun --version
+        shell: pwsh
       - name: Install dependencies
         run: npm ci
       
