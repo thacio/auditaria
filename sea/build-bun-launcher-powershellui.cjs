@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 
 /**
- * Auditaria Launcher with Embedded GUI - Improved Version
- * 
+ * Auditaria Launcher with Embedded GUI - Fixed Version
+ *
  * This script builds a single Windows executable that contains:
  * 1. A PowerShell-based GUI for selecting launch options
- * 2. The entire Auditaria application with all unified fixes
+ * 2. The entire Auditaria application with all unified Bun fixes
  * 3. Embedded web client files
  * 4. Embedded locale files
  * 5. Unified Bun WebSocket server for web interface
- * 
- * When run, it displays a native Windows GUI first, then launches the embedded application.
+ *
+ * IMPORTANT: This file contains all Bun compatibility fixes from build-bun-unified.cjs
+ * plus the PowerShell GUI launcher functionality. The fixes are duplicated here
+ * rather than shared to keep each build script independent.
+ *
+ * When updating fixes, update both files:
+ * - sea/build-bun-unified.cjs (standalone executable)
+ * - sea/build-bun-launcher-powershellui.cjs (launcher with GUI)
  */
 
 const fs = require('fs');
@@ -22,7 +28,7 @@ const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-launcher.exe');
 const LAUNCHER_ENTRY_PATH = path.join(__dirname, '..', 'bundle', 'gemini-launcher-entry.js');
 const WEB_CLIENT_PATH = path.join(__dirname, '..', 'packages', 'web-client', 'src');
 
-console.log('🚀 Building Auditaria with embedded GUI launcher (Improved Version)...\n');
+console.log('🚀 Building Auditaria Launcher with PowerShell GUI and Bun fixes...\n');
 
 // Step 1: Ensure the application bundle exists
 if (!fs.existsSync(BUNDLE_PATH)) {
@@ -32,8 +38,8 @@ if (!fs.existsSync(BUNDLE_PATH)) {
 }
 console.log('✓ Application bundle found.');
 
-// Step 2: Embed locale files
-console.log('📦 Embedding locale files...');
+// === LOCALE EMBEDDING === (from build-bun-unified.cjs)
+console.log('\n📦 Embedding locale files...');
 const LOCALE_PATH = path.join(__dirname, '..', 'bundle', 'locales');
 let localeData = {};
 
@@ -49,7 +55,7 @@ if (fs.existsSync(LOCALE_PATH)) {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
 }
 
-// Step 3: Embed web client files
+// === WEB CLIENT EMBEDDING === (from build-bun-unified.cjs)
 console.log('\n📦 Embedding web client files...');
 const webClientFiles = {};
 
@@ -58,7 +64,7 @@ function readDirRecursive(dir, baseDir = dir) {
   for (const file of files) {
     const fullPath = path.join(dir, file);
     const relativePath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
-    
+
     if (fs.statSync(fullPath).isDirectory()) {
       readDirRecursive(fullPath, baseDir);
     } else {
@@ -72,52 +78,166 @@ if (fs.existsSync(WEB_CLIENT_PATH)) {
   console.log(`   ✓ Embedded ${Object.keys(webClientFiles).length} files`);
 }
 
-// Step 4: Read and prepare the application bundle
+// === BUNDLE READING === (from build-bun-unified.cjs)
 console.log('\n📖 Reading bundle...');
 let bundleContent = fs.readFileSync(BUNDLE_PATH, 'utf8');
 
-// Remove shebang if it exists
+// Remove shebang
 if (bundleContent.startsWith('#!/')) {
   bundleContent = bundleContent.slice(bundleContent.indexOf('\n') + 1);
 }
 
-// Step 5: Apply all fixes from unified script
-console.log('🔨 Applying unified fixes...');
+// === BUN COMPATIBILITY FIXES === (from build-bun-unified.cjs)
+console.log('🔨 Applying Bun compatibility fixes...');
 
-// Fix 1: Interactive mode - include web mode
-bundleContent = bundleContent.replace(
-  /const interactive = !!argv\.promptInteractive \|\| process33\.stdin\.isTTY && question\.length === 0;/,
-  'const interactive = !!argv.promptInteractive || !!argv.web || (process33.stdin.isTTY && question.length === 0);'
-);
+// Fix 1: Process.argv cleanup for Bun environment
+const argvCleanupFix = `
+// BUN ARGV CLEANUP FIX
+(function() {
+  if (typeof Bun !== 'undefined' && Bun.version) {
+    // Store original argv
+    const originalArgv = [...process.argv];
 
-// Fix 2: Unified Bun server for HTTP + WebSocket
-const unifiedBunServer = `
-// UNIFIED BUN SERVER FOR HTTP + WEBSOCKET
+    // Check if we're running as a standalone executable
+    // In Bun, argv[0] is "bun" and argv[1] is the executable path
+    const isStandalone = process.argv.some(arg => arg && (arg.includes('auditaria-standalone') || arg.includes('auditaria-launcher')));
+
+    if (isStandalone) {
+      // In Bun compiled executable:
+      // argv[0] = "bun"
+      // argv[1] = "B:/~BUN/root/auditaria-launcher.exe"
+      // argv[2+] = actual user arguments (if any)
+
+      let cleanArgv = [];
+      let exePath = null;
+      let userArgsStart = -1;
+
+      // Find the executable path and where user arguments start
+      for (let i = 0; i < originalArgv.length; i++) {
+        if (originalArgv[i] && (originalArgv[i].includes('auditaria-standalone') || originalArgv[i].includes('auditaria-launcher'))) {
+          exePath = originalArgv[i];
+          // User arguments start after the executable path
+          userArgsStart = i + 1;
+          break;
+        }
+      }
+
+      if (exePath) {
+        // Build clean argv for yargs:
+        // argv[0] = executable path
+        // argv[1] = dummy script path (same as argv[0], required by yargs)
+        // argv[2+] = user arguments
+        cleanArgv.push(exePath);
+        cleanArgv.push(exePath); // dummy script path for yargs
+
+        // Add any actual user arguments
+        for (let i = userArgsStart; i < originalArgv.length; i++) {
+          const arg = originalArgv[i];
+          // Skip if this is a duplicate of the exe path (Bun sometimes adds it twice)
+          if (arg && arg !== exePath && !arg.startsWith('--bun-') && !arg.startsWith('-bun-')) {
+            cleanArgv.push(arg);
+          }
+        }
+      } else {
+        // Fallback if exe path not found
+        cleanArgv = [...originalArgv];
+      }
+
+      // Replace process.argv with cleaned version
+      process.argv = cleanArgv;
+    }
+  }
+})();
+`;
+
+// Fix 2: Enhanced interactive mode detection
+const interactiveModeFixEnhanced = `
+// ENHANCED INTERACTIVE MODE FIX FOR BUN
+(function() {
+  if (typeof Bun !== 'undefined' && Bun.version) {
+    // Override hideBin globally if it exists
+    // This approach doesn't require module interception
+    const checkAndFixHideBin = () => {
+      try {
+        // Check if hideBin is available globally (it might be after yargs loads)
+        if (typeof globalThis.hideBin === 'function') {
+          const originalHideBin = globalThis.hideBin;
+          globalThis.hideBin = function(argv) {
+            if (argv && argv.length >= 2) {
+              const isStandalone = argv[0] && (argv[0].includes('auditaria-standalone') || argv[0].includes('auditaria-launcher'));
+              if (isStandalone) {
+                return argv.slice(2);
+              }
+            }
+            return originalHideBin(argv);
+          };
+        }
+      } catch (e) {
+        // Silently ignore if hideBin is not available
+      }
+    };
+
+    // Check immediately and also set a timer to check later
+    checkAndFixHideBin();
+    setTimeout(checkAndFixHideBin, 0);
+
+    // Additional fix: patch yargs parsing directly
+    // Override process.argv before yargs processes it
+    const originalSlice = Array.prototype.slice;
+    Array.prototype.slice = function(...args) {
+      // Check if this is being called on process.argv by yargs
+      if (this === process.argv && args.length > 0 && args[0] === 2) {
+        // This is likely hideBin trying to slice argv
+        const isStandalone = this[0] && (this[0].includes('auditaria-standalone') || this[0].includes('auditaria-launcher'));
+        if (isStandalone && this.length >= 2 && this[1] === this[0]) {
+          // Skip the duplicate executable path we added
+          return originalSlice.call(this, 2);
+        }
+      }
+      return originalSlice.apply(this, args);
+    };
+  }
+})();
+`;
+
+// Fix 3: Unified Bun server for HTTP + WebSocket - Always initialized
+const conditionalUnifiedBunServer = `
+// UNIFIED BUN SERVER FOR HTTP + WEBSOCKET - ALWAYS INITIALIZED
 (function() {
   if (typeof Bun === 'undefined' || !Bun.version) return;
-  
-  // console.log('[Bun] Initializing unified server...');
-  
-  // Embedded locale data for Bun executable
+
+  // Check if web interface is requested at startup
+  const hasWebFlag = process.argv.some(arg => arg === '--web' || arg === '-w' || arg.startsWith('--web=') || arg.startsWith('-w='));
+
+  // Debug output
+  if (process.env.DEBUG) {
+    console.log('[Bun] Web flag detected at startup:', hasWebFlag);
+    console.log('[Bun] Current argv:', process.argv);
+  }
+
+  // Embedded locale data for Bun executable (always set this)
   if (typeof globalThis.__EMBEDDED_LOCALES === 'undefined') {
     globalThis.__EMBEDDED_LOCALES = ${JSON.stringify(localeData)};
   }
-  
+
+  // ALWAYS initialize server infrastructure (needed for /web command)
+  // console.log('[Bun] Initializing server infrastructure...');
+
   const WEB_CLIENT_FILES = ${JSON.stringify(webClientFiles)};
   const wsClients = new Set();
   let unifiedServer = null;
   let serverPort = null;
-  
+
   // Store embedded files globally for Express static middleware override
   globalThis.__EMBEDDED_WEB_FILES = WEB_CLIENT_FILES;
-  
+
   // Message handlers storage
   let messageHandlers = {
     submitQuery: null,
     abort: null,
     confirmation: null
   };
-  
+
   // State storage
   let serverState = {
     history: [],
@@ -126,23 +246,40 @@ const unifiedBunServer = `
     consoleMessages: [],
     cliActionState: null
   };
-  
+
   // Create unified Bun WebSocketServer replacement
   class BunUnifiedWebSocketServer {
     constructor(options) {
-      // console.log('[Bun] Creating unified WebSocket server');
+      // console.log('[Bun] Creating unified WebSocket server instance');
       this.clients = wsClients;
       this._connectionHandler = null;
-      
+      this._options = options; // Store options for lazy initialization
+
+      // Don't create the actual server yet - wait until it's needed
+      // The server will be created either:
+      // 1. Immediately if --web flag was present
+      // 2. Later when /web command is used
+
+      // Check if we should auto-start the server (--web flag present)
+      if (hasWebFlag && !unifiedServer) {
+        // console.log('[Bun] Auto-starting server due to --web flag');
+        this._createServer(options);
+      }
+      // Otherwise, server will be created on demand
+    }
+
+    _createServer(options) {
       // Only create server once
       if (unifiedServer) {
-        //console.log('[Bun] Server already exists on port', serverPort);
+        // console.log('[Bun] Server already exists on port', serverPort);
         return;
       }
-      
+
+      // console.log('[Bun] Creating actual Bun server');
+
       // Get port from command line arguments or use default
       let requestedPort = 8629;
-      
+
       // Parse --port argument from process.argv
       const portArgIndex = process.argv.indexOf('--port');
       if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
@@ -153,17 +290,17 @@ const unifiedBunServer = `
           console.error(\`⚠️ Invalid port number: \${process.argv[portArgIndex + 1]}. Port must be between 0-65535. Starting in another port.\`);
         }
       }
-      
+
       const port = options.port || (options.server && options.server.address?.()?.port) || requestedPort;
-      
+
       // Create the unified Bun server
       unifiedServer = Bun.serve({
         port: port,
         hostname: 'localhost',
-        
+
         fetch: (req, server) => {
           const url = new URL(req.url);
-          
+
           // Handle WebSocket upgrade
           if (req.headers.get('upgrade') === 'websocket') {
             // console.log('[Bun] WebSocket upgrade request');
@@ -172,26 +309,26 @@ const unifiedBunServer = `
                 'Access-Control-Allow-Origin': '*'
               }
             });
-            
+
             if (success) {
               return undefined; // Let WebSocket handler take over
             }
             return new Response('WebSocket upgrade failed', { status: 400 });
           }
-          
+
           // Handle API endpoints
           if (url.pathname === '/api/health') {
-            return Response.json({ 
-              status: 'ok', 
+            return Response.json({
+              status: 'ok',
               clients: wsClients.size,
               runtime: 'bun-unified'
             });
           }
-          
+
           // Serve static files
           const filePath = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
           const fileContent = WEB_CLIENT_FILES[filePath];
-          
+
           if (fileContent) {
             const buffer = Buffer.from(fileContent, 'base64');
             const ext = path.extname(filePath).slice(1);
@@ -205,7 +342,7 @@ const unifiedBunServer = `
               'svg': 'image/svg+xml',
               'ico': 'image/x-icon'
             };
-            
+
             return new Response(buffer, {
               headers: {
                 'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -214,23 +351,23 @@ const unifiedBunServer = `
               }
             });
           }
-          
+
           // Default 404
           return new Response('Not found', { status: 404 });
         },
-        
+
         websocket: {
           open: (ws) => {
             // console.log('[Bun] WebSocket connection opened');
             wsClients.add(ws);
-            
+
             // Send initial connection message
             ws.send(JSON.stringify({
               type: 'connection',
-              data: { message: 'Connected to Auditaria' },
+              data: { message: 'Connected to Auditaria CLI' },
               timestamp: Date.now()
             }));
-            
+
             // Send current state
             if (serverState.history.length > 0) {
               ws.send(JSON.stringify({
@@ -239,7 +376,7 @@ const unifiedBunServer = `
                 timestamp: Date.now()
               }));
             }
-            
+
             if (serverState.slashCommands.length > 0) {
               ws.send(JSON.stringify({
                 type: 'slash_commands',
@@ -247,19 +384,19 @@ const unifiedBunServer = `
                 timestamp: Date.now()
               }));
             }
-            
+
             ws.send(JSON.stringify({
               type: 'mcp_servers',
               data: serverState.mcpServers,
               timestamp: Date.now()
             }));
-            
+
             ws.send(JSON.stringify({
               type: 'console_messages',
               data: serverState.consoleMessages,
               timestamp: Date.now()
             }));
-            
+
             if (serverState.cliActionState && serverState.cliActionState.active) {
               ws.send(JSON.stringify({
                 type: 'cli_action_required',
@@ -267,7 +404,7 @@ const unifiedBunServer = `
                 timestamp: Date.now()
               }));
             }
-            
+
             // Call the connection handler if set
             if (this._connectionHandler) {
               // Create a mock WebSocket for compatibility
@@ -281,23 +418,24 @@ const unifiedBunServer = `
                   ws._handlers[event] = handler;
                 }
               };
-              
+
               // Store reference
               ws._mockWs = mockWs;
-              
+
               this._connectionHandler(mockWs, {});
             }
           },
-          
+
           message: (ws, message) => {
             // console.log('[Bun] Message received:', message.toString().slice(0, 100));
-            
+
             try {
               const data = JSON.parse(message.toString());
-              
-              // Handle different message types
+
+              // Handle different message types - these are already being processed
+              // so we don't need to trigger mock handlers for them
               let messageHandled = false;
-              
+
               if (data.type === 'user_message' && messageHandlers.submitQuery) {
                 const query = data.content?.trim();
                 if (query) {
@@ -313,39 +451,40 @@ const unifiedBunServer = `
                   messageHandled = true;
                 }
               }
-              
+
               // Only trigger mock handlers for unhandled message types
+              // to avoid duplicate processing
               if (!messageHandled && ws._mockWs && ws._handlers && ws._handlers.message) {
                 ws._handlers.message(message);
               }
             } catch (error) {
-              console.error('[Bun] Error handling message:', error);
+              // console.error('[Bun] Error handling message:', error);
             }
           },
-          
+
           close: (ws) => {
             // console.log('[Bun] WebSocket closed');
             wsClients.delete(ws);
-            
+
             if (ws._mockWs && ws._handlers && ws._handlers.close) {
               ws._handlers.close();
             }
           },
-          
+
           error: (ws, error) => {
             // console.error('[Bun] WebSocket error:', error);
             wsClients.delete(ws);
-            
+
             if (ws._mockWs && ws._handlers && ws._handlers.error) {
               ws._handlers.error(error);
             }
           }
         }
       });
-      
+
       serverPort = unifiedServer.port;
       // console.log('[Bun] Unified server started on port', serverPort);
-      
+
       // Stop the original Express server if it exists
       if (options.server && options.server.close) {
         // console.log('[Bun] Stopping original Express server');
@@ -356,11 +495,28 @@ const unifiedBunServer = `
           // console.log('[Bun] Could not stop Express server:', e.message);
         }
       }
+
+      // Notify any waiting connection handlers
+      if (this._connectionHandler) {
+        wsClients.forEach(ws => {
+          if (ws._mockWs) {
+            this._connectionHandler(ws._mockWs, {});
+          }
+        });
+      }
     }
-    
+
     on(event, handler) {
       if (event === 'connection') {
         this._connectionHandler = handler;
+
+        // Ensure server is created when handlers are attached
+        // This happens when /web command is used
+        if (!unifiedServer && this._options) {
+          // console.log('[Bun] Late server initialization triggered by handler attachment');
+          this._createServer(this._options);
+        }
+
         // If we already have clients, call handler for them
         wsClients.forEach(ws => {
           if (ws._mockWs) {
@@ -369,49 +525,58 @@ const unifiedBunServer = `
         });
       }
     }
-    
+
+    // Method to manually start the server (for /web command)
+    startServer() {
+      if (!unifiedServer && this._options) {
+        // console.log('[Bun] Manual server start requested');
+        this._createServer(this._options);
+        return serverPort;
+      }
+      return serverPort || null;
+    }
+
     close(callback) {
       if (callback) callback();
     }
   }
-  
+
   // Mock WebSocket class
   class BunMockWebSocket {
     static OPEN = 1;
     static CLOSED = 3;
-    
+
     constructor() {
       this.readyState = 1;
       this.OPEN = 1;
       this.CLOSED = 3;
     }
-    
+
     on() {}
     send() {}
     close() {}
   }
-  
+
   // Override WebSocketServer globally
   globalThis.WebSocketServer = BunUnifiedWebSocketServer;
   globalThis.WebSocket = BunMockWebSocket;
-  
-  // Override require('ws')
-  try {
-    const Module = require('module');
-    const originalRequire = Module.prototype.require;
-    
-    Module.prototype.require = function(id) {
-      if (id === 'ws') {
-        return {
-          WebSocketServer: BunUnifiedWebSocketServer,
-          WebSocket: BunMockWebSocket,
-          Server: BunUnifiedWebSocketServer
-        };
-      }
-      return originalRequire.apply(this, arguments);
-    };
-  } catch (e) {}
-  
+
+  // Override require('ws') - simplified approach for Bun
+  if (typeof require !== 'undefined' && typeof require.cache === 'object') {
+    try {
+      // Directly modify require.cache entries for ws module
+      Object.keys(require.cache).forEach(key => {
+        if (key.includes('ws') || key.includes('websocket')) {
+          require.cache[key].exports = {
+            WebSocketServer: BunUnifiedWebSocketServer,
+            WebSocket: BunMockWebSocket,
+            Server: BunUnifiedWebSocketServer
+          };
+        }
+      });
+    } catch (e) {}
+  }
+
   // Override in require cache
   try {
     Object.keys(require.cache || {}).forEach(key => {
@@ -424,9 +589,7 @@ const unifiedBunServer = `
       }
     });
   } catch (e) {}
-  
-  // Note: Express.static override removed - the unified Bun server handles static files directly
-  
+
   // Create global broadcast function
   globalThis.bunBroadcast = function(message) {
     const payload = JSON.stringify({ ...message, timestamp: Date.now() });
@@ -438,7 +601,7 @@ const unifiedBunServer = `
       }
     });
   };
-  
+
   // Create state update functions
   globalThis.bunUpdateState = function(type, data) {
     if (type === 'history') serverState.history = data;
@@ -447,20 +610,50 @@ const unifiedBunServer = `
     else if (type === 'consoleMessages') serverState.consoleMessages = data;
     else if (type === 'cliActionState') serverState.cliActionState = data;
   };
-  
+
   // Create handler setters
   globalThis.bunSetHandler = function(type, handler) {
     messageHandlers[type] = handler;
   };
-  
-  // console.log('[Bun] Unified server ready');
+
+  // Create function to start server on demand (for /web command)
+  globalThis.bunStartServer = function() {
+    // Find WebSocketServer instance and start it
+    if (!unifiedServer) {
+      // console.log('[Bun] Starting server on demand');
+      // We need to trigger server creation through any WebSocketServer instance
+      // The WebInterfaceService will have one
+      return true; // Signal that server needs to be started
+    }
+    return false; // Server already running
+  };
+
+  globalThis.bunGetServerPort = function() {
+    return serverPort;
+  };
+
+  // console.log('[Bun] Server infrastructure ready');
 })();
 `;
 
-// Inject the unified server
-bundleContent = unifiedBunServer + '\n' + bundleContent;
+// Apply all fixes in order
+bundleContent = argvCleanupFix + '\n' +
+                interactiveModeFixEnhanced + '\n' +
+                conditionalUnifiedBunServer + '\n' +
+                bundleContent;
 
-// Fix 3: Patch WebInterfaceService to skip file checks in Bun and serve from embedded files
+// === BUNDLE PATCHES === (from build-bun-unified.cjs)
+console.log('   ✓ Applying bundle patches...');
+
+// Fix 4: Enhanced interactive mode check in the main code
+bundleContent = bundleContent.replace(
+  /const interactive = !!argv\.promptInteractive \|\| process33\.stdin\.isTTY && question\.length === 0;/g,
+  `// Enhanced interactive check for Bun compatibility
+  const interactive = !!argv.promptInteractive || !!argv.web ||
+    (process33.stdin.isTTY && question.length === 0 && !argv.prompt);`
+);
+
+// Fix 5: Patch WebInterfaceService to skip file checks in Bun and serve from embedded files
 bundleContent = bundleContent.replace(
   /for \(const testPath of possiblePaths\) \{[\s\S]*?\}[\s]*if \(!webClientPath\) \{/g,
   `// In Bun runtime, skip file checks and use embedded files
@@ -491,17 +684,17 @@ bundleContent = bundleContent.replace(
       }
     }
   }
-  
+
   if (!webClientPath) {`
 );
 
-// Fix 4: Patch WebSocketServer instantiation
+// Fix 6: Patch WebSocketServer instantiation
 bundleContent = bundleContent.replace(
   /new import_websocket_server\.(default|WebSocketServer)\(/g,
   'new (globalThis.WebSocketServer || import_websocket_server.default)('
 );
 
-// Fix 5: Patch WebInterfaceService methods to use global broadcast
+// Fix 7: Patch WebInterfaceService methods to use global broadcast
 bundleContent = bundleContent.replace(
   /broadcastMessage\(historyItem\)\s*{/g,
   `broadcastMessage(historyItem) {
@@ -520,7 +713,7 @@ bundleContent = bundleContent.replace(
     }`
 );
 
-// Fix 6: Suppress locale warnings
+// Fix 8: Suppress locale warnings
 bundleContent = bundleContent.replace(
   /console\.warn\("Could not read locales directory, falling back to defaults:", error\);/g,
   '// Warning suppressed for Bun executable'
@@ -531,7 +724,7 @@ bundleContent = bundleContent.replace(
   '// Warning suppressed for Bun executable'
 );
 
-// Fix 7: Replace file reading with embedded data check
+// Fix 9: Replace file reading with embedded data check
 bundleContent = bundleContent.replace(
   /const fileContent = await fs\d+\.readFile\(filePath, "utf-8"\);[\s]*const translations = JSON\.parse\(fileContent\);/g,
   `let translations;
@@ -543,10 +736,11 @@ bundleContent = bundleContent.replace(
    }`
 );
 
-console.log(`   ✓ All unified fixes applied`);
 console.log(`   ✓ Bundle size: ${(bundleContent.length / 1024 / 1024).toFixed(2)} MB`);
+console.log('   ✓ All Bun compatibility fixes applied');
 
-// Step 6: Define the improved PowerShell GUI script
+// === POWERSHELL GUI SCRIPT === (unchanged from original)
+console.log('\n📋 Defining PowerShell GUI script...');
 const powershellScript = `
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -718,7 +912,7 @@ function Load-Settings {
     if (Test-Path $settingsFile) {
         try {
             $content = Get-Content $settingsFile -Raw | ConvertFrom-Json
-            
+
             # Check version compatibility
             if ($content.version -eq $SETTINGS_VERSION) {
                 return $content.settings
@@ -737,20 +931,20 @@ function Load-Settings {
 # Function to save settings
 function Save-Settings {
     param($settings)
-    
+
     try {
         # Create directory if it doesn't exist
         if (-not (Test-Path $settingsDir)) {
             New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
         }
-        
+
         # Create settings object with metadata
         $settingsObj = @{
             version = $SETTINGS_VERSION
             lastUsed = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
             settings = $settings
         }
-        
+
         # Save to file
         $settingsObj | ConvertTo-Json -Depth 10 | Set-Content $settingsFile -Encoding UTF8
         return $true
@@ -1003,7 +1197,7 @@ $result = $form.ShowDialog()
 
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     $workingDir = $dirTextBox.Text
-    
+
     # Validate directory exists
     if (-not (Test-Path -Path $workingDir -PathType Container)) {
         [System.Windows.Forms.MessageBox]::Show(
@@ -1014,7 +1208,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         )
         exit 1
     }
-    
+
     # Determine approval mode
     $approvalMode = 'default'
     if ($approvalAutoEditRadio.Checked) {
@@ -1022,7 +1216,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     } elseif ($approvalYoloRadio.Checked) {
         $approvalMode = 'yolo'
     }
-    
+
     # Save current settings for next time
     $currentSettings = @{
         workingDirectory = $workingDir
@@ -1033,10 +1227,10 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         disableSSL = $sslCheckBox.Checked
         approvalMode = $approvalMode
     }
-    
+
     # Try to save settings (don't fail if it doesn't work)
     Save-Settings -settings $currentSettings | Out-Null
-    
+
     # Build command line arguments
     $args = @()
     if ($webCheckBox.Checked) {
@@ -1045,11 +1239,11 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         } else {
             $args += '--web'
         }
-        
+
         # Add custom port if specified
         if ($customPortCheckBox.Checked) {
             $port = $portTextBox.Text.Trim()
-            
+
             # Validate port number
             $portNum = 0
             if ([int]::TryParse($port, [ref]$portNum)) {
@@ -1075,7 +1269,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             }
         }
     }
-    
+
     # Add approval mode
     if ($approvalAutoEditRadio.Checked) {
         $args += '--approval-mode', 'auto_edit'
@@ -1083,7 +1277,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         $args += '--approval-mode', 'yolo'
     }
     # Default mode doesn't need explicit parameter
-    
+
     # Output the configuration as a JSON object
     $output = @{
         workingDir = $workingDir
@@ -1100,9 +1294,10 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 
 console.log('✓ PowerShell GUI script defined.');
 
-// Step 7: Create the launcher entry point script
+// === LAUNCHER ENTRY POINT === (Modified to use fixed bundle and correct argv handling)
+console.log('\n🔧 Creating launcher entry point with fixed bundle...');
 const launcherEntryPoint = `
-// Launcher Entry Point with Embedded GUI
+// Launcher Entry Point with Embedded GUI and Fixed Bundle
 (function() {
   // Guard: Only run launcher GUI once
   if (process.env.AUDITARIA_LAUNCHER_INITIALIZED === 'true') {
@@ -1196,32 +1391,48 @@ const launcherEntryPoint = `
   // 3. Mark launcher as initialized to prevent re-running
   process.env.AUDITARIA_LAUNCHER_INITIALIZED = 'true';
 
-  // 4. Set the process arguments
-  // process.argv will be [executable, script, ...args]
+  // 4. Set the process arguments (FIXED for Bun compatibility)
+  // LAUNCHER MODIFICATION: Fixed process.argv handling for launcher executable
+  // Find the launcher executable path from current argv (may be in different positions)
+  const launcherExePath = process.argv.find(arg => arg && arg.includes('auditaria-launcher'));
+
+  if (!launcherExePath) {
+    console.error('Warning: Could not find launcher executable path in argv');
+    console.error('Current argv:', process.argv);
+  }
+
+  // Set process.argv as if launching with selected arguments
+  // This will be further processed by the argv cleanup fix in the embedded bundle
   process.argv = [
-    process.execPath,
-    __filename,
-    ...config.args
+    launcherExePath || process.execPath,  // argv[0] - executable path
+    launcherExePath || process.execPath,  // argv[1] - script path (dummy for yargs)
+    ...config.args                        // argv[2+] - user arguments from GUI
   ];
 
-// 5. Run the embedded application bundle with all fixes
+  // Debug output
+  if (process.env.DEBUG) {
+    console.log('[Launcher] Set process.argv:', process.argv);
+  }
+
+  // 5. Run the embedded application bundle with all Bun fixes
 })();
 
 ${bundleContent}
 `;
 
-console.log('✓ Launcher entry point script created.');
+console.log('✓ Launcher entry point created with fixed bundle.');
 
-// Step 8: Write the launcher entry point to a temporary file
+// === WRITE AND COMPILE === (from original launcher script)
+console.log('\n📝 Writing launcher entry point...');
 try {
   fs.writeFileSync(LAUNCHER_ENTRY_PATH, launcherEntryPoint);
-  console.log(`✓ Launcher entry point written to: ${LAUNCHER_ENTRY_PATH}`);
+  console.log(`✓ Written to: ${LAUNCHER_ENTRY_PATH}`);
+  console.log(`   Size: ${(launcherEntryPoint.length / 1024 / 1024).toFixed(2)} MB`);
 } catch (error) {
   console.error('❌ Failed to write launcher entry point file:', error);
   process.exit(1);
 }
 
-// Step 9: Compile the launcher entry point with Bun
 console.log('\n📦 Compiling with Bun...');
 
 // Detect Bun path - try multiple locations
@@ -1248,7 +1459,7 @@ for (const testPath of possibleBunPaths) {
 
 if (!bunPath) {
   console.error('❌ Could not find Bun executable. Please ensure Bun is installed.');
-  console.error('Tried paths:', possibleBunPaths);
+  console.error('   Tried paths:', possibleBunPaths);
   process.exit(1);
 }
 
@@ -1257,27 +1468,31 @@ try {
   execSync(`"${bunPath}" build "${LAUNCHER_ENTRY_PATH}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
-  
+
   console.log(`\n✅ Build successful! Executable created at: ${OUTPUT_PATH}`);
   console.log('\n📋 Features:');
   console.log('   ✓ Native Windows GUI for launch options');
   console.log('   ✓ Embedded web client files');
   console.log('   ✓ Embedded locale files');
   console.log('   ✓ Unified Bun WebSocket server');
-  console.log('   ✓ All fixes from unified build applied');
+  console.log('   ✓ All Bun compatibility fixes applied');
+  console.log('   ✓ Fixed process.argv handling');
+  console.log('   ✓ Working directory selection');
+  console.log('   ✓ SSL and approval mode configuration');
   console.log('\n🚀 To test:');
   console.log('   1. Run: auditaria-launcher.exe');
   console.log('   2. Select folder and options in GUI');
   console.log('   3. Click "Start Auditaria"');
-  
+  console.log('   4. Application will start in selected directory with chosen settings');
+
 } catch (error) {
   console.error('\n❌ Bun compilation failed:', error.message);
   process.exit(1);
 } finally {
-  // Step 10: Clean up the temporary entry point file
+  // Clean up the temporary entry point file
   if (fs.existsSync(LAUNCHER_ENTRY_PATH)) {
     fs.unlinkSync(LAUNCHER_ENTRY_PATH);
-    console.log(`✓ Cleaned up temporary file: ${LAUNCHER_ENTRY_PATH}`);
+    console.log(`\n✓ Cleaned up temporary file: ${LAUNCHER_ENTRY_PATH}`);
   }
 }
 
