@@ -1104,29 +1104,39 @@ console.log('✓ PowerShell GUI script defined.');
 const launcherEntryPoint = `
 // Launcher Entry Point with Embedded GUI
 (function() {
+  // Guard: Only run launcher GUI once
+  if (process.env.AUDITARIA_LAUNCHER_INITIALIZED === 'true') {
+    // Already initialized, skip launcher GUI
+    return;
+  }
+
   const powershellScript = \`${powershellScript.replace(/`/g, '``').replace(/\$/g, '\\$')}\`;
-  
+
   let powershell;
   if (typeof Bun !== 'undefined') {
-    // Bun runtime
-    powershell = Bun.spawnSync(['powershell.exe',
+    // Bun runtime - use inherit for stderr to avoid pipe issues
+    const spawnResult = Bun.spawnSync(['powershell.exe',
       '-NoProfile',
-      '-ExecutionPolicy', 'Bypass', 
+      '-ExecutionPolicy', 'Bypass',
       '-WindowStyle', 'Hidden',
       '-Command',
       powershellScript
     ], {
       stdout: 'pipe',
-      stderr: 'pipe'
+      stderr: 'inherit'
     });
-    
-    // Convert Bun result to Node-like format
+
+    // Convert Bun result to Node-like format immediately and release pipe
     const textDecoder = new TextDecoder();
+    const stdoutString = spawnResult.stdout ? textDecoder.decode(spawnResult.stdout) : '';
+    const exitCode = spawnResult.exitCode;
+
+    // Create result object without keeping references to spawn result
     powershell = {
-      status: powershell.exitCode,
-      stdout: powershell.stdout ? textDecoder.decode(powershell.stdout) : '',
-      stderr: powershell.stderr ? textDecoder.decode(powershell.stderr) : '',
-      error: powershell.exitCode !== 0 && !powershell.stdout ? new Error('PowerShell failed') : null
+      status: exitCode,
+      stdout: stdoutString,
+      stderr: '',
+      error: exitCode !== 0 && !stdoutString ? new Error('PowerShell failed') : null
     };
   } else {
     // Node.js runtime (fallback)
@@ -1183,7 +1193,10 @@ const launcherEntryPoint = `
     console.log('⚠️  SSL verification disabled for corporate firewall');
   }
 
-  // 3. Set the process arguments
+  // 3. Mark launcher as initialized to prevent re-running
+  process.env.AUDITARIA_LAUNCHER_INITIALIZED = 'true';
+
+  // 4. Set the process arguments
   // process.argv will be [executable, script, ...args]
   process.argv = [
     process.execPath,
@@ -1191,7 +1204,7 @@ const launcherEntryPoint = `
     ...config.args
   ];
 
-// 4. Run the embedded application bundle with all fixes
+// 5. Run the embedded application bundle with all fixes
 })();
 
 ${bundleContent}
