@@ -577,6 +577,13 @@ the `--output-format json` flag to get structured output:
 auditaria -p "Explain the architecture of this codebase" --output-format json
 ```
 
+For real-time event streaming (useful for monitoring long-running operations),
+use `--output-format stream-json` to get newline-delimited JSON events:
+
+```bash
+auditaria -p "Run tests and deploy" --output-format stream-json
+```
+
 ### Web Interface
 
 The web interface provides an alternative way to interact with Auditaria CLI through your browser:
