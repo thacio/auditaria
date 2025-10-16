@@ -1187,7 +1187,8 @@
     "execution": {
       "user_cancelled": "Usuário cancelou a execução da ferramenta.",
       "call_aborted": "Chamada de ferramenta abortada",
-      "call_cancelled_by_user": "Chamada de ferramenta cancelada pelo usuário."
+      "call_cancelled_by_user": "Chamada de ferramenta cancelada pelo usuário.",
+      "denied_by_policy": "Execução da ferramenta negada pela política."
     },
     "edit": {
       "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",

@@ -1190,7 +1190,8 @@
     "execution": {
       "user_cancelled": "User cancelled tool execution.",
       "call_aborted": "Tool call aborted",
-      "call_cancelled_by_user": "Tool call cancelled by user."
+      "call_cancelled_by_user": "Tool call cancelled by user.",
+      "denied_by_policy": "Tool execution denied by policy."
     },
     "edit": {
       "file_not_found_create": "File not found. Cannot apply edit. Use an empty old_string to create a new file.",
