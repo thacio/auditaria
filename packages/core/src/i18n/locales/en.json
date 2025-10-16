@@ -601,7 +601,11 @@
     "escape_to_clear": "Press Esc again to clear.",
     "aria_shell_mode": "Shell mode",
     "aria_yolo_mode": "YOLO mode",
-    "aria_accepting_edits": "Accepting edits"
+    "aria_accepting_edits": "Accepting edits",
+    "queue_error": {
+      "slash_command": "Slash commands cannot be queued",
+      "shell_command": "Shell commands cannot be queued"
+    }
   },
   "tool_confirmation": {
     "modify_in_progress": "Modify in progress: ",

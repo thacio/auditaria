@@ -106,6 +106,7 @@ import { useExtensionUpdates } from './hooks/useExtensionUpdates.js';
 import { ShellFocusContext } from './contexts/ShellFocusContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
+const QUEUE_ERROR_DISPLAY_DURATION_MS = 3000;
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -165,6 +166,10 @@ export const AppContainer = (props: AppContainerProps) => {
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
   const [isTrustedFolder, setIsTrustedFolder] = useState<boolean | undefined>(
     config.isTrustedFolder(),
+  );
+
+  const [queueErrorMessage, setQueueErrorMessage] = useState<string | null>(
+    null,
   );
 
   const extensions = config.getExtensions();
@@ -845,6 +850,17 @@ Logging in with Google... Please restart Gemini CLI to continue.
   }, [ideNeedsRestart]);
 
   useEffect(() => {
+    if (queueErrorMessage) {
+      const timer = setTimeout(() => {
+        setQueueErrorMessage(null);
+      }, QUEUE_ERROR_DISPLAY_DURATION_MS);
+
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [queueErrorMessage, setQueueErrorMessage]);
+
+  useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -1517,6 +1533,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentLoadingPhrase,
       historyRemountKey,
       messageQueue,
+      queueErrorMessage,
       showAutoAcceptIndicator,
       showWorkspaceMigrationDialog,
       workspaceExtensions,
@@ -1600,6 +1617,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       currentLoadingPhrase,
       historyRemountKey,
       messageQueue,
+      queueErrorMessage,
       showAutoAcceptIndicator,
       showWorkspaceMigrationDialog,
       workspaceExtensions,
@@ -1665,6 +1683,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       onWorkspaceMigrationDialogOpen,
       onWorkspaceMigrationDialogClose,
       handleProQuotaChoice,
+      setQueueErrorMessage,
     }),
     [
       handleThemeSelect,
@@ -1691,6 +1710,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       onWorkspaceMigrationDialogOpen,
       onWorkspaceMigrationDialogClose,
       handleProQuotaChoice,
+      setQueueErrorMessage,
     ],
   );
 

@@ -598,7 +598,11 @@
     "escape_to_clear": "Pressione Esc novamente para limpar.",
     "aria_shell_mode": "Modo shell",
     "aria_yolo_mode": "Modo YOLO",
-    "aria_accepting_edits": "Aceitando edições"
+    "aria_accepting_edits": "Aceitando edições",
+    "queue_error": {
+      "slash_command": "Comandos slash não podem ser enfileirados",
+      "shell_command": "Comandos shell não podem ser enfileirados"
+    }
   },
   "tool_confirmation": {
     "modify_in_progress": "Modificação em andamento: ",

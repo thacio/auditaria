@@ -39,6 +39,8 @@ import * as path from 'node:path';
 import { SCREEN_READER_USER_PREFIX } from '../textConstants.js';
 import { useShellFocusState } from '../contexts/ShellFocusContext.js';
 import { useUIState } from '../contexts/UIStateContext.js';
+import { StreamingState } from '../types.js';
+import { isSlashCommand } from '../utils/commandUtils.js';
 
 /**
  * Returns if the terminal can be trusted to handle paste events atomically
@@ -72,6 +74,8 @@ export interface InputPromptProps {
   onEscapePromptChange?: (showPrompt: boolean) => void;
   vimHandleInput?: (key: Key) => boolean;
   isEmbeddedShellFocused?: boolean;
+  setQueueErrorMessage: (message: string | null) => void;
+  streamingState: StreamingState;
 }
 
 // The input content, input container, and input suggestions list may have different widths
@@ -108,6 +112,8 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   onEscapePromptChange,
   vimHandleInput,
   isEmbeddedShellFocused,
+  setQueueErrorMessage,
+  streamingState,
 }) => {
   const kittyProtocol = useKittyKeyboardProtocol();
   const isShellFocused = useShellFocusState();
@@ -219,6 +225,36 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       shellModeActive,
       shellHistory,
       resetReverseSearchCompletionState,
+    ],
+  );
+
+  const handleSubmit = useCallback(
+    (submittedValue: string) => {
+      const trimmedMessage = submittedValue.trim();
+      const isSlash = isSlashCommand(trimmedMessage);
+
+      const isShell = shellModeActive;
+      if (
+        (isSlash || isShell) &&
+        streamingState === StreamingState.Responding
+      ) {
+        setQueueErrorMessage(
+          t(
+            isShell
+              ? 'input.queue_error.shell_command'
+              : 'input.queue_error.slash_command',
+            `${isShell ? 'Shell' : 'Slash'} commands cannot be queued`,
+          ),
+        );
+        return;
+      }
+      handleSubmitAndClear(trimmedMessage);
+    },
+    [
+      handleSubmitAndClear,
+      shellModeActive,
+      streamingState,
+      setQueueErrorMessage,
     ],
   );
 
@@ -515,7 +551,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
 
       // If the command is a perfect match, pressing enter should execute it.
       if (completion.isPerfectMatch && keyMatchers[Command.RETURN](key)) {
-        handleSubmitAndClear(buffer.text);
+        handleSubmit(buffer.text);
         return;
       }
 
@@ -626,7 +662,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
             buffer.backspace();
             buffer.newline();
           } else {
-            handleSubmitAndClear(buffer.text);
+            handleSubmit(buffer.text);
           }
         }
         return;
@@ -707,6 +743,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       onClearScreen,
       inputHistory,
       handleSubmitAndClear,
+      handleSubmit,
       shellHistory,
       reverseSearchCompletion,
       handleClipboardImage,

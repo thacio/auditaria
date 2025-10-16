@@ -91,6 +91,8 @@ export const Composer = () => {
             <Text color={theme.text.secondary}>
               {t('input.escape_to_clear', 'Press Esc again to clear.')}
             </Text>
+          ) : uiState.queueErrorMessage ? (
+            <Text color={theme.status.error}>{uiState.queueErrorMessage}</Text>
           ) : (
             !settings.merged.ui?.hideContextSummary && (
               <ContextSummaryDisplay
@@ -154,6 +156,8 @@ export const Composer = () => {
                 )
               : t('input.placeholder', '  Type your message or @path/to/file')
           }
+          setQueueErrorMessage={uiActions.setQueueErrorMessage}
+          streamingState={uiState.streamingState}
         />
       )}
 
