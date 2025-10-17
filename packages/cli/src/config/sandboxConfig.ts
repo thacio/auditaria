@@ -15,7 +15,6 @@ import type { Settings } from './settings.js';
 // to avoid circular dependencies.
 interface SandboxCliArgs {
   sandbox?: boolean | string;
-  sandboxImage?: string;
 }
 
 const VALID_SANDBOX_COMMANDS: ReadonlyArray<SandboxConfig['command']> = [
@@ -53,7 +52,11 @@ function getSandboxCommand(
   if (typeof sandbox === 'string' && sandbox) {
     if (!isSandboxCommand(sandbox)) {
       throw new FatalSandboxError(
-        t('errors.sandbox_invalid_command', `Invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(', ')}`, { command: sandbox, commands: VALID_SANDBOX_COMMANDS.join(', ') }),
+        t(
+          'errors.sandbox_invalid_command',
+          `Invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(', ')}`,
+          { command: sandbox, commands: VALID_SANDBOX_COMMANDS.join(', ') },
+        ),
       );
     }
     // confirm that specified command exists
@@ -61,7 +64,11 @@ function getSandboxCommand(
       return sandbox;
     }
     throw new FatalSandboxError(
-      t('errors.sandbox_missing_command', `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`, { command: sandbox }),
+      t(
+        'errors.sandbox_missing_command',
+        `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`,
+        { command: sandbox },
+      ),
     );
   }
 
@@ -78,7 +85,10 @@ function getSandboxCommand(
   // throw an error if user requested sandbox but no command was found
   if (sandbox === true) {
     throw new FatalSandboxError(
-      t('errors.sandbox_true_no_command', 'GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX'),
+      t(
+        'errors.sandbox_true_no_command',
+        'GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX',
+      ),
     );
   }
 
@@ -94,9 +104,7 @@ export async function loadSandboxConfig(
 
   const packageJson = await getPackageJson();
   const image =
-    argv.sandboxImage ??
-    process.env['GEMINI_SANDBOX_IMAGE'] ??
-    packageJson?.config?.sandboxImageUri;
+    process.env['GEMINI_SANDBOX_IMAGE'] ?? packageJson?.config?.sandboxImageUri;
 
   return command && image ? { command, image } : undefined;
 }
