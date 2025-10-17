@@ -13,11 +13,7 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { AnsiOutputText } from '../AnsiOutput.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
-import { TodoListDisplay } from '../TodoListDisplay.js';
-import {
-  isTodoWriteResult,
-  extractTodosFromDisplay,
-} from '../../utils/todoParser.js';
+import { TodoListDisplay } from './TodoListDisplay.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import {
   SHELL_COMMAND_NAME,
@@ -25,7 +21,7 @@ import {
   TOOL_STATUS,
 } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import type { AnsiOutput, Config } from '@thacio/auditaria-cli-core';
+import type { AnsiOutput, Config, TodoList } from '@thacio/auditaria-cli-core';
 import { t } from '@thacio/auditaria-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
 
@@ -152,20 +148,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
       {resultDisplay && (
         <Box paddingLeft={STATUS_INDICATOR_WIDTH} width="100%" marginTop={1}>
           <Box flexDirection="column">
-            {typeof resultDisplay === 'string' &&
-            name === 'TodoWrite' &&
-            isTodoWriteResult(resultDisplay) ? (
-              <Box flexDirection="column">
-                {(() => {
-                  const todos = extractTodosFromDisplay(resultDisplay);
-                  return todos ? (
-                    <TodoListDisplay todos={todos} />
-                  ) : (
-                    <Text wrap="wrap">{resultDisplay}</Text>
-                  );
-                })()}
-              </Box>
-            ) : typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
+            {typeof resultDisplay === 'string' && renderOutputAsMarkdown ? (
               <Box flexDirection="column">
                 <MarkdownDisplay
                   text={resultDisplay}
@@ -189,6 +172,12 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
                 diffContent={resultDisplay.fileDiff}
                 filename={resultDisplay.fileName}
                 availableTerminalHeight={availableHeight}
+                terminalWidth={childWidth}
+              />
+            ) : typeof resultDisplay === 'object' &&
+              'todos' in resultDisplay ? (
+              <TodoListDisplay
+                todos={resultDisplay as TodoList}
                 terminalWidth={childWidth}
               />
             ) : (
