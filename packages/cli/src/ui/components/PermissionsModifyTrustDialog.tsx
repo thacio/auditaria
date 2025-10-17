@@ -6,6 +6,8 @@
 
 import { Box, Text } from 'ink';
 import type React from 'react';
+import * as process from 'node:process';
+import * as path from 'node:path';
 import { TrustLevel } from '../../config/trustedFolders.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { usePermissionsModifyTrust } from '../hooks/usePermissionsModifyTrust.js';
@@ -20,34 +22,39 @@ interface PermissionsModifyTrustDialogProps {
   addItem: UseHistoryManagerReturn['addItem'];
 }
 
-const getTrustLevelItems = () => [
-  {
-    label: t(
-      'permissions_dialog.trust_options.trust_folder',
-      'Trust this folder',
-    ),
-    value: TrustLevel.TRUST_FOLDER,
-    key: TrustLevel.TRUST_FOLDER,
-  },
-  {
-    label: t(
-      'permissions_dialog.trust_options.trust_parent',
-      'Trust parent folder',
-    ),
-    value: TrustLevel.TRUST_PARENT,
-    key: TrustLevel.TRUST_PARENT,
-  },
-  {
-    label: t('permissions_dialog.trust_options.dont_trust', "Don't trust"),
-    value: TrustLevel.DO_NOT_TRUST,
-    key: TrustLevel.DO_NOT_TRUST,
-  },
-];
-
 export function PermissionsModifyTrustDialog({
   onExit,
   addItem,
 }: PermissionsModifyTrustDialogProps): React.JSX.Element {
+  const dirName = path.basename(process.cwd());
+  const parentFolder = path.basename(path.dirname(process.cwd()));
+
+  const TRUST_LEVEL_ITEMS = [
+    {
+      label: t(
+        'folder_trust_dialog.options.trust_folder',
+        'Trust folder ({dirName})',
+        { dirName },
+      ),
+      value: TrustLevel.TRUST_FOLDER,
+      key: TrustLevel.TRUST_FOLDER,
+    },
+    {
+      label: t(
+        'folder_trust_dialog.options.trust_parent',
+        'Trust parent folder ({parentFolder})',
+        { parentFolder },
+      ),
+      value: TrustLevel.TRUST_PARENT,
+      key: TrustLevel.TRUST_PARENT,
+    },
+    {
+      label: t('folder_trust_dialog.options.dont_trust', "Don't trust"),
+      value: TrustLevel.DO_NOT_TRUST,
+      key: TrustLevel.DO_NOT_TRUST,
+    },
+  ];
+
   const {
     cwd,
     currentTrustLevel,
@@ -72,7 +79,6 @@ export function PermissionsModifyTrustDialog({
     { isActive: true },
   );
 
-  const TRUST_LEVEL_ITEMS = getTrustLevelItems();
   const index = TRUST_LEVEL_ITEMS.findIndex(
     (item) => item.value === currentTrustLevel,
   );
