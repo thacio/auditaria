@@ -227,7 +227,9 @@
         "github": {
           "invalid_source": "Fonte de repositório GitHub inválida: {source}. Esperado \"proprietário/repo\" ou uma URI de repositório github.",
           "ssh_not_supported": "Extensões baseadas em releases do GitHub não são suportadas para SSH. Você deve usar uma URI HTTPS com um token de acesso pessoal para baixar releases de repositórios privados. Você pode definir seu token de acesso pessoal na variável de ambiente GITHUB_TOKEN e instalar a extensão via SSH."
-        }
+        },
+        "consent_description": "Reconhecer os riscos de segurança ao instalar uma extensão e pular o prompt de confirmação.",
+        "consent_message": "Você consentiu com o seguinte:"
       },
       "uninstall": {
         "description": "Desinstala uma extensão.",

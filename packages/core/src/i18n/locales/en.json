@@ -230,7 +230,9 @@
         "github": {
           "invalid_source": "Invalid GitHub repository source: {source}. Expected \"owner/repo\" or a github repo uri.",
           "ssh_not_supported": "GitHub release-based extensions are not supported for SSH. You must use an HTTPS URI with a personal access token to download releases from private repositories. You can set your personal access token in the GITHUB_TOKEN environment variable and install the extension via SSH."
-        }
+        },
+        "consent_description": "Acknowledge the security risks of installing an extension and skip the confirmation prompt.",
+        "consent_message": "You have consented to the following:"
       },
       "uninstall": {
         "description": "Uninstalls an extension.",
