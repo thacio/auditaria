@@ -208,7 +208,10 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
       )}
       <Box marginTop={1}>
         <Text color={theme.text.secondary}>
-          {t('auth_dialog.messages.use_enter', '(Use Enter to select)')}
+          {t(
+            'auth_dialog.messages.use_enter',
+            '(Use Enter to select, Esc to close)',
+          )}
         </Text>
       </Box>
       <Box marginTop={1}>

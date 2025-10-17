@@ -579,7 +579,7 @@
       "must_select_auth": "You must select an auth method to proceed. Press Ctrl+C twice to exit.",
       "no_auth_selected": "No authentication method selected.",
       "authenticated_via": "Authenticated via \"{authType}\".",
-      "use_enter": "(Use Enter to select)",
+      "use_enter": "(Use Enter to select, Esc to close)",
       "terms_privacy": "Terms of Services and Privacy Notice for Gemini CLI",
       "auth_timeout": "Authentication timed out. Please try again.",
       "auth_cancelled": "Authentication cancelled.",
@@ -807,7 +807,7 @@
       "modified_in": "(Modified in {scope})",
       "use_enter_select": "(Use Enter to select",
       "tab_to_change_focus": ", Tab to change focus)",
-      "use_enter_with_mode": "(Use Enter to {action}, Tab to {switchAction})",
+      "use_enter_with_mode": "(Use Enter to {action}, Tab to {switchAction}, Esc to close)",
       "select": "select",
       "apply_scope": "apply scope",
       "configure_scope": "configure scope",
@@ -823,7 +823,7 @@
       "system_settings": "System Settings"
     },
     "messages": {
-      "use_enter_tab": "(Use Enter to select, Tab to change focus)",
+      "use_enter_tab": "(Use Enter to select, Tab to change focus, Esc to close)",
       "restart_required": "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.",
       "also_modified_in": "(Also modified in {scope})",
       "modified_in": "(Modified in {scope})"
@@ -878,7 +878,7 @@
     "messages": {
       "also_modified_in": "(Also modified in {scope})",
       "modified_in": "(Modified in {scope})",
-      "use_enter_tab": "(Use Enter to select, Tab to change focus)",
+      "use_enter_tab": "(Use Enter to select, Tab to change focus, Esc to close)",
       "supported_editors": "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.",
       "preferred_editor": "Your preferred editor is:",
       "none": "None"
@@ -1551,7 +1551,7 @@
       "inherited_from_ide": "Note: This folder behaves as a trusted folder because the connected IDE workspace is trusted. It will remain trusted even if you set a different trust level here."
     },
     "instructions": {
-      "use_enter_select": "(Use Enter to select)"
+      "use_enter_select": "(Use Enter to select, Esc to close)"
     },
     "restart": {
       "message": "To apply the trust changes, Auditaria CLI must be restarted. Press 'r' to restart CLI now."

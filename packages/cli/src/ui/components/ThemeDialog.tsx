@@ -278,7 +278,7 @@ def fibonacci(n):
         <Text color={theme.text.secondary} wrap="truncate">
           {t(
             'theme_dialog.messages.use_enter_with_mode',
-            '(Use Enter to {action}, Tab to {switchAction})',
+            '(Use Enter to {action}, Tab to {switchAction}, Esc to close)',
             {
               action:
                 mode === 'theme'

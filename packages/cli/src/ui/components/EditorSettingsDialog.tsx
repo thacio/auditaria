@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t , isEditorAvailable } from '@thacio/auditaria-cli-core';
+import { t, isEditorAvailable } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { useState } from 'react';
@@ -171,7 +171,7 @@ export function EditorSettingsDialog({
           <Text color={theme.text.secondary}>
             {t(
               'editor_dialog.messages.use_enter_tab',
-              '(Use Enter to select, Tab to change focus)',
+              '(Use Enter to select, Tab to change focus, Esc to close)',
             )}
           </Text>
         </Box>

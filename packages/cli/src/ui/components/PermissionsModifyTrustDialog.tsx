@@ -135,7 +135,7 @@ export function PermissionsModifyTrustDialog({
           <Text color={theme.text.secondary}>
             {t(
               'permissions_dialog.instructions.use_enter_select',
-              '(Use Enter to select)',
+              '(Use Enter to select, Esc to close)',
             )}
           </Text>
         </Box>

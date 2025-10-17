@@ -576,7 +576,7 @@
       "must_select_auth": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
       "no_auth_selected": "Nenhum método de autenticação selecionado.",
       "authenticated_via": "Autenticado via \"{authType}\".",
-      "use_enter": "(Use Enter para selecionar)",
+      "use_enter": "(Use Enter para selecionar, Esc para fechar)",
       "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
       "auth_timeout": "Autenticação expirou. Tente novamente.",
       "auth_cancelled": "Autenticação cancelada.",
@@ -804,7 +804,7 @@
       "modified_in": "(Modificado em {scope})",
       "use_enter_select": "(Use Enter para selecionar",
       "tab_to_change_focus": ", Tab para mudar o foco)",
-      "use_enter_with_mode": "(Use Enter para {action}, Tab para {switchAction})",
+      "use_enter_with_mode": "(Use Enter para {action}, Tab para {switchAction}, Esc para fechar)",
       "select": "selecionar",
       "apply_scope": "aplicar escopo",
       "configure_scope": "configurar escopo",
@@ -820,7 +820,7 @@
       "system_settings": "Configurações do Sistema"
     },
     "messages": {
-      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco)",
+      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
       "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora.",
       "also_modified_in": "(Também modificado em {scope})",
       "modified_in": "(Modificado em {scope})"
@@ -875,7 +875,7 @@
     "messages": {
       "also_modified_in": "(Também modificado em {scope})",
       "modified_in": "(Modificado em {scope})",
-      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco)",
+      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
       "supported_editors": "Estes editores são atualmente suportados. Note que alguns editores não podem ser usados no modo sandbox.",
       "preferred_editor": "Seu editor preferido é:",
       "none": "Nenhum"
@@ -1540,7 +1540,7 @@
       "inherited_from_ide": "Nota: Esta pasta se comporta como uma pasta confiável porque o workspace IDE conectado é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui."
     },
     "instructions": {
-      "use_enter_select": "(Use Enter para selecionar)"
+      "use_enter_select": "(Use Enter para selecionar, Esc para fechar)"
     },
     "restart": {
       "message": "Para aplicar as mudanças de confiança, o Auditaria CLI deve ser reiniciado. Pressione 'r' para reiniciar o CLI agora."
