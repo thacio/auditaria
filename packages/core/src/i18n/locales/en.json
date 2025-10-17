@@ -988,6 +988,10 @@
     "enabled": "shell mode enabled",
     "esc_to_disable": " (esc to disable)"
   },
+  "raw_markdown_mode": {
+    "enabled": "raw markdown mode",
+    "toggle_hint": " ({key} to toggle) "
+  },
   "loading_indicator": {
     "esc_to_cancel": " (esc to cancel, {time})",
     "seconds": "{elapsed}s",

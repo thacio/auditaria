@@ -985,6 +985,10 @@
     "enabled": "modo shell habilitado",
     "esc_to_disable": " (esc para desabilitar)"
   },
+  "raw_markdown_mode": {
+    "enabled": "modo markdown bruto",
+    "toggle_hint": " ({key} para alternar) "
+  },
   "loading_indicator": {
     "esc_to_cancel": " (esc para cancelar, {time})",
     "seconds": "{elapsed}s",
