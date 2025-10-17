@@ -1621,6 +1621,7 @@
     "no_input_error": "Nenhuma entrada fornecida via stdin. A entrada pode ser fornecida canalizando dados para o auditaria ou usando a opção --prompt."
   },
   "message_queue": {
+    "header": "Na fila (pressione ↑ para editar):",
     "more_messages": "... (+{count} mais)"
   },
   "web": {

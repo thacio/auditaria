@@ -150,6 +150,7 @@ export const Composer = () => {
           focus={true}
           vimHandleInput={uiActions.vimHandleInput}
           isEmbeddedShellFocused={uiState.embeddedShellFocused}
+          popAllMessages={uiActions.popAllMessages}
           placeholder={
             vimEnabled
               ? t(

@@ -1624,6 +1624,7 @@
     "no_input_error": "No input provided via stdin. Input can be provided by piping data into auditaria or using the --prompt option."
   },
   "message_queue": {
+    "header": "Queued (press ↑ to edit):",
     "more_messages": "... (+{count} more)"
   },
   "web": {
