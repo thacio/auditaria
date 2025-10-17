@@ -825,8 +825,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
   );
 
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
-  const [showToolDescriptions, setShowToolDescriptions] =
-    useState<boolean>(false);
   const [renderMarkdown, setRenderMarkdown] = useState<boolean>(true);
 
   const [ctrlCPressedOnce, setCtrlCPressedOnce] = useState(false);
@@ -1000,14 +998,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
       if (keyMatchers[Command.SHOW_ERROR_DETAILS](key)) {
         setShowErrorDetails((prev) => !prev);
-      } else if (keyMatchers[Command.TOGGLE_TOOL_DESCRIPTIONS](key)) {
-        const newValue = !showToolDescriptions;
-        setShowToolDescriptions(newValue);
-
-        const mcpServers = config.getMcpServers();
-        if (Object.keys(mcpServers || {}).length > 0) {
-          handleSlashCommand(newValue ? '/mcp desc' : '/mcp nodesc');
-        }
       } else if (keyMatchers[Command.TOGGLE_MARKDOWN](key)) {
         setRenderMarkdown((prev) => {
           const newValue = !prev;
@@ -1036,8 +1026,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
       constrainHeight,
       setConstrainHeight,
       setShowErrorDetails,
-      showToolDescriptions,
-      setShowToolDescriptions,
       config,
       ideContextState,
       handleExit,
@@ -1538,7 +1526,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
       showErrorDetails,
       filteredConsoleMessages,
       ideContextState,
-      showToolDescriptions,
       renderMarkdown,
       ctrlCPressedOnce,
       ctrlDPressedOnce,
@@ -1623,7 +1610,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
       showErrorDetails,
       filteredConsoleMessages,
       ideContextState,
-      showToolDescriptions,
       renderMarkdown,
       ctrlCPressedOnce,
       ctrlDPressedOnce,
