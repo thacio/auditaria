@@ -36,6 +36,7 @@ import {
   SHELL_TOOL_NAMES,
   resolveTelemetrySettings,
   FatalConfigError,
+  getPty,
 } from '@thacio/auditaria-cli-core';
 import type { Settings } from './settings.js';
 
@@ -631,6 +632,9 @@ export async function loadCliConfig(
     argv.screenReader !== undefined
       ? argv.screenReader
       : (settings.ui?.accessibility?.screenReader ?? false);
+
+  const ptyInfo = await getPty();
+
   return new Config({
     sessionId,
     embeddingModel: DEFAULT_GEMINI_EMBEDDING_MODEL,
@@ -705,6 +709,7 @@ export async function loadCliConfig(
     codebaseInvestigatorSettings:
       settings.experimental?.codebaseInvestigatorSettings,
     retryFetchErrors: settings.general?.retryFetchErrors ?? false,
+    ptyInfo: ptyInfo?.name,
   });
 }
 
