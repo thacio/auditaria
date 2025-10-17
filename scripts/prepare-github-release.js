@@ -52,6 +52,11 @@ updatePackageJson('packages/cli/package.json', (pkg) => {
   delete pkg.config; // Deletes the sandboxImageUri
 });
 
+// Update @thacio/auditaria-cli-a2a-server
+updatePackageJson('packages/a2a-server/package.json', (pkg) => {
+  pkg.name = '@thacio/auditaria-cli-a2a-server';
+});
+
 // Update @thacio/auditaria-cli-core
 updatePackageJson('packages/core/package.json', (pkg) => {
   pkg.name = '@thacio/auditaria-cli-core';
