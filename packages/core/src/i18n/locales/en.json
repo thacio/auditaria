@@ -828,6 +828,10 @@
       "also_modified_in": "(Also modified in {scope})",
       "modified_in": "(Modified in {scope})"
     },
+    "help": {
+      "with_tab": "(Use Enter to select, Tab to change focus, Esc to close)",
+      "without_tab": "(Use Enter to select, Esc to close)"
+    },
     "labels": {
       "code_changes": "Code Changes:",
       "max_session_turns": "Max Session Turns",

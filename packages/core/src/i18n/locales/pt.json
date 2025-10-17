@@ -825,6 +825,10 @@
       "also_modified_in": "(Também modificado em {scope})",
       "modified_in": "(Modificado em {scope})"
     },
+    "help": {
+      "with_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
+      "without_tab": "(Use Enter para selecionar, Esc para fechar)"
+    },
     "labels": {
       "code_changes": "Alterações de Código:",
       "max_session_turns": "Turnos Máximos da Sessão",

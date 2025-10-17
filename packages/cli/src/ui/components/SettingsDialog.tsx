@@ -912,10 +912,15 @@ export function SettingsDialog({
 
         <Box height={1} />
         <Text color={theme.text.secondary}>
-          {t(
-            'settings_dialog.messages.use_enter_tab',
-            '(Use Enter to select, Tab to change focus)',
-          )}
+          {showScopeSelection
+            ? t(
+                'settings_dialog.help.with_tab',
+                '(Use Enter to select, Tab to change focus, Esc to close)',
+              )
+            : t(
+                'settings_dialog.help.without_tab',
+                '(Use Enter to select, Esc to close)',
+              )}
         </Text>
         {showRestartPrompt && (
           <Text color={theme.status.warning}>
