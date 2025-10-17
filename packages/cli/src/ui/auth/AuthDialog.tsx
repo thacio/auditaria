@@ -28,7 +28,7 @@ interface AuthDialogProps {
   settings: LoadedSettings;
   setAuthState: (state: AuthState) => void;
   authError: string | null;
-  onAuthError: (error: string) => void;
+  onAuthError: (error: string | null) => void;
 }
 
 export function AuthDialog({
@@ -196,6 +196,9 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
           items={items}
           initialIndex={initialAuthIndex}
           onSelect={handleAuthSelect}
+          onHighlight={() => {
+            onAuthError(null);
+          }}
         />
       </Box>
       {authError && (

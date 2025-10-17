@@ -1280,7 +1280,7 @@
     }
   },
   "auth_errors": {
-    "gemini_api_key_not_found": "Variável de ambiente GEMINI_API_KEY não encontrada. Adicione-a ao seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
+    "gemini_api_key_not_found": "GEMINI_API_KEY não encontrada. Encontre sua chave existente ou gere uma nova em: https://aistudio.google.com/apikey\n\nPara continuar, por favor defina a variável de ambiente GEMINI_API_KEY ou adicione-a a um arquivo .env.",
     "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
     "gca_project_not_set": "[Erro] GOOGLE_CLOUD_PROJECT não está definido.\nPor favor, defina usando:\n  export GOOGLE_CLOUD_PROJECT=<seu-id-projeto>\ne tente novamente.",
     "invalid_method": "Método de autenticação inválido selecionado.",
