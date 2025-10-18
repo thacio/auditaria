@@ -9,7 +9,7 @@ import updateNotifier from 'update-notifier';
 import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
 import { t } from '@thacio/auditaria-cli-core';
-
+import type { LoadedSettings } from '../../config/settings.js';
 
 export interface UpdateObject {
   message: string;
@@ -39,8 +39,13 @@ function getBestAvailableUpdate(
   return semver.gt(stableVer, nightlyVer) ? stable : nightly;
 }
 
-export async function checkForUpdates(): Promise<UpdateObject | null> {
+export async function checkForUpdates(
+  settings: LoadedSettings,
+): Promise<UpdateObject | null> {
   try {
+    if (settings.merged.general?.disableUpdateNag) {
+      return null;
+    }
     // Skip update check when running from source (development mode)
     if (process.env['DEV'] === 'true') {
       return null;
@@ -75,7 +80,11 @@ export async function checkForUpdates(): Promise<UpdateObject | null> {
       );
 
       if (bestUpdate && semver.gt(bestUpdate.latest, currentVersion)) {
-        const message = t('update.available_nightly', 'A new version of Auditaria CLI is available! {current} → {latest}', { current: currentVersion, latest: bestUpdate.latest });
+        const message = t(
+          'update.available_nightly',
+          'A new version of Auditaria CLI is available! {current} → {latest}',
+          { current: currentVersion, latest: bestUpdate.latest },
+        );
         return {
           message,
           update: { ...bestUpdate, current: currentVersion },
@@ -85,7 +94,15 @@ export async function checkForUpdates(): Promise<UpdateObject | null> {
       const updateInfo = await createNotifier('latest').fetchInfo();
 
       if (updateInfo && semver.gt(updateInfo.latest, currentVersion)) {
-        const message = t('update.available', 'Auditaria CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update', { current: currentVersion, latest: updateInfo.latest, packageName: packageJson.name });
+        const message = t(
+          'update.available',
+          'Auditaria CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update',
+          {
+            current: currentVersion,
+            latest: updateInfo.latest,
+            packageName: packageJson.name,
+          },
+        );
         return {
           message,
           update: { ...updateInfo, current: currentVersion },
