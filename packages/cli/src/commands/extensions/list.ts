@@ -5,13 +5,17 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { loadUserExtensions, toOutputString } from '../../config/extension.js';
+import { loadExtensions, toOutputString } from '../../config/extension.js';
 import { t } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
+import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
 
 export async function handleList() {
   try {
-    const extensions = loadUserExtensions();
+    const extensions = loadExtensions(
+      new ExtensionEnablementManager(),
+      process.cwd(),
+    );
     if (extensions.length === 0) {
       console.log(
         t('commands.extensions.list.no_extensions', 'No extensions installed.'),

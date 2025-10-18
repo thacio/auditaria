@@ -105,41 +105,11 @@ export class ExtensionStorage {
   }
 }
 
-export function getWorkspaceExtensions(
-  workspaceDir: string,
-): GeminiCLIExtension[] {
-  // If the workspace dir is the user extensions dir, there are no workspace extensions.
-  if (path.resolve(workspaceDir) === path.resolve(os.homedir())) {
-    return [];
-  }
-  return loadExtensionsFromDir(workspaceDir);
-}
-
 export async function copyExtension(
   source: string,
   destination: string,
 ): Promise<void> {
   await fs.promises.cp(source, destination, { recursive: true });
-}
-
-export async function performWorkspaceExtensionMigration(
-  extensions: GeminiCLIExtension[],
-  requestConsent: (consent: string) => Promise<boolean>,
-): Promise<string[]> {
-  const failedInstallNames: string[] = [];
-
-  for (const extension of extensions) {
-    try {
-      const installMetadata: ExtensionInstallMetadata = {
-        source: extension.path,
-        type: 'local',
-      };
-      await installOrUpdateExtension(installMetadata, requestConsent);
-    } catch (_) {
-      failedInstallNames.push(extension.name);
-    }
-  }
-  return failedInstallNames;
 }
 
 function getTelemetryConfig(cwd: string) {
@@ -160,20 +130,27 @@ export function loadExtensions(
   extensionEnablementManager: ExtensionEnablementManager,
   workspaceDir: string = process.cwd(),
 ): GeminiCLIExtension[] {
-  const settings = loadSettings(workspaceDir).merged;
-  const allExtensions = [...loadUserExtensions()];
+  const extensionsDir = ExtensionStorage.getUserExtensionsDir();
+  if (!fs.existsSync(extensionsDir)) {
+    return [];
+  }
 
-  if (
-    isWorkspaceTrusted(settings).isTrusted &&
-    // Default management setting to true
-    !(settings.experimental?.extensionManagement ?? true)
-  ) {
-    allExtensions.push(...getWorkspaceExtensions(workspaceDir));
+  const extensions: GeminiCLIExtension[] = [];
+  for (const subdir of fs.readdirSync(extensionsDir)) {
+    const extensionDir = path.join(extensionsDir, subdir);
+
+    const extension = loadExtension({
+      extensionDir,
+      workspaceDir,
+    });
+    if (extension != null) {
+      extensions.push(extension);
+    }
   }
 
   const uniqueExtensions = new Map<string, GeminiCLIExtension>();
 
-  for (const extension of allExtensions) {
+  for (const extension of extensions) {
     if (
       !uniqueExtensions.has(extension.name) &&
       extensionEnablementManager.isEnabled(extension.name, workspaceDir)
@@ -183,38 +160,6 @@ export function loadExtensions(
   }
 
   return Array.from(uniqueExtensions.values());
-}
-
-export function loadUserExtensions(): GeminiCLIExtension[] {
-  const userExtensions = loadExtensionsFromDir(os.homedir());
-
-  const uniqueExtensions = new Map<string, GeminiCLIExtension>();
-  for (const extension of userExtensions) {
-    if (!uniqueExtensions.has(extension.name)) {
-      uniqueExtensions.set(extension.name, extension);
-    }
-  }
-
-  return Array.from(uniqueExtensions.values());
-}
-
-export function loadExtensionsFromDir(dir: string): GeminiCLIExtension[] {
-  const storage = new Storage(dir);
-  const extensionsDir = storage.getExtensionsDir();
-  if (!fs.existsSync(extensionsDir)) {
-    return [];
-  }
-
-  const extensions: GeminiCLIExtension[] = [];
-  for (const subdir of fs.readdirSync(extensionsDir)) {
-    const extensionDir = path.join(extensionsDir, subdir);
-
-    const extension = loadExtension({ extensionDir, workspaceDir: dir });
-    if (extension != null) {
-      extensions.push(extension);
-    }
-  }
-  return extensions;
 }
 
 export function loadExtension(
@@ -547,7 +492,10 @@ export async function installOrUpdateExtension(
 
       const newExtensionName = newExtensionConfig.name;
       if (!isUpdate) {
-        const installedExtensions = loadUserExtensions();
+        const installedExtensions = loadExtensions(
+          new ExtensionEnablementManager(),
+          cwd,
+        );
         if (
           installedExtensions.some(
             (installed) => installed.name === newExtensionName,
@@ -814,7 +762,10 @@ export async function uninstallExtension(
   isUpdate: boolean,
   cwd: string = process.cwd(),
 ): Promise<void> {
-  const installedExtensions = loadUserExtensions();
+  const installedExtensions = loadExtensions(
+    new ExtensionEnablementManager(),
+    cwd,
+  );
   const extensionName = installedExtensions.find(
     (installed) =>
       installed.name.toLowerCase() === extensionIdentifier.toLowerCase() ||
@@ -837,10 +788,7 @@ export async function uninstallExtension(
   // uninstalls related to updates.
   if (isUpdate) return;
 
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-    [extensionName],
-  );
+  const manager = new ExtensionEnablementManager([extensionName]);
   manager.remove(extensionName);
 
   const telemetryConfig = getTelemetryConfig(cwd);
@@ -854,9 +802,7 @@ export function toOutputString(
   extension: GeminiCLIExtension,
   workspaceDir: string,
 ): string {
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-  );
+  const manager = new ExtensionEnablementManager();
   const userEnabled = manager.isEnabled(extension.name, os.homedir());
   const workspaceEnabled = manager.isEnabled(extension.name, workspaceDir);
 
@@ -909,10 +855,7 @@ export function disableExtension(
     throw new Error(`Extension with name ${name} does not exist.`);
   }
 
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-    [name],
-  );
+  const manager = new ExtensionEnablementManager([name]);
   const scopePath = scope === SettingScope.Workspace ? cwd : os.homedir();
   manager.disable(name, true, scopePath);
   logExtensionDisable(config, new ExtensionDisableEvent(name, scope));
@@ -930,9 +873,7 @@ export function enableExtension(
   if (!extension) {
     throw new Error(`Extension with name ${name} does not exist.`);
   }
-  const manager = new ExtensionEnablementManager(
-    ExtensionStorage.getUserExtensionsDir(),
-  );
+  const manager = new ExtensionEnablementManager();
   const scopePath = scope === SettingScope.Workspace ? cwd : os.homedir();
   manager.enable(name, true, scopePath);
   const config = getTelemetryConfig(cwd);

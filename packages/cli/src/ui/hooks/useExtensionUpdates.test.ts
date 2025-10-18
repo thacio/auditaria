@@ -9,7 +9,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  ExtensionStorage,
   annotateActiveExtensions,
   loadExtension,
 } from '../../config/extension.js';
@@ -120,7 +119,7 @@ describe('useExtensionUpdates', () => {
     const extension = annotateActiveExtensions(
       [loadExtension({ extensionDir, workspaceDir: tempHomeDir })!],
       tempHomeDir,
-      new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
+      new ExtensionEnablementManager(),
     )[0];
 
     const addItem = vi.fn();
@@ -193,7 +192,7 @@ describe('useExtensionUpdates', () => {
         })!,
       ],
       tempHomeDir,
-      new ExtensionEnablementManager(ExtensionStorage.getUserExtensionsDir()),
+      new ExtensionEnablementManager(),
     );
 
     const addItem = vi.fn();
