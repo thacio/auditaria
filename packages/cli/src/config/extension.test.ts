@@ -29,7 +29,7 @@ import {
   ExtensionUninstallEvent,
   ExtensionDisableEvent,
   ExtensionEnableEvent,
-} from '@thacio/auditoria-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { SettingScope } from './settings.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { createExtension } from '../test-utils/createExtension.js';
@@ -87,9 +87,9 @@ const mockLogExtensionInstallEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionUninstall = vi.hoisted(() => vi.fn());
 const mockLogExtensionUpdateEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionDisable = vi.hoisted(() => vi.fn());
-vi.mock('@thacio/auditoria-cli-core', async (importOriginal) => {
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditoria-cli-core')>();
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
   return {
     ...actual,
     logExtensionEnable: mockLogExtensionEnable,
