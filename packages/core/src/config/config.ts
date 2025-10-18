@@ -143,6 +143,7 @@ export interface GeminiCLIExtension {
   mcpServers?: Record<string, MCPServerConfig>;
   contextFiles: string[];
   excludeTools?: string[];
+  id?: string;
 }
 
 export interface ExtensionInstallMetadata {
