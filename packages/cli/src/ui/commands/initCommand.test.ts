@@ -10,7 +10,7 @@ import * as path from 'node:path';
 import { t } from '@thacio/auditaria-cli-core';
 import { initCommand } from './initCommand.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
-import { type CommandContext } from './types.js';
+import type { SubmitPromptActionReturn, CommandContext } from './types.js';
 
 // Mock the 'fs' module
 vi.mock('fs', () => ({
@@ -50,7 +50,10 @@ describe('initCommand', () => {
     expect(result).toEqual({
       type: 'message',
       messageType: 'info',
-      content: t('commands.init.file_already_exists', 'A GEMINI.md file already exists in this directory. No changes were made.'),
+      content: t(
+        'commands.init.file_already_exists',
+        'A GEMINI.md file already exists in this directory. No changes were made.',
+      ),
     });
     // Assert: Ensure no file was written
     expect(fs.writeFileSync).not.toHaveBeenCalled();
@@ -61,7 +64,10 @@ describe('initCommand', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
 
     // Act: Run the command's action
-    const result = await initCommand.action!(mockContext, '');
+    const result = (await initCommand.action!(
+      mockContext,
+      '',
+    )) as SubmitPromptActionReturn;
 
     // Assert: Check that writeFileSync was called correctly
     expect(fs.writeFileSync).toHaveBeenCalledWith(geminiMdPath, '', 'utf8');
@@ -70,7 +76,10 @@ describe('initCommand', () => {
     expect(mockContext.ui.addItem).toHaveBeenCalledWith(
       {
         type: 'info',
-        text: t('commands.init.file_created', 'Empty GEMINI.md created. Now analyzing the project to populate it.'),
+        text: t(
+          'commands.init.file_created',
+          'Empty GEMINI.md created. Now analyzing the project to populate it.',
+        ),
       },
       expect.any(Number),
     );
@@ -96,7 +105,10 @@ describe('initCommand', () => {
     expect(result).toEqual({
       type: 'message',
       messageType: 'error',
-      content: t('commands.init.config_not_available', 'Configuration not available.'),
+      content: t(
+        'commands.init.config_not_available',
+        'Configuration not available.',
+      ),
     });
   });
 });

@@ -144,9 +144,6 @@ describe('aboutCommand', () => {
   });
 
   it('should not show ide client when it is not detected', async () => {
-    // Change to oauth type that doesn't use GCP project
-    mockContext.services.settings.merged.security!.auth!.selectedType = 'oauth';
-
     vi.mocked(IdeClient.getInstance).mockResolvedValue({
       getDetectedIdeDisplayName: vi.fn().mockReturnValue(undefined),
     } as unknown as IdeClient);
