@@ -122,6 +122,7 @@ export interface UIState {
   activePtyId: number | undefined;
   embeddedShellFocused: boolean;
   showDebugProfiler: boolean;
+  showFullTodos: boolean;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);
