@@ -10,7 +10,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const corgiCommand: SlashCommand = {
   name: 'corgi',
   get description() {
-    return t('commands.corgi.description', 'Toggles corgi mode.');
+    return t('commands.corgi.description', 'Toggles corgi mode');
   },
   hidden: true,
   kind: CommandKind.BUILT_IN,

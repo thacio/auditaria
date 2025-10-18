@@ -11,7 +11,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const privacyCommand: SlashCommand = {
   name: 'privacy',
   get description() {
-    return t('commands.privacy.description', 'display the privacy notice');
+    return t('commands.privacy.description', 'Display the privacy notice');
   },
   kind: CommandKind.BUILT_IN,
   action: (): OpenDialogActionReturn => ({

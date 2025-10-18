@@ -14,7 +14,7 @@ export const compressCommand: SlashCommand = {
   name: 'compress',
   altNames: ['summarize'],
   get description() {
-    return t('commands.compress.description', 'Compresses the context by replacing it with a summary.');
+    return t('commands.compress.description', 'Compresses the context by replacing it with a summary');
   },
   kind: CommandKind.BUILT_IN,
   action: async (context) => {

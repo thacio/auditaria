@@ -365,7 +365,7 @@ const shareCommand: SlashCommand = {
 export const chatCommand: SlashCommand = {
   name: 'chat',
   get description() {
-    return t('commands.chat.description', 'Manage conversation history. Usage: /chat <list|save|resume> <tag>');
+    return t('commands.chat.description', 'Manage conversation history');
   },
   kind: CommandKind.BUILT_IN,
   subCommands: [

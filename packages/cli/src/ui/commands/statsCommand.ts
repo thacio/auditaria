@@ -18,7 +18,7 @@ export const statsCommand: SlashCommand = {
   name: 'stats',
   altNames: ['usage'],
   get description() {
-    return t('commands.stats.description', 'check session stats. Usage: /stats [model|tools]');
+    return t('commands.stats.description', 'Check session stats. Usage: /stats [model|tools]');
   },
   kind: CommandKind.BUILT_IN,
   action: (context: CommandContext) => {
@@ -47,7 +47,7 @@ export const statsCommand: SlashCommand = {
     {
       name: 'model',
       get description() {
-        return t('commands.stats.subcommands.model.description', 'Show model-specific usage statistics.');
+        return t('commands.stats.subcommands.model.description', 'Show model-specific usage statistics');
       },
       kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {
@@ -62,7 +62,7 @@ export const statsCommand: SlashCommand = {
     {
       name: 'tools',
       get description() {
-        return t('commands.stats.subcommands.tools.description', 'Show tool-specific usage statistics.');
+        return t('commands.stats.subcommands.tools.description', 'Show tool-specific usage statistics');
       },
       kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {

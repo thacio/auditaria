@@ -12,7 +12,7 @@ export const quitCommand: SlashCommand = {
   name: 'quit',
   altNames: ['exit'],
   get description() {
-    return t('commands.quit.description', 'exit the cli');
+    return t('commands.quit.description', 'Exit the cli');
   },
   kind: CommandKind.BUILT_IN,
   action: (context) => {

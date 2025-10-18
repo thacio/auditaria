@@ -15,7 +15,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const toolsCommand: SlashCommand = {
   name: 'tools',
   get description() {
-    return t('commands.tools.description_with_usage', 'list available Gemini CLI tools. Usage: /tools [desc]');
+    return t('commands.tools.description_with_usage', 'List available Gemini CLI tools. Usage: /tools [desc]');
   },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {

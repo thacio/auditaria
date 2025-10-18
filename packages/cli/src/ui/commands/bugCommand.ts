@@ -20,7 +20,7 @@ import { getCliVersion } from '../../utils/version.js';
 export const bugCommand: SlashCommand = {
   name: 'bug',
   get description() {
-    return t('commands.bug.description', 'submit a bug report');
+    return t('commands.bug.description', 'Submit a bug report');
   },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {

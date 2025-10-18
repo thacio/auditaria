@@ -17,7 +17,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const docsCommand: SlashCommand = {
   name: 'docs',
   get description() {
-    return t('commands.docs.description', 'open full Gemini CLI documentation in your browser');
+    return t('commands.docs.description', 'Open full Gemini CLI documentation in your browser');
   },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext): Promise<void> => {

@@ -14,7 +14,7 @@ import { t, IdeClient } from '@thacio/auditaria-cli-core';
 export const aboutCommand: SlashCommand = {
   name: 'about',
   get description() {
-    return t('commands.about.description', 'show version info');
+    return t('commands.about.description', 'Show version info');
   },
   kind: CommandKind.BUILT_IN,
   action: async (context) => {

@@ -14,7 +14,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const editorCommand: SlashCommand = {
   name: 'editor',
   get description() {
-    return t('commands.editor.description', 'set external editor preference');
+    return t('commands.editor.description', 'Set external editor preference');
   },
   kind: CommandKind.BUILT_IN,
   action: (): OpenDialogActionReturn => ({

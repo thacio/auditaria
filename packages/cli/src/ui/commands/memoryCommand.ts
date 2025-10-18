@@ -16,14 +16,14 @@ import { CommandKind } from './types.js';
 export const memoryCommand: SlashCommand = {
   name: 'memory',
   get description() {
-    return t('commands.memory.description', 'Commands for interacting with memory.');
+    return t('commands.memory.description', 'Commands for interacting with memory');
   },
   kind: CommandKind.BUILT_IN,
   subCommands: [
     {
       name: 'show',
       get description() {
-        return t('commands.memory.show.description', 'Show the current memory contents.');
+        return t('commands.memory.show.description', 'Show the current memory contents');
       },
       kind: CommandKind.BUILT_IN,
       action: async (context) => {
@@ -47,7 +47,7 @@ export const memoryCommand: SlashCommand = {
     {
       name: 'add',
       get description() {
-        return t('commands.memory.add.description', 'Add content to the memory.');
+        return t('commands.memory.add.description', 'Add content to the memory');
       },
       kind: CommandKind.BUILT_IN,
       action: (context, args): SlashCommandActionReturn | void => {
@@ -77,7 +77,7 @@ export const memoryCommand: SlashCommand = {
     {
       name: 'refresh',
       get description() {
-        return t('commands.memory.refresh.description', 'Refresh the memory from the source.');
+        return t('commands.memory.refresh.description', 'Refresh the memory from the source');
       },
       kind: CommandKind.BUILT_IN,
       action: async (context) => {
@@ -139,7 +139,7 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'list',
-      description: 'Lists the paths of the GEMINI.md files in use.',
+      description: 'Lists the paths of the GEMINI.md files in use',
       kind: CommandKind.BUILT_IN,
       action: async (context) => {
         const filePaths = context.services.config?.getGeminiMdFilePaths() || [];

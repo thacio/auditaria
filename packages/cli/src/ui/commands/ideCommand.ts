@@ -142,7 +142,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
     return {
       name: 'ide',
       get description() {
-        return t('commands.ide.description', 'manage IDE integration');
+        return t('commands.ide.description', 'Manage IDE integration');
       },
       kind: CommandKind.BUILT_IN,
       action: (): SlashCommandActionReturn =>
@@ -165,7 +165,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   const ideSlashCommand: SlashCommand = {
     name: 'ide',
     get description() {
-      return t('commands.ide.description', 'manage IDE integration');
+      return t('commands.ide.description', 'Manage IDE integration');
     },
     kind: CommandKind.BUILT_IN,
     subCommands: [],
@@ -174,7 +174,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   const statusCommand: SlashCommand = {
     name: 'status',
     get description() {
-      return t('commands.ide.status.description', 'check status of IDE integration');
+      return t('commands.ide.status.description', 'Check status of IDE integration');
     },
     kind: CommandKind.BUILT_IN,
     action: async (): Promise<SlashCommandActionReturn> => {
@@ -191,7 +191,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   const installCommand: SlashCommand = {
     name: 'install',
     get description() {
-      return t('commands.ide.install.description', 'install required IDE companion for {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
+      return t('commands.ide.install.description', 'Install required IDE companion for {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
     },
     kind: CommandKind.BUILT_IN,
     action: async (context) => {
@@ -270,7 +270,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   const enableCommand: SlashCommand = {
     name: 'enable',
     get description() {
-      return t('commands.ide.enable.description', 'enable IDE integration');
+      return t('commands.ide.enable.description', 'Enable IDE integration');
     },
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {
@@ -294,7 +294,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   const disableCommand: SlashCommand = {
     name: 'disable',
     get description() {
-      return t('commands.ide.disable.description', 'disable IDE integration');
+      return t('commands.ide.disable.description', 'Disable IDE integration');
     },
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {

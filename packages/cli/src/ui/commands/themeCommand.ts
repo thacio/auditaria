@@ -11,7 +11,7 @@ import { t } from '@thacio/auditaria-cli-core';
 export const themeCommand: SlashCommand = {
   name: 'theme',
   get description() {
-    return t('commands.theme.description', 'change the theme');
+    return t('commands.theme.description', 'Change the theme');
   },
   kind: CommandKind.BUILT_IN,
   action: (_context, _args): OpenDialogActionReturn => ({

@@ -14,7 +14,7 @@ export const helpCommand: SlashCommand = {
   altNames: ['?'],
   kind: CommandKind.BUILT_IN,
   get description() {
-    return t('commands.help.description', 'for help on gemini-cli');
+    return t('commands.help.description', 'For help on gemini-cli');
   },
   action: async (context) => {
     const helpItem: Omit<HistoryItemHelp, 'id'> = {
