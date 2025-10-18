@@ -42,6 +42,7 @@ import {
   stripShellWrapper,
 } from '../utils/shell-utils.js';
 import { doesToolInvocationMatch } from '../utils/tool-utils.js';
+import { SHELL_TOOL_NAME } from './tool-names.js';
 
 export const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 
@@ -316,12 +317,12 @@ export class ShellToolInvocation extends BaseToolInvocation<
             },
           }
         : {};
-      if (summarizeConfig && summarizeConfig[ShellTool.Name]) {
+      if (summarizeConfig && summarizeConfig[SHELL_TOOL_NAME]) {
         const summary = await summarizeToolOutput(
           llmContent,
           this.config.getGeminiClient(),
           signal,
-          summarizeConfig[ShellTool.Name].tokenBudget,
+          summarizeConfig[SHELL_TOOL_NAME].tokenBudget,
         );
         return {
           llmContent: summary,
@@ -377,7 +378,6 @@ export class ShellTool extends BaseDeclarativeTool<
   ShellToolParams,
   ToolResult
 > {
-  static Name: string = 'run_shell_command';
   private allowlist: Set<string> = new Set();
 
   constructor(private readonly config: Config) {
@@ -385,7 +385,7 @@ export class ShellTool extends BaseDeclarativeTool<
       // Errors are surfaced when parsing commands.
     });
     super(
-      ShellTool.Name,
+      SHELL_TOOL_NAME,
       'Shell',
       getShellToolDescription(),
       Kind.Execute,
