@@ -348,6 +348,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const {
     isThemeDialogOpen,
     openThemeDialog,
+    closeThemeDialog,
     handleThemeSelect,
     handleThemeHighlight,
   } = useThemeCommand(
@@ -1632,6 +1633,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
   const uiActions: UIActions = useMemo(
     () => ({
       handleThemeSelect,
+      closeThemeDialog,
       handleThemeHighlight,
       handleAuthSelect,
       setAuthState,
@@ -1658,6 +1660,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     }),
     [
       handleThemeSelect,
+      closeThemeDialog,
       handleThemeHighlight,
       handleAuthSelect,
       setAuthState,

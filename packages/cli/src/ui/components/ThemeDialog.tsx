@@ -22,7 +22,10 @@ import { ScopeSelector } from './shared/ScopeSelector.js';
 
 interface ThemeDialogProps {
   /** Callback function when a theme is selected */
-  onSelect: (themeName: string | undefined, scope: SettingScope) => void;
+  onSelect: (themeName: string, scope: SettingScope) => void;
+
+  /** Callback function when the dialog is cancelled */
+  onCancel: () => void;
 
   /** Callback function when a theme is highlighted */
   onHighlight: (themeName: string | undefined) => void;
@@ -34,6 +37,7 @@ interface ThemeDialogProps {
 
 export function ThemeDialog({
   onSelect,
+  onCancel,
   onHighlight,
   settings,
   availableTerminalHeight,
@@ -44,9 +48,9 @@ export function ThemeDialog({
   );
 
   // Track the currently highlighted theme name
-  const [highlightedThemeName, setHighlightedThemeName] = useState<
-    string | undefined
-  >(settings.merged.ui?.theme || DEFAULT_THEME.name);
+  const [highlightedThemeName, setHighlightedThemeName] = useState<string>(
+    settings.merged.ui?.theme || DEFAULT_THEME.name,
+  );
 
   // Generate theme items filtered by selected scope
   const customThemes =
@@ -114,7 +118,7 @@ export function ThemeDialog({
         setMode((prev) => (prev === 'theme' ? 'scope' : 'theme'));
       }
       if (key.name === 'escape') {
-        onSelect(undefined, selectedScope);
+        onCancel();
       }
     },
     { isActive: true },
