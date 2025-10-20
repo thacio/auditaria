@@ -13,7 +13,6 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { AnsiOutputText } from '../AnsiOutput.js';
 import { GeminiRespondingSpinner } from '../GeminiRespondingSpinner.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
-import { TodoListDisplay } from './Todo.js';
 import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import {
   SHELL_COMMAND_NAME,
@@ -21,7 +20,7 @@ import {
   TOOL_STATUS,
 } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import type { AnsiOutput, Config, TodoList } from '@thacio/auditaria-cli-core';
+import type { AnsiOutput, Config } from '@thacio/auditaria-cli-core';
 import { t } from '@thacio/auditaria-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
 
@@ -176,7 +175,8 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
               />
             ) : typeof resultDisplay === 'object' &&
               'todos' in resultDisplay ? (
-              <TodoListDisplay todos={resultDisplay as TodoList} />
+              // display nothing, as the TodoTray will handle rendering todos
+              <></>
             ) : (
               <AnsiOutputText
                 data={resultDisplay as AnsiOutput}
