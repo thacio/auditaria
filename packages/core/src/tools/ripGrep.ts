@@ -18,6 +18,7 @@ import { getErrorMessage, isNodeError } from '../utils/errors.js';
 import type { Config } from '../config/config.js';
 import { fileExists } from '../utils/fileUtils.js';
 import { Storage } from '../config/storage.js';
+import { GREP_TOOL_NAME } from './tool-names.js';
 
 const DEFAULT_TOTAL_MAX_MATCHES = 20000;
 
@@ -106,9 +107,10 @@ class GrepToolInvocation extends BaseToolInvocation<
     if (!workspaceContext.isPathWithinWorkspace(targetPath)) {
       const directories = workspaceContext.getDirectories();
       throw new Error(
-        t('tools.ripgrep.path_outside_workspace', 
+        t(
+          'tools.ripgrep.path_outside_workspace',
           'Path validation failed: Attempted path "{path}" resolves outside the allowed workspace directories: {directories}',
-          { path: relativePath, directories: directories.join(', ') }
+          { path: relativePath, directories: directories.join(', ') },
         ),
       );
     }
@@ -117,15 +119,27 @@ class GrepToolInvocation extends BaseToolInvocation<
     try {
       const stats = fs.statSync(targetPath);
       if (!stats.isDirectory()) {
-        throw new Error(t('tools.ripgrep.path_not_directory', 'Path is not a directory: {path}', { path: targetPath }));
+        throw new Error(
+          t(
+            'tools.ripgrep.path_not_directory',
+            'Path is not a directory: {path}',
+            { path: targetPath },
+          ),
+        );
       }
     } catch (error: unknown) {
       if (isNodeError(error) && error.code !== 'ENOENT') {
-        throw new Error(t('tools.ripgrep.path_not_exist', 'Path does not exist: {path}', { path: targetPath }));
+        throw new Error(
+          t('tools.ripgrep.path_not_exist', 'Path does not exist: {path}', {
+            path: targetPath,
+          }),
+        );
       }
       throw new Error(
-        t('tools.ripgrep.path_access_failed', 'Failed to access path stats for {path}: {error}', 
-          { path: targetPath, error: String(error) }
+        t(
+          'tools.ripgrep.path_access_failed',
+          'Failed to access path stats for {path}: {error}',
+          { path: targetPath, error: String(error) },
         ),
       );
     }
@@ -184,19 +198,40 @@ class GrepToolInvocation extends BaseToolInvocation<
         const numDirs = workspaceContext.getDirectories().length;
         searchLocationDescription =
           numDirs > 1
-            ? t('tools.ripgrep.search_location_workspace_multiple', 'across {count} workspace directories', { count: numDirs })
-            : t('tools.ripgrep.search_location_workspace_single', 'in the workspace directory');
+            ? t(
+                'tools.ripgrep.search_location_workspace_multiple',
+                'across {count} workspace directories',
+                { count: numDirs },
+              )
+            : t(
+                'tools.ripgrep.search_location_workspace_single',
+                'in the workspace directory',
+              );
       } else {
-        searchLocationDescription = t('tools.ripgrep.search_location_path', 'in path "{path}"', { path: searchDirDisplay });
+        searchLocationDescription = t(
+          'tools.ripgrep.search_location_path',
+          'in path "{path}"',
+          { path: searchDirDisplay },
+        );
       }
 
       if (allMatches.length === 0) {
-        const filter = this.params.include ? ` (filter: "${this.params.include}")` : '';
-        const noMatchMsg = t('tools.ripgrep.no_matches_detailed', 
-          'No matches found for pattern "{pattern}" {searchLocation}{filter}.', 
-          { pattern: this.params.pattern, searchLocation: searchLocationDescription, filter }
+        const filter = this.params.include
+          ? ` (filter: "${this.params.include}")`
+          : '';
+        const noMatchMsg = t(
+          'tools.ripgrep.no_matches_detailed',
+          'No matches found for pattern "{pattern}" {searchLocation}{filter}.',
+          {
+            pattern: this.params.pattern,
+            searchLocation: searchLocationDescription,
+            filter,
+          },
         );
-        return { llmContent: noMatchMsg, returnDisplay: t('tools.ripgrep.no_matches', 'No matches found') };
+        return {
+          llmContent: noMatchMsg,
+          returnDisplay: t('tools.ripgrep.no_matches', 'No matches found'),
+        };
       }
 
       const wasTruncated = allMatches.length >= totalMaxMatches;
@@ -216,15 +251,28 @@ class GrepToolInvocation extends BaseToolInvocation<
 
       const matchCount = allMatches.length;
       const matchTerm = matchCount === 1 ? 'match' : 'matches';
-      const filter = this.params.include ? ` (filter: "${this.params.include}")` : '';
+      const filter = this.params.include
+        ? ` (filter: "${this.params.include}")`
+        : '';
 
-      let llmContent = t('tools.ripgrep.matches_found_detailed',
+      let llmContent = t(
+        'tools.ripgrep.matches_found_detailed',
         'Found {count} {term} for pattern "{pattern}" {searchLocation}{filter}',
-        { count: matchCount, term: matchTerm, pattern: this.params.pattern, searchLocation: searchLocationDescription, filter }
+        {
+          count: matchCount,
+          term: matchTerm,
+          pattern: this.params.pattern,
+          searchLocation: searchLocationDescription,
+          filter,
+        },
       );
 
       if (wasTruncated) {
-        llmContent += t('tools.ripgrep.matches_limited', ' (results limited to {limit} matches for performance)', { limit: totalMaxMatches });
+        llmContent += t(
+          'tools.ripgrep.matches_limited',
+          ' (results limited to {limit} matches for performance)',
+          { limit: totalMaxMatches },
+        );
       }
 
       llmContent += `:\n---\n`;
@@ -238,9 +286,16 @@ class GrepToolInvocation extends BaseToolInvocation<
         llmContent += '---\n';
       }
 
-      let displayMessage = wasTruncated
-        ? t('tools.ripgrep.matches_found_limited', 'Found {count} {term} (limited)', { count: matchCount, term: matchTerm })
-        : t('tools.ripgrep.matches_found', 'Found {count} {term}', { count: matchCount, term: matchTerm });
+      const displayMessage = wasTruncated
+        ? t(
+            'tools.ripgrep.matches_found_limited',
+            'Found {count} {term} (limited)',
+            { count: matchCount, term: matchTerm },
+          )
+        : t('tools.ripgrep.matches_found', 'Found {count} {term}', {
+            count: matchCount,
+            term: matchTerm,
+          });
 
       return {
         llmContent: llmContent.trim(),
@@ -250,8 +305,16 @@ class GrepToolInvocation extends BaseToolInvocation<
       console.error(`Error during GrepLogic execution: ${error}`);
       const errorMessage = getErrorMessage(error);
       return {
-        llmContent: t('tools.ripgrep.search_error', 'Error during grep search operation: {error}', { error: errorMessage }),
-        returnDisplay: t('tools.ripgrep.search_error_display', 'Error: {error}', { error: errorMessage }),
+        llmContent: t(
+          'tools.ripgrep.search_error',
+          'Error during grep search operation: {error}',
+          { error: errorMessage },
+        ),
+        returnDisplay: t(
+          'tools.ripgrep.search_error_display',
+          'Error: {error}',
+          { error: errorMessage },
+        ),
       };
     }
   }
@@ -357,9 +420,10 @@ class GrepToolInvocation extends BaseToolInvocation<
           options.signal.removeEventListener('abort', cleanup);
           reject(
             new Error(
-              t('tools.ripgrep.ripgrep_start_failed', 
+              t(
+                'tools.ripgrep.ripgrep_start_failed',
                 'Failed to start ripgrep: {error}. Please ensure @lvce-editor/ripgrep is properly installed.',
-                { error: err.message }
+                { error: err.message },
               ),
             ),
           );
@@ -377,8 +441,10 @@ class GrepToolInvocation extends BaseToolInvocation<
           } else {
             reject(
               new Error(
-                t('tools.ripgrep.ripgrep_exit_error', 'ripgrep exited with code {code}: {error}', 
-                  { code: code ?? 'unknown', error: stderrData }
+                t(
+                  'tools.ripgrep.ripgrep_exit_error',
+                  'ripgrep exited with code {code}: {error}',
+                  { code: code ?? 'unknown', error: stderrData },
                 ),
               ),
             );
@@ -388,7 +454,13 @@ class GrepToolInvocation extends BaseToolInvocation<
 
       return this.parseRipgrepOutput(output, absolutePath);
     } catch (error: unknown) {
-      console.error(t('tools.ripgrep.ripgrep_failed', 'GrepLogic: ripgrep failed: {error}', { error: getErrorMessage(error) }));
+      console.error(
+        t(
+          'tools.ripgrep.ripgrep_failed',
+          'GrepLogic: ripgrep failed: {error}',
+          { error: getErrorMessage(error) },
+        ),
+      );
       throw error;
     }
   }
@@ -439,11 +511,9 @@ export class RipGrepTool extends BaseDeclarativeTool<
   RipGrepToolParams,
   ToolResult
 > {
-  static readonly Name = 'search_file_content';
-
   constructor(private readonly config: Config) {
     super(
-      RipGrepTool.Name,
+      GREP_TOOL_NAME,
       'SearchText',
       'Searches for a regular expression pattern within the content of files in a specified directory (or current working directory). Can filter files by a glob pattern. Returns the lines containing matches, along with their file paths and line numbers. Total results limited to 20,000 matches like VSCode.',
       Kind.Search,
@@ -490,9 +560,10 @@ export class RipGrepTool extends BaseDeclarativeTool<
     if (!workspaceContext.isPathWithinWorkspace(targetPath)) {
       const directories = workspaceContext.getDirectories();
       throw new Error(
-        t('tools.ripgrep.path_outside_workspace', 
+        t(
+          'tools.ripgrep.path_outside_workspace',
           'Path validation failed: Attempted path "{path}" resolves outside the allowed workspace directories: {directories}',
-          { path: relativePath, directories: directories.join(', ') }
+          { path: relativePath, directories: directories.join(', ') },
         ),
       );
     }
@@ -501,15 +572,27 @@ export class RipGrepTool extends BaseDeclarativeTool<
     try {
       const stats = fs.statSync(targetPath);
       if (!stats.isDirectory()) {
-        throw new Error(t('tools.ripgrep.path_not_directory', 'Path is not a directory: {path}', { path: targetPath }));
+        throw new Error(
+          t(
+            'tools.ripgrep.path_not_directory',
+            'Path is not a directory: {path}',
+            { path: targetPath },
+          ),
+        );
       }
     } catch (error: unknown) {
       if (isNodeError(error) && error.code !== 'ENOENT') {
-        throw new Error(t('tools.ripgrep.path_not_exist', 'Path does not exist: {path}', { path: targetPath }));
+        throw new Error(
+          t('tools.ripgrep.path_not_exist', 'Path does not exist: {path}', {
+            path: targetPath,
+          }),
+        );
       }
       throw new Error(
-        t('tools.ripgrep.path_access_failed', 'Failed to access path stats for {path}: {error}', 
-          { path: targetPath, error: String(error) }
+        t(
+          'tools.ripgrep.path_access_failed',
+          'Failed to access path stats for {path}: {error}',
+          { path: targetPath, error: String(error) },
         ),
       );
     }

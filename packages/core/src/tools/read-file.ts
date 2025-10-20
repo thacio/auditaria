@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '../i18n/index.js';
 
 import path from 'node:path';
@@ -20,6 +21,7 @@ import { FileOperation } from '../telemetry/metrics.js';
 import { getProgrammingLanguage } from '../telemetry/telemetry-utils.js';
 import { logFileOperation } from '../telemetry/loggers.js';
 import { FileOperationEvent } from '../telemetry/types.js';
+import { READ_FILE_TOOL_NAME } from './tool-names.js';
 
 /**
  * Parameters for the ReadFile tool
@@ -76,7 +78,9 @@ class ReadFileToolInvocation extends BaseToolInvocation<
     if (result.error) {
       return {
         llmContent: result.llmContent,
-        returnDisplay: result.returnDisplay || t('tools.read_file.error_reading_file', 'Error reading file'),
+        returnDisplay:
+          result.returnDisplay ||
+          t('tools.read_file.error_reading_file', 'Error reading file'),
         error: {
           message: result.error,
           type: result.errorType,
@@ -113,7 +117,7 @@ ${result.llmContent}`;
     logFileOperation(
       this.config,
       new FileOperationEvent(
-        ReadFileTool.Name,
+        READ_FILE_TOOL_NAME,
         FileOperation.READ,
         lines,
         mimetype,
@@ -136,11 +140,9 @@ export class ReadFileTool extends BaseDeclarativeTool<
   ReadFileToolParams,
   ToolResult
 > {
-  static readonly Name: string = 'read_file';
-
   constructor(private config: Config) {
     super(
-      ReadFileTool.Name,
+      READ_FILE_TOOL_NAME,
       'ReadFile',
       `Reads and returns the content of a specified file. If the file is large, the content will be truncated. The tool's response will clearly indicate if truncation has occurred and will provide details on how to read more of the file using the 'offset' and 'limit' parameters. Handles text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDF files. For text files, it can read specific line ranges.`,
       Kind.Read,
