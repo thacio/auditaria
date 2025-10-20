@@ -26,7 +26,7 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { ApprovalMode, t } from '@thacio/auditaria-cli-core';
 import { StreamingState } from '../types.js';
 import { ConfigInitDisplay } from '../components/ConfigInitDisplay.js';
-import { AnchoredTodoListDisplay } from './messages/Todo.js';
+import { TodoTray } from './messages/Todo.js';
 
 export const Composer = () => {
   const config = useConfig();
@@ -132,7 +132,7 @@ export const Composer = () => {
         </OverflowProvider>
       )}
 
-      <AnchoredTodoListDisplay />
+      <TodoTray />
 
       {uiState.isInputActive && (
         <InputPrompt
