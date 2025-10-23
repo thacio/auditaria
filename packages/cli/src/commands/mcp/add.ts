@@ -214,6 +214,7 @@ export const addCommand: CommandModule = {
         ),
         type: 'array',
         string: true,
+        nargs: 1,
       })
       .option('header', {
         alias: 'H',
@@ -223,6 +224,7 @@ export const addCommand: CommandModule = {
         ),
         type: 'array',
         string: true,
+        nargs: 1,
       })
       .option('timeout', {
         describe: t(
