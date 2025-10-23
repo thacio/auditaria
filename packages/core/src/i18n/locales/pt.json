@@ -983,7 +983,8 @@
     "accepting_edits": "aceitando edições",
     "yolo_mode": "modo YOLO",
     "shift_tab_toggle": " (shift + tab para alternar)",
-    "ctrl_y_toggle": " (ctrl + y para alternar)"
+    "ctrl_y_toggle": " (ctrl + y para alternar)",
+    "yolo_disabled": "Você não pode entrar no modo YOLO pois ele está desabilitado nas suas configurações."
   },
   "shell_mode": {
     "enabled": "modo shell habilitado",
@@ -1437,7 +1438,8 @@
       "prompt_interactive_stdin": "Erro: A flag --prompt-interactive não pode ser usada quando a entrada é redirecionada de stdin.",
       "yolo_approval_conflict": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
       "invalid_approval_mode": "Modo de aprovação inválido: {mode}. Valores válidos são: yolo, auto_edit, default",
-      "prompt_positional_conflict": "Não é possível usar um prompt posicional e a flag --prompt (-p) juntos"
+      "prompt_positional_conflict": "Não é possível usar um prompt posicional e a flag --prompt (-p) juntos",
+      "yolo_disabled": "Não é possível iniciar no modo YOLO quando ele está desabilitado pelas configurações"
     },
     "options": {
       "session_summary": "Arquivo para escrever o resumo da sessão."

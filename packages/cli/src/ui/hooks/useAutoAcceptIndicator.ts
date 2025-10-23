@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ApprovalMode, type Config } from '@thacio/auditaria-cli-core';
+import { ApprovalMode, type Config, t } from '@thacio/auditaria-cli-core';
 import { useKeypress } from './useKeypress.js';
 import type { HistoryItemWithoutId } from '../types.js';
 import { MessageType } from '../types.js';
@@ -34,6 +34,24 @@ export function useAutoAcceptIndicator({
       let nextApprovalMode: ApprovalMode | undefined;
 
       if (key.ctrl && key.name === 'y') {
+        if (
+          config.isYoloModeDisabled() &&
+          config.getApprovalMode() !== ApprovalMode.YOLO
+        ) {
+          if (addItem) {
+            addItem(
+              {
+                type: MessageType.WARNING,
+                text: t(
+                  'auto_accept.yolo_disabled',
+                  'You cannot enter YOLO mode since it is disabled in your settings.',
+                ),
+              },
+              Date.now(),
+            );
+          }
+          return;
+        }
         nextApprovalMode =
           config.getApprovalMode() === ApprovalMode.YOLO
             ? ApprovalMode.DEFAULT

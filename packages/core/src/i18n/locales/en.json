@@ -986,7 +986,8 @@
     "accepting_edits": "accepting edits",
     "yolo_mode": "YOLO mode",
     "shift_tab_toggle": " (shift + tab to toggle)",
-    "ctrl_y_toggle": " (ctrl + y to toggle)"
+    "ctrl_y_toggle": " (ctrl + y to toggle)",
+    "yolo_disabled": "You cannot enter YOLO mode since it is disabled in your settings."
   },
   "shell_mode": {
     "enabled": "shell mode enabled",
@@ -1440,7 +1441,8 @@
       "prompt_interactive_stdin": "Error: The --prompt-interactive flag cannot be used when input is piped from stdin.",
       "yolo_approval_conflict": "Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.",
       "invalid_approval_mode": "Invalid approval mode: {mode}. Valid values are: yolo, auto_edit, default",
-      "prompt_positional_conflict": "Cannot use both a positional prompt and the --prompt (-p) flag together"
+      "prompt_positional_conflict": "Cannot use both a positional prompt and the --prompt (-p) flag together",
+      "yolo_disabled": "Cannot start in YOLO mode when it is disabled by settings"
     },
     "options": {
       "session_summary": "File to write session summary to."
