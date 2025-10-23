@@ -15,6 +15,7 @@ import {
 } from '@thacio/auditaria-cli-core';
 import { CommandService } from './services/CommandService.js';
 import { FileCommandLoader } from './services/FileCommandLoader.js';
+import { McpPromptLoader } from './services/McpPromptLoader.js';
 import type { CommandContext } from './ui/commands/types.js';
 import { createNonInteractiveUI } from './ui/noninteractive/nonInteractiveUi.js';
 import type { LoadedSettings } from './config/settings.js';
@@ -39,9 +40,8 @@ export const handleSlashCommand = async (
     return;
   }
 
-  // Only custom commands are supported for now.
   const commandService = await CommandService.create(
-    [new FileCommandLoader(config)],
+    [new McpPromptLoader(config), new FileCommandLoader(config)],
     abortController.signal,
   );
   const commands = commandService.getCommands();
@@ -94,11 +94,17 @@ export const handleSlashCommand = async (
             // This ensures that if a command *does* request confirmation (e.g.
             // in the future with more granular permissions), it's handled appropriately.
             throw new FatalInputError(
-              t('errors.command_confirmation_required', 'Exiting due to a confirmation prompt requested by the command.'),
+              t(
+                'errors.command_confirmation_required',
+                'Exiting due to a confirmation prompt requested by the command.',
+              ),
             );
           default:
             throw new FatalInputError(
-              t('errors.command_result_unsupported_noninteractive', 'Exiting due to command result that is not supported in non-interactive mode.'),
+              t(
+                'errors.command_result_unsupported_noninteractive',
+                'Exiting due to command result that is not supported in non-interactive mode.',
+              ),
             );
         }
       }
