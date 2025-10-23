@@ -12,8 +12,6 @@ import { t } from '@thacio/auditaria-cli-core';
 export const ExtensionsList = () => {
   const { commandContext, extensionsUpdateState } = useUIState();
   const allExtensions = commandContext.services.config!.getExtensions();
-  const settings = commandContext.services.settings;
-  const disabledExtensions = settings.merged.extensions?.disabled ?? [];
 
   if (allExtensions.length === 0) {
     return (
@@ -34,10 +32,11 @@ export const ExtensionsList = () => {
       <Box flexDirection="column" paddingLeft={2}>
         {allExtensions.map((ext) => {
           const state = extensionsUpdateState.get(ext.name);
-          const isActive = !disabledExtensions.includes(ext.name);
+          const isActive = ext.isActive;
           const activeString = isActive
             ? t('commands.extensions.list.status.active', 'active')
             : t('commands.extensions.list.status.disabled', 'disabled');
+          const activeColor = isActive ? 'green' : 'grey';
 
           let stateColor = 'gray';
           const stateText =
@@ -75,7 +74,7 @@ export const ExtensionsList = () => {
             <Box key={ext.name}>
               <Text>
                 <Text color="cyan">{`${ext.name} (v${ext.version})`}</Text>
-                {` - ${activeString}`}
+                <Text color={activeColor}>{` - ${activeString}`}</Text>
                 {<Text color={stateColor}>{` (${stateText})`}</Text>}
               </Text>
             </Box>

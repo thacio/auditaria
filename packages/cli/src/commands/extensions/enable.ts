@@ -8,6 +8,7 @@ import { type CommandModule } from 'yargs';
 import { FatalConfigError, getErrorMessage, t } from '@thacio/auditaria-cli-core';
 import { enableExtension } from '../../config/extension.js';
 import { SettingScope } from '../../config/settings.js';
+import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
 
 interface EnableArgs {
   name: string;
@@ -15,11 +16,16 @@ interface EnableArgs {
 }
 
 export function handleEnable(args: EnableArgs) {
+  const extensionEnablementManager = new ExtensionEnablementManager();
   try {
     if (args.scope?.toLowerCase() === 'workspace') {
-      enableExtension(args.name, SettingScope.Workspace);
+      enableExtension(
+        args.name,
+        SettingScope.Workspace,
+        extensionEnablementManager,
+      );
     } else {
-      enableExtension(args.name, SettingScope.User);
+      enableExtension(args.name, SettingScope.User, extensionEnablementManager);
     }
     if (args.scope) {
       console.log(

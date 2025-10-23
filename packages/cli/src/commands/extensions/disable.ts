@@ -8,6 +8,7 @@ import { type CommandModule } from 'yargs';
 import { disableExtension } from '../../config/extension.js';
 import { SettingScope } from '../../config/settings.js';
 import { getErrorMessage } from '../../utils/errors.js';
+import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
 import { debugLogger, t } from '@thacio/auditaria-cli-core';
 
 interface DisableArgs {
@@ -16,12 +17,13 @@ interface DisableArgs {
 }
 
 export function handleDisable(args: DisableArgs) {
+  const extensionEnablementManager = new ExtensionEnablementManager();
   try {
     const scope =
       args.scope?.toLowerCase() === 'workspace'
         ? SettingScope.Workspace
         : SettingScope.User;
-    disableExtension(args.name, scope);
+    disableExtension(args.name, scope, extensionEnablementManager);
     debugLogger.log(
       t(
         'commands.extensions.disable.success',

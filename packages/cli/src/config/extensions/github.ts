@@ -21,6 +21,7 @@ import { EXTENSIONS_CONFIG_FILENAME, loadExtension } from '../extension.js';
 import * as tar from 'tar';
 import extract from 'extract-zip';
 import { fetchJson, getGitHubToken } from './github_fetch.js';
+import { type ExtensionEnablementManager } from './extensionEnablement.js';
 
 /**
  * Clones a Git repository to a specified local path.
@@ -157,6 +158,7 @@ export async function fetchReleaseFromGithub(
 
 export async function checkForExtensionUpdate(
   extension: GeminiCLIExtension,
+  extensionEnablementManager: ExtensionEnablementManager,
   cwd: string = process.cwd(),
 ): Promise<ExtensionUpdateState> {
   const installMetadata = extension.installMetadata;
@@ -164,6 +166,7 @@ export async function checkForExtensionUpdate(
     const newExtension = loadExtension({
       extensionDir: installMetadata.source,
       workspaceDir: cwd,
+      extensionEnablementManager,
     });
     if (!newExtension) {
       debugLogger.error(

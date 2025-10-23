@@ -7,7 +7,6 @@
 import type { CommandModule } from 'yargs';
 import {
   loadExtensions,
-  annotateActiveExtensions,
   requestConsentNonInteractive,
 } from '../../config/extension.js';
 import { debugLogger, t } from '@thacio/auditaria-cli-core';
@@ -45,12 +44,7 @@ export async function handleUpdate(args: UpdateArgs) {
     // ones.
     args.name ? [args.name] : [],
   );
-  const allExtensions = loadExtensions(extensionEnablementManager);
-  const extensions = annotateActiveExtensions(
-    allExtensions,
-    workingDir,
-    extensionEnablementManager,
-  );
+  const extensions = loadExtensions(extensionEnablementManager);
   if (args.name) {
     try {
       const extension = extensions.find(
@@ -76,7 +70,10 @@ export async function handleUpdate(args: UpdateArgs) {
         );
         return;
       }
-      const updateState = await checkForExtensionUpdate(extension);
+      const updateState = await checkForExtensionUpdate(
+        extension,
+        extensionEnablementManager,
+      );
       if (updateState !== ExtensionUpdateState.UPDATE_AVAILABLE) {
         debugLogger.log(
           t(
@@ -90,6 +87,7 @@ export async function handleUpdate(args: UpdateArgs) {
       // TODO(chrstnb): we should list extensions if the requested extension is not installed.
       const updatedExtensionInfo = (await updateExtension(
         extension,
+        extensionEnablementManager,
         workingDir,
         requestConsentNonInteractive,
         updateState,
@@ -118,6 +116,7 @@ export async function handleUpdate(args: UpdateArgs) {
       const extensionState = new Map();
       await checkForAllExtensionUpdates(
         extensions,
+        extensionEnablementManager,
         (action) => {
           if (action.type === 'SET_STATE') {
             extensionState.set(action.payload.name, {
@@ -132,6 +131,7 @@ export async function handleUpdate(args: UpdateArgs) {
         requestConsentNonInteractive,
         extensions,
         extensionState,
+        extensionEnablementManager,
         () => {},
       );
       updateInfos = updateInfos.filter(

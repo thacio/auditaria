@@ -693,10 +693,10 @@ export class WebInterfaceService extends EventEmitter {
     const serversData = Object.entries(mcpServers).map(([name, config]) => {
       const tools = serverTools.get(name) || [];
       const status = serverStatuses.get(name) || 'disconnected';
-      
+
       return {
         name,
-        extensionName: config.extensionName,
+        extensionName: config.extension?.name,
         description: config.description,
         status,
         oauth: config.oauth,
