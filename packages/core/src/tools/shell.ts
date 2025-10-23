@@ -378,6 +378,8 @@ export class ShellTool extends BaseDeclarativeTool<
   ShellToolParams,
   ToolResult
 > {
+  static readonly Name = SHELL_TOOL_NAME;
+
   private allowlist: Set<string> = new Set();
 
   constructor(private readonly config: Config) {
@@ -385,7 +387,7 @@ export class ShellTool extends BaseDeclarativeTool<
       // Errors are surfaced when parsing commands.
     });
     super(
-      SHELL_TOOL_NAME,
+      ShellTool.Name,
       'Shell',
       getShellToolDescription(),
       Kind.Execute,
