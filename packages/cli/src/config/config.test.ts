@@ -85,7 +85,6 @@ vi.mock('@thacio/auditaria-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
     '@thacio/auditaria-cli-core',
   );
-
   return {
     ...actualServer,
     IdeClient: {
