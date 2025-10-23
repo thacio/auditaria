@@ -37,6 +37,7 @@ import {
   FatalConfigError,
   getPty,
   EDIT_TOOL_NAME,
+  debugLogger,
 } from '@thacio/auditaria-cli-core';
 import type { Settings } from './settings.js';
 
@@ -49,16 +50,6 @@ import { appEvents } from '../utils/events.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { createPolicyEngineConfig } from './policy.js';
 import type { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
-
-// Simple console logger for now - replace with actual logger if available
-const logger = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debug: (...args: any[]) => console.debug('[DEBUG]', ...args),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  warn: (...args: any[]) => console.warn('[WARN]', ...args),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  error: (...args: any[]) => console.error('[ERROR]', ...args),
-};
 
 export interface CliArgs {
   query: string | undefined;
@@ -232,7 +223,7 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         )
         // Ensure validation flows through .fail() for clean UX
         .fail((msg, err, yargs) => {
-          console.error(msg || err?.message || 'Unknown error');
+          debugLogger.error(msg || err?.message || 'Unknown error');
           yargs.showHelp();
           process.exit(1);
         })
@@ -355,7 +346,7 @@ export async function loadHierarchicalGeminiMemory(
   const effectiveCwd = isHomeDirectory ? '' : currentWorkingDirectory;
 
   if (debugMode) {
-    logger.debug(
+    debugLogger.debug(
       `CLI: Delegating hierarchical memory load to server for CWD: ${currentWorkingDirectory} (memoryImportFormat: ${memoryImportFormat})`,
     );
   }
@@ -516,7 +507,7 @@ export async function loadCliConfig(
 
   // Force approval mode to default if the folder is not trusted.
   if (!trustedFolder && approvalMode !== ApprovalMode.DEFAULT) {
-    logger.warn(
+    debugLogger.warn(
       t(
         'trusted_folders.approval_mode_overridden',
         'Approval mode overridden to "default" because the current folder is not trusted.',
@@ -749,7 +740,7 @@ function mergeMcpServers(settings: Settings, extensions: GeminiCLIExtension[]) {
   for (const extension of extensions) {
     Object.entries(extension.mcpServers || {}).forEach(([key, server]) => {
       if (mcpServers[key]) {
-        logger.warn(
+        debugLogger.warn(
           `Skipping extension MCP config for server with key "${key}" as it already exists.`,
         );
         return;

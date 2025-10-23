@@ -8,7 +8,7 @@ import { type CommandModule } from 'yargs';
 import { disableExtension } from '../../config/extension.js';
 import { SettingScope } from '../../config/settings.js';
 import { getErrorMessage } from '../../utils/errors.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 
 interface DisableArgs {
   name: string;
@@ -17,28 +17,44 @@ interface DisableArgs {
 
 export function handleDisable(args: DisableArgs) {
   try {
-    const scope = args.scope?.toLowerCase() === 'workspace' ? SettingScope.Workspace : SettingScope.User;
+    const scope =
+      args.scope?.toLowerCase() === 'workspace'
+        ? SettingScope.Workspace
+        : SettingScope.User;
     disableExtension(args.name, scope);
-    console.log(
-      t('commands.extensions.disable.success', `Extension "${args.name}" successfully disabled for scope "${args.scope ?? scope}".`, { name: args.name, scope: args.scope ?? scope }),
+    debugLogger.log(
+      t(
+        'commands.extensions.disable.success',
+        `Extension "${args.name}" successfully disabled for scope "${args.scope ?? scope}".`,
+        { name: args.name, scope: args.scope ?? scope },
+      ),
     );
   } catch (error) {
-    console.error(getErrorMessage(error));
+    debugLogger.error(getErrorMessage(error));
     process.exit(1);
   }
 }
 
 export const disableCommand: CommandModule = {
   command: 'disable [--scope] <name>',
-  describe: t('commands.extensions.disable.description', 'Disables an extension.'),
+  describe: t(
+    'commands.extensions.disable.description',
+    'Disables an extension.',
+  ),
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t('commands.extensions.disable.name_description', 'The name of the extension to disable.'),
+        describe: t(
+          'commands.extensions.disable.name_description',
+          'The name of the extension to disable.',
+        ),
         type: 'string',
       })
       .option('scope', {
-        describe: t('commands.extensions.disable.scope_description', 'The scope to disable the extension in.'),
+        describe: t(
+          'commands.extensions.disable.scope_description',
+          'The scope to disable the extension in.',
+        ),
         type: 'string',
         default: SettingScope.User,
       })

@@ -9,8 +9,11 @@ import {
   installOrUpdateExtension,
   requestConsentNonInteractive,
 } from '../../config/extension.js';
-import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import {
+  debugLogger,
+  t,
+  type ExtensionInstallMetadata,
+} from '@thacio/auditaria-cli-core';
 
 import { getErrorMessage } from '../../utils/errors.js';
 
@@ -28,7 +31,7 @@ export async function handleLink(args: InstallArgs) {
       installMetadata,
       requestConsentNonInteractive,
     );
-    console.log(
+    debugLogger.log(
       t(
         'commands.extensions.link.success',
         'Extension "{extensionName}" linked successfully and enabled.',
@@ -36,7 +39,7 @@ export async function handleLink(args: InstallArgs) {
       ),
     );
   } catch (error) {
-    console.error(getErrorMessage(error));
+    debugLogger.error(getErrorMessage(error));
     process.exit(1);
   }
 }

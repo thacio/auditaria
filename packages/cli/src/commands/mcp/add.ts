@@ -7,8 +7,11 @@
 // File for 'gemini mcp add' command
 import type { CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
-import type { MCPServerConfig } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import {
+  debugLogger,
+  t,
+  type MCPServerConfig,
+} from '@thacio/auditaria-cli-core';
 
 async function addMcpServer(
   name: string,
@@ -42,8 +45,11 @@ async function addMcpServer(
   const inHome = settings.workspace.path === settings.user.path;
 
   if (scope === 'project' && inHome) {
-    console.error(
-      t('commands.mcp.manage.add.error_home_directory', 'Error: Please use --scope user to edit settings in the home directory.'),
+    debugLogger.error(
+      t(
+        'commands.mcp.manage.add.error_home_directory',
+        'Error: Please use --scope user to edit settings in the home directory.',
+      ),
     );
     process.exit(1);
   }
@@ -117,8 +123,12 @@ async function addMcpServer(
 
   const isExistingServer = !!mcpServers[name];
   if (isExistingServer) {
-    console.log(
-      t('commands.mcp.manage.add.already_configured', `MCP server "${name}" is already configured within ${scope} settings.`, { name, scope }),
+    debugLogger.log(
+      t(
+        'commands.mcp.manage.add.already_configured',
+        `MCP server "${name}" is already configured within ${scope} settings.`,
+        { name, scope },
+      ),
     );
   }
 
@@ -127,10 +137,20 @@ async function addMcpServer(
   settings.setValue(settingsScope, 'mcpServers', mcpServers);
 
   if (isExistingServer) {
-    console.log(t('commands.mcp.manage.add.updated', `MCP server "${name}" updated in ${scope} settings.`, { name, scope }));
+    debugLogger.log(
+      t(
+        'commands.mcp.manage.add.updated',
+        `MCP server "${name}" updated in ${scope} settings.`,
+        { name, scope },
+      ),
+    );
   } else {
-    console.log(
-      t('commands.mcp.manage.add.added', `MCP server "${name}" added to ${scope} settings. (${transport})`, { name, scope, transport }),
+    debugLogger.log(
+      t(
+        'commands.mcp.manage.add.added',
+        `MCP server "${name}" added to ${scope} settings. (${transport})`,
+        { name, scope, transport },
+      ),
     );
   }
 }
@@ -140,68 +160,104 @@ export const addCommand: CommandModule = {
   describe: t('commands.mcp.manage.add.description', 'Add a server'),
   builder: (yargs) =>
     yargs
-      .usage(t('commands.mcp.manage.add.usage', 'Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]'))
+      .usage(
+        t(
+          'commands.mcp.manage.add.usage',
+          'Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]',
+        ),
+      )
       .parserConfiguration({
         'unknown-options-as-args': true, // Pass unknown options as server args
         'populate--': true, // Populate server args after -- separator
       })
       .positional('name', {
-        describe: t('commands.mcp.manage.add.name_description', 'Name of the server'),
+        describe: t(
+          'commands.mcp.manage.add.name_description',
+          'Name of the server',
+        ),
         type: 'string',
         demandOption: true,
       })
       .positional('commandOrUrl', {
-        describe: t('commands.mcp.manage.add.command_url_description', 'Command (stdio) or URL (sse, http)'),
+        describe: t(
+          'commands.mcp.manage.add.command_url_description',
+          'Command (stdio) or URL (sse, http)',
+        ),
         type: 'string',
         demandOption: true,
       })
       .option('scope', {
         alias: 's',
-        describe: t('commands.mcp.manage.add.scope_description', 'Configuration scope (user or project)'),
+        describe: t(
+          'commands.mcp.manage.add.scope_description',
+          'Configuration scope (user or project)',
+        ),
         type: 'string',
         default: 'project',
         choices: ['user', 'project'],
       })
       .option('transport', {
         alias: 't',
-        describe: t('commands.mcp.manage.add.transport_description', 'Transport type (stdio, sse, http)'),
+        describe: t(
+          'commands.mcp.manage.add.transport_description',
+          'Transport type (stdio, sse, http)',
+        ),
         type: 'string',
         default: 'stdio',
         choices: ['stdio', 'sse', 'http'],
       })
       .option('env', {
         alias: 'e',
-        describe: t('commands.mcp.manage.add.env_description', 'Set environment variables (e.g. -e KEY=value)'),
+        describe: t(
+          'commands.mcp.manage.add.env_description',
+          'Set environment variables (e.g. -e KEY=value)',
+        ),
         type: 'array',
         string: true,
       })
       .option('header', {
         alias: 'H',
-        describe: t('commands.mcp.manage.add.header_description',
-          'Set HTTP headers for SSE and HTTP transports (e.g. -H "X-Api-Key: abc123" -H "Authorization: Bearer abc123")'),
+        describe: t(
+          'commands.mcp.manage.add.header_description',
+          'Set HTTP headers for SSE and HTTP transports (e.g. -H "X-Api-Key: abc123" -H "Authorization: Bearer abc123")',
+        ),
         type: 'array',
         string: true,
       })
       .option('timeout', {
-        describe: t('commands.mcp.manage.add.timeout_description', 'Set connection timeout in milliseconds'),
+        describe: t(
+          'commands.mcp.manage.add.timeout_description',
+          'Set connection timeout in milliseconds',
+        ),
         type: 'number',
       })
       .option('trust', {
-        describe: t('commands.mcp.manage.add.trust_description',
-          'Trust the server (bypass all tool call confirmation prompts)'),
+        describe: t(
+          'commands.mcp.manage.add.trust_description',
+          'Trust the server (bypass all tool call confirmation prompts)',
+        ),
         type: 'boolean',
       })
       .option('description', {
-        describe: t('commands.mcp.manage.add.description_description', 'Set the description for the server'),
+        describe: t(
+          'commands.mcp.manage.add.description_description',
+          'Set the description for the server',
+        ),
         type: 'string',
       })
       .option('include-tools', {
-        describe: t('commands.mcp.manage.add.include_tools_description', 'A comma-separated list of tools to include'),
+        describe: t(
+          'commands.mcp.manage.add.include_tools_description',
+          'A comma-separated list of tools to include',
+        ),
         type: 'array',
         string: true,
       })
       .option('exclude-tools', {
-        describe: t('commands.mcp.manage.add.exclude_tools_description', 'A comma-separated list of tools to exclude'),
+        describe: t(
+          'commands.mcp.manage.add.exclude_tools_description',
+          'A comma-separated list of tools to exclude',
+        ),
         type: 'array',
         string: true,
       })

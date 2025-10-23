@@ -10,7 +10,7 @@ import {
   annotateActiveExtensions,
   requestConsentNonInteractive,
 } from '../../config/extension.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 import {
   updateAllUpdatableExtensions,
   type ExtensionUpdateInfo,
@@ -57,7 +57,7 @@ export async function handleUpdate(args: UpdateArgs) {
         (extension) => extension.name === args.name,
       );
       if (!extension) {
-        console.log(
+        debugLogger.log(
           t(
             'commands.extensions.update.extension_not_found',
             `Extension "${args.name}" not found.`,
@@ -67,7 +67,7 @@ export async function handleUpdate(args: UpdateArgs) {
         return;
       }
       if (!extension.installMetadata) {
-        console.log(
+        debugLogger.log(
           t(
             'commands.extensions.update.missing_install_metadata',
             `Unable to install extension "${args.name}" due to missing install metadata`,
@@ -78,7 +78,7 @@ export async function handleUpdate(args: UpdateArgs) {
       }
       const updateState = await checkForExtensionUpdate(extension);
       if (updateState !== ExtensionUpdateState.UPDATE_AVAILABLE) {
-        console.log(
+        debugLogger.log(
           t(
             'commands.extensions.update.already_up_to_date',
             `Extension "${args.name}" is already up to date.`,
@@ -99,9 +99,9 @@ export async function handleUpdate(args: UpdateArgs) {
         updatedExtensionInfo.originalVersion !==
         updatedExtensionInfo.updatedVersion
       ) {
-        console.log(updateOutput(updatedExtensionInfo));
+        debugLogger.log(updateOutput(updatedExtensionInfo));
       } else {
-        console.log(
+        debugLogger.log(
           t(
             'commands.extensions.update.already_up_to_date',
             `Extension "${args.name}" is already up to date.`,
@@ -110,7 +110,7 @@ export async function handleUpdate(args: UpdateArgs) {
         );
       }
     } catch (error) {
-      console.error(getErrorMessage(error));
+      debugLogger.error(getErrorMessage(error));
     }
   }
   if (args.all) {
@@ -138,7 +138,7 @@ export async function handleUpdate(args: UpdateArgs) {
         (info) => info.originalVersion !== info.updatedVersion,
       );
       if (updateInfos.length === 0) {
-        console.log(
+        debugLogger.log(
           t(
             'commands.extensions.update.no_extensions',
             'No extensions to update.',
@@ -146,9 +146,9 @@ export async function handleUpdate(args: UpdateArgs) {
         );
         return;
       }
-      console.log(updateInfos.map((info) => updateOutput(info)).join('\n'));
+      debugLogger.log(updateInfos.map((info) => updateOutput(info)).join('\n'));
     } catch (error) {
-      console.error(getErrorMessage(error));
+      debugLogger.error(getErrorMessage(error));
     }
   }
 }

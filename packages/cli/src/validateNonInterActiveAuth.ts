@@ -5,7 +5,12 @@
  */
 
 import type { Config } from '@thacio/auditaria-cli-core';
-import { AuthType, OutputFormat, t } from '@thacio/auditaria-cli-core';
+import {
+  AuthType,
+  debugLogger,
+  OutputFormat,
+  t,
+} from '@thacio/auditaria-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
 import { validateAuthMethod } from './config/auth.js';
 import { type LoadedSettings } from './config/settings.js';
@@ -40,18 +45,30 @@ export async function validateNonInteractiveAuth(
     const enforcedType = settings.merged.security?.auth?.enforcedType;
     if (enforcedType && effectiveAuthType !== enforcedType) {
       const message = effectiveAuthType
-        ? t('auth_errors.enforced_auth_type_mismatch', `The enforced authentication type is '${enforcedType}', but the current type is '${effectiveAuthType}'. Please re-authenticate with the correct type.`, {
-            enforcedType: String(enforcedType),
-            currentType: String(effectiveAuthType),
-          })
-        : t('auth_errors.enforced_auth_no_config', `The auth type '${enforcedType}' is enforced, but no authentication is configured.`, {
-            enforcedType: String(enforcedType),
-          });
+        ? t(
+            'auth_errors.enforced_auth_type_mismatch',
+            `The enforced authentication type is '${enforcedType}', but the current type is '${effectiveAuthType}'. Please re-authenticate with the correct type.`,
+            {
+              enforcedType: String(enforcedType),
+              currentType: String(effectiveAuthType),
+            },
+          )
+        : t(
+            'auth_errors.enforced_auth_no_config',
+            `The auth type '${enforcedType}' is enforced, but no authentication is configured.`,
+            {
+              enforcedType: String(enforcedType),
+            },
+          );
       throw new Error(message);
     }
 
     if (!effectiveAuthType) {
-      const message = t('non_interactive.auth_method_required', `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA`, { settingsPath: USER_SETTINGS_PATH });
+      const message = t(
+        'non_interactive.auth_method_required',
+        `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA`,
+        { settingsPath: USER_SETTINGS_PATH },
+      );
       throw new Error(message);
     }
 
@@ -74,7 +91,7 @@ export async function validateNonInteractiveAuth(
         1,
       );
     } else {
-      console.error(error instanceof Error ? error.message : String(error));
+      debugLogger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
   }

@@ -10,8 +10,11 @@ import {
   installOrUpdateExtension,
   requestConsentNonInteractive,
 } from '../../config/extension.js';
-import type { ExtensionInstallMetadata } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import {
+  debugLogger,
+  t,
+  type ExtensionInstallMetadata,
+} from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import { stat } from 'node:fs/promises';
 
@@ -69,19 +72,19 @@ export async function handleInstall(args: InstallArgs) {
       ? () => Promise.resolve(true)
       : requestConsentNonInteractive;
     if (args.consent) {
-      console.log(
+      debugLogger.log(
         t(
           'commands.extensions.install.consent_message',
           'You have consented to the following:',
         ),
       );
-      console.log(INSTALL_WARNING_MESSAGE);
+      debugLogger.log(INSTALL_WARNING_MESSAGE);
     }
     const name = await installOrUpdateExtension(
       installMetadata,
       requestConsent,
     );
-    console.log(
+    debugLogger.log(
       t(
         'commands.extensions.install.success',
         `Extension "${name}" installed successfully and enabled.`,
@@ -89,7 +92,7 @@ export async function handleInstall(args: InstallArgs) {
       ),
     );
   } catch (error) {
-    console.error(getErrorMessage(error));
+    debugLogger.error(getErrorMessage(error));
     process.exit(1);
   }
 }

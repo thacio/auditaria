@@ -6,7 +6,7 @@
 
 import type { CommandModule } from 'yargs';
 import { uninstallExtension } from '../../config/extension.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 
 interface UninstallArgs {
@@ -16,26 +16,41 @@ interface UninstallArgs {
 export async function handleUninstall(args: UninstallArgs) {
   try {
     await uninstallExtension(args.name, false);
-    console.log(t('commands.extensions.uninstall.success', `Extension "${args.name}" successfully uninstalled.`, { name: args.name }));
+    debugLogger.log(
+      t(
+        'commands.extensions.uninstall.success',
+        `Extension "${args.name}" successfully uninstalled.`,
+        { name: args.name },
+      ),
+    );
   } catch (error) {
-    console.error(getErrorMessage(error));
+    debugLogger.error(getErrorMessage(error));
     process.exit(1);
   }
 }
 
 export const uninstallCommand: CommandModule = {
   command: 'uninstall <name>',
-  describe: t('commands.extensions.uninstall.description', 'Uninstalls an extension.'),
+  describe: t(
+    'commands.extensions.uninstall.description',
+    'Uninstalls an extension.',
+  ),
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t('commands.extensions.uninstall.name_description', 'The name or source path of the extension to uninstall.'),
+        describe: t(
+          'commands.extensions.uninstall.name_description',
+          'The name or source path of the extension to uninstall.',
+        ),
         type: 'string',
       })
       .check((argv) => {
         if (!argv.name) {
           throw new Error(
-            t('commands.extensions.uninstall.missing_name', 'Please include the name of the extension to uninstall as a positional argument.'),
+            t(
+              'commands.extensions.uninstall.missing_name',
+              'Please include the name of the extension to uninstall as a positional argument.',
+            ),
           );
         }
         return true;

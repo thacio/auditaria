@@ -5,6 +5,7 @@
  */
 
 import {
+  debugLogger,
   flatMapTextParts,
   readPathFromWorkspace,
   t,
@@ -57,7 +58,11 @@ export class AtFileProcessor implements IPromptProcessor {
         try {
           const fileContentParts = await readPathFromWorkspace(pathStr, config);
           if (fileContentParts.length === 0) {
-            const uiMessage = t('atFile.fileIgnored', `File '@{${pathStr}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.`, { path: pathStr });
+            const uiMessage = t(
+              'atFile.fileIgnored',
+              `File '@{${pathStr}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.`,
+              { path: pathStr },
+            );
             context.ui.addItem(
               { type: MessageType.INFO, text: uiMessage },
               Date.now(),
@@ -67,10 +72,15 @@ export class AtFileProcessor implements IPromptProcessor {
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
-          const uiMessage = t('atFile.failedToInject', `Failed to inject content for '@{${pathStr}}': ${message}`, { path: pathStr, error: message });
+          const uiMessage = t(
+            'atFile.failedToInject',
+            `Failed to inject content for '@{${pathStr}}': ${message}`,
+            { path: pathStr, error: message },
+          );
 
-          console.error(
-            `[AtFileProcessor] ${uiMessage}. Leaving placeholder in prompt.`,
+          // `context.invocation` should always be present at this point.
+          debugLogger.error(
+            `Error while loading custom command (${context.invocation!.name}) ${uiMessage}. Leaving placeholder in prompt.`,
           );
           context.ui.addItem(
             { type: MessageType.ERROR, text: uiMessage },

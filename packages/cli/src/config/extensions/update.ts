@@ -18,8 +18,11 @@ import {
   loadExtensionConfig,
 } from '../extension.js';
 import { checkForExtensionUpdate } from './github.js';
-import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import {
+  debugLogger,
+  t,
+  type GeminiCLIExtension,
+} from '@thacio/auditaria-cli-core';
 import * as fs from 'node:fs';
 import { getErrorMessage } from '../../utils/errors.js';
 
@@ -116,7 +119,7 @@ export async function updateExtension(
       updatedVersion,
     };
   } catch (e) {
-    console.error(
+    debugLogger.error(
       t(
         'commands.extensions.update.error_rolling_back',
         `Error updating extension, rolling back. ${getErrorMessage(e)}`,

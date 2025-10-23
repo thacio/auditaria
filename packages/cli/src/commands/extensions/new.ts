@@ -8,8 +8,7 @@ import { access, cp, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 import type { CommandModule } from 'yargs';
 import { fileURLToPath } from 'node:url';
-import { t } from '@thacio/auditaria-cli-core';
-import { getErrorMessage } from '../../utils/errors.js';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 
 interface NewArgs {
   path: string;
@@ -54,46 +53,41 @@ async function copyDirectory(template: string, path: string) {
 }
 
 async function handleNew(args: NewArgs) {
-  try {
-    if (args.template) {
-      await copyDirectory(args.template, args.path);
-      console.log(
-        t(
-          'commands.extensions.new.success',
-          'Successfully created new extension from template "{template}" at {path}.',
-          { template: args.template, path: args.path },
-        ),
-      );
-    } else {
-      await createDirectory(args.path);
-      const extensionName = basename(args.path);
-      const manifest = {
-        name: extensionName,
-        version: '1.0.0',
-      };
-      await writeFile(
-        join(args.path, 'gemini-extension.json'),
-        JSON.stringify(manifest, null, 2),
-      );
-      console.log(
-        t(
-          'commands.extensions.new.success_no_template',
-          'Successfully created new extension at {path}.',
-          { path: args.path },
-        ),
-      );
-    }
-    console.log(
+  if (args.template) {
+    await copyDirectory(args.template, args.path);
+    debugLogger.log(
       t(
-        'commands.extensions.new.install_help',
-        'You can install this using "auditaria extensions link {path}" to test it out.',
+        'commands.extensions.new.success',
+        'Successfully created new extension from template "{template}" at {path}.',
+        { template: args.template, path: args.path },
+      ),
+    );
+  } else {
+    await createDirectory(args.path);
+    const extensionName = basename(args.path);
+    const manifest = {
+      name: extensionName,
+      version: '1.0.0',
+    };
+    await writeFile(
+      join(args.path, 'gemini-extension.json'),
+      JSON.stringify(manifest, null, 2),
+    );
+    debugLogger.log(
+      t(
+        'commands.extensions.new.success_no_template',
+        'Successfully created new extension at {path}.',
         { path: args.path },
       ),
     );
-  } catch (error) {
-    console.error(getErrorMessage(error));
-    throw error;
   }
+  debugLogger.log(
+    t(
+      'commands.extensions.new.install_help',
+      'You can install this using "auditaria extensions link {path}" to test it out.',
+      { path: args.path },
+    ),
+  );
 }
 
 async function getBoilerplateChoices() {
