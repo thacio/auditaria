@@ -17,6 +17,7 @@ import {
 } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import { stat } from 'node:fs/promises';
+import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 
 interface InstallArgs {
   source: string;
@@ -83,6 +84,9 @@ export async function handleInstall(args: InstallArgs) {
     const name = await installOrUpdateExtension(
       installMetadata,
       requestConsent,
+      process.cwd(),
+      undefined,
+      promptForSetting,
     );
     debugLogger.log(
       t(

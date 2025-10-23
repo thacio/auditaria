@@ -1380,7 +1380,8 @@
     "skip_error": "Aviso: Pulando extensão em {path}: {error}",
     "config_not_found": "Arquivo de configuração não encontrado em {path}",
     "config_missing_field": "Configuração inválida em {path}: {field} ausente",
-    "config_load_failed": "Falha ao carregar configuração de extensão de {path}: {error}"
+    "config_load_failed": "Falha ao carregar configuração de extensão de {path}: {error}",
+    "auto_update_settings_changed": "Extensão \"{name}\" possui alterações nas configurações e não pode ser atualizada automaticamente. Por favor, atualize manualmente."
   },
   "oauth": {
     "auth_failed": "\nFalha na autenticação com código do usuário.",

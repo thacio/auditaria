@@ -1383,7 +1383,8 @@
     "skip_error": "Warning: Skipping extension in {path}: {error}",
     "config_not_found": "Configuration file not found at {path}",
     "config_missing_field": "Invalid configuration in {path}: missing {field}",
-    "config_load_failed": "Failed to load extension config from {path}: {error}"
+    "config_load_failed": "Failed to load extension config from {path}: {error}",
+    "auto_update_settings_changed": "Extension \"{name}\" has settings changes and cannot be auto-updated. Please update manually."
   },
   "oauth": {
     "auth_failed": "\nFailed to authenticate with user code.",
