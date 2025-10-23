@@ -9,10 +9,16 @@ import { getInstallationInfo, PackageManager } from './installationInfo.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as childProcess from 'node:child_process';
-import { isGitRepository } from '@thacio/auditaria-cli-core';
+import { debugLogger, isGitRepository } from '@thacio/auditaria-cli-core';
 
 vi.mock('@thacio/auditaria-cli-core', () => ({
   isGitRepository: vi.fn(),
+  debugLogger: {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 vi.mock('fs', async (importOriginal) => {
@@ -59,7 +65,6 @@ describe('getInstallationInfo', () => {
   });
 
   it('should return UNKNOWN and log error if realpathSync fails', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     process.argv[1] = '/path/to/cli';
     const error = new Error('realpath failed');
     mockedRealPathSync.mockImplementation(() => {
@@ -69,8 +74,7 @@ describe('getInstallationInfo', () => {
     const info = getInstallationInfo(projectRoot, false);
 
     expect(info.packageManager).toBe(PackageManager.UNKNOWN);
-    expect(consoleSpy).toHaveBeenCalledWith(error);
-    consoleSpy.mockRestore();
+    expect(debugLogger.log).toHaveBeenCalledWith(error);
   });
 
   it('should detect running from a local git clone', () => {
@@ -304,7 +308,9 @@ describe('getInstallationInfo', () => {
     const info = getInstallationInfo(projectRoot, false);
     expect(info.packageManager).toBe(PackageManager.NPM);
     expect(info.isGlobal).toBe(true);
-    expect(info.updateCommand).toBe('npm install -g @thacio/auditaria-cli@latest');
+    expect(info.updateCommand).toBe(
+      'npm install -g @thacio/auditaria-cli@latest',
+    );
     expect(info.updateMessage).toContain('Attempting to automatically update');
 
     const infoDisabled = getInstallationInfo(projectRoot, true);

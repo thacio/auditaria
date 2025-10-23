@@ -3,11 +3,11 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
+
+import { debugLogger, t, type Config } from '@thacio/auditaria-cli-core';
 
 import type { Message } from '../types.js';
 import { MessageType } from '../types.js';
-import type { Config } from '@thacio/auditaria-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 
 export function createShowMemoryAction(
@@ -19,7 +19,10 @@ export function createShowMemoryAction(
     if (!config) {
       addMessage({
         type: MessageType.ERROR,
-        content: t('memory.config_not_available', 'Configuration not available. Cannot show memory.'),
+        content: t(
+          'memory.config_not_available',
+          'Configuration not available. Cannot show memory.',
+        ),
         timestamp: new Date(),
       });
       return;
@@ -28,7 +31,7 @@ export function createShowMemoryAction(
     const debugMode = config.getDebugMode();
 
     if (debugMode) {
-      console.log('[DEBUG] Show Memory command invoked.');
+      debugLogger.log('[DEBUG] Show Memory command invoked.');
     }
 
     const currentMemory = config.getUserMemory();
@@ -39,10 +42,10 @@ export function createShowMemoryAction(
       : [contextFileName];
 
     if (debugMode) {
-      console.log(
+      debugLogger.log(
         `[DEBUG] Showing memory. Content from config.getUserMemory() (first 200 chars): ${currentMemory.substring(0, 200)}...`,
       );
-      console.log(`[DEBUG] Number of context files loaded: ${fileCount}`);
+      debugLogger.log(`[DEBUG] Number of context files loaded: ${fileCount}`);
     }
 
     if (fileCount > 0) {
@@ -50,7 +53,15 @@ export function createShowMemoryAction(
       const name = allNamesTheSame ? contextFileNames[0] : 'context';
       addMessage({
         type: MessageType.INFO,
-        content: t('memory.loaded_files', 'Loaded memory from {count} {name} file{plural}.', { count: fileCount, name: name ?? 'context', plural: fileCount > 1 ? 's' : '' }),
+        content: t(
+          'memory.loaded_files',
+          'Loaded memory from {count} {name} file{plural}.',
+          {
+            count: fileCount,
+            name: name ?? 'context',
+            plural: fileCount > 1 ? 's' : '',
+          },
+        ),
         timestamp: new Date(),
       });
     }
@@ -58,15 +69,26 @@ export function createShowMemoryAction(
     if (currentMemory && currentMemory.trim().length > 0) {
       addMessage({
         type: MessageType.INFO,
-        content: t('memory.current_content', 'Current combined memory content:\n```markdown\n{content}\n```', { content: currentMemory }),
+        content: t(
+          'memory.current_content',
+          'Current combined memory content:\n```markdown\n{content}\n```',
+          { content: currentMemory },
+        ),
         timestamp: new Date(),
       });
     } else {
       addMessage({
         type: MessageType.INFO,
-        content: fileCount > 0
-          ? t('memory.loaded_but_empty', 'Hierarchical memory (GEMINI.md or other context files) is loaded but content is empty.')
-          : t('memory.not_loaded', 'No hierarchical memory (GEMINI.md or other context files) is currently loaded.'),
+        content:
+          fileCount > 0
+            ? t(
+                'memory.loaded_but_empty',
+                'Hierarchical memory (GEMINI.md or other context files) is loaded but content is empty.',
+              )
+            : t(
+                'memory.not_loaded',
+                'No hierarchical memory (GEMINI.md or other context files) is currently loaded.',
+              ),
         timestamp: new Date(),
       });
     }

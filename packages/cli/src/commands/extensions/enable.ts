@@ -5,7 +5,11 @@
  */
 
 import { type CommandModule } from 'yargs';
-import { FatalConfigError, getErrorMessage, t } from '@thacio/auditaria-cli-core';
+import {
+  FatalConfigError,
+  getErrorMessage,
+  t,
+} from '@thacio/auditaria-cli-core';
 import { enableExtension } from '../../config/extension.js';
 import { SettingScope } from '../../config/settings.js';
 import { ExtensionEnablementManager } from '../../config/extensions/extensionEnablement.js';
@@ -29,16 +33,24 @@ export function handleEnable(args: EnableArgs) {
     }
     if (args.scope) {
       console.log(
-        t('commands.extensions.enable.success_with_scope', `Extension "${args.name}" successfully enabled for scope "${args.scope}".`, {
-          name: args.name,
-          scope: args.scope,
-        }),
+        t(
+          'commands.extensions.enable.success_with_scope',
+          `Extension "${args.name}" successfully enabled for scope "${args.scope}".`,
+          {
+            name: args.name,
+            scope: args.scope,
+          },
+        ),
       );
     } else {
       console.log(
-        t('commands.extensions.enable.success_all_scopes', `Extension "${args.name}" successfully enabled in all scopes.`, {
-          name: args.name,
-        }),
+        t(
+          'commands.extensions.enable.success_all_scopes',
+          `Extension "${args.name}" successfully enabled in all scopes.`,
+          {
+            name: args.name,
+          },
+        ),
       );
     }
   } catch (error) {
@@ -48,15 +60,24 @@ export function handleEnable(args: EnableArgs) {
 
 export const enableCommand: CommandModule = {
   command: 'enable [--scope] <name>',
-  describe: t('commands.extensions.enable.description', 'Enables an extension.'),
+  describe: t(
+    'commands.extensions.enable.description',
+    'Enables an extension.',
+  ),
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t('commands.extensions.enable.name_description', 'The name of the extension to enable.'),
+        describe: t(
+          'commands.extensions.enable.name_description',
+          'The name of the extension to enable.',
+        ),
         type: 'string',
       })
       .option('scope', {
-        describe: t('commands.extensions.enable.scope_description', 'The scope to enable the extension in. If not set, will be enabled in all scopes.'),
+        describe: t(
+          'commands.extensions.enable.scope_description',
+          'The scope to enable the extension in. If not set, will be enabled in all scopes.',
+        ),
         type: 'string',
       })
       .check((argv) => {

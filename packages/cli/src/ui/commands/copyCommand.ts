@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 import { copyToClipboard } from '../utils/commandUtils.js';
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';
@@ -12,7 +12,10 @@ import { CommandKind } from './types.js';
 export const copyCommand: SlashCommand = {
   name: 'copy',
   get description() {
-    return t('commands.copy.description', 'Copy the last result or code snippet to clipboard');
+    return t(
+      'commands.copy.description',
+      'Copy the last result or code snippet to clipboard',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, _args): Promise<SlashCommandActionReturn | void> => {
@@ -44,23 +47,33 @@ export const copyCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'info',
-          content: t('commands.copy.success', 'Last output copied to the clipboard'),
+          content: t(
+            'commands.copy.success',
+            'Last output copied to the clipboard',
+          ),
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.debug(message);
+        debugLogger.debug(message);
 
         return {
           type: 'message',
           messageType: 'error',
-          content: t('commands.copy.error', `Failed to copy to the clipboard. ${message}`, { message }),
+          content: t(
+            'commands.copy.error',
+            `Failed to copy to the clipboard. ${message}`,
+            { message },
+          ),
         };
       }
     } else {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.copy.no_text', 'Last AI output contains no text to copy.'),
+        content: t(
+          'commands.copy.no_text',
+          'Last AI output contains no text to copy.',
+        ),
       };
     }
   },

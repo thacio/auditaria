@@ -16,6 +16,7 @@ import { SettingScope } from '../../config/settings.js';
 import {
   AuthType,
   clearCachedCredentialFile,
+  debugLogger,
   type Config,
 } from '@thacio/auditaria-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
@@ -124,7 +125,7 @@ export function AuthDialog({
           config.isBrowserLaunchSuppressed()
         ) {
           runExitCleanup();
-          console.log(
+          debugLogger.log(
             `
 ----------------------------------------------------------------
 ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Auditaria CLI to continue.')}

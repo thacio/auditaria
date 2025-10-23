@@ -5,13 +5,13 @@
  */
 
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
-import { OTLPTraceExporter as OTLPTraceExporterHttp } from '@opentelemetry/exporter-trace-otlp-http';
-import { OTLPLogExporter as OTLPLogExporterHttp } from '@opentelemetry/exporter-logs-otlp-http';
-import { OTLPMetricExporter as OTLPMetricExporterHttp } from '@opentelemetry/exporter-metrics-otlp-http';
-import { CompressionAlgorithm } from '@opentelemetry/otlp-exporter-base';
+import { OTLPTraceExporter as _OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
+import { OTLPLogExporter as _OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-grpc';
+import { OTLPMetricExporter as _OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
+import { OTLPTraceExporter as _OTLPTraceExporterHttp } from '@opentelemetry/exporter-trace-otlp-http';
+import { OTLPLogExporter as _OTLPLogExporterHttp } from '@opentelemetry/exporter-logs-otlp-http';
+import { OTLPMetricExporter as _OTLPMetricExporterHttp } from '@opentelemetry/exporter-metrics-otlp-http';
+import { CompressionAlgorithm as _CompressionAlgorithm } from '@opentelemetry/otlp-exporter-base';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 import { resourceFromAttributes } from '@opentelemetry/resources';
@@ -38,11 +38,12 @@ import {
   FileSpanExporter,
 } from './file-exporters.js';
 import {
-  GcpTraceExporter,
-  GcpMetricExporter,
-  GcpLogExporter,
+  GcpTraceExporter as _GcpTraceExporter,
+  GcpMetricExporter as _GcpMetricExporter,
+  GcpLogExporter as _GcpLogExporter,
 } from './gcp-exporters.js';
-import { TelemetryTarget } from './index.js';
+import { TelemetryTarget as _TelemetryTarget } from './index.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
@@ -54,7 +55,7 @@ export function isTelemetrySdkInitialized(): boolean {
   return telemetryInitialized;
 }
 
-function parseOtlpEndpoint(
+function _parseOtlpEndpoint(
   otlpEndpointSetting: string | undefined,
   protocol: 'grpc' | 'http',
 ): string | undefined {
@@ -95,7 +96,7 @@ export function initializeTelemetry(config: Config): void {
   // However, we do support file output for local inspection
   const telemetryOutfile = config.getTelemetryOutfile();
 
-  const spanExporter = telemetryOutfile 
+  const spanExporter = telemetryOutfile
     ? new FileSpanExporter(telemetryOutfile)
     : new ConsoleSpanExporter(); // Local console output only
   const logExporter = telemetryOutfile
@@ -207,7 +208,7 @@ export function initializeTelemetry(config: Config): void {
   try {
     sdk.start();
     if (config.getDebugMode()) {
-      console.log('OpenTelemetry SDK started successfully.');
+      debugLogger.log('OpenTelemetry SDK started successfully.');
     }
     telemetryInitialized = true;
     initializeMetrics(config);
@@ -234,7 +235,7 @@ export async function shutdownTelemetry(config: Config): Promise<void> {
     ClearcutLogger.getInstance()?.shutdown();
     await sdk.shutdown();
     if (config.getDebugMode()) {
-      console.log('OpenTelemetry SDK shut down successfully.');
+      debugLogger.log('OpenTelemetry SDK shut down successfully.');
     }
   } catch (error) {
     console.error('Error shutting down SDK:', error);

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
+import { t , debugLogger } from '@thacio/auditaria-cli-core';
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
@@ -176,7 +176,7 @@ export function SettingsDialog({
               newValue,
               currentScopeSettings,
             );
-            console.log(
+            debugLogger.log(
               `[DEBUG SettingsDialog] Saving ${key} immediately with value:`,
               newValue,
             );
@@ -221,7 +221,7 @@ export function SettingsDialog({
             setModifiedSettings((prev) => {
               const updated = new Set(prev).add(key);
               const needsRestart = hasRestartRequiredSettings(updated);
-              console.log(
+              debugLogger.log(
                 `[DEBUG SettingsDialog] Modified settings:`,
                 Array.from(updated),
                 'Needs restart:',

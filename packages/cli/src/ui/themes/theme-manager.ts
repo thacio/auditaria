@@ -21,7 +21,7 @@ import * as os from 'node:os';
 import type { Theme, ThemeType, CustomTheme } from './theme.js';
 import { createCustomTheme, validateCustomTheme } from './theme.js';
 import type { SemanticColors } from './semantic-tokens.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t , debugLogger } from '@thacio/auditaria-cli-core';
 import { ANSI } from './ansi.js';
 import { ANSILight } from './ansi-light.js';
 import { NoColorTheme } from './no-color.js';
@@ -76,7 +76,7 @@ class ThemeManager {
       const validation = validateCustomTheme(customThemeConfig);
       if (validation.isValid) {
         if (validation.warning) {
-          console.warn(`Theme "${name}": ${validation.warning}`);
+          debugLogger.warn(`Theme "${name}": ${validation.warning}`);
         }
         const themeWithDefaults: CustomTheme = {
           ...DEFAULT_THEME.colors,
@@ -89,10 +89,10 @@ class ThemeManager {
           const theme = createCustomTheme(themeWithDefaults);
           this.customThemes.set(name, theme);
         } catch (error) {
-          console.warn(`Failed to load custom theme "${name}":`, error);
+          debugLogger.warn(`Failed to load custom theme "${name}":`, error);
         }
       } else {
-        console.warn(`Invalid custom theme "${name}": ${validation.error}`);
+        debugLogger.warn(`Invalid custom theme "${name}": ${validation.error}`);
       }
     }
     // If the current active theme is a custom theme, keep it if still valid
@@ -251,7 +251,7 @@ class ThemeManager {
           t(
             'theme.file_outside_home',
             `Theme file at "${themePath}" is outside your home directory. Only load themes from trusted sources.`,
-            { themePath }
+            { themePath },
           ),
         );
         return undefined;
@@ -267,7 +267,7 @@ class ThemeManager {
           t(
             'theme.invalid_file_theme',
             `Invalid custom theme from file "${themePath}": ${validation.error}`,
-            { themePath, error: validation.error || '' }
+            { themePath, error: validation.error || '' },
           ),
         );
         return undefined;
@@ -278,7 +278,7 @@ class ThemeManager {
           t(
             'theme.file_theme_warning',
             `Theme from "${themePath}": ${validation.warning}`,
-            { themePath, warning: validation.warning }
+            { themePath, warning: validation.warning },
           ),
         );
       }
@@ -304,9 +304,9 @@ class ThemeManager {
           t(
             'theme.could_not_load_file',
             `Could not load theme from file "${themePath}":`,
-            { themePath }
+            { themePath },
           ),
-          error
+          error,
         );
       }
       return undefined;

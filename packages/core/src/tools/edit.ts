@@ -36,6 +36,7 @@ import type {
 import { IdeClient } from '../ide/ide-client.js';
 import { safeLiteralReplace } from '../utils/textUtils.js';
 import { EDIT_TOOL_NAME, READ_FILE_TOOL_NAME } from './tool-names.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export function applyReplacement(
   currentContent: string | null,
@@ -279,12 +280,12 @@ class EditToolInvocation implements ToolInvocation<EditToolParams, ToolResult> {
         throw error;
       }
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log(`Error preparing edit: ${errorMsg}`);
+      debugLogger.log(`Error preparing edit: ${errorMsg}`);
       return false;
     }
 
     if (editData.error) {
-      console.log(`Error: ${editData.error.display}`);
+      debugLogger.log(`Error: ${editData.error.display}`);
       return false;
     }
 

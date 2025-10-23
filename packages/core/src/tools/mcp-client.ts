@@ -42,6 +42,7 @@ import type {
   WorkspaceContext,
 } from '../utils/workspaceContext.js';
 import type { ToolRegistry } from './tool-registry.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export const MCP_DEFAULT_TIMEOUT_MSEC = 10 * 60 * 1000; // default to 10 minutes
 
@@ -926,7 +927,7 @@ export async function connectToMcpServer(
             }
           }
         } catch (fetchError) {
-          console.debug(
+          debugLogger.debug(
             `Failed to fetch www-authenticate header: ${getErrorMessage(
               fetchError,
             )}`,
@@ -1048,12 +1049,12 @@ export async function connectToMcpServer(
               },
             );
             if (hasStoredTokens) {
-              console.log(
+              debugLogger.log(
                 `Stored OAuth token for SSE server '${mcpServerName}' was rejected. ` +
                   `Please re-authenticate using: /mcp auth ${mcpServerName}`,
               );
             } else {
-              console.log(
+              debugLogger.log(
                 `401 error received for SSE server '${mcpServerName}' without OAuth configuration. ` +
                   `Please authenticate using: /mcp auth ${mcpServerName}`,
               );
@@ -1084,7 +1085,7 @@ export async function connectToMcpServer(
             // Try to discover OAuth configuration from the base URL
             const oauthConfig = await OAuthUtils.discoverOAuthConfig(baseUrl);
             if (oauthConfig) {
-              console.log(
+              debugLogger.log(
                 `Discovered OAuth configuration from base URL for server '${mcpServerName}'`,
               );
 
@@ -1394,7 +1395,10 @@ export async function createTransport(
     if (debugMode) {
       transport.stderr!.on('data', (data) => {
         const stderrStr = data.toString().trim();
-        console.debug(`[DEBUG] [MCP STDERR (${mcpServerName})]: `, stderrStr);
+        debugLogger.debug(
+          `[DEBUG] [MCP STDERR (${mcpServerName})]: `,
+          stderrStr,
+        );
       });
     }
     return transport;
@@ -1412,7 +1416,7 @@ export function isEnabled(
   mcpServerConfig: MCPServerConfig,
 ): boolean {
   if (!funcDecl.name) {
-    console.warn(
+    debugLogger.warn(
       `Discovered a function declaration without a name from MCP server '${mcpServerName}'. Skipping.`,
     );
     return false;

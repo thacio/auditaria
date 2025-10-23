@@ -16,7 +16,7 @@ import {
   isGitHubRepository,
   getGitHubRepoInfo,
 } from '../../utils/gitUtils.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@thacio/auditaria-cli-core';
 
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';
@@ -85,7 +85,7 @@ export async function updateGitignore(gitRepoRoot: string): Promise<void> {
       }
     }
   } catch (error) {
-    console.debug('Failed to update .gitignore:', error);
+    debugLogger.debug('Failed to update .gitignore:', error);
     // Continue without failing the whole command
   }
 }
@@ -102,10 +102,12 @@ export const setupGithubCommand: SlashCommand = {
     const abortController = new AbortController();
 
     if (!isGitHubRepository()) {
-      throw new Error(t(
-        'commands.setup_github.error_not_github_repo', 
-        'Unable to determine the GitHub repository. /setup-github must be run from a git repository.'
-      ));
+      throw new Error(
+        t(
+          'commands.setup_github.error_not_github_repo',
+          'Unable to determine the GitHub repository. /setup-github must be run from a git repository.',
+        ),
+      );
     }
 
     // Find the root directory of the repo
@@ -113,11 +115,10 @@ export const setupGithubCommand: SlashCommand = {
     try {
       gitRepoRoot = getGitRepoRoot();
     } catch (_error) {
-      console.debug(`Failed to get git repo root:`, _error);
-      throw new Error(t(
-        'commands.setup_github.error_not_github_repo', 
-        'Unable to determine the GitHub repository. /setup-github must be run from a git repository.'
-      ));
+      debugLogger.debug(`Failed to get git repo root:`, _error);
+      throw new Error(
+        'Unable to determine the GitHub repository. /setup-github must be run from a git repository.',
+      );
     }
 
     // Get the latest release tag from GitHub
@@ -130,15 +131,16 @@ export const setupGithubCommand: SlashCommand = {
     try {
       await fs.promises.mkdir(githubWorkflowsDir, { recursive: true });
     } catch (_error) {
-      console.debug(
+      debugLogger.debug(
         `Failed to create ${githubWorkflowsDir} directory:`,
         _error,
       );
       throw new Error(
-        t('commands.setup_github.error_mkdir_failed',
+        t(
+          'commands.setup_github.error_mkdir_failed',
           `Unable to create ${githubWorkflowsDir} directory. Do you have file permissions in the current directory?`,
-          { directory: githubWorkflowsDir }
-        )
+          { directory: githubWorkflowsDir },
+        ),
       );
     }
 
@@ -201,7 +203,7 @@ export const setupGithubCommand: SlashCommand = {
     const successMessage = t(
       'commands.setup_github.success_message_dynamic',
       `Successfully downloaded {count} workflows and updated .gitignore. Follow the steps in {readmeUrl} (skipping the /setup-github step) to complete setup.`,
-      { count: GITHUB_WORKFLOW_PATHS.length, readmeUrl }
+      { count: GITHUB_WORKFLOW_PATHS.length, readmeUrl },
     );
     commands.push(`echo "${successMessage}"`);
     commands.push(...getOpenUrlsCommands(readmeUrl));
@@ -211,7 +213,10 @@ export const setupGithubCommand: SlashCommand = {
       type: 'tool',
       toolName: 'run_shell_command',
       toolArgs: {
-        description: t('commands.setup_github.tool_description', 'Setting up GitHub Actions to triage issues and review PRs with Gemini.'),
+        description: t(
+          'commands.setup_github.tool_description',
+          'Setting up GitHub Actions to triage issues and review PRs with Gemini.',
+        ),
         command,
       },
     };

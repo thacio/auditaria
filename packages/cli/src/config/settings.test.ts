@@ -65,7 +65,11 @@ import {
   migrateDeprecatedSettings,
   SettingScope,
 } from './settings.js';
-import { FatalConfigError, GEMINI_DIR, Storage } from '@thacio/auditaria-cli-core';
+import {
+  FatalConfigError,
+  GEMINI_DIR,
+  Storage,
+} from '@thacio/auditaria-cli-core';
 import { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
 
 const MOCK_WORKSPACE_DIR = '/mock/workspace';
@@ -1073,8 +1077,6 @@ describe('Settings Loading and Merging', () => {
       );
 
       const settings = loadSettings(MOCK_WORKSPACE_DIR);
-      const e = settings.user.settings.model?.chatCompression;
-      console.log(e);
 
       expect(settings.user.settings.model?.chatCompression).toEqual({
         contextPercentageThreshold: 0.5,

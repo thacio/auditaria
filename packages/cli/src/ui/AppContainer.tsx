@@ -44,6 +44,8 @@ import {
   clearCachedCredentialFile,
   t,
   ShellExecutionService,
+  debugLogger,
+  type DiscoveredMCPTool,
 } from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
@@ -93,7 +95,7 @@ import { useSessionStats } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
 // WEB_INTERFACE_START: Import hooks for web interface support
 import { useWebInterface } from './contexts/WebInterfaceContext.js';
-import { type PartListUnion } from '@google/genai';  // For multimodal support
+import { type PartListUnion } from '@google/genai'; // For multimodal support
 import { useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
 import { useFooter } from './contexts/FooterContext.js';
 import { useLoadingState } from './contexts/LoadingStateContext.js';
@@ -402,7 +404,7 @@ export const AppContainer = (props: AppContainerProps) => {
           config.isBrowserLaunchSuppressed()
         ) {
           await runExitCleanup();
-          console.log(`
+          debugLogger.log(`
 ----------------------------------------------------------------
 Logging in with Google... Please restart Gemini CLI to continue.
 ----------------------------------------------------------------
@@ -544,7 +546,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
     historyManager.addItem(
       {
         type: MessageType.INFO,
-        text: t('app.memory_refreshing', 'Refreshing hierarchical memory (GEMINI.md or other context files)...'),
+        text: t(
+          'app.memory_refreshing',
+          'Refreshing hierarchical memory (GEMINI.md or other context files)...',
+        ),
       },
       Date.now(),
     );
@@ -578,14 +583,17 @@ Logging in with Google... Please restart Gemini CLI to continue.
               ? t(
                   'app.memory_refreshed_success',
                   'Memory refreshed successfully. Loaded {chars} characters from {count} file(s).',
-                  { chars: memoryContent.length, count: fileCount }
+                  { chars: memoryContent.length, count: fileCount },
                 )
-              : t('app.memory_refreshed_no_content', 'Memory refreshed successfully. No memory content found.'),
+              : t(
+                  'app.memory_refreshed_no_content',
+                  'Memory refreshed successfully. No memory content found.',
+                ),
         },
         Date.now(),
       );
       if (config.getDebugMode()) {
-        console.log(
+        debugLogger.log(
           `[DEBUG] Refreshed memory content in config: ${memoryContent.substring(
             0,
             200,
@@ -597,7 +605,11 @@ Logging in with Google... Please restart Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.ERROR,
-          text: t('app.memory_refresh_error', 'Error refreshing memory: {error}', { error: errorMessage }),
+          text: t(
+            'app.memory_refresh_error',
+            'Error refreshing memory: {error}',
+            { error: errorMessage },
+          ),
         },
         Date.now(),
       );
@@ -760,7 +772,6 @@ Logging in with Google... Please restart Gemini CLI to continue.
         : [fromSettings]
       : getAllGeminiMdFilenames();
   }, [settings.merged.context?.fileName]);
-
 
   // Initial prompt handling
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
@@ -962,7 +973,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     (key: Key) => {
       // Debug log keystrokes if enabled
       if (settings.merged.general?.debugKeystrokeLogging) {
-        console.log('[DEBUG] Keystroke:', JSON.stringify(key));
+        debugLogger.log('[DEBUG] Keystroke:', JSON.stringify(key));
       }
 
       if (keyMatchers[Command.QUIT](key)) {
@@ -1150,6 +1161,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       registerSubmitQuery(stableWebSubmitQuery);
       submitQueryRegisteredRef.current = true;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only run once
 
   // Register abort handler with web interface service
@@ -1161,7 +1173,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   // Register with web interface service once
   const submitHandlerRegistered = useRef(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const register = () => {
       if (webInterface?.service && !submitHandlerRegistered.current) {
@@ -1173,6 +1185,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     register();
     const timeout = setTimeout(register, 100);
     return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only register once
 
   // Terminal capture for interactive screens
@@ -1188,12 +1201,12 @@ Logging in with Google... Please restart Gemini CLI to continue.
   // Expose the pre-start function globally for the slash command processor
   useEffect(() => {
     if (webInterface?.service) {
-      (global as Record<string, unknown>).__preStartTerminalCapture = preStartTerminalCapture;
+      (global as Record<string, unknown>).__preStartTerminalCapture =
+        preStartTerminalCapture;
     }
     return () => {
       delete (global as Record<string, unknown>).__preStartTerminalCapture;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preStartTerminalCapture, webInterface]);
 
   // Detect when any interactive screen is shown
@@ -1229,7 +1242,14 @@ Logging in with Google... Please restart Gemini CLI to continue.
   useEffect(() => {
     if (!webInterface?.service) return;
 
-    const handleTerminalInput = (keyData: { name?: string; sequence?: string; ctrl?: boolean; meta?: boolean; shift?: boolean; alt?: boolean }) => {
+    const handleTerminalInput = (keyData: {
+      name?: string;
+      sequence?: string;
+      ctrl?: boolean;
+      meta?: boolean;
+      shift?: boolean;
+      alt?: boolean;
+    }) => {
       // Create a synthetic key event that matches the Ink key format
       const syntheticKey = {
         name: keyData.name,
@@ -1259,10 +1279,18 @@ Logging in with Google... Please restart Gemini CLI to continue.
   // Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
   const footerContext = useFooter();
   useEffect(() => {
-    if (footerContext?.footerData && webInterface?.service && webInterface.isRunning) {
+    if (
+      footerContext?.footerData &&
+      webInterface?.service &&
+      webInterface.isRunning
+    ) {
       webInterface.service.broadcastFooterData(footerContext.footerData);
     }
-  }, [footerContext?.footerData, webInterface?.service, webInterface?.isRunning]);
+  }, [
+    footerContext?.footerData,
+    webInterface?.service,
+    webInterface?.isRunning,
+  ]);
 
   useLoadingState(); // Required for loading state context initialization
   useEffect(() => {
@@ -1272,11 +1300,21 @@ Logging in with Google... Please restart Gemini CLI to continue.
         streamingState,
         elapsedTime,
         currentLoadingPhrase,
-        thought: typeof thought === 'string' ? thought : (thought?.subject || null),
-        thoughtObject: typeof thought === 'object' && thought !== null ? thought : null,
+        thought:
+          typeof thought === 'string' ? thought : thought?.subject || null,
+        thoughtObject:
+          typeof thought === 'object' && thought !== null ? thought : null,
       });
     }
-  }, [webInterface?.service, webInterface?.isRunning, streamingState, elapsedTime, currentLoadingPhrase, isProcessing, thought]);
+  }, [
+    webInterface?.service,
+    webInterface?.isRunning,
+    streamingState,
+    elapsedTime,
+    currentLoadingPhrase,
+    isProcessing,
+    thought,
+  ]);
 
   // Broadcast slash commands
   useEffect(() => {
@@ -1292,24 +1330,34 @@ Logging in with Google... Please restart Gemini CLI to continue.
       if (mcpServers) {
         // For now, pass empty arrays/maps for the additional parameters
         // These would need to be obtained from the actual MCP system
-        const blockedServers: Array<{ name: string; extensionName: string }> = [];
-        const serverTools = new Map<string, any[]>();
+        const blockedServers: Array<{ name: string; extensionName: string }> =
+          [];
+        const serverTools = new Map<string, DiscoveredMCPTool[]>();
         const serverStatuses = new Map<string, string>();
 
         // Set all servers as connected for now
-        Object.keys(mcpServers).forEach(name => {
+        Object.keys(mcpServers).forEach((name) => {
           serverStatuses.set(name, 'connected');
           serverTools.set(name, []);
         });
 
-        webInterface.service.broadcastMCPServers(mcpServers, blockedServers, serverTools, serverStatuses);
+        webInterface.service.broadcastMCPServers(
+          mcpServers,
+          blockedServers,
+          serverTools,
+          serverStatuses,
+        );
       }
     }
   }, [config, webInterface?.service, webInterface?.isRunning]);
 
   // Broadcast console messages
   useEffect(() => {
-    if (filteredConsoleMessages && webInterface?.service && webInterface.isRunning) {
+    if (
+      filteredConsoleMessages &&
+      webInterface?.service &&
+      webInterface.isRunning
+    ) {
       webInterface.service.broadcastConsoleMessages(filteredConsoleMessages);
     }
   }, [filteredConsoleMessages, webInterface?.service, webInterface?.isRunning]);
@@ -1318,56 +1366,99 @@ Logging in with Google... Please restart Gemini CLI to continue.
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
       let message = '';
-      let title = t('web.cli_action.title', 'CLI Action Required');
+      const title = t('web.cli_action.title', 'CLI Action Required');
       let reason = 'general';
 
       if (shouldShowIdePrompt) {
-        message = t('web.cli_action.ide_integration', 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.');
+        message = t(
+          'web.cli_action.ide_integration',
+          'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.',
+        );
         reason = 'ide_integration';
       } else if (isAuthenticating || isAuthDialogOpen) {
-        const authMessageKey = isAuthenticating ? 'web.cli_action.auth_in_progress' : 'web.cli_action.auth_required';
+        const authMessageKey = isAuthenticating
+          ? 'web.cli_action.auth_in_progress'
+          : 'web.cli_action.auth_required';
         const authMessageFallback = isAuthenticating
           ? 'Authentication is in progress. Please check the CLI terminal.'
           : 'Authentication is required. Please complete the authentication process in the CLI terminal.';
         message = t(authMessageKey, authMessageFallback);
         reason = 'authentication';
       } else if (isThemeDialogOpen) {
-        message = t('web.cli_action.theme_selection', 'Theme selection is open. Please choose a theme in the CLI terminal.');
+        message = t(
+          'web.cli_action.theme_selection',
+          'Theme selection is open. Please choose a theme in the CLI terminal.',
+        );
         reason = 'theme_selection';
       } else if (isEditorDialogOpen) {
-        message = t('web.cli_action.editor_settings', 'Editor settings are open. Please configure your editor in the CLI terminal.');
+        message = t(
+          'web.cli_action.editor_settings',
+          'Editor settings are open. Please configure your editor in the CLI terminal.',
+        );
         reason = 'editor_settings';
       } else if (isLanguageDialogOpen) {
-        message = t('web.cli_action.language_selection', 'Language selection is open. Please choose a language in the CLI terminal.');
+        message = t(
+          'web.cli_action.language_selection',
+          'Language selection is open. Please choose a language in the CLI terminal.',
+        );
         reason = 'language_selection';
       } else if (isSettingsDialogOpen) {
-        message = t('web.cli_action.settings', 'Settings dialog is open. Please configure settings in the CLI terminal.');
+        message = t(
+          'web.cli_action.settings',
+          'Settings dialog is open. Please configure settings in the CLI terminal.',
+        );
         reason = 'settings';
       } else if (isModelDialogOpen) {
-        message = t('web.cli_action.model_selection', 'Model selection is open. Please choose a model in the CLI terminal.');
+        message = t(
+          'web.cli_action.model_selection',
+          'Model selection is open. Please choose a model in the CLI terminal.',
+        );
         reason = 'model_selection';
       } else if (isFolderTrustDialogOpen) {
-        message = t('web.cli_action.folder_trust', 'Folder trust dialog is open. Please respond in the CLI terminal.');
+        message = t(
+          'web.cli_action.folder_trust',
+          'Folder trust dialog is open. Please respond in the CLI terminal.',
+        );
         reason = 'folder_trust';
       } else if (showPrivacyNotice) {
-        message = t('web.cli_action.privacy_notice', 'Privacy notice is displayed. Please review in the CLI terminal.');
+        message = t(
+          'web.cli_action.privacy_notice',
+          'Privacy notice is displayed. Please review in the CLI terminal.',
+        );
         reason = 'privacy_notice';
       } else if (proQuotaRequest) {
-        message = t('web.cli_action.quota_exceeded', 'Quota exceeded dialog is open. Please choose an option in the CLI terminal.');
+        message = t(
+          'web.cli_action.quota_exceeded',
+          'Quota exceeded dialog is open. Please choose an option in the CLI terminal.',
+        );
         reason = 'quota_exceeded';
       } else if (shellConfirmationRequest) {
-        message = t('web.cli_action.shell_confirmation', 'Shell command confirmation required. Please respond in the CLI terminal.');
+        message = t(
+          'web.cli_action.shell_confirmation',
+          'Shell command confirmation required. Please respond in the CLI terminal.',
+        );
         reason = 'shell_confirmation';
       } else if (confirmationRequest) {
-        message = t('web.cli_action.confirmation', 'Confirmation required. Please respond in the CLI terminal.');
+        message = t(
+          'web.cli_action.confirmation',
+          'Confirmation required. Please respond in the CLI terminal.',
+        );
         reason = 'confirmation';
       } else if (loopDetectionConfirmationRequest) {
-        message = t('web.cli_action.loop_detection', 'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.');
+        message = t(
+          'web.cli_action.loop_detection',
+          'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.',
+        );
         reason = 'loop_detection';
       }
 
       if (message) {
-        webInterface.service.broadcastCliActionRequired(true, reason, title, message);
+        webInterface.service.broadcastCliActionRequired(
+          true,
+          reason,
+          title,
+          message,
+        );
       } else {
         webInterface.service.broadcastCliActionRequired(false);
       }
@@ -1393,10 +1484,18 @@ Logging in with Google... Please restart Gemini CLI to continue.
 
   // Broadcast startup message once
   useEffect(() => {
-    if (webInterface?.service && webInterface.isRunning && initializationResult.geminiMdFileCount) {
-      const startupMessage = t('web.startup_message', 'Auditaria CLI is ready. Loaded {count} context file(s).', {
-        count: initializationResult.geminiMdFileCount,
-      });
+    if (
+      webInterface?.service &&
+      webInterface.isRunning &&
+      initializationResult.geminiMdFileCount
+    ) {
+      const startupMessage = t(
+        'web.startup_message',
+        'Auditaria CLI is ready. Loaded {count} context file(s).',
+        {
+          count: initializationResult.geminiMdFileCount,
+        },
+      );
       // Use a generic broadcast since there's no specific setStartupMessage method
       webInterface.service.broadcastMessage({
         id: Date.now(),
@@ -1404,7 +1503,11 @@ Logging in with Google... Please restart Gemini CLI to continue.
         text: startupMessage,
       } as HistoryItem);
     }
-  }, [webInterface?.service, webInterface?.isRunning, initializationResult.geminiMdFileCount]);
+  }, [
+    webInterface?.service,
+    webInterface?.isRunning,
+    initializationResult.geminiMdFileCount,
+  ]);
 
   // Tool confirmation broadcasting and response handling
   const toolConfirmationContext = useToolConfirmation();
@@ -1412,35 +1515,59 @@ Logging in with Google... Please restart Gemini CLI to continue.
   // Register confirmation response handler from web interface
   useEffect(() => {
     if (toolConfirmationContext && webInterface?.service) {
-      webInterface.service.setConfirmationResponseHandler((callId, outcome, payload) => {
-        toolConfirmationContext.handleConfirmationResponse(callId, outcome, payload);
-      });
+      webInterface.service.setConfirmationResponseHandler(
+        (callId, outcome, payload) => {
+          toolConfirmationContext.handleConfirmationResponse(
+            callId,
+            outcome,
+            payload,
+          );
+        },
+      );
     }
   }, [toolConfirmationContext, webInterface?.service]);
 
   // Broadcast pending confirmations
   useEffect(() => {
-    const pendingConfirmation = toolConfirmationContext?.pendingConfirmations?.[0];
-    if (pendingConfirmation && webInterface?.service && webInterface.isRunning) {
+    const pendingConfirmation =
+      toolConfirmationContext?.pendingConfirmations?.[0];
+    if (
+      pendingConfirmation &&
+      webInterface?.service &&
+      webInterface.isRunning
+    ) {
       webInterface.service.broadcastToolConfirmation(pendingConfirmation);
     }
-  }, [toolConfirmationContext?.pendingConfirmations, webInterface?.service, webInterface?.isRunning]);
+  }, [
+    toolConfirmationContext?.pendingConfirmations,
+    webInterface?.service,
+    webInterface?.isRunning,
+  ]);
 
   // Broadcast confirmation removal when confirmations are resolved
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
       // When a confirmation is removed from the queue, broadcast the removal
-      const activeConfirmations = toolConfirmationContext?.pendingConfirmations || [];
-      const trackedConfirmations = [...(webInterface.service as any).activeToolConfirmations?.keys() || []];
+      const activeConfirmations =
+        toolConfirmationContext?.pendingConfirmations || [];
+      const trackedConfirmations = [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...((webInterface.service as any).activeToolConfirmations?.keys() ||
+          []),
+      ];
 
       // Find confirmations that were tracked but are no longer pending
-      trackedConfirmations.forEach(callId => {
-        if (!activeConfirmations.some(c => c.callId === callId)) {
+      trackedConfirmations.forEach((callId) => {
+        if (!activeConfirmations.some((c) => c.callId === callId)) {
           webInterface.service!.broadcastToolConfirmationRemoval(callId);
         }
       });
     }
-  }, [toolConfirmationContext?.pendingConfirmations, webInterface?.service, webInterface?.isRunning]);
+  }, [
+    toolConfirmationContext?.pendingConfirmations,
+    webInterface?.service,
+    webInterface?.isRunning,
+  ]);
 
   // Broadcast history updates
   useEffect(() => {
@@ -1450,7 +1577,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
   }, [historyManager.history, webInterface?.service]);
 
   // Broadcast pending items
-  const pendingItem = pendingHistoryItems.length > 0 ? pendingHistoryItems[0] as HistoryItem : null;
+  const pendingItem =
+    pendingHistoryItems.length > 0
+      ? (pendingHistoryItems[0] as HistoryItem)
+      : null;
   useEffect(() => {
     if (webInterface?.service) {
       webInterface.service.broadcastPendingItem(pendingItem);

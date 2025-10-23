@@ -12,6 +12,7 @@ import {
   isGenericQuotaExceededError,
 } from './quotaErrorDetection.js';
 import { delay, createAbortError } from './delay.js';
+import { debugLogger } from './debugLogger.js';
 
 const FETCH_FAILED_MESSAGE =
   'exception TypeError: fetch failed sending request';
@@ -170,7 +171,7 @@ export async function retryWithBackoff<T>(
           }
         } catch (fallbackError) {
           // If fallback fails, continue with original error
-          console.warn('Fallback to Flash model failed:', fallbackError);
+          debugLogger.warn('Fallback to Flash model failed:', fallbackError);
         }
       }
 
@@ -197,7 +198,7 @@ export async function retryWithBackoff<T>(
           }
         } catch (fallbackError) {
           // If fallback fails, continue with original error
-          console.warn('Fallback to Flash model failed:', fallbackError);
+          debugLogger.warn('Fallback to Flash model failed:', fallbackError);
         }
       }
 
@@ -229,7 +230,7 @@ export async function retryWithBackoff<T>(
           }
         } catch (fallbackError) {
           // If fallback fails, continue with original error
-          console.warn('Fallback to Flash model failed:', fallbackError);
+          debugLogger.warn('Fallback to Flash model failed:', fallbackError);
         }
       }
 
@@ -246,7 +247,7 @@ export async function retryWithBackoff<T>(
 
       if (delayDurationMs > 0) {
         // Respect Retry-After header if present and parsed
-        console.warn(
+        debugLogger.warn(
           `Attempt ${attempt} failed with status ${delayErrorStatus ?? 'unknown'}. Retrying after explicit delay of ${delayDurationMs}ms...`,
           error,
         );
@@ -369,13 +370,13 @@ function logRetryAttempt(
   }
 
   if (errorStatus === 429) {
-    console.warn(message, error);
+    debugLogger.warn(message, error);
   } else if (errorStatus && errorStatus >= 500 && errorStatus < 600) {
     console.error(message, error);
   } else if (error instanceof Error) {
     // Fallback for errors that might not have a status but have a message
     if (error.message.includes('429')) {
-      console.warn(
+      debugLogger.warn(
         `Attempt ${attempt} failed with 429 error (no Retry-After header). Retrying with backoff...`,
         error,
       );
@@ -385,9 +386,9 @@ function logRetryAttempt(
         error,
       );
     } else {
-      console.warn(message, error); // Default to warn for other errors
+      debugLogger.warn(message, error); // Default to warn for other errors
     }
   } else {
-    console.warn(message, error); // Default to warn if error type is unknown
+    debugLogger.warn(message, error); // Default to warn if error type is unknown
   }
 }

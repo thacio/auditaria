@@ -40,6 +40,7 @@ import { logSmartEditCorrectionEvent } from '../telemetry/loggers.js';
 
 import { correctPath } from '../utils/pathCorrector.js';
 import { EDIT_TOOL_NAME, READ_FILE_TOOL_NAME } from './tool-names.js';
+
 interface ReplacementContext {
   params: EditToolParams;
   currentContent: string;

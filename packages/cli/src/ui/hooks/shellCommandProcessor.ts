@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t , isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
+import { t, isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
 
 import type {
   HistoryItemWithoutId,
@@ -225,8 +225,6 @@ export const useShellCommandProcessor = (
             config.getEnableInteractiveShell(),
             shellExecutionConfig,
           );
-
-          console.log(terminalHeight, terminalWidth);
 
           executionPid = pid;
           if (pid) {

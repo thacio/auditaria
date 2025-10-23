@@ -25,6 +25,7 @@ import { LANGUAGE_MAP } from '../i18n/index.js';
 import { CodebaseInvestigatorAgent } from '../agents/codebase-investigator.js';
 import type { Config } from '../config/config.js';
 import { GEMINI_DIR } from '../utils/paths.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export function resolvePathFromEnv(envVar?: string): {
   isSwitch: boolean;
@@ -59,7 +60,7 @@ export function resolvePathFromEnv(envVar?: string): {
       }
     } catch (error) {
       // If os.homedir() fails, we catch the error instead of crashing.
-      console.warn(
+      debugLogger.warn(
         `Could not resolve home directory for path: ${trimmedEnvVar}`,
         error,
       );

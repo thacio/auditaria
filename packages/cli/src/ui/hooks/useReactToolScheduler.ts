@@ -20,8 +20,8 @@ import type {
   Status as CoreStatus,
   EditorType,
 } from '@thacio/auditaria-cli-core';
-import { CoreToolScheduler } from '@thacio/auditaria-cli-core';
-import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { CoreToolScheduler, debugLogger } from '@thacio/auditaria-cli-core';
+import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import type {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
@@ -142,15 +142,19 @@ export function useReactToolScheduler(
     // Get current call IDs that are awaiting approval
     const currentAwaitingApprovalIds = new Set(
       toolCallsForDisplay
-        .filter(tc => tc.status === 'awaiting_approval')
-        .map(tc => tc.request.callId)
+        .filter((tc) => tc.status === 'awaiting_approval')
+        .map((tc) => tc.request.callId),
     );
 
     const prevAwaitingApprovalIds = prevAwaitingApprovalIdsRef.current;
 
     // Add new confirmations (only those not seen before)
     toolCallsForDisplay.forEach((toolCall) => {
-      if (toolCall.status === 'awaiting_approval' && 'confirmationDetails' in toolCall && !prevAwaitingApprovalIds.has(toolCall.request.callId)) {
+      if (
+        toolCall.status === 'awaiting_approval' &&
+        'confirmationDetails' in toolCall &&
+        !prevAwaitingApprovalIds.has(toolCall.request.callId)
+      ) {
         const waitingCall = toolCall as TrackedWaitingToolCall;
         const pendingConfirmation = {
           callId: waitingCall.request.callId,
@@ -164,7 +168,7 @@ export function useReactToolScheduler(
     });
 
     // Remove confirmations that are no longer awaiting approval (based on previous state)
-    prevAwaitingApprovalIds.forEach(prevCallId => {
+    prevAwaitingApprovalIds.forEach((prevCallId) => {
       if (!currentAwaitingApprovalIds.has(prevCallId)) {
         toolConfirmationContext.removePendingConfirmation(prevCallId);
       }
@@ -172,6 +176,7 @@ export function useReactToolScheduler(
 
     // Update the ref for next time
     prevAwaitingApprovalIdsRef.current = currentAwaitingApprovalIds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toolCallsForDisplay]); // Only depend on toolCallsForDisplay
   // WEB_INTERFACE_END
   const scheduler = useMemo(
@@ -242,7 +247,7 @@ function mapCoreStatusToDisplayStatus(coreStatus: CoreStatus): ToolCallStatus {
       return ToolCallStatus.Pending;
     default: {
       const exhaustiveCheck: never = coreStatus;
-      console.warn(`Unknown core status encountered: ${exhaustiveCheck}`);
+      debugLogger.warn(`Unknown core status encountered: ${exhaustiveCheck}`);
       return ToolCallStatus.Error;
     }
   }

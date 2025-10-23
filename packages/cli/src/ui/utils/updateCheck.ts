@@ -8,7 +8,7 @@ import type { UpdateInfo } from 'update-notifier';
 import updateNotifier from 'update-notifier';
 import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t , debugLogger } from '@thacio/auditaria-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 
 export interface UpdateObject {
@@ -112,7 +112,7 @@ export async function checkForUpdates(
 
     return null;
   } catch (e) {
-    console.warn('Failed to check for updates: ' + e);
+    debugLogger.warn('Failed to check for updates: ' + e);
     return null;
   }
 }
