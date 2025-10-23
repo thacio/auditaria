@@ -17,7 +17,11 @@ import { newCommand } from './extensions/new.js';
 
 export const extensionsCommand: CommandModule = {
   command: 'extensions <command>',
-  describe: t('commands.extensions.manage.description', 'Manage Auditaria CLI extensions.'),
+  aliases: ['extension'],
+  describe: t(
+    'commands.extensions.manage.description',
+    'Manage Auditaria CLI extensions.',
+  ),
   builder: (yargs) =>
     yargs
       .command(installCommand)
@@ -28,7 +32,13 @@ export const extensionsCommand: CommandModule = {
       .command(enableCommand)
       .command(linkCommand)
       .command(newCommand)
-      .demandCommand(1, t('commands.extensions.manage.need_command', 'You need at least one command before continuing.'))
+      .demandCommand(
+        1,
+        t(
+          'commands.extensions.manage.need_command',
+          'You need at least one command before continuing.',
+        ),
+      )
       .version(false),
   handler: () => {
     // This handler is not called when a subcommand is provided.
