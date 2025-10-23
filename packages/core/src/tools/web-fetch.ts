@@ -22,9 +22,12 @@ import type { Config } from '../config/config.js';
 import { t } from '../i18n/index.js';
 import { ApprovalMode, DEFAULT_GEMINI_FLASH_MODEL } from '../config/config.js';
 import { getResponseText } from '../utils/partUtils.js';
-import { fetchWithTimeout, isPrivateIp } from '../utils/fetch.js';
+import {
+  fetchWithTimeout,
+  isPrivateIp,
+  setGlobalProxy,
+} from '../utils/fetch.js';
 import { convert } from 'html-to-text';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import {
   logWebFetchFallbackAttempt,
   WebFetchFallbackAttemptEvent,
@@ -431,7 +434,7 @@ export class WebFetchTool extends BaseDeclarativeTool<
     );
     const proxy = config.getProxy();
     if (proxy) {
-      setGlobalDispatcher(new ProxyAgent(proxy as string));
+      setGlobalProxy(proxy);
     }
   }
 

@@ -1586,7 +1586,10 @@
     }
   },
   "utils": {
-    "unknown_platform_url_open": "Unknown platform: {platform}. Attempting to open URLs with: {openCmd}."
+    "unknown_platform_url_open": "Unknown platform: {platform}. Attempting to open URLs with: {openCmd}.",
+    "proxy": {
+      "failed_to_set": "Failed to set proxy: {error}"
+    }
   },
   "ide_installer": {
     "vscode_cli_not_found": "VS Code CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the 'Gemini CLI Companion' extension manually from the VS Code marketplace.",
