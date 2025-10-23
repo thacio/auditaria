@@ -83,9 +83,24 @@ export interface CommandContext {
   // WEB_INTERFACE_START: Web interface management in command context
   // Web interface management
   web?: {
-    start: (port?: string) => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string; port?: number }>;
-    stop: () => Promise<{ type: 'message'; messageType: 'info' | 'error'; content: string }>;
-    status: () => { type: 'message'; messageType: 'info' | 'error'; content: string };
+    start: (
+      port?: string,
+    ) => Promise<{
+      type: 'message';
+      messageType: 'info' | 'error';
+      content: string;
+      port?: number;
+    }>;
+    stop: () => Promise<{
+      type: 'message';
+      messageType: 'info' | 'error';
+      content: string;
+    }>;
+    status: () => {
+      type: 'message';
+      messageType: 'info' | 'error';
+      content: string;
+    };
   };
   // WEB_INTERFACE_END
   // Flag to indicate if an overwrite has been confirmed
@@ -205,6 +220,7 @@ export interface SlashCommand {
 
   // Optional metadata for extension commands
   extensionName?: string;
+  extensionId?: string;
 
   // The action to run. Optional for parent commands that only group sub-commands.
   action?: (
