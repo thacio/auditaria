@@ -5,7 +5,7 @@
  */
 
 import { t } from '../i18n/index.js';
-
+import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
@@ -63,8 +63,11 @@ class GrepToolInvocation extends BaseToolInvocation<
   constructor(
     private readonly config: Config,
     params: GrepToolParams,
+    messageBus?: MessageBus,
+    _toolName?: string,
+    _toolDisplayName?: string,
   ) {
-    super(params);
+    super(params, messageBus, _toolName, _toolDisplayName);
     this.fileExclusions = config.getFileExclusions();
   }
 
@@ -585,8 +588,10 @@ class GrepToolInvocation extends BaseToolInvocation<
  */
 export class GrepTool extends BaseDeclarativeTool<GrepToolParams, ToolResult> {
   static readonly Name = GREP_TOOL_NAME;
-
-  constructor(private readonly config: Config) {
+  constructor(
+    private readonly config: Config,
+    messageBus?: MessageBus,
+  ) {
     super(
       GrepTool.Name,
       'SearchText',
@@ -613,6 +618,9 @@ export class GrepTool extends BaseDeclarativeTool<GrepToolParams, ToolResult> {
         required: ['pattern'],
         type: 'object',
       },
+      true,
+      false,
+      messageBus,
     );
   }
 
@@ -660,7 +668,16 @@ export class GrepTool extends BaseDeclarativeTool<GrepToolParams, ToolResult> {
 
   protected createInvocation(
     params: GrepToolParams,
+    messageBus?: MessageBus,
+    _toolName?: string,
+    _toolDisplayName?: string,
   ): ToolInvocation<GrepToolParams, ToolResult> {
-    return new GrepToolInvocation(this.config, params);
+    return new GrepToolInvocation(
+      this.config,
+      params,
+      messageBus,
+      _toolName,
+      _toolDisplayName,
+    );
   }
 }

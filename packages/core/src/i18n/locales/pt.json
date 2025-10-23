@@ -1205,6 +1205,10 @@
       "call_cancelled_by_user": "Chamada de ferramenta cancelada pelo usuário.",
       "denied_by_policy": "Execução da ferramenta negada pela política."
     },
+    "policy": {
+      "tool_execution_denied": "Execução da ferramenta \"{tool}\" negada pela política.",
+      "confirm_tool": "Confirmar: {tool}"
+    },
     "edit": {
       "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
       "file_not_found_raw": "Arquivo não encontrado: {path}",
