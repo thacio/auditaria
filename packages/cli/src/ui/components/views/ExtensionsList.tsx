@@ -4,19 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type React from 'react';
 import { Box, Text } from 'ink';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { ExtensionUpdateState } from '../../state/extensions.js';
 import { t } from '@thacio/auditaria-cli-core';
+import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
 
-export const ExtensionsList = () => {
-  const { commandContext, extensionsUpdateState } = useUIState();
-  const allExtensions = commandContext.services.config!.getExtensions();
+interface ExtensionsList {
+  extensions: readonly GeminiCLIExtension[];
+}
 
-  if (allExtensions.length === 0) {
+export const ExtensionsList: React.FC<ExtensionsList> = ({ extensions }) => {
+  const { extensionsUpdateState } = useUIState();
+
+  if (extensions.length === 0) {
     return (
       <Text>
-        {t('commands.extensions.list.no_extensions', 'No extensions installed.')}
+        {t(
+          'commands.extensions.list.no_extensions',
+          'No extensions installed.',
+        )}
       </Text>
     );
   }
@@ -30,7 +38,7 @@ export const ExtensionsList = () => {
         )}
       </Text>
       <Box flexDirection="column" paddingLeft={2}>
-        {allExtensions.map((ext) => {
+        {extensions.map((ext) => {
           const state = extensionsUpdateState.get(ext.name);
           const isActive = ext.isActive;
           const activeString = isActive
