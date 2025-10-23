@@ -1141,6 +1141,7 @@
     "command_exit_code": "Comando saiu com código {code}.",
     "directory_change_warning": "AVISO: modo shell é sem estado; a mudança de diretório para '{directory}' não persistirá.",
     "unexpected_error": "Ocorreu um erro inesperado: {error}",
+    "pty_fallback_warning": "[AUDITARIA_CLI_AVISO] Execução PTY falhou, voltando para child_process. Isso pode ser devido a restrições de sandbox.\n",
     "focus": {
       "focused": "(Focado)",
       "focus_hint": "(ctrl+f para focar)"

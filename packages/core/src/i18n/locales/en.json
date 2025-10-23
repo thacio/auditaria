@@ -1144,6 +1144,7 @@
     "command_exit_code": "Command exited with code {code}.",
     "directory_change_warning": "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
     "unexpected_error": "An unexpected error occurred: {error}",
+    "pty_fallback_warning": "[AUDITARIA_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n",
     "focus": {
       "focused": "(Focused)",
       "focus_hint": "(ctrl+f to focus)"

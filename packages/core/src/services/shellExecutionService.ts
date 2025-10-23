@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '../i18n/index.js';
 import stripAnsi from 'strip-ansi';
 import type { PtyImplementation } from '../utils/getPty.js';
 import { getPty } from '../utils/getPty.js';
@@ -678,19 +679,30 @@ export class ShellExecutionService {
       return { pid: ptyProcess.pid, result };
     } catch (e) {
       const error = e as Error;
-      return {
-        pid: undefined,
-        result: Promise.resolve({
-          error,
-          rawOutput: Buffer.from(''),
-          output: '',
-          exitCode: 1,
-          signal: null,
-          aborted: false,
+      if (error.message.includes('posix_spawnp failed')) {
+        onOutputEvent({
+          type: 'data',
+          chunk: t(
+            'shell.pty_fallback_warning',
+            '[AUDITARIA_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n',
+          ),
+        });
+        throw e;
+      } else {
+        return {
           pid: undefined,
-          executionMethod: 'none',
-        }),
-      };
+          result: Promise.resolve({
+            error,
+            rawOutput: Buffer.from(''),
+            output: '',
+            exitCode: 1,
+            signal: null,
+            aborted: false,
+            pid: undefined,
+            executionMethod: 'none',
+          }),
+        };
+      }
     }
   }
 
