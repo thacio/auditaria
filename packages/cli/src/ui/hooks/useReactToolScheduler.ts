@@ -21,7 +21,7 @@ import type {
   EditorType,
 } from '@thacio/auditaria-cli-core';
 import { CoreToolScheduler, debugLogger } from '@thacio/auditaria-cli-core';
-import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import type {
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
@@ -73,9 +73,27 @@ export function useReactToolScheduler(
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
+
   // WEB_INTERFACE_START
   const toolConfirmationContext = useToolConfirmation();
   // WEB_INTERFACE_END
+
+  // Store callbacks in refs to keep them up-to-date without causing re-renders.
+  const onCompleteRef = useRef(onComplete);
+  const getPreferredEditorRef = useRef(getPreferredEditor);
+  const onEditorCloseRef = useRef(onEditorClose);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    getPreferredEditorRef.current = getPreferredEditor;
+  }, [getPreferredEditor]);
+
+  useEffect(() => {
+    onEditorCloseRef.current = onEditorClose;
+  }, [onEditorClose]);
   const outputUpdateHandler: OutputUpdateHandler = useCallback(
     (toolCallId, outputChunk) => {
       setToolCallsForDisplay((prevCalls) =>
@@ -93,9 +111,9 @@ export function useReactToolScheduler(
 
   const allToolCallsCompleteHandler: AllToolCallsCompleteHandler = useCallback(
     async (completedToolCalls) => {
-      await onComplete(completedToolCalls);
+      await onCompleteRef.current(completedToolCalls);
     },
-    [onComplete],
+    [],
   );
 
   const toolCallsUpdateHandler: ToolCallsUpdateHandler = useCallback(
@@ -179,24 +197,29 @@ export function useReactToolScheduler(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toolCallsForDisplay]); // Only depend on toolCallsForDisplay
   // WEB_INTERFACE_END
+
+  const stableGetPreferredEditor = useCallback(
+    () => getPreferredEditorRef.current(),
+    [],
+  );
+  const stableOnEditorClose = useCallback(() => onEditorCloseRef.current(), []);
   const scheduler = useMemo(
     () =>
       new CoreToolScheduler({
         outputUpdateHandler,
         onAllToolCallsComplete: allToolCallsCompleteHandler,
         onToolCallsUpdate: toolCallsUpdateHandler,
-        getPreferredEditor,
+        getPreferredEditor: stableGetPreferredEditor,
         config,
-        onEditorClose,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any),
+        onEditorClose: stableOnEditorClose,
+      }),
     [
       config,
       outputUpdateHandler,
       allToolCallsCompleteHandler,
       toolCallsUpdateHandler,
-      getPreferredEditor,
-      onEditorClose,
+      stableGetPreferredEditor,
+      stableOnEditorClose,
     ],
   );
 
