@@ -66,6 +66,8 @@ export const Composer = () => {
 
       <QueuedMessageDisplay messageQueue={uiState.messageQueue} />
 
+      <TodoTray />
+
       <Box
         marginTop={1}
         justifyContent={
@@ -131,8 +133,6 @@ export const Composer = () => {
           </Box>
         </OverflowProvider>
       )}
-
-      <TodoTray />
 
       {uiState.isInputActive && (
         <InputPrompt
