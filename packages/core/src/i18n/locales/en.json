@@ -1451,7 +1451,7 @@
   },
   "loop_detection": {
     "message": "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted.",
-    "disabled": "Loop detection has been disabled for this session. Please try your request again.",
+    "disabled": "Loop detection has been disabled for this session. Retrying request...",
     "confirmation": {
       "title": "A potential loop was detected",
       "description": "This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?",
