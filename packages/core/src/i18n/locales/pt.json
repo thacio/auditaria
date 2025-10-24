@@ -1559,6 +1559,7 @@
     }
   },
   "settings": {
+    "save_error": "Houve um erro ao salvar suas últimas alterações de configurações.",
     "tools": {
       "truncate_output_threshold": {
         "label": "Limite de Truncamento de Saída de Ferramenta",

@@ -1570,6 +1570,7 @@
     }
   },
   "settings": {
+    "save_error": "There was an error saving your latest settings changes.",
     "tools": {
       "truncate_output_threshold": {
         "label": "Tool Output Truncation Threshold",

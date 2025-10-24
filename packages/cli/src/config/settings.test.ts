@@ -64,6 +64,8 @@ import {
   loadEnvironment,
   migrateDeprecatedSettings,
   SettingScope,
+  saveSettings,
+  type SettingsFile,
 } from './settings.js';
 import {
   FatalConfigError,
@@ -71,6 +73,7 @@ import {
   Storage,
 } from '@thacio/auditaria-cli-core';
 import { ExtensionEnablementManager } from './extensions/extensionEnablement.js';
+import { updateSettingsFilePreservingFormat } from '../utils/commentJson.js';
 
 const MOCK_WORKSPACE_DIR = '/mock/workspace';
 // Use the (mocked) GEMINI_DIR for consistency
@@ -99,6 +102,23 @@ vi.mock('fs', async (importOriginal) => {
 });
 
 vi.mock('./extension.js');
+
+const mockCoreEvents = vi.hoisted(() => ({
+  emitFeedback: vi.fn(),
+}));
+
+vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+  return {
+    ...actual,
+    coreEvents: mockCoreEvents,
+  };
+});
+
+vi.mock('../utils/commentJson.js', () => ({
+  updateSettingsFilePreservingFormat: vi.fn(),
+}));
 
 vi.mock('strip-json-comments', () => ({
   default: vi.fn((content) => content),
@@ -2497,6 +2517,64 @@ describe('Settings Loading and Merging', () => {
 
       expect(mockDisableExtension).not.toHaveBeenCalled();
       expect(setValueSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('saveSettings', () => {
+    it('should save settings using updateSettingsFilePreservingFormat', () => {
+      const mockUpdateSettings = vi.mocked(updateSettingsFilePreservingFormat);
+      const settingsFile = {
+        path: '/mock/settings.json',
+        settings: { ui: { theme: 'dark' } },
+        originalSettings: { ui: { theme: 'dark' } },
+      } as unknown as SettingsFile;
+
+      saveSettings(settingsFile);
+
+      expect(mockUpdateSettings).toHaveBeenCalledWith('/mock/settings.json', {
+        ui: { theme: 'dark' },
+      });
+    });
+
+    it('should create directory if it does not exist', () => {
+      const mockFsExistsSync = vi.mocked(fs.existsSync);
+      const mockFsMkdirSync = vi.mocked(fs.mkdirSync);
+      mockFsExistsSync.mockReturnValue(false);
+
+      const settingsFile = {
+        path: '/mock/new/dir/settings.json',
+        settings: {},
+        originalSettings: {},
+      } as unknown as SettingsFile;
+
+      saveSettings(settingsFile);
+
+      expect(mockFsExistsSync).toHaveBeenCalledWith('/mock/new/dir');
+      expect(mockFsMkdirSync).toHaveBeenCalledWith('/mock/new/dir', {
+        recursive: true,
+      });
+    });
+
+    it('should emit error feedback if saving fails', () => {
+      const mockUpdateSettings = vi.mocked(updateSettingsFilePreservingFormat);
+      const error = new Error('Write failed');
+      mockUpdateSettings.mockImplementation(() => {
+        throw error;
+      });
+
+      const settingsFile = {
+        path: '/mock/settings.json',
+        settings: {},
+        originalSettings: {},
+      } as unknown as SettingsFile;
+
+      saveSettings(settingsFile);
+
+      expect(mockCoreEvents.emitFeedback).toHaveBeenCalledWith(
+        'error',
+        'There was an error saving your latest settings changes.',
+        error,
+      );
     });
   });
 });

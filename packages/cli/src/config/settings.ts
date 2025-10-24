@@ -16,6 +16,7 @@ import {
   getErrorMessage,
   t,
   Storage,
+  coreEvents,
 } from '@thacio/auditaria-cli-core';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
@@ -821,6 +822,13 @@ export function saveSettings(settingsFile: SettingsFile): void {
       settingsToSave as Record<string, unknown>,
     );
   } catch (error) {
-    console.error('Error saving user settings file:', error);
+    coreEvents.emitFeedback(
+      'error',
+      t(
+        'settings.save_error',
+        'There was an error saving your latest settings changes.',
+      ),
+      error,
+    );
   }
 }
