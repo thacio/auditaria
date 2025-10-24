@@ -6,17 +6,18 @@
 
 import type { CommandModule } from 'yargs';
 import {
-  INSTALL_WARNING_MESSAGE,
-  installOrUpdateExtension,
-  requestConsentNonInteractive,
-} from '../../config/extension.js';
-import {
   debugLogger,
   t,
   type ExtensionInstallMetadata,
 } from '@thacio/auditaria-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import { stat } from 'node:fs/promises';
+import {
+  INSTALL_WARNING_MESSAGE,
+  requestConsentNonInteractive,
+} from '../../config/extensions/consent.js';
+import { ExtensionManager } from '../../config/extension-manager.js';
+import { loadSettings } from '../../config/settings.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 
 interface InstallArgs {
@@ -81,18 +82,21 @@ export async function handleInstall(args: InstallArgs) {
       );
       debugLogger.log(INSTALL_WARNING_MESSAGE);
     }
-    const name = await installOrUpdateExtension(
-      installMetadata,
+
+    const workspaceDir = process.cwd();
+    const extensionManager = new ExtensionManager({
+      workspaceDir,
       requestConsent,
-      process.cwd(),
-      undefined,
-      promptForSetting,
-    );
+      requestSetting: promptForSetting,
+      loadedSettings: loadSettings(workspaceDir),
+    });
+    const name =
+      await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
       t(
         'commands.extensions.install.success',
         `Extension "${name}" installed successfully and enabled.`,
-        { name },
+        { extensionName: name },
       ),
     );
   } catch (error) {
