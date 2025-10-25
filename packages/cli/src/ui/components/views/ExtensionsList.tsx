@@ -8,8 +8,11 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { ExtensionUpdateState } from '../../state/extensions.js';
-import { t } from '@thacio/auditaria-cli-core';
-import type { GeminiCLIExtension } from '@thacio/auditaria-cli-core';
+import {
+  debugLogger,
+  t,
+  type GeminiCLIExtension,
+} from '@thacio/auditaria-cli-core';
 
 interface ExtensionsList {
   extensions: readonly GeminiCLIExtension[];
@@ -67,14 +70,10 @@ export const ExtensionsList: React.FC<ExtensionsList> = ({ extensions }) => {
             case ExtensionUpdateState.NOT_UPDATABLE:
               stateColor = 'green';
               break;
+            case undefined:
+              break;
             default:
-              console.error(
-                t(
-                  'commands.extensions.list.unhandled_state_error',
-                  'Unhandled ExtensionUpdateState {state}',
-                  { state: String(state) },
-                ),
-              );
+              debugLogger.warn(`Unhandled ExtensionUpdateState ${state}`);
               break;
           }
 
