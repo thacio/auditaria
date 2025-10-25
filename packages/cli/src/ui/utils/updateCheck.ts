@@ -4,12 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { UpdateInfo } from 'update-notifier';
-import updateNotifier from 'update-notifier';
+import latestVersion from 'latest-version';
 import semver from 'semver';
 import { getPackageJson } from '../../utils/package.js';
-import { t , debugLogger } from '@thacio/auditaria-cli-core';
+import { t, debugLogger } from '@thacio/auditaria-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
+
+// Replicating the bits of UpdateInfo we need from update-notifier
+export interface UpdateInfo {
+  latest: string;
+  current: string;
+  name: string;
+  type?: semver.ReleaseType;
+}
 
 export interface UpdateObject {
   message: string;
@@ -17,26 +24,21 @@ export interface UpdateObject {
 }
 
 /**
- * From a nightly and stable update, determines which is the "best" one to offer.
+ * From a nightly and stable version, determines which is the "best" one to offer.
  * The rule is to always prefer nightly if the base versions are the same.
  */
 function getBestAvailableUpdate(
-  nightly?: UpdateInfo,
-  stable?: UpdateInfo,
-): UpdateInfo | null {
+  nightly?: string,
+  stable?: string,
+): string | null {
   if (!nightly) return stable || null;
   if (!stable) return nightly || null;
 
-  const nightlyVer = nightly.latest;
-  const stableVer = stable.latest;
-
-  if (
-    semver.coerce(stableVer)?.version === semver.coerce(nightlyVer)?.version
-  ) {
+  if (semver.coerce(stable)?.version === semver.coerce(nightly)?.version) {
     return nightly;
   }
 
-  return semver.gt(stableVer, nightlyVer) ? stable : nightly;
+  return semver.gt(stable, nightly) ? stable : nightly;
 }
 
 export async function checkForUpdates(
@@ -57,55 +59,54 @@ export async function checkForUpdates(
 
     const { name, version: currentVersion } = packageJson;
     const isNightly = currentVersion.includes('nightly');
-    const createNotifier = (distTag: 'latest' | 'nightly') =>
-      updateNotifier({
-        pkg: {
-          name,
-          version: currentVersion,
-        },
-        updateCheckInterval: 0,
-        shouldNotifyInNpmScript: true,
-        distTag,
-      });
 
     if (isNightly) {
-      const [nightlyUpdateInfo, latestUpdateInfo] = await Promise.all([
-        createNotifier('nightly').fetchInfo(),
-        createNotifier('latest').fetchInfo(),
+      const [nightlyUpdate, latestUpdate] = await Promise.all([
+        latestVersion(name, { version: 'nightly' }),
+        latestVersion(name),
       ]);
 
-      const bestUpdate = getBestAvailableUpdate(
-        nightlyUpdateInfo,
-        latestUpdateInfo,
-      );
+      const bestUpdate = getBestAvailableUpdate(nightlyUpdate, latestUpdate);
 
-      if (bestUpdate && semver.gt(bestUpdate.latest, currentVersion)) {
+      if (bestUpdate && semver.gt(bestUpdate, currentVersion)) {
         const message = t(
           'update.available_nightly',
           'A new version of Auditaria CLI is available! {current} → {latest}',
-          { current: currentVersion, latest: bestUpdate.latest },
+          { current: currentVersion, latest: bestUpdate },
         );
+        const type = semver.diff(bestUpdate, currentVersion) || undefined;
         return {
           message,
-          update: { ...bestUpdate, current: currentVersion },
+          update: {
+            latest: bestUpdate,
+            current: currentVersion,
+            name,
+            type,
+          },
         };
       }
     } else {
-      const updateInfo = await createNotifier('latest').fetchInfo();
+      const latestUpdate = await latestVersion(name);
 
-      if (updateInfo && semver.gt(updateInfo.latest, currentVersion)) {
+      if (latestUpdate && semver.gt(latestUpdate, currentVersion)) {
         const message = t(
           'update.available',
           'Auditaria CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update',
           {
             current: currentVersion,
-            latest: updateInfo.latest,
+            latest: latestUpdate,
             packageName: packageJson.name,
           },
         );
+        const type = semver.diff(latestUpdate, currentVersion) || undefined;
         return {
           message,
-          update: { ...updateInfo, current: currentVersion },
+          update: {
+            latest: latestUpdate,
+            current: currentVersion,
+            name,
+            type,
+          },
         };
       }
     }

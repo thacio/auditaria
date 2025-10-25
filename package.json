@@ -60,7 +60,6 @@
   },
   "overrides": {
     "wrap-ansi": "9.0.2",
-    "ansi-regex": "5.0.1",
     "cliui": {
       "wrap-ansi": "7.0.0"
     }
@@ -116,6 +115,7 @@
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "ansi-to-html": "^0.7.2",
+    "latest-version": "^9.0.0",
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0"
   },
