@@ -10,11 +10,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { createExtension } from '../../test-utils/createExtension.js';
 import { useExtensionUpdates } from './useExtensionUpdates.js';
-import {
-  GEMINI_DIR,
-  type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
-import { renderHook, waitFor } from '@testing-library/react';
+import { GEMINI_DIR, type GeminiCLIExtension } from '@thacio/auditaria-cli-core';
+import { render } from 'ink-testing-library';
 import { MessageType } from '../types.js';
 import {
   checkForAllExtensionUpdates,
@@ -28,7 +25,7 @@ vi.mock('os', async (importOriginal) => {
   const mockedOs = await importOriginal<typeof os>();
   return {
     ...mockedOs,
-    homedir: vi.fn(),
+    homedir: vi.fn().mockReturnValue('/tmp/mock-home'),
   };
 });
 
@@ -99,15 +96,18 @@ describe('useExtensionUpdates', () => {
       },
     );
 
-    renderHook(() =>
+    function TestComponent() {
       useExtensionUpdates(
         extensions as GeminiCLIExtension[],
         extensionManager,
         addItem,
-      ),
-    );
+      );
+      return null;
+    }
 
-    await waitFor(() => {
+    render(<TestComponent />);
+
+    await vi.waitFor(() => {
       expect(addItem).toHaveBeenCalledWith(
         {
           type: MessageType.INFO,
@@ -151,11 +151,14 @@ describe('useExtensionUpdates', () => {
       name: '',
     });
 
-    renderHook(() =>
-      useExtensionUpdates([extension], extensionManager, addItem),
-    );
+    function TestComponent() {
+      useExtensionUpdates([extension], extensionManager, addItem);
+      return null;
+    }
 
-    await waitFor(
+    render(<TestComponent />);
+
+    await vi.waitFor(
       () => {
         expect(addItem).toHaveBeenCalledWith(
           {
@@ -229,11 +232,14 @@ describe('useExtensionUpdates', () => {
         name: '',
       });
 
-    renderHook(() =>
-      useExtensionUpdates(extensions, extensionManager, addItem),
-    );
+    function TestComponent() {
+      useExtensionUpdates(extensions, extensionManager, addItem);
+      return null;
+    }
 
-    await waitFor(
+    render(<TestComponent />);
+
+    await vi.waitFor(
       () => {
         expect(addItem).toHaveBeenCalledTimes(2);
         expect(addItem).toHaveBeenCalledWith(
@@ -311,15 +317,18 @@ describe('useExtensionUpdates', () => {
       },
     );
 
-    renderHook(() =>
+    function TestComponent() {
       useExtensionUpdates(
         extensions as GeminiCLIExtension[],
         extensionManager,
         addItem,
-      ),
-    );
+      );
+      return null;
+    }
 
-    await waitFor(() => {
+    render(<TestComponent />);
+
+    await vi.waitFor(() => {
       expect(addItem).toHaveBeenCalledTimes(1);
       expect(addItem).toHaveBeenCalledWith(
         {

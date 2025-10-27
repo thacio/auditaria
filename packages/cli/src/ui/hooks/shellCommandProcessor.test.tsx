@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { act, renderHook } from '@testing-library/react';
+import { act } from 'react';
+import { render } from 'ink-testing-library';
 import {
   vi,
   describe,
@@ -97,9 +98,10 @@ describe('useShellCommandProcessor', () => {
     });
   });
 
-  const renderProcessorHook = () =>
-    renderHook(() =>
-      useShellCommandProcessor(
+  const renderProcessorHook = () => {
+    let hookResult: ReturnType<typeof useShellCommandProcessor>;
+    function TestComponent() {
+      hookResult = useShellCommandProcessor(
         addItemToHistoryMock,
         setPendingHistoryItemMock,
         onExecMock,
@@ -107,8 +109,18 @@ describe('useShellCommandProcessor', () => {
         mockConfig,
         mockGeminiClient,
         setShellInputFocusedMock,
-      ),
-    );
+      );
+      return null;
+    }
+    render(<TestComponent />);
+    return {
+      result: {
+        get current() {
+          return hookResult;
+        },
+      },
+    };
+  };
 
   const createMockServiceResult = (
     overrides: Partial<ShellExecutionResult> = {},
