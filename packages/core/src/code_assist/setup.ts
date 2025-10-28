@@ -12,7 +12,7 @@ import type {
 } from './types.js';
 import { UserTierId } from './types.js';
 import { CodeAssistServer } from './server.js';
-import type { OAuth2Client } from 'google-auth-library';
+import type { AuthClient } from 'google-auth-library';
 import { AuthType } from '../core/contentGenerator.js';
 
 export class ProjectIdRequiredError extends Error {
@@ -70,7 +70,7 @@ export interface UserData {
  * @returns the user's actual project id and tier
  */
 export async function setupUser(
-  client: OAuth2Client,
+  client: AuthClient,
   authType: AuthType,
 ): Promise<UserData> {
   // Only use GOOGLE_CLOUD_PROJECT for GCA login or Cloud Shell
@@ -91,11 +91,11 @@ export async function setupUser(
   let loadRes: LoadCodeAssistResponse;
   try {
     loadRes = await caServer.loadCodeAssist({
-    cloudaicompanionProject: projectId,
-    metadata: {
-      ...coreClientMetadata,
-      duetProject: projectId,
-    },
+      cloudaicompanionProject: projectId,
+      metadata: {
+        ...coreClientMetadata,
+        duetProject: projectId,
+      },
     });
   } catch (error) {
     // If GCA login failed with a project, throw a clear error
