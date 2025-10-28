@@ -187,8 +187,9 @@
         "auth_failed": "Falha ao autenticar com o servidor MCP '{serverName}': {error}"
       },
       "google_credentials": {
-        "scopes_required": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials",
+        "scopes_required": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials (ou habilite allow_unscoped_id_tokens_for_cloud_run para usar tokens de ID para endpoints Cloud Run)",
         "failed_get_token": "Falha ao obter token de acesso do Google ADC",
+        "failed_get_id_token": "Falha ao obter token de ID do Google ADC",
         "no_url_configured": "Nenhuma URL configurada para o servidor MCP Google Credentials"
       },
       "prompts": {

@@ -190,8 +190,9 @@
         "missing_arguments": "Missing required argument(s): {missingArgNames}"
       },
       "google_credentials": {
-        "scopes_required": "Scopes must be provided in the oauth config for Google Credentials provider",
+        "scopes_required": "Scopes must be provided in the oauth config for Google Credentials provider (or enable allow_unscoped_id_tokens_for_cloud_run to use ID tokens for Cloud Run endpoints)",
         "failed_get_token": "Failed to get access token from Google ADC",
+        "failed_get_id_token": "Failed to get ID token from Google ADC",
         "no_url_configured": "No URL configured for Google Credentials MCP server"
       },
       "prompts": {
