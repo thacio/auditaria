@@ -11,49 +11,72 @@
 <a id="português"></a>
 ![Captura de Tela do Auditaria CLI](./docs/assets/auditaria-screenshot-pt.png)
 
-O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) projetado especificamente para fluxos de trabalho de **auditorias**, **engenharia de software** e **análise de dados**. Este fork aprimora a ferramenta original com recursos focados em auditoria, suporte multi-idioma e capacidades de fluxo de trabalho melhoradas, mantendo **todas as capacidades originais de engenharia de software** intactas.
+O Auditaria CLI é um fork especializado do
+[Google Gemini CLI](https://github.com/google-gemini/gemini-cli) projetado
+especificamente para fluxos de trabalho de **auditorias**, **engenharia de
+software** e **análise de dados**. Este fork aprimora a ferramenta original com
+recursos focados em auditoria, suporte multi-idioma e capacidades de fluxo de
+trabalho melhoradas, mantendo **todas as capacidades originais de engenharia de
+software** intactas.
 
 ## 🚀 Por que Auditaria CLI?
 
-- **🎯 Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia com conta pessoal do Google
+- **🎯 Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia com conta
+  pessoal do Google
 - **🧠 Poderoso Gemini 2.5 Pro**: Acesso a janela de contexto de 1M tokens
-- **🛠️ Ferramenta TODO integrada**: Sistema completo de gerenciamento de tarefas para fluxos de trabalho de auditoria
-- **🌐 Multi-idioma**: Suporte completo para Português e Inglês com comando `/language`
-- **⚙️ Controle avançado de modelo**: Comandos especializados para gerenciamento de IA
+- **🛠️ Ferramenta TODO integrada**: Sistema completo de gerenciamento de tarefas
+  para fluxos de trabalho de auditoria
+- **🌐 Multi-idioma**: Suporte completo para Português e Inglês com comando
+  `/language`
+- **⚙️ Controle avançado de modelo**: Comandos especializados para gerenciamento
+  de IA
 - **🔄 Estratégia de retry melhorada**: 7 tentativas com delays otimizados
-- **🌐 Interface Web**: Interface web integrada para interação baseada em navegador
-- **📦 Executáveis Windows**: Executáveis standalone compilados com Bun (sem necessidade de instalação de Node.js)
+- **🌐 Interface Web**: Interface web integrada para interação baseada em
+  navegador
+- **📦 Executáveis Windows**: Executáveis standalone compilados com Bun (sem
+  necessidade de instalação de Node.js)
 - **🛡️ Código aberto**: Licenciado sob Apache 2.0
 
 ## 📋 Principais Recursos
 
 ### Melhorias Exclusivas do Auditaria
 
-- **🛠️ Ferramenta TODO**: Sistema completo de gerenciamento de tarefas para rastrear e organizar fluxos de trabalho complexos de auditoria
-- **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para Português e Inglês (com comando `/language`)
-- **⚙️ Controle Avançado de Modelo**: Comandos slash aprimorados para melhor gerenciamento de modelos de IA:
+- **🛠️ Ferramenta TODO**: Sistema completo de gerenciamento de tarefas para
+  rastrear e organizar fluxos de trabalho complexos de auditoria
+- **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
+  Português e Inglês (com comando `/language`)
+- **⚙️ Controle Avançado de Modelo**: Comandos slash aprimorados para melhor
+  gerenciamento de modelos de IA:
   - `/model-switch` - Alternar entre modelos Gemini Pro e Flash
   - `/stay-pro` - Desabilitar/habilitar fallback para modelo Flash
   - `/fallback-improved` - Alternar entre estratégias de retry
-- **🔄 Estratégia de Retry Melhorada**: 7 tentativas com delays de 2 segundos e reset automático para Gemini Pro a cada mensagem do usuário
-- **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e capacidades adaptadas para tarefas de auditoria
-- **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar e trabalhar com dados de auditoria
+- **🔄 Estratégia de Retry Melhorada**: 7 tentativas com delays de 2 segundos e
+  reset automático para Gemini Pro a cada mensagem do usuário
+- **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e
+  capacidades adaptadas para tarefas de auditoria
+- **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
+  e trabalhar com dados de auditoria
 - **🌐 Interface Web**: Interface web integrada (porta padrão 8629)
 
 ### Recursos Herdados do Gemini CLI
 
 - **Compreensão e Geração de Código**
   - Consultar e editar grandes bases de código
-  - Gerar novos aplicativos a partir de PDFs, imagens ou esboços usando capacidades multimodais
+  - Gerar novos aplicativos a partir de PDFs, imagens ou esboços usando
+    capacidades multimodais
   - Depurar problemas e solucionar com linguagem natural
 - **Automação e Integração**
-  - Automatizar tarefas operacionais como consultar pull requests ou lidar com rebases complexos
+  - Automatizar tarefas operacionais como consultar pull requests ou lidar com
+    rebases complexos
   - Usar servidores MCP para conectar novas capacidades
-  - Executar de forma não interativa em scripts para automação de fluxo de trabalho
+  - Executar de forma não interativa em scripts para automação de fluxo de
+    trabalho
 - **Capacidades Avançadas**
-  - Fundamentar consultas com [Google Search](https://ai.google.dev/gemini-api/docs/grounding) integrado
+  - Fundamentar consultas com
+    [Google Search](https://ai.google.dev/gemini-api/docs/grounding) integrado
   - Checkpointing de conversação para salvar e retomar sessões complexas
-  - Arquivos de contexto personalizados (GEMINI.md) para adaptar o comportamento aos seus projetos
+  - Arquivos de contexto personalizados (GEMINI.md) para adaptar o comportamento
+    aos seus projetos
 
 ## 📦 Instalação
 
@@ -61,12 +84,16 @@ O Auditaria CLI é um fork especializado do [Google Gemini CLI](https://github.c
 
 #### Download Direto
 
-Baixe os executáveis Windows pré-compilados da [página de releases](https://github.com/thacio/auditaria/releases):
+Baixe os executáveis Windows pré-compilados da
+[página de releases](https://github.com/thacio/auditaria/releases):
 
 - **`auditaria-windows.exe`** - CLI executável standalone (~125MB)
-- **`auditaria-launcher.exe`** - Launcher com interface gráfica para selecionar diretório de trabalho (~125MB)
+- **`auditaria-launcher.exe`** - Launcher com interface gráfica para selecionar
+  diretório de trabalho (~125MB)
 
-**⚠️ Aviso de Segurança Corporativa**: Os executáveis são compilados usando Bun e não são assinados digitalmente. Políticas corporativas de segurança podem bloquear a execução. Você pode precisar:
+**⚠️ Aviso de Segurança Corporativa**: Os executáveis são compilados usando Bun
+e não são assinados digitalmente. Políticas corporativas de segurança podem
+bloquear a execução. Você pode precisar:
 
 - Adicionar uma exceção no antivírus
 - Executar como administrador
@@ -101,7 +128,13 @@ npm install -g .
 
 ### Configuração de Firewall Corporativo (MITM)
 
-**⚠️ AVISO DE SEGURANÇA**: Desabilitar a verificação SSL pode representar uma falha de segurança. No entanto, em ambientes corporativos com firewall MITM, o npm recusará a instalação porque o firewall substitui os certificados SSL originais por seus próprios certificados para inspecionar o tráfego. Isso faz com que o npm detecte um certificado "não confiável" e bloqueie a instalação. **Use estas configurações apenas em redes corporativas confiáveis onde a TI controla a infraestrutura.**
+**⚠️ AVISO DE SEGURANÇA**: Desabilitar a verificação SSL pode representar uma
+falha de segurança. No entanto, em ambientes corporativos com firewall MITM, o
+npm recusará a instalação porque o firewall substitui os certificados SSL
+originais por seus próprios certificados para inspecionar o tráfego. Isso faz
+com que o npm detecte um certificado "não confiável" e bloqueie a instalação.
+**Use estas configurações apenas em redes corporativas confiáveis onde a TI
+controla a infraestrutura.**
 
 #### Configuração do NPM para Instalação
 
@@ -136,7 +169,8 @@ Escolha o método de autenticação que melhor atende às suas necessidades:
 
 ### Opção 1: Login OAuth (Usando sua Conta Google)
 
-**✨ Melhor para:** Desenvolvedores individuais e qualquer pessoa com licença Gemini Code Assist
+**✨ Melhor para:** Desenvolvedores individuais e qualquer pessoa com licença
+Gemini Code Assist
 
 **Benefícios:**
 
@@ -152,13 +186,15 @@ auditaria
 
 ### Opção 2: Chave da API Gemini
 
-**✨ Melhor para:** Desenvolvedores que precisam de controle específico do modelo ou acesso pago
+**✨ Melhor para:** Desenvolvedores que precisam de controle específico do
+modelo ou acesso pago
 
 **Benefícios:**
 
 - **Nível gratuito**: 100 solicitações/dia com Gemini 2.5 Pro
 - **Seleção de modelo**: Escolha modelos Gemini específicos
-- **Cobrança baseada em uso**: Atualize para limites mais altos quando necessário
+- **Cobrança baseada em uso**: Atualize para limites mais altos quando
+  necessário
 
 ```bash
 # Obtenha sua chave em https://aistudio.google.com/apikey
@@ -213,11 +249,14 @@ auditaria -p "Explique a arquitetura desta base de código"
 
 ### Interface Web
 
-A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI através do seu navegador:
+A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI
+através do seu navegador:
 
-- **Iniciar com interface web**: `auditaria --web` (abre automaticamente o navegador)
+- **Iniciar com interface web**: `auditaria --web` (abre automaticamente o
+  navegador)
 - **Iniciar sem abrir navegador**: `auditaria --web no-browser`
-- **Comando durante execução**: Use `/web` para abrir a interface web a qualquer momento
+- **Comando durante execução**: Use `/web` para abrir a interface web a qualquer
+  momento
 - **Porta padrão**: 8629 (usa uma porta aleatória se estiver ocupada)
 
 ### Exemplos Rápidos
@@ -241,27 +280,36 @@ auditaria
 
 ## 🔗 Integração com GitHub
 
-Integre o Auditaria CLI diretamente em seus fluxos de trabalho do GitHub com a [**Gemini CLI GitHub Action**](https://github.com/google-github-actions/run-gemini-cli):
+Integre o Auditaria CLI diretamente em seus fluxos de trabalho do GitHub com a
+[**Gemini CLI GitHub Action**](https://github.com/google-github-actions/run-gemini-cli):
 
-- **Revisões de Pull Request**: Revise automaticamente pull requests quando forem abertos
+- **Revisões de Pull Request**: Revise automaticamente pull requests quando
+  forem abertos
 - **Triagem de Issues**: Trie e rotule automaticamente issues do GitHub
-- **Colaboração sob demanda**: Mencione `@gemini-cli` em issues e pull requests para assistência
-- **Fluxos de trabalho personalizados**: Configure suas próprias tarefas agendadas e automações orientadas por eventos
+- **Colaboração sob demanda**: Mencione `@gemini-cli` em issues e pull requests
+  para assistência
+- **Fluxos de trabalho personalizados**: Configure suas próprias tarefas
+  agendadas e automações orientadas por eventos
 
 ## 📚 Documentação
 
 ### Começando
 
 - [**Guia de Início Rápido**](./docs/cli/index.md) - Comece rapidamente
-- [**Configuração de Autenticação**](./docs/cli/authentication.md) - Configuração detalhada de autenticação
-- [**Guia de Configuração**](./docs/cli/configuration.md) - Configurações e personalização
-- [**Atalhos de Teclado**](./docs/keyboard-shortcuts.md) - Dicas de produtividade
+- [**Configuração de Autenticação**](./docs/cli/authentication.md) -
+  Configuração detalhada de autenticação
+- [**Guia de Configuração**](./docs/cli/configuration.md) - Configurações e
+  personalização
+- [**Atalhos de Teclado**](./docs/keyboard-shortcuts.md) - Dicas de
+  produtividade
 
 ### Recursos Principais
 
-- [**Referência de Comandos**](./docs/cli/commands.md) - Todos os comandos slash (`/help`, `/chat`, `/mcp`, etc.)
+- [**Referência de Comandos**](./docs/cli/commands.md) - Todos os comandos slash
+  (`/help`, `/chat`, `/mcp`, etc.)
 - [**Checkpointing**](./docs/checkpointing.md) - Salvar e retomar conversas
-- [**Gerenciamento de Memória**](./docs/tools/memory.md) - Usando arquivos de contexto GEMINI.md
+- [**Gerenciamento de Memória**](./docs/tools/memory.md) - Usando arquivos de
+  contexto GEMINI.md
 - [**Cache de Tokens**](./docs/cli/token-caching.md) - Otimizar uso de tokens
 
 ### Ferramentas e Extensões
@@ -271,41 +319,53 @@ Integre o Auditaria CLI diretamente em seus fluxos de trabalho do GitHub com a [
   - [Comandos Shell](./docs/tools/shell.md)
   - [Web Fetch e Pesquisa](./docs/tools/web-fetch.md)
   - [Operações Multi-arquivo](./docs/tools/multi-file.md)
-- [**Integração com Servidor MCP**](./docs/tools/mcp-server.md) - Estenda com ferramentas personalizadas
-- [**Extensões Personalizadas**](./docs/extension.md) - Construa seus próprios comandos
+- [**Integração com Servidor MCP**](./docs/tools/mcp-server.md) - Estenda com
+  ferramentas personalizadas
+- [**Extensões Personalizadas**](./docs/extension.md) - Construa seus próprios
+  comandos
 
 ### Tópicos Avançados
 
-- [**Visão Geral da Arquitetura**](./docs/architecture.md) - Como o Auditaria CLI funciona
+- [**Visão Geral da Arquitetura**](./docs/architecture.md) - Como o Auditaria
+  CLI funciona
 - [**Integração com IDE**](./docs/extension.md) - Companheiro VS Code
-- [**Sandboxing e Segurança**](./docs/sandbox.md) - Ambientes de execução seguros
-- [**Implantação Empresarial**](./docs/deployment.md) - Docker, configuração em todo o sistema
+- [**Sandboxing e Segurança**](./docs/sandbox.md) - Ambientes de execução
+  seguros
+- [**Implantação Empresarial**](./docs/deployment.md) - Docker, configuração em
+  todo o sistema
 - [**Telemetria e Monitoramento**](./docs/telemetry.md) - Rastreamento de uso
-- [**Desenvolvimento de API de Ferramentas**](./docs/core/tools-api.md) - Criar ferramentas personalizadas
+- [**Desenvolvimento de API de Ferramentas**](./docs/core/tools-api.md) - Criar
+  ferramentas personalizadas
 
 ### Solução de Problemas e Suporte
 
-- [**Guia de Solução de Problemas**](./docs/troubleshooting.md) - Problemas comuns e soluções
-- [**FAQ**](./docs/troubleshooting.md#frequently-asked-questions) - Respostas rápidas
+- [**Guia de Solução de Problemas**](./docs/troubleshooting.md) - Problemas
+  comuns e soluções
+- [**FAQ**](./docs/troubleshooting.md#frequently-asked-questions) - Respostas
+  rápidas
 - Use o comando `/bug` para relatar problemas diretamente da CLI
 
 ## 🤝 Contribuindo
 
-Damos as boas-vindas a contribuições! O Auditaria CLI é totalmente open source (Apache 2.0), e encorajamos a comunidade a:
+Damos as boas-vindas a contribuições! O Auditaria CLI é totalmente open source
+(Apache 2.0), e encorajamos a comunidade a:
 
 - Relatar bugs e sugerir recursos
 - Melhorar a documentação
 - Enviar melhorias de código
 - Compartilhar seus servidores MCP e extensões
 
-Veja nosso [Guia de Contribuição](./CONTRIBUTING.md) para configuração de desenvolvimento, padrões de codificação e como enviar pull requests.
+Veja nosso [Guia de Contribuição](./CONTRIBUTING.md) para configuração de
+desenvolvimento, padrões de codificação e como enviar pull requests.
 
 ## 📖 Recursos
 
 - **[Roadmap Oficial](./ROADMAP.md)** - Veja o que vem a seguir
 - **[Repositório GitHub](https://github.com/thacio/auditaria)** - Código fonte
-- **[Issues do GitHub](https://github.com/thacio/auditaria/issues)** - Relate bugs ou solicite recursos
-- **[Releases](https://github.com/thacio/auditaria/releases)** - Versões disponíveis
+- **[Issues do GitHub](https://github.com/thacio/auditaria/issues)** - Relate
+  bugs ou solicite recursos
+- **[Releases](https://github.com/thacio/auditaria/releases)** - Versões
+  disponíveis
 
 ### Desinstalar
 
@@ -325,47 +385,64 @@ Veja o [Guia de Desinstalação](docs/Uninstall.md) para instruções de remoç�
 
 ![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
 
-Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed specifically for **audits**, **software engineering**, and **data analysis** workflows. This fork enhances the original tool with audit-focused features, multi-language support, and improved workflow capabilities while **maintaining all original software engineering capabilities** intact.
+Auditaria CLI is a specialized fork of the
+[Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed
+specifically for **audits**, **software engineering**, and **data analysis**
+workflows. This fork enhances the original tool with audit-focused features,
+multi-language support, and improved workflow capabilities while **maintaining
+all original software engineering capabilities** intact.
 
 ## 🚀 Why Auditaria CLI?
 
-- **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google account
+- **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
+  account
 - **🧠 Powerful Gemini 2.5 Pro**: Access to 1M token context window
 - **🛠️ Built-in TODO tool**: Complete task management system for audit workflows
-- **🌐 Multi-language**: Full support for Portuguese and English with `/language` command
+- **🌐 Multi-language**: Full support for Portuguese and English with
+  `/language` command
 - **⚙️ Advanced model control**: Specialized commands for AI management
 - **🔄 Improved retry strategy**: 7 retries with optimized delays
 - **🌐 Web Interface**: Built-in web interface for browser-based interaction
-- **📦 Windows Executables**: Standalone executables compiled with Bun (no Node.js installation required)
+- **📦 Windows Executables**: Standalone executables compiled with Bun (no
+  Node.js installation required)
 - **🛡️ Open source**: Apache 2.0 licensed
 
 ## 📋 Key Features
 
 ### Auditaria Exclusive Enhancements
 
-- **🛠️ TODO Tool**: Complete task management system for tracking and organizing complex audit workflows
-- **🌐 Multi-language Support**: Full internationalization with Portuguese and English support (with `/language` command)
-- **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model management:
+- **🛠️ TODO Tool**: Complete task management system for tracking and organizing
+  complex audit workflows
+- **🌐 Multi-language Support**: Full internationalization with Portuguese and
+  English support (with `/language` command)
+- **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model
+  management:
   - `/model-switch` - Switch between Gemini Pro and Flash models
   - `/stay-pro` - Disable/enable fallback to Flash model
   - `/fallback-improved` - Toggle between retry strategies
-- **🔄 Improved Retry Strategy**: 7 retries with 2-second delays and automatic reset to Gemini Pro on each user message
-- **🎯 Audit-Focused Features**: Specialized system prompts and capabilities tailored for audit tasks
-- **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working with audit data
+- **🔄 Improved Retry Strategy**: 7 retries with 2-second delays and automatic
+  reset to Gemini Pro on each user message
+- **🎯 Audit-Focused Features**: Specialized system prompts and capabilities
+  tailored for audit tasks
+- **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working
+  with audit data
 - **🌐 Web Interface**: Built-in web interface (default port 8629)
 
 ### Inherited from Gemini CLI
 
 - **Code Understanding & Generation**
   - Query and edit large codebases
-  - Generate new apps from PDFs, images, or sketches using multimodal capabilities
+  - Generate new apps from PDFs, images, or sketches using multimodal
+    capabilities
   - Debug issues and troubleshoot with natural language
 - **Automation & Integration**
-  - Automate operational tasks like querying pull requests or handling complex rebases
+  - Automate operational tasks like querying pull requests or handling complex
+    rebases
   - Use MCP servers to connect new capabilities
   - Run non-interactively in scripts for workflow automation
 - **Advanced Capabilities**
-  - Ground your queries with built-in [Google Search](https://ai.google.dev/gemini-api/docs/grounding)
+  - Ground your queries with built-in
+    [Google Search](https://ai.google.dev/gemini-api/docs/grounding)
   - Conversation checkpointing to save and resume complex sessions
   - Custom context files (GEMINI.md) to tailor behavior for your projects
 
@@ -375,12 +452,16 @@ Auditaria CLI is a specialized fork of the [Google Gemini CLI](https://github.co
 
 #### Direct Download
 
-Download pre-compiled Windows executables from the [releases page](https://github.com/thacio/auditaria/releases):
+Download pre-compiled Windows executables from the
+[releases page](https://github.com/thacio/auditaria/releases):
 
 - **`auditaria-windows.exe`** - Standalone CLI executable (~125MB)
-- **`auditaria-launcher.exe`** - GUI launcher to select working directory (~125MB)
+- **`auditaria-launcher.exe`** - GUI launcher to select working directory
+  (~125MB)
 
-**⚠️ Corporate Security Warning**: The executables are compiled using Bun and are not digitally signed. Corporate security policies may block execution. You may need to:
+**⚠️ Corporate Security Warning**: The executables are compiled using Bun and
+are not digitally signed. Corporate security policies may block execution. You
+may need to:
 
 - Add an antivirus exception
 - Run as administrator
@@ -419,7 +500,9 @@ See [Releases](./docs/releases.md) for more details.
 
 ### Preview
 
-New preview releases will be published each week at UTC 2359 on Tuesdays. These releases will not have been fully vetted and may contain regressions or other outstanding issues. Please help us test and install with `preview` tag.
+New preview releases will be published each week at UTC 2359 on Tuesdays. These
+releases will not have been fully vetted and may contain regressions or other
+outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
 npm install -g @thacio/auditaria-cli@preview
@@ -427,7 +510,9 @@ npm install -g @thacio/auditaria-cli@preview
 
 ### Stable
 
-- New stable releases will be published each week at UTC 2000 on Tuesdays, this will be the full promotion of last week's `preview` release + any bug fixes and validations. Use `latest` tag.
+- New stable releases will be published each week at UTC 2000 on Tuesdays, this
+  will be the full promotion of last week's `preview` release + any bug fixes
+  and validations. Use `latest` tag.
 
 ```bash
 npm install -g @thacio/auditaria-cli@latest
@@ -435,7 +520,9 @@ npm install -g @thacio/auditaria-cli@latest
 
 ### Nightly
 
-- New releases will be published each week at UTC 0000 each day, This will be all changes from the main branch as represented at time of release. It should be assumed there are pending validations and issues. Use `nightly` tag.
+- New releases will be published each week at UTC 0000 each day, This will be
+  all changes from the main branch as represented at time of release. It should
+  be assumed there are pending validations and issues. Use `nightly` tag.
 
 ```bash
 npm install -g @thacio/auditaria-cli@nightly
@@ -443,7 +530,12 @@ npm install -g @thacio/auditaria-cli@nightly
 
 ### Corporate Firewall (MITM) Setup
 
-**⚠️ SECURITY WARNING**: Disabling SSL verification may represent a security flaw. However, in corporate environments with MITM firewalls, npm will refuse to install because the firewall replaces the original SSL certificates with its own certificates to inspect traffic. This causes npm to detect an "untrusted" certificate and block the installation. **Use these settings only in trusted corporate networks where IT controls the infrastructure.**
+**⚠️ SECURITY WARNING**: Disabling SSL verification may represent a security
+flaw. However, in corporate environments with MITM firewalls, npm will refuse to
+install because the firewall replaces the original SSL certificates with its own
+certificates to inspect traffic. This causes npm to detect an "untrusted"
+certificate and block the installation. **Use these settings only in trusted
+corporate networks where IT controls the infrastructure.**
 
 #### NPM Configuration for Installation
 
@@ -484,7 +576,9 @@ Choose the authentication method that best fits your needs:
 - Google AI Pro and AI Ultra subscribers.
 - Anyone who has a Gemini Code Assist license.
 
-_See [quota limits and terms of service](https://cloud.google.com/gemini/docs/quotas) for details._
+_See
+[quota limits and terms of service](https://cloud.google.com/gemini/docs/quotas)
+for details._
 
 **Benefits:**
 
@@ -586,7 +680,8 @@ auditaria -p "Run tests and deploy" --output-format stream-json
 
 ### Web Interface
 
-The web interface provides an alternative way to interact with Auditaria CLI through your browser:
+The web interface provides an alternative way to interact with Auditaria CLI
+through your browser:
 
 - **Start with web interface**: `auditaria --web` (automatically opens browser)
 - **Start without opening browser**: `auditaria --web no-browser`
@@ -617,15 +712,19 @@ auditaria
 ### Getting Started
 
 - [**Quickstart Guide**](./docs/cli/index.md) - Get up and running quickly
-- [**Authentication Setup**](./docs/cli/authentication.md) - Detailed auth configuration
-- [**Configuration Guide**](./docs/cli/configuration.md) - Settings and customization
+- [**Authentication Setup**](./docs/cli/authentication.md) - Detailed auth
+  configuration
+- [**Configuration Guide**](./docs/cli/configuration.md) - Settings and
+  customization
 - [**Keyboard Shortcuts**](./docs/keyboard-shortcuts.md) - Productivity tips
 
 ### Core Features
 
-- [**Commands Reference**](./docs/cli/commands.md) - All slash commands (`/help`, `/chat`, `/mcp`, etc.)
+- [**Commands Reference**](./docs/cli/commands.md) - All slash commands
+  (`/help`, `/chat`, `/mcp`, etc.)
 - [**Checkpointing**](./docs/checkpointing.md) - Save and resume conversations
-- [**Memory Management**](./docs/tools/memory.md) - Using GEMINI.md context files
+- [**Memory Management**](./docs/tools/memory.md) - Using GEMINI.md context
+  files
 - [**Token Caching**](./docs/cli/token-caching.md) - Optimize token usage
 
 ### Tools & Extensions
@@ -635,27 +734,39 @@ auditaria
   - [Shell Commands](./docs/tools/shell.md)
   - [Web Fetch & Search](./docs/tools/web-fetch.md)
   - [Multi-file Operations](./docs/tools/multi-file.md)
-- [**MCP Server Integration**](./docs/tools/mcp-server.md) - Extend with custom tools
+- [**MCP Server Integration**](./docs/tools/mcp-server.md) - Extend with custom
+  tools
 - [**Custom Extensions**](./docs/extension.md) - Build your own commands
 
 ### Advanced Topics
 
-- [**Architecture Overview**](./docs/architecture.md) - How Auditaria CLI works
-- [**IDE Integration**](./docs/ide-integration.md) - VS Code companion
-- [**Sandboxing & Security**](./docs/sandbox.md) - Safe execution environments
-- [**Enterprise Deployment**](./docs/deployment.md) - Docker, system-wide config
-- [**Telemetry & Monitoring**](./docs/telemetry.md) - Usage tracking
-- [**Tools API Development**](./docs/core/tools-api.md) - Create custom tools
+- [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Auditaria CLI in
+  automated workflows.
+- [**Architecture Overview**](./docs/architecture.md) - How Auditaria CLI works.
+- [**IDE Integration**](./docs/ide-integration/index.md) - VS Code companion.
+- [**Sandboxing & Security**](./docs/cli/sandbox.md) - Safe execution
+  environments.
+- [**Trusted Folders**](./docs/cli/trusted-folders.md) - Control execution
+  policies by folder.
+- [**Enterprise Guide**](./docs/cli/enterprise.md) - Deploy and manage in a
+  corporate environment.
+- [**Telemetry & Monitoring**](./docs/cli/telemetry.md) - Usage tracking.
+- [**Tools API Development**](./docs/core/tools-api.md) - Create custom tools.
+- [**Local development**](./docs/local-development.md) - Local development
+  tooling.
 
 ### Troubleshooting & Support
 
-- [**Troubleshooting Guide**](./docs/troubleshooting.md) - Common issues and solutions
-- [**FAQ**](./docs/troubleshooting.md#frequently-asked-questions) - Quick answers
+- [**Troubleshooting Guide**](./docs/troubleshooting.md) - Common issues and
+  solutions
+- [**FAQ**](./docs/troubleshooting.md#frequently-asked-questions) - Quick
+  answers
 - Use `/bug` command to report issues directly from the CLI
 
 ### Using MCP Servers
 
-Configure MCP servers in `~/.gemini/settings.json` to extend Auditaria CLI with custom tools:
+Configure MCP servers in `~/.gemini/settings.json` to extend Auditaria CLI with
+custom tools:
 
 ```text
 > @github List my open pull requests
@@ -663,28 +774,35 @@ Configure MCP servers in `~/.gemini/settings.json` to extend Auditaria CLI with 
 > @database Run a query to find inactive users
 ```
 
-See the [MCP Server Integration guide](./docs/tools/mcp-server.md) for setup instructions.
+See the [MCP Server Integration guide](./docs/tools/mcp-server.md) for setup
+instructions.
 
 ## 🤝 Contributing
 
-We welcome contributions! Auditaria CLI is fully open source (Apache 2.0), and we encourage the community to:
+We welcome contributions! Auditaria CLI is fully open source (Apache 2.0), and
+we encourage the community to:
 
 - Report bugs and suggest features
 - Improve documentation
 - Submit code improvements
 - Share your MCP servers and extensions
 
-See our [Contributing Guide](./CONTRIBUTING.md) for development setup, coding standards, and how to submit pull requests.
+See our [Contributing Guide](./CONTRIBUTING.md) for development setup, coding
+standards, and how to submit pull requests.
 
 ## 📖 Resources
 
 - **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
 - **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
-- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria-cli)** - Package registry.
+- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria-cli)** -
+  Package registry.
 - **[GitHub Repository](https://github.com/thacio/auditaria)** - Source code.
-- **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs or request features.
-- **[Security Advisories](https://github.com/thacio/auditaria/security/advisories)** - Security updates.
-- **[Releases](https://github.com/thacio/auditaria/releases)** - Available versions.
+- **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs
+  or request features.
+- **[Security Advisories](https://github.com/thacio/auditaria/security/advisories)** -
+  Security updates.
+- **[Releases](https://github.com/thacio/auditaria/releases)** - Available
+  versions.
 
 ### Uninstall
 
