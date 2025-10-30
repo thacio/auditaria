@@ -26,7 +26,7 @@ import path from 'node:path';
 const sourceDir = path.join('src');
 const targetDir = path.join('dist', 'src');
 
-const extensionsToCopy = ['.md', '.json', '.sb'];
+const extensionsToCopy = ['.md', '.json', '.sb', '.toml'];
 
 function copyFilesRecursive(source, target, copyAllFiles = false) {
   if (!fs.existsSync(target)) {
@@ -41,7 +41,10 @@ function copyFilesRecursive(source, target, copyAllFiles = false) {
 
     if (item.isDirectory()) {
       copyFilesRecursive(sourcePath, targetPath, copyAllFiles);
-    } else if (copyAllFiles || extensionsToCopy.includes(path.extname(item.name))) {
+    } else if (
+      copyAllFiles ||
+      extensionsToCopy.includes(path.extname(item.name))
+    ) {
       fs.copyFileSync(sourcePath, targetPath);
     }
   }
@@ -62,7 +65,7 @@ if (fs.existsSync(packageJsonPath)) {
     // Copy web client files from bundle to CLI package dist
     const webClientSrc = path.resolve(process.cwd(), '../../bundle/web-client');
     const webClientDest = path.join(process.cwd(), 'dist', 'web-client');
-    
+
     if (fs.existsSync(webClientSrc)) {
       console.log('Copying web client files to CLI package...');
       copyFilesRecursive(webClientSrc, webClientDest, true); // Copy all files for web client
