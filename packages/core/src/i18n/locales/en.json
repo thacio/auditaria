@@ -1446,6 +1446,9 @@
       "prompt_positional_conflict": "Cannot use both a positional prompt and the --prompt (-p) flag together",
       "yolo_disabled": "Cannot start in YOLO mode when it is disabled by settings"
     },
+    "deprecation": {
+      "prompt_flag": "The --prompt (-p) flag has been deprecated and will be removed in a future version. Please use a positional argument for your prompt. See gemini --help for more information.\n"
+    },
     "options": {
       "session_summary": "File to write session summary to."
     }
