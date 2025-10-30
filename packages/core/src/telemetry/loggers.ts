@@ -101,6 +101,7 @@ export function logUserPrompt(config: Config, event: UserPromptEvent): void {
   if (!isTelemetrySdkInitialized()) return;
 
   const logger = logs.getLogger(SERVICE_NAME);
+
   const logRecord: LogRecord = {
     body: event.toLogBody(),
     attributes: event.toOpenTelemetryAttributes(config),
@@ -241,9 +242,11 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
   ClearcutLogger.getInstance(config)?.logApiErrorEvent(event);
 
   // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
-  // OpenTelemetry logger.emit() would send API error data externally
-  // Upstream refactored to use event.toLogBody() and event.toOpenTelemetryAttributes(config),
+  // Upstream refactored to use event.toLogRecord() and event.toSemanticLogRecord(),
   // but we skip the external logging entirely
+  // const logger = logs.getLogger(SERVICE_NAME);
+  // logger.emit(event.toLogRecord(config));
+  // logger.emit(event.toSemanticLogRecord(config));
 
   // KEEP LOCAL METRICS: These are used for local statistics
   recordApiErrorMetrics(config, event.duration_ms, {
@@ -253,12 +256,11 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
   });
 
   // Record GenAI operation duration for errors
-  const conventionAttributes = getConventionAttributes(event);
   recordApiResponseMetrics(config, event.duration_ms, {
     model: event.model,
     status_code: event.status_code,
     genAiAttributes: {
-      ...conventionAttributes,
+      ...getConventionAttributes(event),
       'error.type': event.error_type || 'unknown',
     },
   });
@@ -277,9 +279,11 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
   ClearcutLogger.getInstance(config)?.logApiResponseEvent(event);
 
   // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
-  // OpenTelemetry logger.emit() would send API response data externally
-  // Upstream refactored to use event.toLogBody() and event.toOpenTelemetryAttributes(config),
+  // Upstream refactored to use event.toLogRecord() and event.toSemanticLogRecord(),
   // but we skip the external logging entirely
+  // const logger = logs.getLogger(SERVICE_NAME);
+  // logger.emit(event.toLogRecord(config));
+  // logger.emit(event.toSemanticLogRecord(config));
 
   // KEEP LOCAL METRICS: These are used for local statistics and UI display
   const conventionAttributes = getConventionAttributes(event);
@@ -291,11 +295,11 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
   });
 
   const tokenUsageData = [
-    { count: event.input_token_count, type: 'input' as const },
-    { count: event.output_token_count, type: 'output' as const },
-    { count: event.cached_content_token_count, type: 'cache' as const },
-    { count: event.thoughts_token_count, type: 'thought' as const },
-    { count: event.tool_token_count, type: 'tool' as const },
+    { count: event.usage.input_token_count, type: 'input' as const },
+    { count: event.usage.output_token_count, type: 'output' as const },
+    { count: event.usage.cached_content_token_count, type: 'cache' as const },
+    { count: event.usage.thoughts_token_count, type: 'thought' as const },
+    { count: event.usage.tool_token_count, type: 'tool' as const },
   ];
 
   for (const { count, type } of tokenUsageData) {
