@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
@@ -27,8 +28,14 @@ export const ConsoleSummaryDisplay: React.FC<ConsoleSummaryDisplayProps> = ({
     <Box>
       {errorCount > 0 && (
         <Text color={theme.status.error}>
-          {errorIcon} {t('console_summary.error_count', '{count} error{plural}', { count: errorCount, plural: errorCount > 1 ? 's' : '' })}{' '}
-          <Text color={theme.text.secondary}>{t('console_summary.ctrl_o_details', '(ctrl+o for details)')}</Text>
+          {errorIcon}{' '}
+          {t('console_summary.error_count', '{count} error{plural}', {
+            count: errorCount,
+            plural: errorCount > 1 ? 's' : '',
+          })}{' '}
+          <Text color={theme.text.secondary}>
+            {t('console_summary.ctrl_o_details', '(F12 for details)')}
+          </Text>
         </Text>
       )}
     </Box>

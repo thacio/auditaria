@@ -38,7 +38,10 @@ export const DetailedMessagesDisplay: React.FC<
     >
       <Box marginBottom={1}>
         <Text bold color={theme.text.primary}>
-          {t('console_summary.debug_console', 'Debug Console')} <Text color={theme.text.secondary}>({t('console_summary.ctrl_o_close', 'ctrl+o to close')})</Text>
+          {t('console_summary.debug_console', 'Debug Console')}{' '}
+          <Text color={theme.text.secondary}>
+            ({t('console_summary.ctrl_o_close', 'F12 to close')})
+          </Text>
         </Text>
       </Box>
       <MaxSizedBox maxHeight={maxHeight} maxWidth={width - borderAndPadding}>

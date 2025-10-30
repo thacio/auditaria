@@ -976,9 +976,9 @@
   },
   "console_summary": {
     "error_count": "{count} erro{plural}",
-    "ctrl_o_details": "(ctrl+o para detalhes)",
+    "ctrl_o_details": "(F12 para detalhes)",
     "debug_console": "Console de Debug",
-    "ctrl_o_close": "ctrl+o para fechar"
+    "ctrl_o_close": "F12 para fechar"
   },
   "auto_accept": {
     "accepting_edits": "aceitando edições",
