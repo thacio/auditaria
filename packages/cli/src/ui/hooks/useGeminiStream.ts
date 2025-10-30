@@ -37,6 +37,7 @@ import {
   promptIdContext,
   WRITE_FILE_TOOL_NAME,
   tokenLimit,
+  debugLogger,
   runInDevTraceSpan,
 } from '@thacio/auditaria-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
@@ -188,7 +189,7 @@ export const useGeminiStream = (
               completedToolCallsFromScheduler,
             );
         } catch (error) {
-          console.error(
+          debugLogger.warn(
             `Error recording completed tool call information: ${error}`,
           );
         }
@@ -1217,7 +1218,7 @@ export const useGeminiStream = (
                 ToolConfirmationOutcome.ProceedOnce,
               );
             } catch (error) {
-              console.error(
+              debugLogger.warn(
                 `Failed to auto-approve tool call ${call.request.callId}:`,
                 error,
               );
