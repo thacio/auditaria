@@ -1466,6 +1466,9 @@
   "warnings": {
     "ide_server_reserved": "Ignorando configuração MCP do servidor definida pelo usuário para \"{serverName}\" pois é um nome reservado."
   },
+  "todo": {
+    "completed_count": "{completed}/{total} completas"
+  },
   "citations": {
     "title": "Citações:"
   },

@@ -1469,6 +1469,9 @@
   "warnings": {
     "ide_server_reserved": "Ignoring user-defined MCP server config for \"{serverName}\" as it is a reserved name."
   },
+  "todo": {
+    "completed_count": "{completed}/{total} completed"
+  },
   "citations": {
     "title": "Citations:"
   },

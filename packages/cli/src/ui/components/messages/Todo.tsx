@@ -10,6 +10,7 @@ import {
   type Todo,
   type TodoList,
   type TodoStatus,
+  t,
 } from '@thacio/auditaria-cli-core';
 import { theme } from '../../semantic-colors.js';
 import { useUIState } from '../../contexts/UIStateContext.js';
@@ -28,7 +29,10 @@ const TodoTitleDisplay: React.FC<{ todos: TodoList }> = ({ todos }) => {
         }
       }
     }
-    return `${completed}/${total}`;
+    return t('todo.completed_count', '{completed}/{total} completed', {
+      completed: completed.toString(),
+      total: total.toString(),
+    });
   }, [todos]);
 
   return (
@@ -57,7 +61,7 @@ const TodoStatusDisplay: React.FC<{ status: TodoStatus }> = ({ status }) => {
       );
     case 'pending':
       return (
-        <Text color={theme.text.primary} aria-label="Pending">
+        <Text color={theme.text.secondary} aria-label="Pending">
           ☐
         </Text>
       );
@@ -71,20 +75,31 @@ const TodoStatusDisplay: React.FC<{ status: TodoStatus }> = ({ status }) => {
   }
 };
 
+const statusTextColor: Partial<Record<TodoStatus, string>> = {
+  in_progress: theme.text.accent,
+  completed: theme.text.secondary,
+  cancelled: theme.text.secondary,
+};
+
 const TodoItemDisplay: React.FC<{
   todo: Todo;
   wrap?: 'truncate';
   role?: 'listitem';
-}> = ({ todo, wrap, role: ariaRole }) => (
-  <Box flexDirection="row" columnGap={1} aria-role={ariaRole}>
-    <TodoStatusDisplay status={todo.status} />
-    <Box flexShrink={1}>
-      <Text color={theme.text.primary} wrap={wrap}>
-        {todo.description}
-      </Text>
+}> = ({ todo, wrap, role: ariaRole }) => {
+  const textColor = statusTextColor[todo.status] ?? theme.text.primary;
+  const strikethrough = todo.status === 'cancelled';
+
+  return (
+    <Box flexDirection="row" columnGap={1} aria-role={ariaRole}>
+      <TodoStatusDisplay status={todo.status} />
+      <Box flexShrink={1}>
+        <Text color={textColor} wrap={wrap} strikethrough={strikethrough}>
+          {todo.description}
+        </Text>
+      </Box>
     </Box>
-  </Box>
-);
+  );
+};
 
 export const TodoTray: React.FC = () => {
   const uiState = useUIState();
