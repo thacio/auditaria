@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t ,
+import {
+  t,
   debugLogger,
   getErrorMessage,
   isNodeError,
@@ -292,7 +293,7 @@ export async function handleAtCommand({
                 );
               }
             } catch (globError) {
-              console.error(
+              debugLogger.warn(
                 `Error during glob search for ${pathName}: ${getErrorMessage(globError)}`,
               );
               onDebugMessage(
@@ -305,7 +306,7 @@ export async function handleAtCommand({
             );
           }
         } else {
-          console.error(
+          debugLogger.warn(
             `Error stating path ${pathName}: ${getErrorMessage(error)}`,
           );
           onDebugMessage(
