@@ -17,6 +17,7 @@ import type {
   OutputFormat,
   GeminiCLIExtension,
 } from '@thacio/auditaria-cli-core';
+import type { ExtensionLoader } from '@thacio/auditaria-cli-core/src/utils/extensionLoader.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import {
   Config,
@@ -49,6 +50,9 @@ import { appEvents } from '../utils/events.js';
 
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { createPolicyEngineConfig } from './policy.js';
+import { ExtensionManager } from './extension-manager.js';
+import { requestConsentNonInteractive } from './extensions/consent.js';
+import { promptForSetting } from './extensions/extensionSettings.js';
 
 export interface CliArgs {
   query: string | undefined;
@@ -335,7 +339,7 @@ export async function loadHierarchicalGeminiMemory(
   debugMode: boolean,
   fileService: FileDiscoveryService,
   settings: Settings,
-  extensions: GeminiCLIExtension[],
+  extensionLoader: ExtensionLoader,
   folderTrust: boolean,
   memoryImportFormat: 'flat' | 'tree' = 'tree',
   fileFilteringOptions?: FileFilteringOptions,
@@ -361,7 +365,7 @@ export async function loadHierarchicalGeminiMemory(
     includeDirectoriesToReadGemini,
     debugMode,
     fileService,
-    extensions,
+    extensionLoader,
     folderTrust,
     memoryImportFormat,
     fileFilteringOptions,
@@ -410,7 +414,6 @@ export function isDebugMode(argv: CliArgs): boolean {
 
 export async function loadCliConfig(
   settings: Settings,
-  allExtensions: GeminiCLIExtension[],
   sessionId: string,
   argv: CliArgs,
   cwd: string = process.cwd(),
@@ -455,6 +458,15 @@ export async function loadCliConfig(
     .map(resolvePath)
     .concat((argv.includeDirectories || []).map(resolvePath));
 
+  const extensionManager = new ExtensionManager({
+    settings,
+    requestConsent: requestConsentNonInteractive,
+    requestSetting: promptForSetting,
+    workspaceDir: cwd,
+    enabledExtensionOverrides: argv.extensions,
+  });
+  extensionManager.loadExtensions();
+
   // Call the (now wrapper) loadHierarchicalGeminiMemory which calls the server's version
   const { memoryContent, fileCount, filePaths } =
     await loadHierarchicalGeminiMemory(
@@ -465,13 +477,13 @@ export async function loadCliConfig(
       debugMode,
       fileService,
       settings,
-      allExtensions,
+      extensionManager,
       trustedFolder,
       memoryImportFormat,
       memoryFileFiltering,
     );
 
-  let mcpServers = mergeMcpServers(settings, allExtensions);
+  let mcpServers = mergeMcpServers(settings, extensionManager.getExtensions());
   const question = argv.promptInteractive || argv.prompt || '';
 
   // Determine approval mode with backward compatibility
@@ -592,7 +604,7 @@ export async function loadCliConfig(
 
   const excludeTools = mergeExcludeTools(
     settings,
-    allExtensions,
+    extensionManager.getExtensions(),
     extraExcludes.length > 0 ? extraExcludes : undefined,
   );
   const blockedMcpServers: Array<{ name: string; extensionName: string }> = [];
@@ -688,7 +700,7 @@ export async function loadCliConfig(
     experimentalZedIntegration: argv.experimentalAcp || false,
     listExtensions: argv.listExtensions || false,
     enabledExtensions: argv.extensions,
-    extensions: allExtensions,
+    extensionLoader: extensionManager,
     blockedMcpServers,
     noBrowser: !!process.env['NO_BROWSER'],
     summarizeToolOutput: settings.model?.summarizeToolOutput,

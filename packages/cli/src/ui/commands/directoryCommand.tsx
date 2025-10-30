@@ -7,10 +7,9 @@
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t , loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
 
 export function expandHomeDir(p: string): string {
   if (!p) {
@@ -36,7 +35,10 @@ export const directoryCommand: SlashCommand = {
     {
       name: 'add',
       get description() {
-        return t('commands.directory.add.description', 'Add directories to the workspace. Use comma to separate multiple paths');
+        return t(
+          'commands.directory.add.description',
+          'Add directories to the workspace. Use comma to separate multiple paths',
+        );
       },
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext, args: string) => {
@@ -50,7 +52,10 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t('commands.directory.config_not_available', 'Configuration is not available.'),
+              text: t(
+                'commands.directory.config_not_available',
+                'Configuration is not available.',
+              ),
             },
             Date.now(),
           );
@@ -67,7 +72,10 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t('commands.directory.add.provide_path', 'Please provide at least one path to add.'),
+              text: t(
+                'commands.directory.add.provide_path',
+                'Please provide at least one path to add.',
+              ),
             },
             Date.now(),
           );
@@ -78,7 +86,10 @@ export const directoryCommand: SlashCommand = {
           return {
             type: 'message' as const,
             messageType: 'error' as const,
-            content: t('commands.directory.add.restrictive_sandbox', 'The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.'),
+            content: t(
+              'commands.directory.add.restrictive_sandbox',
+              'The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.',
+            ),
           };
         }
 
@@ -91,7 +102,13 @@ export const directoryCommand: SlashCommand = {
             added.push(pathToAdd.trim());
           } catch (e) {
             const error = e as Error;
-            errors.push(t('commands.directory.add.error_adding', `Error adding '{path}': {error}`, { path: pathToAdd.trim(), error: error.message }));
+            errors.push(
+              t(
+                'commands.directory.add.error_adding',
+                `Error adding '{path}': {error}`,
+                { path: pathToAdd.trim(), error: error.message },
+              ),
+            );
           }
         }
 
@@ -106,7 +123,7 @@ export const directoryCommand: SlashCommand = {
                 ],
                 config.getDebugMode(),
                 config.getFileService(),
-                config.getExtensions(),
+                config.getExtensionLoader(),
                 config.getFolderTrust(),
                 context.services.settings.merged.context?.importFormat ||
                   'tree', // Use setting or default to 'tree'
@@ -120,12 +137,22 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.INFO,
-              text: t('commands.directory.add.memory_files_added', `Successfully added GEMINI.md files from the following directories if there are:\n- {directories}`, { directories: added.join('\n- ') }),
+              text: t(
+                'commands.directory.add.memory_files_added',
+                `Successfully added GEMINI.md files from the following directories if there are:\n- {directories}`,
+                { directories: added.join('\n- ') },
+              ),
             },
             Date.now(),
           );
         } catch (error) {
-          errors.push(t('commands.directory.add.memory_refresh_error', `Error refreshing memory: {error}`, { error: (error as Error).message }));
+          errors.push(
+            t(
+              'commands.directory.add.memory_refresh_error',
+              `Error refreshing memory: {error}`,
+              { error: (error as Error).message },
+            ),
+          );
         }
 
         if (added.length > 0) {
@@ -136,7 +163,11 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.INFO,
-              text: t('commands.directory.add.success', `Successfully added directories:\n- {directories}`, { directories: added.join('\n- ') }),
+              text: t(
+                'commands.directory.add.success',
+                `Successfully added directories:\n- {directories}`,
+                { directories: added.join('\n- ') },
+              ),
             },
             Date.now(),
           );
@@ -154,7 +185,10 @@ export const directoryCommand: SlashCommand = {
     {
       name: 'show',
       get description() {
-        return t('commands.directory.show.description', 'Show all directories in the workspace');
+        return t(
+          'commands.directory.show.description',
+          'Show all directories in the workspace',
+        );
       },
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext) => {
@@ -166,7 +200,10 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t('commands.directory.config_not_available', 'Configuration is not available.'),
+              text: t(
+                'commands.directory.config_not_available',
+                'Configuration is not available.',
+              ),
             },
             Date.now(),
           );
@@ -178,7 +215,11 @@ export const directoryCommand: SlashCommand = {
         addItem(
           {
             type: MessageType.INFO,
-            text: t('commands.directory.show.current_directories', `Current workspace directories:\n{directories}`, { directories: directoryList }),
+            text: t(
+              'commands.directory.show.current_directories',
+              `Current workspace directories:\n{directories}`,
+              { directories: directoryList },
+            ),
           },
           Date.now(),
         );

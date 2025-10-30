@@ -88,15 +88,16 @@ export async function handleInstall(args: InstallArgs) {
       workspaceDir,
       requestConsent,
       requestSetting: promptForSetting,
-      loadedSettings: loadSettings(workspaceDir),
+      settings: loadSettings(workspaceDir).merged,
     });
-    const name =
+    extensionManager.loadExtensions();
+    const extension =
       await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
       t(
         'commands.extensions.install.success',
-        `Extension "${name}" installed successfully and enabled.`,
-        { extensionName: name },
+        `Extension "${extension.name}" installed successfully and enabled.`,
+        { extensionName: extension.name },
       ),
     );
   } catch (error) {

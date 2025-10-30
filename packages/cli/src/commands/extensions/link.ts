@@ -32,15 +32,16 @@ export async function handleLink(args: InstallArgs) {
       workspaceDir,
       requestConsent: requestConsentNonInteractive,
       requestSetting: promptForSetting,
-      loadedSettings: loadSettings(workspaceDir),
+      settings: loadSettings(workspaceDir).merged,
     });
-    const extensionName =
+    extensionManager.loadExtensions();
+    const extension =
       await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
       t(
         'commands.extensions.link.success',
         'Extension "{extensionName}" linked successfully and enabled.',
-        { extensionName },
+        { extensionName: extension.name },
       ),
     );
   } catch (error) {
