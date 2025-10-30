@@ -6,9 +6,15 @@
 
 import latestVersion from 'latest-version';
 import semver from 'semver';
-import { getPackageJson } from '../../utils/package.js';
-import { t, debugLogger } from '@thacio/auditaria-cli-core';
+import { getPackageJson, debugLogger, t } from '@thacio/auditaria-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const FETCH_TIMEOUT_MS = 2000;
 
 // Replicating the bits of UpdateInfo we need from update-notifier
 export interface UpdateInfo {
@@ -52,7 +58,7 @@ export async function checkForUpdates(
     if (process.env['DEV'] === 'true') {
       return null;
     }
-    const packageJson = await getPackageJson();
+    const packageJson = await getPackageJson(__dirname);
     if (!packageJson || !packageJson.name || !packageJson.version) {
       return null;
     }
