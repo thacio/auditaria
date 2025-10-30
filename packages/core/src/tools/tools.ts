@@ -131,7 +131,7 @@ export abstract class BaseToolInvocation<
       title: t(
         'tools.policy.confirm_tool',
         `Confirm: ${this._toolDisplayName || this._toolName}`,
-        { tool: this._toolDisplayName || this._toolName },
+        { tool: this._toolDisplayName || this._toolName || 'tool' },
       ),
       prompt: this.getDescription(),
       onConfirm: async (outcome: ToolConfirmationOutcome) => {

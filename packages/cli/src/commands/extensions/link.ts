@@ -35,13 +35,13 @@ export async function handleLink(args: InstallArgs) {
       settings: loadSettings(workspaceDir).merged,
     });
     await extensionManager.loadExtensions();
-    const extensionName =
+    const extensionName: string =
       await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
       t(
         'commands.extensions.link.success',
         'Extension "{extensionName}" linked successfully and enabled.',
-        { extensionName },
+        { extensionName: extensionName as string },
       ),
     );
   } catch (error) {

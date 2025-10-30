@@ -40,7 +40,7 @@ export async function handleDisable(args: DisableArgs) {
       t(
         'commands.extensions.disable.success',
         `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
-        { name: args.name, scope: args.scope },
+        { name: args.name, scope: args.scope || 'user' },
       ),
     );
   } catch (error) {
