@@ -17,7 +17,7 @@ interface DisableArgs {
   scope?: string;
 }
 
-export function handleDisable(args: DisableArgs) {
+export async function handleDisable(args: DisableArgs) {
   const workspaceDir = process.cwd();
   const extensionManager = new ExtensionManager({
     workspaceDir,
@@ -25,19 +25,22 @@ export function handleDisable(args: DisableArgs) {
     requestSetting: promptForSetting,
     settings: loadSettings(workspaceDir).merged,
   });
-  extensionManager.loadExtensions();
+  await extensionManager.loadExtensions();
 
   try {
-    const scope =
-      args.scope?.toLowerCase() === 'workspace'
-        ? SettingScope.Workspace
-        : SettingScope.User;
-    extensionManager.disableExtension(args.name, scope);
+    if (args.scope?.toLowerCase() === 'workspace') {
+      await extensionManager.disableExtension(
+        args.name,
+        SettingScope.Workspace,
+      );
+    } else {
+      await extensionManager.disableExtension(args.name, SettingScope.User);
+    }
     debugLogger.log(
       t(
         'commands.extensions.disable.success',
-        `Extension "${args.name}" successfully disabled for scope "${args.scope ?? scope}".`,
-        { name: args.name, scope: args.scope ?? scope },
+        `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
+        { name: args.name, scope: args.scope },
       ),
     );
   } catch (error) {
