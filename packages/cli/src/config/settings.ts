@@ -65,7 +65,7 @@ const MIGRATION_MAP: Record<string, string> = {
   autoAccept: 'tools.autoAccept',
   autoConfigureMaxOldSpaceSize: 'advanced.autoConfigureMemory',
   bugCommand: 'advanced.bugCommand',
-  chatCompression: 'model.chatCompression',
+  chatCompression: 'model.compressionThreshold',
   checkpointing: 'general.checkpointing',
   coreTools: 'tools.core',
   contextFileName: 'context.fileName',
@@ -747,22 +747,24 @@ export function loadSettings(
     migratedInMemorScopes,
   );
 
-  // Validate chatCompression settings
-  const chatCompression = loadedSettings.merged.model?.chatCompression;
-  const threshold = chatCompression?.contextPercentageThreshold;
+  // Validate compressionThreshold settings
+  const compressionThreshold =
+    loadedSettings.merged.model?.compressionThreshold;
   if (
-    threshold != null &&
-    (typeof threshold !== 'number' || threshold < 0 || threshold > 1)
+    compressionThreshold != null &&
+    (typeof compressionThreshold !== 'number' ||
+      compressionThreshold < 0 ||
+      compressionThreshold > 1)
   ) {
     console.warn(
       t(
-        'settings.chatCompression.invalid_threshold',
-        `Invalid value for chatCompression.contextPercentageThreshold: "${threshold}". Please use a value between 0 and 1. Using default compression settings.`,
-        { threshold: String(threshold) },
+        'settings.compressionThreshold.invalid_threshold',
+        `Invalid value for compressionThreshold: "${compressionThreshold}". Please use a value between 0 and 1. Using default compression settings.`,
+        { threshold: String(compressionThreshold) },
       ),
     );
     if (loadedSettings.merged.model) {
-      delete loadedSettings.merged.model.chatCompression;
+      delete loadedSettings.merged.model.compressionThreshold;
     }
   }
 
