@@ -389,6 +389,21 @@ const SETTINGS_SCHEMA = {
             description: 'Hide the model name and context usage in the footer.',
             showInDialog: true,
           },
+          hideContextPercentage: {
+            type: 'boolean',
+            label: t(
+              'settings_dialog.labels.hide_context_percentage',
+              'Hide Context Window Percentage',
+            ),
+            category: 'UI',
+            requiresRestart: false,
+            default: true,
+            description: t(
+              'settings_dialog.descriptions.hide_context_percentage',
+              'Hides the context window remaining percentage.',
+            ),
+            showInDialog: true,
+          },
         },
       },
       hideFooter: {

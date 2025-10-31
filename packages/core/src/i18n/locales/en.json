@@ -854,6 +854,7 @@
       "hide_tips": "Hide Tips",
       "hide_banner": "Hide Banner",
       "hide_footer": "Hide Footer",
+      "hide_context_percentage": "Hide Context Window Percentage",
       "vim_mode": "Vim Mode",
       "ide_mode": "IDE Mode",
       "disable_loading_phrases": "Disable Loading Phrases",
@@ -875,7 +876,8 @@
     "descriptions": {
       "auto_accept": "Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).",
       "custom_witty_phrases": "Custom witty phrases to display during loading.",
-      "use_full_width": "Use the entire width of the terminal for output."
+      "use_full_width": "Use the entire width of the terminal for output.",
+      "hide_context_percentage": "Hides the context window remaining percentage."
     }
   },
   "editor_dialog": {

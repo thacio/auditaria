@@ -851,6 +851,7 @@
       "hide_tips": "Ocultar Dicas",
       "hide_banner": "Ocultar Banner",
       "hide_footer": "Ocultar Rodapé",
+      "hide_context_percentage": "Ocultar Porcentagem da Janela de Contexto",
       "vim_mode": "Modo Vim",
       "ide_mode": "Modo IDE",
       "disable_loading_phrases": "Desabilitar Frases de Carregamento",
@@ -872,7 +873,8 @@
     "descriptions": {
       "auto_accept": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
       "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento.",
-      "use_full_width": "Usar toda a largura do terminal para saída."
+      "use_full_width": "Usar toda a largura do terminal para saída.",
+      "hide_context_percentage": "Oculta a porcentagem restante da janela de contexto."
     }
   },
   "editor_dialog": {
