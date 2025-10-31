@@ -5,9 +5,14 @@
  */
 
 import type React from 'react';
+import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { shortenPath, tildeifyPath } from '@thacio/auditaria-cli-core';
+import {
+  shortenPath,
+  tildeifyPath,
+  tokenLimit,
+} from '@thacio/auditaria-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import Gradient from 'ink-gradient';
@@ -19,12 +24,18 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { useVimMode } from '../contexts/VimModeContext.js';
+// WEB_INTERFACE_START: Import FooterContext for web interface synchronization
+import { useFooter } from '../contexts/FooterContext.js';
+// WEB_INTERFACE_END
 
 export const Footer: React.FC = () => {
   const uiState = useUIState();
   const config = useConfig();
   const settings = useSettings();
   const { vimEnabled, vimMode } = useVimMode();
+  // WEB_INTERFACE_START: Get footer context for syncing to web interface
+  const footerContext = useFooter();
+  // WEB_INTERFACE_END
 
   const {
     model,
@@ -70,6 +81,58 @@ export const Footer: React.FC = () => {
   const displayVimMode = vimEnabled ? vimMode : undefined;
 
   const showDebugProfiler = debugMode || isDevelopment;
+
+  // WEB_INTERFACE_START: Sync footer data to FooterContext for web interface
+  useEffect(() => {
+    if (footerContext) {
+      // Determine sandbox status
+      let sandboxStatus = 'no sandbox';
+      if (isTrustedFolder === false) {
+        sandboxStatus = 'untrusted';
+      } else if (
+        process.env['SANDBOX'] &&
+        process.env['SANDBOX'] !== 'sandbox-exec'
+      ) {
+        sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+      } else if (process.env['SANDBOX'] === 'sandbox-exec') {
+        sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
+      }
+
+      // Calculate context percentage LEFT (matching ContextUsageDisplay logic)
+      const percentage = promptTokenCount / tokenLimit(model);
+      const percentageLeft = (1 - percentage) * 100;
+
+      footerContext.updateFooterData({
+        targetDir,
+        branchName,
+        model,
+        contextPercentage: percentageLeft,
+        sandboxStatus,
+        errorCount,
+        debugMode,
+        debugMessage,
+        corgiMode,
+        showMemoryUsage,
+        nightly,
+        showErrorDetails,
+      });
+    }
+  }, [
+    footerContext,
+    targetDir,
+    branchName,
+    model,
+    promptTokenCount,
+    isTrustedFolder,
+    errorCount,
+    debugMode,
+    debugMessage,
+    corgiMode,
+    showMemoryUsage,
+    nightly,
+    showErrorDetails,
+  ]);
+  // WEB_INTERFACE_END
 
   return (
     <Box
