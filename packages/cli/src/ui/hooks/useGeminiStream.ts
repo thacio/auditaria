@@ -1108,6 +1108,12 @@ export const useGeminiStream = (
               }
               if (loopDetectedRef.current) {
                 loopDetectedRef.current = false;
+                // Pre-start terminal capture for web interface before showing dialog
+                const preStartCapture = (global as Record<string, unknown>)
+                  .__preStartTerminalCapture;
+                if (typeof preStartCapture === 'function') {
+                  preStartCapture();
+                }
                 // Show the confirmation dialog to choose whether to disable loop detection
                 setLoopDetectionConfirmationRequest({
                   onComplete: (result: {
