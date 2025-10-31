@@ -299,6 +299,16 @@
         "install_help": "You can install this using \"auditaria extensions link {path}\" to test it out.",
         "path_exists": "Path already exists: {path}"
       },
+      "validate": {
+        "description": "Validates an extension from a local path.",
+        "path_description": "The path of the extension to validate.",
+        "success": "Extension {path} has been successfully validated.",
+        "missing_context_files": "The following context files referenced in gemini-extension.json are missing: {files}",
+        "invalid_semver": "Warning: Version '{version}' does not appear to be standard semver (e.g., 1.0.0).",
+        "warnings_header": "Validation warnings:",
+        "errors_header": "Validation failed with the following errors:",
+        "failed": "Extension validation failed."
+      },
       "updates_available_singular": "You have 1 extension with an update available, run \"/extensions list\" for more information.",
       "updates_available_plural": "You have {count} extensions with an update available, run \"/extensions list\" for more information."
     },
