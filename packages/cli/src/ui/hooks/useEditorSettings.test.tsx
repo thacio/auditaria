@@ -14,7 +14,7 @@ import {
   type MockedFunction,
 } from 'vitest';
 import { act } from 'react';
-import { render } from 'ink-testing-library';
+import { render } from '../../test-utils/render.js';
 import { useEditorSettings } from './useEditorSettings.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import { SettingScope } from '../../config/settings.js';
@@ -24,8 +24,6 @@ import {
   checkHasEditorType,
   allowEditorTypeInSandbox,
 } from '@thacio/auditaria-cli-core';
-import { SettingsContext } from '../contexts/SettingsContext.js';
-import { type ReactNode } from 'react';
 
 vi.mock('@thacio/auditaria-cli-core', async () => {
   const actual = await vi.importActual('@thacio/auditaria-cli-core');
