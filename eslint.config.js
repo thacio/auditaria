@@ -162,6 +162,33 @@ export default tseslint.config(
     },
   },
   {
+    // Prevent self-imports in packages
+    files: ['packages/core/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          name: '@thacio/auditaria-cli-core',
+          message:
+            'Please use relative imports within the @thacio/auditaria-cli-core package.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/cli/src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          name: '@thacio/auditaria-cli',
+          message:
+            'Please use relative imports within the @thacio/auditaria-cli package.',
+        },
+      ],
+    },
+  },
+  {
     files: ['packages/*/src/**/*.test.{ts,tsx}'],
     plugins: {
       vitest,

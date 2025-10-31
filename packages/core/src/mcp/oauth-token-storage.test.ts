@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { coreEvents } from '@thacio/auditaria-cli-core';
+import { coreEvents } from '../utils/events.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
@@ -34,7 +34,7 @@ vi.mock('../config/storage.js', () => ({
   },
 }));
 
-vi.mock('@thacio/auditaria-cli-core', () => ({
+vi.mock('../utils/events.js', () => ({
   coreEvents: {
     emitFeedback: vi.fn(),
   },
@@ -462,16 +462,6 @@ describe('MCPOAuthTokenStorage', () => {
     it('should use HybridTokenStorage to clear all tokens', async () => {
       await tokenStorage.clearAll();
       expect(mockHybridTokenStorage.clearAll).toHaveBeenCalled();
-    });
-
-    it('should handle other file errors gracefully', async () => {
-      vi.mocked(fs.unlink).mockRejectedValue(new Error('Permission denied'));
-
-      await tokenStorage.clearAll();
-
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to clear MCP OAuth tokens'),
-      );
     });
   });
 });

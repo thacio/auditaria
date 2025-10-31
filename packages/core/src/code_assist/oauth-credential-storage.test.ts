@@ -8,7 +8,7 @@ import { type Credentials } from 'google-auth-library';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OAuthCredentialStorage } from './oauth-credential-storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
-import { coreEvents } from '@thacio/auditaria-cli-core';
+import { coreEvents } from '../utils/events.js';
 
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -31,7 +31,7 @@ vi.mock('node:fs', () => ({
 }));
 vi.mock('node:os');
 vi.mock('node:path');
-vi.mock('@thacio/auditaria-cli-core', () => ({
+vi.mock('../utils/events.js', () => ({
   coreEvents: {
     emitFeedback: vi.fn(),
   },
@@ -58,7 +58,7 @@ describe('OAuthCredentialStorage', () => {
     updatedAt: expect.any(Number),
   };
 
-  const oldFilePath = '/mock/home/.auditaria/oauth.json';
+  const oldFilePath = '/mock/home/.gemini/oauth.json';
 
   beforeEach(() => {
     vi.spyOn(mockHybridTokenStorage, 'getCredentials').mockResolvedValue(null);
