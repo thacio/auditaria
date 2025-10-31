@@ -57,47 +57,49 @@ export function LoopDetectionConfirmation({
   ];
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={theme.status.warning}
-      width="100%"
-      marginLeft={1}
-    >
-      <Box paddingX={1} paddingY={0} flexDirection="column">
-        <Box minHeight={1}>
-          <Box minWidth={3}>
-            <Text
-              color={theme.status.warning}
-              aria-label={t(
-                'loop_detection.confirmation.aria_label',
-                'Loop detected:',
-              )}
-            >
-              ?
-            </Text>
-          </Box>
-          <Box>
-            <Text wrap="truncate-end">
-              <Text color={theme.text.primary} bold>
-                {t(
-                  'loop_detection.confirmation.title',
-                  'A potential loop was detected',
+    <Box width="100%" flexDirection="row">
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={theme.status.warning}
+        flexGrow={1}
+        marginLeft={1}
+      >
+        <Box paddingX={1} paddingY={0} flexDirection="column">
+          <Box minHeight={1}>
+            <Box minWidth={3}>
+              <Text
+                color={theme.status.warning}
+                aria-label={t(
+                  'loop_detection.confirmation.aria_label',
+                  'Loop detected:',
                 )}
-              </Text>{' '}
-            </Text>
+              >
+                ?
+              </Text>
+            </Box>
+            <Box>
+              <Text wrap="truncate-end">
+                <Text color={theme.text.primary} bold>
+                  {t(
+                    'loop_detection.confirmation.title',
+                    'A potential loop was detected',
+                  )}
+                </Text>{' '}
+              </Text>
+            </Box>
           </Box>
-        </Box>
-        <Box width="100%" marginTop={1}>
-          <Box flexDirection="column">
-            <Text color={theme.text.secondary}>
-              {t(
-                'loop_detection.confirmation.description',
-                'This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?',
-              )}
-            </Text>
-            <Box marginTop={1}>
-              <RadioButtonSelect items={OPTIONS} onSelect={onComplete} />
+          <Box marginTop={1}>
+            <Box flexDirection="column">
+              <Text color={theme.text.secondary}>
+                {t(
+                  'loop_detection.confirmation.description',
+                  'This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?',
+                )}
+              </Text>
+              <Box marginTop={1}>
+                <RadioButtonSelect items={OPTIONS} onSelect={onComplete} />
+              </Box>
             </Box>
           </Box>
         </Box>
