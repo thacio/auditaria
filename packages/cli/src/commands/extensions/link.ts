@@ -40,7 +40,7 @@ export async function handleLink(args: InstallArgs) {
     debugLogger.log(
       t(
         'commands.extensions.link.success',
-        'Extension "{extensionName}" linked successfully and enabled.',
+        `Extension "${extension.name}" linked successfully and enabled.`,
         { extensionName: extension.name },
       ),
     );
