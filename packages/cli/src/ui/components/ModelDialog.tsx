@@ -119,7 +119,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         <Text color={theme.text.secondary}>
           {t(
             'model_dialog.messages.model_flag_help',
-            '> To use a specific Gemini model, use the --model flag.',
+            '> To use a specific Gemini model on startup, use the --model flag.',
           )}
         </Text>
       </Box>

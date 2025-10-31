@@ -918,7 +918,7 @@
       }
     },
     "messages": {
-      "model_flag_help": "> To use a specific Gemini model, use the --model flag.",
+      "model_flag_help": "> To use a specific Gemini model on startup, use the --model flag.",
       "press_esc_to_close": "(Press Esc to close)"
     }
   },
