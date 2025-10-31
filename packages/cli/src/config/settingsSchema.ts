@@ -397,7 +397,7 @@ const SETTINGS_SCHEMA = {
             ),
             category: 'UI',
             requiresRestart: false,
-            default: true,
+            default: false,
             description: t(
               'settings_dialog.descriptions.hide_context_percentage',
               'Hides the context window remaining percentage.',
