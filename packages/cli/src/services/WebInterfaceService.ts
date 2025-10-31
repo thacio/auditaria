@@ -905,21 +905,8 @@ export class WebInterfaceService extends EventEmitter {
         this.confirmationResponseHandler(message.callId, outcome, message.payload);
       }
     } else if (message.type === 'terminal_input' && message.key) {
-      // WEB_INTERFACE_START: Directly emit on process.stdin for VSCode compatibility
-      // This bypasses all event chains and treats web keypresses like real terminal input
-      const syntheticKey = {
-        name: message.key.name || '',
-        sequence: message.key.sequence || '',
-        ctrl: message.key.ctrl || false,
-        meta: message.key.meta || false,
-        shift: message.key.shift || false,
-        paste: false,
-      };
-      
-      // Emit directly on stdin where Ink is listening
-      process.stdin.emit('keypress', syntheticKey.sequence, syntheticKey);
-      
-      // Also emit the event for backward compatibility
+      // WEB_INTERFACE_START: Forward terminal input to AppContainer
+      // AppContainer will handle emitting the correct event type based on Ink's mode
       this.emit('terminal_input', message.key);
       // WEB_INTERFACE_END
     }

@@ -1362,21 +1362,10 @@ Logging in with Google... Please restart Gemini CLI to continue.
       shift?: boolean;
       alt?: boolean;
     }) => {
-      // Create a synthetic key event that matches the Ink key format
-      const syntheticKey = {
-        name: keyData.name,
-        sequence: keyData.sequence,
-        ctrl: keyData.ctrl || false,
-        meta: keyData.meta || false,
-        shift: keyData.shift || false,
-        alt: keyData.alt || false,
-        raw: keyData.sequence || '',
-      };
-
-      // Emit synthetic keypress event to all listeners
-      if (isAnyInteractiveScreenOpen) {
-        // Fix for VSCode terminal ESC key handling
-        process.stdin.emit('keypress', syntheticKey.sequence, syntheticKey);
+      // Only emit when interactive screens are open (terminal capture is active)
+      if (isAnyInteractiveScreenOpen && keyData.sequence) {
+        // Emit as 'data' event - Ink's KeypressProvider in PassThrough mode listens for 'data', not 'keypress'
+        process.stdin.emit('data', keyData.sequence);
       }
     };
 
