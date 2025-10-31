@@ -38,11 +38,12 @@ const updateOutput = (info: ExtensionUpdateInfo) =>
 
 export async function handleUpdate(args: UpdateArgs) {
   const workspaceDir = process.cwd();
+  const settings = loadSettings(workspaceDir).merged;
   const extensionManager = new ExtensionManager({
     workspaceDir,
     requestConsent: requestConsentNonInteractive,
     requestSetting: promptForSetting,
-    settings: loadSettings(workspaceDir).merged,
+    settings,
   });
 
   const extensions = await extensionManager.loadExtensions();
@@ -91,6 +92,7 @@ export async function handleUpdate(args: UpdateArgs) {
         extensionManager,
         updateState,
         () => {},
+        settings.experimental?.extensionReloading,
       ))!;
       if (
         updatedExtensionInfo.originalVersion !==
