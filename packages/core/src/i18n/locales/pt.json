@@ -1701,6 +1701,7 @@
     "continue_with_model": "Continuar com {model}"
   },
   "quota": {
+    "daily_quota_exhausted": "Você esgotou sua cota diária neste modelo.",
     "pro_exceeded_paid": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
     "pro_exceeded_free": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
     "retryable_throttle_paid": "⚡ Suas requisições estão sendo limitadas no momento devido ao servidor estar com capacidade total para {failedModel}.\n⚡ Alternando automaticamente de {failedModel} para {fallbackModel} pelo restante desta sessão.\n⚡ Para continuar acessando o modelo {failedModel}, tente novamente sua requisição após algum tempo ou considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",

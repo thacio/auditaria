@@ -1704,6 +1704,7 @@
     "continue_with_model": "Continue with {model}"
   },
   "quota": {
+    "daily_quota_exhausted": "You have exhausted your daily quota on this model.",
     "pro_exceeded_paid": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To continue accessing the {model} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "pro_exceeded_free": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
     "retryable_throttle_paid": "⚡ Your requests are being throttled right now due to server being at capacity for {failedModel}.\n⚡ Automatically switching from {failedModel} to {fallbackModel} for the remainder of this session.\n⚡ To continue accessing the {failedModel} model, retry your request after some time or consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",

@@ -11,6 +11,7 @@ import type {
   RetryInfo,
 } from './googleErrors.js';
 import { parseGoogleApiError } from './googleErrors.js';
+import { t } from '../i18n/index.js';
 
 /**
  * A non-retryable error indicating a hard quota limit has been reached (e.g., daily limit).
@@ -96,7 +97,10 @@ export function classifyGoogleError(error: unknown): unknown {
       const quotaId = violation.quotaId ?? '';
       if (quotaId.includes('PerDay') || quotaId.includes('Daily')) {
         return new TerminalQuotaError(
-          `${googleApiError.message}\nExpected quota reset within 24h.`,
+          t(
+            'quota.daily_quota_exhausted',
+            'You have exhausted your daily quota on this model.',
+          ),
           googleApiError,
         );
       }
@@ -139,7 +143,10 @@ export function classifyGoogleError(error: unknown): unknown {
     const quotaLimit = errorInfo.metadata?.['quota_limit'] ?? '';
     if (quotaLimit.includes('PerDay') || quotaLimit.includes('Daily')) {
       return new TerminalQuotaError(
-        `${googleApiError.message}\nExpected quota reset within 24h.`,
+        t(
+          'quota.daily_quota_exhausted',
+          'You have exhausted your daily quota on this model.',
+        ),
         googleApiError,
       );
     }
