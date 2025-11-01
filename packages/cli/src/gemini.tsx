@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render } from 'ink';
+import { render, type RenderOptions } from 'ink';
 import { AppContainer } from './ui/AppContainer.js';
 import { loadCliConfig, parseArguments } from './config/config.js';
 import * as cliConfig from './config/config.js';
@@ -42,6 +42,7 @@ import {
   t,
   UserPromptEvent,
   debugLogger,
+  recordSlowRender,
 } from '@thacio/auditaria-cli-core';
 import {
   initializeApp,
@@ -79,6 +80,8 @@ import { LoadingStateProvider } from './ui/contexts/LoadingStateContext.js';
 import { ToolConfirmationProvider } from './ui/contexts/ToolConfirmationContext.js';
 import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
+
+const SLOW_RENDER_MS = 200;
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -260,7 +263,12 @@ export async function startInteractiveUI(
     {
       exitOnCtrlC: false,
       isScreenReaderEnabled: config.getScreenReader(),
-    },
+      onRender: ({ renderTime }: { renderTime: number }) => {
+        if (renderTime > SLOW_RENDER_MS) {
+          recordSlowRender(config, renderTime);
+        }
+      },
+    } as RenderOptions,
   );
 
   checkForUpdates(settings)
