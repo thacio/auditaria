@@ -228,6 +228,8 @@
         "source_not_found": "Install source not found.",
         "success": "Extension \"{extensionName}\" installed successfully and enabled.",
         "untrusted_folder": "Could not install extension from untrusted folder at {source}",
+        "workspace_not_trusted_prompt": "The current workspace at \"{workspaceDir}\" is not trusted. Do you want to trust this workspace to install extensions?",
+        "workspace_not_trusted_error": "Could not install extension because the current workspace at {workspaceDir} is not trusted.",
         "github": {
           "invalid_source": "Invalid GitHub repository source: {source}. Expected \"owner/repo\" or a github repo uri.",
           "ssh_not_supported": "GitHub release-based extensions are not supported for SSH. You must use an HTTPS URI with a personal access token to download releases from private repositories. You can set your personal access token in the GITHUB_TOKEN environment variable and install the extension via SSH."

@@ -225,6 +225,8 @@
         "source_not_found": "Fonte de instalação não encontrada.",
         "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
         "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}",
+        "workspace_not_trusted_prompt": "O workspace atual em \"{workspaceDir}\" não é confiável. Você deseja confiar neste workspace para instalar extensões?",
+        "workspace_not_trusted_error": "Não foi possível instalar a extensão porque o workspace atual em {workspaceDir} não é confiável.",
         "github": {
           "invalid_source": "Fonte de repositório GitHub inválida: {source}. Esperado \"proprietário/repo\" ou uma URI de repositório github.",
           "ssh_not_supported": "Extensões baseadas em releases do GitHub não são suportadas para SSH. Você deve usar uma URI HTTPS com um token de acesso pessoal para baixar releases de repositórios privados. Você pode definir seu token de acesso pessoal na variável de ambiente GITHUB_TOKEN e instalar a extensão via SSH."
