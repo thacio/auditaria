@@ -1602,7 +1602,8 @@
   "utils": {
     "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}.",
     "proxy": {
-      "failed_to_set": "Falha ao configurar proxy: {error}"
+      "failed_to_set": "Falha ao configurar proxy: {error}",
+      "invalid_configuration": "Configuração de proxy inválida detectada. Verifique a gaveta de depuração para mais detalhes (F12)"
     }
   },
   "ide_installer": {

@@ -1613,7 +1613,8 @@
   "utils": {
     "unknown_platform_url_open": "Unknown platform: {platform}. Attempting to open URLs with: {openCmd}.",
     "proxy": {
-      "failed_to_set": "Failed to set proxy: {error}"
+      "failed_to_set": "Failed to set proxy: {error}",
+      "invalid_configuration": "Invalid proxy configuration detected. Check debug drawer for more details (F12)"
     }
   },
   "ide_installer": {
