@@ -52,7 +52,7 @@ import {
   coreEvents,
   CoreEvent,
   type ModelChangedPayload,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
 import { getPolicyErrorsForUI } from '../config/policy.js';
