@@ -14,9 +14,10 @@ import type {
   BugCommandSettings,
   TelemetrySettings,
   AuthType,
+  HookDefinition,
+  HookEventName,
 } from '@thacio/auditaria-cli-core';
 import {
-  t,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
   DEFAULT_GEMINI_MODEL,
@@ -391,17 +392,11 @@ const SETTINGS_SCHEMA = {
           },
           hideContextPercentage: {
             type: 'boolean',
-            label: t(
-              'settings_dialog.labels.hide_context_percentage',
-              'Hide Context Window Percentage',
-            ),
+            label: 'Hide Context Window Percentage',
             category: 'UI',
             requiresRestart: false,
-            default: false,
-            description: t(
-              'settings_dialog.descriptions.hide_context_percentage',
-              'Hides the context window remaining percentage.',
-            ),
+            default: true,
+            description: 'Hides the context window remaining percentage.',
             showInDialog: true,
           },
         },
@@ -433,15 +428,6 @@ const SETTINGS_SCHEMA = {
         description: 'Show line numbers in the chat.',
         showInDialog: true,
       },
-      language: {
-        type: 'string',
-        label: 'Language',
-        category: 'UI',
-        requiresRestart: false,
-        default: undefined as string | undefined,
-        description: 'The preferred language for the interface.',
-        showInDialog: false,
-      },
       showCitations: {
         type: 'boolean',
         label: 'Show Citations',
@@ -453,29 +439,20 @@ const SETTINGS_SCHEMA = {
       },
       useFullWidth: {
         type: 'boolean',
-        label: t('settings_dialog.labels.use_full_width', 'Use Full Width'),
+        label: 'Use Full Width',
         category: 'UI',
         requiresRestart: false,
         default: false,
-        description: t(
-          'settings_dialog.descriptions.use_full_width',
-          'Use the entire width of the terminal for output.',
-        ),
+        description: 'Use the entire width of the terminal for output.',
         showInDialog: true,
       },
       customWittyPhrases: {
         type: 'array',
-        label: t(
-          'settings_dialog.labels.custom_witty_phrases',
-          'Custom Witty Phrases',
-        ),
+        label: 'Custom Witty Phrases',
         category: 'UI',
         requiresRestart: false,
         default: [] as string[],
-        description: t(
-          'settings_dialog.descriptions.custom_witty_phrases',
-          'Custom witty phrases to display during loading.',
-        ),
+        description: 'Custom witty phrases to display during loading.',
         showInDialog: false,
       },
       accessibility: {
@@ -800,14 +777,12 @@ const SETTINGS_SCHEMA = {
       },
       autoAccept: {
         type: 'boolean',
-        label: t('settings_dialog.labels.auto_accept', 'Auto Accept'),
+        label: 'Auto Accept',
         category: 'Tools',
         requiresRestart: false,
         default: false,
-        description: t(
-          'settings_dialog.descriptions.auto_accept',
+        description:
           'Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).',
-        ),
         showInDialog: true,
       },
       core: {
@@ -878,48 +853,42 @@ const SETTINGS_SCHEMA = {
       },
       truncateToolOutputThreshold: {
         type: 'number',
-        label: t(
-          'settings.tools.truncate_output_threshold.label',
-          'Tool Output Truncation Threshold',
-        ),
+        label: 'Tool Output Truncation Threshold',
         category: 'General',
         requiresRestart: true,
         default: DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
-        description: t(
-          'settings.tools.truncate_output_threshold.description',
+        description:
           'Truncate tool output if it is larger than this many characters. Set to -1 to disable.',
-        ),
         showInDialog: true,
       },
       truncateToolOutputLines: {
         type: 'number',
-        label: t(
-          'settings.tools.truncate_output_lines.label',
-          'Tool Output Truncation Lines',
-        ),
+        label: 'Tool Output Truncation Lines',
         category: 'General',
         requiresRestart: true,
         default: DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
-        description: t(
-          'settings.tools.truncate_output_lines.description',
-          'The number of lines to keep when truncating tool output.',
-        ),
+        description: 'The number of lines to keep when truncating tool output.',
         showInDialog: true,
       },
       enableMessageBusIntegration: {
         type: 'boolean',
-        label: t(
-          'settings.tools.enable_message_bus_integration.label',
-          'Enable Message Bus Integration',
-        ),
+        label: 'Enable Message Bus Integration',
         category: 'Tools',
         requiresRestart: true,
         default: false,
-        description: t(
-          'settings.tools.enable_message_bus_integration.description',
+        description:
           'Enable policy-based tool confirmation via message bus integration. When enabled, tools will automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations.',
-        ),
         showInDialog: true,
+      },
+      enableHooks: {
+        type: 'boolean',
+        label: 'Enable Hooks System',
+        category: 'Advanced',
+        requiresRestart: true,
+        default: false,
+        description:
+          'Enable the hooks system for intercepting and customizing Gemini CLI behavior. When enabled, hooks configured in settings will execute at appropriate lifecycle events (BeforeTool, AfterTool, BeforeModel, etc.). Requires MessageBus integration.',
+        showInDialog: false,
       },
     },
   },
@@ -1241,6 +1210,18 @@ const SETTINGS_SCHEMA = {
         mergeStrategy: MergeStrategy.UNION,
       },
     },
+  },
+
+  hooks: {
+    type: 'object',
+    label: 'Hooks',
+    category: 'Advanced',
+    requiresRestart: false,
+    default: {} as { [K in HookEventName]?: HookDefinition[] },
+    description:
+      'Hook configurations for intercepting and customizing agent behavior.',
+    showInDialog: false,
+    mergeStrategy: MergeStrategy.SHALLOW_MERGE,
   },
 } as const satisfies SettingsSchema;
 
