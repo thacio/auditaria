@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t , debugLogger } from '@thacio/auditaria-cli-core';
+import { t, debugLogger } from '@thacio/auditaria-cli-core';
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
@@ -466,6 +466,31 @@ export function SettingsDialog({
   const showScrollUp = items.length > effectiveMaxItemsToShow;
   const showScrollDown = items.length > effectiveMaxItemsToShow;
 
+  const saveRestartRequiredSettings = () => {
+    const restartRequiredSettings =
+      getRestartRequiredFromModified(modifiedSettings);
+    const restartRequiredSet = new Set(restartRequiredSettings);
+
+    if (restartRequiredSet.size > 0) {
+      saveModifiedSettings(
+        restartRequiredSet,
+        pendingSettings,
+        settings,
+        selectedScope,
+      );
+
+      // Remove saved keys from global pending changes
+      setGlobalPendingChanges((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Map(prev);
+        for (const key of restartRequiredSet) {
+          next.delete(key);
+        }
+        return next;
+      });
+    }
+  };
+
   useKeypress(
     (key) => {
       const { name, ctrl } = key;
@@ -712,28 +737,7 @@ export function SettingsDialog({
       }
       if (showRestartPrompt && name === 'r') {
         // Only save settings that require restart (non-restart settings were already saved immediately)
-        const restartRequiredSettings =
-          getRestartRequiredFromModified(modifiedSettings);
-        const restartRequiredSet = new Set(restartRequiredSettings);
-
-        if (restartRequiredSet.size > 0) {
-          saveModifiedSettings(
-            restartRequiredSet,
-            pendingSettings,
-            settings,
-            selectedScope,
-          );
-
-          // Remove saved keys from global pending changes
-          setGlobalPendingChanges((prev) => {
-            if (prev.size === 0) return prev;
-            const next = new Map(prev);
-            for (const key of restartRequiredSet) {
-              next.delete(key);
-            }
-            return next;
-          });
-        }
+        saveRestartRequiredSettings();
 
         setShowRestartPrompt(false);
         setRestartRequiredSettings(new Set()); // Clear restart-required settings
@@ -743,6 +747,8 @@ export function SettingsDialog({
         if (editingKey) {
           commitEdit(editingKey);
         } else {
+          // Save any restart-required settings before closing
+          saveRestartRequiredSettings();
           onSelect(undefined, selectedScope);
         }
       }
