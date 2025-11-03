@@ -398,6 +398,16 @@ const SETTINGS_SCHEMA = {
           'Hide the context summary (GEMINI.md, MCP servers) above the input.',
         showInDialog: true,
       },
+      language: {
+        type: 'string',
+        label: 'Language',
+        category: 'UI',
+        requiresRestart: false,
+        default: undefined as string | undefined,
+        description:
+          'The language for the user interface. Available options: en, pt.',
+        showInDialog: true,
+      },
       footer: {
         type: 'object',
         label: 'Footer',
