@@ -1623,7 +1623,7 @@
     "model_prefix": "Modelo: ",
     "loading": "carregando",
     "responding": "respondendo",
-    "mode_notification": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\"."
+    "mode_notification": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\". Isso desaparecerá na próxima execução."
   },
   "debug_profiler": {
     "idle_frames_warning": "{count} frames foram renderizados enquanto o aplicativo estava ocioso no último segundo. Isso provavelmente indica bugs graves de loop infinito no gerenciamento de estado do React.",

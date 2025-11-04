@@ -1634,7 +1634,7 @@
     "model_prefix": "Model: ",
     "loading": "loading",
     "responding": "responding",
-    "mode_notification": "You are currently in screen reader-friendly view. To switch out, open {settingsPath} and remove the entry for \"screenReader\"."
+    "mode_notification": "You are currently in screen reader-friendly view. To switch out, open {settingsPath} and remove the entry for \"screenReader\". This will disappear on next run."
   },
   "gemini_stream": {
     "request_cancelled": "Request cancelled."
