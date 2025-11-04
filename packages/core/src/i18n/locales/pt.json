@@ -1329,6 +1329,7 @@
   },
   "non_interactive": {
     "operation_cancelled": "Operação cancelada.",
+    "cancelling": "Cancelando...",
     "tool_execution_error": "Erro ao executar ferramenta {toolName}: {error}",
     "auth_method_required": "Por favor, defina um método de autenticação em {settingsPath} ou especifique uma das seguintes variáveis de ambiente antes de executar: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA"
   },

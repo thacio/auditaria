@@ -1332,6 +1332,7 @@
   },
   "non_interactive": {
     "operation_cancelled": "Operation cancelled.",
+    "cancelling": "Cancelling...",
     "tool_execution_error": "Error executing tool {toolName}: {error}",
     "auth_method_required": "Please set an Auth method in your {settingsPath} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA"
   },
