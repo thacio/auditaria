@@ -5,16 +5,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { appEvents } from './../../utils/events.js';
+import { AppEvent, appEvents } from './../../utils/events.js';
 import { Box, Text } from 'ink';
-import { useConfig } from '../contexts/ConfigContext.js';
 import { type McpClient, MCPServerStatus, t } from '@thacio/auditaria-cli-core';
 import { GeminiSpinner } from './GeminiRespondingSpinner.js';
 import { theme } from '../semantic-colors.js';
 
 export const ConfigInitDisplay = () => {
-  const config = useConfig();
-  const [message, setMessage] = useState(t('ui.initialization.initializing', 'Initializing...'));
+  const [message, setMessage] = useState(
+    t('ui.initialization.initializing', 'Initializing...'),
+  );
 
   useEffect(() => {
     const onChange = (clients?: Map<string, McpClient>) => {
@@ -28,17 +28,23 @@ export const ConfigInitDisplay = () => {
           connected++;
         }
       }
-      setMessage(t('ui.initialization.connecting_mcp_servers', 'Connecting to MCP servers... ({connected}/{total})', {
-        connected: String(connected),
-        total: String(clients.size)
-      }));
+      setMessage(
+        t(
+          'ui.initialization.connecting_mcp_servers',
+          'Connecting to MCP servers... ({connected}/{total})',
+          {
+            connected: String(connected),
+            total: String(clients.size),
+          },
+        ),
+      );
     };
 
-    appEvents.on('mcp-client-update', onChange);
+    appEvents.on(AppEvent.McpClientUpdate, onChange);
     return () => {
-      appEvents.off('mcp-client-update', onChange);
+      appEvents.off(AppEvent.McpClientUpdate, onChange);
     };
-  }, [config]);
+  }, []);
 
   return (
     <Box marginTop={1}>
