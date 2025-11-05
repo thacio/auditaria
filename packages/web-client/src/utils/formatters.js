@@ -120,6 +120,8 @@ export function getTodoStatusIcon(status) {
             return '☐';
         case 'completed':
             return '☑';
+        case 'cancelled':
+            return '☒';
         default:
             return '☐';
     }

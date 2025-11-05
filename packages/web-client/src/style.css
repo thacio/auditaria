@@ -1076,6 +1076,15 @@ body {
     color: var(--tool-executing);
 }
 
+.todo-item.status-cancelled .todo-item-content {
+    text-decoration: line-through;
+    color: var(--text-subtle);
+}
+
+.todo-item.status-cancelled .todo-item-icon {
+    color: var(--error);
+}
+
 /* Tool Confirmation Dialog */
 .confirmation-dialog {
   position: fixed;

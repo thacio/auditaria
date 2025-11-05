@@ -144,8 +144,11 @@ function createToolOutput(tool) {
             toolOutputEl.appendChild(outputPreEl);
         }
     } else if (outputContent && typeof outputContent === 'object') {
-        // Handle diff/file output
-        if (outputContent.fileDiff) {
+        // Handle new write_todos tool format
+        if (outputContent.todos && Array.isArray(outputContent.todos)) {
+            toolOutputEl.appendChild(renderWriteTodosList(outputContent.todos));
+        } else if (outputContent.fileDiff) {
+            // Handle diff/file output
             const diffEl = createDiffOutput(outputContent);
             toolOutputEl.appendChild(diffEl);
         } else {
@@ -297,6 +300,46 @@ function renderTodoList(todos) {
         const contentEl = document.createElement('span');
         contentEl.className = 'todo-item-content';
         contentEl.textContent = todo.content;
+
+        todoItemEl.appendChild(iconEl);
+        todoItemEl.appendChild(contentEl);
+        todoListEl.appendChild(todoItemEl);
+    });
+
+    return todoListEl;
+}
+
+/**
+ * Render TODO list for new write_todos tool
+ */
+function renderWriteTodosList(todos) {
+    const todoListEl = document.createElement('div');
+    todoListEl.className = 'todo-list-container write-todos-container';
+
+    const titleEl = document.createElement('h4');
+    titleEl.className = 'todo-list-title';
+
+    // Calculate completion stats
+    const totalTodos = todos.length;
+    const activeTodos = todos.filter(t => t.status !== 'cancelled' && t.status !== 'completed').length;
+    const completedTodos = todos.filter(t => t.status === 'completed').length;
+    const cancelledTodos = todos.filter(t => t.status === 'cancelled').length;
+
+    titleEl.textContent = `Todos (${completedTodos}/${totalTodos - cancelledTodos} completed)`;
+    todoListEl.appendChild(titleEl);
+
+    todos.forEach((todo, index) => {
+        const todoItemEl = document.createElement('div');
+        todoItemEl.className = `todo-item status-${todo.status}`;
+
+        const iconEl = document.createElement('span');
+        iconEl.className = 'todo-item-icon';
+        iconEl.textContent = getTodoStatusIcon(todo.status);
+
+        const contentEl = document.createElement('span');
+        contentEl.className = 'todo-item-content';
+        // Use 'description' field from new write_todos format
+        contentEl.textContent = todo.description || todo.content || `Task ${index + 1}`;
 
         todoItemEl.appendChild(iconEl);
         todoItemEl.appendChild(contentEl);
