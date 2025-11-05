@@ -82,6 +82,7 @@ import { LoadingStateProvider } from './ui/contexts/LoadingStateContext.js';
 import { ToolConfirmationProvider } from './ui/contexts/ToolConfirmationContext.js';
 import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
+import { ScrollProvider } from './ui/contexts/ScrollProvider.js';
 
 const SLOW_RENDER_MS = 200;
 
@@ -233,36 +234,38 @@ export async function startInteractiveUI(
               settings.merged.general?.debugKeystrokeLogging
             }
           >
-            <SessionStatsProvider>
-              <VimModeProvider settings={settings}>
-                {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
-                <SubmitQueryProvider>
-                  <WebInterfaceProvider
-                    enabled={webEnabled}
-                    openBrowser={webOpenBrowser}
-                    port={webPort}
-                  >
-                    <FooterProvider>
-                      <LoadingStateProvider>
-                        <ToolConfirmationProvider>
-                          <TerminalCaptureWrapper>
-                            <AppContainer
-                              config={config}
-                              settings={settings}
-                              startupWarnings={startupWarnings}
-                              version={version}
-                              initializationResult={initializationResult}
-                              // Pass web interface flags (already handled in WebInterfaceProvider)
-                            />
-                          </TerminalCaptureWrapper>
-                        </ToolConfirmationProvider>
-                      </LoadingStateProvider>
-                    </FooterProvider>
-                  </WebInterfaceProvider>
-                </SubmitQueryProvider>
-                {/* WEB_INTERFACE_END */}
-              </VimModeProvider>
-            </SessionStatsProvider>
+            <ScrollProvider>
+              <SessionStatsProvider>
+                <VimModeProvider settings={settings}>
+                  {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
+                  <SubmitQueryProvider>
+                    <WebInterfaceProvider
+                      enabled={webEnabled}
+                      openBrowser={webOpenBrowser}
+                      port={webPort}
+                    >
+                      <FooterProvider>
+                        <LoadingStateProvider>
+                          <ToolConfirmationProvider>
+                            <TerminalCaptureWrapper>
+                              <AppContainer
+                                config={config}
+                                settings={settings}
+                                startupWarnings={startupWarnings}
+                                version={version}
+                                initializationResult={initializationResult}
+                                // Pass web interface flags (already handled in WebInterfaceProvider)
+                              />
+                            </TerminalCaptureWrapper>
+                          </ToolConfirmationProvider>
+                        </LoadingStateProvider>
+                      </FooterProvider>
+                    </WebInterfaceProvider>
+                  </SubmitQueryProvider>
+                  {/* WEB_INTERFACE_END */}
+                </VimModeProvider>
+              </SessionStatsProvider>
+            </ScrollProvider>
           </MouseProvider>
         </KeypressProvider>
       </SettingsContext.Provider>
