@@ -11,7 +11,10 @@ import { useCallback } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
-import type { LoadedSettings } from '../../config/settings.js';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+} from '../../config/settings.js';
 import { SettingScope } from '../../config/settings.js';
 import {
   AuthType,
@@ -115,7 +118,7 @@ export function AuthDialog({
   }
 
   const onSelect = useCallback(
-    async (authType: AuthType | undefined, scope: SettingScope) => {
+    async (authType: AuthType | undefined, scope: LoadableSettingScope) => {
       if (authType) {
         await clearCachedCredentialFile();
 

@@ -5,23 +5,38 @@
  */
 
 import { t } from '@thacio/auditaria-cli-core';
-import type { LoadedSettings } from '../config/settings.js';
-import { SettingScope } from '../config/settings.js';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+} from '../config/settings.js';
+import { isLoadableSettingScope, SettingScope } from '../config/settings.js';
 import { settingExistsInScope } from './settingsUtils.js';
 
 /**
  * Shared scope labels for dialog components that need to display setting scopes
  */
 export const SCOPE_LABELS = {
-  [SettingScope.User]: t('settings_dialog.scope_options.user_settings', 'User Settings'),
-  [SettingScope.Workspace]: t('settings_dialog.scope_options.workspace_settings', 'Workspace Settings'),
-  [SettingScope.System]: t('settings_dialog.scope_options.system_settings', 'System Settings'),
+  [SettingScope.User]: t(
+    'settings_dialog.scope_options.user_settings',
+    'User Settings',
+  ),
+  [SettingScope.Workspace]: t(
+    'settings_dialog.scope_options.workspace_settings',
+    'Workspace Settings',
+  ),
+  [SettingScope.System]: t(
+    'settings_dialog.scope_options.system_settings',
+    'System Settings',
+  ),
 } as const;
 
 /**
  * Helper function to get scope items for radio button selects
  */
-export function getScopeItems() {
+export function getScopeItems(): Array<{
+  label: string;
+  value: LoadableSettingScope;
+}> {
   return [
     { label: SCOPE_LABELS[SettingScope.User], value: SettingScope.User },
     {
@@ -37,12 +52,12 @@ export function getScopeItems() {
  */
 export function getScopeMessageForSetting(
   settingKey: string,
-  selectedScope: SettingScope,
+  selectedScope: LoadableSettingScope,
   settings: LoadedSettings,
 ): string {
-  const otherScopes = Object.values(SettingScope).filter(
-    (scope) => scope !== selectedScope,
-  );
+  const otherScopes = Object.values(SettingScope)
+    .filter(isLoadableSettingScope)
+    .filter((scope) => scope !== selectedScope);
 
   const modifiedInOtherScopes = otherScopes.filter((scope) => {
     const scopeSettings = settings.forScope(scope).settings;
@@ -61,6 +76,12 @@ export function getScopeMessageForSetting(
   );
 
   return existsInCurrentScope
-    ? t('settings_dialog.messages.also_modified_in', '(Also modified in {scope})', { scope: modifiedScopesStr })
-    : t('settings_dialog.messages.modified_in', '(Modified in {scope})', { scope: modifiedScopesStr });
+    ? t(
+        'settings_dialog.messages.also_modified_in',
+        '(Also modified in {scope})',
+        { scope: modifiedScopesStr },
+      )
+    : t('settings_dialog.messages.modified_in', '(Modified in {scope})', {
+        scope: modifiedScopesStr,
+      });
 }

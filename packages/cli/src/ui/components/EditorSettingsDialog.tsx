@@ -16,13 +16,19 @@ import {
   type EditorDisplay,
 } from '../editors/editorSettingsManager.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import type { LoadedSettings } from '../../config/settings.js';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+} from '../../config/settings.js';
 import { SettingScope } from '../../config/settings.js';
 import type { EditorType } from '@thacio/auditaria-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface EditorDialogProps {
-  onSelect: (editorType: EditorType | undefined, scope: SettingScope) => void;
+  onSelect: (
+    editorType: EditorType | undefined,
+    scope: LoadableSettingScope,
+  ) => void;
   settings: LoadedSettings;
   onExit: () => void;
 }
@@ -32,7 +38,7 @@ export function EditorSettingsDialog({
   settings,
   onExit,
 }: EditorDialogProps): React.JSX.Element {
-  const [selectedScope, setSelectedScope] = useState<SettingScope>(
+  const [selectedScope, setSelectedScope] = useState<LoadableSettingScope>(
     SettingScope.User,
   );
   const [focusedSection, setFocusedSection] = useState<'editor' | 'scope'>(
@@ -65,7 +71,11 @@ export function EditorSettingsDialog({
     editorIndex = 0;
   }
 
-  const scopeItems = [
+  const scopeItems: Array<{
+    label: string;
+    value: LoadableSettingScope;
+    key: string;
+  }> = [
     {
       label: t('editor_dialog.scope_options.user_settings', 'User Settings'),
       value: SettingScope.User,
@@ -89,7 +99,7 @@ export function EditorSettingsDialog({
     onSelect(editorType, selectedScope);
   };
 
-  const handleScopeSelect = (scope: SettingScope) => {
+  const handleScopeSelect = (scope: LoadableSettingScope) => {
     setSelectedScope(scope);
     setFocusedSection('editor');
   };

@@ -9,7 +9,11 @@ import { t, debugLogger } from '@thacio/auditaria-cli-core';
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import type { LoadedSettings, Settings } from '../../config/settings.js';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+  Settings,
+} from '../../config/settings.js';
 import { SettingScope } from '../../config/settings.js';
 import {
   getScopeItems,
@@ -64,7 +68,7 @@ export function SettingsDialog({
     'settings',
   );
   // Scope selector state (User by default)
-  const [selectedScope, setSelectedScope] = useState<SettingScope>(
+  const [selectedScope, setSelectedScope] = useState<LoadableSettingScope>(
     SettingScope.User,
   );
   // Active indices
@@ -371,11 +375,11 @@ export function SettingsDialog({
     key: item.value,
   }));
 
-  const handleScopeHighlight = (scope: SettingScope) => {
+  const handleScopeHighlight = (scope: LoadableSettingScope) => {
     setSelectedScope(scope);
   };
 
-  const handleScopeSelect = (scope: SettingScope) => {
+  const handleScopeSelect = (scope: LoadableSettingScope) => {
     handleScopeHighlight(scope);
     setFocusSection('settings');
   };

@@ -83,9 +83,7 @@ export interface CommandContext {
   // WEB_INTERFACE_START: Web interface management in command context
   // Web interface management
   web?: {
-    start: (
-      port?: string,
-    ) => Promise<{
+    start: (port?: string) => Promise<{
       type: 'message';
       messageType: 'info' | 'error';
       content: string;
@@ -235,7 +233,7 @@ export interface SlashCommand {
   completion?: (
     context: CommandContext,
     partialArg: string,
-  ) => Promise<string[]>;
+  ) => Promise<string[]> | string[];
 
   subCommands?: SlashCommand[];
 }

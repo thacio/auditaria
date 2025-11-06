@@ -3,24 +3,26 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
 
-import { useState, useCallback } from 'react';
-import type { LoadedSettings, SettingScope } from '../../config/settings.js';
-import { type HistoryItem, MessageType } from '../types.js';
-import type { EditorType } from '@thacio/auditaria-cli-core';
-import {
+import { t ,
   allowEditorTypeInSandbox,
   checkHasEditorType,
 } from '@thacio/auditaria-cli-core';
-import { SettingsContext } from '../contexts/SettingsContext.js';
+
+import { useState, useCallback } from 'react';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+} from '../../config/settings.js';
+import { type HistoryItem, MessageType } from '../types.js';
+import type { EditorType } from '@thacio/auditaria-cli-core';
 
 interface UseEditorSettingsReturn {
   isEditorDialogOpen: boolean;
   openEditorDialog: () => void;
   handleEditorSelect: (
     editorType: EditorType | undefined,
-    scope: SettingScope,
+    scope: LoadableSettingScope,
   ) => void;
   exitEditorDialog: () => void;
 }
@@ -37,7 +39,7 @@ export const useEditorSettings = (
   }, []);
 
   const handleEditorSelect = useCallback(
-    (editorType: EditorType | undefined, scope: SettingScope) => {
+    (editorType: EditorType | undefined, scope: LoadableSettingScope) => {
       if (
         editorType &&
         (!checkHasEditorType(editorType) ||
@@ -51,16 +53,30 @@ export const useEditorSettings = (
         addItem(
           {
             type: MessageType.INFO,
-            text: editorType 
-              ? t('editor.preference_set', 'Editor preference set to "{editor}" in {scope} settings.', { editor: editorType, scope })
-              : t('editor.preference_cleared', 'Editor preference cleared in {scope} settings.', { scope }),
+            text: editorType
+              ? t(
+                  'editor.preference_set',
+                  'Editor preference set to "{editor}" in {scope} settings.',
+                  { editor: editorType, scope },
+                )
+              : t(
+                  'editor.preference_cleared',
+                  'Editor preference cleared in {scope} settings.',
+                  { scope },
+                ),
           },
           Date.now(),
         );
         setEditorError(null);
         setIsEditorDialogOpen(false);
       } catch (error) {
-        setEditorError(t('editor.failed_to_set', 'Failed to set editor preference: {error}', { error: error instanceof Error ? error.message : String(error) }));
+        setEditorError(
+          t(
+            'editor.failed_to_set',
+            'Failed to set editor preference: {error}',
+            { error: error instanceof Error ? error.message : String(error) },
+          ),
+        );
       }
     },
     [loadedSettings, setEditorError, addItem],
