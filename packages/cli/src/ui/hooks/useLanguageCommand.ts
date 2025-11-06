@@ -8,11 +8,9 @@ import { t, setLanguage } from '@thacio/auditaria-cli-core';
 import type { SupportedLanguage } from '@thacio/auditaria-cli-core';
 
 import { useState, useCallback } from 'react';
-import type {
-  LoadedSettings,
-  type LoadableSettingScope,
-} from '../../config/settings.js';
-import { type HistoryItem, MessageType } from '../types.js';
+import type { LoadedSettings , LoadableSettingScope } from '../../config/settings.js';
+import type { HistoryItem } from '../types.js';
+import { MessageType } from '../types.js';
 
 interface UseLanguageCommandReturn {
   isLanguageDialogOpen: boolean;
