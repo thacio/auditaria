@@ -3,11 +3,15 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t, initI18n, setLanguage, getCurrentLanguage } from '@thacio/auditaria-cli-core';
+
+import { t, initI18n, setLanguage } from '@thacio/auditaria-cli-core';
 import type { SupportedLanguage } from '@thacio/auditaria-cli-core';
 
 import { useState, useCallback, useEffect } from 'react';
-import { LoadedSettings, SettingScope } from '../../config/settings.js';
+import type {
+  LoadedSettings,
+  type LoadableSettingScope,
+} from '../../config/settings.js';
 import { type HistoryItem, MessageType } from '../types.js';
 
 interface UseLanguageSettingsReturn {
@@ -15,7 +19,7 @@ interface UseLanguageSettingsReturn {
   openLanguageDialog: () => void;
   handleLanguageSelect: (
     languageCode: SupportedLanguage | undefined,
-    scope: SettingScope,
+    scope: LoadableSettingScope,
   ) => void;
   isFirstTimeSetup: boolean;
 }
@@ -31,27 +35,33 @@ export const useLanguageSettings = (
   const isFirstTimeSetup = !hasLanguageSetting;
 
   // Initial state: Open dialog if no language is set
-  const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(isFirstTimeSetup);
+  const [isLanguageDialogOpen, setIsLanguageDialogOpen] =
+    useState(isFirstTimeSetup);
 
   // Apply initial language on component mount
   useEffect(() => {
     const currentLanguage = loadedSettings.merged.ui?.language;
-    
+
     if (currentLanguage) {
       // Language is already set, initialize with that language
       initI18n(currentLanguage).catch((error) => {
         console.error('Failed to initialize i18n with saved language:', error);
         setLanguageError(
-          t('language.initialization_failed', 'Failed to load language "{language}". Using default.', 
-            { language: currentLanguage }
-          )
+          t(
+            'language.initialization_failed',
+            'Failed to load language "{language}". Using default.',
+            { language: currentLanguage },
+          ),
         );
       });
     } else if (!isFirstTimeSetup) {
       // This shouldn't happen, but fallback to English if no language is set
       // and it's not first-time setup
       initI18n('en').catch((error) => {
-        console.error('Failed to initialize i18n with fallback language:', error);
+        console.error(
+          'Failed to initialize i18n with fallback language:',
+          error,
+        );
       });
     }
   }, [loadedSettings.merged.ui?.language, isFirstTimeSetup, setLanguageError]);
@@ -63,32 +73,38 @@ export const useLanguageSettings = (
   const applyLanguage = useCallback(
     async (languageCode: SupportedLanguage | undefined) => {
       if (!languageCode) {
-        setLanguageError(t('language.no_language_selected', 'No language selected.'));
+        setLanguageError(
+          t('language.no_language_selected', 'No language selected.'),
+        );
         return false;
       }
 
       try {
         await setLanguage(languageCode);
         setLanguageError(null);
-        
+
         // Add success message to history
         addItem(
           {
             type: MessageType.INFO,
-            text: t('language.changed_successfully', 'Language changed to {language}.', 
-              { language: languageCode }
+            text: t(
+              'language.changed_successfully',
+              'Language changed to {language}.',
+              { language: languageCode },
             ),
           },
           Date.now(),
         );
-        
+
         return true;
       } catch (error) {
         console.error('Failed to apply language:', error);
         setLanguageError(
-          t('language.application_failed', 'Failed to apply language "{language}". Please try again.', 
-            { language: languageCode }
-          )
+          t(
+            'language.application_failed',
+            'Failed to apply language "{language}". Please try again.',
+            { language: languageCode },
+          ),
         );
         return false;
       }
@@ -97,12 +113,18 @@ export const useLanguageSettings = (
   );
 
   const handleLanguageSelect = useCallback(
-    async (languageCode: SupportedLanguage | undefined, scope: SettingScope) => {
+    async (
+      languageCode: SupportedLanguage | undefined,
+      scope: LoadableSettingScope,
+    ) => {
       if (!languageCode) {
         // If no language selected and it's first-time setup, don't allow proceeding
         if (isFirstTimeSetup) {
           setLanguageError(
-            t('language.must_select_language', 'You must select a language to continue.')
+            t(
+              'language.must_select_language',
+              'You must select a language to continue.',
+            ),
           );
           return;
         }
@@ -114,25 +136,27 @@ export const useLanguageSettings = (
       try {
         // Save the language setting
         loadedSettings.setValue(scope, 'ui.language', languageCode);
-        
+
         // Apply the language
         const success = await applyLanguage(languageCode);
-        
+
         if (success) {
           setIsLanguageDialogOpen(false);
-          
+
           // Force refresh the static content to show new language
           if (refreshStatic) {
             refreshStatic();
           }
-          
+
           // For first-time setup, show welcome message
           if (isFirstTimeSetup) {
             addItem(
               {
                 type: MessageType.INFO,
-                text: t('language.welcome_message', 'Welcome! Language has been set to {language}. You can change it anytime using the /language command.', 
-                  { language: languageCode }
+                text: t(
+                  'language.welcome_message',
+                  'Welcome! Language has been set to {language}. You can change it anytime using the /language command.',
+                  { language: languageCode },
                 ),
               },
               Date.now(),
@@ -143,11 +167,21 @@ export const useLanguageSettings = (
       } catch (error) {
         console.error('Failed to save language setting:', error);
         setLanguageError(
-          t('language.save_failed', 'Failed to save language setting. Please try again.')
+          t(
+            'language.save_failed',
+            'Failed to save language setting. Please try again.',
+          ),
         );
       }
     },
-    [loadedSettings, applyLanguage, isFirstTimeSetup, addItem, setLanguageError],
+    [
+      loadedSettings,
+      applyLanguage,
+      isFirstTimeSetup,
+      addItem,
+      setLanguageError,
+      refreshStatic,
+    ],
   );
 
   return {

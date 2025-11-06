@@ -31,7 +31,7 @@ export interface UIActions {
     languageCode:
       | import('@thacio/auditaria-cli-core').SupportedLanguage
       | undefined,
-    scope: SettingScope,
+    scope: LoadableSettingScope,
   ) => void;
   exitPrivacyNotice: () => void;
   closeSettingsDialog: () => void;

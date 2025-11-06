@@ -4,14 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t , discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
+import { t, discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import type { LoadedSettings} from '../../config/settings.js';
+import type {
+  LoadableSettingScope,
+  LoadedSettings,
+} from '../../config/settings.js';
 import { SettingScope } from '../../config/settings.js';
 import type {
   LanguageInfo,
@@ -23,7 +26,7 @@ interface LanguageSelectionDialogProps {
   /** Callback function when a language is selected */
   onSelect: (
     languageCode: SupportedLanguage | undefined,
-    scope: SettingScope,
+    scope: LoadableSettingScope,
   ) => void;
   /** The settings object */
   settings: LoadedSettings;
@@ -36,7 +39,7 @@ export function LanguageSelectionDialog({
   settings,
   isFirstTimeSetup = false,
 }: LanguageSelectionDialogProps): React.JSX.Element {
-  const [selectedScope, setSelectedScope] = useState<SettingScope>(
+  const [selectedScope, setSelectedScope] = useState<LoadableSettingScope>(
     SettingScope.User,
   );
   const [availableLanguages, setAvailableLanguages] = useState<LanguageInfo[]>(
@@ -91,19 +94,23 @@ export function LanguageSelectionDialog({
     return item.value === 'en';
   });
 
-  const scopeItems = [
+  const scopeItems: Array<{
+    label: string;
+    value: LoadableSettingScope;
+    key: LoadableSettingScope;
+  }> = [
     {
       label: t('language_dialog.scope_options.user_settings', 'User Settings'),
-      value: SettingScope.User,
-      key: SettingScope.User,
+      value: SettingScope.User as LoadableSettingScope,
+      key: SettingScope.User as LoadableSettingScope,
     },
     {
       label: t(
         'language_dialog.scope_options.workspace_settings',
         'Workspace Settings',
       ),
-      value: SettingScope.Workspace,
-      key: SettingScope.Workspace,
+      value: SettingScope.Workspace as LoadableSettingScope,
+      key: SettingScope.Workspace as LoadableSettingScope,
     },
   ];
 
@@ -111,11 +118,11 @@ export function LanguageSelectionDialog({
     onSelect(languageCode, selectedScope);
   };
 
-  const handleScopeHighlight = (scope: SettingScope) => {
+  const handleScopeHighlight = (scope: LoadableSettingScope) => {
     setSelectedScope(scope);
   };
 
-  const handleScopeSelect = (scope: SettingScope) => {
+  const handleScopeSelect = (scope: LoadableSettingScope) => {
     handleScopeHighlight(scope);
     setFocusedSection('language'); // Reset focus to language section
   };
