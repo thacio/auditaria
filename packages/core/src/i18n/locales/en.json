@@ -1703,9 +1703,9 @@
     "failedToInject": "Failed to inject content for '@{{path}}': {error}"
   },
   "pro_quota_dialog": {
-    "title": "Pro quota limit reached for {model}.",
-    "change_auth": "Change auth (executes the /auth command)",
-    "continue_with_model": "Continue with {model}"
+    "try_again_later": "Try again later",
+    "switch_to_fallback": "Switch to {model} for the rest of this session",
+    "note": "Note: You can always use /model to select a different option."
   },
   "quota": {
     "daily_quota_exhausted": "You have exhausted your daily quota on this model.",
@@ -1719,7 +1719,10 @@
     "generic_exceeded_free": "⚡ You have reached your daily quota limit.\n⚡ Automatically switching from {failedModel} to {fallbackModel} for the remainder of this session.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
     "fallback_paid": "⚡ Automatically switching from {failedModel} to {fallbackModel} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {failedModel} quota limit\n⚡ To continue accessing the {failedModel} model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey",
     "fallback_free": "⚡ Automatically switching from {failedModel} to {fallbackModel} for faster responses for the remainder of this session.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily {failedModel} quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
-    "switched_to_fallback": "Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish."
+    "switched_to_fallback": "Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish.",
+    "pro_exceeded_paid_new": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ Increase your limits by using a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "pro_exceeded_free_new": "⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ Increase your limits by \n⚡ - signing up for a plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ - or using a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth",
+    "congestion_error": "🚦Pardon Our Congestion! It looks like {model} is very popular at the moment.\nPlease retry again later."
   },
   "ui": {
     "initialization": {

@@ -55,7 +55,6 @@ export const DialogManager = ({
   if (uiState.proQuotaRequest) {
     return (
       <ProQuotaDialog
-        failedModel={uiState.proQuotaRequest.failedModel}
         fallbackModel={uiState.proQuotaRequest.fallbackModel}
         onChoice={uiActions.handleProQuotaChoice}
       />

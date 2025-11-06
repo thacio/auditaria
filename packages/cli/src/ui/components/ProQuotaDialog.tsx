@@ -11,54 +11,50 @@ import { theme } from '../semantic-colors.js';
 import { t } from '@thacio/auditaria-cli-core';
 
 interface ProQuotaDialogProps {
-  failedModel: string;
   fallbackModel: string;
-  onChoice: (choice: 'auth' | 'continue') => void;
+  onChoice: (choice: 'retry_later' | 'retry') => void;
 }
 
 export function ProQuotaDialog({
-  failedModel,
   fallbackModel,
   onChoice,
 }: ProQuotaDialogProps): React.JSX.Element {
   const items = [
     {
-      label: t(
-        'pro_quota_dialog.change_auth',
-        'Change auth (executes the /auth command)',
-      ),
-      value: 'auth' as const,
-      key: 'auth',
+      label: t('pro_quota_dialog.try_again_later', 'Try again later'),
+      value: 'retry_later' as const,
+      key: 'retry_later',
     },
     {
       label: t(
-        'pro_quota_dialog.continue_with_model',
-        'Continue with {model}',
+        'pro_quota_dialog.switch_to_fallback',
+        'Switch to {model} for the rest of this session',
         { model: fallbackModel },
       ),
-      value: 'continue' as const,
-      key: 'continue',
+      value: 'retry' as const,
+      key: 'retry',
     },
   ];
 
-  const handleSelect = (choice: 'auth' | 'continue') => {
+  const handleSelect = (choice: 'retry_later' | 'retry') => {
     onChoice(choice);
   };
 
   return (
     <Box borderStyle="round" flexDirection="column" paddingX={1}>
-      <Text bold color={theme.status.warning}>
-        {t('pro_quota_dialog.title', 'Pro quota limit reached for {model}.', {
-          model: failedModel,
-        })}
-      </Text>
-      <Box marginTop={1}>
+      <Box marginTop={1} marginBottom={1}>
         <RadioButtonSelect
           items={items}
           initialIndex={1}
           onSelect={handleSelect}
         />
       </Box>
+      <Text color={theme.text.primary}>
+        {t(
+          'pro_quota_dialog.note',
+          'Note: You can always use /model to select a different option.',
+        )}
+      </Text>
     </Box>
   );
 }
