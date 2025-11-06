@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { FixedDeque } from 'mnemonist';
 import { theme } from '../semantic-colors.js';
 import { useUIState } from '../contexts/UIStateContext.js';
-import { debugNumSpinners } from './CliSpinner.js';
+import { debugState } from '../debug.js';
 import { appEvents, AppEvent } from '../../utils/events.js';
 import { t } from '@thacio/auditaria-cli-core';
 
@@ -53,7 +53,7 @@ export const profiler = {
     if (now - this.lastFrameStartTime > 16) {
       this.lastFrameStartTime = now;
       this.numFrames++;
-      if (debugNumSpinners === 0) {
+      if (debugState.debugNumAnimatedComponents === 0) {
         if (this.possiblyIdleFrameTimestamps.size >= FRAME_TIMESTAMP_CAPACITY) {
           this.possiblyIdleFrameTimestamps.shift();
         }
@@ -114,7 +114,7 @@ export const profiler = {
         t(
           'debug_profiler.idle_frames_warning',
           '{count} frames rendered while the app was idle in the past second. This likely indicates severe infinite loop React state management bugs.',
-          { count: idleInPastSecond }
+          { count: idleInPastSecond },
         ),
       );
     }
@@ -137,7 +137,7 @@ export const profiler = {
           AppEvent.LogError,
           t(
             'debug_profiler.flicker_detected',
-            'A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.'
+            'A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.',
           ),
         );
       }
@@ -232,9 +232,11 @@ export const DebugProfiler = () => {
       {t('debug_profiler.total_label', '(total)')},{' '}
       <Text color={theme.status.error}>
         {profiler.totalIdleFrames} {t('debug_profiler.idle_label', '(idle)')}
-      </Text>,{' '}
+      </Text>
+      ,{' '}
       <Text color={theme.status.error}>
-        {profiler.totalFlickerFrames} {t('debug_profiler.flicker_label', '(flicker)')}
+        {profiler.totalFlickerFrames}{' '}
+        {t('debug_profiler.flicker_label', '(flicker)')}
       </Text>
     </Text>
   );
