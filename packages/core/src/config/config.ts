@@ -1385,6 +1385,7 @@ export class Config {
     }
 
     await registry.discoverAllTools();
+    registry.sortTools();
     return registry;
   }
 
