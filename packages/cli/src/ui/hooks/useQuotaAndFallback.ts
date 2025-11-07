@@ -11,6 +11,7 @@ import {
   type FallbackIntent,
   TerminalQuotaError,
   UserTierId,
+  DEFAULT_GEMINI_FLASH_MODEL,
   t,
 } from '@thacio/auditaria-cli-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -42,10 +43,6 @@ export function useQuotaAndFallback({
       fallbackModel,
       error,
     ): Promise<FallbackIntent | null> => {
-      if (config.isInFallbackMode()) {
-        return null;
-      }
-
       // Fallbacks are currently only handled for OAuth users.
       const contentGeneratorConfig = config.getContentGeneratorConfig();
       if (
@@ -59,10 +56,11 @@ export function useQuotaAndFallback({
       const isPaidTier =
         userTier === UserTierId.LEGACY || userTier === UserTierId.STANDARD;
 
+      const isFallbackModel = failedModel === DEFAULT_GEMINI_FLASH_MODEL;
       let message: string;
 
       if (error instanceof TerminalQuotaError) {
-        // Pro Quota specific messages (Interactive)
+        // Use i18n with conditional logic for fallback model
         if (isPaidTier) {
           message = t(
             'quota.pro_exceeded_paid_new',
@@ -76,7 +74,12 @@ export function useQuotaAndFallback({
             { model: failedModel },
           );
         }
+        // Adjust message if this is the fallback model itself
+        if (isFallbackModel) {
+          message = message.replace(' or continue with the fallback model', '');
+        }
       } else {
+        // Capacity error
         message = t(
           'quota.congestion_error',
           '🚦Pardon Our Congestion! It looks like {model} is very popular at the moment.\nPlease retry again later.',
@@ -92,6 +95,10 @@ export function useQuotaAndFallback({
         },
         Date.now(),
       );
+
+      if (isFallbackModel) {
+        return 'stop';
+      }
 
       setModelSwitchedFromQuotaError(true);
       config.setQuotaErrorOccurred(true);
