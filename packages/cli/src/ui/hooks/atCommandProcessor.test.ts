@@ -56,6 +56,7 @@ describe('handleAtCommand', () => {
       getToolRegistry,
       getTargetDir: () => testRootDir,
       isSandboxed: () => false,
+      getExcludeTools: vi.fn(),
       getFileService: () => new FileDiscoveryService(testRootDir),
       getFileFilteringRespectGitIgnore: () => true,
       getFileFilteringRespectGeminiIgnore: () => true,
