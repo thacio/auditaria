@@ -78,7 +78,6 @@ export const useSlashCommandProcessor = (
   refreshStatic: () => void,
   toggleVimEnabled: () => Promise<boolean>,
   setIsProcessing: (isProcessing: boolean) => void,
-  setGeminiMdFileCount: (count: number) => void,
   actions: SlashCommandProcessorActions,
   extensionsUpdateState: Map<string, ExtensionUpdateStatus>,
   isConfigInitialized: boolean,
@@ -215,7 +214,6 @@ export const useSlashCommandProcessor = (
         toggleCorgiMode: actions.toggleCorgiMode,
         toggleDebugProfiler: actions.toggleDebugProfiler,
         toggleVimEnabled,
-        setGeminiMdFileCount,
         reloadCommands,
         extensionsUpdateState,
         dispatchExtensionStateUpdate: actions.dispatchExtensionStateUpdate,
@@ -249,7 +247,6 @@ export const useSlashCommandProcessor = (
       setPendingItem,
       toggleVimEnabled,
       sessionShellAllowlist,
-      setGeminiMdFileCount,
       reloadCommands,
       // WEB_INTERFACE_START
       handleWebStart,

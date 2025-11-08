@@ -7,7 +7,7 @@
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
-import { t , loadServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
+import { t, refreshServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -114,25 +114,7 @@ export const directoryCommand: SlashCommand = {
 
         try {
           if (config.shouldLoadMemoryFromIncludeDirectories()) {
-            const { memoryContent, fileCount } =
-              await loadServerHierarchicalMemory(
-                config.getWorkingDir(),
-                [
-                  ...config.getWorkspaceContext().getDirectories(),
-                  ...pathsToAdd,
-                ],
-                config.getDebugMode(),
-                config.getFileService(),
-                config.getExtensionLoader(),
-                config.getFolderTrust(),
-                context.services.settings.merged.context?.importFormat ||
-                  'tree', // Use setting or default to 'tree'
-                config.getFileFilteringOptions(),
-                context.services.settings.merged.context?.discoveryMaxDirs,
-              );
-            config.setUserMemory(memoryContent);
-            config.setGeminiMdFileCount(fileCount);
-            context.ui.setGeminiMdFileCount(fileCount);
+            await refreshServerHierarchicalMemory(config);
           }
           addItem(
             {
