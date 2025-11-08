@@ -1,8 +1,8 @@
 name: 'Bug Report'
 description: 'Report a bug to help us improve Auditaria CLI'
 labels:
-  - 'kind/bug'
   - 'status/need-triage'
+type: Bug
 body:
   - type: 'markdown'
     attributes:
