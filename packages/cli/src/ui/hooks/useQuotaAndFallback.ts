@@ -108,6 +108,14 @@ export function useQuotaAndFallback({
       }
       isDialogPending.current = true;
 
+      // WEB_INTERFACE_START: Pre-start terminal capture for quota dialog
+      const preStartCapture = (global as Record<string, unknown>)
+        .__preStartTerminalCapture;
+      if (typeof preStartCapture === 'function') {
+        preStartCapture();
+      }
+      // WEB_INTERFACE_END
+
       const intent: FallbackIntent = await new Promise<FallbackIntent>(
         (resolve) => {
           setProQuotaRequest({
