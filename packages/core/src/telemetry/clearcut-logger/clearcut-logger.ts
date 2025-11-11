@@ -947,7 +947,7 @@ export class ClearcutLogger {
     this.flushIfNeeded();
   }
 
-  logExtensionInstallEvent(event: ExtensionInstallEvent): void {
+  async logExtensionInstallEvent(event: ExtensionInstallEvent): Promise<void> {
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
@@ -974,12 +974,14 @@ export class ClearcutLogger {
     this.enqueueLogEvent(
       this.createBasicLogEvent(EventNames.EXTENSION_INSTALL, data),
     );
-    this.flushToClearcut().catch((error) => {
+    await this.flushToClearcut().catch((error) => {
       debugLogger.debug('Error flushing to Clearcut:', error);
     });
   }
 
-  logExtensionUninstallEvent(event: ExtensionUninstallEvent): void {
+  async logExtensionUninstallEvent(
+    event: ExtensionUninstallEvent,
+  ): Promise<void> {
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
@@ -998,12 +1000,12 @@ export class ClearcutLogger {
     this.enqueueLogEvent(
       this.createBasicLogEvent(EventNames.EXTENSION_UNINSTALL, data),
     );
-    this.flushToClearcut().catch((error) => {
+    await this.flushToClearcut().catch((error) => {
       debugLogger.debug('Error flushing to Clearcut:', error);
     });
   }
 
-  logExtensionUpdateEvent(event: ExtensionUpdateEvent): void {
+  async logExtensionUpdateEvent(event: ExtensionUpdateEvent): Promise<void> {
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
@@ -1034,7 +1036,7 @@ export class ClearcutLogger {
     this.enqueueLogEvent(
       this.createBasicLogEvent(EventNames.EXTENSION_UPDATE, data),
     );
-    this.flushToClearcut().catch((error) => {
+    await this.flushToClearcut().catch((error) => {
       debugLogger.debug('Error flushing to Clearcut:', error);
     });
   }
@@ -1103,7 +1105,7 @@ export class ClearcutLogger {
     this.flushIfNeeded();
   }
 
-  logExtensionEnableEvent(event: ExtensionEnableEvent): void {
+  async logExtensionEnableEvent(event: ExtensionEnableEvent): Promise<void> {
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
@@ -1123,7 +1125,7 @@ export class ClearcutLogger {
     this.enqueueLogEvent(
       this.createBasicLogEvent(EventNames.EXTENSION_ENABLE, data),
     );
-    this.flushToClearcut().catch((error) => {
+    await this.flushToClearcut().catch((error) => {
       debugLogger.debug('Error flushing to Clearcut:', error);
     });
   }
@@ -1142,7 +1144,7 @@ export class ClearcutLogger {
     this.flushIfNeeded();
   }
 
-  logExtensionDisableEvent(event: ExtensionDisableEvent): void {
+  async logExtensionDisableEvent(event: ExtensionDisableEvent): Promise<void> {
     const data: EventValue[] = [
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_EXTENSION_NAME,
@@ -1162,7 +1164,7 @@ export class ClearcutLogger {
     this.enqueueLogEvent(
       this.createBasicLogEvent(EventNames.EXTENSION_DISABLE, data),
     );
-    this.flushToClearcut().catch((error) => {
+    await this.flushToClearcut().catch((error) => {
       debugLogger.debug('Error flushing to Clearcut:', error);
     });
   }
