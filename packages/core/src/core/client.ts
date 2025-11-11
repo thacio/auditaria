@@ -139,6 +139,8 @@ export class GeminiClient {
   setHistory(history: Content[]) {
     this.getChat().setHistory(history);
     this.forceFullIdeContext = true;
+    // Update token count in UI after history modification
+    this.updateTelemetryTokenCount();  // Custom Auditaria Feature: context.management.ts tool
   }
 
   async setTools(): Promise<void> {

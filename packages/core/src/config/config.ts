@@ -57,6 +57,11 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
+import {
+  ContextInspectTool,
+  ContextForgetTool,
+  ContextRestoreTool,
+} from '../tools/context-management.js';  // Custom Auditaria Feature: context.management.ts tool
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -1385,6 +1390,11 @@ export class Config {
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool, this);
     }
+
+    // Register context management tools
+    registerCoreTool(ContextInspectTool, this);  // Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextForgetTool, this);  // Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextRestoreTool, this);  // Custom Auditaria Feature: context.management.ts tool
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {

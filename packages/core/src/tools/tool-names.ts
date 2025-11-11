@@ -9,7 +9,6 @@
 // need to reference a tool's name without importing the tool's implementation.
 
 export const GLOB_TOOL_NAME = 'glob';
-export const WRITE_TODOS_TOOL_NAME = 'write_todos';
 export const WRITE_FILE_TOOL_NAME = 'write_file';
 export const WEB_SEARCH_TOOL_NAME = 'google_web_search';
 export const WEB_FETCH_TOOL_NAME = 'web_fetch';
@@ -20,3 +19,9 @@ export const READ_MANY_FILES_TOOL_NAME = 'read_many_files';
 export const READ_FILE_TOOL_NAME = 'read_file';
 export const LS_TOOL_NAME = 'list_directory';
 export const MEMORY_TOOL_NAME = 'save_memory';
+
+// Context management tools --- Auditaria Custom Features
+export const WRITE_TODOS_TOOL_NAME = 'write_todos';
+export const CONTEXT_INSPECT_TOOL_NAME = 'context_inspect';
+export const CONTEXT_FORGET_TOOL_NAME = 'context_forget';
+export const CONTEXT_RESTORE_TOOL_NAME = 'context_restore';

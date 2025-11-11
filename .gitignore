@@ -68,3 +68,4 @@ gha-creds-*.json
 patch_output.log
 
 .genkit
+gemini-conversation-*.json

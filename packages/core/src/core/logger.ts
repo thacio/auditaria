@@ -10,6 +10,7 @@ import type { Content } from '@google/genai';
 import type { Storage } from '../config/storage.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { coreEvents } from '../utils/events.js';
+import { getContextStorage } from '../tools/context-management.js'; // Context management tools --- Auditaria Custom Features
 
 const LOG_FILE_NAME = 'logs.json';
 
@@ -325,6 +326,16 @@ export class Logger {
     const path = this._checkpointPath(tag);
     try {
       await fs.writeFile(path, JSON.stringify(conversation, null, 2), 'utf-8');
+
+      // Context management tools BEGIN --- Auditaria Custom Features
+      // Save context companion file if there's forgotten content
+      const contextStorage = getContextStorage();
+      if (contextStorage.hasContent()) {
+        const contextPath = path.replace('.json', '.json.context');
+        const contextState = contextStorage.exportState();
+        await fs.writeFile(contextPath, JSON.stringify(contextState, null, 2), 'utf-8');
+        debugLogger.debug(`Saved context companion file: ${contextPath}`);
+      } // Context management tools END --- Auditaria Custom Features
     } catch (error) {
       debugLogger.error('Error writing to checkpoint file:', error);
     }
@@ -348,6 +359,33 @@ export class Logger {
         );
         return [];
       }
+
+      // Context management tools BEGIN --- Auditaria Custom Features
+      // Clear any existing context state before loading
+      const contextStorage = getContextStorage();
+      contextStorage.clearAll();
+
+      // Try to load context companion file if it exists
+      const contextPath = path.replace('.json', '.json.context');
+      try {
+        const contextContent = await fs.readFile(contextPath, 'utf-8');
+        const contextState = JSON.parse(contextContent);
+        if (contextStorage.importState(contextState)) {
+          debugLogger.debug(`Loaded context companion file: ${contextPath}`);
+        } else {
+          debugLogger.warn(`Failed to import context state from: ${contextPath}`);
+        }
+      } catch (contextError) {
+        const contextNodeError = contextError as NodeJS.ErrnoException;
+        if (contextNodeError.code !== 'ENOENT') {
+          // Log errors other than "file not found" (old saves won't have companion file)
+          debugLogger.debug(`Context companion file error for ${contextPath}:`, contextError);
+        }
+        // It's okay if the context file doesn't exist (backwards compatibility)
+        // Context storage has already been cleared above
+      }
+      // Context management tools END --- Auditaria Custom Features
+
       return parsedContent as Content[];
     } catch (error) {
       const nodeError = error as NodeJS.ErrnoException;
@@ -390,6 +428,21 @@ export class Logger {
       // It's okay if it doesn't exist.
     }
 
+    // Context management tools BEGIN --- Auditaria Custom Features
+    // Delete context companion file for the new path
+    const newContextPath = newPath.replace('.json', '.json.context');
+    try {
+      await fs.unlink(newContextPath);
+      debugLogger.debug(`Deleted context companion file: ${newContextPath}`);
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') {
+        debugLogger.debug(`Failed to delete context companion file ${newContextPath}:`, error);
+      }
+      // It's okay if it doesn't exist.
+    }
+    // Context management tools END --- Auditaria Custom Features
+
     // 2. Attempt to delete the old raw path for backward compatibility.
     const oldPath = path.join(this.geminiDir!, `checkpoint-${tag}.json`);
     if (newPath !== oldPath) {
@@ -407,6 +460,21 @@ export class Logger {
         }
         // It's okay if it doesn't exist.
       }
+
+      // Context management tools BEGIN --- Auditaria Custom Features
+      // Delete context companion file for the old path
+      const oldContextPath = oldPath.replace('.json', '.json.context');
+      try {
+        await fs.unlink(oldContextPath);
+        debugLogger.debug(`Deleted old context companion file: ${oldContextPath}`);
+      } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code !== 'ENOENT') {
+          debugLogger.debug(`Failed to delete old context companion file ${oldContextPath}:`, error);
+        }
+        // It's okay if it doesn't exist.
+      }
+      // Context management tools END --- Auditaria Custom Features
     }
 
     return deletedSomething;

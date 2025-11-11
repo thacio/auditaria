@@ -41,10 +41,16 @@ software** intactas.
 
 ### Melhorias Exclusivas do Auditaria
 
+- **🌐 Interface Web**: Interface web integrada (porta padrão 8629)
+- **🎯 Gerenciamento de Contexto**: Ferramentas integradas para inspecionar,
+  esquecer e restaurar conteúdo da conversa para otimizar uso de tokens
+  - `context_inspect` - Inspecionar histórico e estatísticas de tokens
+  - `context_forget` - Esquecer conteúdo grande (amnésia completa até restauração)
+  - `context_restore` - Restaurar conteúdo esquecido quando necessário
+  - **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
+  Português e Inglês (com comando `/language`)
 - **🛠️ Ferramenta TODO**: Sistema completo de gerenciamento de tarefas para
   rastrear e organizar fluxos de trabalho complexos de auditoria
-- **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
-  Português e Inglês (com comando `/language`)
 - **⚙️ Controle Avançado de Modelo**: Comandos slash aprimorados para melhor
   gerenciamento de modelos de IA:
   - `/model-switch` - Alternar entre modelos Gemini Pro e Flash
@@ -56,7 +62,6 @@ software** intactas.
   capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
   e trabalhar com dados de auditoria
-- **🌐 Interface Web**: Interface web integrada (porta padrão 8629)
 
 ### Recursos Herdados do Gemini CLI
 
@@ -411,10 +416,16 @@ all original software engineering capabilities** intact.
 
 ### Auditaria Exclusive Enhancements
 
-- **🛠️ TODO Tool**: Complete task management system for tracking and organizing
-  complex audit workflows
+- **🌐 Web Interface**: Built-in web interface (default port 8629)
+- **🎯 Context Management**: Built-in tools to inspect, forget, and restore
+  conversation content to optimize token usage
+  - `context_inspect` - Inspect history and token statistics
+  - `context_forget` - Forget large content (complete amnesia until restored)
+  - `context_restore` - Restore forgotten content when needed
 - **🌐 Multi-language Support**: Full internationalization with Portuguese and
   English support (with `/language` command)
+  - **🛠️ TODO Tool**: Complete task management system for tracking and organizing
+  complex audit workflows
 - **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model
   management:
   - `/model-switch` - Switch between Gemini Pro and Flash models
@@ -426,7 +437,6 @@ all original software engineering capabilities** intact.
   tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working
   with audit data
-- **🌐 Web Interface**: Built-in web interface (default port 8629)
 
 ### Inherited from Gemini CLI
 

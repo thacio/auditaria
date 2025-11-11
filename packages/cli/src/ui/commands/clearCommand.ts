@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uiTelemetryService, t } from '@thacio/auditaria-cli-core';
+import { uiTelemetryService, t, clearContextBackups } from '@thacio/auditaria-cli-core';
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 
@@ -25,6 +25,9 @@ export const clearCommand: SlashCommand = {
     } else {
       context.ui.setDebugMessage(t('commands.clear.debug_clear', 'Clearing terminal.'));
     }
+
+    // Clear context management backups and hidden content storage
+    clearContextBackups(); // Custom Auditaria Feature: context.management.ts tool
 
     uiTelemetryService.setLastPromptTokenCount(0);
     context.ui.clear();
