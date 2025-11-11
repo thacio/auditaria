@@ -82,6 +82,11 @@ export interface CompressionProps {
   compressionStatus: CompressionStatus | null;
 }
 
+/**
+ * For use when you want no icon.
+ */
+export const emptyIcon = '  ';
+
 export interface HistoryItemBase {
   text?: string; // Text content for user/gemini/info/error messages
 }
