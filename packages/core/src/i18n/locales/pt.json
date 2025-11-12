@@ -316,7 +316,8 @@
       "description_with_usage": "listar ferramentas disponíveis do Gemini CLI. Uso: /tools [desc]",
       "available_tools": "Ferramentas disponíveis do Gemini CLI:",
       "no_tools": "Nenhuma ferramenta disponível",
-      "error_retrieve": "Não foi possível recuperar as ferramentas."
+      "error_retrieve": "Não foi possível recuperar as ferramentas.",
+      "deprecated_label": "(Obsoleto)"
     },
     "about": {
       "description": "mostrar informações da versão",
@@ -529,6 +530,11 @@
       "optimal_configured": "Seu terminal já está configurado para uma experiência ideal com entrada multilinha (Shift+Enter e Ctrl+Enter).",
       "not_detected": "Não foi possível detectar o tipo de terminal. Terminais suportados: VS Code, Cursor e Windsurf.",
       "not_supported": "Terminal \"{terminal}\" ainda não é suportado."
+    }
+  },
+  "config": {
+    "tools": {
+      "deprecated_warning": "A ferramenta '{toolName}' (ou '{alternateName}') especificada em '{listName}' está obsoleta e será removida na v0.14.0."
     }
   },
   "help": {

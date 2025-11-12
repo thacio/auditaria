@@ -10,12 +10,15 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType, type HistoryItemToolsList } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t, READ_MANY_FILES_TOOL_NAME } from '@thacio/auditaria-cli-core';
 
 export const toolsCommand: SlashCommand = {
   name: 'tools',
   get description() {
-    return t('commands.tools.description_with_usage', 'List available Gemini CLI tools. Usage: /tools [desc]');
+    return t(
+      'commands.tools.description_with_usage',
+      'List available Gemini CLI tools. Usage: /tools [desc]',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {
@@ -47,7 +50,10 @@ export const toolsCommand: SlashCommand = {
       type: MessageType.TOOLS_LIST,
       tools: geminiTools.map((tool) => ({
         name: tool.name,
-        displayName: tool.displayName,
+        displayName:
+          tool.name === READ_MANY_FILES_TOOL_NAME
+            ? `${tool.displayName} ${t('commands.tools.deprecated_label', '(Deprecated)')}`
+            : tool.displayName,
         description: tool.description,
       })),
       showDescriptions: useShowDescriptions,
