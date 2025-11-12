@@ -498,7 +498,7 @@ const SETTINGS_SCHEMA = {
         label: 'Use Full Width',
         category: 'UI',
         requiresRestart: false,
-        default: false,
+        default: true,
         description: 'Use the entire width of the terminal for output.',
         showInDialog: true,
       },
