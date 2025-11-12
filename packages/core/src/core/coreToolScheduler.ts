@@ -995,6 +995,15 @@ export class CoreToolScheduler {
           isModifying: true,
         } as ToolCallConfirmationDetails);
 
+        const contentOverrides =
+          waitingToolCall.confirmationDetails.type === 'edit'
+            ? {
+                currentContent:
+                  waitingToolCall.confirmationDetails.originalContent,
+                proposedContent: waitingToolCall.confirmationDetails.newContent,
+              }
+            : undefined;
+
         const { updatedParams, updatedDiff } = await modifyWithEditor<
           typeof waitingToolCall.request.args
         >(
@@ -1003,6 +1012,7 @@ export class CoreToolScheduler {
           editorType,
           signal,
           this.onEditorClose,
+          contentOverrides,
         );
         this.setArgsInternal(callId, updatedParams);
         this.setStatusInternal(callId, 'awaiting_approval', signal, {
