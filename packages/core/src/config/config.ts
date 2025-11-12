@@ -61,7 +61,7 @@ import {
   ContextInspectTool,
   ContextForgetTool,
   ContextRestoreTool,
-} from '../tools/context-management.js';  // Custom Auditaria Feature: context.management.ts tool
+} from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -263,6 +263,8 @@ export interface ConfigParameters {
   useImprovedFallbackStrategy?: boolean;
   maxSessionTurns?: number;
   experimentalZedIntegration?: boolean;
+  listSessions?: boolean;
+  deleteSession?: string;
   listExtensions?: boolean;
   extensionLoader?: ExtensionLoader;
   enabledExtensions?: string[];
@@ -319,7 +321,7 @@ export class Config {
   private blockedMcpServers: string[];
   private promptRegistry!: PromptRegistry;
   private agentRegistry!: AgentRegistry;
-  private readonly sessionId: string;
+  private sessionId: string;
   private fileSystemService: FileSystemService;
   private contentGeneratorConfig!: ContentGeneratorConfig;
   private contentGenerator!: ContentGenerator;
@@ -370,6 +372,8 @@ export class Config {
   private disableFallbackForSession: boolean = false;
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;
+  private readonly listSessions: boolean;
+  private readonly deleteSession: string | undefined;
   private readonly listExtensions: boolean;
   private readonly _extensionLoader: ExtensionLoader;
   private readonly _enabledExtensions: string[];
@@ -485,6 +489,8 @@ export class Config {
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
     this.experimentalZedIntegration =
       params.experimentalZedIntegration ?? false;
+    this.listSessions = params.listSessions ?? false;
+    this.deleteSession = params.deleteSession;
     this.listExtensions = params.listExtensions ?? false;
     this._extensionLoader =
       params.extensionLoader ?? new SimpleExtensionLoader([]);
@@ -723,6 +729,10 @@ export class Config {
 
   getSessionId(): string {
     return this.sessionId;
+  }
+
+  setSessionId(sessionId: string): void {
+    this.sessionId = sessionId;
   }
 
   shouldLoadMemoryFromIncludeDirectories(): boolean {
@@ -1076,6 +1086,14 @@ export class Config {
     return this.listExtensions;
   }
 
+  getListSessions(): boolean {
+    return this.listSessions;
+  }
+
+  getDeleteSession(): string | undefined {
+    return this.deleteSession;
+  }
+
   getExtensionManagement(): boolean {
     return this.extensionManagement;
   }
@@ -1392,9 +1410,9 @@ export class Config {
     }
 
     // Register context management tools
-    registerCoreTool(ContextInspectTool, this);  // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextForgetTool, this);  // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextRestoreTool, this);  // Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextInspectTool, this); // Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextForgetTool, this); // Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextRestoreTool, this); // Custom Auditaria Feature: context.management.ts tool
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {

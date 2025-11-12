@@ -66,6 +66,9 @@ export interface CliArgs {
   web: boolean | string | undefined;
   port: number | undefined;
   // WEB_INTERFACE_END
+  resume: string | 'latest' | undefined;
+  listSessions: boolean | undefined;
+  deleteSession: string | undefined;
   includeDirectories: string[] | undefined;
   screenReader: boolean | undefined;
   useSmartEdit: boolean | undefined;
@@ -194,6 +197,35 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           description: 'Port number for the web interface (default: 8629)',
         })
         // WEB_INTERFACE_END
+        .option('resume', {
+          alias: 'r',
+          type: 'string',
+          // `skipValidation` so that we can distinguish between it being passed with a value, without
+          // one, and not being passed at all.
+          skipValidation: true,
+          description:
+            'Resume a previous session. Use "latest" for most recent or index number (e.g. --resume 5)',
+          coerce: (value: string): string => {
+            // When --resume passed with a value (`gemini --resume 123`): value = "123" (string)
+            // When --resume passed without a value (`gemini --resume`): value = "" (string)
+            // When --resume not passed at all: this `coerce` function is not called at all, and
+            //   `yargsInstance.argv.resume` is undefined.
+            if (value === '') {
+              return 'latest';
+            }
+            return value;
+          },
+        })
+        .option('list-sessions', {
+          type: 'boolean',
+          description:
+            'List available sessions for the current project and exit.',
+        })
+        .option('delete-session', {
+          type: 'string',
+          description:
+            'Delete a session by index number (use --list-sessions to see available sessions).',
+        })
         .option('include-directories', {
           type: 'array',
           string: true,
@@ -253,6 +285,11 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
             return t(
               'cli.errors.prompt_interactive_conflict',
               'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
+            );
+          }
+          if (argv.resume && !argv.prompt && !process.stdin.isTTY) {
+            throw new Error(
+              'When resuming a session, you must provide a message via --prompt (-p) or stdin',
             );
           }
           if (argv.yolo && argv['approvalMode']) {
@@ -637,6 +674,8 @@ export async function loadCliConfig(
     maxSessionTurns: settings.model?.maxSessionTurns ?? -1,
     experimentalZedIntegration: argv.experimentalAcp || false,
     listExtensions: argv.listExtensions || false,
+    listSessions: argv.listSessions || false,
+    deleteSession: argv.deleteSession,
     enabledExtensions: argv.extensions,
     extensionLoader: extensionManager,
     enableExtensionReloading: settings.experimental?.extensionReloading,

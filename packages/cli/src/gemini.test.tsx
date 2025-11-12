@@ -21,7 +21,10 @@ import {
 } from './gemini.js';
 import { type LoadedSettings } from './config/settings.js';
 import { appEvents, AppEvent } from './utils/events.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import {
+  type Config,
+  type ResumedSessionData,
+} from '@thacio/auditaria-cli-core';
 import { act } from 'react';
 import { type InitializationResult } from './core/initializer.js';
 
@@ -189,6 +192,8 @@ describe('gemini.tsx main function', () => {
         getSandbox: () => false,
         getDebugMode: () => false,
         getListExtensions: () => false,
+        getListSessions: () => false,
+        getDeleteSession: () => undefined,
         getMcpServers: () => ({}),
         getMcpClientManager: vi.fn(),
         initialize: vi.fn(),
@@ -339,6 +344,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       getSandbox: () => false,
       getDebugMode: () => false,
       getListExtensions: () => false,
+      getListSessions: () => false,
+      getDeleteSession: () => undefined,
       getMcpServers: () => ({}),
       getMcpClientManager: vi.fn(),
       initialize: vi.fn(),
@@ -393,6 +400,9 @@ describe('gemini.tsx main function kitty protocol', () => {
       useWriteTodos: undefined,
       web: undefined,
       port: undefined,
+      resume: undefined,
+      listSessions: undefined,
+      deleteSession: undefined,
       outputFormat: undefined,
       fakeResponses: undefined,
       recordResponses: undefined,
@@ -490,6 +500,7 @@ describe('startInteractiveUI', () => {
     settings: LoadedSettings,
     startupWarnings: string[],
     workspaceRoot: string,
+    resumedSessionData: ResumedSessionData | undefined,
     initializationResult: InitializationResult,
   ) {
     await act(async () => {
@@ -498,6 +509,7 @@ describe('startInteractiveUI', () => {
         settings,
         startupWarnings,
         workspaceRoot,
+        resumedSessionData,
         initializationResult,
       );
     });
@@ -512,6 +524,7 @@ describe('startInteractiveUI', () => {
       mockSettings,
       mockStartupWarnings,
       mockWorkspaceRoot,
+      undefined,
       mockInitializationResult,
     );
 
@@ -540,6 +553,7 @@ describe('startInteractiveUI', () => {
       mockSettings,
       mockStartupWarnings,
       mockWorkspaceRoot,
+      undefined,
       mockInitializationResult,
     );
 
@@ -565,6 +579,7 @@ describe('startInteractiveUI', () => {
       mockSettings,
       mockStartupWarnings,
       mockWorkspaceRoot,
+      undefined,
       mockInitializationResult,
     );
 
@@ -581,6 +596,7 @@ describe('startInteractiveUI', () => {
       mockSettings,
       mockStartupWarnings,
       mockWorkspaceRoot,
+      undefined,
       mockInitializationResult,
     );
 
@@ -612,6 +628,7 @@ describe('startInteractiveUI', () => {
       mockSettings,
       mockStartupWarnings,
       mockWorkspaceRoot,
+      undefined,
       mockInitializationResult,
     );
 

@@ -26,7 +26,10 @@ import { GeminiChat } from './geminiChat.js';
 import { retryWithBackoff } from '../utils/retry.js';
 import { getErrorMessage } from '../utils/errors.js';
 import { tokenLimit } from './tokenLimits.js';
-import type { ChatRecordingService } from '../services/chatRecordingService.js';
+import type {
+  ChatRecordingService,
+  ResumedSessionData,
+} from '../services/chatRecordingService.js';
 import type { ContentGenerator } from './contentGenerator.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -140,7 +143,7 @@ export class GeminiClient {
     this.getChat().setHistory(history);
     this.forceFullIdeContext = true;
     // Update token count in UI after history modification
-    this.updateTelemetryTokenCount();  // Custom Auditaria Feature: context.management.ts tool
+    this.updateTelemetryTokenCount(); // Custom Auditaria Feature: context.management.ts tool
   }
 
   async setTools(): Promise<void> {
@@ -153,6 +156,13 @@ export class GeminiClient {
   async resetChat(): Promise<void> {
     this.chat = await this.startChat();
     this.updateTelemetryTokenCount();
+  }
+
+  async resumeChat(
+    history: Content[],
+    resumedSessionData?: ResumedSessionData,
+  ): Promise<void> {
+    this.chat = await this.startChat(history, resumedSessionData);
   }
 
   getChatRecordingService(): ChatRecordingService | undefined {
@@ -178,7 +188,10 @@ export class GeminiClient {
     });
   }
 
-  async startChat(extraHistory?: Content[]): Promise<GeminiChat> {
+  async startChat(
+    extraHistory?: Content[],
+    resumedSessionData?: ResumedSessionData,
+  ): Promise<GeminiChat> {
     this.forceFullIdeContext = true;
     this.hasFailedCompressionAttempt = false;
 
@@ -215,6 +228,7 @@ export class GeminiClient {
           tools,
         },
         history,
+        resumedSessionData,
       );
     } catch (error) {
       await reportError(

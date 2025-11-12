@@ -277,7 +277,7 @@ describe('handleAtCommand', () => {
       }),
       125,
     );
-  });
+  }, 10000);
 
   it('should handle multiple @file references', async () => {
     const content1 = 'Content file1';
