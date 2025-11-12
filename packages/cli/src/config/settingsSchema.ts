@@ -1112,6 +1112,15 @@ const SETTINGS_SCHEMA = {
         description: 'Disable YOLO mode, even if enabled by a flag.',
         showInDialog: true,
       },
+      blockGitExtensions: {
+        type: 'boolean',
+        label: 'Blocks extensions from Git',
+        category: 'Security',
+        requiresRestart: true,
+        default: false,
+        description: 'Blocks installing and loading extensions from Git.',
+        showInDialog: true,
+      },
       folderTrust: {
         type: 'object',
         label: 'Folder Trust',
