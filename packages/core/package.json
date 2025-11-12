@@ -1,7 +1,7 @@
 {
   "name": "@thacio/auditaria-cli-core",
-  "version": "0.15.0-nightly.20251111.51f952e7",
-  "description": "Auditaria CLI Core",
+  "version": "0.16.0-nightly.20251112.2abc288c",
+  "description": "Auditoria CLI Core",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thacio/auditaria.git"

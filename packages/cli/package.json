@@ -1,7 +1,7 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.15.0-nightly.20251111.51f952e7",
-  "description": "Auditaria CLI",
+  "version": "0.16.0-nightly.20251112.2abc288c",
+  "description": "Auditoria CLI",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thacio/auditaria.git"
@@ -25,7 +25,7 @@
     "dist"
   ],
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.15.0-nightly.20251111.51f952e7"
+    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.16.0-nightly.20251112.2abc288c"
   },
   "dependencies": {
     "@thacio/auditaria-cli-core": "file:../core",
