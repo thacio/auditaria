@@ -1296,6 +1296,7 @@
       "ripgrep_start_failed": "Failed to start ripgrep: {error}. Please ensure @lvce-editor/ripgrep is properly installed.",
       "ripgrep_exit_error": "ripgrep exited with code {code}: {error}",
       "ripgrep_failed": "GrepLogic: ripgrep failed: {error}",
+      "grep_execution_error": "Error during GrepLogic execution: {error}",
       "search_location_workspace_multiple": "across {count} workspace directories",
       "search_location_workspace_single": "in the workspace directory",
       "search_location_path": "in path \"{path}\""
