@@ -5,9 +5,9 @@
  */
 
 import type { HistoryItemWithoutId } from '../types.js';
-import type { ConversationRecord } from '@google/gemini-cli-core';
+import type { ConversationRecord } from '@thacio/auditaria-cli-core';
 import type { Part } from '@google/genai';
-import { partListUnionToString } from '@google/gemini-cli-core';
+import { partListUnionToString } from '@thacio/auditaria-cli-core';
 import { MessageType, ToolCallStatus } from '../types.js';
 /**
  * Converts session/conversation data into UI history and Gemini client history formats.
