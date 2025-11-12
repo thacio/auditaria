@@ -257,7 +257,6 @@ export async function startInteractiveUI(
                             <TerminalCaptureWrapper>
                               <AppContainer
                                 config={config}
-                                settings={settings}
                                 startupWarnings={startupWarnings}
                                 version={version}
                                 resumedSessionData={resumedSessionData}

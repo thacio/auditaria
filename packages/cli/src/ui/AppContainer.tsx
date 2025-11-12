@@ -82,11 +82,7 @@ import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
 import { useVim } from './hooks/vim.js';
-import {
-  type LoadableSettingScope,
-  type LoadedSettings,
-  SettingScope,
-} from '../config/settings.js';
+import { type LoadableSettingScope, SettingScope } from '../config/settings.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useBracketedPaste } from './hooks/useBracketedPaste.js';
@@ -124,6 +120,8 @@ import { useSessionResume } from './hooks/useSessionResume.js';
 import { type ExtensionManager } from '../config/extension-manager.js';
 import { requestConsentInteractive } from '../config/extensions/consent.js';
 import { disableMouseEvents, enableMouseEvents } from './utils/mouse.js';
+import { useAlternateBuffer } from './hooks/useAlternateBuffer.js';
+import { useSettings } from './contexts/SettingsContext.js';
 
 const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
 const QUEUE_ERROR_DISPLAY_DURATION_MS = 3000;
@@ -141,7 +139,6 @@ function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
 
 interface AppContainerProps {
   config: Config;
-  settings: LoadedSettings;
   startupWarnings?: string[];
   version: string;
   initializationResult: InitializationResult;
@@ -161,9 +158,11 @@ const SHELL_WIDTH_FRACTION = 0.89;
 const SHELL_HEIGHT_PADDING = 10;
 
 export const AppContainer = (props: AppContainerProps) => {
-  const { settings, config, initializationResult, resumedSessionData } = props;
+  const { config, initializationResult, resumedSessionData } = props;
   const historyManager = useHistory();
   useMemoryMonitor(historyManager);
+  const settings = useSettings();
+  const isAlternateBuffer = useAlternateBuffer();
   const [corgiMode, setCorgiMode] = useState(false);
   const [debugMessage, setDebugMessage] = useState<string>('');
   const [quittingMessages, setQuittingMessages] = useState<
@@ -373,11 +372,11 @@ export const AppContainer = (props: AppContainerProps) => {
   }, [historyManager.history, logger]);
 
   const refreshStatic = useCallback(() => {
-    if (settings.merged.ui?.useAlternateBuffer === false) {
+    if (!isAlternateBuffer) {
       stdout.write(ansiEscapes.clearTerminal);
     }
     setHistoryRemountKey((prev) => prev + 1);
-  }, [setHistoryRemountKey, stdout, settings]);
+  }, [setHistoryRemountKey, stdout, isAlternateBuffer]);
 
   const {
     isThemeDialogOpen,
@@ -1075,10 +1074,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
         debugLogger.log('[DEBUG] Keystroke:', JSON.stringify(key));
       }
 
-      if (
-        settings.merged.ui?.useAlternateBuffer &&
-        keyMatchers[Command.TOGGLE_COPY_MODE](key)
-      ) {
+      if (isAlternateBuffer && keyMatchers[Command.TOGGLE_COPY_MODE](key)) {
         setCopyModeEnabled(true);
         disableMouseEvents();
         return;
@@ -1150,7 +1146,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       refreshStatic,
       setCopyModeEnabled,
       copyModeEnabled,
-      settings.merged.ui?.useAlternateBuffer,
+      isAlternateBuffer,
     ],
   );
 
