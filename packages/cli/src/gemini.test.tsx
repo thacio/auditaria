@@ -534,6 +534,7 @@ describe('startInteractiveUI', () => {
 
     // Verify render options
     expect(options).toEqual({
+      alternateBuffer: true,
       exitOnCtrlC: false,
       isScreenReaderEnabled: false,
       onRender: expect.any(Function),
