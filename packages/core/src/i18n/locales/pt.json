@@ -1732,6 +1732,9 @@
     "initialization": {
       "initializing": "Inicializando...",
       "connecting_mcp_servers": "Conectando aos servidores MCP... ({connected}/{total})"
+    },
+    "tool_output": {
+      "output_saved": "Saída muito longa e foi salva em: {outputFile}"
     }
   },
   "system": {

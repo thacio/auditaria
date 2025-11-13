@@ -43,6 +43,9 @@ export interface ToolMessageProps extends IndividualToolCallDisplay {
   renderOutputAsMarkdown?: boolean;
   activeShellPtyId?: number | null;
   embeddedShellFocused?: boolean;
+  isFirst: boolean;
+  borderColor: string;
+  borderDimColor: boolean;
   config?: Config;
 }
 
@@ -59,6 +62,9 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   embeddedShellFocused,
   ptyId,
   config,
+  isFirst,
+  borderColor,
+  borderDimColor,
 }) => {
   const { renderMarkdown } = useUIState();
   const isAlternateBuffer = useAlternateBuffer();
@@ -117,7 +123,8 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
   if (availableHeight && !isAlternateBuffer) {
     renderOutputAsMarkdown = false;
   }
-  const childWidth = terminalWidth;
+  const combinedPaddingAndBorderWidth = 4;
+  const childWidth = terminalWidth - combinedPaddingAndBorderWidth;
 
   const truncatedResultDisplay = React.useMemo(() => {
     if (typeof resultDisplay === 'string') {
@@ -132,7 +139,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
     if (!truncatedResultDisplay) return null;
 
     return (
-      <Box width={terminalWidth} flexDirection="column" paddingLeft={1}>
+      <Box width={childWidth} flexDirection="column">
         <Box flexDirection="column">
           {typeof truncatedResultDisplay === 'string' &&
           renderOutputAsMarkdown ? (
@@ -190,15 +197,16 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
     renderMarkdown,
     isAlternateBuffer,
     availableHeight,
-    terminalWidth,
   ]);
 
   return (
-    // We have the StickyHeader intentionally exceedsthe allowed width for this
-    // component by 1 so tne horizontal line it renders can extend into the 1
-    // pixel of padding of the box drawn by the parent of the ToolMessage.
     <>
-      <StickyHeader width={terminalWidth + 1}>
+      <StickyHeader
+        width={terminalWidth}
+        isFirst={isFirst}
+        borderColor={borderColor}
+        borderDimColor={borderDimColor}
+      >
         <ToolStatusIndicator status={status} name={name} />
         <ToolInfo
           name={name}
@@ -217,15 +225,28 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
         )}
         {emphasis === 'high' && <TrailingIndicator />}
       </StickyHeader>
-      {renderedResult}
-      {isThisShellFocused && config && (
-        <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
-          <ShellInputPrompt
-            activeShellPtyId={activeShellPtyId ?? null}
-            focus={embeddedShellFocused}
-          />
-        </Box>
-      )}
+      <Box
+        width={terminalWidth}
+        borderStyle="round"
+        borderColor={borderColor}
+        borderDimColor={borderDimColor}
+        borderTop={false}
+        borderBottom={false}
+        borderLeft={true}
+        borderRight={true}
+        paddingX={1}
+        flexDirection="column"
+      >
+        {renderedResult}
+        {isThisShellFocused && config && (
+          <Box paddingLeft={STATUS_INDICATOR_WIDTH} marginTop={1}>
+            <ShellInputPrompt
+              activeShellPtyId={activeShellPtyId ?? null}
+              focus={embeddedShellFocused}
+            />
+          </Box>
+        )}
+      </Box>
     </>
   );
 };
