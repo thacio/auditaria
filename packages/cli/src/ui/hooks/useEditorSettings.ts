@@ -17,6 +17,8 @@ import type {
 import { type HistoryItem, MessageType } from '../types.js';
 import type { EditorType } from '@thacio/auditaria-cli-core';
 
+import { SettingPaths } from '../../config/settingPaths.js';
+
 interface UseEditorSettingsReturn {
   isEditorDialogOpen: boolean;
   openEditorDialog: () => void;
@@ -49,7 +51,11 @@ export const useEditorSettings = (
       }
 
       try {
-        loadedSettings.setValue(scope, 'preferredEditor', editorType);
+        loadedSettings.setValue(
+          scope,
+          SettingPaths.General.PreferredEditor,
+          editorType,
+        );
         addItem(
           {
             type: MessageType.INFO,

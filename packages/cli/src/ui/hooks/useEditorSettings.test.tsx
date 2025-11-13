@@ -28,6 +28,8 @@ import {
   allowEditorTypeInSandbox,
 } from '@thacio/auditaria-cli-core';
 
+import { SettingPaths } from '../../config/settingPaths.js';
+
 vi.mock('@thacio/auditaria-cli-core', async () => {
   const actual = await vi.importActual('@thacio/auditaria-cli-core');
   return {
@@ -114,7 +116,7 @@ describe('useEditorSettings', () => {
 
     expect(mockLoadedSettings.setValue).toHaveBeenCalledWith(
       scope,
-      'preferredEditor',
+      SettingPaths.General.PreferredEditor,
       editorType,
     );
 
@@ -142,7 +144,7 @@ describe('useEditorSettings', () => {
 
     expect(mockLoadedSettings.setValue).toHaveBeenCalledWith(
       scope,
-      'preferredEditor',
+      SettingPaths.General.PreferredEditor,
       undefined,
     );
 
@@ -171,7 +173,7 @@ describe('useEditorSettings', () => {
 
       expect(mockLoadedSettings.setValue).toHaveBeenCalledWith(
         scope,
-        'preferredEditor',
+        SettingPaths.General.PreferredEditor,
         editorType,
       );
 
@@ -201,7 +203,7 @@ describe('useEditorSettings', () => {
 
       expect(mockLoadedSettings.setValue).toHaveBeenCalledWith(
         scope,
-        'preferredEditor',
+        SettingPaths.General.PreferredEditor,
         editorType,
       );
 
