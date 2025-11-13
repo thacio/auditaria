@@ -10,6 +10,7 @@ import {
   getErrorMessage,
   isNodeError,
   unescapePath,
+  ReadManyFilesTool,
 } from '@thacio/auditaria-cli-core';
 
 import * as fs from 'node:fs/promises';
@@ -155,7 +156,7 @@ export async function handleAtCommand({
   };
 
   const toolRegistry = config.getToolRegistry();
-  const readManyFilesTool = toolRegistry.getTool('read_many_files');
+  const readManyFilesTool = new ReadManyFilesTool(config);
   const globTool = toolRegistry.getTool('glob');
 
   if (!readManyFilesTool) {
