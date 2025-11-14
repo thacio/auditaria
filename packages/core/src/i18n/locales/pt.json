@@ -1732,6 +1732,9 @@
     "pro_exceeded_free_new": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Aumente seus limites \n⚡ - inscrevendo-se em um plano com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ - ou usando uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
     "congestion_error": "🚦Desculpe o Congestionamento! Parece que {model} está muito popular no momento.\nPor favor, tente novamente mais tarde."
   },
+  "chat": {
+    "model_info": "Respondendo com {model}"
+  },
   "ui": {
     "initialization": {
       "initializing": "Inicializando...",
