@@ -22,9 +22,15 @@ export function getLicenseDisplay(
 
     case AuthType.LOGIN_WITH_GOOGLE_GCA:
       if (userTier === UserTierId.STANDARD) {
-        return t('license.gca_standard', 'Gemini Code Assist Standard (Google Workspace)');
+        return t(
+          'license.gca_standard',
+          'Gemini Code Assist Standard (Google Workspace)',
+        );
       } else if (userTier === UserTierId.LEGACY) {
-        return t('license.gca_enterprise', 'Gemini Code Assist Enterprise (Google Workspace)');
+        return t(
+          'license.gca_enterprise',
+          'Gemini Code Assist Enterprise (Google Workspace)',
+        );
       }
       return t('license.gca_generic', 'Gemini Code Assist (Google Workspace)');
 
@@ -34,7 +40,7 @@ export function getLicenseDisplay(
     case AuthType.USE_VERTEX_AI:
       return t('license.vertex_ai', 'Vertex AI');
 
-    case AuthType.CLOUD_SHELL:
+    case AuthType.COMPUTE_ADC:
       return t('license.cloud_shell', 'Cloud Shell');
 
     default:

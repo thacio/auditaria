@@ -86,12 +86,12 @@ describe('getLicenseDisplay', () => {
   });
 
   describe('Cloud Shell', () => {
-    it('should return Cloud Shell for CLOUD_SHELL', () => {
-      expect(getLicenseDisplay(AuthType.CLOUD_SHELL)).toBe('Cloud Shell');
+    it('should return Cloud Shell for COMPUTE_ADC', () => {
+      expect(getLicenseDisplay(AuthType.COMPUTE_ADC)).toBe('Cloud Shell');
     });
 
-    it('should ignore userTier for CLOUD_SHELL', () => {
-      expect(getLicenseDisplay(AuthType.CLOUD_SHELL, UserTierId.STANDARD)).toBe(
+    it('should ignore userTier for COMPUTE_ADC', () => {
+      expect(getLicenseDisplay(AuthType.COMPUTE_ADC, UserTierId.STANDARD)).toBe(
         'Cloud Shell',
       );
     });

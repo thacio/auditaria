@@ -76,7 +76,7 @@ export async function setupUser(
   // Only use GOOGLE_CLOUD_PROJECT for GCA login or Cloud Shell
   const projectId =
     authType === AuthType.LOGIN_WITH_GOOGLE_GCA ||
-    authType === AuthType.CLOUD_SHELL
+    authType === AuthType.COMPUTE_ADC
       ? process.env['GOOGLE_CLOUD_PROJECT'] ||
         process.env['GOOGLE_CLOUD_PROJECT_ID'] ||
         undefined
