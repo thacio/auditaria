@@ -456,7 +456,7 @@ describe('startInteractiveUI', () => {
   const mockConfig = {
     getProjectRoot: () => '/root',
     getScreenReader: () => false,
-  } as Config;
+  } as unknown as Config;
   const mockSettings = {
     merged: {
       ui: {
@@ -482,7 +482,6 @@ describe('startInteractiveUI', () => {
     isKittyProtocolSupported: vi.fn(() => true),
     isKittyProtocolEnabled: vi.fn(() => true),
   }));
-
   vi.mock('./ui/utils/updateCheck.js', () => ({
     checkForUpdates: vi.fn(() => Promise.resolve(null)),
   }));
