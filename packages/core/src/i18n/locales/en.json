@@ -387,6 +387,9 @@
       "description": "exit the cli",
       "alt_name": "exit"
     },
+    "chat": {
+      "model_info": "responding with {model}"
+    },
     "compress": {
       "description": "Compresses the context by replacing it with a summary.",
       "alt_name": "summarize",

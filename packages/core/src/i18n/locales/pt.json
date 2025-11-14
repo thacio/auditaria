@@ -384,6 +384,9 @@
       "description": "sair do cli",
       "alt_name": "sair"
     },
+    "chat": {
+      "model_info": "respondendo com {model}"
+    },
     "compress": {
       "description": "Comprime o contexto substituindo-o por um resumo.",
       "alt_name": "resumir",

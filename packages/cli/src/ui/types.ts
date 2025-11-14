@@ -165,6 +165,11 @@ export type HistoryItemToolStats = HistoryItemBase & {
   type: 'tool_stats';
 };
 
+export type HistoryItemModel = HistoryItemBase & {
+  type: 'model';
+  model: string;
+};
+
 export type HistoryItemQuit = HistoryItemBase & {
   type: 'quit';
   duration: string;
@@ -264,6 +269,7 @@ export type HistoryItemWithoutId =
   | HistoryItemStats
   | HistoryItemModelStats
   | HistoryItemToolStats
+  | HistoryItemModel
   | HistoryItemQuit
   | HistoryItemCompression
   | HistoryItemExtensionsList

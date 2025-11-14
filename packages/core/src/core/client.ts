@@ -529,6 +529,7 @@ export class GeminiClient {
       modelToUse = decision.model;
       // Lock the model for the rest of the sequence
       this.currentSequenceModel = modelToUse;
+      yield { type: GeminiEventType.ModelInfo, value: modelToUse };
     }
 
     const resultStream = turn.run(modelToUse, request, linkedSignal);
