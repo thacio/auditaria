@@ -352,7 +352,8 @@
       "resume": {
         "description": "Retomar uma conversa de um checkpoint. Uso: /chat resume <tag>",
         "missing_tag": "Tag ausente. Uso: /chat resume <tag>",
-        "not_found": "Nenhum checkpoint salvo encontrado com tag: {tag}."
+        "not_found": "Nenhum checkpoint salvo encontrado com tag: {tag}.",
+        "auth_mismatch": "Não é possível retomar o chat. Ele foi salvo com um método de autenticação diferente ({savedAuthType}) do atual ({currentAuthType})."
       },
       "list": {
         "description": "Listar checkpoints de conversas salvos",

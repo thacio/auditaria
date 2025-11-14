@@ -7,6 +7,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import type { Content } from '@google/genai';
+import type { AuthType } from './contentGenerator.js';
 import type { Storage } from '../config/storage.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { coreEvents } from '../utils/events.js';
@@ -24,6 +25,11 @@ export interface LogEntry {
   timestamp: string;
   type: MessageSenderType;
   message: string;
+}
+
+export interface Checkpoint {
+  history: Content[];
+  authType?: AuthType;
 }
 
 // This regex matches any character that is NOT a letter (a-z, A-Z),
@@ -315,7 +321,7 @@ export class Logger {
     return newPath;
   }
 
-  async saveCheckpoint(conversation: Content[], tag: string): Promise<void> {
+  async saveCheckpoint(checkpoint: Checkpoint, tag: string): Promise<void> {
     if (!this.initialized) {
       debugLogger.error(
         'Logger not initialized or checkpoint file path not set. Cannot save a checkpoint.',
@@ -325,7 +331,7 @@ export class Logger {
     // Always save with the new encoded path.
     const path = this._checkpointPath(tag);
     try {
-      await fs.writeFile(path, JSON.stringify(conversation, null, 2), 'utf-8');
+      await fs.writeFile(path, JSON.stringify(checkpoint, null, 2), 'utf-8');
 
       // Context management tools BEGIN --- Auditaria Custom Features
       // Save context companion file if there's forgotten content
@@ -333,7 +339,11 @@ export class Logger {
       if (contextStorage.hasContent()) {
         const contextPath = path.replace('.json', '.json.context');
         const contextState = contextStorage.exportState();
-        await fs.writeFile(contextPath, JSON.stringify(contextState, null, 2), 'utf-8');
+        await fs.writeFile(
+          contextPath,
+          JSON.stringify(contextState, null, 2),
+          'utf-8',
+        );
         debugLogger.debug(`Saved context companion file: ${contextPath}`);
       } // Context management tools END --- Auditaria Custom Features
     } catch (error) {
@@ -341,24 +351,18 @@ export class Logger {
     }
   }
 
-  async loadCheckpoint(tag: string): Promise<Content[]> {
+  async loadCheckpoint(tag: string): Promise<Checkpoint> {
     if (!this.initialized) {
       debugLogger.error(
         'Logger not initialized or checkpoint file path not set. Cannot load checkpoint.',
       );
-      return [];
+      return { history: [] };
     }
 
     const path = await this._getCheckpointPath(tag);
     try {
       const fileContent = await fs.readFile(path, 'utf-8');
       const parsedContent = JSON.parse(fileContent);
-      if (!Array.isArray(parsedContent)) {
-        debugLogger.warn(
-          `Checkpoint file at ${path} is not a valid JSON array. Returning empty checkpoint.`,
-        );
-        return [];
-      }
 
       // Context management tools BEGIN --- Auditaria Custom Features
       // Clear any existing context state before loading
@@ -373,31 +377,52 @@ export class Logger {
         if (contextStorage.importState(contextState)) {
           debugLogger.debug(`Loaded context companion file: ${contextPath}`);
         } else {
-          debugLogger.warn(`Failed to import context state from: ${contextPath}`);
+          debugLogger.warn(
+            `Failed to import context state from: ${contextPath}`,
+          );
         }
       } catch (contextError) {
         const contextNodeError = contextError as NodeJS.ErrnoException;
         if (contextNodeError.code !== 'ENOENT') {
           // Log errors other than "file not found" (old saves won't have companion file)
-          debugLogger.debug(`Context companion file error for ${contextPath}:`, contextError);
+          debugLogger.debug(
+            `Context companion file error for ${contextPath}:`,
+            contextError,
+          );
         }
         // It's okay if the context file doesn't exist (backwards compatibility)
         // Context storage has already been cleared above
       }
       // Context management tools END --- Auditaria Custom Features
 
-      return parsedContent as Content[];
+      // Handle legacy format (just an array of Content)
+      if (Array.isArray(parsedContent)) {
+        return { history: parsedContent as Content[] };
+      }
+
+      if (
+        typeof parsedContent === 'object' &&
+        parsedContent !== null &&
+        'history' in parsedContent
+      ) {
+        return parsedContent as Checkpoint;
+      }
+
+      debugLogger.warn(
+        `Checkpoint file at ${path} has an unknown format. Returning empty checkpoint.`,
+      );
+      return { history: [] };
     } catch (error) {
       const nodeError = error as NodeJS.ErrnoException;
       if (nodeError.code === 'ENOENT') {
         // This is okay, it just means the checkpoint doesn't exist in either format.
-        return [];
+        return { history: [] };
       }
       debugLogger.error(
         `Failed to read or parse checkpoint file ${path}:`,
         error,
       );
-      return [];
+      return { history: [] };
     }
   }
 
@@ -437,7 +462,10 @@ export class Logger {
     } catch (error) {
       const nodeError = error as NodeJS.ErrnoException;
       if (nodeError.code !== 'ENOENT') {
-        debugLogger.debug(`Failed to delete context companion file ${newContextPath}:`, error);
+        debugLogger.debug(
+          `Failed to delete context companion file ${newContextPath}:`,
+          error,
+        );
       }
       // It's okay if it doesn't exist.
     }
@@ -466,11 +494,16 @@ export class Logger {
       const oldContextPath = oldPath.replace('.json', '.json.context');
       try {
         await fs.unlink(oldContextPath);
-        debugLogger.debug(`Deleted old context companion file: ${oldContextPath}`);
+        debugLogger.debug(
+          `Deleted old context companion file: ${oldContextPath}`,
+        );
       } catch (error) {
         const nodeError = error as NodeJS.ErrnoException;
         if (nodeError.code !== 'ENOENT') {
-          debugLogger.debug(`Failed to delete old context companion file ${oldContextPath}:`, error);
+          debugLogger.debug(
+            `Failed to delete old context companion file ${oldContextPath}:`,
+            error,
+          );
         }
         // It's okay if it doesn't exist.
       }

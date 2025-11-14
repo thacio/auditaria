@@ -355,7 +355,8 @@
       "resume": {
         "description": "Resume a conversation from a checkpoint. Usage: /chat resume <tag>",
         "missing_tag": "Missing tag. Usage: /chat resume <tag>",
-        "not_found": "No saved checkpoint found with tag: {tag}."
+        "not_found": "No saved checkpoint found with tag: {tag}.",
+        "auth_mismatch": "Cannot resume chat. It was saved with a different authentication method ({savedAuthType}) than the current one ({currentAuthType})."
       },
       "list": {
         "description": "List saved conversation checkpoints",

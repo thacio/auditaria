@@ -67,7 +67,10 @@ const getSavedChatTags = async (
 const listCommand: SlashCommand = {
   name: 'list',
   get description() {
-    return t('commands.chat.list.description', 'List saved conversation checkpoints');
+    return t(
+      'commands.chat.list.description',
+      'List saved conversation checkpoints',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context): Promise<void> => {
@@ -85,7 +88,10 @@ const listCommand: SlashCommand = {
 const saveCommand: SlashCommand = {
   name: 'save',
   get description() {
-    return t('commands.chat.save.description', 'Save the current conversation as a checkpoint. Usage: /chat save <tag>');
+    return t(
+      'commands.chat.save.description',
+      'Save the current conversation as a checkpoint. Usage: /chat save <tag>',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, args): Promise<SlashCommandActionReturn | void> => {
@@ -94,7 +100,10 @@ const saveCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.save.missing_tag', 'Missing tag. Usage: /chat save <tag>'),
+        content: t(
+          'commands.chat.save.missing_tag',
+          'Missing tag. Usage: /chat save <tag>',
+        ),
       };
     }
 
@@ -109,9 +118,15 @@ const saveCommand: SlashCommand = {
           prompt: React.createElement(
             Text,
             null,
-            t('commands.chat.save.overwrite_confirmation_prefix', 'A checkpoint with the tag '),
+            t(
+              'commands.chat.save.overwrite_confirmation_prefix',
+              'A checkpoint with the tag ',
+            ),
             React.createElement(Text, { color: theme.text.accent }, tag),
-            t('commands.chat.save.overwrite_confirmation_suffix', ' already exists. Do you want to overwrite it?'),
+            t(
+              'commands.chat.save.overwrite_confirmation_suffix',
+              ' already exists. Do you want to overwrite it?',
+            ),
           ),
           originalInvocation: {
             raw: context.invocation?.raw || `/chat save ${tag}`,
@@ -125,23 +140,34 @@ const saveCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.save.no_client', 'No chat client available to save conversation.'),
+        content: t(
+          'commands.chat.save.no_client',
+          'No chat client available to save conversation.',
+        ),
       };
     }
 
     const history = chat.getHistory();
     if (history.length > 2) {
-      await logger.saveCheckpoint(history, tag);
+      const authType = config?.getContentGeneratorConfig()?.authType;
+      await logger.saveCheckpoint({ history, authType }, tag);
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.save.saved', 'Conversation checkpoint saved with tag: {tag}.', { tag: decodeTagName(tag) }),
+        content: t(
+          'commands.chat.save.saved',
+          'Conversation checkpoint saved with tag: {tag}.',
+          { tag: decodeTagName(tag) },
+        ),
       };
     } else {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.save.no_conversation', 'No conversation found to save.'),
+        content: t(
+          'commands.chat.save.no_conversation',
+          'No conversation found to save.',
+        ),
       };
     }
   },
@@ -151,7 +177,10 @@ const resumeCommand: SlashCommand = {
   name: 'resume',
   altNames: ['load'],
   get description() {
-    return t('commands.chat.resume.description', 'Resume a conversation from a checkpoint. Usage: /chat resume <tag>');
+    return t(
+      'commands.chat.resume.description',
+      'Resume a conversation from a checkpoint. Usage: /chat resume <tag>',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, args) => {
@@ -160,19 +189,44 @@ const resumeCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.resume.missing_tag', 'Missing tag. Usage: /chat resume <tag>'),
+        content: t(
+          'commands.chat.resume.missing_tag',
+          'Missing tag. Usage: /chat resume <tag>',
+        ),
       };
     }
 
-    const { logger } = context.services;
+    const { logger, config } = context.services;
     await logger.initialize();
-    const conversation = await logger.loadCheckpoint(tag);
+    const checkpoint = await logger.loadCheckpoint(tag);
+    const conversation = checkpoint.history;
 
     if (conversation.length === 0) {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.resume.not_found', 'No saved checkpoint found with tag: {tag}.', { tag: decodeTagName(tag) }),
+        content: t(
+          'commands.chat.resume.not_found',
+          'No saved checkpoint found with tag: {tag}.',
+          { tag: decodeTagName(tag) },
+        ),
+      };
+    }
+
+    const currentAuthType = config?.getContentGeneratorConfig()?.authType;
+    if (
+      checkpoint.authType &&
+      currentAuthType &&
+      checkpoint.authType !== currentAuthType
+    ) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: t(
+          'commands.chat.resume.auth_mismatch',
+          'Cannot resume chat. It was saved with a different authentication method ({savedAuthType}) than the current one ({currentAuthType}).',
+          { savedAuthType: checkpoint.authType, currentAuthType },
+        ),
       };
     }
 
@@ -222,7 +276,10 @@ const resumeCommand: SlashCommand = {
 const deleteCommand: SlashCommand = {
   name: 'delete',
   get description() {
-    return t('commands.chat.delete.description', 'Delete a conversation checkpoint. Usage: /chat delete <tag>');
+    return t(
+      'commands.chat.delete.description',
+      'Delete a conversation checkpoint. Usage: /chat delete <tag>',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, args): Promise<MessageActionReturn> => {
@@ -231,7 +288,10 @@ const deleteCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.delete.missing_tag', 'Missing tag. Usage: /chat delete <tag>'),
+        content: t(
+          'commands.chat.delete.missing_tag',
+          'Missing tag. Usage: /chat delete <tag>',
+        ),
       };
     }
 
@@ -243,13 +303,21 @@ const deleteCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.delete.deleted', "Conversation checkpoint '{tag}' has been deleted.", { tag: decodeTagName(tag) }),
+        content: t(
+          'commands.chat.delete.deleted',
+          "Conversation checkpoint '{tag}' has been deleted.",
+          { tag: decodeTagName(tag) },
+        ),
       };
     } else {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.delete.not_found', "Error: No checkpoint found with tag '{tag}'.", { tag: decodeTagName(tag) }),
+        content: t(
+          'commands.chat.delete.not_found',
+          "Error: No checkpoint found with tag '{tag}'.",
+          { tag: decodeTagName(tag) },
+        ),
       };
     }
   },
@@ -296,7 +364,10 @@ export function serializeHistoryToMarkdown(history: Content[]): string {
 const shareCommand: SlashCommand = {
   name: 'share',
   get description() {
-    return t('commands.chat.share.description', 'Share the current conversation to a markdown or json file. Usage: /chat share <file>');
+    return t(
+      'commands.chat.share.description',
+      'Share the current conversation to a markdown or json file. Usage: /chat share <file>',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, args): Promise<MessageActionReturn> => {
@@ -311,7 +382,10 @@ const shareCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.share.invalid_format', 'Invalid file format. Only .md and .json are supported.'),
+        content: t(
+          'commands.chat.share.invalid_format',
+          'Invalid file format. Only .md and .json are supported.',
+        ),
       };
     }
 
@@ -320,7 +394,10 @@ const shareCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.share.no_client', 'No chat client available to share conversation.'),
+        content: t(
+          'commands.chat.share.no_client',
+          'No chat client available to share conversation.',
+        ),
       };
     }
 
@@ -333,7 +410,10 @@ const shareCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.share.no_conversation', 'No conversation found to share.'),
+        content: t(
+          'commands.chat.share.no_conversation',
+          'No conversation found to share.',
+        ),
       };
     }
 
@@ -349,14 +429,22 @@ const shareCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.chat.share.shared', 'Conversation shared to {filePath}', { filePath }),
+        content: t(
+          'commands.chat.share.shared',
+          'Conversation shared to {filePath}',
+          { filePath },
+        ),
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.chat.share.error', 'Error sharing conversation: {error}', { error: errorMessage }),
+        content: t(
+          'commands.chat.share.error',
+          'Error sharing conversation: {error}',
+          { error: errorMessage },
+        ),
       };
     }
   },
