@@ -363,10 +363,9 @@ containerized environment.
 }
 ```
 
-You can also specify a custom, hardened Docker image for the sandbox using the
-`--sandbox-image` command-line argument or by building a custom
-`sandbox.Dockerfile` as described in the
-[Sandboxing documentation](./configuration.md#sandboxing).
+You can also specify a custom, hardened Docker image for the sandbox by building
+a custom `sandbox.Dockerfile` as described in the
+[Sandboxing documentation](./sandbox.md).
 
 ## Controlling Network Access via Proxy
 
