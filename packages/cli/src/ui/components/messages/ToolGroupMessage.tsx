@@ -104,7 +104,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       {toolCalls.map((tool, index) => {
         const isConfirming = toolAwaitingApproval?.callId === tool.callId;
         const isFirst = index === 0;
-        const isLast = index === toolCalls.length - 1;
         return (
           <Box
             key={tool.callId}
@@ -130,7 +129,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
               borderLeft={true}
               borderRight={true}
               borderTop={false}
-              borderBottom={isLast}
+              borderBottom={false}
               borderColor={borderColor}
               borderDimColor={borderDimColor}
               flexDirection="column"
@@ -154,7 +153,11 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
               {tool.outputFile && (
                 <Box>
                   <Text color={theme.text.primary}>
-                    {t('ui.tool_output.output_saved', 'Output too long and was saved to: {outputFile}', { outputFile: tool.outputFile })}
+                    {t(
+                      'ui.tool_output.output_saved',
+                      'Output too long and was saved to: {outputFile}',
+                      { outputFile: tool.outputFile },
+                    )}
                   </Text>
                 </Box>
               )}
@@ -162,6 +165,25 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
           </Box>
         );
       })}
+      {
+        /*
+              We have to keep the bottom border separate so it doesn't get
+              drawn over by the sticky header directly inside it.
+             */
+        toolCalls.length > 0 && (
+          <Box
+            height={0}
+            width={terminalWidth}
+            borderLeft={true}
+            borderRight={true}
+            borderTop={false}
+            borderBottom={true}
+            borderColor={borderColor}
+            borderDimColor={borderDimColor}
+            borderStyle="round"
+          />
+        )
+      }
     </Box>
   );
 };
