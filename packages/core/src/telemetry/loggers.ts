@@ -474,7 +474,7 @@ export function logContentRetry(
     attributes: event.toOpenTelemetryAttributes(config),
   };
   logger.emit(logRecord);
-  recordContentRetry(config, event.error_type);
+  recordContentRetry(config);
 }
 
 export function logContentRetryFailure(
@@ -490,7 +490,7 @@ export function logContentRetryFailure(
     attributes: event.toOpenTelemetryAttributes(config),
   };
   logger.emit(logRecord);
-  recordContentRetryFailure(config, event.final_error_type);
+  recordContentRetryFailure(config);
 }
 
 export function logModelRouting(
