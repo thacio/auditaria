@@ -593,6 +593,7 @@
       "login_google_free": "Login with Google - Free Tier",
       "login_google_gca": "Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)",
       "cloud_shell": "Use Cloud Shell user credentials",
+      "compute_adc": "Use metadata server application default credentials",
       "gemini_api": "Use Gemini API Key",
       "vertex_ai": "Vertex AI"
     },
@@ -608,6 +609,11 @@
       "auth_cancelled": "Authentication cancelled.",
       "waiting_for_auth": "Waiting for auth... (Press ESC or CTRL+C to cancel)",
       "failed_login": "Failed to login. Message: {error}"
+    }
+  },
+  "auth": {
+    "errors": {
+      "compute_adc_failed": "Could not authenticate using metadata server application default credentials. Please select a different authentication method or ensure you are in a properly configured environment. Error: {error}"
     }
   },
   "footer": {

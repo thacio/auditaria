@@ -590,6 +590,7 @@
       "login_google_free": "Fazer login com Google - Nível Gratuito",
       "login_google_gca": "Fazer login com Google - Gemini Code Assist (Requer GOOGLE_CLOUD_PROJECT)",
       "cloud_shell": "Usar credenciais do usuário Cloud Shell",
+      "compute_adc": "Usar credenciais padrão do aplicativo do servidor de metadados",
       "gemini_api": "Usar Chave API Gemini",
       "vertex_ai": "Vertex AI"
     },
@@ -605,6 +606,11 @@
       "auth_cancelled": "Autenticação cancelada.",
       "waiting_for_auth": "Aguardando autenticação... (Pressione ESC ou CTRL+C para cancelar)",
       "failed_login": "Falha no login. Mensagem: {error}"
+    }
+  },
+  "auth": {
+    "errors": {
+      "compute_adc_failed": "Não foi possível autenticar usando credenciais padrão do aplicativo do servidor de metadados. Selecione um método de autenticação diferente ou certifique-se de estar em um ambiente configurado corretamente. Erro: {error}"
     }
   },
   "footer": {

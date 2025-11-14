@@ -22,7 +22,7 @@ export async function createCodeAssistContentGenerator(
   if (
     authType === AuthType.LOGIN_WITH_GOOGLE ||
     authType === AuthType.LOGIN_WITH_GOOGLE_GCA ||
-    authType === AuthType.CLOUD_SHELL
+    authType === AuthType.COMPUTE_ADC
   ) {
     const authClient = await getOauthClient(authType, config);
     const userData = await setupUser(authClient, authType);
