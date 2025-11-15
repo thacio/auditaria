@@ -433,6 +433,13 @@ Your core function is efficient and safe assistance. Balance extreme conciseness
     fs.writeFileSync(writePath, basePrompt);
   }
 
+  // AUDITARIA_SKILLS_START - Auditaria Custom feature 
+  const skillsSection = config.getSkillsPromptSection();
+  if (skillsSection) {
+    basePrompt += skillsSection;
+  }
+  // AUDITARIA_SKILLS_END - Auditaria Custom feature
+
   const memorySuffix =
     userMemory && userMemory.trim().length > 0
       ? `\n\n---\n\n${userMemory.trim()}`

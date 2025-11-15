@@ -13,6 +13,7 @@ CLAUDE.md
 .gemini/*
 !.gemini/config.yaml
 !.gemini/commands/
+.auditaria/
 
 # Note: .gemini-clipboard/ is NOT in gitignore so Gemini can access pasted images
 

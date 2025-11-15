@@ -47,7 +47,14 @@ software** intactas.
   - `context_inspect` - Inspecionar histórico e estatísticas de tokens
   - `context_forget` - Esquecer conteúdo grande (amnésia completa até restauração)
   - `context_restore` - Restaurar conteúdo esquecido quando necessário
-  - **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
+- **🎓 Habilidades de Agente (Agent Skills)**: Sistema modular de habilidades
+  que estende as capacidades do Auditaria com conhecimento especializado em
+  domínios específicos. Implementa o mesmo sistema de skills do Claude, sendo
+  compatível com skills do Claude
+  - Descoberta automática de habilidades em `.auditaria/skills/`
+  - Compatível com skills criadas para Claude
+  - Crie habilidades customizadas com arquivos SKILL.md
+- **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
   Português e Inglês (com comando `/language`)
 - **🛠️ Ferramenta TODO**: Sistema completo de gerenciamento de tarefas para
   rastrear e organizar fluxos de trabalho complexos de auditoria
@@ -422,9 +429,15 @@ all original software engineering capabilities** intact.
   - `context_inspect` - Inspect history and token statistics
   - `context_forget` - Forget large content (complete amnesia until restored)
   - `context_restore` - Restore forgotten content when needed
+- **🎓 Agent Skills**: Modular skills system that extends Auditaria's
+  capabilities with specialized domain-specific knowledge. Implements the same
+  skills system as Claude, making it compatible with Claude skills
+  - Automatic skill discovery from `.auditaria/skills/`
+  - Compatible with skills created for Claude Code
+  - Create custom skills with SKILL.md files
 - **🌐 Multi-language Support**: Full internationalization with Portuguese and
   English support (with `/language` command)
-  - **🛠️ TODO Tool**: Complete task management system for tracking and organizing
+- **🛠️ TODO Tool**: Complete task management system for tracking and organizing
   complex audit workflows
 - **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model
   management:

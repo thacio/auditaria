@@ -427,6 +427,7 @@ export class Config {
     | undefined;
   private experiments: Experiments | undefined;
   private experimentsPromise: Promise<void> | undefined;
+  private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -643,6 +644,11 @@ export class Config {
       await this.mcpClientManager.startConfiguredMcpServers(),
       await this.getExtensionLoader().start(this),
     ]);
+
+    // AUDITARIA_SKILLS_START - Load skills during initialization
+    const { loadSkillsPromptSection } = await import('../skills/index.js');
+    this.skillsPromptSection = await loadSkillsPromptSection(this.targetDir);
+    // AUDITARIA_SKILLS_END
 
     await this.geminiClient.initialize();
   }
@@ -1511,6 +1517,13 @@ export class Config {
     });
     debugLogger.debug('Experiments loaded', summaryString);
   }
+
+  
+  // AUDITARIA_SKILLS_START - Auditaria Custom feature
+  getSkillsPromptSection(): string {
+    return this.skillsPromptSection;
+  }
+  // AUDITARIA_SKILLS_END - Auditaria Custom feature
 }
 // Export model constants for use in CLI
 export { DEFAULT_GEMINI_FLASH_MODEL };
