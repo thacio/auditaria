@@ -510,7 +510,9 @@
         "error_adding": "Error adding '{path}': {error}",
         "success": "Successfully added directories:\n- {directories}",
         "memory_files_added": "Successfully added GEMINI.md files from the following directories if there are:\n- {directories}",
-        "memory_refresh_error": "Error refreshing memory: {error}"
+        "memory_refresh_error": "Error refreshing memory: {error}",
+        "already_added": "The following directories are already in the workspace:\n- {directories}",
+        "untrusted_dirs": "The following directories are explicitly untrusted and cannot be added to a trusted workspace:\n- {directories}\nPlease use the permissions command to modify their trust level."
       },
       "show": {
         "description": "Show all directories in the workspace",

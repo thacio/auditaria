@@ -119,6 +119,8 @@ import { ShellFocusContext } from './contexts/ShellFocusContext.js';
 import { useSessionResume } from './hooks/useSessionResume.js';
 import { type ExtensionManager } from '../config/extension-manager.js';
 import { requestConsentInteractive } from '../config/extensions/consent.js';
+import { useIncludeDirsTrust } from './hooks/useIncludeDirsTrust.js';
+import { isWorkspaceTrusted } from '../config/trustedFolders.js';
 import { disableMouseEvents, enableMouseEvents } from './utils/mouse.js';
 import { useAlternateBuffer } from './hooks/useAlternateBuffer.js';
 import { useSettings } from './contexts/SettingsContext.js';
@@ -175,6 +177,9 @@ export const AppContainer = (props: AppContainerProps) => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [embeddedShellFocused, setEmbeddedShellFocused] = useState(false);
   const [showDebugProfiler, setShowDebugProfiler] = useState(false);
+  const [customDialog, setCustomDialog] = useState<React.ReactNode | null>(
+    null,
+  );
   const [copyModeEnabled, setCopyModeEnabled] = useState(false);
 
   const [shellModeActive, setShellModeActive] = useState(false);
@@ -183,7 +188,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const [historyRemountKey, setHistoryRemountKey] = useState(0);
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
   const [isTrustedFolder, setIsTrustedFolder] = useState<boolean | undefined>(
-    config.isTrustedFolder(),
+    isWorkspaceTrusted(settings.merged).isTrusted,
   );
 
   const [queueErrorMessage, setQueueErrorMessage] = useState<string | null>(
@@ -616,6 +621,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     slashCommandActions,
     extensionsUpdateStateInternal,
     isConfigInitialized,
+    setCustomDialog,
   );
 
   const performMemoryRefresh = useCallback(async () => {
@@ -946,6 +952,8 @@ Logging in with Google... Please restart Gemini CLI to continue.
     restartReason: ideTrustRestartReason,
   } = useIdeTrustListener();
   const isInitialMount = useRef(true);
+
+  useIncludeDirsTrust(config, isTrustedFolder, historyManager, setCustomDialog);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -1312,6 +1320,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
     isFolderTrustDialogOpen ||
     !!shellConfirmationRequest ||
     !!confirmationRequest ||
+    !!customDialog ||
     confirmUpdateExtensionRequests.length > 0 ||
     !!loopDetectionConfirmationRequest ||
     isThemeDialogOpen ||
@@ -1874,6 +1883,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       activePtyId,
       embeddedShellFocused,
       showDebugProfiler,
+      customDialog,
       copyModeEnabled,
       warningMessage,
     }),
@@ -1961,6 +1971,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       historyManager,
       embeddedShellFocused,
       showDebugProfiler,
+      customDialog,
       apiKeyDefaultValue,
       authState,
       copyModeEnabled,

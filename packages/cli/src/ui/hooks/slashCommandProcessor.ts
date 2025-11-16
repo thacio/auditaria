@@ -82,6 +82,7 @@ export const useSlashCommandProcessor = (
   actions: SlashCommandProcessorActions,
   extensionsUpdateState: Map<string, ExtensionUpdateStatus>,
   isConfigInitialized: boolean,
+  setCustomDialog: (dialog: React.ReactNode | null) => void,
 ) => {
   const session = useSessionStats();
   // WEB_INTERFACE_START: Web commands handlers
@@ -223,6 +224,7 @@ export const useSlashCommandProcessor = (
         dispatchExtensionStateUpdate: actions.dispatchExtensionStateUpdate,
         addConfirmUpdateExtensionRequest:
           actions.addConfirmUpdateExtensionRequest,
+        removeComponent: () => setCustomDialog(null),
       },
       session: {
         stats: session.stats,
@@ -259,6 +261,7 @@ export const useSlashCommandProcessor = (
       handleWebStatus,
       // WEB_INTERFACE_END
       extensionsUpdateState,
+      setCustomDialog,
     ],
   );
 
@@ -552,6 +555,10 @@ export const useSlashCommandProcessor = (
                     true,
                   );
                 }
+                case 'custom_dialog': {
+                  setCustomDialog(result.component);
+                  return { type: 'handled' };
+                }
                 default: {
                   const unhandled: never = result;
                   throw new Error(
@@ -627,6 +634,7 @@ export const useSlashCommandProcessor = (
       setSessionShellAllowlist,
       setIsProcessing,
       setConfirmationRequest,
+      setCustomDialog,
     ],
   );
 

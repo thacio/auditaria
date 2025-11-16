@@ -507,7 +507,9 @@
         "error_adding": "Erro ao adicionar '{path}': {error}",
         "success": "Diretórios adicionados com sucesso:\n- {directories}",
         "memory_files_added": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\n- {directories}",
-        "memory_refresh_error": "Erro ao atualizar a memória: {error}"
+        "memory_refresh_error": "Erro ao atualizar a memória: {error}",
+        "already_added": "Os seguintes diretórios já estão no espaço de trabalho:\n- {directories}",
+        "untrusted_dirs": "Os seguintes diretórios são explicitamente não confiáveis e não podem ser adicionados a um espaço de trabalho confiável:\n- {directories}\nPor favor, use o comando permissions para modificar seu nível de confiança."
       },
       "show": {
         "description": "Mostrar todos os diretórios no espaço de trabalho",
