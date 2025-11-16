@@ -1478,7 +1478,8 @@
     }
   },
   "composer": {
-    "selection_warning": "Pressione Ctrl-S para entrar no modo de seleção e copiar texto."
+    "selection_warning": "Pressione Ctrl-S para entrar no modo de seleção e copiar texto.",
+    "paste_timeout": "Tempo de colagem esgotado. Possivelmente devido a conexão lenta."
   },
   "cli": {
     "errors": {

@@ -1481,7 +1481,8 @@
     }
   },
   "composer": {
-    "selection_warning": "Press Ctrl-S to enter selection mode to copy text."
+    "selection_warning": "Press Ctrl-S to enter selection mode to copy text.",
+    "paste_timeout": "Paste Timed out. Possibly due to slow connection."
   },
   "cli": {
     "errors": {
