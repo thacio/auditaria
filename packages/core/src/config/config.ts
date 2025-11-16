@@ -1480,8 +1480,8 @@ export class Config {
     this.experiments = experiments;
     const flagSummaries = Object.entries(experiments.flags ?? {})
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, flag]) => {
-        const summary: Record<string, unknown> = { name };
+      .map(([flagId, flag]) => {
+        const summary: Record<string, unknown> = { flagId };
         if (flag.boolValue !== undefined) {
           summary['boolValue'] = flag.boolValue;
         }
@@ -1518,7 +1518,6 @@ export class Config {
     debugLogger.debug('Experiments loaded', summaryString);
   }
 
-  
   // AUDITARIA_SKILLS_START - Auditaria Custom feature
   getSkillsPromptSection(): string {
     return this.skillsPromptSection;
