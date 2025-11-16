@@ -63,7 +63,14 @@
       "description": "Opens a dialog to configure the model"
     },
     "permissions": {
-      "description": "Manage folder trust settings"
+      "description": "Manage folder trust settings and other permissions",
+      "trust": {
+        "description": "Manage folder trust settings. Usage: /permissions trust [<directory-path>]",
+        "not_directory": "Path is not a directory: {path}",
+        "error_accessing": "Error accessing path: {path}. {error}"
+      },
+      "provide_subcommand": "Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]",
+      "invalid_subcommand": "Invalid subcommand for /permissions: {subcommand}. Usage: /permissions trust [<directory-path>]"
     },
     "profile": {
       "description": "Toggle the debug profile display",

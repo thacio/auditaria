@@ -17,7 +17,11 @@ import { relaunchApp } from '../../utils/processUtils.js';
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
 import { t } from '@thacio/auditaria-cli-core';
 
-interface PermissionsModifyTrustDialogProps {
+export interface PermissionsDialogProps {
+  targetDirectory?: string;
+}
+
+interface PermissionsModifyTrustDialogProps extends PermissionsDialogProps {
   onExit: () => void;
   addItem: UseHistoryManagerReturn['addItem'];
 }
@@ -25,9 +29,11 @@ interface PermissionsModifyTrustDialogProps {
 export function PermissionsModifyTrustDialog({
   onExit,
   addItem,
+  targetDirectory,
 }: PermissionsModifyTrustDialogProps): React.JSX.Element {
-  const dirName = path.basename(process.cwd());
-  const parentFolder = path.basename(path.dirname(process.cwd()));
+  const currentDirectory = targetDirectory ?? process.cwd();
+  const dirName = path.basename(currentDirectory);
+  const parentFolder = path.basename(path.dirname(currentDirectory));
 
   const TRUST_LEVEL_ITEMS = [
     {
@@ -63,7 +69,7 @@ export function PermissionsModifyTrustDialog({
     needsRestart,
     updateTrustLevel,
     commitTrustLevelChange,
-  } = usePermissionsModifyTrust(onExit, addItem);
+  } = usePermissionsModifyTrust(onExit, addItem, currentDirectory);
 
   useKeypress(
     (key) => {

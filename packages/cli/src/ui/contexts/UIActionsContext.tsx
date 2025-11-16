@@ -11,6 +11,7 @@ import { type FolderTrustChoice } from '../components/FolderTrustDialog.js';
 import { type AuthType, type EditorType } from '@thacio/auditaria-cli-core';
 import { type LoadableSettingScope } from '../../config/settings.js';
 import type { AuthState } from '../types.js';
+import { type PermissionsDialogProps } from '../components/PermissionsModifyTrustDialog.js';
 
 export interface UIActions {
   handleThemeSelect: (themeName: string, scope: LoadableSettingScope) => void;
@@ -36,6 +37,7 @@ export interface UIActions {
   exitPrivacyNotice: () => void;
   closeSettingsDialog: () => void;
   closeModelDialog: () => void;
+  openPermissionsDialog: (props?: PermissionsDialogProps) => void;
   closePermissionsDialog: () => void;
   setShellModeActive: (value: boolean) => void;
   vimHandleInput: (key: Key) => boolean;

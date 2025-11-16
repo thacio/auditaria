@@ -63,7 +63,14 @@
       "description": "Abre um diálogo para configurar o modelo"
     },
     "permissions": {
-      "description": "Gerenciar configurações de confiança de pastas"
+      "description": "Gerenciar configurações de confiança de pastas e outras permissões",
+      "trust": {
+        "description": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<caminho-do-diretório>]",
+        "not_directory": "Caminho não é um diretório: {path}",
+        "error_accessing": "Erro ao acessar caminho: {path}. {error}"
+      },
+      "provide_subcommand": "Por favor, forneça um subcomando para /permissions. Uso: /permissions trust [<caminho-do-diretório>]",
+      "invalid_subcommand": "Subcomando inválido para /permissions: {subcommand}. Uso: /permissions trust [<caminho-do-diretório>]"
     },
     "profile": {
       "description": "Alternar exibição do perfil de depuração",

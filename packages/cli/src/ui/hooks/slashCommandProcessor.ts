@@ -58,7 +58,7 @@ interface SlashCommandProcessorActions {
   openPrivacyNotice: () => void;
   openSettingsDialog: () => void;
   openModelDialog: () => void;
-  openPermissionsDialog: () => void;
+  openPermissionsDialog: (props?: { targetDirectory?: string }) => void;
   quit: (messages: HistoryItem[]) => void;
   setDebugMessage: (message: string) => void;
   toggleCorgiMode: () => void;
@@ -448,7 +448,9 @@ export const useSlashCommandProcessor = (
                       actions.openModelDialog();
                       return { type: 'handled' };
                     case 'permissions':
-                      actions.openPermissionsDialog();
+                      actions.openPermissionsDialog(
+                        result.props as { targetDirectory?: string },
+                      );
                       return { type: 'handled' };
                     case 'help':
                       return { type: 'handled' };

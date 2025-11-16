@@ -8,21 +8,7 @@ import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
 import { t, refreshServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
-import * as os from 'node:os';
-import * as path from 'node:path';
-
-export function expandHomeDir(p: string): string {
-  if (!p) {
-    return '';
-  }
-  let expandedPath = p;
-  if (p.toLowerCase().startsWith('%userprofile%')) {
-    expandedPath = os.homedir() + p.substring('%userprofile%'.length);
-  } else if (p === '~' || p.startsWith('~/')) {
-    expandedPath = os.homedir() + p.substring(1);
-  }
-  return path.normalize(expandedPath);
-}
+import { expandHomeDir } from '../utils/directoryUtils.js';
 
 export const directoryCommand: SlashCommand = {
   name: 'directory',
