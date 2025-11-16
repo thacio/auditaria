@@ -19,7 +19,7 @@ import { usePermissionsModifyTrust } from './usePermissionsModifyTrust.js';
 import { TrustLevel } from '../../config/trustedFolders.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import type { LoadedTrustedFolders } from '../../config/trustedFolders.js';
-import { coreEvents } from '@google/gemini-cli-core';
+import { coreEvents } from '@thacio/auditaria-cli-core';
 
 // Hoist mocks
 const mockedCwd = vi.hoisted(() => vi.fn());

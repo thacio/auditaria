@@ -14,7 +14,7 @@ import { useKeypress } from '../hooks/useKeypress.js';
 import { loadTrustedFolders, TrustLevel } from '../../config/trustedFolders.js';
 import { expandHomeDir } from '../utils/directoryUtils.js';
 import { MessageType, type HistoryItem } from '../types.js';
-import type { Config } from '@google/gemini-cli-core';
+import type { Config } from '@thacio/auditaria-cli-core';
 
 export enum MultiFolderTrustChoice {
   YES,
