@@ -99,6 +99,13 @@ export const Composer = () => {
             <Text color={theme.status.warning}>
               {t('app.press_ctrl_c_exit', 'Press Ctrl+C again to exit.')}
             </Text>
+          ) : uiState.selectionWarning ? (
+            <Text color={theme.status.warning}>
+              {t(
+                'composer.selection_warning',
+                'Press Ctrl-S to enter selection mode to copy text.',
+              )}
+            </Text>
           ) : uiState.ctrlDPressedOnce ? (
             <Text color={theme.status.warning}>
               {t('app.press_ctrl_d_exit', 'Press Ctrl+D again to exit.')}

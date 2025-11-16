@@ -565,8 +565,10 @@
       "esc": "Esc",
       "ctrl_c": "Ctrl+C",
       "ctrl_l": "Ctrl+L",
+      "ctrl_s": "Ctrl+S",
       "ctrl_x": "Ctrl+X",
-      "ctrl_x_meta": "Ctrl+X / Meta+Enter"
+      "ctrl_x_meta": "Ctrl+X / Meta+Enter",
+      "page_up_down": "Page Up/Down"
     },
     "shortcuts": {
       "enter": "Send message",
@@ -580,7 +582,9 @@
       "cancel_clear": "Cancel operation / Clear input (double press)",
       "quit": "Quit application",
       "clear_screen": "Clear the screen",
+      "selection_mode": "Enter selection mode to copy text",
       "external_editor": "Open input in external editor",
+      "scroll_page": "Scroll page up/down",
       "full_shortcuts_intro": "For a full list of shortcuts, see",
       "docs_path": "docs/keyboard-shortcuts.md"
     }
@@ -1468,6 +1472,9 @@
       "message_trust": "Workspace trust has changed due to a change in the IDE trust.",
       "restart_instruction": "Press 'r' to restart Auditaria to apply the changes."
     }
+  },
+  "composer": {
+    "selection_warning": "Press Ctrl-S to enter selection mode to copy text."
   },
   "cli": {
     "errors": {

@@ -126,6 +126,7 @@ export interface UIState {
   showDebugProfiler: boolean;
   showFullTodos: boolean;
   copyModeEnabled: boolean;
+  selectionWarning: boolean;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);

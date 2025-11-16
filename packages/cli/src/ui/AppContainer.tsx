@@ -123,7 +123,7 @@ import { disableMouseEvents, enableMouseEvents } from './utils/mouse.js';
 import { useAlternateBuffer } from './hooks/useAlternateBuffer.js';
 import { useSettings } from './contexts/SettingsContext.js';
 
-const CTRL_EXIT_PROMPT_DURATION_MS = 1000;
+const WARNING_PROMPT_DURATION_MS = 1000;
 const QUEUE_ERROR_DISPLAY_DURATION_MS = 3000;
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
@@ -931,6 +931,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
   >();
   const [showEscapePrompt, setShowEscapePrompt] = useState(false);
   const [showIdeRestartPrompt, setShowIdeRestartPrompt] = useState(false);
+  const [selectionWarning, setSelectionWarning] = useState(false);
 
   const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
     useFolderTrust(settings, setIsTrustedFolder, historyManager.addItem);
@@ -939,6 +940,26 @@ Logging in with Google... Please restart Gemini CLI to continue.
     restartReason: ideTrustRestartReason,
   } = useIdeTrustListener();
   const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    const handleSelectionWarning = () => {
+      setSelectionWarning(true);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        setSelectionWarning(false);
+      }, WARNING_PROMPT_DURATION_MS);
+    };
+    appEvents.on(AppEvent.SelectionWarning, handleSelectionWarning);
+    return () => {
+      appEvents.off(AppEvent.SelectionWarning, handleSelectionWarning);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (ideNeedsRestart) {
@@ -1015,7 +1036,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       ctrlCTimerRef.current = setTimeout(() => {
         setCtrlCPressCount(0);
         ctrlCTimerRef.current = null;
-      }, CTRL_EXIT_PROMPT_DURATION_MS);
+      }, WARNING_PROMPT_DURATION_MS);
     }
   }, [ctrlCPressCount, config, setCtrlCPressCount, handleSlashCommand]);
 
@@ -1033,7 +1054,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       ctrlDTimerRef.current = setTimeout(() => {
         setCtrlDPressCount(0);
         ctrlDTimerRef.current = null;
-      }, CTRL_EXIT_PROMPT_DURATION_MS);
+      }, WARNING_PROMPT_DURATION_MS);
     }
   }, [ctrlDPressCount, config, setCtrlDPressCount, handleSlashCommand]);
 
@@ -1827,6 +1848,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       embeddedShellFocused,
       showDebugProfiler,
       copyModeEnabled,
+      selectionWarning,
     }),
     [
       isThemeDialogOpen,
@@ -1914,6 +1936,7 @@ Logging in with Google... Please restart Gemini CLI to continue.
       apiKeyDefaultValue,
       authState,
       copyModeEnabled,
+      selectionWarning,
     ],
   );
 

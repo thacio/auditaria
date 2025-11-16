@@ -562,8 +562,10 @@
       "esc": "Esc",
       "ctrl_c": "Ctrl+C",
       "ctrl_l": "Ctrl+L",
+      "ctrl_s": "Ctrl+S",
       "ctrl_x": "Ctrl+X",
-      "ctrl_x_meta": "Ctrl+X / Meta+Enter"
+      "ctrl_x_meta": "Ctrl+X / Meta+Enter",
+      "page_up_down": "Page Up/Down"
     },
     "shortcuts": {
       "enter": "Enviar mensagem",
@@ -577,7 +579,9 @@
       "cancel_clear": "Cancelar operação / Limpar entrada (pressione duas vezes)",
       "quit": "Sair da aplicação",
       "clear_screen": "Limpar a tela",
+      "selection_mode": "Entrar no modo de seleção para copiar texto",
       "external_editor": "Abrir entrada no editor externo",
+      "scroll_page": "Rolar página para cima/baixo",
       "full_shortcuts_intro": "Para uma lista completa de atalhos, consulte",
       "docs_path": "docs/keyboard-shortcuts.md"
     }
@@ -1465,6 +1469,9 @@
       "message_trust": "A confiança do workspace foi alterada devido a uma mudança na confiança do IDE.",
       "restart_instruction": "Pressione 'r' para reiniciar o Auditaria e aplicar as alterações."
     }
+  },
+  "composer": {
+    "selection_warning": "Pressione Ctrl-S para entrar no modo de seleção e copiar texto."
   },
   "cli": {
     "errors": {

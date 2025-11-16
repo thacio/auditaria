@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+
 import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
@@ -30,20 +31,30 @@ export const Help: React.FC<Help> = ({ commands }) => (
       <Text bold color={theme.text.accent}>
         {t('help.add_context', 'Add context')}
       </Text>
-      : {t('help.add_context_help', 'Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.', {
-        symbol: '@',
-        example: '@src/myFile.ts'
-      })}
+      :{' '}
+      {t(
+        'help.add_context_help',
+        'Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.',
+        {
+          symbol: '@',
+          example: '@src/myFile.ts',
+        },
+      )}
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
         {t('help.shell_mode', 'Shell mode')}
       </Text>
-      : {t('help.shell_mode_help', 'Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).', {
-        symbol: '!',
-        example: '!npm run start',
-        natural_example: 'start server'
-      })}
+      :{' '}
+      {t(
+        'help.shell_mode_help',
+        'Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).',
+        {
+          symbol: '!',
+          example: '!npm run start',
+          natural_example: 'start server',
+        },
+      )}
     </Text>
 
     <Box height={1} />
@@ -88,7 +99,11 @@ export const Help: React.FC<Help> = ({ commands }) => (
       - {t('help.shell_command', 'shell command')}
     </Text>
     <Text color={theme.text.primary}>
-      <Text color={theme.text.secondary}>[MCP]</Text> - {t('help.mcp_command', 'Model Context Protocol command (from external servers)')}
+      <Text color={theme.text.secondary}>[MCP]</Text> -{' '}
+      {t(
+        'help.mcp_command',
+        'Model Context Protocol command (from external servers)',
+      )}
     </Text>
 
     <Box height={1} />
@@ -111,10 +126,16 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {process.platform === 'win32' ? t('help.keys.ctrl_enter', 'Ctrl+Enter') : t('help.keys.ctrl_j', 'Ctrl+J')}
+        {process.platform === 'win32'
+          ? t('help.keys.ctrl_enter', 'Ctrl+Enter')
+          : t('help.keys.ctrl_j', 'Ctrl+J')}
       </Text>{' '}
-      - {process.platform === 'linux'
-        ? t('help.shortcuts.new_line_linux', 'New line (Alt+Enter works for certain linux distros)')
+      -{' '}
+      {process.platform === 'linux'
+        ? t(
+            'help.shortcuts.new_line_linux',
+            'New line (Alt+Enter works for certain linux distros)',
+          )
         : t('help.shortcuts.new_line_win', 'New line')}
     </Text>
     <Text color={theme.text.primary}>
@@ -125,7 +146,16 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {process.platform === 'darwin' ? t('help.keys.ctrl_x_meta', 'Ctrl+X / Meta+Enter') : t('help.keys.ctrl_x', 'Ctrl+X')}
+        {t('help.keys.ctrl_s', 'Ctrl+S')}
+      </Text>{' '}
+      -{' '}
+      {t('help.shortcuts.selection_mode', 'Enter selection mode to copy text')}
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {process.platform === 'darwin'
+          ? t('help.keys.ctrl_x_meta', 'Ctrl+X / Meta+Enter')
+          : t('help.keys.ctrl_x', 'Ctrl+X')}
       </Text>{' '}
       - {t('help.shortcuts.external_editor', 'Open input in external editor')}
     </Text>
@@ -145,7 +175,17 @@ export const Help: React.FC<Help> = ({ commands }) => (
       <Text bold color={theme.text.accent}>
         {t('help.keys.esc', 'Esc')}
       </Text>{' '}
-      - {t('help.shortcuts.cancel_clear', 'Cancel operation / Clear input (double press)')}
+      -{' '}
+      {t(
+        'help.shortcuts.cancel_clear',
+        'Cancel operation / Clear input (double press)',
+      )}
+    </Text>
+    <Text color={theme.text.primary}>
+      <Text bold color={theme.text.accent}>
+        {t('help.keys.page_up_down', 'Page Up/Down')}
+      </Text>{' '}
+      - {t('help.shortcuts.scroll_page', 'Scroll page up/down')}
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
@@ -161,7 +201,10 @@ export const Help: React.FC<Help> = ({ commands }) => (
     </Text>
     <Box height={1} />
     <Text color={theme.text.primary}>
-      {t('help.shortcuts.full_shortcuts_intro', 'For a full list of shortcuts, see')}{' '}
+      {t(
+        'help.shortcuts.full_shortcuts_intro',
+        'For a full list of shortcuts, see',
+      )}{' '}
       <Text bold color={theme.text.accent}>
         {t('help.shortcuts.docs_path', 'docs/cli/keyboard-shortcuts.md')}
       </Text>
