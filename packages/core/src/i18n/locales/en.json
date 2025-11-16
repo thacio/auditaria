@@ -1666,7 +1666,9 @@
     "fix_config": "Please fix the configuration file and try again.",
     "not_valid_json": "Trusted folders file is not a valid JSON object.",
     "cannot_enable_privileged_modes": "Cannot enable privileged approval modes in an untrusted folder.",
-    "approval_mode_overridden": "Approval mode overridden to \"default\" because the current folder is not trusted."
+    "approval_mode_overridden": "Approval mode overridden to \"default\" because the current folder is not trusted.",
+    "save_failed_exiting": "Failed to save trust settings. Exiting Auditoria CLI.",
+    "save_failed_may_not_persist": "Failed to save trust settings. Your changes may not persist."
   },
   "telemetry": {
     "data_collection_disabled": "Data collection is disabled."

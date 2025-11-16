@@ -14,7 +14,7 @@ import {
 } from '../../config/trustedFolders.js';
 import * as process from 'node:process';
 import { type HistoryItemWithoutId, MessageType } from '../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t, coreEvents } from '@thacio/auditaria-cli-core';
 
 export const useFolderTrust = (
   settings: LoadedSettings,
@@ -31,14 +31,16 @@ export const useFolderTrust = (
   useEffect(() => {
     const { isTrusted: trusted } = isWorkspaceTrusted(settings.merged);
     setIsTrusted(trusted);
-    
+
     // WEB_INTERFACE_START: Pre-start terminal capture for folder trust dialog
     // If dialog will open, start capture before setting state to catch initial render
-    if (trusted === undefined && (global as any).__preStartTerminalCapture) {
-      (global as any).__preStartTerminalCapture();
+    const preStartCapture = (global as Record<string, unknown>)
+      .__preStartTerminalCapture;
+    if (trusted === undefined && typeof preStartCapture === 'function') {
+      preStartCapture();
     }
     // WEB_INTERFACE_END
-    
+
     setIsFolderTrustDialogOpen(trusted === undefined);
     onTrustChange(trusted);
 
@@ -79,7 +81,22 @@ export const useFolderTrust = (
           return;
       }
 
-      trustedFolders.setValue(cwd, trustLevel);
+      try {
+        trustedFolders.setValue(cwd, trustLevel);
+      } catch (_e) {
+        coreEvents.emitFeedback(
+          'error',
+          t(
+            'trusted_folders.save_failed_exiting',
+            'Failed to save trust settings. Exiting Auditoria CLI.',
+          ),
+        );
+        setTimeout(() => {
+          process.exit(1);
+        }, 100);
+        return;
+      }
+
       const currentIsTrusted =
         trustLevel === TrustLevel.TRUST_FOLDER ||
         trustLevel === TrustLevel.TRUST_PARENT;

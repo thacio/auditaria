@@ -12,11 +12,10 @@ import {
   isWorkspaceTrusted,
 } from '../../config/trustedFolders.js';
 import { useSettings } from '../contexts/SettingsContext.js';
-import { t } from '@thacio/auditaria-cli-core';
-
 import { MessageType } from '../types.js';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { LoadedSettings } from '../../config/settings.js';
+import { t, coreEvents } from '@thacio/auditaria-cli-core';
 
 interface TrustState {
   currentTrustLevel: TrustLevel | undefined;
@@ -82,9 +81,15 @@ export const usePermissionsModifyTrust = (
       );
 
       if (trustLevel === TrustLevel.DO_NOT_TRUST && isTrusted) {
-        let message = t('permissions_dialog.warnings.still_trusted_ide', 'Note: This folder is still trusted because the connected IDE workspace is trusted.');
+        let message = t(
+          'permissions_dialog.warnings.still_trusted_ide',
+          'Note: This folder is still trusted because the connected IDE workspace is trusted.',
+        );
         if (source === 'file') {
-          message = t('permissions_dialog.warnings.still_trusted_parent', 'Note: This folder is still trusted because a parent folder is trusted.');
+          message = t(
+            'permissions_dialog.warnings.still_trusted_parent',
+            'Note: This folder is still trusted because a parent folder is trusted.',
+          );
         }
         addItem(
           {
@@ -100,7 +105,17 @@ export const usePermissionsModifyTrust = (
         setNeedsRestart(true);
       } else {
         const folders = loadTrustedFolders();
-        folders.setValue(cwd, trustLevel);
+        try {
+          folders.setValue(cwd, trustLevel);
+        } catch (_e) {
+          coreEvents.emitFeedback(
+            'error',
+            t(
+              'trusted_folders.save_failed_may_not_persist',
+              'Failed to save trust settings. Your changes may not persist.',
+            ),
+          );
+        }
         onExit();
       }
     },
@@ -110,8 +125,23 @@ export const usePermissionsModifyTrust = (
   const commitTrustLevelChange = useCallback(() => {
     if (pendingTrustLevel) {
       const folders = loadTrustedFolders();
-      folders.setValue(cwd, pendingTrustLevel);
+      try {
+        folders.setValue(cwd, pendingTrustLevel);
+        return true;
+      } catch (_e) {
+        coreEvents.emitFeedback(
+          'error',
+          t(
+            'trusted_folders.save_failed_may_not_persist',
+            'Failed to save trust settings. Your changes may not persist.',
+          ),
+        );
+        setNeedsRestart(false);
+        setPendingTrustLevel(undefined);
+        return false;
+      }
     }
+    return true;
   }, [cwd, pendingTrustLevel]);
 
   return {

@@ -1663,7 +1663,9 @@
     "fix_config": "Por favor, corrija o arquivo de configuração e tente novamente.",
     "not_valid_json": "O arquivo de pastas confiáveis não é um objeto JSON válido.",
     "cannot_enable_privileged_modes": "Não é possível ativar modos de aprovação privilegiados em uma pasta não confiável.",
-    "approval_mode_overridden": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável."
+    "approval_mode_overridden": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável.",
+    "save_failed_exiting": "Falha ao salvar configurações de confiança. Encerrando Auditoria CLI.",
+    "save_failed_may_not_persist": "Falha ao salvar configurações de confiança. Suas alterações podem não persistir."
   },
   "telemetry": {
     "data_collection_disabled": "A coleta de dados está desabilitada."
