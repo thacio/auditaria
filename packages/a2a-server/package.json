@@ -1,7 +1,5 @@
 {
-  "name": "@thacio/auditaria-cli-a2a-server",
-  "version": "0.17.0-nightly.20251114.0fcbff506",
-  "description": "Auditoria CLI A2A Server",
+  "version": "0.17.0-nightly.20251116.e650a4ee5",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thacio/auditaria.git",
