@@ -416,6 +416,17 @@
       "disabled": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
       "enabled": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa"
     },
+    "setup_skill": {
+      "description": "baixar e configurar uma habilidade",
+      "missing_name": "Por favor especifique o nome da habilidade. Habilidades disponíveis: {skills}",
+      "unknown": "Habilidade desconhecida: {skill}. Habilidades disponíveis: {skills}",
+      "platform_not_supported": "Habilidade {skill} não está disponível para a plataforma: {platform}",
+      "installing": "Instalando habilidade: {skill}...",
+      "parser_ready": "O parser DOCX está agora disponível na interface web.",
+      "success": "✓ {message}",
+      "failed": "✗ {message}",
+      "error": "Erro ao configurar habilidade: {error}"
+    },
     "ide": {
       "description": "gerenciar integração com IDE",
       "status": {

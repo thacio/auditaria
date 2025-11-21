@@ -42,6 +42,9 @@ export class EditorManager extends EventEmitter {
     // Editor container
     this.editorContainer = null;
 
+    // Parser state
+    this.parserAvailable = false;
+
     // Setup WebSocket handlers
     this.setupMessageHandlers();
 
@@ -58,6 +61,10 @@ export class EditorManager extends EventEmitter {
 
     try {
       await this.loadMonaco();
+
+      // Request parser status from server
+      this.wsManager.send({ type: 'parser_status_request' });
+
       this.emit('monaco-loaded');
     } catch (error) {
       console.error('Failed to load Monaco:', error);
@@ -97,6 +104,32 @@ export class EditorManager extends EventEmitter {
     // Handle file watch errors
     this.wsManager.addEventListener('file_watch_error', (event) => {
       this.handleFileWatchError(event.detail);
+    });
+
+    // Handle parser status updates
+    this.wsManager.addEventListener('parser_status', (event) => {
+      this.parserAvailable = event.detail.available;
+      this.emit('parser-status-changed', { available: this.parserAvailable });
+
+      // If active file is markdown, update toolbar
+      const activeFile = this.getActiveFile();
+      if (activeFile) {
+        const fileInfo = this.openFiles.get(activeFile);
+        if (fileInfo && fileInfo.language === 'markdown') {
+          this.emit('file-switched', { path: activeFile });
+        }
+      }
+    });
+
+    // Handle parse responses
+    this.wsManager.addEventListener('parse_response', (event) => {
+      const { outputPath } = event.detail;
+      alert(`✓ Successfully parsed to DOCX!\n\nOutput: ${outputPath}\n\nFile opened in default application.`);
+    });
+
+    // Handle parse errors
+    this.wsManager.addEventListener('parse_error', (event) => {
+      alert(`✗ Parse failed:\n\n${event.detail.error}`);
     });
   }
 
@@ -874,5 +907,24 @@ export class EditorManager extends EventEmitter {
 
     // Remove event listeners
     this.removeAllListeners();
+  }
+
+  /**
+   * Check if parser is available
+   * @returns {boolean}
+   */
+  isParserAvailable() {
+    return this.parserAvailable;
+  }
+
+  /**
+   * Request parse of markdown file to DOCX
+   * @param {string} mdPath - Path to markdown file
+   */
+  requestParse(mdPath) {
+    this.wsManager.send({
+      type: 'parse_request',
+      path: mdPath
+    });
   }
 }

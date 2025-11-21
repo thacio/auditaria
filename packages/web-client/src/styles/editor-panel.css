@@ -213,7 +213,7 @@
 }
 
 .editor-tabs-container::-webkit-scrollbar {
-  height: 3px;
+  height: 6px;
 }
 
 .editor-tabs-container::-webkit-scrollbar-track {
@@ -222,6 +222,11 @@
 
 .editor-tabs-container::-webkit-scrollbar-thumb {
   background: #c5c5c5;
+  border-radius: 4px;
+}
+
+.editor-tabs-container::-webkit-scrollbar-thumb:hover {
+  background: #a5a5a5;
 }
 
 .editor-tabs {

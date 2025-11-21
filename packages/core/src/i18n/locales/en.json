@@ -419,6 +419,17 @@
       "disabled": "Fallback disabled - will stay on Gemini Pro even if rate limited",
       "enabled": "Fallback enabled - will switch to Flash if Pro is rate limited"
     },
+    "setup_skill": {
+      "description": "download and setup a skill",
+      "missing_name": "Please specify a skill name. Available skills: {skills}",
+      "unknown": "Unknown skill: {skill}. Available skills: {skills}",
+      "platform_not_supported": "Skill {skill} is not available for platform: {platform}",
+      "installing": "Installing skill: {skill}...",
+      "parser_ready": "DOCX parser is now available in the web interface.",
+      "success": "✓ {message}",
+      "failed": "✗ {message}",
+      "error": "Error setting up skill: {error}"
+    },
     "ide": {
       "description": "manage IDE integration",
       "status": {

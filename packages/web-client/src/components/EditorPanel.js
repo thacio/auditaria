@@ -32,6 +32,7 @@ export class EditorPanel extends EventEmitter {
     this.editorContainer = null;
     this.toolbar = null;
     this.saveButton = null;
+    this.parseButton = null;
     this.previewButton = null;
     this.codeButton = null;
     this.splitButton = null;
@@ -109,6 +110,7 @@ export class EditorPanel extends EventEmitter {
     this.editorContainer = document.getElementById('monaco-editor-container');
     this.toolbar = document.getElementById('editor-toolbar');
     this.saveButton = document.getElementById('editor-save-button');
+    this.parseButton = document.getElementById('editor-parse-button');
     this.previewButton = document.getElementById('editor-preview-button');
     this.codeButton = document.getElementById('editor-code-button');
     this.splitButton = document.getElementById('editor-split-button');
@@ -213,6 +215,17 @@ export class EditorPanel extends EventEmitter {
           </button>
 
           <button
+            id="editor-parse-button"
+            class="editor-toolbar-button"
+            title="Parse to DOCX"
+            aria-label="Parse to DOCX"
+            style="display: none;"
+          >
+            <span class="codicon codicon-file-pdf"></span>
+            <span class="editor-toolbar-button-text">Parse to DOCX</span>
+          </button>
+
+          <button
             id="editor-diff-button"
             class="editor-toolbar-button"
             title="Show changes (diff view)"
@@ -285,6 +298,13 @@ export class EditorPanel extends EventEmitter {
     if (this.saveButton) {
       this.saveButton.addEventListener('click', () => {
         this.handleSaveClick();
+      });
+    }
+
+    // Parse button
+    if (this.parseButton) {
+      this.parseButton.addEventListener('click', () => {
+        this.handleParseClick();
       });
     }
 
@@ -398,10 +418,30 @@ export class EditorPanel extends EventEmitter {
 
     this.editorManager.on('file-saved', ({ path, message }) => {
       this.showSaveSuccess();
+
+      // If we need to parse after save
+      if (this.shouldParseAfterSave) {
+        this.shouldParseAfterSave = false;
+        setTimeout(() => {
+          this.editorManager.requestParse(path);
+        }, 500);
+      }
     });
 
     this.editorManager.on('error', (error) => {
       this.showError(error.message);
+    });
+
+    // Listen for parser status changes
+    this.editorManager.on('parser-status-changed', ({ available }) => {
+      // Update button visibility if active file is markdown
+      const activeFile = this.editorManager.getActiveFile();
+      if (activeFile) {
+        const fileInfo = this.editorManager.openFiles.get(activeFile);
+        if (fileInfo) {
+          this.updateToolbar(fileInfo.language);
+        }
+      }
     });
 
     // Handle external change warning
@@ -423,6 +463,37 @@ export class EditorPanel extends EventEmitter {
    */
   handleSaveClick() {
     this.editorManager.saveActiveFile();
+  }
+
+  /**
+   * Handle parse button click
+   */
+  handleParseClick() {
+    const activeFile = this.editorManager.getActiveFile();
+    if (!activeFile) return;
+
+    const fileInfo = this.editorManager.openFiles.get(activeFile);
+    if (!fileInfo) return;
+
+    // Check if file has unsaved changes
+    if (fileInfo.isDirty) {
+      const confirmed = confirm(
+        'The file has unsaved changes. Please save before parsing.\n\n' +
+        'Would you like to save now?'
+      );
+
+      if (confirmed) {
+        this.editorManager.saveActiveFile();
+        // Will parse after save completes via save handler
+        this.shouldParseAfterSave = true;
+        return;
+      } else {
+        return; // User cancelled
+      }
+    }
+
+    // File is saved, send parse request
+    this.editorManager.requestParse(activeFile);
   }
 
   /**
@@ -820,6 +891,12 @@ export class EditorPanel extends EventEmitter {
 
     if (this.splitButton) {
       this.splitButton.style.display = isMarkdown ? '' : 'none';
+    }
+
+    // Show/hide parse button for markdown files with parser available
+    const hasParser = this.editorManager.isParserAvailable();
+    if (this.parseButton) {
+      this.parseButton.style.display = (isMarkdown && hasParser) ? '' : 'none';
     }
 
     // Show/hide diff button based on whether file has unsaved changes

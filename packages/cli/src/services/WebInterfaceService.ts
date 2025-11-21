@@ -43,6 +43,9 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 import { updateAfterUserSessionEdit } from '@thacio/auditaria-cli-core';
 // WEB_INTERFACE_END
 
+// Import DocxParserService for markdown to DOCX parsing
+import { DocxParserService } from './DocxParserService.js';
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -186,6 +189,9 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_START: Directory watcher service for automatic tree updates
   private directoryWatcherService?: DirectoryWatcherService;
   // WEB_INTERFACE_END
+
+  // DOCX parser service for markdown to DOCX conversion
+  private docxParser?: DocxParserService;
 
   /**
    * Start HTTP server on specified port
@@ -365,6 +371,9 @@ export class WebInterfaceService extends EventEmitter {
       this.setupDirectoryWatcherHandlers();
       await this.directoryWatcherService.start();
       // WEB_INTERFACE_END
+
+      // Initialize DOCX parser service
+      this.docxParser = new DocxParserService(process.cwd());
 
       this.isRunning = true;
       return this.port;
@@ -995,6 +1004,12 @@ export class WebInterfaceService extends EventEmitter {
       this.handleFileUnwatchRequest(message.path);
     }
     // WEB_INTERFACE_END
+    // DOCX parser request handlers
+    else if (message.type === 'parser_status_request') {
+      this.broadcastParserStatus();
+    } else if (message.type === 'parse_request' && message.path) {
+      this.handleParseRequest(message.path);
+    }
   }
 
   /**
@@ -1369,6 +1384,14 @@ export class WebInterfaceService extends EventEmitter {
       sendAndStore('tool_confirmation', confirmation);
     }
     // WEB_INTERFACE_END
+
+    // Send parser status to new client
+    if (this.docxParser) {
+      sendAndStore('parser_status', {
+        available: this.docxParser.isParserAvailable(),
+        path: this.docxParser.getParserPath()
+      });
+    }
   }
   // WEB_INTERFACE_END
 
@@ -1558,4 +1581,61 @@ export class WebInterfaceService extends EventEmitter {
     });
   }
   // WEB_INTERFACE_END
+
+  /**
+   * Broadcast parser availability to all connected clients
+   */
+  public broadcastParserStatus(): void {
+    if (!this.docxParser) {
+      return;
+    }
+
+    this.broadcastWithSequence('parser_status', {
+      available: this.docxParser.isParserAvailable(),
+      path: this.docxParser.getParserPath()
+    });
+  }
+
+  /**
+   * Handle parse request from web client
+   */
+  private async handleParseRequest(mdPath: string): Promise<void> {
+    if (!this.docxParser) {
+      console.error('DocxParserService not initialized');
+      return;
+    }
+
+    const result = await this.docxParser.parseMarkdownToDocx(mdPath);
+
+    if (result.success && result.outputPath) {
+      // Send success response
+      this.broadcastWithSequence('parse_response', {
+        success: true,
+        outputPath: result.outputPath,
+        message: 'Successfully parsed to DOCX'
+      });
+
+      // Open the DOCX file with system default application
+      await this.docxParser.openDocxFile(result.outputPath);
+    } else {
+      // Send error response
+      this.broadcastWithSequence('parse_error', {
+        success: false,
+        error: result.error || 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Refresh parser status (called after setup-skill completes)
+   * This method can be called from setupSkillCommand
+   */
+  public refreshParserStatus(): void {
+    if (!this.docxParser) {
+      return;
+    }
+
+    this.docxParser.refresh();
+    this.broadcastParserStatus();
+  }
 }
