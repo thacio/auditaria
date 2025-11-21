@@ -29,7 +29,8 @@ export class FileTreePanel extends EventEmitter {
     this.panel = null;
     this.tree = null;
     this.searchInput = null;
-    this.refreshButton = null;
+    // MANUAL REFRESH: Commented out (now using automatic directory watching)
+    // this.refreshButton = null;
     this.collapseButton = null;
     this.expandTab = null;
     this.loadingIndicator = null;
@@ -45,11 +46,11 @@ export class FileTreePanel extends EventEmitter {
     // Track currently selected item
     this.currentSelectedPath = null;
 
-    // Pull-to-refresh state
-    this.pullStartY = 0;
-    this.pullCurrentY = 0;
-    this.isPulling = false;
-    this.pullThreshold = 130; // pixels to trigger refresh
+    // MANUAL REFRESH: Pull-to-refresh state (commented out - automatic updates enabled)
+    // this.pullStartY = 0;
+    // this.pullCurrentY = 0;
+    // this.isPulling = false;
+    // this.pullThreshold = 130; // pixels to trigger refresh
 
     // Context menu
     this.contextMenu = new ContextMenu();
@@ -101,7 +102,8 @@ export class FileTreePanel extends EventEmitter {
     // Get references to child elements
     this.tree = document.getElementById('file-tree');
     this.searchInput = document.getElementById('file-tree-search-input');
-    this.refreshButton = document.getElementById('file-tree-refresh');
+    // MANUAL REFRESH: Commented out
+    // this.refreshButton = document.getElementById('file-tree-refresh');
     this.collapseButton = document.getElementById('file-tree-collapse');
     this.expandTab = document.getElementById('file-tree-expand-tab');
     this.loadingIndicator = document.getElementById('file-tree-loading');
@@ -133,12 +135,15 @@ export class FileTreePanel extends EventEmitter {
           aria-label="Search files"
         />
       </div>
+      <!-- MANUAL REFRESH: Refresh button commented out (automatic updates enabled) -->
+      <!--
       <div class="file-tree-refresh-container">
         <button class="file-tree-refresh-button" id="file-tree-refresh" title="Update file list" aria-label="Update file list">
           <span class="codicon codicon-refresh"></span>
           <span>Update list</span>
         </button>
       </div>
+      -->
       <div class="file-tree-loading" id="file-tree-loading" style="display: none;">
         <span class="loading-spinner"></span>
         <span>Loading...</span>
@@ -236,32 +241,32 @@ export class FileTreePanel extends EventEmitter {
       });
     }
 
-    // Refresh button
-    if (this.refreshButton) {
-      this.refreshButton.addEventListener('click', () => {
-        this.handleRefresh();
-      });
-    }
+    // MANUAL REFRESH: Refresh button event listener (commented out - automatic updates enabled)
+    // if (this.refreshButton) {
+    //   this.refreshButton.addEventListener('click', () => {
+    //     this.handleRefresh();
+    //   });
+    // }
 
-    // Pull-to-refresh on tree container
-    if (this.treeContainer) {
-      this.treeContainer.addEventListener('touchstart', (event) => {
-        this.handleTouchStart(event);
-      }, { passive: true });
-
-      this.treeContainer.addEventListener('touchmove', (event) => {
-        this.handleTouchMove(event);
-      }, { passive: false });
-
-      this.treeContainer.addEventListener('touchend', (event) => {
-        this.handleTouchEnd(event);
-      }, { passive: true });
-
-      // Also support mouse drag for desktop testing
-      this.treeContainer.addEventListener('mousedown', (event) => {
-        this.handleMouseDown(event);
-      });
-    }
+    // MANUAL REFRESH: Pull-to-refresh event listeners (commented out - automatic updates enabled)
+    // if (this.treeContainer) {
+    //   this.treeContainer.addEventListener('touchstart', (event) => {
+    //     this.handleTouchStart(event);
+    //   }, { passive: true });
+    //
+    //   this.treeContainer.addEventListener('touchmove', (event) => {
+    //     this.handleTouchMove(event);
+    //   }, { passive: false });
+    //
+    //   this.treeContainer.addEventListener('touchend', (event) => {
+    //     this.handleTouchEnd(event);
+    //   }, { passive: true });
+    //
+    //   // Also support mouse drag for desktop testing
+    //   this.treeContainer.addEventListener('mousedown', (event) => {
+    //     this.handleMouseDown(event);
+    //   });
+    // }
 
     // FileTreeManager events
     this.fileTreeManager.on('tree-updated', (treeData) => {
@@ -590,10 +595,11 @@ export class FileTreePanel extends EventEmitter {
       this.loadingIndicator.style.display = (isLoading && !this.isCollapsed) ? 'flex' : 'none';
     }
 
-    // Disable refresh button while loading
-    if (this.refreshButton) {
-      this.refreshButton.disabled = isLoading;
-    }
+    // MANUAL REFRESH: Commented out
+    // // Disable refresh button while loading
+    // if (this.refreshButton) {
+    //   this.refreshButton.disabled = isLoading;
+    // }
   }
 
   /**

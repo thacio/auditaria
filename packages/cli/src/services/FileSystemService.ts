@@ -100,6 +100,15 @@ export class FileSystemService {
   }
 
   /**
+   * Get ignored patterns
+   * Used by DirectoryWatcherService to match ignore rules
+   * @returns Copy of ignored patterns array
+   */
+  getIgnoredPatterns(): string[] {
+    return [...this.ignoredPatterns];
+  }
+
+  /**
    * Get directory tree structure
    *
    * @param relativePath - Optional subdirectory path (relative to workspace root)

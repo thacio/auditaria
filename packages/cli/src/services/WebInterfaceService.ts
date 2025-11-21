@@ -35,6 +35,10 @@ import { FileSystemService } from './FileSystemService.js';
 import { FileWatcherService } from './FileWatcherService.js';
 // WEB_INTERFACE_END
 
+// WEB_INTERFACE_START: Import DirectoryWatcherService for automatic tree updates
+import { DirectoryWatcherService } from './DirectoryWatcherService.js';
+// WEB_INTERFACE_END
+
 // WEB_INTERFACE_START: Import collaborative writing for Monaco integration
 import { updateAfterUserSessionEdit } from '@thacio/auditaria-cli-core';
 // WEB_INTERFACE_END
@@ -177,6 +181,10 @@ export class WebInterfaceService extends EventEmitter {
 
   // WEB_INTERFACE_START: File watcher service for external change detection
   private fileWatcherService?: FileWatcherService;
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: Directory watcher service for automatic tree updates
+  private directoryWatcherService?: DirectoryWatcherService;
   // WEB_INTERFACE_END
 
   /**
@@ -349,6 +357,15 @@ export class WebInterfaceService extends EventEmitter {
       this.setupFileWatcherHandlers();
       // WEB_INTERFACE_END
 
+      // WEB_INTERFACE_START: Initialize directory watcher service for automatic tree updates
+      this.directoryWatcherService = new DirectoryWatcherService(
+        process.cwd(),
+        this.fileSystemService?.getIgnoredPatterns()
+      );
+      this.setupDirectoryWatcherHandlers();
+      await this.directoryWatcherService.start();
+      // WEB_INTERFACE_END
+
       this.isRunning = true;
       return this.port;
     } catch (error) {
@@ -377,6 +394,13 @@ export class WebInterfaceService extends EventEmitter {
     if (this.fileWatcherService) {
       this.fileWatcherService.destroy();
       this.fileWatcherService = undefined;
+    }
+    // WEB_INTERFACE_END
+
+    // WEB_INTERFACE_START: Clean up directory watcher service
+    if (this.directoryWatcherService) {
+      await this.directoryWatcherService.stop();
+      this.directoryWatcherService = undefined;
     }
     // WEB_INTERFACE_END
 
@@ -1508,6 +1532,30 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     console.log(`File watch stopped: ${path}`);
+  }
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: Directory watcher event handlers
+  /**
+   * Set up directory watcher service event handlers
+   */
+  private setupDirectoryWatcherHandlers(): void {
+    if (!this.directoryWatcherService) {
+      return;
+    }
+
+    // Handle directory changes - refresh file tree for all clients
+    this.directoryWatcherService.on('directory-change', (event: any) => {
+      console.log(`Directory change detected: ${event.type} - ${event.path}`);
+
+      // Refresh file tree for all clients
+      this.handleFileTreeRequest();
+    });
+
+    // Handle watcher errors
+    this.directoryWatcherService.on('error', (error: Error) => {
+      console.error('Directory watcher error:', error);
+    });
   }
   // WEB_INTERFACE_END
 }
