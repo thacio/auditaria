@@ -15,7 +15,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- WEB_INTERFACE_START: Codicon font for VS Code icons -->
+    <!-- Required id for vscode-elements to use codicons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.35/dist/codicon.css" id="vscode-codicon-stylesheet">
+    <!-- WEB_INTERFACE_END -->
+
     <link rel="stylesheet" href="style.css">
+
+    <!-- WEB_INTERFACE_START: File browser and editor styles -->
+    <link rel="stylesheet" href="styles/file-browser.css">
+    <link rel="stylesheet" href="styles/editor-panel.css">
+    <link rel="stylesheet" href="styles/context-menu.css">
+    <!-- WEB_INTERFACE_END -->
 </head>
 <body>
     <div id="app">
@@ -77,12 +89,21 @@
         </header>
         
         <main class="main">
-            <div id="messages" class="messages-container">
-                <div class="welcome-message">
-                    <h2>Welcome to Auditaria CLI Web Interface</h2>
-                    <p>Connecting to CLI session...</p>
+            <!-- WEB_INTERFACE_START: App container for three-panel layout (file tree | chat | editor overlay) -->
+            <div class="app-container">
+                <!-- File tree panel will be inserted here by FileTreePanel.js -->
+
+                <!-- Messages container (existing chat) - center panel -->
+                <div id="messages" class="messages-container">
+                    <div class="welcome-message">
+                        <h2>Welcome to Auditaria CLI Web Interface</h2>
+                        <p>Connecting to CLI session...</p>
+                    </div>
                 </div>
+
+                <!-- Editor panel will be inserted here by EditorPanel.js - right overlay -->
             </div>
+            <!-- WEB_INTERFACE_END -->
         </main>
         
         <footer class="footer">
@@ -322,8 +343,26 @@
         </div>
     </div>
     
+    <!-- WEB_INTERFACE_START: Import map for VSCode Elements from CDN -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@vscode-elements/elements/": "https://cdn.jsdelivr.net/npm/@vscode-elements/elements@1.6.1/",
+            "lit": "https://cdn.jsdelivr.net/npm/lit@3.1.0/+esm",
+            "lit/": "https://cdn.jsdelivr.net/npm/lit@3.1.0/",
+            "@lit/reactive-element": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.0.4/+esm",
+            "@lit/reactive-element/": "https://cdn.jsdelivr.net/npm/@lit/reactive-element@2.0.4/",
+            "lit-html": "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/+esm",
+            "lit-html/": "https://cdn.jsdelivr.net/npm/lit-html@3.1.0/",
+            "lit-element": "https://cdn.jsdelivr.net/npm/lit-element@4.0.4/+esm",
+            "lit-element/": "https://cdn.jsdelivr.net/npm/lit-element@4.0.4/"
+        }
+    }
+    </script>
+    <!-- WEB_INTERFACE_END -->
+
     <script src="marked.min.js"></script>
-    <script src="confirmation-queue.js"></script>
+    <script type="module" src="confirmation-queue.js"></script>
     <script type="module" src="client.js"></script>
 </body>
 </html>

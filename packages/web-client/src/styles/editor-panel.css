@@ -1,0 +1,661 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: Editor panel styles */
+
+/* Editor Panel Container */
+.editor-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background-color: #ffffff;
+  border-left: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  z-index: 1000;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.editor-panel.visible {
+  width: 50%;
+}
+
+.editor-panel.collapsed {
+  width: 0;
+  border-left: none;
+  overflow: visible;
+}
+
+/* Hide internal content when collapsed */
+.editor-panel.collapsed .editor-header,
+.editor-panel.collapsed .editor-content,
+.editor-panel.collapsed .editor-resize-handle {
+  display: none;
+}
+
+/* Expand Tab - visible when collapsed */
+.editor-expand-tab {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 60px;
+  background-color: #e8e8e8;
+  border: 1px solid #d4d4d4;
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  z-index: 100;
+  overflow: visible;
+}
+
+.editor-panel.collapsed .editor-expand-tab {
+  display: flex;
+}
+
+.editor-expand-tab:hover {
+  background-color: #d4d4d4;
+}
+
+.editor-expand-tab .codicon {
+  color: #383838;
+  font-size: 16px;
+}
+
+/* Resize Handle */
+.editor-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background-color: transparent;
+  z-index: 100;
+  transition: background-color 0.2s;
+}
+
+.editor-resize-handle:hover {
+  background-color: #007acc;
+}
+
+.editor-resize-handle::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 40px;
+  background-color: #c5c5c5;
+  border-radius: 1px;
+}
+
+/* Editor Header */
+.editor-header {
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #e5e5e5;
+  flex-shrink: 0;
+}
+
+/* Menu Bar */
+.editor-menu-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #e5e5e5;
+  height: 30px;
+  font-size: 13px;
+  user-select: none;
+}
+
+.editor-menu {
+  position: relative;
+}
+
+.editor-menu-label {
+  display: inline-block;
+  padding: 4px 10px;
+  color: #383838;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.1s;
+}
+
+.editor-menu-label:hover {
+  background-color: #e8e8e8;
+}
+
+.editor-menu.open .editor-menu-label {
+  background-color: #007acc;
+  color: #ffffff;
+}
+
+/* Menu Dropdown */
+.editor-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
+  background-color: #ffffff;
+  border: 1px solid #d4d4d4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: none;
+  flex-direction: column;
+  z-index: 1000;
+  margin-top: 2px;
+}
+
+.editor-menu.open .editor-menu-dropdown {
+  display: flex;
+}
+
+.editor-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  color: #383838;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  white-space: nowrap;
+}
+
+.editor-menu-item:hover {
+  background-color: #cce8ff;
+  color: #000000;
+}
+
+.editor-menu-item-label {
+  flex: 1;
+}
+
+.editor-menu-item-shortcut {
+  margin-left: 24px;
+  color: #767676;
+  font-size: 12px;
+}
+
+.editor-menu-item:hover .editor-menu-item-shortcut {
+  color: #383838;
+}
+
+.editor-menu-separator {
+  height: 1px;
+  background-color: #d4d4d4;
+  margin: 4px 0;
+}
+
+/* Tabs Container */
+.editor-tabs-container {
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #e5e5e5;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  height: 35px;
+  display: flex;
+  align-items: stretch;
+}
+
+.editor-tabs-container::-webkit-scrollbar {
+  height: 3px;
+}
+
+.editor-tabs-container::-webkit-scrollbar-track {
+  background: #f3f3f3;
+}
+
+.editor-tabs-container::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+}
+
+.editor-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+/* Empty State */
+.editor-tabs-empty {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: #767676;
+  font-size: 13px;
+  height: 100%;
+}
+
+/* Individual Tab */
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background-color: #e8e8e8;
+  border-right: 1px solid #d4d4d4;
+  color: #767676;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s, color 0.1s;
+  position: relative;
+  min-width: 0;
+  max-width: 200px;
+}
+
+.editor-tab:hover {
+  background-color: #d4d4d4;
+  color: #383838;
+}
+
+.editor-tab.active {
+  background-color: #ffffff;
+  color: #000000;
+  border-bottom: 2px solid #007acc;
+}
+
+.editor-tab-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.editor-tab-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab-dirty {
+  color: #767676;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.editor-tab.active .editor-tab-dirty {
+  color: #000000;
+}
+
+.editor-tab-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.1s, background-color 0.1s;
+  flex-shrink: 0;
+}
+
+.editor-tab:hover .editor-tab-close {
+  opacity: 1;
+}
+
+.editor-tab-close:hover {
+  background-color: #c5c5c5;
+}
+
+.editor-tab-close .codicon {
+  font-size: 14px;
+}
+
+/* Toolbar */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  gap: 4px;
+  background-color: #f3f3f3;
+  min-height: 32px;
+}
+
+.editor-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  color: #383838;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.1s;
+  white-space: nowrap;
+}
+
+.editor-toolbar-button:hover:not(:disabled) {
+  background-color: #e8e8e8;
+}
+
+.editor-toolbar-button:active:not(:disabled) {
+  background-color: #d4d4d4;
+}
+
+.editor-toolbar-button.active {
+  background-color: #007acc;
+  color: #ffffff;
+}
+
+.editor-toolbar-button.active:hover:not(:disabled) {
+  background-color: #005a9e;
+}
+
+.editor-toolbar-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.editor-toolbar-button .codicon {
+  font-size: 16px;
+}
+
+.editor-toolbar-button-text {
+  font-size: 13px;
+}
+
+.editor-toolbar-spacer {
+  flex: 1;
+}
+
+.editor-close-button {
+  margin-left: auto;
+}
+
+/* Editor Content Area */
+.editor-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+/* Monaco Editor Container */
+.monaco-editor-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Monaco Diff Container */
+.monaco-diff-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Split View - Code on left */
+.monaco-editor-container.split-view {
+  width: 50%;
+  right: auto;
+  border-right: none;
+}
+
+/* Split Resize Handle */
+.split-resize-handle {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  cursor: ew-resize;
+  background-color: transparent;
+  z-index: 200;
+  transition: background-color 0.2s;
+}
+
+.split-resize-handle:hover {
+  background-color: #007acc;
+}
+
+.split-resize-handle::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 40px;
+  background-color: #c5c5c5;
+  border-radius: 1px;
+}
+
+/* Markdown Preview Container */
+.markdown-preview-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #ffffff;
+  color: #383838;
+}
+
+/* Split View - Preview on right */
+.markdown-preview-container.split-view {
+  width: 50%;
+  left: 50%;
+  right: 0;
+}
+
+.markdown-preview-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.markdown-preview-container::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+.markdown-preview-container::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 5px;
+}
+
+.markdown-preview-container::-webkit-scrollbar-thumb:hover {
+  background: #b5b5b5;
+}
+
+/* Markdown Preview Content Styles */
+.markdown-preview-container h1,
+.markdown-preview-container h2,
+.markdown-preview-container h3,
+.markdown-preview-container h4,
+.markdown-preview-container h5,
+.markdown-preview-container h6 {
+  color: #000000;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-preview-container h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #d4d4d4;
+  padding-bottom: 8px;
+}
+
+.markdown-preview-container h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #d4d4d4;
+  padding-bottom: 8px;
+}
+
+.markdown-preview-container p {
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.markdown-preview-container code {
+  background-color: #f3f3f3;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-preview-container pre {
+  background-color: #f3f3f3;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-preview-container a {
+  color: #0078d4;
+  text-decoration: none;
+}
+
+.markdown-preview-container a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview-container ul,
+.markdown-preview-container ol {
+  margin-bottom: 16px;
+  padding-left: 2em;
+}
+
+.markdown-preview-container li {
+  margin-bottom: 4px;
+}
+
+.markdown-preview-container blockquote {
+  border-left: 4px solid #d4d4d4;
+  padding-left: 16px;
+  margin-left: 0;
+  color: #767676;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.markdown-preview-container th,
+.markdown-preview-container td {
+  border: 1px solid #d4d4d4;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-preview-container th {
+  background-color: #f3f3f3;
+  font-weight: 600;
+}
+
+.markdown-preview-container img {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-preview-container hr {
+  border: none;
+  border-top: 1px solid #d4d4d4;
+  margin: 24px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* Medium screens: 60% width */
+  .editor-panel.visible {
+    width: 60%;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Small screens: Full-width overlay when open */
+  .editor-panel.visible {
+    width: 90%;
+  }
+
+  .editor-tab {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mobile: Full-width overlay */
+  .editor-panel.visible {
+    width: 100%;
+  }
+
+  .editor-toolbar-button-text {
+    display: none;
+  }
+
+  .editor-tab-label {
+    max-width: 80px;
+  }
+}
+
+/* Accessibility */
+.editor-panel:focus-within .editor-tab:focus {
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+.editor-toolbar-button:focus-visible {
+  outline: 1px solid #007acc;
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .editor-panel {
+    border-left-width: 2px;
+  }
+
+  .editor-tab.active {
+    border-bottom-width: 3px;
+  }
+}
+
+/* Codicon additions for editor */
+.codicon-save::before { content: '\eb4b'; }
+.codicon-open-preview::before { content: '\eb90'; }
+.codicon-code::before { content: '\ea8a'; }
+.codicon-close::before { content: '\ea76'; }
+.codicon-diff::before { content: '\eae4'; }
+.codicon-split-horizontal::before { content: '\eb56'; }

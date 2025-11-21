@@ -133,6 +133,17 @@ body {
   background: var(--bg);
 }
 
+/* WEB_INTERFACE_START: App container for three-panel layout */
+.app-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+/* WEB_INTERFACE_END */
+
 .messages-container {
   flex: 1;
   overflow-y: auto;

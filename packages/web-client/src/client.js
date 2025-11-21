@@ -17,6 +17,14 @@ import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 import { ttsManager } from './providers/tts/TTSManager.js';
 import { ConfirmationQueue } from './confirmation-queue.js';
 
+// WEB_INTERFACE_START: File browser and editor imports
+import { FileTreeManager } from './managers/FileTreeManager.js';
+import { EditorManager } from './managers/EditorManager.js';
+import { FileTreePanel } from './components/FileTreePanel.js';
+import { EditorPanel } from './components/EditorPanel.js';
+import { MarkdownPreview } from './components/MarkdownPreview.js';
+// WEB_INTERFACE_END
+
 class AuditariaWebClient {
     constructor() {
         // Initialize managers
@@ -32,7 +40,11 @@ class AuditariaWebClient {
         
         // Initialize TTS manager
         ttsManager.initialize();
-        
+
+        // WEB_INTERFACE_START: Initialize file browser and editor
+        this.initializeFileBrowser();
+        // WEB_INTERFACE_END
+
         // State properties
         this.hasFooterData = false;
         this.attachments = []; // Store current attachments
@@ -88,6 +100,12 @@ class AuditariaWebClient {
         this.wsManager.addEventListener('connected', () => {
             this.updateConnectionStatus(true);
             this.updateInputState();
+
+            // WEB_INTERFACE_START: Request file tree after WebSocket is connected
+            if (this.fileTreeManager) {
+                this.fileTreeManager.initialize();
+            }
+            // WEB_INTERFACE_END
         });
         
         this.wsManager.addEventListener('disconnected', () => {
@@ -834,6 +852,53 @@ class AuditariaWebClient {
             this.wsManager.sendAcknowledgment();
         });
     }
+
+    // WEB_INTERFACE_START: File browser and editor initialization
+    /**
+     * Initialize file browser and editor components
+     */
+    initializeFileBrowser() {
+        try {
+            // Initialize managers
+            this.fileTreeManager = new FileTreeManager(this.wsManager);
+            this.editorManager = new EditorManager(this.wsManager);
+
+            // Initialize markdown preview
+            this.markdownPreview = new MarkdownPreview();
+
+            // Initialize UI components
+            this.fileTreePanel = new FileTreePanel(this.fileTreeManager);
+            this.editorPanel = new EditorPanel(this.editorManager, this.markdownPreview);
+
+            // Set up event handlers
+            this.setupFileBrowserHandlers();
+
+            // File tree will be requested after WebSocket connects (see 'connected' event handler)
+
+            console.log('File browser initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize file browser:', error);
+        }
+    }
+
+    /**
+     * Set up file browser event handlers
+     */
+    setupFileBrowserHandlers() {
+        // File selected in tree -> open in editor
+        this.fileTreePanel.on('file-selected', ({ path }) => {
+            this.editorManager.requestFile(path);
+        });
+
+        // Editor events
+        // Error handling is done by EditorPanel, no need to duplicate here
+
+        this.editorManager.on('file-saved', ({ path }) => {
+            console.log('File saved:', path);
+            // Could show a toast notification here
+        });
+    }
+    // WEB_INTERFACE_END
 }
 
 // Initialize the client when the page loads

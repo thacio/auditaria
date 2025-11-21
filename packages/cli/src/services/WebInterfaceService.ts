@@ -27,6 +27,10 @@ import { type PartListUnion, createPartFromBase64 } from '@google/genai';
 export const attachmentMetadataMap = new WeakMap<any, any>();
 // WEB_INTERFACE_END
 
+// WEB_INTERFACE_START: Import FileSystemService for file browser feature
+import { FileSystemService } from './FileSystemService.js';
+// WEB_INTERFACE_END
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -158,6 +162,9 @@ export class WebInterfaceService extends EventEmitter {
   private currentPendingItem: HistoryItem | null = null;
   private currentLoadingState: LoadingStateData | null = null;
   private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
+  // WEB_INTERFACE_END
+  // WEB_INTERFACE_START: File system service for file browser
+  private fileSystemService?: FileSystemService;
   // WEB_INTERFACE_END
 
   /**
@@ -319,6 +326,11 @@ export class WebInterfaceService extends EventEmitter {
         }
       });
       this.setupWebSocketHandlers();
+
+      // WEB_INTERFACE_START: Initialize file system service
+      // Use current working directory as workspace root
+      this.fileSystemService = new FileSystemService(process.cwd());
+      // WEB_INTERFACE_END
 
       this.isRunning = true;
       return this.port;
@@ -824,8 +836,8 @@ export class WebInterfaceService extends EventEmitter {
   }
   // WEB_INTERFACE_END
 
-  // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support
-  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any }): void {
+  // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support and file operations
+  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
       
@@ -910,6 +922,21 @@ export class WebInterfaceService extends EventEmitter {
       this.emit('terminal_input', message.key);
       // WEB_INTERFACE_END
     }
+    // WEB_INTERFACE_START: File operation handlers
+    else if (message.type === 'file_tree_request') {
+      this.handleFileTreeRequest(message.relativePath);
+    } else if (message.type === 'file_read_request' && message.path) {
+      this.handleFileReadRequest(message.path);
+    } else if (message.type === 'file_write_request' && message.path && message.content !== undefined) {
+      this.handleFileWriteRequest(message.path, message.content);
+    } else if (message.type === 'file_create_request' && message.path) {
+      this.handleFileCreateRequest(message.path, message.content);
+    } else if (message.type === 'file_delete_request' && message.path) {
+      this.handleFileDeleteRequest(message.path, message.recursive);
+    } else if (message.type === 'file_rename_request' && message.oldPath && message.newPath) {
+      this.handleFileRenameRequest(message.oldPath, message.newPath);
+    }
+    // WEB_INTERFACE_END
   }
 
   /**
@@ -964,8 +991,177 @@ export class WebInterfaceService extends EventEmitter {
       console.error('WebSocket server error:', error);
     });
   }
-  
-  
+
+  // WEB_INTERFACE_START: File operation handler methods
+  /**
+   * Handle file tree request
+   */
+  private async handleFileTreeRequest(relativePath?: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      const tree = await this.fileSystemService.getFileTree(relativePath || '.');
+
+      this.broadcastWithSequence('file_tree_response', {
+        tree,
+        workspaceRoot: this.fileSystemService.getWorkspaceRoot()
+      });
+    } catch (error: any) {
+      console.error('Error reading file tree:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'tree',
+        path: relativePath || '.',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file read request
+   */
+  private async handleFileReadRequest(path: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      const fileContent = await this.fileSystemService.readFile(path);
+
+      this.broadcastWithSequence('file_read_response', fileContent);
+    } catch (error: any) {
+      console.error('Error reading file:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'read',
+        path,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file write request
+   */
+  private async handleFileWriteRequest(path: string, content: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.writeFile(path, content);
+
+      this.broadcastWithSequence('file_write_response', {
+        success: true,
+        path,
+        message: 'File saved successfully'
+      });
+    } catch (error: any) {
+      console.error('Error writing file:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'write',
+        path,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file create request
+   */
+  private async handleFileCreateRequest(path: string, content?: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.createFile(path, content || '');
+
+      this.broadcastWithSequence('file_create_response', {
+        success: true,
+        path,
+        message: 'File created successfully'
+      });
+
+      // Refresh file tree
+      this.handleFileTreeRequest();
+    } catch (error: any) {
+      console.error('Error creating file:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'create',
+        path,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file delete request
+   */
+  private async handleFileDeleteRequest(path: string, recursive?: boolean): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.deleteFile(path, recursive || false);
+
+      this.broadcastWithSequence('file_delete_response', {
+        success: true,
+        path,
+        message: 'File deleted successfully'
+      });
+
+      // Refresh file tree
+      this.handleFileTreeRequest();
+    } catch (error: any) {
+      console.error('Error deleting file:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'delete',
+        path,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file rename request
+   */
+  private async handleFileRenameRequest(oldPath: string, newPath: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.renameFile(oldPath, newPath);
+
+      this.broadcastWithSequence('file_rename_response', {
+        success: true,
+        oldPath,
+        newPath,
+        message: 'File renamed successfully'
+      });
+
+      // Refresh file tree
+      this.handleFileTreeRequest();
+    } catch (error: any) {
+      console.error('Error renaming file:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'rename',
+        oldPath,
+        newPath,
+        error: error.message
+      });
+    }
+  }
+  // WEB_INTERFACE_END
+
   // WEB_INTERFACE_START: Send initial state to a client
   private sendInitialState(ws: WebSocket): void {
     const state = this.clientStates.get(ws);

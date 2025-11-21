@@ -1,0 +1,392 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: File browser panel styles */
+
+/* File Tree Panel Container */
+.file-tree-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 250px;
+  background-color: #f3f3f3;
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  z-index: 1000;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.file-tree-panel.collapsed {
+  width: 0;
+  border-right: none;
+  overflow: visible;
+}
+
+.file-tree-panel.collapsed .file-tree-header,
+.file-tree-panel.collapsed .file-tree-search,
+.file-tree-panel.collapsed .file-tree-refresh-container,
+.file-tree-panel.collapsed .file-tree-container,
+.file-tree-panel.collapsed .file-tree-loading {
+  display: none;
+}
+
+/* Expand Tab - visible when collapsed */
+.file-tree-expand-tab {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 60px;
+  background-color: #e8e8e8;
+  border: 1px solid #d4d4d4;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  z-index: 100;
+  overflow: visible;
+}
+
+.file-tree-panel.collapsed .file-tree-expand-tab {
+  display: flex;
+}
+
+.file-tree-expand-tab:hover {
+  background-color: #d4d4d4;
+}
+
+.file-tree-expand-tab .codicon {
+  color: #383838;
+  font-size: 16px;
+}
+
+/* Header */
+.file-tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #e8e8e8;
+  border-bottom: 1px solid #d4d4d4;
+  flex-shrink: 0;
+}
+
+.file-tree-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #383838;
+  text-transform: uppercase;
+}
+
+.file-tree-collapse-button {
+  background: none;
+  border: none;
+  color: #383838;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.file-tree-collapse-button:hover {
+  background-color: #d4d4d4;
+}
+
+.file-tree-collapse-button:active {
+  background-color: #c5c5c5;
+}
+
+.file-tree-collapse-button .codicon {
+  font-size: 14px;
+}
+
+/* Search Box */
+.file-tree-search {
+  padding: 8px 12px;
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #d4d4d4;
+  flex-shrink: 0;
+}
+
+.file-tree-search-input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: #ffffff;
+  border: 1px solid #d4d4d4;
+  color: #383838;
+  font-size: 13px;
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+}
+
+.file-tree-search-input:focus {
+  border-color: #007acc;
+  background-color: #ffffff;
+}
+
+.file-tree-search-input::placeholder {
+  color: #767676;
+}
+
+/* Refresh Button Container */
+.file-tree-refresh-container {
+  padding: 6px 12px;
+  background-color: #f3f3f3;
+  border-bottom: 1px solid #d4d4d4;
+  flex-shrink: 0;
+}
+
+.file-tree-refresh-button {
+  width: 100%;
+  padding: 6px 12px;
+  background-color: #e8e8e8;
+  border: 1px solid #d4d4d4;
+  color: #383838;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+
+.file-tree-refresh-button:hover:not(:disabled) {
+  background-color: #d4d4d4;
+  border-color: #c5c5c5;
+}
+
+.file-tree-refresh-button:active:not(:disabled) {
+  background-color: #c5c5c5;
+  border-color: #b5b5b5;
+}
+
+.file-tree-refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.file-tree-refresh-button .codicon {
+  font-size: 14px;
+}
+
+/* Loading Indicator */
+.file-tree-loading {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #767676;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d4d4d4;
+  border-top-color: #007acc;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Tree Container */
+.file-tree-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+  position: relative;
+  /* Enable smooth pull-to-refresh on touch devices */
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.file-tree-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.file-tree-container::-webkit-scrollbar-track {
+  background: #f3f3f3;
+}
+
+.file-tree-container::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 5px;
+}
+
+.file-tree-container::-webkit-scrollbar-thumb:hover {
+  background: #b5b5b5;
+}
+
+/* VSCode Tree Styling */
+.file-tree-component {
+  --vscode-tree-indent: 12px;
+  --vscode-tree-item-height: 22px;
+
+  /* Official vscode-tree CSS variables (from documentation) */
+  --vscode-list-hoverBackground: #e8e8e8;
+  --vscode-list-activeSelectionBackground: #cce8ff;
+  --vscode-focusBorder: #007acc;
+  --vscode-tree-indentGuidesStroke: #d4d4d4;
+
+  color: #383838;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Material Icon Theme Icons */
+.file-tree-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  object-fit: contain;
+}
+
+/* Ensure icons are visible and properly aligned */
+.file-tree-component .icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+/* Align chevrons and icons properly */
+/* Chevrons should be same size as icons */
+.file-tree-component vscode-tree-item::part(arrow) {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* All icons (both folder and file) should have consistent spacing */
+.file-tree-component .file-tree-icon {
+  margin-left: 2px;
+  margin-right: 6px;
+}
+
+/* File items need space where chevron would be to align icons */
+.file-tree-component vscode-tree-item:not([has-children]) {
+  padding-left: 18px; /* 16px (chevron width) + 2px (chevron margin) */
+}
+
+/* Codicons (VS Code icons) */
+.codicon {
+  font-family: 'codicon';
+  font-size: 16px;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Specific codicon classes */
+.codicon-file::before { content: '\ea7b'; }
+.codicon-file-code::before { content: '\eae8'; }
+.codicon-file-media::before { content: '\ea74'; }
+.codicon-file-pdf::before { content: '\ea76'; }
+.codicon-file-text::before { content: '\ea78'; }
+.codicon-file-zip::before { content: '\ea7c'; }
+.codicon-folder::before { content: '\ea83'; }
+.codicon-folder-opened::before { content: '\ea84'; }
+.codicon-json::before { content: '\eae1'; }
+.codicon-markdown::before { content: '\eab0'; }
+.codicon-package::before { content: '\eb29'; }
+.codicon-database::before { content: '\eadc'; }
+.codicon-gear::before { content: '\eb51'; }
+.codicon-lock::before { content: '\eaac'; }
+.codicon-book::before { content: '\ea8f'; }
+.codicon-law::before { content: '\ea89'; }
+.codicon-history::before { content: '\ea82'; }
+.codicon-library::before { content: '\eaad'; }
+.codicon-git-branch::before { content: '\ea6c'; }
+.codicon-github::before { content: '\eb55'; }
+.codicon-vscode::before { content: '\eaab'; }
+.codicon-beaker::before { content: '\ea79'; }
+.codicon-globe::before { content: '\eb3b'; }
+.codicon-paintcan::before { content: '\eb3a'; }
+.codicon-symbol-class::before { content: '\eb5b'; }
+.codicon-tools::before { content: '\eb5c'; }
+.codicon-chevron-left::before { content: '\eab4'; }
+.codicon-chevron-down::before { content: '\eab2'; }
+.codicon-chevron-right::before { content: '\eab5'; transform: rotate(90deg); }
+.codicon-refresh::before { content: '\eb04'; }
+
+/* Responsive Design */
+@media (max-width: 1024px) and (min-width: 769px) {
+  /* Medium screens: Slightly wider panel */
+  .file-tree-panel {
+    width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Small screens: Full-width overlay when open */
+  .file-tree-panel {
+    width: 90%;
+    max-width: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mobile: Full-width overlay */
+  .file-tree-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Light theme is now the default */
+
+/* Accessibility */
+.file-tree-panel:focus-within .file-tree-component vscode-tree-item:focus {
+  outline: 1px solid #007acc;
+  outline-offset: -1px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .file-tree-panel {
+    border-right-width: 2px;
+  }
+
+  .file-tree-search-input:focus {
+    outline: 2px solid #007acc;
+    outline-offset: 1px;
+  }
+}

@@ -1,0 +1,281 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* Context Menu Styles */
+
+/* Context Menu Container */
+.context-menu {
+  position: fixed;
+  background-color: #ffffff;
+  border: 1px solid #d4d4d4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 220px;
+  max-width: 300px;
+  z-index: 10000;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  user-select: none;
+  outline: none;
+}
+
+/* Context Menu Item */
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  color: #383838;
+  white-space: nowrap;
+  outline: none;
+}
+
+.context-menu-item:hover:not(.disabled),
+.context-menu-item.selected:not(.disabled) {
+  background-color: #cce8ff;
+  color: #000000;
+}
+
+.context-menu-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Context Menu Icon */
+.context-menu-icon {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Context Menu Label */
+.context-menu-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Context Menu Shortcut */
+.context-menu-shortcut {
+  margin-left: 24px;
+  color: #767676;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.context-menu-item:hover:not(.disabled) .context-menu-shortcut,
+.context-menu-item.selected:not(.disabled) .context-menu-shortcut {
+  color: #383838;
+}
+
+/* Context Menu Separator */
+.context-menu-separator {
+  height: 1px;
+  background-color: #d4d4d4;
+  margin: 4px 0;
+}
+
+/* Toast Notification Styles */
+
+/* Toast Container */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* Toast Notification */
+.toast-notification {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 400px;
+  padding: 12px 16px;
+  background-color: #383838;
+  color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  pointer-events: auto;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+}
+
+.toast-notification.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast-notification.hide {
+  transform: translateY(100px);
+  opacity: 0;
+}
+
+/* Toast Types */
+.toast-notification.toast-success {
+  background-color: #107c10;
+  color: #ffffff;
+}
+
+.toast-notification.toast-error {
+  background-color: #d13438;
+  color: #ffffff;
+}
+
+.toast-notification.toast-info {
+  background-color: #383838;
+  color: #ffffff;
+}
+
+/* Toast Icon */
+.toast-icon {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.toast-success .toast-icon {
+  color: #ffffff;
+}
+
+.toast-error .toast-icon {
+  color: #ffffff;
+}
+
+.toast-info .toast-icon {
+  color: #007acc;
+}
+
+/* Toast Message */
+.toast-message {
+  flex: 1;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Toast Close Button */
+.toast-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: background-color 0.1s;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.toast-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.toast-close:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .toast-container {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+  }
+
+  .toast-notification {
+    min-width: auto;
+    max-width: 100%;
+  }
+
+  .context-menu {
+    max-width: calc(100vw - 20px);
+  }
+}
+
+@media (max-width: 480px) {
+  .context-menu {
+    font-size: 14px;
+    min-width: 200px;
+  }
+
+  .toast-notification {
+    font-size: 14px;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .context-menu {
+    border-width: 2px;
+  }
+
+  .context-menu-item:hover:not(.disabled),
+  .context-menu-item.selected:not(.disabled) {
+    outline: 2px solid #007acc;
+    outline-offset: -2px;
+  }
+
+  .toast-notification {
+    border: 2px solid #ffffff;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .context-menu-item,
+  .toast-close {
+    transition: none;
+  }
+
+  .toast-notification {
+    transition: opacity 0.1s;
+  }
+
+  .toast-notification.show {
+    transform: translateY(0);
+  }
+
+  .toast-notification.hide {
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility - Focus Visible */
+.context-menu-item:focus-visible {
+  outline: 2px solid #007acc;
+  outline-offset: -2px;
+}
+
+.toast-close:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
