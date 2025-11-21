@@ -503,4 +503,136 @@ export class FileSystemService {
       throw error;
     }
   }
+
+  /**
+   * Open file with system default application
+   *
+   * @param relativePath - File path relative to workspace root
+   * @throws Error if file doesn't exist, path invalid, or command fails
+   */
+  async openWithSystemDefault(relativePath: string): Promise<void> {
+    const absolutePath = this.validatePath(relativePath);
+
+    try {
+      // Check if file exists
+      const exists = await this.fileExists(absolutePath);
+      if (!exists) {
+        throw new Error(`File not found: ${relativePath}`);
+      }
+
+      // Use dynamic import for child_process to avoid bundling issues
+      const { exec } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execAsync = promisify(exec);
+
+      // Platform-specific command
+      let command: string;
+      const platform = process.platform;
+
+      if (platform === 'win32') {
+        // Windows: Use 'start' command
+        // Quote the path and use empty string as window title
+        command = `cmd /c start "" "${absolutePath}"`;
+      } else if (platform === 'darwin') {
+        // macOS: Use 'open' command
+        command = `open "${absolutePath}"`;
+      } else {
+        // Linux: Use 'xdg-open' command
+        command = `xdg-open "${absolutePath}"`;
+      }
+
+      await execAsync(command);
+
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        throw error;
+      }
+      if (error.code === 'ENOENT' || error.message.includes('command not found')) {
+        throw new Error('System command not available on this platform');
+      }
+      throw new Error(`Failed to open file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Reveal file/folder in system file manager
+   *
+   * @param relativePath - File/folder path relative to workspace root
+   * @throws Error if path doesn't exist, invalid, or command fails
+   */
+  async revealInFileManager(relativePath: string): Promise<void> {
+    const absolutePath = this.validatePath(relativePath);
+
+    try {
+      // Check if path exists
+      const exists = await this.fileExists(absolutePath);
+      if (!exists) {
+        throw new Error(`Path not found: ${relativePath}`);
+      }
+
+      // Platform-specific command
+      const platform = process.platform;
+
+      if (platform === 'win32') {
+        // Windows: Use spawn for fire-and-forget execution (avoids stderr/exit code issues)
+        const { spawn } = await import('node:child_process');
+        const stats = await fs.stat(absolutePath);
+
+        if (stats.isDirectory()) {
+          // For folders: open inside the folder
+          spawn('explorer', [absolutePath], { detached: true, stdio: 'ignore' });
+        } else {
+          // For files: select the file in its parent folder
+          spawn('explorer', ['/select,', absolutePath], { detached: true, stdio: 'ignore' });
+        }
+
+        // For Windows, we don't wait for explorer to finish
+        return;
+      }
+
+      // For macOS and Linux, use exec
+      const { exec } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const execAsync = promisify(exec);
+
+      let command: string;
+
+      if (platform === 'darwin') {
+        // macOS: Use 'open -R' to reveal in Finder
+        command = `open -R "${absolutePath}"`;
+      } else {
+        // Linux: Try common file managers, fallback to opening parent directory
+        // Check for common file managers
+        const stats = await fs.stat(absolutePath);
+        const targetPath = stats.isDirectory() ? absolutePath : path.dirname(absolutePath);
+
+        // Try nautilus (GNOME), dolphin (KDE), or xdg-open as fallback
+        try {
+          // Try nautilus first (GNOME)
+          await execAsync(`which nautilus`);
+          command = `nautilus "${targetPath}"`;
+        } catch {
+          try {
+            // Try dolphin (KDE)
+            await execAsync(`which dolphin`);
+            command = `dolphin --select "${absolutePath}"`;
+          } catch {
+            // Fallback to xdg-open with parent directory
+            command = `xdg-open "${targetPath}"`;
+          }
+        }
+      }
+
+      await execAsync(command);
+
+    } catch (error: any) {
+      if (error.message.includes('not found')) {
+        throw error;
+      }
+      if (error.code === 'ENOENT' || error.message.includes('command not found')) {
+        throw new Error('File manager command not available on this platform');
+      }
+      throw new Error(`Failed to reveal in file manager: ${error.message}`);
+    }
+  }
 }

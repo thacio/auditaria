@@ -62,6 +62,11 @@ import {
   ContextForgetTool,
   ContextRestoreTool,
 } from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
+// AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+import {
+  CollaborativeWritingStartTool,
+  CollaborativeWritingEndTool,
+} from '../tools/collaborative-writing.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -1437,6 +1442,12 @@ export class Config {
     registerCoreTool(ContextInspectTool, this); // Custom Auditaria Feature: context.management.ts tool
     registerCoreTool(ContextForgetTool, this); // Custom Auditaria Feature: context.management.ts tool
     registerCoreTool(ContextRestoreTool, this); // Custom Auditaria Feature: context.management.ts tool
+
+    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditaria Custom Feature
+    // Register collaborative writing tools
+    registerCoreTool(CollaborativeWritingStartTool, this);
+    registerCoreTool(CollaborativeWritingEndTool, this);
+    // AUDITARIA_COLLABORATIVE_WRITING_END
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {

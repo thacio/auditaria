@@ -27,7 +27,13 @@ import {
   ToolOutputTruncatedEvent,
   runInDevTraceSpan,
 } from '../index.js';
-import { READ_FILE_TOOL_NAME, SHELL_TOOL_NAME } from '../tools/tool-names.js';
+import {
+  READ_FILE_TOOL_NAME,
+  SHELL_TOOL_NAME,
+  EDIT_TOOL_NAME, // AUDITORIA_COLLABORATIVE_WRITING
+} from '../tools/tool-names.js';
+// AUDITARIA_COLLABORATIVE_WRITING - Hook for updating collaborative writing registry after AI edits
+import { collaborativeWritingService } from '../tools/collaborative-writing.js';
 import type { Part, PartListUnion } from '@google/genai';
 import { getResponseTextFromParts } from '../utils/generateContentResponseUtilities.js';
 import type { ModifyContext } from '../tools/modifiable-tool.js';
@@ -1234,6 +1240,20 @@ export class CoreToolScheduler {
                   signal,
                   successResponse,
                 );
+
+                // AUDITORIA_COLLABORATIVE_WRITING_START - Update collaborative writing registry after AI edit
+                if (toolName === EDIT_TOOL_NAME && scheduledCall.request.args) {
+                  const filePath = (scheduledCall.request.args as { file_path?: string }).file_path;
+                  if (filePath) {
+                    // IMPORTANT: We must await this to ensure registry is updated before next message
+                    try {
+                      await collaborativeWritingService.updateAfterAIEdit(filePath);
+                    } catch (error) {
+                      console.error('[COLLAB-WRITE] Failed to update registry after AI edit:', error);
+                    }
+                  }
+                }
+                // AUDITARIA_COLLABORATIVE_WRITING_END
               } else {
                 // It is a failure
                 const error = new Error(toolResult.error.message);

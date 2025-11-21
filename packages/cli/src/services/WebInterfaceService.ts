@@ -31,6 +31,10 @@ export const attachmentMetadataMap = new WeakMap<any, any>();
 import { FileSystemService } from './FileSystemService.js';
 // WEB_INTERFACE_END
 
+// WEB_INTERFACE_START: Import collaborative writing for Monaco integration
+import { updateAfterUserSessionEdit } from '@thacio/auditaria-cli-core';
+// WEB_INTERFACE_END
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -935,6 +939,10 @@ export class WebInterfaceService extends EventEmitter {
       this.handleFileDeleteRequest(message.path, message.recursive);
     } else if (message.type === 'file_rename_request' && message.oldPath && message.newPath) {
       this.handleFileRenameRequest(message.oldPath, message.newPath);
+    } else if (message.type === 'file_open_system' && message.path) {
+      this.handleFileOpenSystemRequest(message.path);
+    } else if (message.type === 'file_reveal_request' && message.path) {
+      this.handleFileRevealRequest(message.path);
     }
     // WEB_INTERFACE_END
   }
@@ -1054,6 +1062,16 @@ export class WebInterfaceService extends EventEmitter {
     try {
       await this.fileSystemService.writeFile(path, content);
 
+      // WEB_INTERFACE_START: Update collaborative writing registry for Monaco edits
+      // This prevents the AI from being notified about user's own edits in the web interface
+      try {
+        await updateAfterUserSessionEdit(path, content);
+      } catch (error) {
+        // Log but don't fail the save operation if collaborative writing update fails
+        console.error('[COLLAB-WRITE] Error updating after user session edit:', error);
+      }
+      // WEB_INTERFACE_END
+
       this.broadcastWithSequence('file_write_response', {
         success: true,
         path,
@@ -1156,6 +1174,60 @@ export class WebInterfaceService extends EventEmitter {
         operation: 'rename',
         oldPath,
         newPath,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file open with system default request
+   */
+  private async handleFileOpenSystemRequest(path: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.openWithSystemDefault(path);
+
+      this.broadcastWithSequence('file_open_system_response', {
+        success: true,
+        path,
+        message: 'File opened with system default application'
+      });
+    } catch (error: any) {
+      console.error('Error opening file with system default:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'open_system',
+        path,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle file reveal in explorer request
+   */
+  private async handleFileRevealRequest(path: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      await this.fileSystemService.revealInFileManager(path);
+
+      this.broadcastWithSequence('file_reveal_response', {
+        success: true,
+        path,
+        message: 'File revealed in file explorer'
+      });
+    } catch (error: any) {
+      console.error('Error revealing file in explorer:', error);
+      this.broadcastWithSequence('file_operation_error', {
+        operation: 'reveal',
+        path,
         error: error.message
       });
     }

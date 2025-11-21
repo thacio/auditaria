@@ -25,3 +25,7 @@ export const WRITE_TODOS_TOOL_NAME = 'write_todos';
 export const CONTEXT_INSPECT_TOOL_NAME = 'context_inspect';
 export const CONTEXT_FORGET_TOOL_NAME = 'context_forget';
 export const CONTEXT_RESTORE_TOOL_NAME = 'context_restore';
+
+// AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+export const COLLABORATIVE_WRITING_START_TOOL_NAME = 'collaborative_writing_start';
+export const COLLABORATIVE_WRITING_END_TOOL_NAME = 'collaborative_writing_end';

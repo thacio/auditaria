@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uiTelemetryService, t, clearContextBackups } from '@thacio/auditaria-cli-core';
+import { uiTelemetryService, t, clearContextBackups, clearCollaborativeWriting } from '@thacio/auditaria-cli-core'; // AUDITARIA_COLLABORATIVE_WRITING
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 
@@ -28,6 +28,10 @@ export const clearCommand: SlashCommand = {
 
     // Clear context management backups and hidden content storage
     clearContextBackups(); // Custom Auditaria Feature: context.management.ts tool
+
+    // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+    // Clear collaborative writing registry
+    clearCollaborativeWriting();
 
     uiTelemetryService.setLastPromptTokenCount(0);
     context.ui.clear();
