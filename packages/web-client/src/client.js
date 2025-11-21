@@ -233,10 +233,14 @@ class AuditariaWebClient {
                 this.sendMessage();
             }
         });
-        
+
         // Auto-resize textarea
         this.messageInput.addEventListener('input', () => {
             this.autoResizeTextarea();
+        });
+
+        this.messageInput.addEventListener('focus', () => {
+            this.handleMessageInputFocus();
         });
         
         // Attachment button
@@ -897,6 +901,15 @@ class AuditariaWebClient {
             console.log('File saved:', path);
             // Could show a toast notification here
         });
+    }
+
+    /**
+     * Handle message input focus - auto-hide file tree panel
+     */
+    handleMessageInputFocus() {
+        if (this.fileTreePanel && !this.fileTreePanel.isCollapsed) {
+            this.fileTreePanel.toggleCollapse();
+        }
     }
     // WEB_INTERFACE_END
 }
