@@ -83,6 +83,21 @@ export class EditorManager extends EventEmitter {
     this.wsManager.addEventListener('file_operation_error', (event) => {
       this.handleFileOperationError(event.detail);
     });
+
+    // Handle external file changes
+    this.wsManager.addEventListener('file_external_change', (event) => {
+      this.handleFileExternalChange(event.detail);
+    });
+
+    // Handle external file deletions
+    this.wsManager.addEventListener('file_external_delete', (event) => {
+      this.handleFileExternalDelete(event.detail);
+    });
+
+    // Handle file watch errors
+    this.wsManager.addEventListener('file_watch_error', (event) => {
+      this.handleFileWatchError(event.detail);
+    });
   }
 
   /**
@@ -180,6 +195,17 @@ export class EditorManager extends EventEmitter {
     if (success && path) {
       // Mark file as clean (saved)
       this.markFileClean(path);
+
+      // Clear external change state if exists
+      const fileInfo = this.openFiles.get(path);
+      if (fileInfo && fileInfo.hasExternalChange) {
+        fileInfo.hasExternalChange = false;
+        fileInfo.externalContent = null;
+        fileInfo.showWarning = false;
+        this.emit('external-warning-dismissed', { path });
+        this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+      }
+
       this.emit('file-saved', { path, message });
       console.log(`File saved: ${path}`);
     }
@@ -236,11 +262,14 @@ export class EditorManager extends EventEmitter {
     // Store file info
     this.openFiles.set(path, {
       content,
-      savedContent: content, // Track original content for dirty detection
+      savedContent: content,          // Track original content for dirty detection
       language,
       isDirty: false,
       model,
-      path
+      path,
+      hasExternalChange: false,        // File changed on disk
+      externalContent: null,           // Content from disk (for diff)
+      showWarning: false               // Show warning bar
     });
 
     // Add to tab order
@@ -252,6 +281,9 @@ export class EditorManager extends EventEmitter {
     // Emit events
     this.emit('file-opened', { path, language });
     this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+
+    // Request server to watch this file for external changes
+    this.requestFileWatch(path, content);
 
     // Save state
     this.saveState();
@@ -411,6 +443,9 @@ export class EditorManager extends EventEmitter {
     this.viewStates.delete(path);
     this.tabOrder = this.tabOrder.filter(p => p !== path);
 
+    // Request server to stop watching this file
+    this.requestFileUnwatch(path);
+
     // If this was active file, switch to another
     if (this.activeFile === path) {
       if (this.tabOrder.length > 0) {
@@ -482,16 +517,18 @@ export class EditorManager extends EventEmitter {
    * @returns {Array}
    */
   getTabsInfo() {
-    return this.tabOrder.map(path => {
-      const fileInfo = this.openFiles.get(path);
-      const filename = path.split('/').pop() || path;
+    return this.tabOrder.map(tabId => {
+      const fileInfo = this.openFiles.get(tabId);
+      const filename = tabId.split('/').pop() || tabId;
 
       return {
-        path,
+        path: tabId,
         filename,
         isDirty: fileInfo ? fileInfo.isDirty : false,
-        isActive: path === this.activeFile,
-        language: fileInfo ? fileInfo.language : 'plaintext'
+        isActive: tabId === this.activeFile,
+        language: fileInfo ? fileInfo.language : 'plaintext',
+        hasExternalChange: fileInfo ? fileInfo.hasExternalChange : false,
+        showWarning: fileInfo ? fileInfo.showWarning : false
       };
     });
   }
@@ -581,6 +618,245 @@ export class EditorManager extends EventEmitter {
   }
 
   /**
+   * Request server to watch this file for external changes
+   * @param {string} path - File path
+   * @param {string} content - Current file content
+   */
+  requestFileWatch(path, content) {
+    this.wsManager.send({
+      type: 'file_watch_request',
+      path,
+      content
+    });
+  }
+
+  /**
+   * Request server to unwatch this file
+   * @param {string} path - File path
+   */
+  requestFileUnwatch(path) {
+    this.wsManager.send({
+      type: 'file_unwatch_request',
+      path
+    });
+  }
+
+  /**
+   * Handle external file change event (IMPROVED UX - Smart Auto-Reload)
+   * @param {Object} data - { path, diskContent, diskStats }
+   */
+  handleFileExternalChange(data) {
+    const { path, diskContent, diskStats } = data;
+    const fileInfo = this.openFiles.get(path);
+
+    if (!fileInfo) {
+      console.log(`External change for file not open: ${path}`);
+      return; // File not open anymore
+    }
+
+    // Get current editor content
+    const editorContent = fileInfo.model.getValue();
+
+    // Check if content actually differs
+    if (editorContent === diskContent) {
+      // No actual difference, just update metadata
+      console.log(`External change detected but content is same: ${path}`);
+      fileInfo.savedContent = diskContent;
+      return;
+    }
+
+    console.log(`External change detected for: ${path}`);
+
+    // Smart behavior based on dirty state
+    if (fileInfo.isDirty) {
+      // User has unsaved changes - show warning bar (non-blocking)
+      const wasAlreadyWarning = fileInfo.showWarning;
+      fileInfo.hasExternalChange = true;
+      fileInfo.externalContent = diskContent;
+      fileInfo.showWarning = true;
+
+      this.emit('external-change-warning', {
+        path,
+        hasChanges: true
+      });
+      this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+
+      if (wasAlreadyWarning) {
+        console.log(`→ Updated warning bar with new external content (${diskContent.length} chars)`);
+        console.log(`  First 50 chars: "${diskContent.substring(0, 50)}..."`);
+      } else {
+        console.log(`→ Showing warning bar (user has unsaved changes)`);
+        console.log(`  First 50 chars: "${diskContent.substring(0, 50)}..."`);
+      }
+    } else {
+      // User has no unsaved changes - auto-reload silently
+      // Update savedContent FIRST, before setValue(), so markFileDirty() won't trigger
+      fileInfo.savedContent = diskContent;
+      fileInfo.model.setValue(diskContent);
+      fileInfo.isDirty = false;
+
+      this.emit('file-auto-reloaded', { path });
+      this.emit('dirty-changed', { path, isDirty: false });
+      this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+      this.showToast('✓ File reloaded from disk', 'success');
+
+      console.log(`→ Auto-reloaded (no unsaved changes)`);
+    }
+  }
+
+  /**
+   * Handle external file deletion
+   * @param {Object} data - { path }
+   */
+  handleFileExternalDelete(data) {
+    const { path } = data;
+    const fileInfo = this.openFiles.get(path);
+
+    if (!fileInfo) {
+      return; // File not open
+    }
+
+    // Show warning to user
+    const filename = path.split('/').pop() || path;
+    const userChoice = confirm(
+      `The file "${filename}" has been deleted externally.\n\n` +
+      `Do you want to save your changes to recreate the file?\n\n` +
+      `Click OK to save, Cancel to close without saving.`
+    );
+
+    if (userChoice) {
+      // User wants to save (recreate file)
+      this.saveFile(path);
+    } else {
+      // User wants to close without saving
+      this.closeFile(path);
+    }
+  }
+
+  /**
+   * Handle file watch error
+   * @param {Object} data - { path, error }
+   */
+  handleFileWatchError(data) {
+    const { path, error } = data;
+    console.error(`File watch error for ${path}:`, error);
+    this.emit('error', {
+      operation: 'file_watch',
+      path,
+      message: error
+    });
+  }
+
+  /**
+   * Show toast notification
+   * @param {string} message - Message to show
+   * @param {string} type - Type: 'success', 'error', 'info'
+   */
+  showToast(message, type = 'info') {
+    this.emit('show-toast', { message, type });
+  }
+
+  /**
+   * Action: View Diff (opens diff modal)
+   * @param {string} path - File path
+   */
+  viewDiff(path) {
+    const fileInfo = this.openFiles.get(path);
+    if (!fileInfo || !fileInfo.hasExternalChange) {
+      console.warn(`No external changes for: ${path}`);
+      return;
+    }
+
+    console.log(`Opening diff modal for: ${path}`);
+    console.log(`  Your content: ${fileInfo.model.getValue().length} chars`);
+    console.log(`  Disk content: ${fileInfo.externalContent.length} chars`);
+
+    // Emit event to show diff modal with latest external content
+    this.emit('show-diff-modal', {
+      path,
+      originalContent: fileInfo.model.getValue(),
+      modifiedContent: fileInfo.externalContent,
+      language: fileInfo.language
+    });
+  }
+
+  /**
+   * Action: Reload from Disk (replace editor content with disk version)
+   * @param {string} path - File path
+   */
+  reloadFromDisk(path) {
+    const fileInfo = this.openFiles.get(path);
+    if (!fileInfo || !fileInfo.hasExternalChange) {
+      console.warn(`No external changes for: ${path}`);
+      return;
+    }
+
+    console.log(`Reloading from disk: ${path}`);
+
+    // Replace editor content with disk version
+    fileInfo.model.setValue(fileInfo.externalContent);
+    fileInfo.savedContent = fileInfo.externalContent;
+    fileInfo.isDirty = false;
+    fileInfo.hasExternalChange = false;
+    fileInfo.externalContent = null;
+    fileInfo.showWarning = false;
+
+    // Emit events
+    this.emit('external-warning-dismissed', { path });
+    this.emit('dirty-changed', { path, isDirty: false });
+    this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+    this.showToast('✓ Reloaded from disk', 'success');
+
+    console.log(`→ File reloaded, marked clean`);
+  }
+
+  /**
+   * Action: Keep My Changes (dismiss warning, file stays dirty)
+   * @param {string} path - File path
+   */
+  keepMyChanges(path) {
+    const fileInfo = this.openFiles.get(path);
+    if (!fileInfo || !fileInfo.hasExternalChange) {
+      console.warn(`No external changes for: ${path}`);
+      return;
+    }
+
+    console.log(`Keeping user changes for: ${path}`);
+
+    // Dismiss warning, keep current content
+    fileInfo.hasExternalChange = false;
+    fileInfo.externalContent = null;
+    fileInfo.showWarning = false;
+    // Note: File stays dirty (isDirty unchanged)
+
+    // Emit events
+    this.emit('external-warning-dismissed', { path });
+    this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+
+    console.log(`→ Warning dismissed, file remains dirty`);
+  }
+
+  /**
+   * Action from Diff Modal: Use Disk Version
+   * @param {string} path - File path
+   */
+  useDiskVersion(path) {
+    // Same as reloadFromDisk
+    this.reloadFromDisk(path);
+    this.emit('close-diff-modal');
+  }
+
+  /**
+   * Action from Diff Modal: Keep My Version
+   * @param {string} path - File path
+   */
+  keepMyVersion(path) {
+    // Same as keepMyChanges
+    this.keepMyChanges(path);
+    this.emit('close-diff-modal');
+  }
+
+  /**
    * Destroy editor and clean up
    */
   destroy() {
@@ -591,7 +867,18 @@ export class EditorManager extends EventEmitter {
       }
     }
 
-    // Dispose editor
+    // Dispose diff editor
+    if (this.diffEditor) {
+      const model = this.diffEditor.getModel();
+      if (model) {
+        model.original.dispose();
+        model.modified.dispose();
+      }
+      this.diffEditor.dispose();
+      this.diffEditor = null;
+    }
+
+    // Dispose regular editor
     if (this.editor) {
       this.editor.dispose();
       this.editor = null;

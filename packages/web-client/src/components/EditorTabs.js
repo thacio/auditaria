@@ -146,11 +146,12 @@ export class EditorTabs extends EventEmitter {
 
     this.tabsContainer.innerHTML = this.tabs.map(tab => {
       const activeClass = tab.isActive ? 'active' : '';
+      const warningClass = tab.hasExternalChange ? 'external-change-tab' : '';
       const dirtyIndicator = tab.isDirty ? '<span class="editor-tab-dirty" title="Unsaved changes">●</span>' : '';
 
       return `
         <div
-          class="editor-tab ${activeClass}"
+          class="editor-tab ${activeClass} ${warningClass}"
           data-path="${this.escapeHtml(tab.path)}"
           role="tab"
           aria-selected="${tab.isActive}"

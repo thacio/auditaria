@@ -31,6 +31,10 @@ export const attachmentMetadataMap = new WeakMap<any, any>();
 import { FileSystemService } from './FileSystemService.js';
 // WEB_INTERFACE_END
 
+// WEB_INTERFACE_START: Import FileWatcherService for file change detection
+import { FileWatcherService } from './FileWatcherService.js';
+// WEB_INTERFACE_END
+
 // WEB_INTERFACE_START: Import collaborative writing for Monaco integration
 import { updateAfterUserSessionEdit } from '@thacio/auditaria-cli-core';
 // WEB_INTERFACE_END
@@ -169,6 +173,10 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
   // WEB_INTERFACE_START: File system service for file browser
   private fileSystemService?: FileSystemService;
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: File watcher service for external change detection
+  private fileWatcherService?: FileWatcherService;
   // WEB_INTERFACE_END
 
   /**
@@ -336,6 +344,11 @@ export class WebInterfaceService extends EventEmitter {
       this.fileSystemService = new FileSystemService(process.cwd());
       // WEB_INTERFACE_END
 
+      // WEB_INTERFACE_START: Initialize file watcher service
+      this.fileWatcherService = new FileWatcherService(process.cwd());
+      this.setupFileWatcherHandlers();
+      // WEB_INTERFACE_END
+
       this.isRunning = true;
       return this.port;
     } catch (error) {
@@ -359,6 +372,13 @@ export class WebInterfaceService extends EventEmitter {
       }
     });
     this.clients.clear();
+
+    // WEB_INTERFACE_START: Clean up file watcher service
+    if (this.fileWatcherService) {
+      this.fileWatcherService.destroy();
+      this.fileWatcherService = undefined;
+    }
+    // WEB_INTERFACE_END
 
     // Close WebSocket server
     if (this.wss) {
@@ -944,6 +964,12 @@ export class WebInterfaceService extends EventEmitter {
     } else if (message.type === 'file_reveal_request' && message.path) {
       this.handleFileRevealRequest(message.path);
     }
+    // WEB_INTERFACE_START: File watcher request handlers
+    else if (message.type === 'file_watch_request' && message.path) {
+      this.handleFileWatchRequest(message.path, message.content);
+    } else if (message.type === 'file_unwatch_request' && message.path) {
+      this.handleFileUnwatchRequest(message.path);
+    }
     // WEB_INTERFACE_END
   }
 
@@ -965,6 +991,11 @@ export class WebInterfaceService extends EventEmitter {
 
       ws.on('close', () => {
         this.clients.delete(ws);
+        // WEB_INTERFACE_START: Clean up file watches for disconnected client
+        if (this.fileWatcherService) {
+          this.fileWatcherService.unwatchAllForClient(ws);
+        }
+        // WEB_INTERFACE_END
         // Client state will be automatically cleaned up by WeakMap
       });
 
@@ -1060,6 +1091,13 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     try {
+      // WEB_INTERFACE_START: Mark expected change before writing
+      // This prevents the file watcher from treating this as an external change
+      if (this.fileWatcherService) {
+        this.fileWatcherService.markExpectedChange(path, content);
+      }
+      // WEB_INTERFACE_END
+
       await this.fileSystemService.writeFile(path, content);
 
       // WEB_INTERFACE_START: Update collaborative writing registry for Monaco edits
@@ -1307,6 +1345,169 @@ export class WebInterfaceService extends EventEmitter {
       sendAndStore('tool_confirmation', confirmation);
     }
     // WEB_INTERFACE_END
+  }
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: File watcher event handlers
+  /**
+   * Set up file watcher service event handlers
+   */
+  private setupFileWatcherHandlers(): void {
+    if (!this.fileWatcherService) {
+      return;
+    }
+
+    // Handle external file changes
+    this.fileWatcherService.on('file-external-change', (event: any) => {
+      const { path, diskContent, diskStats, clients } = event;
+
+      // Broadcast to specific clients watching this file
+      clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN && this.clients.has(client)) {
+          const sequence = this.getNextSequence();
+          const message = JSON.stringify({
+            type: 'file_external_change',
+            data: {
+              path,
+              diskContent,
+              diskStats
+            },
+            sequence,
+            timestamp: Date.now()
+          });
+
+          try {
+            client.send(message);
+            const state = this.clientStates.get(client);
+            if (state) {
+              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            }
+          } catch (error) {
+            console.error('Error sending file-external-change:', error);
+          }
+        }
+      });
+    });
+
+    // Handle external file deletions
+    this.fileWatcherService.on('file-external-delete', (event: any) => {
+      const { path, clients } = event;
+
+      // Broadcast to specific clients watching this file
+      clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN && this.clients.has(client)) {
+          const sequence = this.getNextSequence();
+          const message = JSON.stringify({
+            type: 'file_external_delete',
+            data: { path },
+            sequence,
+            timestamp: Date.now()
+          });
+
+          try {
+            client.send(message);
+            const state = this.clientStates.get(client);
+            if (state) {
+              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            }
+          } catch (error) {
+            console.error('Error sending file-external-delete:', error);
+          }
+        }
+      });
+    });
+
+    // Handle watch errors
+    this.fileWatcherService.on('watch-error', (event: any) => {
+      const { path, error, clients } = event;
+
+      // Broadcast to specific clients
+      clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN && this.clients.has(client)) {
+          const sequence = this.getNextSequence();
+          const message = JSON.stringify({
+            type: 'file_watch_error',
+            data: {
+              path,
+              error
+            },
+            sequence,
+            timestamp: Date.now()
+          });
+
+          try {
+            client.send(message);
+            const state = this.clientStates.get(client);
+            if (state) {
+              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            }
+          } catch (error) {
+            console.error('Error sending file-watch-error:', error);
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * Handle file watch request from client
+   */
+  private async handleFileWatchRequest(path: string, content?: string): Promise<void> {
+    if (!this.fileWatcherService) {
+      console.error('FileWatcherService not initialized');
+      return;
+    }
+
+    // Find the client that sent this request
+    // Note: In the current architecture, we broadcast to all clients
+    // For watch requests, we need to track which client sent the request
+    // For now, we'll watch for all clients that have the file open
+
+    // Get the initial content if not provided
+    let initialContent = content;
+    if (!initialContent && this.fileSystemService) {
+      try {
+        const fileContent = await this.fileSystemService.readFile(path);
+        initialContent = fileContent.content;
+      } catch (error: any) {
+        console.error(`Failed to read file for watch: ${path}`, error);
+        this.broadcastWithSequence('file_watch_error', {
+          path,
+          error: error.message
+        });
+        return;
+      }
+    }
+
+    // Watch file for all connected clients
+    // Note: This is simplified - in production, you'd track which specific client made the request
+    for (const client of this.clients) {
+      try {
+        await this.fileWatcherService.watchFile(path, client, initialContent || '');
+      } catch (error: any) {
+        console.error(`Failed to watch file ${path}:`, error);
+      }
+    }
+
+    console.log(`File watch started: ${path}`);
+  }
+
+  /**
+   * Handle file unwatch request from client
+   */
+  private handleFileUnwatchRequest(path: string): void {
+    if (!this.fileWatcherService) {
+      console.error('FileWatcherService not initialized');
+      return;
+    }
+
+    // Unwatch for all clients
+    // Note: This is simplified - in production, you'd unwatch only for the requesting client
+    for (const client of this.clients) {
+      this.fileWatcherService.unwatchFile(path, client);
+    }
+
+    console.log(`File watch stopped: ${path}`);
   }
   // WEB_INTERFACE_END
 }

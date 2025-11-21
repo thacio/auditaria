@@ -9,6 +9,8 @@
 import { EventEmitter } from '../utils/EventEmitter.js';
 import { EditorTabs } from './EditorTabs.js';
 import { MenuBar } from './MenuBar.js';
+import { ExternalChangeWarning } from './ExternalChangeWarning.js';
+import { DiffModal } from './DiffModal.js';
 
 /**
  * Editor Panel Component
@@ -44,6 +46,8 @@ export class EditorPanel extends EventEmitter {
     // Components
     this.menuBar = null;
     this.editorTabs = null;
+    this.externalChangeWarning = null;
+    this.diffModal = null;
 
     // State
     this.isVisible = false;
@@ -82,6 +86,11 @@ export class EditorPanel extends EventEmitter {
    */
   async initializeEditorManager() {
     await this.editorManager.initialize(this.editorContainer);
+
+    // Set diff container for EditorManager
+    if (this.diffContainer) {
+      this.editorManager.setDiffContainer(this.diffContainer);
+    }
   }
 
   /**
@@ -118,6 +127,13 @@ export class EditorPanel extends EventEmitter {
     this.editorTabs = new EditorTabs(this.editorManager);
     const tabsContainer = this.editorTabs.getElement();
 
+    // Create external change warning component
+    this.externalChangeWarning = new ExternalChangeWarning(this.editorManager);
+    const warningElement = this.externalChangeWarning.getElement();
+
+    // Create diff modal component
+    this.diffModal = new DiffModal(this.editorManager);
+
     // Insert menu bar and tabs before toolbar
     const editorHeader = this.panel.querySelector('.editor-header');
     if (editorHeader && menuBarElement) {
@@ -126,6 +142,12 @@ export class EditorPanel extends EventEmitter {
 
     if (this.toolbar && tabsContainer) {
       this.toolbar.parentNode.insertBefore(tabsContainer, this.toolbar);
+    }
+
+    // Insert warning bar before editor content (first child)
+    const editorContent = this.panel.querySelector('.editor-content');
+    if (editorContent && warningElement) {
+      editorContent.insertBefore(warningElement, editorContent.firstChild);
     }
   }
 
@@ -286,10 +308,16 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
-    // Diff button
+    // Diff button (toggle)
     if (this.diffButton) {
       this.diffButton.addEventListener('click', () => {
-        this.showDiff();
+        if (this.isDiffMode) {
+          // Already in diff mode, toggle back to editor
+          this.showEditor();
+        } else {
+          // Show diff mode
+          this.showDiff();
+        }
       });
     }
 
@@ -339,6 +367,13 @@ export class EditorPanel extends EventEmitter {
       if (fileInfo) {
         this.show();
         this.updateToolbar(fileInfo.language);
+
+        // Update warning visibility based on file state
+        if (fileInfo.showWarning) {
+          this.externalChangeWarning.show(path);
+        } else {
+          this.externalChangeWarning.hide();
+        }
       }
     });
 
@@ -367,6 +402,19 @@ export class EditorPanel extends EventEmitter {
     this.editorManager.on('error', (error) => {
       this.showError(error.message);
     });
+
+    // Handle external change warning
+    this.editorManager.on('external-change-warning', ({ path }) => {
+      if (path === this.editorManager.getActiveFile()) {
+        this.externalChangeWarning.show(path);
+      }
+    });
+
+    // Handle warning dismissed
+    this.editorManager.on('external-warning-dismissed', ({ path }) => {
+      this.externalChangeWarning.hide();
+    });
+
   }
 
   /**
@@ -471,6 +519,15 @@ export class EditorPanel extends EventEmitter {
 
     // Remove real-time preview listener
     this.removePreviewListener();
+
+    // Restore warning bar if active file has external changes
+    const activeFile = this.editorManager.getActiveFile();
+    if (activeFile) {
+      const fileInfo = this.editorManager.openFiles.get(activeFile);
+      if (fileInfo && fileInfo.showWarning && this.externalChangeWarning) {
+        this.externalChangeWarning.show(activeFile);
+      }
+    }
 
     // Update button states
     this.isPreviewMode = false;
@@ -631,8 +688,19 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
-    // Create models for original (saved) and modified (current) content
-    const originalModel = monaco.editor.createModel(fileInfo.savedContent, fileInfo.language);
+    // Use externalContent if available (external changes), otherwise use savedContent
+    // This ensures both warning bar "View Diff" and toolbar "Diff" show the same comparison
+    const diskContent = fileInfo.externalContent || fileInfo.savedContent;
+    console.log(`Toolbar diff: comparing against ${fileInfo.externalContent ? 'externalContent' : 'savedContent'} (${diskContent.length} chars)`);
+
+    // Dispose old original model if it exists
+    const oldModel = this.diffEditor.getModel();
+    if (oldModel && oldModel.original) {
+      oldModel.original.dispose();
+    }
+
+    // Create models for original (disk content) and modified (current) content
+    const originalModel = monaco.editor.createModel(diskContent, fileInfo.language);
     const modifiedModel = fileInfo.model;
 
     // Set the diff editor models
@@ -1096,6 +1164,14 @@ export class EditorPanel extends EventEmitter {
 
     if (this.editorTabs) {
       this.editorTabs.destroy();
+    }
+
+    if (this.externalChangeWarning) {
+      this.externalChangeWarning.destroy();
+    }
+
+    if (this.diffModal) {
+      this.diffModal.destroy();
     }
 
     if (this.editorManager) {
