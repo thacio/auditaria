@@ -31,6 +31,7 @@ export class DiffModal extends EventEmitter {
     this.isVisible = false;
     this.currentPath = null;
     this.diffEditor = null;
+    this.contentUpdateListener = null;
 
     this.initialize();
   }
@@ -150,18 +151,12 @@ export class DiffModal extends EventEmitter {
   }
 
   async show(path, originalContent, modifiedContent, language) {
-    console.log(`DiffModal.show() called for: ${path}`);
-    console.log(`  Received originalContent: ${originalContent.length} chars`);
-    console.log(`  Received modifiedContent: ${modifiedContent.length} chars`);
-    console.log(`  First 50 chars of modified: "${modifiedContent.substring(0, 50)}..."`);
-
     this.currentPath = path;
     this.isVisible = true;
     this.overlay.style.display = 'flex';
 
     // Always ensure we have a fresh diff editor
     if (!this.diffEditor && this.diffContainer && this.editorManager.monaco) {
-      console.log(`  Creating new diff editor`);
       this.diffEditor = this.editorManager.monaco.editor.createDiffEditor(this.diffContainer, {
         renderSideBySide: true,
         originalEditable: false,
@@ -178,7 +173,6 @@ export class DiffModal extends EventEmitter {
       // Dispose old models safely
       const oldModel = this.diffEditor.getModel();
       if (oldModel && oldModel.original && oldModel.modified) {
-        console.log(`  Disposing old models`);
         try {
           oldModel.original.dispose();
           oldModel.modified.dispose();
@@ -188,7 +182,6 @@ export class DiffModal extends EventEmitter {
       }
 
       // Create fresh models with unique URIs
-      console.log(`  Creating fresh models`);
       const timestamp = Date.now();
       const originalUri = this.editorManager.monaco.Uri.parse(`inmemory://diff-original-${timestamp}`);
       const modifiedUri = this.editorManager.monaco.Uri.parse(`inmemory://diff-modified-${timestamp}`);
@@ -196,7 +189,6 @@ export class DiffModal extends EventEmitter {
       const originalModel = this.editorManager.monaco.editor.createModel(originalContent, language, originalUri);
       const modifiedModel = this.editorManager.monaco.editor.createModel(modifiedContent, language, modifiedUri);
 
-      console.log(`  Setting models on diff editor`);
       // Set models
       this.diffEditor.setModel({
         original: originalModel,
@@ -211,13 +203,94 @@ export class DiffModal extends EventEmitter {
       }, 100);
     }
 
-    console.log(`Diff modal opened for: ${path}`);
+    // Set up listener for real-time updates
+    this.setupContentListener();
+  }
+
+  /**
+   * Set up listener for content changes
+   */
+  setupContentListener() {
+    // Remove existing listener if any
+    this.removeContentListener();
+
+    // Listen to editor content changes (when user types)
+    if (this.editorManager.editor) {
+      this.contentUpdateListener = this.editorManager.editor.onDidChangeModelContent(() => {
+        if (this.isVisible && this.currentPath) {
+          this.updateDiffContent();
+        }
+      });
+    }
+
+    // ALSO listen to external file changes
+    this.editorManager.on('external-change-warning', ({ path }) => {
+      if (this.isVisible && this.currentPath === path) {
+        this.updateDiffContent();
+      }
+    });
+  }
+
+  /**
+   * Remove content listener
+   */
+  removeContentListener() {
+    if (this.contentUpdateListener) {
+      this.contentUpdateListener.dispose();
+      this.contentUpdateListener = null;
+    }
+  }
+
+  /**
+   * Update diff content with latest changes
+   */
+  updateDiffContent() {
+    if (!this.currentPath) return;
+
+    const fileInfo = this.editorManager.openFiles.get(this.currentPath);
+    if (!fileInfo) return;
+
+    // Get latest content
+    const originalContent = fileInfo.model.getValue();
+    const modifiedContent = fileInfo.externalContent;
+    const language = fileInfo.language;
+
+    // Update the diff editor with fresh content
+    if (this.diffEditor && this.editorManager.monaco) {
+      // Dispose old models
+      const oldModel = this.diffEditor.getModel();
+      if (oldModel && oldModel.original && oldModel.modified) {
+        try {
+          oldModel.original.dispose();
+          oldModel.modified.dispose();
+        } catch (e) {
+          console.warn('Error disposing models during update:', e);
+        }
+      }
+
+      // Create fresh models with unique URIs
+      const timestamp = Date.now();
+      const originalUri = this.editorManager.monaco.Uri.parse(`inmemory://diff-original-${timestamp}`);
+      const modifiedUri = this.editorManager.monaco.Uri.parse(`inmemory://diff-modified-${timestamp}`);
+
+      const originalModel = this.editorManager.monaco.editor.createModel(originalContent, language, originalUri);
+      const modifiedModel = this.editorManager.monaco.editor.createModel(modifiedContent, language, modifiedUri);
+
+      // Set models
+      this.diffEditor.setModel({
+        original: originalModel,
+        modified: modifiedModel
+      });
+    }
   }
 
   hide() {
     this.currentPath = null;
     this.isVisible = false;
     this.overlay.style.display = 'none';
+
+    // Remove content listener
+    this.removeContentListener();
 
     // Clear models but keep editor instance for reuse
     if (this.diffEditor) {
@@ -237,6 +310,7 @@ export class DiffModal extends EventEmitter {
 
   destroy() {
     this.removeAllListeners();
+    this.removeContentListener();
 
     if (this.diffEditor) {
       this.diffEditor.dispose();

@@ -137,8 +137,6 @@ export class ExternalChangeWarning extends EventEmitter {
     if (diffContainer) {
       diffContainer.style.top = `${warningHeight}px`;
     }
-
-    console.log(`Showing external change warning for: ${path}`);
   }
 
   /**
@@ -166,7 +164,6 @@ export class ExternalChangeWarning extends EventEmitter {
    */
   handleViewDiff() {
     if (!this.currentPath) return;
-    console.log(`View Diff clicked for: ${this.currentPath}`);
     this.editorManager.viewDiff(this.currentPath);
   }
 
@@ -175,7 +172,6 @@ export class ExternalChangeWarning extends EventEmitter {
    */
   handleReload() {
     if (!this.currentPath) return;
-    console.log(`Reload from Disk clicked for: ${this.currentPath}`);
     this.editorManager.reloadFromDisk(this.currentPath);
     this.hide();
   }
@@ -185,7 +181,6 @@ export class ExternalChangeWarning extends EventEmitter {
    */
   handleKeep() {
     if (!this.currentPath) return;
-    console.log(`Keep My Changes clicked for: ${this.currentPath}`);
     this.editorManager.keepMyChanges(this.currentPath);
     this.hide();
   }
@@ -195,7 +190,6 @@ export class ExternalChangeWarning extends EventEmitter {
    */
   handleDismiss() {
     if (!this.currentPath) return;
-    console.log(`Dismiss clicked for: ${this.currentPath}`);
     // Same as Keep My Changes
     this.editorManager.keepMyChanges(this.currentPath);
     this.hide();

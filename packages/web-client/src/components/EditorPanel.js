@@ -56,6 +56,7 @@ export class EditorPanel extends EventEmitter {
     this.isSplitMode = false;
     this.isDiffMode = false;
     this.previewUpdateListener = null;
+    this.diffUpdateListener = null;
     this.diffEditor = null;
 
     // Resize state
@@ -517,8 +518,9 @@ export class EditorPanel extends EventEmitter {
       this.splitResizeHandle.style.display = 'none';
     }
 
-    // Remove real-time preview listener
+    // Remove real-time listeners
     this.removePreviewListener();
+    this.removeDiffListener();
 
     // Restore warning bar if active file has external changes
     const activeFile = this.editorManager.getActiveFile();
@@ -643,6 +645,9 @@ export class EditorPanel extends EventEmitter {
 
       // Create or update diff editor
       await this.createDiffEditor();
+
+      // Set up real-time diff updates
+      this.setupDiffListener();
     }
 
     // Update button states
@@ -691,7 +696,6 @@ export class EditorPanel extends EventEmitter {
     // Use externalContent if available (external changes), otherwise use savedContent
     // This ensures both warning bar "View Diff" and toolbar "Diff" show the same comparison
     const diskContent = fileInfo.externalContent || fileInfo.savedContent;
-    console.log(`Toolbar diff: comparing against ${fileInfo.externalContent ? 'externalContent' : 'savedContent'} (${diskContent.length} chars)`);
 
     // Dispose old original model if it exists
     const oldModel = this.diffEditor.getModel();
@@ -734,6 +738,50 @@ export class EditorPanel extends EventEmitter {
     if (this.previewUpdateListener) {
       this.previewUpdateListener.dispose();
       this.previewUpdateListener = null;
+    }
+  }
+
+  /**
+   * Set up real-time diff listener
+   */
+  setupDiffListener() {
+    // Remove existing listener if any
+    this.removeDiffListener();
+
+    // Add listener to Monaco editor for content changes (when user types)
+    if (this.editorManager.editor) {
+      this.diffUpdateListener = this.editorManager.editor.onDidChangeModelContent(() => {
+        if (this.isDiffMode) {
+          this.updateDiff();
+        }
+      });
+    }
+
+    // ALSO listen to external file changes
+    this.editorManager.on('external-change-warning', ({ path }) => {
+      const activeFile = this.editorManager.getActiveFile();
+      if (this.isDiffMode && activeFile === path) {
+        this.updateDiff();
+      }
+    });
+  }
+
+  /**
+   * Remove diff listener
+   */
+  removeDiffListener() {
+    if (this.diffUpdateListener) {
+      this.diffUpdateListener.dispose();
+      this.diffUpdateListener = null;
+    }
+  }
+
+  /**
+   * Update diff with current editor content
+   */
+  async updateDiff() {
+    if (this.isDiffMode && this.diffContainer) {
+      await this.createDiffEditor();
     }
   }
 
@@ -1155,8 +1203,9 @@ export class EditorPanel extends EventEmitter {
       this.diffEditor = null;
     }
 
-    // Remove preview listener
+    // Remove listeners
     this.removePreviewListener();
+    this.removeDiffListener();
 
     if (this.menuBar) {
       this.menuBar.destroy();

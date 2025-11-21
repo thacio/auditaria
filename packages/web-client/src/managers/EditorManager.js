@@ -665,12 +665,9 @@ export class EditorManager extends EventEmitter {
       return;
     }
 
-    console.log(`External change detected for: ${path}`);
-
     // Smart behavior based on dirty state
     if (fileInfo.isDirty) {
       // User has unsaved changes - show warning bar (non-blocking)
-      const wasAlreadyWarning = fileInfo.showWarning;
       fileInfo.hasExternalChange = true;
       fileInfo.externalContent = diskContent;
       fileInfo.showWarning = true;
@@ -680,14 +677,6 @@ export class EditorManager extends EventEmitter {
         hasChanges: true
       });
       this.emit('tabs-changed', { tabs: this.getTabsInfo() });
-
-      if (wasAlreadyWarning) {
-        console.log(`→ Updated warning bar with new external content (${diskContent.length} chars)`);
-        console.log(`  First 50 chars: "${diskContent.substring(0, 50)}..."`);
-      } else {
-        console.log(`→ Showing warning bar (user has unsaved changes)`);
-        console.log(`  First 50 chars: "${diskContent.substring(0, 50)}..."`);
-      }
     } else {
       // User has no unsaved changes - auto-reload silently
       // Update savedContent FIRST, before setValue(), so markFileDirty() won't trigger
@@ -699,8 +688,6 @@ export class EditorManager extends EventEmitter {
       this.emit('dirty-changed', { path, isDirty: false });
       this.emit('tabs-changed', { tabs: this.getTabsInfo() });
       this.showToast('✓ File reloaded from disk', 'success');
-
-      console.log(`→ Auto-reloaded (no unsaved changes)`);
     }
   }
 
@@ -763,13 +750,8 @@ export class EditorManager extends EventEmitter {
   viewDiff(path) {
     const fileInfo = this.openFiles.get(path);
     if (!fileInfo || !fileInfo.hasExternalChange) {
-      console.warn(`No external changes for: ${path}`);
       return;
     }
-
-    console.log(`Opening diff modal for: ${path}`);
-    console.log(`  Your content: ${fileInfo.model.getValue().length} chars`);
-    console.log(`  Disk content: ${fileInfo.externalContent.length} chars`);
 
     // Emit event to show diff modal with latest external content
     this.emit('show-diff-modal', {
