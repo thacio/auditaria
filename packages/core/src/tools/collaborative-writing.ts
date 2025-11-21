@@ -8,6 +8,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import * as Diff from 'diff';
+import { watch } from 'node:fs';
+import type { FSWatcher } from 'node:fs';
 import type { ToolInvocation, ToolResult } from './tools.js';
 import {
   BaseDeclarativeTool,
@@ -33,8 +35,10 @@ interface TrackedFile {
   lastKnownContent: string;
   lastKnownHash: string;
   lastModifiedTime: number;
-  lastChangeSource: 'ai' | 'user_session' | 'external'; // Track who made the last change
+  lastChangeSource: 'ai' | 'external'; // Track who made the last change (ai=AI edit, external=everything else)
   startedAt: Date;
+  watcher?: FSWatcher; // File watcher instance for event-driven change detection
+  pendingNotification?: 'modified' | 'deleted'; // Flag set by watcher when change detected
 }
 
 type FileChangeType = 'modified' | 'deleted' | 'permission_denied' | 'recreated';
@@ -75,6 +79,7 @@ class CollaborativeWritingRegistry {
   /**
    * Start tracking a file for collaborative writing.
    * Initial state is 'external' since we don't know who created/modified it before tracking.
+   * Creates a file watcher for event-driven change detection.
    */
   async startTracking(filePath: string): Promise<void> {
     // Read current file state
@@ -89,16 +94,75 @@ class CollaborativeWritingRegistry {
       lastModifiedTime: stats.mtimeMs,
       lastChangeSource: 'external', // Initial state
       startedAt: new Date(),
+      watcher: undefined,
+      pendingNotification: undefined,
     };
+
+    // Create file watcher for event-driven change detection
+    // Using native fs.watch() like DirectoryWatcherService for consistency
+    try {
+      // console.log('[COLLAB-WRITE] Creating file watcher for:', filePath);
+
+      const watcher = watch(filePath, (eventType, filename) => {
+        // console.log('[COLLAB-WRITE] Watcher event:', { eventType, filename, filePath });
+
+        // eventType: 'change' = file content modified
+        // eventType: 'rename' = file deleted or renamed
+        if (eventType === 'change') {
+          // File was modified - set flag for notification
+          tracked.pendingNotification = 'modified';
+          // console.log('[COLLAB-WRITE] Marked as pending modification:', filePath);
+        } else if (eventType === 'rename') {
+          // File was deleted or renamed - set flag for deletion notification
+          tracked.pendingNotification = 'deleted';
+          // console.log('[COLLAB-WRITE] Marked as pending deletion:', filePath);
+        }
+      });
+
+      // Handle watcher errors
+      watcher.on('error', (error) => {
+        console.error('[COLLAB-WRITE] Watcher error for', filePath, ':', error);
+        // On error, set pending notification to force manual check
+        tracked.pendingNotification = 'modified';
+      });
+
+      tracked.watcher = watcher;
+      // console.log('[COLLAB-WRITE] File watcher created successfully for:', filePath);
+    } catch (error) {
+      // If watcher creation fails, log warning but continue tracking
+      // Detection will fall back to polling (existing mtime/hash check)
+      console.warn('[COLLAB-WRITE] Failed to create file watcher for', filePath, ':', error);
+      console.warn('[COLLAB-WRITE] Falling back to polling-based detection');
+    }
 
     this.trackedFiles.set(filePath, tracked);
   }
 
   /**
-   * Stop tracking a file.
+   * Stop tracking a file and clean up its watcher.
    */
   stopTracking(filePath: string): boolean {
+    const tracked = this.trackedFiles.get(filePath);
+    if (tracked) {
+      this.closeWatcher(tracked);
+    }
     return this.trackedFiles.delete(filePath);
+  }
+
+  /**
+   * Helper method to safely close a file watcher.
+   * Centralized cleanup logic (DRY principle).
+   */
+  private closeWatcher(tracked: TrackedFile): void {
+    if (tracked.watcher) {
+      try {
+        // console.log('[COLLAB-WRITE] Closing watcher for:', tracked.filePath);
+        tracked.watcher.close();
+        tracked.watcher = undefined;
+      } catch (error) {
+        console.warn('[COLLAB-WRITE] Error closing watcher for', tracked.filePath, ':', error);
+      }
+    }
   }
 
   /**
@@ -117,14 +181,14 @@ class CollaborativeWritingRegistry {
 
   /**
    * Update the state of a tracked file after detecting changes.
-   * @param source - Who made the change: 'ai', 'user_session', or 'external'
+   * @param source - Who made the change: 'ai' or 'external'
    */
   updateFileState(
     filePath: string,
     content: string,
     hash: string,
     mtime: number,
-    source: 'ai' | 'user_session' | 'external',
+    source: 'ai' | 'external',
   ): void {
     const tracked = this.trackedFiles.get(filePath);
     if (tracked) {
@@ -150,9 +214,14 @@ class CollaborativeWritingRegistry {
   }
 
   /**
-   * Clear all tracked files.
+   * Clear all tracked files and close all watchers.
    */
   clear(): void {
+    // console.log('[COLLAB-WRITE] Clearing all tracked files and watchers');
+    // Close all watchers before clearing
+    for (const tracked of this.trackedFiles.values()) {
+      this.closeWatcher(tracked);
+    }
     this.trackedFiles.clear();
   }
 
@@ -203,7 +272,7 @@ function formatChangeNotification(change: FileChangeInfo): string {
 
   switch (change.type) {
     case 'modified': {
-      return `[SYSTEM NOTIFICATION - Collaborative Writing]
+      return `System: [SYSTEM NOTIFICATION - Collaborative Writing]
 
 File externally modified: ${change.filePath}
 
@@ -231,7 +300,7 @@ Last known state:
 - Last modified: ${new Date(change.lastModifiedTime || 0).toISOString()}
 - Size: ${change.lastKnownContent?.length || 0} bytes
 
-If this deletion was unintentional, you may want to recreate the file or check if it was moved.`;
+If this deletion was unintentional, you may aknowledge the user and check if it's needed to recreate the file or check if it was moved.`;
     }
 
     case 'permission_denied': {
@@ -275,72 +344,102 @@ An unknown type of change was detected. Please check the file manually.`;
 
 /**
  * Detect if a file has changed since last tracking.
- * Only returns change info if lastChangeSource was 'external'.
- * This prevents notifying AI about its own edits or Monaco session edits.
+ * Now uses event-driven file watcher flags for efficient detection.
+ * Falls back to polling (mtime/hash check) if no watcher exists.
  */
 async function detectFileChange(
   tracked: TrackedFile,
 ): Promise<FileChangeInfo | null> {
-  console.log('[COLLAB-WRITE] detectFileChange checking:', tracked.filePath);
-  console.log('[COLLAB-WRITE] Current registry state:', {
-    lastChangeSource: tracked.lastChangeSource,
-    lastKnownHash: tracked.lastKnownHash.substring(0, 8) + '...',
-    lastModifiedTime: tracked.lastModifiedTime,
-  });
+  // console.log('[COLLAB-WRITE] detectFileChange checking:', tracked.filePath);
+  // console.log('[COLLAB-WRITE] Current registry state:', {
+  //   lastChangeSource: tracked.lastChangeSource,
+  //   pendingNotification: tracked.pendingNotification,
+  //   hasWatcher: !!tracked.watcher,
+  //   lastKnownHash: tracked.lastKnownHash.substring(0, 8) + '...',
+  //   lastModifiedTime: tracked.lastModifiedTime,
+  // });
+
+  // OPTIMIZATION: Check pendingNotification flag first (event-driven)
+  // If watcher exists and no flag is set, skip expensive file operations
+  if (tracked.watcher && !tracked.pendingNotification) {
+    // console.log('[COLLAB-WRITE] Watcher active, no pending notification - skipping check');
+    return null; // No changes detected by watcher
+  }
+
+  // If flag is 'deleted', handle deletion immediately
+  if (tracked.pendingNotification === 'deleted') {
+    // console.log('[COLLAB-WRITE] Pending deletion detected by watcher');
+    // Try to confirm deletion by attempting to stat the file
+    try {
+      await fs.stat(tracked.filePath);
+      // File still exists - might have been recreated
+      // console.log('[COLLAB-WRITE] File exists after delete event - might be recreated');
+      // Clear the deletion flag and check for modification instead
+      tracked.pendingNotification = 'modified';
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'ENOENT') {
+          // Confirmed: file was deleted
+          // console.log('[COLLAB-WRITE] Deletion confirmed');
+          return {
+            type: 'deleted',
+            filePath: tracked.filePath,
+            lastKnownContent: tracked.lastKnownContent,
+            lastModifiedTime: tracked.lastModifiedTime,
+          };
+        }
+      }
+      // Other errors - rethrow
+      throw error;
+    }
+  }
+
+  // If we reach here, either:
+  // 1. Watcher detected modification (pendingNotification='modified')
+  // 2. No watcher exists (fallback to polling)
+  // 3. File was recreated after deletion
 
   try {
     // Try to stat the file
     const stats = await fs.stat(tracked.filePath);
 
-    console.log('[COLLAB-WRITE] File stats:', {
-      currentMtime: stats.mtimeMs,
-      trackedMtime: tracked.lastModifiedTime,
-      mtimeChanged: stats.mtimeMs !== tracked.lastModifiedTime,
-    });
+    // console.log('[COLLAB-WRITE] File stats:', {
+    //   currentMtime: stats.mtimeMs,
+    //   trackedMtime: tracked.lastModifiedTime,
+    //   mtimeChanged: stats.mtimeMs !== tracked.lastModifiedTime,
+    // });
 
-    // Quick check: if mtime hasn't changed, no need to read content
-    if (stats.mtimeMs === tracked.lastModifiedTime) {
-      console.log('[COLLAB-WRITE] No mtime change, skipping');
-      return null; // No change
+    // If no watcher and mtime unchanged, skip (polling fallback optimization)
+    if (!tracked.watcher && stats.mtimeMs === tracked.lastModifiedTime) {
+      // console.log('[COLLAB-WRITE] No watcher, no mtime change - skipping');
+      return null;
     }
 
     // Read current content
     const currentContent = await fs.readFile(tracked.filePath, 'utf-8');
     const currentHash = computeHash(currentContent);
 
-    console.log('[COLLAB-WRITE] Content comparison:', {
-      currentHash: currentHash.substring(0, 8) + '...',
-      trackedHash: tracked.lastKnownHash.substring(0, 8) + '...',
-      hashesMatch: currentHash === tracked.lastKnownHash,
-      currentContentLength: currentContent.length,
-      trackedContentLength: tracked.lastKnownContent.length,
-    });
+    // console.log('[COLLAB-WRITE] Content comparison:', {
+    //   currentHash: currentHash.substring(0, 8) + '...',
+    //   trackedHash: tracked.lastKnownHash.substring(0, 8) + '...',
+    //   hashesMatch: currentHash === tracked.lastKnownHash,
+    //   currentContentLength: currentContent.length,
+    //   trackedContentLength: tracked.lastKnownContent.length,
+    // });
 
-    // If hash matches, it's a false positive mtime change
+    // If hash matches, it's a false positive
     if (currentHash === tracked.lastKnownHash) {
-      console.log('[COLLAB-WRITE] Hash unchanged (false positive mtime)');
-      return null; // No actual content change
+      // console.log('[COLLAB-WRITE] Hash unchanged (false positive)');
+      // Clear the pending flag since there's no actual change
+      tracked.pendingNotification = undefined;
+      return null;
     }
 
     // Content has changed!
-    console.log('[COLLAB-WRITE] Content HAS changed!');
+    // console.log('[COLLAB-WRITE] Content HAS changed!');
 
-    // IMPORTANT: If we're here with a hash mismatch, it's ALWAYS an external change!
-    // Because:
-    // - If AI edited it, updateAfterAIEdit() would have updated the hash immediately
-    // - If user edited in Monaco, updateAfterUserSessionEdit() would have updated the hash
-    // - Since hash doesn't match our registry, neither of those happened
-    // - Therefore, this MUST be an external change and we MUST notify the AI!
-
-    console.log('[COLLAB-WRITE] Decision:', {
-      previousChangeSource: tracked.lastChangeSource,
-      detectedChangeType: 'external',
-      reason:
-        'File hash changed since last registry update - this is an external change',
-      willNotifyAI: true,
-    });
-
-    console.log('[COLLAB-WRITE] Generating diff for AI notification...');
+    // console.log('[COLLAB-WRITE] Generating diff for AI notification...');
 
     // Content has changed - generate structured diff with line numbers
     const fileName = path.basename(tracked.filePath);
@@ -439,32 +538,32 @@ class CollaborativeWritingService {
     chat: GeminiChat,
     signal: AbortSignal,
   ): Promise<void> {
-    console.log(
-      '[COLLAB-WRITE] ========== checkAndInjectFileUpdates called ==========',
-    );
+    // console.log(
+    //   '[COLLAB-WRITE] ========== checkAndInjectFileUpdates called ==========',
+    // );
 
     // If aborted, exit early
     if (signal.aborted) {
-      console.log('[COLLAB-WRITE] Aborted, exiting early');
+      // console.log('[COLLAB-WRITE] Aborted, exiting early');
       return;
     }
 
     const trackedFiles = this.registry.getAllTrackedFiles();
 
-    console.log('[COLLAB-WRITE] Tracked files count:', trackedFiles.length);
-    if (trackedFiles.length > 0) {
-      console.log(
-        '[COLLAB-WRITE] Tracked files:',
-        trackedFiles.map((f) => ({
-          path: f.filePath,
-          source: f.lastChangeSource,
-        })),
-      );
-    }
+    // console.log('[COLLAB-WRITE] Tracked files count:', trackedFiles.length);
+    // if (trackedFiles.length > 0) {
+    //   console.log(
+    //     '[COLLAB-WRITE] Tracked files:',
+    //     trackedFiles.map((f) => ({
+    //       path: f.filePath,
+    //       source: f.lastChangeSource,
+    //     })),
+    //   );
+    // }
 
     // No files to check
     if (trackedFiles.length === 0) {
-      console.log('[COLLAB-WRITE] No tracked files, exiting');
+      // console.log('[COLLAB-WRITE] No tracked files, exiting');
       return;
     }
 
@@ -474,7 +573,7 @@ class CollaborativeWritingService {
       try {
         const change = await detectFileChange(tracked);
         if (change) {
-          console.log('[COLLAB-WRITE] Change detected for:', tracked.filePath);
+          // console.log('[COLLAB-WRITE] Change detected for:', tracked.filePath);
           changes.push(change);
         }
       } catch (error) {
@@ -486,30 +585,30 @@ class CollaborativeWritingService {
       }
     }
 
-    console.log('[COLLAB-WRITE] Total changes found:', changes.length);
+    // console.log('[COLLAB-WRITE] Total changes found:', changes.length);
 
     // No changes detected
     if (changes.length === 0) {
-      console.log('[COLLAB-WRITE] No changes to inject, exiting');
+      // console.log('[COLLAB-WRITE] No changes to inject, exiting');
       return;
     }
 
     // Inject notifications for each changed file
     for (const change of changes) {
-      console.log('[COLLAB-WRITE] Injecting notification for:', {
-        filePath: change.filePath,
-        type: change.type,
-        linesAdded: change.linesAdded,
-        linesRemoved: change.linesRemoved,
-      });
+      // console.log('[COLLAB-WRITE] Injecting notification for:', {
+      //   filePath: change.filePath,
+      //   type: change.type,
+      //   linesAdded: change.linesAdded,
+      //   linesRemoved: change.linesRemoved,
+      // });
 
       this.injectFileUpdateNotification(chat, change);
 
       // Update registry or remove file based on change type
       if (change.type === 'modified') {
-        console.log(
-          '[COLLAB-WRITE] Updating registry with external change source',
-        );
+        // console.log(
+        //   '[COLLAB-WRITE] Updating registry with external change source',
+        // );
         this.registry.updateFileState(
           change.filePath,
           change.currentContent!,
@@ -517,51 +616,68 @@ class CollaborativeWritingService {
           change.currentMtime!,
           'external', // Mark as external change
         );
+
+        // Clear pending notification flag after processing
+        const tracked = this.registry.getTrackedFile(change.filePath);
+        if (tracked) {
+          tracked.pendingNotification = undefined;
+          // console.log('[COLLAB-WRITE] Cleared pending notification flag');
+        }
       } else if (change.type === 'deleted') {
-        console.log('[COLLAB-WRITE] Removing deleted file from tracking');
-        // Remove from tracking since file no longer exists
+        // console.log('[COLLAB-WRITE] File deleted - auto-ending tracking (watcher will be closed)');
+        // Auto-end tracking when file is deleted
+        // This closes the watcher and removes from registry
         this.registry.stopTracking(change.filePath);
       }
       // For permission_denied, keep tracking - might be temporary
+      // Clear the flag so we try again next time
+      else if (change.type === 'permission_denied') {
+        const tracked = this.registry.getTrackedFile(change.filePath);
+        if (tracked) {
+          tracked.pendingNotification = undefined;
+        }
+      }
     }
 
-    console.log(
-      '[COLLAB-WRITE] ========== checkAndInjectFileUpdates complete ==========',
-    );
+    // console.log(
+    //   '[COLLAB-WRITE] ========== checkAndInjectFileUpdates complete ==========',
+    // );
   }
 
   /**
    * Called after AI successfully edits a tracked file.
    * Updates registry without triggering notifications.
    * This prevents the AI from being notified about its own edits.
+   * Clears pendingNotification flag even if watcher fired.
    */
   async updateAfterAIEdit(filePath: string): Promise<void> {
     const absolutePath = path.resolve(filePath);
 
-    console.log('[COLLAB-WRITE] updateAfterAIEdit called for:', absolutePath);
+    // console.log('[COLLAB-WRITE] updateAfterAIEdit called for:', absolutePath);
 
     if (!this.registry.isTracking(absolutePath)) {
-      console.log('[COLLAB-WRITE] File not tracked, skipping update');
+      // console.log('[COLLAB-WRITE] File not tracked, skipping update');
       return;
     }
 
-    const trackedBefore = this.registry.getTrackedFile(absolutePath);
-    console.log('[COLLAB-WRITE] Registry state BEFORE AI update:', {
-      lastChangeSource: trackedBefore?.lastChangeSource,
-      lastKnownHash: trackedBefore?.lastKnownHash.substring(0, 8) + '...',
-      lastModifiedTime: trackedBefore?.lastModifiedTime,
-    });
+    // const trackedBefore = this.registry.getTrackedFile(absolutePath);
+    // console.log('[COLLAB-WRITE] Registry state BEFORE AI update:', {
+    //   lastChangeSource: trackedBefore?.lastChangeSource,
+    //   pendingNotification: trackedBefore?.pendingNotification,
+    //   lastKnownHash: trackedBefore?.lastKnownHash.substring(0, 8) + '...',
+    //   lastModifiedTime: trackedBefore?.lastModifiedTime,
+    // });
 
     try {
       const content = await fs.readFile(absolutePath, 'utf-8');
       const hash = computeHash(content);
       const stats = await fs.stat(absolutePath);
 
-      console.log('[COLLAB-WRITE] Read file after AI edit:', {
-        contentLength: content.length,
-        newHash: hash.substring(0, 8) + '...',
-        newMtime: stats.mtimeMs,
-      });
+      // console.log('[COLLAB-WRITE] Read file after AI edit:', {
+      //   contentLength: content.length,
+      //   newHash: hash.substring(0, 8) + '...',
+      //   newMtime: stats.mtimeMs,
+      // });
 
       this.registry.updateFileState(
         absolutePath,
@@ -571,92 +687,52 @@ class CollaborativeWritingService {
         'ai', // Mark as AI change
       );
 
-      const trackedAfter = this.registry.getTrackedFile(absolutePath);
-      console.log('[COLLAB-WRITE] Registry state AFTER AI update:', {
-        lastChangeSource: trackedAfter?.lastChangeSource,
-        lastKnownHash: trackedAfter?.lastKnownHash.substring(0, 8) + '...',
-        lastModifiedTime: trackedAfter?.lastModifiedTime,
-      });
+      // CRITICAL: Clear pendingNotification flag to prevent self-notification
+      // Even if file watcher fired during AI edit, we ignore it
+      const tracked = this.registry.getTrackedFile(absolutePath);
+      if (tracked) {
+        tracked.pendingNotification = undefined;
+        // console.log('[COLLAB-WRITE] Cleared pendingNotification flag (AI edit)');
+      }
+
+      // const trackedAfter = this.registry.getTrackedFile(absolutePath);
+      // console.log('[COLLAB-WRITE] Registry state AFTER AI update:', {
+      //   lastChangeSource: trackedAfter?.lastChangeSource,
+      //   pendingNotification: trackedAfter?.pendingNotification,
+      //   lastKnownHash: trackedAfter?.lastKnownHash.substring(0, 8) + '...',
+      //   lastModifiedTime: trackedAfter?.lastModifiedTime,
+      // });
     } catch (error) {
       console.error('[COLLAB-WRITE] Error updating after AI edit:', error);
     }
   }
 
-  /**
-   * Called when user edits file in Monaco editor (web interface).
-   * Updates registry without triggering AI notification.
-   * Web interface should call this after saving Monaco content.
-   */
-  async updateAfterUserSessionEdit(
-    filePath: string,
-    content: string,
-  ): Promise<void> {
-    const absolutePath = path.resolve(filePath);
-
-    console.log(
-      '[COLLAB-WRITE] updateAfterUserSessionEdit called for:',
-      absolutePath,
-    );
-
-    if (!this.registry.isTracking(absolutePath)) {
-      console.log('[COLLAB-WRITE] File not tracked, skipping update');
-      return;
-    }
-
-    const trackedBefore = this.registry.getTrackedFile(absolutePath);
-    console.log('[COLLAB-WRITE] Registry state BEFORE user session update:', {
-      lastChangeSource: trackedBefore?.lastChangeSource,
-      lastKnownHash: trackedBefore?.lastKnownHash.substring(0, 8) + '...',
-    });
-
-    const hash = computeHash(content);
-    const now = Date.now();
-
-    console.log('[COLLAB-WRITE] User session edit details:', {
-      contentLength: content.length,
-      newHash: hash.substring(0, 8) + '...',
-    });
-
-    this.registry.updateFileState(
-      absolutePath,
-      content,
-      hash,
-      now,
-      'user_session', // Mark as user session change
-    );
-
-    const trackedAfter = this.registry.getTrackedFile(absolutePath);
-    console.log('[COLLAB-WRITE] Registry state AFTER user session update:', {
-      lastChangeSource: trackedAfter?.lastChangeSource,
-      lastKnownHash: trackedAfter?.lastKnownHash.substring(0, 8) + '...',
-    });
-  }
 
   /**
    * Inject a system notification into chat history to notify the AI about a file change.
    *
    * IMPORTANT: We inject this as a simple user message, NOT as a function call/response pair.
-   * If we inject it as a function call, the AI sees itself calling "system_callback_collaborative_writing_file_updated"
+   * If we inject it as a function call, the AI sees itself calling "uncallable_system_callback_collaborative_writing_file_updated"
    * in the history and tries to replicate this behavior (calling a non-existent tool).
    */
   private injectFileUpdateNotification(
     chat: GeminiChat,
     change: FileChangeInfo,
   ): void {
-    console.log('[COLLAB-WRITE] Injecting notification as user message');
+    // console.log('[COLLAB-WRITE] Injecting notification as user message');
 
     // ============================================
     // OLD IMPLEMENTATION (COMMENTED OUT - BUG FIX)
     // ============================================
     // Problem: When we inject a fictitious function call/response pair, the AI sees
-    // "system_callback_collaborative_writing_file_updated" in its own history (role: 'model') and learns
+    // "uncallable_system_callback_collaborative_writing_file_updated" in its own history (role: 'model') and learns
     // that it should call this function after modifying tracked files.
     // But this function is NOT a registered tool - it only exists for injection purposes.
     // Result: AI tries to call the non-existent tool and gets errors like:
-    // "Ferramenta 'system_callback_collaborative_writing_file_updated' não encontrada no registro"
+    // "Ferramenta 'uncallable_system_callback_collaborative_writing_file_updated' não encontrada no registro"
     //
     // The bug was reproduced in testing where after the AI used the Edit tool,
-    // it spontaneously tried to call system_callback_collaborative_writing_file_updated, causing errors.
+    // it spontaneously tried to call uncallable_system_callback_collaborative_writing_file_updated, causing errors.
     //
     // OLD CODE:
     // const callId = `collab-write-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -664,7 +740,7 @@ class CollaborativeWritingService {
     //   role: 'model',
     //   parts: [{
     //     functionCall: {
-    //       name: 'system_callback_collaborative_writing_file_updated',
+    //       name: 'uncallable_system_callback_collaborative_writing_file_updated',
     //       args: { file_path: change.filePath, change_type: change.type },
     //       id: callId,
     //     },
@@ -675,7 +751,7 @@ class CollaborativeWritingService {
     //   role: 'user',
     //   parts: [{
     //     functionResponse: {
-    //       name: 'system_callback_collaborative_writing_file_updated',
+    //       name: 'uncallable_system_callback_collaborative_writing_file_updated',
     //       response: { output: formatChangeNotification(change) },
     //       id: callId,
     //     },
@@ -717,13 +793,22 @@ class CollaborativeWritingService {
 // Tool 1: Collaborative Writing Start Tool
 // ============================================
 
-const COLLABORATIVE_WRITING_START_DESCRIPTION = `Start collaborative writing mode for a file. This enables automatic detection of external changes to the file.
+const COLLABORATIVE_WRITING_START_DESCRIPTION = `Start collaborative writing mode for a file. This enables real-time detection of external changes to the file using file system watchers.
+With collaborative writing, you team up with the user and stay synchronized with their manual edts, working together seamlessly and collaboratively on the file.
 
 When a file is in collaborative-writing mode:
-- The system monitors the file for external modifications
+- A file watcher monitors the file for external modifications in real-time
 - When the file is modified outside of this conversation (e.g., the user manually edits it), you will receive automatic notifications
+- The notification arrives as a USER MESSAGE (not a function call) before your next response
 - The notification includes a diff showing exactly what changed
-- You can then respond appropriately to the user's changes
+- You know all the updates and keep working from there, and can  respond appropriately
+
+IMPORTANT NOTIFICATION BEHAVIOR:
+- Notifications are delivered as USER MESSAGES, not function calls
+- You will NOT see any function calls in history - notifications appear as regular user messages
+- Do NOT attempt to call any callback functions - the system handles notifications automatically
+- Notifications only include EXTERNAL changes (user edits in their editor, other processes)
+- You will NOT be notified about your own edits (Edit tool, Write tool)
 
 This is useful when:
 - You're working on a file and want to stay synchronized with the user's manual edits
@@ -738,10 +823,11 @@ Once started, the file will be automatically tracked until:
 Example workflow:
 1. User asks you to work on a file collaboratively
 2. You call ${COLLABORATIVE_WRITING_START_TOOL_NAME} with the file path
-3. You make changes using the Edit tool
-4. User manually edits the file in their editor
-5. When user sends the next message, you automatically receive a notification with the diff
-6. You can acknowledge the changes and adjust your approach accordingly`;
+3. You make changes using the Edit tool (no notification - it's your own edit)
+4. User manually edits the file in their external editor
+5. File watcher immediately detects the change
+6. When user sends the next message, you automatically receive a notification as a user message with the diff
+7. You can acknowledge the changes and adjust your approach accordingly`;
 
 export interface CollaborativeWritingStartParams {
   file_path: string;
@@ -893,7 +979,7 @@ export class CollaborativeWritingStartTool extends BaseDeclarativeTool<
 // Tool 2: Collaborative Writing End Tool
 // ============================================
 
-const COLLABORATIVE_WRITING_END_DESCRIPTION = `End collaborative writing mode for a file. This stops tracking external changes to the file.
+const COLLABORATIVE_WRITING_END_DESCRIPTION = `End collaborative writing mode for a file. This stops the file watcher and stops tracking external changes to the file.
 
 Use this when:
 - You're finished working on the file collaboratively
@@ -901,11 +987,14 @@ Use this when:
 - You want to reduce overhead by stopping unnecessary file monitoring
 
 After calling this:
-- The file will no longer be checked for external modifications
+- The file watcher will be closed and removed
+- The file will no longer be monitored for external modifications
 - You will not receive automatic change notifications
 - You can call ${COLLABORATIVE_WRITING_START_TOOL_NAME} again later if needed
 
-Note: All tracked files are automatically cleared when the conversation is cleared with /clear.`;
+Note:
+- All tracked files and watchers are automatically cleaned up when the conversation is cleared with /clear
+- If a tracked file is deleted, tracking is automatically ended with a deletion notification`;
 
 export interface CollaborativeWritingEndParams {
   file_path: string;
@@ -1040,21 +1129,6 @@ export class CollaborativeWritingEndTool extends BaseDeclarativeTool<
  */
 export const collaborativeWritingService =
   CollaborativeWritingService.getInstance();
-
-/**
- * Update registry after user edits file in Monaco editor (web interface).
- * This prevents the AI from being notified about user's session edits.
- * Web interface should call this after saving Monaco content.
- */
-export async function updateAfterUserSessionEdit(
-  filePath: string,
-  content: string,
-): Promise<void> {
-  return collaborativeWritingService.updateAfterUserSessionEdit(
-    filePath,
-    content,
-  );
-}
 
 /**
  * Clear all collaborative writing tracking.

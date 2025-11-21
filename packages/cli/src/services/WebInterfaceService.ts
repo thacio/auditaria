@@ -39,10 +39,6 @@ import { FileWatcherService } from './FileWatcherService.js';
 import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 // WEB_INTERFACE_END
 
-// WEB_INTERFACE_START: Import collaborative writing for Monaco integration
-import { updateAfterUserSessionEdit } from '@thacio/auditaria-cli-core';
-// WEB_INTERFACE_END
-
 // Import DocxParserService for markdown to DOCX parsing
 import { DocxParserService } from './DocxParserService.js';
 
@@ -1138,16 +1134,6 @@ export class WebInterfaceService extends EventEmitter {
       // WEB_INTERFACE_END
 
       await this.fileSystemService.writeFile(path, content);
-
-      // WEB_INTERFACE_START: Update collaborative writing registry for Monaco edits
-      // This prevents the AI from being notified about user's own edits in the web interface
-      try {
-        await updateAfterUserSessionEdit(path, content);
-      } catch (error) {
-        // Log but don't fail the save operation if collaborative writing update fails
-        console.error('[COLLAB-WRITE] Error updating after user session edit:', error);
-      }
-      // WEB_INTERFACE_END
 
       this.broadcastWithSequence('file_write_response', {
         success: true,
