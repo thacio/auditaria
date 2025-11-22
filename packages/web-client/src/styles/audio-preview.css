@@ -1,0 +1,90 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: Audio preview styles */
+
+/* Audio preview container */
+.audio-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px;
+  min-height: 300px;
+}
+
+/* Audio wrapper */
+.audio-preview-wrapper {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 32px;
+  max-width: 600px;
+  width: 100%;
+}
+
+/* Audio header */
+.audio-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Audio icon */
+.audio-icon {
+  font-size: 48px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Audio info */
+.audio-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Audio filename */
+.audio-filename {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Audio status */
+.audio-status {
+  font-size: 14px;
+  color: #999;
+}
+
+/* Audio player */
+.audio-preview-player {
+  width: 100%;
+  outline: none;
+  border-radius: 8px;
+}
+
+/* Customize audio controls appearance (WebKit browsers) */
+.audio-preview-player::-webkit-media-controls-panel {
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.audio-preview-player::-webkit-media-controls-play-button,
+.audio-preview-player::-webkit-media-controls-mute-button {
+  background-color: transparent;
+  color: #667eea;
+}
+
+.audio-preview-player::-webkit-media-controls-timeline {
+  background-color: transparent;
+  color: #667eea;
+}

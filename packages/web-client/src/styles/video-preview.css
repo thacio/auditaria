@@ -1,0 +1,107 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: Video preview styles */
+
+/* Video preview container */
+.video-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  padding: 40px;
+  min-height: 400px;
+}
+
+/* Video wrapper */
+.video-preview-wrapper {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  padding: 24px;
+  max-width: 900px;
+  width: 100%;
+}
+
+/* Video header */
+.video-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* Video icon */
+.video-icon {
+  font-size: 48px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Video info */
+.video-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Video filename */
+.video-filename {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Video status */
+.video-status {
+  font-size: 14px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-resolution {
+  font-weight: 500;
+  color: #666;
+}
+
+.video-divider {
+  color: #ddd;
+}
+
+.video-duration {
+  color: #666;
+}
+
+/* Video player */
+.video-preview-player {
+  width: 100%;
+  max-height: calc(100vh - 300px);
+  background: #000;
+  border-radius: 8px;
+  outline: none;
+}
+
+/* Customize video controls appearance (WebKit browsers) */
+.video-preview-player::-webkit-media-controls-panel {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 0 0 8px 8px;
+}
+
+.video-preview-player::-webkit-media-controls-play-button {
+  background-color: transparent;
+  color: #f5576c;
+}
+
+.video-preview-player::-webkit-media-controls-timeline {
+  background-color: transparent;
+  color: #f5576c;
+}

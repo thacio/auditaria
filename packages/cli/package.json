@@ -50,6 +50,7 @@
     "lit": "^3.3.1",
     "lowlight": "^3.3.0",
     "mnemonist": "^0.40.3",
+    "node-html-parser": "^6.1.13",
     "open": "^10.1.2",
     "prompts": "^2.4.2",
     "react": "^19.2.0",
@@ -71,7 +72,8 @@
     "_comment": "WEB_INTERFACE_FEATURE: Tracks web interface dependencies",
     "dependencies": [
       "ws",
-      "express"
+      "express",
+      "node-html-parser"
     ],
     "devDependencies": [
       "@types/ws",

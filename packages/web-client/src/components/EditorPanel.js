@@ -22,10 +22,10 @@ import { DiffModal } from './DiffModal.js';
  * - Toggles between code and markdown preview
  */
 export class EditorPanel extends EventEmitter {
-  constructor(editorManager, markdownPreview = null) {
+  constructor(editorManager, previewManager = null) {
     super();
     this.editorManager = editorManager;
-    this.markdownPreview = markdownPreview;
+    this.previewManager = previewManager;
 
     // UI elements
     this.panel = null;
@@ -56,6 +56,8 @@ export class EditorPanel extends EventEmitter {
     this.isPreviewMode = false;
     this.isSplitMode = false;
     this.isDiffMode = false;
+    this.isBinaryPreviewMode = false; // Binary files can only be previewed, not edited
+    this.activeBinaryFile = null; // Store binary file info { path, language, filename }
     this.previewUpdateListener = null;
     this.diffUpdateListener = null;
     this.diffEditor = null;
@@ -379,15 +381,57 @@ export class EditorPanel extends EventEmitter {
 
     // EditorManager events
     this.editorManager.on('file-opened', ({ path, language }) => {
+      // Clear binary preview mode when opening text files via EditorManager
+      this.isBinaryPreviewMode = false;
+      this.activeBinaryFile = null;
+
       this.show();
-      this.updateToolbar(language);
+
+      // Extract filename for preview detection
+      const filename = path.split('/').pop() || path;
+
+      // Check if preview is available for the new file
+      const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
+
+      // Refresh current view mode with new file content
+      if (this.isPreviewMode && canPreview) {
+        this.showPreview();
+      } else if (this.isSplitMode && canPreview) {
+        this.updatePreview();
+      } else if ((this.isPreviewMode || this.isSplitMode) && !canPreview) {
+        // New file can't be previewed, switch to code view
+        this.showEditor();
+      }
+
+      this.updateToolbar(language, filename);
     });
 
     this.editorManager.on('file-switched', ({ path }) => {
       const fileInfo = this.editorManager.openFiles.get(path);
       if (fileInfo) {
+        // Clear binary preview mode when switching to text files via EditorManager
+        this.isBinaryPreviewMode = false;
+        this.activeBinaryFile = null;
+
         this.show();
-        this.updateToolbar(fileInfo.language);
+
+        // Extract filename for preview detection
+        const filename = path.split('/').pop() || path;
+
+        // Check if preview is available for the new file
+        const canPreview = this.previewManager && this.previewManager.canPreview(fileInfo.language, filename);
+
+        // Refresh current view mode with new file content
+        if (this.isPreviewMode && canPreview) {
+          this.showPreview();
+        } else if (this.isSplitMode && canPreview) {
+          this.updatePreview();
+        } else if ((this.isPreviewMode || this.isSplitMode) && !canPreview) {
+          // New file can't be previewed, switch to code view
+          this.showEditor();
+        }
+
+        this.updateToolbar(fileInfo.language, filename);
 
         // Update warning visibility based on file state
         if (fileInfo.showWarning) {
@@ -510,7 +554,7 @@ export class EditorPanel extends EventEmitter {
       editorContainer.style.width = '';
     }
 
-    if (previewContainer && this.markdownPreview) {
+    if (previewContainer && this.previewManager) {
       previewContainer.classList.remove('split-view');
       previewContainer.style.display = 'block';
       previewContainer.style.width = '';
@@ -522,7 +566,9 @@ export class EditorPanel extends EventEmitter {
         const fileInfo = this.editorManager.openFiles.get(activeFile);
         if (fileInfo) {
           const content = fileInfo.model.getValue();
-          this.markdownPreview.render(content, previewContainer);
+          const filename = activeFile.split('/').pop() || activeFile;
+          // Pass full file path for previews that need it (e.g., HTML with relative paths)
+          this.previewManager.render(content, previewContainer, fileInfo.language, filename, activeFile);
         }
       }
     }
@@ -556,6 +602,79 @@ export class EditorPanel extends EventEmitter {
     if (this.diffButton) {
       this.diffButton.classList.remove('active');
     }
+  }
+
+  /**
+   * Open binary file in preview-only mode
+   * Binary files cannot be edited, only previewed
+   * @param {string} path - File path
+   * @param {string} language - Monaco language ID
+   * @param {string} filename - Filename
+   */
+  openBinaryPreview(path, language, filename) {
+    // Set binary preview mode
+    this.isBinaryPreviewMode = true;
+    this.activeBinaryFile = { path, language, filename };
+
+    // Show panel
+    this.show();
+
+    // Notify tabs that we have a binary file open (for display purposes)
+    this.emit('tabs-changed', { tabs: this.getBinaryTabInfo() });
+
+    // Update toolbar for binary file (hide Code/Split buttons)
+    this.updateToolbar(language, filename);
+
+    // Get preview container
+    const previewContainer = document.getElementById('markdown-preview-container');
+    const editorContainer = document.getElementById('monaco-editor-container');
+
+    // Hide editor completely for binary files
+    if (editorContainer) {
+      editorContainer.style.display = 'none';
+    }
+
+    // Show preview container
+    if (previewContainer && this.previewManager) {
+      previewContainer.classList.remove('split-view');
+      previewContainer.style.display = 'block';
+      previewContainer.style.width = '';
+      previewContainer.style.left = '';
+
+      // Binary files don't have text content - preview manager will use /preview-file/* endpoint
+      // Pass empty content - the preview implementation will handle loading via server
+      this.previewManager.render('', previewContainer, language, filename, path);
+    }
+
+    // Hide diff container and split handle
+    if (this.diffContainer) {
+      this.diffContainer.style.display = 'none';
+    }
+    if (this.splitResizeHandle) {
+      this.splitResizeHandle.style.display = 'none';
+    }
+
+    // Set preview mode active
+    this.isPreviewMode = true;
+    this.isSplitMode = false;
+    this.isDiffMode = false;
+
+    // Update button states (only Preview button should be active)
+    if (this.previewButton) {
+      this.previewButton.classList.add('active');
+    }
+    if (this.codeButton) {
+      this.codeButton.classList.remove('active');
+    }
+    if (this.splitButton) {
+      this.splitButton.classList.remove('active');
+    }
+    if (this.diffButton) {
+      this.diffButton.classList.remove('active');
+    }
+
+    // Emit event
+    this.emit('binary-file-opened', { path, language, filename });
   }
 
   /**
@@ -606,6 +725,8 @@ export class EditorPanel extends EventEmitter {
     this.isPreviewMode = false;
     this.isSplitMode = false;
     this.isDiffMode = false;
+    this.isBinaryPreviewMode = false; // Clear binary preview mode
+    this.activeBinaryFile = null;
     if (this.codeButton) {
       this.codeButton.classList.add('active');
     }
@@ -639,7 +760,7 @@ export class EditorPanel extends EventEmitter {
       editorContainer.style.width = `${this.splitRatio}%`;
     }
 
-    if (previewContainer && this.markdownPreview) {
+    if (previewContainer && this.previewManager) {
       previewContainer.classList.add('split-view');
       previewContainer.style.display = 'block';
       previewContainer.style.width = `${100 - this.splitRatio}%`;
@@ -861,14 +982,16 @@ export class EditorPanel extends EventEmitter {
    */
   updatePreview() {
     const previewContainer = document.getElementById('markdown-preview-container');
-    if (!previewContainer || !this.markdownPreview) return;
+    if (!previewContainer || !this.previewManager) return;
 
     const activeFile = this.editorManager.getActiveFile();
     if (activeFile) {
       const fileInfo = this.editorManager.openFiles.get(activeFile);
       if (fileInfo) {
         const content = fileInfo.model.getValue();
-        this.markdownPreview.render(content, previewContainer);
+        const filename = activeFile.split('/').pop() || activeFile;
+        // Pass full file path for previews that need it
+        this.previewManager.render(content, previewContainer, fileInfo.language, filename, activeFile);
       }
     }
   }
@@ -877,39 +1000,72 @@ export class EditorPanel extends EventEmitter {
    * Update toolbar based on language
    * @param {string} language - Monaco language ID
    */
-  updateToolbar(language) {
-    // Show/hide preview, code, and split buttons for markdown
-    const isMarkdown = language === 'markdown' && this.markdownPreview;
+  updateToolbar(language, filename = '') {
+    // Get active file info
+    const activeFile = this.editorManager.getActiveFile();
+    const fileInfo = activeFile ? this.editorManager.openFiles.get(activeFile) : null;
+    const isDirty = fileInfo && fileInfo.isDirty;
 
-    if (this.previewButton) {
-      this.previewButton.style.display = isMarkdown ? '' : 'none';
+    // Extract filename from path if not provided
+    if (!filename && activeFile) {
+      filename = activeFile.split('/').pop() || activeFile;
     }
 
-    if (this.codeButton) {
-      this.codeButton.style.display = isMarkdown ? '' : 'none';
+    // If in binary preview mode, use activeBinaryFile for filename
+    if (this.isBinaryPreviewMode && this.activeBinaryFile) {
+      filename = this.activeBinaryFile.filename;
     }
 
-    if (this.splitButton) {
-      this.splitButton.style.display = isMarkdown ? '' : 'none';
+    // Check if preview is available for this file type
+    const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
+    const activePreview = canPreview ? this.previewManager.getPreviewerFor(language, filename) : null;
+
+    // Binary preview mode: Only show Preview button, hide Code/Split
+    if (this.isBinaryPreviewMode) {
+      if (this.previewButton) {
+        this.previewButton.style.display = canPreview ? '' : 'none';
+      }
+      if (this.codeButton) {
+        this.codeButton.style.display = 'none'; // Always hide for binary files
+      }
+      if (this.splitButton) {
+        this.splitButton.style.display = 'none'; // Always hide for binary files
+      }
+    } else {
+      // Normal mode: Show/hide base preview buttons (Code/Preview/Split)
+      if (this.previewButton) {
+        this.previewButton.style.display = canPreview ? '' : 'none';
+      }
+
+      if (this.codeButton) {
+        this.codeButton.style.display = canPreview ? '' : 'none';
+      }
+
+      if (this.splitButton) {
+        this.splitButton.style.display = canPreview ? '' : 'none';
+      }
+    }
+
+    // Update preview button title
+    if (activePreview && this.previewButton) {
+      this.previewButton.classList.remove('has-security-warning');
+      this.previewButton.title = 'Show preview';
     }
 
     // Show/hide parse button for markdown files with parser available
+    const isMarkdown = language === 'markdown';
     const hasParser = this.editorManager.isParserAvailable();
     if (this.parseButton) {
       this.parseButton.style.display = (isMarkdown && hasParser) ? '' : 'none';
     }
 
     // Show/hide diff button based on whether file has unsaved changes
-    const activeFile = this.editorManager.getActiveFile();
-    const fileInfo = activeFile ? this.editorManager.openFiles.get(activeFile) : null;
-    const isDirty = fileInfo && fileInfo.isDirty;
-
     if (this.diffButton) {
       this.diffButton.style.display = isDirty ? '' : 'none';
     }
 
-    // Ensure we're showing editor if we hide the buttons
-    if (!isMarkdown && (this.isPreviewMode || this.isSplitMode)) {
+    // Ensure we're showing editor if preview not available
+    if (!canPreview && (this.isPreviewMode || this.isSplitMode)) {
       this.showEditor();
     }
 
@@ -1266,6 +1422,28 @@ export class EditorPanel extends EventEmitter {
     } catch (error) {
       console.error('Failed to save editor panel state:', error);
     }
+  }
+
+  /**
+   * Get tab info for binary file preview
+   * Returns array with single tab for the active binary file
+   * @returns {Array} Tab info array
+   */
+  getBinaryTabInfo() {
+    if (!this.isBinaryPreviewMode || !this.activeBinaryFile) {
+      return [];
+    }
+
+    return [{
+      path: this.activeBinaryFile.path,
+      filename: this.activeBinaryFile.filename,
+      isDirty: false,
+      isActive: true,
+      language: this.activeBinaryFile.language,
+      hasExternalChange: false,
+      showWarning: false,
+      isBinary: true  // Flag to indicate this is a binary preview
+    }];
   }
 
   /**

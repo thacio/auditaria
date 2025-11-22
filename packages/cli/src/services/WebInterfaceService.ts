@@ -12,6 +12,9 @@ import { Server } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// WEB_INTERFACE_START: Import HTML parser for link rewriting
+import { parse } from 'node-html-parser';
+// WEB_INTERFACE_END
 import type { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
 import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@thacio/auditaria-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
@@ -282,6 +285,348 @@ export class WebInterfaceService extends EventEmitter {
       this.app.get('/api/health', (req, res) => {
         res.json({ status: 'ok', clients: this.clients.size });
       });
+
+      // WEB_INTERFACE_START: HTML link rewriting function
+      /**
+       * Rewrite all relative URLs in HTML content to absolute preview URLs
+       * This enables proper navigation (forward and backward) without base tag issues
+       */
+      const rewriteHtmlLinks = (content: string, absolutePath: string): string => {
+        try {
+          const root = parse(content);
+          const baseDir = path.dirname(absolutePath);
+
+          // Elements with href or src attributes that need rewriting
+          const elementsToRewrite = [
+            { selector: 'a[href]', attr: 'href' },
+            { selector: 'img[src]', attr: 'src' },
+            { selector: 'link[href]', attr: 'href' },
+            { selector: 'script[src]', attr: 'src' },
+            { selector: 'source[src]', attr: 'src' },
+            { selector: 'video[src]', attr: 'src' },
+            { selector: 'audio[src]', attr: 'src' },
+            { selector: 'iframe[src]', attr: 'src' },
+            { selector: 'embed[src]', attr: 'src' },
+            { selector: 'object[data]', attr: 'data' },
+            { selector: 'form[action]', attr: 'action' }
+          ];
+
+          for (const { selector, attr } of elementsToRewrite) {
+            const elements = root.querySelectorAll(selector);
+
+            for (const el of elements) {
+              const value = el.getAttribute(attr);
+
+              // Skip if no value
+              if (!value) continue;
+
+              // Skip absolute URLs (http://, https://, //)
+              if (value.startsWith('http://') ||
+                  value.startsWith('https://') ||
+                  value.startsWith('//')) {
+                continue;
+              }
+
+              // Skip data URLs
+              if (value.startsWith('data:')) {
+                continue;
+              }
+
+              // Skip anchors (same-page links)
+              if (value.startsWith('#')) {
+                continue;
+              }
+
+              // Skip mailto, tel, javascript protocols
+              if (value.startsWith('mailto:') ||
+                  value.startsWith('tel:') ||
+                  value.startsWith('javascript:')) {
+                continue;
+              }
+
+              // This is a relative URL - resolve it to absolute filesystem path
+              const resolvedPath = path.resolve(baseDir, value);
+              const normalizedPath = resolvedPath.replace(/\\/g, '/');
+
+              // Rewrite to preview URL
+              el.setAttribute(attr, `/preview-file/${encodeURIComponent(normalizedPath)}`);
+            }
+          }
+
+          return root.toString();
+        } catch (error) {
+          console.error('Error rewriting HTML links:', error);
+          // Return original content if rewriting fails
+          return content;
+        }
+      };
+      // WEB_INTERFACE_END
+
+      // WEB_INTERFACE_START: HTML Preview endpoint
+      // Serves files from filesystem with proper MIME types and base tag injection
+      // Uses wildcard routing for elegant path resolution
+      // Supports HTTP Range requests for video/audio seeking
+      this.app.get('/preview-file/*', async (req, res) => {
+        try {
+          const path = await import('node:path');
+          const fs = await import('node:fs/promises');
+          const nodeFs = await import('node:fs');
+
+          // Get the file path from the URL (everything after /preview-file/)
+          const requestedPath = (req.params as any)[0] as string;
+          if (!requestedPath) {
+            res.status(400).send('Missing file path');
+            return;
+          }
+
+          // Decode the path
+          const decodedPath = decodeURIComponent(requestedPath);
+
+          // Security: ensure path is absolute and normalized
+          const absolutePath = path.isAbsolute(decodedPath)
+            ? path.normalize(decodedPath)
+            : path.resolve(decodedPath);
+
+          // Get file stats for size information
+          const stats = await fs.stat(absolutePath);
+          const fileSize = stats.size;
+
+          // Read file extension
+          const ext = path.extname(absolutePath).toLowerCase();
+
+          // Determine if binary or text
+          const binaryExtensions = [
+            // Images
+            '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.tif', '.avif',
+            // Fonts
+            '.woff', '.woff2', '.ttf', '.eot', '.otf',
+            // Documents
+            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp',
+            // Video
+            '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.m4v', '.ogv',
+            // Audio
+            '.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.wma', '.opus',
+            // Archives
+            '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso',
+            // Executables and binaries
+            '.exe', '.dll', '.so', '.dylib', '.bin', '.dmg', '.pkg', '.deb', '.rpm'
+          ];
+          const isBinary = binaryExtensions.includes(ext);
+
+          // Video and audio extensions that need Range support for seeking
+          const mediaExtensions = [
+            '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.m4v', '.ogv',
+            '.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.wma', '.opus'
+          ];
+          const isMedia = mediaExtensions.includes(ext);
+
+          // Set appropriate content type
+          const contentTypes: Record<string, string> = {
+            // HTML & Web
+            '.html': 'text/html; charset=utf-8',
+            '.htm': 'text/html; charset=utf-8',
+            '.css': 'text/css; charset=utf-8',
+            '.js': 'application/javascript; charset=utf-8',
+            '.mjs': 'application/javascript; charset=utf-8',
+            '.json': 'application/json; charset=utf-8',
+            '.xml': 'application/xml; charset=utf-8',
+            '.rss': 'application/rss+xml; charset=utf-8',
+            '.atom': 'application/atom+xml; charset=utf-8',
+
+            // Images
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+            '.webp': 'image/webp',
+            '.ico': 'image/x-icon',
+            '.bmp': 'image/bmp',
+            '.tiff': 'image/tiff',
+            '.tif': 'image/tiff',
+            '.avif': 'image/avif',
+
+            // Fonts
+            '.woff': 'font/woff',
+            '.woff2': 'font/woff2',
+            '.ttf': 'font/ttf',
+            '.otf': 'font/otf',
+            '.eot': 'application/vnd.ms-fontobject',
+
+            // Documents
+            '.pdf': 'application/pdf',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.ppt': 'application/vnd.ms-powerpoint',
+            '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            '.odt': 'application/vnd.oasis.opendocument.text',
+            '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+            '.odp': 'application/vnd.oasis.opendocument.presentation',
+
+            // Data formats
+            '.csv': 'text/csv; charset=utf-8',
+            '.tsv': 'text/tab-separated-values; charset=utf-8',
+            '.yaml': 'text/yaml; charset=utf-8',
+            '.yml': 'text/yaml; charset=utf-8',
+            '.toml': 'application/toml; charset=utf-8',
+            '.ini': 'text/plain; charset=utf-8',
+            '.conf': 'text/plain; charset=utf-8',
+            '.cfg': 'text/plain; charset=utf-8',
+
+            // Text files
+            '.txt': 'text/plain; charset=utf-8',
+            '.md': 'text/markdown; charset=utf-8',
+            '.log': 'text/plain; charset=utf-8',
+            '.rtf': 'application/rtf',
+
+            // Video
+            '.mp4': 'video/mp4',
+            '.webm': 'video/webm',
+            '.avi': 'video/x-msvideo',
+            '.mov': 'video/quicktime',
+            '.wmv': 'video/x-ms-wmv',
+            '.flv': 'video/x-flv',
+            '.mkv': 'video/x-matroska',
+            '.m4v': 'video/x-m4v',
+            '.ogv': 'video/ogg',
+
+            // Audio
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/ogg',
+            '.aac': 'audio/aac',
+            '.m4a': 'audio/mp4',
+            '.flac': 'audio/flac',
+            '.wma': 'audio/x-ms-wma',
+            '.opus': 'audio/opus',
+
+            // Archives
+            '.zip': 'application/zip',
+            '.rar': 'application/vnd.rar',
+            '.7z': 'application/x-7z-compressed',
+            '.tar': 'application/x-tar',
+            '.gz': 'application/gzip',
+            '.bz2': 'application/x-bzip2',
+            '.xz': 'application/x-xz',
+            '.iso': 'application/x-iso9660-image',
+
+            // Executables
+            '.exe': 'application/vnd.microsoft.portable-executable',
+            '.dll': 'application/x-msdownload',
+            '.dmg': 'application/x-apple-diskimage',
+            '.pkg': 'application/x-newton-compatible-pkg',
+            '.deb': 'application/vnd.debian.binary-package',
+            '.rpm': 'application/x-rpm',
+
+            // Programming languages (common source code)
+            '.ts': 'text/typescript; charset=utf-8',
+            '.tsx': 'text/typescript; charset=utf-8',
+            '.jsx': 'text/jsx; charset=utf-8',
+            '.py': 'text/x-python; charset=utf-8',
+            '.rb': 'text/x-ruby; charset=utf-8',
+            '.php': 'text/x-php; charset=utf-8',
+            '.java': 'text/x-java; charset=utf-8',
+            '.c': 'text/x-c; charset=utf-8',
+            '.cpp': 'text/x-c++; charset=utf-8',
+            '.h': 'text/x-c; charset=utf-8',
+            '.hpp': 'text/x-c++; charset=utf-8',
+            '.cs': 'text/x-csharp; charset=utf-8',
+            '.go': 'text/x-go; charset=utf-8',
+            '.rs': 'text/x-rust; charset=utf-8',
+            '.swift': 'text/x-swift; charset=utf-8',
+            '.kt': 'text/x-kotlin; charset=utf-8',
+            '.sh': 'application/x-sh; charset=utf-8',
+            '.bash': 'application/x-sh; charset=utf-8',
+            '.zsh': 'application/x-sh; charset=utf-8',
+
+            // Other
+            '.wasm': 'application/wasm',
+            '.ics': 'text/calendar; charset=utf-8',
+            '.vcf': 'text/vcard; charset=utf-8'
+          };
+
+          const contentType = contentTypes[ext] || 'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+
+          // Handle Range requests for video/audio files (enables seeking)
+          if (isMedia && req.headers.range) {
+            // Parse range header (e.g., "bytes=0-1023" or "bytes=1024-")
+            const range = req.headers.range;
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+            // Validate range
+            if (start >= fileSize || end >= fileSize || start > end) {
+              res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+              res.send('Range Not Satisfiable');
+              return;
+            }
+
+            const chunkSize = (end - start) + 1;
+
+            // Set headers for partial content
+            res.status(206); // Partial Content
+            res.setHeader('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Content-Length', chunkSize);
+
+            // Stream the requested range
+            const stream = nodeFs.createReadStream(absolutePath, { start, end });
+            stream.pipe(res);
+
+            // Handle stream errors
+            stream.on('error', (error) => {
+              console.error('Stream error:', error);
+              if (!res.headersSent) {
+                res.status(500).send('Error streaming file');
+              }
+            });
+          }
+          // For media files without range request, still indicate range support
+          else if (isMedia) {
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Content-Length', fileSize.toString());
+
+            // Stream entire file
+            const stream = nodeFs.createReadStream(absolutePath);
+            stream.pipe(res);
+
+            stream.on('error', (error) => {
+              console.error('Stream error:', error);
+              if (!res.headersSent) {
+                res.status(500).send('Error streaming file');
+              }
+            });
+          }
+          // For non-media files, read and send as before
+          else {
+            const content = isBinary
+              ? await fs.readFile(absolutePath)
+              : await fs.readFile(absolutePath, 'utf-8');
+
+            // WEB_INTERFACE_START: For HTML files, rewrite all relative URLs to absolute preview URLs
+            // This enables proper browser navigation (back/forward) without base tag URL encoding issues
+            if ((ext === '.html' || ext === '.htm') && typeof content === 'string') {
+              const rewrittenContent = rewriteHtmlLinks(content, absolutePath);
+              res.send(rewrittenContent);
+            } else {
+              res.send(content);
+            }
+            // WEB_INTERFACE_END
+          }
+        } catch (error: any) {
+          console.error('Preview file error:', error);
+          if (error.code === 'ENOENT') {
+            res.status(404).send('File not found');
+          } else {
+            res.status(500).send(`Error: ${error.message}`);
+          }
+        }
+      });
+      // WEB_INTERFACE_END
 
       // Start HTTP server with port fallback
       let requestedPort = config.port || 8629; // Default to 8629

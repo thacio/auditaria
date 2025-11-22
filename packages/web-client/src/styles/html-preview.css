@@ -1,0 +1,59 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: HTML preview styles */
+
+/**
+ * HTML Preview Styles
+ *
+ * Styles for HTML preview with sandboxed iframe.
+ * - Full-height iframe container
+ * - Seamless iframe rendering
+ * - Proper split view layout
+ */
+
+/* HTML preview container */
+.html-preview-container {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Iframe wrapper - fills entire container */
+.html-preview-iframe-wrapper {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+}
+
+/* HTML preview iframe - fills wrapper */
+.html-preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+  display: block;
+}
+
+/* Loading state for HTML */
+.html-preview-container .preview-loading {
+  min-height: 300px;
+}
+
+/* Error state for HTML */
+.html-preview-container .preview-error {
+  margin: 20px;
+}
+
+/* Split view - no special adjustments needed, works with flex layout */

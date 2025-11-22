@@ -22,7 +22,9 @@ import { FileTreeManager } from './managers/FileTreeManager.js';
 import { EditorManager } from './managers/EditorManager.js';
 import { FileTreePanel } from './components/FileTreePanel.js';
 import { EditorPanel } from './components/EditorPanel.js';
-import { MarkdownPreview } from './components/MarkdownPreview.js';
+import { PreviewManager, DEFAULT_PREVIEWS } from './utils/preview/index.js';
+import { isBinaryFile } from './utils/binaryExtensions.js';
+import { detectLanguage } from './utils/languageDetection.js';
 // WEB_INTERFACE_END
 
 class AuditariaWebClient {
@@ -867,12 +869,13 @@ class AuditariaWebClient {
             this.fileTreeManager = new FileTreeManager(this.wsManager);
             this.editorManager = new EditorManager(this.wsManager);
 
-            // Initialize markdown preview
-            this.markdownPreview = new MarkdownPreview();
+            // Initialize preview manager with default previews
+            this.previewManager = new PreviewManager();
+            this.previewManager.registerDefaults(DEFAULT_PREVIEWS);
 
             // Initialize UI components
             this.fileTreePanel = new FileTreePanel(this.fileTreeManager);
-            this.editorPanel = new EditorPanel(this.editorManager, this.markdownPreview);
+            this.editorPanel = new EditorPanel(this.editorManager, this.previewManager);
 
             // Set up event handlers
             this.setupFileBrowserHandlers();
@@ -889,9 +892,9 @@ class AuditariaWebClient {
      * Set up file browser event handlers
      */
     setupFileBrowserHandlers() {
-        // File selected in tree -> open in editor
+        // File selected in tree -> smart file opening
         this.fileTreePanel.on('file-selected', ({ path }) => {
-            this.editorManager.requestFile(path);
+            this.handleFileOpen(path);
         });
 
         // Editor events
@@ -901,6 +904,53 @@ class AuditariaWebClient {
             console.log('File saved:', path);
             // Could show a toast notification here
         });
+    }
+
+    /**
+     * Smart file opening - routes binary files to preview, text files to editor
+     * @param {string} path - File path to open
+     */
+    handleFileOpen(path) {
+        const filename = path.split('/').pop() || path;
+        const language = detectLanguage(filename);
+
+        // Check if file is binary
+        if (isBinaryFile(filename)) {
+            // Binary file - check if we can preview it
+            if (this.previewManager && this.previewManager.canPreview(language, filename)) {
+                // Open in preview-only mode
+                this.openBinaryFileInPreview(path, language, filename);
+            } else {
+                // No preview available for this binary file
+                this.showBinaryFileError(filename);
+            }
+        } else {
+            // Text file - normal flow via WebSocket
+            this.editorManager.requestFile(path);
+        }
+    }
+
+    /**
+     * Open binary file in preview-only mode
+     * @param {string} path - File path
+     * @param {string} language - Monaco language ID
+     * @param {string} filename - Filename
+     */
+    openBinaryFileInPreview(path, language, filename) {
+        // Notify EditorPanel to open in preview-only mode
+        this.editorPanel.openBinaryPreview(path, language, filename);
+    }
+
+    /**
+     * Show error message for binary files that can't be previewed
+     * @param {string} filename - Filename
+     */
+    showBinaryFileError(filename) {
+        alert(
+            `Cannot open "${filename}"\n\n` +
+            `This is a binary file that cannot be edited or previewed in the web interface.\n\n` +
+            `Supported preview formats: Images (PNG, JPG, SVG), HTML, JSON, and more.`
+        );
     }
 
     /**

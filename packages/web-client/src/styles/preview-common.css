@@ -1,0 +1,255 @@
+/**
+ * @license
+ * Copyright 2025 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* WEB_INTERFACE_FEATURE: Common preview styles */
+
+/**
+ * Common Preview Styles
+ *
+ * Shared styles for all preview types.
+ * Each preview type can have its own CSS file for specific styling.
+ */
+
+/* Base preview container */
+.preview-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: #ffffff;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Markdown preview needs padding, HTML doesn't */
+.markdown-preview-container {
+  padding: 16px;
+}
+
+/* Error state */
+.preview-error {
+  padding: 24px;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 6px;
+  color: #856404;
+  margin: 20px;
+}
+
+.preview-error h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #856404;
+}
+
+.preview-error p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.preview-error-details {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #6c5a2e;
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* Loading state */
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: #666;
+}
+
+.preview-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007acc;
+  border-radius: 50%;
+  animation: preview-spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes preview-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.preview-loading p {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+}
+
+/* Empty state */
+.preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: #999;
+}
+
+.preview-empty p {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  color: #999;
+}
+
+/* Security warning banner */
+.preview-security-warning {
+  background: #fff3cd;
+  border-left: 4px solid #ff9800;
+  padding: 12px 16px;
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-security-warning strong {
+  font-weight: 600;
+}
+
+.preview-security-warning a {
+  color: #007acc;
+  text-decoration: underline;
+}
+
+/* Security badge on toolbar button */
+.editor-toolbar-button.has-security-warning {
+  position: relative;
+}
+
+.editor-toolbar-button.has-security-warning::after {
+  content: '⚠';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  color: #ff9800;
+  background: #fff;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Toolbar custom buttons container */
+.editor-toolbar-custom {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: 8px;
+}
+
+/* Preview toolbar (for preview-specific controls) */
+.preview-toolbar {
+  position: sticky;
+  top: 0;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 10;
+  flex-wrap: wrap;
+}
+
+.preview-toolbar-button {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.preview-toolbar-button:hover {
+  background: #f0f0f0;
+  border-color: #999;
+}
+
+.preview-toolbar-button:active {
+  background: #e0e0e0;
+}
+
+.preview-toolbar-button .codicon {
+  font-size: 14px;
+}
+
+.preview-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #ddd;
+  margin: 0 4px;
+}
+
+.preview-toolbar-label {
+  font-size: 12px;
+  color: #666;
+  margin-right: 8px;
+}
+
+/* Info overlay (for images, etc.) */
+.preview-info-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Roboto Mono', monospace;
+  z-index: 5;
+}
+
+.preview-info-overlay-item {
+  margin: 2px 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .preview-container {
+    padding: 12px;
+  }
+
+  .preview-error {
+    margin: 12px;
+    padding: 16px;
+  }
+
+  .preview-toolbar {
+    padding: 6px 8px;
+  }
+
+  .preview-toolbar-button {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
