@@ -13,7 +13,7 @@ import { loadSettings } from '../../config/settings.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 
 interface UninstallArgs {
-  name: string; // can be extension name or source URL.
+  names: string[]; // can be extension names or source URLs.
 }
 
 export async function handleUninstall(args: UninstallArgs) {
@@ -26,14 +26,35 @@ export async function handleUninstall(args: UninstallArgs) {
       settings: loadSettings(workspaceDir).merged,
     });
     await extensionManager.loadExtensions();
-    await extensionManager.uninstallExtension(args.name, false);
-    debugLogger.log(
-      t(
-        'commands.extensions.uninstall.success',
-        `Extension "${args.name}" successfully uninstalled.`,
-        { name: args.name },
-      ),
-    );
+
+    const errors: Array<{ name: string; error: string }> = [];
+    for (const name of [...new Set(args.names)]) {
+      try {
+        await extensionManager.uninstallExtension(name, false);
+        debugLogger.log(
+          t(
+            'commands.extensions.uninstall.success',
+            `Extension "${name}" successfully uninstalled.`,
+            { name },
+          ),
+        );
+      } catch (error) {
+        errors.push({ name, error: getErrorMessage(error) });
+      }
+    }
+
+    if (errors.length > 0) {
+      for (const { name, error } of errors) {
+        debugLogger.error(
+          t(
+            'commands.extensions.uninstall.failed',
+            `Failed to uninstall "${name}": {error}`,
+            { name, error },
+          ),
+        );
+      }
+      process.exit(1);
+    }
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
     process.exit(1);
@@ -41,26 +62,27 @@ export async function handleUninstall(args: UninstallArgs) {
 }
 
 export const uninstallCommand: CommandModule = {
-  command: 'uninstall <name>',
+  command: 'uninstall <names..>',
   describe: t(
     'commands.extensions.uninstall.description',
-    'Uninstalls an extension.',
+    'Uninstalls one or more extensions.',
   ),
   builder: (yargs) =>
     yargs
-      .positional('name', {
+      .positional('names', {
         describe: t(
-          'commands.extensions.uninstall.name_description',
-          'The name or source path of the extension to uninstall.',
+          'commands.extensions.uninstall.names_description',
+          'The name(s) or source path(s) of the extension(s) to uninstall.',
         ),
         type: 'string',
+        array: true,
       })
       .check((argv) => {
-        if (!argv.name) {
+        if (!argv.names || (argv.names as string[]).length === 0) {
           throw new Error(
             t(
-              'commands.extensions.uninstall.missing_name',
-              'Please include the name of the extension to uninstall as a positional argument.',
+              'commands.extensions.uninstall.missing_names',
+              'Please include at least one extension name to uninstall as a positional argument.',
             ),
           );
         }
@@ -68,7 +90,7 @@ export const uninstallCommand: CommandModule = {
       }),
   handler: async (argv) => {
     await handleUninstall({
-      name: argv['name'] as string,
+      names: argv['names'] as string[],
     });
   },
 };

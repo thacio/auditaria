@@ -245,10 +245,11 @@
         "consent_message": "You have consented to the following:"
       },
       "uninstall": {
-        "description": "Uninstalls an extension.",
-        "name_description": "The name or source path of the extension to uninstall.",
-        "missing_name": "Please include the name of the extension to uninstall as a positional argument.",
+        "description": "Uninstalls one or more extensions.",
+        "names_description": "The name(s) or source path(s) of the extension(s) to uninstall.",
+        "missing_names": "Please include at least one extension name to uninstall as a positional argument.",
         "success": "Extension \"{name}\" successfully uninstalled.",
+        "failed": "Failed to uninstall \"{name}\": {error}",
         "not_found": "Extension not found."
       },
       "list": {

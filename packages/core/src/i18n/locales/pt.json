@@ -242,10 +242,11 @@
         "consent_message": "Você consentiu com o seguinte:"
       },
       "uninstall": {
-        "description": "Desinstala uma extensão.",
-        "name_description": "O nome ou caminho de origem da extensão a desinstalar.",
-        "missing_name": "Por favor, inclua o nome da extensão a desinstalar como um argumento posicional.",
+        "description": "Desinstala uma ou mais extensões.",
+        "names_description": "O(s) nome(s) ou caminho(s) de origem da(s) extensão(ões) a desinstalar.",
+        "missing_names": "Por favor, inclua pelo menos um nome de extensão a desinstalar como um argumento posicional.",
         "success": "Extensão \"{name}\" desinstalada com sucesso.",
+        "failed": "Falha ao desinstalar \"{name}\": {error}",
         "not_found": "Extensão não encontrada."
       },
       "list": {
