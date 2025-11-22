@@ -81,6 +81,7 @@ export interface InputPromptProps {
   streamingState: StreamingState;
   popAllMessages?: (onPop: (messages: string | undefined) => void) => void;
   suggestionsPosition?: 'above' | 'below';
+  setBannerVisible: (visible: boolean) => void;
 }
 
 // The input content, input container, and input suggestions list may have different widths
@@ -122,6 +123,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   streamingState,
   popAllMessages,
   suggestionsPosition = 'below',
+  setBannerVisible,
 }) => {
   const kittyProtocol = useKittyKeyboardProtocol();
   const isShellFocused = useShellFocusState();
@@ -531,6 +533,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       }
 
       if (keyMatchers[Command.CLEAR_SCREEN](key)) {
+        setBannerVisible(false);
         onClearScreen();
         return;
       }
@@ -825,6 +828,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
       commandSearchCompletion,
       kittyProtocol.supported,
       tryLoadQueuedMessages,
+      setBannerVisible,
     ],
   );
 

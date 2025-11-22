@@ -10,9 +10,9 @@ import {
   type FallbackModelHandler,
   type FallbackIntent,
   TerminalQuotaError,
-  UserTierId,
-  DEFAULT_GEMINI_FLASH_MODEL,
-  t,
+  ModelNotFoundError,
+  type UserTierId,
+  PREVIEW_GEMINI_MODEL,
 } from '@thacio/auditaria-cli-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
@@ -52,52 +52,29 @@ export function useQuotaAndFallback({
         return null;
       }
 
-      // Use actual user tier if available; otherwise, default to FREE tier behavior (safe default)
-      const isPaidTier =
-        userTier === UserTierId.LEGACY || userTier === UserTierId.STANDARD;
-
-      const isFallbackModel = failedModel === DEFAULT_GEMINI_FLASH_MODEL;
       let message: string;
-
+      let isTerminalQuotaError = false;
+      let isModelNotFoundError = false;
       if (error instanceof TerminalQuotaError) {
-        // Use i18n with conditional logic for fallback model
-        if (isPaidTier) {
-          message = t(
-            'quota.pro_exceeded_paid_new',
-            '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ Increase your limits by using a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
-            { model: failedModel },
-          );
-        } else {
-          message = t(
-            'quota.pro_exceeded_free_new',
-            '⚡ You have reached your daily {model} quota limit.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model.\n⚡ Increase your limits by \n⚡ - signing up for a plan with higher limits at https://goo.gle/set-up-gemini-code-assist\n⚡ - or using a Gemini API Key. See: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth',
-            { model: failedModel },
-          );
-        }
-        // Adjust message if this is the fallback model itself
-        if (isFallbackModel) {
-          message = message.replace(' or continue with the fallback model', '');
-        }
+        isTerminalQuotaError = true;
+        // Common part of the message for both tiers
+        const messageLines = [
+          `Usage limit reached for ${failedModel}.`,
+          error.retryDelayMs ? getResetTimeMessage(error.retryDelayMs) : null,
+          `/stats for usage details`,
+          `/auth to switch to API key.`,
+        ].filter(Boolean);
+        message = messageLines.join('\n');
+      } else if (error instanceof ModelNotFoundError) {
+        isModelNotFoundError = true;
+        const messageLines = [
+          `It seems like you don't have access to Gemini 3.`,
+          `Learn more at https://goo.gle/enable-preview-features`,
+          `To disable Gemini 3, disable "Preview features" in /settings.`,
+        ];
+        message = messageLines.join('\n');
       } else {
-        // Capacity error
-        message = t(
-          'quota.congestion_error',
-          '🚦Pardon Our Congestion! It looks like {model} is very popular at the moment.\nPlease retry again later.',
-          { model: failedModel },
-        );
-      }
-
-      // Add message to UI history
-      historyManager.addItem(
-        {
-          type: MessageType.INFO,
-          text: message,
-        },
-        Date.now(),
-      );
-
-      if (isFallbackModel) {
-        return 'stop';
+        message = `${failedModel} is currently experiencing high demand. We apologize and appreciate your patience.`;
       }
 
       setModelSwitchedFromQuotaError(true);
@@ -108,20 +85,15 @@ export function useQuotaAndFallback({
       }
       isDialogPending.current = true;
 
-      // WEB_INTERFACE_START: Pre-start terminal capture for quota dialog
-      const preStartCapture = (global as Record<string, unknown>)
-        .__preStartTerminalCapture;
-      if (typeof preStartCapture === 'function') {
-        preStartCapture();
-      }
-      // WEB_INTERFACE_END
-
       const intent: FallbackIntent = await new Promise<FallbackIntent>(
         (resolve) => {
           setProQuotaRequest({
             failedModel,
             fallbackModel,
             resolve,
+            message,
+            isTerminalQuotaError,
+            isModelNotFoundError,
           });
         },
       );
@@ -141,17 +113,25 @@ export function useQuotaAndFallback({
       setProQuotaRequest(null);
       isDialogPending.current = false; // Reset the flag here
 
-      if (choice === 'retry') {
-        historyManager.addItem(
-          {
-            type: MessageType.INFO,
-            text: t(
-              'quota.switched_to_fallback',
-              'Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish.',
-            ),
-          },
-          Date.now(),
-        );
+      if (choice === 'retry_always') {
+        // If we were recovering from a Preview Model failure, show a specific message.
+        if (proQuotaRequest.failedModel === PREVIEW_GEMINI_MODEL) {
+          historyManager.addItem(
+            {
+              type: MessageType.INFO,
+              text: `Switched to fallback model ${proQuotaRequest.fallbackModel}. ${!proQuotaRequest.isModelNotFoundError ? `We will periodically check if ${PREVIEW_GEMINI_MODEL} is available again.` : ''}`,
+            },
+            Date.now(),
+          );
+        } else {
+          historyManager.addItem(
+            {
+              type: MessageType.INFO,
+              text: 'Switched to fallback model.',
+            },
+            Date.now(),
+          );
+        }
       }
     },
     [proQuotaRequest, historyManager],
@@ -161,4 +141,16 @@ export function useQuotaAndFallback({
     proQuotaRequest,
     handleProQuotaChoice,
   };
+}
+
+function getResetTimeMessage(delayMs: number): string {
+  const resetDate = new Date(Date.now() + delayMs);
+
+  const timeFormatter = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+
+  return `Access resets at ${timeFormatter.format(resetDate)}.`;
 }

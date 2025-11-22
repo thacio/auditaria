@@ -82,6 +82,7 @@ export const useSlashCommandProcessor = (
   actions: SlashCommandProcessorActions,
   extensionsUpdateState: Map<string, ExtensionUpdateStatus>,
   isConfigInitialized: boolean,
+  setBannerVisible: (visible: boolean) => void,
   setCustomDialog: (dialog: React.ReactNode | null) => void,
 ) => {
   const session = useSessionStats();
@@ -211,6 +212,7 @@ export const useSlashCommandProcessor = (
             console.clear();
           }
           refreshStatic();
+          setBannerVisible(false);
         },
         loadHistory,
         setDebugMessage: actions.setDebugMessage,
@@ -261,6 +263,7 @@ export const useSlashCommandProcessor = (
       handleWebStatus,
       // WEB_INTERFACE_END
       extensionsUpdateState,
+      setBannerVisible,
       setCustomDialog,
     ],
   );

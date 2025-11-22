@@ -7,6 +7,7 @@
 // Export config
 export * from './config/config.js';
 export * from './config/defaultModelConfigs.js';
+export * from './config/models.js';
 export * from './output/types.js';
 export * from './output/json-formatter.js';
 export * from './output/stream-json-formatter.js';
@@ -120,7 +121,7 @@ export * from './tools/read-many-files.js';
 export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
 export * from './tools/write-todos.js';
-export * from './tools/context-management.js';  // Custom Auditaria Feature: context.management.ts tool
+export * from './tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 export * from './tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 
 // MCP OAuth

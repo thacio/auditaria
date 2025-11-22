@@ -7,7 +7,6 @@
 import * as path from 'node:path';
 import { inspect } from 'node:util';
 import process from 'node:process';
-import { t } from '../i18n/index.js';
 import type {
   ContentGenerator,
   ContentGeneratorConfig,
@@ -30,7 +29,6 @@ import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import { WebFetchTool } from '../tools/web-fetch.js';
 import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
-import { TodoTool } from '../tools/todoTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { GeminiClient } from '../core/client.js';
 import { BaseLlmClient } from '../core/baseLlmClient.js';
@@ -57,16 +55,6 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
-import {
-  ContextInspectTool,
-  ContextForgetTool,
-  ContextRestoreTool,
-} from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
-// AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
-import {
-  CollaborativeWritingStartTool,
-  CollaborativeWritingEndTool,
-} from '../tools/collaborative-writing.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -234,7 +222,6 @@ export interface ConfigParameters {
   embeddingModel?: string;
   sandbox?: SandboxConfig;
   targetDir: string;
-  includeDirectories?: string[];
   debugMode: boolean;
   question?: string;
 
@@ -264,9 +251,9 @@ export interface ConfigParameters {
   proxy?: string;
   cwd: string;
   fileDiscoveryService?: FileDiscoveryService;
+  includeDirectories?: string[];
   bugCommand?: BugCommandSettings;
   model: string;
-  useImprovedFallbackStrategy?: boolean;
   maxSessionTurns?: number;
   experimentalZedIntegration?: boolean;
   listSessions?: boolean;
@@ -318,6 +305,8 @@ export interface ConfigParameters {
   hooks?: {
     [K in HookEventName]?: HookDefinition[];
   };
+  previewFeatures?: boolean;
+  useImprovedFallbackStrategy?: boolean;
 }
 
 export class Config {
@@ -370,6 +359,7 @@ export class Config {
   private readonly cwd: string;
   private readonly bugCommand: BugCommandSettings | undefined;
   private model: string;
+  private previewFeatures: boolean | undefined;
   private readonly noBrowser: boolean;
   private readonly folderTrust: boolean;
   private ideMode: boolean;
@@ -433,6 +423,10 @@ export class Config {
     | undefined;
   private experiments: Experiments | undefined;
   private experimentsPromise: Promise<void> | undefined;
+
+  private previewModelFallbackMode = false;
+  private previewModelBypassMode = false;
+
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
 
   constructor(params: ConfigParameters) {
@@ -491,6 +485,7 @@ export class Config {
     this.fileDiscoveryService = params.fileDiscoveryService ?? null;
     this.bugCommand = params.bugCommand;
     this.model = params.model;
+    this.previewFeatures = params.previewFeatures ?? undefined;
     this.useImprovedFallbackStrategy =
       params.useImprovedFallbackStrategy ?? true;
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
@@ -589,10 +584,7 @@ export class Config {
       } catch (error) {
         coreEvents.emitFeedback(
           'error',
-          t(
-            'utils.proxy.invalid_configuration',
-            'Invalid proxy configuration detected. Check debug drawer for more details (F12)',
-          ),
+          'Invalid proxy configuration detected. Check debug drawer for more details (F12)',
           error,
         );
       }
@@ -650,11 +642,6 @@ export class Config {
       await this.getExtensionLoader().start(this),
     ]);
 
-    // AUDITARIA_SKILLS_START - Load skills during initialization
-    const { loadSkillsPromptSection } = await import('../skills/index.js');
-    this.skillsPromptSection = await loadSkillsPromptSection(this.targetDir);
-    // AUDITARIA_SKILLS_END
-
     await this.geminiClient.initialize();
   }
 
@@ -675,7 +662,7 @@ export class Config {
     // thoughtSignature from Genai to Vertex will fail, we need to strip them
     if (
       this.contentGeneratorConfig?.authType === AuthType.USE_GEMINI &&
-      authMethod === AuthType.LOGIN_WITH_GOOGLE
+      authMethod !== AuthType.USE_GEMINI
     ) {
       // Restore the conversation history to the new client
       this.geminiClient.stripThoughtsFromHistory();
@@ -696,11 +683,22 @@ export class Config {
     // Initialize BaseLlmClient now that the ContentGenerator is available
     this.baseLlmClient = new BaseLlmClient(this.contentGenerator, this);
 
+    const previewFeatures = this.getPreviewFeatures();
+
     const codeAssistServer = getCodeAssistServer(this);
     if (codeAssistServer) {
       this.experimentsPromise = getExperiments(codeAssistServer)
         .then((experiments) => {
           this.setExperiments(experiments);
+
+          // If preview features have not been set and the user authenticated through Google, we enable preview based on remote config only if it's true
+          if (previewFeatures === undefined) {
+            const remotePreviewFeatures =
+              experiments.flags[ExperimentFlags.ENABLE_PREVIEW]?.boolValue;
+            if (remotePreviewFeatures === true) {
+              this.setPreviewFeatures(remotePreviewFeatures);
+            }
+          }
         })
         .catch((e) => {
           debugLogger.error('Failed to fetch experiments', e);
@@ -710,9 +708,8 @@ export class Config {
       this.experimentsPromise = undefined;
     }
 
-    // Reset the session flags since we're explicitly changing auth and using default model
+    // Reset the session flag since we're explicitly changing auth and using default model
     this.inFallbackMode = false;
-    this.modelSwitchedDuringSession = false;
   }
 
   getUserTier(): UserTierId | undefined {
@@ -783,16 +780,28 @@ export class Config {
     this.inFallbackMode = active;
   }
 
-  isModelSwitchedDuringSession(): boolean {
-    return this.modelSwitchedDuringSession;
-  }
-
-  resetModelToDefault(): void {
-    this.modelSwitchedDuringSession = false;
-  }
-
   setFallbackModelHandler(handler: FallbackModelHandler): void {
     this.fallbackModelHandler = handler;
+  }
+
+  getFallbackModelHandler(): FallbackModelHandler | undefined {
+    return this.fallbackModelHandler;
+  }
+
+  isPreviewModelFallbackMode(): boolean {
+    return this.previewModelFallbackMode;
+  }
+
+  setPreviewModelFallbackMode(active: boolean): void {
+    this.previewModelFallbackMode = active;
+  }
+
+  isPreviewModelBypassMode(): boolean {
+    return this.previewModelBypassMode;
+  }
+
+  setPreviewModelBypassMode(active: boolean): void {
+    this.previewModelBypassMode = active;
   }
 
   getMaxSessionTurns(): number {
@@ -855,6 +864,38 @@ export class Config {
   }
   getQuestion(): string | undefined {
     return this.question;
+  }
+
+  getPreviewFeatures(): boolean | undefined {
+    return this.previewFeatures;
+  }
+
+  setPreviewFeatures(previewFeatures: boolean) {
+    this.previewFeatures = previewFeatures;
+  }
+
+  getUseImprovedFallbackStrategy(): boolean {
+    return this.useImprovedFallbackStrategy;
+  }
+
+  setUseImprovedFallbackStrategy(enabled: boolean): void {
+    this.useImprovedFallbackStrategy = enabled;
+  }
+
+  getModelSwitchedDuringSession(): boolean {
+    return this.modelSwitchedDuringSession;
+  }
+
+  resetModelSwitchedDuringSession(): void {
+    this.modelSwitchedDuringSession = false;
+  }
+
+  getDisableFallbackForSession(): boolean {
+    return this.disableFallbackForSession;
+  }
+
+  setDisableFallbackForSession(disabled: boolean): void {
+    this.disableFallbackForSession = disabled;
   }
 
   getCoreTools(): string[] | undefined {
@@ -952,10 +993,7 @@ export class Config {
   setApprovalMode(mode: ApprovalMode): void {
     if (!this.isTrustedFolder() && mode !== ApprovalMode.DEFAULT) {
       throw new Error(
-        t(
-          'trusted_folders.cannot_enable_privileged_modes',
-          'Cannot enable privileged approval modes in an untrusted folder.',
-        ),
+        'Cannot enable privileged approval modes in an untrusted folder.',
       );
     }
     this.approvalMode = mode;
@@ -1079,22 +1117,6 @@ export class Config {
 
   getUsageStatisticsEnabled(): boolean {
     return this.usageStatisticsEnabled;
-  }
-
-  getUseImprovedFallbackStrategy(): boolean {
-    return this.useImprovedFallbackStrategy;
-  }
-
-  setUseImprovedFallbackStrategy(enabled: boolean): void {
-    this.useImprovedFallbackStrategy = enabled;
-  }
-
-  getDisableFallbackForSession(): boolean {
-    return this.disableFallbackForSession;
-  }
-
-  setDisableFallbackForSession(disabled: boolean): void {
-    this.disableFallbackForSession = disabled;
   }
 
   getExperimentalZedIntegration(): boolean {
@@ -1221,6 +1243,22 @@ export class Config {
     await this.ensureExperimentsLoaded();
 
     return this.experiments?.flags[ExperimentFlags.USER_CACHING]?.boolValue;
+  }
+
+  async getBannerTextNoCapacityIssues(): Promise<string> {
+    await this.ensureExperimentsLoaded();
+    return (
+      this.experiments?.flags[ExperimentFlags.BANNER_TEXT_NO_CAPACITY_ISSUES]
+        ?.stringValue ?? ''
+    );
+  }
+
+  async getBannerTextCapacityIssues(): Promise<string> {
+    await this.ensureExperimentsLoaded();
+    return (
+      this.experiments?.flags[ExperimentFlags.BANNER_TEXT_CAPACITY_ISSUES]
+        ?.stringValue ?? ''
+    );
   }
 
   private async ensureExperimentsLoaded(): Promise<void> {
@@ -1432,22 +1470,10 @@ export class Config {
     registerCoreTool(WebFetchTool, this);
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
-    registerCoreTool(TodoTool);
     registerCoreTool(WebSearchTool, this);
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool, this);
     }
-
-    // Register context management tools
-    registerCoreTool(ContextInspectTool, this); // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextForgetTool, this); // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextRestoreTool, this); // Custom Auditaria Feature: context.management.ts tool
-
-    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditaria Custom Feature
-    // Register collaborative writing tools
-    registerCoreTool(CollaborativeWritingStartTool, this);
-    registerCoreTool(CollaborativeWritingEndTool, this);
-    // AUDITARIA_COLLABORATIVE_WRITING_END
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {

@@ -11,13 +11,12 @@ import {
   logIdeConnection,
   IdeConnectionEvent,
   IdeConnectionType,
-  t,
+} from '@thacio/auditaria-cli-core';
+import {
   getIdeInstaller,
   IDEConnectionStatus,
   ideContextStore,
   GEMINI_CLI_COMPANION_EXTENSION_NAME,
-  
-  IDE_DEFINITIONS,
 } from '@thacio/auditaria-cli-core';
 import path from 'node:path';
 import type {
@@ -37,15 +36,15 @@ function getIdeStatusMessage(ideClient: IdeClient): {
     case IDEConnectionStatus.Connected:
       return {
         messageType: 'info',
-        content: t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' }),
+        content: `🟢 Connected to ${ideClient.getDetectedIdeDisplayName()}`,
       };
     case IDEConnectionStatus.Connecting:
       return {
         messageType: 'info',
-        content: t('commands.ide.status.connecting', '🟡 Connecting...'),
+        content: `🟡 Connecting...`,
       };
     default: {
-      let content = t('commands.ide.status.disconnected', '🔴 Disconnected');
+      let content = `🔴 Disconnected`;
       if (connection?.details) {
         content += `: ${connection.details}`;
       }
@@ -73,16 +72,14 @@ function formatFileList(openFiles: File[]): string {
         ? `${basename} (/${parentDir})`
         : basename;
 
-      return `  - ${displayName}${file.isActive ? t('ide_context.active_file', ' (active)') : ''}`;
+      return `  - ${displayName}${file.isActive ? ' (active)' : ''}`;
     })
     .join('\n');
 
-  const infoMessage = t(
-    'ide_context.file_list_note',
-    '\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)'
-  );
+  const infoMessage = `
+(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)`;
 
-  return `\n\n${t('ide_context.open_files', 'Open files:')}\n${fileList}${infoMessage}`;
+  return `\n\nOpen files:\n${fileList}\n${infoMessage}`;
 }
 
 async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
@@ -92,7 +89,7 @@ async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
   const connection = ideClient.getConnectionStatus();
   switch (connection.status) {
     case IDEConnectionStatus.Connected: {
-      let content = t('commands.ide.status.connected_to', '🟢 Connected to {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
+      let content = `🟢 Connected to ${ideClient.getDetectedIdeDisplayName()}`;
       const context = ideContextStore.get();
       const openFiles = context?.workspaceState?.openFiles;
       if (openFiles && openFiles.length > 0) {
@@ -106,10 +103,10 @@ async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
     case IDEConnectionStatus.Connecting:
       return {
         messageType: 'info',
-        content: t('commands.ide.status.connecting', '🟡 Connecting...'),
+        content: `🟡 Connecting...`,
       };
     default: {
-      let content = t('commands.ide.status.disconnected', '🔴 Disconnected');
+      let content = `🔴 Disconnected`;
       if (connection?.details) {
         content += `: ${connection.details}`;
       }
@@ -124,11 +121,12 @@ async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
 async function setIdeModeAndSyncConnection(
   config: Config,
   value: boolean,
+  options: { logToConsole?: boolean } = {},
 ): Promise<void> {
   config.setIdeMode(value);
   const ideClient = await IdeClient.getInstance();
   if (value) {
-    await ideClient.connect();
+    await ideClient.connect(options);
     logIdeConnection(config, new IdeConnectionEvent(IdeConnectionType.SESSION));
   } else {
     await ideClient.disconnect();
@@ -141,41 +139,27 @@ export const ideCommand = async (): Promise<SlashCommand> => {
   if (!currentIDE) {
     return {
       name: 'ide',
-      get description() {
-        return t('commands.ide.description', 'Manage IDE integration');
-      },
+      description: 'Manage IDE integration',
       kind: CommandKind.BUILT_IN,
       action: (): SlashCommandActionReturn =>
         ({
           type: 'message',
           messageType: 'error',
-          content: t(
-            'ide.errors.not_supported',
-            'IDE integration is not supported in your current environment. To use this feature, run Auditaria CLI in one of these supported IDEs: {supportedIDEs}',
-            {
-              supportedIDEs: Object.values(IDE_DEFINITIONS)
-                .map((ide) => ide.displayName)
-                .join(', '),
-            },
-          ),
+          content: `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: Antigravity, VS Code, or VS Code forks.`,
         }) as const,
     };
   }
 
   const ideSlashCommand: SlashCommand = {
     name: 'ide',
-    get description() {
-      return t('commands.ide.description', 'Manage IDE integration');
-    },
+    description: 'Manage IDE integration',
     kind: CommandKind.BUILT_IN,
     subCommands: [],
   };
 
   const statusCommand: SlashCommand = {
     name: 'status',
-    get description() {
-      return t('commands.ide.status.description', 'Check status of IDE integration');
-    },
+    description: 'Check status of IDE integration',
     kind: CommandKind.BUILT_IN,
     action: async (): Promise<SlashCommandActionReturn> => {
       const { messageType, content } =
@@ -190,9 +174,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
 
   const installCommand: SlashCommand = {
     name: 'install',
-    get description() {
-      return t('commands.ide.install.description', 'Install required IDE companion for {ide}', { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' });
-    },
+    description: `Install required IDE companion for ${ideClient.getDetectedIdeDisplayName()}`,
     kind: CommandKind.BUILT_IN,
     action: async (context) => {
       const installer = getIdeInstaller(currentIDE);
@@ -200,11 +182,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
         context.ui.addItem(
           {
             type: 'error',
-            text: t(
-              'commands.ide.install.no_installer_with_ide',
-              `No installer is available for {ide}. Please install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the marketplace.`,
-              { ide: ideClient.getDetectedIdeDisplayName() || 'IDE' },
-            ),
+            text: `No installer is available for ${ideClient.getDetectedIdeDisplayName()}. Please install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the marketplace.`,
           },
           Date.now(),
         );
@@ -214,7 +192,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
       context.ui.addItem(
         {
           type: 'info',
-          text: t('commands.ide.install.installing', 'Installing IDE companion...'),
+          text: `Installing IDE companion...`,
         },
         Date.now(),
       );
@@ -235,7 +213,9 @@ export const ideCommand = async (): Promise<SlashCommand> => {
         );
         // Poll for up to 5 seconds for the extension to activate.
         for (let i = 0; i < 10; i++) {
-          await setIdeModeAndSyncConnection(context.services.config!, true);
+          await setIdeModeAndSyncConnection(context.services.config!, true, {
+            logToConsole: false,
+          });
           if (
             ideClient.getConnectionStatus().status ===
             IDEConnectionStatus.Connected
@@ -250,7 +230,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
           context.ui.addItem(
             {
               type: messageType,
-              text: t('commands.ide.install.auto_enable_failed', 'Failed to automatically enable IDE integration. To fix this, run the CLI in a new terminal window.'),
+              text: `Failed to automatically enable IDE integration. To fix this, run the CLI in a new terminal window.`,
             },
             Date.now(),
           );
@@ -269,9 +249,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
 
   const enableCommand: SlashCommand = {
     name: 'enable',
-    get description() {
-      return t('commands.ide.enable.description', 'Enable IDE integration');
-    },
+    description: 'Enable IDE integration',
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {
       context.services.settings.setValue(
@@ -293,9 +271,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
 
   const disableCommand: SlashCommand = {
     name: 'disable',
-    get description() {
-      return t('commands.ide.disable.description', 'Disable IDE integration');
-    },
+    description: 'Disable IDE integration',
     kind: CommandKind.BUILT_IN,
     action: async (context: CommandContext) => {
       context.services.settings.setValue(
