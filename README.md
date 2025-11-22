@@ -21,18 +21,18 @@ software** intactas.
 
 ## 🚀 Por que Auditaria CLI?
 
+- **🌐 Interface Web**: Interface web integrada para interação baseada em
+  navegador
+- **📝 Editor Avançado**: Edite arquivos diretamente no navegador com um editor
+  Monaco integrado e visualizadores de arquivo.
+- **✍️ Escrita Colaborativa**: Edite arquivos simultaneamente com a IA. Ela vê
+  suas alterações em tempo real, permitindo uma verdadeira programação em par e
+  co-escrita.
 - **🎯 Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia com conta
   pessoal do Google
 - **🧠 Poderoso Gemini 2.5 Pro**: Acesso a janela de contexto de 1M tokens
-- **🛠️ Ferramenta TODO integrada**: Sistema completo de gerenciamento de tarefas
-  para fluxos de trabalho de auditoria
 - **🌐 Multi-idioma**: Suporte completo para Português e Inglês com comando
   `/language`
-- **⚙️ Controle avançado de modelo**: Comandos especializados para gerenciamento
-  de IA
-- **🔄 Estratégia de retry melhorada**: 7 tentativas com delays otimizados
-- **🌐 Interface Web**: Interface web integrada para interação baseada em
-  navegador
 - **📦 Executáveis Windows**: Executáveis standalone compilados com Bun (sem
   necessidade de instalação de Node.js)
 - **🛡️ Código aberto**: Licenciado sob Apache 2.0
@@ -41,11 +41,20 @@ software** intactas.
 
 ### Melhorias Exclusivas do Auditaria
 
-- **🌐 Interface Web**: Interface web integrada (porta padrão 8629)
+- **🌐 Interface Web**: Uma interface web completa com um explorador de arquivos
+  e abas para uma experiência de usuário aprimorada.
+- **📝 Editor Avançado**: Um editor de código integrado (Monaco, o motor do VS
+  Code) com visualizadores de arquivo integrados para PDFs, imagens, vídeos e
+  muito mais.
+- **✍️ Escrita Colaborativa**: Ativa um fluxo de trabalho verdadeiramente
+  colaborativo onde você e a IA podem modificar o mesmo arquivo simultaneamente.
+  A IA está sempre ciente de suas edições, permitindo um trabalho de equipe
+  interativo em código e documentos.
 - **🎯 Gerenciamento de Contexto**: Ferramentas integradas para inspecionar,
   esquecer e restaurar conteúdo da conversa para otimizar uso de tokens
   - `context_inspect` - Inspecionar histórico e estatísticas de tokens
-  - `context_forget` - Esquecer conteúdo grande (amnésia completa até restauração)
+  - `context_forget` - Esquecer conteúdo grande (amnésia completa até
+    restauração)
   - `context_restore` - Restaurar conteúdo esquecido quando necessário
 - **🎓 Habilidades de Agente (Agent Skills)**: Sistema modular de habilidades
   que estende as capacidades do Auditaria com conhecimento especializado em
@@ -56,15 +65,6 @@ software** intactas.
   - Crie habilidades customizadas com arquivos SKILL.md
 - **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
   Português e Inglês (com comando `/language`)
-- **🛠️ Ferramenta TODO**: Sistema completo de gerenciamento de tarefas para
-  rastrear e organizar fluxos de trabalho complexos de auditoria
-- **⚙️ Controle Avançado de Modelo**: Comandos slash aprimorados para melhor
-  gerenciamento de modelos de IA:
-  - `/model-switch` - Alternar entre modelos Gemini Pro e Flash
-  - `/stay-pro` - Desabilitar/habilitar fallback para modelo Flash
-  - `/fallback-improved` - Alternar entre estratégias de retry
-- **🔄 Estratégia de Retry Melhorada**: 7 tentativas com delays de 2 segundos e
-  reset automático para Gemini Pro a cada mensagem do usuário
 - **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e
   capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
@@ -406,15 +406,16 @@ all original software engineering capabilities** intact.
 
 ## 🚀 Why Auditaria CLI?
 
+- **🌐 Web Interface**: Built-in web interface for browser-based interaction
+- **📝 Advanced Editor**: Edit files directly in the browser with an integrated
+  Monaco editor and file previewers.
+- **✍️ Collaborative Writing**: Edit files simultaneously with the AI. It sees
+  your changes as you make them, enabling true pair-programming and co-writing.
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
   account
 - **🧠 Powerful Gemini 2.5 Pro**: Access to 1M token context window
-- **🛠️ Built-in TODO tool**: Complete task management system for audit workflows
 - **🌐 Multi-language**: Full support for Portuguese and English with
   `/language` command
-- **⚙️ Advanced model control**: Specialized commands for AI management
-- **🔄 Improved retry strategy**: 7 retries with optimized delays
-- **🌐 Web Interface**: Built-in web interface for browser-based interaction
 - **📦 Windows Executables**: Standalone executables compiled with Bun (no
   Node.js installation required)
 - **🛡️ Open source**: Apache 2.0 licensed
@@ -423,7 +424,14 @@ all original software engineering capabilities** intact.
 
 ### Auditaria Exclusive Enhancements
 
-- **🌐 Web Interface**: Built-in web interface (default port 8629)
+- **🌐 Web Interface**: A full-featured web UI with a file browser and tabs for
+  an enhanced user experience.
+- **📝 Advanced Editor**: An integrated code editor (Monaco, the engine that
+  powers VS Code) with built-in file previewers for PDFs, images, videos, and
+  more.
+- **✍️ Collaborative Writing**: Enables a true collaborative workflow where you
+  and the AI can modify the same file simultaneously. The AI is always aware of
+  your edits, allowing for interactive teamwork on code and documents.
 - **🎯 Context Management**: Built-in tools to inspect, forget, and restore
   conversation content to optimize token usage
   - `context_inspect` - Inspect history and token statistics
@@ -437,15 +445,6 @@ all original software engineering capabilities** intact.
   - Create custom skills with SKILL.md files
 - **🌐 Multi-language Support**: Full internationalization with Portuguese and
   English support (with `/language` command)
-- **🛠️ TODO Tool**: Complete task management system for tracking and organizing
-  complex audit workflows
-- **⚙️ Advanced Model Control**: Enhanced slash commands for better AI model
-  management:
-  - `/model-switch` - Switch between Gemini Pro and Flash models
-  - `/stay-pro` - Disable/enable fallback to Flash model
-  - `/fallback-improved` - Toggle between retry strategies
-- **🔄 Improved Retry Strategy**: 7 retries with 2-second delays and automatic
-  reset to Gemini Pro on each user message
 - **🎯 Audit-Focused Features**: Specialized system prompts and capabilities
   tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working
