@@ -33,10 +33,8 @@ import type {
 import type { ContentGenerator } from './contentGenerator.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_THINKING_MODE,
   getEffectiveModel,
 } from '../config/models.js';
-import { getCurrentLanguage } from '../i18n/index.js';
 import { LoopDetectionService } from '../services/loopDetectionService.js';
 import { ChatCompressionService } from '../services/chatCompressionService.js';
 import { ideContextStore } from '../ide/ideContext.js';
@@ -54,22 +52,11 @@ import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
-// AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
-import { collaborativeWritingService } from '../tools/collaborative-writing.js';
-
-export function isThinkingSupported(model: string) {
-  return !model.startsWith('gemini-2.0');
-}
 
 const MAX_TURNS = 100;
 
 export class GeminiClient {
   private chat?: GeminiChat;
-  private readonly generateContentConfig: GenerateContentConfig = {
-    temperature: 1,
-    topP: 0.95,
-    topK: 64,
-  };
   private sessionTurnCount = 0;
 
   private readonly loopDetector: LoopDetectionService;
@@ -137,8 +124,6 @@ export class GeminiClient {
   setHistory(history: Content[]) {
     this.getChat().setHistory(history);
     this.forceFullIdeContext = true;
-    // Update token count in UI after history modification
-    this.updateTelemetryTokenCount(); // Custom Auditaria Feature: context.management.ts tool
   }
 
   async setTools(): Promise<void> {
@@ -198,30 +183,11 @@ export class GeminiClient {
 
     try {
       const userMemory = this.config.getUserMemory();
-      const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(
-        this.config,
-        userMemory,
-        currentLanguage,
-      );
-      const model = this.config.getModel();
-
-      const config: GenerateContentConfig = { ...this.generateContentConfig };
-
-      if (isThinkingSupported(model)) {
-        config.thinkingConfig = {
-          includeThoughts: true,
-          thinkingBudget: DEFAULT_THINKING_MODE,
-        };
-      }
-
+      const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
       return new GeminiChat(
         this.config,
-        {
-          systemInstruction,
-          ...config,
-          tools,
-        },
+        systemInstruction,
+        tools,
         history,
         resumedSessionData,
       );
@@ -467,14 +433,6 @@ export class GeminiClient {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
 
-    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditaria Custom Feature
-    // Check for external file changes and inject notifications before user message
-    await collaborativeWritingService.checkAndInjectFileUpdates(
-      this.getChat(),
-      signal,
-    );
-    // AUDITARIA_COLLABORATIVE_WRITING_END
-
     // Prevent context updates from being sent while a tool call is
     // waiting for a response. The Gemini API requires that a functionResponse
     // part from the user immediately follows a functionCall part from the model
@@ -533,7 +491,7 @@ export class GeminiClient {
       yield { type: GeminiEventType.ModelInfo, value: modelToUse };
     }
 
-    const resultStream = turn.run(modelToUse, request, linkedSignal);
+    const resultStream = turn.run({ model: modelToUse }, request, linkedSignal);
     for await (const event of resultStream) {
       if (this.loopDetector.addAndCheck(event)) {
         yield { type: GeminiEventType.LoopDetected };
@@ -632,12 +590,7 @@ export class GeminiClient {
 
     try {
       const userMemory = this.config.getUserMemory();
-      const currentLanguage = getCurrentLanguage();
-      const systemInstruction = getCoreSystemPrompt(
-        this.config,
-        userMemory,
-        currentLanguage,
-      );
+      const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
 
       const apiCall = () => {
         const modelConfigToUse = this.config.isInFallbackMode()
@@ -671,9 +624,6 @@ export class GeminiClient {
       const result = await retryWithBackoff(apiCall, {
         onPersistent429: onPersistent429Callback,
         authType: this.config.getContentGeneratorConfig()?.authType,
-        useImprovedFallbackStrategy:
-          this.config.getUseImprovedFallbackStrategy(),
-        disableFallbackForSession: this.config.getDisableFallbackForSession(),
       });
       return result;
     } catch (error: unknown) {
