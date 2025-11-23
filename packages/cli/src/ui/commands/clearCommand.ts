@@ -4,26 +4,54 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { uiTelemetryService, t, clearContextBackups, clearCollaborativeWriting } from '@thacio/auditaria-cli-core'; // AUDITARIA_COLLABORATIVE_WRITING
+import {
+  uiTelemetryService,
+  t,
+  clearContextBackups,
+  clearCollaborativeWriting,
+} from '@thacio/auditaria-cli-core'; // AUDITARIA_COLLABORATIVE_WRITING
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
+import { randomUUID } from 'node:crypto';
 
 export const clearCommand: SlashCommand = {
   name: 'clear',
   get description() {
-    return t('commands.clear.description', 'Clear the screen and conversation history');
+    return t(
+      'commands.clear.description',
+      'Clear the screen and conversation history',
+    );
   },
   kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const geminiClient = context.services.config?.getGeminiClient();
+    const config = context.services.config;
+    const chatRecordingService = context.services.config
+      ?.getGeminiClient()
+      ?.getChat()
+      .getChatRecordingService();
 
     if (geminiClient) {
-      context.ui.setDebugMessage(t('commands.clear.debug_reset', 'Clearing terminal and resetting chat.'));
+      context.ui.setDebugMessage(
+        t(
+          'commands.clear.debug_reset',
+          'Clearing terminal and resetting chat.',
+        ),
+      );
       // If resetChat fails, the exception will propagate and halt the command,
       // which is the correct behavior to signal a failure to the user.
       await geminiClient.resetChat();
     } else {
-      context.ui.setDebugMessage(t('commands.clear.debug_clear', 'Clearing terminal.'));
+      context.ui.setDebugMessage(
+        t('commands.clear.debug_clear', 'Clearing terminal.'),
+      );
+    }
+
+    // Start a new conversation recording with a new session ID
+    if (config && chatRecordingService) {
+      const newSessionId = randomUUID();
+      config.setSessionId(newSessionId);
+      chatRecordingService.initialize();
     }
 
     // Clear context management backups and hidden content storage
