@@ -33,14 +33,11 @@ import {
   runExitCleanup,
 } from './utils/cleanup.js';
 import { getCliVersion } from './utils/version.js';
-import type {
-  Config,
-  SupportedLanguage,
-  ResumedSessionData,
-  OutputPayload,
-  ConsoleLogPayload,
-} from '@google/gemini-cli-core';
 import {
+  type Config,
+  type ResumedSessionData,
+  type OutputPayload,
+  type ConsoleLogPayload,
   sessionId,
   logUserPrompt,
   AuthType,
@@ -55,6 +52,11 @@ import {
   patchStdio,
   writeToStdout,
   writeToStderr,
+  disableMouseEvents,
+  enableMouseEvents,
+  enterAlternateScreen,
+  disableLineWrapping,
+  shouldEnterAlternateScreen,
 } from '@google/gemini-cli-core';
 import {
   initializeApp,
@@ -87,7 +89,6 @@ import { deleteSession, listSessions } from './utils/sessions.js';
 import { ExtensionManager } from './config/extension-manager.js';
 import { createPolicyUpdater } from './config/policy.js';
 import { requestConsentNonInteractive } from './config/extensions/consent.js';
-import { disableMouseEvents, enableMouseEvents } from './ui/utils/mouse.js';
 // WEB_INTERFACE_START: Import web interface providers
 import { SubmitQueryProvider } from './ui/contexts/SubmitQueryContext.js';
 import { WebInterfaceProvider } from './ui/contexts/WebInterfaceContext.js';
@@ -97,7 +98,6 @@ import { ToolConfirmationProvider } from './ui/contexts/ToolConfirmationContext.
 import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
 import { ScrollProvider } from './ui/contexts/ScrollProvider.js';
-import ansiEscapes from 'ansi-escapes';
 import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
 
 import { profiler } from './ui/components/DebugProfiler.js';
@@ -210,8 +210,10 @@ export async function startInteractiveUI(
   // as there is no benefit of alternate buffer mode when using a screen reader
   // and the Ink alternate buffer mode requires line wrapping harmful to
   // screen readers.
-  const useAlternateBuffer =
-    isAlternateBufferEnabled(settings) && !config.getScreenReader();
+  const useAlternateBuffer = shouldEnterAlternateScreen(
+    isAlternateBufferEnabled(settings),
+    config.getScreenReader(),
+  );
   const mouseEventsEnabled = useAlternateBuffer;
   if (mouseEventsEnabled) {
     enableMouseEvents();
@@ -538,8 +540,14 @@ export async function main() {
       // input showing up in the output.
       process.stdin.setRawMode(true);
 
-      if (isAlternateBufferEnabled(settings)) {
-        writeToStdout(ansiEscapes.enterAlternativeScreen);
+      if (
+        shouldEnterAlternateScreen(
+          isAlternateBufferEnabled(settings),
+          config.getScreenReader(),
+        )
+      ) {
+        enterAlternateScreen();
+        disableLineWrapping();
 
         // Ink will cleanup so there is no need for us to manually cleanup.
       }

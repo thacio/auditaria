@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
-
 import type React from 'react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { RadioButtonSelect } from '../components/shared/RadioButtonSelect.js';
@@ -19,13 +17,13 @@ import { SettingScope } from '../../config/settings.js';
 import {
   AuthType,
   clearCachedCredentialFile,
-  debugLogger,
   type Config,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { AuthState } from '../types.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
 import { validateAuthMethodWithSettings } from './useAuth.js';
+import { RELAUNCH_EXIT_CODE } from '../../utils/processUtils.js';
 
 interface AuthDialogProps {
   config: Config;
@@ -42,30 +40,17 @@ export function AuthDialog({
   authError,
   onAuthError,
 }: AuthDialogProps): React.JSX.Element {
+  const [exiting, setExiting] = useState(false);
   let items = [
     {
-      label: t(
-        'auth_dialog.options.login_google_free',
-        'Login with Google - Free Tier',
-      ),
+      label: 'Login with Google',
       value: AuthType.LOGIN_WITH_GOOGLE,
       key: AuthType.LOGIN_WITH_GOOGLE,
-    },
-    {
-      label: t(
-        'auth_dialog.options.login_google_gca',
-        'Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)',
-      ),
-      value: AuthType.LOGIN_WITH_GOOGLE_GCA,
-      key: AuthType.LOGIN_WITH_GOOGLE_GCA,
     },
     ...(process.env['CLOUD_SHELL'] === 'true'
       ? [
           {
-            label: t(
-              'auth_dialog.options.cloud_shell',
-              'Use Cloud Shell user credentials',
-            ),
+            label: 'Use Cloud Shell user credentials',
             value: AuthType.COMPUTE_ADC,
             key: AuthType.COMPUTE_ADC,
           },
@@ -73,22 +58,19 @@ export function AuthDialog({
       : process.env['GEMINI_CLI_USE_COMPUTE_ADC'] === 'true'
         ? [
             {
-              label: t(
-                'auth_dialog.options.compute_adc',
-                'Use metadata server application default credentials',
-              ),
+              label: 'Use metadata server application default credentials',
               value: AuthType.COMPUTE_ADC,
               key: AuthType.COMPUTE_ADC,
             },
           ]
         : []),
     {
-      label: t('auth_dialog.options.gemini_api', 'Use Gemini API Key'),
+      label: 'Use Gemini API Key',
       value: AuthType.USE_GEMINI,
       key: AuthType.USE_GEMINI,
     },
     {
-      label: t('auth_dialog.options.vertex_ai', 'Vertex AI'),
+      label: 'Vertex AI',
       value: AuthType.USE_VERTEX_AI,
       key: AuthType.USE_VERTEX_AI,
     },
@@ -130,6 +112,9 @@ export function AuthDialog({
 
   const onSelect = useCallback(
     async (authType: AuthType | undefined, scope: LoadableSettingScope) => {
+      if (exiting) {
+        return;
+      }
       if (authType) {
         await clearCachedCredentialFile();
 
@@ -138,15 +123,12 @@ export function AuthDialog({
           authType === AuthType.LOGIN_WITH_GOOGLE &&
           config.isBrowserLaunchSuppressed()
         ) {
-          runExitCleanup();
-          debugLogger.log(
-            `
-----------------------------------------------------------------
-${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Auditaria CLI to continue.')}
-----------------------------------------------------------------
-            `,
-          );
-          process.exit(0);
+          setExiting(true);
+          setTimeout(async () => {
+            await runExitCleanup();
+            process.exit(RELAUNCH_EXIT_CODE);
+          }, 100);
+          return;
         }
       }
       if (authType === AuthType.USE_GEMINI) {
@@ -155,7 +137,7 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
       }
       setAuthState(AuthState.Unauthenticated);
     },
-    [settings, config, setAuthState],
+    [settings, config, setAuthState, exiting],
   );
 
   const handleAuthSelect = (authMethod: AuthType) => {
@@ -178,10 +160,7 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
         if (settings.merged.security?.auth?.selectedType === undefined) {
           // Prevent exiting if no auth method is set
           onAuthError(
-            t(
-              'auth_dialog.messages.must_select_auth',
-              'You must select an auth method to proceed. Press Ctrl+C twice to exit.',
-            ),
+            'You must select an auth method to proceed. Press Ctrl+C twice to exit.',
           );
           return;
         }
@@ -190,6 +169,23 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
     },
     { isActive: true },
   );
+
+  if (exiting) {
+    return (
+      <Box
+        borderStyle="round"
+        borderColor={theme.border.focused}
+        flexDirection="row"
+        padding={1}
+        width="100%"
+        alignItems="flex-start"
+      >
+        <Text color={theme.text.primary}>
+          Logging in with Google... Restarting Gemini CLI to continue.
+        </Text>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -203,14 +199,11 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
       <Text color={theme.text.accent}>? </Text>
       <Box flexDirection="column" flexGrow={1}>
         <Text bold color={theme.text.primary}>
-          {t('auth_dialog.dialog_title', 'Get started')}
+          Get started
         </Text>
         <Box marginTop={1}>
           <Text color={theme.text.primary}>
-            {t(
-              'auth_dialog.dialog_question',
-              'How would you like to authenticate for this project?',
-            )}
+            How would you like to authenticate for this project?
           </Text>
         </Box>
         <Box marginTop={1}>
@@ -229,16 +222,11 @@ ${t('oauth.restart_cli_message', 'Logging in with Google... Please restart Audit
           </Box>
         )}
         <Box marginTop={1}>
-          <Text color={theme.text.secondary}>
-            {t('auth_dialog.messages.use_enter', '(Use Enter to select)')}
-          </Text>
+          <Text color={theme.text.secondary}>(Use Enter to select)</Text>
         </Box>
         <Box marginTop={1}>
           <Text color={theme.text.primary}>
-            {t(
-              'auth_dialog.messages.terms_privacy',
-              'Terms of Services and Privacy Notice for Auditaria CLI',
-            )}
+            Terms of Services and Privacy Notice for Gemini CLI
           </Text>
         </Box>
         <Box marginTop={1}>
