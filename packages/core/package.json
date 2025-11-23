@@ -1,10 +1,10 @@
 {
   "name": "@thacio/auditaria-cli-core",
-  "version": "0.18.0-nightly.20251118.86828bb56",
-  "description": "Auditaria CLI Core",
+  "version": "0.18.0-nightly.20251120.2231497b1",
+  "description": "Gemini CLI Core",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thacio/auditaria.git"
+    "url": "git+https://github.com/google-gemini/gemini-cli.git"
   },
   "type": "module",
   "main": "dist/index.js",
@@ -54,7 +54,6 @@
     "html-to-text": "^9.0.5",
     "https-proxy-agent": "^7.0.6",
     "ignore": "^7.0.0",
-    "js-yaml": "^4.1.1",
     "marked": "^15.0.12",
     "mime": "4.0.7",
     "mnemonist": "^0.40.3",
@@ -84,7 +83,6 @@
     "@types/diff": "^7.0.2",
     "@types/dotenv": "^6.1.1",
     "@types/fast-levenshtein": "^0.0.4",
-    "@types/js-yaml": "^4.0.9",
     "@types/minimatch": "^5.1.2",
     "@types/picomatch": "^4.0.1",
     "@types/ws": "^8.5.10",

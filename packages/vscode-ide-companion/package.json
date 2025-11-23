@@ -1,13 +1,13 @@
 {
-  "name": "auditaria-cli-vscode-ide-companion",
-  "displayName": "Auditaria CLI Companion",
-  "description": "Enable Auditaria CLI with direct access to your IDE workspace.",
-  "version": "0.18.0-nightly.20251118.86828bb56",
+  "name": "gemini-cli-vscode-ide-companion",
+  "displayName": "Gemini CLI Companion",
+  "description": "Enable Gemini CLI with direct access to your IDE workspace.",
+  "version": "0.18.0-nightly.20251120.2231497b1",
   "publisher": "google",
   "icon": "assets/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thacio/auditaria.git",
+    "url": "https://github.com/google-gemini/gemini-cli.git",
     "directory": "packages/vscode-ide-companion"
   },
   "engines": {
@@ -19,10 +19,10 @@
     "AI"
   ],
   "keywords": [
-    "auditaria-cli",
-    "auditaria cli",
-    "auditaria",
-    "auditaria code",
+    "gemini-cli",
+    "gemini cli",
+    "gemini",
+    "gemini code",
     "cli",
     "ide integration",
     "ide companion"
@@ -32,7 +32,7 @@
   ],
   "contributes": {
     "configuration": {
-      "title": "Gemini CLI",
+      "title": "Auditaria CLI",
       "properties": {
         "gemini-cli.debug.logging.enabled": {
           "type": "boolean",
@@ -58,12 +58,12 @@
         "icon": "$(close)"
       },
       {
-        "command": "auditaria-cli.runAuditariaCLI",
-        "title": "Auditaria CLI: Run"
+        "command": "gemini-cli.runGeminiCLI",
+        "title": "Gemini CLI: Run"
       },
       {
-        "command": "auditaria-cli.showNotices",
-        "title": "Auditaria CLI: View Third-Party Notices"
+        "command": "gemini-cli.showNotices",
+        "title": "Gemini CLI: View Third-Party Notices"
       }
     ],
     "menus": {
