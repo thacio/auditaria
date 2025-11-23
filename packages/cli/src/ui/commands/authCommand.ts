@@ -6,13 +6,10 @@
 
 import type { OpenDialogActionReturn, SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
-import { t } from '@google/gemini-cli-core';
 
 export const authCommand: SlashCommand = {
   name: 'auth',
-  get description() {
-    return t('commands.auth.description', 'Change the auth method');
-  },
+  description: 'Change the auth method',
   kind: CommandKind.BUILT_IN,
   action: (_context, _args): OpenDialogActionReturn => ({
     type: 'dialog',

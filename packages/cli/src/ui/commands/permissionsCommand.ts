@@ -10,7 +10,6 @@ import type {
   SlashCommandActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { t } from '@google/gemini-cli-core';
 import * as process from 'node:process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -18,22 +17,13 @@ import { expandHomeDir } from '../utils/directoryUtils.js';
 
 export const permissionsCommand: SlashCommand = {
   name: 'permissions',
-  get description() {
-    return t(
-      'commands.permissions.description',
-      'Manage folder trust settings and other permissions',
-    );
-  },
+  description: 'Manage folder trust settings and other permissions',
   kind: CommandKind.BUILT_IN,
   subCommands: [
     {
       name: 'trust',
-      get description() {
-        return t(
-          'commands.permissions.trust.description',
-          'Manage folder trust settings. Usage: /permissions trust [<directory-path>]',
-        );
-      },
+      description:
+        'Manage folder trust settings. Usage: /permissions trust [<directory-path>]',
       kind: CommandKind.BUILT_IN,
       action: (context, input): SlashCommandActionReturn => {
         const dirPath = input.trim();
@@ -50,11 +40,7 @@ export const permissionsCommand: SlashCommand = {
             return {
               type: 'message',
               messageType: 'error',
-              content: t(
-                'commands.permissions.trust.not_directory',
-                'Path is not a directory: {path}',
-                { path: targetDirectory },
-              ),
+              content: `Path is not a directory: ${targetDirectory}`,
             };
           }
         } catch (e) {
@@ -62,11 +48,7 @@ export const permissionsCommand: SlashCommand = {
           return {
             type: 'message',
             messageType: 'error',
-            content: t(
-              'commands.permissions.trust.error_accessing',
-              'Error accessing path: {path}. {error}',
-              { path: targetDirectory, error: message },
-            ),
+            content: `Error accessing path: ${targetDirectory}. ${message}`,
           };
         }
 
@@ -88,21 +70,14 @@ export const permissionsCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: t(
-          'commands.permissions.provide_subcommand',
-          'Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]',
-        ),
+        content: `Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]`,
       };
     }
 
     return {
       type: 'message',
       messageType: 'error',
-      content: t(
-        'commands.permissions.invalid_subcommand',
-        'Invalid subcommand for /permissions: {subcommand}. Usage: /permissions trust [<directory-path>]',
-        { subcommand },
-      ),
+      content: `Invalid subcommand for /permissions: ${subcommand}. Usage: /permissions trust [<directory-path>]`,
     };
   },
 };

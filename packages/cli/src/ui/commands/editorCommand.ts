@@ -9,13 +9,10 @@ import {
   type OpenDialogActionReturn,
   type SlashCommand,
 } from './types.js';
-import { t } from '@google/gemini-cli-core';
 
 export const editorCommand: SlashCommand = {
   name: 'editor',
-  get description() {
-    return t('commands.editor.description', 'Set external editor preference');
-  },
+  description: 'Set external editor preference',
   kind: CommandKind.BUILT_IN,
   action: (): OpenDialogActionReturn => ({
     type: 'dialog',
