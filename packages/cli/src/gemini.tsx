@@ -51,6 +51,10 @@ import {
   recordSlowRender,
   coreEvents,
   CoreEvent,
+  createInkStdio,
+  patchStdio,
+  writeToStdout,
+  writeToStderr,
 } from '@google/gemini-cli-core';
 import {
   initializeApp,
@@ -95,12 +99,6 @@ import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.j
 import { ScrollProvider } from './ui/contexts/ScrollProvider.js';
 import ansiEscapes from 'ansi-escapes';
 import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
-import {
-  createInkStdio,
-  patchStdio,
-  writeToStderr,
-  writeToStdout,
-} from './utils/stdio.js';
 
 import { profiler } from './ui/components/DebugProfiler.js';
 
