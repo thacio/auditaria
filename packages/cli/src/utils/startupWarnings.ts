@@ -3,12 +3,11 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
 
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import { join as pathJoin } from 'node:path';
-import { getErrorMessage } from '@google/gemini-cli-core';
+import { getErrorMessage } from '@thacio/auditaria-cli-core';
 
 const warningsFilePath = pathJoin(os.tmpdir(), 'gemini-cli-warnings.txt');
 
@@ -22,7 +21,7 @@ export async function getStartupWarnings(): Promise<string[]> {
     try {
       await fs.unlink(warningsFilePath);
     } catch {
-      warnings.push(t('startup.cannot_delete_warnings_file', 'Warning: Could not delete temporary warnings file.'));
+      warnings.push('Warning: Could not delete temporary warnings file.');
     }
     return warnings;
   } catch (err: unknown) {
@@ -36,6 +35,6 @@ export async function getStartupWarnings(): Promise<string[]> {
       return []; // File not found, no warnings to return.
     }
     // For other errors (permissions, etc.), return the error message.
-    return [t('startup.error_reading_warnings_file', 'Error checking/reading warnings file: {error}', { error: getErrorMessage(err) })];
+    return [`Error checking/reading warnings file: ${getErrorMessage(err)}`];
   }
 }

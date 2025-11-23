@@ -7,7 +7,6 @@
 import { useEffect } from 'react';
 import process from 'node:process';
 import { type HistoryItemWithoutId, MessageType } from '../types.js';
-import { t } from '@google/gemini-cli-core';
 
 export const MEMORY_WARNING_THRESHOLD = 7 * 1024 * 1024 * 1024; // 7GB in bytes
 export const MEMORY_CHECK_INTERVAL = 60 * 1000; // one minute
@@ -21,15 +20,15 @@ export const useMemoryMonitor = ({ addItem }: MemoryMonitorOptions) => {
     const intervalId = setInterval(() => {
       const usage = process.memoryUsage().rss;
       if (usage > MEMORY_WARNING_THRESHOLD) {
-        const usageGB = (usage / (1024 * 1024 * 1024)).toFixed(2);
         addItem(
           {
             type: MessageType.WARNING,
-            text: t(
-              'system.memory.high_usage_warning',
-              'High memory usage detected: {usage} GB. If you experience a crash, please file a bug report by running `/bug`',
-              { usage: usageGB },
-            ),
+            text:
+              `High memory usage detected: ${(
+                usage /
+                (1024 * 1024 * 1024)
+              ).toFixed(2)} GB. ` +
+              'If you experience a crash, please file a bug report by running `/bug`',
           },
           Date.now(),
         );

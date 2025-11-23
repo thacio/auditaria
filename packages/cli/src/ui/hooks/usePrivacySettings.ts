@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
 
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -11,7 +10,7 @@ import {
   type CodeAssistServer,
   UserTierId,
   getCodeAssistServer,
-} from '@google/gemini-cli-core';
+} from '@thacio/auditaria-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;
@@ -88,9 +87,9 @@ export const usePrivacySettings = (config: Config) => {
 function getCodeAssistServerOrFail(config: Config): CodeAssistServer {
   const server = getCodeAssistServer(config);
   if (server === undefined) {
-    throw new Error(t('privacy.oauth_not_used', 'Oauth not being used'));
+    throw new Error('Oauth not being used');
   } else if (server.projectId === undefined) {
-    throw new Error(t('privacy.no_current_tier', 'CodeAssist server is missing a project ID'));
+    throw new Error('CodeAssist server is missing a project ID');
   }
   return server;
 }
@@ -106,7 +105,7 @@ async function getTier(server: CodeAssistServer): Promise<UserTierId> {
     },
   });
   if (!loadRes.currentTier) {
-    throw new Error(t('privacy.no_current_tier', 'User does not have a current tier'));
+    throw new Error('User does not have a current tier');
   }
   return loadRes.currentTier.id;
 }

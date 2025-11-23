@@ -6,7 +6,6 @@
 
 import { spawn } from 'node:child_process';
 import { RELAUNCH_EXIT_CODE } from './processUtils.js';
-import { t } from '@google/gemini-cli-core';
 
 export async function relaunchOnExitCode(runner: () => Promise<number>) {
   while (true) {
@@ -18,13 +17,7 @@ export async function relaunchOnExitCode(runner: () => Promise<number>) {
       }
     } catch (error) {
       process.stdin.resume();
-      console.error(
-        t(
-          'relaunch.fatal_error',
-          'Fatal error: Failed to relaunch the CLI process.',
-        ),
-        error,
-      );
+      console.error('Fatal error: Failed to relaunch the CLI process.', error);
       process.exit(1);
     }
   }

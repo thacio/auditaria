@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
+import { debugLogger } from '@thacio/auditaria-cli-core';
 import clipboardy from 'clipboardy';
 
 /**
@@ -65,12 +65,8 @@ export const getUrlOpenCommand = (): string => {
     default:
       // Default to xdg-open, which appears to be supported for the less popular operating systems.
       openCmd = 'xdg-open';
-      console.warn(
-        t(
-          'utils.unknown_platform_url_open',
-          `Unknown platform: ${process.platform}. Attempting to open URLs with: ${openCmd}.`,
-          { platform: process.platform, openCmd },
-        ),
+      debugLogger.warn(
+        `Unknown platform: ${process.platform}. Attempting to open URLs with: ${openCmd}.`,
       );
       break;
   }
