@@ -1,0 +1,2757 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "generated": "2025-11-23T21:25:45.308Z",
+    "exact_count": 809,
+    "pattern_count": 379,
+    "language_pair": "en-pt"
+  },
+  "exact": {
+    "\n\nThis error was probably caused by cyclic schema references in one of the following tools, try disabling them:\n\n - ": "\n\nEste erro provavelmente foi causado por referências de esquema cíclicas em uma das seguintes ferramentas, tente desabilitá-las:\n\n - ",
+    "\n(Note: The file list is limited to a number of recently accessed files within your workspace and only includes local files on disk)": "\n(Nota: A lista de arquivos é limitada a um número de arquivos acessados recentemente em seu workspace e inclui apenas arquivos locais no disco)",
+    "\n--- Content from referenced files ---": "\n--- Conteúdo dos arquivos referenciados ---",
+    "\n--- End of content ---": "\n--- Fim do conteúdo ---",
+    "\nFailed to authenticate with user code.": "\nFalha na autenticação com código do usuário.",
+    "\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do AI Studio, ou mude para outro método /auth",
+    "\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do Vertex, ou mude para outro método /auth",
+    "\nYou have reached your daily quota limit. To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo.gle/set-up-gemini-code-assist, or use /auth to switch to using a paid API key from AI Studio at https://aistudio.google.com/apikey": "\nVocê atingiu seu limite de cota diária. Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist, ou use /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+    "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode.": "  Pressione 'i' para modo INSERT e 'Esc' para modo NORMAL.",
+    "  Type your message or @path/to/file": "  Digite sua mensagem ou @caminho/para/arquivo",
+    " (active)": " (ativo)",
+    " (ctrl + y to toggle)": " (ctrl + y para alternar)",
+    " (ctrl+t to toggle)": " (ctrl+t para alternar)",
+    " (ctrl+t to view)": " (ctrl+t para visualizar)",
+    " (esc to disable)": " (esc para desabilitar)",
+    " (shift + tab to toggle)": " (shift + tab para alternar)",
+    " (some lines were shortened)": " (algumas linhas foram encurtadas)",
+    " Overall Agreement Rate:": " Taxa Geral de Concordância:",
+    " and ": " e ",
+    " » Accepted:": " » Aceitas:",
+    " » Modified:": " » Modificadas:",
+    " » Rejected:": " » Rejeitadas:",
+    "% context left": "% contexto restante",
+    "(Command produced no output)": "(Comando não produziu saída)",
+    "(Deprecated)": "(Obsoleto)",
+    "(F12 for details)": "(F12 para detalhes)",
+    "(Focused)": "(Focado)",
+    "(Press Esc to close)": "(Pressione Esc para fechar)",
+    "(Use Enter to select": "(Use Enter para selecionar",
+    "(Use Enter to select, Esc to close)": "(Use Enter para selecionar, Esc para fechar)",
+    "(Use Enter to select, Tab to change focus, Esc to close)": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
+    "(ctrl+f to focus)": "(ctrl+f para focar)",
+    "(idle)": "(ociosas)",
+    "(see /docs)": "(ver /docs)",
+    "(tools and prompts will appear when ready)": "(ferramentas e prompts aparecerão quando prontos)",
+    "(tools will appear when ready)": "(ferramentas aparecerão quando prontas)",
+    "**Extensions may introduce unexpected behavior. Ensure you have investigated the extension source and trust the author.**": "**Extensões podem introduzir comportamentos inesperados. Certifique-se de ter investigado a fonte da extensão e confie no autor.**",
+    ", Esc to cancel": ", Esc para cancelar",
+    ", Tab to change focus": ", Tab para mudar o foco",
+    ", Tab to change focus)": ", Tab para mudar o foco)",
+    "- Ctrl+Enter binding already exists": "- Atalho Ctrl+Enter já existe",
+    "- Shift+Enter binding already exists": "- Atalho Shift+Enter já existe",
+    "--ref and --auto-update are not applicable for local extensions.": "--ref e --auto-update não são aplicáveis para extensões locais.",
+    "... first {count} line{plural} hidden ...": "... primeiras {count} linha{plural} oculta{plural} ...",
+    "... last {count} line{plural} hidden ...": "... últimas {count} linha{plural} oculta{plural} ...",
+    "1. Ask questions, edit files, or run commands.": "1. Faça perguntas, edite arquivos ou execute comandos.",
+    "2. Be specific for the best results.": "2. Seja específico para obter melhores resultados.",
+    "> To use a specific Gemini model on startup, use the --model flag.": "> Para usar um modelo Gemini específico ao iniciar, use a flag --model.",
+    "A GEMINI.md file already exists in this directory. No changes were made.": "Um arquivo GEMINI.md já existe neste diretório. Nenhuma alteração foi feita.",
+    "A comma-separated list of tools to exclude": "Uma lista separada por vírgulas de ferramentas para excluir",
+    "A comma-separated list of tools to include": "Uma lista separada por vírgulas de ferramentas para incluir",
+    "A custom command wants to run the following shell commands:": "Um comando personalizado quer executar os seguintes comandos shell:",
+    "A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.": "Um frame de flicker foi detectado. Isso causará instabilidade na UI. Digite `/profile` para mais informações.",
+    "A folder trust level must be selected to continue. Exiting since escape was pressed.": "Um nível de confiança de pasta deve ser selecionado para continuar. Saindo pois a tecla escape foi pressionada.",
+    "A potential loop was detected": "Um possível loop foi detectado",
+    "A potential loop was detected. This can happen due to repetitive tool calls or other model behavior. The request has been halted.": "Um possível loop foi detectado. Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. A solicitação foi interrompida.",
+    "API Time:": "Tempo de API:",
+    "About Gemini CLI": "Sobre Gemini CLI",
+    "Accepting edits": "Aceitando edições",
+    "Acknowledge the security risks of installing an extension and skip the confirmation prompt.": "Reconhecer os riscos de segurança ao instalar uma extensão e pular o prompt de confirmação.",
+    "Active extensions:": "Extensões ativas:",
+    "Add a server": "Adicionar um servidor",
+    "Add content to the memory.": "Adicionar conteúdo à memória.",
+    "Add context": "Adicionar contexto",
+    "Add directories to the workspace. Use comma to separate multiple paths": "Adicionar diretórios ao espaço de trabalho. Use vírgula para separar múltiplos caminhos",
+    "Agent Active:": "Agente Ativo:",
+    "Agent powering down. Goodbye!": "Agente desligando. Tchau!",
+    "Aligning the stars for optimal response...": "Alinhando as estrelas para resposta ótima...",
+    "All extensions are disabled.": "Todas as extensões estão desabilitadas.",
+    "Allow Google to use this data to develop and improve our products?": "Permitir que o Google use estes dados para desenvolver e melhorar nossos produtos?",
+    "Allow execution?": "Permitir execução?",
+    "Almost there... probably...": "Quase lá... provavelmente...",
+    "Already compressing, wait for previous request to complete": "Já comprimindo, aguarde a solicitação anterior terminar",
+    "Alt+Left/Right": "Alt+Esquerda/Direita",
+    "Analyzes the project and creates a tailored GEMINI.md file": "Analisa o projeto e cria um arquivo GEMINI.md personalizado",
+    "Analyzes the project and creates a tailored GEMINI.md file.": "Analisa o projeto e cria um arquivo GEMINI.md personalizado.",
+    "Apply To": "Aplicar Para",
+    "Apply this change?": "Aplicar esta alteração?",
+    "Applying percussive maintenance...": "Aplicando manutenção percussiva...",
+    "Approval mode overridden to \"default\" because the current folder is not trusted.": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável.",
+    "Are you not entertained? (Working on it!)": "Vocês não se divertem? (Trabalhando nisso!)",
+    "Asking the magic conch shell...": "Perguntando à concha mágica...",
+    "Assembling the interwebs...": "Montando as interwebs...",
+    "Auditaria CLI Privacy Notice": "Aviso de Privacidade do Auditaria CLI",
+    "Auditaria CLI is restarting to apply the trust changes...": "O Auditaria CLI está reiniciando para aplicar as mudanças de confiança...",
+    "Auditaria CLI: Run": "Auditaria CLI: Executar",
+    "Auth Method": "Método de Autenticação",
+    "Authenticate with an OAuth-enabled MCP server": "Autenticar com um servidor MCP habilitado para OAuth",
+    "Authentication cancelled.": "Autenticação cancelada.",
+    "Authentication is in progress. Please check the CLI terminal.": "Autenticação em andamento. Por favor, verifique o terminal do CLI.",
+    "Authentication is required. Please complete the authentication process in the CLI terminal.": "Autenticação necessária. Por favor, complete o processo de autenticação no terminal do CLI.",
+    "Authentication timed out after 5 minutes. The browser tab may have gotten stuck in a loading state. Please try again or use NO_BROWSER=true for manual authentication.": "Autenticação expirou após 5 minutos. A aba do navegador pode ter ficado travada em um estado de carregamento. Tente novamente ou use NO_BROWSER=true para autenticação manual.",
+    "Authentication timed out. Please try again.": "Autenticação expirou. Por favor, tente novamente.",
+    "Authorization code is required.": "Código de autorização é obrigatório.",
+    "Auto (recommended)": "Automático (recomendado)",
+    "Auto Accept": "Aceitar Automaticamente",
+    "Auto Configure Max Old Space Size": "Configurar Automaticamente Tamanho Máximo de Memória",
+    "Automatic update failed. Please try updating manually": "Atualização automática falhou. Por favor, tente atualizar manualmente",
+    "Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
+    "Available Gemini CLI tools:": "Ferramentas disponíveis do Gemini CLI:",
+    "Avg Duration": "Duração Média",
+    "Avg Latency": "Latência Média",
+    "Basics:": "Básico:",
+    "Blowing on the cartridge...": "Soprando o cartucho...",
+    "Brewing fresh bytes...": "Preparando bytes frescos...",
+    "Buffering... because even AIs need a moment.": "Bufferizando... porque até IAs precisam de um momento.",
+    "CLI Action Required": "Ação Necessária no CLI",
+    "CLI Version": "Versão CLI",
+    "Cached": "Cache",
+    "Caching the essentials (mostly cat memes)...": "Cachando o essencial (principalmente memes de gatos)...",
+    "Calibrating the flux capacitor...": "Calibrando o capacitor de fluxo...",
+    "Calls": "Chamadas",
+    "Cancel operation": "Cancelar operação",
+    "Cancel operation / Clear input (double press)": "Cancelar operação / Limpar entrada (pressione duas vezes)",
+    "Cancelling...": "Cancelando...",
+    "Cannot BUILD_SANDBOX when using macOS Seatbelt": "Não é possível BUILD_SANDBOX ao usar macOS Seatbelt",
+    "Cannot build sandbox using installed gemini binary; run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.": "Não é possível construir sandbox usando binário gemini instalado; execute `npm link ./packages/cli` no repositório gemini-cli para mudar para binário vinculado.",
+    "Cannot enable privileged approval modes in an untrusted folder.": "Não é possível ativar modos de aprovação privilegiados em uma pasta não confiável.",
+    "Cannot start in YOLO mode when it is disabled by settings": "Não é possível iniciar no modo YOLO quando ele está desabilitado pelas configurações",
+    "Cannot use both --prompt (-p) and --prompt-interactive (-i) together": "Não é possível usar --prompt (-p) e --prompt-interactive (-i) juntos",
+    "Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
+    "Cannot use both a positional prompt and the --prompt (-p) flag together": "Não é possível usar um prompt posicional e a flag --prompt (-p) juntos",
+    "Channeling the Force...": "Canalizando a Força...",
+    "Charging the laser... pew pew!": "Carregando o laser... pew pew!",
+    "Checking for syntax errors in the universe...": "Verificando erros de sintaxe no universo...",
+    "Choose your preferred language for the interface. You can change this later using the /language command.": "Escolha seu idioma preferido para a interface. Você pode alterar isso mais tarde usando o comando /language.",
+    "Citations:": "Citações:",
+    "Clear the screen": "Limpar a tela",
+    "Client error.": "Erro do cliente.",
+    "Code Changes:": "Alterações de Código:",
+    "CodeAssist server is missing a project ID": "Servidor CodeAssist está sem ID de projeto",
+    "Command (stdio) or URL (sse, http)": "Comando (stdio) ou URL (sse, http)",
+    "Command cancelled by user.": "Comando cancelado pelo usuário.",
+    "Command substitution using $(), `` ` ``, <(), or >() is not allowed for security reasons": "Substituição de comando usando $(), `` ` ``, <(), ou >() não é permitida por razões de segurança",
+    "Command was cancelled.": "Comando foi cancelado.",
+    "Commands for interacting with memory.": "Comandos para interagir com a memória.",
+    "Commands:": "Comandos:",
+    "Communing with the machine spirit...": "Comungando com o espírito da máquina...",
+    "Compiling brilliance...": "Compilando genialidade...",
+    "Compiling the 1s and 0s...": "Compilando os 1s e 0s...",
+    "Compresses the context by replacing it with a summary.": "Comprime o contexto substituindo-o por um resumo.",
+    "Compressing chat history": "Comprimindo histórico do chat",
+    "Config not loaded.": "Configuração não carregada.",
+    "Configuration is not available.": "Configuração não está disponível.",
+    "Configuration not available.": "Configuração não disponível.",
+    "Configuration not available. Cannot show memory.": "Configuração não disponível. Não é possível mostrar a memória.",
+    "Configuration scope (user or project)": "Escopo de configuração (usuário ou projeto)",
+    "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)": "Configurar atalhos de teclado do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
+    "Configured MCP servers:": "Servidores MCP configurados:",
+    "Configured MCP servers:\n": "Servidores MCP configurados:\n",
+    "Confirmation required. Please respond in the CLI terminal.": "Confirmação necessária. Por favor, responda no terminal do CLI.",
+    "Confuzzling the options...": "Confundindo as opções...",
+    "Connected": "Conectado",
+    "Connected to Auditaria CLI": "Conectado ao Auditaria CLI",
+    "Connecting": "Conectando",
+    "Constructing additional pylons...": "Construindo pilões adicionais...",
+    "Consulting the digital spirits...": "Consultando os espíritos digitais...",
+    "Context (ctrl+g to toggle)": "Contexto (ctrl+g para alternar)",
+    "Converting coffee into code...": "Convertendo café em código...",
+    "Copy the last result or code snippet to clipboard": "Copiar o último resultado ou trecho de código para a área de transferência",
+    "Could not connect to IDE. Make sure you have the companion VS Code extension installed from the marketplace or via /ide install.": "Não foi possível conectar ao IDE. Certifique-se de ter a extensão companheira do VS Code instalada do marketplace ou via /ide install.",
+    "Could not detect terminal type. Supported terminals: VS Code, Cursor, and Windsurf.": "Não foi possível detectar o tipo de terminal. Terminais suportados: VS Code, Cursor e Windsurf.",
+    "Could not determine compressed history token count.": "Não foi possível determinar a contagem de tokens do histórico comprimido.",
+    "Could not determine the .gemini directory path.": "Não foi possível determinar o caminho do diretório .gemini.",
+    "Could not find the required VS Code companion extension. Please file a bug via /bug.": "Não foi possível encontrar a extensão companheira do VS Code necessária. Por favor, registre um bug via /bug.",
+    "Could not retrieve tool registry.": "Não foi possível recuperar o registro de ferramentas.",
+    "Could not retrieve tools.": "Não foi possível recuperar as ferramentas.",
+    "Could not verify the current directory due to a file system error.": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
+    "Counting electrons...": "Contando elétrons...",
+    "Crafting a response worthy of your patience...": "Elaborando uma resposta digna da sua paciência...",
+    "Create a new extension from a boilerplate example.": "Criar uma nova extensão a partir de um exemplo modelo.",
+    "Current Level:": "Nível Atual:",
+    "Custom": "Personalizado",
+    "Custom Witty Phrases": "Frases Espirituosas Personalizadas",
+    "Custom witty phrases to display during loading.": "Frases espirituosas personalizadas para exibir durante o carregamento.",
+    "Cycle through your prompt history": "Navegar pelo histórico de prompts",
+    "DOCX parser is now available in the web interface.": "O parser DOCX está agora disponível na interface web.",
+    "Data collection is disabled.": "A coleta de dados está desabilitada.",
+    "Debug Console": "Console de Debug",
+    "Defragmenting memories... both RAM and personal...": "Desfragmentando memórias... tanto RAM quanto pessoais...",
+    "Disable Auto Update": "Desabilitar Atualização Automática",
+    "Disable Loading Phrases": "Desabilitar Frases de Carregamento",
+    "Disable loop detection for this session": "Desativar detecção de loop para esta sessão",
+    "Disables an extension.": "Desabilita uma extensão.",
+    "Disconnected": "Desconectado",
+    "Discovering available language options...": "Descobrindo opções de idioma disponíveis...",
+    "Display the privacy notice": "Exibir o aviso de privacidade",
+    "Distracting you with this witty phrase...": "Distraindo você com esta frase espirituosa...",
+    "Dividing by zero... just kidding!": "Dividindo por zero... brincadeira!",
+    "Do you trust this folder?": "Você confia nesta pasta?",
+    "Do you want to continue?": "Deseja continuar?",
+    "Do you want to continue? [Y/n]: ": "Deseja continuar? [S/n]: ",
+    "Do you want to proceed?": "Você quer prosseguir?",
+    "Doing research on the latest memes...": "Fazendo pesquisa sobre os memes mais recentes...",
+    "Don't panic...": "Não entre em pânico...",
+    "Don't rush perfection (or my code)...": "Não apresse a perfeição (ou meu código)...",
+    "Don't trust": "Não confiar",
+    "ERROR: SANDBOX_ENV must be a comma-separated list of key=value pairs": "ERRO: SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
+    "ERROR: cannot BUILD_SANDBOX when using macOS Seatbelt": "ERRO: não é possível BUILD_SANDBOX ao usar macOS Seatbelt",
+    "ERROR: cannot build sandbox using installed gemini binary; run `npm link ./packages/cli` under gemini-cli repo to switch to linked binary.": "ERRO: não é possível construir sandbox usando binário gemini instalado; execute `npm link ./packages/cli` sob o repo gemini-cli para mudar para binário linkado.",
+    "Editor Preference": "Preferência do Editor",
+    "Editor settings are open. Please configure your editor in the CLI terminal.": "Configurações do editor abertas. Por favor, configure seu editor no terminal do CLI.",
+    "Either an extension name or --all must be provided": "Um nome de extensão ou --all deve ser fornecido",
+    "Empty GEMINI.md created. Now analyzing the project to populate it.": "GEMINI.md vazio criado. Agora analisando o projeto para preenchê-lo.",
+    "Enable Message Bus Integration": "Habilitar Integração de Barramento de Mensagens",
+    "Enable Recursive File Search": "Habilitar Busca Recursiva de Arquivos",
+    "Enable Usage Statistics": "Habilitar Estatísticas de Uso",
+    "Enable auto-update for this extension.": "Habilitar atualização automática para esta extensão.",
+    "Enable policy-based tool confirmation via message bus integration. When enabled, tools will automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations.": "Habilitar confirmação de ferramenta baseada em política através da integração do barramento de mensagens. Quando habilitado, as ferramentas respeitarão automaticamente as decisões do mecanismo de políticas (PERMITIR/NEGAR/PERGUNTAR_USUÁRIO) sem exigir implementações individuais de ferramentas.",
+    "Enable pre-release versions for this extension.": "Habilitar versões pré-lançamento para esta extensão.",
+    "Enables an extension.": "Habilita uma extensão.",
+    "Engage.": "Ativar.",
+    "Engaging cognitive processors...": "Ativando processadores cognitivos...",
+    "Engaging the improbability drive...": "Ativando o motor de improbabilidade...",
+    "Enhancing... Enhancing... Still loading.": "Melhorando... Melhorando... Ainda carregando.",
+    "Ensure you have investigated the extension source and trust the author.": "Certifique-se de ter investigado a fonte da extensão e confiar no autor.",
+    "Ensuring the magic smoke stays inside the wires...": "Garantindo que a fumaça mágica fique dentro dos fios...",
+    "Entangling quantum particles for a faster response...": "Emaranhando partículas quânticas para resposta mais rápida...",
+    "Enter selection mode to copy text": "Entrar no modo de seleção para copiar texto",
+    "Enter the authorization code: ": "Digite o código de autorização: ",
+    "Entered Vim mode. Run /vim again to exit.": "Modo Vim ativado. Execute /vim novamente para sair.",
+    "Error reading file": "Erro ao ler arquivo",
+    "Error: Please use --scope user to edit settings in the home directory.": "Erro: Use --scope user para editar configurações no diretório home.",
+    "Error: The --prompt-interactive flag cannot be used when input is piped from stdin.": "Erro: A flag --prompt-interactive não pode ser usada quando a entrada é redirecionada de stdin.",
+    "Error: read_many_files tool not found.": "Erro: ferramenta read_many_files não encontrada.",
+    "Errors": "Erros",
+    "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
+    "Existing keybindings detected. Will not modify to avoid conflicts.": "Atalhos de teclado existentes detectados. Não será modificado para evitar conflitos.",
+    "Exit the cli": "Sair do cli",
+    "Exited Vim mode.": "Modo Vim desativado.",
+    "Exiting due to a confirmation prompt requested by the command.": "Saindo devido a uma solicitação de confirmação pelo comando.",
+    "Exiting due to an error processing the @ command.": "Saindo devido a um erro ao processar o comando @.",
+    "Exiting due to command result that is not supported in non-interactive mode.": "Saindo devido a resultado do comando que não é suportado no modo não-interativo.",
+    "Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.": "A extensão não pode ser atualizada porque está faltando o arquivo .gemini-extension-install.json. Para atualizar manualmente, desinstale e reinstale a versão atualizada.",
+    "Extension is linked so does not need to be updated": "A extensão está vinculada e não precisa ser atualizada",
+    "Extension not found.": "Extensão não encontrada.",
+    "Extension validation failed.": "Validação da extensão falhou.",
+    "Extensions may introduce unexpected behavior.": "Extensões podem introduzir comportamento inesperado.",
+    "F12 to close": "F12 para fechar",
+    "Failed to authenticate with user code.": "Falha ao autenticar com código de usuário.",
+    "Failed to automatically enable IDE integration. To fix this, run the CLI in a new terminal window.": "Falha ao habilitar automaticamente a integração com IDE. Para corrigir, execute o CLI em uma nova janela de terminal.",
+    "Failed to compress chat history.": "Falha ao comprimir histórico do chat.",
+    "Failed to copy to the clipboard.": "Falha ao copiar para a área de transferência.",
+    "Failed to edit, could not find the string to replace.": "Falha ao editar, não foi possível encontrar a string para substituir.",
+    "Failed to edit. Attempted to create a file that already exists.": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
+    "Failed to find shell process in the process tree. Falling back to top-level process, which may be inaccurate. If you see this, please file a bug via /bug.": "Falha ao encontrar processo shell na árvore de processos. Usando processo de nível superior, que pode ser impreciso. Se você ver isso, por favor, envie um relatório de bug via /bug.",
+    "Failed to get ID token from Google ADC": "Falha ao obter token de ID do Google ADC",
+    "Failed to get access token from Google ADC": "Falha ao obter token de acesso do Google ADC",
+    "Failed to install VS Code companion extension from OpenVSX. Please try installing it manually.": "Falha ao instalar a extensão companheira do VS Code do OpenVSX. Por favor, tente instalá-la manualmente.",
+    "Failed to install VS Code companion extension. Please try installing 'Gemini CLI Companion' manually from the VS Code extension marketplace.": "Falha ao instalar a extensão companheira do VS Code. Por favor, tente instalar 'Gemini CLI Companion' manualmente no marketplace de extensões do VS Code.",
+    "Failed to load available languages. Using defaults.": "Falha ao carregar idiomas disponíveis. Usando padrões.",
+    "Failed to open browser.": "Falha ao abrir navegador.",
+    "Failed to read content of file.": "Falha ao ler conteúdo do arquivo.",
+    "Failed to save language setting. Please try again.": "Falha ao salvar configuração de idioma. Tente novamente.",
+    "Failed to save trust settings. Exiting Auditoria CLI.": "Falha ao salvar configurações de confiança. Encerrando Auditoria CLI.",
+    "Failed to save trust settings. Your changes may not persist.": "Falha ao salvar configurações de confiança. Suas alterações podem não persistir.",
+    "Fallback disabled - will stay on Gemini Pro even if rate limited": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
+    "Fallback enabled - will switch to Flash if Pro is rate limited": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa",
+    "Fatal error: Failed to relaunch the CLI process.": "Erro fatal: Falha ao reiniciar o processo CLI.",
+    "Fiddling with the character creation screen...": "Mexendo na tela de criação de personagem...",
+    "Figuring out how to make this more witty...": "Descobrindo como tornar isso mais espirituoso...",
+    "File not found. Cannot apply edit. Use an empty old_string to create a new file.": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
+    "File to write session summary to.": "Arquivo para escrever o resumo da sessão.",
+    "Finding a suitable loading screen pun...": "Encontrando um trocadilho adequado para tela de carregamento...",
+    "Finishing the Kessel Run in less than 12 parsecs...": "Terminando a Corrida Kessel em menos de 12 parsecs...",
+    "Folder Trust": "Confiança de Pasta",
+    "Folder Trust Feature": "Recurso de Confiança de Pasta",
+    "Folder trust dialog is open. Please respond in the CLI terminal.": "Diálogo de confiança de pasta aberto. Por favor, responda no terminal do CLI.",
+    "Folder:": "Pasta:",
+    "Following the white rabbit...": "Seguindo o coelho branco...",
+    "For a full list of shortcuts, see": "Para uma lista completa de atalhos, consulte",
+    "For complex tasks that require deep reasoning and creativity": "Para tarefas complexas que exigem raciocínio profundo e criatividade",
+    "For help on gemini-cli": "Para ajuda sobre o gemini-cli",
+    "For simple tasks that need to be done quickly": "Para tarefas simples que precisam ser feitas rapidamente",
+    "For tasks that need a balance of speed and reasoning": "Para tarefas que precisam de um equilíbrio entre velocidade e raciocínio",
+    "Free Tier (Login with Google)": "Nível Gratuito (Login com Google)",
+    "GCP Project": "Projeto GCP",
+    "GEMINI_API_KEY not found. Find your existing key or generate a new one at: https://aistudio.google.com/apikey\n\nTo continue, please set the GEMINI_API_KEY environment variable or add it to a .env file.": "GEMINI_API_KEY não encontrada. Encontre sua chave existente ou gere uma nova em: https://aistudio.google.com/apikey\n\nPara continuar, por favor defina a variável de ambiente GEMINI_API_KEY ou adicione-a a um arquivo .env.",
+    "GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX": "GEMINI_SANDBOX é true mas falhou ao determinar comando para sandbox; instale docker ou podman ou especifique o comando em GEMINI_SANDBOX",
+    "Garbage collecting... be right back...": "Coletando lixo... já volto...",
+    "Gemini API Key": "Chave API Gemini",
+    "Gemini API Key Notice": "Aviso da Chave API Gemini",
+    "Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
+    "Gemini Code Assist for Individuals Privacy Notice": "Aviso de Privacidade do Gemini Code Assist para Indivíduos",
+    "Generating witty retort...": "Gerando réplica espirituosa...",
+    "Get started": "Começar",
+    "Git Commit": "Commit Git",
+    "GitHub release-based extensions are not supported for SSH. You must use an HTTPS URI with a personal access token to download releases from private repositories. You can set your personal access token in the GITHUB_TOKEN environment variable and install the extension via SSH.": "Extensões baseadas em releases do GitHub não são suportadas para SSH. Você deve usar uma URI HTTPS com um token de acesso pessoal para baixar releases de repositórios privados. Você pode definir seu token de acesso pessoal na variável de ambiente GITHUB_TOKEN e instalar a extensão via SSH.",
+    "Giving Cloudy a pat on the head...": "Dando um tapinha na cabeça do Cloudy...",
+    "Greasin' the cogs of the machine...": "Lubrificando as engrenagens da máquina...",
+    "Have you tried turning it off and on again? (The loading screen, not me.)": "Você já tentou desligar e ligar novamente? (A tela de carregamento, não eu.)",
+    "Herding digital cats...": "Pastoreando gatos digitais...",
+    "Hide Banner": "Ocultar Banner",
+    "Hide Context Window Percentage": "Ocultar Porcentagem da Janela de Contexto",
+    "Hide Footer": "Ocultar Rodapé",
+    "Hide Tips": "Ocultar Dicas",
+    "Hide Window Title": "Ocultar Título da Janela",
+    "Hides the context window remaining percentage.": "Oculta a porcentagem restante da janela de contexto.",
+    "Hierarchical memory (GEMINI.md or other context files) is loaded but content is empty.": "Memória hierárquica (GEMINI.md ou outros arquivos de contexto) está carregada mas o conteúdo está vazio.",
+    "Hmmm... let me think...": "Hmmm... deixe-me pensar...",
+    "Hold tight, I'm crafting a masterpiece...": "Aguente firme, estou criando uma obra-prima...",
+    "How would you like to authenticate for this project?": "Como você gostaria de autenticar para este projeto?",
+    "I'll be back... with an answer.": "Eu voltarei... com uma resposta.",
+    "I'm Feeling Lucky": "Estou Me Sentindo Com Sorte",
+    "I'm Giving Her all she's got Captain!": "Estou dando tudo que ela tem, Capitão!",
+    "I'm going the distance, I'm going for speed...": "Estou indo a distância, estou indo pela velocidade...",
+    "I've got a good feeling about this...": "Tenho um bom pressentimento sobre isso...",
+    "I've seen things you people wouldn't believe... like a user who reads loading messages.": "Eu vi coisas que vocês não acreditariam... como um usuário que lê mensagens de carregamento.",
+    "IDE Client": "Cliente IDE",
+    "IDE Mode": "Modo IDE",
+    "IDE connection closed. To reconnect, run /ide enable.": "Conexão do IDE fechada. Para reconectar, execute /ide enable.",
+    "IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable": "Erro de conexão do IDE. A conexão foi perdida inesperadamente. Por favor, tente reconectar executando /ide enable",
+    "IDE integration disabled. To enable it again, run /ide enable.": "Integração do IDE desabilitada. Para habilitá-la novamente, execute /ide enable.",
+    "IDE integration is currently disabled. To enable it, run /ide enable.": "A integração do IDE está atualmente desabilitada. Para habilitá-la, execute /ide enable.",
+    "IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal.",
+    "INFO: Defaulting to use current user UID/GID for Debian/Ubuntu-based Linux.": "INFO: Usando por padrão UID/GID do usuário atual para Linux baseado em Debian/Ubuntu.",
+    "If you opt to skip, you can install them manually using the extensions install command.": "Se você optar por pular, pode instalá-las manualmente usando o comando de instalação de extensões.",
+    "Improved strategy: 7 attempts with 2s delays, reset to Pro on each message": "Estratégia melhorada: 7 tentativas com atrasos de 2s, reset para Pro a cada mensagem",
+    "Initializing...": "Inicializando...",
+    "Initiating thoughtful gaze...": "Iniciando olhar pensativo...",
+    "Input Tokens": "Tokens de Entrada",
+    "Install all": "Instalar todas",
+    "Install source not found.": "Fonte de instalação não encontrada.",
+    "Installation cancelled by user.": "Instalação cancelada pelo usuário.",
+    "Installed extensions:": "Extensões instaladas:",
+    "Installing IDE companion...": "Instalando companion do IDE...",
+    "Installs an extension from a git repository URL or a local path.": "Instala uma extensão de um repositório git URL ou de um caminho local.",
+    "Interaction Summary": "Resumo da Interação",
+    "Invalid auth method selected.": "Método de autenticação inválido selecionado.",
+    "Invalid proxy configuration detected. Check debug drawer for more details (F12)": "Configuração de proxy inválida detectada. Verifique a gaveta de depuração para mais detalhes (F12)",
+    "Is this the real life? Is this just fantasy?...": "Isso é vida real? Isso é só fantasia?...",
+    "It's not a bug, it's a feature... of this loading screen.": "Não é um bug, é um recurso... desta tela de carregamento.",
+    "Jump through words in the input": "Pular entre palavras na entrada",
+    "Just a jiffy, I'm debugging the universe...": "Só um instante, estou debugando o universo...",
+    "Just a moment, I'm aligning the pixels...": "Só um momento, estou alinhando os pixels...",
+    "Just a moment, I'm finding the right meme...": "Só um momento, estou encontrando o meme certo...",
+    "Just a moment, I'm in the zone...": "Só um momento, estou na zona...",
+    "Just a moment, I'm tuning the algorithms...": "Só um momento, estou sintonizando os algoritmos...",
+    "Just a sec, I'm debugging reality...": "Só um segundo, estou debugando a realidade...",
+    "Just a sec, I'm optimizing the humor...": "Só um segundo, estou otimizando o humor...",
+    "Just a tick, I'm polishing my wit...": "Só um tique, estou polindo minha perspicácia...",
+    "Just remembered where I put my keys...": "Acabei de lembrar onde coloquei minhas chaves...",
+    "Just waiting for the dial-up tone to finish...": "Só esperando o tom do dial-up terminar...",
+    "Keep loop detection enabled (esc)": "Manter detecção de loop ativada (esc)",
+    "Keyboard Shortcuts:": "Atalhos do Teclado:",
+    "Language Selection": "Seleção de Idioma",
+    "Language Selection Error": "Erro na Seleção de Idioma",
+    "Language selection is open. Please choose a language in the CLI terminal.": "Seleção de idioma aberta. Por favor, escolha um idioma no terminal do CLI.",
+    "Last AI output contains no text to copy.": "A última saída da IA não contém texto para copiar.",
+    "Last output copied to the clipboard": "Última saída copiada para a área de transferência",
+    "Let the system choose the best model for your task": "Deixe o sistema escolher o melhor modelo para sua tarefa",
+    "Letting the thoughts marinate...": "Deixando os pensamentos marinarem...",
+    "License": "Licença",
+    "Links an extension from a local path. Updates made to the local path will always be reflected.": "Vincula uma extensão de um caminho local. Atualizações feitas no caminho local sempre serão refletidas.",
+    "List all configured MCP servers": "Listar todos os servidores MCP configurados",
+    "Lists installed extensions.": "Lista extensões instaladas.",
+    "Lists the paths of the GEMINI.md files in use.": "Lista os caminhos dos arquivos GEMINI.md em uso.",
+    "Load Memory From Include Directories": "Carregar Memória de Diretórios Incluídos",
+    "Loading Available Languages...": "Carregando Idiomas Disponíveis...",
+    "Loading suggestions...": "Carregando sugestões...",
+    "Loading the next great idea...": "Carregando a próxima grande ideia...",
+    "Loading wit.exe...": "Carregando wit.exe...",
+    "Loading...": "Carregando...",
+    "Loading... Do a barrel roll!": "Carregando... Faça um barril roll!",
+    "Logging in with Google... Please restart Auditaria CLI to continue.": "Logando com Google... Por favor, reinicie o Auditaria CLI para continuar.",
+    "Login with Google": "Fazer login com Google",
+    "Login with Google - Free Tier": "Fazer login com Google - Nível Gratuito",
+    "Login with Google - Gemini Code Assist (Requires GOOGLE_CLOUD_PROJECT)": "Fazer login com Google - Gemini Code Assist (Requer GOOGLE_CLOUD_PROJECT)",
+    "Looking for a misplaced semicolon...": "Procurando um ponto e vírgula perdido...",
+    "Looking for an adult superviso... I mean, processing.": "Procurando um supervisor adulto... quer dizer, processando.",
+    "Looking for the princess in another castle...": "Procurando a princesa em outro castelo...",
+    "Loop detected:": "Loop detectado:",
+    "Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.": "Confirmação de detecção de loop necessária. Por favor, escolha se deseja manter ou desativar a detecção de loop no terminal CLI.",
+    "Loop detection has been disabled for this session. Retrying request...": "A detecção de loop foi desabilitada para esta sessão. Repetindo solicitação...",
+    "Making it go beep boop.": "Fazendo beep boop.",
+    "Manage Auditaria CLI extensions.": "Gerenciar extensões do Auditaria CLI.",
+    "Manage MCP servers": "Gerenciar servidores MCP",
+    "Manage folder trust settings and other permissions": "Gerenciar configurações de confiança de pastas e outras permissões",
+    "Manage folder trust settings. Usage: /permissions trust [<directory-path>]": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<caminho-do-diretório>]",
+    "Manage workspace directories": "Gerenciar diretórios do espaço de trabalho",
+    "Max Session Turns": "Turnos Máximos da Sessão",
+    "Memory Discovery Max Dirs": "Diretórios Máximos de Descoberta de Memória",
+    "Memory is currently empty.": "A memória está atualmente vazia.",
+    "Memory refreshed successfully. No memory content found.": "Memória atualizada com sucesso. Nenhum conteúdo de memória encontrado.",
+    "Metric": "Métrica",
+    "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit.": "Migração concluída. Para ver as mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
+    "Mining for more Dilithium crystals...": "Minerando mais cristais de Dilithium...",
+    "Model": "Modelo",
+    "Model Context Protocol command (from external servers)": "Comando do Model Context Protocol (de servidores externos)",
+    "Model Stats For Nerds": "Estatísticas do Modelo Para Nerds",
+    "Model Usage": "Uso do Modelo",
+    "Model selection is open. Please choose a model in the CLI terminal.": "Seleção de modelo aberta. Por favor, escolha um modelo no terminal do CLI.",
+    "Model: ": "Modelo: ",
+    "Modify Trust Level": "Modificar Nível de Confiança",
+    "Modify in progress: ": "Modificação em andamento: ",
+    "Modify with external editor": "Modificar com editor externo",
+    "My other loading screen is even funnier.": "Minha outra tela de carregamento é ainda mais engraçada.",
+    "My other process is a TARDIS...": "Meu outro processo é uma TARDIS...",
+    "Name of the server": "Nome do servidor",
+    "Navigating the slime mold...": "Navegando pelo mofo viscoso...",
+    "New line": "Nova linha",
+    "New line (Alt+Enter works for certain linux distros)": "Nova linha (Alt+Enter funciona para certas distribuições linux)",
+    "New line? That's Ctrl+J.": "Nova linha? É Ctrl+J.",
+    "No": "Não",
+    "No (esc)": "Não (esc)",
+    "No API calls have been made in this session.": "Nenhuma chamada de API foi feita nesta sessão.",
+    "No GEMINI.md files in use.": "Nenhum arquivo GEMINI.md em uso.",
+    "No MCP servers configured with OAuth authentication.": "Nenhum servidor MCP configurado com autenticação OAuth.",
+    "No MCP servers configured.": "Nenhum servidor MCP configurado.",
+    "No URL configured for Google Credentials MCP server": "Nenhuma URL configurada para o servidor MCP Google Credentials",
+    "No active extensions.": "Nenhuma extensão ativa.",
+    "No authentication method selected.": "Nenhum método de autenticação selecionado.",
+    "No authorization code received from Google OAuth. Please try authenticating again.": "Nenhum código de autorização recebido do OAuth do Google. Tente autenticar novamente.",
+    "No changes detected.": "Nenhuma alteração detectada.",
+    "No changes required. The file already meets the specified conditions.": "Nenhuma alteração necessária. O arquivo já atende às condições especificadas.",
+    "No changes to apply. The old_string and new_string are identical.": "Sem alterações para aplicar. A old_string e new_string são idênticas.",
+    "No diff content.": "Nenhum conteúdo de diff.",
+    "No extensions installed.": "Nenhuma extensão instalada.",
+    "No extensions to update.": "Nenhuma extensão para atualizar.",
+    "No hierarchical memory (GEMINI.md or other context files) is currently loaded.": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está atualmente carregada.",
+    "No input provided via stdin. Input can be provided by piping data into auditaria or using the --prompt option.": "Nenhuma entrada fornecida via stdin. A entrada pode ser fornecida canalizando dados para o auditaria ou usando a opção --prompt.",
+    "No installer available for your configured IDE.": "Nenhum instalador disponível para seu IDE configurado.",
+    "No language files found. Please ensure translation files are available.": "Nenhum arquivo de idioma encontrado. Certifique-se de que os arquivos de tradução estejam disponíveis.",
+    "No language selected.": "Nenhum idioma selecionado.",
+    "No matches found": "Nenhuma correspondência encontrada",
+    "No output in history": "Nenhuma saída no histórico",
+    "No restorable tool calls found.": "Nenhuma chamada de ferramenta restaurável encontrada.",
+    "No tool calls have been made in this session.": "Nenhuma chamada de ferramenta foi feita nesta sessão.",
+    "No tools available": "Nenhuma ferramenta disponível",
+    "No tools or prompts available": "Nenhuma ferramenta ou prompt disponível",
+    "No www-authenticate header in error, trying to fetch it from server...": "Nenhum cabeçalho www-authenticate no erro, tentando buscar do servidor...",
+    "No, don't ask again": "Não, não pergunte novamente",
+    "No, suggest changes (esc)": "Não, sugerir mudanças (esc)",
+    "None": "Nenhum",
+    "Not Set": "Não Definido",
+    "Note: First startup may take longer. Tool availability will update automatically.": "Nota: A primeira inicialização pode demorar mais. A disponibilidade das ferramentas será atualizada automaticamente.",
+    "Note: This folder behaves as a trusted folder because one of the parent folders is trusted. It will remain trusted even if you set a different trust level here. To change this, you need to modify the trust setting in the parent folder.": "Nota: Esta pasta se comporta como uma pasta confiável porque uma das pastas pai é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui. Para alterar isso, você precisa modificar a configuração de confiança na pasta pai.",
+    "Note: This folder behaves as a trusted folder because the connected IDE workspace is trusted. It will remain trusted even if you set a different trust level here.": "Nota: Esta pasta se comporta como uma pasta confiável porque o workspace IDE conectado é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui.",
+    "Note: This folder is still trusted because a parent folder is trusted.": "Nota: Esta pasta ainda é confiável porque uma pasta pai é confiável.",
+    "Note: This folder is still trusted because the connected IDE workspace is trusted.": "Nota: Esta pasta ainda é confiável porque o workspace IDE conectado é confiável.",
+    "Note: You can always use /model to select a different option.": "Nota: Você sempre pode usar /model para selecionar uma opção diferente.",
+    "Nothing to compress.": "Nada para comprimir.",
+    "OAuth state mismatch. Possible CSRF attack or browser session issue.": "Estado OAuth não confere. Possível ataque CSRF ou problema de sessão do navegador.",
+    "OS": "SO",
+    "Oauth not being used": "OAuth não está sendo usado",
+    "One moment, optimizing humor...": "Um momento, otimizando humor...",
+    "Open files:": "Arquivos abertos:",
+    "Open input in external editor": "Abrir entrada no editor externo",
+    "Opening web browser...": "Abrindo navegador web...",
+    "Opens a dialog to configure the model": "Abre um diálogo para configurar o modelo",
+    "Opens the web interface in your browser. Use --web flag when starting auditaria to enable web interface.": "Abre a interface web no seu navegador. Use a flag --web ao iniciar o auditaria para habilitar a interface web.",
+    "Operation cancelled.": "Operação cancelada.",
+    "Optimizing for ludicrous speed": "Otimizando para velocidade ridícula",
+    "Original strategy: 2 attempts with exponential backoff, stay on Flash once switched": "Estratégia original: 2 tentativas com backoff exponencial, permanece no Flash após troca",
+    "Our hamsters are working as fast as they can...": "Nossos hamsters estão trabalhando o mais rápido que podem...",
+    "Output": "Saída",
+    "Output Tokens": "Tokens de Saída",
+    "Painting the serifs back on...": "Pintando as serifas de volta...",
+    "Parameters:": "Parâmetros:",
+    "Paste Timed out. Possibly due to slow connection.": "Tempo de colagem esgotado. Possivelmente devido a conexão lenta.",
+    "Petting the cat...": "Fazendo carinho no gato...",
+    "Please check API key and configuration.": "Por favor, verifique a chave de API e configuração.",
+    "Please fix the configuration file and try again.": "Por favor, corrija o arquivo de configuração e tente novamente.",
+    "Please include at least one extension name to uninstall as a positional argument.": "Por favor, inclua pelo menos um nome de extensão a desinstalar como um argumento posicional.",
+    "Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]": "Por favor, forneça um subcomando para /permissions. Uso: /permissions trust [<caminho-do-diretório>]",
+    "Please provide at least one path to add.": "Por favor, forneça pelo menos um caminho para adicionar.",
+    "Please restart your terminal for the changes to take effect.": "Por favor, reinicie seu terminal para que as alterações tenham efeito.",
+    "Please try reducing the size of your message or use the `/compress` command to compress the chat history.": "Por favor, tente reduzir o tamanho da sua mensagem ou use o comando `/compress` para comprimir o histórico do chat.",
+    "Please visit the following URL to authorize the application:": "Por favor, visite a seguinte URL para autorizar a aplicação:",
+    "Poking the bear...": "Cutucando o urso...",
+    "Polishing the algorithms...": "Polindo os algoritmos...",
+    "Polishing the chrome... on the algorithms.": "Polindo o cromo... nos algoritmos.",
+    "Polishing the pixels...": "Polindo os pixels...",
+    "Pondering the orb...": "Ponderando o orbe...",
+    "Pre-heating the servers...": "Pré-aquecendo os servidores...",
+    "Preparing a witty response...": "Preparando uma resposta espirituosa...",
+    "Preparing to dazzle you with brilliance...": "Preparando para deslumbrar você com genialidade...",
+    "Press 'r' to restart Auditaria to apply the changes.": "Pressione 'r' para reiniciar o Auditaria e aplicar as alterações.",
+    "Press Ctrl+C again to exit.": "Pressione Ctrl+C novamente para sair.",
+    "Press Ctrl+D again to exit.": "Pressione Ctrl+D novamente para sair.",
+    "Press Ctrl-S to enter selection mode to copy text.": "Pressione Ctrl-S para entrar no modo de seleção e copiar texto.",
+    "Press Enter to choose an option and exit.": "Pressione Enter para escolher uma opção e sair.",
+    "Press Esc again to clear.": "Pressione Esc novamente para limpar.",
+    "Press Esc to continue with default language.": "Pressione Esc para continuar com o idioma padrão.",
+    "Press Esc to exit.": "Pressione Esc para sair.",
+    "Press ctrl-s to show more lines": "Pressione ctrl-s para mostrar mais linhas",
+    "Pressing 'A' to continue...": "Pressionando 'A' para continuar...",
+    "Pretty sure there's a cat walking on the keyboard somewhere...": "Tenho certeza que há um gato andando no teclado em algum lugar...",
+    "Preview": "Pré-visualização",
+    "Privacy notice is displayed. Please review it in the CLI terminal.": "Aviso de privacidade exibido. Por favor, revise no terminal do CLI.",
+    "Pro quota limit reached. Please choose whether to change authentication or continue with the fallback model in the CLI terminal.": "Limite de cota Pro atingido. Por favor, escolha se deseja alterar a autenticação ou continuar com o modelo de fallback no terminal CLI.",
+    "Queued (press ↑ to edit):": "Na fila (pressione ↑ para editar):",
+    "Quit application": "Sair da aplicação",
+    "Quota exceeded dialog is open. Please choose an option in the CLI terminal.": "Diálogo de cota excedida aberto. Por favor, escolha uma opção no terminal do CLI.",
+    "Reached max session turns for this session. Increase the number of turns by specifying maxSessionTurns in settings.json.": "Limite máximo de turnos de sessão atingido. Aumente o número de turnos especificando maxSessionTurns em settings.json.",
+    "Ready": "Pronto",
+    "Rebooting the humor module...": "Reiniciando o módulo de humor...",
+    "Recalibrating the humor-o-meter.": "Recalibrando o humor-ômetro.",
+    "Received an empty or invalid prompt response from the server.": "Recebida resposta vazia ou inválida do servidor de prompt.",
+    "Refresh the memory from the source.": "Atualizar a memória da origem.",
+    "Refreshing hierarchical memory (GEMINI.md or other context files)...": "Atualizando memória hierárquica (GEMINI.md ou outros arquivos de contexto)...",
+    "Refreshing memory from source files...": "Atualizando memória dos arquivos de origem...",
+    "Releasing the HypnoDrones...": "Liberando os HipnoDrones...",
+    "Remove a server": "Remover um servidor",
+    "Renders:": "Renderizações:",
+    "Request cancelled.": "Requisição cancelada.",
+    "Requests": "Requisições",
+    "Resolving dependencies... and existential crises...": "Resolvendo dependências... e crises existenciais...",
+    "Respect .geminiignore": "Respeitar .geminiignore",
+    "Respect .gitignore": "Respeitar .gitignore",
+    "Response stopped due to forbidden terms.": "Resposta interrompida devido a termos proibidos.",
+    "Response stopped due to image safety violations.": "Resposta interrompida devido a violações de segurança da imagem.",
+    "Response stopped due to malformed function call.": "Resposta interrompida devido a chamada de função malformada.",
+    "Response stopped due to prohibited content.": "Resposta interrompida devido a conteúdo proibido.",
+    "Response stopped due to recitation policy.": "Resposta interrompida devido à política de recitação.",
+    "Response stopped due to safety reasons.": "Resposta interrompida por razões de segurança.",
+    "Response stopped due to sensitive personally identifiable information.": "Resposta interrompida devido a informações pessoais identificáveis sensíveis.",
+    "Response stopped due to unexpected tool call.": "Resposta interrompida devido a chamada de ferramenta inesperada.",
+    "Response stopped due to unsupported language.": "Resposta interrompida devido ao idioma não suportado.",
+    "Response stopped for other reasons.": "Resposta interrompida por outras razões.",
+    "Response truncated due to token limits.": "Resposta truncada devido aos limites de token.",
+    "Restart Auditaria CLI to see the changes.": "Reinicie o Auditaria CLI para ver as alterações.",
+    "Restarting MCP servers...": "Reiniciando servidores MCP...",
+    "Restarts MCP servers.": "Reinicia os servidores MCP.",
+    "Restored project to the state before the tool call.": "Projeto restaurado para o estado antes da chamada da ferramenta.",
+    "Reticulating splines...": "Reticulando splines...",
+    "Retrying...\n": "Tentando novamente...\n",
+    "Rewiring the synapses...": "Religando as sinapses...",
+    "Rewriting in Rust for no particular reason...": "Reescrevendo em Rust sem motivo particular...",
+    "Rickrolling my boss...": "Rickrollando meu chefe...",
+    "Running sudo make me a sandwich...": "Executando sudo make me a sandwich...",
+    "SANDBOX_ENV must be a comma-separated list of key=value pairs": "SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
+    "Sanitized tag is empty setting to \"default\".": "Tag sanitizada está vazia definindo como \"default\".",
+    "Save and close external editor to continue": "Salve e feche o editor externo para continuar",
+    "Savings Highlight:": "Destaque de Economia:",
+    "Scopes must be provided in the oauth config for Google Credentials provider (or enable allow_unscoped_id_tokens_for_cloud_run to use ID tokens for Cloud Run endpoints)": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials (ou habilite allow_unscoped_id_tokens_for_cloud_run para usar tokens de ID para endpoints Cloud Run)",
+    "Scroll page up/down": "Rolar página para cima/baixo",
+    "Searching for the correct USB orientation...": "Procurando a orientação correta do USB...",
+    "Select Editor": "Selecionar Editor",
+    "Select Language": "Selecionar Idioma",
+    "Select Model": "Selecionar Modelo",
+    "Select Theme": "Selecionar Tema",
+    "Send message": "Enviar mensagem",
+    "Session ID:": "ID da Sessão:",
+    "Session Stats": "Estatísticas da Sessão",
+    "Session start time is unavailable, cannot calculate stats.": "Horário de início da sessão não disponível, não é possível calcular estatísticas.",
+    "Set HTTP headers for SSE and HTTP transports (e.g. -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")": "Definir cabeçalhos HTTP para transportes SSE e HTTP (ex: -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")",
+    "Set connection timeout in milliseconds": "Definir tempo limite de conexão em milissegundos",
+    "Set environment variables (e.g. -e KEY=value)": "Definir variáveis de ambiente (ex: -e KEY=valor)",
+    "Set external editor preference": "Definir preferência do editor externo",
+    "Set the description for the server": "Definir a descrição do servidor",
+    "Set up GitHub Actions": "Configurar GitHub Actions",
+    "Setting up GitHub Actions to triage issues and review PRs with Gemini.": "Configurando GitHub Actions para triagem de issues e revisão de PRs com Gemini.",
+    "Settings": "Configurações",
+    "Settings dialog is open. Please configure your settings in the CLI terminal.": "Diálogo de configurações aberto. Por favor, configure suas preferências no terminal do CLI.",
+    "Shell Command": "Comando Shell",
+    "Shell Command Execution": "Execução de Comando Shell",
+    "Shell command confirmation required. Please respond in the CLI terminal.": "Confirmação de comando shell necessária. Por favor, responda no terminal do CLI.",
+    "Shell commands cannot be queued": "Comandos shell não podem ser enfileirados",
+    "Shell mode": "Modo shell",
+    "Shipping awesomeness... ": "Enviando excelência... ",
+    "Show Citations": "Mostrar Citações",
+    "Show Line Numbers": "Mostrar Números de Linha",
+    "Show Memory Usage": "Mostrar Uso de Memória",
+    "Show all directories in the workspace": "Mostrar todos os diretórios no espaço de trabalho",
+    "Show model-specific usage statistics.": "Mostrar estatísticas de uso específicas do modelo.",
+    "Show the current memory contents.": "Mostrar o conteúdo atual da memória.",
+    "Show tool-specific usage statistics.": "Mostrar estatísticas de uso específicas das ferramentas.",
+    "Shuffling punchlines...": "Embaralhando piadas...",
+    "Skip": "Pular",
+    "Skip Next Speaker Check": "Pular Verificação do Próximo Orador",
+    "Slapping the bass...": "Tocando o contrabaixo...",
+    "Slash commands cannot be queued": "Comandos slash não podem ser enfileirados",
+    "So say we all...": "Assim dizemos todos nós...",
+    "Spinning up the hamster wheel...": "Girando a roda do hamster...",
+    "Starting web interface...": "Iniciando interface web...",
+    "Starting... (first startup may take longer)": "Iniciando... (primeira inicialização pode demorar mais)",
+    "Success Rate:": "Taxa de Sucesso:",
+    "Summoning the cloud of wisdom...": "Invocando a nuvem da sabedoria...",
+    "Summoning the code gremlins... to help, of course.": "Invocando os gremlins do código... para ajudar, claro.",
+    "Swapping bits... don't tell the bytes...": "Trocando bits... não conte para os bytes...",
+    "Switched to fallback model. Tip: Press Ctrl+P (or Up Arrow) to recall your previous prompt and submit it again if you wish.": "Alternado para modelo de fallback. Dica: Pressione Ctrl+P (ou Seta para Cima) para recuperar seu prompt anterior e enviá-lo novamente se desejar.",
+    "Switched to fallback model. Tip: Press Ctrl+P to recall your previous prompt and submit it again if you wish.": "Alterado para modelo de fallback. Dica: Pressione Ctrl+P para recuperar seu prompt anterior e enviá-lo novamente se desejar.",
+    "System Settings": "Configurações do Sistema",
+    "Tasting the snozberries...": "Provando as snozberries...",
+    "Terms of Services and Privacy Notice for Gemini CLI": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
+    "Test 1": "Teste 1",
+    "Test 2": "Teste 2",
+    "Test translation": "Tradução de teste",
+    "That's not a bug, it's an undocumented feature...": "Isso não é um bug, é um recurso não documentado...",
+    "The 'file_path' parameter must be non-empty.": "O parâmetro 'file_path' não pode estar vazio.",
+    "The --prompt (-p) flag has been deprecated and will be removed in a future version. Please use a positional argument for your prompt. See gemini --help for more information.\n": "A flag --prompt (-p) foi descontinuada e será removida em uma versão futura. Por favor, use um argumento posicional para o seu prompt. Veja gemini --help para mais informações.\n",
+    "The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.": "O comando /directory add não é suportado em perfis de sandbox restritivos. Por favor, use --include-directories ao iniciar a sessão.",
+    "The boilerplate template to use.": "O modelo de exemplo para usar.",
+    "The cake is not a lie, it's just still loading...": "O bolo não é mentira, só está carregando ainda...",
+    "The extension definition will remain in your workspace directory.": "A definição da extensão permanecerá no diretório do seu workspace.",
+    "The extension will append info to your gemini.md context": "A extensão adicionará informações ao seu contexto gemini.md",
+    "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.": "As seguintes extensões falharam ao migrar. Por favor, tente instalá-las manualmente. Para ver outras mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
+    "The git ref to install from.": "A referência git para instalar.",
+    "The github URL or local path of the extension to install.": "A URL do github ou caminho local da extensão a instalar.",
+    "The name of the extension to disable.": "O nome da extensão para desabilitar.",
+    "The name of the extension to enable.": "O nome da extensão para habilitar.",
+    "The name of the extension to link.": "O nome da extensão para vincular.",
+    "The name of the extension to update.": "O nome da extensão a atualizar.",
+    "The name(s) or source path(s) of the extension(s) to uninstall.": "O(s) nome(s) ou caminho(s) de origem da(s) extensão(ões) a desinstalar.",
+    "The number of lines to keep when truncating tool output.": "O número de linhas a manter ao truncar a saída da ferramenta.",
+    "The path of the extension to validate.": "O caminho da extensão para validar.",
+    "The path to create the extension in.": "O caminho para criar a extensão.",
+    "The scope to disable the extension in.": "O escopo para desabilitar a extensão.",
+    "The scope to enable the extension in. If not set, will be enabled in all scopes.": "O escopo para habilitar a extensão. Se não definido, será habilitado em todos os escopos.",
+    "The source argument must be provided.": "O argumento source deve ser fornecido.",
+    "The truth is in here... somewhere...": "A verdade está aqui... em algum lugar...",
+    "Theme configuration unavailable due to NO_COLOR env variable.": "Configuração de tema indisponível devido à variável de ambiente NO_COLOR.",
+    "Theme selection is open. Please choose a theme in the CLI terminal.": "Seleção de tema aberta. Por favor, escolha um tema no terminal do CLI.",
+    "There was an error saving your latest settings changes.": "Houve um erro ao salvar suas últimas alterações de configurações.",
+    "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.": "Estes editores são atualmente suportados. Note que alguns editores não podem ser usados no modo sandbox.",
+    "This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?": "Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. Deseja manter a detecção de loop ativada ou desativá-la para esta sessão?",
+    "This extension will run the following MCP servers:": "Esta extensão executará os seguintes servidores MCP:",
+    "This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level.": "Esta pasta não é confiável. Alguns recursos podem estar desabilitados. Use o comando `/permissions` para alterar o nível de confiança.",
+    "Thoughts": "Pensamentos",
+    "Tips for getting started:": "Dicas para começar:",
+    "To apply the trust changes, Auditaria CLI must be restarted. Press 'r' to restart CLI now.": "Para aplicar as mudanças de confiança, o Auditaria CLI deve ser reiniciado. Pressione 'r' para reiniciar o CLI agora.",
+    "To help with quality and improve our products (such as generative machine-learning models), human reviewers may read, annotate, and process the data collected above. We take steps to protect your privacy as part of this process. This includes disconnecting the data from your Google Account before reviewers see or annotate it, and storing those disconnected copies for up to 18 months. Please don't submit confidential information or any data you wouldn't want a reviewer to see or Google to use to improve our products, services and machine-learning technologies.": "Para ajudar com qualidade e melhorar nossos produtos (como modelos generativos de aprendizado de máquina), revisores humanos podem ler, anotar e processar os dados coletados acima. Tomamos medidas para proteger sua privacidade como parte deste processo. Isso inclui desconectar os dados de sua Conta Google antes que os revisores vejam ou anotem, e armazenar essas cópias desconectadas por até 18 meses. Por favor, não submeta informações confidenciais ou qualquer dado que você não gostaria que um revisor visse ou que o Google usasse para melhorar nossos produtos, serviços e tecnologias de aprendizado de máquina.",
+    "To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora.",
+    "Toggle YOLO mode": "Alternar modo YOLO",
+    "Toggle auto-accepting edits": "Alternar aceitação automática de edições",
+    "Toggle corgi mode.": "Alterna o modo corgi.",
+    "Toggle the debug profile display": "Alternar a exibição do perfil de depuração",
+    "Toggled profile display.": "Exibição do perfil alternada.",
+    "Tool": "Ferramenta",
+    "Tool Calls:": "Chamadas de Ferramenta:",
+    "Tool Name": "Nome da Ferramenta",
+    "Tool Output Truncation Lines": "Linhas de Truncamento de Saída de Ferramenta",
+    "Tool Output Truncation Threshold": "Limite de Truncamento de Saída de Ferramenta",
+    "Tool Stats For Nerds": "Estatísticas de Ferramentas Para Nerds",
+    "Tool Time:": "Tempo de Ferramenta:",
+    "Tool call aborted": "Chamada de ferramenta abortada",
+    "Tool call cancelled by user.": "Chamada de ferramenta cancelada pelo usuário.",
+    "Tool execution denied by policy.": "Execução da ferramenta negada pela política.",
+    "Total Reviewed Suggestions:": "Total de Sugestões Revisadas:",
+    "Transport type (stdio, sse, http)": "Tipo de transporte (stdio, sse, http)",
+    "Tried to update an extension but it has some changes that require consent, please use `auditaria extensions update`.": "Tentou atualizar uma extensão, mas ela tem algumas alterações que requerem consentimento, por favor use `auditaria extensions update`.",
+    "Truncate tool output if it is larger than this many characters. Set to -1 to disable.": "Truncar saída da ferramenta se for maior que este número de caracteres. Defina como -1 para desativar.",
+    "Trust parent folder": "Confiar na pasta pai",
+    "Trust the server (bypass all tool call confirmation prompts)": "Confiar no servidor (ignorar todos os prompts de confirmação de chamada de ferramenta)",
+    "Trust this folder": "Confiar nesta pasta",
+    "Trusted folders file is not a valid JSON object.": "O arquivo de pastas confiáveis não é um objeto JSON válido.",
+    "Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.": "Confiar em uma pasta permite que o Auditaria execute comandos sugeridos. Este é um recurso de segurança para evitar execução acidental em diretórios não confiáveis.",
+    "Try again later": "Tentar novamente mais tarde",
+    "Trying to exit Vim...": "Tentando sair do Vim...",
+    "Tuning the cosmic frequencies...": "Sintonizando as frequências cósmicas...",
+    "URLs to fetch:": "URLs para buscar:",
+    "Unable to determine the Git root directory.": "Não foi possível determinar o diretório raiz do Git.",
+    "Unable to determine the GitHub repository. /setup-github must be run from a git repository.": "Não foi possível determinar o repositório GitHub. /setup-github deve ser executado de um repositório git.",
+    "Uninstalls one or more extensions.": "Desinstala uma ou mais extensões.",
+    "Unknown": "Desconhecido",
+    "Untangling neural nets...": "Desemaranhando redes neurais...",
+    "Up/Down": "Seta Para Cima/Baixo",
+    "Update all extensions.": "Atualizar todas as extensões.",
+    "Update successful! The new version will be used on your next run.": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
+    "Updated extension not found after installation.": "Extensão atualizada não encontrada após a instalação.",
+    "Updates all extensions or a named extension to the latest version.": "Atualiza todas as extensões ou uma extensão nomeada para a versão mais recente.",
+    "Updating the syntax for reality...": "Atualizando a sintaxe da realidade...",
+    "Usage: /extensions update <extension-names>|--all": "Uso: /extensions update <nomes-das-extensões>|--all",
+    "Usage: /memory add <text to remember>": "Uso: /memory add <texto para lembrar>",
+    "Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]": "Uso: auditaria mcp add [opções] <nome> <comandoOuUrl> [args...]",
+    "Usage: auditaria mcp remove [options] <name>": "Uso: auditaria mcp remove [opções] <nome>",
+    "Use Cloud Shell user credentials": "Usar credenciais do usuário Cloud Shell",
+    "Use Full Width": "Usar Largura Total",
+    "Use Gemini API Key": "Usar Chave API Gemini",
+    "Use metadata server application default credentials": "Usar credenciais padrão do aplicativo do servidor de metadados",
+    "Use node-pty for Shell Execution": "Usar node-pty para Execução de Shell",
+    "Use the entire width of the terminal for output.": "Usar toda a largura do terminal para saída.",
+    "User Agreement:": "Concordância do Usuário:",
+    "User Decision Summary": "Resumo de Decisões do Usuário",
+    "User Settings": "Configurações do Usuário",
+    "User cancelled tool execution.": "Usuário cancelou a execução da ferramenta.",
+    "User: ": "Usuário: ",
+    "Using:": "Usando:",
+    "Using: ": "Usando ",
+    "VS Code CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the 'Gemini CLI Companion' extension manually from the VS Code marketplace.": "CLI do VS Code não encontrado. Por favor, certifique-se de que 'code' está no PATH do seu sistema. Para ajuda, veja https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. Você também pode instalar a extensão 'Gemini CLI Companion' manualmente no marketplace do VS Code.",
+    "VS Code companion extension was installed successfully from OpenVSX. Please restart your terminal to complete the setup.": "Extensão companheira do VS Code instalada com sucesso do OpenVSX. Por favor, reinicie seu terminal para completar a configuração.",
+    "VS Code companion extension was installed successfully. Please restart your terminal to complete the setup.": "Extensão companheira do VS Code instalada com sucesso. Por favor, reinicie seu terminal para completar a configuração.",
+    "Validates an extension from a local path.": "Valida uma extensão a partir de um caminho local.",
+    "Validation failed with the following errors:": "Validação falhou com os seguintes erros:",
+    "Validation warnings:": "Avisos de validação:",
+    "Vertex AI Notice": "Aviso do Vertex AI",
+    "View and edit Gemini CLI settings": "Visualizar e editar configurações do Gemini CLI",
+    "Vim Mode": "Modo Vim",
+    "Waiting for auth... (Press ESC or CTRL+C to cancel)": "Aguardando autenticação... (Pressione ESC ou CTRL+C para cancelar)",
+    "Waiting for the respawn...": "Esperando o respawn...",
+    "Waiting for user confirmation...": "Aguardando confirmação do usuário...",
+    "Wall Time:": "Tempo Total:",
+    "Warming up the AI hamsters...": "Aquecendo os hamsters da IA...",
+    "Warning: Could not delete temporary warnings file.": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
+    "Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.": "Aviso: Não foi possível ler /etc/os-release para auto-detectar Debian/Ubuntu para padrão UID/GID.",
+    "Warning: You are running Auditaria CLI in the root directory. Your entire folder structure will be used for context. It is strongly recommended to run in a project-specific directory.": "Aviso: Você está executando o Auditaria CLI no diretório raiz. Toda a estrutura de pastas será usada para contexto. É fortemente recomendado executar em um diretório específico do projeto.",
+    "Warp speed engaged...": "Velocidade warp ativada...",
+    "Web interface is already running": "Interface web já está rodando",
+    "Web interface is not available in this configuration": "Interface web não está disponível nesta configuração",
+    "Web interface is not currently running": "Interface web não está rodando atualmente",
+    "Web interface is not running": "Interface web não está rodando",
+    "Web interface stopped": "Interface web parada",
+    "Welcome! Select Your Language": "Bem-vindo! Selecione Seu Idioma",
+    "What can you do with a broken pencil? Nothing, it's pointless...": "O que você pode fazer com um lápis quebrado? Nada, não tem ponta...",
+    "What do you call a fish with no eyes? A fsh...": "Como você chama um peixe sem olhos? Um pxe...",
+    "What's a computer's favorite snack? Microchips.": "Qual é o lanche favorito de um computador? Microchips.",
+    "When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
+    "When you use Gemini Code Assist for individuals with Gemini CLI, Google collects your prompts, related code, generated output, code edits, related feature usage information, and your feedback to provide, improve, and develop Google products and services and machine learning technologies.": "Quando você usa o Gemini Code Assist para indivíduos com Gemini CLI, o Google coleta seus prompts, código relacionado, saída gerada, edições de código, informações de uso de recursos relacionados e seu feedback para fornecer, melhorar e desenvolver produtos e serviços do Google e tecnologias de aprendizado de máquina.",
+    "Why did the computer go to therapy? It had too many bytes...": "Por que o computador foi à terapia? Tinha muitos bytes...",
+    "Why did the developer go broke? Because they used up all their cache...": "Por que o desenvolvedor ficou falido? Porque usou todo o cache...",
+    "Why do Java developers wear glasses? Because they don't C#.": "Por que desenvolvedores Java usam óculos? Porque eles não veem C#.",
+    "Why do programmers prefer dark mode? Because light attracts bugs...": "Por que programadores preferem modo escuro? Porque luz atrai bugs...",
+    "Why don't programmers like nature? It has too many bugs...": "Por que programadores não gostam da natureza? Tem muitos bugs...",
+    "Workflows downloaded successfully.": "Workflows baixados com sucesso.",
+    "Workflows downloaded successfully. Follow steps in https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (skipping the /setup-github step) to complete setup.": "Workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
+    "Workspace Settings": "Configurações do Espaço de Trabalho",
+    "Workspace trust has changed due to a change in the IDE connection.": "A confiança do workspace foi alterada devido a uma mudança na conexão do IDE.",
+    "Workspace trust has changed due to a change in the IDE trust.": "A confiança do workspace foi alterada devido a uma mudança na confiança do IDE.",
+    "Workspace trust has changed.": "A confiança do workspace foi alterada.",
+    "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes.": "A confiança do workspace foi alterada. Pressione 'r' para reiniciar o Auditaria e aplicar as alterações.",
+    "Workspace-level extensions are deprecated": "Extensões de nível de workspace estão obsoletas",
+    "Would you like to install them at the user level?": "Gostaria de instalá-las no nível do usuário?",
+    "YOLO mode": "modo YOLO",
+    "Yes": "Sim",
+    "Yes, allow always": "Sim, permitir sempre",
+    "Yes, allow always ...": "Sim, permitir sempre ...",
+    "Yes, allow always for this session": "Sim, permitir sempre para esta sessão",
+    "Yes, allow once": "Sim, permitir uma vez",
+    "You are running Auditaria CLI in your home directory. It is recommended to run in a project-specific directory.": "Você está executando o Auditaria CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "You can provide arguments by name (e.g., --argName=\"value\") or by position.": "Você pode fornecer argumentos por nome (ex: --argName=\"valor\") ou por posição.",
+    "You cannot enter YOLO mode since it is disabled in your settings.": "Você não pode entrar no modo YOLO pois ele está desabilitado nas suas configurações.",
+    "You have 1 extension with an update available, run \"/extensions list\" for more information.": "Você tem 1 extensão com atualização disponível, execute \"/extensions list\" para mais informações.",
+    "You have consented to the following:": "Você consentiu com o seguinte:",
+    "You have exhausted your daily quota on this model.": "Você esgotou sua cota diária neste modelo.",
+    "You must select a language to continue.": "Você deve selecionar um idioma para continuar.",
+    "You must select an auth method to proceed. Press Ctrl+C twice to exit.": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
+    "You need at least one command before continuing.": "Você precisa de pelo menos um comando antes de continuar.",
+    "Your preferred editor is:": "Seu editor preferido é:",
+    "Your terminal is already configured for an optimal experience with multiline input (Shift+Enter and Ctrl+Enter).": "Seu terminal já está configurado para uma experiência ideal com entrada multilinha (Shift+Enter e Ctrl+Enter).",
+    "[AUDITARIA_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n": "[AUDITARIA_CLI_AVISO] Execução PTY falhou, voltando para child_process. Isso pode ser devido a restrições de sandbox.\n",
+    "[Binary output detected. Halting stream...]": "[Saída binária detectada. Interrompendo stream...]",
+    "[Command produced binary output, which is not shown.]": "[Comando produziu saída binária, que não é mostrada.]",
+    "[Error] GOOGLE_CLOUD_PROJECT is not set.\nPlease set it using:\n  export GOOGLE_CLOUD_PROJECT=<your-project-id>\nand try again.": "[Erro] GOOGLE_CLOUD_PROJECT não está definido.\nPor favor, defina usando:\n  export GOOGLE_CLOUD_PROJECT=<seu-id-projeto>\ne tente novamente.",
+    "accepting edits": "aceitando edições",
+    "active": "ativa",
+    "apply scope": "aplicar escopo",
+    "building sandbox ...": "construindo sandbox ...",
+    "change language preference": "alterar preferência de idioma",
+    "change the auth method": "alterar o método de autenticação",
+    "change the theme": "alterar o tema",
+    "check session stats. Usage: /stats [model|tools]": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
+    "check status of IDE integration": "verificar status da integração com IDE",
+    "clear the screen and conversation history": "limpar a tela e o histórico da conversa",
+    "configure scope": "configurar escopo",
+    "disable IDE integration": "desabilitar integração com IDE",
+    "disabled": "desabilitada",
+    "display the privacy notice": "exibir o aviso de privacidade",
+    "download and setup a skill": "baixar e configurar uma habilidade",
+    "enable IDE integration": "habilitar integração com IDE",
+    "exit": "sair",
+    "exit the cli": "sair do cli",
+    "for help on gemini-cli": "para ajuda sobre gemini-cli",
+    "in the workspace directory": "no diretório de workspace",
+    "list active extensions": "listar extensões ativas",
+    "list available Gemini CLI tools": "listar ferramentas disponíveis do Gemini CLI",
+    "list available Gemini CLI tools. Usage: /tools [desc]": "listar ferramentas disponíveis do Gemini CLI. Uso: /tools [desc]",
+    "list configured MCP servers and tools": "listar servidores MCP configurados e ferramentas",
+    "loading": "carregando",
+    "manage IDE integration": "gerenciar integração com IDE",
+    "no": "não",
+    "no sandbox": "sem sandbox",
+    "open full Gemini CLI documentation in your browser": "abrir documentação completa do Gemini CLI no seu navegador",
+    "open web interface in browser": "abrir interface web no navegador",
+    "raw markdown mode": "modo markdown bruto",
+    "reauth required": "reautenticação necessária",
+    "remote": "remoto",
+    "responding": "respondendo",
+    "restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested": "restaurar uma chamada de ferramenta. Isso redefinirá a conversa e o histórico de arquivos para o estado em que estava quando a chamada da ferramenta foi sugerida",
+    "reviewed": "revisadas",
+    "select": "selecionar",
+    "select theme": "selecionar tema",
+    "set external editor preference": "definir preferência do editor externo",
+    "shell command": "comando shell",
+    "shell mode enabled": "modo shell habilitado",
+    "show version info": "mostrar informações da versão",
+    "show web interface status": "mostrar status da interface web",
+    "start web interface server": "iniciar servidor da interface web",
+    "stop web interface server": "parar servidor da interface web",
+    "stopping proxy ...": "parando proxy ...",
+    "stopping proxy container ...": "parando container proxy ...",
+    "submit a bug report": "enviar relatório de bug",
+    "summarize": "resumir",
+    "switch between Gemini Pro and Flash models": "alternar entre modelos Gemini Pro e Flash",
+    "toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)": "alternar entre estratégia de fallback melhorada (7 tentativas, atrasos de 2s, reset para Pro) e comportamento original do Google (2 tentativas, backoff exponencial)",
+    "toggle vim mode on/off": "alternar modo vim ligado/desligado",
+    "toggle whether to stay on Pro model (disable/enable fallback to Flash)": "alternar se deve permanecer no modelo Pro (desabilitar/habilitar fallback para Flash)",
+    "unknown": "desconhecido",
+    "unknown state": "estado desconhecido",
+    "untrusted": "não confiável",
+    "usage": "uso",
+    "waiting for proxy to start ...": "aguardando proxy iniciar ...",
+    "yes": "sim",
+    "{count} open file{plural} (ctrl+g to view)": "{count} arquivo{plural} aberto{plural} (ctrl+g para ver)",
+    "» Tip: For a full token breakdown, run `/stats model`.": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`.",
+    "🌐 Opening web interface in browser...": "🌐 Abrindo interface web no navegador...",
+    "🔴 Disconnected": "🔴 Desconectado",
+    "🟡 Connecting...": "🟡 Conectando...",
+    "🟢 Connected": "🟢 Conectado"
+  },
+  "patterns": [
+    {
+      "pattern": "^\nContent from @(.+):\n$",
+      "replacement": "\nConteúdo de @$1:\n",
+      "flags": ""
+    },
+    {
+      "pattern": "^\nPossible quota limitations in place or slow response times detected\\. Switching to the (.+) model for the rest of this session\\. We appreciate you for choosing Gemini Code Assist and the Gemini CLI\\.$",
+      "replacement": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo $1 pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI.",
+      "flags": ""
+    },
+    {
+      "pattern": "^\nPossible quota limitations in place or slow response times detected\\. Switching to the (.+) model for the rest of this session\\.$",
+      "replacement": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo $1 pelo resto desta sessão.",
+      "flags": ""
+    },
+    {
+      "pattern": "^\nYou have reached your daily (.+) quota limit\\. You will be switched to the (.+) model for the rest of this session\\. We appreciate you for choosing Gemini Code Assist and the Gemini CLI\\. To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "\nVocê atingiu seu limite de cota diária do $1. Você será mudado para o modelo $2 pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo $3 hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^\nYou have reached your daily quota limit\\. We appreciate you for choosing Gemini Code Assist and the Gemini CLI\\. To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "\nVocê atingiu seu limite de cota diária. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo $1 hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^ \\((.+) to toggle\\) $",
+      "replacement": " ($1 para alternar) ",
+      "flags": ""
+    },
+    {
+      "pattern": "^ \\(esc to cancel, (.+)\\)$",
+      "replacement": " (esc para cancelar, $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^ \\(results limited to (.+) matches for performance\\)$",
+      "replacement": " (resultados limitados a $1 correspondências por desempenho)",
+      "flags": ""
+    },
+    {
+      "pattern": "^ Did you mean \"(.+)\"\\?$",
+      "replacement": " Você quis dizer \"$1\"?",
+      "flags": ""
+    },
+    {
+      "pattern": "^ Did you mean one of: (.+)\\?$",
+      "replacement": " Você quis dizer uma das: $1?",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+)\nPlease fix the configuration file\\(s\\) and try again\\.$",
+      "replacement": "$1\nPor favor corrija o(s) arquivo(s) de configuração e tente novamente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) (.+) File(.+)$",
+      "replacement": "$1 arquivo$3 $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) \\((.+)%\\) of input tokens were served from the cache, reducing costs\\.$",
+      "replacement": "$1 ($2%) dos tokens de entrada foram servidos do cache, reduzindo custos.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) error(.+)$",
+      "replacement": "$1 erro$2",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) for more information\\.$",
+      "replacement": "$1 para mais informações.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) for more information\\.$",
+      "replacement": "$1 para mais informações.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) frames rendered while the app was idle in the past second\\. This likely indicates severe infinite loop React state management bugs\\.$",
+      "replacement": "$1 frames foram renderizados enquanto o aplicativo estava ocioso no último segundo. Isso provavelmente indica bugs graves de loop infinito no gerenciamento de estado do React.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) keybindings already configured\\.$",
+      "replacement": "Atalhos de teclado do $1 já configurados.",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) MCP Server(.+)$",
+      "replacement": "$1 servidor$2 MCP",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+) Theme Preview$",
+      "replacement": "Pré-visualização do Tema $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^(.+)/(.+) completed$",
+      "replacement": "$1/$2 completas",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\.\\.\\. \\(\\+(.+) more\\)$",
+      "replacement": "... (+$1 mais)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\((.+) reviewed\\)$",
+      "replacement": "($1 revisadas)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\((.+) tools cached\\)$",
+      "replacement": "($1 ferramentas em cache)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\((.+) tools\\)$",
+      "replacement": "($1 ferramentas)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\((.+)% context left\\)$",
+      "replacement": "($1% contexto restante)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Also modified in (.+)\\)$",
+      "replacement": "(Também modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Also modified in (.+)\\)$",
+      "replacement": "(Também modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Also modified in (.+)\\)$",
+      "replacement": "(Também modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Also modified in (.+)\\)$",
+      "replacement": "(Também modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Modified in (.+)\\)$",
+      "replacement": "(Modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Modified in (.+)\\)$",
+      "replacement": "(Modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Modified in (.+)\\)$",
+      "replacement": "(Modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Modified in (.+)\\)$",
+      "replacement": "(Modificado em $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\(Use Enter to (.+), Tab to (.+), Esc to close\\)$",
+      "replacement": "(Use Enter para $1, Tab para $2, Esc para fechar)",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\[Receiving binary output\\.\\.\\. (.+) received\\]$",
+      "replacement": "[Recebendo saída binária... $1 recebido]",
+      "flags": ""
+    },
+    {
+      "pattern": "^\\[WARN\\] Skipping unreadable directory: (.+) \\((.+)\\)$",
+      "replacement": "[AVISO] Ignorando diretório ilegível: $1 ($2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^=========================================\nThis is an unexpected error\\. Please file a bug report using the /bug tool\\.\nCRITICAL: Unhandled Promise Rejection!\n=========================================\nReason: (.+)(.+)$",
+      "replacement": "=========================================\nEste é um erro inesperado. Por favor, relate um bug usando a ferramenta /bug.\nCRÍTICO: Rejeição de Promise Não Tratada!\n=========================================\nRazão: $1$2",
+      "flags": ""
+    },
+    {
+      "pattern": "^⏳ MCP servers are starting up \\((.+) initializing\\)\\.\\.\\.$",
+      "replacement": "⏳ Servidores MCP estão iniciando ($1 inicializando)...",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily (.+) quota limit\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do $3\n⚡ Para continuar acessando o modelo $4 hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily (.+) quota limit\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de $3\n⚡ Para continuar acessando o modelo $4 hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily (.+) quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do $3\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Possible reasons for this are that you have received multiple consecutive capacity errors or you have reached your daily (.+) quota limit\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de $3\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Your requests are being throttled temporarily due to server being at capacity for (.+) or there is a service outage\\.\n⚡ To avoid being throttled, you can retry your request after some time or upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Suas requisições estão sendo limitadas temporariamente devido ao servidor estar com capacidade total para $3 ou há uma interrupção no serviço.\n⚡ Para evitar ser limitado, você pode tentar novamente sua requisição após algum tempo ou atualizar para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Automatically switching from (.+) to (.+) for faster responses for the remainder of this session\\.\n⚡ Your requests are being throttled temporarily due to server being at capacity for (.+) or there is a service outage\\.\n⚡ To continue accessing the (.+) model, you can retry your request after some time or consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Alternando automaticamente de $1 para $2 para respostas mais rápidas pelo restante desta sessão.\n⚡ Suas requisições estão sendo limitadas temporariamente devido ao servidor estar com capacidade total para $3 ou há uma interrupção no serviço.\n⚡ Para continuar acessando o modelo $4, você pode tentar novamente sua requisição após algum tempo ou considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota do $1.\n⚡ Alternando automaticamente de $2 para $3 pelo restante desta sessão.\n⚡ Para continuar acessando o modelo $4 hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota do $1.\n⚡ Alternando automaticamente de $2 para $3 pelo restante desta sessão.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ Increase your limits by \n⚡ - signing up for a plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ - or using a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária de $1.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Aumente seus limites \n⚡ - inscrevendo-se em um plano com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ - ou usando uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ Increase your limits by using a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária de $1.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Aumente seus limites usando uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota do $1.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo $2 hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária de $1.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo $2 hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota do $1.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily (.+) quota limit\\.\n⚡ You can choose to authenticate with a paid API key or continue with the fallback model\\.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária de $1.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota.\n⚡ Alternando automaticamente de $1 para $2 pelo restante desta sessão.\n⚡ Para continuar acessando o modelo $3 hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To continue accessing the (.+) model today, consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária.\n⚡ Alternando automaticamente de $1 para $2 pelo restante desta sessão.\n⚡ Para continuar acessando o modelo $3 hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite diário de cota.\n⚡ Alternando automaticamente de $1 para $2 pelo restante desta sessão.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ You have reached your daily quota limit\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To increase your limits, upgrade to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ Or you can utilize a Gemini API Key\\. See: https://goo\\.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Você atingiu seu limite de cota diária.\n⚡ Alternando automaticamente de $1 para $2 pelo restante desta sessão.\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Your requests are being throttled right now due to server being at capacity for (.+)\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ Retry your requests after some time\\. Otherwise consider upgrading to a Gemini Code Assist Standard or Enterprise plan with higher limits at https://goo\\.gle/set-up-gemini-code-assist\n⚡ You can switch authentication methods by typing /auth$",
+      "replacement": "⚡ Suas requisições estão sendo limitadas no momento devido ao servidor estar com capacidade total para $1.\n⚡ Alternando automaticamente de $2 para $3 pelo restante desta sessão.\n⚡ Tente novamente suas requisições após algum tempo. Caso contrário, considere atualizar para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Você pode alternar métodos de autenticação digitando /auth",
+      "flags": ""
+    },
+    {
+      "pattern": "^⚡ Your requests are being throttled right now due to server being at capacity for (.+)\\.\n⚡ Automatically switching from (.+) to (.+) for the remainder of this session\\.\n⚡ To continue accessing the (.+) model, retry your request after some time or consider using /auth to switch to using a paid API key from AI Studio at https://aistudio\\.google\\.com/apikey$",
+      "replacement": "⚡ Suas requisições estão sendo limitadas no momento devido ao servidor estar com capacidade total para $1.\n⚡ Alternando automaticamente de $2 para $3 pelo restante desta sessão.\n⚡ Para continuar acessando o modelo $4, tente novamente sua requisição após algum tempo ou considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
+      "flags": ""
+    },
+    {
+      "pattern": "^✅ Successfully authenticated with MCP server '(.+)'!$",
+      "replacement": "✅ Autenticado com sucesso com o servidor MCP '$1'!",
+      "flags": ""
+    },
+    {
+      "pattern": "^❌ '(.+)' requires authentication but no OAuth configuration found$",
+      "replacement": "❌ '$1' requer autenticação mas nenhuma configuração OAuth foi encontrada",
+      "flags": ""
+    },
+    {
+      "pattern": "^❌ Could not configure OAuth for '(.+)' - please authenticate manually with /mcp auth (.+)$",
+      "replacement": "❌ Não foi possível configurar OAuth para '$1' - por favor autentique manualmente com /mcp auth $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^❌ OAuth discovery failed for '(.+)' - please authenticate manually with /mcp auth (.+)$",
+      "replacement": "❌ Descoberta OAuth falhou para '$1' - por favor autentique manualmente com /mcp auth $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^🌐 Web interface available at http://localhost:(.+)$",
+      "replacement": "🌐 Interface web disponível em http://localhost:$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^🔍 Attempting OAuth discovery for '(.+)'\\.\\.\\.$",
+      "replacement": "🔍 Tentando descoberta OAuth para '$1'...",
+      "flags": ""
+    },
+    {
+      "pattern": "^🔐 '(.+)' requires OAuth authentication$",
+      "replacement": "🔐 '$1' requer autenticação OAuth",
+      "flags": ""
+    },
+    {
+      "pattern": "^🚦Pardon Our Congestion! It looks like (.+) is very popular at the moment\\.\nPlease retry again later\\.$",
+      "replacement": "🚦Desculpe o Congestionamento! Parece que $1 está muito popular no momento.\nPor favor, tente novamente mais tarde.",
+      "flags": ""
+    },
+    {
+      "pattern": "^🟢 Connected to (.+)$",
+      "replacement": "🟢 Conectado ao $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^401 error received for SSE server '(.+)' without OAuth configuration\\. Please authenticate using: /mcp auth (.+)$",
+      "replacement": "Erro 401 recebido para o servidor SSE '$1' sem configuração OAuth. Por favor, autentique usando: /mcp auth $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^A new version of Auditaria CLI is available! (.+) → (.+)$",
+      "replacement": "Uma nova versão do Auditaria CLI está disponível! $1 → $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Absolute path is outside of the allowed workspace: (.+)$",
+      "replacement": "Caminho absoluto está fora do workspace permitido: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^across (.+) workspace directories$",
+      "replacement": "em $1 diretórios de workspace",
+      "flags": ""
+    },
+    {
+      "pattern": "^Activated extension: (.+) \\(version: (.+)\\)$",
+      "replacement": "Extensão ativada: $1 (versão: $2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Added Shift\\+Enter and Ctrl\\+Enter keybindings to (.+)\\.\nModified: (.+)$",
+      "replacement": "Adicionados atalhos Shift+Enter e Ctrl+Enter ao $1.\nModificado: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Allow execution of MCP tool \"(.+)\" from server \"(.+)\"\\?$",
+      "replacement": "Permitir execução da ferramenta MCP \"$1\" do servidor \"$2\"?",
+      "flags": ""
+    },
+    {
+      "pattern": "^Allow execution of: '(.+)'\\?$",
+      "replacement": "Permitir execução de: '$1'?",
+      "flags": ""
+    },
+    {
+      "pattern": "^An unexpected error occurred: (.+)$",
+      "replacement": "Ocorreu um erro inesperado: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Arguments for \"(.+)\":$",
+      "replacement": "Argumentos para \"$1\":",
+      "flags": ""
+    },
+    {
+      "pattern": "^Attempting to pull image (.+) using (.+)\\.\\.\\.$",
+      "replacement": "Tentando baixar imagem $1 usando $2...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Attempting to save to memory: \"(.+)\"$",
+      "replacement": "Tentando salvar na memória: \"$1\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^Auditaria CLI update available! (.+) → (.+)\nRun npm install -g (.+) to update$",
+      "replacement": "Atualização do Auditaria CLI disponível! $1 → $2\nExecute npm install -g $3 para atualizar",
+      "flags": ""
+    },
+    {
+      "pattern": "^Authenticated via \"(.+)\"\\.$",
+      "replacement": "Autenticado via \"$1\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Authentication is enforced to be (.+), but you are currently using (.+)\\.$",
+      "replacement": "A autenticação é forçada a ser $1, mas você está atualmente usando $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Automatic update failed\\. Please try updating manually\\. \\(command: (.+), stderr: (.+)\\)$",
+      "replacement": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: $1, stderr: $2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Automatic update failed\\. Please try updating manually\\. \\(error: (.+)\\)$",
+      "replacement": "Atualização automática falhou. Por favor, tente atualizar manualmente. (erro: $1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Available languages: (.+)$",
+      "replacement": "Idiomas disponíveis: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Available tool calls to restore:\n\n(.+)$",
+      "replacement": "Chamadas de ferramenta disponíveis para restaurar:\n\n$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^By using the Gemini API (.+), Google AI Studio (.+), and the other Google developer services that reference these terms \\(collectively, the \"APIs\" or \"Services\"\\), you are agreeing to Google APIs Terms of Service \\(the \"API Terms\"\\) (.+), and the Gemini API Additional Terms of Service \\(the \"Additional Terms\"\\) (.+)\\.$",
+      "replacement": "Ao usar a API Gemini $1, Google AI Studio $2, e os outros serviços de desenvolvedor do Google que referenciam estes termos (coletivamente, as \"APIs\" ou \"Serviços\"), você está concordando com os Termos de Serviço das APIs do Google (os \"Termos da API\") $3, e os Termos de Serviço Adicionais da API Gemini (os \"Termos Adicionais\") $4.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Chat history compressed from (.+) to (.+) tokens\\.$",
+      "replacement": "Histórico do chat comprimido de $1 para $2 tokens.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Checking for sandbox image: (.+)$",
+      "replacement": "Verificando imagem do sandbox: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command '/(.+)' requires a subcommand\\. Available:\n(.+)$",
+      "replacement": "Comando '/$1' requer um subcomando. Disponíveis:\n$2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command exited with code (.+)\\.$",
+      "replacement": "Comando saiu com código $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command exited with code: (.+)$",
+      "replacement": "Comando saiu com código: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command failed: (.+)$",
+      "replacement": "Comando falhou: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command terminated by signal: (.+)\\.$",
+      "replacement": "Comando terminado por sinal: $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command terminated by signal: (.+)$",
+      "replacement": "Comando terminado por sinal: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command\\(s\\) not in the allowed commands list\\. Disallowed commands: (.+)$",
+      "replacement": "Comando(s) não estão na lista de comandos permitidos. Comandos não permitidos: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Command\\(s\\) not on the global or session allowlist\\. Disallowed commands: (.+)$",
+      "replacement": "Comando(s) não estão na lista de permissões global ou da sessão. Comandos não permitidos: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Configuration file not found at (.+)$",
+      "replacement": "Arquivo de configuração não encontrado em $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Confirm: (.+)$",
+      "replacement": "Confirmar: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Connecting to MCP servers\\.\\.\\. \\((.+)/(.+)\\)$",
+      "replacement": "Conectando aos servidores MCP... ($1/$2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Connecting to MCP servers\\.\\.\\. \\((.+)/(.+)\\)$",
+      "replacement": "Conectando aos servidores MCP... ($1/$2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not authenticate using metadata server application default credentials\\. Please select a different authentication method or ensure you are in a properly configured environment\\. Error: (.+)$",
+      "replacement": "Não foi possível autenticar usando credenciais padrão do aplicativo do servidor de metadados. Selecione um método de autenticação diferente ou certifique-se de estar em um ambiente configurado corretamente. Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not install extension because the current workspace at (.+) is not trusted\\.$",
+      "replacement": "Não foi possível instalar a extensão porque o workspace atual em $1 não é confiável.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not install extension from untrusted folder at (.+)$",
+      "replacement": "Não foi possível instalar a extensão de pasta não confiável em $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not load theme from file \"(.+)\":$",
+      "replacement": "Não foi possível carregar tema do arquivo \"$1\":",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not open URL in browser: (.+)$",
+      "replacement": "Não foi possível abrir URL no navegador: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Could not read restorable tool calls\\. This is the error: (.+)$",
+      "replacement": "Não foi possível ler chamadas de ferramenta restauráveis. Este é o erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Create (.+) files to customize your interactions with Gemini\\.$",
+      "replacement": "Crie arquivos $1 para personalizar suas interações com Gemini.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Created (.+)$",
+      "replacement": "Criado $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Created (.+)$",
+      "replacement": "Criado $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Created new file: (.+) with provided content\\.$",
+      "replacement": "Criado novo arquivo: $1 com conteúdo fornecido.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Current combined memory content:\n```markdown\n(.+)\n```$",
+      "replacement": "Conteúdo atual combinado da memória:\n```markdown\n$1\n```",
+      "flags": ""
+    },
+    {
+      "pattern": "^Current memory content from (.+) file\\(s\\):\n\n---\n(.+)\n---$",
+      "replacement": "Conteúdo atual da memória de $1 arquivo(s):\n\n---\n$2\n---",
+      "flags": ""
+    },
+    {
+      "pattern": "^Current workspace directories:\n(.+)$",
+      "replacement": "Diretórios atuais do espaço de trabalho:\n$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Custom command from (.+)$",
+      "replacement": "Comando personalizado de $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Directory mismatch\\. Gemini CLI is running in a different location than the open workspace in (.+)\\. Please run the CLI from one of the following directories: (.+)$",
+      "replacement": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em $1. Por favor, execute o CLI em um dos seguintes diretórios: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Directory mismatch\\. Gemini CLI is running in a different location than the open workspace in (.+)\\. Please run the CLI from the same directory as your project's root folder\\.$",
+      "replacement": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em $1. Por favor, execute o CLI no mesmo diretório da pasta raiz do seu projeto.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Disabled extension: (.+)$",
+      "replacement": "Extensão desabilitada: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Discovered OAuth configuration from base URL for server '(.+)'$",
+      "replacement": "Configuração OAuth descoberta da URL base para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Do you want to connect (.+) editor to Auditaria CLI\\?$",
+      "replacement": "Você deseja conectar o editor $1 ao Auditaria CLI?",
+      "flags": ""
+    },
+    {
+      "pattern": "^e\\.g\\., (.+) (.+) is equivalent to (.+) (.+)$",
+      "replacement": "ex: $1 $2 é equivalente a $3 $4",
+      "flags": ""
+    },
+    {
+      "pattern": "^Editor preference cleared in (.+) settings\\.$",
+      "replacement": "Preferência do editor removida nas configurações de $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Editor preference set to \"(.+)\" in (.+) settings\\.$",
+      "replacement": "Preferência do editor definida para \"$1\" nas configurações de $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error accessing path: (.+)\\. (.+)$",
+      "replacement": "Erro ao acessar o caminho: $1. $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error adding '(.+)': (.+)$",
+      "replacement": "Erro ao adicionar '$1': $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error checking existing file: (.+)$",
+      "replacement": "Erro ao verificar arquivo existente: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error checking/reading warnings file: (.+)$",
+      "replacement": "Erro ao verificar/ler arquivo de avisos: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error during grep search operation: (.+)$",
+      "replacement": "Erro durante operação de pesquisa grep: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error during GrepLogic execution: (.+)$",
+      "replacement": "Erro durante execução do GrepLogic: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error executing tool (.+): (.+)$",
+      "replacement": "Erro ao executar ferramenta $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error in (.+): (.+)$",
+      "replacement": "Erro em $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error invoking prompt: (.+)$",
+      "replacement": "Erro ao invocar prompt: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error loading Opt-in settings: (.+)$",
+      "replacement": "Erro ao carregar configurações de Opt-in: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error loading trusted folders config from (.+): (.+)$",
+      "replacement": "Erro ao carregar configuração de pastas confiáveis de $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error preparing edit: (.+)$",
+      "replacement": "Erro ao preparar edição: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error preparing edit: (.+)$",
+      "replacement": "Erro ao preparar edição: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error reading files \\((.+)\\): (.+)$",
+      "replacement": "Erro ao ler arquivos ($1): $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error refreshing memory: (.+)$",
+      "replacement": "Erro ao atualizar memória: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error refreshing memory: (.+)$",
+      "replacement": "Erro ao atualizar a memória: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error refreshing memory: (.+)$",
+      "replacement": "Erro ao atualizar memória: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error saving trusted folders file: (.+)$",
+      "replacement": "Erro ao salvar arquivo de pastas confiáveis: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error setting up skill: (.+)$",
+      "replacement": "Erro ao configurar habilidade: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error updating extension, rolling back\\. (.+)$",
+      "replacement": "Erro ao atualizar extensão, revertendo. $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error writing file: (.+)$",
+      "replacement": "Erro ao escrever arquivo: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: (.+)$",
+      "replacement": "Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Error: Invalid @ command '(.+)'\\. No path specified\\.$",
+      "replacement": "Erro: Comando @ inválido '$1'. Nenhum caminho especificado.",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: missing macos seatbelt profile file '(.+)'$",
+      "replacement": "ERRO: arquivo de perfil macos seatbelt '$1' ausente",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: missing mount path '(.+)' listed in SANDBOX_MOUNTS$",
+      "replacement": "ERRO: caminho de montagem '$1' listado em SANDBOX_MOUNTS ausente",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: path '(.+)' listed in SANDBOX_MOUNTS must be absolute$",
+      "replacement": "ERRO: caminho '$1' listado em SANDBOX_MOUNTS deve ser absoluto",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: proxy command '(.+)' exited with code (.+), signal (.+)$",
+      "replacement": "ERRO: comando proxy '$1' saiu com código $2, sinal $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: proxy container command '(.+)' exited with code (.+), signal (.+)$",
+      "replacement": "ERRO: comando container proxy '$1' saiu com código $2, sinal $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^ERROR: Sandbox image '(.+)' is missing or could not be pulled\\. (.+)$",
+      "replacement": "ERRO: Imagem do sandbox '$1' está ausente ou não pôde ser baixada. $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Execute shell commands via (.+) \\(e\\.g\\., (.+)\\) or use natural language \\(e\\.g\\. (.+)\\)\\.$",
+      "replacement": "Execute comandos shell via $1 (ex., $2) ou use linguagem natural (ex. $3).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" already up to date\\.$",
+      "replacement": "Extensão \"$1\" já está atualizada.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" failed to update\\.$",
+      "replacement": "Falha ao atualizar extensão \"$1\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" has settings changes and cannot be auto-updated\\. Please update manually\\.$",
+      "replacement": "Extensão \"$1\" possui alterações nas configurações e não pode ser atualizada automaticamente. Por favor, atualize manualmente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" installed successfully and enabled\\.$",
+      "replacement": "Extensão \"$1\" instalada com sucesso e habilitada.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" linked successfully and enabled\\.$",
+      "replacement": "Extensão \"$1\" vinculada com sucesso e habilitada.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" not found\\. Run auditaria extensions list to see available extensions\\.$",
+      "replacement": "Extensão \"$1\" não encontrada. Execute auditaria extensions list para ver as extensões disponíveis.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" successfully disabled for scope \"(.+)\"\\.$",
+      "replacement": "Extensão \"$1\" desabilitada com sucesso para o escopo \"$2\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" successfully enabled for scope \"(.+)\"\\.$",
+      "replacement": "Extensão \"$1\" habilitada com sucesso para o escopo \"$2\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" successfully enabled in all scopes\\.$",
+      "replacement": "Extensão \"$1\" habilitada com sucesso em todos os escopos.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" successfully uninstalled\\.$",
+      "replacement": "Extensão \"$1\" desinstalada com sucesso.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension \"(.+)\" successfully updated: (.+) → (.+)\\.$",
+      "replacement": "Extensão \"$1\" atualizada com sucesso: $2 → $3.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension (.+) cannot be updated, type is unknown\\.$",
+      "replacement": "Extensão $1 não pode ser atualizada, tipo desconhecido.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension (.+) cannot be updated\\.$",
+      "replacement": "Extensão $1 não pode ser atualizada.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension (.+) has been successfully validated\\.$",
+      "replacement": "Extensão $1 foi validada com sucesso.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Extension not found: (.+)$",
+      "replacement": "Extensão não encontrada: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to access path stats for (.+): (.+)$",
+      "replacement": "Falha ao acessar estatísticas do caminho $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to apply language \"(.+)\"\\. Please try again\\.$",
+      "replacement": "Falha ao aplicar idioma \"$1\". Tente novamente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to authenticate with MCP server '(.+)': (.+)$",
+      "replacement": "Falha ao autenticar com o servidor MCP '$1': $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to clear cached credentials: (.+)$",
+      "replacement": "Falha ao limpar credenciais em cache: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to compress chat history: (.+)$",
+      "replacement": "Falha ao comprimir histórico do chat: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to configure (.+)\\.\nFile: (.+)\nError: (.+)$",
+      "replacement": "Falha ao configurar $1.\nArquivo: $2\nErro: $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to configure terminal: (.+)$",
+      "replacement": "Falha ao configurar terminal: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to connect to IDE companion extension in (.+)\\. Please ensure the extension is running\\. To install the extension, run /ide install\\.$",
+      "replacement": "Falha ao conectar à extensão companion do IDE no $1. Por favor, certifique-se de que a extensão está em execução. Para instalar a extensão, execute /ide install.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to connect to IDE server: (.+)$",
+      "replacement": "Falha ao conectar ao servidor do IDE: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to connect with OAuth token: (.+)$",
+      "replacement": "Falha ao conectar com token OAuth: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to create OAuth transport for server '(.+)'$",
+      "replacement": "Falha ao criar transporte OAuth para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to edit, expected (.+) (.+) but found (.+)\\.$",
+      "replacement": "Falha ao editar, esperado $1 $2 mas encontrado $3.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to edit, expected (.+) (.+) but found (.+)\\.$",
+      "replacement": "Falha ao editar, esperava $1 $2 mas encontrou $3.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to exchange authorization code for tokens: (.+)$",
+      "replacement": "Falha ao trocar código de autorização por tokens: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to get credentials for server '(.+)' after successful OAuth authentication$",
+      "replacement": "Falha ao obter credenciais para o servidor '$1' após autenticação OAuth bem-sucedida",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to get OAuth token for server '(.+)'$",
+      "replacement": "Falha ao obter token OAuth para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to get stored credentials for server '(.+)'$",
+      "replacement": "Falha ao obter credenciais armazenadas para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to handle automatic OAuth for server '(.+)': (.+)$",
+      "replacement": "Falha ao gerenciar OAuth automático para o servidor '$1': $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to inject content for '@(.+)}': (.+)$",
+      "replacement": "Falha ao injetar conteúdo para '@$1}': $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to load extension config from (.+): (.+)$",
+      "replacement": "Falha ao carregar configuração de extensão de $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to load language \"(.+)\"\\. Using default\\.$",
+      "replacement": "Falha ao carregar idioma \"$1\". Usando padrão.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to login\\. Message: (.+)$",
+      "replacement": "Falha no login. Mensagem: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to obtain sandbox image (.+) after check and pull attempt\\.$",
+      "replacement": "Falha ao obter imagem do sandbox $1 após verificação e tentativa de download.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to open browser automatically\\. Please visit http://localhost:(.+) manually\\.$",
+      "replacement": "Falha ao abrir navegador automaticamente. Por favor, visite http://localhost:$1 manualmente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to open browser: (.+)$",
+      "replacement": "Falha ao abrir navegador: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to pull image (.+)\\. '(.+) pull (.+)' exited with code (.+)\\.$",
+      "replacement": "Falha ao baixar imagem $1. '$2 pull $3' saiu com código $4.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to set editor preference: (.+)$",
+      "replacement": "Falha ao definir preferência do editor: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to set proxy: (.+)$",
+      "replacement": "Falha ao configurar proxy: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to start '(.+) pull (.+)' command: (.+)$",
+      "replacement": "Falha ao iniciar comando '$1 pull $2': $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to start '(.+)' command for image check: (.+)$",
+      "replacement": "Falha ao iniciar comando '$1' para verificação de imagem: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to start ripgrep: (.+)\\. Please ensure @lvce-editor/ripgrep is properly installed\\.$",
+      "replacement": "Falha ao iniciar ripgrep: $1. Por favor, certifique-se de que @lvce-editor/ripgrep está instalado corretamente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to start web interface: (.+)$",
+      "replacement": "Falha ao iniciar interface web: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to stop web interface: (.+)$",
+      "replacement": "Falha ao parar interface web: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to uninstall \"(.+)\": (.+)$",
+      "replacement": "Falha ao desinstalar \"$1\": $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Fallback strategy switched from (.+) to (.+)\\.\n\n(.+)$",
+      "replacement": "Estratégia de fallback alterada de $1 para $2.\n\n$3",
+      "flags": ""
+    },
+    {
+      "pattern": "^Fallback strategy switched from (.+) to (.+)\\.\\\\n\\\\n(.+)$",
+      "replacement": "Estratégia de fallback alterada de $1 para $2.\\n\\n$3",
+      "flags": ""
+    },
+    {
+      "pattern": "^File '@(.+)}' was ignored by \\.gitignore or \\.geminiignore and was not included in the prompt\\.$",
+      "replacement": "Arquivo '@$1}' foi ignorado pelo .gitignore ou .geminiignore e não foi incluído no prompt.",
+      "flags": ""
+    },
+    {
+      "pattern": "^File not found for '(.+)' and path is not absolute\\.$",
+      "replacement": "Arquivo não encontrado para '$1' e o caminho não é absoluto.",
+      "flags": ""
+    },
+    {
+      "pattern": "^File not found: (.+)$",
+      "replacement": "Arquivo não encontrado: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^File not found: (.+)$",
+      "replacement": "Arquivo não encontrado: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^File path must be within one of the workspace directories: (.+)$",
+      "replacement": "O caminho do arquivo deve estar dentro de um dos diretórios do espaço de trabalho: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found (.+) (.+) \\(limited\\)$",
+      "replacement": "Encontrado $1 $2 (limitado)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found (.+) (.+) for pattern \"(.+)\" (.+)(.+)$",
+      "replacement": "Encontrado $1 $2 para o padrão \"$3\" $4$5",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found (.+) (.+)$",
+      "replacement": "Encontrado $1 $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found (.+) (.+)$",
+      "replacement": "Encontrado $1 $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found stored OAuth token for server '(.+)'$",
+      "replacement": "Token OAuth armazenado encontrado para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Found www-authenticate header from server: (.+)$",
+      "replacement": "Cabeçalho www-authenticate encontrado do servidor: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Google OAuth error: (.+)\\. (.+)$",
+      "replacement": "Erro OAuth do Google: $1. $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^GrepLogic: ripgrep failed: (.+)$",
+      "replacement": "GrepLogic: ripgrep falhou: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Hello (.+)$",
+      "replacement": "Olá $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^High memory usage detected: (.+) GB\\. If you experience a crash, please file a bug report by running `/bug`$",
+      "replacement": "Alto uso de memória detectado: $1 GB. Se você tiver uma falha, por favor reporte o bug executando `/bug`",
+      "flags": ""
+    },
+    {
+      "pattern": "^hopping into sandbox \\(command: (.+)\\) \\.\\.\\.$",
+      "replacement": "entrando no sandbox (comando: $1) ...",
+      "flags": ""
+    },
+    {
+      "pattern": "^IDE integration is not supported in your current environment\\. To use this feature, run Gemini CLI in one of these supported IDEs: (.+)$",
+      "replacement": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^If you select Yes, the CLI will have access to your open files and display diffs directly in (.+)\\.$",
+      "replacement": "Se você selecionar Sim, o CLI terá acesso aos seus arquivos abertos e exibirá diffs diretamente no $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in (.+)\\.$",
+      "replacement": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Ignoring user-defined MCP server config for \"(.+)\" as it is a reserved name\\.$",
+      "replacement": "Ignorando configuração MCP do servidor definida pelo usuário para \"$1\" pois é um nome reservado.",
+      "flags": ""
+    },
+    {
+      "pattern": "^in path \"(.+)\"$",
+      "replacement": "no caminho \"$1\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^Initialization Error: (.+)$",
+      "replacement": "Erro de Inicialização: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^install required IDE companion for (.+)$",
+      "replacement": "instalar companion do IDE necessário para $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Installation cancelled for \"(.+)\"\\.$",
+      "replacement": "Instalação cancelada para \"$1\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Installing extension \"(.+)\"\\.$",
+      "replacement": "Instalando extensão \"$1\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Installing skill: (.+)\\.\\.\\.$",
+      "replacement": "Instalando habilidade: $1...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid approval mode: (.+)\\. Valid values are: yolo, auto_edit, default$",
+      "replacement": "Modo de aprovação inválido: $1. Valores válidos são: yolo, auto_edit, default",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid configuration in (.+): missing (.+)$",
+      "replacement": "Configuração inválida em $1: $2 ausente",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid custom theme from file \"(.+)\": (.+)$",
+      "replacement": "Tema personalizado inválido do arquivo \"$1\": $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid extension config in (.+): missing name or version\\.$",
+      "replacement": "Configuração de extensão inválida em $1: nome ou versão ausente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid GitHub repository source: (.+)\\. Expected \"owner/repo\" or a github repo uri\\.$",
+      "replacement": "Fonte de repositório GitHub inválida: $1. Esperado \"proprietário/repo\" ou uma URI de repositório github.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid sandbox command '(.+)'\\. Must be one of (.+)$",
+      "replacement": "Comando sandbox inválido '$1'. Deve ser um de $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid subcommand for /permissions: (.+)\\. Usage: /permissions trust \\[<directory-path>\\]$",
+      "replacement": "Subcomando inválido para /permissions: $1. Uso: /permissions trust [<caminho-do-diretório>]",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid value for chatCompression\\.contextPercentageThreshold: \"(.+)\"\\. Please use a value between 0 and 1\\. Using default compression settings\\.$",
+      "replacement": "Valor inválido para chatCompression.contextPercentageThreshold: \"$1\". Por favor, use um valor entre 0 e 1. Usando configurações de compressão padrão.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid value for dnsResolutionOrder in settings: \"(.+)\"\\. Using default \"(.+)\"\\.$",
+      "replacement": "Valor inválido para dnsResolutionOrder nas configurações: \"$1\". Usando padrão \"$2\".",
+      "flags": ""
+    },
+    {
+      "pattern": "^Invalid value for GEMINI_DEFAULT_AUTH_TYPE: \"(.+)\"\\. Valid values are: (.+)\\.$",
+      "replacement": "Valor inválido para GEMINI_DEFAULT_AUTH_TYPE: \"$1\". Valores válidos são: $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Language changed to (.+)\\.$",
+      "replacement": "Idioma alterado para $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Loaded memory from (.+) (.+) file(.+)\\.$",
+      "replacement": "Memória carregada de $1 arquivo$3 $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Loading extension: (.+) \\(version: (.+)\\)$",
+      "replacement": "Carregando extensão: $1 (versão: $2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server '(.+)' not found\\.$",
+      "replacement": "Servidor MCP '$1' não encontrado.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server '(.+)' requires authentication\\. Please configure OAuth or check server settings\\.$",
+      "replacement": "Servidor MCP '$1' requer autenticação. Por favor, configure OAuth ou verifique as configurações do servidor.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server '(.+)' requires OAuth authentication\\. Please authenticate using the /mcp auth command\\.$",
+      "replacement": "Servidor MCP '$1' requer autenticação OAuth. Por favor, autentique usando o comando /mcp auth.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server \"(.+)\" added to (.+) settings\\. \\((.+)\\)$",
+      "replacement": "Servidor MCP \"$1\" adicionado às configurações de $2. ($3)",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server \"(.+)\" is already configured within (.+) settings\\.$",
+      "replacement": "Servidor MCP \"$1\" já está configurado nas configurações de $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server \"(.+)\" updated in (.+) settings\\.$",
+      "replacement": "Servidor MCP \"$1\" atualizado nas configurações de $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP server config not found for '(.+)'\\.$",
+      "replacement": "Configuração do servidor MCP não encontrada para '$1'.",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP Server: (.+)$",
+      "replacement": "Servidor MCP: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^MCP servers with OAuth authentication:\n(.+)\n\nUse /mcp auth <server-name> to authenticate\\.$",
+      "replacement": "Servidores MCP com autenticação OAuth:\n$1\n\nUse /mcp auth <nome-do-servidor> para autenticar.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Memory refreshed successfully\\. Loaded (.+) characters from (.+) file\\(s\\)\\.$",
+      "replacement": "Memória atualizada com sucesso. Carregados $1 caracteres de $2 arquivo(s).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Memory refreshed successfully\\. Loaded (.+) characters from (.+) file\\(s\\)\\.$",
+      "replacement": "Memória atualizada com sucesso. Carregados $1 caracteres de $2 arquivo(s).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Missing macos seatbelt profile file '(.+)'$",
+      "replacement": "Arquivo de perfil seatbelt macOS ausente '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^Missing mount path '(.+)' listed in SANDBOX_MOUNTS$",
+      "replacement": "Caminho de montagem ausente '$1' listado em SANDBOX_MOUNTS",
+      "flags": ""
+    },
+    {
+      "pattern": "^Missing required argument\\(s\\): (.+)$",
+      "replacement": "Argumentos obrigatórios ausentes: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Missing sandbox command '(.+)' \\(from GEMINI_SANDBOX\\)$",
+      "replacement": "Comando sandbox ausente '$1' (de GEMINI_SANDBOX)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Model provided invalid parameters\\. Error: (.+)$",
+      "replacement": "Modelo forneceu parâmetros inválidos. Erro: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Model switched to: (.+) \\((.+)\\)$",
+      "replacement": "Modelo alterado para: $1 ($2)",
+      "flags": ""
+    },
+    {
+      "pattern": "^No installer is available for (.+)\\. Please install the 'Gemini CLI Companion' extension manually from the marketplace\\.$",
+      "replacement": "Nenhum instalador está disponível para $1. Por favor, instale a extensão 'Gemini CLI Companion' manualmente do marketplace.",
+      "flags": ""
+    },
+    {
+      "pattern": "^No matches found for pattern \"(.+)\" (.+)(.+)\\.$",
+      "replacement": "Nenhuma correspondência encontrada para o padrão \"$1\" $2$3.",
+      "flags": ""
+    },
+    {
+      "pattern": "^No matches found for pattern \"(.+)\" (.+)(.+)\\.$",
+      "replacement": "Nenhuma correspondência encontrada para o padrão \"$1\" $2$3.",
+      "flags": ""
+    },
+    {
+      "pattern": "^No MCP servers configured\\. Opening documentation in your browser: (.+)$",
+      "replacement": "Nenhum servidor MCP configurado. Abrindo documentação no seu navegador: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^No MCP servers configured\\. Please open the following URL in your browser to view documentation:\n(.+)$",
+      "replacement": "Nenhum servidor MCP configurado. Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^No MCP servers configured\\. Please view MCP documentation in your browser: (.+) or use the cli /docs command$",
+      "replacement": "Nenhum servidor MCP configurado. Por favor, visualize a documentação MCP no seu navegador: $1 ou use o comando /docs",
+      "flags": ""
+    },
+    {
+      "pattern": "^OAuth authentication successful for server '(.+)'$",
+      "replacement": "Autenticação OAuth bem-sucedida para o servidor '$1'",
+      "flags": ""
+    },
+    {
+      "pattern": "^OAuth callback not received\\. Unexpected request: (.+)$",
+      "replacement": "Callback OAuth não recebido. Solicitação inesperada: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^OAuth callback server error: (.+)$",
+      "replacement": "Erro do servidor de callback OAuth: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^OAuth configuration failed for '(.+)'\\. Please authenticate manually with /mcp auth (.+)$",
+      "replacement": "Configuração OAuth falhou para '$1'. Por favor, autentique manualmente com /mcp auth $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Opening documentation in your browser: (.+)$",
+      "replacement": "Abrindo documentação no seu navegador: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Output too long and was saved to: (.+)$",
+      "replacement": "Saída muito longa e foi salva em: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Output too long and was saved to: (.+)$",
+      "replacement": "Saída muito longa e foi salva em: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path '(.+)' listed in SANDBOX_MOUNTS must be absolute$",
+      "replacement": "Caminho '$1' listado em SANDBOX_MOUNTS deve ser absoluto",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path already exists: (.+)$",
+      "replacement": "Caminho já existe: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path does not exist: (.+)$",
+      "replacement": "O caminho não existe: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path is not a directory: (.+)$",
+      "replacement": "O caminho não é um diretório: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path is not a directory: (.+)$",
+      "replacement": "O caminho não é um diretório: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path not found in workspace: (.+)$",
+      "replacement": "Caminho não encontrado no workspace: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Path validation failed: Attempted path \"(.+)\" resolves outside the allowed workspace directories: (.+)$",
+      "replacement": "Validação de caminho falhou: Caminho tentado \"$1\" resolve fora dos diretórios de workspace permitidos: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Please check and modify manually if needed: (.+)$",
+      "replacement": "Por favor, verifique e modifique manualmente se necessário: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Please open the following URL in your browser to view the documentation:\n(.+)$",
+      "replacement": "Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Please set an Auth method in your (.+) or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA$",
+      "replacement": "Por favor, defina um método de autenticação em $1 ou especifique uma das seguintes variáveis de ambiente antes de executar: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA",
+      "flags": ""
+    },
+    {
+      "pattern": "^Please specify a skill name\\. Available skills: (.+)$",
+      "replacement": "Por favor especifique o nome da habilidade. Habilidades disponíveis: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Port (.+) is in use, using port (.+) instead$",
+      "replacement": "Porta $1 está em uso, usando porta $2 ao invés",
+      "flags": ""
+    },
+    {
+      "pattern": "^Prompt \"(.+)\" has no arguments\\.$",
+      "replacement": "Prompt \"$1\" não possui argumentos.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Proxy command '(.+)' exited with code (.+), signal (.+)$",
+      "replacement": "Comando proxy '$1' saiu com código $2, sinal $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^Proxy container command '(.+)' exited with code (.+), signal (.+)$",
+      "replacement": "Comando de container proxy '$1' saiu com código $2, sinal $3",
+      "flags": ""
+    },
+    {
+      "pattern": "^Re-discovering tools from '(.+)'\\.\\.\\.$",
+      "replacement": "Re-descobrindo ferramentas de '$1'...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Read all (.+) lines from (.+) \\(some lines were shortened\\)$",
+      "replacement": "Lidas todas as $1 linhas de $2 (algumas linhas foram encurtadas)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Read lines (.+)-(.+) of (.+) from (.+)$",
+      "replacement": "Lidas linhas $1-$2 de $3 de $4",
+      "flags": ""
+    },
+    {
+      "pattern": "^Received 401 with www-authenticate header: (.+)$",
+      "replacement": "Recebido 401 com cabeçalho www-authenticate: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Received authorization code: \"(.+)\"$",
+      "replacement": "Código de autorização recebido: \"$1\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^responding with (.+)$",
+      "replacement": "respondendo com $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Responding with (.+)$",
+      "replacement": "Respondendo com $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Retrying connection to '(.+)' with OAuth token\\.\\.\\.$",
+      "replacement": "Tentando novamente a conexão com '$1' usando token OAuth...",
+      "flags": ""
+    },
+    {
+      "pattern": "^ripgrep exited with code (.+): (.+)$",
+      "replacement": "ripgrep saiu com código $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox image '(.+)' is missing or could not be pulled\\. (.+)$",
+      "replacement": "Imagem sandbox '$1' está ausente ou não pôde ser baixada. $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox image (.+) found locally\\.$",
+      "replacement": "Imagem do sandbox $1 encontrada localmente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox image (.+) is now available after pulling\\.$",
+      "replacement": "Imagem do sandbox $1 está agora disponível após o download.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox image (.+) not found locally\\.$",
+      "replacement": "Imagem do sandbox $1 não encontrada localmente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox image (.+) still not found after a pull attempt\\. This might indicate an issue with the image name or registry, or the pull command reported success but failed to make the image available\\.$",
+      "replacement": "Imagem do sandbox $1 ainda não encontrada após tentativa de download. Isso pode indicar um problema com o nome da imagem ou registro, ou o comando de download reportou sucesso mas falhou em disponibilizar a imagem.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox process error: (.+)$",
+      "replacement": "Erro no processo sandbox: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sandbox process exited with code: (.+), signal: (.+)$",
+      "replacement": "Processo sandbox saiu com código: $1, sinal: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Sending this message \\((.+) tokens\\) might exceed the remaining context window limit \\((.+) tokens\\)\\.$",
+      "replacement": "Enviar esta mensagem ($1 tokens) pode exceder o limite restante da janela de contexto ($2 tokens).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Server \"(.+)\" not found in (.+) settings\\.$",
+      "replacement": "Servidor \"$1\" não encontrado nas configurações de $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Server \"(.+)\" removed from (.+) settings\\.$",
+      "replacement": "Servidor \"$1\" removido das configurações de $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Service Specific Terms (.+) are incorporated into the agreement under which Google has agreed to provide Google Cloud Platform (.+) to Customer \\(the \"Agreement\"\\)\\. If the Agreement authorizes the resale or supply of Google Cloud Platform under a Google Cloud partner or reseller program, then except for in the section entitled \"Partner-Specific Terms\", all references to Customer in the Service Specific Terms mean Partner or Reseller \\(as applicable\\), and all references to Customer Data in the Service Specific Terms mean Partner Data\\. Capitalized terms used but not defined in the Service Specific Terms have the meaning given to them in the Agreement\\.$",
+      "replacement": "Os Termos Específicos do Serviço $1 são incorporados ao acordo sob o qual o Google concordou em fornecer o Google Cloud Platform $2 ao Cliente (o \"Acordo\"). Se o Acordo autorizar a revenda ou fornecimento do Google Cloud Platform sob um programa de parceiro ou revendedor do Google Cloud, então, exceto na seção intitulada \"Termos Específicos do Parceiro\", todas as referências ao Cliente nos Termos Específicos do Serviço significam Parceiro ou Revendedor (conforme aplicável), e todas as referências aos Dados do Cliente nos Termos Específicos do Serviço significam Dados do Parceiro. Termos em maiúsculas usados mas não definidos nos Termos Específicos do Serviço têm o significado dado a eles no Acordo.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Skill (.+) is not available for platform: (.+)$",
+      "replacement": "Habilidade $1 não está disponível para a plataforma: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Starting OAuth authentication for MCP server '(.+)'\\.\\.\\.$",
+      "replacement": "Iniciando autenticação OAuth para o servidor MCP '$1'...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Starting OAuth authentication for server '(.+)'\\.\\.\\.$",
+      "replacement": "Iniciando autenticação OAuth para o servidor '$1'...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Stored OAuth token for SSE server '(.+)' was rejected\\. Please re-authenticate using: /mcp auth (.+)$",
+      "replacement": "Token OAuth armazenado para o servidor SSE '$1' foi rejeitado. Por favor, re-autentique usando: /mcp auth $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully added directories:\n- (.+)$",
+      "replacement": "Diretórios adicionados com sucesso:\n- $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully added GEMINI\\.md files from the following directories if there are:\n- (.+)$",
+      "replacement": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\n- $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully authenticated and refreshed tools for '(.+)'\\.$",
+      "replacement": "Autenticado com sucesso e ferramentas atualizadas para '$1'.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully created new extension at (.+)\\.$",
+      "replacement": "Nova extensão criada com sucesso em $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully created new extension from template \"(.+)\" at (.+)\\.$",
+      "replacement": "Nova extensão criada com sucesso a partir do modelo \"$1\" em $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully downloaded (.+) workflows and updated \\.gitignore\\. Follow the steps in https://github\\.com/google-github-actions/run-gemini-cli/blob/(.+)/README\\.md#quick-start \\(skipping the /setup-github step\\) to complete setup\\.$",
+      "replacement": "$1 workflows baixados com sucesso e .gitignore atualizado. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/$2/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully modified file: (.+) \\((.+) replacements\\)\\.$",
+      "replacement": "Arquivo modificado com sucesso: $1 ($2 substituições).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully pulled image (.+)\\.$",
+      "replacement": "Imagem $1 baixada com sucesso.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully read: (.+)$",
+      "replacement": "Lido com sucesso: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Switch to (.+) for the rest of this session$",
+      "replacement": "Mudar para $1 pelo restante desta sessão",
+      "flags": ""
+    },
+    {
+      "pattern": "^Terminal \"(.+)\" is not supported yet\\.$",
+      "replacement": "Terminal \"$1\" ainda não é suportado.",
+      "flags": ""
+    },
+    {
+      "pattern": "^The configured auth type is (.+), but the current auth type is (.+)\\. Please re-authenticate with the correct type\\.$",
+      "replacement": "O tipo de autenticação configurado é $1, mas o tipo de autenticação atual é $2. Por favor, reautentique com o tipo correto.",
+      "flags": ""
+    },
+    {
+      "pattern": "^The current workspace at \"(.+)\" is not trusted\\. Do you want to trust this workspace to install extensions\\?$",
+      "replacement": "O workspace atual em \"$1\" não é confiável. Você deseja confiar neste workspace para instalar extensões?",
+      "flags": ""
+    },
+    {
+      "pattern": "^The file path '(.+)' is too ambiguous and matches multiple files\\. Please provide a more specific path\\. Matches: (.+)$",
+      "replacement": "O caminho do arquivo '$1' é muito ambíguo e corresponde a vários arquivos. Por favor, forneça um caminho mais específico. Correspondências: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^The following context files referenced in gemini-extension\\.json are missing: (.+)$",
+      "replacement": "Os seguintes arquivos de contexto referenciados em gemini-extension.json estão faltando: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^The following directories are already in the workspace:\n- (.+)$",
+      "replacement": "Os seguintes diretórios já estão no espaço de trabalho:\n- $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^The following directories are explicitly untrusted and cannot be added to a trusted workspace:\n- (.+)\nPlease use the permissions command to modify their trust level\\.$",
+      "replacement": "Os seguintes diretórios são explicitamente não confiáveis e não podem ser adicionados a um espaço de trabalho confiável:\n- $1\nPor favor, use o comando permissions para modificar seu nível de confiança.",
+      "flags": ""
+    },
+    {
+      "pattern": "^The tool '(.+)' \\(or '(.+)'\\) specified in '(.+)' is deprecated and will be removed in v0\\.14\\.0\\.$",
+      "replacement": "A ferramenta '$1' (ou '$2') especificada em '$3' está obsoleta e será removida na v0.14.0.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Theme \"(.+)\" not found\\.$",
+      "replacement": "Tema \"$1\" não encontrado.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Theme file at \"(.+)\" is outside your home directory\\. Only load themes from trusted sources\\.$",
+      "replacement": "Arquivo de tema em \"$1\" está fora do seu diretório home. Carregue apenas temas de fontes confiáveis.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Theme from \"(.+)\": (.+)$",
+      "replacement": "Tema do arquivo \"$1\": $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^There are (.+) GEMINI\\.md file\\(s\\) in use:\n\n(.+)$",
+      "replacement": "Existem $1 arquivo(s) GEMINI.md em uso:\n\n$2",
+      "flags": ""
+    },
+    {
+      "pattern": "^This extension will append info to your gemini\\.md context using (.+)$",
+      "replacement": "Esta extensão adicionará informações ao seu contexto gemini.md usando $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^This extension will exclude the following core tools: (.+)$",
+      "replacement": "Esta extensão excluirá as seguintes ferramentas principais: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^This notice and our Privacy Policy (.+) describe how Gemini Code Assist handles your data\\. Please read them carefully\\.$",
+      "replacement": "Este aviso e nossa Política de Privacidade $1 descrevem como o Gemini Code Assist lida com seus dados. Por favor, leia-os cuidadosamente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^To submit your bug report, please open the following URL in your browser:\n(.+)$",
+      "replacement": "Para enviar seu relatório de bug, por favor abra a seguinte URL no seu navegador:\n$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^To use this feature, please open a workspace folder in (.+) and try again\\.$",
+      "replacement": "Para usar este recurso, por favor abra uma pasta de workspace em $1 e tente novamente.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Tool \"(.+)\" not found in registry\\. Tools must use the exact names that are registered\\.(.+)$",
+      "replacement": "Ferramenta \"$1\" não encontrada no registro. As ferramentas devem usar os nomes exatos que estão registrados.$2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Tool execution for \"(.+)\" denied by policy\\.$",
+      "replacement": "Execução da ferramenta \"$1\" negada pela política.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Tool: (.+)$",
+      "replacement": "Ferramenta: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Trust folder \\((.+)\\)$",
+      "replacement": "Confiar na pasta ($1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Trust parent folder \\((.+)\\)$",
+      "replacement": "Confiar na pasta pai ($1)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unable to create (.+) directory\\. Do you have file permissions in the current directory\\?$",
+      "replacement": "Não foi possível criar o diretório $1. Você tem permissões de arquivo no diretório atual?",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unexpected error during OAuth authentication: (.+)$",
+      "replacement": "Erro inesperado durante autenticação OAuth: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unhandled ExtensionUpdateState (.+)$",
+      "replacement": "ExtensionUpdateState não tratado $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unknown command: (.+)$",
+      "replacement": "Comando desconhecido: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unknown platform: (.+)\\. Attempting to open URLs with: (.+)\\.$",
+      "replacement": "Plataforma desconhecida: $1. Tentando abrir URLs com: $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Unknown skill: (.+)\\. Available skills: (.+)$",
+      "replacement": "Habilidade desconhecida: $1. Habilidades disponíveis: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Use (.+) to specify files for context \\(e\\.g\\., (.+)\\) to target specific files or folders\\.$",
+      "replacement": "Use $1 para especificar arquivos para contexto (ex., $2) para direcionar arquivos ou pastas específicas.",
+      "flags": ""
+    },
+    {
+      "pattern": "^using (.+) for sandbox$",
+      "replacement": "usando $1 para sandbox",
+      "flags": ""
+    },
+    {
+      "pattern": "^using macos seatbelt \\(profile: (.+)\\) \\.\\.\\.$",
+      "replacement": "usando macos seatbelt (perfil: $1) ...",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: error parsing extension config in (.+): (.+)$",
+      "replacement": "Aviso: erro ao analisar configuração de extensão em $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: extension directory (.+) does not contain a config file (.+)\\.$",
+      "replacement": "Aviso: diretório de extensão $1 não contém arquivo de configuração $2.",
+      "flags": ""
+    },
+    {
+      "pattern": "^WARNING: shell mode is stateless; the directory change to '(.+)' will not persist\\.$",
+      "replacement": "AVISO: modo shell é sem estado; a mudança de diretório para '$1' não persistirá.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: Skipping extension in (.+): (.+)$",
+      "replacement": "Aviso: Pulando extensão em $1: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: stdin input truncated to (.+) bytes\\.$",
+      "replacement": "Aviso: entrada stdin truncada para $1 bytes.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: unexpected file (.+) in extensions directory\\.$",
+      "replacement": "Aviso: arquivo inesperado $1 no diretório de extensões.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Warning: Version '(.+)' does not appear to be standard semver \\(e\\.g\\., 1\\.0\\.0\\)\\.$",
+      "replacement": "Aviso: Versão '$1' não parece ser semver padrão (por exemplo, 1.0.0).",
+      "flags": ""
+    },
+    {
+      "pattern": "^Web interface is already running on port (.+)$",
+      "replacement": "Interface web já está rodando na porta $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Web interface is running on port (.+) with (.+) connected client\\(s\\)$",
+      "replacement": "Interface web está rodando na porta $1 com $2 cliente(s) conectado(s)",
+      "flags": ""
+    },
+    {
+      "pattern": "^Web interface started on http://localhost:(.+)$",
+      "replacement": "Interface web iniciada em http://localhost:$1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Welcome! Language has been set to (.+)\\. You can change it anytime using the /language command\\.$",
+      "replacement": "Bem-vindo! O idioma foi definido para $1. Você pode alterá-lo a qualquer momento usando o comando /language.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Yes, allow always \"(.+) \\.\\.\\.\"$",
+      "replacement": "Sim, permitir sempre \"$1 ...\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^Yes, always allow all tools from server \"(.+)\"$",
+      "replacement": "Sim, sempre permitir todas as ferramentas do servidor \"$1\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^Yes, always allow tool \"(.+)\" from server \"(.+)\"$",
+      "replacement": "Sim, sempre permitir ferramenta \"$1\" do servidor \"$2\"",
+      "flags": ""
+    },
+    {
+      "pattern": "^You are currently in screen reader-friendly view\\. To switch out, open (.+) and remove the entry for \"screenReader\"\\. This will disappear on next run\\.$",
+      "replacement": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra $1 e remova a entrada \"screenReader\". Isso desaparecerá na próxima execução.",
+      "flags": ""
+    },
+    {
+      "pattern": "^You can install this using \"auditaria extensions link (.+)\" to test it out\\.$",
+      "replacement": "Você pode instalar isso usando \"auditaria extensions link $1\" para testar.",
+      "flags": ""
+    },
+    {
+      "pattern": "^You have (.+) extensions with an update available, run \"/extensions list\" for more information\\.$",
+      "replacement": "Você tem $1 extensões com atualização disponível, execute \"/extensions list\" para mais informações.",
+      "flags": ""
+    }
+  ],
+  "exclusions": {
+    "prefixes": [
+      "[Tool:",
+      "Tool:",
+      "User:",
+      "Assistant:",
+      "Error:",
+      "DEBUG:",
+      "[DEBUG]",
+      "[ERROR]",
+      "[WARN]",
+      "[INFO]"
+    ],
+    "components": [
+      "ChatMessage",
+      "ToolOutput",
+      "UserInput",
+      "FunctionResponse"
+    ],
+    "contexts": ["chat", "tool", "function", "debug"],
+    "patterns": [
+      "^\\[Tool:.*\\]$",
+      "^User:.*",
+      "^Assistant:.*",
+      "^\\s*$",
+      "^[0-9]+$",
+      "^[0-9]+(\\.[0-9]+)?$",
+      "^[A-Z0-9_]+$",
+      "^https?://.*",
+      "^/.*",
+      "^[A-Za-z]:\\\\.*",
+      "^```.*",
+      "^\\$.*",
+      "^npm .*",
+      "^git .*",
+      "^---+$",
+      "^===+$",
+      "^\\*\\*\\*+$"
+    ]
+  }
+}
