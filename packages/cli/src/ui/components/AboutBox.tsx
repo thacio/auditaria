@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@thacio/auditaria-cli-core';
 
 import type React from 'react';
 import { Box, Text } from 'ink';
@@ -21,6 +20,7 @@ interface AboutBoxProps {
   gcpProject: string;
   ideClient: string;
   userTier?: UserTierId;
+  userEmail?: string;
 }
 
 export const AboutBox: React.FC<AboutBoxProps> = ({
@@ -32,6 +32,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   gcpProject,
   ideClient,
   userTier,
+  userEmail,
 }) => (
   <Box
     borderStyle="round"
@@ -43,13 +44,13 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   >
     <Box marginBottom={1}>
       <Text bold color={theme.text.accent}>
-        {t('about_box.title', 'About Gemini CLI')}
+        About Gemini CLI
       </Text>
     </Box>
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.cli_version', 'CLI Version')}
+          CLI Version
         </Text>
       </Box>
       <Box>
@@ -60,7 +61,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
       <Box flexDirection="row">
         <Box width="35%">
           <Text bold color={theme.text.link}>
-            {t('about_box.labels.git_commit', 'Git Commit')}
+            Git Commit
           </Text>
         </Box>
         <Box>
@@ -71,7 +72,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.model', 'Model')}
+          Model
         </Text>
       </Box>
       <Box>
@@ -81,7 +82,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.sandbox', 'Sandbox')}
+          Sandbox
         </Text>
       </Box>
       <Box>
@@ -91,7 +92,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.os', 'OS')}
+          OS
         </Text>
       </Box>
       <Box>
@@ -101,7 +102,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.auth_method', 'Auth Method')}
+          Auth Method
         </Text>
       </Box>
       <Box>
@@ -113,18 +114,30 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
     <Box flexDirection="row">
       <Box width="35%">
         <Text bold color={theme.text.link}>
-          {t('about_box.labels.license', 'License')}
+          License
         </Text>
       </Box>
       <Box>
         <Text>{getLicenseDisplay(selectedAuthType, userTier)}</Text>
       </Box>
     </Box>
+    {userEmail && (
+      <Box flexDirection="row">
+        <Box width="35%">
+          <Text bold color={theme.text.link}>
+            User Email
+          </Text>
+        </Box>
+        <Box>
+          <Text color={theme.text.primary}>{userEmail}</Text>
+        </Box>
+      </Box>
+    )}
     {gcpProject && (
       <Box flexDirection="row">
         <Box width="35%">
           <Text bold color={theme.text.link}>
-            {t('about_box.labels.gcp_project', 'GCP Project')}
+            GCP Project
           </Text>
         </Box>
         <Box>
@@ -136,7 +149,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
       <Box flexDirection="row">
         <Box width="35%">
           <Text bold color={theme.text.link}>
-            {t('about_box.labels.ide_client', 'IDE Client')}
+            IDE Client
           </Text>
         </Box>
         <Box>

@@ -22,6 +22,9 @@ vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
         getDetectedIdeDisplayName: vi.fn().mockReturnValue('test-ide'),
       }),
     },
+    UserAccountManager: vi.fn().mockImplementation(() => ({
+      getCachedGoogleAccount: vi.fn().mockReturnValue('test-email@example.com'),
+    })),
   };
 });
 
@@ -105,6 +108,7 @@ describe('aboutCommand', () => {
         gcpProject: 'test-gcp-project',
         ideClient: 'test-ide',
         userTier: undefined,
+        userEmail: 'test-email@example.com',
       },
       expect.any(Number),
     );

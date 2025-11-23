@@ -9,25 +9,27 @@ import type { CommandContext, SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 import process from 'node:process';
 import { MessageType, type HistoryItemAbout } from '../types.js';
-import { t, IdeClient } from '@thacio/auditaria-cli-core';
+import {
+  IdeClient,
+  UserAccountManager,
+  debugLogger,
+} from '@thacio/auditaria-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',
-  get description() {
-    return t('commands.about.description', 'Show version info');
-  },
+  description: 'Show version info',
   kind: CommandKind.BUILT_IN,
   action: async (context) => {
     const osVersion = process.platform;
-    let sandboxEnv = t('commands.about.no_sandbox', 'no sandbox');
+    let sandboxEnv = 'no sandbox';
     if (process.env['SANDBOX'] && process.env['SANDBOX'] !== 'sandbox-exec') {
       sandboxEnv = process.env['SANDBOX'];
     } else if (process.env['SANDBOX'] === 'sandbox-exec') {
       sandboxEnv = `sandbox-exec (${
-        process.env['SEATBELT_PROFILE'] || t('commands.about.unknown_profile', 'unknown')
+        process.env['SEATBELT_PROFILE'] || 'unknown'
       })`;
     }
-    const modelVersion = context.services.config?.getModel() || t('commands.about.unknown_model', 'Unknown');
+    const modelVersion = context.services.config?.getModel() || 'Unknown';
     const cliVersion = await getCliVersion();
     const selectedAuthType =
       context.services.settings.merged.security?.auth?.selectedType || '';
@@ -41,6 +43,13 @@ export const aboutCommand: SlashCommand = {
     const ideClient = await getIdeClientName(context);
     const userTier = context.services.config?.getUserTier();
 
+    const userAccountManager = new UserAccountManager();
+    const cachedAccount = userAccountManager.getCachedGoogleAccount();
+    debugLogger.log('AboutCommand: Retrieved cached Google account', {
+      cachedAccount,
+    });
+    const userEmail = cachedAccount ?? undefined;
+
     const aboutItem: Omit<HistoryItemAbout, 'id'> = {
       type: MessageType.ABOUT,
       cliVersion,
@@ -51,6 +60,7 @@ export const aboutCommand: SlashCommand = {
       gcpProject,
       ideClient,
       userTier,
+      userEmail,
     };
 
     context.ui.addItem(aboutItem, Date.now());
