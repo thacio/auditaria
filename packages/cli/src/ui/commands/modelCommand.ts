@@ -5,7 +5,6 @@
  */
 
 import { CommandKind, type SlashCommand } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
 
 export const modelCommand: SlashCommand = {
   name: 'model',
