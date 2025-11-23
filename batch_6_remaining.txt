@@ -1,0 +1,35 @@
+# Batch 6: Remaining Files (Commands, Extensions, MCP, Auth)
+
+## Files to Process (13 total)
+
+### Upstream Files (10 files - compare with upstream):
+packages/cli/src/ui/commands/statsCommand.ts
+packages/cli/src/ui/commands/terminalSetupCommand.ts
+packages/cli/src/ui/commands/toolsCommand.ts
+packages/cli/src/ui/commands/vimCommand.ts
+packages/cli/src/commands/extensions.tsx
+packages/cli/src/commands/mcp.ts
+packages/cli/src/commands/mcp/remove.ts
+packages/cli/src/ui/auth/ApiAuthDialog.tsx
+packages/cli/src/ui/auth/AuthDialog.tsx
+packages/cli/src/ui/auth/AuthInProgress.tsx
+
+### Custom Files (3 files - no upstream comparison needed):
+packages/cli/src/ui/commands/stayProCommand.ts
+packages/cli/src/ui/commands/webCommand.ts
+packages/cli/src/ui/hooks/useWebCommands.ts
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. If upstream file: fetch and compare with `git show upstream/main:[path]`
+3. If custom file: just remove t() using fallback strings
+4. Remove all t() calls, replacing with proper strings
+5. Remove import { t } line
+6. Use Edit tool for changes
+7. Verify no syntax errors
+
+Report completion with statistics.

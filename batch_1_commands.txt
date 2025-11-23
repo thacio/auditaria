@@ -1,0 +1,36 @@
+# Batch 1: Commands Files
+
+## Files to Process (14 total)
+
+### Upstream Files (12 files - compare with upstream):
+packages/cli/src/ui/commands/authCommand.ts
+packages/cli/src/ui/commands/compressCommand.ts
+packages/cli/src/ui/commands/corgiCommand.ts
+packages/cli/src/ui/commands/docsCommand.ts
+packages/cli/src/ui/commands/editorCommand.ts
+packages/cli/src/ui/commands/helpCommand.ts
+packages/cli/src/ui/commands/initCommand.test.ts
+packages/cli/src/ui/commands/initCommand.ts
+packages/cli/src/ui/commands/modelCommand.ts
+packages/cli/src/ui/commands/permissionsCommand.ts
+packages/cli/src/ui/commands/privacyCommand.ts
+packages/cli/src/ui/commands/profileCommand.ts
+
+### Custom Files (2 files - no upstream comparison needed):
+packages/cli/src/ui/commands/fallbackImprovedCommand.ts
+packages/cli/src/ui/commands/languageCommand.ts
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. If upstream file: fetch and compare with `git show upstream/main:[path]`
+3. If custom file: just remove t() using fallback strings
+4. Remove all t() calls, replacing with proper strings
+5. Remove import { t } line
+6. Use Edit tool for changes
+7. Verify no syntax errors
+
+Report completion with statistics.

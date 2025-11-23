@@ -1,0 +1,33 @@
+# Batch 2: Component Files Part 1 (A-L alphabetically)
+
+## Files to Process (14 total)
+
+### All Upstream Files (compare with upstream):
+packages/cli/src/ui/components/AboutBox.tsx
+packages/cli/src/ui/components/AutoAcceptIndicator.tsx
+packages/cli/src/ui/components/ConsentPrompt.tsx
+packages/cli/src/ui/components/ConsoleSummaryDisplay.tsx
+packages/cli/src/ui/components/ContextSummaryDisplay.tsx
+packages/cli/src/ui/components/DebugProfiler.tsx
+packages/cli/src/ui/components/DetailedMessagesDisplay.tsx
+packages/cli/src/ui/components/DialogManager.tsx
+packages/cli/src/ui/components/ExitWarning.tsx
+packages/cli/src/ui/components/FolderTrustDialog.tsx
+packages/cli/src/ui/components/Help.tsx
+packages/cli/src/ui/components/IdeTrustChangeDialog.tsx
+packages/cli/src/ui/components/LoadingIndicator.tsx
+packages/cli/src/ui/components/LoopDetectionConfirmation.tsx
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. Fetch and compare with `git show upstream/main:[path]`
+3. Remove all t() calls, replacing with upstream strings
+4. Remove import { t } line
+5. Use Edit tool for changes
+6. Verify no syntax errors
+
+Report completion with statistics.

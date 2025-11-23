@@ -1,0 +1,32 @@
+# Batch 4: Component Files Part 3 (Remaining components and constants)
+
+## Files to Process (13 total)
+
+### All Upstream Files (compare with upstream):
+packages/cli/src/ui/components/StatsDisplay.tsx
+packages/cli/src/ui/components/SuggestionsDisplay.tsx
+packages/cli/src/ui/components/ThemeDialog.tsx
+packages/cli/src/ui/components/Tips.tsx
+packages/cli/src/ui/components/ToolStatsDisplay.tsx
+packages/cli/src/ui/components/views/ChatList.tsx
+packages/cli/src/ui/privacy/CloudFreePrivacyNotice.tsx
+packages/cli/src/ui/privacy/CloudPaidPrivacyNotice.tsx
+packages/cli/src/ui/privacy/GeminiPrivacyNotice.tsx
+packages/cli/src/ui/IdeIntegrationNudge.tsx
+packages/cli/src/ui/constants.ts
+packages/cli/src/ui/textConstants.ts
+packages/cli/src/utils/dialogScopeUtils.ts
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. Fetch and compare with `git show upstream/main:[path]`
+3. Remove all t() calls, replacing with upstream strings
+4. Remove import { t } line
+5. Use Edit tool for changes
+6. Verify no syntax errors
+
+Report completion with statistics.

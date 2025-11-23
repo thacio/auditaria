@@ -1,0 +1,35 @@
+# Batch 5: Hooks, Utils and Remaining Commands
+
+## Files to Process (13 total)
+
+### Upstream Files (12 files - compare with upstream):
+packages/cli/src/ui/hooks/useMemoryMonitor.ts
+packages/cli/src/ui/hooks/usePrivacySettings.ts
+packages/cli/src/ui/hooks/useThemeCommand.ts
+packages/cli/src/ui/utils/commandUtils.ts
+packages/cli/src/utils/handleAutoUpdate.ts
+packages/cli/src/utils/readStdin.ts
+packages/cli/src/utils/relaunch.ts
+packages/cli/src/utils/startupWarnings.ts
+packages/cli/src/utils/userStartupWarnings.ts
+packages/cli/src/ui/commands/quitCommand.ts
+packages/cli/src/ui/commands/settingsCommand.ts
+packages/cli/src/ui/commands/themeCommand.ts
+
+### Custom Files (1 file - no upstream comparison needed):
+packages/cli/src/ui/commands/setupSkillCommand.ts
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. If upstream file: fetch and compare with `git show upstream/main:[path]`
+3. If custom file: just remove t() using fallback strings
+4. Remove all t() calls, replacing with proper strings
+5. Remove import { t } line
+6. Use Edit tool for changes
+7. Verify no syntax errors
+
+Report completion with statistics.

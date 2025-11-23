@@ -1,0 +1,33 @@
+# Batch 3: Component Files Part 2 (Messages and M-S)
+
+## Files to Process (14 total)
+
+### All Upstream Files (compare with upstream):
+packages/cli/src/ui/components/messages/DiffRenderer.tsx
+packages/cli/src/ui/components/messages/ModelMessage.tsx
+packages/cli/src/ui/components/messages/ToolGroupMessage.tsx
+packages/cli/src/ui/components/messages/ToolMessage.tsx
+packages/cli/src/ui/components/ModelStatsDisplay.tsx
+packages/cli/src/ui/components/PermissionsModifyTrustDialog.tsx
+packages/cli/src/ui/components/ProQuotaDialog.tsx
+packages/cli/src/ui/components/QueuedMessageDisplay.tsx
+packages/cli/src/ui/components/RawMarkdownIndicator.tsx
+packages/cli/src/ui/components/SessionSummaryDisplay.tsx
+packages/cli/src/ui/components/shared/MaxSizedBox.tsx
+packages/cli/src/ui/components/shared/ScopeSelector.tsx
+packages/cli/src/ui/components/ShellModeIndicator.tsx
+packages/cli/src/ui/components/ShowMoreLines.tsx
+
+## Instructions
+
+Read AGENT_INSTRUCTIONS.md for complete workflow.
+
+For each file:
+1. Read full current file
+2. Fetch and compare with `git show upstream/main:[path]`
+3. Remove all t() calls, replacing with upstream strings
+4. Remove import { t } line
+5. Use Edit tool for changes
+6. Verify no syntax errors
+
+Report completion with statistics.
