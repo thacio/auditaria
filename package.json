@@ -122,7 +122,11 @@
   "dependencies": {
     "ink": "npm:@jrichman/ink@6.4.6",
     "latest-version": "^9.0.0",
-    "simple-git": "^3.28.0"
+    "simple-git": "^3.28.0",
+    "@vscode/codicons": "^0.0.43",
+    "ansi-to-html": "^0.7.2",
+    "strip-ansi": "^7.1.0",
+    "vscode-material-icons": "^0.1.1"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "1.1.0",
