@@ -26,7 +26,6 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { useUIActions } from '../contexts/UIActionsContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
-import { t } from '@thacio/auditaria-cli-core';
 import process from 'node:process';
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
 import { IdeTrustChangeDialog } from './IdeTrustChangeDialog.js';
@@ -147,12 +146,7 @@ export const DialogManager = ({
     return (
       <AuthInProgress
         onTimeout={() => {
-          uiActions.onAuthError(
-            t(
-              'auth_dialog.messages.auth_cancelled',
-              'Authentication cancelled.',
-            ),
-          );
+          uiActions.onAuthError('Authentication cancelled.');
         }}
       />
     );

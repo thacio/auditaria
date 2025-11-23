@@ -11,7 +11,6 @@ import { theme } from '../semantic-colors.js';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { debugState } from '../debug.js';
 import { appEvents, AppEvent } from '../../utils/events.js';
-import { t } from '@thacio/auditaria-cli-core';
 
 // Frames that render at least this far before or after an action are considered
 // idle frames.
@@ -111,11 +110,9 @@ export const profiler = {
       }
       appEvents.emit(
         AppEvent.LogError,
-        t(
-          'debug_profiler.idle_frames_warning',
-          '{count} frames rendered while the app was idle in the past second. This likely indicates severe infinite loop React state management bugs.',
-          { count: idleInPastSecond },
-        ),
+        `${idleInPastSecond} frames rendered while the app was ` +
+          `idle in the past second. This likely indicates severe infinite loop ` +
+          `React state management bugs.`,
       );
     }
   },
@@ -135,10 +132,7 @@ export const profiler = {
         this.hasLoggedFirstFlicker = true;
         appEvents.emit(
           AppEvent.LogError,
-          t(
-            'debug_profiler.flicker_detected',
-            'A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.',
-          ),
+          'A flicker frame was detected. This will cause UI instability. Type `/profile` for more info.',
         );
       }
     };
@@ -228,15 +222,10 @@ export const DebugProfiler = () => {
 
   return (
     <Text color={theme.status.warning} key={forceRefresh}>
-      {t('debug_profiler.renders_label', 'Renders:')} {profiler.numFrames}{' '}
-      {t('debug_profiler.total_label', '(total)')},{' '}
+      Renders: {profiler.numFrames} (total),{' '}
+      <Text color={theme.status.error}>{profiler.totalIdleFrames} (idle)</Text>,{' '}
       <Text color={theme.status.error}>
-        {profiler.totalIdleFrames} {t('debug_profiler.idle_label', '(idle)')}
-      </Text>
-      ,{' '}
-      <Text color={theme.status.error}>
-        {profiler.totalFlickerFrames}{' '}
-        {t('debug_profiler.flicker_label', '(flicker)')}
+        {profiler.totalFlickerFrames} (flicker)
       </Text>
     </Text>
   );
