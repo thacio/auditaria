@@ -4,17 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ThoughtSummary } from '@thacio/auditaria-cli-core';
-
+import type { ThoughtSummary } from '@google/gemini-cli-core';
 import type React from 'react';
+import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';
 import { StreamingState } from '../types.js';
 import { GeminiRespondingSpinner } from './GeminiRespondingSpinner.js';
 import { formatDuration } from '../utils/formatters.js';
+// WEB_INTERFACE_START: Loading state context import for web interface integration
+import { useLoadingState } from '../contexts/LoadingStateContext.js';
+// WEB_INTERFACE_END
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { isNarrowWidth } from '../utils/isNarrowWidth.js';
+import { INTERACTIVE_SHELL_WAITING_PHRASE } from '../hooks/usePhraseCycler.js';
 
 interface LoadingIndicatorProps {
   currentLoadingPhrase?: string;
@@ -32,12 +36,37 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const streamingState = useStreamingContext();
   const { columns: terminalWidth } = useTerminalSize();
   const isNarrow = isNarrowWidth(terminalWidth);
+  
+  // WEB_INTERFACE_START: Loading state context for broadcasting to web interface
+  const loadingStateContext = useLoadingState();
+
+  // Update loading state for web interface
+  useEffect(() => {
+    if (loadingStateContext) {
+      const loadingStateData = {
+        isLoading: streamingState !== StreamingState.Idle,
+        streamingState,
+        currentLoadingPhrase,
+        elapsedTime,
+        thought: thought?.subject || null,
+        thoughtObject: thought,
+      };
+
+      loadingStateContext.updateLoadingState(loadingStateData);
+    }
+  }, [streamingState, currentLoadingPhrase, elapsedTime, thought, loadingStateContext]);
+  // WEB_INTERFACE_END
 
   if (streamingState === StreamingState.Idle) {
     return null;
   }
 
-  const primaryText = thought?.subject || currentLoadingPhrase;
+  // Prioritize the interactive shell waiting phrase over the thought subject
+  // because it conveys an actionable state for the user (waiting for input).
+  const primaryText =
+    currentLoadingPhrase === INTERACTIVE_SHELL_WAITING_PHRASE
+      ? currentLoadingPhrase
+      : thought?.subject || currentLoadingPhrase;
 
   const cancelAndTimerContent =
     streamingState !== StreamingState.WaitingForConfirmation
