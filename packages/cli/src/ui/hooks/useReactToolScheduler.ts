@@ -70,7 +70,6 @@ export function useReactToolScheduler(
   onComplete: (tools: CompletedToolCall[]) => Promise<void>,
   config: Config,
   getPreferredEditor: () => EditorType | undefined,
-  onEditorClose: () => void,
 ): [
   TrackedToolCall[],
   ScheduleFn,
@@ -89,7 +88,6 @@ export function useReactToolScheduler(
   // Store callbacks in refs to keep them up-to-date without causing re-renders.
   const onCompleteRef = useRef(onComplete);
   const getPreferredEditorRef = useRef(getPreferredEditor);
-  const onEditorCloseRef = useRef(onEditorClose);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -99,9 +97,6 @@ export function useReactToolScheduler(
     getPreferredEditorRef.current = getPreferredEditor;
   }, [getPreferredEditor]);
 
-  useEffect(() => {
-    onEditorCloseRef.current = onEditorClose;
-  }, [onEditorClose]);
   const outputUpdateHandler: OutputUpdateHandler = useCallback(
     (toolCallId, outputChunk) => {
       setToolCallsForDisplay((prevCalls) =>
@@ -209,7 +204,7 @@ export function useReactToolScheduler(
     () => getPreferredEditorRef.current(),
     [],
   );
-  const stableOnEditorClose = useCallback(() => onEditorCloseRef.current(), []);
+
   const scheduler = useMemo(
     () =>
       new CoreToolScheduler({
@@ -218,7 +213,6 @@ export function useReactToolScheduler(
         onToolCallsUpdate: toolCallsUpdateHandler,
         getPreferredEditor: stableGetPreferredEditor,
         config,
-        onEditorClose: stableOnEditorClose,
       }),
     [
       config,
@@ -226,7 +220,6 @@ export function useReactToolScheduler(
       allToolCallsCompleteHandler,
       toolCallsUpdateHandler,
       stableGetPreferredEditor,
-      stableOnEditorClose,
     ],
   );
 

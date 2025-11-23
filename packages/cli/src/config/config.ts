@@ -22,7 +22,6 @@ import {
   DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
   FileDiscoveryService,
   WRITE_FILE_TOOL_NAME,
-  t,
   SHELL_TOOL_NAMES,
   SHELL_TOOL_NAME,
   resolveTelemetrySettings,
@@ -47,6 +46,7 @@ import type { ExtensionEvents } from '@google/gemini-cli-core/src/utils/extensio
 import { requestConsentNonInteractive } from './extensions/consent.js';
 import { promptForSetting } from './extensions/extensionSettings.js';
 import type { EventEmitter } from 'node:stream';
+import { runExitCleanup } from '../utils/cleanup.js';
 
 export interface CliArgs {
   query: string | undefined;
@@ -261,49 +261,47 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         .deprecateOption(
           'prompt',
           'Use the positional prompt instead. This flag will be removed in a future version.',
-        )
-        // Ensure validation flows through .fail() for clean UX
-        .fail((msg, err, yargs) => {
-          debugLogger.error(msg || err?.message || 'Unknown error');
-          yargs.showHelp();
-          process.exit(1);
-        })
-        .check((argv) => {
-          // The 'query' positional can be a string (for one arg) or string[] (for multiple).
-          // This guard safely checks if any positional argument was provided.
-          const query = argv['query'] as string | string[] | undefined;
-          const hasPositionalQuery = Array.isArray(query)
-            ? query.length > 0
-            : !!query;
-
-          if (argv['prompt'] && hasPositionalQuery) {
-            return t(
-              'cli.errors.prompt_positional_conflict',
-              'Cannot use both a positional prompt and the --prompt (-p) flag together',
-            );
-          }
-          if (argv['prompt'] && argv['promptInteractive']) {
-            return t(
-              'cli.errors.prompt_interactive_conflict',
-              'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
-            );
-          }
-          if (argv.resume && !argv.prompt && !process.stdin.isTTY) {
-            throw new Error(
-              'When resuming a session, you must provide a message via --prompt (-p) or stdin',
-            );
-          }
-          if (argv.yolo && argv['approvalMode']) {
-            return t(
-              'cli.errors.yolo_approval_conflict',
-              'Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.',
-            );
-          }
-          return true;
-        }),
+        ),
     )
     // Register MCP subcommands
-    .command(mcpCommand);
+    .command(mcpCommand)
+    // Ensure validation flows through .fail() for clean UX
+    .fail((msg, err) => {
+      if (err) throw err;
+      throw new Error(msg);
+    })
+    .check((argv) => {
+      // The 'query' positional can be a string (for one arg) or string[] (for multiple).
+      // This guard safely checks if any positional argument was provided.
+      const query = argv['query'] as string | string[] | undefined;
+      const hasPositionalQuery = Array.isArray(query)
+        ? query.length > 0
+        : !!query;
+
+      if (argv['prompt'] && hasPositionalQuery) {
+        return 'Cannot use both a positional prompt and the --prompt (-p) flag together';
+      }
+      if (argv['prompt'] && argv['promptInteractive']) {
+        return 'Cannot use both --prompt (-p) and --prompt-interactive (-i) together';
+      }
+      if (argv['resume'] && !argv['prompt'] && !process.stdin.isTTY) {
+        throw new Error(
+          'When resuming a session, you must provide a message via --prompt (-p) or stdin',
+        );
+      }
+      if (argv['yolo'] && argv['approvalMode']) {
+        return 'Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.';
+      }
+      if (
+        argv['outputFormat'] &&
+        !['text', 'json', 'stream-json'].includes(
+          argv['outputFormat'] as string,
+        )
+      ) {
+        return `Invalid values:\n  Argument: output-format, Given: "${argv['outputFormat']}", Choices: "text", "json", "stream-json"`;
+      }
+      return true;
+    });
 
   if (settings?.experimental?.extensionManagement ?? true) {
     yargsInstance.command(extensionsCommand);
@@ -315,21 +313,26 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     .help()
     .alias('h', 'help')
     .strict()
-    .check((argv) => {
-      if (argv.prompt && argv.promptInteractive) {
-        throw new Error(
-          t(
-            'cli.errors.prompt_interactive_conflict',
-            'Cannot use both --prompt (-p) and --prompt-interactive (-i) together',
-          ),
-        );
-      }
-      return true;
-    })
-    .demandCommand(0, 0); // Allow base command to run with no subcommands
+    .demandCommand(0, 0) // Allow base command to run with no subcommands
+    .exitProcess(false);
 
   yargsInstance.wrap(yargsInstance.terminalWidth());
-  const result = await yargsInstance.parse();
+  let result;
+  try {
+    result = await yargsInstance.parse();
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    debugLogger.error(msg);
+    yargsInstance.showHelp();
+    await runExitCleanup();
+    process.exit(1);
+  }
+
+  // Handle help and version flags manually since we disabled exitProcess
+  if (result['help'] || result['version']) {
+    await runExitCleanup();
+    process.exit(0);
+  }
 
   // If yargs handled --help/--version it will have exited; nothing to do here.
 
@@ -340,6 +343,7 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
     (result._[0] === 'mcp' || result._[0] === 'extensions')
   ) {
     // MCP commands handle their own execution and process exit
+    await runExitCleanup();
     process.exit(0);
   }
 
@@ -495,11 +499,7 @@ export async function loadCliConfig(
         break;
       default:
         throw new Error(
-          t(
-            'cli.errors.invalid_approval_mode',
-            `Invalid approval mode: ${argv.approvalMode}. Valid values are: yolo, auto_edit, default`,
-            { mode: argv.approvalMode },
-          ),
+          `Invalid approval mode: ${argv.approvalMode}. Valid values are: yolo, auto_edit, default`,
         );
     }
   } else {
@@ -513,10 +513,7 @@ export async function loadCliConfig(
     if (approvalMode === ApprovalMode.YOLO) {
       debugLogger.error('YOLO mode is disabled by the "disableYolo" setting.');
       throw new FatalConfigError(
-        t(
-          'cli.errors.yolo_disabled',
-          'Cannot start in YOLO mode when it is disabled by settings',
-        ),
+        'Cannot start in YOLO mode when it is disabled by settings',
       );
     }
     approvalMode = ApprovalMode.DEFAULT;
@@ -529,10 +526,7 @@ export async function loadCliConfig(
   // Force approval mode to default if the folder is not trusted.
   if (!trustedFolder && approvalMode !== ApprovalMode.DEFAULT) {
     debugLogger.warn(
-      t(
-        'trusted_folders.approval_mode_overridden',
-        'Approval mode overridden to "default" because the current folder is not trusted.',
-      ),
+      'Approval mode overridden to "default" because the current folder is not trusted.',
     );
     approvalMode = ApprovalMode.DEFAULT;
   }
