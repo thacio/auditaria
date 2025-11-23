@@ -4,16 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
-
 import { useState, useCallback } from 'react';
 import { themeManager } from '../themes/theme-manager.js';
 import type {
   LoadableSettingScope,
   LoadedSettings,
 } from '../../config/settings.js'; // Import LoadedSettings, AppSettings, MergedSetting
-import { type HistoryItem, MessageType } from '../types.js';
+import { MessageType } from '../types.js';
 import process from 'node:process';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 interface UseThemeCommandReturn {
   isThemeDialogOpen: boolean;
@@ -26,7 +25,7 @@ interface UseThemeCommandReturn {
 export const useThemeCommand = (
   loadedSettings: LoadedSettings,
   setThemeError: (error: string | null) => void,
-  addItem: (item: Omit<HistoryItem, 'id'>, timestamp: number) => void,
+  addItem: UseHistoryManagerReturn['addItem'],
   initialThemeError: string | null,
 ): UseThemeCommandReturn => {
   const [isThemeDialogOpen, setIsThemeDialogOpen] =
@@ -37,10 +36,7 @@ export const useThemeCommand = (
       addItem(
         {
           type: MessageType.INFO,
-          text: t(
-            'theme.no_color_env',
-            'Theme configuration unavailable due to NO_COLOR env variable.',
-          ),
+          text: 'Theme configuration unavailable due to NO_COLOR env variable.',
         },
         Date.now(),
       );
@@ -54,11 +50,7 @@ export const useThemeCommand = (
       if (!themeManager.setActiveTheme(themeName)) {
         // If theme is not found, open the theme selection dialog and set error message
         setIsThemeDialogOpen(true);
-        setThemeError(
-          t('theme.not_found', 'Theme "{theme}" not found.', {
-            theme: themeName ?? 'undefined',
-          }),
-        );
+        setThemeError(`Theme "${themeName}" not found.`);
       } else {
         setThemeError(null); // Clear any previous theme error on success
       }
