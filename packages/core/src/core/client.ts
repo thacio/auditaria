@@ -33,7 +33,6 @@ import type {
 import type { ContentGenerator } from './contentGenerator.js';
 import {
   DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_MODEL_AUTO,
   DEFAULT_THINKING_MODE,
   getEffectiveModel,
 } from '../config/models.js';
@@ -59,11 +58,7 @@ import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { collaborativeWritingService } from '../tools/collaborative-writing.js';
 
 export function isThinkingSupported(model: string) {
-  return (
-    model.startsWith('gemini-2.5') ||
-    model.startsWith('gemini-3') ||
-    model === DEFAULT_GEMINI_MODEL_AUTO
-  );
+  return !model.startsWith('gemini-2.0');
 }
 
 const MAX_TURNS = 100;
