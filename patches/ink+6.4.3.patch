@@ -1,0 +1,54 @@
+diff --git a/node_modules/ink/build/components/Text.js b/node_modules/ink/build/components/Text.js
+index 0315e7d..dbd6ea0 100644
+--- a/node_modules/ink/build/components/Text.js
++++ b/node_modules/ink/build/components/Text.js
+@@ -3,13 +3,39 @@ import chalk from 'chalk';
+ import colorize from '../colorize.js';
+ import { accessibilityContext } from './AccessibilityContext.js';
+ import { backgroundContext } from './BackgroundContext.js';
++
++// i18n injection patch - START
++let translateText = (text) => text; // Default passthrough
++try {
++    // Try to load the translation function if available
++    if (global.__i18n_translate) {
++        translateText = global.__i18n_translate;
++    }
++} catch (e) {
++    // Silently fail if translation not available
++}
++// i18n injection patch - END
+ /**
+ This component can display text and change its style to make it bold, underlined, italic, or strikethrough.
+ */
+ export default function Text({ color, backgroundColor, dimColor = false, bold = false, italic = false, underline = false, strikethrough = false, inverse = false, wrap = 'wrap', children, 'aria-label': ariaLabel, 'aria-hidden': ariaHidden = false, }) {
+     const { isScreenReaderEnabled } = useContext(accessibilityContext);
+     const inheritedBackgroundColor = useContext(backgroundContext);
+-    const childrenOrAriaLabel = isScreenReaderEnabled && ariaLabel ? ariaLabel : children;
++
++    // i18n injection patch - START
++    // Translate children if it's a string
++    let translatedChildren = children;
++    if (typeof children === 'string' && children.trim()) {
++        try {
++            translatedChildren = translateText(children);
++        } catch (e) {
++            // Fall back to original on error
++            translatedChildren = children;
++        }
++    }
++    // i18n injection patch - END
++
++    const childrenOrAriaLabel = isScreenReaderEnabled && ariaLabel ? ariaLabel : translatedChildren;
+     if (childrenOrAriaLabel === undefined || childrenOrAriaLabel === null) {
+         return null;
+     }
+@@ -45,6 +71,6 @@ export default function Text({ color, backgroundColor, dimColor = false, bold =
+     if (isScreenReaderEnabled && ariaHidden) {
+         return null;
+     }
+-    return (React.createElement("ink-text", { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: wrap }, internal_transform: transform }, isScreenReaderEnabled && ariaLabel ? ariaLabel : children));
++    return (React.createElement("ink-text", { style: { flexGrow: 0, flexShrink: 1, flexDirection: 'row', textWrap: wrap }, internal_transform: transform }, isScreenReaderEnabled && ariaLabel ? ariaLabel : translatedChildren));
+ }
+ //# sourceMappingURL=Text.js.map
+\ No newline at end of file

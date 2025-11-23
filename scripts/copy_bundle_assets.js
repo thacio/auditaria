@@ -50,6 +50,19 @@ for (const file of localeFiles) {
   copyFileSync(join(root, file), join(localesDir, fileName));
 }
 
+// Copy i18n-injection translation files
+const i18nInjectionDir = join(bundleDir, 'i18n-injection');
+if (!existsSync(i18nInjectionDir)) {
+  mkdirSync(i18nInjectionDir, { recursive: true });
+}
+
+// Copy en-pt.json file if it exists
+const enPtFile = join(root, 'packages/cli/src/i18n-injection/en-pt.json');
+if (existsSync(enPtFile)) {
+  copyFileSync(enPtFile, join(i18nInjectionDir, 'en-pt.json'));
+  console.log('Copied i18n-injection translation file: en-pt.json');
+}
+
 // WEB_INTERFACE_START: Copy web client files
 // Copy web client files to bundle directory
 const webClientSrc = join(root, 'packages/web-client/src');
