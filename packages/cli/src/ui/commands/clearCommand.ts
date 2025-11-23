@@ -9,7 +9,7 @@ import {
   t,
   clearContextBackups,
   clearCollaborativeWriting,
-} from '@thacio/auditaria-cli-core'; // AUDITARIA_COLLABORATIVE_WRITING
+} from '@google/gemini-cli-core'; // AUDITARIA_COLLABORATIVE_WRITING
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 import { randomUUID } from 'node:crypto';

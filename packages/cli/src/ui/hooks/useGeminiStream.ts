@@ -16,7 +16,7 @@ import type {
   ThoughtSummary,
   ToolCallRequestInfo,
   GeminiErrorEventValue,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   GeminiEventType as ServerGeminiEventType,
   getErrorMessage,
@@ -37,7 +37,7 @@ import {
   tokenLimit,
   debugLogger,
   runInDevTraceSpan,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
   HistoryItem,

@@ -7,7 +7,7 @@
 import {
   debugLogger,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
 import {
   ExtensionUpdateState,

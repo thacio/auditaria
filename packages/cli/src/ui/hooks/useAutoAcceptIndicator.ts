@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ApprovalMode, type Config, t } from '@thacio/auditaria-cli-core';
+import { ApprovalMode, type Config, t } from '@google/gemini-cli-core';
 import { useKeypress } from './useKeypress.js';
 import type { HistoryItemWithoutId } from '../types.js';
 import { MessageType } from '../types.js';

@@ -15,7 +15,7 @@ import {
   GEMINI_DIR,
   type Config,
   type GitService,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 describe('restoreCommand', () => {
   let mockContext: CommandContext;

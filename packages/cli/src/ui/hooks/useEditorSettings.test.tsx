@@ -26,13 +26,13 @@ import {
   type EditorType,
   checkHasEditorType,
   allowEditorTypeInSandbox,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 import { SettingPaths } from '../../config/settingPaths.js';
 
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual('@google/gemini-cli-core');
   return {
     ...actual,
     checkHasEditorType: vi.fn(() => true),

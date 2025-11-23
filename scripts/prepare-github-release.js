@@ -57,9 +57,9 @@ updatePackageJson('packages/a2a-server/package.json', (pkg) => {
   pkg.name = '@thacio/auditaria-cli-a2a-server';
 });
 
-// Update @thacio/auditaria-cli-core
+// Update @google/gemini-cli-core
 updatePackageJson('packages/core/package.json', (pkg) => {
-  pkg.name = '@thacio/auditaria-cli-core';
+  pkg.name = '@google/gemini-cli-core';
 });
 
 console.log('Successfully prepared packages for GitHub release.');

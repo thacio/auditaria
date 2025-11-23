@@ -9,9 +9,9 @@ import { getInstallationInfo, PackageManager } from './installationInfo.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as childProcess from 'node:child_process';
-import { debugLogger, isGitRepository } from '@thacio/auditaria-cli-core';
+import { debugLogger, isGitRepository } from '@google/gemini-cli-core';
 
-vi.mock('@thacio/auditaria-cli-core', () => ({
+vi.mock('@google/gemini-cli-core', () => ({
   isGitRepository: vi.fn(),
   debugLogger: {
     log: vi.fn(),

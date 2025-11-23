@@ -8,7 +8,7 @@ import type { HistoryItemCompression } from '../types.js';
 import { MessageType } from '../types.js';
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const compressCommand: SlashCommand = {
   name: 'compress',

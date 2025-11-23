@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IdeInfo } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import type { IdeInfo } from '@google/gemini-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
 import type { RadioSelectItem } from './components/shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';

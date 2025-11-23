@@ -25,19 +25,19 @@ import type {
   Status as ToolCallStatusType,
   AnyDeclarativeTool,
   AnyToolInvocation,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
   ToolConfirmationOutcome,
   ApprovalMode,
   MockTool,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ToolCallStatus } from '../types.js';
 
 // Mocks
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual<any>('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual<any>('@google/gemini-cli-core');
   // Patch CoreToolScheduler to have cancelAll if it's missing in the test environment
   if (
     actual.CoreToolScheduler &&

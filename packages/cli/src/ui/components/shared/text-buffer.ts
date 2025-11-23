@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import pathMod from 'node:path';
 import { useState, useCallback, useEffect, useMemo, useReducer } from 'react';
-import { unescapePath } from '@thacio/auditaria-cli-core';
+import { unescapePath } from '@google/gemini-cli-core';
 import {
   toCodePoints,
   cpLen,

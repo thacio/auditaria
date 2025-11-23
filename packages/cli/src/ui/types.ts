@@ -13,7 +13,7 @@ import type {
   ToolConfirmationOutcome,
   ToolResultDisplay,
   UserTierId,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { PartListUnion } from '@google/genai';
 import { type ReactNode } from 'react';
 

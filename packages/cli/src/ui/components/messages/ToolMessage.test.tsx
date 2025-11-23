@@ -10,7 +10,7 @@ import { ToolMessage } from './ToolMessage.js';
 import { StreamingState, ToolCallStatus } from '../../types.js';
 import { Text } from 'ink';
 import { StreamingContext } from '../../contexts/StreamingContext.js';
-import type { AnsiOutput } from '@thacio/auditaria-cli-core';
+import type { AnsiOutput } from '@google/gemini-cli-core';
 import { renderWithProviders } from '../../../test-utils/render.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

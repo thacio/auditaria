@@ -9,7 +9,7 @@ import {
   checkHasEditorType,
   type EditorType,
   EDITOR_DISPLAY_NAMES,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 export interface EditorDisplay {
   name: string;

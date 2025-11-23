@@ -13,7 +13,7 @@ import {
   FatalConfigError,
   getErrorMessage,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 
 interface EnableArgs {

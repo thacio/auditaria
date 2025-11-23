@@ -14,7 +14,7 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL,
   UserTierId,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 interface ProQuotaDialogProps {
   failedModel: string;

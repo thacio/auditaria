@@ -8,7 +8,7 @@ import { access, cp, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 import type { CommandModule } from 'yargs';
 import { fileURLToPath } from 'node:url';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 
 interface NewArgs {
   path: string;

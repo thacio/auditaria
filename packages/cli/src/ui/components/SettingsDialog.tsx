@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, debugLogger } from '@thacio/auditaria-cli-core';
+import { t, debugLogger } from '@google/gemini-cli-core';
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';

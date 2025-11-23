@@ -10,11 +10,11 @@ import { activate } from './extension.js';
 import {
   IDE_DEFINITIONS,
   detectIdeFromEnv,
-} from '@thacio/auditaria-cli-core/src/ide/detect-ide.js';
+} from '@google/gemini-cli-core/src/ide/detect-ide.js';
 
-vi.mock('@thacio/auditaria-cli-core/src/ide/detect-ide.js', async () => {
+vi.mock('@google/gemini-cli-core/src/ide/detect-ide.js', async () => {
   const actual = await vi.importActual(
-    '@thacio/auditaria-cli-core/src/ide/detect-ide.js',
+    '@google/gemini-cli-core/src/ide/detect-ide.js',
   );
   return {
     ...actual,

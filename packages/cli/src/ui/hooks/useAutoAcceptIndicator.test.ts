@@ -17,17 +17,17 @@ import { act } from 'react';
 import { renderHook } from '../../test-utils/render.js';
 import { useAutoAcceptIndicator } from './useAutoAcceptIndicator.js';
 
-import { Config, ApprovalMode } from '@thacio/auditaria-cli-core';
-import type { Config as ActualConfigType } from '@thacio/auditaria-cli-core';
+import { Config, ApprovalMode } from '@google/gemini-cli-core';
+import type { Config as ActualConfigType } from '@google/gemini-cli-core';
 import type { Key } from './useKeypress.js';
 import { useKeypress } from './useKeypress.js';
 import { MessageType } from '../types.js';
 
 vi.mock('./useKeypress.js');
 
-vi.mock('@thacio/auditaria-cli-core', async () => {
+vi.mock('@google/gemini-cli-core', async () => {
   const actualServerModule = (await vi.importActual(
-    '@thacio/auditaria-cli-core',
+    '@google/gemini-cli-core',
   )) as Record<string, unknown>;
   return {
     ...actualServerModule,

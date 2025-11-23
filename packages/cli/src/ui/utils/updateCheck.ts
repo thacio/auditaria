@@ -6,7 +6,7 @@
 
 import latestVersion from 'latest-version';
 import semver from 'semver';
-import { getPackageJson, debugLogger, t } from '@thacio/auditaria-cli-core';
+import { getPackageJson, debugLogger, t } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

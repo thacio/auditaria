@@ -26,7 +26,7 @@ import type {
   EditorType,
   GeminiClient,
   AnyToolInvocation,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   ApprovalMode,
   AuthType,
@@ -35,7 +35,7 @@ import {
   ToolConfirmationOutcome,
   tokenLimit,
   debugLogger,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { Part, PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { SlashCommandProcessorResult } from '../types.js';
@@ -73,7 +73,7 @@ const MockedUserPromptEvent = vi.hoisted(() =>
 );
 const mockParseAndFormatApiError = vi.hoisted(() => vi.fn());
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actualCoreModule = (await importOriginal()) as any;
   return {
     ...actualCoreModule,

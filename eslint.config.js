@@ -168,9 +168,9 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          name: '@thacio/auditaria-cli-core',
+          name: '@google/gemini-cli-core',
           message:
-            'Please use relative imports within the @thacio/auditaria-cli-core package.',
+            'Please use relative imports within the @google/gemini-cli-core package.',
         },
       ],
     },

@@ -11,13 +11,13 @@ import {
   logIdeConnection,
   IdeConnectionEvent,
   IdeConnectionType,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   getIdeInstaller,
   IDEConnectionStatus,
   ideContextStore,
   GEMINI_CLI_COMPANION_EXTENSION_NAME,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import path from 'node:path';
 import type {
   CommandContext,

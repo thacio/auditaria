@@ -7,7 +7,7 @@
 import type { MessageActionReturn, SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
 import { terminalSetup } from '../utils/terminalSetup.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 /**
  * Command to configure terminal keybindings for multiline input support.

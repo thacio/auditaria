@@ -1,5 +1,5 @@
 {
-  "name": "@thacio/auditaria-cli-core",
+  "name": "@google/gemini-cli-core",
   "version": "0.18.0-nightly.20251120.2231497b1",
   "description": "Gemini CLI Core",
   "repository": {

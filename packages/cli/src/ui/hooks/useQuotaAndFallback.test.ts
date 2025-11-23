@@ -27,7 +27,7 @@ import {
   RetryableQuotaError,
   PREVIEW_GEMINI_MODEL,
   ModelNotFoundError,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useQuotaAndFallback } from './useQuotaAndFallback.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType } from '../types.js';

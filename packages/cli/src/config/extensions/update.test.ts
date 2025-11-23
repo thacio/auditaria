@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { checkForAllExtensionUpdates, updateExtension } from './update.js';
-import { GEMINI_DIR, KeychainTokenStorage } from '@thacio/auditaria-cli-core';
+import { GEMINI_DIR, KeychainTokenStorage } from '@google/gemini-cli-core';
 import { isWorkspaceTrusted } from '../trustedFolders.js';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import { createExtension } from '../../test-utils/createExtension.js';
@@ -55,9 +55,9 @@ vi.mock('../trustedFolders.js', () => ({
 const mockLogExtensionInstallEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionUninstall = vi.hoisted(() => vi.fn());
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     logExtensionInstallEvent: mockLogExtensionInstallEvent,

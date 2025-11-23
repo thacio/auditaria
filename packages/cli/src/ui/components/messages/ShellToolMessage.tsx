@@ -11,7 +11,7 @@ import { ShellInputPrompt } from '../ShellInputPrompt.js';
 import { StickyHeader } from '../StickyHeader.js';
 import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import { SHELL_TOOL_NAME } from '@thacio/auditaria-cli-core';
+import { SHELL_TOOL_NAME } from '@google/gemini-cli-core';
 import { useUIActions } from '../../contexts/UIActionsContext.js';
 import { useMouseClick } from '../../hooks/useMouseClick.js';
 import { ToolResultDisplay } from './ToolResultDisplay.js';
@@ -22,7 +22,7 @@ import {
   STATUS_INDICATOR_WIDTH,
 } from './ToolShared.js';
 import type { ToolMessageProps } from './ToolMessage.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 
 export interface ShellToolMessageProps extends ToolMessageProps {
   activeShellPtyId?: number | null;

@@ -10,11 +10,11 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import * as versionUtils from '../../utils/version.js';
 import { MessageType } from '../types.js';
-import { IdeClient } from '@thacio/auditaria-cli-core';
+import { IdeClient } from '@google/gemini-cli-core';
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     IdeClient: {

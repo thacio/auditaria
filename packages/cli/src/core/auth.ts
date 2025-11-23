@@ -8,7 +8,7 @@ import {
   type AuthType,
   type Config,
   getErrorMessage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 /**
  * Handles the initial authentication flow.

@@ -15,7 +15,7 @@ import type {
   SlashCommandActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { decodeTagName, t } from '@thacio/auditaria-cli-core';
+import { decodeTagName, t } from '@google/gemini-cli-core';
 import path from 'node:path';
 import type {
   HistoryItemWithoutId,

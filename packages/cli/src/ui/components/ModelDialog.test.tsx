@@ -12,12 +12,12 @@ import {
   GEMINI_MODEL_ALIAS_FLASH,
   GEMINI_MODEL_ALIAS_PRO,
   DEFAULT_GEMINI_MODEL_AUTO,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ModelDialog } from './ModelDialog.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 
 vi.mock('../hooks/useKeypress.js', () => ({
   useKeypress: vi.fn(),

@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { CliSpinner } from '../components/CliSpinner.js';
 import { theme } from '../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface AuthInProgressProps {

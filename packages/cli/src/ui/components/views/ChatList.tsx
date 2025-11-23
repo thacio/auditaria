@@ -8,7 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../../semantic-colors.js';
 import type { ChatDetail } from '../../types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 interface ChatListProps {
   chats: readonly ChatDetail[];

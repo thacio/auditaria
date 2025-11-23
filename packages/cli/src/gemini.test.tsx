@@ -24,7 +24,7 @@ import { appEvents, AppEvent } from './utils/events.js';
 import {
   type Config,
   type ResumedSessionData,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { act } from 'react';
 import { type InitializationResult } from './core/initializer.js';
 
@@ -33,9 +33,9 @@ const performance = vi.hoisted(() => ({
 }));
 vi.stubGlobal('performance', performance);
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     recordSlowRender: vi.fn(),
@@ -582,7 +582,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should not recordSlowRender when less than threshold', async () => {
-    const { recordSlowRender } = await import('@thacio/auditaria-cli-core');
+    const { recordSlowRender } = await import('@google/gemini-cli-core');
     performance.now.mockReturnValueOnce(0);
     await startTestInteractiveUI(
       mockConfig,
@@ -597,7 +597,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should call recordSlowRender when more than threshold', async () => {
-    const { recordSlowRender } = await import('@thacio/auditaria-cli-core');
+    const { recordSlowRender } = await import('@google/gemini-cli-core');
     performance.now.mockReturnValueOnce(0);
     performance.now.mockReturnValueOnce(300);
 

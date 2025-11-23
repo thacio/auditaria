@@ -7,7 +7,7 @@
 import { renderWithProviders } from '../../test-utils/render.js';
 import { AppHeader } from './AppHeader.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { makeFakeConfig } from '@thacio/auditaria-cli-core';
+import { makeFakeConfig } from '@google/gemini-cli-core';
 
 const persistentStateMock = vi.hoisted(() => ({
   get: vi.fn(),

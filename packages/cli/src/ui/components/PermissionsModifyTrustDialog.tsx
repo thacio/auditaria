@@ -15,7 +15,7 @@ import { theme } from '../semantic-colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { relaunchApp } from '../../utils/processUtils.js';
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export interface PermissionsDialogProps {
   targetDirectory?: string;

@@ -6,7 +6,7 @@
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { theme } from '../semantic-colors.js';
 import { TextInput } from '../components/shared/TextInput.js';
 import { useTextBuffer } from '../components/shared/text-buffer.js';

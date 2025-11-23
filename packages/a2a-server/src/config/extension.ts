@@ -11,7 +11,7 @@ import {
   type MCPServerConfig,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';

@@ -11,7 +11,7 @@ import {
   debugLogger,
   t,
   type MCPServerConfig,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 async function addMcpServer(
   name: string,

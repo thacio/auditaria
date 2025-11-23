@@ -29,7 +29,7 @@
 - [ ] isFirstTimeSetup logic (if used)
 
 ### 3. Internationalization (i18n)
-- [x] Import t function from @thacio/auditaria-cli-core - Already done
+- [x] Import t function from @google/gemini-cli-core - Already done
 - [ ] All t() function calls for user-facing strings:
   - [ ] Memory refresh messages
   - [ ] Quota exceeded messages (Pro paid/free, generic paid/free)
@@ -54,7 +54,7 @@
 - [ ] Pass these props through to WebInterfaceProvider (verify)
 
 ### 7. Package Renaming
-- [x] All imports from @thacio/auditaria-cli-core - Already done
+- [x] All imports from @google/gemini-cli-core - Already done
 
 ### 8. Additional Imports Needed
 - [ ] Import PartListUnion from @google/genai for multimodal support

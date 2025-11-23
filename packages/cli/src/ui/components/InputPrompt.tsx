@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, ApprovalMode } from '@thacio/auditaria-cli-core';
+import { t, ApprovalMode } from '@google/gemini-cli-core';
 
 import type React from 'react';
 import clipboardy from 'clipboardy';
@@ -25,7 +25,7 @@ import type { Key } from '../hooks/useKeypress.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import type { CommandContext, SlashCommand } from '../commands/types.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import {
   parseInputForHighlighting,
   buildSegmentsForVisualSlice,

@@ -10,7 +10,7 @@ import { getInstallationInfo, PackageManager } from './installationInfo.js';
 import { updateEventEmitter } from './updateEventEmitter.js';
 import type { HistoryItem } from '../ui/types.js';
 import { MessageType } from '../ui/types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { spawnWrapper } from './spawnWrapper.js';
 import type { spawn } from 'node:child_process';
 

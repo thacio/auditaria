@@ -14,7 +14,7 @@ import {
 } from '../../config/trustedFolders.js';
 import * as process from 'node:process';
 import { type HistoryItemWithoutId, MessageType } from '../types.js';
-import { t, coreEvents } from '@thacio/auditaria-cli-core';
+import { t, coreEvents } from '@google/gemini-cli-core';
 
 export const useFolderTrust = (
   settings: LoadedSettings,

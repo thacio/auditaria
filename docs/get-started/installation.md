@@ -101,7 +101,7 @@ architectural components and processes:
 Gemini CLI project is a monorepo that publishes two core packages to the NPM
 registry:
 
-- `@thacio/auditaria-cli-core`: The backend, handling logic and tool execution.
+- `@google/gemini-cli-core`: The backend, handling logic and tool execution.
 - `@google/gemini-cli`: The user-facing frontend.
 
 These packages are used when performing the standard installation and when
@@ -113,7 +113,7 @@ There are two distinct build processes used, depending on the distribution
 channel:
 
 - **NPM publication:** For publishing to the NPM registry, the TypeScript source
-  code in `@thacio/auditaria-cli-core` and `@google/gemini-cli` is transpiled
+  code in `@google/gemini-cli-core` and `@google/gemini-cli` is transpiled
   into standard JavaScript using the TypeScript Compiler (`tsc`). The resulting
   `dist/` directory is what gets published in the NPM package. This is a
   standard approach for TypeScript libraries.

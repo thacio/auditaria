@@ -8,7 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
-import type { UserTierId } from '@thacio/auditaria-cli-core';
+import type { UserTierId } from '@google/gemini-cli-core';
 import { getLicenseDisplay } from '../../utils/license.js';
 
 interface AboutBoxProps {

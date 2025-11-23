@@ -5,7 +5,7 @@
  */
 
 import { Box, Text } from 'ink';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 const MAX_DISPLAYED_QUEUED_MESSAGES = 3;
 

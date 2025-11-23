@@ -14,7 +14,7 @@ import {
   TOOL_STATUS,
 } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
-import { SHELL_TOOL_NAME } from '@thacio/auditaria-cli-core';
+import { SHELL_TOOL_NAME } from '@google/gemini-cli-core';
 
 export const STATUS_INDICATOR_WIDTH = 3;
 

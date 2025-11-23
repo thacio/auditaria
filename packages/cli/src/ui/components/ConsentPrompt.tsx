@@ -9,7 +9,7 @@ import { type ReactNode } from 'react';
 import { theme } from '../semantic-colors.js';
 import { MarkdownDisplay } from '../utils/MarkdownDisplay.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 type ConsentPromptProps = {
   // If a simple string is given, it will render using markdown by default.

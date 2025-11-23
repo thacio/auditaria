@@ -9,7 +9,7 @@ import {
   debugLogger,
   t,
   type ExtensionInstallMetadata,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 import { getErrorMessage } from '../../utils/errors.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';

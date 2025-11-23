@@ -9,7 +9,7 @@ import type { CommandModule, Argv } from 'yargs';
 import { addCommand } from './mcp/add.js';
 import { removeCommand } from './mcp/remove.js';
 import { listCommand } from './mcp/list.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const mcpCommand: CommandModule = {
   command: 'mcp',

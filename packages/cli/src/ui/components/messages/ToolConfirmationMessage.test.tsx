@@ -9,7 +9,7 @@ import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import type {
   ToolCallConfirmationDetails,
   Config,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { renderWithProviders } from '../../../test-utils/render.js';
 
 describe('ToolConfirmationMessage', () => {

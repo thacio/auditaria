@@ -27,9 +27,9 @@ vi.mock('../../config/settings.js');
 vi.mock('../../utils/errors.js');
 vi.mock('../../config/extensions/update.js');
 vi.mock('../../config/extensions/github.js');
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     debugLogger: {
@@ -65,7 +65,7 @@ describe('extensions update command', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockDebugLogger = (await import('@thacio/auditaria-cli-core'))
+    mockDebugLogger = (await import('@google/gemini-cli-core'))
       .debugLogger as unknown as MockDebugLogger;
     mockLoadSettings.mockReturnValue({
       merged: { experimental: { extensionReloading: true } },

@@ -16,11 +16,11 @@ import type {
   ToolCallRequestInfo,
   ServerGeminiToolCallRequestEvent,
   Config,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   GeminiEventType,
   SimpleExtensionLoader,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { v4 as uuidv4 } from 'uuid';
 
 import { logger } from '../utils/logger.js';

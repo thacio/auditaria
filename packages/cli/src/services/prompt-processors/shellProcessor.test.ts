@@ -8,8 +8,8 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { ConfirmationRequiredError, ShellProcessor } from './shellProcessor.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import type { CommandContext } from '../../ui/commands/types.js';
-import type { Config } from '@thacio/auditaria-cli-core';
-import { ApprovalMode, getShellConfiguration } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
+import { ApprovalMode, getShellConfiguration } from '@google/gemini-cli-core';
 import { quote } from 'shell-quote';
 import { createPartFromText } from '@google/genai';
 import type { PromptPipelineContent } from './types.js';
@@ -38,7 +38,7 @@ function createPromptPipelineContent(text: string): PromptPipelineContent {
 const mockCheckCommandPermissions = vi.hoisted(() => vi.fn());
 const mockShellExecute = vi.hoisted(() => vi.fn());
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original = await importOriginal<object>();
   return {
     ...original,

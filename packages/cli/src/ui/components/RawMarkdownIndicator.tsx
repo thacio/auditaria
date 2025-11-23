@@ -7,7 +7,7 @@
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const RawMarkdownIndicator: React.FC = () => {
   const modKey = process.platform === 'darwin' ? 'option+m' : 'alt+m';

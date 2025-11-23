@@ -6,7 +6,7 @@
 
 import type { OpenDialogActionReturn, SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const privacyCommand: SlashCommand = {
   name: 'privacy',

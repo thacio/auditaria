@@ -12,7 +12,7 @@ import type {
   Config,
   ExtensionsStartingEvent,
   ExtensionsStoppingEvent,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   GitService,
   Logger,
@@ -23,7 +23,7 @@ import {
   Storage,
   t,
   IdeClient,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import type {
   Message,

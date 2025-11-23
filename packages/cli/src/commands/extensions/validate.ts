@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import semver from 'semver';

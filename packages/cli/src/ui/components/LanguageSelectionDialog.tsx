@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, discoverAvailableLanguages } from '@thacio/auditaria-cli-core';
+import { t, discoverAvailableLanguages } from '@google/gemini-cli-core';
 
 import type React from 'react';
 import { useState, useEffect } from 'react';
@@ -19,7 +19,7 @@ import { SettingScope } from '../../config/settings.js';
 import type {
   LanguageInfo,
   SupportedLanguage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface LanguageSelectionDialogProps {

@@ -14,11 +14,11 @@ import type {
   ToolExecuteConfirmationDetails,
   ToolMcpConfirmationDetails,
   Config,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   IdeClient,
   ToolConfirmationOutcome,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { RadioSelectItem } from '../shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from '../shared/RadioButtonSelect.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';

@@ -12,7 +12,7 @@ import { SessionStatsProvider } from '../contexts/SessionContext.js';
 import type {
   Config,
   ToolExecuteConfirmationDetails,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ToolGroupMessage } from './messages/ToolGroupMessage.js';
 import { renderWithProviders } from '../../test-utils/render.js';
 

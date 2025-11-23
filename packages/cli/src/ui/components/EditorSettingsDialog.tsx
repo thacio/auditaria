@@ -22,7 +22,7 @@ import {
   type EditorType,
   isEditorAvailable,
   EDITOR_DISPLAY_NAMES,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface EditorDialogProps {

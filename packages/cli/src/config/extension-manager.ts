@@ -42,7 +42,7 @@ import {
   type MCPServerConfig,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { maybeRequestConsentOrFail } from './extensions/consent.js';
 import { resolveEnvVarsInObject } from '../utils/envVarResolver.js';
 import { ExtensionStorage } from './extensions/storage.js';

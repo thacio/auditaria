@@ -6,7 +6,7 @@
 
 import { spawn } from 'node:child_process';
 import { RELAUNCH_EXIT_CODE } from './processUtils.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export async function relaunchOnExitCode(runner: () => Promise<number>) {
   while (true) {

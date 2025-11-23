@@ -19,7 +19,7 @@ import {
   USER_AGREEMENT_RATE_MEDIUM,
 } from '../utils/displayUtils.js';
 import { computeSessionStats } from '../utils/computeStats.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 // A more flexible and powerful StatRow component
 interface StatRowProps {

@@ -27,7 +27,7 @@ import {
   type UserFeedbackPayload,
   type ResumedSessionData,
   AuthType,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 // Mock coreEvents
 const mockCoreEvents = vi.hoisted(() => ({
@@ -42,9 +42,9 @@ const mockIdeClient = vi.hoisted(() => ({
   getInstance: vi.fn().mockReturnValue(new Promise(() => {})),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     coreEvents: mockCoreEvents,
@@ -146,7 +146,7 @@ import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
 import { measureElement } from 'ink';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
-import { ShellExecutionService } from '@thacio/auditaria-cli-core';
+import { ShellExecutionService } from '@google/gemini-cli-core';
 import { type ExtensionManager } from '../config/extension-manager.js';
 import { enableMouseEvents, disableMouseEvents } from './utils/mouse.js';
 

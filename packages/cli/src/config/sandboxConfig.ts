@@ -9,7 +9,7 @@ import {
   type SandboxConfig,
   FatalSandboxError,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
 import type { Settings } from './settings.js';

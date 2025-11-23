@@ -36,7 +36,7 @@ import type {
   Config,
   SupportedLanguage,
   ResumedSessionData,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   sessionId,
   logUserPrompt,
@@ -47,7 +47,7 @@ import {
   UserPromptEvent,
   debugLogger,
   recordSlowRender,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   initializeApp,
   type InitializationResult,

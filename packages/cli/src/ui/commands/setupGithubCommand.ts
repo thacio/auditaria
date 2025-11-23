@@ -16,7 +16,7 @@ import {
   isGitHubRepository,
   getGitHubRepoInfo,
 } from '../../utils/gitUtils.js';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';

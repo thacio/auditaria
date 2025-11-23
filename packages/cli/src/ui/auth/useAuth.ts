@@ -12,7 +12,7 @@ import {
   loadApiKey,
   getErrorMessage,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
 

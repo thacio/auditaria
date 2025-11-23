@@ -12,7 +12,7 @@ import {
   type PolicySettings,
   createPolicyEngineConfig as createCorePolicyEngineConfig,
   createPolicyUpdater as createCorePolicyUpdater,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type Settings } from './settings.js';
 
 export async function createPolicyEngineConfig(

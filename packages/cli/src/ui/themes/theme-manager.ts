@@ -21,7 +21,7 @@ import * as os from 'node:os';
 import type { Theme, ThemeType, CustomTheme } from './theme.js';
 import { createCustomTheme, validateCustomTheme } from './theme.js';
 import type { SemanticColors } from './semantic-tokens.js';
-import { t , debugLogger } from '@thacio/auditaria-cli-core';
+import { t , debugLogger } from '@google/gemini-cli-core';
 import { ANSI } from './ansi.js';
 import { ANSILight } from './ansi-light.js';
 import { NoColorTheme } from './no-color.js';

@@ -8,7 +8,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { StreamingState } from '../types.js';
-import type { ThoughtSummary } from '@thacio/auditaria-cli-core';
+import type { ThoughtSummary } from '@google/gemini-cli-core';
 
 export interface LoadingStateData {
   isLoading: boolean;

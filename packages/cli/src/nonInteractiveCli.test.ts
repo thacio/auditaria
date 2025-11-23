@@ -12,7 +12,7 @@ import type {
   AnyDeclarativeTool,
   AnyToolInvocation,
   UserFeedbackPayload,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   executeToolCall,
   ToolErrorType,
@@ -22,7 +22,7 @@ import {
   uiTelemetryService,
   FatalInputError,
   CoreEvent,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import {
@@ -47,9 +47,9 @@ const mockCoreEvents = vi.hoisted(() => ({
   emit: vi.fn(),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
 
   class MockChatRecordingService {
     initialize = vi.fn();

@@ -14,7 +14,7 @@ import {
   ExtensionDisableEvent,
   ExtensionEnableEvent,
   KeychainTokenStorage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { loadSettings, SettingScope } from './settings.js';
 import {
   isWorkspaceTrusted,
@@ -86,9 +86,9 @@ const mockLogExtensionInstallEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionUninstall = vi.hoisted(() => vi.fn());
 const mockLogExtensionUpdateEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionDisable = vi.hoisted(() => vi.fn());
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     logExtensionEnable: mockLogExtensionEnable,

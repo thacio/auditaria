@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import { useState, useCallback } from 'react';
 import { themeManager } from '../themes/theme-manager.js';

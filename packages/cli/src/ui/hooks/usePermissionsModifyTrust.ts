@@ -16,7 +16,7 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { MessageType } from '../types.js';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { LoadedSettings } from '../../config/settings.js';
-import { t, coreEvents } from '@thacio/auditaria-cli-core';
+import { t, coreEvents } from '@google/gemini-cli-core';
 
 interface TrustState {
   currentTrustLevel: TrustLevel | undefined;

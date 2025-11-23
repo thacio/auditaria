@@ -13,7 +13,7 @@ import {
   ModelNotFoundError,
   type UserTierId,
   PREVIEW_GEMINI_MODEL,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType } from '../types.js';

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { debugLogger } from '@thacio/auditaria-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import tinygradient from 'tinygradient';
 
 // Mapping from common CSS color names (lowercase) to hex codes (lowercase)

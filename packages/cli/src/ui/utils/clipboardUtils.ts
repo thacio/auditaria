@@ -6,7 +6,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { debugLogger, spawnAsync } from '@thacio/auditaria-cli-core';
+import { debugLogger, spawnAsync } from '@google/gemini-cli-core';
 
 /**
  * Checks if the system clipboard contains an image (macOS only for now)

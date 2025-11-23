@@ -19,7 +19,7 @@ More information can be found about these systems in the
 | Package    | `prod` (Wombat Dressing Room) | `dev` (Github Private NPM Repo)           |
 | ---------- | ----------------------------- | ----------------------------------------- |
 | CLI        | @google/gemini-cli            | @google-gemini/gemini-cli                 |
-| Core       | @thacio/auditaria-cli-core    | @google-gemini/gemini-cli-core A2A Server |
+| Core       | @google/gemini-cli-core    | @google-gemini/gemini-cli-core A2A Server |
 | A2A Server | @google/gemini-cli-a2a-server | @google-gemini/gemini-cli-a2a-server      |
 
 ## Release Cadence and Tags
@@ -457,10 +457,10 @@ Here are the key stages:
 **Stage 3: Publishing Standard Packages to NPM**
 
 - **What happens:** The `npm publish` command is run for the
-  `@thacio/auditaria-cli-core` and `@thacio/auditaria-cli` packages.
+  `@google/gemini-cli-core` and `@thacio/auditaria-cli` packages.
 - **Why:** This publishes them as standard Node.js packages. Users installing
   via `npm install -g @thacio/auditaria-cli` will download these packages, and
-  `npm` will handle installing the `@thacio/auditaria-cli-core` dependency
+  `npm` will handle installing the `@google/gemini-cli-core` dependency
   automatically. The code in these packages is not bundled into a single file.
 
 **Stage 4: Assembling and Creating the GitHub Release Asset**
@@ -502,7 +502,7 @@ executable that enables `npx` usage directly from the GitHub repository.
 
 - **NPM:** Publishes standard, un-bundled Node.js packages. The primary artifact
   is the code in `packages/cli/dist`, which depends on
-  `@thacio/auditaria-cli-core`.
+  `@google/gemini-cli-core`.
 - **GitHub Release:** Publishes a single, bundled `auditaria.js` file that
   contains all dependencies, for easy execution via `npx`.
 

@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Config } from '@thacio/auditaria-cli-core';
-import { ChatRecordingService } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
+import { ChatRecordingService } from '@google/gemini-cli-core';
 import { listSessions, deleteSession } from './sessions.js';
 import { SessionSelector, type SessionInfo } from './sessionUtils.js';
 
@@ -16,8 +16,8 @@ vi.mock('./sessionUtils.js', () => ({
   formatRelativeTime: vi.fn(() => 'some time ago'),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual('@google/gemini-cli-core');
   return {
     ...actual,
     ChatRecordingService: vi.fn(),

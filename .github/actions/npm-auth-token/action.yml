@@ -37,7 +37,7 @@ runs:
           AUTH_TOKEN="${{ inputs.github-token }}"
         elif [[ "$PACKAGE_NAME" == "@google/gemini-cli" ]]; then
           AUTH_TOKEN="${{ inputs.wombat-token-cli }}"
-        elif [[ "$PACKAGE_NAME" == "@thacio/auditaria-cli-core" ]]; then
+        elif [[ "$PACKAGE_NAME" == "@google/gemini-cli-core" ]]; then
           AUTH_TOKEN="${{ inputs.wombat-token-core }}"
         elif [[ "$PACKAGE_NAME" == "@google/gemini-cli-a2a-server" ]]; then
           AUTH_TOKEN="${{ inputs.wombat-token-a2a-server }}"

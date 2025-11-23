@@ -10,7 +10,7 @@ import type {
   SlashCommandActionReturn,
 } from './types.js';
 import { CommandKind } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import * as process from 'node:process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';

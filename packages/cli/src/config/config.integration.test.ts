@@ -8,11 +8,11 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tmpdir } from 'node:os';
-import type { ConfigParameters } from '@thacio/auditaria-cli-core';
+import type { ConfigParameters } from '@google/gemini-cli-core';
 import {
   Config,
   DEFAULT_FILE_FILTERING_OPTIONS,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { Settings } from './settingsSchema.js';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -35,8 +35,8 @@ afterAll(() => {
 const CLEARCUT_URL = 'https://play.googleapis.com/log';
 
 // Mock file discovery service and tool registry
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual('@google/gemini-cli-core');
   return {
     ...actual,
     FileDiscoveryService: vi.fn().mockImplementation(() => ({

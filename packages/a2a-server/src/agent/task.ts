@@ -26,7 +26,7 @@ import {
   type Config,
   type UserTierId,
   type AnsiOutput,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { RequestContext } from '@a2a-js/sdk/server';
 import { type ExecutionEventBus } from '@a2a-js/sdk/server';
 import type {

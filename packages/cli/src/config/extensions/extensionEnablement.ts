@@ -9,7 +9,7 @@ import path from 'node:path';
 import {
   coreEvents,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ExtensionStorage } from './storage.js';
 
 export interface ExtensionEnablementConfig {

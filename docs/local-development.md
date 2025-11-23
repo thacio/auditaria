@@ -95,7 +95,7 @@ span.
 Here is a basic example:
 
 ```typescript
-import { runInDevTraceSpan } from '@thacio/auditaria-cli-core';
+import { runInDevTraceSpan } from '@google/gemini-cli-core';
 
 await runInDevTraceSpan({ name: 'my-custom-span' }, async ({ metadata }) => {
   // The `metadata` object allows you to record the input and output of the

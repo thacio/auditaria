@@ -8,7 +8,7 @@ import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
 import { mcpCommand } from '../commands/mcp.js';
-import type { OutputFormat } from '@thacio/auditaria-cli-core';
+import type { OutputFormat } from '@google/gemini-cli-core';
 import { extensionsCommand } from '../commands/extensions.js';
 import {
   Config,
@@ -31,7 +31,7 @@ import {
   EDIT_TOOL_NAME,
   debugLogger,
   loadServerHierarchicalMemory,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { Settings } from './settings.js';
 
 import { getCliVersion } from '../utils/version.js';
@@ -43,7 +43,7 @@ import { RESUME_LATEST } from '../utils/sessionUtils.js';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { createPolicyEngineConfig } from './policy.js';
 import { ExtensionManager } from './extension-manager.js';
-import type { ExtensionEvents } from '@thacio/auditaria-cli-core/src/utils/extensionLoader.js';
+import type { ExtensionEvents } from '@google/gemini-cli-core/src/utils/extensionLoader.js';
 import { requestConsentNonInteractive } from './extensions/consent.js';
 import { promptForSetting } from './extensions/extensionSettings.js';
 import type { EventEmitter } from 'node:stream';

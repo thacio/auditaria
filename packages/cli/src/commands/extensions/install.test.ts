@@ -10,7 +10,7 @@ import yargs from 'yargs';
 import {
   debugLogger,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { ExtensionManager } from '../../config/extension-manager.js';
 import type { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import type * as fs from 'node:fs/promises';

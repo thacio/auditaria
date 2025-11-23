@@ -16,12 +16,12 @@ import {
   refreshServerHierarchicalMemory,
   SimpleExtensionLoader,
   type FileDiscoveryService,
-} from '@thacio/auditaria-cli-core';
-import type { LoadServerHierarchicalMemoryResponse } from '@thacio/auditaria-cli-core/index.js';
+} from '@google/gemini-cli-core';
+import type { LoadServerHierarchicalMemoryResponse } from '@google/gemini-cli-core/index.js';
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...original,
     getErrorMessage: vi.fn((error: unknown) => {

@@ -9,7 +9,7 @@ import type { HistoryItem } from '../types.js';
 // WEB_INTERFACE_START: Web interface context import
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 // WEB_INTERFACE_END
-import type { ChatRecordingService } from '@thacio/auditaria-cli-core/src/services/chatRecordingService.js';
+import type { ChatRecordingService } from '@google/gemini-cli-core/src/services/chatRecordingService.js';
 
 // Type for the updater function passed to updateHistoryItem
 type HistoryItemUpdater = (

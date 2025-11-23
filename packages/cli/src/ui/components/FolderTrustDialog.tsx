@@ -7,7 +7,7 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { theme } from '../semantic-colors.js';
 import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';

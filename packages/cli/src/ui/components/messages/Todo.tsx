@@ -11,7 +11,7 @@ import {
   type TodoList,
   type TodoStatus,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { theme } from '../../semantic-colors.js';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { useMemo } from 'react';

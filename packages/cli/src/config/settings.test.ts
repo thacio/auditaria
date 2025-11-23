@@ -66,7 +66,7 @@ import {
   saveSettings,
   type SettingsFile,
 } from './settings.js';
-import { FatalConfigError, GEMINI_DIR } from '@thacio/auditaria-cli-core';
+import { FatalConfigError, GEMINI_DIR } from '@google/gemini-cli-core';
 import { ExtensionManager } from './extension-manager.js';
 import { updateSettingsFilePreservingFormat } from '../utils/commentJson.js';
 
@@ -102,9 +102,9 @@ const mockCoreEvents = vi.hoisted(() => ({
   emitFeedback: vi.fn(),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     coreEvents: mockCoreEvents,

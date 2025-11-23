@@ -10,12 +10,12 @@ import type {
   LoadedSettings,
 } from '../../config/settings.js';
 import { MessageType } from '../types.js';
-import type { EditorType } from '@thacio/auditaria-cli-core';
+import type { EditorType } from '@google/gemini-cli-core';
 import {
   allowEditorTypeInSandbox,
   checkHasEditorType,
   getEditorDisplayName,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 import { SettingPaths } from '../../config/settingPaths.js';

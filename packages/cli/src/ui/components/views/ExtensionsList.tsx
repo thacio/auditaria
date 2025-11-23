@@ -12,7 +12,7 @@ import {
   debugLogger,
   t,
   type GeminiCLIExtension,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 interface ExtensionsList {
   extensions: readonly GeminiCLIExtension[];

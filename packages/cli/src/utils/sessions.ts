@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChatRecordingService, type Config } from '@thacio/auditaria-cli-core';
+import { ChatRecordingService, type Config } from '@google/gemini-cli-core';
 import {
   formatRelativeTime,
   SessionSelector,

@@ -13,7 +13,7 @@ import {
   IdeClient,
   UserAccountManager,
   debugLogger,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 export const aboutCommand: SlashCommand = {
   name: 'about',

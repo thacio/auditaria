@@ -10,7 +10,7 @@ import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import crypto from 'node:crypto';
 import { colorizeCode, colorizeLine } from '../../utils/CodeColorizer.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { theme as semanticTheme } from '../../semantic-colors.js';
 import type { Theme } from '../../themes/theme.js';
 import { useSettings } from '../../contexts/SettingsContext.js';

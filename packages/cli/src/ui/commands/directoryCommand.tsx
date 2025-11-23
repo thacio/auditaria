@@ -13,9 +13,9 @@ import { MultiFolderTrustDialog } from '../components/MultiFolderTrustDialog.js'
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType, type HistoryItem } from '../types.js';
-import { t, refreshServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
+import { t, refreshServerHierarchicalMemory } from '@google/gemini-cli-core';
 import { expandHomeDir } from '../utils/directoryUtils.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 
 async function finishAddingDirectories(
   config: Config,

@@ -12,16 +12,16 @@ import {
   IDEConnectionStatus,
   ideContextStore,
   type IDEConnectionState,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useIdeTrustListener } from './useIdeTrustListener.js';
 import * as trustedFolders from '../../config/trustedFolders.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import type { LoadedSettings } from '../../config/settings.js';
 
 // Mock dependencies
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   const ideClientInstance = {
     addTrustChangeListener: vi.fn(),
     removeTrustChangeListener: vi.fn(),

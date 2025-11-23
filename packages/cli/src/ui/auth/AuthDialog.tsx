@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import type React from 'react';
 import { useCallback } from 'react';
@@ -21,7 +21,7 @@ import {
   clearCachedCredentialFile,
   debugLogger,
   type Config,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { AuthState } from '../types.js';
 import { runExitCleanup } from '../../utils/cleanup.js';

@@ -7,7 +7,7 @@
 import type React from 'react';
 import { Text, Box } from 'ink';
 import { theme } from '../../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 interface ModelMessageProps {
   model: string;

@@ -11,7 +11,7 @@ import { MarkdownDisplay } from '../../utils/MarkdownDisplay.js';
 import { AnsiOutputText } from '../AnsiOutput.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { theme } from '../../semantic-colors.js';
-import type { AnsiOutput } from '@thacio/auditaria-cli-core';
+import type { AnsiOutput } from '@google/gemini-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { useAlternateBuffer } from '../../hooks/useAlternateBuffer.js';
 

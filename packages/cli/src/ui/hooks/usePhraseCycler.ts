@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getTranslationData, t } from '@thacio/auditaria-cli-core';
+import { getTranslationData, t } from '@google/gemini-cli-core';
 
 import { useState, useEffect, useRef } from 'react';
 import { INFORMATIVE_TIPS } from '../constants/tips.js';

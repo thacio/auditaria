@@ -9,7 +9,7 @@ import {
   flatMapTextParts,
   readPathFromWorkspace,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { CommandContext } from '../../ui/commands/types.js';
 import { MessageType } from '../../ui/types.js';
 import {

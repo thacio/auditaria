@@ -16,7 +16,7 @@ import {
   IDEConnectionStatus,
   ideContextStore,
   type IDEConnectionState,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { isWorkspaceTrusted } from '../../config/trustedFolders.js';
 

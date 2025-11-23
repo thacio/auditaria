@@ -45,9 +45,9 @@ vi.mock('../../config/extension-manager.js', async (importOriginal) => {
 
 vi.mock('../../config/settings.js');
 vi.mock('../../utils/errors.js');
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     debugLogger: {
@@ -74,7 +74,7 @@ describe('extensions uninstall command', () => {
   let mockDebugLogger: MockDebugLogger;
 
   beforeEach(async () => {
-    mockDebugLogger = (await import('@thacio/auditaria-cli-core'))
+    mockDebugLogger = (await import('@google/gemini-cli-core'))
       .debugLogger as unknown as MockDebugLogger;
     mockLoadSettings.mockReturnValue({
       merged: {},

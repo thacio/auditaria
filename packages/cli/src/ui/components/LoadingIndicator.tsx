@@ -3,8 +3,8 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { ThoughtSummary } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
+import type { ThoughtSummary } from '@google/gemini-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';

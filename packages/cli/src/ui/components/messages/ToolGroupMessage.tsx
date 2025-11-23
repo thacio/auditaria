@@ -13,7 +13,7 @@ import { ToolMessage } from './ToolMessage.js';
 import { ShellToolMessage } from './ShellToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { theme } from '../../semantic-colors.js';
-import { t , SHELL_TOOL_NAME } from '@thacio/auditaria-cli-core';
+import { t , SHELL_TOOL_NAME } from '@google/gemini-cli-core';
 import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
 import { useConfig } from '../../contexts/ConfigContext.js';
 

@@ -13,7 +13,7 @@ import {
   ScrollableList,
   type ScrollableListRef,
 } from './shared/ScrollableList.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 interface DetailedMessagesDisplayProps {
   messages: ConsoleMessageItem[];

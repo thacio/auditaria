@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
+import { t, isBinary, ShellExecutionService } from '@google/gemini-cli-core';
 
 import type {
   HistoryItemWithoutId,
@@ -17,7 +17,7 @@ import type {
   Config,
   GeminiClient,
   ShellExecutionResult,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';

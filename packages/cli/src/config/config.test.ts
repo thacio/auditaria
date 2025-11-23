@@ -16,10 +16,10 @@ import {
   WRITE_FILE_TOOL_NAME,
   EDIT_TOOL_NAME,
   type ExtensionLoader,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { loadCliConfig, parseArguments, type CliArgs } from './config.js';
 import type { Settings } from './settings.js';
-import * as ServerConfig from '@thacio/auditaria-cli-core';
+import * as ServerConfig from '@google/gemini-cli-core';
 import { isWorkspaceTrusted } from './trustedFolders.js';
 import { ExtensionManager } from './extension-manager.js';
 import { RESUME_LATEST } from '../utils/sessionUtils.js';
@@ -84,9 +84,9 @@ vi.mock('read-package-up', () => ({
   ),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async () => {
+vi.mock('@google/gemini-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
-    '@thacio/auditaria-cli-core',
+    '@google/gemini-cli-core',
   );
   return {
     ...actualServer,

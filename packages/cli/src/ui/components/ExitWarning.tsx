@@ -8,7 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { useUIState } from '../contexts/UIStateContext.js';
 import { theme } from '../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const ExitWarning: React.FC = () => {
   const uiState = useUIState();

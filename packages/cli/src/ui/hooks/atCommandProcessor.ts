@@ -11,12 +11,12 @@ import {
   isNodeError,
   unescapePath,
   ReadManyFilesTool,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { PartListUnion, PartUnion } from '@google/genai';
-import type { AnyToolInvocation, Config } from '@thacio/auditaria-cli-core';
+import type { AnyToolInvocation, Config } from '@google/gemini-cli-core';
 import type { HistoryItem, IndividualToolCallDisplay } from '../types.js';
 import { ToolCallStatus } from '../types.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';

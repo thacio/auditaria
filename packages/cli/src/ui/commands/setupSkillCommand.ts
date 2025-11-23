@@ -5,7 +5,7 @@
  */
 
 import { type SlashCommand, CommandKind, type CommandContext } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 import { SkillSetupService } from '../../services/SkillSetupService.js';
 
 /**

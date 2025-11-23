@@ -6,7 +6,7 @@
 
 import { isDevelopment } from '../../utils/installationInfo.js';
 import { CommandKind, type SlashCommand } from './types.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const profileCommand: SlashCommand | null = isDevelopment
   ? {

@@ -6,7 +6,7 @@
 
 import { convertSessionToHistoryFormats } from './useSessionBrowser.js';
 import { MessageType, ToolCallStatus } from '../types.js';
-import type { MessageRecord } from '@thacio/auditaria-cli-core';
+import type { MessageRecord } from '@google/gemini-cli-core';
 
 describe('convertSessionToHistoryFormats', () => {
   it('should convert empty messages array', () => {

@@ -8,11 +8,11 @@ import type {
   Config,
   ConversationRecord,
   MessageRecord,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   SESSION_FILE_PREFIX,
   partListUnionToString,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import * as fs from 'node:fs/promises';
 import path from 'node:path';
 

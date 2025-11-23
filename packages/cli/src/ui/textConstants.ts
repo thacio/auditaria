@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export const SCREEN_READER_USER_PREFIX = t('screen_reader.user_prefix', 'User: ');
 
