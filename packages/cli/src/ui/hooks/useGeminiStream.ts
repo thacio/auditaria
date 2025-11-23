@@ -833,6 +833,9 @@ export const useGeminiStream = (
           'finish_reasons.unexpected_tool_call',
           'Response stopped due to unexpected tool call.',
         ),
+        [FinishReason.IMAGE_PROHIBITED_CONTENT]:
+          'Response stopped due to prohibited content.',
+        [FinishReason.NO_IMAGE]: 'Response stopped due to no image.',
       };
 
       const message = finishReasonMessages[finishReason];
