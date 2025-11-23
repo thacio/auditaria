@@ -1026,8 +1026,8 @@
   },
   "tips": {
     "title": "Tips for getting started:",
-    "tip1": "Ask questions, edit files, or run commands.",
-    "tip2": "Be specific for the best results.",
+    "tip1": "1. Ask questions, edit files, or run commands.",
+    "tip2": "2. Be specific for the best results.",
     "tip3_with_gemini": "Create {filename} files to customize your interactions with Gemini.",
     "tip3_without_gemini": "{command} for more information.",
     "tip4": "{command} for more information."

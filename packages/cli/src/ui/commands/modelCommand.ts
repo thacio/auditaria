@@ -9,7 +9,7 @@ import { t } from '@thacio/auditaria-cli-core';
 
 export const modelCommand: SlashCommand = {
   name: 'model',
-  description: t('commands.model.description', 'Opens a dialog to configure the model'),
+  description: 'Opens a dialog to configure the model',
   kind: CommandKind.BUILT_IN,
   action: async () => ({
     type: 'dialog',

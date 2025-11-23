@@ -20,10 +20,10 @@ export const Tips: React.FC<TipsProps> = ({ config }) => {
     <Box flexDirection="column">
       <Text color={theme.text.primary}>{t('tips.title', 'Tips for getting started:')}</Text>
       <Text color={theme.text.primary}>
-        1. {t('tips.tip1', 'Ask questions, edit files, or run commands.')}
+        1. Ask questions, edit files, or run commands.
       </Text>
       <Text color={theme.text.primary}>
-        2. {t('tips.tip2', 'Be specific for the best results.')}
+        2. Be specific for the best results.
       </Text>
       {geminiMdFileCount === 0 && (
         <Text color={theme.text.primary}>
