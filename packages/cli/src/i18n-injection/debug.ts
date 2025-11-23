@@ -3,7 +3,13 @@
  */
 
 const DEBUG_PREFIX = '[i18n-inject]';
-const DEBUG_ENABLED = process.env.DEBUG_I18N === 'true' || process.env.DEBUG_I18N === '1';
+const DEBUG_ENABLED = true;
+// const DEBUG_ENABLED = process.env.DEBUG_I18N === 'true' || process.env.DEBUG_I18N === '1';
+
+// Always log initialization to confirm module is loaded
+if (DEBUG_ENABLED) {
+  console.log(`${DEBUG_PREFIX} Debug logging ENABLED (DEBUG_I18N=${process.env.DEBUG_I18N})`);
+}
 
 export class DebugLogger {
   private static instance: DebugLogger;

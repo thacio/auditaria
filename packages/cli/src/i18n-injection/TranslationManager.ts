@@ -116,22 +116,32 @@ export class TranslationManager {
 
   private async loadTranslations(): Promise<void> {
     debug.log('Loading translation data');
+    debug.log(`Current __dirname: ${__dirname}`);
+    debug.log(`process.execPath: ${process.execPath}`);
+    debug.log(`process.argv[1]: ${process.argv[1]}`);
 
     // Try multiple paths to find the translation file
     const possiblePaths = [
-      // Direct path in src (development)
+      // Direct path in same directory (compiled code location)
       path.join(__dirname, `en-${this.language}.json`),
-      // In dist (production)
-      path.join(__dirname, '..', '..', 'dist', 'i18n-injection', `en-${this.language}.json`),
-      // Global installation path
-      path.join(process.execPath, '..', '..', 'lib', 'node_modules', '@thacio', 'auditaria-cli', 'dist', 'i18n-injection', `en-${this.language}.json`),
+      // Bundle directory (when running from local build)
+      path.join(__dirname, 'i18n-injection', `en-${this.language}.json`),
+      // In local packages structure
+      path.join(__dirname, '..', '..', '..', '..', 'packages', 'cli', 'src', 'i18n-injection', `en-${this.language}.json`),
+      // Global npm installation - Windows
+      path.join(process.env.APPDATA || '', 'npm', 'node_modules', '@thacio', 'auditaria-cli', 'packages', 'cli', 'dist', 'src', 'i18n-injection', `en-${this.language}.json`),
+      // Global npm installation - Linux/Mac
+      path.join('/usr', 'local', 'lib', 'node_modules', '@thacio', 'auditaria-cli', 'packages', 'cli', 'dist', 'src', 'i18n-injection', `en-${this.language}.json`),
+      // Relative to process.argv[1] (the executed script)
+      process.argv[1] ? path.join(path.dirname(process.argv[1]), '..', 'node_modules', '@thacio', 'auditaria-cli', 'packages', 'cli', 'dist', 'src', 'i18n-injection', `en-${this.language}.json`) : undefined,
       // Custom path from config
       this.config.translationPath
     ].filter(Boolean);
 
     for (const filePath of possiblePaths as string[]) {
+      debug.log(`Trying path: ${filePath}`);
       if (fs.existsSync(filePath)) {
-        debug.log(`Loading translations from: ${filePath}`);
+        debug.log(`✓ Loading translations from: ${filePath}`);
         const data = fs.readFileSync(filePath, 'utf-8');
         this.translationData = JSON.parse(data) as TranslationData;
         debug.log(`Loaded ${Object.keys(this.translationData.exact).length} exact translations`);

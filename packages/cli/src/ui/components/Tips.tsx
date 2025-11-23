@@ -19,9 +19,7 @@ export const Tips: React.FC<TipsProps> = ({ config }) => {
   return (
     <Box flexDirection="column">
       <Text color={theme.text.primary}>{t('tips.title', 'Tips for getting started:')}</Text>
-      <Text color={theme.text.primary}>
-        1. Ask questions, edit files, or run commands.
-      </Text>
+      <Text color={theme.text.primary}>1. Ask questions, edit files, or run commands.</Text>
       <Text color={theme.text.primary}>
         2. Be specific for the best results.
       </Text>
