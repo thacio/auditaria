@@ -35,6 +35,7 @@ import {
 import { getCliVersion } from './utils/version.js';
 import {
   type Config,
+  type SupportedLanguage,
   type ResumedSessionData,
   type OutputPayload,
   type ConsoleLogPayload,
