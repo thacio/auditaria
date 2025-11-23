@@ -4,12 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
+export const SCREEN_READER_USER_PREFIX = 'User: ';
 
-export const SCREEN_READER_USER_PREFIX = t('screen_reader.user_prefix', 'User: ');
+export const SCREEN_READER_MODEL_PREFIX = 'Model: ';
 
-export const SCREEN_READER_MODEL_PREFIX = t('screen_reader.model_prefix', 'Model: ');
+export const SCREEN_READER_LOADING = 'loading';
 
-export const SCREEN_READER_LOADING = t('screen_reader.loading', 'loading');
-
-export const SCREEN_READER_RESPONDING = t('screen_reader.responding', 'responding');
+export const SCREEN_READER_RESPONDING = 'responding';

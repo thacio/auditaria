@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
 
 import { Box, Newline, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
@@ -26,14 +25,18 @@ export const GeminiPrivacyNotice = ({ onExit }: GeminiPrivacyNoticeProps) => {
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text bold color={theme.text.accent}>
-        {t('privacy.gemini_api_key_notice_title', 'Gemini API Key Notice')}
+        Gemini API Key Notice
       </Text>
       <Newline />
       <Text color={theme.text.primary}>
-        {t('privacy.gemini_api_terms_intro', 'By using the Gemini API')}
-        <Text color={theme.text.link}>[1]</Text>, {t('privacy.gemini_api_terms_studio', 'Google AI Studio')}
-        <Text color={theme.status.error}>[2]</Text>, {t('privacy.gemini_api_terms_p1', 'and the other Google developer services that reference these terms (collectively, the "APIs" or "Services"), you are agreeing to Google APIs Terms of Service (the "API Terms")')}
-        <Text color={theme.status.success}>[3]</Text>, {t('privacy.gemini_api_terms_p2', 'and the Gemini API Additional Terms of Service (the "Additional Terms")')}
+        By using the Gemini API<Text color={theme.text.link}>[1]</Text>, Google
+        AI Studio
+        <Text color={theme.status.error}>[2]</Text>, and the other Google
+        developer services that reference these terms (collectively, the
+        &quot;APIs&quot; or &quot;Services&quot;), you are agreeing to Google
+        APIs Terms of Service (the &quot;API Terms&quot;)
+        <Text color={theme.status.success}>[3]</Text>, and the Gemini API
+        Additional Terms of Service (the &quot;Additional Terms&quot;)
         <Text color={theme.text.accent}>[4]</Text>.
       </Text>
       <Newline />
@@ -53,7 +56,7 @@ export const GeminiPrivacyNotice = ({ onExit }: GeminiPrivacyNoticeProps) => {
         https://ai.google.dev/gemini-api/terms
       </Text>
       <Newline />
-      <Text color={theme.text.secondary}>{t('privacy.press_esc_exit', 'Press Esc to exit.')}</Text>
+      <Text color={theme.text.secondary}>Press Esc to exit.</Text>
     </Box>
   );
 };

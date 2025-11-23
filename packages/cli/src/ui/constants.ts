@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
-
 const EstimatedArtWidth = 59;
 const BoxBorderWidth = 1;
 export const BOX_PADDING_X = 1;
@@ -16,7 +14,7 @@ export const UI_WIDTH =
 
 export const STREAM_DEBOUNCE_MS = 100;
 
-export const SHELL_COMMAND_NAME = t('tools.shell.name', 'Shell Command');
+export const SHELL_COMMAND_NAME = 'Shell Command';
 
 export const SHELL_NAME = 'Shell';
 
@@ -25,8 +23,6 @@ export const SHELL_NAME = 'Shell';
 // This threshold is arbitrary but should be high enough to never impact normal
 // usage.
 export const MAX_GEMINI_MESSAGE_LINES = 65536;
-
-export const SHELL_FOCUS_HINT_DELAY_MS = 5000;
 
 // Tool status symbols used in ToolMessage component
 export const TOOL_STATUS = {

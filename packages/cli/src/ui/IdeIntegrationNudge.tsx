@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { IdeInfo } from '@google/gemini-cli-core';
-import { t } from '@google/gemini-cli-core';
+import type { IdeInfo } from '@thacio/auditaria-cli-core';
 import { Box, Text } from 'ink';
 import type { RadioSelectItem } from './components/shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './components/shared/RadioButtonSelect.js';
@@ -46,7 +45,7 @@ export function IdeIntegrationNudge({
 
   const OPTIONS: Array<RadioSelectItem<IdeIntegrationNudgeResult>> = [
     {
-      label: t('ide_integration_nudge.yes', 'Yes'),
+      label: 'Yes',
       value: {
         userSelection: 'yes',
         isExtensionPreInstalled,
@@ -54,7 +53,7 @@ export function IdeIntegrationNudge({
       key: 'Yes',
     },
     {
-      label: t('ide_integration_nudge.no_esc', 'No (esc)'),
+      label: 'No (esc)',
       value: {
         userSelection: 'no',
         isExtensionPreInstalled,
@@ -62,7 +61,7 @@ export function IdeIntegrationNudge({
       key: 'No (esc)',
     },
     {
-      label: t('ide_integration_nudge.no_dont_ask', "No, don't ask again"),
+      label: "No, don't ask again",
       value: {
         userSelection: 'dismiss',
         isExtensionPreInstalled,
@@ -72,16 +71,12 @@ export function IdeIntegrationNudge({
   ];
 
   const installText = isExtensionPreInstalled
-    ? t(
-        'ide_integration_nudge.description_installed',
-        `If you select Yes, the CLI will have access to your open files and display diffs directly in ${ideName ?? 'your editor'}.`,
-        { ideName: ideName ?? 'your editor' },
-      )
-    : t(
-        'ide_integration_nudge.description',
-        `If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in ${ideName ?? 'your editor'}.`,
-        { ideName: ideName ?? 'your editor' },
-      );
+    ? `If you select Yes, the CLI will have access to your open files and display diffs directly in ${
+        ideName ?? 'your editor'
+      }.`
+    : `If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in ${
+        ideName ?? 'your editor'
+      }.`;
 
   return (
     <Box
@@ -95,11 +90,7 @@ export function IdeIntegrationNudge({
       <Box marginBottom={1} flexDirection="column">
         <Text>
           <Text color={theme.status.warning}>{'> '}</Text>
-          {t(
-            'ide_integration_nudge.question',
-            `Do you want to connect ${ideName ?? 'your editor'} to Auditaria CLI?`,
-            { ideName: ideName ?? 'your editor' },
-          )}
+          {`Do you want to connect ${ideName ?? 'your editor'} to Gemini CLI?`}
         </Text>
         <Text color={theme.text.secondary}>{installText}</Text>
       </Box>

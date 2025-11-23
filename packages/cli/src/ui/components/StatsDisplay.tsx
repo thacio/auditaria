@@ -19,7 +19,6 @@ import {
   USER_AGREEMENT_RATE_MEDIUM,
 } from '../utils/displayUtils.js';
 import { computeSessionStats } from '../utils/computeStats.js';
-import { t } from '@google/gemini-cli-core';
 
 // A more flexible and powerful StatRow component
 interface StatRowProps {
@@ -86,22 +85,22 @@ const ModelUsageTable: React.FC<{
       <Box>
         <Box width={nameWidth}>
           <Text bold color={theme.text.primary}>
-            {t('stats.sections.model_usage', 'Model Usage')}
+            Model Usage
           </Text>
         </Box>
         <Box width={requestsWidth} justifyContent="flex-end">
           <Text bold color={theme.text.primary}>
-            {t('stats.labels.requests', 'Reqs')}
+            Reqs
           </Text>
         </Box>
         <Box width={inputTokensWidth} justifyContent="flex-end">
           <Text bold color={theme.text.primary}>
-            {t('stats.labels.input_tokens', 'Input Tokens')}
+            Input Tokens
           </Text>
         </Box>
         <Box width={outputTokensWidth} justifyContent="flex-end">
           <Text bold color={theme.text.primary}>
-            {t('stats.labels.output_tokens', 'Output Tokens')}
+            Output Tokens
           </Text>
         </Box>
       </Box>
@@ -142,24 +141,13 @@ const ModelUsageTable: React.FC<{
       {cacheEfficiency > 0 && (
         <Box flexDirection="column" marginTop={1}>
           <Text color={theme.text.primary}>
-            <Text color={theme.status.success}>
-              {t('stats.labels.savings_highlight', 'Savings Highlight:')}{' '}
-            </Text>
-            {t(
-              'stats.messages.cached_tokens',
-              '{count} ({percentage}%) of input tokens were served from the cache, reducing costs.',
-              {
-                count: totalCachedTokens.toLocaleString(),
-                percentage: cacheEfficiency.toFixed(1),
-              },
-            )}
+            <Text color={theme.status.success}>Savings Highlight:</Text>{' '}
+            {totalCachedTokens.toLocaleString()} ({cacheEfficiency.toFixed(1)}
+            %) of input tokens were served from the cache, reducing costs.
           </Text>
           <Box height={1} />
           <Text color={theme.text.secondary}>
-            {t(
-              'stats.tip_full_breakdown',
-              '» Tip: For a full token breakdown, run `/stats model`.',
-            )}
+            » Tip: For a full token breakdown, run `/stats model`.
           </Text>
         </Box>
       )}
@@ -201,7 +189,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
     }
     return (
       <Text bold color={theme.text.accent}>
-        {t('stats.session_stats', 'Session Stats')}
+        Session Stats
       </Text>
     );
   };
@@ -217,37 +205,33 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
       {renderTitle()}
       <Box height={1} />
 
-      <Section
-        title={t('stats.sections.interaction_summary', 'Interaction Summary')}
-      >
-        <StatRow title={t('stats.labels.session_id', 'Session ID:')}>
+      <Section title="Interaction Summary">
+        <StatRow title="Session ID:">
           <Text color={theme.text.primary}>{stats.sessionId}</Text>
         </StatRow>
-        <StatRow title={t('stats.labels.tool_calls', 'Tool Calls:')}>
+        <StatRow title="Tool Calls:">
           <Text color={theme.text.primary}>
             {tools.totalCalls} ({' '}
             <Text color={theme.status.success}>✓ {tools.totalSuccess}</Text>{' '}
             <Text color={theme.status.error}>x {tools.totalFail}</Text> )
           </Text>
         </StatRow>
-        <StatRow title={t('stats.labels.success_rate', 'Success Rate:')}>
+        <StatRow title="Success Rate:">
           <Text color={successColor}>{computed.successRate.toFixed(1)}%</Text>
         </StatRow>
         {computed.totalDecisions > 0 && (
-          <StatRow title={t('stats.labels.user_agreement', 'User Agreement:')}>
+          <StatRow title="User Agreement:">
             <Text color={agreementColor}>
               {computed.agreementRate.toFixed(1)}%{' '}
               <Text color={theme.text.secondary}>
-                {t('stats.messages.reviewed_count', '({count} reviewed)', {
-                  count: computed.totalDecisions,
-                })}
+                ({computed.totalDecisions} reviewed)
               </Text>
             </Text>
           </StatRow>
         )}
         {files &&
           (files.totalLinesAdded > 0 || files.totalLinesRemoved > 0) && (
-            <StatRow title={t('stats.labels.code_changes', 'Code Changes:')}>
+            <StatRow title="Code Changes:">
               <Text color={theme.text.primary}>
                 <Text color={theme.status.success}>
                   +{files.totalLinesAdded}
@@ -260,16 +244,16 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
           )}
       </Section>
 
-      <Section title={t('stats.sections.performance', 'Performance')}>
-        <StatRow title={t('stats.labels.wall_time', 'Wall Time:')}>
+      <Section title="Performance">
+        <StatRow title="Wall Time:">
           <Text color={theme.text.primary}>{duration}</Text>
         </StatRow>
-        <StatRow title={t('stats.labels.agent_active', 'Agent Active:')}>
+        <StatRow title="Agent Active:">
           <Text color={theme.text.primary}>
             {formatDuration(computed.agentActiveTime)}
           </Text>
         </StatRow>
-        <SubStatRow title={t('stats.labels.api_time', 'API Time:')}>
+        <SubStatRow title="API Time:">
           <Text color={theme.text.primary}>
             {formatDuration(computed.totalApiTime)}{' '}
             <Text color={theme.text.secondary}>
@@ -277,7 +261,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
             </Text>
           </Text>
         </SubStatRow>
-        <SubStatRow title={t('stats.labels.tool_time', 'Tool Time:')}>
+        <SubStatRow title="Tool Time:">
           <Text color={theme.text.primary}>
             {formatDuration(computed.totalToolTime)}{' '}
             <Text color={theme.text.secondary}>
