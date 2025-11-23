@@ -10,16 +10,10 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType, type HistoryItemToolsList } from '../types.js';
-import { t } from '@google/gemini-cli-core';
 
 export const toolsCommand: SlashCommand = {
   name: 'tools',
-  get description() {
-    return t(
-      'commands.tools.description_with_usage',
-      'List available Gemini CLI tools. Usage: /tools [desc]',
-    );
-  },
+  description: 'List available Gemini CLI tools. Usage: /tools [desc]',
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {
     const subCommand = args?.trim();
@@ -35,7 +29,7 @@ export const toolsCommand: SlashCommand = {
       context.ui.addItem(
         {
           type: MessageType.ERROR,
-          text: t('commands.tools.error_retrieve', 'Could not retrieve tools.'),
+          text: 'Could not retrieve tool registry.',
         },
         Date.now(),
       );

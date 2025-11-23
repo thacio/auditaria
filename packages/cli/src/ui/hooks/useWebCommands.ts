@@ -8,7 +8,6 @@
 
 import { useCallback } from 'react';
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
-import { t } from '@google/gemini-cli-core';
 
 export interface WebCommandResult {
   type: 'message';
@@ -25,7 +24,7 @@ export function useWebCommands() {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.web.error.not_available', 'Web interface is not available in this configuration'),
+        content: 'Web interface is not available in this configuration',
       };
     }
 
@@ -34,31 +33,25 @@ export function useWebCommands() {
         return {
           type: 'message',
           messageType: 'info',
-          content: t('commands.web.already_running', 'Web interface is already running on port {{port}}', { 
-            port: webInterface.port?.toString() || 'unknown' 
-          }),
+          content: `Web interface is already running on port ${webInterface.port?.toString() || 'unknown'}`,
           port: webInterface.port || undefined,
         };
       }
 
       const port = portStr ? parseInt(portStr, 10) : webInterface.defaultPort;
       const assignedPort = await webInterface.start({ port });
-      
+
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.web.started', 'Web interface started on http://localhost:{{port}}', { 
-          port: assignedPort.toString() 
-        }),
+        content: `Web interface started on http://localhost:${assignedPort.toString()}`,
         port: assignedPort,
       };
     } catch (error) {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.web.start_error', 'Failed to start web interface: {{error}}', { 
-          error: error instanceof Error ? error.message : String(error) 
-        }),
+        content: `Failed to start web interface: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }, [webInterface]);
@@ -68,7 +61,7 @@ export function useWebCommands() {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.web.error.not_available', 'Web interface is not available in this configuration'),
+        content: 'Web interface is not available in this configuration',
       };
     }
 
@@ -77,24 +70,22 @@ export function useWebCommands() {
         return {
           type: 'message',
           messageType: 'info',
-          content: t('commands.web.not_running', 'Web interface is not currently running'),
+          content: 'Web interface is not currently running',
         };
       }
 
       await webInterface.stop();
-      
+
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.web.stopped', 'Web interface stopped'),
+        content: 'Web interface stopped',
       };
     } catch (error) {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.web.stop_error', 'Failed to stop web interface: {{error}}', { 
-          error: error instanceof Error ? error.message : String(error) 
-        }),
+        content: `Failed to stop web interface: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }, [webInterface]);
@@ -104,7 +95,7 @@ export function useWebCommands() {
       return {
         type: 'message',
         messageType: 'error',
-        content: t('commands.web.error.not_available', 'Web interface is not available in this configuration'),
+        content: 'Web interface is not available in this configuration',
       };
     }
 
@@ -112,16 +103,13 @@ export function useWebCommands() {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.web.status.running', 'Web interface is running on port {{port}} with {{clients}} connected client(s)', {
-          port: webInterface.port?.toString() || 'unknown',
-          clients: webInterface.clientCount.toString(),
-        }),
+        content: `Web interface is running on port ${webInterface.port?.toString() || 'unknown'} with ${webInterface.clientCount.toString()} connected client(s)`,
       };
     } else {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.web.status.stopped', 'Web interface is not running'),
+        content: 'Web interface is not running',
       };
     }
   }, [webInterface]);

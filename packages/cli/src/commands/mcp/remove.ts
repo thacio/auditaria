@@ -7,6 +7,7 @@
 // File for 'gemini mcp remove' command
 import type { CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
+import { debugLogger } from '@thacio/auditaria-cli-core';
 import { exitCli } from '../utils.js';
 
 async function removeMcpServer(
@@ -24,7 +25,7 @@ async function removeMcpServer(
   const mcpServers = existingSettings.mcpServers || {};
 
   if (!mcpServers[name]) {
-    console.log(`Server "${name}" not found in ${scope} settings.`);
+    debugLogger.log(`Server "${name}" not found in ${scope} settings.`);
     return;
   }
 
@@ -32,7 +33,7 @@ async function removeMcpServer(
 
   settings.setValue(settingsScope, 'mcpServers', mcpServers);
 
-  console.log(`Server "${name}" removed from ${scope} settings.`);
+  debugLogger.log(`Server "${name}" removed from ${scope} settings.`);
 }
 
 export const removeCommand: CommandModule = {
@@ -40,7 +41,7 @@ export const removeCommand: CommandModule = {
   describe: 'Remove a server',
   builder: (yargs) =>
     yargs
-      .usage('Usage: auditaria mcp remove [options] <name>')
+      .usage('Usage: gemini mcp remove [options] <name>')
       .positional('name', {
         describe: 'Name of the server',
         type: 'string',

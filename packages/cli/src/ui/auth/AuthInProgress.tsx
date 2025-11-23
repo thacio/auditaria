@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { CliSpinner } from '../components/CliSpinner.js';
 import { theme } from '../semantic-colors.js';
-import { t } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface AuthInProgressProps {
@@ -49,12 +48,13 @@ export function AuthInProgress({
     >
       {timedOut ? (
         <Text color={theme.status.error}>
-          {t('auth_dialog.messages.auth_timeout', 'Authentication timed out. Please try again.')}
+          Authentication timed out. Please try again.
         </Text>
       ) : (
         <Box>
           <Text>
-            <CliSpinner type="dots" /> {t('auth_dialog.messages.waiting_for_auth', 'Waiting for auth... (Press ESC or CTRL+C to cancel)')}
+            <CliSpinner type="dots" /> Waiting for auth... (Press ESC or CTRL+C
+            to cancel)
           </Text>
         </Box>
       )}
