@@ -68,6 +68,8 @@ import path from 'node:path';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import { useKeypress } from './useKeypress.js';
 import type { LoadedSettings } from '../../config/settings.js';
+import { attachmentMetadataMap } from '../../services/WebInterfaceService.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
+import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
 
 enum StreamProcessingStatus {
   Completed,
@@ -123,6 +125,23 @@ export const useGeminiStream = (
   const { startNewPrompt, getPromptCount } = useSessionStats();
   const storage = config.storage;
   const logger = useLogger(storage);
+
+  // WEB_INTERFACE_START
+  const webInterface = useWebInterface();
+  // Broadcast pending items to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingHistoryItemRef.current) {
+      // Create a proper HistoryItem with an ID for broadcasting
+      const pendingItemWithId: HistoryItem = {
+        ...pendingHistoryItemRef.current,
+        id: -1, // Temporary ID for pending items
+      } as HistoryItem;
+
+      webInterface.broadcastPendingItem(pendingItemWithId);
+    }
+  }, [pendingHistoryItemRef, webInterface]);
+
+  // WEB_INTERFACE_END
   const gitService = useMemo(() => {
     if (!config.getProjectRoot()) {
       return;
@@ -195,6 +214,35 @@ export const useGeminiStream = (
     }
     return undefined;
   }, [toolCalls]);
+
+  // WEB_INTERFACE_START
+  // Broadcast pending tool calls to web interface when they change
+  useEffect(() => {
+    if (webInterface && pendingToolCallGroupDisplay) {
+      // Only broadcast tools that are actually still pending/executing (not completed)
+      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(
+        (tool) =>
+          tool.status === 'Pending' ||
+          tool.status === 'Executing' ||
+          tool.status === 'Confirming',
+      );
+
+      // Only broadcast if there are actually pending tools
+      if (activePendingTools.length > 0) {
+        const pendingToolItemWithId: HistoryItem = {
+          ...pendingToolCallGroupDisplay,
+          tools: activePendingTools,
+          id: -2, // Temporary ID for pending tool calls (different from text responses)
+        } as HistoryItem;
+
+        webInterface.broadcastPendingItem(pendingToolItemWithId);
+      } else {
+        // If no pending tools, broadcast null to clear any existing pending display
+        webInterface.broadcastPendingItem(null);
+      }
+    }
+  }, [pendingToolCallGroupDisplay, webInterface]);
+  // WEB_INTERFACE_END
 
   const lastQueryRef = useRef<PartListUnion | null>(null);
   const lastPromptIdRef = useRef<string | null>(null);
@@ -495,8 +543,125 @@ export const useGeminiStream = (
           localQueryToSendToGemini = trimmedQuery;
         }
       } else {
+        // WEB_INTERFACE_START: Handle multimodal messages from web interface
         // It's a function response (PartListUnion that isn't a string)
         localQueryToSendToGemini = query;
+
+        // Extract text and attachments from multimodal parts for display
+        let displayText = '';
+        const attachments: Array<{
+          type: string;
+          mimeType: string;
+          name: string;
+          size: number;
+          thumbnail?: string;
+          icon: string;
+          displaySize?: string;
+        }> = [];
+
+        if (Array.isArray(query)) {
+          // It's an array of parts
+          for (const part of query) {
+            if (typeof part === 'string') {
+              displayText = part;
+            } else if (part && typeof part === 'object') {
+              if ('text' in part && part.text) {
+                displayText = part.text;
+              } else if ('inlineData' in part && part.inlineData) {
+                // Extract attachment info from inline data
+                // Check if we have metadata in the WeakMap
+                const metadata = attachmentMetadataMap.get(part);
+                if (metadata) {
+                  attachments.push({
+                    type: metadata.type || 'file',
+                    mimeType:
+                      metadata.mimeType ||
+                      part.inlineData.mimeType ||
+                      'application/octet-stream',
+                    name: metadata.name || 'Attached file',
+                    size: metadata.size || 0,
+                    thumbnail: metadata.thumbnail,
+                    icon: metadata.icon || '📎',
+                    displaySize: metadata.displaySize,
+                  });
+                } else {
+                  // Fallback for attachments without metadata
+                  attachments.push({
+                    type: 'file',
+                    mimeType:
+                      part.inlineData.mimeType || 'application/octet-stream',
+                    name: 'Attached file',
+                    size: 0,
+                    icon: '📎',
+                  });
+                }
+              }
+            }
+          }
+        } else if (typeof query === 'object' && query) {
+          // Single part object
+          if ('text' in query && query.text) {
+            displayText = query.text;
+          } else if ('inlineData' in query && query.inlineData) {
+            const metadata = attachmentMetadataMap.get(query);
+            if (metadata) {
+              attachments.push({
+                type: metadata.type || 'file',
+                mimeType:
+                  metadata.mimeType ||
+                  query.inlineData.mimeType ||
+                  'application/octet-stream',
+                name: metadata.name || 'Attached file',
+                size: metadata.size || 0,
+                thumbnail: metadata.thumbnail,
+                icon: metadata.icon || '📎',
+                displaySize: metadata.displaySize,
+              });
+            } else {
+              attachments.push({
+                type: 'file',
+                mimeType:
+                  query.inlineData.mimeType || 'application/octet-stream',
+                name: 'Attached file',
+                size: 0,
+                icon: '📎',
+              });
+            }
+          }
+        }
+
+        // If no text but has attachments, show a placeholder
+        if (!displayText && attachments.length > 0) {
+          displayText = '📎 File(s) attached';
+        }
+
+        // Add user message to history with attachments info
+        if (displayText || attachments.length > 0) {
+          const historyItem: {
+            type: typeof MessageType.USER;
+            text: string;
+            attachments?: Array<{
+              type: string;
+              mimeType: string;
+              name: string;
+              size: number;
+              thumbnail?: string;
+              icon: string;
+              displaySize?: string;
+            }>;
+          } = {
+            type: MessageType.USER,
+            text: displayText || '📎 File(s) attached',
+          };
+
+          // Include attachments if present (for web interface display)
+          if (attachments.length > 0) {
+            historyItem.attachments = attachments;
+          }
+
+          addItem(historyItem, userMessageTimestamp);
+        }
+        // WEB_INTERFACE_END
       }
 
       if (localQueryToSendToGemini === null) {
@@ -968,6 +1133,14 @@ export const useGeminiStream = (
               }
               if (loopDetectedRef.current) {
                 loopDetectedRef.current = false;
+                // WEB_INTERFACE_START AUDITARIA: Pre-start terminal capture for web interface before showing dialog
+                const preStartCapture = (global as Record<string, unknown>)
+                  .__preStartTerminalCapture;
+                if (typeof preStartCapture === 'function') {
+                  preStartCapture();
+                }
+                // WEB_INTERFACE_END AUDITARIA: Handle multimodal messages from web interface
+
                 // Show the confirmation dialog to choose whether to disable loop detection
                 setLoopDetectionConfirmationRequest({
                   onComplete: (result: {
