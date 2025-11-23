@@ -1,7 +1,7 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.18.0-nightly.20251120.2231497b1",
-  "description": "Auditaria CLI",
+  "version": "0.19.0-nightly.20251120.8e531dc02",
+  "description": "Gemini CLI",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/google-gemini/gemini-cli.git"
@@ -25,7 +25,7 @@
     "dist"
   ],
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.18.0-nightly.20251120.2231497b1"
+    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.19.0-nightly.20251120.8e531dc02"
   },
   "dependencies": {
     "@google/gemini-cli-core": "file:../core",
@@ -49,7 +49,6 @@
     "latest-version": "^9.0.0",
     "lowlight": "^3.3.0",
     "mnemonist": "^0.40.3",
-    "node-html-parser": "^7.0.1",
     "open": "^10.1.2",
     "prompts": "^2.4.2",
     "react": "^19.2.0",
@@ -68,7 +67,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
-    "@thacio/auditaria-cli-test-utils": "file:../test-utils",
+    "@google/gemini-cli-test-utils": "file:../test-utils",
     "@types/archiver": "^6.0.3",
     "@types/command-exists": "^1.2.3",
     "@types/diff": "^7.0.2",
