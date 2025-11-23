@@ -7,7 +7,8 @@
 // File for 'gemini mcp remove' command
 import type { CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
-import { t } from '@thacio/auditaria-cli-core';
+import { debugLogger } from '@thacio/auditaria-cli-core';
+import { exitCli } from '../utils.js';
 
 async function removeMcpServer(
   name: string,
@@ -24,7 +25,7 @@ async function removeMcpServer(
   const mcpServers = existingSettings.mcpServers || {};
 
   if (!mcpServers[name]) {
-    console.log(t('commands.mcp.manage.remove.not_found', `Server "${name}" not found in ${scope} settings.`, { name, scope }));
+    debugLogger.log(`Server "${name}" not found in ${scope} settings.`);
     return;
   }
 
@@ -32,23 +33,23 @@ async function removeMcpServer(
 
   settings.setValue(settingsScope, 'mcpServers', mcpServers);
 
-  console.log(t('commands.mcp.manage.remove.removed', `Server "${name}" removed from ${scope} settings.`, { name, scope }));
+  debugLogger.log(`Server "${name}" removed from ${scope} settings.`);
 }
 
 export const removeCommand: CommandModule = {
   command: 'remove <name>',
-  describe: t('commands.mcp.manage.remove.description', 'Remove a server'),
+  describe: 'Remove a server',
   builder: (yargs) =>
     yargs
-      .usage(t('commands.mcp.manage.remove.usage', 'Usage: auditaria mcp remove [options] <name>'))
+      .usage('Usage: gemini mcp remove [options] <name>')
       .positional('name', {
-        describe: t('commands.mcp.manage.remove.name_description', 'Name of the server'),
+        describe: 'Name of the server',
         type: 'string',
         demandOption: true,
       })
       .option('scope', {
         alias: 's',
-        describe: t('commands.mcp.manage.remove.scope_description', 'Configuration scope (user or project)'),
+        describe: 'Configuration scope (user or project)',
         type: 'string',
         default: 'project',
         choices: ['user', 'project'],
@@ -57,5 +58,6 @@ export const removeCommand: CommandModule = {
     await removeMcpServer(argv['name'] as string, {
       scope: argv['scope'] as string,
     });
+    await exitCli();
   },
 };

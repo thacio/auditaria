@@ -5,7 +5,6 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { t } from '@thacio/auditaria-cli-core';
 import { installCommand } from './extensions/install.js';
 import { uninstallCommand } from './extensions/uninstall.js';
 import { listCommand } from './extensions/list.js';
@@ -15,16 +14,15 @@ import { enableCommand } from './extensions/enable.js';
 import { linkCommand } from './extensions/link.js';
 import { newCommand } from './extensions/new.js';
 import { validateCommand } from './extensions/validate.js';
+import { initializeOutputListenersAndFlush } from '../gemini.js';
 
 export const extensionsCommand: CommandModule = {
   command: 'extensions <command>',
   aliases: ['extension'],
-  describe: t(
-    'commands.extensions.manage.description',
-    'Manage Auditaria CLI extensions.',
-  ),
+  describe: 'Manage Gemini CLI extensions.',
   builder: (yargs) =>
     yargs
+      .middleware(() => initializeOutputListenersAndFlush())
       .command(installCommand)
       .command(uninstallCommand)
       .command(listCommand)
@@ -34,13 +32,7 @@ export const extensionsCommand: CommandModule = {
       .command(linkCommand)
       .command(newCommand)
       .command(validateCommand)
-      .demandCommand(
-        1,
-        t(
-          'commands.extensions.manage.need_command',
-          'You need at least one command before continuing.',
-        ),
-      )
+      .demandCommand(1, 'You need at least one command before continuing.')
       .version(false),
   handler: () => {
     // This handler is not called when a subcommand is provided.
