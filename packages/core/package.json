@@ -79,7 +79,7 @@
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
-    "@thacio/auditaria-cli-test-utils": "file:../test-utils",
+    "@google/gemini-cli-test-utils": "file:../test-utils",
     "@types/diff": "^7.0.2",
     "@types/dotenv": "^6.1.1",
     "@types/fast-levenshtein": "^0.0.4",
