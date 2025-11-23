@@ -32,7 +32,7 @@ export const usePhraseCycler = (
   const loadingPhrases =
     customPhrases && customPhrases.length > 0
       ? customPhrases
-      : [...INFORMATIVE_TIPS, ...WITTY_LOADING_PHRASES];
+      : WITTY_LOADING_PHRASES;
 
   const [currentLoadingPhrase, setCurrentLoadingPhrase] = useState(
     loadingPhrases[0],
