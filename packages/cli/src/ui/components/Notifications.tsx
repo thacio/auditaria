@@ -38,7 +38,7 @@ export const Notifications = () => {
   >(undefined);
 
   useEffect(() => {
-    const checkScreenReaderNudge = async () => {
+    const checkScreenReader = async () => {
       try {
         await fs.access(screenReaderNudgeFilePath);
         setHasSeenScreenReaderNudge(true);
@@ -46,8 +46,11 @@ export const Notifications = () => {
         setHasSeenScreenReaderNudge(false);
       }
     };
-    checkScreenReaderNudge();
-  }, []);
+
+    if (isScreenReaderEnabled) {
+      checkScreenReader();
+    }
+  }, [isScreenReaderEnabled]);
 
   const showScreenReaderNudge =
     isScreenReaderEnabled && hasSeenScreenReaderNudge === false;
