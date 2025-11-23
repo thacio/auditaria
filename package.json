@@ -1,6 +1,6 @@
 {
   "name": "@thacio/auditaria-cli",
-  "version": "0.17.0-nightly.20251116.e650a4ee5",
+  "version": "0.19.0-nightly.20251123.dadd606c0",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -11,10 +11,10 @@
   "private": "true",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thacio/auditaria.git"
+    "url": "git+https://github.com/google-gemini/gemini-cli.git"
   },
   "config": {
-    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.17.0-nightly.20251116.e650a4ee5"
+    "sandboxImageUri": "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.19.0-nightly.20251123.dadd606c0"
   },
   "scripts": {
     "postinstall": "patch-package",
@@ -47,7 +47,6 @@
     "test:integration:sandbox:none": "cross-env GEMINI_SANDBOX=false vitest run --root ./integration-tests",
     "test:integration:sandbox:docker": "cross-env GEMINI_SANDBOX=docker npm run build:sandbox && cross-env GEMINI_SANDBOX=docker vitest run --root ./integration-tests",
     "test:integration:sandbox:podman": "cross-env GEMINI_SANDBOX=podman vitest run --root ./integration-tests",
-    "i18n:compare": "node scripts/compare-i18n.cjs",
     "lint": "eslint . --ext .ts,.tsx && eslint integration-tests && eslint scripts",
     "lint:fix": "eslint . --fix --ext .ts,.tsx && eslint integration-tests --fix && eslint scripts --fix && npm run format",
     "lint:ci": "npm run lint:all",
@@ -64,14 +63,14 @@
     "pre-commit": "node scripts/pre-commit.js"
   },
   "overrides": {
-    "ink": "npm:@jrichman/ink@6.4.3",
+    "ink": "npm:@jrichman/ink@6.4.6",
     "wrap-ansi": "9.0.2",
     "cliui": {
       "wrap-ansi": "7.0.0"
     }
   },
   "bin": {
-    "auditaria": "bundle/gemini.js"
+    "gemini": "bundle/gemini.js"
   },
   "files": [
     "bundle/",
@@ -80,7 +79,7 @@
   ],
   "devDependencies": {
     "@octokit/rest": "^22.0.0",
-    "@types/chardet": "^0.8.3",
+    "@types/js-yaml": "^4.0.9",
     "@types/marked": "^5.0.2",
     "@types/mime-types": "^3.0.1",
     "@types/minimatch": "^5.1.2",
@@ -123,13 +122,9 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
-    "@vscode/codicons": "^0.0.43",
-    "ansi-to-html": "^0.7.2",
-    "ink": "npm:@jrichman/ink@6.4.3",
+    "ink": "npm:@jrichman/ink@6.4.6",
     "latest-version": "^9.0.0",
-    "simple-git": "^3.28.0",
-    "strip-ansi": "^7.1.0",
-    "vscode-material-icons": "^0.1.1"
+    "simple-git": "^3.28.0"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "1.1.0",

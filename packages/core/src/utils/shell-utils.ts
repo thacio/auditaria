@@ -272,7 +272,7 @@ function hasPromptCommandTransform(root: Node): boolean {
         const transformNode = current.child(i + 1);
 
         if (
-          operatorNode?.type === '@' &&
+          operatorNode?.text === '@' &&
           transformNode?.text?.toLowerCase() === 'p'
         ) {
           return true;

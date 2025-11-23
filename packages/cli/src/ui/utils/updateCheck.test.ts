@@ -12,7 +12,7 @@ const getPackageJson = vi.hoisted(() => vi.fn());
 const debugLogger = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
-vi.mock('@thacio/auditaria-cli-core', () => ({
+vi.mock('@google/gemini-cli-core', () => ({
   getPackageJson,
   debugLogger,
 }));

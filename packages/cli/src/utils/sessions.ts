@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ChatRecordingService, type Config } from '@thacio/auditaria-cli-core';
+import { ChatRecordingService, type Config } from '@google/gemini-cli-core';
 import {
   formatRelativeTime,
   SessionSelector,
@@ -30,8 +30,12 @@ export async function listSessions(config: Config): Promise<void> {
     .forEach((session, index) => {
       const current = session.isCurrentSession ? ', current' : '';
       const time = formatRelativeTime(session.lastUpdated);
+      const title =
+        session.firstUserMessage.length > 100
+          ? session.firstUserMessage.slice(0, 97) + '...'
+          : session.firstUserMessage;
       console.log(
-        `  ${index + 1}. ${session.firstUserMessage} (${time}${current}) [${session.id}]`,
+        `  ${index + 1}. ${title} (${time}${current}) [${session.id}]`,
       );
     });
 }

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '@google/gemini-cli-core';
+
 import type React from 'react';
 import { useCallback, useState } from 'react';
 import { Box, Text } from 'ink';
@@ -78,7 +80,7 @@ export function ThemeDialog({
       label: name,
       value: name,
       themeNameDisplay: name,
-      themeTypeDisplay: 'Custom',
+      themeTypeDisplay: t('theme_dialog.custom_type', 'Custom'),
       key: name,
     })),
   ];
@@ -133,7 +135,6 @@ export function ThemeDialog({
     selectedScope,
     settings,
   );
-
   // Constants for calculating preview pane layout.
   // These values are based on the JSX structure below.
   const PREVIEW_PANE_WIDTH_PERCENTAGE = 0.55;
@@ -207,7 +208,8 @@ export function ThemeDialog({
           {/* Left Column: Selection */}
           <Box flexDirection="column" width="45%" paddingRight={2}>
             <Text bold={mode === 'theme'} wrap="truncate">
-              {mode === 'theme' ? '> ' : '  '}Select Theme{' '}
+              {mode === 'theme' ? '> ' : '  '}
+              {t('theme_dialog.title', 'Select Theme')}{' '}
               <Text color={theme.text.secondary}>
                 {otherScopeModifiedMessage}
               </Text>
@@ -227,7 +229,7 @@ export function ThemeDialog({
           {/* Right Column: Preview */}
           <Box flexDirection="column" width="55%" paddingLeft={2}>
             <Text bold color={theme.text.primary}>
-              Preview
+              {t('theme_dialog.preview', 'Preview')}
             </Text>
             {/* Get the Theme object for the highlighted theme, fall back to default if not found */}
             {(() => {
@@ -287,8 +289,23 @@ def fibonacci(n):
       )}
       <Box marginTop={1}>
         <Text color={theme.text.secondary} wrap="truncate">
-          (Use Enter to {mode === 'theme' ? 'select' : 'apply scope'}, Tab to{' '}
-          {mode === 'theme' ? 'configure scope' : 'select theme'}, Esc to close)
+          {t(
+            'theme_dialog.messages.use_enter_with_mode',
+            '(Use Enter to {action}, Tab to {switchAction}, Esc to close)',
+            {
+              action:
+                mode === 'theme'
+                  ? t('theme_dialog.messages.select', 'select')
+                  : t('theme_dialog.messages.apply_scope', 'apply scope'),
+              switchAction:
+                mode === 'theme'
+                  ? t(
+                      'theme_dialog.messages.configure_scope',
+                      'configure scope',
+                    )
+                  : t('theme_dialog.messages.select_theme', 'select theme'),
+            },
+          )}
         </Text>
       </Box>
     </Box>

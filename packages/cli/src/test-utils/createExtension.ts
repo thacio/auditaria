@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import {
   type MCPServerConfig,
   type ExtensionInstallMetadata,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   EXTENSIONS_CONFIG_FILENAME,
   INSTALL_METADATA_FILENAME,

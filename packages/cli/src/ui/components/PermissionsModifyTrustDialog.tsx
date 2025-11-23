@@ -15,6 +15,7 @@ import { theme } from '../semantic-colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { relaunchApp } from '../../utils/processUtils.js';
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
+import { t } from '@google/gemini-cli-core';
 
 export interface PermissionsDialogProps {
   targetDirectory?: string;
@@ -36,17 +37,25 @@ export function PermissionsModifyTrustDialog({
 
   const TRUST_LEVEL_ITEMS = [
     {
-      label: `Trust this folder (${dirName})`,
+      label: t(
+        'folder_trust_dialog.options.trust_folder',
+        'Trust folder ({dirName})',
+        { dirName },
+      ),
       value: TrustLevel.TRUST_FOLDER,
       key: TrustLevel.TRUST_FOLDER,
     },
     {
-      label: `Trust parent folder (${parentFolder})`,
+      label: t(
+        'folder_trust_dialog.options.trust_parent',
+        'Trust parent folder ({parentFolder})',
+        { parentFolder },
+      ),
       value: TrustLevel.TRUST_PARENT,
       key: TrustLevel.TRUST_PARENT,
     },
     {
-      label: "Don't trust",
+      label: t('folder_trust_dialog.options.dont_trust', "Don't trust"),
       value: TrustLevel.DO_NOT_TRUST,
       key: TrustLevel.DO_NOT_TRUST,
     },
@@ -93,25 +102,34 @@ export function PermissionsModifyTrustDialog({
         padding={1}
       >
         <Box flexDirection="column" paddingBottom={1}>
-          <Text bold>{'> '}Modify Trust Level</Text>
+          <Text bold>
+            {'> '}
+            {t('permissions_dialog.title', 'Modify Trust Level')}
+          </Text>
           <Box marginTop={1} />
-          <Text>Folder: {cwd}</Text>
           <Text>
-            Current Level: <Text bold>{currentTrustLevel || 'Not Set'}</Text>
+            {t('permissions_dialog.folder_label', 'Folder:')} {cwd}
+          </Text>
+          <Text>
+            {t('permissions_dialog.current_level_label', 'Current Level:')}{' '}
+            <Text bold>
+              {currentTrustLevel || t('permissions_dialog.not_set', 'Not Set')}
+            </Text>
           </Text>
           {isInheritedTrustFromParent && (
             <Text color={theme.text.secondary}>
-              Note: This folder behaves as a trusted folder because one of the
-              parent folders is trusted. It will remain trusted even if you set
-              a different trust level here. To change this, you need to modify
-              the trust setting in the parent folder.
+              {t(
+                'permissions_dialog.notes.inherited_from_parent',
+                'Note: This folder behaves as a trusted folder because one of the parent folders is trusted. It will remain trusted even if you set a different trust level here. To change this, you need to modify the trust setting in the parent folder.',
+              )}
             </Text>
           )}
           {isInheritedTrustFromIde && (
             <Text color={theme.text.secondary}>
-              Note: This folder behaves as a trusted folder because the
-              connected IDE workspace is trusted. It will remain trusted even if
-              you set a different trust level here.
+              {t(
+                'permissions_dialog.notes.inherited_from_ide',
+                'Note: This folder behaves as a trusted folder because the connected IDE workspace is trusted. It will remain trusted even if you set a different trust level here.',
+              )}
             </Text>
           )}
         </Box>
@@ -124,15 +142,20 @@ export function PermissionsModifyTrustDialog({
         />
         <Box marginTop={1}>
           <Text color={theme.text.secondary}>
-            (Use Enter to select, Esc to close)
+            {t(
+              'permissions_dialog.instructions.use_enter_select',
+              '(Use Enter to select, Esc to close)',
+            )}
           </Text>
         </Box>
       </Box>
       {needsRestart && (
         <Box marginLeft={1} marginTop={1}>
           <Text color={theme.status.warning}>
-            To apply the trust changes, Auditaria CLI must be restarted. Press
-            &apos;r&apos; to restart CLI now.
+            {t(
+              'permissions_dialog.restart.message',
+              "To apply the trust changes, Auditaria CLI must be restarted. Press 'r' to restart CLI now.",
+            )}
           </Text>
         </Box>
       )}

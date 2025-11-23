@@ -6,6 +6,7 @@
 
 import type React from 'react';
 import { Box, Text } from 'ink';
+import { t } from '@google/gemini-cli-core';
 import { theme } from '../semantic-colors.js';
 import { TextInput } from '../components/shared/TextInput.js';
 import { useTextBuffer } from '../components/shared/text-buffer.js';
@@ -53,15 +54,17 @@ export function ApiAuthDialog({
       width="100%"
     >
       <Text bold color={theme.text.primary}>
-        Enter Gemini API Key
+        {t('api_auth_dialog.title', 'Enter Auditaria API Key')}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Text color={theme.text.primary}>
-          Please enter your Gemini API key. It will be securely stored in your
-          system keychain.
+          {t(
+            'api_auth_dialog.description',
+            'Please enter your Auditaria API key. It will be securely stored in your system keychain.',
+          )}
         </Text>
         <Text color={theme.text.secondary}>
-          You can get an API key from{' '}
+          {t('api_auth_dialog.get_key_message', 'You can get an API key from')}{' '}
           <Text color={theme.text.link}>
             https://aistudio.google.com/app/apikey
           </Text>
@@ -78,7 +81,10 @@ export function ApiAuthDialog({
             buffer={buffer}
             onSubmit={handleSubmit}
             onCancel={onCancel}
-            placeholder="Paste your API key here"
+            placeholder={t(
+              'api_auth_dialog.placeholder',
+              'Paste your API key here',
+            )}
           />
         </Box>
       </Box>
@@ -89,7 +95,10 @@ export function ApiAuthDialog({
       )}
       <Box marginTop={1}>
         <Text color={theme.text.secondary}>
-          (Press Enter to submit, Esc to cancel)
+          {t(
+            'api_auth_dialog.submit_hint',
+            '(Press Enter to submit, Esc to cancel)',
+          )}
         </Text>
       </Box>
     </Box>

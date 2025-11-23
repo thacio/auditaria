@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { t } from '@google/gemini-cli-core';
 import type React from 'react';
 import { Box, Text } from 'ink';
 import type { LoadableSettingScope } from '../../../config/settings.js';
@@ -40,7 +41,8 @@ export function ScopeSelector({
   return (
     <Box flexDirection="column">
       <Text bold={isFocused} wrap="truncate">
-        {isFocused ? '> ' : '  '}Apply To
+        {isFocused ? '> ' : '  '}
+        {t('theme_dialog.apply_to', 'Apply To')}
       </Text>
       <RadioButtonSelect
         items={scopeItems}

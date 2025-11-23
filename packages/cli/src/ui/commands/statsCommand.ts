@@ -12,11 +12,14 @@ import {
   type SlashCommand,
   CommandKind,
 } from './types.js';
+import { t } from '@google/gemini-cli-core';
 
 export const statsCommand: SlashCommand = {
   name: 'stats',
   altNames: ['usage'],
-  description: 'Check session stats. Usage: /stats [model|tools]',
+  get description() {
+    return t('commands.stats.description', 'Check session stats. Usage: /stats [model|tools]');
+  },
   kind: CommandKind.BUILT_IN,
   action: (context: CommandContext) => {
     const now = new Date();
@@ -25,7 +28,7 @@ export const statsCommand: SlashCommand = {
       context.ui.addItem(
         {
           type: MessageType.ERROR,
-          text: 'Session start time is unavailable, cannot calculate stats.',
+          text: t('commands.stats.errors.session_start_unavailable', 'Session start time is unavailable, cannot calculate stats.'),
         },
         Date.now(),
       );
@@ -43,7 +46,9 @@ export const statsCommand: SlashCommand = {
   subCommands: [
     {
       name: 'model',
-      description: 'Show model-specific usage statistics',
+      get description() {
+        return t('commands.stats.subcommands.model.description', 'Show model-specific usage statistics');
+      },
       kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {
         context.ui.addItem(
@@ -56,7 +61,9 @@ export const statsCommand: SlashCommand = {
     },
     {
       name: 'tools',
-      description: 'Show tool-specific usage statistics',
+      get description() {
+        return t('commands.stats.subcommands.tools.description', 'Show tool-specific usage statistics');
+      },
       kind: CommandKind.BUILT_IN,
       action: (context: CommandContext) => {
         context.ui.addItem(

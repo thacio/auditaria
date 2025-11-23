@@ -54,10 +54,11 @@ auditaria extensions install <source> [--ref <ref>] [--auto-update] [--pre-relea
 
 ### Uninstalling an extension
 
-To uninstall, run `auditaria extensions uninstall <name>`:
+To uninstall one or more extensions, run
+`auditaria extensions uninstall <name...>`:
 
 ```
-auditaria extensions uninstall gemini-cli-security
+auditaria extensions uninstall gemini-cli-security gemini-cli-another-extension
 ```
 
 ### Disabling an extension

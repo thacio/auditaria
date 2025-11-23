@@ -6,11 +6,14 @@
 
 import { formatDuration } from '../utils/formatters.js';
 import { CommandKind, type SlashCommand } from './types.js';
+import { t } from '@google/gemini-cli-core';
 
 export const quitCommand: SlashCommand = {
   name: 'quit',
   altNames: ['exit'],
-  description: 'Exit the cli',
+  get description() {
+    return t('commands.quit.description', 'Exit the cli');
+  },
   kind: CommandKind.BUILT_IN,
   action: (context) => {
     const now = Date.now();

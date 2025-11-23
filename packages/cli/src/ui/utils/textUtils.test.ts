@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import type {
   ToolCallConfirmationDetails,
   ToolEditConfirmationDetails,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { escapeAnsiCtrlCodes, stripUnsafeCharacters } from './textUtils.js';
 
 describe('textUtils', () => {

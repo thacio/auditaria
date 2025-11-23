@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import {
   AuthType,
   debugLogger,
   OutputFormat,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
 import { validateAuthMethod } from './config/auth.js';
 import { type LoadedSettings } from './config/settings.js';
 import { handleError } from './utils/errors.js';
+import { runExitCleanup } from './utils/cleanup.js';
 
 export interface NonInteractiveConfig {
   refreshAuth: (authType: AuthType) => Promise<unknown>;
@@ -92,6 +93,7 @@ export async function validateNonInteractiveAuth(
       );
     } else {
       debugLogger.error(error instanceof Error ? error.message : String(error));
+      await runExitCleanup();
       process.exit(1);
     }
   }

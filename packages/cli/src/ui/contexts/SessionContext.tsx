@@ -18,8 +18,8 @@ import type {
   SessionMetrics,
   ModelMetrics,
   ToolCallStats,
-} from '@thacio/auditaria-cli-core';
-import { uiTelemetryService, sessionId } from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
+import { uiTelemetryService, sessionId } from '@google/gemini-cli-core';
 
 export enum ToolCallDecision {
   ACCEPT = 'accept',

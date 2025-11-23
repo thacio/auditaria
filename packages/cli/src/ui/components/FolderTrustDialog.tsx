@@ -7,6 +7,7 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { t } from '@google/gemini-cli-core';
 import { theme } from '../semantic-colors.js';
 import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
@@ -59,17 +60,25 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
 
   const options: Array<RadioSelectItem<FolderTrustChoice>> = [
     {
-      label: `Trust folder (${dirName})`,
+      label: t(
+        'folder_trust_dialog.options.trust_folder',
+        'Trust folder ({dirName})',
+        { dirName },
+      ),
       value: FolderTrustChoice.TRUST_FOLDER,
       key: `Trust folder (${dirName})`,
     },
     {
-      label: `Trust parent folder (${parentFolder})`,
+      label: t(
+        'folder_trust_dialog.options.trust_parent',
+        `Trust parent folder (${parentFolder})`,
+        { parentFolder },
+      ),
       value: FolderTrustChoice.TRUST_PARENT,
       key: `Trust parent folder (${parentFolder})`,
     },
     {
-      label: "Don't trust",
+      label: t('folder_trust_dialog.options.dont_trust', "Don't trust"),
       value: FolderTrustChoice.DO_NOT_TRUST,
       key: "Don't trust",
     },
@@ -87,12 +96,13 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       >
         <Box flexDirection="column" marginBottom={1}>
           <Text bold color={theme.text.primary}>
-            Do you trust this folder?
+            {t('folder_trust_dialog.title', 'Do you trust this folder?')}
           </Text>
           <Text color={theme.text.primary}>
-            Trusting a folder allows Gemini to execute commands it suggests.
-            This is a security feature to prevent accidental execution in
-            untrusted directories.
+            {t(
+              'folder_trust_dialog.description',
+              'Trusting a folder allows Auditaria to execute commands it suggests. This is a security feature to prevent accidental execution in untrusted directories.',
+            )}
           </Text>
         </Box>
 
@@ -105,15 +115,20 @@ export const FolderTrustDialog: React.FC<FolderTrustDialogProps> = ({
       {isRestarting && (
         <Box marginLeft={1} marginTop={1}>
           <Text color={theme.status.warning}>
-            Gemini CLI is restarting to apply the trust changes...
+            {t(
+              'folder_trust_dialog.restarting',
+              'Auditaria CLI is restarting to apply the trust changes...',
+            )}
           </Text>
         </Box>
       )}
       {exiting && (
         <Box marginLeft={1} marginTop={1}>
           <Text color={theme.status.warning}>
-            A folder trust level must be selected to continue. Exiting since
-            escape was pressed.
+            {t(
+              'folder_trust_dialog.exiting',
+              'A folder trust level must be selected to continue. Exiting since escape was pressed.',
+            )}
           </Text>
         </Box>
       )}

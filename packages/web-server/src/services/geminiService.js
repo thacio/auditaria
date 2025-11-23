@@ -3,7 +3,7 @@
  * Copyright 2025 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
-import { initI18n, t } from '@thacio/auditaria-cli-core';
+import { initI18n, t } from '@google/gemini-cli-core';
 import { loadCliConfig, loadSettings } from '@thacio/auditaria-cli';
 import { v4 as uuidv4 } from 'uuid';
 /**

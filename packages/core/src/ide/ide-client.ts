@@ -19,7 +19,6 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-import { t } from '../i18n/index.js';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EnvHttpProxyAgent } from 'undici';
@@ -84,10 +83,8 @@ export class IdeClient {
   private client: Client | undefined = undefined;
   private state: IDEConnectionState = {
     status: IDEConnectionStatus.Disconnected,
-    details: t(
-      'ide.errors.integration_disabled',
+    details:
       'IDE integration is currently disabled. To enable it, run /ide enable.',
-    ),
   };
   private currentIde: IdeInfo | undefined;
   private ideProcessInfo: { pid: number; command: string } | undefined;
@@ -140,11 +137,12 @@ export class IdeClient {
     this.trustChangeListeners.delete(listener);
   }
 
-  async connect(): Promise<void> {
+  async connect(options: { logToConsole?: boolean } = {}): Promise<void> {
+    const logError = options.logToConsole ?? true;
     if (!this.currentIde) {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: VS Code or VS Code forks`,
+        `IDE integration is not supported in your current environment. To use this feature, run Gemini CLI in one of these supported IDEs: Antigravity, VS Code, or VS Code forks.`,
         false,
       );
       return;
@@ -166,7 +164,7 @@ export class IdeClient {
     );
 
     if (!isValid) {
-      this.setState(IDEConnectionStatus.Disconnected, error, true);
+      this.setState(IDEConnectionStatus.Disconnected, error, logError);
       return;
     }
 
@@ -207,12 +205,8 @@ export class IdeClient {
 
     this.setState(
       IDEConnectionStatus.Disconnected,
-      t(
-        'ide.errors.extension_connection_failed',
-        `Failed to connect to IDE companion extension in {ide}. Please ensure the extension is running. To install the extension, run /ide install.`,
-        { ide: this.currentIde.displayName },
-      ),
-      true,
+      `Failed to connect to IDE companion extension in ${this.currentIde.displayName}. Please ensure the extension is running. To install the extension, run /ide install.`,
+      logError,
     );
   }
 
@@ -410,10 +404,7 @@ export class IdeClient {
     this.diffResponses.clear();
     this.setState(
       IDEConnectionStatus.Disconnected,
-      t(
-        'ide.errors.integration_disabled_reenable',
-        'IDE integration disabled. To enable it again, run /ide enable.',
-      ),
+      'IDE integration disabled. To enable it again, run /ide enable.',
     );
     this.client?.close();
   }
@@ -516,20 +507,14 @@ export class IdeClient {
     if (ideWorkspacePath === undefined) {
       return {
         isValid: false,
-        error: t(
-          'ide.errors.extension_connection_failed',
-          `Failed to connect to IDE companion extension. Please ensure the extension is running. To install the extension, run /ide install.`,
-        ),
+        error: `Failed to connect to IDE companion extension. Please ensure the extension is running. To install the extension, run /ide install.`,
       };
     }
 
     if (ideWorkspacePath === '') {
       return {
         isValid: false,
-        error: t(
-          'ide.errors.single_workspace_required',
-          `To use this feature, please open a workspace folder in your IDE and try again.`,
-        ),
+        error: `To use this feature, please open a workspace folder in your IDE and try again.`,
       };
     }
 
@@ -541,14 +526,11 @@ export class IdeClient {
     });
 
     if (!isWithinWorkspace) {
-      const directories = ideWorkspacePaths.join(', ');
       return {
         isValid: false,
-        error: t(
-          'ide.errors.directory_mismatch_multi',
-          `Directory mismatch. Auditaria CLI is running in a different location than the open workspace in the IDE. Please run the CLI from one of the following directories: {directories}`,
-          { directories },
-        ),
+        error: `Directory mismatch. Gemini CLI is running in a different location than the open workspace in the IDE. Please run the CLI from one of the following directories: ${ideWorkspacePaths.join(
+          ', ',
+        )}`,
       };
     }
     return { isValid: true };
@@ -730,20 +712,14 @@ export class IdeClient {
       const errorMessage = _error instanceof Error ? _error.message : `_error`;
       this.setState(
         IDEConnectionStatus.Disconnected,
-        t(
-          'ide.errors.connection_lost',
-          'IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable',
-        ) + `\n${errorMessage}`,
+        `IDE connection error. The connection was lost unexpectedly. Please try reconnecting by running /ide enable\n${errorMessage}`,
         true,
       );
     };
     this.client.onclose = () => {
       this.setState(
         IDEConnectionStatus.Disconnected,
-        t(
-          'ide.errors.connection_closed',
-          'IDE connection closed. To reconnect, run /ide enable.',
-        ),
+        `IDE connection closed. To reconnect, run /ide enable.`,
         true,
       );
     };

@@ -7,10 +7,11 @@
 import { type CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
 import { getErrorMessage } from '../../utils/errors.js';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
+import { exitCli } from '../utils.js';
 
 interface DisableArgs {
   name: string;
@@ -94,5 +95,6 @@ export const disableCommand: CommandModule = {
       name: argv['name'] as string,
       scope: argv['scope'] as string,
     });
+    await exitCli();
   },
 };

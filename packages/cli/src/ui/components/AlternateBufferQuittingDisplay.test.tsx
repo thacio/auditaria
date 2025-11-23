@@ -10,7 +10,11 @@ import { ToolCallStatus } from '../types.js';
 import type { HistoryItem, HistoryItemWithoutId } from '../types.js';
 import { Text } from 'ink';
 import { renderWithProviders } from '../../test-utils/render.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
+
+vi.mock('../utils/terminalSetup.js', () => ({
+  getTerminalProgram: () => null,
+}));
 
 vi.mock('../contexts/AppContext.js', () => ({
   useAppContext: () => ({
@@ -18,9 +22,9 @@ vi.mock('../contexts/AppContext.js', () => ({
   }),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     getMCPServerStatus: vi.fn(),
@@ -85,6 +89,11 @@ const mockConfig = {
   getTargetDir: () => '/tmp',
   getDebugMode: () => false,
   getGeminiMdFileCount: () => 0,
+  getExperiments: () => ({
+    flags: {},
+    experimentIds: [],
+  }),
+  getPreviewFeatures: () => false,
 } as unknown as Config;
 
 describe('AlternateBufferQuittingDisplay', () => {
@@ -101,6 +110,10 @@ describe('AlternateBufferQuittingDisplay', () => {
           activePtyId: undefined,
           embeddedShellFocused: false,
           renderMarkdown: false,
+          bannerData: {
+            defaultText: '',
+            warningText: '',
+          },
         },
         config: mockConfig,
       },

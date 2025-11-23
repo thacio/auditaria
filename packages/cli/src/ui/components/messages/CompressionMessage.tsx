@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t , CompressionStatus } from '@thacio/auditaria-cli-core';
+import { t , CompressionStatus } from '@google/gemini-cli-core';
 import type React from 'react';
 
 import { Box, Text } from 'ink';

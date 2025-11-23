@@ -10,11 +10,11 @@ import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import * as versionUtils from '../../utils/version.js';
 import { MessageType } from '../types.js';
-import { IdeClient } from '@thacio/auditaria-cli-core';
+import { IdeClient } from '@google/gemini-cli-core';
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     IdeClient: {
@@ -22,6 +22,9 @@ vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
         getDetectedIdeDisplayName: vi.fn().mockReturnValue('test-ide'),
       }),
     },
+    UserAccountManager: vi.fn().mockImplementation(() => ({
+      getCachedGoogleAccount: vi.fn().mockReturnValue('test-email@example.com'),
+    })),
   };
 });
 
@@ -105,6 +108,7 @@ describe('aboutCommand', () => {
         gcpProject: 'test-gcp-project',
         ideClient: 'test-ide',
         userTier: undefined,
+        userEmail: 'test-email@example.com',
       },
       expect.any(Number),
     );

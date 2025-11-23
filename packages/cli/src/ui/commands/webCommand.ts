@@ -7,18 +7,21 @@
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
 import { type SlashCommand, CommandKind, type CommandContext } from './types.js';
+import { t } from '@google/gemini-cli-core';
 import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 
 export const webCommand: SlashCommand = {
   name: 'web',
-  description: 'open web interface in browser',
+  get description() {
+    return t('commands.web.description', 'open web interface in browser');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args: string) => {
     if (!context.web) {
       return {
         type: 'message',
         messageType: 'error',
-        content: 'Web interface is not available in this configuration',
+        content: t('commands.web.error.not_available', 'Web interface is not available in this configuration'),
       };
     }
 
@@ -37,7 +40,7 @@ export const webCommand: SlashCommand = {
         context.ui.addItem(
           {
             type: 'info',
-            text: 'Opening web browser...',
+            text: t('commands.web.opening_browser', 'Opening web browser...'),
           },
           Date.now(),
         );
@@ -47,7 +50,7 @@ export const webCommand: SlashCommand = {
           context.ui.addItem(
             {
               type: 'info',
-              text: `🌐 Web interface available at http://localhost:${actualPort}`,
+              text: t('commands.web.available_at', '🌐 Web interface available at http://localhost:{port}', { port: actualPort }),
             },
             Date.now(),
           );
@@ -55,7 +58,7 @@ export const webCommand: SlashCommand = {
           context.ui.addItem(
             {
               type: 'info',
-              text: `Failed to open browser automatically. Please visit http://localhost:${actualPort} manually.`,
+              text: t('commands.web.browser_open_failed', 'Failed to open browser automatically. Please visit http://localhost:{port} manually.', { port: actualPort }),
             },
             Date.now(),
           );
@@ -68,7 +71,9 @@ export const webCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Failed to start web interface: ${error instanceof Error ? error.message : String(error)}`,
+        content: t('commands.web.start.error', 'Failed to start web interface: {error}', { 
+          error: error instanceof Error ? error.message : String(error) 
+        }),
       };
     }
   },

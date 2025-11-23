@@ -5,10 +5,13 @@
  */
 
 import { CommandKind, type SlashCommand } from './types.js';
+import { t } from '@google/gemini-cli-core';
 
 export const corgiCommand: SlashCommand = {
   name: 'corgi',
-  description: 'Toggles corgi mode',
+  get description() {
+    return t('commands.corgi.description', 'Toggles corgi mode');
+  },
   hidden: true,
   kind: CommandKind.BUILT_IN,
   action: (context, _args) => {

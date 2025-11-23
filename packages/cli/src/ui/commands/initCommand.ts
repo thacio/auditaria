@@ -6,6 +6,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { t } from '@google/gemini-cli-core';
 import type {
   CommandContext,
   SlashCommand,
@@ -15,7 +16,9 @@ import { CommandKind } from './types.js';
 
 export const initCommand: SlashCommand = {
   name: 'init',
-  description: 'Analyzes the project and creates a tailored GEMINI.md file',
+  get description() {
+    return t('commands.init.description', 'Analyzes the project and creates a tailored GEMINI.md file');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (
     context: CommandContext,
@@ -25,7 +28,7 @@ export const initCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: 'Configuration not available.',
+        content: t('commands.init.config_not_available', 'Configuration not available.'),
       };
     }
     const targetDir = context.services.config.getTargetDir();
@@ -35,8 +38,7 @@ export const initCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content:
-          'A GEMINI.md file already exists in this directory. No changes were made.',
+        content: t('commands.init.file_already_exists', 'A GEMINI.md file already exists in this directory. No changes were made.'),
       };
     }
 
@@ -46,7 +48,7 @@ export const initCommand: SlashCommand = {
     context.ui.addItem(
       {
         type: 'info',
-        text: 'Empty GEMINI.md created. Now analyzing the project to populate it.',
+        text: t('commands.init.file_created', 'Empty GEMINI.md created. Now analyzing the project to populate it.'),
       },
       Date.now(),
     );

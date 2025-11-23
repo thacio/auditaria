@@ -3,8 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-
-import { debugLogger } from '@thacio/auditaria-cli-core';
+import { t } from '@google/gemini-cli-core';
 
 export async function readStdin(): Promise<string> {
   const MAX_STDIN_SIZE = 8 * 1024 * 1024; // 8MB
@@ -32,8 +31,10 @@ export async function readStdin(): Promise<string> {
         if (totalSize + chunk.length > MAX_STDIN_SIZE) {
           const remainingSize = MAX_STDIN_SIZE - totalSize;
           data += chunk.slice(0, remainingSize);
-          debugLogger.warn(
-            `Warning: stdin input truncated to ${MAX_STDIN_SIZE} bytes.`,
+          console.warn(
+            t('stdin.truncated_warning', 'Warning: stdin input truncated to {size} bytes.', {
+              size: MAX_STDIN_SIZE
+            })
           );
           process.stdin.destroy(); // Stop reading further
           break;

@@ -9,9 +9,9 @@ import { expandHomeDir } from './directoryUtils.js';
 import type * as osActual from 'node:os';
 import * as path from 'node:path';
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...original,
     loadServerHierarchicalMemory: vi.fn().mockResolvedValue({

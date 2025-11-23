@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import {
   GeminiEventType,
   ApprovalMode,
   type ToolCallConfirmationDetails,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type {
   TaskStatusUpdateEvent,
   SendStreamingMessageSuccessResponse,
@@ -35,7 +35,7 @@ import {
   createStreamMessageRequest,
   createMockConfig,
 } from '../utils/testing_utils.js';
-import { MockTool } from '@thacio/auditaria-cli-core';
+import { MockTool } from '@google/gemini-cli-core';
 import type { Command } from '../commands/types.js';
 
 const mockToolConfirmationFn = async () =>
@@ -88,8 +88,8 @@ vi.mock('../config/config.js', async () => {
 
 // Mock the GeminiClient to avoid actual API calls
 const sendMessageStreamSpy = vi.fn();
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual('@google/gemini-cli-core');
   return {
     ...actual,
     GeminiClient: vi.fn().mockImplementation(() => ({

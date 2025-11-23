@@ -113,8 +113,8 @@ There are two distinct build processes used, depending on the distribution
 channel:
 
 - **NPM publication:** For publishing to the NPM registry, the TypeScript source
-  code in `@google/gemini-cli-core` and `@google/gemini-cli` is transpiled into
-  standard JavaScript using the TypeScript Compiler (`tsc`). The resulting
+  code in `@google/gemini-cli-core` and `@google/gemini-cli` is transpiled
+  into standard JavaScript using the TypeScript Compiler (`tsc`). The resulting
   `dist/` directory is what gets published in the NPM package. This is a
   standard approach for TypeScript libraries.
 

@@ -10,7 +10,7 @@ import type {
   ResumedSessionData,
   CompletedToolCall,
   UserFeedbackPayload,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { isSlashCommand } from './ui/utils/commandUtils.js';
 import type { LoadedSettings } from './config/settings.js';
 import {
@@ -29,7 +29,7 @@ import {
   coreEvents,
   CoreEvent,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 import type { Content, Part } from '@google/genai';
 import readline from 'node:readline';
@@ -67,6 +67,9 @@ export async function runNonInteractive({
     const consolePatcher = new ConsolePatcher({
       stderr: true,
       debugMode: config.getDebugMode(),
+      onNewMessage: (msg) => {
+        coreEvents.emitConsoleLog(msg.type, msg.content);
+      },
     });
     const textOutput = new TextOutput();
 
@@ -180,7 +183,7 @@ export async function runNonInteractive({
       setupStdinCancellation();
 
       coreEvents.on(CoreEvent.UserFeedback, handleUserFeedback);
-      coreEvents.drainFeedbackBacklog();
+      coreEvents.drainBacklogs();
 
       // Handle EPIPE errors when the output is piped to a command that closes early.
       process.stdout.on('error', (err: NodeJS.ErrnoException) => {

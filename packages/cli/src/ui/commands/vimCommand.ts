@@ -6,17 +6,20 @@
 
 import type { SlashCommand } from './types.js';
 import { CommandKind } from './types.js';
+import { t } from '@google/gemini-cli-core';
 
 export const vimCommand: SlashCommand = {
   name: 'vim',
-  description: 'Toggle vim mode on/off',
+  get description() {
+    return t('commands.vim.description', 'Toggle vim mode on/off');
+  },
   kind: CommandKind.BUILT_IN,
   action: async (context, _args) => {
     const newVimState = await context.ui.toggleVimEnabled();
 
     const message = newVimState
-      ? 'Entered Vim mode. Run /vim again to exit.'
-      : 'Exited Vim mode.';
+      ? t('commands.vim.entered', 'Entered Vim mode. Run /vim again to exit.', {})
+      : t('commands.vim.exited', 'Exited Vim mode.', {});
     return {
       type: 'message',
       messageType: 'info',

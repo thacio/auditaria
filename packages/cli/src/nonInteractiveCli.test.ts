@@ -12,7 +12,7 @@ import type {
   AnyDeclarativeTool,
   AnyToolInvocation,
   UserFeedbackPayload,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   executeToolCall,
   ToolErrorType,
@@ -22,7 +22,7 @@ import {
   uiTelemetryService,
   FatalInputError,
   CoreEvent,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import { runNonInteractive } from './nonInteractiveCli.js';
 import {
@@ -43,13 +43,13 @@ vi.mock('./ui/hooks/atCommandProcessor.js');
 const mockCoreEvents = vi.hoisted(() => ({
   on: vi.fn(),
   off: vi.fn(),
-  drainFeedbackBacklog: vi.fn(),
+  drainBacklogs: vi.fn(),
   emit: vi.fn(),
 }));
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const original =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
 
   class MockChatRecordingService {
     initialize = vi.fn();
@@ -1131,7 +1131,7 @@ describe('runNonInteractive', () => {
         CoreEvent.UserFeedback,
         expect.any(Function),
       );
-      expect(mockCoreEvents.drainFeedbackBacklog).toHaveBeenCalledTimes(1);
+      expect(mockCoreEvents.drainBacklogs).toHaveBeenCalledTimes(1);
     });
 
     it('unsubscribes from UserFeedback on finish', async () => {

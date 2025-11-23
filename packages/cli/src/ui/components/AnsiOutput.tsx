@@ -6,7 +6,7 @@
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import type { AnsiLine, AnsiOutput, AnsiToken } from '@thacio/auditaria-cli-core';
+import type { AnsiLine, AnsiOutput, AnsiToken } from '@google/gemini-cli-core';
 
 const DEFAULT_HEIGHT = 24;
 

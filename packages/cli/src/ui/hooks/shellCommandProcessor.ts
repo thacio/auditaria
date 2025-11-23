@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, isBinary, ShellExecutionService } from '@thacio/auditaria-cli-core';
+import { t, isBinary, ShellExecutionService } from '@google/gemini-cli-core';
 
 import type {
   HistoryItemWithoutId,
@@ -17,7 +17,7 @@ import type {
   Config,
   GeminiClient,
   ShellExecutionResult,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';
@@ -76,6 +76,8 @@ export const useShellCommandProcessor = (
   terminalHeight?: number,
 ) => {
   const [activeShellPtyId, setActiveShellPtyId] = useState<number | null>(null);
+  const [lastShellOutputTime, setLastShellOutputTime] = useState<number>(0);
+
   const handleShellCommand = useCallback(
     (rawQuery: PartListUnion, abortSignal: AbortSignal): boolean => {
       if (typeof rawQuery !== 'string' || rawQuery.trim() === '') {
@@ -206,6 +208,7 @@ export const useShellCommandProcessor = (
 
               // Throttle pending UI updates, but allow forced updates.
               if (shouldUpdate) {
+                setLastShellOutputTime(Date.now());
                 setPendingHistoryItem((prevItem) => {
                   if (prevItem?.type === 'tool_group') {
                     return {
@@ -295,13 +298,17 @@ export const useShellCommandProcessor = (
               };
 
               // Add the complete, contextual result to the local UI history.
-              addItemToHistory(
-                {
-                  type: 'tool_group',
-                  tools: [finalToolDisplay],
-                } as HistoryItemWithoutId,
-                userMessageTimestamp,
-              );
+              // We skip this for cancelled commands because useGeminiStream handles the
+              // immediate addition of the cancelled item to history to prevent flickering/duplicates.
+              if (finalStatus !== ToolCallStatus.Canceled) {
+                addItemToHistory(
+                  {
+                    type: 'tool_group',
+                    tools: [finalToolDisplay],
+                  } as HistoryItemWithoutId,
+                  userMessageTimestamp,
+                );
+              }
 
               // Add the same complete, contextual result to the LLM's history.
               addShellCommandToGeminiHistory(
@@ -381,5 +388,5 @@ export const useShellCommandProcessor = (
     ],
   );
 
-  return { handleShellCommand, activeShellPtyId };
+  return { handleShellCommand, activeShellPtyId, lastShellOutputTime };
 };

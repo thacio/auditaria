@@ -5,10 +5,10 @@
  */
 
 import { useEffect } from 'react';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import { loadTrustedFolders } from '../../config/trustedFolders.js';
 import { expandHomeDir } from '../utils/directoryUtils.js';
-import { refreshServerHierarchicalMemory } from '@thacio/auditaria-cli-core';
+import { refreshServerHierarchicalMemory } from '@google/gemini-cli-core';
 import { MultiFolderTrustDialog } from '../components/MultiFolderTrustDialog.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { MessageType, type HistoryItem } from '../types.js';
@@ -68,8 +68,6 @@ export function useIncludeDirsTrust(
     if (pendingDirs.length === 0) {
       return;
     }
-
-    console.log('Inside useIncludeDirsTrust');
 
     // If folder trust is disabled, isTrustedFolder will be undefined.
     // In that case, or if the user decided not to trust the main folder,

@@ -25,19 +25,19 @@ import type {
   Status as ToolCallStatusType,
   AnyDeclarativeTool,
   AnyToolInvocation,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
   ToolConfirmationOutcome,
   ApprovalMode,
   MockTool,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { ToolCallStatus } from '../types.js';
 
 // Mocks
-vi.mock('@thacio/auditaria-cli-core', async () => {
-  const actual = await vi.importActual<any>('@thacio/auditaria-cli-core');
+vi.mock('@google/gemini-cli-core', async () => {
+  const actual = await vi.importActual<any>('@google/gemini-cli-core');
   // Patch CoreToolScheduler to have cancelAll if it's missing in the test environment
   if (
     actual.CoreToolScheduler &&
@@ -74,13 +74,13 @@ const mockConfig = {
     authType: 'oauth-personal',
   }),
   getUseSmartEdit: () => false,
-  getUseModelRouter: () => false,
   getGeminiClient: () => null, // No client needed for these tests
   getShellExecutionConfig: () => ({ terminalWidth: 80, terminalHeight: 24 }),
   getEnableMessageBusIntegration: () => false,
   getMessageBus: () => null,
   getPolicyEngine: () => null,
   isInteractive: () => false,
+  getExperiments: () => {},
 } as unknown as Config;
 
 const mockTool = new MockTool({
@@ -135,7 +135,6 @@ describe('useReactToolScheduler in YOLO Mode', () => {
         onComplete,
         mockConfig as unknown as Config,
         () => undefined,
-        () => {},
       ),
     );
 
@@ -264,7 +263,6 @@ describe('useReactToolScheduler', () => {
         onComplete,
         mockConfig as unknown as Config,
         () => undefined,
-        () => {},
       ),
     );
 

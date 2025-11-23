@@ -10,14 +10,13 @@ import type {
   EditorType,
   GeminiClient,
   ServerGeminiChatCompressedEvent,
-  ServerGeminiCitationEvent,
   ServerGeminiContentEvent as ContentEvent,
   ServerGeminiFinishedEvent,
   ServerGeminiStreamEvent as GeminiEvent,
   ThoughtSummary,
   ToolCallRequestInfo,
   GeminiErrorEventValue,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   GeminiEventType as ServerGeminiEventType,
   getErrorMessage,
@@ -32,18 +31,14 @@ import {
   ConversationFinishedEvent,
   ApprovalMode,
   parseAndFormatApiError,
-  t,
   ToolConfirmationOutcome,
   promptIdContext,
   WRITE_FILE_TOOL_NAME,
   tokenLimit,
   debugLogger,
   runInDevTraceSpan,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
-// WEB_INTERFACE_START: Import WeakMap for attachment metadata
-import { attachmentMetadataMap } from '../../services/WebInterfaceService.js';
-// WEB_INTERFACE_END
 import type {
   HistoryItem,
   HistoryItemWithoutId,
@@ -59,6 +54,7 @@ import { findLastSafeSplitPoint } from '../utils/markdownUtilities.js';
 import { useStateAndRef } from './useStateAndRef.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useLogger } from './useLogger.js';
+import { SHELL_COMMAND_NAME } from '../constants.js';
 import {
   useReactToolScheduler,
   mapToDisplay as mapTrackedToolCallsToDisplay,
@@ -70,11 +66,10 @@ import {
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { useSessionStats } from '../contexts/SessionContext.js';
-// WEB_INTERFACE_START
-import { useWebInterface } from '../contexts/WebInterfaceContext.js';
-// WEB_INTERFACE_END
 import { useKeypress } from './useKeypress.js';
 import type { LoadedSettings } from '../../config/settings.js';
+import { attachmentMetadataMap } from '../../services/WebInterfaceService.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
+import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
 
 enum StreamProcessingStatus {
   Completed,
@@ -112,8 +107,7 @@ export const useGeminiStream = (
   performMemoryRefresh: () => Promise<void>,
   modelSwitchedFromQuotaError: boolean,
   setModelSwitchedFromQuotaError: React.Dispatch<React.SetStateAction<boolean>>,
-  onEditorClose: () => void,
-  onCancelSubmit: () => void,
+  onCancelSubmit: (shouldRestorePrompt?: boolean) => void,
   setShellInputFocused: (value: boolean) => void,
   terminalWidth: number,
   terminalHeight: number,
@@ -131,17 +125,9 @@ export const useGeminiStream = (
   const { startNewPrompt, getPromptCount } = useSessionStats();
   const storage = config.storage;
   const logger = useLogger(storage);
-  // WEB_INTERFACE_START
-  const webInterface = useWebInterface();
-  // WEB_INTERFACE_END
-  const gitService = useMemo(() => {
-    if (!config.getProjectRoot()) {
-      return;
-    }
-    return new GitService(config.getProjectRoot(), storage);
-  }, [config, storage]);
 
   // WEB_INTERFACE_START
+  const webInterface = useWebInterface();
   // Broadcast pending items to web interface when they change
   useEffect(() => {
     if (webInterface && pendingHistoryItemRef.current) {
@@ -154,7 +140,14 @@ export const useGeminiStream = (
       webInterface.broadcastPendingItem(pendingItemWithId);
     }
   }, [pendingHistoryItemRef, webInterface]);
+
   // WEB_INTERFACE_END
+  const gitService = useMemo(() => {
+    if (!config.getProjectRoot()) {
+      return;
+    }
+    return new GitService(config.getProjectRoot(), storage);
+  }, [config, storage]);
 
   const [
     toolCalls,
@@ -162,6 +155,7 @@ export const useGeminiStream = (
     markToolsAsSubmitted,
     setToolCallsForDisplay,
     cancelAllToolCalls,
+    lastToolOutputTime,
   ] = useReactToolScheduler(
     async (completedToolCallsFromScheduler) => {
       // This onComplete is called when ALL scheduled tools for a given batch are done.
@@ -203,7 +197,6 @@ export const useGeminiStream = (
     },
     config,
     getPreferredEditor,
-    onEditorClose,
   );
 
   const pendingToolCallGroupDisplay = useMemo(
@@ -211,6 +204,17 @@ export const useGeminiStream = (
       toolCalls.length ? mapTrackedToolCallsToDisplay(toolCalls) : undefined,
     [toolCalls],
   );
+
+  const activeToolPtyId = useMemo(() => {
+    const executingShellTool = toolCalls?.find(
+      (tc) =>
+        tc.status === 'executing' && tc.request.name === 'run_shell_command',
+    );
+    if (executingShellTool) {
+      return (executingShellTool as { pid?: number }).pid;
+    }
+    return undefined;
+  }, [toolCalls]);
 
   // WEB_INTERFACE_START
   // Broadcast pending tool calls to web interface when they change
@@ -241,17 +245,6 @@ export const useGeminiStream = (
   }, [pendingToolCallGroupDisplay, webInterface]);
   // WEB_INTERFACE_END
 
-  const activeToolPtyId = useMemo(() => {
-    const executingShellTool = toolCalls?.find(
-      (tc) =>
-        tc.status === 'executing' && tc.request.name === 'run_shell_command',
-    );
-    if (executingShellTool) {
-      return (executingShellTool as { pid?: number }).pid;
-    }
-    return undefined;
-  }, [toolCalls]);
-
   const lastQueryRef = useRef<PartListUnion | null>(null);
   const lastPromptIdRef = useRef<string | null>(null);
   const loopDetectedRef = useRef(false);
@@ -267,17 +260,18 @@ export const useGeminiStream = (
     await done;
     setIsResponding(false);
   }, []);
-  const { handleShellCommand, activeShellPtyId } = useShellCommandProcessor(
-    addItem,
-    setPendingHistoryItem,
-    onExec,
-    onDebugMessage,
-    config,
-    geminiClient,
-    setShellInputFocused,
-    terminalWidth,
-    terminalHeight,
-  );
+  const { handleShellCommand, activeShellPtyId, lastShellOutputTime } =
+    useShellCommandProcessor(
+      addItem,
+      setPendingHistoryItem,
+      onExec,
+      onDebugMessage,
+      config,
+      geminiClient,
+      setShellInputFocused,
+      terminalWidth,
+      terminalHeight,
+    );
 
   const activePtyId = activeShellPtyId || activeToolPtyId;
 
@@ -286,6 +280,22 @@ export const useGeminiStream = (
       setShellInputFocused(false);
     }
   }, [activePtyId, setShellInputFocused]);
+
+  const prevActiveShellPtyIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (
+      turnCancelledRef.current &&
+      prevActiveShellPtyIdRef.current !== null &&
+      activeShellPtyId === null
+    ) {
+      addItem(
+        { type: MessageType.INFO, text: 'Request cancelled.' },
+        Date.now(),
+      );
+      setIsResponding(false);
+    }
+    prevActiveShellPtyIdRef.current = activeShellPtyId;
+  }, [activeShellPtyId, addItem]);
 
   const streamingState = useMemo(() => {
     if (toolCalls.some((tc) => tc.status === 'awaiting_approval')) {
@@ -361,7 +371,33 @@ export const useGeminiStream = (
     cancelAllToolCalls(abortControllerRef.current.signal);
 
     if (pendingHistoryItemRef.current) {
-      addItem(pendingHistoryItemRef.current, Date.now());
+      const isShellCommand =
+        pendingHistoryItemRef.current.type === 'tool_group' &&
+        pendingHistoryItemRef.current.tools.some(
+          (t) => t.name === SHELL_COMMAND_NAME,
+        );
+
+      // If it is a shell command, we update the status to Canceled and clear the output
+      // to avoid artifacts, then add it to history immediately.
+      if (isShellCommand) {
+        const toolGroup = pendingHistoryItemRef.current as HistoryItemToolGroup;
+        const updatedTools = toolGroup.tools.map((tool) => {
+          if (tool.name === SHELL_COMMAND_NAME) {
+            return {
+              ...tool,
+              status: ToolCallStatus.Canceled,
+              resultDisplay: tool.resultDisplay,
+            };
+          }
+          return tool;
+        });
+        addItem(
+          { ...toolGroup, tools: updatedTools } as HistoryItemWithoutId,
+          Date.now(),
+        );
+      } else {
+        addItem(pendingHistoryItemRef.current, Date.now());
+      }
     }
     setPendingHistoryItem(null);
 
@@ -369,17 +405,21 @@ export const useGeminiStream = (
     // Otherwise, we let handleCompletedTools figure out the next step,
     // which might involve sending partial results back to the model.
     if (isFullCancellation) {
-      addItem(
-        {
-          type: MessageType.INFO,
-          text: t('gemini_stream.request_cancelled', 'Request cancelled.'),
-        },
-        Date.now(),
-      );
-      setIsResponding(false);
+      // If shell is active, we delay this message to ensure correct ordering
+      // (Shell item first, then Info message).
+      if (!activeShellPtyId) {
+        addItem(
+          {
+            type: MessageType.INFO,
+            text: 'Request cancelled.',
+          },
+          Date.now(),
+        );
+        setIsResponding(false);
+      }
     }
 
-    onCancelSubmit();
+    onCancelSubmit(false);
     setShellInputFocused(false);
   }, [
     streamingState,
@@ -390,6 +430,7 @@ export const useGeminiStream = (
     setShellInputFocused,
     cancelAllToolCalls,
     toolCalls,
+    activeShellPtyId,
   ]);
 
   useKeypress(
@@ -505,7 +546,7 @@ export const useGeminiStream = (
         }
       } else {
         // WEB_INTERFACE_START: Handle multimodal messages from web interface
-        // It's a PartListUnion (array of parts or single part)
+        // It's a function response (PartListUnion that isn't a string)
         localQueryToSendToGemini = query;
 
         // Extract text and attachments from multimodal parts for display
@@ -789,50 +830,27 @@ export const useGeminiStream = (
       const finishReasonMessages: Record<FinishReason, string | undefined> = {
         [FinishReason.FINISH_REASON_UNSPECIFIED]: undefined,
         [FinishReason.STOP]: undefined,
-        [FinishReason.MAX_TOKENS]: t(
-          'finish_reasons.max_tokens',
-          'Response truncated due to token limits.',
-        ),
-        [FinishReason.SAFETY]: t(
-          'finish_reasons.safety',
-          'Response stopped due to safety reasons.',
-        ),
-        [FinishReason.RECITATION]: t(
-          'finish_reasons.recitation',
-          'Response stopped due to recitation policy.',
-        ),
-        [FinishReason.LANGUAGE]: t(
-          'finish_reasons.language',
+        [FinishReason.MAX_TOKENS]: 'Response truncated due to token limits.',
+        [FinishReason.SAFETY]: 'Response stopped due to safety reasons.',
+        [FinishReason.RECITATION]: 'Response stopped due to recitation policy.',
+        [FinishReason.LANGUAGE]:
           'Response stopped due to unsupported language.',
-        ),
-        [FinishReason.BLOCKLIST]: t(
-          'finish_reasons.blocklist',
-          'Response stopped due to forbidden terms.',
-        ),
-        [FinishReason.PROHIBITED_CONTENT]: t(
-          'finish_reasons.prohibited_content',
+        [FinishReason.BLOCKLIST]: 'Response stopped due to forbidden terms.',
+        [FinishReason.PROHIBITED_CONTENT]:
           'Response stopped due to prohibited content.',
-        ),
-        [FinishReason.SPII]: t(
-          'finish_reasons.spii',
+        [FinishReason.SPII]:
           'Response stopped due to sensitive personally identifiable information.',
-        ),
-        [FinishReason.OTHER]: t(
-          'finish_reasons.other',
-          'Response stopped for other reasons.',
-        ),
-        [FinishReason.MALFORMED_FUNCTION_CALL]: t(
-          'finish_reasons.malformed_function_call',
+        [FinishReason.OTHER]: 'Response stopped for other reasons.',
+        [FinishReason.MALFORMED_FUNCTION_CALL]:
           'Response stopped due to malformed function call.',
-        ),
-        [FinishReason.IMAGE_SAFETY]: t(
-          'finish_reasons.image_safety',
+        [FinishReason.IMAGE_SAFETY]:
           'Response stopped due to image safety violations.',
-        ),
-        [FinishReason.UNEXPECTED_TOOL_CALL]: t(
-          'finish_reasons.unexpected_tool_call',
+        [FinishReason.UNEXPECTED_TOOL_CALL]:
           'Response stopped due to unexpected tool call.',
-        ),
+        [FinishReason.IMAGE_PROHIBITED_CONTENT]:
+          'Response stopped due to prohibited image content.',
+        [FinishReason.NO_IMAGE]:
+          'Response stopped because no image was generated.',
       };
 
       const message = finishReasonMessages[finishReason];
@@ -889,29 +907,18 @@ export const useGeminiStream = (
 
   const handleContextWindowWillOverflowEvent = useCallback(
     (estimatedRequestTokenCount: number, remainingTokenCount: number) => {
-      onCancelSubmit();
+      onCancelSubmit(true);
 
       const limit = tokenLimit(config.getModel());
 
       const isLessThan75Percent =
         limit > 0 && remainingTokenCount < limit * 0.75;
 
-      let text = t(
-        'errors.context_window_overflow.base',
-        `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the remaining context window limit (${remainingTokenCount} tokens).`,
-        {
-          estimatedRequestTokenCount: estimatedRequestTokenCount.toString(),
-          remainingTokenCount: remainingTokenCount.toString(),
-        },
-      );
+      let text = `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the remaining context window limit (${remainingTokenCount} tokens).`;
 
       if (isLessThan75Percent) {
         text +=
-          ' ' +
-          t(
-            'errors.context_window_overflow.suggestion',
-            'Please try reducing the size of your message or use the `/compress` command to compress the chat history.',
-          );
+          ' Please try reducing the size of your message or use the `/compress` command to compress the chat history.';
       }
 
       addItem(
@@ -997,10 +1004,7 @@ export const useGeminiStream = (
             );
             break;
           case ServerGeminiEventType.Citation:
-            handleCitationEvent(
-              (event as ServerGeminiCitationEvent).value,
-              userMessageTimestamp,
-            );
+            handleCitationEvent(event.value, userMessageTimestamp);
             break;
           case ServerGeminiEventType.ModelInfo:
             handleChatModelEvent(event.value, userMessageTimestamp);
@@ -1132,12 +1136,14 @@ export const useGeminiStream = (
               }
               if (loopDetectedRef.current) {
                 loopDetectedRef.current = false;
-                // Pre-start terminal capture for web interface before showing dialog
+                // WEB_INTERFACE_START AUDITARIA: Pre-start terminal capture for web interface before showing dialog
                 const preStartCapture = (global as Record<string, unknown>)
                   .__preStartTerminalCapture;
                 if (typeof preStartCapture === 'function') {
                   preStartCapture();
                 }
+                // WEB_INTERFACE_END AUDITARIA: Handle multimodal messages from web interface
+
                 // Show the confirmation dialog to choose whether to disable loop detection
                 setLoopDetectionConfirmationRequest({
                   onComplete: (result: {
@@ -1518,18 +1524,19 @@ export const useGeminiStream = (
     storage,
   ]);
 
+  const lastOutputTime = Math.max(lastToolOutputTime, lastShellOutputTime);
+
   return {
     streamingState,
     submitQuery,
     initError,
     pendingHistoryItems,
     thought,
-    // WEB_INTERFACE_START: Export cancelOngoingRequest for web interface ESC key support
     cancelOngoingRequest,
-    // WEB_INTERFACE_END
     pendingToolCalls: toolCalls,
     handleApprovalModeChange,
     activePtyId,
     loopDetectionConfirmationRequest,
+    lastOutputTime,
   };
 };

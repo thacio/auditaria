@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import { t } from '@google/gemini-cli-core';
 
 import type React from 'react';
 import { Box, Text } from 'ink';
@@ -64,9 +65,7 @@ export const ModelStatsDisplay: React.FC = () => {
         paddingY={1}
         paddingX={2}
       >
-        <Text color={theme.text.primary}>
-          No API calls have been made in this session.
-        </Text>
+        <Text color={theme.text.primary}>{t('stats.no_api_calls', 'No API calls have been made in this session.')}</Text>
       </Box>
     );
   }
@@ -94,16 +93,14 @@ export const ModelStatsDisplay: React.FC = () => {
       paddingX={2}
     >
       <Text bold color={theme.text.accent}>
-        Model Stats For Nerds
+        {t('stats.model_stats_title', 'Model Stats For Nerds')}
       </Text>
       <Box height={1} />
 
       {/* Header */}
       <Box>
         <Box width={METRIC_COL_WIDTH}>
-          <Text bold color={theme.text.primary}>
-            Metric
-          </Text>
+          <Text bold color={theme.text.primary}>{t('stats.labels.metric', 'Metric')}</Text>
         </Box>
         {modelNames.map((name) => (
           <Box width={MODEL_COL_WIDTH} key={name}>
@@ -125,13 +122,13 @@ export const ModelStatsDisplay: React.FC = () => {
       />
 
       {/* API Section */}
-      <StatRow title="API" values={[]} isSection />
+      <StatRow title={t('stats.sections.api', 'API')} values={[]} isSection />
       <StatRow
-        title="Requests"
+        title={t('stats.labels.requests', 'Requests')}
         values={getModelValues((m) => m.api.totalRequests.toLocaleString())}
       />
       <StatRow
-        title="Errors"
+        title={t('stats.labels.errors', 'Errors')}
         values={getModelValues((m) => {
           const errorRate = calculateErrorRate(m);
           return (
@@ -146,7 +143,7 @@ export const ModelStatsDisplay: React.FC = () => {
         })}
       />
       <StatRow
-        title="Avg Latency"
+        title={t('stats.labels.avg_latency', 'Avg Latency')}
         values={getModelValues((m) => {
           const avgLatency = calculateAverageLatency(m);
           return formatDuration(avgLatency);
@@ -156,9 +153,9 @@ export const ModelStatsDisplay: React.FC = () => {
       <Box height={1} />
 
       {/* Tokens Section */}
-      <StatRow title="Tokens" values={[]} isSection />
+      <StatRow title={t('stats.labels.tokens', 'Tokens')} values={[]} isSection />
       <StatRow
-        title="Total"
+        title={t('stats.labels.total', 'Total')}
         values={getModelValues((m) => (
           <Text color={theme.status.warning}>
             {m.tokens.total.toLocaleString()}
@@ -166,13 +163,13 @@ export const ModelStatsDisplay: React.FC = () => {
         ))}
       />
       <StatRow
-        title="Prompt"
+        title={t('stats.labels.prompt', 'Prompt')}
         isSubtle
         values={getModelValues((m) => m.tokens.prompt.toLocaleString())}
       />
       {hasCached && (
         <StatRow
-          title="Cached"
+          title={t('stats.labels.cached', 'Cached')}
           isSubtle
           values={getModelValues((m) => {
             const cacheHitRate = calculateCacheHitRate(m);
@@ -186,20 +183,20 @@ export const ModelStatsDisplay: React.FC = () => {
       )}
       {hasThoughts && (
         <StatRow
-          title="Thoughts"
+          title={t('stats.labels.thoughts', 'Thoughts')}
           isSubtle
           values={getModelValues((m) => m.tokens.thoughts.toLocaleString())}
         />
       )}
       {hasTool && (
         <StatRow
-          title="Tool"
+          title={t('stats.labels.tool', 'Tool')}
           isSubtle
           values={getModelValues((m) => m.tokens.tool.toLocaleString())}
         />
       )}
       <StatRow
-        title="Output"
+        title={t('stats.labels.output', 'Output')}
         isSubtle
         values={getModelValues((m) => m.tokens.candidates.toLocaleString())}
       />

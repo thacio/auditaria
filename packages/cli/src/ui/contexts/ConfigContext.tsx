@@ -5,7 +5,7 @@
  */
 
 import React, { useContext } from 'react';
-import { type Config } from '@thacio/auditaria-cli-core';
+import { type Config } from '@google/gemini-cli-core';
 
 export const ConfigContext = React.createContext<Config | undefined>(undefined);
 

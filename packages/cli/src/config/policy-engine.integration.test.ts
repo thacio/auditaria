@@ -9,7 +9,7 @@ import {
   ApprovalMode,
   PolicyDecision,
   PolicyEngine,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { createPolicyEngineConfig } from './policy.js';
 import type { Settings } from './settings.js';
 

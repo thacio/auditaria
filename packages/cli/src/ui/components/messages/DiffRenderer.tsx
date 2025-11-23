@@ -10,6 +10,7 @@ import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import crypto from 'node:crypto';
 import { colorizeCode, colorizeLine } from '../../utils/CodeColorizer.js';
 import { MaxSizedBox } from '../shared/MaxSizedBox.js';
+import { t } from '@google/gemini-cli-core';
 import { theme as semanticTheme } from '../../semantic-colors.js';
 import type { Theme } from '../../themes/theme.js';
 import { useSettings } from '../../contexts/SettingsContext.js';
@@ -127,7 +128,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
 
   const renderedOutput = useMemo(() => {
     if (!diffContent || typeof diffContent !== 'string') {
-      return <Text color={semanticTheme.status.warning}>No diff content.</Text>;
+      return <Text color={semanticTheme.status.warning}>{t('diff.no_content', 'No diff content.')}</Text>;
     }
 
     if (parsedLines.length === 0) {
@@ -137,7 +138,7 @@ export const DiffRenderer: React.FC<DiffRendererProps> = ({
           borderColor={semanticTheme.border.default}
           padding={1}
         >
-          <Text dimColor>No changes detected.</Text>
+          <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
         </Box>
       );
     }
@@ -225,7 +226,7 @@ const renderDiffContent = (
         borderColor={semanticTheme.border.default}
         padding={1}
       >
-        <Text dimColor>No changes detected.</Text>
+        <Text dimColor>{t('diff.no_changes', 'No changes detected.')}</Text>
       </Box>
     );
   }

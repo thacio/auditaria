@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import { render } from '../test-utils/render.js';
 import { Text, useIsScreenReaderEnabled } from 'ink';
-import { makeFakeConfig } from '@thacio/auditaria-cli-core';
+import { makeFakeConfig } from '@google/gemini-cli-core';
 import { App } from './App.js';
 import { UIStateContext, type UIState } from './contexts/UIStateContext.js';
 import { StreamingState } from './types.js';
@@ -72,6 +72,10 @@ describe('App', () => {
     },
     history: [],
     pendingHistoryItems: [],
+    bannerData: {
+      defaultText: 'Mock Banner Text',
+      warningText: '',
+    },
   };
 
   const mockConfig = makeFakeConfig();

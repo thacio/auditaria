@@ -30,7 +30,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { isKittyProtocolEnabled } from './kittyProtocolDetector.js';
 
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 
 export const VSCODE_SHIFT_ENTER_SEQUENCE = '\\\r\n';
 

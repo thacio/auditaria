@@ -12,7 +12,7 @@ import type {
   Config,
   ExtensionsStartingEvent,
   ExtensionsStoppingEvent,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import {
   GitService,
   Logger,
@@ -23,7 +23,7 @@ import {
   Storage,
   t,
   IdeClient,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
 import type {
   Message,
@@ -82,6 +82,7 @@ export const useSlashCommandProcessor = (
   actions: SlashCommandProcessorActions,
   extensionsUpdateState: Map<string, ExtensionUpdateStatus>,
   isConfigInitialized: boolean,
+  setBannerVisible: (visible: boolean) => void,
   setCustomDialog: (dialog: React.ReactNode | null) => void,
 ) => {
   const session = useSessionStats();
@@ -211,6 +212,7 @@ export const useSlashCommandProcessor = (
             console.clear();
           }
           refreshStatic();
+          setBannerVisible(false);
         },
         loadHistory,
         setDebugMessage: actions.setDebugMessage,
@@ -261,6 +263,7 @@ export const useSlashCommandProcessor = (
       handleWebStatus,
       // WEB_INTERFACE_END
       extensionsUpdateState,
+      setBannerVisible,
       setCustomDialog,
     ],
   );
@@ -328,6 +331,7 @@ export const useSlashCommandProcessor = (
       rawQuery: PartListUnion,
       oneTimeShellAllowlist?: Set<string>,
       overwriteConfirmed?: boolean,
+      addToHistory: boolean = true,
     ): Promise<SlashCommandProcessorResult | false> => {
       if (!commands) {
         return false;
@@ -343,8 +347,13 @@ export const useSlashCommandProcessor = (
 
       setIsProcessing(true);
 
-      const userMessageTimestamp = Date.now();
-      addItem({ type: MessageType.USER, text: trimmed }, userMessageTimestamp);
+      if (addToHistory) {
+        const userMessageTimestamp = Date.now();
+        addItem(
+          { type: MessageType.USER, text: trimmed },
+          userMessageTimestamp,
+        );
+      }
 
       let hasError = false;
       const {

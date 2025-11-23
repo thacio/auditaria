@@ -5,6 +5,7 @@
  */
 
 import { Box, Text } from 'ink';
+import { t } from '@google/gemini-cli-core';
 
 const MAX_DISPLAYED_QUEUED_MESSAGES = 3;
 
@@ -22,7 +23,9 @@ export const QueuedMessageDisplay = ({
   return (
     <Box flexDirection="column" marginTop={1}>
       <Box paddingLeft={2}>
-        <Text dimColor>Queued (press ↑ to edit):</Text>
+        <Text dimColor>
+          {t('message_queue.header', 'Queued (press ↑ to edit):')}
+        </Text>
       </Box>
       {messageQueue
         .slice(0, MAX_DISPLAYED_QUEUED_MESSAGES)
@@ -40,8 +43,9 @@ export const QueuedMessageDisplay = ({
       {messageQueue.length > MAX_DISPLAYED_QUEUED_MESSAGES && (
         <Box paddingLeft={4}>
           <Text dimColor>
-            ... (+
-            {messageQueue.length - MAX_DISPLAYED_QUEUED_MESSAGES} more)
+            {t('message_queue.more_messages', '... (+{count} more)', {
+              count: messageQueue.length - MAX_DISPLAYED_QUEUED_MESSAGES,
+            })}
           </Text>
         </Box>
       )}

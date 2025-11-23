@@ -5,6 +5,7 @@
  */
 
 import { type SlashCommand, CommandKind, type CommandContext } from './types.js';
+import { t } from '@google/gemini-cli-core';
 import { SkillSetupService } from '../../services/SkillSetupService.js';
 
 /**
@@ -78,7 +79,9 @@ function detectPlatform(): 'windows' | 'linux' | 'macos' {
  */
 export const setupSkillCommand: SlashCommand = {
   name: 'setup-skill',
-  description: 'download and setup a skill',
+  get description() {
+    return t('commands.setup_skill.description', 'download and setup a skill');
+  },
   kind: CommandKind.BUILT_IN,
   completion: async (context: CommandContext, partialArg: string) => {
     // Return list of available skills for autocomplete
@@ -93,7 +96,9 @@ export const setupSkillCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Please specify a skill name. Available skills: ${availableSkills}`,
+        content: t('commands.setup_skill.missing_name',
+          'Please specify a skill name. Available skills: {skills}',
+          { skills: availableSkills }),
       };
     }
 
@@ -104,7 +109,9 @@ export const setupSkillCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Unknown skill: ${skillId}. Available skills: ${availableSkills}`,
+        content: t('commands.setup_skill.unknown',
+          'Unknown skill: {skill}. Available skills: {skills}',
+          { skill: skillId, skills: availableSkills }),
       };
     }
 
@@ -116,7 +123,9 @@ export const setupSkillCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Skill ${skillId} is not available for platform: ${platform}`,
+        content: t('commands.setup_skill.platform_not_supported',
+          'Skill {skill} is not available for platform: {platform}',
+          { skill: skillId, platform }),
       };
     }
 
@@ -128,7 +137,9 @@ export const setupSkillCommand: SlashCommand = {
     context.ui.addItem(
       {
         type: 'info',
-        text: `Installing skill: ${skill.name}...`,
+        text: t('commands.setup_skill.installing',
+          'Installing skill: {skill}...',
+          { skill: skill.name }),
       },
       Date.now(),
     );
@@ -150,7 +161,9 @@ export const setupSkillCommand: SlashCommand = {
           context.ui.addItem(
             {
               type: 'info',
-              text: 'DOCX parser is now available in the web interface.',
+              text: t('commands.setup_skill.parser_ready',
+                'DOCX parser is now available in the web interface.',
+                {}),
             },
             Date.now(),
           );
@@ -161,12 +174,16 @@ export const setupSkillCommand: SlashCommand = {
         ? {
             type: 'message',
             messageType: 'info',
-            content: `✓ ${result.message}`,
+            content: t('commands.setup_skill.success',
+              '✓ {message}',
+              { message: result.message }),
           }
         : {
             type: 'message',
             messageType: 'error',
-            content: `✗ ${result.message}`,
+            content: t('commands.setup_skill.failed',
+              '✗ {message}',
+              { message: result.message }),
           };
 
     } catch (error) {
@@ -174,7 +191,9 @@ export const setupSkillCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Error setting up skill: ${errorMsg}`,
+        content: t('commands.setup_skill.error',
+          'Error setting up skill: {error}',
+          { error: errorMsg }),
       };
     }
   },

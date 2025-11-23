@@ -11,7 +11,7 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { theme } from '../semantic-colors.js';
 import { StreamingState } from '../types.js';
 import { UpdateNotification } from './UpdateNotification.js';
-import { t, GEMINI_DIR, Storage } from '@thacio/auditaria-cli-core';
+import { t, GEMINI_DIR, Storage } from '@google/gemini-cli-core';
 
 import * as fs from 'node:fs/promises';
 import os from 'node:os';
@@ -38,7 +38,7 @@ export const Notifications = () => {
   >(undefined);
 
   useEffect(() => {
-    const checkScreenReaderNudge = async () => {
+    const checkScreenReader = async () => {
       try {
         await fs.access(screenReaderNudgeFilePath);
         setHasSeenScreenReaderNudge(true);
@@ -46,8 +46,11 @@ export const Notifications = () => {
         setHasSeenScreenReaderNudge(false);
       }
     };
-    checkScreenReaderNudge();
-  }, []);
+
+    if (isScreenReaderEnabled) {
+      checkScreenReader();
+    }
+  }, [isScreenReaderEnabled]);
 
   const showScreenReaderNudge =
     isScreenReaderEnabled && hasSeenScreenReaderNudge === false;

@@ -8,7 +8,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
 import { directoryCommand } from './directoryCommand.js';
 import { expandHomeDir } from '../utils/directoryUtils.js';
-import type { Config, WorkspaceContext } from '@thacio/auditaria-cli-core';
+import type { Config, WorkspaceContext } from '@google/gemini-cli-core';
 import type { MultiFolderTrustDialogProps } from '../components/MultiFolderTrustDialog.js';
 import type { CommandContext, OpenCustomDialogActionReturn } from './types.js';
 import { MessageType } from '../types.js';

@@ -5,10 +5,11 @@
  */
 
 import { CommandKind, type SlashCommand } from './types.js';
+import { t } from '@google/gemini-cli-core';
 
 export const modelCommand: SlashCommand = {
   name: 'model',
-  description: 'Opens a dialog to configure the model',
+  description: t('commands.model.description', 'Opens a dialog to configure the model'),
   kind: CommandKind.BUILT_IN,
   action: async () => ({
     type: 'dialog',

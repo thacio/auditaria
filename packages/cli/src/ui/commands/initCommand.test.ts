@@ -7,6 +7,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { t } from '@google/gemini-cli-core';
 import { initCommand } from './initCommand.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
 import type { SubmitPromptActionReturn, CommandContext } from './types.js';
@@ -49,8 +50,10 @@ describe('initCommand', () => {
     expect(result).toEqual({
       type: 'message',
       messageType: 'info',
-      content:
+      content: t(
+        'commands.init.file_already_exists',
         'A GEMINI.md file already exists in this directory. No changes were made.',
+      ),
     });
     // Assert: Ensure no file was written
     expect(fs.writeFileSync).not.toHaveBeenCalled();
@@ -73,7 +76,10 @@ describe('initCommand', () => {
     expect(mockContext.ui.addItem).toHaveBeenCalledWith(
       {
         type: 'info',
-        text: 'Empty GEMINI.md created. Now analyzing the project to populate it.',
+        text: t(
+          'commands.init.file_created',
+          'Empty GEMINI.md created. Now analyzing the project to populate it.',
+        ),
       },
       expect.any(Number),
     );
@@ -99,7 +105,10 @@ describe('initCommand', () => {
     expect(result).toEqual({
       type: 'message',
       messageType: 'error',
-      content: 'Configuration not available.',
+      content: t(
+        'commands.init.config_not_available',
+        'Configuration not available.',
+      ),
     });
   });
 });

@@ -19,8 +19,8 @@ import type {
   ToolCall,
   Status as CoreStatus,
   EditorType,
-} from '@thacio/auditaria-cli-core';
-import { CoreToolScheduler, debugLogger } from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
+import { CoreToolScheduler, debugLogger } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import type {
   HistoryItemToolGroup,
@@ -70,17 +70,18 @@ export function useReactToolScheduler(
   onComplete: (tools: CompletedToolCall[]) => Promise<void>,
   config: Config,
   getPreferredEditor: () => EditorType | undefined,
-  onEditorClose: () => void,
 ): [
   TrackedToolCall[],
   ScheduleFn,
   MarkToolsAsSubmittedFn,
   React.Dispatch<React.SetStateAction<TrackedToolCall[]>>,
   CancelAllFn,
+  number,
 ] {
   const [toolCallsForDisplay, setToolCallsForDisplay] = useState<
     TrackedToolCall[]
   >([]);
+  const [lastToolOutputTime, setLastToolOutputTime] = useState<number>(0);
 
   // WEB_INTERFACE_START
   const toolConfirmationContext = useToolConfirmation();
@@ -89,7 +90,6 @@ export function useReactToolScheduler(
   // Store callbacks in refs to keep them up-to-date without causing re-renders.
   const onCompleteRef = useRef(onComplete);
   const getPreferredEditorRef = useRef(getPreferredEditor);
-  const onEditorCloseRef = useRef(onEditorClose);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -99,11 +99,9 @@ export function useReactToolScheduler(
     getPreferredEditorRef.current = getPreferredEditor;
   }, [getPreferredEditor]);
 
-  useEffect(() => {
-    onEditorCloseRef.current = onEditorClose;
-  }, [onEditorClose]);
   const outputUpdateHandler: OutputUpdateHandler = useCallback(
     (toolCallId, outputChunk) => {
+      setLastToolOutputTime(Date.now());
       setToolCallsForDisplay((prevCalls) =>
         prevCalls.map((tc) => {
           if (tc.request.callId === toolCallId && tc.status === 'executing') {
@@ -209,7 +207,7 @@ export function useReactToolScheduler(
     () => getPreferredEditorRef.current(),
     [],
   );
-  const stableOnEditorClose = useCallback(() => onEditorCloseRef.current(), []);
+
   const scheduler = useMemo(
     () =>
       new CoreToolScheduler({
@@ -218,7 +216,6 @@ export function useReactToolScheduler(
         onToolCallsUpdate: toolCallsUpdateHandler,
         getPreferredEditor: stableGetPreferredEditor,
         config,
-        onEditorClose: stableOnEditorClose,
       }),
     [
       config,
@@ -226,7 +223,6 @@ export function useReactToolScheduler(
       allToolCallsCompleteHandler,
       toolCallsUpdateHandler,
       stableGetPreferredEditor,
-      stableOnEditorClose,
     ],
   );
 
@@ -267,6 +263,7 @@ export function useReactToolScheduler(
     markToolsAsSubmitted,
     setToolCallsForDisplay,
     cancelAllToolCalls,
+    lastToolOutputTime,
   ];
 }
 

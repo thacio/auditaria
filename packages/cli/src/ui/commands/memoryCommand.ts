@@ -8,7 +8,7 @@ import {
   getErrorMessage,
   refreshServerHierarchicalMemory,
   t,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { MessageType } from '../types.js';
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';
@@ -120,6 +120,8 @@ export const memoryCommand: SlashCommand = {
           if (config) {
             const { memoryContent, fileCount } =
               await refreshServerHierarchicalMemory(config);
+
+            await config.updateSystemInstructionIfInitialized();
 
             const successMessage =
               memoryContent.length > 0

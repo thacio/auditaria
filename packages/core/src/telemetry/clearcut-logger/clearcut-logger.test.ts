@@ -34,7 +34,7 @@ import {
   WebFetchFallbackAttemptEvent,
 } from '../types.js';
 import { AgentTerminateMode } from '../../agents/types.js';
-// eslint-disable-next-line import/no-internal-modules
+ 
 import { GIT_COMMIT_INFO, CLI_VERSION } from '../../generated/git-commit.js';
 import { UserAccountManager } from '../../utils/userAccountManager.js';
 import { InstallationManager } from '../../utils/installationManager.js';
@@ -67,7 +67,6 @@ expect.extend({
     received: LogEventEntry[],
     [key, value]: [EventMetadataKey, string],
   ) {
-    const { isNot } = this;
     const event = JSON.parse(received[0].source_extension_json) as LogEvent;
     const metadata = event['event_metadata'][0];
     const data = metadata.find((m) => m.gemini_cli_key === key)?.value;
@@ -76,8 +75,7 @@ expect.extend({
 
     return {
       pass,
-      message: () =>
-        `event ${received} does${isNot ? ' not' : ''} have ${value}}`,
+      message: () => `event ${received} should have: ${value}. Found: ${data}`,
     };
   },
 
@@ -92,21 +90,6 @@ expect.extend({
       pass,
       message: () =>
         `event ${received} ${isNot ? 'has' : 'does not have'} the metadata key ${key}`,
-    };
-  },
-
-  toHaveGwsExperiments(received: LogEventEntry[], expected_exps: number[]) {
-    const { isNot } = this;
-    const exps = received[0].gws_experiment;
-
-    const pass =
-      exps.length === expected_exps.length &&
-      exps.every((value, index) => value === expected_exps[index]);
-
-    return {
-      pass,
-      message: () =>
-        `event ${received} ${isNot ? 'has' : 'does not have'} expected exp ids: ${expected_exps.join(',')}`,
     };
   },
 });
@@ -313,7 +296,7 @@ describe('ClearcutLogger', () => {
 
     it('logs all user settings', () => {
       const { logger } = setup({
-        config: { useSmartEdit: true, useModelRouter: true },
+        config: { useSmartEdit: true },
       });
 
       vi.stubEnv('TERM_PROGRAM', 'vscode');
@@ -418,6 +401,31 @@ describe('ClearcutLogger', () => {
         });
       },
     );
+  });
+
+  describe('GH_WORKFLOW_NAME metadata', () => {
+    it('includes workflow name when GH_WORKFLOW_NAME is set', () => {
+      const { logger } = setup({});
+      vi.stubEnv('GH_WORKFLOW_NAME', 'test-workflow');
+
+      const event = logger?.createLogEvent(EventNames.API_ERROR, []);
+      expect(event?.event_metadata[0]).toContainEqual({
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_GH_WORKFLOW_NAME,
+        value: 'test-workflow',
+      });
+    });
+
+    it('does not include workflow name when GH_WORKFLOW_NAME is not set', () => {
+      const { logger } = setup({});
+      vi.stubEnv('GH_WORKFLOW_NAME', undefined);
+
+      const event = logger?.createLogEvent(EventNames.API_ERROR, []);
+      const hasWorkflowName = event?.event_metadata[0].some(
+        (item) =>
+          item.gemini_cli_key === EventMetadataKey.GEMINI_CLI_GH_WORKFLOW_NAME,
+      );
+      expect(hasWorkflowName).toBe(false);
+    });
   });
 
   describe('logChatCompressionEvent', () => {
@@ -594,7 +602,6 @@ describe('ClearcutLogger', () => {
           {
             event_time_ms: Date.now(),
             source_extension_json: JSON.stringify({ event_id: i }),
-            gws_experiment: [],
           },
         ]);
       }
@@ -628,7 +635,6 @@ describe('ClearcutLogger', () => {
           {
             event_time_ms: Date.now(),
             source_extension_json: JSON.stringify({ event_id: `failed_${i}` }),
-            gws_experiment: [],
           },
         ]);
       }
@@ -755,7 +761,10 @@ describe('ClearcutLogger', () => {
       const events = getEvents(logger!);
       expect(events.length).toBe(1);
       expect(events[0]).toHaveEventName(EventNames.AGENT_START);
-      expect(events[0]).toHaveGwsExperiments([123, 456, 789]);
+      expect(events[0]).toHaveMetadataValue([
+        EventMetadataKey.GEMINI_CLI_EXPERIMENT_IDS,
+        '123,456,789',
+      ]);
     });
   });
 

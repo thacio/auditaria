@@ -4,7 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { vi, type MockedFunction } from 'vitest';
+import {
+  vi,
+  type MockedFunction,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -14,7 +23,7 @@ import {
   ExtensionDisableEvent,
   ExtensionEnableEvent,
   KeychainTokenStorage,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { loadSettings, SettingScope } from './settings.js';
 import {
   isWorkspaceTrusted,
@@ -86,9 +95,9 @@ const mockLogExtensionInstallEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionUninstall = vi.hoisted(() => vi.fn());
 const mockLogExtensionUpdateEvent = vi.hoisted(() => vi.fn());
 const mockLogExtensionDisable = vi.hoisted(() => vi.fn());
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     logExtensionEnable: mockLogExtensionEnable,
@@ -623,82 +632,60 @@ describe('extension tests', () => {
     });
 
     describe('id generation', () => {
-      it('should generate id from source for non-github git urls', async () => {
-        createExtension({
-          extensionsDir: userExtensionsDir,
-          name: 'my-ext',
-          version: '1.0.0',
+      it.each([
+        {
+          description: 'should generate id from source for non-github git urls',
           installMetadata: {
-            type: 'git',
+            type: 'git' as const,
             source: 'http://somehost.com/foo/bar',
           },
-        });
-        const extensions = await extensionManager.loadExtensions();
-        const extension = extensions.find((e) => e.name === 'my-ext');
-        expect(extension?.id).toBe(hashValue('http://somehost.com/foo/bar'));
-      });
-
-      it('should generate id from owner/repo for github http urls', async () => {
-        createExtension({
-          extensionsDir: userExtensionsDir,
-          name: 'my-ext',
-          version: '1.0.0',
+          expectedIdSource: 'http://somehost.com/foo/bar',
+        },
+        {
+          description:
+            'should generate id from owner/repo for github http urls',
           installMetadata: {
-            type: 'git',
+            type: 'git' as const,
             source: 'http://github.com/foo/bar',
           },
-        });
-
-        const extensions = await extensionManager.loadExtensions();
-        const extension = extensions.find((e) => e.name === 'my-ext');
-        expect(extension?.id).toBe(hashValue('https://github.com/foo/bar'));
-      });
-
-      it('should generate id from owner/repo for github ssh urls', async () => {
-        createExtension({
-          extensionsDir: userExtensionsDir,
-          name: 'my-ext',
-          version: '1.0.0',
+          expectedIdSource: 'https://github.com/foo/bar',
+        },
+        {
+          description: 'should generate id from owner/repo for github ssh urls',
           installMetadata: {
-            type: 'git',
+            type: 'git' as const,
             source: 'git@github.com:foo/bar',
           },
-        });
-
-        const extensions = await extensionManager.loadExtensions();
-        const extension = extensions.find((e) => e.name === 'my-ext');
-        expect(extension?.id).toBe(hashValue('https://github.com/foo/bar'));
-      });
-
-      it('should generate id from source for github-release extension', async () => {
+          expectedIdSource: 'https://github.com/foo/bar',
+        },
+        {
+          description:
+            'should generate id from source for github-release extension',
+          installMetadata: {
+            type: 'github-release' as const,
+            source: 'https://github.com/foo/bar',
+          },
+          expectedIdSource: 'https://github.com/foo/bar',
+        },
+        {
+          description:
+            'should generate id from the original source for local extension',
+          installMetadata: {
+            type: 'local' as const,
+            source: '/some/path',
+          },
+          expectedIdSource: '/some/path',
+        },
+      ])('$description', async ({ installMetadata, expectedIdSource }) => {
         createExtension({
           extensionsDir: userExtensionsDir,
           name: 'my-ext',
           version: '1.0.0',
-          installMetadata: {
-            type: 'github-release',
-            source: 'https://github.com/foo/bar',
-          },
+          installMetadata,
         });
         const extensions = await extensionManager.loadExtensions();
         const extension = extensions.find((e) => e.name === 'my-ext');
-        expect(extension?.id).toBe(hashValue('https://github.com/foo/bar'));
-      });
-
-      it('should generate id from the original source for local extension', async () => {
-        createExtension({
-          extensionsDir: userExtensionsDir,
-          name: 'local-ext-name',
-          version: '1.0.0',
-          installMetadata: {
-            type: 'local',
-            source: '/some/path',
-          },
-        });
-
-        const extensions = await extensionManager.loadExtensions();
-        const extension = extensions.find((e) => e.name === 'local-ext-name');
-        expect(extension?.id).toBe(hashValue('/some/path'));
+        expect(extension?.id).toBe(hashValue(expectedIdSource));
       });
 
       it('should generate id from the original source for linked extensions', async () => {

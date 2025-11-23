@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import semver from 'semver';
@@ -15,6 +15,7 @@ import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 import { loadSettings } from '../../config/settings.js';
+import { exitCli } from '../utils.js';
 
 interface ValidateArgs {
   path: string;
@@ -130,5 +131,6 @@ export const validateCommand: CommandModule = {
     await handleValidate({
       path: args['path'] as string,
     });
+    await exitCli();
   },
 };

@@ -336,7 +336,6 @@ interface CoreToolSchedulerOptions {
   onAllToolCallsComplete?: AllToolCallsCompleteHandler;
   onToolCallsUpdate?: ToolCallsUpdateHandler;
   getPreferredEditor: () => EditorType | undefined;
-  onEditorClose: () => void;
 }
 
 export class CoreToolScheduler {
@@ -353,7 +352,6 @@ export class CoreToolScheduler {
   private onToolCallsUpdate?: ToolCallsUpdateHandler;
   private getPreferredEditor: () => EditorType | undefined;
   private config: Config;
-  private onEditorClose: () => void;
   private isFinalizingToolCalls = false;
   private isScheduling = false;
   private isCancelling = false;
@@ -372,7 +370,6 @@ export class CoreToolScheduler {
     this.onAllToolCallsComplete = options.onAllToolCallsComplete;
     this.onToolCallsUpdate = options.onToolCallsUpdate;
     this.getPreferredEditor = options.getPreferredEditor;
-    this.onEditorClose = options.onEditorClose;
 
     // Subscribe to message bus for ASK_USER policy decisions
     // Use a static WeakMap to ensure we only subscribe ONCE per MessageBus instance
@@ -1017,7 +1014,6 @@ export class CoreToolScheduler {
           modifyContext as ModifyContext<typeof waitingToolCall.request.args>,
           editorType,
           signal,
-          this.onEditorClose,
           contentOverrides,
         );
         this.setArgsInternal(callId, updatedParams);
@@ -1243,13 +1239,20 @@ export class CoreToolScheduler {
 
                 // AUDITORIA_COLLABORATIVE_WRITING_START - Update collaborative writing registry after AI edit
                 if (toolName === EDIT_TOOL_NAME && scheduledCall.request.args) {
-                  const filePath = (scheduledCall.request.args as { file_path?: string }).file_path;
+                  const filePath = (
+                    scheduledCall.request.args as { file_path?: string }
+                  ).file_path;
                   if (filePath) {
                     // IMPORTANT: We must await this to ensure registry is updated before next message
                     try {
-                      await collaborativeWritingService.updateAfterAIEdit(filePath);
+                      await collaborativeWritingService.updateAfterAIEdit(
+                        filePath,
+                      );
                     } catch (error) {
-                      console.error('[COLLAB-WRITE] Failed to update registry after AI edit:', error);
+                      console.error(
+                        '[COLLAB-WRITE] Failed to update registry after AI edit:',
+                        error,
+                      );
                     }
                   }
                 }

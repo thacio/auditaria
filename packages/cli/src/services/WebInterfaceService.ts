@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'node-html-parser';
 // WEB_INTERFACE_END
 import type { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
-import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@thacio/auditaria-cli-core';
+import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';

@@ -6,11 +6,12 @@
 
 import type { CommandModule } from 'yargs';
 import { getErrorMessage } from '../../utils/errors.js';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { loadSettings } from '../../config/settings.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
+import { exitCli } from '../utils.js';
 
 interface UninstallArgs {
   names: string[]; // can be extension names or source URLs.
@@ -92,5 +93,6 @@ export const uninstallCommand: CommandModule = {
     await handleUninstall({
       names: argv['names'] as string[],
     });
+    await exitCli();
   },
 };

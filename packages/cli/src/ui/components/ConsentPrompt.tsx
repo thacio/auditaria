@@ -9,6 +9,7 @@ import { type ReactNode } from 'react';
 import { theme } from '../semantic-colors.js';
 import { MarkdownDisplay } from '../utils/MarkdownDisplay.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
+import { t } from '@google/gemini-cli-core';
 
 type ConsentPromptProps = {
   // If a simple string is given, it will render using markdown by default.
@@ -40,8 +41,16 @@ export const ConsentPrompt = (props: ConsentPromptProps) => {
       <Box marginTop={1}>
         <RadioButtonSelect
           items={[
-            { label: 'Yes', value: true, key: 'Yes' },
-            { label: 'No', value: false, key: 'No' },
+            {
+              label: t('tool_confirmation.options.yes', 'Yes'),
+              value: true,
+              key: 'Yes',
+            },
+            {
+              label: t('tool_confirmation.options.no', 'No'),
+              value: false,
+              key: 'No',
+            },
           ]}
           onSelect={onConfirm}
         />

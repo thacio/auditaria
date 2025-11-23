@@ -14,11 +14,12 @@ import {
 import { checkForExtensionUpdate } from '../../config/extensions/github.js';
 import { getErrorMessage } from '../../utils/errors.js';
 import { ExtensionUpdateState } from '../../ui/state/extensions.js';
-import { debugLogger, t } from '@thacio/auditaria-cli-core';
+import { debugLogger, t } from '@google/gemini-cli-core';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { loadSettings } from '../../config/settings.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
+import { exitCli } from '../utils.js';
 
 interface UpdateArgs {
   name?: string;
@@ -190,5 +191,6 @@ export const updateCommand: CommandModule = {
       name: argv['name'] as string | undefined,
       all: argv['all'] as boolean | undefined,
     });
+    await exitCli();
   },
 };

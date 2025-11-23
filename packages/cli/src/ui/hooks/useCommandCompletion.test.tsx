@@ -14,11 +14,11 @@ import {
   type Mock,
 } from 'vitest';
 import { act, useEffect } from 'react';
-import { render } from '../../test-utils/render.js';
+import { renderWithProviders } from '../../test-utils/render.js';
 import { waitFor } from '../../test-utils/async.js';
 import { useCommandCompletion } from './useCommandCompletion.js';
 import type { CommandContext } from '../commands/types.js';
-import type { Config } from '@thacio/auditaria-cli-core';
+import type { Config } from '@google/gemini-cli-core';
 import { useTextBuffer } from '../components/shared/text-buffer.js';
 import type { Suggestion } from '../components/SuggestionsDisplay.js';
 import type { UseAtCompletionProps } from './useAtCompletion.js';
@@ -132,7 +132,7 @@ describe('useCommandCompletion', () => {
       hookResult = { ...completion, textBuffer };
       return null;
     }
-    render(<TestComponent />);
+    renderWithProviders(<TestComponent />);
     return {
       result: {
         get current() {
@@ -516,7 +516,7 @@ describe('useCommandCompletion', () => {
         hookResult = { ...completion, textBuffer };
         return null;
       }
-      render(<TestComponent />);
+      renderWithProviders(<TestComponent />);
 
       // Should not trigger prompt completion for comments
       expect(hookResult!.suggestions.length).toBe(0);
@@ -549,7 +549,7 @@ describe('useCommandCompletion', () => {
         hookResult = { ...completion, textBuffer };
         return null;
       }
-      render(<TestComponent />);
+      renderWithProviders(<TestComponent />);
 
       // Should not trigger prompt completion for comments
       expect(hookResult!.suggestions.length).toBe(0);
@@ -582,7 +582,7 @@ describe('useCommandCompletion', () => {
         hookResult = { ...completion, textBuffer };
         return null;
       }
-      render(<TestComponent />);
+      renderWithProviders(<TestComponent />);
 
       // This test verifies that comments are filtered out while regular text is not
       expect(hookResult!.textBuffer.text).toBe(

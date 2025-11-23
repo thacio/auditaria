@@ -4,18 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t ,
-  allowEditorTypeInSandbox,
-  checkHasEditorType,
-} from '@thacio/auditaria-cli-core';
-
 import { useState, useCallback } from 'react';
 import type {
   LoadableSettingScope,
   LoadedSettings,
 } from '../../config/settings.js';
-import { type HistoryItem, MessageType } from '../types.js';
-import type { EditorType } from '@thacio/auditaria-cli-core';
+import { MessageType } from '../types.js';
+import type { EditorType } from '@google/gemini-cli-core';
+import {
+  allowEditorTypeInSandbox,
+  checkHasEditorType,
+  getEditorDisplayName,
+} from '@google/gemini-cli-core';
+import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 
 import { SettingPaths } from '../../config/settingPaths.js';
 
@@ -32,7 +33,7 @@ interface UseEditorSettingsReturn {
 export const useEditorSettings = (
   loadedSettings: LoadedSettings,
   setEditorError: (error: string | null) => void,
-  addItem: (item: Omit<HistoryItem, 'id'>, timestamp: number) => void,
+  addItem: UseHistoryManagerReturn['addItem'],
 ): UseEditorSettingsReturn => {
   const [isEditorDialogOpen, setIsEditorDialogOpen] = useState(false);
 
@@ -59,30 +60,14 @@ export const useEditorSettings = (
         addItem(
           {
             type: MessageType.INFO,
-            text: editorType
-              ? t(
-                  'editor.preference_set',
-                  'Editor preference set to "{editor}" in {scope} settings.',
-                  { editor: editorType, scope },
-                )
-              : t(
-                  'editor.preference_cleared',
-                  'Editor preference cleared in {scope} settings.',
-                  { scope },
-                ),
+            text: `Editor preference ${editorType ? `set to "${getEditorDisplayName(editorType)}"` : 'cleared'} in ${scope} settings.`,
           },
           Date.now(),
         );
         setEditorError(null);
         setIsEditorDialogOpen(false);
       } catch (error) {
-        setEditorError(
-          t(
-            'editor.failed_to_set',
-            'Failed to set editor preference: {error}',
-            { error: error instanceof Error ? error.message : String(error) },
-          ),
-        );
+        setEditorError(`Failed to set editor preference: ${error}`);
       }
     },
     [loadedSettings, setEditorError, addItem],

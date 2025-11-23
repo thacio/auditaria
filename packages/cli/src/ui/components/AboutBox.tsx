@@ -8,7 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
-import type { UserTierId } from '@thacio/auditaria-cli-core';
+import type { UserTierId } from '@google/gemini-cli-core';
 import { getLicenseDisplay } from '../../utils/license.js';
 
 interface AboutBoxProps {
@@ -20,6 +20,7 @@ interface AboutBoxProps {
   gcpProject: string;
   ideClient: string;
   userTier?: UserTierId;
+  userEmail?: string;
 }
 
 export const AboutBox: React.FC<AboutBoxProps> = ({
@@ -31,6 +32,7 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   gcpProject,
   ideClient,
   userTier,
+  userEmail,
 }) => (
   <Box
     borderStyle="round"
@@ -119,6 +121,18 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
         <Text>{getLicenseDisplay(selectedAuthType, userTier)}</Text>
       </Box>
     </Box>
+    {userEmail && (
+      <Box flexDirection="row">
+        <Box width="35%">
+          <Text bold color={theme.text.link}>
+            User Email
+          </Text>
+        </Box>
+        <Box>
+          <Text color={theme.text.primary}>{userEmail}</Text>
+        </Box>
+      </Box>
+    )}
     {gcpProject && (
       <Box flexDirection="row">
         <Box width="35%">

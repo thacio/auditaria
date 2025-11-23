@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getPackageJson } from '@thacio/auditaria-cli-core';
+import { getPackageJson } from '@google/gemini-cli-core';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 

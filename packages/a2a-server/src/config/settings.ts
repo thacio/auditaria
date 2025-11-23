@@ -8,13 +8,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { homedir } from 'node:os';
 
-import type { MCPServerConfig } from '@thacio/auditaria-cli-core';
+import type { MCPServerConfig } from '@google/gemini-cli-core';
 import {
   debugLogger,
   GEMINI_DIR,
   getErrorMessage,
   type TelemetrySettings,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import stripJsonComments from 'strip-json-comments';
 
 export const USER_SETTINGS_DIR = path.join(homedir(), GEMINI_DIR);

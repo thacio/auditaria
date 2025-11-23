@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import { homedir } from 'node:os';
 import * as dotenv from 'dotenv';
 
-import type { TelemetryTarget } from '@thacio/auditaria-cli-core';
+import type { TelemetryTarget } from '@google/gemini-cli-core';
 import {
   AuthType,
   Config,
@@ -21,7 +21,7 @@ import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_MODEL,
   type ExtensionLoader,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 import { logger } from '../utils/logger.js';
 import type { Settings } from './settings.js';

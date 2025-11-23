@@ -24,7 +24,8 @@ import { appEvents, AppEvent } from './utils/events.js';
 import {
   type Config,
   type ResumedSessionData,
-} from '@thacio/auditaria-cli-core';
+  debugLogger,
+} from '@google/gemini-cli-core';
 import { act } from 'react';
 import { type InitializationResult } from './core/initializer.js';
 
@@ -33,12 +34,38 @@ const performance = vi.hoisted(() => ({
 }));
 vi.stubGlobal('performance', performance);
 
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     recordSlowRender: vi.fn(),
+    writeToStdout: vi.fn((...args) =>
+      process.stdout.write(
+        ...(args as Parameters<typeof process.stdout.write>),
+      ),
+    ),
+    patchStdio: vi.fn(() => () => {}),
+    createInkStdio: vi.fn(() => ({
+      stdout: {
+        write: vi.fn((...args) =>
+          process.stdout.write(
+            ...(args as Parameters<typeof process.stdout.write>),
+          ),
+        ),
+        columns: 80,
+        rows: 24,
+        on: vi.fn(),
+        removeListener: vi.fn(),
+      },
+      stderr: {
+        write: vi.fn(),
+      },
+    })),
+    enableMouseEvents: vi.fn(),
+    disableMouseEvents: vi.fn(),
+    enterAlternateScreen: vi.fn(),
+    disableLineWrapping: vi.fn(),
   };
 });
 
@@ -46,9 +73,23 @@ vi.mock('ink', async (importOriginal) => {
   const actual = await importOriginal<typeof import('ink')>();
   return {
     ...actual,
-    // Mock here so we can spyOn the render function. ink uses ESM which doesn't
-    // allow us to spyOn it directly.
-    render: vi.fn((_node, options) => actual.render(_node, options)),
+    render: vi.fn((_node, options) => {
+      if (options.alternateBuffer) {
+        options.stdout.write('\x1b[?7l');
+      }
+      // Simulate rendering time for recordSlowRender test
+      const start = performance.now();
+      const end = performance.now();
+      if (options.onRender) {
+        options.onRender({ renderTime: end - start });
+      }
+      return {
+        unmount: vi.fn(),
+        rerender: vi.fn(),
+        cleanup: vi.fn(),
+        waitUntilExit: vi.fn(),
+      };
+    }),
   };
 });
 
@@ -262,6 +303,7 @@ describe('gemini.tsx main function', () => {
         throw new MockProcessExitError(code);
       });
     const appEventsMock = vi.mocked(appEvents);
+    const debugLoggerErrorSpy = vi.spyOn(debugLogger, 'error');
     const rejectionError = new Error('Test unhandled rejection');
 
     setupUnhandledRejectionHandler();
@@ -274,12 +316,10 @@ describe('gemini.tsx main function', () => {
     await new Promise(process.nextTick);
 
     expect(appEventsMock.emit).toHaveBeenCalledWith(AppEvent.OpenDebugConsole);
-    expect(appEventsMock.emit).toHaveBeenCalledWith(
-      AppEvent.LogError,
+    expect(debugLoggerErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Unhandled Promise Rejection'),
     );
-    expect(appEventsMock.emit).toHaveBeenCalledWith(
-      AppEvent.LogError,
+    expect(debugLoggerErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Please file a bug report using the /bug tool.'),
     );
 
@@ -401,12 +441,12 @@ describe('gemini.tsx main function kitty protocol', () => {
       experimentalAcp: undefined,
       extensions: undefined,
       listExtensions: undefined,
+      web: undefined,
+      port: undefined,
       includeDirectories: undefined,
       screenReader: undefined,
       useSmartEdit: undefined,
       useWriteTodos: undefined,
-      web: undefined,
-      port: undefined,
       resume: undefined,
       listSessions: undefined,
       deleteSession: undefined,
@@ -425,10 +465,12 @@ describe('gemini.tsx main function kitty protocol', () => {
 });
 
 describe('validateDnsResolutionOrder', () => {
-  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let debugLoggerWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    debugLoggerWarnSpy = vi
+      .spyOn(debugLogger, 'warn')
+      .mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -437,22 +479,22 @@ describe('validateDnsResolutionOrder', () => {
 
   it('should return "ipv4first" when the input is "ipv4first"', () => {
     expect(validateDnsResolutionOrder('ipv4first')).toBe('ipv4first');
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(debugLoggerWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should return "verbatim" when the input is "verbatim"', () => {
     expect(validateDnsResolutionOrder('verbatim')).toBe('verbatim');
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(debugLoggerWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should return the default "ipv4first" when the input is undefined', () => {
     expect(validateDnsResolutionOrder(undefined)).toBe('ipv4first');
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(debugLoggerWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should return the default "ipv4first" and log a warning for an invalid string', () => {
     expect(validateDnsResolutionOrder('invalid-value')).toBe('ipv4first');
-    expect(consoleWarnSpy).toHaveBeenCalledExactlyOnceWith(
+    expect(debugLoggerWarnSpy).toHaveBeenCalledExactlyOnceWith(
       'Invalid value for dnsResolutionOrder in settings: "invalid-value". Using default "ipv4first".',
     );
   });
@@ -463,11 +505,13 @@ describe('startInteractiveUI', () => {
   const mockConfig = {
     getProjectRoot: () => '/root',
     getScreenReader: () => false,
+    getDebugMode: () => false,
   } as unknown as Config;
   const mockSettings = {
     merged: {
       ui: {
         hideWindowTitle: false,
+        useAlternateBuffer: true,
       },
     },
   } as LoadedSettings;
@@ -497,6 +541,7 @@ describe('startInteractiveUI', () => {
     cleanupCheckpoints: vi.fn(() => Promise.resolve()),
     registerCleanup: vi.fn(),
     runExitCleanup: vi.fn(),
+    registerSyncCleanup: vi.fn(),
   }));
 
   afterEach(() => {
@@ -541,13 +586,16 @@ describe('startInteractiveUI', () => {
     const [reactElement, options] = renderSpy.mock.calls[0];
 
     // Verify render options
-    expect(options).toEqual({
-      alternateBuffer: true,
-      exitOnCtrlC: false,
-      incrementalRendering: true,
-      isScreenReaderEnabled: false,
-      onRender: expect.any(Function),
-    });
+    expect(options).toEqual(
+      expect.objectContaining({
+        alternateBuffer: true,
+        exitOnCtrlC: false,
+        incrementalRendering: true,
+        isScreenReaderEnabled: false,
+        onRender: expect.any(Function),
+        patchConsole: false,
+      }),
+    );
 
     // Verify React element structure is valid (but don't deep dive into JSX internals)
     expect(reactElement).toBeDefined();
@@ -569,7 +617,7 @@ describe('startInteractiveUI', () => {
 
     // Verify all startup tasks were called
     expect(getCliVersion).toHaveBeenCalledTimes(1);
-    expect(registerCleanup).toHaveBeenCalledTimes(2);
+    expect(registerCleanup).toHaveBeenCalledTimes(3);
 
     // Verify cleanup handler is registered with unmount function
     const cleanupFn = vi.mocked(registerCleanup).mock.calls[0][0];
@@ -582,7 +630,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should not recordSlowRender when less than threshold', async () => {
-    const { recordSlowRender } = await import('@thacio/auditaria-cli-core');
+    const { recordSlowRender } = await import('@google/gemini-cli-core');
     performance.now.mockReturnValueOnce(0);
     await startTestInteractiveUI(
       mockConfig,
@@ -597,7 +645,7 @@ describe('startInteractiveUI', () => {
   });
 
   it('should call recordSlowRender when more than threshold', async () => {
-    const { recordSlowRender } = await import('@thacio/auditaria-cli-core');
+    const { recordSlowRender } = await import('@google/gemini-cli-core');
     performance.now.mockReturnValueOnce(0);
     performance.now.mockReturnValueOnce(300);
 

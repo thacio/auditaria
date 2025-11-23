@@ -11,15 +11,15 @@ import type {
   Config,
   CodeAssistServer,
   LoadCodeAssistResponse,
-} from '@thacio/auditaria-cli-core';
-import { UserTierId, getCodeAssistServer } from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
+import { UserTierId, getCodeAssistServer } from '@google/gemini-cli-core';
 import { usePrivacySettings } from './usePrivacySettings.js';
 import { waitFor } from '../../test-utils/async.js';
 
 // Mock the dependencies
-vi.mock('@thacio/auditaria-cli-core', async (importOriginal) => {
+vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import('@thacio/auditaria-cli-core')>();
+    await importOriginal<typeof import('@google/gemini-cli-core')>();
   return {
     ...actual,
     getCodeAssistServer: vi.fn(),
