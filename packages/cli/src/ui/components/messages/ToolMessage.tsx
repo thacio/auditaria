@@ -22,7 +22,6 @@ import {
 } from '../../constants.js';
 import { theme } from '../../semantic-colors.js';
 import type { AnsiOutput, Config } from '@thacio/auditaria-cli-core';
-import { t } from '@thacio/auditaria-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { useAlternateBuffer } from '../../hooks/useAlternateBuffer.js';
 
@@ -217,9 +216,7 @@ export const ToolMessage: React.FC<ToolMessageProps> = ({
         {shouldShowFocusHint && (
           <Box marginLeft={1} flexShrink={0}>
             <Text color={theme.text.accent}>
-              {isThisShellFocused
-                ? t('shell.focus.focused', '(Focused)')
-                : t('shell.focus.focus_hint', '(ctrl+f to focus)')}
+              {isThisShellFocused ? '(Focused)' : '(ctrl+f to focus)'}
             </Text>
           </Box>
         )}

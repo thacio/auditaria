@@ -8,7 +8,6 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { theme } from '../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
 
 interface ProQuotaDialogProps {
   fallbackModel: string;
@@ -21,16 +20,12 @@ export function ProQuotaDialog({
 }: ProQuotaDialogProps): React.JSX.Element {
   const items = [
     {
-      label: t('pro_quota_dialog.try_again_later', 'Try again later'),
+      label: 'Try again later',
       value: 'retry_later' as const,
       key: 'retry_later',
     },
     {
-      label: t(
-        'pro_quota_dialog.switch_to_fallback',
-        'Switch to {model} for the rest of this session',
-        { model: fallbackModel },
-      ),
+      label: `Switch to ${fallbackModel} for the rest of this session`,
       value: 'retry' as const,
       key: 'retry',
     },
@@ -50,10 +45,7 @@ export function ProQuotaDialog({
         />
       </Box>
       <Text color={theme.text.primary}>
-        {t(
-          'pro_quota_dialog.note',
-          'Note: You can always use /model to select a different option.',
-        )}
+        Note: You can always use /model to select a different option.
       </Text>
     </Box>
   );

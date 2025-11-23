@@ -12,7 +12,6 @@ import { ToolCallStatus } from '../../types.js';
 import { ToolMessage } from './ToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { theme } from '../../semantic-colors.js';
-import { t } from '@thacio/auditaria-cli-core';
 import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
 import { useConfig } from '../../contexts/ConfigContext.js';
 
@@ -153,11 +152,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
               {tool.outputFile && (
                 <Box>
                   <Text color={theme.text.primary}>
-                    {t(
-                      'ui.tool_output.output_saved',
-                      'Output too long and was saved to: {outputFile}',
-                      { outputFile: tool.outputFile },
-                    )}
+                    Output too long and was saved to: {tool.outputFile}
                   </Text>
                 </Box>
               )}
