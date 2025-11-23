@@ -15,6 +15,7 @@ import {
   t,
 } from '@google/gemini-cli-core';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
+import { exitCli } from '../utils.js';
 
 interface EnableArgs {
   name: string;
@@ -108,5 +109,6 @@ export const enableCommand: CommandModule = {
       name: argv['name'] as string,
       scope: argv['scope'] as string,
     });
+    await exitCli();
   },
 };

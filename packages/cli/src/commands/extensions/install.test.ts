@@ -7,10 +7,7 @@
 import { describe, it, expect, vi, type MockInstance, type Mock } from 'vitest';
 import { handleInstall, installCommand } from './install.js';
 import yargs from 'yargs';
-import {
-  debugLogger,
-  type GeminiCLIExtension,
-} from '@google/gemini-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@google/gemini-cli-core';
 import type { ExtensionManager } from '../../config/extension-manager.js';
 import type { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import type * as fs from 'node:fs/promises';
@@ -49,6 +46,10 @@ vi.mock('node:fs/promises', () => ({
   default: {
     stat: mockStat,
   },
+}));
+
+vi.mock('../utils.js', () => ({
+  exitCli: vi.fn(),
 }));
 
 describe('extensions install command', () => {

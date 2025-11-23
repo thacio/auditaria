@@ -15,6 +15,7 @@ import { enableCommand } from './extensions/enable.js';
 import { linkCommand } from './extensions/link.js';
 import { newCommand } from './extensions/new.js';
 import { validateCommand } from './extensions/validate.js';
+import { initializeOutputListenersAndFlush } from '../gemini.js';
 
 export const extensionsCommand: CommandModule = {
   command: 'extensions <command>',
@@ -25,6 +26,7 @@ export const extensionsCommand: CommandModule = {
   ),
   builder: (yargs) =>
     yargs
+      .middleware(() => initializeOutputListenersAndFlush())
       .command(installCommand)
       .command(uninstallCommand)
       .command(listCommand)

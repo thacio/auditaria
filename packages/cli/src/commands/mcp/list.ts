@@ -8,15 +8,12 @@
 import type { CommandModule } from 'yargs';
 import { loadSettings } from '../../config/settings.js';
 import type { MCPServerConfig } from '@google/gemini-cli-core';
-import {
-  MCPServerStatus,
-  createTransport,
-  t,
-} from '@google/gemini-cli-core';
+import { MCPServerStatus, createTransport, t } from '@google/gemini-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
+import { exitCli } from '../utils.js';
 
 const COLOR_GREEN = '\u001b[32m';
 const COLOR_YELLOW = '\u001b[33m';
@@ -164,5 +161,6 @@ export const listCommand: CommandModule = {
   ),
   handler: async () => {
     await listMcpServers();
+    await exitCli();
   },
 };

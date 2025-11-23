@@ -7,11 +7,8 @@
 // File for 'gemini mcp add' command
 import type { CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
-import {
-  debugLogger,
-  t,
-  type MCPServerConfig,
-} from '@google/gemini-cli-core';
+import { debugLogger, type MCPServerConfig } from '@google/gemini-cli-core';
+import { exitCli } from '../utils.js';
 
 async function addMcpServer(
   name: string,
@@ -46,10 +43,7 @@ async function addMcpServer(
 
   if (scope === 'project' && inHome) {
     debugLogger.error(
-      t(
-        'commands.mcp.manage.add.error_home_directory',
-        'Error: Please use --scope user to edit settings in the home directory.',
-      ),
+      'Error: Please use --scope user to edit settings in the home directory.',
     );
     process.exit(1);
   }
@@ -124,11 +118,7 @@ async function addMcpServer(
   const isExistingServer = !!mcpServers[name];
   if (isExistingServer) {
     debugLogger.log(
-      t(
-        'commands.mcp.manage.add.already_configured',
-        `MCP server "${name}" is already configured within ${scope} settings.`,
-        { name, scope },
-      ),
+      `MCP server "${name}" is already configured within ${scope} settings.`,
     );
   }
 
@@ -137,129 +127,85 @@ async function addMcpServer(
   settings.setValue(settingsScope, 'mcpServers', mcpServers);
 
   if (isExistingServer) {
-    debugLogger.log(
-      t(
-        'commands.mcp.manage.add.updated',
-        `MCP server "${name}" updated in ${scope} settings.`,
-        { name, scope },
-      ),
-    );
+    debugLogger.log(`MCP server "${name}" updated in ${scope} settings.`);
   } else {
     debugLogger.log(
-      t(
-        'commands.mcp.manage.add.added',
-        `MCP server "${name}" added to ${scope} settings. (${transport})`,
-        { name, scope, transport },
-      ),
+      `MCP server "${name}" added to ${scope} settings. (${transport})`,
     );
   }
 }
 
 export const addCommand: CommandModule = {
   command: 'add <name> <commandOrUrl> [args...]',
-  describe: t('commands.mcp.manage.add.description', 'Add a server'),
+  describe: 'Add a server',
   builder: (yargs) =>
     yargs
       .usage(
-        t(
-          'commands.mcp.manage.add.usage',
-          'Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]',
-        ),
+        'Usage: auditaria mcp add [options] <name> <commandOrUrl> [args...]',
       )
       .parserConfiguration({
         'unknown-options-as-args': true, // Pass unknown options as server args
         'populate--': true, // Populate server args after -- separator
       })
       .positional('name', {
-        describe: t(
-          'commands.mcp.manage.add.name_description',
-          'Name of the server',
-        ),
+        describe: 'Name of the server',
         type: 'string',
         demandOption: true,
       })
       .positional('commandOrUrl', {
-        describe: t(
-          'commands.mcp.manage.add.command_url_description',
-          'Command (stdio) or URL (sse, http)',
-        ),
+        describe: 'Command (stdio) or URL (sse, http)',
         type: 'string',
         demandOption: true,
       })
       .option('scope', {
         alias: 's',
-        describe: t(
-          'commands.mcp.manage.add.scope_description',
-          'Configuration scope (user or project)',
-        ),
+        describe: 'Configuration scope (user or project)',
         type: 'string',
         default: 'project',
         choices: ['user', 'project'],
       })
       .option('transport', {
         alias: 't',
-        describe: t(
-          'commands.mcp.manage.add.transport_description',
-          'Transport type (stdio, sse, http)',
-        ),
+        describe: 'Transport type (stdio, sse, http)',
         type: 'string',
         default: 'stdio',
         choices: ['stdio', 'sse', 'http'],
       })
       .option('env', {
         alias: 'e',
-        describe: t(
-          'commands.mcp.manage.add.env_description',
-          'Set environment variables (e.g. -e KEY=value)',
-        ),
+        describe: 'Set environment variables (e.g. -e KEY=value)',
         type: 'array',
         string: true,
         nargs: 1,
       })
       .option('header', {
         alias: 'H',
-        describe: t(
-          'commands.mcp.manage.add.header_description',
+        describe:
           'Set HTTP headers for SSE and HTTP transports (e.g. -H "X-Api-Key: abc123" -H "Authorization: Bearer abc123")',
-        ),
         type: 'array',
         string: true,
         nargs: 1,
       })
       .option('timeout', {
-        describe: t(
-          'commands.mcp.manage.add.timeout_description',
-          'Set connection timeout in milliseconds',
-        ),
+        describe: 'Set connection timeout in milliseconds',
         type: 'number',
       })
       .option('trust', {
-        describe: t(
-          'commands.mcp.manage.add.trust_description',
+        describe:
           'Trust the server (bypass all tool call confirmation prompts)',
-        ),
         type: 'boolean',
       })
       .option('description', {
-        describe: t(
-          'commands.mcp.manage.add.description_description',
-          'Set the description for the server',
-        ),
+        describe: 'Set the description for the server',
         type: 'string',
       })
       .option('include-tools', {
-        describe: t(
-          'commands.mcp.manage.add.include_tools_description',
-          'A comma-separated list of tools to include',
-        ),
+        describe: 'A comma-separated list of tools to include',
         type: 'array',
         string: true,
       })
       .option('exclude-tools', {
-        describe: t(
-          'commands.mcp.manage.add.exclude_tools_description',
-          'A comma-separated list of tools to exclude',
-        ),
+        describe: 'A comma-separated list of tools to exclude',
         type: 'array',
         string: true,
       })
@@ -287,5 +233,6 @@ export const addCommand: CommandModule = {
         excludeTools: argv['excludeTools'] as string[] | undefined,
       },
     );
+    await exitCli();
   },
 };

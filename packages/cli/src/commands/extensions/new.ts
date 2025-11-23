@@ -8,7 +8,8 @@ import { access, cp, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname, basename } from 'node:path';
 import type { CommandModule } from 'yargs';
 import { fileURLToPath } from 'node:url';
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
+import { exitCli } from '../utils.js';
 
 interface NewArgs {
   path: string;
@@ -31,11 +32,7 @@ async function pathExists(path: string) {
 
 async function createDirectory(path: string) {
   if (await pathExists(path)) {
-    throw new Error(
-      t('commands.extensions.new.path_exists', 'Path already exists: {path}', {
-        path,
-      }),
-    );
+    throw new Error(`Path already exists: ${path}`);
   }
   await mkdir(path, { recursive: true });
 }
@@ -56,11 +53,7 @@ async function handleNew(args: NewArgs) {
   if (args.template) {
     await copyDirectory(args.template, args.path);
     debugLogger.log(
-      t(
-        'commands.extensions.new.success',
-        'Successfully created new extension from template "{template}" at {path}.',
-        { template: args.template, path: args.path },
-      ),
+      `Successfully created new extension from template "${args.template}" at ${args.path}.`,
     );
   } else {
     await createDirectory(args.path);
@@ -73,20 +66,10 @@ async function handleNew(args: NewArgs) {
       join(args.path, 'gemini-extension.json'),
       JSON.stringify(manifest, null, 2),
     );
-    debugLogger.log(
-      t(
-        'commands.extensions.new.success_no_template',
-        'Successfully created new extension at {path}.',
-        { path: args.path },
-      ),
-    );
+    debugLogger.log(`Successfully created new extension at ${args.path}.`);
   }
   debugLogger.log(
-    t(
-      'commands.extensions.new.install_help',
-      'You can install this using "auditaria extensions link {path}" to test it out.',
-      { path: args.path },
-    ),
+    `You can install this using "auditaria extensions link ${args.path}" to test it out.`,
   );
 }
 
@@ -99,25 +82,16 @@ async function getBoilerplateChoices() {
 
 export const newCommand: CommandModule = {
   command: 'new <path> [template]',
-  describe: t(
-    'commands.extensions.new.description',
-    'Create a new extension from a boilerplate example.',
-  ),
+  describe: 'Create a new extension from a boilerplate example.',
   builder: async (yargs) => {
     const choices = await getBoilerplateChoices();
     return yargs
       .positional('path', {
-        describe: t(
-          'commands.extensions.new.path_description',
-          'The path to create the extension in.',
-        ),
+        describe: 'The path to create the extension in.',
         type: 'string',
       })
       .positional('template', {
-        describe: t(
-          'commands.extensions.new.template_description',
-          'The boilerplate template to use.',
-        ),
+        describe: 'The boilerplate template to use.',
         type: 'string',
         choices,
       });
@@ -127,5 +101,6 @@ export const newCommand: CommandModule = {
       path: args['path'] as string,
       template: args['template'] as string | undefined,
     });
+    await exitCli();
   },
 };
