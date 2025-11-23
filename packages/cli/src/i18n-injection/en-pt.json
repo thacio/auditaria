@@ -1,9 +1,9 @@
 {
   "metadata": {
     "version": "1.0",
-    "generated": "2025-11-23T22:19:09.635Z",
-    "exact_count": 831,
-    "pattern_count": 384,
+    "generated": "2025-11-23T23:09:29.969Z",
+    "exact_count": 848,
+    "pattern_count": 389,
     "language_pair": "en-pt"
   },
   "exact": {
@@ -35,6 +35,7 @@
     "(Deprecated)": "(Obsoleto)",
     "(F12 for details)": "(F12 para detalhes)",
     "(Focused)": "(Focado)",
+    "(Press Enter to submit, Esc to cancel)": "(Pressione Enter para enviar, Esc para cancelar)",
     "(Press Esc to close)": "(Pressione Esc para fechar)",
     "(Use Enter to select": "(Use Enter para selecionar",
     "(Use Enter to select, Esc to close)": "(Use Enter para selecionar, Esc para fechar)",
@@ -107,7 +108,7 @@
     "Auto (recommended)": "Automático (recomendado)",
     "Auto Accept": "Aceitar Automaticamente",
     "Auto Configure Max Old Space Size": "Configurar Automaticamente Tamanho Máximo de Memória",
-    "Automatic update failed. Please try updating manually": "Atualização automática falhou. Por favor, tente atualizar manualmente",
+    "Automatic update failed. Please try updating manually": "Falha na atualização automática. Por favor, tente atualizar manualmente",
     "Automatically accept and execute tool calls that are considered safe (e.g., read-only operations).": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
     "Available Gemini CLI tools:": "Ferramentas disponíveis do Gemini CLI:",
     "Avg Duration": "Duração Média",
@@ -133,15 +134,17 @@
     "Cannot use both --prompt (-p) and --prompt-interactive (-i) together": "Não é possível usar --prompt (-p) e --prompt-interactive (-i) juntos",
     "Cannot use both --yolo (-y) and --approval-mode together. Use --approval-mode=yolo instead.": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
     "Cannot use both a positional prompt and the --prompt (-p) flag together": "Não é possível usar um prompt posicional e a flag --prompt (-p) juntos",
+    "Change the theme": "Alterar o tema",
     "Channeling the Force...": "Canalizando a Força...",
     "Charging the laser... pew pew!": "Carregando o laser... pew pew!",
+    "Check session stats. Usage: /stats [model|tools]": "Verificar estatísticas da sessão. Uso: /stats [model|tools]",
     "Checking for syntax errors in the universe...": "Verificando erros de sintaxe no universo...",
     "Choose your preferred language for the interface. You can change this later using the /language command.": "Escolha seu idioma preferido para a interface. Você pode alterar isso mais tarde usando o comando /language.",
     "Citations:": "Citações:",
     "Clear the screen": "Limpar a tela",
     "Client error.": "Erro do cliente.",
     "Code Changes:": "Alterações de Código:",
-    "CodeAssist server is missing a project ID": "Servidor CodeAssist está sem ID de projeto",
+    "CodeAssist server is missing a project ID": "Servidor CodeAssist está sem um ID de projeto",
     "Command (stdio) or URL (sse, http)": "Comando (stdio) ou URL (sse, http)",
     "Command cancelled by user.": "Comando cancelado pelo usuário.",
     "Command substitution using $(), `` ` ``, <(), or >() is not allowed for security reasons": "Substituição de comando usando $(), `` ` ``, <(), ou >() não é permitida por razões de segurança",
@@ -158,7 +161,7 @@
     "Configuration not available.": "Configuração não disponível.",
     "Configuration not available. Cannot show memory.": "Configuração não disponível. Não é possível mostrar a memória.",
     "Configuration scope (user or project)": "Escopo de configuração (usuário ou projeto)",
-    "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)": "Configurar atalhos de teclado do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
+    "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)": "Configurar atalhos do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
     "Configured MCP servers:": "Servidores MCP configurados:",
     "Configured MCP servers:\n": "Servidores MCP configurados:\n",
     "Confirmation required. Please respond in the CLI terminal.": "Confirmação necessária. Por favor, responda no terminal do CLI.",
@@ -178,7 +181,7 @@
     "Could not find the required VS Code companion extension. Please file a bug via /bug.": "Não foi possível encontrar a extensão companheira do VS Code necessária. Por favor, registre um bug via /bug.",
     "Could not retrieve tool registry.": "Não foi possível recuperar o registro de ferramentas.",
     "Could not retrieve tools.": "Não foi possível recuperar as ferramentas.",
-    "Could not verify the current directory due to a file system error.": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
+    "Could not verify the current directory due to a file system error.": "Não foi possível verificar o diretório atual devido a um erro no sistema de arquivos.",
     "Counting electrons...": "Contando elétrons...",
     "Crafting a response worthy of your patience...": "Elaborando uma resposta digna da sua paciência...",
     "Create a new extension from a boilerplate example.": "Criar uma nova extensão a partir de um exemplo modelo.",
@@ -194,7 +197,7 @@
     "Custom Witty Phrases": "Frases Espirituosas Personalizadas",
     "Custom witty phrases to display during loading.": "Frases espirituosas personalizadas para exibir durante o carregamento.",
     "Cycle through your prompt history": "Percorrer seu histórico de prompts",
-    "DOCX parser is now available in the web interface.": "O parser DOCX está agora disponível na interface web.",
+    "DOCX parser is now available in the web interface.": "Parser DOCX agora está disponível na interface web.",
     "Data collection is disabled.": "A coleta de dados está desabilitada.",
     "Debug Console": "Console de Debug",
     "Defragmenting memories... both RAM and personal...": "Desfragmentando memórias... tanto RAM quanto pessoais...",
@@ -237,6 +240,7 @@
     "Ensuring the magic smoke stays inside the wires...": "Garantindo que a fumaça mágica fique dentro dos fios...",
     "Entangling quantum particles for a faster response...": "Emaranhando partículas quânticas para resposta mais rápida...",
     "Enter": "Enter",
+    "Enter Gemini API Key": "Digite a Chave API do Gemini",
     "Enter selection mode to copy text": "Entrar no modo de seleção para copiar texto",
     "Enter the authorization code: ": "Digite o código de autorização: ",
     "Entered Vim mode. Run /vim again to exit.": "Modo Vim ativado. Execute /vim novamente para sair.",
@@ -276,8 +280,8 @@
     "Failed to save language setting. Please try again.": "Falha ao salvar configuração de idioma. Tente novamente.",
     "Failed to save trust settings. Exiting Auditoria CLI.": "Falha ao salvar configurações de confiança. Encerrando Auditoria CLI.",
     "Failed to save trust settings. Your changes may not persist.": "Falha ao salvar configurações de confiança. Suas alterações podem não persistir.",
-    "Fallback disabled - will stay on Gemini Pro even if rate limited": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
-    "Fallback enabled - will switch to Flash if Pro is rate limited": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa",
+    "Fallback disabled - will stay on Gemini Pro even if rate limited": "Fallback desabilitado - permanecerá no Gemini Pro mesmo se limitado por taxa",
+    "Fallback enabled - will switch to Flash if Pro is rate limited": "Fallback habilitado - mudará para Flash se Pro estiver limitado por taxa",
     "Fatal error: Failed to relaunch the CLI process.": "Erro fatal: Falha ao reiniciar o processo CLI.",
     "Fiddling with the character creation screen...": "Mexendo na tela de criação de personagem...",
     "Figuring out how to make this more witty...": "Descobrindo como tornar isso mais espirituoso...",
@@ -376,6 +380,7 @@
     "License": "Licença",
     "Links an extension from a local path. Updates made to the local path will always be reflected.": "Vincula uma extensão de um caminho local. Atualizações feitas no caminho local sempre serão refletidas.",
     "List all configured MCP servers": "Listar todos os servidores MCP configurados",
+    "List available Gemini CLI tools. Usage: /tools [desc]": "Listar ferramentas disponíveis do Gemini CLI. Uso: /tools [desc]",
     "Lists installed extensions.": "Lista extensões instaladas.",
     "Lists the paths of the GEMINI.md files in use.": "Lista os caminhos dos arquivos GEMINI.md em uso.",
     "Load Memory From Include Directories": "Carregar Memória de Diretórios Incluídos",
@@ -397,6 +402,7 @@
     "Loop detection has been disabled for this session. Retrying request...": "A detecção de loop foi desabilitada para esta sessão. Repetindo solicitação...",
     "Making it go beep boop.": "Fazendo beep boop.",
     "Manage Auditaria CLI extensions.": "Gerenciar extensões do Auditaria CLI.",
+    "Manage Gemini CLI extensions.": "Gerenciar extensões do Gemini CLI.",
     "Manage MCP servers": "Gerenciar servidores MCP",
     "Manage folder trust settings and other permissions": "Gerenciar configurações de confiança de pastas e outras permissões",
     "Manage folder trust settings. Usage: /permissions trust [<directory-path>]": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<caminho-do-diretório>]",
@@ -482,13 +488,15 @@
     "Painting the serifs back on...": "Pintando as serifas de volta...",
     "Parameters:": "Parâmetros:",
     "Paste Timed out. Possibly due to slow connection.": "Tempo de colagem esgotado. Possivelmente devido a conexão lenta.",
+    "Paste your API key here": "Cole sua chave API aqui",
     "Petting the cat...": "Fazendo carinho no gato...",
     "Please check API key and configuration.": "Por favor, verifique a chave de API e configuração.",
+    "Please enter your Gemini API key. It will be securely stored in your system keychain.": "Por favor, digite sua chave API do Gemini. Ela será armazenada de forma segura no seu chaveiro do sistema.",
     "Please fix the configuration file and try again.": "Por favor, corrija o arquivo de configuração e tente novamente.",
     "Please include at least one extension name to uninstall as a positional argument.": "Por favor, inclua pelo menos um nome de extensão a desinstalar como um argumento posicional.",
     "Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]": "Por favor, forneça um subcomando para /permissions. Uso: /permissions trust [<caminho-do-diretório>]",
     "Please provide at least one path to add.": "Por favor, forneça pelo menos um caminho para adicionar.",
-    "Please restart your terminal for the changes to take effect.": "Por favor, reinicie seu terminal para que as alterações tenham efeito.",
+    "Please restart your terminal for the changes to take effect.": "Por favor, reinicie seu terminal para que as mudanças tenham efeito.",
     "Please try reducing the size of your message or use the `/compress` command to compress the chat history.": "Por favor, tente reduzir o tamanho da sua mensagem ou use o comando `/compress` para comprimir o histórico do chat.",
     "Please visit the following URL to authorize the application:": "Por favor, visite a seguinte URL para autorizar a aplicação:",
     "Poking the bear...": "Cutucando o urso...",
@@ -569,7 +577,7 @@
     "Send message": "Enviar mensagem",
     "Session ID:": "ID da Sessão:",
     "Session Stats": "Estatísticas da Sessão",
-    "Session start time is unavailable, cannot calculate stats.": "Horário de início da sessão não disponível, não é possível calcular estatísticas.",
+    "Session start time is unavailable, cannot calculate stats.": "Horário de início da sessão indisponível, não é possível calcular estatísticas.",
     "Set HTTP headers for SSE and HTTP transports (e.g. -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")": "Definir cabeçalhos HTTP para transportes SSE e HTTP (ex: -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")",
     "Set connection timeout in milliseconds": "Definir tempo limite de conexão em milissegundos",
     "Set environment variables (e.g. -e KEY=value)": "Definir variáveis de ambiente (ex: -e KEY=valor)",
@@ -590,8 +598,10 @@
     "Show Line Numbers": "Mostrar Números de Linha",
     "Show Memory Usage": "Mostrar Uso de Memória",
     "Show all directories in the workspace": "Mostrar todos os diretórios no espaço de trabalho",
+    "Show model-specific usage statistics": "Mostrar estatísticas de uso específicas do modelo",
     "Show model-specific usage statistics.": "Mostrar estatísticas de uso específicas do modelo.",
     "Show the current memory contents.": "Mostrar o conteúdo atual da memória.",
+    "Show tool-specific usage statistics": "Mostrar estatísticas de uso específicas de ferramentas",
     "Show tool-specific usage statistics.": "Mostrar estatísticas de uso específicas das ferramentas.",
     "Shuffling punchlines...": "Embaralhando piadas...",
     "Skip": "Pular",
@@ -653,6 +663,7 @@
     "Toggle auto-accepting edits": "Alternar aceitação automática de edições",
     "Toggle corgi mode.": "Alterna o modo corgi.",
     "Toggle the debug profile display": "Alternar a exibição do perfil de depuração",
+    "Toggle vim mode on/off": "Alternar modo vim ligado/desligado",
     "Toggled profile display.": "Exibição do perfil alternada.",
     "Tokens": "Tokens",
     "Tool": "Ferramenta",
@@ -684,10 +695,12 @@
     "Unable to determine the GitHub repository. /setup-github must be run from a git repository.": "Não foi possível determinar o repositório GitHub. /setup-github deve ser executado de um repositório git.",
     "Uninstalls one or more extensions.": "Desinstala uma ou mais extensões.",
     "Unknown": "Desconhecido",
+    "Unknown platform: .": "Plataforma desconhecida: .",
     "Untangling neural nets...": "Desemaranhando redes neurais...",
     "Up/Down": "Cima/Baixo",
     "Update all extensions.": "Atualizar todas as extensões.",
     "Update successful! The new version will be used on your next run.": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
+    "Update successful\\! The new version will be used on your next run.": "Atualização bem-sucedida\\! A nova versão será usada na sua próxima execução.",
     "Updated extension not found after installation.": "Extensão atualizada não encontrada após a instalação.",
     "Updates all extensions or a named extension to the latest version.": "Atualiza todas as extensões ou uma extensão nomeada para a versão mais recente.",
     "Updating the syntax for reality...": "Atualizando a sintaxe da realidade...",
@@ -705,6 +718,7 @@
     "User Decision Summary": "Resumo de Decisões do Usuário",
     "User Settings": "Configurações do Usuário",
     "User cancelled tool execution.": "Usuário cancelou a execução da ferramenta.",
+    "User does not have a current tier": "Usuário não possui um nível atual",
     "User: ": "Usuário: ",
     "Using:": "Usando:",
     "Using: ": "Usando: ",
@@ -722,14 +736,15 @@
     "Waiting for user confirmation...": "Aguardando confirmação do usuário...",
     "Wall Time:": "Tempo Total:",
     "Warming up the AI hamsters...": "Aquecendo os hamsters da IA...",
-    "Warning: Could not delete temporary warnings file.": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
+    "Warning: Could not delete temporary warnings file.": "Aviso: Não foi possível excluir arquivo temporário de avisos.",
     "Warning: Could not read /etc/os-release to auto-detect Debian/Ubuntu for UID/GID default.": "Aviso: Não foi possível ler /etc/os-release para auto-detectar Debian/Ubuntu para padrão UID/GID.",
     "Warning: You are running Auditaria CLI in the root directory. Your entire folder structure will be used for context. It is strongly recommended to run in a project-specific directory.": "Aviso: Você está executando o Auditaria CLI no diretório raiz. Toda a estrutura de pastas será usada para contexto. É fortemente recomendado executar em um diretório específico do projeto.",
+    "Warning: You are running Gemini CLI in the root directory. Your entire folder structure will be used for context. It is strongly recommended to run in a project-specific directory.": "Aviso: Você está executando Gemini CLI no diretório raiz. Toda a sua estrutura de pastas será usada como contexto. É fortemente recomendado executar em um diretório específico do projeto.",
     "Warp speed engaged...": "Velocidade warp ativada...",
     "Web interface is already running": "Interface web já está rodando",
     "Web interface is not available in this configuration": "Interface web não está disponível nesta configuração",
-    "Web interface is not currently running": "Interface web não está rodando atualmente",
-    "Web interface is not running": "Interface web não está rodando",
+    "Web interface is not currently running": "Interface web não está em execução no momento",
+    "Web interface is not running": "Interface web não está em execução",
     "Web interface stopped": "Interface web parada",
     "Welcome! Select Your Language": "Bem-vindo! Selecione Seu Idioma",
     "What can you do with a broken pencil? Nothing, it's pointless...": "O que você pode fazer com um lápis quebrado? Nada, não tem ponta...",
@@ -758,6 +773,8 @@
     "Yes, allow always for this session": "Sim, permitir sempre para esta sessão",
     "Yes, allow once": "Sim, permitir uma vez",
     "You are running Auditaria CLI in your home directory. It is recommended to run in a project-specific directory.": "Você está executando o Auditaria CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "You are running Gemini CLI in your home directory. It is recommended to run in a project-specific directory.": "Você está executando Gemini CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
+    "You can get an API key from": "Você pode obter uma chave API em",
     "You can provide arguments by name (e.g., --argName=\"value\") or by position.": "Você pode fornecer argumentos por nome (ex: --argName=\"valor\") ou por posição.",
     "You cannot enter YOLO mode since it is disabled in your settings.": "Você não pode entrar no modo YOLO pois ele está desabilitado nas suas configurações.",
     "You have 1 extension with an update available, run \"/extensions list\" for more information.": "Você tem 1 extensão com atualização disponível, execute \"/extensions list\" para mais informações.",
@@ -1161,6 +1178,16 @@
       "flags": ""
     },
     {
+      "pattern": "^✓ (.+)$",
+      "replacement": "✓ $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^✗ (.+)$",
+      "replacement": "✗ $1",
+      "flags": ""
+    },
+    {
       "pattern": "^❌ '(.+)' requires authentication but no OAuth configuration found$",
       "replacement": "❌ '$1' requer autenticação mas nenhuma configuração OAuth foi encontrada",
       "flags": ""
@@ -1277,12 +1304,12 @@
     },
     {
       "pattern": "^Automatic update failed\\. Please try updating manually\\. \\(command: (.+), stderr: (.+)\\)$",
-      "replacement": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: $1, stderr: $2)",
+      "replacement": "Falha na atualização automática. Por favor, tente atualizar manualmente. (comando: $1, stderr: $2)",
       "flags": ""
     },
     {
       "pattern": "^Automatic update failed\\. Please try updating manually\\. \\(error: (.+)\\)$",
-      "replacement": "Atualização automática falhou. Por favor, tente atualizar manualmente. (erro: $1)",
+      "replacement": "Falha na atualização automática. Por favor, tente atualizar manualmente. (erro: $1)",
       "flags": ""
     },
     {
@@ -1996,6 +2023,11 @@
       "flags": ""
     },
     {
+      "pattern": "^High memory usage detected: (.+) GB\\. If you experience a crash, please file a bug report by running /bug$",
+      "replacement": "Alto uso de memória detectado: $1 GB. Se você tiver uma falha, por favor relate o bug executando /bug",
+      "flags": ""
+    },
+    {
       "pattern": "^High memory usage detected: (.+) GB\\. If you experience a crash, please file a bug report by running `/bug`$",
       "replacement": "Alto uso de memória detectado: $1 GB. Se você tiver uma falha, por favor reporte o bug executando `/bug`",
       "flags": ""
@@ -2322,7 +2354,7 @@
     },
     {
       "pattern": "^Please specify a skill name\\. Available skills: (.+)$",
-      "replacement": "Por favor especifique o nome da habilidade. Habilidades disponíveis: $1",
+      "replacement": "Por favor especifique um nome de habilidade. Habilidades disponíveis: $1",
       "flags": ""
     },
     {
@@ -2561,6 +2593,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Theme (.+) not found\\.$",
+      "replacement": "Tema $1 não encontrado.",
+      "flags": ""
+    },
+    {
       "pattern": "^Theme file at \"(.+)\" is outside your home directory\\. Only load themes from trusted sources\\.$",
       "replacement": "Arquivo de tema em \"$1\" está fora do seu diretório home. Carregue apenas temas de fontes confiáveis.",
       "flags": ""
@@ -2656,6 +2693,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Unknown platform: \\$(.+)\\. Attempting to open URLs with: \\$(.+)\\.$",
+      "replacement": "Plataforma desconhecida: $$1. Tentando abrir URLs com: $$2.",
+      "flags": ""
+    },
+    {
       "pattern": "^Unknown skill: (.+)\\. Available skills: (.+)$",
       "replacement": "Habilidade desconhecida: $1. Habilidades disponíveis: $2",
       "flags": ""
@@ -2712,12 +2754,12 @@
     },
     {
       "pattern": "^Web interface is already running on port (.+)$",
-      "replacement": "Interface web já está rodando na porta $1",
+      "replacement": "Interface web já está em execução na porta $1",
       "flags": ""
     },
     {
       "pattern": "^Web interface is running on port (.+) with (.+) connected client\\(s\\)$",
-      "replacement": "Interface web está rodando na porta $1 com $2 cliente(s) conectado(s)",
+      "replacement": "Interface web está em execução na porta $1 com $2 cliente(s) conectado(s)",
       "flags": ""
     },
     {
