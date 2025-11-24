@@ -1,9 +1,9 @@
 {
   "metadata": {
     "version": "1.0",
-    "generated": "2025-11-23T23:09:29.969Z",
-    "exact_count": 848,
-    "pattern_count": 389,
+    "generated": "2025-11-24T00:43:10.815Z",
+    "exact_count": 873,
+    "pattern_count": 411,
     "language_pair": "en-pt"
   },
   "exact": {
@@ -26,11 +26,13 @@
     " (shift + tab to toggle)": " (shift + tab para alternar)",
     " (some lines were shortened)": " (algumas linhas foram encurtadas)",
     " Overall Agreement Rate:": " Taxa Geral de Concordância:",
+    " already exists. Do you want to overwrite it?": " já existe. Deseja sobrescrevê-lo?",
     " and ": " e ",
     " » Accepted:": " » Aceitas:",
     " » Modified:": " » Modificadas:",
     " » Rejected:": " » Rejeitadas:",
-    "% context left": "% contexto restante",
+    "%": "%",
+    "% context left": "% de contexto restante",
     "(Command produced no output)": "(Comando não produziu saída)",
     "(Deprecated)": "(Obsoleto)",
     "(F12 for details)": "(F12 para detalhes)",
@@ -49,8 +51,8 @@
     ", Esc to cancel": ", Esc para cancelar",
     ", Tab to change focus": ", Tab para mudar o foco",
     ", Tab to change focus)": ", Tab para mudar o foco)",
-    "- Ctrl+Enter binding already exists": "- Atalho Ctrl+Enter já existe",
-    "- Shift+Enter binding already exists": "- Atalho Shift+Enter já existe",
+    "- Ctrl+Enter binding already exists": "- Vinculação Ctrl+Enter já existe",
+    "- Shift+Enter binding already exists": "- Vinculação Shift+Enter já existe",
     "--ref and --auto-update are not applicable for local extensions.": "--ref e --auto-update não são aplicáveis para extensões locais.",
     "... first {count} line{plural} hidden ...": "... primeiras {count} linha{plural} oculta{plural} ...",
     "... last {count} line{plural} hidden ...": "... últimas {count} linha{plural} oculta{plural} ...",
@@ -58,6 +60,7 @@
     "2. Be specific for the best results.": "2. Seja específico para obter melhores resultados.",
     "> To use a specific Gemini model on startup, use the --model flag.": "> Para usar um modelo Gemini específico ao iniciar, use a flag --model.",
     "A GEMINI.md file already exists in this directory. No changes were made.": "Um arquivo GEMINI.md já existe neste diretório. Nenhuma alteração foi feita.",
+    "A checkpoint with the tag ": "Um ponto de verificação com a tag ",
     "A comma-separated list of tools to exclude": "Uma lista separada por vírgulas de ferramentas para excluir",
     "A comma-separated list of tools to include": "Uma lista separada por vírgulas de ferramentas para incluir",
     "A custom command wants to run the following shell commands:": "Um comando personalizado quer executar os seguintes comandos shell:",
@@ -74,7 +77,7 @@
     "Add a server": "Adicionar um servidor",
     "Add content to the memory.": "Adicionar conteúdo à memória.",
     "Add context": "Adicionar contexto",
-    "Add directories to the workspace. Use comma to separate multiple paths": "Adicionar diretórios ao espaço de trabalho. Use vírgula para separar múltiplos caminhos",
+    "Add directories to the workspace. Use comma to separate multiple paths": "Adicionar diretórios ao workspace. Use vírgula para separar vários caminhos",
     "Agent Active:": "Agente Ativo:",
     "Agent powering down. Goodbye!": "Agente desligando. Tchau!",
     "Agent powering down. Goodbye\\!": "Agente desligando. Até logo\\!",
@@ -143,6 +146,7 @@
     "Citations:": "Citações:",
     "Clear the screen": "Limpar a tela",
     "Client error.": "Erro do cliente.",
+    "Cloud Shell": "Cloud Shell",
     "Code Changes:": "Alterações de Código:",
     "CodeAssist server is missing a project ID": "Servidor CodeAssist está sem um ID de projeto",
     "Command (stdio) or URL (sse, http)": "Comando (stdio) ou URL (sse, http)",
@@ -159,7 +163,7 @@
     "Config not loaded.": "Configuração não carregada.",
     "Configuration is not available.": "Configuração não está disponível.",
     "Configuration not available.": "Configuração não disponível.",
-    "Configuration not available. Cannot show memory.": "Configuração não disponível. Não é possível mostrar a memória.",
+    "Configuration not available. Cannot show memory.": "Configuração não disponível. Não é possível mostrar memória.",
     "Configuration scope (user or project)": "Escopo de configuração (usuário ou projeto)",
     "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)": "Configurar atalhos do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
     "Configured MCP servers:": "Servidores MCP configurados:",
@@ -193,6 +197,7 @@
     "Ctrl+X / Meta+Enter": "Ctrl+X / Meta+Enter",
     "Ctrl+Y": "Ctrl+Y",
     "Current Level:": "Nível Atual:",
+    "Current combined memory content:\\n": "Conteúdo de memória combinado atual:\\n",
     "Custom": "Personalizado",
     "Custom Witty Phrases": "Frases Espirituosas Personalizadas",
     "Custom witty phrases to display during loading.": "Frases espirituosas personalizadas para exibir durante o carregamento.",
@@ -201,6 +206,7 @@
     "Data collection is disabled.": "A coleta de dados está desabilitada.",
     "Debug Console": "Console de Debug",
     "Defragmenting memories... both RAM and personal...": "Desfragmentando memórias... tanto RAM quanto pessoais...",
+    "Delete a conversation checkpoint. Usage: /chat delete <tag>": "Excluir um ponto de verificação de conversa. Uso: /chat delete <tag>",
     "Disable Auto Update": "Desabilitar Atualização Automática",
     "Disable Loading Phrases": "Desabilitar Frases de Carregamento",
     "Disable loop detection for this session": "Desabilitar detecção de loop para esta sessão",
@@ -251,7 +257,7 @@
     "Errors": "Erros",
     "Esc": "Esc",
     "Existing API key detected (GEMINI_API_KEY). Select \"Gemini API Key\" option to use it.": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
-    "Existing keybindings detected. Will not modify to avoid conflicts.": "Atalhos de teclado existentes detectados. Não será modificado para evitar conflitos.",
+    "Existing keybindings detected. Will not modify to avoid conflicts.": "Vinculações de teclas existentes detectadas. Não será modificado para evitar conflitos.",
     "Exit the cli": "Sair do cli",
     "Exited Vim mode.": "Modo Vim desativado.",
     "Exiting due to a confirmation prompt requested by the command.": "Saindo devido a uma solicitação de confirmação pelo comando.",
@@ -260,7 +266,7 @@
     "Extension cannot be updated because it is missing the .gemini-extension-install.json file. To update manually, uninstall and then reinstall the updated version.": "A extensão não pode ser atualizada porque está faltando o arquivo .gemini-extension-install.json. Para atualizar manualmente, desinstale e reinstale a versão atualizada.",
     "Extension is linked so does not need to be updated": "A extensão está vinculada e não precisa ser atualizada",
     "Extension not found.": "Extensão não encontrada.",
-    "Extension validation failed.": "Validação da extensão falhou.",
+    "Extension validation failed.": "Falha na validação da extensão.",
     "Extensions may introduce unexpected behavior.": "Extensões podem introduzir comportamento inesperado.",
     "F12 to close": "F12 para fechar",
     "Failed to authenticate with user code.": "Falha ao autenticar com código de usuário.",
@@ -277,8 +283,9 @@
     "Failed to load available languages. Using defaults.": "Falha ao carregar idiomas disponíveis. Usando padrões.",
     "Failed to open browser.": "Falha ao abrir navegador.",
     "Failed to read content of file.": "Falha ao ler conteúdo do arquivo.",
-    "Failed to save language setting. Please try again.": "Falha ao salvar configuração de idioma. Tente novamente.",
+    "Failed to save language setting. Please try again.": "Falha ao salvar configuração de idioma. Por favor, tente novamente.",
     "Failed to save trust settings. Exiting Auditoria CLI.": "Falha ao salvar configurações de confiança. Encerrando Auditoria CLI.",
+    "Failed to save trust settings. Exiting Gemini CLI.": "Falha ao salvar configurações de confiança. Saindo do Gemini CLI.",
     "Failed to save trust settings. Your changes may not persist.": "Falha ao salvar configurações de confiança. Suas alterações podem não persistir.",
     "Fallback disabled - will stay on Gemini Pro even if rate limited": "Fallback desabilitado - permanecerá no Gemini Pro mesmo se limitado por taxa",
     "Fallback enabled - will switch to Flash if Pro is rate limited": "Fallback habilitado - mudará para Flash se Pro estiver limitado por taxa",
@@ -304,10 +311,13 @@
     "GEMINI_API_KEY not found. Find your existing key or generate a new one at: https://aistudio.google.com/apikey\n\nTo continue, please set the GEMINI_API_KEY environment variable or add it to a .env file.": "GEMINI_API_KEY não encontrada. Encontre sua chave existente ou gere uma nova em: https://aistudio.google.com/apikey\n\nPara continuar, por favor defina a variável de ambiente GEMINI_API_KEY ou adicione-a a um arquivo .env.",
     "GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX": "GEMINI_SANDBOX é true mas falhou ao determinar comando para sandbox; instale docker ou podman ou especifique o comando em GEMINI_SANDBOX",
     "Garbage collecting... be right back...": "Coletando lixo... já volto...",
-    "Gemini API Key": "Chave API Gemini",
+    "Gemini API Key": "Chave API do Gemini",
     "Gemini API Key Notice": "Aviso da Chave API Gemini",
     "Gemini CLI Companion extension not found. Install via /ide install and restart the CLI in a fresh terminal window.": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
     "Gemini CLI is restarting to apply the trust changes...": "Gemini CLI está reiniciando para aplicar as mudanças de confiança...",
+    "Gemini Code Assist (Google Workspace)": "Gemini Code Assist (Google Workspace)",
+    "Gemini Code Assist Enterprise (Google Workspace)": "Gemini Code Assist Enterprise (Google Workspace)",
+    "Gemini Code Assist Standard (Google Workspace)": "Gemini Code Assist Standard (Google Workspace)",
     "Gemini Code Assist for Individuals Privacy Notice": "Aviso de Privacidade do Gemini Code Assist para Indivíduos",
     "Generating witty retort...": "Gerando réplica espirituosa...",
     "Get started": "Começar",
@@ -354,6 +364,7 @@
     "Installs an extension from a git repository URL or a local path.": "Instala uma extensão de um repositório git URL ou de um caminho local.",
     "Interaction Summary": "Resumo da Interação",
     "Invalid auth method selected.": "Método de autenticação inválido selecionado.",
+    "Invalid file format. Only .md and .json are supported.": "Formato de arquivo inválido. Apenas .md e .json são suportados.",
     "Invalid proxy configuration detected. Check debug drawer for more details (F12)": "Configuração de proxy inválida detectada. Verifique a gaveta de depuração para mais detalhes (F12)",
     "Is this the real life? Is this just fantasy?...": "Isso é vida real? Isso é só fantasia?...",
     "It's not a bug, it's a feature... of this loading screen.": "Não é um bug, é um recurso... desta tela de carregamento.",
@@ -400,13 +411,16 @@
     "Loop detected:": "Loop detectado:",
     "Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.": "Confirmação de detecção de loop necessária. Por favor, escolha se deseja manter ou desativar a detecção de loop no terminal CLI.",
     "Loop detection has been disabled for this session. Retrying request...": "A detecção de loop foi desabilitada para esta sessão. Repetindo solicitação...",
+    "List saved conversation checkpoints": "Listar pontos de verificação de conversa salvos",
     "Making it go beep boop.": "Fazendo beep boop.",
     "Manage Auditaria CLI extensions.": "Gerenciar extensões do Auditaria CLI.",
     "Manage Gemini CLI extensions.": "Gerenciar extensões do Gemini CLI.",
     "Manage MCP servers": "Gerenciar servidores MCP",
+    "Manage conversation history": "Gerenciar histórico de conversas",
+    "Manage extensions": "Gerenciar extensões",
     "Manage folder trust settings and other permissions": "Gerenciar configurações de confiança de pastas e outras permissões",
     "Manage folder trust settings. Usage: /permissions trust [<directory-path>]": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<caminho-do-diretório>]",
-    "Manage workspace directories": "Gerenciar diretórios do espaço de trabalho",
+    "Manage workspace directories": "Gerenciar diretórios do workspace",
     "Max Session Turns": "Turnos Máximos da Sessão",
     "Memory Discovery Max Dirs": "Diretórios Máximos de Descoberta de Memória",
     "Memory is currently empty.": "A memória está atualmente vazia.",
@@ -414,6 +428,9 @@
     "Metric": "Métrica",
     "Migration complete. To see changes, Auditaria CLI must be restarted. Press 'q' to quit.": "Migração concluída. Para ver as mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
     "Mining for more Dilithium crystals...": "Minerando mais cristais de Dilithium...",
+    "Missing tag. Usage: /chat delete <tag>": "Tag ausente. Uso: /chat delete <tag>",
+    "Missing tag. Usage: /chat resume <tag>": "Tag ausente. Uso: /chat resume <tag>",
+    "Missing tag. Usage: /chat save <tag>": "Tag ausente. Uso: /chat save <tag>",
     "Model": "Modelo",
     "Model Context Protocol command (from external servers)": "Comando do Model Context Protocol (de servidores externos)",
     "Model Stats For Nerds": "Estatísticas do Modelo Para Nerds",
@@ -443,10 +460,14 @@
     "No changes detected.": "Nenhuma mudança detectada.",
     "No changes required. The file already meets the specified conditions.": "Nenhuma alteração necessária. O arquivo já atende às condições especificadas.",
     "No changes to apply. The old_string and new_string are identical.": "Sem alterações para aplicar. A old_string e new_string são idênticas.",
+    "No chat client available to save conversation.": "Nenhum cliente de chat disponível para salvar a conversa.",
+    "No chat client available to share conversation.": "Nenhum cliente de chat disponível para compartilhar a conversa.",
+    "No conversation found to save.": "Nenhuma conversa encontrada para salvar.",
+    "No conversation found to share.": "Nenhuma conversa encontrada para compartilhar.",
     "No diff content.": "Sem conteúdo de diff.",
     "No extensions installed.": "Nenhuma extensão instalada.",
     "No extensions to update.": "Nenhuma extensão para atualizar.",
-    "No hierarchical memory (GEMINI.md or other context files) is currently loaded.": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está atualmente carregada.",
+    "No hierarchical memory (GEMINI.md or other context files) is currently loaded.": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está carregada atualmente.",
     "No input provided via stdin. Input can be provided by piping data into auditaria or using the --prompt option.": "Nenhuma entrada fornecida via stdin. A entrada pode ser fornecida canalizando dados para o auditaria ou usando a opção --prompt.",
     "No installer available for your configured IDE.": "Nenhum instalador disponível para seu IDE configurado.",
     "No language files found. Please ensure translation files are available.": "Nenhum arquivo de idioma encontrado. Certifique-se de que os arquivos de tradução estejam disponíveis.",
@@ -458,7 +479,7 @@
     "No tools available": "Nenhuma ferramenta disponível",
     "No tools or prompts available": "Nenhuma ferramenta ou prompt disponível",
     "No www-authenticate header in error, trying to fetch it from server...": "Nenhum cabeçalho www-authenticate no erro, tentando buscar do servidor...",
-    "No, don't ask again": "Não, não pergunte novamente",
+    "No, don't ask again": "Não, não perguntar novamente",
     "No, suggest changes (esc)": "Não, sugerir mudanças (esc)",
     "None": "Nenhum",
     "Not Set": "Não Definido",
@@ -466,7 +487,7 @@
     "Note: This folder behaves as a trusted folder because one of the parent folders is trusted. It will remain trusted even if you set a different trust level here. To change this, you need to modify the trust setting in the parent folder.": "Nota: Esta pasta se comporta como uma pasta confiável porque uma das pastas pai é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui. Para alterar isso, você precisa modificar a configuração de confiança na pasta pai.",
     "Note: This folder behaves as a trusted folder because the connected IDE workspace is trusted. It will remain trusted even if you set a different trust level here.": "Nota: Esta pasta se comporta como uma pasta confiável porque o workspace da IDE conectada é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui.",
     "Note: This folder is still trusted because a parent folder is trusted.": "Nota: Esta pasta ainda é confiável porque uma pasta pai é confiável.",
-    "Note: This folder is still trusted because the connected IDE workspace is trusted.": "Nota: Esta pasta ainda é confiável porque o workspace IDE conectado é confiável.",
+    "Note: This folder is still trusted because the connected IDE workspace is trusted.": "Nota: Esta pasta ainda é confiável porque o espaço de trabalho do IDE conectado é confiável.",
     "Note: You can always use /model to select a different option.": "Nota: Você sempre pode usar /model para selecionar uma opção diferente.",
     "Nothing to compress.": "Nada para comprimir.",
     "OAuth state mismatch. Possible CSRF attack or browser session issue.": "Estado OAuth não confere. Possível ataque CSRF ou problema de sessão do navegador.",
@@ -493,7 +514,7 @@
     "Please check API key and configuration.": "Por favor, verifique a chave de API e configuração.",
     "Please enter your Gemini API key. It will be securely stored in your system keychain.": "Por favor, digite sua chave API do Gemini. Ela será armazenada de forma segura no seu chaveiro do sistema.",
     "Please fix the configuration file and try again.": "Por favor, corrija o arquivo de configuração e tente novamente.",
-    "Please include at least one extension name to uninstall as a positional argument.": "Por favor, inclua pelo menos um nome de extensão a desinstalar como um argumento posicional.",
+    "Please include at least one extension name to uninstall as a positional argument.": "Por favor, inclua pelo menos um nome de extensão para desinstalar como argumento posicional.",
     "Please provide a subcommand for /permissions. Usage: /permissions trust [<directory-path>]": "Por favor, forneça um subcomando para /permissions. Uso: /permissions trust [<caminho-do-diretório>]",
     "Please provide at least one path to add.": "Por favor, forneça pelo menos um caminho para adicionar.",
     "Please restart your terminal for the changes to take effect.": "Por favor, reinicie seu terminal para que as mudanças tenham efeito.",
@@ -557,6 +578,7 @@
     "Restarting MCP servers...": "Reiniciando servidores MCP...",
     "Restarts MCP servers.": "Reinicia os servidores MCP.",
     "Restored project to the state before the tool call.": "Projeto restaurado para o estado antes da chamada da ferramenta.",
+    "Resume a conversation from a checkpoint. Usage: /chat resume <tag>": "Retomar uma conversa de um ponto de verificação. Uso: /chat resume <tag>",
     "Reticulating splines...": "Reticulando splines...",
     "Retrying...\n": "Tentando novamente...\n",
     "Rewiring the synapses...": "Religando as sinapses...",
@@ -566,6 +588,7 @@
     "SANDBOX_ENV must be a comma-separated list of key=value pairs": "SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
     "Sanitized tag is empty setting to \"default\".": "Tag sanitizada está vazia definindo como \"default\".",
     "Save and close external editor to continue": "Salve e feche o editor externo para continuar",
+    "Save the current conversation as a checkpoint. Usage: /chat save <tag>": "Salvar a conversa atual como ponto de verificação. Uso: /chat save <tag>",
     "Savings Highlight:": "Destaque de Economia:",
     "Scopes must be provided in the oauth config for Google Credentials provider (or enable allow_unscoped_id_tokens_for_cloud_run to use ID tokens for Cloud Run endpoints)": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials (ou habilite allow_unscoped_id_tokens_for_cloud_run para usar tokens de ID para endpoints Cloud Run)",
     "Scroll page up/down": "Rolar página para cima/baixo",
@@ -590,14 +613,15 @@
     "Shell Command": "Comando Shell",
     "Shell Command Execution": "Execução de Comando Shell",
     "Shell command confirmation required. Please respond in the CLI terminal.": "Confirmação de comando shell necessária. Por favor, responda no terminal do CLI.",
-    "Shell commands cannot be queued": "Comandos shell não podem ser enfileirados",
-    "Shell mode": "Modo shell",
+    "Shell commands cannot be queued": "Comandos Shell não podem ser enfileirados",
+    "Shell mode": "Modo Shell",
     "Shift+Tab": "Shift+Tab",
     "Shipping awesomeness... ": "Enviando excelência... ",
+    "Share the current conversation to a markdown or json file. Usage: /chat share <file>": "Compartilhar a conversa atual em um arquivo markdown ou json. Uso: /chat share <file>",
     "Show Citations": "Mostrar Citações",
     "Show Line Numbers": "Mostrar Números de Linha",
     "Show Memory Usage": "Mostrar Uso de Memória",
-    "Show all directories in the workspace": "Mostrar todos os diretórios no espaço de trabalho",
+    "Show all directories in the workspace": "Mostrar todos os diretórios no workspace",
     "Show model-specific usage statistics": "Mostrar estatísticas de uso específicas do modelo",
     "Show model-specific usage statistics.": "Mostrar estatísticas de uso específicas do modelo.",
     "Show the current memory contents.": "Mostrar o conteúdo atual da memória.",
@@ -607,7 +631,7 @@
     "Skip": "Pular",
     "Skip Next Speaker Check": "Pular Verificação do Próximo Orador",
     "Slapping the bass...": "Tocando o contrabaixo...",
-    "Slash commands cannot be queued": "Comandos slash não podem ser enfileirados",
+    "Slash commands cannot be queued": "Comandos Slash não podem ser enfileirados",
     "So say we all...": "Assim dizemos todos nós...",
     "Spinning up the hamster wheel...": "Girando a roda do hamster...",
     "Starting web interface...": "Iniciando interface web...",
@@ -627,7 +651,7 @@
     "That's not a bug, it's an undocumented feature...": "Isso não é um bug, é um recurso não documentado...",
     "The 'file_path' parameter must be non-empty.": "O parâmetro 'file_path' não pode estar vazio.",
     "The --prompt (-p) flag has been deprecated and will be removed in a future version. Please use a positional argument for your prompt. See gemini --help for more information.\n": "A flag --prompt (-p) foi descontinuada e será removida em uma versão futura. Por favor, use um argumento posicional para o seu prompt. Veja gemini --help para mais informações.\n",
-    "The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.": "O comando /directory add não é suportado em perfis de sandbox restritivos. Por favor, use --include-directories ao iniciar a sessão.",
+    "The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.": "O comando /directory add não é suportado em perfis de sandbox restritivos. Use --include-directories ao iniciar a sessão.",
     "The boilerplate template to use.": "O modelo de exemplo para usar.",
     "The cake is not a lie, it's just still loading...": "O bolo não é mentira, só está carregando ainda...",
     "The extension definition will remain in your workspace directory.": "A definição da extensão permanecerá no diretório do seu workspace.",
@@ -635,13 +659,13 @@
     "The following extensions failed to migrate. Please try installing them manually. To see other changes, Auditaria CLI must be restarted. Press 'q' to quit.": "As seguintes extensões falharam ao migrar. Por favor, tente instalá-las manualmente. Para ver outras mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
     "The git ref to install from.": "A referência git para instalar.",
     "The github URL or local path of the extension to install.": "A URL do github ou caminho local da extensão a instalar.",
-    "The name of the extension to disable.": "O nome da extensão para desabilitar.",
+    "The name of the extension to disable.": "O nome da extensão a desabilitar.",
     "The name of the extension to enable.": "O nome da extensão para habilitar.",
     "The name of the extension to link.": "O nome da extensão para vincular.",
     "The name of the extension to update.": "O nome da extensão a atualizar.",
     "The name(s) or source path(s) of the extension(s) to uninstall.": "O(s) nome(s) ou caminho(s) de origem da(s) extensão(ões) a desinstalar.",
     "The number of lines to keep when truncating tool output.": "O número de linhas a manter ao truncar a saída da ferramenta.",
-    "The path of the extension to validate.": "O caminho da extensão para validar.",
+    "The path of the extension to validate.": "O caminho da extensão a validar.",
     "The path to create the extension in.": "O caminho para criar a extensão.",
     "The scope to disable the extension in.": "O escopo para desabilitar a extensão.",
     "The scope to enable the extension in. If not set, will be enabled in all scopes.": "O escopo para habilitar a extensão. Se não definido, será habilitado em todos os escopos.",
@@ -653,6 +677,7 @@
     "These editors are currently supported. Please note that some editors cannot be used in sandbox mode.": "Estes editores são atualmente suportados. Note que alguns editores não podem ser usados no modo sandbox.",
     "This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?": "Isto pode acontecer devido a chamadas repetitivas de ferramentas ou outro comportamento do modelo. Você deseja manter a detecção de loop habilitada ou desabilitá-la para esta sessão?",
     "This extension will run the following MCP servers:": "Esta extensão executará os seguintes servidores MCP:",
+    "This folder is not trusted. Some features may be disabled. Use the  command to change the trust level.": "Esta pasta não é confiável. Alguns recursos podem estar desabilitados. Use o comando  para alterar o nível de confiança.",
     "This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level.": "Esta pasta não é confiável. Alguns recursos podem estar desabilitados. Use o comando `/permissions` para alterar o nível de confiança.",
     "Thoughts": "Pensamentos",
     "Tips for getting started:": "Dicas para começar:",
@@ -702,7 +727,7 @@
     "Update successful! The new version will be used on your next run.": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
     "Update successful\\! The new version will be used on your next run.": "Atualização bem-sucedida\\! A nova versão será usada na sua próxima execução.",
     "Updated extension not found after installation.": "Extensão atualizada não encontrada após a instalação.",
-    "Updates all extensions or a named extension to the latest version.": "Atualiza todas as extensões ou uma extensão nomeada para a versão mais recente.",
+    "Updates all extensions or a named extension to the latest version.": "Atualiza todas as extensões ou uma extensão específica para a versão mais recente.",
     "Updating the syntax for reality...": "Atualizando a sintaxe da realidade...",
     "Usage: /extensions update <extension-names>|--all": "Uso: /extensions update <nomes-das-extensões>|--all",
     "Usage: /memory add <text to remember>": "Uso: /memory add <texto para lembrar>",
@@ -759,14 +784,14 @@
     "Why don't programmers like nature? It has too many bugs...": "Por que programadores não gostam da natureza? Tem muitos bugs...",
     "Workflows downloaded successfully.": "Workflows baixados com sucesso.",
     "Workflows downloaded successfully. Follow steps in https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (skipping the /setup-github step) to complete setup.": "Workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
-    "Workspace Settings": "Configurações do Espaço de Trabalho",
+    "Workspace Settings": "Configurações do Workspace",
     "Workspace trust has changed due to a change in the IDE connection.": "A confiança do workspace mudou devido a uma mudança na conexão com o IDE.",
     "Workspace trust has changed due to a change in the IDE trust.": "A confiança do workspace mudou devido a uma mudança na confiança do IDE.",
     "Workspace trust has changed.": "A confiança do workspace mudou.",
     "Workspace trust has changed. Press 'r' to restart Auditaria to apply the changes.": "A confiança do workspace foi alterada. Pressione 'r' para reiniciar o Auditaria e aplicar as alterações.",
     "Workspace-level extensions are deprecated": "Extensões de nível de workspace estão obsoletas",
     "Would you like to install them at the user level?": "Gostaria de instalá-las no nível do usuário?",
-    "YOLO mode": "modo YOLO",
+    "YOLO mode": "Modo YOLO",
     "Yes": "Sim",
     "Yes, allow always": "Sim, permitir sempre",
     "Yes, allow always ...": "Sim, permitir sempre ...",
@@ -839,7 +864,7 @@
     "stopping proxy container ...": "parando container proxy ...",
     "submit a bug report": "enviar relatório de bug",
     "summarize": "resumir",
-    "switch between Gemini Pro and Flash models": "alternar entre modelos Gemini Pro e Flash",
+    "switch between Gemini Pro and Flash models": "alternar entre os modelos Gemini Pro e Flash",
     "toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)": "alternar entre estratégia de fallback melhorada (7 tentativas, atrasos de 2s, reset para Pro) e comportamento original do Google (2 tentativas, backoff exponencial)",
     "toggle vim mode on/off": "alternar modo vim ligado/desligado",
     "toggle whether to stay on Pro model (disable/enable fallback to Flash)": "alternar se deve permanecer no modelo Pro (desabilitar/habilitar fallback para Flash)",
@@ -949,7 +974,7 @@
     },
     {
       "pattern": "^(.+) keybindings already configured\\.$",
-      "replacement": "Atalhos de teclado do $1 já configurados.",
+      "replacement": "Vinculações de teclas do $1 já configuradas.",
       "flags": ""
     },
     {
@@ -1238,6 +1263,11 @@
       "flags": ""
     },
     {
+      "pattern": "^A new version of Gemini CLI is available! (.+) → (.+)$",
+      "replacement": "Uma nova versão do Gemini CLI está disponível! $1 → $2",
+      "flags": ""
+    },
+    {
       "pattern": "^Absolute path is outside of the allowed workspace: (.+)$",
       "replacement": "Caminho absoluto está fora do workspace permitido: $1",
       "flags": ""
@@ -1255,6 +1285,11 @@
     {
       "pattern": "^Added Shift\\+Enter and Ctrl\\+Enter keybindings to (.+)\\.\nModified: (.+)$",
       "replacement": "Adicionados atalhos Shift+Enter e Ctrl+Enter ao $1.\nModificado: $2",
+      "flags": ""
+    },
+    {
+      "pattern": "^Added Shift\\+Enter and Ctrl\\+Enter keybindings to (.+)\\.\\\\nModified: (.+)$",
+      "replacement": "Adicionadas vinculações Shift+Enter e Ctrl+Enter ao $1.\\nModificado: $2",
       "flags": ""
     },
     {
@@ -1328,6 +1363,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Cannot resume chat\\. It was saved with a different authentication method \\((.+)\\) than the current one \\((.+)\\)\\.$",
+      "replacement": "Não é possível retomar o chat. Ele foi salvo com um método de autenticação diferente ($1) do atual ($2).",
+      "flags": ""
+    },
+    {
       "pattern": "^Chat history compressed from (.+) to (.+) tokens\\.$",
       "replacement": "Histórico do chat comprimido de $1 para $2 tokens.",
       "flags": ""
@@ -1398,6 +1438,21 @@
       "flags": ""
     },
     {
+      "pattern": "^Conversation checkpoint '(.+)' has been deleted\\.$",
+      "replacement": "Ponto de verificação da conversa '$1' foi excluído.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Conversation checkpoint saved with tag: (.+)\\.$",
+      "replacement": "Ponto de verificação da conversa salvo com a tag: $1.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Conversation shared to (.+)$",
+      "replacement": "Conversa compartilhada em $1",
+      "flags": ""
+    },
+    {
       "pattern": "^Could not authenticate using metadata server application default credentials\\. Please select a different authentication method or ensure you are in a properly configured environment\\. Error: (.+)$",
       "replacement": "Não foi possível autenticar usando credenciais padrão do aplicativo do servidor de metadados. Selecione um método de autenticação diferente ou certifique-se de estar em um ambiente configurado corretamente. Erro: $1",
       "flags": ""
@@ -1463,6 +1518,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Current workspace directories:\\\\n(.+)$",
+      "replacement": "Diretórios do workspace atuais:\\n$1",
+      "flags": ""
+    },
+    {
       "pattern": "^Custom command from (.+)$",
       "replacement": "Comando personalizado de $1",
       "flags": ""
@@ -1490,6 +1550,11 @@
     {
       "pattern": "^Do you want to connect (.+) editor to Auditaria CLI\\?$",
       "replacement": "Você deseja conectar o editor $1 ao Auditaria CLI?",
+      "flags": ""
+    },
+    {
+      "pattern": "^Do you want to connect (.+) to Auditaria CLI\\?$",
+      "replacement": "Você deseja conectar $1 ao Auditaria CLI?",
       "flags": ""
     },
     {
@@ -1603,6 +1668,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Error sharing conversation: (.+)$",
+      "replacement": "Erro ao compartilhar conversa: $1",
+      "flags": ""
+    },
+    {
       "pattern": "^Error updating extension, rolling back\\. (.+)$",
       "replacement": "Erro ao atualizar extensão, revertendo. $1",
       "flags": ""
@@ -1673,6 +1743,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Error: No checkpoint found with tag '(.+)'\\.$",
+      "replacement": "Erro: Nenhum ponto de verificação encontrado com a tag '$1'.",
+      "flags": ""
+    },
+    {
       "pattern": "^ERROR: path '(.+)' listed in SANDBOX_MOUNTS must be absolute$",
       "replacement": "ERRO: caminho '$1' listado em SANDBOX_MOUNTS deve ser absoluto",
       "flags": ""
@@ -1718,6 +1793,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Extension \"(.+)\" is already up to date\\.$",
+      "replacement": "Extensão \"$1\" já está atualizada.",
+      "flags": ""
+    },
+    {
       "pattern": "^Extension \"(.+)\" linked successfully and enabled\\.$",
       "replacement": "Extensão \"$1\" vinculada com sucesso e habilitada.",
       "flags": ""
@@ -1728,8 +1808,13 @@
       "flags": ""
     },
     {
+      "pattern": "^Extension \"(.+)\" not found\\.$",
+      "replacement": "Extensão \"$1\" não encontrada.",
+      "flags": ""
+    },
+    {
       "pattern": "^Extension \"(.+)\" successfully disabled for scope \"(.+)\"\\.$",
-      "replacement": "Extensão \"$1\" desabilitada com sucesso para o escopo \"$2\".",
+      "replacement": "Extensão \"$1\" desabilitada com sucesso para escopo \"$2\".",
       "flags": ""
     },
     {
@@ -1779,7 +1864,7 @@
     },
     {
       "pattern": "^Failed to apply language \"(.+)\"\\. Please try again\\.$",
-      "replacement": "Falha ao aplicar idioma \"$1\". Tente novamente.",
+      "replacement": "Falha ao aplicar idioma \"$1\". Por favor, tente novamente.",
       "flags": ""
     },
     {
@@ -1803,6 +1888,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Failed to configure (.+)\\.\\\\nFile: (.+)\\\\nError: (.+)$",
+      "replacement": "Falha ao configurar $1.\\nArquivo: $2\\nErro: $3",
+      "flags": ""
+    },
+    {
       "pattern": "^Failed to configure terminal: (.+)$",
       "replacement": "Falha ao configurar terminal: $1",
       "flags": ""
@@ -1820,6 +1910,11 @@
     {
       "pattern": "^Failed to connect with OAuth token: (.+)$",
       "replacement": "Falha ao conectar com token OAuth: $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Failed to copy to the clipboard\\. (.+)$",
+      "replacement": "Falha ao copiar para a área de transferência. $1",
       "flags": ""
     },
     {
@@ -2008,6 +2103,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Gemini CLI update available! (.+) → (.+)$",
+      "replacement": "Atualização do Gemini CLI disponível! $1 → $2",
+      "flags": ""
+    },
+    {
       "pattern": "^Google OAuth error: (.+)\\. (.+)$",
       "replacement": "Erro OAuth do Google: $1. $2",
       "flags": ""
@@ -2044,12 +2144,12 @@
     },
     {
       "pattern": "^If you select Yes, the CLI will have access to your open files and display diffs directly in (.+)\\.$",
-      "replacement": "Se você selecionar Sim, o CLI terá acesso aos seus arquivos abertos e exibirá diffs diretamente no $1.",
+      "replacement": "Se você selecionar Sim, o CLI terá acesso aos seus arquivos abertos e exibirá diffs diretamente em $1.",
       "flags": ""
     },
     {
       "pattern": "^If you select Yes, we'll install an extension that allows the CLI to access your open files and display diffs directly in (.+)\\.$",
-      "replacement": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no $1.",
+      "replacement": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente em $1.",
       "flags": ""
     },
     {
@@ -2144,7 +2244,7 @@
     },
     {
       "pattern": "^Loaded memory from (.+) (.+) file(.+)\\.$",
-      "replacement": "Memória carregada de $1 arquivo$3 $2.",
+      "replacement": "Memória carregada de $1 arquivo$2 $3.",
       "flags": ""
     },
     {
@@ -2265,6 +2365,11 @@
     {
       "pattern": "^No MCP servers configured\\. Please view MCP documentation in your browser: (.+) or use the cli /docs command$",
       "replacement": "Nenhum servidor MCP configurado. Por favor, visualize a documentação MCP no seu navegador: $1 ou use o comando /docs",
+      "flags": ""
+    },
+    {
+      "pattern": "^No saved checkpoint found with tag: (.+)\\.$",
+      "replacement": "Nenhum ponto de verificação salvo encontrado com a tag: $1.",
       "flags": ""
     },
     {
@@ -2503,8 +2608,18 @@
       "flags": ""
     },
     {
+      "pattern": "^Successfully added directories:\\\\n- (.+)$",
+      "replacement": "Diretórios adicionados com sucesso:\\n- $1",
+      "flags": ""
+    },
+    {
       "pattern": "^Successfully added GEMINI\\.md files from the following directories if there are:\n- (.+)$",
       "replacement": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\n- $1",
+      "flags": ""
+    },
+    {
+      "pattern": "^Successfully added GEMINI\\.md files from the following directories if there are:\\\\n- (.+)$",
+      "replacement": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\\n- $1",
       "flags": ""
     },
     {
@@ -2569,7 +2684,7 @@
     },
     {
       "pattern": "^The following context files referenced in gemini-extension\\.json are missing: (.+)$",
-      "replacement": "Os seguintes arquivos de contexto referenciados em gemini-extension.json estão faltando: $1",
+      "replacement": "Os seguintes arquivos de contexto referenciados em gemini-extension.json estão ausentes: $1",
       "flags": ""
     },
     {
@@ -2578,8 +2693,18 @@
       "flags": ""
     },
     {
+      "pattern": "^The following directories are already in the workspace:\\\\n- (.+)$",
+      "replacement": "Os seguintes diretórios já estão no workspace:\\n- $1",
+      "flags": ""
+    },
+    {
       "pattern": "^The following directories are explicitly untrusted and cannot be added to a trusted workspace:\n- (.+)\nPlease use the permissions command to modify their trust level\\.$",
       "replacement": "Os seguintes diretórios são explicitamente não confiáveis e não podem ser adicionados a um espaço de trabalho confiável:\n- $1\nPor favor, use o comando permissions para modificar seu nível de confiança.",
+      "flags": ""
+    },
+    {
+      "pattern": "^The following directories are explicitly untrusted and cannot be added to a trusted workspace:\\\\n- (.+)\\\\nPlease use the permissions command to modify their trust level\\.$",
+      "replacement": "Os seguintes diretórios são explicitamente não confiáveis e não podem ser adicionados a um workspace confiável:\\n- $1\\nUse o comando permissions para modificar seu nível de confiança.",
       "flags": ""
     },
     {
@@ -2673,6 +2798,11 @@
       "flags": ""
     },
     {
+      "pattern": "^Unable to install extension \"(.+)\" due to missing install metadata$",
+      "replacement": "Não foi possível instalar a extensão \"$1\" devido a metadados de instalação ausentes",
+      "flags": ""
+    },
+    {
       "pattern": "^Unexpected error during OAuth authentication: (.+)$",
       "replacement": "Erro inesperado durante autenticação OAuth: $1",
       "flags": ""
@@ -2749,7 +2879,7 @@
     },
     {
       "pattern": "^Warning: Version '(.+)' does not appear to be standard semver \\(e\\.g\\., 1\\.0\\.0\\)\\.$",
-      "replacement": "Aviso: Versão '$1' não parece ser semver padrão (por exemplo, 1.0.0).",
+      "replacement": "Aviso: A versão '$1' não parece ser semver padrão (ex: 1.0.0).",
       "flags": ""
     },
     {
@@ -2770,6 +2900,11 @@
     {
       "pattern": "^Welcome! Language has been set to (.+)\\. You can change it anytime using the /language command\\.$",
       "replacement": "Bem-vindo! O idioma foi definido para $1. Você pode alterá-lo a qualquer momento usando o comando /language.",
+      "flags": ""
+    },
+    {
+      "pattern": "^Welcome\\\\! Language has been set to (.+)\\. You can change it anytime using the /language command\\.$",
+      "replacement": "Bem-vindo\\! O idioma foi definido como $1. Você pode alterá-lo a qualquer momento usando o comando /language.",
       "flags": ""
     },
     {

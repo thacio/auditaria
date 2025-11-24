@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuthType, UserTierId, t } from '@google/gemini-cli-core';
+import { AuthType, UserTierId } from '@google/gemini-cli-core';
 
 /**
  * Get human-readable license display text based on auth type and user tier.
@@ -18,30 +18,24 @@ export function getLicenseDisplay(
 ): string {
   switch (selectedAuthType) {
     case AuthType.LOGIN_WITH_GOOGLE:
-      return t('license.free_tier', 'Free Tier (Login with Google)');
+      return 'Free Tier (Login with Google)';
 
     case AuthType.LOGIN_WITH_GOOGLE_GCA:
       if (userTier === UserTierId.STANDARD) {
-        return t(
-          'license.gca_standard',
-          'Gemini Code Assist Standard (Google Workspace)',
-        );
+        return 'Gemini Code Assist Standard (Google Workspace)';
       } else if (userTier === UserTierId.LEGACY) {
-        return t(
-          'license.gca_enterprise',
-          'Gemini Code Assist Enterprise (Google Workspace)',
-        );
+        return 'Gemini Code Assist Enterprise (Google Workspace)';
       }
-      return t('license.gca_generic', 'Gemini Code Assist (Google Workspace)');
+      return 'Gemini Code Assist (Google Workspace)';
 
     case AuthType.USE_GEMINI:
-      return t('license.gemini_api_key', 'Gemini API Key');
+      return 'Gemini API Key';
 
     case AuthType.USE_VERTEX_AI:
-      return t('license.vertex_ai', 'Vertex AI');
+      return 'Vertex AI';
 
     case AuthType.COMPUTE_ADC:
-      return t('license.cloud_shell', 'Cloud Shell');
+      return 'Cloud Shell';
 
     default:
       return selectedAuthType;

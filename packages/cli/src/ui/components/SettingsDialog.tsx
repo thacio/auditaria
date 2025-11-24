@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, debugLogger } from '@google/gemini-cli-core';
-
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
@@ -43,6 +41,7 @@ import {
   type SettingsValue,
   TOGGLE_TYPES,
 } from '../../config/settingsSchema.js';
+import { debugLogger } from '@google/gemini-cli-core';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import type { Config } from '@google/gemini-cli-core';
 
@@ -133,20 +132,8 @@ export function SettingsDialog({
     return settingKeys.map((key: string) => {
       const definition = getSettingDefinition(key);
 
-      // Convert key to snake_case for i18n lookup
-      // Handle nested keys like 'accessibility.disableLoadingPhrases'
-      const lastPart = key.split('.').pop() || key;
-      const i18nKey = lastPart
-        .replace(/([A-Z])/g, '_$1')
-        .toLowerCase()
-        .replace(/^_/, '');
-      const label = t(
-        `settings_dialog.labels.${i18nKey}`,
-        definition?.label || key,
-      );
-
       return {
-        label,
+        label: definition?.label || key,
         value: key,
         type: definition?.type,
         toggle: () => {
@@ -782,8 +769,7 @@ export function SettingsDialog({
     >
       <Box flexDirection="column" flexGrow={1}>
         <Text bold={focusSection === 'settings'} wrap="truncate">
-          {focusSection === 'settings' ? '> ' : '  '}
-          {t('settings_dialog.title', 'Settings')}
+          {focusSection === 'settings' ? '> ' : '  '}Settings
         </Text>
         <Box height={1} />
         {showScrollUp && <Text color={theme.text.secondary}>▲</Text>}
@@ -910,8 +896,7 @@ export function SettingsDialog({
         {showScopeSelection && (
           <Box marginTop={1} flexDirection="column">
             <Text bold={focusSection === 'scope'} wrap="truncate">
-              {focusSection === 'scope' ? '> ' : '  '}
-              {t('settings_dialog.apply_to', 'Apply To')}
+              {focusSection === 'scope' ? '> ' : '  '}Apply To
             </Text>
             <RadioButtonSelect
               items={scopeItems}
@@ -928,22 +913,13 @@ export function SettingsDialog({
 
         <Box height={1} />
         <Text color={theme.text.secondary}>
-          {showScopeSelection
-            ? t(
-                'settings_dialog.help.with_tab',
-                '(Use Enter to select, Tab to change focus, Esc to close)',
-              )
-            : t(
-                'settings_dialog.help.without_tab',
-                '(Use Enter to select, Esc to close)',
-              )}
+          (Use Enter to select
+          {showScopeSelection ? ', Tab to change focus' : ''}, Esc to close)
         </Text>
         {showRestartPrompt && (
           <Text color={theme.status.warning}>
-            {t(
-              'settings_dialog.messages.restart_required',
-              'To see changes, Gemini CLI must be restarted. Press r to exit and apply changes now.',
-            )}
+            To see changes, Gemini CLI must be restarted. Press r to exit and
+            apply changes now.
           </Text>
         )}
       </Box>

@@ -6,7 +6,7 @@
 
 import type { CommandModule } from 'yargs';
 import { getErrorMessage } from '../../utils/errors.js';
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { loadSettings } from '../../config/settings.js';
@@ -24,9 +24,7 @@ export async function handleList() {
     });
     const extensions = await extensionManager.loadExtensions();
     if (extensions.length === 0) {
-      debugLogger.log(
-        t('commands.extensions.list.no_extensions', 'No extensions installed.'),
-      );
+      debugLogger.log('No extensions installed.');
       return;
     }
     debugLogger.log(
@@ -44,10 +42,7 @@ export async function handleList() {
 
 export const listCommand: CommandModule = {
   command: 'list',
-  describe: t(
-    'commands.extensions.list.description',
-    'Lists installed extensions.',
-  ),
+  describe: 'Lists installed extensions.',
   builder: (yargs) => yargs,
   handler: async () => {
     await handleList();

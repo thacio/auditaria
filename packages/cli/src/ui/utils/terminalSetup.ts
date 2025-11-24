@@ -30,7 +30,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { isKittyProtocolEnabled } from './kittyProtocolDetector.js';
 
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 
 export const VSCODE_SHIFT_ENTER_SEQUENCE = '\\\r\n';
 
@@ -218,36 +218,18 @@ async function configureVSCodeStyle(
     if (existingShiftEnter || existingCtrlEnter) {
       const messages: string[] = [];
       if (existingShiftEnter) {
-        messages.push(
-          t(
-            'commands.terminal_setup.shift_enter_exists',
-            '- Shift+Enter binding already exists',
-          ),
-        );
+        messages.push(`- Shift+Enter binding already exists`);
       }
       if (existingCtrlEnter) {
-        messages.push(
-          t(
-            'commands.terminal_setup.ctrl_enter_exists',
-            '- Ctrl+Enter binding already exists',
-          ),
-        );
+        messages.push(`- Ctrl+Enter binding already exists`);
       }
       return {
         success: false,
         message:
-          t(
-            'commands.terminal_setup.existing_keybindings',
-            'Existing keybindings detected. Will not modify to avoid conflicts.',
-          ) +
-          '\n' +
+          `Existing keybindings detected. Will not modify to avoid conflicts.\n` +
           messages.join('\n') +
           '\n' +
-          t(
-            'commands.terminal_setup.check_manually',
-            'Please check and modify manually if needed: {file}',
-            { file: keybindingsFile },
-          ),
+          `Please check and modify manually if needed: ${keybindingsFile}`,
       };
     }
 
@@ -285,31 +267,19 @@ async function configureVSCodeStyle(
       await fs.writeFile(keybindingsFile, JSON.stringify(keybindings, null, 4));
       return {
         success: true,
-        message: t(
-          'commands.terminal_setup.added_keybindings',
-          'Added Shift+Enter and Ctrl+Enter keybindings to {terminal}.\nModified: {file}',
-          { terminal: terminalName, file: keybindingsFile },
-        ),
+        message: `Added Shift+Enter and Ctrl+Enter keybindings to ${terminalName}.\nModified: ${keybindingsFile}`,
         requiresRestart: true,
       };
     } else {
       return {
         success: true,
-        message: t(
-          'commands.terminal_setup.already_configured',
-          '{terminal} keybindings already configured.',
-          { terminal: terminalName },
-        ),
+        message: `${terminalName} keybindings already configured.`,
       };
     }
   } catch (error) {
     return {
       success: false,
-      message: t(
-        'commands.terminal_setup.failed_terminal',
-        'Failed to configure {terminal}.\nFile: {file}\nError: {error}',
-        { terminal: terminalName, file: keybindingsFile, error: String(error) },
-      ),
+      message: `Failed to configure ${terminalName}.\nFile: ${keybindingsFile}\nError: ${error}`,
     };
   }
 }
@@ -352,10 +322,8 @@ export async function terminalSetup(): Promise<TerminalSetupResult> {
   if (isKittyProtocolEnabled()) {
     return {
       success: true,
-      message: t(
-        'commands.terminal_setup.optimal_configured',
+      message:
         'Your terminal is already configured for an optimal experience with multiline input (Shift+Enter and Ctrl+Enter).',
-      ),
     };
   }
 
@@ -364,10 +332,8 @@ export async function terminalSetup(): Promise<TerminalSetupResult> {
   if (!terminal) {
     return {
       success: false,
-      message: t(
-        'commands.terminal_setup.not_detected',
+      message:
         'Could not detect terminal type. Supported terminals: VS Code, Cursor, and Windsurf.',
-      ),
     };
   }
 
@@ -381,11 +347,7 @@ export async function terminalSetup(): Promise<TerminalSetupResult> {
     default:
       return {
         success: false,
-        message: t(
-          'commands.terminal_setup.not_supported',
-          'Terminal "{terminal}" is not supported yet.',
-          { terminal },
-        ),
+        message: `Terminal "${terminal}" is not supported yet.`,
       };
   }
 }

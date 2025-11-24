@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, isBinary, ShellExecutionService } from '@google/gemini-cli-core';
-
 import type {
   HistoryItemWithoutId,
   IndividualToolCallDisplay,
@@ -18,6 +16,7 @@ import type {
   GeminiClient,
   ShellExecutionResult,
 } from '@google/gemini-cli-core';
+import { isBinary, ShellExecutionService } from '@google/gemini-cli-core';
 import { type PartListUnion } from '@google/genai';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { SHELL_COMMAND_NAME } from '../constants.js';
@@ -30,6 +29,7 @@ import { themeManager } from '../../ui/themes/theme-manager.js';
 
 export const OUTPUT_UPDATE_INTERVAL_MS = 1000;
 const MAX_OUTPUT_LENGTH = 10000;
+
 function addShellCommandToGeminiHistory(
   geminiClient: GeminiClient,
   rawQuery: string,
@@ -191,16 +191,12 @@ export const useShellCommandProcessor = (
               let currentDisplayOutput: string | AnsiOutput;
               if (isBinaryStream) {
                 if (binaryBytesReceived > 0) {
-                  currentDisplayOutput = t(
-                    'shell.receiving_binary_output',
-                    '[Receiving binary output... {size} received]',
-                    { size: formatMemoryUsage(binaryBytesReceived) },
-                  );
+                  currentDisplayOutput = `[Receiving binary output... ${formatMemoryUsage(
+                    binaryBytesReceived,
+                  )} received]`;
                 } else {
-                  currentDisplayOutput = t(
-                    'shell.binary_output_detected',
-                    '[Binary output detected. Halting stream...]',
-                  );
+                  currentDisplayOutput =
+                    '[Binary output detected. Halting stream...]';
                 }
               } else {
                 currentDisplayOutput = cumulativeStdout;
@@ -252,14 +248,11 @@ export const useShellCommandProcessor = (
               let mainContent: string;
 
               if (isBinary(result.rawOutput)) {
-                mainContent = t(
-                  'shell.binary_output_not_shown',
-                  '[Command produced binary output, which is not shown.]',
-                );
+                mainContent =
+                  '[Command produced binary output, which is not shown.]';
               } else {
                 mainContent =
-                  result.output.trim() ||
-                  t('shell.no_output', '(Command produced no output)');
+                  result.output.trim() || '(Command produced no output)';
               }
 
               let finalOutput = mainContent;
@@ -270,23 +263,19 @@ export const useShellCommandProcessor = (
                 finalOutput = `${result.error.message}\n${finalOutput}`;
               } else if (result.aborted) {
                 finalStatus = ToolCallStatus.Canceled;
-                finalOutput = `${t('shell.command_cancelled', 'Command was cancelled.')}\n${finalOutput}`;
+                finalOutput = `Command was cancelled.\n${finalOutput}`;
               } else if (result.signal) {
                 finalStatus = ToolCallStatus.Error;
-                finalOutput = `${t('shell.command_terminated_signal', 'Command terminated by signal: {signal}.', { signal: result.signal })}\n${finalOutput}`;
+                finalOutput = `Command terminated by signal: ${result.signal}.\n${finalOutput}`;
               } else if (result.exitCode !== 0) {
                 finalStatus = ToolCallStatus.Error;
-                finalOutput = `${t('shell.command_exit_code', 'Command exited with code {code}.', { code: result.exitCode ?? 'unknown' })}\n${finalOutput}`;
+                finalOutput = `Command exited with code ${result.exitCode}.\n${finalOutput}`;
               }
 
               if (pwdFilePath && fs.existsSync(pwdFilePath)) {
                 const finalPwd = fs.readFileSync(pwdFilePath, 'utf8').trim();
                 if (finalPwd && finalPwd !== targetDir) {
-                  const warning = t(
-                    'shell.directory_change_warning',
-                    "WARNING: shell mode is stateless; the directory change to '{directory}' will not persist.",
-                    { directory: finalPwd },
-                  );
+                  const warning = `WARNING: shell mode is stateless; the directory change to '${finalPwd}' will not persist.`;
                   finalOutput = `${warning}\n\n${finalOutput}`;
                 }
               }
@@ -324,11 +313,7 @@ export const useShellCommandProcessor = (
               addItemToHistory(
                 {
                   type: 'error',
-                  text: t(
-                    'shell.unexpected_error',
-                    'An unexpected error occurred: {error}',
-                    { error: errorMessage },
-                  ),
+                  text: `An unexpected error occurred: ${errorMessage}`,
                 },
                 userMessageTimestamp,
               );
@@ -349,11 +334,7 @@ export const useShellCommandProcessor = (
           addItemToHistory(
             {
               type: 'error',
-              text: t(
-                'shell.unexpected_error',
-                'An unexpected error occurred: {error}',
-                { error: errorMessage },
-              ),
+              text: `An unexpected error occurred: ${errorMessage}`,
             },
             userMessageTimestamp,
           );

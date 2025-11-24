@@ -25,7 +25,7 @@ import { useVimMode } from '../contexts/VimModeContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { useAlternateBuffer } from '../hooks/useAlternateBuffer.js';
-import { ApprovalMode, t } from '@google/gemini-cli-core';
+import { ApprovalMode } from '@google/gemini-cli-core';
 import { StreamingState } from '../types.js';
 import { ConfigInitDisplay } from '../components/ConfigInitDisplay.js';
 import { TodoTray } from './messages/Todo.js';
@@ -97,18 +97,16 @@ export const Composer = () => {
           )}
           {uiState.ctrlCPressedOnce ? (
             <Text color={theme.status.warning}>
-              {t('app.press_ctrl_c_exit', 'Press Ctrl+C again to exit.')}
+              Press Ctrl+C again to exit.
             </Text>
           ) : uiState.warningMessage ? (
             <Text color={theme.status.warning}>{uiState.warningMessage}</Text>
           ) : uiState.ctrlDPressedOnce ? (
             <Text color={theme.status.warning}>
-              {t('app.press_ctrl_d_exit', 'Press Ctrl+D again to exit.')}
+              Press Ctrl+D again to exit.
             </Text>
           ) : uiState.showEscapePrompt ? (
-            <Text color={theme.text.secondary}>
-              {t('input.escape_to_clear', 'Press Esc again to clear.')}
-            </Text>
+            <Text color={theme.text.secondary}>Press Esc again to clear.</Text>
           ) : uiState.queueErrorMessage ? (
             <Text color={theme.status.error}>{uiState.queueErrorMessage}</Text>
           ) : (
@@ -174,11 +172,8 @@ export const Composer = () => {
           popAllMessages={uiActions.popAllMessages}
           placeholder={
             vimEnabled
-              ? t(
-                  'input.placeholder_vim',
-                  "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode.",
-                )
-              : t('input.placeholder', '  Type your message or @path/to/file')
+              ? "  Press 'i' for INSERT mode and 'Esc' for NORMAL mode."
+              : '  Type your message or @path/to/file'
           }
           setQueueErrorMessage={uiActions.setQueueErrorMessage}
           streamingState={uiState.streamingState}

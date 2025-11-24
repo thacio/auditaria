@@ -7,7 +7,7 @@
 import { type CommandModule } from 'yargs';
 import { loadSettings, SettingScope } from '../../config/settings.js';
 import { getErrorMessage } from '../../utils/errors.js';
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
@@ -38,11 +38,7 @@ export async function handleDisable(args: DisableArgs) {
       await extensionManager.disableExtension(args.name, SettingScope.User);
     }
     debugLogger.log(
-      t(
-        'commands.extensions.disable.success',
-        `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
-        { name: args.name, scope: args.scope || 'user' },
-      ),
+      `Extension "${args.name}" successfully disabled for scope "${args.scope || 'user'}".`,
     );
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
@@ -52,24 +48,15 @@ export async function handleDisable(args: DisableArgs) {
 
 export const disableCommand: CommandModule = {
   command: 'disable [--scope] <name>',
-  describe: t(
-    'commands.extensions.disable.description',
-    'Disables an extension.',
-  ),
+  describe: 'Disables an extension.',
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t(
-          'commands.extensions.disable.name_description',
-          'The name of the extension to disable.',
-        ),
+        describe: 'The name of the extension to disable.',
         type: 'string',
       })
       .option('scope', {
-        describe: t(
-          'commands.extensions.disable.scope_description',
-          'The scope to disable the extension in.',
-        ),
+        describe: 'The scope to disable the extension in.',
         type: 'string',
         default: SettingScope.User,
       })

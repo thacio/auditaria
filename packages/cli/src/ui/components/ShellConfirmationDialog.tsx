@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ToolConfirmationOutcome, t } from '@google/gemini-cli-core';
+import { ToolConfirmationOutcome } from '@google/gemini-cli-core';
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { theme } from '../semantic-colors.js';
@@ -51,26 +51,17 @@ export const ShellConfirmationDialog: React.FC<
 
   const options: Array<RadioSelectItem<ToolConfirmationOutcome>> = [
     {
-      label: t(
-        'tool_confirmation.shell_confirmation.options.yes_once',
-        'Yes, allow once',
-      ),
+      label: 'Yes, allow once',
       value: ToolConfirmationOutcome.ProceedOnce,
       key: 'Yes, allow once',
     },
     {
-      label: t(
-        'tool_confirmation.shell_confirmation.options.yes_always_session',
-        'Yes, allow always for this session',
-      ),
+      label: 'Yes, allow always for this session',
       value: ToolConfirmationOutcome.ProceedAlways,
       key: 'Yes, allow always for this session',
     },
     {
-      label: t(
-        'tool_confirmation.shell_confirmation.options.no_esc',
-        'No (esc)',
-      ),
+      label: 'No (esc)',
       value: ToolConfirmationOutcome.Cancel,
       key: 'No (esc)',
     },
@@ -88,16 +79,10 @@ export const ShellConfirmationDialog: React.FC<
       >
         <Box flexDirection="column" marginBottom={1}>
           <Text bold color={theme.text.primary}>
-            {t(
-              'tool_confirmation.shell_confirmation.title',
-              'Shell Command Execution',
-            )}
+            Shell Command Execution
           </Text>
           <Text color={theme.text.primary}>
-            {t(
-              'tool_confirmation.shell_confirmation.description',
-              'A custom command wants to run the following shell commands:',
-            )}
+            A custom command wants to run the following shell commands:
           </Text>
           <Box
             flexDirection="column"
@@ -115,12 +100,7 @@ export const ShellConfirmationDialog: React.FC<
         </Box>
 
         <Box marginBottom={1}>
-          <Text color={theme.text.primary}>
-            {t(
-              'tool_confirmation.shell_confirmation.question',
-              'Do you want to proceed?',
-            )}
-          </Text>
+          <Text color={theme.text.primary}>Do you want to proceed?</Text>
         </Box>
 
         <RadioButtonSelect items={options} onSelect={handleSelect} isFocused />

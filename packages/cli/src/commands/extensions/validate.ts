@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import semver from 'semver';
@@ -25,11 +25,7 @@ export async function handleValidate(args: ValidateArgs) {
   try {
     await validateExtension(args);
     debugLogger.log(
-      t(
-        'commands.extensions.validate.success',
-        `Extension ${args.path} has been successfully validated.`,
-        { path: args.path },
-      ),
+      `Extension ${args.path} has been successfully validated.`,
     );
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
@@ -68,62 +64,39 @@ async function validateExtension(args: ValidateArgs) {
     }
     if (missingContextFiles.length > 0) {
       errors.push(
-        t(
-          'commands.extensions.validate.missing_context_files',
-          `The following context files referenced in gemini-extension.json are missing: ${missingContextFiles}`,
-          { files: missingContextFiles.join(', ') },
-        ),
+        `The following context files referenced in gemini-extension.json are missing: ${missingContextFiles}`,
       );
     }
   }
 
   if (!semver.valid(extensionConfig.version)) {
     warnings.push(
-      t(
-        'commands.extensions.validate.invalid_semver',
-        `Warning: Version '${extensionConfig.version}' does not appear to be standard semver (e.g., 1.0.0).`,
-        { version: extensionConfig.version },
-      ),
+      `Warning: Version '${extensionConfig.version}' does not appear to be standard semver (e.g., 1.0.0).`,
     );
   }
 
   if (warnings.length > 0) {
-    debugLogger.warn(
-      t('commands.extensions.validate.warnings_header', 'Validation warnings:'),
-    );
+    debugLogger.warn('Validation warnings:');
     for (const warning of warnings) {
       debugLogger.warn(`  - ${warning}`);
     }
   }
 
   if (errors.length > 0) {
-    debugLogger.error(
-      t(
-        'commands.extensions.validate.errors_header',
-        'Validation failed with the following errors:',
-      ),
-    );
+    debugLogger.error('Validation failed with the following errors:');
     for (const error of errors) {
       debugLogger.error(`  - ${error}`);
     }
-    throw new Error(
-      t('commands.extensions.validate.failed', 'Extension validation failed.'),
-    );
+    throw new Error('Extension validation failed.');
   }
 }
 
 export const validateCommand: CommandModule = {
   command: 'validate <path>',
-  describe: t(
-    'commands.extensions.validate.description',
-    'Validates an extension from a local path.',
-  ),
+  describe: 'Validates an extension from a local path.',
   builder: (yargs) =>
     yargs.positional('path', {
-      describe: t(
-        'commands.extensions.validate.path_description',
-        'The path of the extension to validate.',
-      ),
+      describe: 'The path of the extension to validate.',
       type: 'string',
       demandOption: true,
     }),

@@ -7,19 +7,17 @@
 import { useEffect, useState } from 'react';
 import { AppEvent, appEvents } from './../../utils/events.js';
 import { Box, Text } from 'ink';
-import { type McpClient, MCPServerStatus, t } from '@google/gemini-cli-core';
+import { type McpClient, MCPServerStatus } from '@google/gemini-cli-core';
 import { GeminiSpinner } from './GeminiRespondingSpinner.js';
 import { theme } from '../semantic-colors.js';
 
 export const ConfigInitDisplay = () => {
-  const [message, setMessage] = useState(
-    t('ui.initialization.initializing', 'Initializing...'),
-  );
+  const [message, setMessage] = useState('Initializing...');
 
   useEffect(() => {
     const onChange = (clients?: Map<string, McpClient>) => {
       if (!clients || clients.size === 0) {
-        setMessage(t('ui.initialization.initializing', 'Initializing...'));
+        setMessage(`Initializing...`);
         return;
       }
       let connected = 0;
@@ -28,16 +26,7 @@ export const ConfigInitDisplay = () => {
           connected++;
         }
       }
-      setMessage(
-        t(
-          'ui.initialization.connecting_mcp_servers',
-          'Connecting to MCP servers... ({connected}/{total})',
-          {
-            connected: String(connected),
-            total: String(clients.size),
-          },
-        ),
-      );
+      setMessage(`Connecting to MCP servers... (${connected}/${clients.size})`);
     };
 
     appEvents.on(AppEvent.McpClientUpdate, onChange);

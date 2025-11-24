@@ -12,31 +12,29 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType } from '../types.js';
-import { t, sessionId, IdeClient } from '@google/gemini-cli-core';
+import { IdeClient, sessionId } from '@google/gemini-cli-core';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
 
 export const bugCommand: SlashCommand = {
   name: 'bug',
-  get description() {
-    return t('commands.bug.description', 'Submit a bug report');
-  },
+  description: 'Submit a bug report',
   kind: CommandKind.BUILT_IN,
   action: async (context: CommandContext, args?: string): Promise<void> => {
     const bugDescription = (args || '').trim();
     const { config } = context.services;
 
     const osVersion = `${process.platform} ${process.version}`;
-    let sandboxEnv = t('commands.bug.no_sandbox', 'no sandbox');
+    let sandboxEnv = 'no sandbox';
     if (process.env['SANDBOX'] && process.env['SANDBOX'] !== 'sandbox-exec') {
       sandboxEnv = process.env['SANDBOX'].replace(/^gemini-(?:code-)?/, '');
     } else if (process.env['SANDBOX'] === 'sandbox-exec') {
       sandboxEnv = `sandbox-exec (${
-        process.env['SEATBELT_PROFILE'] || t('commands.bug.unknown_profile', 'unknown')
+        process.env['SEATBELT_PROFILE'] || 'unknown'
       })`;
     }
-    const modelVersion = config?.getModel() || t('commands.bug.unknown_model', 'Unknown');
+    const modelVersion = config?.getModel() || 'Unknown';
     const cliVersion = await getCliVersion();
     const memoryUsage = formatMemoryUsage(process.memoryUsage().rss);
     const ideClient = await getIdeClientName(context);
@@ -69,7 +67,7 @@ export const bugCommand: SlashCommand = {
     context.ui.addItem(
       {
         type: MessageType.INFO,
-        text: t('commands.bug.submit_message', 'To submit your bug report, please open the following URL in your browser:\n{url}', { url: bugReportUrl }),
+        text: `To submit your bug report, please open the following URL in your browser:\n${bugReportUrl}`,
       },
       Date.now(),
     );
@@ -82,7 +80,7 @@ export const bugCommand: SlashCommand = {
       context.ui.addItem(
         {
           type: MessageType.ERROR,
-          text: t('commands.bug.browser_error', 'Could not open URL in browser: {error}', { error: errorMessage }),
+          text: `Could not open URL in browser: ${errorMessage}`,
         },
         Date.now(),
       );

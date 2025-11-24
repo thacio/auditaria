@@ -13,7 +13,7 @@ import { MultiFolderTrustDialog } from '../components/MultiFolderTrustDialog.js'
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType, type HistoryItem } from '../types.js';
-import { t, refreshServerHierarchicalMemory } from '@google/gemini-cli-core';
+import { refreshServerHierarchicalMemory } from '@google/gemini-cli-core';
 import { expandHomeDir } from '../utils/directoryUtils.js';
 import type { Config } from '@google/gemini-cli-core';
 
@@ -27,10 +27,7 @@ async function finishAddingDirectories(
     addItem(
       {
         type: MessageType.ERROR,
-        text: t(
-          'commands.directory.config_not_available',
-          'Configuration is not available.',
-        ),
+        text: 'Configuration is not available.',
       },
       Date.now(),
     );
@@ -44,22 +41,12 @@ async function finishAddingDirectories(
     addItem(
       {
         type: MessageType.INFO,
-        text: t(
-          'commands.directory.add.memory_files_added',
-          'Successfully added GEMINI.md files from the following directories if there are:\n- {directories}',
-          { directories: added.join('\n- ') },
-        ),
+        text: `Successfully added GEMINI.md files from the following directories if there are:\n- ${added.join('\n- ')}`,
       },
       Date.now(),
     );
   } catch (error) {
-    errors.push(
-      t(
-        'commands.directory.add.memory_refresh_error',
-        'Error refreshing memory: {error}',
-        { error: (error as Error).message },
-      ),
-    );
+    errors.push(`Error refreshing memory: ${(error as Error).message}`);
   }
 
   if (added.length > 0) {
@@ -70,11 +57,7 @@ async function finishAddingDirectories(
     addItem(
       {
         type: MessageType.INFO,
-        text: t(
-          'commands.directory.add.success',
-          'Successfully added directories:\n- {directories}',
-          { directories: added.join('\n- ') },
-        ),
+        text: `Successfully added directories:\n- ${added.join('\n- ')}`,
       },
       Date.now(),
     );
@@ -88,19 +71,13 @@ async function finishAddingDirectories(
 export const directoryCommand: SlashCommand = {
   name: 'directory',
   altNames: ['dir'],
-  get description() {
-    return t('commands.directory.description', 'Manage workspace directories');
-  },
+  description: 'Manage workspace directories',
   kind: CommandKind.BUILT_IN,
   subCommands: [
     {
       name: 'add',
-      get description() {
-        return t(
-          'commands.directory.add.description',
-          'Add directories to the workspace. Use comma to separate multiple paths',
-        );
-      },
+      description:
+        'Add directories to the workspace. Use comma to separate multiple paths',
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext, args: string) => {
         const {
@@ -113,10 +90,7 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t(
-                'commands.directory.config_not_available',
-                'Configuration is not available.',
-              ),
+              text: 'Configuration is not available.',
             },
             Date.now(),
           );
@@ -127,10 +101,8 @@ export const directoryCommand: SlashCommand = {
           return {
             type: 'message' as const,
             messageType: 'error' as const,
-            content: t(
-              'commands.directory.add.restrictive_sandbox',
+            content:
               'The /directory add command is not supported in restrictive sandbox profiles. Please use --include-directories when starting the session instead.',
-            ),
           };
         }
 
@@ -142,10 +114,7 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t(
-                'commands.directory.add.provide_path',
-                'Please provide at least one path to add.',
-              ),
+              text: 'Please provide at least one path to add.',
             },
             Date.now(),
           );
@@ -173,11 +142,9 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.INFO,
-              text: t(
-                'commands.directory.add.already_added',
-                'The following directories are already in the workspace:\n- {directories}',
-                { directories: alreadyAdded.join('\n- ') },
-              ),
+              text: `The following directories are already in the workspace:\n- ${alreadyAdded.join(
+                '\n- ',
+              )}`,
             },
             Date.now(),
           );
@@ -210,11 +177,9 @@ export const directoryCommand: SlashCommand = {
 
           if (untrustedDirs.length > 0) {
             errors.push(
-              t(
-                'commands.directory.add.untrusted_dirs',
-                'The following directories are explicitly untrusted and cannot be added to a trusted workspace:\n- {directories}\nPlease use the permissions command to modify their trust level.',
-                { directories: untrustedDirs.join('\n- ') },
-              ),
+              `The following directories are explicitly untrusted and cannot be added to a trusted workspace:\n- ${untrustedDirs.join(
+                '\n- ',
+              )}\nPlease use the permissions command to modify their trust level.`,
             );
           }
 
@@ -224,13 +189,7 @@ export const directoryCommand: SlashCommand = {
               added.push(pathToAdd);
             } catch (e) {
               const error = e as Error;
-              errors.push(
-                t(
-                  'commands.directory.add.error_adding',
-                  `Error adding '{path}': {error}`,
-                  { path: pathToAdd, error: error.message },
-                ),
-              );
+              errors.push(`Error adding '${pathToAdd}': ${error.message}`);
             }
           }
 
@@ -258,11 +217,7 @@ export const directoryCommand: SlashCommand = {
             } catch (e) {
               const error = e as Error;
               errors.push(
-                t(
-                  'commands.directory.add.error_adding',
-                  `Error adding '{path}': {error}`,
-                  { path: pathToAdd.trim(), error: error.message },
-                ),
+                `Error adding '${pathToAdd.trim()}': ${error.message}`,
               );
             }
           }
@@ -274,12 +229,7 @@ export const directoryCommand: SlashCommand = {
     },
     {
       name: 'show',
-      get description() {
-        return t(
-          'commands.directory.show.description',
-          'Show all directories in the workspace',
-        );
-      },
+      description: 'Show all directories in the workspace',
       kind: CommandKind.BUILT_IN,
       action: async (context: CommandContext) => {
         const {
@@ -290,10 +240,7 @@ export const directoryCommand: SlashCommand = {
           addItem(
             {
               type: MessageType.ERROR,
-              text: t(
-                'commands.directory.config_not_available',
-                'Configuration is not available.',
-              ),
+              text: 'Configuration is not available.',
             },
             Date.now(),
           );
@@ -305,11 +252,7 @@ export const directoryCommand: SlashCommand = {
         addItem(
           {
             type: MessageType.INFO,
-            text: t(
-              'commands.directory.show.current_directories',
-              'Current workspace directories:\n{directories}',
-              { directories: directoryList },
-            ),
+            text: `Current workspace directories:\n${directoryList}`,
           },
           Date.now(),
         );

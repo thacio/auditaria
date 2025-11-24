@@ -6,7 +6,7 @@
 
 import latestVersion from 'latest-version';
 import semver from 'semver';
-import { getPackageJson, debugLogger, t } from '@google/gemini-cli-core';
+import { getPackageJson, debugLogger } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -75,11 +75,7 @@ export async function checkForUpdates(
       const bestUpdate = getBestAvailableUpdate(nightlyUpdate, latestUpdate);
 
       if (bestUpdate && semver.gt(bestUpdate, currentVersion)) {
-        const message = t(
-          'update.available_nightly',
-          'A new version of Auditaria CLI is available! {current} → {latest}',
-          { current: currentVersion, latest: bestUpdate },
-        );
+        const message = `A new version of Gemini CLI is available! ${currentVersion} → ${bestUpdate}`;
         const type = semver.diff(bestUpdate, currentVersion) || undefined;
         return {
           message,
@@ -95,15 +91,7 @@ export async function checkForUpdates(
       const latestUpdate = await latestVersion(name);
 
       if (latestUpdate && semver.gt(latestUpdate, currentVersion)) {
-        const message = t(
-          'update.available',
-          'Auditaria CLI update available! {current} → {latest}\nRun npm install -g {packageName} to update',
-          {
-            current: currentVersion,
-            latest: latestUpdate,
-            packageName: packageJson.name,
-          },
-        );
+        const message = `Gemini CLI update available! ${currentVersion} → ${latestUpdate}`;
         const type = semver.diff(latestUpdate, currentVersion) || undefined;
         return {
           message,

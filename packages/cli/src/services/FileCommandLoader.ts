@@ -10,7 +10,7 @@ import toml from '@iarna/toml';
 import { glob } from 'glob';
 import { z } from 'zod';
 import type { Config } from '@google/gemini-cli-core';
-import { Storage, t } from '@google/gemini-cli-core';
+import { Storage } from '@google/gemini-cli-core';
 import type { ICommandLoader } from './types.js';
 import type {
   CommandContext,
@@ -233,11 +233,7 @@ export class FileCommandLoader implements ICommandLoader {
       .join(':');
 
     // Add extension name tag for extension commands
-    const defaultDescription = t(
-      'commands.file_command.default_description',
-      'Custom command from {filename}',
-      { filename: path.basename(filePath) },
-    );
+    const defaultDescription = `Custom command from ${path.basename(filePath)}`;
     let description = validDef.description || defaultDescription;
     if (extensionName) {
       description = `[${extensionName}] ${description}`;

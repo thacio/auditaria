@@ -16,7 +16,7 @@ import { useSettings } from '../contexts/SettingsContext.js';
 import { MessageType } from '../types.js';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { LoadedSettings } from '../../config/settings.js';
-import { t, coreEvents } from '@google/gemini-cli-core';
+import { coreEvents } from '@google/gemini-cli-core';
 
 interface TrustState {
   currentTrustLevel: TrustLevel | undefined;
@@ -110,15 +110,11 @@ export const usePermissionsModifyTrust = (
       );
 
       if (trustLevel === TrustLevel.DO_NOT_TRUST && isTrusted) {
-        let message = t(
-          'permissions_dialog.warnings.still_trusted_ide',
-          'Note: This folder is still trusted because the connected IDE workspace is trusted.',
-        );
+        let message =
+          'Note: This folder is still trusted because the connected IDE workspace is trusted.';
         if (source === 'file') {
-          message = t(
-            'permissions_dialog.warnings.still_trusted_parent',
-            'Note: This folder is still trusted because a parent folder is trusted.',
-          );
+          message =
+            'Note: This folder is still trusted because a parent folder is trusted.';
         }
         addItem(
           {
@@ -139,10 +135,7 @@ export const usePermissionsModifyTrust = (
         } catch (_e) {
           coreEvents.emitFeedback(
             'error',
-            t(
-              'trusted_folders.save_failed_may_not_persist',
-              'Failed to save trust settings. Your changes may not persist.',
-            ),
+            'Failed to save trust settings. Your changes may not persist.',
           );
         }
         onExit();
@@ -160,10 +153,7 @@ export const usePermissionsModifyTrust = (
       } catch (_e) {
         coreEvents.emitFeedback(
           'error',
-          t(
-            'trusted_folders.save_failed_may_not_persist',
-            'Failed to save trust settings. Your changes may not persist.',
-          ),
+          'Failed to save trust settings. Your changes may not persist.',
         );
         setNeedsRestart(false);
         setPendingTrustLevel(undefined);

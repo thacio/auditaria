@@ -6,7 +6,7 @@
 
 import { Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { t, tokenLimit } from '@google/gemini-cli-core';
+import { tokenLimit } from '@google/gemini-cli-core';
 
 export const ContextUsageDisplay = ({
   promptTokenCount,
@@ -20,9 +20,7 @@ export const ContextUsageDisplay = ({
   const percentage = promptTokenCount / tokenLimit(model);
   const percentageLeft = ((1 - percentage) * 100).toFixed(0);
 
-  const label = terminalWidth < 100
-    ? t('footer.context_left_short', '%', {})
-    : t('footer.context_left_full', '% context left', {});
+  const label = terminalWidth < 100 ? '%' : '% context left';
 
   return (
     <Text color={theme.text.secondary}>

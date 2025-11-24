@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, setLanguage } from '@google/gemini-cli-core';
+import { setLanguage } from '@google/gemini-cli-core';
 import type { SupportedLanguage } from '@google/gemini-cli-core';
 
 import { useState, useCallback } from 'react';
@@ -37,9 +37,7 @@ export const useLanguageCommand = (
   const applyLanguage = useCallback(
     async (languageCode: SupportedLanguage | undefined) => {
       if (!languageCode) {
-        setLanguageError(
-          t('language.no_language_selected', 'No language selected.'),
-        );
+        setLanguageError('No language selected.');
         return false;
       }
 
@@ -51,11 +49,7 @@ export const useLanguageCommand = (
         addItem(
           {
             type: MessageType.INFO,
-            text: t(
-              'language.changed_successfully',
-              'Language changed to {language}.',
-              { language: languageCode },
-            ),
+            text: `Language changed to ${languageCode}.`,
           },
           Date.now(),
         );
@@ -64,11 +58,7 @@ export const useLanguageCommand = (
       } catch (error) {
         console.error('Failed to apply language:', error);
         setLanguageError(
-          t(
-            'language.application_failed',
-            'Failed to apply language "{language}". Please try again.',
-            { language: languageCode },
-          ),
+          `Failed to apply language "${languageCode}". Please try again.`,
         );
         return false;
       }
@@ -106,10 +96,7 @@ export const useLanguageCommand = (
       } catch (error) {
         console.error('Failed to save language setting:', error);
         setLanguageError(
-          t(
-            'language.save_failed',
-            'Failed to save language setting. Please try again.',
-          ),
+          'Failed to save language setting. Please try again.',
         );
       }
     },

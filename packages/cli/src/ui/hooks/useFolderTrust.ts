@@ -14,7 +14,7 @@ import {
 } from '../../config/trustedFolders.js';
 import * as process from 'node:process';
 import { type HistoryItemWithoutId, MessageType } from '../types.js';
-import { t, coreEvents } from '@google/gemini-cli-core';
+import { coreEvents } from '@google/gemini-cli-core';
 
 export const useFolderTrust = (
   settings: LoadedSettings,
@@ -48,10 +48,7 @@ export const useFolderTrust = (
       addItem(
         {
           type: MessageType.INFO,
-          text: t(
-            'startup.untrusted_folder_message',
-            'This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level.',
-          ),
+          text: 'This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level.',
         },
         Date.now(),
       );
@@ -86,10 +83,7 @@ export const useFolderTrust = (
       } catch (_e) {
         coreEvents.emitFeedback(
           'error',
-          t(
-            'trusted_folders.save_failed_exiting',
-            'Failed to save trust settings. Exiting Auditoria CLI.',
-          ),
+          'Failed to save trust settings. Exiting Gemini CLI.',
         );
         setTimeout(() => {
           process.exit(1);
@@ -121,3 +115,4 @@ export const useFolderTrust = (
     isRestarting,
   };
 };
+

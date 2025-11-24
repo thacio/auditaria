@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ApprovalMode, type Config, t } from '@google/gemini-cli-core';
+import { ApprovalMode, type Config } from '@google/gemini-cli-core';
 import { useKeypress } from './useKeypress.js';
 import type { HistoryItemWithoutId } from '../types.js';
 import { MessageType } from '../types.js';
@@ -42,10 +42,7 @@ export function useAutoAcceptIndicator({
             addItem(
               {
                 type: MessageType.WARNING,
-                text: t(
-                  'auto_accept.yolo_disabled',
-                  'You cannot enter YOLO mode since it is disabled in your settings.',
-                ),
+                text: 'You cannot enter YOLO mode since it is disabled in your settings.',
               },
               Date.now(),
             );

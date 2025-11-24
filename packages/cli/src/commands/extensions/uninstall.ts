@@ -6,7 +6,7 @@
 
 import type { CommandModule } from 'yargs';
 import { getErrorMessage } from '../../utils/errors.js';
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { loadSettings } from '../../config/settings.js';
@@ -32,13 +32,7 @@ export async function handleUninstall(args: UninstallArgs) {
     for (const name of [...new Set(args.names)]) {
       try {
         await extensionManager.uninstallExtension(name, false);
-        debugLogger.log(
-          t(
-            'commands.extensions.uninstall.success',
-            `Extension "${name}" successfully uninstalled.`,
-            { name },
-          ),
-        );
+        debugLogger.log(`Extension "${name}" successfully uninstalled.`);
       } catch (error) {
         errors.push({ name, error: getErrorMessage(error) });
       }
@@ -46,13 +40,7 @@ export async function handleUninstall(args: UninstallArgs) {
 
     if (errors.length > 0) {
       for (const { name, error } of errors) {
-        debugLogger.error(
-          t(
-            'commands.extensions.uninstall.failed',
-            `Failed to uninstall "${name}": {error}`,
-            { name, error },
-          ),
-        );
+        debugLogger.error(`Failed to uninstall "${name}": ${error}`);
       }
       process.exit(1);
     }
@@ -64,27 +52,19 @@ export async function handleUninstall(args: UninstallArgs) {
 
 export const uninstallCommand: CommandModule = {
   command: 'uninstall <names..>',
-  describe: t(
-    'commands.extensions.uninstall.description',
-    'Uninstalls one or more extensions.',
-  ),
+  describe: 'Uninstalls one or more extensions.',
   builder: (yargs) =>
     yargs
       .positional('names', {
-        describe: t(
-          'commands.extensions.uninstall.names_description',
+        describe:
           'The name(s) or source path(s) of the extension(s) to uninstall.',
-        ),
         type: 'string',
         array: true,
       })
       .check((argv) => {
         if (!argv.names || (argv.names as string[]).length === 0) {
           throw new Error(
-            t(
-              'commands.extensions.uninstall.missing_names',
-              'Please include at least one extension name to uninstall as a positional argument.',
-            ),
+            'Please include at least one extension name to uninstall as a positional argument.',
           );
         }
         return true;

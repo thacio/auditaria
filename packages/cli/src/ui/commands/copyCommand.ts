@@ -4,19 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { debugLogger, t } from '@google/gemini-cli-core';
+import { debugLogger } from '@google/gemini-cli-core';
 import { copyToClipboard } from '../utils/commandUtils.js';
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
 import { CommandKind } from './types.js';
 
 export const copyCommand: SlashCommand = {
   name: 'copy',
-  get description() {
-    return t(
-      'commands.copy.description',
-      'Copy the last result or code snippet to clipboard',
-    );
-  },
+  description: 'Copy the last result or code snippet to clipboard',
   kind: CommandKind.BUILT_IN,
   action: async (context, _args): Promise<SlashCommandActionReturn | void> => {
     const chat = await context.services.config?.getGeminiClient()?.getChat();
@@ -31,7 +26,7 @@ export const copyCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'info',
-        content: t('commands.copy.no_output', 'No output in history'),
+        content: 'No output in history',
       };
     }
     // Extract text from the parts
@@ -47,10 +42,7 @@ export const copyCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'info',
-          content: t(
-            'commands.copy.success',
-            'Last output copied to the clipboard',
-          ),
+          content: 'Last output copied to the clipboard',
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -59,21 +51,14 @@ export const copyCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: t(
-            'commands.copy.error',
-            `Failed to copy to the clipboard. ${message}`,
-            { message },
-          ),
+          content: `Failed to copy to the clipboard. ${message}`,
         };
       }
     } else {
       return {
         type: 'message',
         messageType: 'info',
-        content: t(
-          'commands.copy.no_text',
-          'Last AI output contains no text to copy.',
-        ),
+        content: 'Last AI output contains no text to copy.',
       };
     }
   },

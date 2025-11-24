@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AuthType, t } from '@google/gemini-cli-core';
+import { AuthType } from '@google/gemini-cli-core';
 import { loadEnvironment, loadSettings } from './settings.js';
 
 export function validateAuthMethod(authMethod: string): string | null {
@@ -16,18 +16,6 @@ export function validateAuthMethod(authMethod: string): string | null {
     return null;
   }
 
-  if (authMethod === AuthType.LOGIN_WITH_GOOGLE_GCA) {
-    if (!process.env['GOOGLE_CLOUD_PROJECT']) {
-      return t(
-        'auth_errors.gca_project_not_set',
-        '[Error] GOOGLE_CLOUD_PROJECT is not set.\n' +
-          'Please set it using:\n' +
-          '  export GOOGLE_CLOUD_PROJECT=<your-project-id>\n' +
-          'and try again.',
-      );
-    }
-    return null;
-  }
 
   if (authMethod === AuthType.USE_GEMINI) {
     if (!process.env['GEMINI_API_KEY']) {
@@ -45,13 +33,15 @@ export function validateAuthMethod(authMethod: string): string | null {
       !!process.env['GOOGLE_CLOUD_LOCATION'];
     const hasGoogleApiKey = !!process.env['GOOGLE_API_KEY'];
     if (!hasVertexProjectLocationConfig && !hasGoogleApiKey) {
-      return t(
-        'auth_errors.vertex_ai_env_vars_missing',
-        'When using Vertex AI, you must specify either:\n• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n• GOOGLE_API_KEY environment variable (if using express mode).\nUpdate your environment and try again (no reload needed if using .env)!',
+      return (
+        'When using Vertex AI, you must specify either:\n' +
+        '• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n' +
+        '• GOOGLE_API_KEY environment variable (if using express mode).\n' +
+        'Update your environment and try again (no reload needed if using .env)!'
       );
     }
     return null;
   }
 
-  return t('auth_errors.invalid_method', 'Invalid auth method selected.');
+  return 'Invalid auth method selected.';
 }

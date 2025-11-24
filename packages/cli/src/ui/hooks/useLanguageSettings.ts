@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, initI18n, setLanguage } from '@google/gemini-cli-core';
+import { initI18n, setLanguage } from '@google/gemini-cli-core';
 import type { SupportedLanguage } from '@google/gemini-cli-core';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -45,11 +45,7 @@ export const useLanguageSettings = (
       initI18n(currentLanguage).catch((error) => {
         console.error('Failed to initialize i18n with saved language:', error);
         setLanguageError(
-          t(
-            'language.initialization_failed',
-            'Failed to load language "{language}". Using default.',
-            { language: currentLanguage },
-          ),
+          `Failed to load language "${currentLanguage}". Using default.`,
         );
       });
     } else if (!isFirstTimeSetup) {
@@ -71,9 +67,7 @@ export const useLanguageSettings = (
   const applyLanguage = useCallback(
     async (languageCode: SupportedLanguage | undefined) => {
       if (!languageCode) {
-        setLanguageError(
-          t('language.no_language_selected', 'No language selected.'),
-        );
+        setLanguageError('No language selected.');
         return false;
       }
 
@@ -85,11 +79,7 @@ export const useLanguageSettings = (
         addItem(
           {
             type: MessageType.INFO,
-            text: t(
-              'language.changed_successfully',
-              'Language changed to {language}.',
-              { language: languageCode },
-            ),
+            text: `Language changed to ${languageCode}.`,
           },
           Date.now(),
         );
@@ -98,11 +88,7 @@ export const useLanguageSettings = (
       } catch (error) {
         console.error('Failed to apply language:', error);
         setLanguageError(
-          t(
-            'language.application_failed',
-            'Failed to apply language "{language}". Please try again.',
-            { language: languageCode },
-          ),
+          `Failed to apply language "${languageCode}". Please try again.`,
         );
         return false;
       }
@@ -118,12 +104,7 @@ export const useLanguageSettings = (
       if (!languageCode) {
         // If no language selected and it's first-time setup, don't allow proceeding
         if (isFirstTimeSetup) {
-          setLanguageError(
-            t(
-              'language.must_select_language',
-              'You must select a language to continue.',
-            ),
-          );
+          setLanguageError('You must select a language to continue.');
           return;
         }
         // Otherwise, just close the dialog
@@ -151,11 +132,7 @@ export const useLanguageSettings = (
             addItem(
               {
                 type: MessageType.INFO,
-                text: t(
-                  'language.welcome_message',
-                  'Welcome! Language has been set to {language}. You can change it anytime using the /language command.',
-                  { language: languageCode },
-                ),
+                text: `Welcome! Language has been set to ${languageCode}. You can change it anytime using the /language command.`,
               },
               Date.now(),
             );
@@ -165,10 +142,7 @@ export const useLanguageSettings = (
       } catch (error) {
         console.error('Failed to save language setting:', error);
         setLanguageError(
-          t(
-            'language.save_failed',
-            'Failed to save language setting. Please try again.',
-          ),
+          'Failed to save language setting. Please try again.',
         );
       }
     },

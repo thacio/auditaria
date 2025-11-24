@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t, ApprovalMode } from '@google/gemini-cli-core';
-
 import type React from 'react';
 import clipboardy from 'clipboardy';
 import { useCallback, useEffect, useState, useRef } from 'react';
@@ -26,6 +24,7 @@ import { useKeypress } from '../hooks/useKeypress.js';
 import { keyMatchers, Command } from '../keyMatchers.js';
 import type { CommandContext, SlashCommand } from '../commands/types.js';
 import type { Config } from '@google/gemini-cli-core';
+import { ApprovalMode } from '@google/gemini-cli-core';
 import {
   parseInputForHighlighting,
   buildSegmentsForVisualSlice,
@@ -110,7 +109,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   config,
   slashCommands,
   commandContext,
-  placeholder = t('input.placeholder', '  Type your message or @path/to/file'),
+  placeholder = '  Type your message or @path/to/file',
   focus = true,
   inputWidth,
   suggestionsWidth,
@@ -254,12 +253,7 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
         streamingState === StreamingState.Responding
       ) {
         setQueueErrorMessage(
-          t(
-            isShell
-              ? 'input.queue_error.shell_command'
-              : 'input.queue_error.slash_command',
-            `${isShell ? 'Shell' : 'Slash'} commands cannot be queued`,
-          ),
+          `${isShell ? 'Shell' : 'Slash'} commands cannot be queued`,
         );
         return;
       }
@@ -970,13 +964,13 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   let statusText = '';
   if (shellModeActive) {
     statusColor = theme.ui.symbol;
-    statusText = t('input.aria_shell_mode', 'Shell mode');
+    statusText = 'Shell mode';
   } else if (showYoloStyling) {
     statusColor = theme.status.error;
-    statusText = t('input.aria_yolo_mode', 'YOLO mode');
+    statusText = 'YOLO mode';
   } else if (showAutoAcceptStyling) {
     statusColor = theme.status.warning;
-    statusText = t('input.aria_accepting_edits', 'Accepting edits');
+    statusText = 'Accepting edits';
   }
 
   const suggestionsNode = shouldShowSuggestions ? (

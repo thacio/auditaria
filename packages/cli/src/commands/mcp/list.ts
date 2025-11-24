@@ -8,7 +8,11 @@
 import type { CommandModule } from 'yargs';
 import { loadSettings } from '../../config/settings.js';
 import type { MCPServerConfig } from '@google/gemini-cli-core';
-import { MCPServerStatus, createTransport, t } from '@google/gemini-cli-core';
+import {
+  MCPServerStatus,
+  createTransport,
+  debugLogger,
+} from '@google/gemini-cli-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { ExtensionManager } from '../../config/extension-manager.js';
 import { requestConsentNonInteractive } from '../../config/extensions/consent.js';
@@ -92,18 +96,11 @@ export async function listMcpServers(): Promise<void> {
   const serverNames = Object.keys(mcpServers);
 
   if (serverNames.length === 0) {
-    console.log(
-      t('commands.mcp.manage.list.no_servers', 'No MCP servers configured.'),
-    );
+    debugLogger.log('No MCP servers configured.');
     return;
   }
 
-  console.log(
-    t(
-      'commands.mcp.manage.list.configured_servers',
-      'Configured MCP servers:\n',
-    ),
-  );
+  debugLogger.log('Configured MCP servers:\n');
 
   for (const serverName of serverNames) {
     const server = mcpServers[serverName];
@@ -115,25 +112,16 @@ export async function listMcpServers(): Promise<void> {
     switch (status) {
       case MCPServerStatus.CONNECTED:
         statusIndicator = COLOR_GREEN + '✓' + RESET_COLOR;
-        statusText = t(
-          'commands.mcp.manage.list.status_connected',
-          'Connected',
-        );
+        statusText = 'Connected';
         break;
       case MCPServerStatus.CONNECTING:
         statusIndicator = COLOR_YELLOW + '…' + RESET_COLOR;
-        statusText = t(
-          'commands.mcp.manage.list.status_connecting',
-          'Connecting',
-        );
+        statusText = 'Connecting';
         break;
       case MCPServerStatus.DISCONNECTED:
       default:
         statusIndicator = COLOR_RED + '✗' + RESET_COLOR;
-        statusText = t(
-          'commands.mcp.manage.list.status_disconnected',
-          'Disconnected',
-        );
+        statusText = 'Disconnected';
         break;
     }
 
@@ -149,16 +137,13 @@ export async function listMcpServers(): Promise<void> {
       serverInfo += `${server.command} ${server.args?.join(' ') || ''} (stdio)`;
     }
 
-    console.log(`${statusIndicator} ${serverInfo} - ${statusText}`);
+    debugLogger.log(`${statusIndicator} ${serverInfo} - ${statusText}`);
   }
 }
 
 export const listCommand: CommandModule = {
   command: 'list',
-  describe: t(
-    'commands.mcp.manage.list.description',
-    'List all configured MCP servers',
-  ),
+  describe: 'List all configured MCP servers',
   handler: async () => {
     await listMcpServers();
     await exitCli();
