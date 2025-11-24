@@ -52,6 +52,7 @@ import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
+import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 
 const MAX_TURNS = 100;
 
@@ -442,6 +443,14 @@ export class GeminiClient {
     if (compressed.compressionStatus === CompressionStatus.COMPRESSED) {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
+
+    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditoria Custom Feature
+    // Check for external file changes and inject notifications before user message
+    await collaborativeWritingService.checkAndInjectFileUpdates(
+      this.getChat(),
+      signal,
+    );
+    // AUDITARIA_COLLABORATIVE_WRITING_END
 
     // Prevent context updates from being sent while a tool call is
     // waiting for a response. The Gemini API requires that a functionResponse
