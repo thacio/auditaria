@@ -10,7 +10,7 @@ import { theme } from '../semantic-colors.js';
 import {
   type IdeContext,
   type MCPServerConfig,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 

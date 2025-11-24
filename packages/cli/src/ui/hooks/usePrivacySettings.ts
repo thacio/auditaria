@@ -10,7 +10,7 @@ import {
   type CodeAssistServer,
   UserTierId,
   getCodeAssistServer,
-} from '@thacio/auditaria-cli-core';
+} from '@google/gemini-cli-core';
 
 export interface PrivacyState {
   isLoading: boolean;
