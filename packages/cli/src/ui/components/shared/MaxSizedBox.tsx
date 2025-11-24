@@ -10,7 +10,6 @@ import stringWidth from 'string-width';
 import { theme } from '../../semantic-colors.js';
 import { toCodePoints } from '../../utils/textUtils.js';
 import { useOverflowActions } from '../../contexts/OverflowContext.js';
-import { t } from '@google/gemini-cli-core';
 
 let enableDebugLog = false;
 
@@ -188,13 +187,15 @@ export const MaxSizedBox: React.FC<MaxSizedBoxProps> = ({
     <Box flexDirection="column" width={maxWidth} flexShrink={0}>
       {totalHiddenLines > 0 && overflowDirection === 'top' && (
         <Text color={theme.text.secondary} wrap="truncate">
-          {t('show_more_content.first_lines_hidden', '... first {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
+          ... first {totalHiddenLines} line{totalHiddenLines === 1 ? '' : 's'}{' '}
+          hidden ...
         </Text>
       )}
       {visibleLines}
       {totalHiddenLines > 0 && overflowDirection === 'bottom' && (
         <Text color={theme.text.secondary} wrap="truncate">
-          {t('show_more_content.last_lines_hidden', '... last {count} line{plural} hidden ...', { count: totalHiddenLines, plural: totalHiddenLines === 1 ? '' : 's' })}
+          ... last {totalHiddenLines} line{totalHiddenLines === 1 ? '' : 's'}{' '}
+          hidden ...
         </Text>
       )}
     </Box>

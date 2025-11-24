@@ -10,10 +10,8 @@ import { Box, Text } from 'ink';
 import type { IndividualToolCallDisplay } from '../../types.js';
 import { ToolCallStatus } from '../../types.js';
 import { ToolMessage } from './ToolMessage.js';
-import { ShellToolMessage } from './ShellToolMessage.js';
 import { ToolConfirmationMessage } from './ToolConfirmationMessage.js';
 import { theme } from '../../semantic-colors.js';
-import { t , SHELL_TOOL_NAME } from '@google/gemini-cli-core';
 import { SHELL_COMMAND_NAME, SHELL_NAME } from '../../constants.js';
 import { useConfig } from '../../contexts/ConfigContext.js';
 
@@ -105,25 +103,6 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       {toolCalls.map((tool, index) => {
         const isConfirming = toolAwaitingApproval?.callId === tool.callId;
         const isFirst = index === 0;
-        const isShellTool =
-          tool.name === SHELL_COMMAND_NAME ||
-          tool.name === SHELL_NAME ||
-          tool.name === SHELL_TOOL_NAME;
-
-        const commonProps = {
-          ...tool,
-          availableTerminalHeight: availableTerminalHeightPerToolMessage,
-          terminalWidth,
-          emphasis: isConfirming
-            ? ('high' as const)
-            : toolAwaitingApproval
-              ? ('low' as const)
-              : ('medium' as const),
-          isFirst,
-          borderColor,
-          borderDimColor,
-        };
-
         return (
           <Box
             key={tool.callId}
@@ -131,16 +110,20 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
             minHeight={1}
             width={terminalWidth}
           >
-            {isShellTool ? (
-              <ShellToolMessage
-                {...commonProps}
-                activeShellPtyId={activeShellPtyId}
-                embeddedShellFocused={embeddedShellFocused}
-                config={config}
-              />
-            ) : (
-              <ToolMessage {...commonProps} />
-            )}
+            <ToolMessage
+              {...tool}
+              availableTerminalHeight={availableTerminalHeightPerToolMessage}
+              terminalWidth={terminalWidth}
+              emphasis={
+                isConfirming ? 'high' : toolAwaitingApproval ? 'low' : 'medium'
+              }
+              activeShellPtyId={activeShellPtyId}
+              embeddedShellFocused={embeddedShellFocused}
+              config={config}
+              isFirst={isFirst}
+              borderColor={borderColor}
+              borderDimColor={borderDimColor}
+            />
             <Box
               borderLeft={true}
               borderRight={true}
@@ -169,11 +152,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
               {tool.outputFile && (
                 <Box>
                   <Text color={theme.text.primary}>
-                    {t(
-                      'ui.tool_output.output_saved',
-                      'Output too long and was saved to: {outputFile}',
-                      { outputFile: tool.outputFile },
-                    )}
+                    Output too long and was saved to: {tool.outputFile}
                   </Text>
                 </Box>
               )}

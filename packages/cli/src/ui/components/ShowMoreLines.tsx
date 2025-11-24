@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import { t } from '@google/gemini-cli-core';
 
 import { Box, Text } from 'ink';
 import { useOverflowState } from '../contexts/OverflowContext.js';
@@ -34,7 +33,7 @@ export const ShowMoreLines = ({ constrainHeight }: ShowMoreLinesProps) => {
   return (
     <Box>
       <Text color={theme.text.secondary} wrap="truncate">
-        {t('show_more_lines.press_ctrl_s', 'Press ctrl-s to show more lines')}
+        Press ctrl-s to show more lines
       </Text>
     </Box>
   );

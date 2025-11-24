@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'node-html-parser';
 // WEB_INTERFACE_END
 import type { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
-import { t, ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
+import { ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
@@ -210,7 +210,7 @@ export class WebInterfaceService extends EventEmitter {
    */
   async start(config: WebInterfaceConfig = {}): Promise<number> {
     if (this.isRunning) {
-      throw new Error(t('web.errors.already_running', 'Web interface is already running'));
+      throw new Error('Web interface is already running');
     }
 
     try {
@@ -667,7 +667,7 @@ export class WebInterfaceService extends EventEmitter {
 
       // Log fallback message after we have the actual assigned port
       if (usedFallback) {
-        console.log(t('web.port_fallback', 'Port {requestedPort} is in use, using port {assignedPort} instead', { requestedPort, assignedPort: this.port }));
+        console.log(`Port ${requestedPort} is in use, using port ${this.port} instead`);
       }
 
       // Set up WebSocket server with compression enabled
@@ -1668,9 +1668,9 @@ export class WebInterfaceService extends EventEmitter {
     };
     
     // Send welcome message with starting sequence
-    sendAndStore('connection', { 
-      message: t('web.messages.connected', 'Connected to Auditaria CLI'),
-      startingSequence: this.sequenceNumber 
+    sendAndStore('connection', {
+      message: 'Connected to Auditaria CLI',
+      startingSequence: this.sequenceNumber
     });
     
     // Send current history to new client
