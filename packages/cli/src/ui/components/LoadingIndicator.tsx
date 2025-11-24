@@ -54,7 +54,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
       loadingStateContext.updateLoadingState(loadingStateData);
     }
-  }, [streamingState, currentLoadingPhrase, elapsedTime, thought, loadingStateContext]);
+  }, [streamingState, currentLoadingPhrase, elapsedTime, thought]);
   // WEB_INTERFACE_END
 
   if (streamingState === StreamingState.Idle) {
