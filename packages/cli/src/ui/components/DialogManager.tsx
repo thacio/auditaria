@@ -19,6 +19,8 @@ import { EditorSettingsDialog } from './EditorSettingsDialog.js';
 import { LanguageSelectionDialog } from './LanguageSelectionDialog.js';
 import { PrivacyNotice } from '../privacy/PrivacyNotice.js';
 import { ProQuotaDialog } from './ProQuotaDialog.js';
+import { runExitCleanup } from '../../utils/cleanup.js';
+import { RELAUNCH_EXIT_CODE } from '../../utils/processUtils.js';
 import { PermissionsModifyTrustDialog } from './PermissionsModifyTrustDialog.js';
 import { ModelDialog } from './ModelDialog.js';
 import { theme } from '../semantic-colors.js';
@@ -54,8 +56,13 @@ export const DialogManager = ({
   if (uiState.proQuotaRequest) {
     return (
       <ProQuotaDialog
+        failedModel={uiState.proQuotaRequest.failedModel}
         fallbackModel={uiState.proQuotaRequest.fallbackModel}
+        message={uiState.proQuotaRequest.message}
+        isTerminalQuotaError={uiState.proQuotaRequest.isTerminalQuotaError}
+        isModelNotFoundError={!!uiState.proQuotaRequest.isModelNotFoundError}
         onChoice={uiActions.handleProQuotaChoice}
+        userTier={uiState.userTier}
       />
     );
   }
@@ -133,8 +140,12 @@ export const DialogManager = ({
         <SettingsDialog
           settings={settings}
           onSelect={() => uiActions.closeSettingsDialog()}
-          onRestartRequest={() => process.exit(0)}
+          onRestartRequest={async () => {
+            await runExitCleanup();
+            process.exit(RELAUNCH_EXIT_CODE);
+          }}
           availableTerminalHeight={terminalHeight - staticExtraHeight}
+          config={config}
         />
       </Box>
     );
