@@ -357,18 +357,6 @@ export async function main() {
   // Initialize i18n system with settings-based language or fallback to detection
   const language = settings.merged.ui?.language || detectLanguage();
   await initI18n(language);
-
-  // // Initialize i18n injection system for automatic translation
-  // try {
-  //   const { initialize: initInjection } = await import('./i18n-injection/index.js');
-  //   await initInjection();
-  // } catch (error) {
-  //   // Silently fail if injection system is not available
-  //   if (process.env.DEBUG_I18N === 'true') {
-  //     console.error('Failed to initialize i18n injection:', error);
-  //   }
-  // }
-
   await cleanupCheckpoints();
 
   const argv = await parseArguments(settings.merged);
