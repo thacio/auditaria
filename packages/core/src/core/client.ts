@@ -52,6 +52,7 @@ import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
+import { getCurrentLanguage } from '../i18n/index.js'; // AUDITARIA_LANGUAGE - Auditaria Custom Feature
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 
 const MAX_TURNS = 100;
@@ -194,7 +195,12 @@ export class GeminiClient {
 
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
+      const currentLanguage = getCurrentLanguage(); // AUDITARIA_LANGUAGE - Auditaria Custom Feature
+      const systemInstruction = getCoreSystemPrompt(
+        this.config,
+        userMemory,
+        currentLanguage /* // AUDITARIA_LANGUAGE - Auditaria Custom Feature */,
+      );
       return new GeminiChat(
         this.config,
         systemInstruction,
@@ -444,7 +450,7 @@ export class GeminiClient {
       yield { type: GeminiEventType.ChatCompressed, value: compressed };
     }
 
-    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditoria Custom Feature
+    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditaria Custom Feature
     // Check for external file changes and inject notifications before user message
     await collaborativeWritingService.checkAndInjectFileUpdates(
       this.getChat(),
@@ -609,7 +615,12 @@ export class GeminiClient {
 
     try {
       const userMemory = this.config.getUserMemory();
-      const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
+      const currentLanguage = getCurrentLanguage(); // AUDITARIA_LANGUAGE - Auditaria Custom Feature
+      const systemInstruction = getCoreSystemPrompt(
+        this.config,
+        userMemory,
+        currentLanguage /* // AUDITARIA_LANGUAGE - Auditaria Custom Feature */,
+      );
 
       const apiCall = () => {
         const modelConfigToUse = this.config.isInFallbackMode()

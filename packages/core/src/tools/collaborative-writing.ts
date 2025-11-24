@@ -101,21 +101,21 @@ class CollaborativeWritingRegistry {
     // Create file watcher for event-driven change detection
     // Using native fs.watch() like DirectoryWatcherService for consistency
     try {
-      // console.log('[COLLAB-WRITE] Creating file watcher for:', filePath);
+      // console.log('[COLLAB-WRITE] 📁 Creating file watcher for:', filePath);
 
       const watcher = watch(filePath, (eventType, filename) => {
-        // console.log('[COLLAB-WRITE] Watcher event:', { eventType, filename, filePath });
+        // console.log('[COLLAB-WRITE] 🔔 Watcher event fired:', { eventType, filename, filePath });
 
         // eventType: 'change' = file content modified
         // eventType: 'rename' = file deleted or renamed
         if (eventType === 'change') {
           // File was modified - set flag for notification
           tracked.pendingNotification = 'modified';
-          // console.log('[COLLAB-WRITE] Marked as pending modification:', filePath);
+          // console.log('[COLLAB-WRITE] ✏️ Marked as pending modification:', filePath);
         } else if (eventType === 'rename') {
           // File was deleted or renamed - set flag for deletion notification
           tracked.pendingNotification = 'deleted';
-          // console.log('[COLLAB-WRITE] Marked as pending deletion:', filePath);
+          console.log('[COLLAB-WRITE] 🗑️ Marked as pending deletion:', filePath);
         }
       });
 
@@ -127,14 +127,15 @@ class CollaborativeWritingRegistry {
       });
 
       tracked.watcher = watcher;
-      // console.log('[COLLAB-WRITE] File watcher created successfully for:', filePath);
+      // console.log('[COLLAB-WRITE] ✅ File watcher created successfully for:', filePath);
     } catch (error) {
       // If watcher creation fails, log warning but continue tracking
       // Detection will fall back to polling (existing mtime/hash check)
-      console.warn('[COLLAB-WRITE] Failed to create file watcher for', filePath, ':', error);
-      console.warn('[COLLAB-WRITE] Falling back to polling-based detection');
+      console.warn('[COLLAB-WRITE] ⚠️ Failed to create file watcher for', filePath, ':', error);
+      console.warn('[COLLAB-WRITE] ⚠️ Falling back to polling-based detection');
     }
 
+    // console.log('[COLLAB-WRITE] 💾 File added to registry:', { filePath, hash: hash.substring(0, 8) + '...', mtime: stats.mtimeMs });
     this.trackedFiles.set(filePath, tracked);
   }
 
@@ -156,11 +157,11 @@ class CollaborativeWritingRegistry {
   private closeWatcher(tracked: TrackedFile): void {
     if (tracked.watcher) {
       try {
-        // console.log('[COLLAB-WRITE] Closing watcher for:', tracked.filePath);
+        // console.log('[COLLAB-WRITE] 🔒 Closing watcher for:', tracked.filePath);
         tracked.watcher.close();
         tracked.watcher = undefined;
       } catch (error) {
-        console.warn('[COLLAB-WRITE] Error closing watcher for', tracked.filePath, ':', error);
+        console.warn('[COLLAB-WRITE] ⚠️ Error closing watcher for', tracked.filePath, ':', error);
       }
     }
   }
@@ -217,12 +218,13 @@ class CollaborativeWritingRegistry {
    * Clear all tracked files and close all watchers.
    */
   clear(): void {
-    // console.log('[COLLAB-WRITE] Clearing all tracked files and watchers');
+    // console.log('[COLLAB-WRITE] 🧹 Clearing all tracked files and watchers. Count:', this.trackedFiles.size);
     // Close all watchers before clearing
     for (const tracked of this.trackedFiles.values()) {
       this.closeWatcher(tracked);
     }
     this.trackedFiles.clear();
+    // console.log('[COLLAB-WRITE] ✅ All trackers cleared');
   }
 
   /**
@@ -350,8 +352,8 @@ An unknown type of change was detected. Please check the file manually.`;
 async function detectFileChange(
   tracked: TrackedFile,
 ): Promise<FileChangeInfo | null> {
-  // console.log('[COLLAB-WRITE] detectFileChange checking:', tracked.filePath);
-  // console.log('[COLLAB-WRITE] Current registry state:', {
+  // console.log('[COLLAB-WRITE] 🔍 detectFileChange checking:', tracked.filePath);
+  // console.log('[COLLAB-WRITE] 📊 Current registry state:', {
   //   lastChangeSource: tracked.lastChangeSource,
   //   pendingNotification: tracked.pendingNotification,
   //   hasWatcher: !!tracked.watcher,
@@ -362,18 +364,18 @@ async function detectFileChange(
   // OPTIMIZATION: Check pendingNotification flag first (event-driven)
   // If watcher exists and no flag is set, skip expensive file operations
   if (tracked.watcher && !tracked.pendingNotification) {
-    // console.log('[COLLAB-WRITE] Watcher active, no pending notification - skipping check');
+    // console.log('[COLLAB-WRITE] ⏭️ Watcher active, no pending notification - skipping check');
     return null; // No changes detected by watcher
   }
 
   // If flag is 'deleted', handle deletion immediately
   if (tracked.pendingNotification === 'deleted') {
-    // console.log('[COLLAB-WRITE] Pending deletion detected by watcher');
+    // console.log('[COLLAB-WRITE] 🗑️ Pending deletion detected by watcher');
     // Try to confirm deletion by attempting to stat the file
     try {
       await fs.stat(tracked.filePath);
       // File still exists - might have been recreated
-      // console.log('[COLLAB-WRITE] File exists after delete event - might be recreated');
+      // console.log('[COLLAB-WRITE] 🔄 File exists after delete event - might be recreated');
       // Clear the deletion flag and check for modification instead
       tracked.pendingNotification = 'modified';
     } catch (error: unknown) {
@@ -381,7 +383,7 @@ async function detectFileChange(
         const nodeError = error as NodeJS.ErrnoException;
         if (nodeError.code === 'ENOENT') {
           // Confirmed: file was deleted
-          // console.log('[COLLAB-WRITE] Deletion confirmed');
+          // console.log('[COLLAB-WRITE] ✅ Deletion confirmed');
           return {
             type: 'deleted',
             filePath: tracked.filePath,
@@ -404,7 +406,7 @@ async function detectFileChange(
     // Try to stat the file
     const stats = await fs.stat(tracked.filePath);
 
-    // console.log('[COLLAB-WRITE] File stats:', {
+    // console.log('[COLLAB-WRITE] 📈 File stats:', {
     //   currentMtime: stats.mtimeMs,
     //   trackedMtime: tracked.lastModifiedTime,
     //   mtimeChanged: stats.mtimeMs !== tracked.lastModifiedTime,
@@ -412,7 +414,7 @@ async function detectFileChange(
 
     // If no watcher and mtime unchanged, skip (polling fallback optimization)
     if (!tracked.watcher && stats.mtimeMs === tracked.lastModifiedTime) {
-      // console.log('[COLLAB-WRITE] No watcher, no mtime change - skipping');
+      // console.log('[COLLAB-WRITE] ⏭️ No watcher, no mtime change - skipping');
       return null;
     }
 
@@ -420,7 +422,7 @@ async function detectFileChange(
     const currentContent = await fs.readFile(tracked.filePath, 'utf-8');
     const currentHash = computeHash(currentContent);
 
-    // console.log('[COLLAB-WRITE] Content comparison:', {
+    // console.log('[COLLAB-WRITE] 🔐 Content comparison:', {
     //   currentHash: currentHash.substring(0, 8) + '...',
     //   trackedHash: tracked.lastKnownHash.substring(0, 8) + '...',
     //   hashesMatch: currentHash === tracked.lastKnownHash,
@@ -430,16 +432,16 @@ async function detectFileChange(
 
     // If hash matches, it's a false positive
     if (currentHash === tracked.lastKnownHash) {
-      // console.log('[COLLAB-WRITE] Hash unchanged (false positive)');
+      // console.log('[COLLAB-WRITE] ⏭️ Hash unchanged (false positive)');
       // Clear the pending flag since there's no actual change
       tracked.pendingNotification = undefined;
       return null;
     }
 
     // Content has changed!
-    // console.log('[COLLAB-WRITE] Content HAS changed!');
+    // console.log('[COLLAB-WRITE] 🎯 Content HAS changed!');
 
-    // console.log('[COLLAB-WRITE] Generating diff for AI notification...');
+    // console.log('[COLLAB-WRITE] 📝 Generating diff for AI notification...');
 
     // Content has changed - generate structured diff with line numbers
     const fileName = path.basename(tracked.filePath);
@@ -539,31 +541,33 @@ class CollaborativeWritingService {
     signal: AbortSignal,
   ): Promise<void> {
     // console.log(
-    //   '[COLLAB-WRITE] ========== checkAndInjectFileUpdates called ==========',
+    //   '[COLLAB-WRITE] ========== 🚀 checkAndInjectFileUpdates called ==========',
     // );
 
     // If aborted, exit early
     if (signal.aborted) {
-      // console.log('[COLLAB-WRITE] Aborted, exiting early');
+      // console.log('[COLLAB-WRITE] ⛔ Aborted, exiting early');
       return;
     }
 
     const trackedFiles = this.registry.getAllTrackedFiles();
 
-    // console.log('[COLLAB-WRITE] Tracked files count:', trackedFiles.length);
+    // console.log('[COLLAB-WRITE] 📊 Tracked files count:', trackedFiles.length);
     // if (trackedFiles.length > 0) {
-    //   console.log(
-    //     '[COLLAB-WRITE] Tracked files:',
-    //     trackedFiles.map((f) => ({
-    //       path: f.filePath,
-    //       source: f.lastChangeSource,
-    //     })),
-    //   );
+      // console.log(
+      //   '[COLLAB-WRITE] 📁 Tracked files:',
+      //   trackedFiles.map((f) => ({
+      //     path: f.filePath,
+      //     source: f.lastChangeSource,
+      //     hasPendingNotification: !!f.pendingNotification,
+      //     hasWatcher: !!f.watcher,
+      //   })),
+      // );
     // }
 
     // No files to check
     if (trackedFiles.length === 0) {
-      // console.log('[COLLAB-WRITE] No tracked files, exiting');
+      // console.log('[COLLAB-WRITE] ⏭️ No tracked files, exiting');
       return;
     }
 
@@ -573,29 +577,30 @@ class CollaborativeWritingService {
       try {
         const change = await detectFileChange(tracked);
         if (change) {
-          // console.log('[COLLAB-WRITE] Change detected for:', tracked.filePath);
+          // console.log('[COLLAB-WRITE] 🔔 Change detected for:', tracked.filePath);
           changes.push(change);
         }
       } catch (error) {
         // Log error but continue checking other files
         console.error(
-          `[COLLAB-WRITE] Error checking file ${tracked.filePath} for changes:`,
+          `[COLLAB-WRITE] ❌ Error checking file ${tracked.filePath} for changes:`,
           error,
         );
       }
     }
 
-    // console.log('[COLLAB-WRITE] Total changes found:', changes.length);
+    // console.log('[COLLAB-WRITE] 📊 Total changes found:', changes.length);
 
     // No changes detected
     if (changes.length === 0) {
-      // console.log('[COLLAB-WRITE] No changes to inject, exiting');
+      // console.log('[COLLAB-WRITE] ⏭️ No changes to inject, exiting');
       return;
     }
 
     // Inject notifications for each changed file
+    // console.log('[COLLAB-WRITE] 💉 Starting to inject notifications...');
     for (const change of changes) {
-      // console.log('[COLLAB-WRITE] Injecting notification for:', {
+      // console.log('[COLLAB-WRITE] 📤 Injecting notification for:', {
       //   filePath: change.filePath,
       //   type: change.type,
       //   linesAdded: change.linesAdded,
@@ -607,7 +612,7 @@ class CollaborativeWritingService {
       // Update registry or remove file based on change type
       if (change.type === 'modified') {
         // console.log(
-        //   '[COLLAB-WRITE] Updating registry with external change source',
+        //   '[COLLAB-WRITE] 💾 Updating registry with external change source',
         // );
         this.registry.updateFileState(
           change.filePath,
@@ -621,10 +626,10 @@ class CollaborativeWritingService {
         const tracked = this.registry.getTrackedFile(change.filePath);
         if (tracked) {
           tracked.pendingNotification = undefined;
-          // console.log('[COLLAB-WRITE] Cleared pending notification flag');
+          // console.log('[COLLAB-WRITE] ✅ Cleared pending notification flag');
         }
       } else if (change.type === 'deleted') {
-        // console.log('[COLLAB-WRITE] File deleted - auto-ending tracking (watcher will be closed)');
+        // console.log('[COLLAB-WRITE] 🗑️ File deleted - auto-ending tracking (watcher will be closed)');
         // Auto-end tracking when file is deleted
         // This closes the watcher and removes from registry
         this.registry.stopTracking(change.filePath);
@@ -640,7 +645,7 @@ class CollaborativeWritingService {
     }
 
     // console.log(
-    //   '[COLLAB-WRITE] ========== checkAndInjectFileUpdates complete ==========',
+    //   '[COLLAB-WRITE] ========== ✅ checkAndInjectFileUpdates complete ==========',
     // );
   }
 
@@ -653,15 +658,15 @@ class CollaborativeWritingService {
   async updateAfterAIEdit(filePath: string): Promise<void> {
     const absolutePath = path.resolve(filePath);
 
-    // console.log('[COLLAB-WRITE] updateAfterAIEdit called for:', absolutePath);
+    // console.log('[COLLAB-WRITE] 🤖 updateAfterAIEdit called for:', absolutePath);
 
     if (!this.registry.isTracking(absolutePath)) {
-      // console.log('[COLLAB-WRITE] File not tracked, skipping update');
+      // console.log('[COLLAB-WRITE] ⏭️ File not tracked, skipping update');
       return;
     }
 
-    // const trackedBefore = this.registry.getTrackedFile(absolutePath);
-    // console.log('[COLLAB-WRITE] Registry state BEFORE AI update:', {
+    const trackedBefore = this.registry.getTrackedFile(absolutePath);
+    // console.log('[COLLAB-WRITE] 📊 Registry state BEFORE AI update:', {
     //   lastChangeSource: trackedBefore?.lastChangeSource,
     //   pendingNotification: trackedBefore?.pendingNotification,
     //   lastKnownHash: trackedBefore?.lastKnownHash.substring(0, 8) + '...',
@@ -673,7 +678,7 @@ class CollaborativeWritingService {
       const hash = computeHash(content);
       const stats = await fs.stat(absolutePath);
 
-      // console.log('[COLLAB-WRITE] Read file after AI edit:', {
+      // console.log('[COLLAB-WRITE] 📖 Read file after AI edit:', {
       //   contentLength: content.length,
       //   newHash: hash.substring(0, 8) + '...',
       //   newMtime: stats.mtimeMs,
@@ -692,18 +697,18 @@ class CollaborativeWritingService {
       const tracked = this.registry.getTrackedFile(absolutePath);
       if (tracked) {
         tracked.pendingNotification = undefined;
-        // console.log('[COLLAB-WRITE] Cleared pendingNotification flag (AI edit)');
+        // console.log('[COLLAB-WRITE] ✅ Cleared pendingNotification flag (AI edit)');
       }
 
-      // const trackedAfter = this.registry.getTrackedFile(absolutePath);
-      // console.log('[COLLAB-WRITE] Registry state AFTER AI update:', {
+      const trackedAfter = this.registry.getTrackedFile(absolutePath);
+      // console.log('[COLLAB-WRITE] 📊 Registry state AFTER AI update:', {
       //   lastChangeSource: trackedAfter?.lastChangeSource,
       //   pendingNotification: trackedAfter?.pendingNotification,
       //   lastKnownHash: trackedAfter?.lastKnownHash.substring(0, 8) + '...',
       //   lastModifiedTime: trackedAfter?.lastModifiedTime,
       // });
     } catch (error) {
-      console.error('[COLLAB-WRITE] Error updating after AI edit:', error);
+      console.error('[COLLAB-WRITE] ❌ Error updating after AI edit:', error);
     }
   }
 
@@ -719,7 +724,7 @@ class CollaborativeWritingService {
     chat: GeminiChat,
     change: FileChangeInfo,
   ): void {
-    // console.log('[COLLAB-WRITE] Injecting notification as user message');
+    // console.log('[COLLAB-WRITE] 💬 Injecting notification as user message for:', change.filePath);
 
     // ============================================
     // OLD IMPLEMENTATION (COMMENTED OUT - BUG FIX)
@@ -771,7 +776,9 @@ class CollaborativeWritingService {
       ],
     };
 
+    // console.log('[COLLAB-WRITE] 📨 Adding notification to chat history');
     chat.addHistory(notificationContent);
+    // console.log('[COLLAB-WRITE] ✅ Notification injected successfully');
   }
 
   /**
