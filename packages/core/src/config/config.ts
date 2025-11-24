@@ -634,6 +634,11 @@ export class Config {
       await this.getExtensionLoader().start(this),
     ]);
 
+    // AUDITARIA_SKILLS_START - Load skills during initialization
+    const { loadSkillsPromptSection } = await import('../skills/index.js');
+    this.skillsPromptSection = await loadSkillsPromptSection(this.targetDir);
+    // AUDITARIA_SKILLS_END
+
     await this.geminiClient.initialize();
   }
 
