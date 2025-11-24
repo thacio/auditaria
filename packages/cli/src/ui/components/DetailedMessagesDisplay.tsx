@@ -13,7 +13,6 @@ import {
   ScrollableList,
   type ScrollableListRef,
 } from './shared/ScrollableList.js';
-import { t } from '@google/gemini-cli-core';
 
 interface DetailedMessagesDisplayProps {
   messages: ConsoleMessageItem[];
@@ -65,10 +64,7 @@ export const DetailedMessagesDisplay: React.FC<
     >
       <Box marginBottom={1}>
         <Text bold color={theme.text.primary}>
-          {t('console_summary.debug_console', 'Debug Console')}{' '}
-          <Text color={theme.text.secondary}>
-            ({t('console_summary.ctrl_o_close', 'F12 to close')})
-          </Text>
+          Debug Console <Text color={theme.text.secondary}>(F12 to close)</Text>
         </Text>
       </Box>
       <Box height={maxHeight} width={width - borderAndPadding}>

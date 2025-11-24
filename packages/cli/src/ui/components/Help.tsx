@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
-
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
@@ -25,43 +23,46 @@ export const Help: React.FC<Help> = ({ commands }) => (
   >
     {/* Basics */}
     <Text bold color={theme.text.primary}>
-      {t('help.section_basics', 'Basics:')}
+      Basics:
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.add_context', 'Add context')}
+        Add context
       </Text>
-      :{' '}
-      {t(
-        'help.add_context_help',
-        'Use {symbol} to specify files for context (e.g., {example}) to target specific files or folders.',
-        {
-          symbol: '@',
-          example: '@src/myFile.ts',
-        },
-      )}
+      : Use{' '}
+      <Text bold color={theme.text.accent}>
+        @
+      </Text>{' '}
+      to specify files for context (e.g.,{' '}
+      <Text bold color={theme.text.accent}>
+        @src/myFile.ts
+      </Text>
+      ) to target specific files or folders.
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.shell_mode', 'Shell mode')}
+        Shell mode
       </Text>
-      :{' '}
-      {t(
-        'help.shell_mode_help',
-        'Execute shell commands via {symbol} (e.g., {example}) or use natural language (e.g. {natural_example}).',
-        {
-          symbol: '!',
-          example: '!npm run start',
-          natural_example: 'start server',
-        },
-      )}
+      : Execute shell commands via{' '}
+      <Text bold color={theme.text.accent}>
+        !
+      </Text>{' '}
+      (e.g.,{' '}
+      <Text bold color={theme.text.accent}>
+        !npm run start
+      </Text>
+      ) or use natural language (e.g.{' '}
+      <Text bold color={theme.text.accent}>
+        start server
+      </Text>
+      ).
     </Text>
 
     <Box height={1} />
 
     {/* Commands */}
     <Text bold color={theme.text.primary}>
-      {t('help.section_commands', 'Commands:')}
+      Commands:
     </Text>
     {commands
       .filter((command) => command.description && !command.hidden)
@@ -96,117 +97,98 @@ export const Help: React.FC<Help> = ({ commands }) => (
         {' '}
         !{' '}
       </Text>
-      - {t('help.shell_command', 'shell command')}
+      - shell command
     </Text>
     <Text color={theme.text.primary}>
-      <Text color={theme.text.secondary}>[MCP]</Text> -{' '}
-      {t(
-        'help.mcp_command',
-        'Model Context Protocol command (from external servers)',
-      )}
+      <Text color={theme.text.secondary}>[MCP]</Text> - Model Context Protocol
+      command (from external servers)
     </Text>
 
     <Box height={1} />
 
     {/* Shortcuts */}
     <Text bold color={theme.text.primary}>
-      {t('help.section_shortcuts', 'Keyboard Shortcuts:')}
+      Keyboard Shortcuts:
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.alt_left_right', 'Alt+Left/Right')}
+        Alt+Left/Right
       </Text>{' '}
-      - {t('help.shortcuts.jump_words', 'Jump through words in the input')}
+      - Jump through words in the input
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.ctrl_c', 'Ctrl+C')}
+        Ctrl+C
       </Text>{' '}
-      - {t('help.shortcuts.quit', 'Quit application')}
+      - Quit application
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {process.platform === 'win32'
-          ? t('help.keys.ctrl_enter', 'Ctrl+Enter')
-          : t('help.keys.ctrl_j', 'Ctrl+J')}
+        {process.platform === 'win32' ? 'Ctrl+Enter' : 'Ctrl+J'}
       </Text>{' '}
-      -{' '}
       {process.platform === 'linux'
-        ? t(
-            'help.shortcuts.new_line_linux',
-            'New line (Alt+Enter works for certain linux distros)',
-          )
-        : t('help.shortcuts.new_line_win', 'New line')}
+        ? '- New line (Alt+Enter works for certain linux distros)'
+        : '- New line'}
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.ctrl_l', 'Ctrl+L')}
+        Ctrl+L
       </Text>{' '}
-      - {t('help.shortcuts.clear_screen', 'Clear the screen')}
+      - Clear the screen
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.ctrl_s', 'Ctrl+S')}
+        Ctrl+S
       </Text>{' '}
-      -{' '}
-      {t('help.shortcuts.selection_mode', 'Enter selection mode to copy text')}
+      - Enter selection mode to copy text
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {process.platform === 'darwin'
-          ? t('help.keys.ctrl_x_meta', 'Ctrl+X / Meta+Enter')
-          : t('help.keys.ctrl_x', 'Ctrl+X')}
+        {process.platform === 'darwin' ? 'Ctrl+X / Meta+Enter' : 'Ctrl+X'}
       </Text>{' '}
-      - {t('help.shortcuts.external_editor', 'Open input in external editor')}
+      - Open input in external editor
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.ctrl_y', 'Ctrl+Y')}
+        Ctrl+Y
       </Text>{' '}
-      - {t('help.shortcuts.toggle_yolo', 'Toggle YOLO mode')}
+      - Toggle YOLO mode
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.enter', 'Enter')}
+        Enter
       </Text>{' '}
-      - {t('help.shortcuts.enter', 'Send message')}
+      - Send message
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.esc', 'Esc')}
+        Esc
       </Text>{' '}
-      -{' '}
-      {t(
-        'help.shortcuts.cancel_clear',
-        'Cancel operation / Clear input (double press)',
-      )}
+      - Cancel operation / Clear input (double press)
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.page_up_down', 'Page Up/Down')}
+        Page Up/Down
       </Text>{' '}
-      - {t('help.shortcuts.scroll_page', 'Scroll page up/down')}
+      - Scroll page up/down
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.shift_tab', 'Shift+Tab')}
+        Shift+Tab
       </Text>{' '}
-      - {t('help.shortcuts.toggle_auto_accept', 'Toggle auto-accepting edits')}
+      - Toggle auto-accepting edits
     </Text>
     <Text color={theme.text.primary}>
       <Text bold color={theme.text.accent}>
-        {t('help.keys.up_down', 'Up/Down')}
+        Up/Down
       </Text>{' '}
-      - {t('help.shortcuts.cycle_history', 'Cycle through your prompt history')}
+      - Cycle through your prompt history
     </Text>
     <Box height={1} />
     <Text color={theme.text.primary}>
-      {t(
-        'help.shortcuts.full_shortcuts_intro',
-        'For a full list of shortcuts, see',
-      )}{' '}
+      For a full list of shortcuts, see{' '}
       <Text bold color={theme.text.accent}>
-        {t('help.shortcuts.docs_path', 'docs/cli/keyboard-shortcuts.md')}
+        docs/cli/keyboard-shortcuts.md
       </Text>
     </Text>
   </Box>

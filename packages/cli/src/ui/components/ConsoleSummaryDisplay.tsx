@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '@google/gemini-cli-core';
-
 import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
@@ -28,14 +26,8 @@ export const ConsoleSummaryDisplay: React.FC<ConsoleSummaryDisplayProps> = ({
     <Box>
       {errorCount > 0 && (
         <Text color={theme.status.error}>
-          {errorIcon}{' '}
-          {t('console_summary.error_count', '{count} error{plural}', {
-            count: errorCount,
-            plural: errorCount > 1 ? 's' : '',
-          })}{' '}
-          <Text color={theme.text.secondary}>
-            {t('console_summary.ctrl_o_details', '(F12 for details)')}
-          </Text>
+          {errorIcon} {errorCount} error{errorCount > 1 ? 's' : ''}{' '}
+          <Text color={theme.text.secondary}>(F12 for details)</Text>
         </Text>
       )}
     </Box>

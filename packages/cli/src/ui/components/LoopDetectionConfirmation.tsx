@@ -9,7 +9,6 @@ import type { RadioSelectItem } from './shared/RadioButtonSelect.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
-import { t } from '@google/gemini-cli-core';
 
 export type LoopDetectionConfirmationResult = {
   userSelection: 'disable' | 'keep';
@@ -35,20 +34,14 @@ export function LoopDetectionConfirmation({
 
   const OPTIONS: Array<RadioSelectItem<LoopDetectionConfirmationResult>> = [
     {
-      label: t(
-        'loop_detection.confirmation.options.keep',
-        'Keep loop detection enabled (esc)',
-      ),
+      label: 'Keep loop detection enabled (esc)',
       value: {
         userSelection: 'keep',
       },
       key: 'Keep loop detection enabled (esc)',
     },
     {
-      label: t(
-        'loop_detection.confirmation.options.disable',
-        'Disable loop detection for this session',
-      ),
+      label: 'Disable loop detection for this session',
       value: {
         userSelection: 'disable',
       },
@@ -68,23 +61,14 @@ export function LoopDetectionConfirmation({
         <Box paddingX={1} paddingY={0} flexDirection="column">
           <Box minHeight={1}>
             <Box minWidth={3}>
-              <Text
-                color={theme.status.warning}
-                aria-label={t(
-                  'loop_detection.confirmation.aria_label',
-                  'Loop detected:',
-                )}
-              >
+              <Text color={theme.status.warning} aria-label="Loop detected:">
                 ?
               </Text>
             </Box>
             <Box>
               <Text wrap="truncate-end">
                 <Text color={theme.text.primary} bold>
-                  {t(
-                    'loop_detection.confirmation.title',
-                    'A potential loop was detected',
-                  )}
+                  A potential loop was detected
                 </Text>{' '}
               </Text>
             </Box>
@@ -92,10 +76,9 @@ export function LoopDetectionConfirmation({
           <Box marginTop={1}>
             <Box flexDirection="column">
               <Text color={theme.text.secondary}>
-                {t(
-                  'loop_detection.confirmation.description',
-                  'This can happen due to repetitive tool calls or other model behavior. Do you want to keep loop detection enabled or disable it for this session?',
-                )}
+                This can happen due to repetitive tool calls or other model
+                behavior. Do you want to keep loop detection enabled or disable
+                it for this session?
               </Text>
               <Box marginTop={1}>
                 <RadioButtonSelect items={OPTIONS} onSelect={onComplete} />

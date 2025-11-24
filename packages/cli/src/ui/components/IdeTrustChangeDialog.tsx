@@ -9,7 +9,6 @@ import { theme } from '../semantic-colors.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { relaunchApp } from '../../utils/processUtils.js';
 import { type RestartReason } from '../hooks/useIdeTrustListener.js';
-import { t } from '@google/gemini-cli-core';
 
 interface IdeTrustChangeDialogProps {
   reason: RestartReason;
@@ -25,36 +24,23 @@ export const IdeTrustChangeDialog = ({ reason }: IdeTrustChangeDialogProps) => {
     { isActive: true },
   );
 
-  let message = t(
-    'app.ide_trust_change.message_generic',
-    'Workspace trust has changed.',
-  );
+  let message = 'Workspace trust has changed.';
   if (reason === 'NONE') {
     // This should not happen, but provides a fallback and a debug log.
     console.error(
       'IdeTrustChangeDialog rendered with unexpected reason "NONE"',
     );
   } else if (reason === 'CONNECTION_CHANGE') {
-    message = t(
-      'app.ide_trust_change.message_connection',
-      'Workspace trust has changed due to a change in the IDE connection.',
-    );
+    message =
+      'Workspace trust has changed due to a change in the IDE connection.';
   } else if (reason === 'TRUST_CHANGE') {
-    message = t(
-      'app.ide_trust_change.message_trust',
-      'Workspace trust has changed due to a change in the IDE trust.',
-    );
+    message = 'Workspace trust has changed due to a change in the IDE trust.';
   }
-
-  const restartInstruction = t(
-    'app.ide_trust_change.restart_instruction',
-    "Press 'r' to restart Auditaria to apply the changes.",
-  );
 
   return (
     <Box borderStyle="round" borderColor={theme.status.warning} paddingX={1}>
       <Text color={theme.status.warning}>
-        {message} {restartInstruction}
+        {message} Press &apos;r&apos; to restart Gemini to apply the changes.
       </Text>
     </Box>
   );
