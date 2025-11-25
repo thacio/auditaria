@@ -7,7 +7,6 @@
 import type { CommandModule } from 'yargs';
 import {
   debugLogger,
-  t,
   type ExtensionInstallMetadata,
 } from '@google/gemini-cli-core';
 
@@ -39,11 +38,7 @@ export async function handleLink(args: InstallArgs) {
     const extension =
       await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
-      t(
-        'commands.extensions.link.success',
-        `Extension "${extension.name}" linked successfully and enabled.`,
-        { extensionName: extension.name },
-      ),
+      `Extension "${extension.name}" linked successfully and enabled.`,
     );
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
@@ -53,17 +48,12 @@ export async function handleLink(args: InstallArgs) {
 
 export const linkCommand: CommandModule = {
   command: 'link <path>',
-  describe: t(
-    'commands.extensions.link.description',
+  describe:
     'Links an extension from a local path. Updates made to the local path will always be reflected.',
-  ),
   builder: (yargs) =>
     yargs
       .positional('path', {
-        describe: t(
-          'commands.extensions.link.path_description',
-          'The name of the extension to link.',
-        ),
+        describe: 'The name of the extension to link.',
         type: 'string',
       })
       .check((_) => true),

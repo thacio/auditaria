@@ -4,19 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import type { PartListUnion, PartUnion } from '@google/genai';
+import type { AnyToolInvocation, Config } from '@google/gemini-cli-core';
 import {
-  t,
   debugLogger,
   getErrorMessage,
   isNodeError,
   unescapePath,
   ReadManyFilesTool,
 } from '@google/gemini-cli-core';
-
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import type { PartListUnion, PartUnion } from '@google/genai';
-import type { AnyToolInvocation, Config } from '@google/gemini-cli-core';
 import type { HistoryItem, IndividualToolCallDisplay } from '../types.js';
 import { ToolCallStatus } from '../types.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
@@ -161,13 +159,7 @@ export async function handleAtCommand({
 
   if (!readManyFilesTool) {
     addItem(
-      {
-        type: 'error',
-        text: t(
-          'at_command.tool_not_found',
-          'Error: read_many_files tool not found.',
-        ),
-      },
+      { type: 'error', text: 'Error: read_many_files tool not found.' },
       userMessageTimestamp,
     );
     return { processedQuery: null, shouldProceed: false };
@@ -190,11 +182,7 @@ export async function handleAtCommand({
       addItem(
         {
           type: 'error',
-          text: t(
-            'at_command.invalid_command',
-            "Error: Invalid @ command '{command}'. No path specified.",
-            { command: originalAtPath },
-          ),
+          text: `Error: Invalid @ command '${originalAtPath}'. No path specified.`,
         },
         userMessageTimestamp,
       );
@@ -448,19 +436,14 @@ export async function handleAtCommand({
       status: ToolCallStatus.Success,
       resultDisplay:
         result.returnDisplay ||
-        t('at_command.successfully_read', 'Successfully read: {files}', {
-          files: contentLabelsForDisplay.join(', '),
-        }),
+        `Successfully read: ${contentLabelsForDisplay.join(', ')}`,
       confirmationDetails: undefined,
     };
 
     if (Array.isArray(result.llmContent)) {
       const fileContentRegex = /^--- (.*?) ---\n\n([\s\S]*?)\n\n$/;
       processedQueryParts.push({
-        text: t(
-          'at_command.content_header',
-          '\n--- Content from referenced files ---',
-        ),
+        text: '\n--- Content from referenced files ---',
       });
       for (const part of result.llmContent) {
         if (typeof part === 'string') {
@@ -486,11 +469,7 @@ export async function handleAtCommand({
             displayPath = displayPath || filePathSpecInContent;
 
             processedQueryParts.push({
-              text: t(
-                'at_command.content_from_file',
-                '\nContent from @{file}:\n',
-                { file: displayPath },
-              ),
+              text: `\nContent from @${displayPath}:\n`,
             });
             processedQueryParts.push({ text: fileActualContent });
           } else {
@@ -523,14 +502,7 @@ export async function handleAtCommand({
         invocation?.getDescription() ??
         'Error attempting to execute tool to read files',
       status: ToolCallStatus.Error,
-      resultDisplay: t(
-        'at_command.error_reading_files',
-        'Error reading files ({files}): {error}',
-        {
-          files: contentLabelsForDisplay.join(', '),
-          error: getErrorMessage(error),
-        },
-      ),
+      resultDisplay: `Error reading files (${contentLabelsForDisplay.join(', ')}): ${getErrorMessage(error)}`,
       confirmationDetails: undefined,
     };
     addItem(

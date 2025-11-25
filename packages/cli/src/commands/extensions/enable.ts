@@ -12,7 +12,6 @@ import {
   debugLogger,
   FatalConfigError,
   getErrorMessage,
-  t,
 } from '@google/gemini-cli-core';
 import { promptForSetting } from '../../config/extensions/extensionSettings.js';
 import { exitCli } from '../utils.js';
@@ -40,24 +39,11 @@ export async function handleEnable(args: EnableArgs) {
     }
     if (args.scope) {
       debugLogger.log(
-        t(
-          'commands.extensions.enable.success_with_scope',
-          `Extension "${args.name}" successfully enabled for scope "${args.scope}".`,
-          {
-            name: args.name,
-            scope: args.scope,
-          },
-        ),
+        `Extension "${args.name}" successfully enabled for scope "${args.scope}".`,
       );
     } else {
       debugLogger.log(
-        t(
-          'commands.extensions.enable.success_all_scopes',
-          `Extension "${args.name}" successfully enabled in all scopes.`,
-          {
-            name: args.name,
-          },
-        ),
+        `Extension "${args.name}" successfully enabled in all scopes.`,
       );
     }
   } catch (error) {
@@ -67,24 +53,16 @@ export async function handleEnable(args: EnableArgs) {
 
 export const enableCommand: CommandModule = {
   command: 'enable [--scope] <name>',
-  describe: t(
-    'commands.extensions.enable.description',
-    'Enables an extension.',
-  ),
+  describe: 'Enables an extension.',
   builder: (yargs) =>
     yargs
       .positional('name', {
-        describe: t(
-          'commands.extensions.enable.name_description',
-          'The name of the extension to enable.',
-        ),
+        describe: 'The name of the extension to enable.',
         type: 'string',
       })
       .option('scope', {
-        describe: t(
-          'commands.extensions.enable.scope_description',
+        describe:
           'The scope to enable the extension in. If not set, will be enabled in all scopes.',
-        ),
         type: 'string',
       })
       .check((argv) => {

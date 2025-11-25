@@ -11,11 +11,7 @@ import {
 } from '../../ui/state/extensions.js';
 import { loadInstallMetadata } from '../extension.js';
 import { checkForExtensionUpdate } from './github.js';
-import {
-  debugLogger,
-  t,
-  type GeminiCLIExtension,
-} from '@google/gemini-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@google/gemini-cli-core';
 import * as fs from 'node:fs';
 import { getErrorMessage } from '../../utils/errors.js';
 import { copyExtension, type ExtensionManager } from '../extension-manager.js';
@@ -49,11 +45,7 @@ export async function updateExtension(
       payload: { name: extension.name, state: ExtensionUpdateState.ERROR },
     });
     throw new Error(
-      t(
-        'commands.extensions.update.cannot_update_type_unknown',
-        `Extension ${extension.name} cannot be updated, type is unknown.`,
-        { name: extension.name },
-      ),
+      `Extension ${extension.name} cannot be updated, type is unknown.`,
     );
   }
   if (installMetadata?.type === 'link') {
@@ -61,12 +53,7 @@ export async function updateExtension(
       type: 'SET_STATE',
       payload: { name: extension.name, state: ExtensionUpdateState.UP_TO_DATE },
     });
-    throw new Error(
-      t(
-        'commands.extensions.update.linked_no_update',
-        'Extension is linked so does not need to be updated',
-      ),
-    );
+    throw new Error(`Extension is linked so does not need to be updated`);
   }
   const originalVersion = extension.version;
 
@@ -87,10 +74,7 @@ export async function updateExtension(
         payload: { name: extension.name, state: ExtensionUpdateState.ERROR },
       });
       throw new Error(
-        t(
-          'commands.extensions.update.not_found_after_install',
-          'Updated extension not found after installation.',
-        ) + ` Got error:\n${e}`,
+        `Updated extension not found after installation, got error:\n${e}`,
       );
     }
     const updatedVersion = updatedExtension.version;
@@ -110,11 +94,7 @@ export async function updateExtension(
     };
   } catch (e) {
     debugLogger.error(
-      t(
-        'commands.extensions.update.error_rolling_back',
-        `Error updating extension, rolling back. ${getErrorMessage(e)}`,
-        { error: getErrorMessage(e) },
-      ),
+      `Error updating extension, rolling back. ${getErrorMessage(e)}`,
     );
     dispatchExtensionStateUpdate({
       type: 'SET_STATE',

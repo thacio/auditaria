@@ -10,7 +10,6 @@ import {
   type Todo,
   type TodoList,
   type TodoStatus,
-  t,
 } from '@google/gemini-cli-core';
 import { theme } from '../../semantic-colors.js';
 import { useUIState } from '../../contexts/UIStateContext.js';
@@ -29,10 +28,7 @@ const TodoTitleDisplay: React.FC<{ todos: TodoList }> = ({ todos }) => {
         }
       }
     }
-    return t('todo.completed_count', '{completed}/{total} completed', {
-      completed: completed.toString(),
-      total: total.toString(),
-    });
+    return `${completed}/${total} completed`;
   }, [todos]);
 
   return (

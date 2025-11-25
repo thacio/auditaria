@@ -5,11 +5,7 @@
  */
 
 import type { Config } from '@google/gemini-cli-core';
-import {
-  getErrorMessage,
-  getMCPServerPrompts,
-  t,
-} from '@google/gemini-cli-core';
+import { getErrorMessage, getMCPServerPrompts } from '@google/gemini-cli-core';
 import type {
   CommandContext,
   SlashCommand,
@@ -58,53 +54,23 @@ export class McpPromptLoader implements ICommandLoader {
                   return {
                     type: 'message',
                     messageType: 'info',
-                    content: t(
-                      'commands.mcp.prompts.no_arguments',
-                      'Prompt "{promptName}" has no arguments.',
-                      { promptName: prompt.name },
-                    ),
+                    content: `Prompt "${prompt.name}" has no arguments.`,
                   };
                 }
 
-                let helpMessage =
-                  t(
-                    'commands.mcp.prompts.arguments_help_intro',
-                    'Arguments for "{promptName}":',
-                    { promptName: prompt.name },
-                  ) + '\n\n';
+                let helpMessage = `Arguments for "${prompt.name}":\n\n`;
                 if (prompt.arguments && prompt.arguments.length > 0) {
-                  const positionalExample = prompt.arguments
-                    .map((_: PromptArgument) => `"foo"`)
-                    .join(' ');
-                  const namedExample = prompt.arguments
-                    .map((arg: PromptArgument) => `--${arg.name}="foo"`)
-                    .join(' ');
-                  helpMessage +=
-                    t(
-                      'commands.mcp.prompts.arguments_usage_note',
-                      'You can provide arguments by name (e.g., --argName="value") or by position.',
-                      {},
-                    ) + '\n\n';
-                  helpMessage +=
-                    t(
-                      'commands.mcp.prompts.arguments_example',
-                      'e.g., {promptName} {positionalExample} is equivalent to {promptName} {namedExample}',
-                      {
-                        promptName: prompt.name,
-                        positionalExample,
-                        namedExample,
-                      },
-                    ) + '\n\n';
+                  helpMessage += `You can provide arguments by name (e.g., --argName="value") or by position.\n\n`;
+                  helpMessage += `e.g., ${prompt.name} ${prompt.arguments?.map((_) => `"foo"`)} is equivalent to ${prompt.name} ${prompt.arguments?.map((arg) => `--${arg.name}="foo"`)}\n\n`;
                 }
                 for (const arg of prompt.arguments) {
                   helpMessage += `  --${arg.name}\n`;
                   if (arg.description) {
                     helpMessage += `    ${arg.description}\n`;
                   }
-                  const requiredText = arg.required
-                    ? t('commands.mcp.prompts.argument_required_yes', 'yes', {})
-                    : t('commands.mcp.prompts.argument_required_no', 'no', {});
-                  helpMessage += `    (required: ${requiredText})\n\n`;
+                  helpMessage += `    (required: ${
+                    arg.required ? 'yes' : 'no'
+                  })\n\n`;
                 }
                 return {
                   type: 'message',
@@ -122,11 +88,7 @@ export class McpPromptLoader implements ICommandLoader {
               return {
                 type: 'message',
                 messageType: 'error',
-                content: t(
-                  'commands.mcp.prompts.config_not_loaded',
-                  'Config not loaded.',
-                  {},
-                ),
+                content: 'Config not loaded.',
               };
             }
 
@@ -147,11 +109,7 @@ export class McpPromptLoader implements ICommandLoader {
                 return {
                   type: 'message',
                   messageType: 'error',
-                  content: t(
-                    'commands.mcp.prompts.server_config_not_found',
-                    "MCP server config not found for '{serverName}'.",
-                    { serverName },
-                  ),
+                  content: `MCP server config not found for '${serverName}'.`,
                 };
               }
               const result = await prompt.invoke(promptInputs);
@@ -160,11 +118,7 @@ export class McpPromptLoader implements ICommandLoader {
                 return {
                   type: 'message',
                   messageType: 'error',
-                  content: t(
-                    'commands.mcp.prompts.invoke_error',
-                    'Error invoking prompt: {error}',
-                    { error: String(result['error']) },
-                  ),
+                  content: `Error invoking prompt: ${result['error']}`,
                 };
               }
 
@@ -173,11 +127,8 @@ export class McpPromptLoader implements ICommandLoader {
                 return {
                   type: 'message',
                   messageType: 'error',
-                  content: t(
-                    'commands.mcp.prompts.empty_response',
+                  content:
                     'Received an empty or invalid prompt response from the server.',
-                    {},
-                  ),
                 };
               }
 
@@ -342,13 +293,7 @@ export class McpPromptLoader implements ICommandLoader {
         const missingArgNames = missingArgs
           .map((name) => `--${name}`)
           .join(', ');
-        return new Error(
-          t(
-            'commands.mcp.prompts.missing_arguments',
-            'Missing required argument(s): {missingArgNames}',
-            { missingArgNames },
-          ),
-        );
+        return new Error(`Missing required argument(s): ${missingArgNames}`);
       }
     }
 

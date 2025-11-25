@@ -8,11 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { ExtensionUpdateState } from '../../state/extensions.js';
-import {
-  debugLogger,
-  t,
-  type GeminiCLIExtension,
-} from '@google/gemini-cli-core';
+import { debugLogger, type GeminiCLIExtension } from '@google/gemini-cli-core';
 
 interface ExtensionsList {
   extensions: readonly GeminiCLIExtension[];
@@ -22,37 +18,21 @@ export const ExtensionsList: React.FC<ExtensionsList> = ({ extensions }) => {
   const { extensionsUpdateState } = useUIState();
 
   if (extensions.length === 0) {
-    return (
-      <Text>
-        {t(
-          'commands.extensions.list.no_extensions',
-          'No extensions installed.',
-        )}
-      </Text>
-    );
+    return <Text>No extensions installed.</Text>;
   }
 
   return (
     <Box flexDirection="column" marginTop={1} marginBottom={1}>
-      <Text>
-        {t(
-          'commands.extensions.list.installed_extensions',
-          'Installed extensions:',
-        )}
-      </Text>
+      <Text>Installed extensions:</Text>
       <Box flexDirection="column" paddingLeft={2}>
         {extensions.map((ext) => {
           const state = extensionsUpdateState.get(ext.name);
           const isActive = ext.isActive;
-          const activeString = isActive
-            ? t('commands.extensions.list.status.active', 'active')
-            : t('commands.extensions.list.status.disabled', 'disabled');
+          const activeString = isActive ? 'active' : 'disabled';
           const activeColor = isActive ? 'green' : 'grey';
 
           let stateColor = 'gray';
-          const stateText =
-            state ||
-            t('commands.extensions.list.status.unknown', 'unknown state');
+          const stateText = state || 'unknown state';
 
           switch (state) {
             case ExtensionUpdateState.CHECKING_FOR_UPDATES:

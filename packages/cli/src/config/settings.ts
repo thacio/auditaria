@@ -14,7 +14,6 @@ import {
   FatalConfigError,
   GEMINI_DIR,
   getErrorMessage,
-  t,
   Storage,
   coreEvents,
 } from '@google/gemini-cli-core';
@@ -781,27 +780,6 @@ export function loadSettings(
     migratedInMemoryScopes,
   );
 
-  // Validate compressionThreshold settings
-  const compressionThreshold =
-    loadedSettings.merged.model?.compressionThreshold;
-  if (
-    compressionThreshold != null &&
-    (typeof compressionThreshold !== 'number' ||
-      compressionThreshold < 0 ||
-      compressionThreshold > 1)
-  ) {
-    console.warn(
-      t(
-        'settings.compressionThreshold.invalid_threshold',
-        `Invalid value for compressionThreshold: "${compressionThreshold}". Please use a value between 0 and 1. Using default compression settings.`,
-        { threshold: String(compressionThreshold) },
-      ),
-    );
-    if (loadedSettings.merged.model) {
-      delete loadedSettings.merged.model.compressionThreshold;
-    }
-  }
-
   return loadedSettings;
 }
 
@@ -853,10 +831,7 @@ export function saveSettings(settingsFile: SettingsFile): void {
   } catch (error) {
     coreEvents.emitFeedback(
       'error',
-      t(
-        'settings.save_error',
-        'There was an error saving your latest settings changes.',
-      ),
+      'There was an error saving your latest settings changes.',
       error,
     );
   }

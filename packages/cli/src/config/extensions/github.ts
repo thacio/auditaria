@@ -8,7 +8,6 @@ import { simpleGit } from 'simple-git';
 import { getErrorMessage } from '../../utils/errors.js';
 import {
   debugLogger,
-  t,
   type ExtensionInstallMetadata,
   type GeminiCLIExtension,
 } from '@google/gemini-cli-core';
@@ -105,11 +104,7 @@ export function tryParseGithubUrl(source: string): GithubRepoInfo | null {
 
   if (parts?.length !== 2) {
     throw new Error(
-      t(
-        'commands.extensions.install.github.invalid_source',
-        `Invalid GitHub repository source: ${source}. Expected "owner/repo" or a github repo uri.`,
-        { source },
-      ),
+      `Invalid GitHub repository source: ${source}. Expected "owner/repo" or a github repo uri.`,
     );
   }
   const owner = parts[0];

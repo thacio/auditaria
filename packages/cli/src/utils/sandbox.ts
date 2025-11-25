@@ -19,7 +19,6 @@ import {
   debugLogger,
   FatalSandboxError,
   GEMINI_DIR,
-  t,
 } from '@google/gemini-cli-core';
 import { ConsolePatcher } from '../ui/utils/ConsolePatcher.js';
 import { randomBytes } from 'node:crypto';
@@ -326,15 +325,7 @@ export async function start_sandbox(
             process.kill(-sandboxProcess.pid, 'SIGTERM');
           }
           throw new FatalSandboxError(
-            t(
-              'errors.sandbox_proxy_failed',
-              `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`,
-              {
-                command: proxyCommand,
-                code: String(code),
-                signal: String(signal),
-              },
-            ),
+            `Proxy command '${proxyCommand}' exited with code ${code}, signal ${signal}`,
           );
         });
         debugLogger.log('waiting for proxy to start ...');
@@ -804,15 +795,7 @@ export async function start_sandbox(
           process.kill(-sandboxProcess.pid, 'SIGTERM');
         }
         throw new FatalSandboxError(
-          t(
-            'errors.sandbox_proxy_container_failed',
-            `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`,
-            {
-              command: proxyContainerCommand,
-              code: String(code),
-              signal: String(signal),
-            },
-          ),
+          `Proxy container command '${proxyContainerCommand}' exited with code ${code}, signal ${signal}`,
         );
       });
       debugLogger.log('waiting for proxy to start ...');

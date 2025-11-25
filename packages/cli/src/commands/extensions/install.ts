@@ -7,7 +7,6 @@
 import type { CommandModule } from 'yargs';
 import {
   debugLogger,
-  t,
   type ExtensionInstallMetadata,
 } from '@google/gemini-cli-core';
 import { getErrorMessage } from '../../utils/errors.js';
@@ -49,10 +48,7 @@ export async function handleInstall(args: InstallArgs) {
     } else {
       if (args.ref || args.autoUpdate) {
         throw new Error(
-          t(
-            'commands.extensions.install.local_no_ref_auto_update',
-            '--ref and --auto-update are not applicable for local extensions.',
-          ),
+          '--ref and --auto-update are not applicable for local extensions.',
         );
       }
       try {
@@ -62,12 +58,7 @@ export async function handleInstall(args: InstallArgs) {
           type: 'local',
         };
       } catch {
-        throw new Error(
-          t(
-            'commands.extensions.install.source_not_found',
-            'Install source not found.',
-          ),
-        );
+        throw new Error('Install source not found.');
       }
     }
 
@@ -75,12 +66,7 @@ export async function handleInstall(args: InstallArgs) {
       ? () => Promise.resolve(true)
       : requestConsentNonInteractive;
     if (args.consent) {
-      debugLogger.log(
-        t(
-          'commands.extensions.install.consent_message',
-          'You have consented to the following:',
-        ),
-      );
+      debugLogger.log('You have consented to the following:');
       debugLogger.log(INSTALL_WARNING_MESSAGE);
     }
 
@@ -95,11 +81,7 @@ export async function handleInstall(args: InstallArgs) {
     const extension =
       await extensionManager.installOrUpdateExtension(installMetadata);
     debugLogger.log(
-      t(
-        'commands.extensions.install.success',
-        `Extension "${extension.name}" installed successfully and enabled.`,
-        { extensionName: extension.name },
-      ),
+      `Extension "${extension.name}" installed successfully and enabled.`,
     );
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
@@ -109,57 +91,35 @@ export async function handleInstall(args: InstallArgs) {
 
 export const installCommand: CommandModule = {
   command: 'install <source> [--auto-update] [--pre-release]',
-  describe: t(
-    'commands.extensions.install.description',
-    'Installs an extension from a git repository URL or a local path.',
-  ),
+  describe: 'Installs an extension from a git repository URL or a local path.',
   builder: (yargs) =>
     yargs
       .positional('source', {
-        describe: t(
-          'commands.extensions.install.source_description',
-          'The github URL or local path of the extension to install.',
-        ),
+        describe: 'The github URL or local path of the extension to install.',
         type: 'string',
         demandOption: true,
       })
       .option('ref', {
-        describe: t(
-          'commands.extensions.install.ref_description',
-          'The git ref to install from.',
-        ),
+        describe: 'The git ref to install from.',
         type: 'string',
       })
       .option('auto-update', {
-        describe: t(
-          'commands.extensions.install.auto_update_description',
-          'Enable auto-update for this extension.',
-        ),
+        describe: 'Enable auto-update for this extension.',
         type: 'boolean',
       })
       .option('pre-release', {
-        describe: t(
-          'commands.extensions.install.pre_release_description',
-          'Enable pre-release versions for this extension.',
-        ),
+        describe: 'Enable pre-release versions for this extension.',
         type: 'boolean',
       })
       .option('consent', {
-        describe: t(
-          'commands.extensions.install.consent_description',
+        describe:
           'Acknowledge the security risks of installing an extension and skip the confirmation prompt.',
-        ),
         type: 'boolean',
         default: false,
       })
       .check((argv) => {
         if (!argv.source) {
-          throw new Error(
-            t(
-              'commands.extensions.install.source_required',
-              'The source argument must be provided.',
-            ),
-          );
+          throw new Error('The source argument must be provided.');
         }
         return true;
       }),

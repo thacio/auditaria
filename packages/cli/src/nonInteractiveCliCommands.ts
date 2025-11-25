@@ -11,7 +11,6 @@ import {
   Logger,
   uiTelemetryService,
   type Config,
-  t,
 } from '@google/gemini-cli-core';
 import { CommandService } from './services/CommandService.js';
 import { FileCommandLoader } from './services/FileCommandLoader.js';
@@ -94,17 +93,11 @@ export const handleSlashCommand = async (
             // This ensures that if a command *does* request confirmation (e.g.
             // in the future with more granular permissions), it's handled appropriately.
             throw new FatalInputError(
-              t(
-                'errors.command_confirmation_required',
-                'Exiting due to a confirmation prompt requested by the command.',
-              ),
+              'Exiting due to a confirmation prompt requested by the command.',
             );
           default:
             throw new FatalInputError(
-              t(
-                'errors.command_result_unsupported_noninteractive',
-                'Exiting due to command result that is not supported in non-interactive mode.',
-              ),
+              'Exiting due to command result that is not supported in non-interactive mode.',
             );
         }
       }

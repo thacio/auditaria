@@ -8,7 +8,6 @@ import {
   getPackageJson,
   type SandboxConfig,
   FatalSandboxError,
-  t,
 } from '@google/gemini-cli-core';
 import commandExists from 'command-exists';
 import * as os from 'node:os';
@@ -59,11 +58,9 @@ function getSandboxCommand(
   if (typeof sandbox === 'string' && sandbox) {
     if (!isSandboxCommand(sandbox)) {
       throw new FatalSandboxError(
-        t(
-          'errors.sandbox_invalid_command',
-          `Invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(', ')}`,
-          { command: sandbox, commands: VALID_SANDBOX_COMMANDS.join(', ') },
-        ),
+        `Invalid sandbox command '${sandbox}'. Must be one of ${VALID_SANDBOX_COMMANDS.join(
+          ', ',
+        )}`,
       );
     }
     // confirm that specified command exists
@@ -71,11 +68,7 @@ function getSandboxCommand(
       return sandbox;
     }
     throw new FatalSandboxError(
-      t(
-        'errors.sandbox_missing_command',
-        `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`,
-        { command: sandbox },
-      ),
+      `Missing sandbox command '${sandbox}' (from GEMINI_SANDBOX)`,
     );
   }
 
@@ -92,10 +85,8 @@ function getSandboxCommand(
   // throw an error if user requested sandbox but no command was found
   if (sandbox === true) {
     throw new FatalSandboxError(
-      t(
-        'errors.sandbox_true_no_command',
-        'GEMINI_SANDBOX is true but failed to determine command for sandbox; install docker or podman or specify command in GEMINI_SANDBOX',
-      ),
+      'GEMINI_SANDBOX is true but failed to determine command for sandbox; ' +
+        'install docker or podman or specify command in GEMINI_SANDBOX',
     );
   }
 

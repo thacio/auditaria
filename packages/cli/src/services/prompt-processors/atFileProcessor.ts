@@ -8,7 +8,6 @@ import {
   debugLogger,
   flatMapTextParts,
   readPathFromWorkspace,
-  t,
 } from '@google/gemini-cli-core';
 import type { CommandContext } from '../../ui/commands/types.js';
 import { MessageType } from '../../ui/types.js';
@@ -58,11 +57,7 @@ export class AtFileProcessor implements IPromptProcessor {
         try {
           const fileContentParts = await readPathFromWorkspace(pathStr, config);
           if (fileContentParts.length === 0) {
-            const uiMessage = t(
-              'atFile.fileIgnored',
-              `File '@{${pathStr}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.`,
-              { path: pathStr },
-            );
+            const uiMessage = `File '@{${pathStr}}' was ignored by .gitignore or .geminiignore and was not included in the prompt.`;
             context.ui.addItem(
               { type: MessageType.INFO, text: uiMessage },
               Date.now(),
@@ -72,11 +67,7 @@ export class AtFileProcessor implements IPromptProcessor {
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
-          const uiMessage = t(
-            'atFile.failedToInject',
-            `Failed to inject content for '@{${pathStr}}': ${message}`,
-            { path: pathStr, error: message },
-          );
+          const uiMessage = `Failed to inject content for '@{${pathStr}}': ${message}`;
 
           // `context.invocation` should always be present at this point.
           debugLogger.error(

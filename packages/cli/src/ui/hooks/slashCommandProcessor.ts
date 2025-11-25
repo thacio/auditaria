@@ -21,7 +21,6 @@ import {
   SlashCommandStatus,
   ToolConfirmationOutcome,
   Storage,
-  t,
   IdeClient,
 } from '@google/gemini-cli-core';
 import { useSessionStats } from '../contexts/SessionContext.js';
@@ -548,10 +547,7 @@ export const useSlashCommandProcessor = (
                     addItem(
                       {
                         type: MessageType.INFO,
-                        text: t(
-                          'general.operation_cancelled',
-                          'Operation cancelled.',
-                        ),
+                        text: 'Operation cancelled.',
                       },
                       Date.now(),
                     );
@@ -593,9 +589,7 @@ export const useSlashCommandProcessor = (
 
         addMessage({
           type: MessageType.ERROR,
-          content: t('errors.unknown_command', 'Unknown command: {command}', {
-            command: trimmed,
-          }),
+          content: `Unknown command: ${trimmed}`,
           timestamp: new Date(),
         });
 

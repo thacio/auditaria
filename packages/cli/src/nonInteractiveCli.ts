@@ -28,7 +28,6 @@ import {
   debugLogger,
   coreEvents,
   CoreEvent,
-  t,
 } from '@google/gemini-cli-core';
 
 import type { Content, Part } from '@google/genai';
@@ -138,9 +137,7 @@ export async function runNonInteractive({
           // Only show message if cancellation takes longer than 200ms
           // This reduces verbosity for fast cancellations
           cancelMessageTimer = setTimeout(() => {
-            process.stderr.write(
-              '\n' + t('non_interactive.cancelling', 'Cancelling...') + '\n',
-            );
+            process.stderr.write('\nCancelling...\n');
           }, 200);
 
           abortController.abort();
@@ -265,10 +262,8 @@ export async function runNonInteractive({
       let currentMessages: Content[] = [{ role: 'user', parts: query }];
 
       let turnCount = 0;
-      const deprecateText = t(
-        'cli.deprecation.prompt_flag',
-        'The --prompt (-p) flag has been deprecated and will be removed in a future version. Please use a positional argument for your prompt. See gemini --help for more information.\n',
-      );
+      const deprecateText =
+        'The --prompt (-p) flag has been deprecated and will be removed in a future version. Please use a positional argument for your prompt. See gemini --help for more information.\n';
       if (hasDeprecatedPromptArg) {
         if (streamFormatter) {
           streamFormatter.emitEvent({

@@ -43,12 +43,12 @@ import {
   getAllGeminiMdFilenames,
   AuthType,
   clearCachedCredentialFile,
-  t,
   type ResumedSessionData,
   recordExitFail,
   ShellExecutionService,
   saveApiKey,
   debugLogger,
+  t, // WEB_INTERFACE: Used in web interface notification messages
   type DiscoveredMCPTool,
   coreEvents,
   CoreEvent,
@@ -654,10 +654,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     historyManager.addItem(
       {
         type: MessageType.INFO,
-        text: t(
-          'app.memory_refreshing',
-          'Refreshing hierarchical memory (GEMINI.md or other context files)...',
-        ),
+        text: 'Refreshing hierarchical memory (GEMINI.md or other context files)...',
       },
       Date.now(),
     );
@@ -668,17 +665,11 @@ Logging in with Google... Restarting Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.INFO,
-          text:
+          text: `Memory refreshed successfully. ${
             memoryContent.length > 0
-              ? t(
-                  'app.memory_refreshed_success',
-                  'Memory refreshed successfully. Loaded {chars} characters from {count} file(s).',
-                  { chars: memoryContent.length, count: fileCount },
-                )
-              : t(
-                  'app.memory_refreshed_no_content',
-                  'Memory refreshed successfully. No memory content found.',
-                ),
+              ? `Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
+              : 'No memory content found.'
+          }`,
         },
         Date.now(),
       );
@@ -695,11 +686,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.ERROR,
-          text: t(
-            'app.memory_refresh_error',
-            'Error refreshing memory: {error}',
-            { error: errorMessage },
-          ),
+          text: `Error refreshing memory: ${errorMessage}`,
         },
         Date.now(),
       );
@@ -1023,20 +1010,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
     };
 
     const handleSelectionWarning = () => {
-      handleWarning(
-        t(
-          'composer.selection_warning',
-          'Press Ctrl-S to enter selection mode to copy text.',
-        ),
-      );
+      handleWarning('Press Ctrl-S to enter selection mode to copy text.');
     };
     const handlePasteTimeout = () => {
-      handleWarning(
-        t(
-          'composer.paste_timeout',
-          'Paste Timed out. Possibly due to slow connection.',
-        ),
-      );
+      handleWarning('Paste Timed out. Possibly due to slow connection.');
     };
     appEvents.on(AppEvent.SelectionWarning, handleSelectionWarning);
     appEvents.on(AppEvent.PasteTimeout, handlePasteTimeout);

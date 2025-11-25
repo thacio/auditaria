@@ -7,7 +7,6 @@
 import {
   getErrorMessage,
   refreshServerHierarchicalMemory,
-  t,
 } from '@google/gemini-cli-core';
 import { MessageType } from '../types.js';
 import type { SlashCommand, SlashCommandActionReturn } from './types.js';
@@ -15,22 +14,12 @@ import { CommandKind } from './types.js';
 
 export const memoryCommand: SlashCommand = {
   name: 'memory',
-  get description() {
-    return t(
-      'commands.memory.description',
-      'Commands for interacting with memory',
-    );
-  },
+  description: 'Commands for interacting with memory',
   kind: CommandKind.BUILT_IN,
   subCommands: [
     {
       name: 'show',
-      get description() {
-        return t(
-          'commands.memory.show.description',
-          'Show the current memory contents',
-        );
-      },
+      description: 'Show the current memory contents',
       kind: CommandKind.BUILT_IN,
       action: async (context) => {
         const memoryContent = context.services.config?.getUserMemory() || '';
@@ -38,12 +27,8 @@ export const memoryCommand: SlashCommand = {
 
         const messageContent =
           memoryContent.length > 0
-            ? t(
-                'commands.memory.show.content_with_files',
-                'Current memory content from {fileCount} file(s):\n\n---\n{memoryContent}\n---',
-                { fileCount, memoryContent },
-              )
-            : t('commands.memory.show.empty', 'Memory is currently empty.');
+            ? `Current memory content from ${fileCount} file(s):\n\n---\n${memoryContent}\n---`
+            : 'Memory is currently empty.';
 
         context.ui.addItem(
           {
@@ -56,33 +41,21 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'add',
-      get description() {
-        return t(
-          'commands.memory.add.description',
-          'Add content to the memory',
-        );
-      },
+      description: 'Add content to the memory',
       kind: CommandKind.BUILT_IN,
       action: (context, args): SlashCommandActionReturn | void => {
         if (!args || args.trim() === '') {
           return {
             type: 'message',
             messageType: 'error',
-            content: t(
-              'commands.memory.add.usage',
-              'Usage: /memory add <text to remember>',
-            ),
+            content: 'Usage: /memory add <text to remember>',
           };
         }
 
         context.ui.addItem(
           {
             type: MessageType.INFO,
-            text: t(
-              'commands.memory.add.attempting',
-              'Attempting to save to memory: "{text}"',
-              { text: args.trim() },
-            ),
+            text: `Attempting to save to memory: "${args.trim()}"`,
           },
           Date.now(),
         );
@@ -96,21 +69,13 @@ export const memoryCommand: SlashCommand = {
     },
     {
       name: 'refresh',
-      get description() {
-        return t(
-          'commands.memory.refresh.description',
-          'Refresh the memory from the source',
-        );
-      },
+      description: 'Refresh the memory from the source',
       kind: CommandKind.BUILT_IN,
       action: async (context) => {
         context.ui.addItem(
           {
             type: MessageType.INFO,
-            text: t(
-              'commands.memory.refresh.refreshing',
-              'Refreshing memory from source files...',
-            ),
+            text: 'Refreshing memory from source files...',
           },
           Date.now(),
         );
@@ -125,15 +90,8 @@ export const memoryCommand: SlashCommand = {
 
             const successMessage =
               memoryContent.length > 0
-                ? t(
-                    'commands.memory.refresh.success_with_content',
-                    'Memory refreshed successfully. Loaded {charCount} characters from {fileCount} file(s).',
-                    { charCount: memoryContent.length, fileCount },
-                  )
-                : t(
-                    'commands.memory.refresh.success_no_content',
-                    'Memory refreshed successfully. No memory content found.',
-                  );
+                ? `Memory refreshed successfully. Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
+                : 'Memory refreshed successfully. No memory content found.';
 
             context.ui.addItem(
               {
@@ -148,11 +106,7 @@ export const memoryCommand: SlashCommand = {
           context.ui.addItem(
             {
               type: MessageType.ERROR,
-              text: t(
-                'commands.memory.refresh.error',
-                'Error refreshing memory: {error}',
-                { error: errorMessage },
-              ),
+              text: `Error refreshing memory: ${errorMessage}`,
             },
             Date.now(),
           );
@@ -169,12 +123,8 @@ export const memoryCommand: SlashCommand = {
 
         const messageContent =
           fileCount > 0
-            ? t(
-                'commands.memory.list.files_in_use',
-                'There are {fileCount} GEMINI.md file(s) in use:\n\n{filePaths}',
-                { fileCount, filePaths: filePaths.join('\n') },
-              )
-            : t('commands.memory.list.no_files', 'No GEMINI.md files in use.');
+            ? `There are ${fileCount} GEMINI.md file(s) in use:\n\n${filePaths.join('\n')}`
+            : 'No GEMINI.md files in use.';
 
         context.ui.addItem(
           {

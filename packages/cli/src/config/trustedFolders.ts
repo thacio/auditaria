@@ -13,7 +13,6 @@ import {
   isWithinRoot,
   ideContextStore,
   GEMINI_DIR,
-  t,
 } from '@google/gemini-cli-core';
 import type { Settings } from './settings.js';
 import stripJsonComments from 'strip-json-comments';
@@ -168,10 +167,7 @@ export function loadTrustedFolders(): LoadedTrustedFolders {
         Array.isArray(parsed)
       ) {
         errors.push({
-          message: t(
-            'trusted_folders.not_valid_json',
-            'Trusted folders file is not a valid JSON object.',
-          ),
+          message: 'Trusted folders file is not a valid JSON object.',
           path: userPath,
         });
       } else {
@@ -221,14 +217,11 @@ function getWorkspaceTrustFromLocalConfig(
   const configToUse = trustConfig ?? folders.user.config;
 
   if (folders.errors.length > 0) {
-    const errorMessages = folders.errors.map((error) =>
-      t('trusted_folders.error_in_path', 'Error in {path}: {message}', {
-        path: error.path,
-        message: error.message,
-      }),
+    const errorMessages = folders.errors.map(
+      (error) => `Error in ${error.path}: ${error.message}`,
     );
     throw new FatalConfigError(
-      `${errorMessages.join('\n')}\n${t('trusted_folders.fix_config', 'Please fix the configuration file and try again.')}`,
+      `${errorMessages.join('\n')}\nPlease fix the configuration file and try again.`,
     );
   }
 

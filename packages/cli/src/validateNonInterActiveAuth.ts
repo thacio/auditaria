@@ -5,12 +5,7 @@
  */
 
 import type { Config } from '@google/gemini-cli-core';
-import {
-  AuthType,
-  debugLogger,
-  OutputFormat,
-  t,
-} from '@google/gemini-cli-core';
+import { AuthType, debugLogger, OutputFormat } from '@google/gemini-cli-core';
 import { USER_SETTINGS_PATH } from './config/settings.js';
 import { validateAuthMethod } from './config/auth.js';
 import { type LoadedSettings } from './config/settings.js';
@@ -46,30 +41,13 @@ export async function validateNonInteractiveAuth(
     const enforcedType = settings.merged.security?.auth?.enforcedType;
     if (enforcedType && effectiveAuthType !== enforcedType) {
       const message = effectiveAuthType
-        ? t(
-            'auth_errors.enforced_auth_type_mismatch',
-            `The enforced authentication type is '${enforcedType}', but the current type is '${effectiveAuthType}'. Please re-authenticate with the correct type.`,
-            {
-              enforcedType: String(enforcedType),
-              currentType: String(effectiveAuthType),
-            },
-          )
-        : t(
-            'auth_errors.enforced_auth_no_config',
-            `The auth type '${enforcedType}' is enforced, but no authentication is configured.`,
-            {
-              enforcedType: String(enforcedType),
-            },
-          );
+        ? `The enforced authentication type is '${enforcedType}', but the current type is '${effectiveAuthType}'. Please re-authenticate with the correct type.`
+        : `The auth type '${enforcedType}' is enforced, but no authentication is configured.`;
       throw new Error(message);
     }
 
     if (!effectiveAuthType) {
-      const message = t(
-        'non_interactive.auth_method_required',
-        `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA`,
-        { settingsPath: USER_SETTINGS_PATH },
-      );
+      const message = `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify one of the following environment variables before running: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA`;
       throw new Error(message);
     }
 

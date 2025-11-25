@@ -37,7 +37,6 @@ import {
   logExtensionInstallEvent,
   logExtensionUninstall,
   logExtensionUpdateEvent,
-  t,
   type ExtensionEvents,
   type MCPServerConfig,
   type ExtensionInstallMetadata,
@@ -146,22 +145,14 @@ export class ExtensionManager extends ExtensionLoader {
       if (!isWorkspaceTrusted(this.settings).isTrusted) {
         if (
           await this.requestConsent(
-            t(
-              'commands.extensions.install.workspace_not_trusted_prompt',
-              'The current workspace at "{workspaceDir}" is not trusted. Do you want to trust this workspace to install extensions?',
-              { workspaceDir: this.workspaceDir },
-            ),
+            `The current workspace at "${this.workspaceDir}" is not trusted. Do you want to trust this workspace to install extensions?`,
           )
         ) {
           const trustedFolders = loadTrustedFolders();
           trustedFolders.setValue(this.workspaceDir, TrustLevel.TRUST_FOLDER);
         } else {
           throw new Error(
-            t(
-              'commands.extensions.install.workspace_not_trusted_error',
-              'Could not install extension because the current workspace at {workspaceDir} is not trusted.',
-              { workspaceDir: this.workspaceDir },
-            ),
+            `Could not install extension because the current workspace at ${this.workspaceDir} is not trusted.`,
           );
         }
       }

@@ -11,7 +11,6 @@ import {
   type Config,
   loadApiKey,
   getErrorMessage,
-  t,
 } from '@google/gemini-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
@@ -22,11 +21,7 @@ export function validateAuthMethodWithSettings(
 ): string | null {
   const enforcedType = settings.merged.security?.auth?.enforcedType;
   if (enforcedType && enforcedType !== authType) {
-    return t(
-      'auth_errors.enforced_auth_mismatch',
-      `Authentication is enforced to be ${enforcedType}, but you are currently using ${authType}.`,
-      { enforcedType: String(enforcedType), currentType: String(authType) },
-    );
+    return `Authentication is enforced to be ${enforcedType}, but you are currently using ${authType}.`;
   }
   if (settings.merged.security?.auth?.useExternal) {
     return null;
@@ -76,18 +71,10 @@ export const useAuthCommand = (settings: LoadedSettings, config: Config) => {
       if (!authType) {
         if (process.env['GEMINI_API_KEY']) {
           onAuthError(
-            t(
-              'auth_dialog.messages.api_key_detected',
-              'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.',
-            ),
+            'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.',
           );
         } else {
-          onAuthError(
-            t(
-              'auth_dialog.messages.no_auth_selected',
-              'No authentication method selected.',
-            ),
-          );
+          onAuthError('No authentication method selected.');
         }
         return;
       }
@@ -112,14 +99,8 @@ export const useAuthCommand = (settings: LoadedSettings, config: Config) => {
         !Object.values(AuthType).includes(defaultAuthType as AuthType)
       ) {
         onAuthError(
-          t(
-            'auth_dialog.messages.invalid_default_auth_type',
-            `Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "${defaultAuthType}". Valid values are: ${Object.values(AuthType).join(', ')}.`,
-            {
-              defaultAuthType,
-              validValues: Object.values(AuthType).join(', '),
-            },
-          ),
+          `Invalid value for GEMINI_DEFAULT_AUTH_TYPE: "${defaultAuthType}". ` +
+            `Valid values are: ${Object.values(AuthType).join(', ')}.`,
         );
         return;
       }
@@ -127,23 +108,11 @@ export const useAuthCommand = (settings: LoadedSettings, config: Config) => {
       try {
         await config.refreshAuth(authType);
 
-        console.log(
-          t(
-            'auth_dialog.messages.authenticated_via',
-            `Authenticated via "${authType}".`,
-            { authType: String(authType) },
-          ),
-        );
+        console.log(`Authenticated via "${authType}".`);
         setAuthError(null);
         setAuthState(AuthState.Authenticated);
       } catch (e) {
-        onAuthError(
-          t(
-            'auth_dialog.messages.failed_login',
-            'Failed to login. Message: {error}',
-            { error: getErrorMessage(e) },
-          ),
-        );
+        onAuthError(`Failed to login. Message: ${getErrorMessage(e)}`);
       }
     })();
   }, [
