@@ -4,8 +4,9 @@
     "outDir": "dist",
     "lib": ["DOM", "DOM.Iterable", "ES2023"],
     "composite": true,
-    "types": ["node", "vitest/globals"]
+    "types": ["node", "vitest/globals"],
+    "jsx": "react-jsx"
   },
-  "include": ["index.ts", "src/**/*.ts", "src/**/*.json"],
+  "include": ["index.ts", "src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
   "exclude": ["node_modules", "dist"]
 }

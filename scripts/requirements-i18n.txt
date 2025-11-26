@@ -1,0 +1,21 @@
+# I18n Auto-Translation Script Dependencies
+#
+# Install with: pip install -r scripts/requirements-i18n.txt
+#
+# Hardware Requirements:
+#   - NVIDIA GPU with at least 16GB VRAM for 27B model
+#   - For 12B model: 8GB VRAM
+#   - For 4B model: 4-5GB VRAM
+#
+# For CUDA support (recommended), install with:
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+#
+# For CPU only (slower):
+#   pip install llama-cpp-python
+
+# Core dependency - llama.cpp Python bindings
+# Note: Install separately with CUDA support using the command above
+# llama-cpp-python>=0.2.0
+
+# Optional: For downloading models from HuggingFace
+huggingface-hub>=0.20.0

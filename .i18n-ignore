@@ -1,0 +1,56 @@
+# i18n Transform Exclusions
+# This file uses gitignore-style patterns to exclude files from i18n transformation
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/test/**
+**/tests/**
+**/__tests__/**
+
+# Mock files
+**/mocks/**
+**/__mocks__/**
+
+# Build outputs
+**/dist/**
+**/build/**
+**/bundle/**
+*.bundle.js
+*.min.js
+
+# Type definitions
+**/*.d.ts
+
+# Generated files
+**/generated/**
+packages/cli/src/generated/**
+
+# Third-party and dependencies
+**/node_modules/**
+**/vendor/**
+
+# Specific directories to exclude
+packages/cli/src/zed-integration/**
+packages/core/src/test-utils/**
+packages/core/src/testing/**
+
+# Development and debug files
+**/*.debug.ts
+**/*.dev.ts
+
+# Configuration files
+*.config.js
+*.config.ts
+eslint.config.js
+
+# Scripts
+scripts/**/*.js
+
+# Exclude the i18n transformation system itself
+scripts/i18n-transform/**
+
+# Exclude esbuild config
+esbuild.config.js

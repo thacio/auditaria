@@ -42,6 +42,9 @@ dist
 
 bundle
 
+# LLM models for i18n translation (downloaded on demand)
+models/
+
 # Test report files
 junit.xml
 packages/*/coverage/
@@ -72,3 +75,8 @@ patch_output.log
 
 .genkit
 gemini-conversation-*.json
+
+
+# MICS
+i18n-*.json
+i18n-*.txt

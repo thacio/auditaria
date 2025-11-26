@@ -21,7 +21,7 @@ import process from 'node:process';
 import { isGitRepository } from '../utils/gitUtils.js';
 import { TodoTool } from '../tools/todoTool.js';
 import type { SupportedLanguage } from '../i18n/index.js';
-import { LANGUAGE_MAP } from '../i18n/index.js';
+import { getLanguageInfo } from '../i18n/index.js';
 import { CodebaseInvestigatorAgent } from '../agents/codebase-investigator.js';
 import type { Config } from '../config/config.js';
 import { GEMINI_DIR } from '../utils/paths.js';
@@ -329,7 +329,7 @@ ${(function () {
     language && language !== 'en'
       ? `\n\n## Language Instructions
 1.  **Prioritize the User's Language:** Your primary rule is to respond in the same language the user has used in their most recent message.
-2.  **Default Language:** The UI language is set to ${LANGUAGE_MAP[language]?.name || language}. Use this as the default language only for your very first message in a conversation.
+2.  **Default Language:** The UI language is set to ${getLanguageInfo(language)?.name || language}. Use this as the default language only for your very first message in a conversation.
 3.  **Switching Language:** If the user starts the conversation in a different language, or asks you to respond in his language, you **must** immediately switch your response language to match theirs.`
       : '';
   return languageInstructions;
