@@ -315,6 +315,7 @@ export interface ConfigParameters {
     [K in HookEventName]?: HookDefinition[];
   };
   previewFeatures?: boolean;
+  enableModelAvailabilityService?: boolean;
   useImprovedFallbackStrategy?: boolean;
 }
 
@@ -433,6 +434,7 @@ export class Config {
 
   private previewModelFallbackMode = false;
   private previewModelBypassMode = false;
+  private readonly enableModelAvailabilityService: boolean;
 
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
 
@@ -492,6 +494,8 @@ export class Config {
     this.fileDiscoveryService = params.fileDiscoveryService ?? null;
     this.bugCommand = params.bugCommand;
     this.model = params.model;
+    this.enableModelAvailabilityService =
+      params.enableModelAvailabilityService ?? false;
     this.previewFeatures = params.previewFeatures ?? undefined;
     this.useImprovedFallbackStrategy =
       params.useImprovedFallbackStrategy ?? true;
@@ -1184,6 +1188,10 @@ export class Config {
 
   getEnableExtensionReloading(): boolean {
     return this.enableExtensionReloading;
+  }
+
+  isModelAvailabilityServiceEnabled(): boolean {
+    return this.enableModelAvailabilityService;
   }
 
   getNoBrowser(): boolean {
