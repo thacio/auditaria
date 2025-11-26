@@ -10,7 +10,6 @@ import path from 'node:path';
 import type { PartUnion } from '@google/genai';
 // eslint-disable-next-line import/no-internal-modules
 import mime from 'mime/lite';
-import { t } from '../i18n/index.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { ToolErrorType } from '../tools/tool-error.js';
 import { BINARY_EXTENSIONS } from './ignorePatterns.js';
@@ -450,31 +449,12 @@ export async function processSingleFileContent(
         // By default, return nothing to streamline the common case of a successful read_file.
         let returnDisplay = '';
         if (contentRangeTruncated) {
-          returnDisplay = t(
-            'tools.read_file.truncated_lines_range',
-            `Read lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} from ${relativePathForDisplay}`,
-            {
-              startLine: String(actualStartLine + 1),
-              endLine: String(endLine),
-              totalLines: String(originalLineCount),
-              filename: relativePathForDisplay,
-            },
-          );
+          returnDisplay = `Read lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} from ${relativePathForDisplay}`;
           if (linesWereTruncatedInLength) {
-            returnDisplay += t(
-              'tools.read_file.some_lines_shortened',
-              ' (some lines were shortened)',
-            );
+            returnDisplay += ' (some lines were shortened)';
           }
         } else if (linesWereTruncatedInLength) {
-          returnDisplay = t(
-            'tools.read_file.all_lines_shortened',
-            `Read all ${originalLineCount} lines from ${relativePathForDisplay} (some lines were shortened)`,
-            {
-              totalLines: String(originalLineCount),
-              filename: relativePathForDisplay,
-            },
-          );
+          returnDisplay = `Read all ${originalLineCount} lines from ${relativePathForDisplay} (some lines were shortened)`;
         }
 
         return {

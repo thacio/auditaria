@@ -28,7 +28,6 @@ import {
 } from '../utils/errors.js';
 import type { GeminiChat } from './geminiChat.js';
 import { InvalidStreamError } from './geminiChat.js';
-import { t } from '../i18n/index.js';
 import { parseThought, type ThoughtSummary } from '../utils/thoughtUtils.js';
 import { createUserContent } from '@google/genai';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
@@ -308,7 +307,7 @@ export class Turn {
           if (this.pendingCitations.size > 0) {
             yield {
               type: GeminiEventType.Citation,
-              value: `${t('citations.title', 'Citations:')}\n${[...this.pendingCitations].sort().join('\n')}`,
+              value: `Citations:\n${[...this.pendingCitations].sort().join('\n')}`,
             };
             this.pendingCitations.clear();
           }

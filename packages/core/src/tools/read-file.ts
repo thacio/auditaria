@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '../i18n/index.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import path from 'node:path';
 import { makeRelative, shortenPath } from '../utils/paths.js';
@@ -86,9 +85,7 @@ class ReadFileToolInvocation extends BaseToolInvocation<
     if (result.error) {
       return {
         llmContent: result.llmContent,
-        returnDisplay:
-          result.returnDisplay ||
-          t('tools.read_file.error_reading_file', 'Error reading file'),
+        returnDisplay: result.returnDisplay || 'Error reading file',
         error: {
           message: result.error,
           type: result.errorType,

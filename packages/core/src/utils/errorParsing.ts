@@ -4,28 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '../i18n/index.js';
 import { isApiError, isStructuredError } from './quotaErrorDetection.js';
 import { DEFAULT_GEMINI_FLASH_MODEL } from '../config/models.js';
 import type { UserTierId } from '../code_assist/types.js';
 import { AuthType } from '../core/contentGenerator.js';
 
-const RATE_LIMIT_ERROR_MESSAGE_USE_GEMINI = t(
-  'errors.rate_limit_use_gemini',
-  '\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method',
-);
-const RATE_LIMIT_ERROR_MESSAGE_VERTEX = t(
-  'errors.rate_limit_vertex',
-  '\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method',
-);
+const RATE_LIMIT_ERROR_MESSAGE_USE_GEMINI =
+  '\nPlease wait and try again later. To increase your limits, request a quota increase through AI Studio, or switch to another /auth method';
+const RATE_LIMIT_ERROR_MESSAGE_VERTEX =
+  '\nPlease wait and try again later. To increase your limits, request a quota increase through Vertex, or switch to another /auth method';
 const getRateLimitErrorMessageDefault = (
   fallbackModel: string = DEFAULT_GEMINI_FLASH_MODEL,
 ) =>
-  t(
-    'errors.rate_limit_default',
-    '\nPossible quota limitations in place or slow response times detected. Switching to the {fallbackModel} model for the rest of this session.',
-    { fallbackModel },
-  );
+  `\nPossible quota limitations in place or slow response times detected. Switching to the ${fallbackModel} model for the rest of this session.`;
 
 function getRateLimitMessage(
   authType?: AuthType,
@@ -90,5 +81,5 @@ export function parseAndFormatApiError(
     return `[API Error: ${error}]`;
   }
 
-  return t('errors.api_unknown', '[API Error: An unknown error occurred.]');
+  return '[API Error: An unknown error occurred.]';
 }

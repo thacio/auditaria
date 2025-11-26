@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '../i18n/index.js';
-
 import fs from 'node:fs';
 import path from 'node:path';
 import os, { EOL } from 'node:os';
@@ -142,10 +140,7 @@ export class ShellToolInvocation extends BaseToolInvocation<
     if (signal.aborted) {
       return {
         llmContent: 'Command was cancelled by user before it could start.',
-        returnDisplay: t(
-          'tools.shell.command_cancelled_user',
-          'Command cancelled by user.',
-        ),
+        returnDisplay: 'Command cancelled by user.',
       };
     }
 
@@ -287,28 +282,13 @@ export class ShellToolInvocation extends BaseToolInvocation<
           returnDisplayMessage = result.output;
         } else {
           if (result.aborted) {
-            returnDisplayMessage = t(
-              'tools.shell.command_cancelled_user',
-              'Command cancelled by user.',
-            );
+            returnDisplayMessage = 'Command cancelled by user.';
           } else if (result.signal) {
-            returnDisplayMessage = t(
-              'tools.shell.command_terminated_signal',
-              'Command terminated by signal: {signal}',
-              { signal: result.signal },
-            );
+            returnDisplayMessage = `Command terminated by signal: ${result.signal}`;
           } else if (result.error) {
-            returnDisplayMessage = t(
-              'tools.shell.command_failed',
-              'Command failed: {error}',
-              { error: getErrorMessage(result.error) },
-            );
+            returnDisplayMessage = `Command failed: ${getErrorMessage(result.error)}`;
           } else if (result.exitCode !== null && result.exitCode !== 0) {
-            returnDisplayMessage = t(
-              'tools.shell.command_exit_code',
-              'Command exited with code: {code}',
-              { code: result.exitCode },
-            );
+            returnDisplayMessage = `Command exited with code: ${result.exitCode}`;
           }
           // If output is empty and command succeeded (code 0, no error/signal/abort),
           // returnDisplayMessage will remain empty, which is fine.

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { t } from '../i18n/index.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -282,23 +281,11 @@ class GrepToolInvocation extends BaseToolInvocation<
     } catch (error) {
       const errorMessage = getErrorMessage(error);
       console.error(
-        t(
-          'tools.ripgrep.grep_execution_error',
-          'Error during GrepLogic execution: {error}',
-          { error: errorMessage },
-        ),
+        `Error during GrepLogic execution: ${errorMessage}`,
       );
       return {
-        llmContent: t(
-          'tools.ripgrep.search_error',
-          'Error during grep search operation: {error}',
-          { error: errorMessage },
-        ),
-        returnDisplay: t(
-          'tools.ripgrep.search_error_display',
-          'Error: {error}',
-          { error: errorMessage },
-        ),
+        llmContent: `Error during grep search operation: ${errorMessage}`,
+        returnDisplay: `Error: ${errorMessage}`,
       };
     }
   }
@@ -457,11 +444,7 @@ class GrepToolInvocation extends BaseToolInvocation<
       return this.parseRipgrepJsonOutput(output, absolutePath);
     } catch (error: unknown) {
       console.error(
-        t(
-          'tools.ripgrep.ripgrep_failed',
-          'GrepLogic: ripgrep failed: {error}',
-          { error: getErrorMessage(error) },
-        ),
+        `GrepLogic: ripgrep failed: ${getErrorMessage(error)}`,
       );
       throw error;
     }

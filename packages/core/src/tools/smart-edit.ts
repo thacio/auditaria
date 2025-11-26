@@ -34,7 +34,6 @@ import {
 } from './modifiable-tool.js';
 import { IdeClient } from '../ide/ide-client.js';
 import { FixLLMEditWithInstruction } from '../utils/llm-edit-fixer.js';
-import { t } from '../i18n/index.js';
 import { applyReplacement } from './edit.js';
 import { safeLiteralReplace } from '../utils/textUtils.js';
 import { SmartEditStrategyEvent } from '../telemetry/types.js';
@@ -307,10 +306,7 @@ export function getErrorReplaceResult(
     undefined;
   if (occurrences === 0) {
     error = {
-      display: t(
-        'tools.replace.failed_find_string',
-        'Failed to edit, could not find the string to replace.',
-      ),
+      display: 'Failed to edit, could not find the string to replace.',
       raw: `Failed to edit, 0 occurrences found for old_string (${finalOldString}). Original old_string was (${params.old_string}) in ${params.file_path}. No edits made. The exact text in old_string was not found. Ensure you're not escaping content incorrectly and check whitespace, indentation, and context. Use ${READ_FILE_TOOL_NAME} tool to verify.`,
       type: ToolErrorType.EDIT_NO_OCCURRENCE_FOUND,
     };
@@ -319,20 +315,13 @@ export function getErrorReplaceResult(
       expectedReplacements === 1 ? 'occurrence' : 'occurrences';
 
     error = {
-      display: t(
-        'tools.replace.failed_replacement_count',
-        `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
-        { expectedReplacements, occurrenceTerm, occurrences },
-      ),
+      display: `Failed to edit, expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences}.`,
       raw: `Failed to edit, Expected ${expectedReplacements} ${occurrenceTerm} but found ${occurrences} for old_string in file: ${params.file_path}`,
       type: ToolErrorType.EDIT_EXPECTED_OCCURRENCE_MISMATCH,
     };
   } else if (finalOldString === finalNewString) {
     error = {
-      display: t(
-        'tools.replace.no_changes_identical',
-        'No changes to apply. The old_string and new_string are identical.',
-      ),
+      display: 'No changes to apply. The old_string and new_string are identical.',
       raw: `No changes to apply. The old_string and new_string are identical in file: ${params.file_path}`,
       type: ToolErrorType.EDIT_NO_CHANGE,
     };
@@ -462,10 +451,7 @@ class EditToolInvocation
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t(
-            'tools.replace.no_changes_required',
-            'No changes required. The file already meets the specified conditions.',
-          ),
+          display: 'No changes required. The file already meets the specified conditions.',
           raw: `A secondary check by an LLM determined that no changes were necessary to fulfill the instruction. Explanation: ${fixedEdit.explanation}. Original error with the parameters given: ${initialError.raw}`,
           type: ToolErrorType.EDIT_NO_CHANGE_LLM_JUDGEMENT,
         },
@@ -569,10 +555,7 @@ class EditToolInvocation
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t(
-            'tools.replace.file_not_found_create',
-            'File not found. Cannot apply edit. Use an empty old_string to create a new file.',
-          ),
+          display: 'File not found. Cannot apply edit. Use an empty old_string to create a new file.',
           raw: `File not found: ${params.file_path}`,
           type: ToolErrorType.FILE_NOT_FOUND,
         },
@@ -587,10 +570,7 @@ class EditToolInvocation
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t(
-            'tools.replace.failed_read_file',
-            'Failed to read content of file.',
-          ),
+          display: 'Failed to read content of file.',
           raw: `Failed to read content of existing file: ${params.file_path}`,
           type: ToolErrorType.READ_CONTENT_FAILURE,
         },
@@ -605,10 +585,7 @@ class EditToolInvocation
         occurrences: 0,
         isNewFile: false,
         error: {
-          display: t(
-            'tools.replace.failed_create_exists',
-            'Failed to edit. Attempted to create a file that already exists.',
-          ),
+          display: 'Failed to edit. Attempted to create a file that already exists.',
           raw: `File already exists, cannot create: ${params.file_path}`,
           type: ToolErrorType.ATTEMPT_TO_CREATE_EXISTING_FILE,
         },
@@ -670,22 +647,12 @@ class EditToolInvocation
         throw error;
       }
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.log(
-        t(
-          'tools.replace.error_preparing_edit',
-          `Error preparing edit: ${errorMsg}`,
-          { errorMsg },
-        ),
-      );
+      console.log(`Error preparing edit: ${errorMsg}`);
       return false;
     }
 
     if (editData.error) {
-      console.log(
-        t('tools.replace.error_display', `Error: ${editData.error.display}`, {
-          error: editData.error.display,
-        }),
-      );
+      console.log(`Error: ${editData.error.display}`);
       return false;
     }
 
@@ -803,15 +770,7 @@ class EditToolInvocation
 
       let displayResult: ToolResultDisplay;
       if (editData.isNewFile) {
-        displayResult = t(
-          'tools.replace.created_file_short',
-          `Created ${shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir()))}`,
-          {
-            file: shortenPath(
-              makeRelative(this.params.file_path, this.config.getTargetDir()),
-            ),
-          },
-        );
+        displayResult = `Created ${shortenPath(makeRelative(this.params.file_path, this.config.getTargetDir()))}`;
       } else {
         // Generate diff for display, even though core logic doesn't technically need it
         // The CLI wrapper will use this part of the ToolResult
@@ -842,19 +801,8 @@ class EditToolInvocation
 
       const llmSuccessMessageParts = [
         editData.isNewFile
-          ? t(
-              'tools.replace.created_new_file',
-              `Created new file: ${this.params.file_path} with provided content.`,
-              { file: this.params.file_path },
-            )
-          : t(
-              'tools.replace.modified_file',
-              `Successfully modified file: ${this.params.file_path} (${editData.occurrences} replacements).`,
-              {
-                file: this.params.file_path,
-                occurrences: editData.occurrences,
-              },
-            ),
+          ? `Created new file: ${this.params.file_path} with provided content.`
+          : `Successfully modified file: ${this.params.file_path} (${editData.occurrences} replacements).`,
       ];
       if (this.params.modified_by_user) {
         llmSuccessMessageParts.push(
@@ -978,10 +926,7 @@ A good instruction should concisely answer:
     params: EditToolParams,
   ): string | null {
     if (!params.file_path) {
-      return t(
-        'tools.edit.file_path_empty',
-        "The 'file_path' parameter must be non-empty.",
-      );
+      return "The 'file_path' parameter must be non-empty.";
     }
 
     let filePath = params.file_path;
@@ -998,11 +943,7 @@ A good instruction should concisely answer:
     const workspaceContext = this.config.getWorkspaceContext();
     if (!workspaceContext.isPathWithinWorkspace(params.file_path)) {
       const directories = workspaceContext.getDirectories();
-      return t(
-        'tools.edit.file_path_outside_workspace',
-        `File path must be within one of the workspace directories: {directories}`,
-        { directories: directories.join(', ') },
-      );
+      return `File path must be within one of the workspace directories: ${directories.join(', ')}`;
     }
 
     return null;

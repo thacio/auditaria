@@ -48,7 +48,6 @@ import {
   ShellExecutionService,
   saveApiKey,
   debugLogger,
-  t, // WEB_INTERFACE: Used in web interface notification messages
   type DiscoveredMCPTool,
   coreEvents,
   CoreEvent,
@@ -1583,89 +1582,50 @@ Logging in with Google... Restarting Gemini CLI to continue.
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
       let message = '';
-      const title = t('web.cli_action.title', 'CLI Action Required');
+      const title = 'CLI Action Required';
       let reason = 'general';
 
       if (shouldShowIdePrompt) {
-        message = t(
-          'web.cli_action.ide_integration',
-          'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.',
-        );
+        message = 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.';
         reason = 'ide_integration';
       } else if (isAuthenticating || isAuthDialogOpen) {
-        const authMessageKey = isAuthenticating
-          ? 'web.cli_action.auth_in_progress'
-          : 'web.cli_action.auth_required';
-        const authMessageFallback = isAuthenticating
+        const authMessage = isAuthenticating
           ? 'Authentication is in progress. Please check the CLI terminal.'
           : 'Authentication is required. Please complete the authentication process in the CLI terminal.';
-        message = t(authMessageKey, authMessageFallback);
+        message = authMessage;
         reason = 'authentication';
       } else if (isThemeDialogOpen) {
-        message = t(
-          'web.cli_action.theme_selection',
-          'Theme selection is open. Please choose a theme in the CLI terminal.',
-        );
+        message = 'Theme selection is open. Please choose a theme in the CLI terminal.';
         reason = 'theme_selection';
       } else if (isEditorDialogOpen) {
-        message = t(
-          'web.cli_action.editor_settings',
-          'Editor settings are open. Please configure your editor in the CLI terminal.',
-        );
+        message = 'Editor settings are open. Please configure your editor in the CLI terminal.';
         reason = 'editor_settings';
       } else if (isLanguageDialogOpen) {
-        message = t(
-          'web.cli_action.language_selection',
-          'Language selection is open. Please choose a language in the CLI terminal.',
-        );
+        message = 'Language selection is open. Please choose a language in the CLI terminal.';
         reason = 'language_selection';
       } else if (isSettingsDialogOpen) {
-        message = t(
-          'web.cli_action.settings',
-          'Settings dialog is open. Please configure settings in the CLI terminal.',
-        );
+        message = 'Settings dialog is open. Please configure settings in the CLI terminal.';
         reason = 'settings';
       } else if (isModelDialogOpen) {
-        message = t(
-          'web.cli_action.model_selection',
-          'Model selection is open. Please choose a model in the CLI terminal.',
-        );
+        message = 'Model selection is open. Please choose a model in the CLI terminal.';
         reason = 'model_selection';
       } else if (isFolderTrustDialogOpen) {
-        message = t(
-          'web.cli_action.folder_trust',
-          'Folder trust dialog is open. Please respond in the CLI terminal.',
-        );
+        message = 'Folder trust dialog is open. Please respond in the CLI terminal.';
         reason = 'folder_trust';
       } else if (showPrivacyNotice) {
-        message = t(
-          'web.cli_action.privacy_notice',
-          'Privacy notice is displayed. Please review in the CLI terminal.',
-        );
+        message = 'Privacy notice is displayed. Please review in the CLI terminal.';
         reason = 'privacy_notice';
       } else if (proQuotaRequest) {
-        message = t(
-          'web.cli_action.quota_exceeded',
-          'Quota exceeded dialog is open. Please choose an option in the CLI terminal.',
-        );
+        message = 'Quota exceeded dialog is open. Please choose an option in the CLI terminal.';
         reason = 'quota_exceeded';
       } else if (shellConfirmationRequest) {
-        message = t(
-          'web.cli_action.shell_confirmation',
-          'Shell command confirmation required. Please respond in the CLI terminal.',
-        );
+        message = 'Shell command confirmation required. Please respond in the CLI terminal.';
         reason = 'shell_confirmation';
       } else if (confirmationRequest) {
-        message = t(
-          'web.cli_action.confirmation',
-          'Confirmation required. Please respond in the CLI terminal.',
-        );
+        message = 'Confirmation required. Please respond in the CLI terminal.';
         reason = 'confirmation';
       } else if (loopDetectionConfirmationRequest) {
-        message = t(
-          'web.cli_action.loop_detection',
-          'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.',
-        );
+        message = 'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.';
         reason = 'loop_detection';
       }
 
@@ -1706,13 +1666,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       webInterface.isRunning &&
       initializationResult.geminiMdFileCount
     ) {
-      const startupMessage = t(
-        'web.startup_message',
-        'Auditaria CLI is ready. Loaded {count} context file(s).',
-        {
-          count: initializationResult.geminiMdFileCount,
-        },
-      );
+      const startupMessage = `Auditaria CLI is ready. Loaded ${initializationResult.geminiMdFileCount} context file(s).`;
       // Use a generic broadcast since there's no specific setStartupMessage method
       webInterface.service.broadcastMessage({
         id: Date.now(),

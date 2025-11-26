@@ -10,7 +10,6 @@ import { glob } from 'glob';
 import type { PartUnion } from '@google/genai';
 import { processSingleFileContent } from './fileUtils.js';
 import type { Config } from '../config/config.js';
-import { t } from '../i18n/index.js';
 
 /**
  * Reads the content of a file or recursively expands a directory from
@@ -32,11 +31,7 @@ export async function readPathFromWorkspace(
   if (path.isAbsolute(pathStr)) {
     if (!workspace.isPathWithinWorkspace(pathStr)) {
       throw new Error(
-        t(
-          'pathReader.errors.absolutePathOutside',
-          `Absolute path is outside of the allowed workspace: ${pathStr}`,
-          { path: pathStr },
-        ),
+        `Absolute path is outside of the allowed workspace: ${pathStr}`,
       );
     }
     absolutePath = pathStr;
@@ -57,11 +52,7 @@ export async function readPathFromWorkspace(
 
   if (!absolutePath) {
     throw new Error(
-      t(
-        'pathReader.errors.pathNotFound',
-        `Path not found in workspace: ${pathStr}`,
-        { path: pathStr },
-      ),
+      `Path not found in workspace: ${pathStr}`,
     );
   }
 

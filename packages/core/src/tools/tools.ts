@@ -5,7 +5,6 @@
  */
 
 import type { FunctionDeclaration, PartListUnion } from '@google/genai';
-import { t } from '../i18n/index.js';
 import { ToolErrorType } from './tool-error.js';
 import type { DiffUpdateResult } from '../ide/ide-client.js';
 import type { ShellExecutionConfig } from '../services/shellExecutionService.js';
@@ -99,11 +98,7 @@ export abstract class BaseToolInvocation<
 
       if (decision === 'DENY') {
         throw new Error(
-          t(
-            'tools.policy.tool_execution_denied',
-            'Tool execution for "{tool}" denied by policy.',
-            { tool: this._toolDisplayName || this._toolName || 'unknown' },
-          ),
+          `Tool execution for "${this._toolDisplayName || this._toolName || 'unknown'}" denied by policy.`,
         );
       }
 
@@ -129,11 +124,7 @@ export abstract class BaseToolInvocation<
 
     const confirmationDetails: ToolCallConfirmationDetails = {
       type: 'info',
-      title: t(
-        'tools.policy.confirm_tool',
-        `Confirm: ${this._toolDisplayName || this._toolName}`,
-        { tool: this._toolDisplayName || this._toolName || 'tool' },
-      ),
+      title: `Confirm: ${this._toolDisplayName || this._toolName}`,
       prompt: this.getDescription(),
       onConfirm: async (outcome: ToolConfirmationOutcome) => {
         if (outcome === ToolConfirmationOutcome.ProceedAlways) {

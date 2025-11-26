@@ -6,7 +6,6 @@
 
 import type { AnyToolInvocation } from '../index.js';
 import type { Config } from '../config/config.js';
-import { t } from '../i18n/index.js';
 import os from 'node:os';
 import { quote } from 'shell-quote';
 import { doesToolInvocationMatch } from './tool-utils.js';
@@ -681,17 +680,9 @@ export function checkCommandPermissions(
       return {
         allAllowed: false,
         disallowedCommands,
-        blockReason: t(
-          'shell.permissions.commands_not_on_allowlist',
-          `Command(s) not on the global or session allowlist. Disallowed commands: ${disallowedCommands
-            .map((c) => JSON.stringify(c))
-            .join(', ')}`,
-          {
-            commands: disallowedCommands
-              .map((c) => JSON.stringify(c))
-              .join(', '),
-          },
-        ),
+        blockReason: `Command(s) not on the global or session allowlist. Disallowed commands: ${disallowedCommands
+          .map((c) => JSON.stringify(c))
+          .join(', ')}`,
         isHardDenial: false, // This is a soft denial; confirmation is possible.
       };
     }
@@ -718,15 +709,9 @@ export function checkCommandPermissions(
         return {
           allAllowed: false,
           disallowedCommands,
-          blockReason: t(
-            'shell.permissions.commands_not_in_allowed_list',
-            `Command(s) not in the allowed commands list. Disallowed commands: ${disallowedCommands.map((c) => JSON.stringify(c)).join(', ')}`,
-            {
-              commands: disallowedCommands
-                .map((c) => JSON.stringify(c))
-                .join(', '),
-            },
-          ),
+          blockReason: `Command(s) not in the allowed commands list. Disallowed commands: ${disallowedCommands
+            .map((c) => JSON.stringify(c))
+            .join(', ')}`,
           isHardDenial: false, // This is a soft denial.
         };
       }

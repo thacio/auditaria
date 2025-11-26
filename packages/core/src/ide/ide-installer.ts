@@ -11,7 +11,6 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { IDE_DEFINITIONS, type IdeInfo } from './detect-ide.js';
 import { GEMINI_CLI_COMPANION_EXTENSION_NAME } from './constants.js';
-import { t } from '../i18n/index.js';
 
 export interface IdeInstaller {
   install(): Promise<InstallResult>;
@@ -113,10 +112,7 @@ class VsCodeInstaller implements IdeInstaller {
     if (!commandPath) {
       return {
         success: false,
-        message: t(
-          'ide_installer.vscode_cli_not_found',
-          `${this.ideInfo.displayName} CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the ${this.ideInfo.displayName} marketplace.`,
-        ),
+        message: `${this.ideInfo.displayName} CLI not found. Please ensure 'code' is in your system's PATH. For help, see https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. You can also install the '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' extension manually from the ${this.ideInfo.displayName} marketplace.`,
       };
     }
 
@@ -139,18 +135,12 @@ class VsCodeInstaller implements IdeInstaller {
 
       return {
         success: true,
-        message: t(
-          'ide_installer.vscode_install_success',
-          `${this.ideInfo.displayName} companion extension was installed successfully.`,
-        ),
+        message: `${this.ideInfo.displayName} companion extension was installed successfully.`,
       };
     } catch (_error) {
       return {
         success: false,
-        message: t(
-          'ide_installer.vscode_install_failed',
-          `Failed to install ${this.ideInfo.displayName} companion extension. Please try installing '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' manually from the ${this.ideInfo.displayName} extension marketplace.`,
-        ),
+        message: `Failed to install ${this.ideInfo.displayName} companion extension. Please try installing '${GEMINI_CLI_COMPANION_EXTENSION_NAME}' manually from the ${this.ideInfo.displayName} extension marketplace.`,
       };
     }
   }

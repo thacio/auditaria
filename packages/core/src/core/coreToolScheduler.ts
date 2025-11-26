@@ -50,7 +50,6 @@ import {
 } from '../utils/shell-utils.js';
 import { doesToolInvocationMatch } from '../utils/tool-utils.js';
 import levenshtein from 'fast-levenshtein';
-import { t } from '../i18n/index.js';
 import { ShellToolInvocation } from '../tools/shell.js';
 import type { ToolConfirmationRequest } from '../confirmation-bus/types.js';
 import { MessageBusType } from '../confirmation-bus/types.js';
@@ -663,17 +662,9 @@ export class CoreToolScheduler {
       .join(', ');
 
     if (topNResults.length > 1) {
-      return t(
-        'errors.tool_suggestion_multiple',
-        ` Did you mean one of: ${suggestedNames}?`,
-        { suggestedNames },
-      );
+      return ` Did you mean one of: ${suggestedNames}?`;
     } else {
-      return t(
-        'errors.tool_suggestion_single',
-        ` Did you mean ${suggestedNames}?`,
-        { suggestedName: topNResults[0].name },
-      );
+      return ` Did you mean ${suggestedNames}?`;
     }
   }
 
@@ -772,11 +763,7 @@ export class CoreToolScheduler {
             .getTool(reqInfo.name);
           if (!toolInstance) {
             const suggestion = this.getToolSuggestion(reqInfo.name);
-            const errorMessage = t(
-              'errors.tool_not_found',
-              `Tool "${reqInfo.name}" not found in registry. Tools must use the exact names that are registered.${suggestion}`,
-              { toolName: reqInfo.name, suggestion },
-            );
+            const errorMessage = `Tool "${reqInfo.name}" not found in registry. Tools must use the exact names that are registered.${suggestion}`;
             return {
               status: 'error',
               request: reqInfo,
@@ -939,10 +926,7 @@ export class CoreToolScheduler {
             reqInfo.callId,
             'cancelled',
             signal,
-            t(
-              'tools.execution.call_cancelled_by_user',
-              'Tool call cancelled by user.',
-            ),
+            'Tool call cancelled by user.',
           );
           await this.checkAndNotifyCompletion(signal);
         } else {
