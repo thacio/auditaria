@@ -1,1789 +1,654 @@
 {
-  "commands": {
-    "docs": {
-      "description": "abrir documentação completa do Gemini CLI no seu navegador",
-      "opening": "Abrindo documentação no seu navegador: {url}",
-      "sandbox_message": "Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n{url}"
-    },
-    "theme": {
-      "description": "alterar o tema"
-    },
-    "auth": {
-      "description": "alterar o método de autenticação"
-    },
-    "editor": {
-      "description": "definir preferência do editor externo"
-    },
-    "language": {
-      "description": "alterar preferência de idioma"
-    },
-    "web": {
-      "description": "abrir interface web no navegador",
-      "help": "Abre a interface web no seu navegador. Use a flag --web ao iniciar o auditaria para habilitar a interface web.",
-      "error": {
-        "not_available": "Interface web não está disponível nesta configuração"
-      },
-      "start": {
-        "description": "iniciar servidor da interface web",
-        "pending": "Iniciando interface web...",
-        "error": "Falha ao iniciar interface web: {error}"
-      },
-      "stop": {
-        "description": "parar servidor da interface web",
-        "error": "Falha ao parar interface web: {error}"
-      },
-      "status": {
-        "description": "mostrar status da interface web",
-        "running": "Interface web está rodando na porta {port} com {clients} cliente(s) conectado(s)",
-        "stopped": "Interface web não está rodando"
-      },
-      "already_running": "Interface web já está rodando na porta {port}",
-      "not_running": "Interface web não está rodando atualmente",
-      "started": "Interface web iniciada em http://localhost:{port}",
-      "stopped": "Interface web parada",
-      "starting_and_opening": "🌐 Abrindo interface web no navegador...",
-      "available_at": "🌐 Interface web disponível em http://localhost:{port}",
-      "opening_browser": "Abrindo navegador web...",
-      "browser_open_failed": "Falha ao abrir navegador automaticamente. Por favor, visite http://localhost:{port} manualmente.",
-      "port_fallback": "Porta {requestedPort} está em uso, usando porta {assignedPort} ao invés",
-      "messages": {
-        "connected": "Conectado ao Auditaria CLI"
-      },
-      "errors": {
-        "already_running": "Interface web já está rodando"
-      }
-    },
-    "privacy": {
-      "description": "exibir o aviso de privacidade"
-    },
-    "settings": {
-      "description": "Visualizar e editar configurações do Gemini CLI"
-    },
-    "model": {
-      "description": "Abre um diálogo para configurar o modelo"
-    },
-    "permissions": {
-      "description": "Gerenciar configurações de confiança de pastas e outras permissões",
-      "trust": {
-        "description": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<caminho-do-diretório>]",
-        "not_directory": "Caminho não é um diretório: {path}",
-        "error_accessing": "Erro ao acessar caminho: {path}. {error}"
-      },
-      "provide_subcommand": "Por favor, forneça um subcomando para /permissions. Uso: /permissions trust [<caminho-do-diretório>]",
-      "invalid_subcommand": "Subcomando inválido para /permissions: {subcommand}. Uso: /permissions trust [<caminho-do-diretório>]"
-    },
-    "profile": {
-      "description": "Alternar exibição do perfil de depuração",
-      "toggled": "Exibição do perfil alternada."
-    },
-    "stats": {
-      "description": "verificar estatísticas da sessão. Uso: /stats [model|tools]",
-      "alt_name": "uso",
-      "errors": {
-        "session_start_unavailable": "Horário de início da sessão não disponível, não é possível calcular estatísticas."
-      },
-      "subcommands": {
-        "model": {
-          "description": "Mostrar estatísticas de uso específicas do modelo."
-        },
-        "tools": {
-          "description": "Mostrar estatísticas de uso específicas das ferramentas."
-        }
-      }
-    },
-    "mcp": {
-      "description": "listar servidores MCP configurados e ferramentas",
-      "manage": {
-        "description": "Gerenciar servidores MCP",
-        "need_command": "Você precisa de pelo menos um comando antes de continuar.",
-        "add": {
-          "description": "Adicionar um servidor",
-          "usage": "Uso: auditaria mcp add [opções] <nome> <comandoOuUrl> [args...]",
-          "name_description": "Nome do servidor",
-          "command_url_description": "Comando (stdio) ou URL (sse, http)",
-          "scope_description": "Escopo de configuração (usuário ou projeto)",
-          "transport_description": "Tipo de transporte (stdio, sse, http)",
-          "env_description": "Definir variáveis de ambiente (ex: -e KEY=valor)",
-          "header_description": "Definir cabeçalhos HTTP para transportes SSE e HTTP (ex: -H \"X-Api-Key: abc123\" -H \"Authorization: Bearer abc123\")",
-          "timeout_description": "Definir tempo limite de conexão em milissegundos",
-          "trust_description": "Confiar no servidor (ignorar todos os prompts de confirmação de chamada de ferramenta)",
-          "description_description": "Definir a descrição do servidor",
-          "include_tools_description": "Uma lista separada por vírgulas de ferramentas para incluir",
-          "exclude_tools_description": "Uma lista separada por vírgulas de ferramentas para excluir",
-          "already_configured": "Servidor MCP \"{name}\" já está configurado nas configurações de {scope}.",
-          "updated": "Servidor MCP \"{name}\" atualizado nas configurações de {scope}.",
-          "added": "Servidor MCP \"{name}\" adicionado às configurações de {scope}. ({transport})",
-          "error_home_directory": "Erro: Use --scope user para editar configurações no diretório home."
-        },
-        "remove": {
-          "description": "Remover um servidor",
-          "usage": "Uso: auditaria mcp remove [opções] <nome>",
-          "name_description": "Nome do servidor",
-          "scope_description": "Escopo de configuração (usuário ou projeto)",
-          "not_found": "Servidor \"{name}\" não encontrado nas configurações de {scope}.",
-          "removed": "Servidor \"{name}\" removido das configurações de {scope}."
-        },
-        "list": {
-          "description": "Listar todos os servidores MCP configurados",
-          "no_servers": "Nenhum servidor MCP configurado.",
-          "configured_servers": "Servidores MCP configurados:\n",
-          "status_connected": "Conectado",
-          "status_connecting": "Conectando",
-          "status_disconnected": "Desconectado"
-        }
-      },
-      "no_servers": "Nenhum servidor MCP configurado. Abrindo documentação no seu navegador: {url}",
-      "no_servers_sandbox": "Nenhum servidor MCP configurado. Por favor, abra a seguinte URL no seu navegador para visualizar a documentação:\n{url}",
-      "no_servers_docs_command": "Nenhum servidor MCP configurado. Por favor, visualize a documentação MCP no seu navegador: {url} ou use o comando /docs",
-      "servers_starting": "⏳ Servidores MCP estão iniciando ({count} inicializando)...",
-      "connecting_servers": "Conectando aos servidores MCP... ({connected}/{total})",
-      "first_startup_note": "Nota: A primeira inicialização pode demorar mais. A disponibilidade das ferramentas será atualizada automaticamente.",
-      "configured_servers": "Servidores MCP configurados:",
-      "status": {
-        "ready": "Pronto",
-        "starting": "Iniciando... (primeira inicialização pode demorar mais)",
-        "disconnected": "Desconectado"
-      },
-      "tools_count": "({count} ferramentas)",
-      "tools_when_ready": "(ferramentas aparecerão quando prontas)",
-      "tools_and_prompts_when_ready": "(ferramentas e prompts aparecerão quando prontos)",
-      "tools_cached": "({count} ferramentas em cache)",
-      "no_tools": "Nenhuma ferramenta disponível",
-      "no_tools_or_prompts": "Nenhuma ferramenta ou prompt disponível",
-      "parameters": "Parâmetros:",
-      "refresh": {
-        "description": "Reinicia os servidores MCP.",
-        "restarting": "Reiniciando servidores MCP..."
-      },
-      "oauth": {
-        "requires_auth": "🔐 '{serverName}' requer autenticação OAuth",
-        "config_failed": "❌ Não foi possível configurar OAuth para '{serverName}' - por favor autentique manualmente com /mcp auth {serverName}",
-        "starting_auth": "Iniciando autenticação OAuth para o servidor '{serverName}'...",
-        "auth_successful": "Autenticação OAuth bem-sucedida para o servidor '{serverName}'",
-        "auth_failed": "Falha ao gerenciar OAuth automático para o servidor '{serverName}': {error}",
-        "retrying_connection": "Tentando novamente a conexão com '{serverName}' usando token OAuth...",
-        "found_stored_token": "Token OAuth armazenado encontrado para o servidor '{serverName}'",
-        "token_rejected_sse": "Token OAuth armazenado para o servidor SSE '{serverName}' foi rejeitado. Por favor, re-autentique usando: /mcp auth {serverName}",
-        "no_auth_config_sse": "Erro 401 recebido para o servidor SSE '{serverName}' sem configuração OAuth. Por favor, autentique usando: /mcp auth {serverName}",
-        "no_www_auth_header": "Nenhum cabeçalho www-authenticate no erro, tentando buscar do servidor...",
-        "found_www_auth": "Cabeçalho www-authenticate encontrado do servidor: {header}",
-        "received_401_with_header": "Recebido 401 com cabeçalho www-authenticate: {header}",
-        "attempting_discovery": "🔍 Tentando descoberta OAuth para '{serverName}'...",
-        "discovered_from_base": "Configuração OAuth descoberta da URL base para o servidor '{serverName}'",
-        "discovery_failed": "❌ Descoberta OAuth falhou para '{serverName}' - por favor autentique manualmente com /mcp auth {serverName}",
-        "no_auth_config_found": "❌ '{serverName}' requer autenticação mas nenhuma configuração OAuth foi encontrada",
-        "requires_auth_command": "Servidor MCP '{serverName}' requer autenticação OAuth. Por favor, autentique usando o comando /mcp auth.",
-        "failed_connect_oauth": "Falha ao conectar com token OAuth: {error}",
-        "failed_create_transport": "Falha ao criar transporte OAuth para o servidor '{serverName}'",
-        "failed_get_token": "Falha ao obter token OAuth para o servidor '{serverName}'",
-        "failed_get_credentials": "Falha ao obter credenciais para o servidor '{serverName}' após autenticação OAuth bem-sucedida",
-        "failed_stored_credentials": "Falha ao obter credenciais armazenadas para o servidor '{serverName}'",
-        "config_failed_manual": "Configuração OAuth falhou para '{serverName}'. Por favor, autentique manualmente com /mcp auth {serverName}",
-        "requires_auth_config": "Servidor MCP '{serverName}' requer autenticação. Por favor, configure OAuth ou verifique as configurações do servidor."
-      },
-      "auth": {
-        "description": "Autenticar com um servidor MCP habilitado para OAuth",
-        "config_not_loaded": "Configuração não carregada.",
-        "no_oauth_servers": "Nenhum servidor MCP configurado com autenticação OAuth.",
-        "oauth_servers_list": "Servidores MCP com autenticação OAuth:\n{servers}\n\nUse /mcp auth <nome-do-servidor> para autenticar.",
-        "server_not_found": "Servidor MCP '{serverName}' não encontrado.",
-        "starting_auth": "Iniciando autenticação OAuth para o servidor MCP '{serverName}'...",
-        "auth_successful": "✅ Autenticado com sucesso com o servidor MCP '{serverName}'!",
-        "rediscovering_tools": "Re-descobrindo ferramentas de '{serverName}'...",
-        "auth_and_refresh_successful": "Autenticado com sucesso e ferramentas atualizadas para '{serverName}'.",
-        "auth_failed": "Falha ao autenticar com o servidor MCP '{serverName}': {error}"
-      },
-      "google_credentials": {
-        "scopes_required": "Escopos devem ser fornecidos na configuração oauth para o provedor Google Credentials (ou habilite allow_unscoped_id_tokens_for_cloud_run para usar tokens de ID para endpoints Cloud Run)",
-        "failed_get_token": "Falha ao obter token de acesso do Google ADC",
-        "failed_get_id_token": "Falha ao obter token de ID do Google ADC",
-        "no_url_configured": "Nenhuma URL configurada para o servidor MCP Google Credentials"
-      },
-      "prompts": {
-        "config_not_loaded": "Configuração não carregada.",
-        "server_config_not_found": "Configuração do servidor MCP não encontrada para '{serverName}'.",
-        "invoke_error": "Erro ao invocar prompt: {error}",
-        "empty_response": "Recebida resposta vazia ou inválida do servidor de prompt.",
-        "missing_arguments": "Argumentos obrigatórios ausentes: {missingArgNames}",
-        "no_arguments": "Prompt \"{promptName}\" não possui argumentos.",
-        "arguments_help_intro": "Argumentos para \"{promptName}\":",
-        "arguments_usage_note": "Você pode fornecer argumentos por nome (ex: --argName=\"valor\") ou por posição.",
-        "arguments_example": "ex: {promptName} {positionalExample} é equivalente a {promptName} {namedExample}",
-        "argument_required_yes": "sim",
-        "argument_required_no": "não"
-      }
-    },
-    "extensions": {
-      "description": "listar extensões ativas",
-      "no_extensions": "Nenhuma extensão ativa.",
-      "active_extensions": "Extensões ativas:",
-      "manage": {
-        "description": "Gerenciar extensões do Auditaria CLI.",
-        "need_command": "Você precisa de pelo menos um comando antes de continuar."
-      },
-      "install": {
-        "description": "Instala uma extensão de um repositório git URL ou de um caminho local.",
-        "source_description": "A URL do github ou caminho local da extensão a instalar.",
-        "ref_description": "A referência git para instalar.",
-        "auto_update_description": "Habilitar atualização automática para esta extensão.",
-        "pre_release_description": "Habilitar versões pré-lançamento para esta extensão.",
-        "source_required": "O argumento source deve ser fornecido.",
-        "local_no_ref_auto_update": "--ref e --auto-update não são aplicáveis para extensões locais.",
-        "source_not_found": "Fonte de instalação não encontrada.",
-        "success": "Extensão \"{extensionName}\" instalada com sucesso e habilitada.",
-        "untrusted_folder": "Não foi possível instalar a extensão de pasta não confiável em {source}",
-        "workspace_not_trusted_prompt": "O workspace atual em \"{workspaceDir}\" não é confiável. Você deseja confiar neste workspace para instalar extensões?",
-        "workspace_not_trusted_error": "Não foi possível instalar a extensão porque o workspace atual em {workspaceDir} não é confiável.",
-        "github": {
-          "invalid_source": "Fonte de repositório GitHub inválida: {source}. Esperado \"proprietário/repo\" ou uma URI de repositório github.",
-          "ssh_not_supported": "Extensões baseadas em releases do GitHub não são suportadas para SSH. Você deve usar uma URI HTTPS com um token de acesso pessoal para baixar releases de repositórios privados. Você pode definir seu token de acesso pessoal na variável de ambiente GITHUB_TOKEN e instalar a extensão via SSH."
-        },
-        "consent_description": "Reconhecer os riscos de segurança ao instalar uma extensão e pular o prompt de confirmação.",
-        "consent_message": "Você consentiu com o seguinte:"
-      },
-      "uninstall": {
-        "description": "Desinstala uma ou mais extensões.",
-        "names_description": "O(s) nome(s) ou caminho(s) de origem da(s) extensão(ões) a desinstalar.",
-        "missing_names": "Por favor, inclua pelo menos um nome de extensão a desinstalar como um argumento posicional.",
-        "success": "Extensão \"{name}\" desinstalada com sucesso.",
-        "failed": "Falha ao desinstalar \"{name}\": {error}",
-        "not_found": "Extensão não encontrada."
-      },
-      "list": {
-        "description": "Lista extensões instaladas.",
-        "no_extensions": "Nenhuma extensão instalada.",
-        "installed_extensions": "Extensões instaladas:",
-        "status": {
-          "active": "ativa",
-          "disabled": "desabilitada",
-          "unknown": "estado desconhecido"
-        },
-        "unhandled_state_error": "ExtensionUpdateState não tratado {state}"
-      },
-      "update": {
-        "description": "Atualiza todas as extensões ou uma extensão nomeada para a versão mais recente.",
-        "name_description": "O nome da extensão a atualizar.",
-        "all_description": "Atualizar todas as extensões.",
-        "usage": "Uso: /extensions update <nomes-das-extensões>|--all",
-        "success": "Extensão \"{name}\" atualizada com sucesso: {originalVersion} → {updatedVersion}.",
-        "failed": "Falha ao atualizar extensão \"{name}\".",
-        "not_found": "Extensão \"{extensionName}\" não encontrada. Execute auditaria extensions list para ver as extensões disponíveis.",
-        "missing_metadata": "A extensão não pode ser atualizada porque está faltando o arquivo .gemini-extension-install.json. Para atualizar manualmente, desinstale e reinstale a versão atualizada.",
-        "not_found_after_install": "Extensão atualizada não encontrada após a instalação.",
-        "error_rolling_back": "Erro ao atualizar extensão, revertendo. {error}",
-        "no_extensions": "Nenhuma extensão para atualizar.",
-        "missing_argument": "Um nome de extensão ou --all deve ser fornecido",
-        "cannot_update": "Extensão {name} não pode ser atualizada.",
-        "restart_required": "Reinicie o Auditaria CLI para ver as alterações.",
-        "already_up_to_date": "Extensão \"{name}\" já está atualizada.",
-        "cannot_update_type_unknown": "Extensão {name} não pode ser atualizada, tipo desconhecido.",
-        "linked_no_update": "A extensão está vinculada e não precisa ser atualizada"
-      },
-      "disable": {
-        "description": "Desabilita uma extensão.",
-        "name_description": "O nome da extensão para desabilitar.",
-        "scope_description": "O escopo para desabilitar a extensão.",
-        "success": "Extensão \"{name}\" desabilitada com sucesso para o escopo \"{scope}\"."
-      },
-      "enable": {
-        "description": "Habilita uma extensão.",
-        "name_description": "O nome da extensão para habilitar.",
-        "scope_description": "O escopo para habilitar a extensão. Se não definido, será habilitado em todos os escopos.",
-        "success_with_scope": "Extensão \"{name}\" habilitada com sucesso para o escopo \"{scope}\".",
-        "success_all_scopes": "Extensão \"{name}\" habilitada com sucesso em todos os escopos."
-      },
-      "link": {
-        "description": "Vincula uma extensão de um caminho local. Atualizações feitas no caminho local sempre serão refletidas.",
-        "path_description": "O nome da extensão para vincular.",
-        "success": "Extensão \"{extensionName}\" vinculada com sucesso e habilitada."
-      },
-      "new": {
-        "description": "Criar uma nova extensão a partir de um exemplo modelo.",
-        "path_description": "O caminho para criar a extensão.",
-        "template_description": "O modelo de exemplo para usar.",
-        "success": "Nova extensão criada com sucesso a partir do modelo \"{template}\" em {path}.",
-        "success_no_template": "Nova extensão criada com sucesso em {path}.",
-        "install_help": "Você pode instalar isso usando \"auditaria extensions link {path}\" para testar.",
-        "path_exists": "Caminho já existe: {path}"
-      },
-      "validate": {
-        "description": "Valida uma extensão a partir de um caminho local.",
-        "path_description": "O caminho da extensão para validar.",
-        "success": "Extensão {path} foi validada com sucesso.",
-        "missing_context_files": "Os seguintes arquivos de contexto referenciados em gemini-extension.json estão faltando: {files}",
-        "invalid_semver": "Aviso: Versão '{version}' não parece ser semver padrão (por exemplo, 1.0.0).",
-        "warnings_header": "Avisos de validação:",
-        "errors_header": "Validação falhou com os seguintes erros:",
-        "failed": "Validação da extensão falhou."
-      },
-      "updates_available_singular": "Você tem 1 extensão com atualização disponível, execute \"/extensions list\" para mais informações.",
-      "updates_available_plural": "Você tem {count} extensões com atualização disponível, execute \"/extensions list\" para mais informações."
-    },
-    "tools": {
-      "description": "listar ferramentas disponíveis do Gemini CLI",
-      "description_with_usage": "listar ferramentas disponíveis do Gemini CLI. Uso: /tools [desc]",
-      "available_tools": "Ferramentas disponíveis do Gemini CLI:",
-      "no_tools": "Nenhuma ferramenta disponível",
-      "error_retrieve": "Não foi possível recuperar as ferramentas.",
-      "deprecated_label": "(Obsoleto)"
-    },
-    "about": {
-      "description": "mostrar informações da versão",
-      "no_sandbox": "sem sandbox",
-      "unknown_profile": "desconhecido",
-      "unknown_model": "Desconhecido"
-    },
-    "bug": {
-      "description": "enviar relatório de bug",
-      "submit_message": "Para enviar seu relatório de bug, por favor abra a seguinte URL no seu navegador:\n{url}",
-      "browser_error": "Não foi possível abrir URL no navegador: {error}",
-      "no_sandbox": "sem sandbox",
-      "unknown_profile": "desconhecido",
-      "unknown_model": "Desconhecido"
-    },
-    "corgi": {
-      "description": "Alterna o modo corgi."
-    },
-    "chat": {
-      "description": "Gerenciar histórico de conversas. Uso: /chat <list|save|resume|delete> <tag>",
-      "no_client": "Nenhum cliente de chat disponível para status da conversa.",
-      "missing_command": "Comando ausente\nUso: /chat <list|save|resume|delete> <tag>",
-      "save": {
-        "description": "Salvar a conversa atual como um checkpoint. Uso: /chat save <tag>",
-        "missing_tag": "Tag ausente. Uso: /chat save <tag>",
-        "saved": "Checkpoint de conversa salvo com tag: {tag}.",
-        "no_conversation": "Nenhuma conversa encontrada para salvar.",
-        "no_client": "Nenhum cliente de chat disponível para salvar conversa.",
-        "overwrite_confirmation_prefix": "Um checkpoint com a tag ",
-        "overwrite_confirmation_suffix": " já existe. Deseja sobrescrevê-lo?"
-      },
-      "resume": {
-        "description": "Retomar uma conversa de um checkpoint. Uso: /chat resume <tag>",
-        "missing_tag": "Tag ausente. Uso: /chat resume <tag>",
-        "not_found": "Nenhum checkpoint salvo encontrado com tag: {tag}.",
-        "auth_mismatch": "Não é possível retomar o chat. Ele foi salvo com um método de autenticação diferente ({savedAuthType}) do atual ({currentAuthType})."
-      },
-      "list": {
-        "description": "Listar checkpoints de conversas salvos",
-        "saved_conversations": "lista de conversas salvas: {tags}",
-        "no_checkpoints": "Nenhum checkpoint de conversa salvo encontrado.",
-        "header": "Lista de conversas salvas:\n\n",
-        "note": "Nota: Mais recente por último, mais antigo primeiro",
-        "invalid_date": "Data Inválida",
-        "saved_on": "(salvo em {date})"
-      },
-      "delete": {
-        "description": "Deletar um checkpoint de conversa. Uso: /chat delete <tag>",
-        "missing_tag": "Tag ausente. Uso: /chat delete <tag>",
-        "deleted": "Checkpoint de conversa '{tag}' foi deletado.",
-        "not_found": "Erro: Nenhum checkpoint encontrado com tag '{tag}'."
-      },
-      "share": {
-        "description": "Compartilhar a conversa atual para um arquivo markdown ou json. Uso: /chat share <arquivo>",
-        "invalid_format": "Formato de arquivo inválido. Somente .md e .json são suportados.",
-        "no_client": "Nenhum cliente de chat disponível para compartilhar conversa.",
-        "no_conversation": "Nenhuma conversa encontrada para compartilhar.",
-        "shared": "Conversa compartilhada para {filePath}",
-        "error": "Erro ao compartilhar conversa: {error}"
-      },
-      "unknown_command": "Comando /chat desconhecido: {command}. Disponíveis: list, save, resume, delete, share"
-    },
-    "quit": {
-      "description": "sair do cli",
-      "alt_name": "sair"
-    },
-    "chat": {
-      "model_info": "respondendo com {model}"
-    },
-    "compress": {
-      "description": "Comprime o contexto substituindo-o por um resumo.",
-      "alt_name": "resumir",
-      "already_compressing": "Já comprimindo, aguarde a solicitação anterior terminar",
-      "failed": "Falha ao comprimir histórico do chat.",
-      "failed_error": "Falha ao comprimir histórico do chat: {error}"
-    },
-    "fallback_improved": {
-      "description": "alternar entre estratégia de fallback melhorada (7 tentativas, atrasos de 2s, reset para Pro) e comportamento original do Google (2 tentativas, backoff exponencial)",
-      "switched": "Estratégia de fallback alterada de {currentMode} para {newMode}.\n\n{description}",
-      "improved_description": "Estratégia melhorada: 7 tentativas com atrasos de 2s, reset para Pro em cada mensagem",
-      "original_description": "Estratégia original: 2 tentativas com backoff exponencial, permanecer no Flash uma vez alterado"
-    },
-    "model_switch": {
-      "description": "alternar entre modelos Gemini Pro e Flash",
-      "switched": "Modelo alterado para: {model} ({type})"
-    },
-    "stay_pro": {
-      "description": "alternar se deve permanecer no modelo Pro (desabilitar/habilitar fallback para Flash)",
-      "disabled": "Fallback desabilitado - permanecerá no Gemini Pro mesmo com limite de taxa",
-      "enabled": "Fallback habilitado - mudará para Flash se Pro estiver com limite de taxa"
-    },
-    "setup_skill": {
-      "description": "baixar e configurar uma habilidade",
-      "missing_name": "Por favor especifique o nome da habilidade. Habilidades disponíveis: {skills}",
-      "unknown": "Habilidade desconhecida: {skill}. Habilidades disponíveis: {skills}",
-      "platform_not_supported": "Habilidade {skill} não está disponível para a plataforma: {platform}",
-      "installing": "Instalando habilidade: {skill}...",
-      "parser_ready": "O parser DOCX está agora disponível na interface web.",
-      "success": "✓ {message}",
-      "failed": "✗ {message}",
-      "error": "Erro ao configurar habilidade: {error}"
-    },
-    "ide": {
-      "description": "gerenciar integração com IDE",
-      "status": {
-        "description": "verificar status da integração com IDE",
-        "connected": "🟢 Conectado",
-        "connected_to": "🟢 Conectado ao {ide}",
-        "connecting": "🟡 Conectando...",
-        "disconnected": "🔴 Desconectado"
-      },
-      "install": {
-        "description": "instalar companion do IDE necessário para {ide}",
-        "installing": "Instalando companion do IDE...",
-        "no_installer": "Nenhum instalador disponível para seu IDE configurado.",
-        "no_installer_with_ide": "Nenhum instalador está disponível para {ide}. Por favor, instale a extensão 'Gemini CLI Companion' manualmente do marketplace.",
-        "auto_enable_failed": "Falha ao habilitar automaticamente a integração com IDE. Para corrigir, execute o CLI em uma nova janela de terminal."
-      },
-      "enable": {
-        "description": "habilitar integração com IDE"
-      },
-      "disable": {
-        "description": "desabilitar integração com IDE"
-      }
-    },
-    "restore": {
-      "description": "restaurar uma chamada de ferramenta. Isso redefinirá a conversa e o histórico de arquivos para o estado em que estava quando a chamada da ferramenta foi sugerida",
-      "no_directory": "Não foi possível determinar o caminho do diretório .gemini.",
-      "no_restorable": "Nenhuma chamada de ferramenta restaurável encontrada.",
-      "available_calls": "Chamadas de ferramenta disponíveis para restaurar:\n\n{fileList}",
-      "file_not_found": "Arquivo não encontrado: {file}",
-      "project_restored": "Projeto restaurado para o estado antes da chamada da ferramenta.",
-      "read_error": "Não foi possível ler chamadas de ferramenta restauráveis. Este é o erro: {error}"
-    },
-    "memory": {
-      "description": "Comandos para interagir com a memória.",
-      "show": {
-        "description": "Mostrar o conteúdo atual da memória.",
-        "content_with_files": "Conteúdo atual da memória de {fileCount} arquivo(s):\n\n---\n{memoryContent}\n---",
-        "empty": "A memória está atualmente vazia."
-      },
-      "add": {
-        "description": "Adicionar conteúdo à memória.",
-        "usage": "Uso: /memory add <texto para lembrar>",
-        "attempting": "Tentando salvar na memória: \"{text}\""
-      },
-      "refresh": {
-        "description": "Atualizar a memória da origem.",
-        "refreshing": "Atualizando memória dos arquivos de origem...",
-        "success_with_content": "Memória atualizada com sucesso. Carregados {charCount} caracteres de {fileCount} arquivo(s).",
-        "success_no_content": "Memória atualizada com sucesso. Nenhum conteúdo de memória encontrado.",
-        "error": "Erro ao atualizar memória: {error}"
-      },
-      "list": {
-        "description": "Lista os caminhos dos arquivos GEMINI.md em uso.",
-        "no_files": "Nenhum arquivo GEMINI.md em uso.",
-        "files_in_use": "Existem {fileCount} arquivo(s) GEMINI.md em uso:\n\n{filePaths}"
-      }
-    },
-    "help": {
-      "description": "para ajuda sobre gemini-cli"
-    },
-    "init": {
-      "description": "Analisa o projeto e cria um arquivo GEMINI.md personalizado.",
-      "config_not_available": "Configuração não disponível.",
-      "file_already_exists": "Um arquivo GEMINI.md já existe neste diretório. Nenhuma alteração foi feita.",
-      "file_created": "GEMINI.md vazio criado. Agora analisando o projeto para preenchê-lo."
-    },
-    "clear": {
-      "description": "limpar a tela e o histórico da conversa"
-    },
-    "vim": {
-      "description": "alternar modo vim ligado/desligado",
-      "entered": "Modo Vim ativado. Execute /vim novamente para sair.",
-      "exited": "Modo Vim desativado."
-    },
-    "copy": {
-      "description": "Copiar o último resultado ou trecho de código para a área de transferência",
-      "no_output": "Nenhuma saída no histórico",
-      "success": "Última saída copiada para a área de transferência",
-      "error": "Falha ao copiar para a área de transferência.",
-      "no_text": "A última saída da IA não contém texto para copiar."
-    },
-    "directory": {
-      "description": "Gerenciar diretórios do espaço de trabalho",
-      "config_not_available": "Configuração não está disponível.",
-      "add": {
-        "description": "Adicionar diretórios ao espaço de trabalho. Use vírgula para separar múltiplos caminhos",
-        "provide_path": "Por favor, forneça pelo menos um caminho para adicionar.",
-        "restrictive_sandbox": "O comando /directory add não é suportado em perfis de sandbox restritivos. Por favor, use --include-directories ao iniciar a sessão.",
-        "error_adding": "Erro ao adicionar '{path}': {error}",
-        "success": "Diretórios adicionados com sucesso:\n- {directories}",
-        "memory_files_added": "Arquivos GEMINI.md adicionados com sucesso dos seguintes diretórios, se houver:\n- {directories}",
-        "memory_refresh_error": "Erro ao atualizar a memória: {error}",
-        "already_added": "Os seguintes diretórios já estão no espaço de trabalho:\n- {directories}",
-        "untrusted_dirs": "Os seguintes diretórios são explicitamente não confiáveis e não podem ser adicionados a um espaço de trabalho confiável:\n- {directories}\nPor favor, use o comando permissions para modificar seu nível de confiança."
-      },
-      "show": {
-        "description": "Mostrar todos os diretórios no espaço de trabalho",
-        "current_directories": "Diretórios atuais do espaço de trabalho:\n{directories}"
-      }
-    },
-    "setup_github": {
-      "description": "Configurar GitHub Actions",
-      "error_git_root": "Não foi possível determinar o diretório raiz do Git.",
-      "error_not_github_repo": "Não foi possível determinar o repositório GitHub. /setup-github deve ser executado de um repositório git.",
-      "tool_description": "Configurando GitHub Actions para triagem de issues e revisão de PRs com Gemini.",
-      "success_message": "Workflows baixados com sucesso.",
-      "success_message_with_next_steps": "Workflows baixados com sucesso. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/v0/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
-      "success_message_dynamic": "{count} workflows baixados com sucesso e .gitignore atualizado. Siga os passos em https://github.com/google-github-actions/run-gemini-cli/blob/{releaseTag}/README.md#quick-start (pulando o passo /setup-github) para completar a configuração.",
-      "error_mkdir_failed": "Não foi possível criar o diretório {directory}. Você tem permissões de arquivo no diretório atual?"
-    },
-    "file_command": {
-      "default_description": "Comando personalizado de {filename}"
-    },
-    "terminal_setup": {
-      "description": "Configurar atalhos de teclado do terminal para entrada multilinha (VS Code, Cursor, Windsurf)",
-      "restart_required": "Por favor, reinicie seu terminal para que as alterações tenham efeito.",
-      "failed_configure": "Falha ao configurar terminal: {error}",
-      "existing_keybindings": "Atalhos de teclado existentes detectados. Não será modificado para evitar conflitos.",
-      "shift_enter_exists": "- Atalho Shift+Enter já existe",
-      "ctrl_enter_exists": "- Atalho Ctrl+Enter já existe",
-      "check_manually": "Por favor, verifique e modifique manualmente se necessário: {file}",
-      "added_keybindings": "Adicionados atalhos Shift+Enter e Ctrl+Enter ao {terminal}.\nModificado: {file}",
-      "already_configured": "Atalhos de teclado do {terminal} já configurados.",
-      "failed_terminal": "Falha ao configurar {terminal}.\nArquivo: {file}\nErro: {error}",
-      "optimal_configured": "Seu terminal já está configurado para uma experiência ideal com entrada multilinha (Shift+Enter e Ctrl+Enter).",
-      "not_detected": "Não foi possível detectar o tipo de terminal. Terminais suportados: VS Code, Cursor e Windsurf.",
-      "not_supported": "Terminal \"{terminal}\" ainda não é suportado."
-    }
-  },
-  "config": {
-    "tools": {
-      "deprecated_warning": "A ferramenta '{toolName}' (ou '{alternateName}') especificada em '{listName}' está obsoleta e será removida na v0.14.0."
-    }
-  },
-  "help": {
-    "section_basics": "Básico:",
-    "section_commands": "Comandos:",
-    "section_shortcuts": "Atalhos do Teclado:",
-    "add_context": "Adicionar contexto",
-    "add_context_help": "Use {symbol} para especificar arquivos para contexto (ex., {example}) para direcionar arquivos ou pastas específicas.",
-    "shell_mode": "Modo shell",
-    "shell_mode_help": "Execute comandos shell via {symbol} (ex., {example}) ou use linguagem natural (ex. {natural_example}).",
-    "shell_command": "comando shell",
-    "mcp_command": "Comando do Model Context Protocol (de servidores externos)",
-    "keys": {
-      "enter": "Enter",
-      "ctrl_enter": "Ctrl+Enter",
-      "ctrl_j": "Ctrl+J",
-      "up_down": "Seta Para Cima/Baixo",
-      "alt_left_right": "Alt+Esquerda/Direita",
-      "shift_tab": "Shift+Tab",
-      "ctrl_y": "Ctrl+Y",
-      "esc": "Esc",
-      "ctrl_c": "Ctrl+C",
-      "ctrl_l": "Ctrl+L",
-      "ctrl_s": "Ctrl+S",
-      "ctrl_x": "Ctrl+X",
-      "ctrl_x_meta": "Ctrl+X / Meta+Enter",
-      "page_up_down": "Page Up/Down"
-    },
-    "shortcuts": {
-      "enter": "Enviar mensagem",
-      "new_line_win": "Nova linha",
-      "new_line_linux": "Nova linha (Alt+Enter funciona para certas distribuições linux)",
-      "cycle_history": "Navegar pelo histórico de prompts",
-      "jump_words": "Pular entre palavras na entrada",
-      "toggle_auto_accept": "Alternar aceitação automática de edições",
-      "toggle_yolo": "Alternar modo YOLO",
-      "cancel": "Cancelar operação",
-      "cancel_clear": "Cancelar operação / Limpar entrada (pressione duas vezes)",
-      "quit": "Sair da aplicação",
-      "clear_screen": "Limpar a tela",
-      "selection_mode": "Entrar no modo de seleção para copiar texto",
-      "external_editor": "Abrir entrada no editor externo",
-      "scroll_page": "Rolar página para cima/baixo",
-      "full_shortcuts_intro": "Para uma lista completa de atalhos, consulte",
-      "docs_path": "docs/keyboard-shortcuts.md"
-    }
-  },
-  "auth_dialog": {
-    "dialog_title": "Começar",
-    "dialog_question": "Como você gostaria de autenticar para este projeto?",
-    "options": {
-      "login_google": "Fazer login com Google",
-      "login_google_free": "Fazer login com Google - Nível Gratuito",
-      "login_google_gca": "Fazer login com Google - Gemini Code Assist (Requer GOOGLE_CLOUD_PROJECT)",
-      "cloud_shell": "Usar credenciais do usuário Cloud Shell",
-      "compute_adc": "Usar credenciais padrão do aplicativo do servidor de metadados",
-      "gemini_api": "Usar Chave API Gemini",
-      "vertex_ai": "Vertex AI"
-    },
-    "messages": {
-      "api_key_detected": "Chave API existente detectada (GEMINI_API_KEY). Selecione a opção \"Usar Chave API Gemini\" para usá-la.",
-      "invalid_default_auth_type": "Valor inválido para GEMINI_DEFAULT_AUTH_TYPE: \"{defaultAuthType}\". Valores válidos são: {validValues}.",
-      "must_select_auth": "Você deve selecionar um método de autenticação para prosseguir. Pressione Ctrl+C duas vezes para sair.",
-      "no_auth_selected": "Nenhum método de autenticação selecionado.",
-      "authenticated_via": "Autenticado via \"{authType}\".",
-      "use_enter": "(Use Enter para selecionar, Esc para fechar)",
-      "terms_privacy": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
-      "auth_timeout": "Autenticação expirou. Tente novamente.",
-      "auth_cancelled": "Autenticação cancelada.",
-      "waiting_for_auth": "Aguardando autenticação... (Pressione ESC ou CTRL+C para cancelar)",
-      "failed_login": "Falha no login. Mensagem: {error}"
-    }
-  },
-  "auth": {
-    "errors": {
-      "compute_adc_failed": "Não foi possível autenticar usando credenciais padrão do aplicativo do servidor de metadados. Selecione um método de autenticação diferente ou certifique-se de estar em um ambiente configurado corretamente. Erro: {error}"
-    }
-  },
-  "footer": {
-    "macos_seatbelt": "macOS Seatbelt",
-    "no_sandbox": "sem sandbox",
-    "see_docs": "(ver /docs)",
-    "context_left": "({percentage}% contexto restante)",
-    "context_left_short": "%",
-    "context_left_full": "% contexto restante",
-    "debug_mode": "--debug",
-    "untrusted": "não confiável"
-  },
-  "input": {
-    "placeholder": "  Digite sua mensagem ou @caminho/para/arquivo",
-    "placeholder_vim": "  Pressione 'i' para modo INSERT e 'Esc' para modo NORMAL.",
-    "escape_to_clear": "Pressione Esc novamente para limpar.",
-    "aria_shell_mode": "Modo shell",
-    "aria_yolo_mode": "Modo YOLO",
-    "aria_accepting_edits": "Aceitando edições",
-    "queue_error": {
-      "slash_command": "Comandos slash não podem ser enfileirados",
-      "shell_command": "Comandos shell não podem ser enfileirados"
-    }
-  },
-  "tool_confirmation": {
-    "modify_in_progress": "Modificação em andamento: ",
-    "save_close_editor": "Salve e feche o editor externo para continuar",
-    "questions": {
-      "apply_change": "Aplicar esta alteração?",
-      "allow_execution": "Permitir execução?",
-      "allow_execution_of": "Permitir execução de: '{command}'?",
-      "do_you_want_proceed": "Você quer prosseguir?",
-      "allow_mcp_tool": "Permitir execução da ferramenta MCP \"{toolName}\" do servidor \"{serverName}\"?"
-    },
-    "options": {
-      "yes_once": "Sim, permitir uma vez",
-      "yes_always": "Sim, permitir sempre",
-      "yes_always_ellipsis": "Sim, permitir sempre ...",
-      "yes_always_command": "Sim, permitir sempre \"{command} ...\"",
-      "yes_always_tool": "Sim, sempre permitir ferramenta \"{toolName}\" do servidor \"{serverName}\"",
-      "yes_always_server": "Sim, sempre permitir todas as ferramentas do servidor \"{serverName}\"",
-      "modify_editor": "Modificar com editor externo",
-      "no_esc": "Não (esc)",
-      "no_suggest_changes": "Não, sugerir mudanças (esc)",
-      "yes": "Sim",
-      "no": "Não"
-    },
-    "mcp_labels": {
-      "server": "Servidor MCP: {serverName}",
-      "tool": "Ferramenta: {toolName}"
-    },
-    "info": {
-      "urls_to_fetch": "URLs para buscar:"
-    },
-    "shell_confirmation": {
-      "title": "Execução de Comando Shell",
-      "description": "Um comando personalizado quer executar os seguintes comandos shell:",
-      "question": "Você quer prosseguir?",
-      "options": {
-        "yes_once": "Sim, permitir uma vez",
-        "yes_always_session": "Sim, permitir sempre para esta sessão",
-        "no_esc": "Não (esc)"
-      }
-    }
-  },
-  "suggestions": {
-    "loading": "Carregando sugestões..."
-  },
-  "loading": {
-    "waiting_confirmation": "Aguardando confirmação do usuário...",
-    "phrases": [
-      "Estou Me Sentindo Com Sorte",
-      "Enviando excelência... ",
-      "Pintando as serifas de volta...",
-      "Navegando pelo mofo viscoso...",
-      "Consultando os espíritos digitais...",
-      "Reticulando splines...",
-      "Aquecendo os hamsters da IA...",
-      "Perguntando à concha mágica...",
-      "Gerando réplica espirituosa...",
-      "Polindo os algoritmos...",
-      "Não apresse a perfeição (ou meu código)...",
-      "Preparando bytes frescos...",
-      "Contando elétrons...",
-      "Ativando processadores cognitivos...",
-      "Verificando erros de sintaxe no universo...",
-      "Um momento, otimizando humor...",
-      "Embaralhando piadas...",
-      "Desemaranhando redes neurais...",
-      "Compilando genialidade...",
-      "Carregando wit.exe...",
-      "Invocando a nuvem da sabedoria...",
-      "Preparando uma resposta espirituosa...",
-      "Só um segundo, estou debugando a realidade...",
-      "Confundindo as opções...",
-      "Sintonizando as frequências cósmicas...",
-      "Elaborando uma resposta digna da sua paciência...",
-      "Compilando os 1s e 0s...",
-      "Resolvendo dependências... e crises existenciais...",
-      "Desfragmentando memórias... tanto RAM quanto pessoais...",
-      "Reiniciando o módulo de humor...",
-      "Cachando o essencial (principalmente memes de gatos)...",
-      "Executando sudo make me a sandwich...",
-      "Otimizando para velocidade ridícula",
-      "Trocando bits... não conte para os bytes...",
-      "Coletando lixo... já volto...",
-      "Montando as interwebs...",
-      "Convertendo café em código...",
-      "Atualizando a sintaxe da realidade...",
-      "Religando as sinapses...",
-      "Procurando um ponto e vírgula perdido...",
-      "Lubrificando as engrenagens da máquina...",
-      "Pré-aquecendo os servidores...",
-      "Calibrando o capacitor de fluxo...",
-      "Ativando o motor de improbabilidade...",
-      "Canalizando a Força...",
-      "Alinhando as estrelas para resposta ótima...",
-      "Assim dizemos todos nós...",
-      "Carregando a próxima grande ideia...",
-      "Só um momento, estou na zona...",
-      "Preparando para deslumbrar você com genialidade...",
-      "Só um tique, estou polindo minha perspicácia...",
-      "Aguente firme, estou criando uma obra-prima...",
-      "Só um instante, estou debugando o universo...",
-      "Só um momento, estou alinhando os pixels...",
-      "Só um segundo, estou otimizando o humor...",
-      "Só um momento, estou sintonizando os algoritmos...",
-      "Velocidade warp ativada...",
-      "Minerando mais cristais de Dilithium...",
-      "Estou dando tudo que ela tem, Capitão!",
-      "Não entre em pânico...",
-      "Seguindo o coelho branco...",
-      "A verdade está aqui... em algum lugar...",
-      "Soprando o cartucho...",
-      "Procurando a princesa em outro castelo...",
-      "Carregando... Faça um barril roll!",
-      "Esperando o respawn...",
-      "Terminando a Corrida Kessel em menos de 12 parsecs...",
-      "O bolo não é mentira, só está carregando ainda...",
-      "Mexendo na tela de criação de personagem...",
-      "Só um momento, estou encontrando o meme certo...",
-      "Pressionando 'A' para continuar...",
-      "Pastoreando gatos digitais...",
-      "Polindo os pixels...",
-      "Encontrando um trocadilho adequado para tela de carregamento...",
-      "Distraindo você com esta frase espirituosa...",
-      "Quase lá... provavelmente...",
-      "Nossos hamsters estão trabalhando o mais rápido que podem...",
-      "Dando um tapinha na cabeça do Cloudy...",
-      "Fazendo carinho no gato...",
-      "Rickrollando meu chefe...",
-      "Never gonna give you up, never gonna let you down...",
-      "Tocando o contrabaixo...",
-      "Provando as snozberries...",
-      "Estou indo a distância, estou indo pela velocidade...",
-      "Isso é vida real? Isso é só fantasia?...",
-      "Tenho um bom pressentimento sobre isso...",
-      "Cutucando o urso...",
-      "Fazendo pesquisa sobre os memes mais recentes...",
-      "Descobrindo como tornar isso mais espirituoso...",
-      "Hmmm... deixe-me pensar...",
-      "Como você chama um peixe sem olhos? Um pxe...",
-      "Por que o computador foi à terapia? Tinha muitos bytes...",
-      "Por que programadores não gostam da natureza? Tem muitos bugs...",
-      "Por que programadores preferem modo escuro? Porque luz atrai bugs...",
-      "Por que o desenvolvedor ficou falido? Porque usou todo o cache...",
-      "O que você pode fazer com um lápis quebrado? Nada, não tem ponta...",
-      "Aplicando manutenção percussiva...",
-      "Procurando a orientação correta do USB...",
-      "Garantindo que a fumaça mágica fique dentro dos fios...",
-      "Reescrevendo em Rust sem motivo particular...",
-      "Tentando sair do Vim...",
-      "Girando a roda do hamster...",
-      "Isso não é um bug, é um recurso não documentado...",
-      "Ativar.",
-      "Eu voltarei... com uma resposta.",
-      "Meu outro processo é uma TARDIS...",
-      "Comungando com o espírito da máquina...",
-      "Deixando os pensamentos marinarem...",
-      "Acabei de lembrar onde coloquei minhas chaves...",
-      "Ponderando o orbe...",
-      "Eu vi coisas que vocês não acreditariam... como um usuário que lê mensagens de carregamento.",
-      "Iniciando olhar pensativo...",
-      "Qual é o lanche favorito de um computador? Microchips.",
-      "Por que desenvolvedores Java usam óculos? Porque eles não veem C#.",
-      "Carregando o laser... pew pew!",
-      "Dividindo por zero... brincadeira!",
-      "Procurando um supervisor adulto... quer dizer, processando.",
-      "Fazendo beep boop.",
-      "Bufferizando... porque até IAs precisam de um momento.",
-      "Emaranhando partículas quânticas para resposta mais rápida...",
-      "Polindo o cromo... nos algoritmos.",
-      "Vocês não se divertem? (Trabalhando nisso!)",
-      "Invocando os gremlins do código... para ajudar, claro.",
-      "Só esperando o tom do dial-up terminar...",
-      "Recalibrando o humor-ômetro.",
-      "Minha outra tela de carregamento é ainda mais engraçada.",
-      "Tenho certeza que há um gato andando no teclado em algum lugar...",
-      "Melhorando... Melhorando... Ainda carregando.",
-      "Não é um bug, é um recurso... desta tela de carregamento.",
-      "Você já tentou desligar e ligar novamente? (A tela de carregamento, não eu.)",
-      "Construindo pilões adicionais...",
-      "Nova linha? É Ctrl+J.",
-      "Liberando os HipnoDrones..."
-    ]
-  },
-  "theme_dialog": {
-    "title": "Selecionar Tema",
-    "apply_to": "Aplicar Para",
-    "preview": "Pré-visualização",
-    "custom_type": "Personalizado",
-    "theme_type_preview": "Pré-visualização do Tema {themeType}",
-    "scope_options": {
-      "user_settings": "Configurações do Usuário",
-      "workspace_settings": "Configurações do Espaço de Trabalho",
-      "system_settings": "Configurações do Sistema"
-    },
-    "messages": {
-      "also_modified_in": "(Também modificado em {scope})",
-      "modified_in": "(Modificado em {scope})",
-      "use_enter_select": "(Use Enter para selecionar",
-      "tab_to_change_focus": ", Tab para mudar o foco)",
-      "use_enter_with_mode": "(Use Enter para {action}, Tab para {switchAction}, Esc para fechar)",
-      "select": "selecionar",
-      "apply_scope": "aplicar escopo",
-      "configure_scope": "configurar escopo",
-      "select_theme": "selecionar tema"
-    }
-  },
-  "settings_dialog": {
-    "title": "Configurações",
-    "apply_to": "Aplicar Para",
-    "scope_options": {
-      "user_settings": "Configurações do Usuário",
-      "workspace_settings": "Configurações do Espaço de Trabalho",
-      "system_settings": "Configurações do Sistema"
-    },
-    "messages": {
-      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
-      "restart_required": "Para ver as alterações, o Gemini CLI deve ser reiniciado. Pressione r para sair e aplicar as alterações agora.",
-      "also_modified_in": "(Também modificado em {scope})",
-      "modified_in": "(Modificado em {scope})"
-    },
-    "help": {
-      "with_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
-      "without_tab": "(Use Enter para selecionar, Esc para fechar)"
-    },
-    "labels": {
-      "code_changes": "Alterações de Código:",
-      "max_session_turns": "Turnos Máximos da Sessão",
-      "memory_discovery_max_dirs": "Diretórios Máximos de Descoberta de Memória",
-      "show_memory_usage": "Mostrar Uso de Memória",
-      "enable_usage_statistics": "Habilitar Estatísticas de Uso",
-      "auto_configure_max_old_space_size": "Configurar Automaticamente Tamanho Máximo de Memória",
-      "hide_window_title": "Ocultar Título da Janela",
-      "hide_tips": "Ocultar Dicas",
-      "hide_banner": "Ocultar Banner",
-      "hide_footer": "Ocultar Rodapé",
-      "hide_context_percentage": "Ocultar Porcentagem da Janela de Contexto",
-      "vim_mode": "Modo Vim",
-      "ide_mode": "Modo IDE",
-      "disable_loading_phrases": "Desabilitar Frases de Carregamento",
-      "respect_gitignore": "Respeitar .gitignore",
-      "respect_geminiignore": "Respeitar .geminiignore",
-      "enable_recursive_file_search": "Habilitar Busca Recursiva de Arquivos",
-      "disable_auto_update": "Desabilitar Atualização Automática",
-      "load_memory_from_include_directories": "Carregar Memória de Diretórios Incluídos",
-      "folder_trust_feature": "Recurso de Confiança de Pasta",
-      "folder_trust": "Confiança de Pasta",
-      "show_line_numbers": "Mostrar Números de Linha",
-      "show_citations": "Mostrar Citações",
-      "use_full_width": "Usar Largura Total",
-      "use_node_pty_shell": "Usar node-pty para Execução de Shell",
-      "skip_next_speaker_check": "Pular Verificação do Próximo Orador",
-      "auto_accept": "Aceitar Automaticamente",
-      "custom_witty_phrases": "Frases Espirituosas Personalizadas"
-    },
-    "descriptions": {
-      "auto_accept": "Aceitar e executar automaticamente chamadas de ferramentas consideradas seguras (ex: operações somente leitura).",
-      "custom_witty_phrases": "Frases espirituosas personalizadas para exibir durante o carregamento.",
-      "use_full_width": "Usar toda a largura do terminal para saída.",
-      "hide_context_percentage": "Oculta a porcentagem restante da janela de contexto."
-    }
-  },
-  "editor_dialog": {
-    "title": "Selecionar Editor",
-    "apply_to": "Aplicar Para",
-    "editor_preference": "Preferência do Editor",
-    "scope_options": {
-      "user_settings": "Configurações do Usuário",
-      "workspace_settings": "Configurações do Espaço de Trabalho"
-    },
-    "messages": {
-      "also_modified_in": "(Também modificado em {scope})",
-      "modified_in": "(Modificado em {scope})",
-      "use_enter_tab": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
-      "supported_editors": "Estes editores são atualmente suportados. Note que alguns editores não podem ser usados no modo sandbox.",
-      "preferred_editor": "Seu editor preferido é:",
-      "none": "Nenhum"
-    }
-  },
-  "model_dialog": {
-    "title": "Selecionar Modelo",
-    "options": {
-      "auto": {
-        "title": "Automático (recomendado)",
-        "description": "Deixe o sistema escolher o melhor modelo para sua tarefa"
-      },
-      "pro": {
-        "title": "Pro",
-        "description": "Para tarefas complexas que exigem raciocínio profundo e criatividade"
-      },
-      "flash": {
-        "title": "Flash",
-        "description": "Para tarefas que precisam de um equilíbrio entre velocidade e raciocínio"
-      },
-      "flash_lite": {
-        "title": "Flash-Lite",
-        "description": "Para tarefas simples que precisam ser feitas rapidamente"
-      }
-    },
-    "messages": {
-      "model_flag_help": "> Para usar um modelo Gemini específico ao iniciar, use a flag --model.",
-      "press_esc_to_close": "(Pressione Esc para fechar)"
-    }
-  },
-  "language_dialog": {
-    "title": "Seleção de Idioma",
-    "first_time_title": "Bem-vindo! Selecione Seu Idioma",
-    "first_time_description": "Escolha seu idioma preferido para a interface. Você pode alterar isso mais tarde usando o comando /language.",
-    "select_language": "Selecionar Idioma",
-    "apply_to": "Aplicar Para",
-    "loading_title": "Carregando Idiomas Disponíveis...",
-    "loading_message": "Descobrindo opções de idioma disponíveis...",
-    "error_title": "Erro na Seleção de Idioma",
-    "no_languages_available": "Nenhum arquivo de idioma encontrado. Certifique-se de que os arquivos de tradução estejam disponíveis.",
-    "languages_count": "Idiomas disponíveis: {count}",
-    "scope_options": {
-      "user_settings": "Configurações do Usuário",
-      "workspace_settings": "Configurações do Espaço de Trabalho"
-    },
-    "messages": {
-      "also_modified_in": "(Também modificado em {scope})",
-      "modified_in": "(Modificado em {scope})",
-      "use_enter_select": "(Use Enter para selecionar",
-      "tab_to_change_focus": ", Tab para mudar o foco",
-      "escape_to_cancel": ", Esc para cancelar",
-      "press_escape": "Pressione Esc para continuar com o idioma padrão."
-    },
-    "errors": {
-      "failed_to_load": "Falha ao carregar idiomas disponíveis. Usando padrões."
-    }
-  },
-  "language": {
-    "initialization_failed": "Falha ao carregar idioma \"{language}\". Usando padrão.",
-    "no_language_selected": "Nenhum idioma selecionado.",
-    "changed_successfully": "Idioma alterado para {language}.",
-    "application_failed": "Falha ao aplicar idioma \"{language}\". Tente novamente.",
-    "must_select_language": "Você deve selecionar um idioma para continuar.",
-    "welcome_message": "Bem-vindo! O idioma foi definido para {language}. Você pode alterá-lo a qualquer momento usando o comando /language.",
-    "save_failed": "Falha ao salvar configuração de idioma. Tente novamente."
-  },
-  "license": {
-    "free_tier": "Nível Gratuito (Login com Google)",
-    "gca_standard": "Gemini Code Assist Standard (Google Workspace)",
-    "gca_enterprise": "Gemini Code Assist Enterprise (Google Workspace)",
-    "gca_generic": "Gemini Code Assist (Google Workspace)",
-    "gemini_api_key": "Chave API Gemini",
-    "vertex_ai": "Vertex AI",
-    "cloud_shell": "Cloud Shell"
-  },
-  "about_box": {
-    "title": "Sobre Gemini CLI",
-    "labels": {
-      "cli_version": "Versão CLI",
-      "git_commit": "Commit Git",
-      "model": "Modelo",
-      "sandbox": "Sandbox",
-      "os": "SO",
-      "auth_method": "Método de Autenticação",
-      "license": "Licença",
-      "gcp_project": "Projeto GCP",
-      "ide_client": "Cliente IDE"
-    }
-  },
-  "tips": {
-    "title": "Dicas para começar:",
-    "tip1": "Faça perguntas, edite arquivos ou execute comandos.",
-    "tip2": "Seja específico para obter melhores resultados.",
-    "tip3_with_gemini": "Crie arquivos {filename} para personalizar suas interações com Gemini.",
-    "tip3_without_gemini": "{command} para mais informações.",
-    "tip4": "{command} para mais informações."
-  },
-  "console_summary": {
-    "error_count": "{count} erro{plural}",
-    "ctrl_o_details": "(F12 para detalhes)",
-    "debug_console": "Console de Debug",
-    "ctrl_o_close": "F12 para fechar"
-  },
-  "auto_accept": {
-    "accepting_edits": "aceitando edições",
-    "yolo_mode": "modo YOLO",
-    "shift_tab_toggle": " (shift + tab para alternar)",
-    "ctrl_y_toggle": " (ctrl + y para alternar)",
-    "yolo_disabled": "Você não pode entrar no modo YOLO pois ele está desabilitado nas suas configurações."
-  },
-  "shell_mode": {
-    "enabled": "modo shell habilitado",
-    "esc_to_disable": " (esc para desabilitar)"
-  },
-  "raw_markdown_mode": {
-    "enabled": "modo markdown bruto",
-    "toggle_hint": " ({key} para alternar) "
-  },
-  "loading_indicator": {
-    "esc_to_cancel": " (esc para cancelar, {time})",
-    "seconds": "{elapsed}s",
-    "minutes": "{duration}"
-  },
-  "show_more_lines": {
-    "press_ctrl_s": "Pressione ctrl-s para mostrar mais linhas"
-  },
-  "context_summary": {
-    "using": "Usando ",
-    "using_label": "Usando:",
-    "list_item_prefix": "  - ",
-    "and": " e ",
-    "context_files": "{count} arquivo{plural} {name}",
-    "mcp_servers": "{count} servidor{plural} MCP",
-    "ctrl_t_toggle": " (ctrl+t para alternar)",
-    "ctrl_t_view": " (ctrl+t para visualizar)"
-  },
-  "compression": {
-    "compressing": "Comprimindo histórico do chat",
-    "compressed": "Histórico do chat comprimido de {original} para {new} tokens.",
-    "unknown": "desconhecido",
-    "error_determine_tokens": "Não foi possível determinar a contagem de tokens do histórico comprimido.",
-    "nothing_to_compress": "Nada para comprimir."
-  },
-  "stats": {
-    "session_stats": "Estatísticas da Sessão",
-    "session_goodbye": "Agente desligando. Tchau!",
-    "model_stats_title": "Estatísticas do Modelo Para Nerds",
-    "tool_stats_title": "Estatísticas de Ferramentas Para Nerds",
-    "no_api_calls": "Nenhuma chamada de API foi feita nesta sessão.",
-    "no_tool_calls": "Nenhuma chamada de ferramenta foi feita nesta sessão.",
-    "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`.",
-    "sections": {
-      "interaction_summary": "Resumo da Interação",
-      "performance": "Performance",
-      "model_usage": "Uso do Modelo",
-      "user_decision_summary": "Resumo de Decisões do Usuário",
-      "api": "API"
-    },
-    "labels": {
-      "session_id": "ID da Sessão:",
-      "tool_calls": "Chamadas de Ferramenta:",
-      "success_rate": "Taxa de Sucesso:",
-      "user_agreement": "Concordância do Usuário:",
-      "wall_time": "Tempo Total:",
-      "agent_active": "Agente Ativo:",
-      "api_time": "Tempo de API:",
-      "tool_time": "Tempo de Ferramenta:",
-      "metric": "Métrica",
-      "tool_name": "Nome da Ferramenta",
-      "calls": "Chamadas",
-      "avg_duration": "Duração Média",
-      "requests": "Requisições",
-      "errors": "Erros",
-      "avg_latency": "Latência Média",
-      "tokens": "Tokens",
-      "total": "Total",
-      "prompt": "Prompt",
-      "cached": "Cache",
-      "thoughts": "Pensamentos",
-      "tool": "Ferramenta",
-      "output": "Saída",
-      "input_tokens": "Tokens de Entrada",
-      "output_tokens": "Tokens de Saída",
-      "reqs": "Reqs",
-      "total_reviewed": "Total de Sugestões Revisadas:",
-      "accepted": " » Aceitas:",
-      "rejected": " » Rejeitadas:",
-      "modified": " » Modificadas:",
-      "overall_agreement": " Taxa Geral de Concordância:",
-      "reviewed": "revisadas",
-      "savings_highlight": "Destaque de Economia:"
-    },
-    "messages": {
-      "savings_highlight": "Destaque de Economia:",
-      "cached_tokens": "{count} ({percentage}%) dos tokens de entrada foram servidos do cache, reduzindo custos.",
-      "tip_full_breakdown": "» Dica: Para um detalhamento completo de tokens, execute `/stats model`.",
-      "reviewed_count": "({count} revisadas)"
-    }
-  },
-  "errors": {
-    "unknown_command": "Comando desconhecido: {command}",
-    "tool_registry_error": "Não foi possível recuperar o registro de ferramentas.",
-    "requires_subcommand": "Comando '/{command}' requer um subcomando. Disponíveis:\n{subcommands}",
-    "context_window_overflow": {
-      "base": "Enviar esta mensagem ({estimatedRequestTokenCount} tokens) pode exceder o limite restante da janela de contexto ({remainingTokenCount} tokens).",
-      "suggestion": "Por favor, tente reduzir o tamanho da sua mensagem ou use o comando `/compress` para comprimir o histórico do chat."
-    },
-    "ide_mode_port_missing": "Não foi possível conectar ao IDE. Certifique-se de ter a extensão companheira do VS Code instalada do marketplace ou via /ide install.",
-    "rate_limit_google_generic_quota_free": "\nVocê atingiu seu limite de cota diária. Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist, ou use /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
-    "rate_limit_google_paid": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI.",
-    "rate_limit_google_pro_quota_paid": "\nVocê atingiu seu limite de cota diária do {currentModel}. Você será mudado para o modelo {fallbackModel} pelo resto desta sessão. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
-    "rate_limit_google_generic_quota_paid": "\nVocê atingiu seu limite de cota diária. Agradecemos por escolher o Gemini Code Assist e o Gemini CLI. Para continuar acessando o modelo {currentModel} hoje, considere usar /auth para mudar para uma chave API paga do AI Studio em https://aistudio.google.com/apikey",
-    "rate_limit_use_gemini": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do AI Studio, ou mude para outro método /auth",
-    "rate_limit_vertex": "\nPor favor aguarde e tente novamente mais tarde. Para aumentar seus limites, solicite um aumento de cota através do Vertex, ou mude para outro método /auth",
-    "rate_limit_default": "\nPossíveis limitações de cota em vigor ou tempos de resposta lentos detectados. Mudando para o modelo {fallbackModel} pelo resto desta sessão.",
-    "unhandled_rejection": "=========================================\nEste é um erro inesperado. Por favor, relate um bug usando a ferramenta /bug.\nCRÍTICO: Rejeição de Promise Não Tratada!\n=========================================\nRazão: {reason}{stack}",
-    "cyclic_schema_error": "\n\nEste erro provavelmente foi causado por referências de esquema cíclicas em uma das seguintes ferramentas, tente desabilitá-las:\n\n - ",
-    "at_command_processing_error": "Saindo devido a um erro ao processar o comando @.",
-    "command_confirmation_required": "Saindo devido a uma solicitação de confirmação pelo comando.",
-    "command_result_unsupported_noninteractive": "Saindo devido a resultado do comando que não é suportado no modo não-interativo.",
-    "turn_limit_reached": "Limite máximo de turnos de sessão atingido. Aumente o número de turnos especificando maxSessionTurns em settings.json.",
-    "config_error": "{errors}\nPor favor corrija o(s) arquivo(s) de configuração e tente novamente.",
-    "sandbox_invalid_command": "Comando sandbox inválido '{command}'. Deve ser um de {commands}",
-    "sandbox_missing_command": "Comando sandbox ausente '{command}' (de GEMINI_SANDBOX)",
-    "sandbox_true_no_command": "GEMINI_SANDBOX é true mas falhou ao determinar comando para sandbox; instale docker ou podman ou especifique o comando em GEMINI_SANDBOX",
-    "sandbox_build_not_allowed": "Não é possível BUILD_SANDBOX ao usar macOS Seatbelt",
-    "sandbox_missing_profile": "Arquivo de perfil seatbelt macOS ausente '{file}'",
-    "sandbox_proxy_failed": "Comando proxy '{command}' saiu com código {code}, sinal {signal}",
-    "sandbox_proxy_container_failed": "Comando de container proxy '{command}' saiu com código {code}, sinal {signal}",
-    "sandbox_build_not_installed": "Não é possível construir sandbox usando binário gemini instalado; execute `npm link ./packages/cli` no repositório gemini-cli para mudar para binário vinculado.",
-    "sandbox_image_missing": "Imagem sandbox '{image}' está ausente ou não pôde ser baixada. {remedy}",
-    "sandbox_mount_not_absolute": "Caminho '{path}' listado em SANDBOX_MOUNTS deve ser absoluto",
-    "sandbox_mount_missing": "Caminho de montagem ausente '{path}' listado em SANDBOX_MOUNTS",
-    "sandbox_env_invalid": "SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
-    "auth_failed_user_code": "Falha ao autenticar com código de usuário.",
-    "auth_failed_browser": "Falha ao abrir navegador.",
-    "tool_not_found": "Ferramenta \"{toolName}\" não encontrada no registro. As ferramentas devem usar os nomes exatos que estão registrados.{suggestion}",
-    "tool_suggestion_single": " Você quis dizer \"{suggestedName}\"?",
-    "tool_suggestion_multiple": " Você quis dizer uma das: {suggestedNames}?"
-  },
-  "diff": {
-    "no_content": "Nenhum conteúdo de diff.",
-    "no_changes": "Nenhuma alteração detectada."
-  },
-  "show_more_content": {
-    "first_lines_hidden": "... primeiras {count} linha{plural} oculta{plural} ...",
-    "last_lines_hidden": "... últimas {count} linha{plural} oculta{plural} ..."
-  },
-  "update": {
-    "available": "Atualização do Auditaria CLI disponível! {current} → {latest}\nExecute npm install -g {packageName} para atualizar",
-    "available_nightly": "Uma nova versão do Auditaria CLI está disponível! {current} → {latest}",
-    "success": "Atualização bem-sucedida! A nova versão será usada na próxima execução.",
-    "failed": "Atualização automática falhou. Por favor, tente atualizar manualmente",
-    "failed_with_details": "Atualização automática falhou. Por favor, tente atualizar manualmente. (comando: {command}, stderr: {stderr})",
-    "failed_with_error": "Atualização automática falhou. Por favor, tente atualizar manualmente. (erro: {error})"
-  },
-  "shell": {
-    "binary_output_detected": "[Saída binária detectada. Interrompendo stream...]",
-    "receiving_binary_output": "[Recebendo saída binária... {size} recebido]",
-    "binary_output_not_shown": "[Comando produziu saída binária, que não é mostrada.]",
-    "no_output": "(Comando não produziu saída)",
-    "command_cancelled": "Comando foi cancelado.",
-    "command_terminated_signal": "Comando terminado por sinal: {signal}.",
-    "command_exit_code": "Comando saiu com código {code}.",
-    "directory_change_warning": "AVISO: modo shell é sem estado; a mudança de diretório para '{directory}' não persistirá.",
-    "unexpected_error": "Ocorreu um erro inesperado: {error}",
-    "pty_fallback_warning": "[AUDITARIA_CLI_AVISO] Execução PTY falhou, voltando para child_process. Isso pode ser devido a restrições de sandbox.\n",
-    "focus": {
-      "focused": "(Focado)",
-      "focus_hint": "(ctrl+f para focar)"
-    },
-    "permissions": {
-      "commands_not_on_allowlist": "Comando(s) não estão na lista de permissões global ou da sessão. Comandos não permitidos: {commands}",
-      "commands_not_in_allowed_list": "Comando(s) não estão na lista de comandos permitidos. Comandos não permitidos: {commands}",
-      "command_substitution_not_allowed": "Substituição de comando usando $(), `` ` ``, <(), ou >() não é permitida por razões de segurança"
-    }
-  },
-  "at_command": {
-    "tool_not_found": "Erro: ferramenta read_many_files não encontrada.",
-    "invalid_command": "Erro: Comando @ inválido '{command}'. Nenhum caminho especificado.",
-    "successfully_read": "Lido com sucesso: {files}",
-    "content_header": "\n--- Conteúdo dos arquivos referenciados ---",
-    "content_from_file": "\nConteúdo de @{file}:\n",
-    "content_footer": "\n--- Fim do conteúdo ---",
-    "error_reading_files": "Erro ao ler arquivos ({files}): {error}"
-  },
-  "theme": {
-    "no_color_env": "Configuração de tema indisponível devido à variável de ambiente NO_COLOR.",
-    "not_found": "Tema \"{theme}\" não encontrado.",
-    "file_outside_home": "Arquivo de tema em \"{themePath}\" está fora do seu diretório home. Carregue apenas temas de fontes confiáveis.",
-    "invalid_file_theme": "Tema personalizado inválido do arquivo \"{themePath}\": {error}",
-    "file_theme_warning": "Tema do arquivo \"{themePath}\": {warning}",
-    "could_not_load_file": "Não foi possível carregar tema do arquivo \"{themePath}\":"
-  },
-  "editor": {
-    "preference_set": "Preferência do editor definida para \"{editor}\" nas configurações de {scope}.",
-    "preference_cleared": "Preferência do editor removida nas configurações de {scope}.",
-    "failed_to_set": "Falha ao definir preferência do editor: {error}"
-  },
-  "privacy": {
-    "oauth_not_used": "OAuth não está sendo usado",
-    "no_current_tier": "Servidor CodeAssist está sem ID de projeto",
-    "loading": "Carregando...",
-    "error_loading_optin": "Erro ao carregar configurações de Opt-in: {error}",
-    "press_esc_exit": "Pressione Esc para sair.",
-    "auditaria_privacy_notice_title": "Aviso de Privacidade do Auditaria CLI",
-    "yes": "Sim",
-    "no": "Não",
-    "gemini_code_assist_notice_title": "Aviso de Privacidade do Gemini Code Assist para Indivíduos",
-    "notice_intro": "Este aviso e nossa Política de Privacidade {ref} descrevem como o Gemini Code Assist lida com seus dados. Por favor, leia-os cuidadosamente.",
-    "data_collection_description": "Quando você usa o Gemini Code Assist para indivíduos com Gemini CLI, o Google coleta seus prompts, código relacionado, saída gerada, edições de código, informações de uso de recursos relacionados e seu feedback para fornecer, melhorar e desenvolver produtos e serviços do Google e tecnologias de aprendizado de máquina.",
-    "human_review_description": "Para ajudar com qualidade e melhorar nossos produtos (como modelos generativos de aprendizado de máquina), revisores humanos podem ler, anotar e processar os dados coletados acima. Tomamos medidas para proteger sua privacidade como parte deste processo. Isso inclui desconectar os dados de sua Conta Google antes que os revisores vejam ou anotem, e armazenar essas cópias desconectadas por até 18 meses. Por favor, não submeta informações confidenciais ou qualquer dado que você não gostaria que um revisor visse ou que o Google usasse para melhorar nossos produtos, serviços e tecnologias de aprendizado de máquina.",
-    "allow_data_usage_question": "Permitir que o Google use estes dados para desenvolver e melhorar nossos produtos?",
-    "press_enter_choose_exit": "Pressione Enter para escolher uma opção e sair.",
-    "gemini_api_key_notice_title": "Aviso da Chave API Gemini",
-    "gemini_api_terms_text": "Ao usar a API Gemini {ref1}, Google AI Studio {ref2}, e os outros serviços de desenvolvedor do Google que referenciam estes termos (coletivamente, as \"APIs\" ou \"Serviços\"), você está concordando com os Termos de Serviço das APIs do Google (os \"Termos da API\") {ref3}, e os Termos de Serviço Adicionais da API Gemini (os \"Termos Adicionais\") {ref4}.",
-    "vertex_ai_notice_title": "Aviso do Vertex AI",
-    "vertex_ai_service_terms_text": "Os Termos Específicos do Serviço {ref1} são incorporados ao acordo sob o qual o Google concordou em fornecer o Google Cloud Platform {ref2} ao Cliente (o \"Acordo\"). Se o Acordo autorizar a revenda ou fornecimento do Google Cloud Platform sob um programa de parceiro ou revendedor do Google Cloud, então, exceto na seção intitulada \"Termos Específicos do Parceiro\", todas as referências ao Cliente nos Termos Específicos do Serviço significam Parceiro ou Revendedor (conforme aplicável), e todas as referências aos Dados do Cliente nos Termos Específicos do Serviço significam Dados do Parceiro. Termos em maiúsculas usados mas não definidos nos Termos Específicos do Serviço têm o significado dado a eles no Acordo."
-  },
-  "bfs_file_search": {
-    "warn_unreadable_directory": "[AVISO] Ignorando diretório ilegível: {directory} ({message})"
-  },
-  "tools": {
-    "output_saved": "Saída muito longa e foi salva em: {outputFile}",
-    "execution": {
-      "user_cancelled": "Usuário cancelou a execução da ferramenta.",
-      "call_aborted": "Chamada de ferramenta abortada",
-      "call_cancelled_by_user": "Chamada de ferramenta cancelada pelo usuário.",
-      "denied_by_policy": "Execução da ferramenta negada pela política."
-    },
-    "policy": {
-      "tool_execution_denied": "Execução da ferramenta \"{tool}\" negada pela política.",
-      "confirm_tool": "Confirmar: {tool}"
-    },
-    "edit": {
-      "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
-      "file_not_found_raw": "Arquivo não encontrado: {path}",
-      "failed_create_exists": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
-      "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
-      "failed_replacement_count": "Falha ao editar, esperado {expected} {term} mas encontrado {found}.",
-      "validation_error": "Erro: {error}",
-      "error_preparing_edit": "Erro ao preparar edição: {error}",
-      "error_display": "Erro: {error}",
-      "no_changes_identical": "Nenhuma alteração a aplicar. A old_string e new_string são idênticas.",
-      "created_file": "Criado {file}",
-      "error_writing_file": "Erro ao escrever arquivo: {error}",
-      "file_path_empty": "O parâmetro 'file_path' não pode estar vazio.",
-      "file_not_found_not_absolute": "Arquivo não encontrado para '{path}' e o caminho não é absoluto.",
-      "file_path_ambiguous": "O caminho do arquivo '{path}' é muito ambíguo e corresponde a vários arquivos. Por favor, forneça um caminho mais específico. Correspondências: {matches}",
-      "file_path_outside_workspace": "O caminho do arquivo deve estar dentro de um dos diretórios do espaço de trabalho: {directories}"
-    },
-    "replace": {
-      "failed_find_string": "Falha ao editar, não foi possível encontrar a string para substituir.",
-      "failed_replacement_count": "Falha ao editar, esperava {expectedReplacements} {occurrenceTerm} mas encontrou {occurrences}.",
-      "no_changes_identical": "Sem alterações para aplicar. A old_string e new_string são idênticas.",
-      "no_changes_required": "Nenhuma alteração necessária. O arquivo já atende às condições especificadas.",
-      "file_not_found_create": "Arquivo não encontrado. Não é possível aplicar edição. Use uma old_string vazia para criar um novo arquivo.",
-      "failed_read_file": "Falha ao ler conteúdo do arquivo.",
-      "failed_create_exists": "Falha ao editar. Tentativa de criar um arquivo que já existe.",
-      "error_preparing_edit": "Erro ao preparar edição: {errorMsg}",
-      "error_display": "Erro: {error}",
-      "created_file_short": "Criado {file}",
-      "created_new_file": "Criado novo arquivo: {file} com conteúdo fornecido.",
-      "modified_file": "Arquivo modificado com sucesso: {file} ({occurrences} substituições)."
-    },
-    "shell": {
-      "name": "Comando Shell",
-      "validation_error": "Erro: {error}",
-      "command_cancelled_user": "Comando cancelado pelo usuário.",
-      "command_terminated_signal": "Comando terminado por sinal: {signal}",
-      "command_failed": "Comando falhou: {error}",
-      "command_exit_code": "Comando saiu com código: {code}"
-    },
-    "grep": {
-      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" {searchLocation}{filter}.",
-      "no_matches": "Nenhuma correspondência encontrada",
-      "invalid_parameters": "Modelo forneceu parâmetros inválidos. Erro: {error}",
-      "matches_found": "Encontrado {count} {term}",
-      "search_error": "Erro: {error}"
-    },
-    "ripgrep": {
-      "path_outside_workspace": "Validação de caminho falhou: Caminho tentado \"{path}\" resolve fora dos diretórios de workspace permitidos: {directories}",
-      "path_not_directory": "O caminho não é um diretório: {path}",
-      "path_not_exist": "O caminho não existe: {path}",
-      "path_access_failed": "Falha ao acessar estatísticas do caminho {path}: {error}",
-      "no_matches_detailed": "Nenhuma correspondência encontrada para o padrão \"{pattern}\" {searchLocation}{filter}.",
-      "no_matches": "Nenhuma correspondência encontrada",
-      "matches_found_detailed": "Encontrado {count} {term} para o padrão \"{pattern}\" {searchLocation}{filter}",
-      "matches_limited": " (resultados limitados a {limit} correspondências por desempenho)",
-      "matches_found": "Encontrado {count} {term}",
-      "matches_found_limited": "Encontrado {count} {term} (limitado)",
-      "search_error": "Erro durante operação de pesquisa grep: {error}",
-      "search_error_display": "Erro: {error}",
-      "ripgrep_start_failed": "Falha ao iniciar ripgrep: {error}. Por favor, certifique-se de que @lvce-editor/ripgrep está instalado corretamente.",
-      "ripgrep_exit_error": "ripgrep saiu com código {code}: {error}",
-      "ripgrep_failed": "GrepLogic: ripgrep falhou: {error}",
-      "grep_execution_error": "Erro durante execução do GrepLogic: {error}",
-      "search_location_workspace_multiple": "em {count} diretórios de workspace",
-      "search_location_workspace_single": "no diretório de workspace",
-      "search_location_path": "no caminho \"{path}\""
-    },
-    "read_file": {
-      "validation_error": "Erro: {error}",
-      "error_reading_file": "Erro ao ler arquivo",
-      "truncated_lines_range": "Lidas linhas {startLine}-{endLine} de {totalLines} de {filename}",
-      "some_lines_shortened": " (algumas linhas foram encurtadas)",
-      "all_lines_shortened": "Lidas todas as {totalLines} linhas de {filename} (algumas linhas foram encurtadas)"
-    },
-    "write_file": {
-      "validation_error": "Erro: {error}",
-      "file_check_error": "Erro ao verificar arquivo existente: {error}",
-      "write_error": "Erro: {error}"
-    }
-  },
-  "auth_errors": {
-    "gemini_api_key_not_found": "GEMINI_API_KEY não encontrada. Encontre sua chave existente ou gere uma nova em: https://aistudio.google.com/apikey\n\nPara continuar, por favor defina a variável de ambiente GEMINI_API_KEY ou adicione-a a um arquivo .env.",
-    "vertex_ai_env_vars_missing": "Ao usar Vertex AI, você deve especificar:\n• Variáveis de ambiente GOOGLE_CLOUD_PROJECT e GOOGLE_CLOUD_LOCATION.\n• Variável de ambiente GOOGLE_API_KEY (se usando modo express).\nAtualize seu ambiente e tente novamente (não é necessário recarregar se usando .env)!",
-    "gca_project_not_set": "[Erro] GOOGLE_CLOUD_PROJECT não está definido.\nPor favor, defina usando:\n  export GOOGLE_CLOUD_PROJECT=<seu-id-projeto>\ne tente novamente.",
-    "invalid_method": "Método de autenticação inválido selecionado.",
-    "enforced_auth_mismatch": "A autenticação é forçada a ser {enforcedType}, mas você está atualmente usando {currentType}.",
-    "enforced_auth_type_mismatch_env": "O tipo de autenticação configurado é {enforcedType}, mas o tipo de autenticação atual é {currentType}. Por favor, reautentique com o tipo correto."
-  },
-  "memory": {
-    "config_not_available": "Configuração não disponível. Não é possível mostrar a memória.",
-    "loaded_files": "Memória carregada de {count} arquivo{plural} {name}.",
-    "current_content": "Conteúdo atual combinado da memória:\n```markdown\n{content}\n```",
-    "loaded_but_empty": "Memória hierárquica (GEMINI.md ou outros arquivos de contexto) está carregada mas o conteúdo está vazio.",
-    "not_loaded": "Nenhuma memória hierárquica (GEMINI.md ou outros arquivos de contexto) está atualmente carregada."
-  },
-  "startup": {
-    "home_directory_warning": "Você está executando o Auditaria CLI no seu diretório home. É recomendado executar em um diretório específico do projeto.",
-    "root_directory_warning": "Aviso: Você está executando o Auditaria CLI no diretório raiz. Toda a estrutura de pastas será usada para contexto. É fortemente recomendado executar em um diretório específico do projeto.",
-    "directory_verification_error": "Não foi possível verificar o diretório atual devido a um erro do sistema de arquivos.",
-    "cannot_delete_warnings_file": "Aviso: Não foi possível deletar o arquivo temporário de avisos.",
-    "error_reading_warnings_file": "Erro ao verificar/ler arquivo de avisos: {error}",
-    "untrusted_folder_message": "Esta pasta não é confiável. Alguns recursos podem estar desabilitados. Use o comando `/permissions` para alterar o nível de confiança."
-  },
-  "non_interactive": {
-    "operation_cancelled": "Operação cancelada.",
-    "cancelling": "Cancelando...",
-    "tool_execution_error": "Erro ao executar ferramenta {toolName}: {error}",
-    "auth_method_required": "Por favor, defina um método de autenticação em {settingsPath} ou especifique uma das seguintes variáveis de ambiente antes de executar: GEMINI_API_KEY, GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_GENAI_USE_GCA"
-  },
-  "sandbox": {
-    "debian_uid_gid_info": "INFO: Usando por padrão UID/GID do usuário atual para Linux baseado em Debian/Ubuntu.",
-    "os_release_warning": "Aviso: Não foi possível ler /etc/os-release para auto-detectar Debian/Ubuntu para padrão UID/GID.",
-    "cannot_build_with_seatbelt": "ERRO: não é possível BUILD_SANDBOX ao usar macOS Seatbelt",
-    "missing_seatbelt_profile": "ERRO: arquivo de perfil macos seatbelt '{profileFile}' ausente",
-    "using_seatbelt": "usando macos seatbelt (perfil: {profile}) ...",
-    "hopping_into_sandbox": "entrando no sandbox (comando: {command}) ...",
-    "cannot_build_installed_binary": "ERRO: não é possível construir sandbox usando binário gemini instalado; execute `npm link ./packages/cli` sob o repo gemini-cli para mudar para binário linkado.",
-    "building_sandbox": "construindo sandbox ...",
-    "using_custom_dockerfile": "usando {dockerfile} para sandbox",
-    "image_missing_or_pull_failed": "ERRO: Imagem do sandbox '{image}' está ausente ou não pôde ser baixada. {remedy}",
-    "mount_path_not_absolute": "ERRO: caminho '{path}' listado em SANDBOX_MOUNTS deve ser absoluto",
-    "mount_path_missing": "ERRO: caminho de montagem '{path}' listado em SANDBOX_MOUNTS ausente",
-    "stopping_proxy": "parando proxy ...",
-    "proxy_command_exited": "ERRO: comando proxy '{command}' saiu com código {code}, sinal {signal}",
-    "waiting_proxy_start": "aguardando proxy iniciar ...",
-    "mount_info": "SANDBOX_MOUNTS: {from} -> {to} ({opts})",
-    "env_info": "SANDBOX_ENV: {env}",
-    "env_invalid_format": "ERRO: SANDBOX_ENV deve ser uma lista separada por vírgulas de pares chave=valor",
-    "stopping_proxy_container": "parando container proxy ...",
-    "proxy_container_exited": "ERRO: comando container proxy '{command}' saiu com código {code}, sinal {signal}",
-    "process_error": "Erro no processo sandbox: {error}",
-    "process_exited": "Processo sandbox saiu com código: {code}, sinal: {signal}",
-    "failed_start_image_check": "Falha ao iniciar comando '{sandbox}' para verificação de imagem: {error}",
-    "attempting_pull_image": "Tentando baixar imagem {image} usando {sandbox}...",
-    "failed_start_pull_command": "Falha ao iniciar comando '{sandbox} pull {image}': {error}",
-    "successfully_pulled_image": "Imagem {image} baixada com sucesso.",
-    "failed_pull_image": "Falha ao baixar imagem {image}. '{sandbox} pull {image}' saiu com código {code}.",
-    "checking_image": "Verificando imagem do sandbox: {image}",
-    "image_found_locally": "Imagem do sandbox {image} encontrada localmente.",
-    "image_not_found_locally": "Imagem do sandbox {image} não encontrada localmente.",
-    "image_available_after_pull": "Imagem do sandbox {image} está agora disponível após o download.",
-    "image_still_not_found": "Imagem do sandbox {image} ainda não encontrada após tentativa de download. Isso pode indicar um problema com o nome da imagem ou registro, ou o comando de download reportou sucesso mas falhou em disponibilizar a imagem.",
-    "failed_obtain_image": "Falha ao obter imagem do sandbox {image} após verificação e tentativa de download."
-  },
-  "extension": {
-    "loading": "Carregando extensão: {name} (versão: {version})",
-    "unexpected_file": "Aviso: arquivo inesperado {path} no diretório de extensões.",
-    "missing_config": "Aviso: diretório de extensão {dir} não contém arquivo de configuração {config}.",
-    "invalid_config": "Configuração de extensão inválida em {path}: nome ou versão ausente.",
-    "parse_error": "Aviso: erro ao analisar configuração de extensão em {path}: {error}",
-    "all_disabled": "Todas as extensões estão desabilitadas.",
-    "activated": "Extensão ativada: {name} (versão: {version})",
-    "disabled": "Extensão desabilitada: {name}",
-    "not_found": "Extensão não encontrada: {name}",
-    "unexpected_behavior_warning": "Extensões podem introduzir comportamento inesperado.",
-    "trust_author_warning": "Certifique-se de ter investigado a fonte da extensão e confiar no autor.",
-    "mcp_servers_prompt": "Esta extensão executará os seguintes servidores MCP:",
-    "mcp_local": "local",
-    "mcp_remote": "remoto",
-    "context_append_info": "A extensão adicionará informações ao seu contexto gemini.md",
-    "context_with_filename": "Esta extensão adicionará informações ao seu contexto gemini.md usando {contextFileName}",
-    "exclude_tools_info": "Esta extensão excluirá as seguintes ferramentas principais: {excludeTools}",
-    "continue_prompt": "Deseja continuar? [S/n]: ",
-    "installation_cancelled": "Instalação cancelada pelo usuário.",
-    "update_consent_required": "Tentou atualizar uma extensão, mas ela tem algumas alterações que requerem consentimento, por favor use `auditaria extensions update`.",
-    "consent_prompt": "Deseja continuar?",
-    "installing_extension": "Instalando extensão \"{name}\".",
-    "unexpected_behavior_warning_markdown": "**Extensões podem introduzir comportamentos inesperados. Certifique-se de ter investigado a fonte da extensão e confie no autor.**",
-    "installation_cancelled_for": "Instalação cancelada para \"{name}\".",
-    "skip_error": "Aviso: Pulando extensão em {path}: {error}",
-    "config_not_found": "Arquivo de configuração não encontrado em {path}",
-    "config_missing_field": "Configuração inválida em {path}: {field} ausente",
-    "config_load_failed": "Falha ao carregar configuração de extensão de {path}: {error}",
-    "auto_update_settings_changed": "Extensão \"{name}\" possui alterações nas configurações e não pode ser atualizada automaticamente. Por favor, atualize manualmente."
-  },
-  "oauth": {
-    "auth_failed": "\nFalha na autenticação com código do usuário.",
-    "retrying": "Tentando novamente...\n",
-    "visit_url": "Por favor, visite a seguinte URL para autorizar a aplicação:",
-    "enter_code": "Digite o código de autorização: ",
-    "code_required": "Código de autorização é obrigatório.",
-    "code_received": "Código de autorização recebido: \"{code}\"",
-    "restart_cli_message": "Logando com Google... Por favor, reinicie o Auditaria CLI para continuar."
-  },
-  "oauth2": {
-    "clear_credentials_failed": "Falha ao limpar credenciais em cache: {error}",
-    "browser_failed": "Falha ao abrir navegador: {error}",
-    "auth_timeout": "Autenticação expirou após 5 minutos. A aba do navegador pode ter ficado travada em um estado de carregamento. Tente novamente ou use NO_BROWSER=true para autenticação manual.",
-    "google_oauth_error": "Erro OAuth do Google: {error}. {description}",
-    "auth_failed_user_code": "Falha ao autenticar com código de usuário.",
-    "oauth_callback_not_received": "Callback OAuth não recebido. Solicitação inesperada: {url}",
-    "oauth_state_mismatch": "Estado OAuth não confere. Possível ataque CSRF ou problema de sessão do navegador.",
-    "token_exchange_failed": "Falha ao trocar código de autorização por tokens: {error}",
-    "no_auth_code": "Nenhum código de autorização recebido do OAuth do Google. Tente autenticar novamente.",
-    "unexpected_oauth_error": "Erro inesperado durante autenticação OAuth: {error}",
-    "oauth_server_error": "Erro do servidor de callback OAuth: {error}"
-  },
-  "app": {
-    "memory_refreshing": "Atualizando memória hierárquica (GEMINI.md ou outros arquivos de contexto)...",
-    "memory_refreshed_success": "Memória atualizada com sucesso. Carregados {chars} caracteres de {count} arquivo(s).",
-    "memory_refreshed_no_content": "Memória atualizada com sucesso. Nenhum conteúdo de memória encontrado.",
-    "memory_refresh_error": "Erro ao atualizar memória: {error}",
-    "reauth_required": "reautenticação necessária",
-    "quota_exceeded_pro_paid": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Alternando automaticamente de {model} para {fallback} pelo restante desta sessão.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "quota_exceeded_pro_free": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Alternando automaticamente de {model} para {fallback} pelo restante desta sessão.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
-    "quota_exceeded_generic_paid": "⚡ Você atingiu seu limite diário de cota.\n⚡ Alternando automaticamente de {model} para {fallback} pelo restante desta sessão.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "quota_exceeded_generic_free": "⚡ Você atingiu seu limite diário de cota.\n⚡ Alternando automaticamente de {model} para {fallback} pelo restante desta sessão.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
-    "fallback_default_paid": "⚡ Alternando automaticamente de {model} para {fallback} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do {model}\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "fallback_default_free": "⚡ Alternando automaticamente de {model} para {fallback} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite diário de cota do {model}\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
-    "quota_exceeded_pro_paid_dialog": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para alternar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "quota_exceeded_pro_free_dialog": "⚡ Você atingiu seu limite diário de cota do {model}.\n⚡ Você pode escolher autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, faça upgrade para um plano Gemini Code Assist Standard ou Enterprise com limites maiores em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave de API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alterar métodos de autenticação digitando /auth",
-    "switched_to_fallback_tip": "Alterado para modelo de fallback. Dica: Pressione Ctrl+P para recuperar seu prompt anterior e enviá-lo novamente se desejar.",
-    "auth_timeout": "Autenticação expirou. Por favor, tente novamente.",
-    "press_ctrl_c_exit": "Pressione Ctrl+C novamente para sair.",
-    "press_ctrl_d_exit": "Pressione Ctrl+D novamente para sair.",
-    "initialization_error": "Erro de Inicialização: {error}",
-    "check_api_config": "Por favor, verifique a chave de API e configuração.",
-    "ide_trust_changed": "A confiança do workspace foi alterada. Pressione 'r' para reiniciar o Auditaria e aplicar as alterações.",
-    "ide_trust_change": {
-      "message_generic": "A confiança do workspace foi alterada.",
-      "message_connection": "A confiança do workspace foi alterada devido a uma mudança na conexão do IDE.",
-      "message_trust": "A confiança do workspace foi alterada devido a uma mudança na confiança do IDE.",
-      "restart_instruction": "Pressione 'r' para reiniciar o Auditaria e aplicar as alterações."
-    }
-  },
-  "composer": {
-    "selection_warning": "Pressione Ctrl-S para entrar no modo de seleção e copiar texto.",
-    "paste_timeout": "Tempo de colagem esgotado. Possivelmente devido a conexão lenta."
-  },
-  "cli": {
-    "errors": {
-      "prompt_interactive_conflict": "Não é possível usar --prompt (-p) e --prompt-interactive (-i) juntos",
-      "prompt_interactive_stdin": "Erro: A flag --prompt-interactive não pode ser usada quando a entrada é redirecionada de stdin.",
-      "yolo_approval_conflict": "Não é possível usar --yolo (-y) e --approval-mode juntos. Use --approval-mode=yolo ao invés.",
-      "invalid_approval_mode": "Modo de aprovação inválido: {mode}. Valores válidos são: yolo, auto_edit, default",
-      "prompt_positional_conflict": "Não é possível usar um prompt posicional e a flag --prompt (-p) juntos",
-      "yolo_disabled": "Não é possível iniciar no modo YOLO quando ele está desabilitado pelas configurações"
-    },
-    "deprecation": {
-      "prompt_flag": "A flag --prompt (-p) foi descontinuada e será removida em uma versão futura. Por favor, use um argumento posicional para o seu prompt. Veja gemini --help para mais informações.\n"
-    },
-    "options": {
-      "session_summary": "Arquivo para escrever o resumo da sessão."
-    }
-  },
-  "dns": {
-    "invalid_resolution_order": "Valor inválido para dnsResolutionOrder nas configurações: \"{order}\". Usando padrão \"{defaultValue}\"."
-  },
-  "loop_detection": {
-    "message": "Um possível loop foi detectado. Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. A solicitação foi interrompida.",
-    "disabled": "A detecção de loop foi desabilitada para esta sessão. Repetindo solicitação...",
-    "confirmation": {
-      "title": "Um possível loop foi detectado",
-      "description": "Isso pode acontecer devido a chamadas de ferramentas repetitivas ou outro comportamento do modelo. Deseja manter a detecção de loop ativada ou desativá-la para esta sessão?",
-      "aria_label": "Loop detectado:",
-      "options": {
-        "keep": "Manter detecção de loop ativada (esc)",
-        "disable": "Desativar detecção de loop para esta sessão"
-      }
-    }
-  },
-  "warnings": {
-    "ide_server_reserved": "Ignorando configuração MCP do servidor definida pelo usuário para \"{serverName}\" pois é um nome reservado."
-  },
-  "todo": {
-    "completed_count": "{completed}/{total} completas"
-  },
-  "citations": {
-    "title": "Citações:"
-  },
-  "finish_reasons": {
-    "max_tokens": "Resposta truncada devido aos limites de token.",
-    "safety": "Resposta interrompida por razões de segurança.",
-    "recitation": "Resposta interrompida devido à política de recitação.",
-    "language": "Resposta interrompida devido ao idioma não suportado.",
-    "blocklist": "Resposta interrompida devido a termos proibidos.",
-    "prohibited_content": "Resposta interrompida devido a conteúdo proibido.",
-    "spii": "Resposta interrompida devido a informações pessoais identificáveis sensíveis.",
-    "other": "Resposta interrompida por outras razões.",
-    "malformed_function_call": "Resposta interrompida devido a chamada de função malformada.",
-    "image_safety": "Resposta interrompida devido a violações de segurança da imagem.",
-    "unexpected_tool_call": "Resposta interrompida devido a chamada de ferramenta inesperada."
-  },
-  "ide": {
-    "errors": {
-      "extension_not_found": "Extensão Gemini CLI Companion não encontrada. Instale via /ide install e reinicie o CLI em uma nova janela de terminal.",
-      "single_workspace_required": "Para usar este recurso, por favor abra uma pasta de workspace em {ide} e tente novamente.",
-      "directory_mismatch": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI no mesmo diretório da pasta raiz do seu projeto.",
-      "directory_mismatch_multi": "Incompatibilidade de diretório. O Gemini CLI está executando em um local diferente do workspace aberto em {ide}. Por favor, execute o CLI em um dos seguintes diretórios: {directories}",
-      "client_error": "Erro do cliente.",
-      "connection_closed": "Conexão do IDE fechada. Para reconectar, execute /ide enable.",
-      "connection_failed": "Falha ao conectar ao servidor do IDE: {error}",
-      "not_supported": "A integração com IDE não é suportada no seu ambiente atual. Para usar este recurso, execute o Gemini CLI em um destes IDEs suportados: {supportedIDEs}",
-      "integration_disabled": "A integração do IDE está atualmente desabilitada. Para habilitá-la, execute /ide enable.",
-      "integration_disabled_reenable": "Integração do IDE desabilitada. Para habilitá-la novamente, execute /ide enable.",
-      "extension_connection_failed": "Falha ao conectar à extensão companion do IDE no {ide}. Por favor, certifique-se de que a extensão está em execução. Para instalar a extensão, execute /ide install.",
-      "connection_lost": "Erro de conexão do IDE. A conexão foi perdida inesperadamente. Por favor, tente reconectar executando /ide enable"
-    },
-    "process_utils": {
-      "shell_not_found": "Falha ao encontrar processo shell na árvore de processos. Usando processo de nível superior, que pode ser impreciso. Se você ver isso, por favor, envie um relatório de bug via /bug."
-    }
-  },
-  "vscode_extension": {
-    "command_title": "Auditaria CLI: Executar",
-    "terminal_name": "Auditaria CLI"
-  },
-  "checkpoint": {
-    "tag_sanitized_empty": "Tag sanitizada está vazia definindo como \"default\"."
-  },
-  "ide_context": {
-    "title": "Contexto (ctrl+g para alternar)",
-    "open_files": "Arquivos abertos:",
-    "active_file": " (ativo)",
-    "open_files_count": "{count} arquivo{plural} aberto{plural} (ctrl+g para ver)",
-    "file_list_note": "\n(Nota: A lista de arquivos é limitada a um número de arquivos acessados recentemente em seu workspace e inclui apenas arquivos locais no disco)"
-  },
-  "ide_integration_nudge": {
-    "question": "Você deseja conectar o editor {ideName} ao Auditaria CLI?",
-    "description": "Se você selecionar Sim, instalaremos uma extensão que permite ao CLI acessar seus arquivos abertos e exibir diffs diretamente no {ideName}.",
-    "description_installed": "Se você selecionar Sim, o CLI terá acesso aos seus arquivos abertos e exibirá diffs diretamente no {ideName}.",
-    "yes": "Sim",
-    "no_esc": "Não (esc)",
-    "no_dont_ask": "Não, não pergunte novamente"
-  },
-  "folder_trust_dialog": {
-    "title": "Você confia nesta pasta?",
-    "description": "Confiar em uma pasta permite que o Auditaria execute comandos sugeridos. Este é um recurso de segurança para evitar execução acidental em diretórios não confiáveis.",
-    "options": {
-      "trust_folder": "Confiar na pasta ({dirName})",
-      "trust_parent": "Confiar na pasta pai ({parentFolder})",
-      "dont_trust": "Não confiar"
-    },
-    "restarting": "O Auditaria CLI está reiniciando para aplicar as mudanças de confiança...",
-    "exiting": "Um nível de confiança de pasta deve ser selecionado para continuar. Saindo pois a tecla escape foi pressionada."
-  },
-  "permissions_dialog": {
-    "title": "Modificar Nível de Confiança",
-    "folder_label": "Pasta:",
-    "current_level_label": "Nível Atual:",
-    "not_set": "Não Definido",
-    "trust_options": {
-      "trust_folder": "Confiar nesta pasta",
-      "trust_parent": "Confiar na pasta pai",
-      "dont_trust": "Não confiar"
-    },
-    "notes": {
-      "inherited_from_parent": "Nota: Esta pasta se comporta como uma pasta confiável porque uma das pastas pai é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui. Para alterar isso, você precisa modificar a configuração de confiança na pasta pai.",
-      "inherited_from_ide": "Nota: Esta pasta se comporta como uma pasta confiável porque o workspace IDE conectado é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui."
-    },
-    "instructions": {
-      "use_enter_select": "(Use Enter para selecionar, Esc para fechar)"
-    },
-    "restart": {
-      "message": "Para aplicar as mudanças de confiança, o Auditaria CLI deve ser reiniciado. Pressione 'r' para reiniciar o CLI agora."
-    },
-    "warnings": {
-      "still_trusted_ide": "Nota: Esta pasta ainda é confiável porque o workspace IDE conectado é confiável.",
-      "still_trusted_parent": "Nota: Esta pasta ainda é confiável porque uma pasta pai é confiável."
-    }
-  },
-  "settings": {
-    "save_error": "Houve um erro ao salvar suas últimas alterações de configurações.",
-    "tools": {
-      "truncate_output_threshold": {
-        "label": "Limite de Truncamento de Saída de Ferramenta",
-        "description": "Truncar saída da ferramenta se for maior que este número de caracteres. Defina como -1 para desativar."
-      },
-      "truncate_output_lines": {
-        "label": "Linhas de Truncamento de Saída de Ferramenta",
-        "description": "O número de linhas a manter ao truncar a saída da ferramenta."
-      },
-      "enable_message_bus_integration": {
-        "label": "Habilitar Integração de Barramento de Mensagens",
-        "description": "Habilitar confirmação de ferramenta baseada em política através da integração do barramento de mensagens. Quando habilitado, as ferramentas respeitarão automaticamente as decisões do mecanismo de políticas (PERMITIR/NEGAR/PERGUNTAR_USUÁRIO) sem exigir implementações individuais de ferramentas."
-      }
-    },
-    "chatCompression": {
-      "invalid_threshold": "Valor inválido para chatCompression.contextPercentageThreshold: \"{threshold}\". Por favor, use um valor entre 0 e 1. Usando configurações de compressão padrão."
-    }
-  },
-  "utils": {
-    "unknown_platform_url_open": "Plataforma desconhecida: {platform}. Tentando abrir URLs com: {openCmd}.",
-    "proxy": {
-      "failed_to_set": "Falha ao configurar proxy: {error}",
-      "invalid_configuration": "Configuração de proxy inválida detectada. Verifique a gaveta de depuração para mais detalhes (F12)"
-    }
-  },
-  "ide_installer": {
-    "vscode_cli_not_found": "CLI do VS Code não encontrado. Por favor, certifique-se de que 'code' está no PATH do seu sistema. Para ajuda, veja https://code.visualstudio.com/docs/configure/command-line#_code-is-not-recognized-as-an-internal-or-external-command. Você também pode instalar a extensão 'Gemini CLI Companion' manualmente no marketplace do VS Code.",
-    "companion_not_found": "Não foi possível encontrar a extensão companheira do VS Code necessária. Por favor, registre um bug via /bug.",
-    "vscode_install_success": "Extensão companheira do VS Code instalada com sucesso. Por favor, reinicie seu terminal para completar a configuração.",
-    "vscode_install_failed": "Falha ao instalar a extensão companheira do VS Code. Por favor, tente instalar 'Gemini CLI Companion' manualmente no marketplace de extensões do VS Code.",
-    "openvsx_install_success": "Extensão companheira do VS Code instalada com sucesso do OpenVSX. Por favor, reinicie seu terminal para completar a configuração.",
-    "openvsx_install_failed": "Falha ao instalar a extensão companheira do VS Code do OpenVSX. Por favor, tente instalá-la manualmente."
-  },
-  "general": {
-    "operation_cancelled": "Operação cancelada."
-  },
-  "screen_reader": {
-    "user_prefix": "Usuário: ",
-    "model_prefix": "Modelo: ",
-    "loading": "carregando",
-    "responding": "respondendo",
-    "mode_notification": "Você está atualmente no modo de visualização amigável para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\". Isso desaparecerá na próxima execução."
-  },
-  "debug_profiler": {
-    "idle_frames_warning": "{count} frames foram renderizados enquanto o aplicativo estava ocioso no último segundo. Isso provavelmente indica bugs graves de loop infinito no gerenciamento de estado do React.",
-    "flicker_detected": "Um frame de flicker foi detectado. Isso causará instabilidade na UI. Digite `/profile` para mais informações.",
-    "renders_label": "Renderizações:",
-    "total_label": "(total)",
-    "idle_label": "(ociosas)",
-    "flicker_label": "(flicker)"
-  },
-  "gemini_stream": {
-    "request_cancelled": "Requisição cancelada."
-  },
-  "relaunch": {
-    "fatal_error": "Erro fatal: Falha ao reiniciar o processo CLI."
-  },
-  "trusted_folders": {
-    "error_saving": "Erro ao salvar arquivo de pastas confiáveis: {error}",
-    "error_loading": "Erro ao carregar configuração de pastas confiáveis de {path}: {message}",
-    "error_in_path": "Erro em {path}: {message}",
-    "fix_config": "Por favor, corrija o arquivo de configuração e tente novamente.",
-    "not_valid_json": "O arquivo de pastas confiáveis não é um objeto JSON válido.",
-    "cannot_enable_privileged_modes": "Não é possível ativar modos de aprovação privilegiados em uma pasta não confiável.",
-    "approval_mode_overridden": "Modo de aprovação substituído para \"padrão\" porque a pasta atual não é confiável.",
-    "save_failed_exiting": "Falha ao salvar configurações de confiança. Encerrando Auditoria CLI.",
-    "save_failed_may_not_persist": "Falha ao salvar configurações de confiança. Suas alterações podem não persistir."
-  },
-  "telemetry": {
-    "data_collection_disabled": "A coleta de dados está desabilitada."
-  },
-  "stdin": {
-    "truncated_warning": "Aviso: entrada stdin truncada para {size} bytes.",
-    "no_input_error": "Nenhuma entrada fornecida via stdin. A entrada pode ser fornecida canalizando dados para o auditaria ou usando a opção --prompt."
-  },
-  "message_queue": {
-    "header": "Na fila (pressione ↑ para editar):",
-    "more_messages": "... (+{count} mais)"
-  },
-  "web": {
-    "cli_action": {
-      "title": "Ação Necessária no CLI",
-      "auth_in_progress": "Autenticação em andamento. Por favor, verifique o terminal do CLI.",
-      "auth_required": "Autenticação necessária. Por favor, complete o processo de autenticação no terminal do CLI.",
-      "theme_selection": "Seleção de tema aberta. Por favor, escolha um tema no terminal do CLI.",
-      "editor_settings": "Configurações do editor abertas. Por favor, configure seu editor no terminal do CLI.",
-      "language_selection": "Seleção de idioma aberta. Por favor, escolha um idioma no terminal do CLI.",
-      "settings": "Diálogo de configurações aberto. Por favor, configure suas preferências no terminal do CLI.",
-      "model_selection": "Seleção de modelo aberta. Por favor, escolha um modelo no terminal do CLI.",
-      "folder_trust": "Diálogo de confiança de pasta aberto. Por favor, responda no terminal do CLI.",
-      "privacy_notice": "Aviso de privacidade exibido. Por favor, revise no terminal do CLI.",
-      "quota_exceeded": "Diálogo de cota excedida aberto. Por favor, escolha uma opção no terminal do CLI.",
-      "shell_confirmation": "Confirmação de comando shell necessária. Por favor, responda no terminal do CLI.",
-      "confirmation": "Confirmação necessária. Por favor, responda no terminal do CLI.",
-      "ide_integration": "Prompt de integração do IDE exibido. Por favor, responda para conectar seu editor ao Auditaria CLI no terminal.",
-      "pro_quota_dialog": "Limite de cota Pro atingido. Por favor, escolha se deseja alterar a autenticação ou continuar com o modelo de fallback no terminal CLI.",
-      "loop_detection": "Confirmação de detecção de loop necessária. Por favor, escolha se deseja manter ou desativar a detecção de loop no terminal CLI."
-    }
-  },
-  "workspace_migration": {
-    "deprecated": "Extensões de nível de workspace estão obsoletas",
-    "prompt": "Gostaria de instalá-las no nível do usuário?",
-    "definition_note": "A definição da extensão permanecerá no diretório do seu workspace.",
-    "skip_note": "Se você optar por pular, pode instalá-las manualmente usando o comando de instalação de extensões.",
-    "install_all": "Instalar todas",
-    "skip": "Pular",
-    "failed_with_errors": "As seguintes extensões falharam ao migrar. Por favor, tente instalá-las manualmente. Para ver outras mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair.",
-    "complete": "Migração concluída. Para ver as mudanças, o Auditaria CLI deve ser reiniciado. Pressione 'q' para sair."
-  },
-  "pathReader": {
-    "errors": {
-      "absolutePathOutside": "Caminho absoluto está fora do workspace permitido: {path}",
-      "pathNotFound": "Caminho não encontrado no workspace: {path}"
-    }
-  },
-  "atFile": {
-    "fileIgnored": "Arquivo '@{{path}}' foi ignorado pelo .gitignore ou .geminiignore e não foi incluído no prompt.",
-    "failedToInject": "Falha ao injetar conteúdo para '@{{path}}': {error}"
-  },
-  "pro_quota_dialog": {
-    "try_again_later": "Tentar novamente mais tarde",
-    "switch_to_fallback": "Mudar para {model} pelo restante desta sessão",
-    "note": "Nota: Você sempre pode usar /model para selecionar uma opção diferente."
-  },
-  "quota": {
-    "daily_quota_exhausted": "Você esgotou sua cota diária neste modelo.",
-    "pro_exceeded_paid": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para continuar acessando o modelo {model} hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "pro_exceeded_free": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "retryable_throttle_paid": "⚡ Suas requisições estão sendo limitadas no momento devido ao servidor estar com capacidade total para {failedModel}.\n⚡ Alternando automaticamente de {failedModel} para {fallbackModel} pelo restante desta sessão.\n⚡ Para continuar acessando o modelo {failedModel}, tente novamente sua requisição após algum tempo ou considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "retryable_throttle_free": "⚡ Suas requisições estão sendo limitadas no momento devido ao servidor estar com capacidade total para {failedModel}.\n⚡ Alternando automaticamente de {failedModel} para {fallbackModel} pelo restante desta sessão.\n⚡ Tente novamente suas requisições após algum tempo. Caso contrário, considere atualizar para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "other_error_paid": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Suas requisições estão sendo limitadas temporariamente devido ao servidor estar com capacidade total para {failedModel} ou há uma interrupção no serviço.\n⚡ Para continuar acessando o modelo {failedModel}, você pode tentar novamente sua requisição após algum tempo ou considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "other_error_free": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Suas requisições estão sendo limitadas temporariamente devido ao servidor estar com capacidade total para {failedModel} ou há uma interrupção no serviço.\n⚡ Para evitar ser limitado, você pode tentar novamente sua requisição após algum tempo ou atualizar para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "generic_exceeded_paid": "⚡ Você atingiu seu limite de cota diária.\n⚡ Alternando automaticamente de {failedModel} para {fallbackModel} pelo restante desta sessão.\n⚡ Para continuar acessando o modelo {failedModel} hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "generic_exceeded_free": "⚡ Você atingiu seu limite de cota diária.\n⚡ Alternando automaticamente de {failedModel} para {fallbackModel} pelo restante desta sessão.\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "fallback_paid": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de {failedModel}\n⚡ Para continuar acessando o modelo {failedModel} hoje, considere usar /auth para mudar para uma chave de API paga do AI Studio em https://aistudio.google.com/apikey",
-    "fallback_free": "⚡ Alternando automaticamente de {failedModel} para {fallbackModel} para respostas mais rápidas pelo restante desta sessão.\n⚡ Possíveis razões para isso são que você recebeu múltiplos erros consecutivos de capacidade ou atingiu seu limite de cota diária de {failedModel}\n⚡ Para aumentar seus limites, atualize para um plano Gemini Code Assist Standard ou Enterprise com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ Ou você pode utilizar uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "switched_to_fallback": "Alternado para modelo de fallback. Dica: Pressione Ctrl+P (ou Seta para Cima) para recuperar seu prompt anterior e enviá-lo novamente se desejar.",
-    "pro_exceeded_paid_new": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Aumente seus limites usando uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "pro_exceeded_free_new": "⚡ Você atingiu seu limite de cota diária de {model}.\n⚡ Você pode optar por autenticar com uma chave de API paga ou continuar com o modelo de fallback.\n⚡ Aumente seus limites \n⚡ - inscrevendo-se em um plano com limites mais altos em https://goo.gle/set-up-gemini-code-assist\n⚡ - ou usando uma Chave da API Gemini. Veja: https://goo.gle/gemini-cli-docs-auth#gemini-api-key\n⚡ Você pode alternar métodos de autenticação digitando /auth",
-    "congestion_error": "🚦Desculpe o Congestionamento! Parece que {model} está muito popular no momento.\nPor favor, tente novamente mais tarde."
-  },
-  "chat": {
-    "model_info": "Respondendo com {model}"
-  },
-  "ui": {
-    "initialization": {
-      "initializing": "Inicializando...",
-      "connecting_mcp_servers": "Conectando aos servidores MCP... ({connected}/{total})"
-    },
-    "tool_output": {
-      "output_saved": "Saída muito longa e foi salva em: {outputFile}"
-    }
-  },
-  "system": {
-    "memory": {
-      "high_usage_warning": "Alto uso de memória detectado: {usage} GB. Se você tiver uma falha, por favor reporte o bug executando `/bug`"
-    }
+  "_exactStrings": {
+    "\n--- Content from referenced context ---": "\n--- Conteúdo do contexto referenciado ---",
+    "\n--- Content from referenced files ---": "\n--- Conteúdo dos arquivos referenciados ---",
+    "(F12 for details)": "(F12 para detalhes)",
+    "(OAuth expired)": "(OAuth expirado)",
+    "(OAuth not authenticated)": "(OAuth não autenticado)",
+    "(OAuth)": "(OAuth)",
+    "(Press Enter to submit, Esc to cancel)": "(Pressione Enter para enviar, Esc para cancelar)",
+    "(Press Esc to close)": "(Pressione Esc para fechar)",
+    "(Use Enter to select)": "(Use Enter para selecionar)",
+    "(Use Enter to select, Esc to close)": "(Use Enter para selecionar, Esc para fechar)",
+    "(Use Enter to select, Tab to change focus, Esc to close)": "(Use Enter para selecionar, Tab para mudar o foco, Esc para fechar)",
+    "(r:)": "(r:)",
+    "(see /docs)": "(veja /docs)",
+    "(tools and prompts will appear when ready)": "(ferramentas e prompts aparecerão quando estiver pronto)",
+    "(x{count})": "(x{count})",
+    "({apiTimePercent}%)": "({apiTimePercent}%)",
+    "({branchName}*)": "({branchName}*)",
+    "({formattedDate})": "({formattedDate})",
+    "({modKey} to toggle)": "({modKey} para ativar/desativar)",
+    "({percentageLeft} {label})": "({percentageLeft} {label})",
+    "({toolCount} tools cached)": "({toolCount} ferramentas em cache)",
+    "({toolTimePercent}%)": "({toolTimePercent}%)",
+    "({totalDecisions} reviewed)": "({totalDecisions} avaliados)",
+    "({url})": "({url})",
+    "({value})": "({value})",
+    "({value}/{length})": "({value}/{length})",
+    "+{totalLinesAdded}": "+{totalLinesAdded}",
+    "- Blocked": "- Bloqueado",
+    "- {part}": "- {part}",
+    "---": "---",
+    "-{totalLinesRemoved}": "-{totalLinesRemoved}",
+    "... (+ {value} more)": "... (+ {value} a mais)",
+    "... code is being written ...": "... código está sendo escrito ...",
+    "... generating more ...": "... gerando mais ...",
+    "/{name}": "/{name}",
+    "1. Ask questions, edit files, or run commands.": "1. Faça perguntas, edite arquivos ou execute comandos.",
+    "2. Be specific for the best results.": "2. Seja específico para melhores resultados.",
+    "3. <bold>/help</bold> for more information.": "3. <bold>/help</bold> para mais informações.",
+    "3. Create <bold>GEMINI.md</bold> files to customize your interactions with Gemini.": "3. Crie arquivos <bold>GEMINI.md</bold> para personalizar suas interações com o Gemini.",
+    "4. <bold>/help</bold> for more information.": "4. <bold>/help</bold> para mais informações.",
+    "<ERROR>": "<ERROR>",
+    "<accent>A potential loop was detected</accent>": "Um possível loop foi detectado",
+    "<accent>Savings Highlight:</accent> {totalCachedTokens} ({cacheEfficiency} %) of input tokens were served from the cache, reducing costs.": "<accent>Destaque de economia:</accent> {totalCachedTokens} ({cacheEfficiency} %) dos tokens de entrada foram servidos do cache, reduzindo custos.",
+    "<accent>[1]</accent> https://ai.google.dev/docs/gemini_api_overview": "https://ai.google.dev/docs/gemini_api_overview",
+    "<accent>[1]</accent> https://cloud.google.com/terms/service-terms": "https://cloud.google.com/terms/service-terms",
+    "<accent>[1]</accent> https://policies.google.com/privacy": "https://policies.google.com/privacy",
+    "<accent>[2]</accent> https://aistudio.google.com/": "https://aistudio.google.com/",
+    "<accent>[2]</accent> https://cloud.google.com/terms/services": "https://cloud.google.com/terms/services",
+    "<accent>[3]</accent> https://developers.google.com/terms": "https://developers.google.com/terms",
+    "<accent>[4]</accent> https://ai.google.dev/gemini-api/terms": "https://ai.google.dev/gemini-api/terms",
+    "<accent>[MCP]</accent> - Model Context Protocol command (from external servers)": "<accent>[MCP]</accent> - Comando de Protocolo de Contexto do Modelo (de servidores externos)",
+    "<accent>|</accent> <accent1>▼</accent1> <accent2>(´</accent2> <accent3>ᴥ</accent3> <accent4>`)</accent4> <accent5>▼</accent5>": "<accent>|</accent> <accent1>▼</accent1> <accent2>(´</accent2> <accent3>ᴥ</accent3> <accent4>`)</accent4> <accent5>▼</accent5>",
+    "<bold>!</bold> - shell command": "<bold>!</bold> - comando do shell",
+    "<bold>Add context</bold>: Use <bold1>@</bold1> to specify files for context (e.g., <bold2>@src/myFile.ts</bold2>) to target specific files or folders.": "<bold>Adicionar contexto</bold>: Use <bold1>@</bold1> para especificar arquivos para contexto (ex., <bold2>@src/myFile.ts</bold2>) para direcionar arquivos ou pastas específicos.",
+    "<bold>Alt+Left/Right</bold> - Jump through words in the input": "<bold>Alt+Esquerda/Direita</bold> - Pula palavras na entrada",
+    "<bold>Ctrl+C</bold> - Quit application": "<bold>Ctrl+C</bold> - Sai do aplicativo",
+    "<bold>Ctrl+L</bold> - Clear the screen": "<bold>Ctrl+L</bold> - Limpa a tela",
+    "<bold>Ctrl+S</bold> - Enter selection mode to copy text": "<bold>Ctrl+S</bold> - Entra no modo de seleção para copiar texto",
+    "<bold>Ctrl+Y</bold> - Toggle YOLO mode": "<bold>Ctrl+Y</bold> - Alterna o modo YOLO",
+    "<bold>Enter</bold> - Send message": "<bold>Enter</bold> - Enviar mensagem",
+    "<bold>Esc</bold> - Cancel operation / Clear input (double press)": "<bold>Esc</bold> - Cancelar operação / Limpar entrada (pressione duas vezes)",
+    "<bold>Page Up/Down</bold> - Scroll page up/down": "<bold>Page Up/Down</bold> - Rolar a página para cima/baixo",
+    "<bold>Shell mode</bold>: Execute shell commands via <bold1>!</bold1> (e.g., <bold2>!npm run start</bold2>) or use natural language (e.g. <bold3>start server</bold3>).": "<bold>Modo shell</bold>: Execute comandos shell via <bold1>!</bold1> (ex., <bold2>!npm run start</bold2>) ou use linguagem natural (ex. <bold3>iniciar servidor</bold3>).",
+    "<bold>Shift+Tab</bold> - Toggle auto-accepting edits": "<bold>Shift+Tab</bold> - Alternar aceitação automática de edições",
+    "<bold>Up/Down</bold> - Cycle through your prompt history": "<bold>Up/Down</bold> - Navegar pelo histórico de prompts",
+    "> Select Editor <accent></accent>": "Selecione o Editor",
+    "> Select Language <accent></accent>": "Selecione o Idioma",
+    "> Select Theme <accent></accent>": "Selecione o Tema",
+    "A custom command wants to run the following shell commands:": "Um comando personalizado quer executar os seguintes comandos do shell:",
+    "A folder trust level must be selected to continue. Exiting since\n            escape was pressed.": "É preciso selecionar um nível de confiança para a pasta para continuar. Saindo porque Esc foi pressionado.",
+    "A list of MCP servers to allow.": "Uma lista de servidores MCP para permitir.",
+    "A list of MCP servers to exclude.": "Uma lista de servidores MCP para excluir.",
+    "A list of extensions to use. If not provided, all extensions are used.": "Uma lista de extensões para usar. Se não for fornecida, todas as extensões serão usadas.",
+    "About Gemini CLI": "Sobre a CLI Gemini",
+    "Accepts either a boolean flag or a string command name.": "Aceita um sinalizador booleano ou o nome de um comando em string.",
+    "Accepts either a single string or an array of strings.": "Aceita uma única string ou um array de strings.",
+    "Accessibility": "Acessibilidade",
+    "Accessibility settings.": "Configurações de acessibilidade.",
+    "Add directories to the workspace. Use comma to separate multiple paths": "Adicione diretórios ao espaço de trabalho. Use vírgula para separar vários caminhos.",
+    "Additional HTTP headers sent to the server.": "Headers HTTP adicionais enviados para o servidor.",
+    "Additional directories to include in the workspace (comma-separated or multiple --include-directories)": "Diretórios adicionais para incluir no espaço de trabalho (separados por vírgula ou múltiplos --include-directories)",
+    "Advanced": "Avançado",
+    "Advanced settings for power users.": "Configurações avançadas para usuários experientes.",
+    "Allow Google to use this data to develop and improve our products?": "Você permite que o Google use esses dados para desenvolver e melhorar nossos produtos?",
+    "Allow MCP Servers": "Permitir Servidores MCP",
+    "Allowed MCP server names": "Nomes de servidores MCP permitidos",
+    "Allowed Tools": "Ferramentas Permitidas",
+    "Already compressing, wait for previous request to complete": "Já comprimindo, aguarde a conclusão da requisição anterior.",
+    "Alternative: Maximum number of sessions to keep (most recent)": "Alternativa: Número máximo de sessões para manter (mais recentes)",
+    "Analyzes the project and creates a tailored GEMINI.md file": "Analisa o projeto e cria um arquivo GEMINI.md personalizado",
+    "App Controls": "Controles do Aplicativo",
+    "Apply specific configuration overrides based on matches, with a primary key of model (or alias). The most specific match will be used.": "Aplique configurações específicas com base em correspondências, usando o modelo (ou alias) como chave primária. A correspondência mais específica será usada.",
+    "Applying trust settings...": "Aplicando configurações de confiança...",
+    "Auth Method": "Método de Autenticação",
+    "Authenticate with an OAuth-enabled MCP server": "Autentique com um servidor MCP habilitado para OAuth",
+    "Authentication": "Autenticação",
+    "Authentication provider used for acquiring credentials (for example `dynamic_discovery`).": "Provedor de autenticação usado para obter credenciais (por exemplo, `dynamic_discovery`).",
+    "Authentication settings.": "Configurações de autenticação.",
+    "Authentication timed out. Please try again.": "Autenticação expirou. Tente novamente.",
+    "Auto": "Auto",
+    "Auto Accept": "Aceitar Automaticamente",
+    "Auto Configure Max Old Space Size": "Configurar automaticamente o tamanho máximo do espaço antigo",
+    "Automatically accept all actions (aka YOLO mode, see https://www.youtube.com/watch?v=xvFZjo5PgG0 for more details)?": "Aceitar automaticamente todas as ações (modo YOLO, veja https://www.youtube.com/watch?v=xvFZjo5PgG0 para mais detalhes)?",
+    "Automatically configure Node.js memory limits": "Configurar automaticamente os limites de memória do Node.js",
+    "Available Gemini CLI tools:": "Ferramentas Gemini CLI disponíveis:",
+    "Available languages: {length}": "Idiomas disponíveis: {length}",
+    "Avg Duration": "Duração Média",
+    "Basic Controls": "Controles Básicos",
+    "Basics:": "Básico:",
+    "Blocks extensions from Git": "Bloqueia extensões do Git",
+    "Blocks installing and loading extensions from Git.": "Bloqueia a instalação e o carregamento de extensões do Git.",
+    "Bug Command": "Comando de Bug",
+    "By using the Gemini API<accent>[1]</accent>, Google AI Studio <accent1>[2]</accent1>, and the other Google developer services that reference these terms (collectively, the \"APIs\" or \"Services\"), you are agreeing to Google APIs Terms of Service (the \"API Terms\") <accent2>[3]</accent2>, and the Gemini API Additional Terms of Service (the \"Additional Terms\") <accent3>[4]</accent3>.": "Ao usar a Gemini API<accent>[1]</accent>, o Google AI Studio <accent1>[2]</accent1> e outros serviços de desenvolvedor do Google que fazem referência a estes termos (coletivamente, as \"APIs\" ou \"Serviços\"), você concorda com os Termos de Serviço das APIs do Google (\"Termos da API\") <accent2>[3]</accent2> e os Termos de Serviço Adicionais da Gemini API (\"Termos Adicionais\") <accent3>[4]</accent3>.",
+    "CLI Version": "Versão CLI",
+    "Calls": "Chamadas",
+    "Change the auth method": "Alterar o método de autenticação",
+    "Change the theme": "Alterar o tema",
+    "Check session stats. Usage: /stats [model|tools]": "Verifique as estatísticas da sessão. Uso: /stats [model|tools]",
+    "Check status of IDE integration": "Verificar o status da integração com a IDE",
+    "Checkpointing": "Checkpointing",
+    "Choose your preferred language for the interface. You can change this later using the /language command.": "Escolha o idioma de sua preferência para a interface. Você pode alterá-lo depois usando o comando /language.",
+    "Codebase Investigator Max Num Turns": "Número Máximo de Turnos do Codebase Investigator",
+    "Codebase Investigator Settings": "Configurações do Investigador de Código",
+    "Command to run for tool discovery.": "Comando para descobrir ferramentas.",
+    "Command to start an MCP server.": "Comando para iniciar um servidor MCP.",
+    "Command-line arguments for the stdio transport command.": "Argumentos de linha de comando para o comando stdio transport.",
+    "Commands:": "Comandos:",
+    "Compresses the context by replacing it with a summary": "Comprime o contexto substituindo-o por um resumo",
+    "Compression Threshold": "Limiar de Compressão",
+    "Configuration for Codebase Investigator.": "Configuração para o Codebase Investigator.",
+    "Configuration for MCP servers.": "Configuração para os servidores MCP.",
+    "Configuration for the bug report command.": "Configuração para o comando de relatório de bug.",
+    "Configuration for the bug report helper command.": "Configuração para o comando auxiliar de relatório de bug.",
+    "Configuration is not available.": "Configuração não disponível.",
+    "Configure terminal keybindings for multiline input (VS Code, Cursor, Windsurf)": "Configure atalhos de teclado para entrada em várias linhas (VS Code, Cursor, Windsurf)",
+    "Configured MCP servers:": "Servidores MCP configurados:",
+    "Connected to Auditaria CLI": "Conectado ao CLI Auditaria.",
+    "Context": "Contexto",
+    "Context File Name": "Nome do arquivo de contexto",
+    "Controls summarization behavior for individual tools. All properties are optional.": "Controla o comportamento de sumarização para ferramentas individuais. Todas as propriedades são opcionais.",
+    "Copy the last result or code snippet to clipboard": "Copie o último resultado ou trecho de código para a área de transferência",
+    "Core Tools": "Ferramentas Essenciais",
+    "Could not detect terminal type. Supported terminals: VS Code, Cursor, and Windsurf.": "Não foi possível detectar o tipo de terminal. Terminais suportados: VS Code, Cursor e Windsurf.",
+    "Could not retrieve tool registry.": "Não foi possível obter o registro de ferramentas.",
+    "Cursor Movement": "Movimentação do Cursor",
+    "Custom Model Config Aliases": "Aliases de Configuração de Modelo Personalizado",
+    "Custom Themes": "Temas Personalizados",
+    "Custom Witty Phrases": "Frases Engraçadas Personalizadas",
+    "Custom named presets for model configs. These are merged with (and override) the built-in aliases.": "Predefinições nomeadas personalizadas para configurações de modelo. Elas são mescladas (e substituem) os aliases internos.",
+    "Custom theme definition used for styling Gemini CLI output. Colors are provided as hex strings or named ANSI colors.": "Definição de tema personalizado usada para estilizar a saída do Gemini CLI. Cores são fornecidas como strings hexadecimais ou cores ANSI nomeadas.",
+    "Custom theme definitions.": "Definições de tema personalizadas.",
+    "DNS Resolution Order": "Ordem de Resolução DNS",
+    "DOCX parser is now available in the web interface.": "O parser DOCX agora está disponível na interface web.",
+    "Debug Console <accent>(F12 to close)</accent>": "Console de Depuração <accent>(F12 para fechar)</accent>",
+    "Debug Keystroke Logging": "Registro de Teclas (Debug)",
+    "Definition of a Model Context Protocol (MCP) server configuration.": "Definição da configuração do servidor de Protocolo de Contexto de Modelo (MCP).",
+    "Delete a conversation checkpoint. Usage: /chat delete <tag>": "Excluir um checkpoint de conversa. Use: /chat delete <tag>",
+    "Delete a session by index number (use --list-sessions to see available sessions).": "Excluir uma sessão pelo número do índice (use --list-sessions para ver as sessões disponíveis).",
+    "Disable Auto Update": "Desativar Atualização Automática",
+    "Disable Fuzzy Search": "Desativar Busca Aproximada",
+    "Disable IDE integration": "Desativar integração com a IDE",
+    "Disable Loading Phrases": "Desativar Frases de Carregamento",
+    "Disable Update Nag": "Desativar Alerta de Atualização",
+    "Disable YOLO Mode": "Desativar Modo YOLO",
+    "Disable YOLO mode, even if enabled by a flag.": "Desativar o modo YOLO, mesmo que ativado por uma flag.",
+    "Disable an extension": "Desativar uma extensão",
+    "Disable automatic updates": "Desativar atualizações automáticas",
+    "Disable fuzzy search when searching for files.": "Desative a busca aproximada ao procurar arquivos.",
+    "Disable loading phrases for accessibility": "Desativar frases de carregamento para acessibilidade",
+    "Disable loop detection for this session": "Desativar detecção de loop para esta sessão",
+    "Disable update notification prompts.": "Desativar avisos de atualização.",
+    "Disabled Extensions": "Extensões Desativadas",
+    "Discovering available language options...": "Descobrindo opções de idioma disponíveis...",
+    "Display memory usage information in the UI": "Mostrar informações de uso de memória na interface",
+    "Display the privacy notice": "Mostrar o aviso de privacidade",
+    "Do you trust the following folders being added to this workspace?": "Você confia nas seguintes pastas sendo adicionadas a este espaço de trabalho?",
+    "Do you trust this folder?": "Você confia nesta pasta?",
+    "Do you want to proceed?": "Você quer continuar?",
+    "Don't trust": "Não confie",
+    "Editing": "Editando",
+    "Editor Preference": "Preferência do Editor",
+    "Empty GEMINI.md created. Now analyzing the project to populate it.": "GEMINI.md vazio criado. Analisando o projeto para preenchê-lo agora.",
+    "Enable AI-powered prompt completion suggestions while typing.": "Ative sugestões de conclusão de prompts com IA enquanto você digita.",
+    "Enable Checkpointing": "Ative Checkpointing.",
+    "Enable Codebase Investigator": "Ative o Codebase Investigator.",
+    "Enable Hooks System": "Ative o Sistema de Hooks",
+    "Enable IDE integration": "Ative a integração com a IDE",
+    "Enable IDE integration mode": "Ative o modo de integração com a IDE",
+    "Enable Interactive Shell": "Ative o Shell Interativo",
+    "Enable Message Bus Integration": "Ativar a integração do Message Bus",
+    "Enable Prompt Completion": "Ative o Preenchimento de Prompt",
+    "Enable Recursive File Search": "Ative a Busca Recursiva de Arquivos",
+    "Enable Session Cleanup": "Ative a limpeza de sessão.",
+    "Enable Tool Output Truncation": "Ative o truncamento da saída da ferramenta.",
+    "Enable Usage Statistics": "Ative as estatísticas de uso.",
+    "Enable Vim keybindings": "Ative os atalhos de teclado Vim.",
+    "Enable an extension": "Ativar uma extensão",
+    "Enable automatic session cleanup": "Ative a limpeza automática de sessões.",
+    "Enable collection of usage statistics": "Ative a coleta de estatísticas de uso.",
+    "Enable debug logging of keystrokes to the console.": "Ative o registro de depuração das teclas pressionadas no console.",
+    "Enable extension management features.": "Ative os recursos de gerenciamento de extensões.",
+    "Enable incremental rendering for the UI. This option will reduce flickering but may cause rendering artifacts. Only supported when useAlternateBuffer is enabled.": "Ative a renderização incremental para a interface. Isso reduzirá o cintilamento, mas pode causar artefatos visuais. Funciona apenas com useAlternateBuffer ativado.",
+    "Enable preview features (e.g., preview models).": "Ative recursos de pré-visualização (ex: modelos de pré-visualização).",
+    "Enable screen reader mode for accessibility.": "Ative o modo leitor de tela para acessibilidade.",
+    "Enable session checkpointing for recovery": "Ative o checkpointing de sessão para recuperação.",
+    "Enable the Codebase Investigator agent.": "Ative o agente Codebase Investigator.",
+    "Enable the hooks system for intercepting and customizing Gemini CLI behavior. When enabled, hooks configured in settings will execute at appropriate lifecycle events (BeforeTool, AfterTool, BeforeModel, etc.). Requires MessageBus integration.": "Ative o sistema de hooks para interceptar e personalizar o comportamento do Gemini CLI. Quando ativado, os hooks configurados nas configurações serão executados em eventos apropriados do ciclo de vida (BeforeTool, AfterTool, BeforeModel, etc.). Requer integração com o MessageBus.",
+    "Enable the smart-edit tool instead of the replace tool.": "Ative a ferramenta de edição inteligente em vez da ferramenta de substituição.",
+    "Enable the write_todos tool.": "Ative a ferramenta write_todos.",
+    "Enable truncation of large tool outputs.": "Ativar a truncagem de saídas grandes de ferramentas.",
+    "Enables extension loading/unloading within the CLI session.": "Permite carregar/descarregar extensões na sessão do CLI.",
+    "Enables telemetry emission.": "Permite a emissão de telemetria.",
+    "Encountered an unknown tool call state.": "Estado de chamada de ferramenta desconhecido.",
+    "Endpoint for OTLP exporters.": "Endpoint para exportadores OTLP.",
+    "Enforced Auth Type": "Tipo de Autenticação Forçado.",
+    "Enter Gemini API Key": "Insira a Chave da API Gemini",
+    "Environment variables to exclude from project context.": "Variáveis de ambiente para excluir do contexto do projeto.",
+    "Environment variables to set for the server process.": "Variáveis de ambiente para definir para o processo do servidor.",
+    "Error loading Opt-in settings: {error}": "Erro ao carregar as configurações de Opt-in: {error}",
+    "Error: Config not available.": "Erro: Configuração não disponível.",
+    "Exclude MCP Servers": "Excluir Servidores MCP",
+    "Exclude Tools": "Excluir Ferramentas",
+    "Excluded Project Environment Variables": "Variáveis de Ambiente do Projeto Excluídas",
+    "Executable invoked for stdio transport.": "Executável invocado para transporte stdio.",
+    "Execute the provided prompt and continue in interactive mode": "Execute o prompt fornecido e continue no modo interativo",
+    "Exit the cli": "Sair do CLI",
+    "Experimental": "Experimental",
+    "Extension Management": "Gerenciamento de Extensões",
+    "Extension Reloading": "Recarregamento de Extensões",
+    "Extensions": "Extensões",
+    "Extensions are not yet loaded, can't restart yet": "Extensões ainda não carregadas, não é possível reiniciar ainda",
+    "External Tools": "Ferramentas externas",
+    "Failed to compress chat history.": "Falha ao comprimir o histórico de chat.",
+    "File Filtering": "Filtragem de Arquivos",
+    "File created successfully": "Arquivo criado com sucesso.",
+    "File deleted successfully": "Arquivo excluído com sucesso.",
+    "File opened with system default application": "Arquivo aberto com o aplicativo padrão do sistema.",
+    "File path for writing telemetry output.": "Caminho do arquivo para gravar a saída de telemetria.",
+    "File renamed successfully": "Arquivo renomeado com sucesso.",
+    "File revealed in file explorer": "Arquivo aberto na pasta.",
+    "File saved successfully": "Arquivo salvo com sucesso.",
+    "Folder Trust": "Confiança da Pasta",
+    "Folder: {cwd}": "Pasta: {cwd}",
+    "Footer": "Rodapé",
+    "For a full list of shortcuts, see <bold>docs/cli/keyboard-shortcuts.md</bold>": "Para a lista completa de atalhos, veja <bold>docs/cli/keyboard-shortcuts.md</bold>",
+    "For complex tasks that require deep reasoning and creativity": "Para tarefas complexas que exigem raciocínio profundo e criatividade",
+    "For help on gemini-cli": "Para ajuda sobre o gemini-cli",
+    "For simple tasks that need to be done quickly": "Para tarefas simples que precisam ser feitas rapidamente",
+    "For tasks that need a balance of speed and reasoning": "Para tarefas que precisam de um equilíbrio entre velocidade e raciocínio",
+    "GCP Project": "Projeto do GCP",
+    "Gemini API Key Notice": "Aviso da Chave da API Gemini",
+    "Gemini CLI is restarting to apply the trust changes...": "O Gemini CLI está sendo reiniciado para aplicar as mudanças de confiança...",
+    "Gemini Code Assist Privacy Notice": "Aviso de Privacidade do Gemini Code Assist",
+    "Gemini Code Assist for Individuals Privacy Notice": "Aviso de Privacidade do Gemini Code Assist para Usuários Individuais",
+    "General": "Geral",
+    "General application settings.": "Configurações gerais do aplicativo.",
+    "Get started": "Comece agora",
+    "Git Commit": "Commit Git",
+    "Has Seen IDE Integration Nudge": "Já viu a sugestão de integração com a IDE",
+    "Hide Banner": "Ocultar Banner",
+    "Hide CWD": "Ocultar CWD",
+    "Hide Context Summary": "Ocultar Resumo do Contexto",
+    "Hide Context Window Percentage": "Ocultar Percentual da Janela de Contexto",
+    "Hide Footer": "Ocultar Rodapé",
+    "Hide Model Info": "Ocultar informações do modelo",
+    "Hide Sandbox Status": "Ocultar status do Sandbox",
+    "Hide Tips": "Ocultar Dicas.",
+    "Hide Window Title": "Ocultar Título da Janela.",
+    "Hide helpful tips in the UI": "Ocultar dicas úteis na interface",
+    "Hide the application banner": "Ocultar o banner da aplicação",
+    "Hide the context summary (GEMINI.md, MCP servers) above the input.": "Oculte o resumo do contexto (GEMINI.md, servidores MCP) acima da entrada.",
+    "Hide the current working directory path in the footer.": "Ocultar o caminho do diretório de trabalho atual no rodapé.",
+    "Hide the footer from the UI": "Ocultar o rodapé da interface",
+    "Hide the model name and context usage in the footer.": "Ocultar o nome do modelo e o uso do contexto no rodapé.",
+    "Hide the sandbox status indicator in the footer.": "Ocultar o indicador de status do sandbox no rodapé.",
+    "Hide the window title bar": "Ocultar a barra de título da janela.",
+    "Hides the context window remaining percentage.": "Oculta a porcentagem restante da janela de contexto.",
+    "History & Search": "Histórico e Busca",
+    "Hook configurations for intercepting and customizing agent behavior.": "Configurações de hooks para interceptar e personalizar o comportamento do agente.",
+    "Hooks": "Hooks",
+    "How would you like to authenticate for this project?": "Como você gostaria de se autenticar para este projeto?",
+    "Human-readable description of the server.": "Descrição do servidor (fácil de entender).",
+    "IDE": "IDE",
+    "IDE Client": "Cliente IDE",
+    "IDE Mode": "Modo IDE",
+    "IDE integration settings.": "Configurações de integração com a IDE.",
+    "In Copy Mode. Press any key to exit.": "Em Modo de Cópia. Pressione qualquer tecla para sair.",
+    "Include Directories": "Incluir Diretórios",
+    "Incremental Rendering": "Renderização Incremental",
+    "Initialization Error: {initError}": "Erro de Inicialização: {initError}",
+    "Input Tokens": "Tokens de Entrada",
+    "JSON": "JSON",
+    "Keep loop detection enabled (esc)": "Mantenha a detecção de loop ativada (esc)",
+    "Keep trying": "Continue tentando",
+    "Keyboard Shortcuts:": "Atalhos de Teclado:",
+    "Language": "Idioma",
+    "Language Selection Error": "Erro de Seleção de Idioma",
+    "Let the system choose the best model for your task.": "Deixe o sistema escolher o melhor modelo para sua tarefa.",
+    "License": "Licença",
+    "List active extensions": "Listar extensões ativas",
+    "List all active policies": "Listar todas as políticas ativas",
+    "List all available extensions and exit.": "Listar todas as extensões disponíveis e sair.",
+    "List available Gemini CLI tools. Usage: /tools [desc]": "Listar ferramentas Gemini CLI disponíveis. Uso: /tools [desc]",
+    "List available sessions for the current project and exit.": "Liste as sessões disponíveis para o projeto atual e saia.",
+    "List configured MCP servers and tools": "Listar servidores e ferramentas MCP configurados",
+    "List configured MCP servers and tools with descriptions": "Liste os servidores e ferramentas MCP configurados com descrições.",
+    "List configured MCP servers and tools with descriptions and schemas": "Liste os servidores e ferramentas MCP configurados com descrições e schemas.",
+    "List of disabled extensions.": "Lista de extensões desativadas.",
+    "List of saved conversations:": "Lista de conversas salvas:",
+    "List of workspaces for which the migration nudge has been shown.": "Lista de espaços de trabalho para os quais o aviso de migração foi exibido.",
+    "List saved conversation checkpoints": "Lista de pontos de verificação de conversas salvas.",
+    "Lists the paths of the GEMINI.md files in use": "Lista os caminhos dos arquivos GEMINI.md em uso.",
+    "Load Memory From Include Directories": "Carregar Memória de Diretórios Incluídos.",
+    "Loading Available Languages...": "Carregando Idiomas Disponíveis...",
+    "Loading suggestions...": "Carregando sugestões...",
+    "Loading...": "Carregando...",
+    "Logging in with Google... Restarting Gemini CLI to continue.": "Entrando com o Google... Reiniciando o Gemini CLI para continuar.",
+    "Login with Google": "Entrar com o Google",
+    "Loop detected, stopping execution": "Loop detectado, interrompendo a execução",
+    "MCP": "MCP",
+    "MCP Server Command": "Comando do Servidor MCP",
+    "MCP Server: {serverName}": "Servidor MCP: {serverName}",
+    "MCP Servers": "Servidores MCP",
+    "Manage IDE integration": "Gerenciar integração com a IDE",
+    "Manage configured Model Context Protocol (MCP) servers": "Gerenciar servidores de Protocolo de Contexto de Modelo (MCP) configurados",
+    "Manage conversation history": "Gerenciar histórico de conversas",
+    "Manage extensions": "Gerenciar extensões",
+    "Manage folder trust settings and other permissions": "Gerenciar configurações de confiança de pastas e outras permissões",
+    "Manage folder trust settings. Usage: /permissions trust [<directory-path>]": "Gerenciar configurações de confiança de pastas. Uso: /permissions trust [<directory-path>]",
+    "Manage policies": "Gerenciar políticas",
+    "Manage workspace directories": "Gerenciar diretórios do espaço de trabalho",
+    "Marks the server as trusted. Trusted servers may gain additional capabilities.": "Marca o servidor como confiável. Servidores confiáveis podem obter recursos adicionais.",
+    "Max Session Age": "Idade Máxima da Sessão",
+    "Max Session Count": "Contagem Máxima de Sessões",
+    "Max Session Turns": "Número Máximo de Turnos na Sessão",
+    "Max Time (Minutes)": "Tempo Máximo (Minutos)",
+    "Maximum age of sessions to keep (e.g., \"30d\", \"7d\", \"24h\", \"1w\")": "Tempo máximo para manter as sessões (ex: \"30d\", \"7d\", \"24h\", \"1w\")",
+    "Maximum number of directories to search for memory.": "Número máximo de diretórios para buscar na memória.",
+    "Maximum number of tokens used when summarizing tool output.": "Número máximo de tokens usados ao resumir a saída da ferramenta.",
+    "Maximum number of turns for the Codebase Investigator agent.": "Número máximo de turnos para o agente Codebase Investigator.",
+    "Maximum number of user/model/tool turns to keep in a session. -1 means unlimited.": "Número máximo de turnos de usuário/modelo/ferramenta para manter em uma sessão. -1 significa ilimitado.",
+    "Maximum session turns exceeded": "Número máximo de turnos da sessão excedido",
+    "Maximum time for the Codebase Investigator agent (in minutes).": "Tempo máximo para o agente Codebase Investigator (em minutos).",
+    "Memory Discovery Max Dirs": "Dir. Máx. Descoberta de Memória",
+    "Memory Import Format": "Formato de Importação de Memória",
+    "Metadata describing the Gemini CLI extension that owns this MCP server.": "Metadados descrevendo a extensão Gemini CLI que possui este servidor MCP.",
+    "Metric": "Métrica",
+    "Min Retention Period": "Período Mínimo de Retenção",
+    "Model": "Modelo",
+    "Model Config Aliases": "Alias de Configuração do Modelo",
+    "Model Config Overrides": "Substituições de Configuração do Modelo",
+    "Model Configs": "Configurações do Modelo",
+    "Model Stats For Nerds": "Estatísticas do modelo para nerds",
+    "Model Usage": "Uso do modelo",
+    "Model configurations.": "Configurações do modelo.",
+    "Modify in progress:": "Modificando...",
+    "Modify with external editor": "Modificar com editor externo",
+    "Named presets for model configs. Can be used in place of a model name and can inherit from other aliases using an `extends` property.": "Presets nomeados para configurações de modelo. Podem ser usados no lugar de um nome de modelo e podem herdar de outros aliases usando uma propriedade `extends`.",
+    "Navigation": "Navegação",
+    "No": "Não",
+    "No (esc)": "Não (esc)",
+    "No API calls have been made in this session.": "Nenhum chamado de API foi feito nesta sessão.",
+    "No MCP servers configured.": "Nenhum servidor MCP configurado.",
+    "No active policies.": "Sem políticas ativas.",
+    "No changes detected.": "Nenhuma alteração detectada.",
+    "No diff content.": "Sem conteúdo de diff.",
+    "No extensions to update.": "Sem extensões para atualizar.",
+    "No language files found. Please ensure translation files are available.": "Nenhum arquivo de idioma encontrado. Verifique se os arquivos de tradução estão disponíveis.",
+    "No saved conversation checkpoints found.": "Nenhum ponto de salvamento de conversa encontrado.",
+    "No tool calls have been made in this session.": "Nenhuma chamada de ferramenta foi feita nesta sessão.",
+    "No tools available": "Nenhuma ferramenta disponível",
+    "No, don't ask again": "Não, não perguntar novamente",
+    "No, suggest changes (esc)": "Não, sugerir alterações (esc)",
+    "Note: First startup may take longer. Tool availability will update\n            automatically.": "Atenção: A primeira inicialização pode demorar mais. A disponibilidade da ferramenta será atualizada automaticamente.",
+    "Note: Newest last, oldest first": "Atenção: Mais recente primeiro, mais antigo depois.",
+    "Note: This folder behaves as a trusted folder because one of the\n              parent folders is trusted. It will remain trusted even if you set\n              a different trust level here. To change this, you need to modify\n              the trust setting in the parent folder.": "Atenção: Esta pasta é considerada confiável porque uma das pastas pai é confiável. Ela permanecerá confiável mesmo que você defina um nível de confiança diferente aqui. Para alterar isso, você precisa modificar a configuração de confiança na pasta pai.",
+    "Note: This folder behaves as a trusted folder because the\n              connected IDE workspace is trusted. It will remain trusted even if\n              you set a different trust level here.": "Atenção: Esta pasta é considerada confiável porque o espaço de trabalho do IDE conectado é confiável. Ela permanecerá confiável mesmo se você definir um nível de confiança diferente aqui.",
+    "OAuth configuration for authenticating with the server.": "Configuração OAuth para autenticação com o servidor.",
+    "OAuth target audience (CLIENT_ID.apps.googleusercontent.com).": "Público-alvo OAuth (CLIENT_ID.apps.googleusercontent.com).",
+    "OS": "SO",
+    "Open extensions page in your browser": "Abra a página de extensões no seu navegador",
+    "Open full Gemini CLI documentation in your browser": "Abra a documentação completa do Gemini CLI no seu navegador",
+    "Opening web browser...": "Abrindo o navegador...",
+    "Opens a dialog to configure the model": "Abre um diálogo para configurar o modelo",
+    "Output": "Saída",
+    "Output Format": "Formato de Saída",
+    "Output Tokens": "Tokens de Saída",
+    "Output too long and was saved to: {outputFile}": "Saída muito longa e foi salva em: {outputFile}",
+    "Overall Agreement Rate:": "Taxa Geral de Concordância:",
+    "Pager": "Paginação",
+    "Parameters:": "Parâmetros:",
+    "Parse markdown to DOCX format": "Converter Markdown para DOCX",
+    "Path to a file to record model responses for testing.": "Caminho para um arquivo para gravar respostas do modelo para testes.",
+    "Path to a file with fake model responses for testing.": "Caminho para um arquivo com respostas falsas do modelo para testes.",
+    "Per-tool summarization settings with an optional tokenBudget.": "Configurações de sumarização por ferramenta com um tokenBudget opcional.",
+    "Please enter your Gemini API key. It will be securely stored in your\n          system keychain.": "Por favor, insira sua chave da API Gemini. Ela será armazenada com segurança no seu gerenciador de senhas.",
+    "Please provide at least one path to add.": "Por favor, forneça pelo menos um caminho para adicionar.",
+    "Please view MCP documentation in your browser: <accent>https://goo.gle/gemini-cli-docs-mcp</accent> or use the cli /docs command": "Consulte a documentação do MCP no seu navegador: <accent>https://goo.gle/gemini-cli-docs-mcp</accent> ou use o comando /docs no CLI.",
+    "Port number for the web interface (default: 8629)": "Número da porta para a interface web (padrão: 8629)",
+    "Positional prompt. Defaults to one-shot; use -i/--prompt-interactive for interactive.": "Prompt posicional. Padrão é único; use -i/--prompt-interactive para interativo.",
+    "Preferred Editor": "Editor preferido",
+    "Press Ctrl+C again to exit.": "Pressione Ctrl+C novamente para sair.",
+    "Press Ctrl+D again to exit.": "Pressione Ctrl+D novamente para sair.",
+    "Press Enter to choose an option and exit.": "Pressione Enter para escolher uma opção e sair.",
+    "Press Esc again to clear.": "Pressione Esc novamente para limpar.",
+    "Press Esc to continue with default language.": "Pressione Esc para continuar com o idioma padrão.",
+    "Press Esc to exit.": "Pressione Esc para sair.",
+    "Press ctrl-s to show more lines": "Pressione ctrl-s para mostrar mais linhas",
+    "Preview": "Pré-visualização",
+    "Preview Features (e.g., models)": "Recursos de Pré-visualização (ex: modelos)",
+    "Privacy": "Privacidade",
+    "Privacy-related settings.": "Configurações de privacidade.",
+    "Prompt. Appended to input on stdin (if any).": "Prompt. Adicionado à entrada no stdin (se houver).",
+    "Prompts:": "Prompts:",
+    "Protocol for OTLP exporters.": "Protocolo para exportadores OTLP.",
+    "Queued (press ↑ to edit):": "Enfileirado (pressione ↑ para editar):",
+    "Render output in plain-text to be more screen reader accessible": "Renderizar saída em texto simples para melhor acessibilidade com leitores de tela.",
+    "Renders: {numFrames} (total), <accent>(idle)</accent>, <accent1>(flicker)</accent1>": "Renderizações: {numFrames} (total), <accent>(ocioso)</accent>, <accent1>(tremulação)</accent1>",
+    "Reqs": "Requisitos",
+    "Request cancelled.": "Requisição cancelada.",
+    "Requires setting the `GEMINI_API_KEY` environment variable": "Requer definir a variável de ambiente `GEMINI_API_KEY`",
+    "Respect .geminiignore": "Respeitar .geminiignore",
+    "Respect .geminiignore files when searching": "Respeitar arquivos .geminiignore ao pesquisar",
+    "Respect .gitignore": "Respeitar .gitignore",
+    "Respect .gitignore files when searching": "Respeitar arquivos .gitignore na busca.",
+    "Responding with {model}": "Respondendo com {model}",
+    "Restart all extensions": "Reiniciar todas as extensões",
+    "Restarting MCP servers...": "Reiniciando os servidores MCP...",
+    "Restarts MCP servers": "Reinicia os servidores MCP",
+    "Restore a tool call. This will reset the conversation and file history to the state it was in when the tool call was suggested": "Restaure uma chamada de ferramenta. Isso redefinirá a conversa e o histórico de arquivos para o estado em que estavam quando a chamada de ferramenta foi sugerida.",
+    "Restored project to the state before the tool call.": "Projeto restaurado para o estado anterior à chamada de ferramenta.",
+    "Resume a conversation from a checkpoint. Usage: /chat resume <tag>": "Retome uma conversa de um ponto de verificação. Uso: /chat resume <tag>",
+    "Resume a previous session. Use \"latest\" for most recent or index number (e.g. --resume 5)": "Retome uma sessão anterior. Use \"latest\" para a mais recente ou o número do índice (ex: --resume 5)",
+    "Retry Fetch Errors": "Tentar novamente erros de busca.",
+    "Retry on \"exception TypeError: fetch failed sending request\" errors.": "Tentar novamente em erros de \"exception TypeError: fetch failed sending request\".",
+    "Run in debug mode?": "Executar em modo de depuração?",
+    "Run in sandbox?": "Executar em sandbox?",
+    "SSE transport URL.": "URL de transporte SSE.",
+    "Sandbox": "Sandbox",
+    "Save and close external editor to continue": "Salve e feche o editor externo para continuar.",
+    "Save the current conversation as a checkpoint. Usage: /chat save <tag>": "Salve a conversa atual como um checkpoint. Use: /chat save <tag>",
+    "Savings Highlight:": "Destaque de Economia:",
+    "Screen Control": "Controle da Tela",
+    "Screen Reader Mode": "Modo Leitor de Tela",
+    "Scrolling": "Rolagem",
+    "Security": "Segurança",
+    "Security-related settings.": "Configurações relacionadas à segurança.",
+    "Select Editor <accent></accent>": "Selecione o Editor <accent></accent>",
+    "Select Language <accent></accent>": "Selecione o Idioma <accent></accent>",
+    "Select Model": "Selecionar Modelo",
+    "Select Theme <accent></accent>": "Selecione o Tema <accent></accent>",
+    "Selected Auth Type": "Tipo de Autenticação Selecionado",
+    "Service Specific Terms<accent>[1]</accent> are incorporated into the agreement under which Google has agreed to provide Google Cloud Platform<accent1>[2]</accent1> to Customer (the \"Agreement\"). If the Agreement authorizes the resale or supply of Google Cloud Platform under a Google Cloud partner or reseller program, then except for in the section entitled \"Partner-Specific Terms\", all references to Customer in the Service Specific Terms mean Partner or Reseller (as applicable), and all references to Customer Data in the Service Specific Terms mean Partner Data. Capitalized terms used but not defined in the Service Specific Terms have the meaning given to them in the Agreement.": "Os Termos Específicos do Serviço<accent>[1]</accent> estão incorporados ao contrato sob o qual o Google concordou em fornecer o Google Cloud Platform<accent1>[2]</accent1> ao Cliente (\"Contrato\"). Se o Contrato autorizar a revenda ou fornecimento do Google Cloud Platform sob um programa de parceiros ou revendedores do Google Cloud, então, exceto na seção intitulada \"Termos Específicos do Parceiro\", todas as referências ao Cliente nos Termos Específicos do Serviço significam Parceiro ou Revendedor (conforme aplicável), e todas as referências aos Dados do Cliente nos Termos Específicos do Serviço significam Dados do Parceiro. Termos capitalizados usados, mas não definidos, nos Termos Específicos do Serviço têm o significado dado a eles no Contrato.",
+    "Service account email to impersonate (name@project.iam.gserviceaccount.com).": "E-mail da conta de serviço para personificar (name@project.iam.gserviceaccount.com).",
+    "Session Control": "Controle da Sessão",
+    "Session Retention": "Retenção de Sessão",
+    "Session Stats": "Estatísticas da Sessão",
+    "Session checkpointing settings.": "Configurações de checkpoint da sessão.",
+    "Session start time is unavailable, cannot calculate stats.": "Hora de início da sessão indisponível, não é possível calcular as estatísticas.",
+    "Set external editor preference": "Definir preferência de editor externo",
+    "Set the approval mode: default (prompt for approval), auto_edit (auto-approve edit tools), yolo (auto-approve all tools)": "Definir o modo de aprovação: padrão (solicitar aprovação), auto_edit (aprovar automaticamente ferramentas de edição), yolo (aprovar automaticamente todas as ferramentas)",
+    "Set up GitHub Actions": "Configurar GitHub Actions",
+    "Setting to enable experimental features": "Configuração para ativar recursos experimentais",
+    "Setting to track whether Folder trust is enabled.": "Configuração para verificar se a confiança em pastas está habilitada.",
+    "Setting up GitHub Actions to triage issues and review PRs with Gemini.": "Configurando GitHub Actions para classificar issues e revisar PRs com o Gemini.",
+    "Settings file is not a valid JSON object.": "O arquivo de configurações não é um objeto JSON válido.",
+    "Settings for Model Context Protocol (MCP) servers.": "Configurações para servidores de Protocolo de Contexto do Modelo (MCP).",
+    "Settings for automatic session cleanup.": "Configurações para limpeza automática de sessões.",
+    "Settings for built-in and custom tools.": "Configurações para ferramentas integradas e personalizadas.",
+    "Settings for extensions.": "Configurações para extensões.",
+    "Settings for folder trust.": "Configurações para confiança na pasta.",
+    "Settings for git-aware file filtering.": "Configurações para filtragem de arquivos com reconhecimento do Git.",
+    "Settings for managing context provided to the model.": "Configurações para gerenciar o contexto fornecido ao modelo.",
+    "Settings for shell execution.": "Configurações para execução no shell.",
+    "Settings for the CLI output.": "Configurações para a saída do CLI.",
+    "Settings for the footer.": "Configurações para o rodapé.",
+    "Settings related to the generative model.": "Configurações relacionadas ao modelo generativo.",
+    "Share the current conversation to a markdown or json file. Usage: /chat share <file>": "Compartilhe a conversa atual para um arquivo markdown ou JSON. Use: /chat share <file>",
+    "Shell": "Shell",
+    "Shell Command Execution": "Execução de Comando Shell",
+    "Show Citations": "Mostrar Citações",
+    "Show Color": "Mostrar Cor",
+    "Show Gemini CLI status and thoughts in the terminal window title": "Mostrar status e pensamentos do Gemini CLI no título da janela do terminal.",
+    "Show Line Numbers": "Mostrar Números de Linha",
+    "Show Memory Usage": "Mostrar Uso de Memória",
+    "Show Model Info In Chat": "Mostrar Info do Modelo no Chat",
+    "Show Status in Title": "Mostrar Status no Título",
+    "Show all directories in the workspace": "Mostrar todos os diretórios no espaço de trabalho",
+    "Show citations for generated text in the chat.": "Mostrar citações para o texto gerado no chat.",
+    "Show color in shell output.": "Mostrar cor na saída do shell.",
+    "Show help for this prompt": "Mostrar ajuda para este prompt.",
+    "Show line numbers in the chat.": "Mostrar números de linha no chat.",
+    "Show model-specific usage statistics": "Mostrar estatísticas de uso específicas do modelo",
+    "Show the model name in the chat for each model turn.": "Mostre o nome do modelo no chat a cada resposta.",
+    "Show tool-specific usage statistics": "Mostre estatísticas de uso específicas da ferramenta.",
+    "Show version info": "Mostre informações da versão.",
+    "Skip Next Speaker Check": "Pule a verificação do próximo interlocutor.",
+    "Skip the next speaker check.": "Pule a verificação do próximo interlocutor.",
+    "Start with web interface enabled. Use \"no-browser\" to disable auto browser opening.": "Inicie com a interface web habilitada. Use \"no-browser\" para desabilitar a abertura automática do navegador.",
+    "Starts the agent in ACP mode": "Inicia o agente no modo ACP.",
+    "Stop": "Parar",
+    "Streaming HTTP transport URL.": "URL de transporte HTTP de streaming.",
+    "Submit a bug report": "Enviar um relatório de erro",
+    "Subset of tools that should be enabled for this server. When omitted all tools are enabled.": "Conjunto de ferramentas a serem habilitadas neste servidor. Se omitido, todas são habilitadas.",
+    "Success Rate": "Taxa de Sucesso",
+    "Successfully parsed to DOCX": "Convertido para DOCX com sucesso",
+    "Suggestions & Completions": "Sugestões e Conclusões",
+    "Summarize Tool Output": "Resumir Saída da Ferramenta",
+    "Switched to fallback model.": "Mudou para o modelo de fallback.",
+    "TCP address for websocket transport.": "Endereço TCP para transporte websocket.",
+    "Telemetry": "Telemetria",
+    "Telemetry configuration for Gemini CLI.": "Configuração de telemetria para o Gemini CLI.",
+    "Telemetry configuration.": "Configuração de telemetria.",
+    "Telemetry destination (for example `stderr`, `stdout`, or `otlp`).": "Destino da telemetria (por exemplo, `stderr`, `stdout` ou `otlp`).",
+    "Template used to open a bug report URL. Variables in the template are populated at runtime.": "Modelo usado para abrir uma URL de relatório de bug. As variáveis no modelo são preenchidas em tempo de execução.",
+    "Terms of Services and Privacy Notice for Gemini CLI": "Termos de Serviço e Aviso de Privacidade para Gemini CLI",
+    "Text": "Texto",
+    "Text Input": "Entrada de Texto",
+    "The DNS resolution order.": "A ordem de resolução DNS.",
+    "The Gemini model to use for conversations.": "O modelo Gemini a ser usado para as conversas.",
+    "The absolute path of the current workspace.": "O caminho absoluto do espaço de trabalho atual.",
+    "The color theme for the UI. See the CLI themes guide for available options.": "O tema de cor para a interface. Veja o guia de temas do CLI para opções disponíveis.",
+    "The currently selected authentication type.": "O tipo de autenticação selecionado atualmente.",
+    "The format of the CLI output.": "O formato da saída do CLI.",
+    "The format to use when importing memory.": "O formato a ser usado ao importar a memória.",
+    "The fraction of context usage at which to trigger context compression (e.g. 0.2, 0.3).": "A fração do uso do contexto para disparar a compressão do contexto (ex: 0.2, 0.3).",
+    "The language for the user interface. Available options: en, pt.": "O idioma para a interface do usuário. Opções disponíveis: en, pt.",
+    "The model to use for the Codebase Investigator agent.": "O modelo a ser usado para o agente Codebase Investigator.",
+    "The name of the context file or files to load into memory. Accepts either a single string or an array of strings.": "O nome do arquivo ou arquivos de contexto para carregar na memória. Aceita uma única string ou um array de strings.",
+    "The number of lines to keep when truncating tool output.": "O número de linhas para manter ao truncar a saída da ferramenta.",
+    "The pager command to use for shell output. Defaults to `cat`.": "O comando de paginação a ser usado para a saída do shell. O padrão é `cat`.",
+    "The path of the extension in the filesystem.": "O caminho da extensão no sistema de arquivos.",
+    "The path separator.": "O separador de caminho.",
+    "The preferred editor to open files in.": "O editor preferido para abrir arquivos.",
+    "The required auth type. If this does not match the selected auth type, the user will be prompted to re-authenticate.": "O tipo de autenticação exigido. Se não corresponder ao tipo selecionado, você será solicitado a se autenticar novamente.",
+    "The thinking budget for the Codebase Investigator agent.": "Orçamento de raciocínio para o agente Codebase Investigator.",
+    "Theme": "Tema",
+    "Theme display name.": "Nome de exibição do tema.",
+    "These editors are currently supported. Please note that some editors\n            cannot be used in sandbox mode.": "Estes editores são suportados atualmente. Note que alguns editores não podem ser usados no modo sandbox.",
+    "Thinking Budget": "Orçamento de Raciocínio",
+    "This can happen due to repetitive tool calls or other model\n                behavior. Do you want to keep loop detection enabled or disable\n                it for this session?": "Isso pode acontecer devido a chamadas de ferramenta repetitivas ou outro comportamento do modelo. Você quer manter a detecção de loop ativada ou desativá-la para esta sessão?",
+    "This notice and our Privacy Policy <accent>[1]</accent> describe how Gemini Code Assist handles your data. Please read them carefully.": "Este aviso e nossa Política de Privacidade <accent>[1]</accent> descrevem como o Gemini Code Assist lida com seus dados. Leia-os atentamente.",
+    "Timeout in milliseconds for MCP requests.": "Tempo limite em milissegundos para requisições MCP.",
+    "Tips for getting started:": "Dicas para começar:",
+    "To apply the trust changes, Auditaria CLI must be restarted. Press\n            'r' to restart CLI now.": "Para aplicar as mudanças de confiança, o Auditaria CLI deve ser reiniciado. Pressione 'r' para reiniciar o CLI agora.",
+    "To help with quality and improve our products (such as generative\n        machine-learning models), human reviewers may read, annotate, and\n        process the data collected above. We take steps to protect your privacy\n        as part of this process. This includes disconnecting the data from your\n        Google Account before reviewers see or annotate it, and storing those\n        disconnected copies for up to 18 months. Please don't submit\n        confidential information or any data you wouldn't want a reviewer\n        to see or Google to use to improve our products, services and\n        machine-learning technologies.": "Para ajudar na qualidade e melhorar nossos produtos (como modelos de aprendizado de máquina generativos), revisores humanos podem ler, anotar e processar os dados coletados acima. Tomamos medidas para proteger sua privacidade como parte deste processo. Isso inclui desconectar os dados da sua Conta Google antes que os revisores os vejam ou anotem, e armazenar essas cópias desconectadas por até 18 meses. Por favor, não envie informações confidenciais ou quaisquer dados que você não gostaria que um revisor visse ou que o Google usasse para melhorar nossos produtos, serviços e tecnologias de aprendizado de máquina.",
+    "To see changes, Gemini CLI must be restarted. Press r to exit and\n            apply changes now.": "Para ver as mudanças, o Gemini CLI precisa ser reiniciado. Pressione r para sair e aplicar as mudanças agora.",
+    "Todo": "Tarefa a fazer",
+    "Toggle the debug profile display": "Alterne a exibição do perfil de depuração.",
+    "Toggle vim mode on/off": "Alterne o modo vim on/off.",
+    "Toggles corgi mode": "Ativa/desativa o modo corgi",
+    "Tool Call Command": "Comando de Chamada de Ferramenta",
+    "Tool Discovery Command": "Comando de Descoberta de Ferramenta",
+    "Tool Name": "Nome da Ferramenta",
+    "Tool Output Truncation Lines": "Limite de linhas da saída da ferramenta",
+    "Tool Output Truncation Threshold": "Limite de truncamento da saída da ferramenta",
+    "Tool Stats For Nerds": "Estatísticas da Ferramenta Para Nerds",
+    "Tool names to exclude from discovery.": "Nomes de ferramentas para excluir da descoberta.",
+    "Tool: {toolName}": "Ferramenta: {toolName}",
+    "Tools": "Ferramentas",
+    "Tools that are allowed to run without confirmation": "Ferramentas que podem ser executadas sem confirmação",
+    "Tools that should be disabled for this server even if exposed.": "Ferramentas que devem ser desativadas neste servidor, mesmo que expostas.",
+    "Tools:": "Ferramentas:",
+    "Total Reviewed Suggestions:": "Sugestões Revisadas no Total:",
+    "Truncate tool output if it is larger than this many characters. Set to -1 to disable.": "Truncar a saída da ferramenta se ela for maior que este número de caracteres. Defina como -1 para desativar.",
+    "Trusting a folder allows Gemini to execute commands it suggests.\n            This is a security feature to prevent accidental execution in\n            untrusted directories.": "Confiar em uma pasta permite que o Gemini execute comandos que ele sugere.",
+    "Trusting a folder allows Gemini to read and perform auto-edits when\n            in auto-approval mode. This is a security feature to prevent\n            accidental execution in untrusted directories.": "Confiar em uma pasta permite que o Gemini leia e faça edições automáticas quando no modo de aprovação automática. Isso é um recurso de segurança para evitar execuções acidentais em diretórios não confiáveis.",
+    "UI": "UI",
+    "URLs to fetch:": "URLs para buscar:",
+    "Update extensions. Usage: update <extension-names>|--all": "Atualize as extensões. Uso: update <extension-names>|--all",
+    "Update successful! The new version will be used on your next run.": "Atualização bem-sucedida! A nova versão será usada na sua próxima execução.",
+    "Upgrade for higher limits": "Atualize para limites maiores",
+    "Usage: /extensions restart <extension-names>|--all": "Uso: /extensions restart <extension-names>|--all",
+    "Usage: /extensions update <extension-names>|--all": "Uso: /extensions update <extension-names>|--all",
+    "Use Alternate Screen Buffer": "Usar Buffer de Tela Alternativo",
+    "Use Cloud Shell user credentials": "Usar as credenciais do usuário do Cloud Shell",
+    "Use External Auth": "Usar Autenticação Externa",
+    "Use Full Width": "Usar Largura Total",
+    "Use Gemini API Key": "Usar a Chave da API Gemini",
+    "Use Ripgrep": "Usar Ripgrep",
+    "Use Smart Edit": "Usar Edição Inteligente",
+    "Use WriteTodos": "Usar WriteTodos",
+    "Use an alternate screen buffer for the UI, preserving shell history.": "Use um buffer de tela alternativo para a interface, preservando o histórico do shell.",
+    "Use metadata server application default credentials": "Use as credenciais padrão do servidor de metadados da aplicação",
+    "Use ripgrep for file content search instead of the fallback implementation. Provides faster search performance.": "Use o ripgrep para buscar conteúdo em arquivos, em vez da implementação padrão. Oferece busca mais rápida.",
+    "Use the entire width of the terminal for output.": "Use a largura total do terminal para a saída.",
+    "User Decision Summary": "Resumo da Decisão do Usuário",
+    "User Email": "Email do Usuário",
+    "User Settings": "Configurações do Usuário",
+    "User cancelled the request.": "O usuário cancelou a solicitação.",
+    "User interface settings.": "Configurações da interface do usuário.",
+    "Using:": "Usando:",
+    "Using: {summaryParts}": "Usando: {summaryParts}",
+    "Vertex AI": "Vertex AI",
+    "Vertex AI Notice": "Aviso do Vertex AI",
+    "View and edit Gemini CLI settings": "Veja e edite as configurações do Gemini CLI",
+    "Vim Mode": "Modo Vim",
+    "When you use Gemini Code Assist for individuals with Gemini CLI, Google\n        collects your prompts, related code, generated output, code edits,\n        related feature usage information, and your feedback to provide,\n        improve, and develop Google products and services and machine learning\n        technologies.": "Quando você usa o Gemini Code Assist para usuários individuais com o Gemini CLI, o Google coleta seus prompts, código relacionado, resultados gerados, edições de código, informações de uso de recursos relacionados e seu feedback para fornecer, melhorar e desenvolver produtos e serviços do Google e tecnologias de aprendizado de máquina.",
+    "Whether prompts are logged in telemetry payloads.": "Se os prompts são registrados nos payloads de telemetria.",
+    "Whether the user has seen the IDE integration nudge.": "Se o usuário já viu o aviso de integração com a IDE.",
+    "Whether to forward telemetry to an OTLP collector.": "Se deve enviar a telemetria para um coletor OTLP.",
+    "Whether to use an external authentication flow.": "Se deve usar um fluxo de autenticação externo.",
+    "Working directory for the server process.": "Diretório de trabalho do processo do servidor.",
+    "Workspace Settings": "Configurações do Workspace",
+    "Workspaces with Migration Nudge": "Workspaces com Alerta de Migração",
+    "Yes": "Sim",
+    "Yes, allow always": "Sim, permitir sempre",
+    "Yes, allow always for this session": "Sim, permitir sempre para esta sessão",
+    "Yes, allow once": "Sim, permitir uma vez",
+    "Yes, and remember the directories as trusted": "Sim, e lembrar os diretórios como confiáveis",
+    "You are currently in screen reader-friendly view. To switch out, open {settingsPath} and remove the entry for \"screenReader\". This will disappear on next run.": "Você está atualmente em uma visualização otimizada para leitores de tela. Para desativar, abra {settingsPath} e remova a entrada \"screenReader\". Isso desaparecerá na próxima execução.",
+    "You can get an API key from <accent>https://aistudio.google.com/app/apikey</accent>": "Você pode obter uma API key em <accent>https://aistudio.google.com/app/apikey</accent>",
+    "Your terminal is already configured for an optimal experience with multiline input (Shift+Enter and Ctrl+Enter).": "Seu terminal já está configurado para uma experiência ideal com entrada multilinhas (Shift+Enter e Ctrl+Enter).",
+    "[MCP]": "[MCP]",
+    "[{displayVimMode}]": "[{displayVimMode}]",
+    "change language preference": "alterar preferência de idioma",
+    "download and setup a skill": "Baixe e configure uma skill",
+    "https://developers.google.com/gemini-code-assist/resources/privacy-notices": "https://developers.google.com/gemini-code-assist/resources/privacy-notices",
+    "mixed static/dynamic content": "conteúdo estático/dinâmico misto",
+    "open web interface in browser": "Abra a interface web no navegador",
+    "shell mode enabled <accent>(esc to disable)</accent>": "Modo shell ativado <accent>(esc para desativar)</accent>",
+    "static text with ternary/dynamic": "texto estático com ternário/dinâmico",
+    "switch between Gemini Pro and Flash models": "altere entre os modelos Gemini Pro e Flash",
+    "toggle between improved fallback strategy (7 attempts, 2s delays, reset to Pro) and original Google behavior (2 attempts, exponential backoff)": "Alterne entre a estratégia de fallback aprimorada (7 tentativas, 2s de atraso, volta para Pro) e o comportamento original do Google (2 tentativas, backoff exponencial).",
+    "toggle whether to stay on Pro model (disable/enable fallback to Flash)": "Alterne se deve permanecer no modelo Pro (desativar/ativar o fallback para Flash).",
+    "untrusted": "não confiável",
+    "x {totalFail}": "x {totalFail}",
+    "{agreementRate}% <accent>(reviewed)</accent>": "{agreementRate}% <accent>(revisado)</accent>",
+    "{cached} ({cacheHitRate}%)": "{cached} ({cacheHitRate}%)",
+    "{displayName} ({name})": "{displayName} ({name})",
+    "{errorIcon} {errorCount} error <accent>(F12 for details)</accent>": "{errorIcon} {errorCount} erro <accent>(F12 para detalhes)</accent>",
+    "{errorIcon} {errorCount} errors <accent>(F12 for details)</accent>": "{errorIcon} {errorCount} erros <accent>(F12 para detalhes)</accent>",
+    "{message} Press 'r' to restart Gemini to apply the changes.": "{message} Pressione 'r' para reiniciar o Gemini e aplicar as mudanças.",
+    "{score} (ctrl+t to toggle)": "{score} (ctrl+t para alternar)",
+    "{successRate}%": "{successRate}%",
+    "{totalCalls} (<accent>✓</accent> <accent1>x</accent1>)": "{totalCalls} (<accent>✓</accent> <accent1>x</accent1>)",
+    "{totalErrors} ({errorRate}%)": "{totalErrors} ({errorRate}%)",
+    "{totalFlickerFrames} (flicker)": "{totalFlickerFrames} (flicker)",
+    "{totalIdleFrames} (idle)": "{totalIdleFrames} (idle)",
+    "{type}: {content}": "{type}: {content}",
+    "|⌐■_■|": "|⌐■_■|",
+    "» Accepted:": "» Aceito(a):",
+    "» Modified:": "» Modificado:",
+    "» Rejected:": "» Rejeitado:",
+    "» Tip: For a full token breakdown, run `/stats model`.": "» Dica: Para uma análise detalhada do token, execute `/stats model`.",
+    "» {title}": "» {title}",
+    "⏳ MCP servers are starting up ({length} initializing)...": "⏳ Servidores MCP estão iniciando ({length} inicializando)...",
+    "│ {renderedCells} │": "│ {renderedCells} │",
+    "✓ {totalSuccess}": "✓ {totalSuccess}",
+    "🔴": "🔴"
   }
 }

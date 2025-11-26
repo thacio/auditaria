@@ -1,0 +1,111 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/**
+ * Manages file and pattern exclusions for i18n transformation
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { minimatch } from 'minimatch';
+import { debugLogger } from './debug-logger.js';
+
+export class ExclusionManager {
+  constructor() {
+    this.patterns = [];
+    this.loaded = false;
+  }
+
+  loadExclusions() {
+    const ignorePath = path.join(process.cwd(), '.i18n-ignore');
+
+    // Default exclusions
+    this.patterns = [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/test/**',
+      '**/tests/**',
+      '**/mocks/**',
+      '**/__mocks__/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/bundle/**',
+      '**/*.d.ts',
+    ];
+
+    // Load custom exclusions from .i18n-ignore file
+    if (fs.existsSync(ignorePath)) {
+      try {
+        const content = fs.readFileSync(ignorePath, 'utf8');
+        const customPatterns = content
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line && !line.startsWith('#'));
+
+        this.patterns.push(...customPatterns);
+        debugLogger.debug(
+          `Loaded ${customPatterns.length} custom exclusion patterns`,
+        );
+      } catch (error) {
+        debugLogger.warn(`Failed to load .i18n-ignore: ${error.message}`);
+      }
+    } else {
+      debugLogger.debug(
+        '.i18n-ignore file not found, using default exclusions',
+      );
+    }
+
+    this.loaded = true;
+    debugLogger.debug(`Total exclusion patterns: ${this.patterns.length}`);
+  }
+
+  isExcluded(filePath) {
+    if (!this.loaded) {
+      this.loadExclusions();
+    }
+
+    const normalizedPath = path.normalize(filePath).replace(/\\/g, '/');
+
+    for (const pattern of this.patterns) {
+      if (minimatch(normalizedPath, pattern, { matchBase: true })) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Check if a specific line or function should be excluded based on comments
+  shouldExcludeLine(line, previousLine = '') {
+    const exclusionMarkers = [
+      '@i18n-ignore',
+      '@i18n-skip',
+      'i18n-disable',
+      'no-i18n',
+    ];
+
+    const combinedText = `${previousLine} ${line}`.toLowerCase();
+    return exclusionMarkers.some((marker) => combinedText.includes(marker));
+  }
+
+  // Check if we're inside a debug or internal context
+  isDebugContext(text) {
+    const debugPatterns = [
+      /^DEBUG:/i,
+      /^\[debug\]/i,
+      /^\[internal\]/i,
+      /^\[system\]/i,
+      /^Error:/,
+      /^Warning:/,
+      /Stack trace:/i,
+    ];
+
+    return debugPatterns.some((pattern) => pattern.test(text));
+  }
+}

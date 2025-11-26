@@ -43,6 +43,7 @@ import {
   logUserPrompt,
   AuthType,
   initI18n,
+  isLanguageSupported,
   getOauthClient,
   UserPromptEvent,
   debugLogger,
@@ -355,7 +356,11 @@ export async function main() {
   );
 
   // Initialize i18n system with settings-based language or fallback to detection
-  const language = settings.merged.ui?.language || detectLanguage();
+  const settingsLanguage = settings.merged.ui?.language;
+  const language: SupportedLanguage =
+    settingsLanguage && isLanguageSupported(settingsLanguage)
+      ? settingsLanguage
+      : detectLanguage();
   await initI18n(language);
   await cleanupCheckpoints();
 

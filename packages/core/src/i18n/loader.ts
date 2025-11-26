@@ -1,77 +1,88 @@
 /**
  * @license
+ * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import type { SupportedLanguage, TranslationData, LoadedTranslations } from './types.js';
+import type {
+  SupportedLanguage,
+  TranslationData,
+  LoadedTranslations,
+} from './types.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Import translations directly - esbuild will inline these JSON files
+// Note: English doesn't need a file - the key IS the English text (used as fallback)
+// eslint-disable-next-line import/no-internal-modules
+import ptTranslations from './locales/pt.json' with { type: 'json' };
+
+// Bundled translations available synchronously
+// English returns empty object - t() uses key as fallback
+const bundledTranslations: Record<string, TranslationData> = {
+  en: { _exactStrings: {} } as TranslationData,
+  pt: ptTranslations as TranslationData,
+};
 
 class TranslationLoader {
   private loadedTranslations: LoadedTranslations = {};
-  private localesPath: string;
+  private initialized = false;
 
-  constructor() {
-    this.localesPath = path.join(__dirname, 'locales');
+  /**
+   * Initialize translations synchronously from bundled data
+   * This is the preferred method for build-time i18n
+   */
+  initializeSync(): void {
+    if (this.initialized) return;
+
+    // Load all bundled translations synchronously
+    for (const [lang, translations] of Object.entries(bundledTranslations)) {
+      this.loadedTranslations[lang as SupportedLanguage] = translations;
+    }
+    this.initialized = true;
   }
 
+  /**
+   * Get translations for a specific language synchronously
+   * Auto-initializes if not already done
+   */
+  getTranslationsSync(language: SupportedLanguage): TranslationData {
+    if (!this.initialized) {
+      this.initializeSync();
+    }
+    return this.loadedTranslations[language] || bundledTranslations['en'];
+  }
+
+  /**
+   * @deprecated Use initializeSync() instead - kept for backwards compatibility
+   */
   async loadLanguage(language: SupportedLanguage): Promise<TranslationData> {
-    const existing = this.loadedTranslations[language as keyof LoadedTranslations];
-    if (existing) {
-      return existing;
+    if (!this.initialized) {
+      this.initializeSync();
     }
-
-    try {
-      const filePath = path.join(this.localesPath, `${language}.json`);
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const translations: TranslationData = JSON.parse(fileContent);
-      
-      (this.loadedTranslations as any)[language] = translations;
-      return translations;
-    } catch (error) {
-      // If translation file doesn't exist, return empty object
-      console.warn(`Could not load translations for language ${language}:`, error);
-      return {};
-    }
+    return this.loadedTranslations[language] || ({} as TranslationData);
   }
 
+  /**
+   * @deprecated Use initializeSync() instead - kept for backwards compatibility
+   */
   async loadAllLanguages(): Promise<LoadedTranslations> {
-    try {
-      // Dynamically discover available language files
-      const files = await import('fs').then(fs => fs.promises.readdir(this.localesPath));
-      const languageFiles = files.filter(file => file.endsWith('.json'));
-      const languages = languageFiles.map(file => file.replace('.json', '') as SupportedLanguage);
-      
-      await Promise.all(
-        languages.map(async (lang) => {
-          await this.loadLanguage(lang);
-        })
-      );
-    } catch (error) {
-      // Fallback to known languages if directory reading fails
-      console.warn('Could not read locales directory, falling back to defaults:', error);
-      const fallbackLanguages: SupportedLanguage[] = ['en', 'pt'];
-      
-      await Promise.all(
-        fallbackLanguages.map(async (lang) => {
-          await this.loadLanguage(lang);
-        })
-      );
-    }
-
+    this.initializeSync();
     return this.loadedTranslations;
   }
 
   getLoadedTranslations(): LoadedTranslations {
+    if (!this.initialized) {
+      this.initializeSync();
+    }
     return this.loadedTranslations;
+  }
+
+  isInitialized(): boolean {
+    return this.initialized;
   }
 
   clearCache(): void {
     this.loadedTranslations = {};
+    this.initialized = false;
   }
 }
 
