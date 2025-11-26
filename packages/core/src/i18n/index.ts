@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import type {
   SupportedLanguage,
   TranslationData,
@@ -11,11 +14,42 @@ import type {
 } from './types.js';
 import { isLanguageSupported } from './types.js';
 import { translationLoader } from './loader.js';
+import { GEMINI_DIR } from '../utils/paths.js';
 
 /**
- * Detect language from environment variables or system locale
- * Note: User settings are handled at the CLI level, not here
- * Priority: 1. AUDITARIA_LANG env, 2. System locale, 3. Default 'en'
+ * Try to read language from user settings file synchronously
+ * Returns the language if found and valid, undefined otherwise
+ */
+function readLanguageFromSettings(): SupportedLanguage | undefined {
+  try {
+    // Build settings path: ~/.gemini/settings.json (same as Storage.getGlobalSettingsPath())
+    const homeDir = os.homedir();
+    if (!homeDir) return undefined;
+
+    const settingsPath = path.join(homeDir, GEMINI_DIR, 'settings.json');
+
+    // Check if file exists
+    if (!fs.existsSync(settingsPath)) return undefined;
+
+    // Read and parse settings file synchronously
+    const content = fs.readFileSync(settingsPath, 'utf-8');
+    const settings = JSON.parse(content);
+
+    // Check ui.language path
+    const language = settings?.ui?.language;
+    if (language && isLanguageSupported(language)) {
+      return language;
+    }
+  } catch {
+    // Silently ignore errors (file not found, invalid JSON, etc.)
+    // Fall through to other detection methods
+  }
+  return undefined;
+}
+
+/**
+ * Detect language from environment variables, user settings, or system locale
+ * Priority: 1. AUDITARIA_LANG env, 2. User settings file, 3. System locale, 4. Default 'en'
  */
 function detectLanguage(): SupportedLanguage {
   // 1. Check explicit environment variable
@@ -24,7 +58,13 @@ function detectLanguage(): SupportedLanguage {
     return envLang;
   }
 
-  // 2. Check system locale environment variables
+  // 2. Check user settings file
+  const settingsLang = readLanguageFromSettings();
+  if (settingsLang) {
+    return settingsLang;
+  }
+
+  // 3. Check system locale environment variables
   const locale =
     process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || '';
 
@@ -33,7 +73,7 @@ function detectLanguage(): SupportedLanguage {
     return 'pt';
   }
 
-  // 3. Default to English
+  // 4. Default to English
   return 'en';
 }
 
