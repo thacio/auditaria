@@ -101,10 +101,15 @@ class I18nManager {
     path: string,
   ): string | undefined {
     const keys = path.split('.');
-    let current: TranslationData | string = obj;
+    let current: string | string[] | TranslationData = obj;
 
     for (const key of keys) {
-      if (current && typeof current === 'object' && key in current) {
+      if (
+        current &&
+        typeof current === 'object' &&
+        !Array.isArray(current) &&
+        key in current
+      ) {
         current = current[key];
       } else {
         return undefined;
@@ -149,11 +154,18 @@ class I18nManager {
 
     if (currentLangData) {
       // Try exact string lookup FIRST (primary for build-time transformed strings)
-      if (currentLangData._exactStrings && currentLangData._exactStrings[key]) {
-        const exactTranslation = currentLangData._exactStrings[key];
-        return params
-          ? this.interpolateString(exactTranslation, params)
-          : exactTranslation;
+      const exactStrings = currentLangData._exactStrings;
+      if (
+        exactStrings &&
+        typeof exactStrings === 'object' &&
+        !Array.isArray(exactStrings)
+      ) {
+        const exactTranslation = exactStrings[key];
+        if (typeof exactTranslation === 'string') {
+          return params
+            ? this.interpolateString(exactTranslation, params)
+            : exactTranslation;
+        }
       }
 
       // Try nested key lookup as legacy fallback (e.g., 'commands.model.description')
@@ -170,14 +182,18 @@ class I18nManager {
       const fallbackLangData = loadedTranslations[this.config.fallbackLanguage];
       if (fallbackLangData) {
         // Try exact string lookup FIRST
+        const fallbackExactStrings = fallbackLangData._exactStrings;
         if (
-          fallbackLangData._exactStrings &&
-          fallbackLangData._exactStrings[key]
+          fallbackExactStrings &&
+          typeof fallbackExactStrings === 'object' &&
+          !Array.isArray(fallbackExactStrings)
         ) {
-          const exactTranslation = fallbackLangData._exactStrings[key];
-          return params
-            ? this.interpolateString(exactTranslation, params)
-            : exactTranslation;
+          const exactTranslation = fallbackExactStrings[key];
+          if (typeof exactTranslation === 'string') {
+            return params
+              ? this.interpolateString(exactTranslation, params)
+              : exactTranslation;
+          }
         }
 
         // Try nested key lookup as legacy fallback
@@ -242,7 +258,8 @@ export const initI18n = async (language?: SupportedLanguage): Promise<void> => {
  * Get current translation data
  * @returns Current translation data or null if not initialized
  */
-export const getTranslationData = (): TranslationData | null => i18nManager.getCurrentTranslationData();
+export const getTranslationData = (): TranslationData | null =>
+  i18nManager.getCurrentTranslationData();
 
 /**
  * Set current language and reload translations
@@ -258,7 +275,8 @@ export const setLanguage = async (
  * Get current language
  * @returns Current language
  */
-export const getCurrentLanguage = (): SupportedLanguage => i18nManager.getCurrentLanguage();
+export const getCurrentLanguage = (): SupportedLanguage =>
+  i18nManager.getCurrentLanguage();
 
 // Export types and utilities
 export * from './types.js';
