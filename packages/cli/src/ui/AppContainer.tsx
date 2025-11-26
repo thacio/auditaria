@@ -102,6 +102,7 @@ import { type UpdateObject } from './utils/updateCheck.js';
 import { setUpdateHandler } from '../utils/handleAutoUpdate.js';
 import { registerCleanup, runExitCleanup } from '../utils/cleanup.js';
 import { RELAUNCH_EXIT_CODE } from '../utils/processUtils.js';
+import type { SessionInfo } from '../utils/sessionUtils.js';
 import { useMessageQueue } from './hooks/useMessageQueue.js';
 import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
 import { useSessionStats } from './contexts/SessionContext.js';
@@ -121,9 +122,10 @@ import {
   useExtensionUpdates,
 } from './hooks/useExtensionUpdates.js';
 import { ShellFocusContext } from './contexts/ShellFocusContext.js';
-import { useSessionResume } from './hooks/useSessionResume.js';
 import { type ExtensionManager } from '../config/extension-manager.js';
 import { requestConsentInteractive } from '../config/extensions/consent.js';
+import { useSessionBrowser } from './hooks/useSessionBrowser.js';
+import { useSessionResume } from './hooks/useSessionResume.js';
 import { useIncludeDirsTrust } from './hooks/useIncludeDirsTrust.js';
 import { isWorkspaceTrusted } from '../config/trustedFolders.js';
 import { useAlternateBuffer } from './hooks/useAlternateBuffer.js';
@@ -449,7 +451,7 @@ export const AppContainer = (props: AppContainerProps) => {
   // Session browser and resume functionality
   const isGeminiClientInitialized = config.getGeminiClient()?.isInitialized();
 
-  useSessionResume({
+  const { loadHistoryForResume } = useSessionResume({
     config,
     historyManager,
     refreshStatic,
@@ -458,6 +460,20 @@ export const AppContainer = (props: AppContainerProps) => {
     resumedSessionData,
     isAuthenticating,
   });
+  const {
+    isSessionBrowserOpen,
+    openSessionBrowser,
+    closeSessionBrowser,
+    handleResumeSession,
+    handleDeleteSession: handleDeleteSessionSync,
+  } = useSessionBrowser(config, loadHistoryForResume);
+  // Wrap handleDeleteSession to return a Promise for UIActions interface
+  const handleDeleteSession = useCallback(
+    async (session: SessionInfo): Promise<void> => {
+      handleDeleteSessionSync(session);
+    },
+    [handleDeleteSessionSync],
+  );
 
   // Create handleAuthSelect wrapper for backward compatibility
   const handleAuthSelect = useCallback(
@@ -593,6 +609,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       openLanguageDialog,
       openPrivacyNotice: () => setShowPrivacyNotice(true),
       openSettingsDialog,
+      openSessionBrowser,
       openModelDialog,
       openPermissionsDialog,
       quit: (messages: HistoryItem[]) => {
@@ -614,6 +631,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       openEditorDialog,
       openLanguageDialog,
       openSettingsDialog,
+      openSessionBrowser,
       openModelDialog,
       setQuittingMessages,
       setDebugMessage,
@@ -1356,6 +1374,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     showPrivacyNotice ||
     showIdeRestartPrompt ||
     !!proQuotaRequest ||
+    isSessionBrowserOpen ||
     isAuthDialogOpen ||
     authState === AuthState.AwaitingApiKeyInput;
 
@@ -1586,7 +1605,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       let reason = 'general';
 
       if (shouldShowIdePrompt) {
-        message = 'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.';
+        message =
+          'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.';
         reason = 'ide_integration';
       } else if (isAuthenticating || isAuthDialogOpen) {
         const authMessage = isAuthenticating
@@ -1595,37 +1615,47 @@ Logging in with Google... Restarting Gemini CLI to continue.
         message = authMessage;
         reason = 'authentication';
       } else if (isThemeDialogOpen) {
-        message = 'Theme selection is open. Please choose a theme in the CLI terminal.';
+        message =
+          'Theme selection is open. Please choose a theme in the CLI terminal.';
         reason = 'theme_selection';
       } else if (isEditorDialogOpen) {
-        message = 'Editor settings are open. Please configure your editor in the CLI terminal.';
+        message =
+          'Editor settings are open. Please configure your editor in the CLI terminal.';
         reason = 'editor_settings';
       } else if (isLanguageDialogOpen) {
-        message = 'Language selection is open. Please choose a language in the CLI terminal.';
+        message =
+          'Language selection is open. Please choose a language in the CLI terminal.';
         reason = 'language_selection';
       } else if (isSettingsDialogOpen) {
-        message = 'Settings dialog is open. Please configure settings in the CLI terminal.';
+        message =
+          'Settings dialog is open. Please configure settings in the CLI terminal.';
         reason = 'settings';
       } else if (isModelDialogOpen) {
-        message = 'Model selection is open. Please choose a model in the CLI terminal.';
+        message =
+          'Model selection is open. Please choose a model in the CLI terminal.';
         reason = 'model_selection';
       } else if (isFolderTrustDialogOpen) {
-        message = 'Folder trust dialog is open. Please respond in the CLI terminal.';
+        message =
+          'Folder trust dialog is open. Please respond in the CLI terminal.';
         reason = 'folder_trust';
       } else if (showPrivacyNotice) {
-        message = 'Privacy notice is displayed. Please review in the CLI terminal.';
+        message =
+          'Privacy notice is displayed. Please review in the CLI terminal.';
         reason = 'privacy_notice';
       } else if (proQuotaRequest) {
-        message = 'Quota exceeded dialog is open. Please choose an option in the CLI terminal.';
+        message =
+          'Quota exceeded dialog is open. Please choose an option in the CLI terminal.';
         reason = 'quota_exceeded';
       } else if (shellConfirmationRequest) {
-        message = 'Shell command confirmation required. Please respond in the CLI terminal.';
+        message =
+          'Shell command confirmation required. Please respond in the CLI terminal.';
         reason = 'shell_confirmation';
       } else if (confirmationRequest) {
         message = 'Confirmation required. Please respond in the CLI terminal.';
         reason = 'confirmation';
       } else if (loopDetectionConfirmationRequest) {
-        message = 'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.';
+        message =
+          'Loop detection confirmation required. Please choose whether to keep or disable loop detection in the CLI terminal.';
         reason = 'loop_detection';
       }
 
@@ -1825,6 +1855,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isSessionBrowserOpen,
       isModelDialogOpen,
       isPermissionsDialogOpen,
       permissionsDialogProps,
@@ -1917,6 +1948,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       debugMessage,
       quittingMessages,
       isSettingsDialogOpen,
+      isSessionBrowserOpen,
       isModelDialogOpen,
       isPermissionsDialogOpen,
       permissionsDialogProps,
@@ -2027,6 +2059,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleFinalSubmit,
       handleClearScreen,
       handleProQuotaChoice,
+      openSessionBrowser,
+      closeSessionBrowser,
+      handleResumeSession,
+      handleDeleteSession,
       setQueueErrorMessage,
       popAllMessages,
       handleApiKeySubmit,
@@ -2059,6 +2095,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleFinalSubmit,
       handleClearScreen,
       handleProQuotaChoice,
+      openSessionBrowser,
+      closeSessionBrowser,
+      handleResumeSession,
+      handleDeleteSession,
       setQueueErrorMessage,
       popAllMessages,
       handleApiKeySubmit,

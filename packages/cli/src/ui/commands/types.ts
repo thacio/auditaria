@@ -145,6 +145,7 @@ export interface OpenDialogActionReturn {
     | 'privacy'
     | 'language'
     | 'settings'
+    | 'sessionBrowser'
     | 'model'
     | 'permissions';
 }
