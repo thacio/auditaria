@@ -86,6 +86,7 @@ import type { EventEmitter } from 'node:events';
 import { MessageBus } from '../confirmation-bus/message-bus.js';
 import { PolicyEngine } from '../policy/policy-engine.js';
 import type { PolicyEngineConfig } from '../policy/types.js';
+import { HookSystem } from '../hooks/index.js';
 import type { UserTierId } from '../code_assist/types.js';
 import { getCodeAssistServer } from '../code_assist/codeAssist.js';
 import type { Experiments } from '../code_assist/experiments/experiments.js';
@@ -428,6 +429,7 @@ export class Config {
     | undefined;
   private experiments: Experiments | undefined;
   private experimentsPromise: Promise<void> | undefined;
+  private hookSystem?: HookSystem;
 
   private previewModelFallbackMode = false;
   private previewModelBypassMode = false;
@@ -648,6 +650,12 @@ export class Config {
     const { loadSkillsPromptSection } = await import('../skills/index.js');
     this.skillsPromptSection = await loadSkillsPromptSection(this.targetDir);
     // AUDITARIA_SKILLS_END
+
+    // Initialize hook system if enabled
+    if (this.enableHooks) {
+      this.hookSystem = new HookSystem(this);
+      await this.hookSystem.initialize();
+    }
 
     await this.geminiClient.initialize();
   }
@@ -1530,6 +1538,13 @@ export class Config {
     await registry.discoverAllTools();
     registry.sortTools();
     return registry;
+  }
+
+  /**
+   * Get the hook system instance
+   */
+  getHookSystem(): HookSystem | undefined {
+    return this.hookSystem;
   }
 
   /**
