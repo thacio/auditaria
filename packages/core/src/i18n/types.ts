@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type SupportedLanguage = 'en' | 'pt';
+export type SupportedLanguage = 'en' | 'es' | 'pt';
 
 export interface LanguageInfo {
   code: SupportedLanguage;
@@ -21,6 +21,7 @@ export interface LanguageInfo {
  */
 export const AVAILABLE_LANGUAGES: LanguageInfo[] = [
   { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'es', name: 'Spanish', nativeName: 'Español' },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português' },
 ];
 
@@ -59,6 +60,7 @@ export interface TranslationData {
 
 export interface LoadedTranslations {
   en?: TranslationData;
+  es?: TranslationData;
   pt?: TranslationData;
 }
 

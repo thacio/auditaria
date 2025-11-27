@@ -13,12 +13,15 @@ import type {
 // Import translations directly - esbuild will inline these JSON files
 // Note: English doesn't need a file - the key IS the English text (used as fallback)
 // eslint-disable-next-line import/no-internal-modules
+import esTranslations from './locales/es.json' with { type: 'json' };
+// eslint-disable-next-line import/no-internal-modules
 import ptTranslations from './locales/pt.json' with { type: 'json' };
 
 // Bundled translations available synchronously
 // English returns empty object - t() uses key as fallback
 const bundledTranslations: Record<string, TranslationData> = {
   en: { _exactStrings: {} } as TranslationData,
+  es: esTranslations as TranslationData,
   pt: ptTranslations as TranslationData,
 };
 

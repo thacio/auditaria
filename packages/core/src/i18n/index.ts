@@ -68,8 +68,13 @@ function detectLanguage(): SupportedLanguage {
   const locale =
     process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || '';
 
-  // Simple detection - if locale contains 'pt', use Portuguese
-  if (locale.toLowerCase().includes('pt')) {
+  const localeLower = locale.toLowerCase();
+
+  // Simple detection - check for language codes in locale
+  if (localeLower.includes('es')) {
+    return 'es';
+  }
+  if (localeLower.includes('pt')) {
     return 'pt';
   }
 

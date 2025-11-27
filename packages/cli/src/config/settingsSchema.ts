@@ -416,7 +416,7 @@ const SETTINGS_SCHEMA = {
         requiresRestart: false,
         default: undefined as string | undefined,
         description:
-          'The language for the user interface. Available options: en, pt.',
+          'The language for the user interface. Available options: en, es, pt.',
         showInDialog: true,
       },
       footer: {

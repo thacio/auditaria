@@ -15,7 +15,8 @@ Setup:
     3. Run this script: python scripts/i18n-workflow.py --lang=pt
 
 Usage:
-    python scripts/i18n-workflow.py --lang=pt
+    python scripts/i18n-workflow.py                   # Auto-detect all languages
+    python scripts/i18n-workflow.py --lang=pt         # Specific language
     python scripts/i18n-workflow.py --lang=pt --skip-build
     python scripts/i18n-workflow.py --lang=pt --step=extract
     python scripts/i18n-workflow.py --lang=pt --step=translate
@@ -53,31 +54,176 @@ def safe_print(text: str) -> None:
 # =============================================================================
 
 LANGUAGE_CONFIG = {
+    # Romance languages
     'pt': {
         'name': 'Portuguese (Brazilian)',
         'code': 'pt-BR',
-        'form': 'informal "você"',
         'instructions': 'Use informal "você" form, not "tu". Be concise.',
     },
     'es': {
         'name': 'Spanish',
         'code': 'es',
-        'form': 'informal "tú"',
         'instructions': 'Use informal "tú" form. Be concise.',
     },
     'fr': {
         'name': 'French',
         'code': 'fr',
-        'form': 'informal "tu"',
         'instructions': 'Use informal "tu" form. Be concise.',
     },
+    'it': {
+        'name': 'Italian',
+        'code': 'it',
+        'instructions': 'Use informal "tu" form. Be concise.',
+    },
+    'ro': {
+        'name': 'Romanian',
+        'code': 'ro',
+        'instructions': 'Use informal "tu" form. Be concise.',
+    },
+    # Germanic languages
     'de': {
         'name': 'German',
         'code': 'de',
-        'form': 'informal "du"',
         'instructions': 'Use informal "du" form. Be concise.',
     },
+    'nl': {
+        'name': 'Dutch',
+        'code': 'nl',
+        'instructions': 'Use informal "je" form. Be concise.',
+    },
+    'sv': {
+        'name': 'Swedish',
+        'code': 'sv',
+        'instructions': 'Use informal "du" form. Be concise.',
+    },
+    'no': {
+        'name': 'Norwegian',
+        'code': 'no',
+        'instructions': 'Use informal "du" form. Be concise.',
+    },
+    'da': {
+        'name': 'Danish',
+        'code': 'da',
+        'instructions': 'Use informal "du" form. Be concise.',
+    },
+    # Slavic languages
+    'ru': {
+        'name': 'Russian',
+        'code': 'ru',
+        'instructions': 'Use informal "ты" form. Be concise.',
+    },
+    'pl': {
+        'name': 'Polish',
+        'code': 'pl',
+        'instructions': 'Use informal "ty" form. Be concise.',
+    },
+    'cs': {
+        'name': 'Czech',
+        'code': 'cs',
+        'instructions': 'Use informal "ty" form. Be concise.',
+    },
+    'uk': {
+        'name': 'Ukrainian',
+        'code': 'uk',
+        'instructions': 'Use informal "ти" form. Be concise.',
+    },
+    # Asian languages
+    'ja': {
+        'name': 'Japanese',
+        'code': 'ja',
+        'instructions': 'Use polite form (です/ます). Be concise.',
+    },
+    'ko': {
+        'name': 'Korean',
+        'code': 'ko',
+        'instructions': 'Use polite form (해요체). Be concise.',
+    },
+    'zh': {
+        'name': 'Chinese (Simplified)',
+        'code': 'zh-CN',
+        'instructions': 'Use Simplified Chinese. Be concise.',
+    },
+    'zh-tw': {
+        'name': 'Chinese (Traditional)',
+        'code': 'zh-TW',
+        'instructions': 'Use Traditional Chinese. Be concise.',
+    },
+    'vi': {
+        'name': 'Vietnamese',
+        'code': 'vi',
+        'instructions': 'Use informal form. Be concise.',
+    },
+    'th': {
+        'name': 'Thai',
+        'code': 'th',
+        'instructions': 'Use polite form. Be concise.',
+    },
+    'id': {
+        'name': 'Indonesian',
+        'code': 'id',
+        'instructions': 'Use informal form. Be concise.',
+    },
+    'ms': {
+        'name': 'Malay',
+        'code': 'ms',
+        'instructions': 'Use informal form. Be concise.',
+    },
+    'hi': {
+        'name': 'Hindi',
+        'code': 'hi',
+        'instructions': 'Use informal "तुम" form. Be concise.',
+    },
+    # Other languages
+    'tr': {
+        'name': 'Turkish',
+        'code': 'tr',
+        'instructions': 'Use informal "sen" form. Be concise.',
+    },
+    'ar': {
+        'name': 'Arabic',
+        'code': 'ar',
+        'instructions': 'Use Modern Standard Arabic. Be concise.',
+    },
+    'he': {
+        'name': 'Hebrew',
+        'code': 'he',
+        'instructions': 'Use informal form. Be concise.',
+    },
+    'el': {
+        'name': 'Greek',
+        'code': 'el',
+        'instructions': 'Use informal "εσύ" form. Be concise.',
+    },
+    'hu': {
+        'name': 'Hungarian',
+        'code': 'hu',
+        'instructions': 'Use informal "te" form. Be concise.',
+    },
+    'fi': {
+        'name': 'Finnish',
+        'code': 'fi',
+        'instructions': 'Use informal "sinä" form. Be concise.',
+    },
 }
+
+
+def get_language_config(lang_code: str) -> Dict[str, str]:
+    """Get language configuration. Raises error for unknown languages."""
+    if lang_code in LANGUAGE_CONFIG:
+        return LANGUAGE_CONFIG[lang_code]
+
+    # List available languages in error message
+    available = ', '.join(sorted(LANGUAGE_CONFIG.keys()))
+    raise ValueError(
+        f"Unknown language code: '{lang_code}'\n"
+        f"Available languages: {available}\n"
+        f"To add a new language, update LANGUAGE_CONFIG in this script."
+    )
+
+
+def is_language_supported(lang_code: str) -> bool:
+    """Check if a language code is supported."""
+    return lang_code in LANGUAGE_CONFIG
 
 # Ollama configuration
 OLLAMA_API_URL = 'http://localhost:11434/api/generate'
@@ -99,9 +245,32 @@ def get_project_root() -> Path:
     return Path(__file__).parent.parent
 
 
+def get_locales_dir() -> Path:
+    """Get the locales directory path."""
+    return get_project_root() / "packages" / "core" / "src" / "i18n" / "locales"
+
+
 def get_locale_path(lang_code: str) -> Path:
     """Get the path to the locale file for a language."""
-    return get_project_root() / "packages" / "core" / "src" / "i18n" / "locales" / f"{lang_code}.json"
+    return get_locales_dir() / f"{lang_code}.json"
+
+
+def detect_available_locales() -> List[str]:
+    """Detect all available locale files in the locales directory."""
+    locales_dir = get_locales_dir()
+    if not locales_dir.exists():
+        return []
+
+    locales = []
+    for file in locales_dir.glob("*.json"):
+        # Extract language code from filename (e.g., "pt.json" -> "pt")
+        lang_code = file.stem
+        # Skip backup files
+        if '.backup' in lang_code:
+            continue
+        locales.append(lang_code)
+
+    return sorted(locales)
 
 
 def get_report_path() -> Path:
@@ -373,10 +542,7 @@ def extract_strings(lang: str, output_path: Path) -> Optional[Dict]:
 
 def build_batch_prompt(items: List[Dict], lang_code: str) -> str:
     """Build a batch translation prompt for multiple strings."""
-    lang = LANGUAGE_CONFIG.get(lang_code, {
-        'name': lang_code.upper(),
-        'instructions': 'Be concise.',
-    })
+    lang = get_language_config(lang_code)
 
     strings_list = []
     for i, item in enumerate(items, 1):
@@ -538,10 +704,7 @@ def translate_batch(items: List[Dict], lang_code: str, model: str, verbose: bool
 
 def translate_single(key: str, context: str, params: List[str], lang_code: str, model: str, verbose: bool = False) -> Optional[str]:
     """Translate a single string (fallback for failed batch items)."""
-    lang = LANGUAGE_CONFIG.get(lang_code, {
-        'name': lang_code.upper(),
-        'instructions': 'Be concise.',
-    })
+    lang = get_language_config(lang_code)
 
     param_warning = ""
     if params:
@@ -852,10 +1015,12 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scripts/i18n-workflow.py --lang=pt              # Full workflow
-  python scripts/i18n-workflow.py --lang=pt --skip-build # Skip build step
+  python scripts/i18n-workflow.py                        # Auto-detect all languages
+  python scripts/i18n-workflow.py --lang=pt              # Single language
+  python scripts/i18n-workflow.py --skip-build           # Skip build (all languages)
   python scripts/i18n-workflow.py --lang=pt --step=translate  # Only translate
   python scripts/i18n-workflow.py --lang=pt --step=merge      # Only merge
+  python scripts/i18n-workflow.py --list-languages       # List supported languages
   python scripts/i18n-workflow.py --list-models          # List available models
 
 Setup:
@@ -864,7 +1029,7 @@ Setup:
         """
     )
 
-    parser.add_argument('--lang', '-l', default='pt', help='Target language code (default: pt)')
+    parser.add_argument('--lang', '-l', default=None, help='Target language code (auto-detects all if not specified)')
     parser.add_argument('--step', '-s', choices=['build', 'extract', 'translate', 'merge'], help='Run only a specific step')
     parser.add_argument('--skip-build', action='store_true', help='Skip the build step (use existing report)')
     parser.add_argument('--force', action='store_true', help='Force re-translation of all strings')
@@ -872,14 +1037,87 @@ Setup:
     parser.add_argument('--batch-size', '-b', type=int, default=30, help='Batch size for translation (default: 30)')
     parser.add_argument('--backup', action='store_true', help="Create backup of locale file before merge (disabled by default, use git instead)")
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    parser.add_argument('--list-languages', action='store_true', help='List supported languages')
     parser.add_argument('--list-models', action='store_true', help='List available models')
     parser.add_argument('--dry-run', action='store_true', help='Show what would be done without executing')
 
     return parser.parse_args()
 
 
+def process_language(
+    lang: str,
+    args,
+    should_extract: bool,
+    should_translate: bool,
+    should_merge: bool,
+) -> bool:
+    """Process a single language through extract, translate, and merge steps.
+
+    Returns True if successful, False otherwise.
+    """
+    project_root = get_project_root()
+    # Use language-specific file names to allow parallel processing
+    pending_path = project_root / f'i18n-pending-translations-{lang}.json'
+    completed_path = project_root / f'i18n-completed-translations-{lang}.json'
+
+    print("\n" + "-" * 60)
+    print(f"Processing language: {lang}")
+    print("-" * 60)
+
+    # Step 2: Extract
+    if should_extract:
+        if args.dry_run:
+            print(f"\n[Would extract] strings to {pending_path}")
+        else:
+            result = extract_strings(lang, pending_path)
+            if result is None:
+                print(f"\nExtraction failed for {lang}.")
+                return False
+
+    # Step 3: Translate
+    if should_translate:
+        if args.dry_run:
+            print(f"\n[Would translate] strings from {pending_path} to {completed_path}")
+        else:
+            success = translate_strings(
+                lang=lang,
+                input_path=pending_path,
+                output_path=completed_path,
+                model=args.model,
+                batch_size=args.batch_size,
+                verbose=args.verbose,
+                force=args.force,
+            )
+            if not success:
+                print(f"\nTranslation had some failures for {lang}. Check output file.")
+
+    # Step 4: Merge
+    if should_merge:
+        if args.dry_run:
+            print(f"\n[Would merge] translations from {completed_path} into locale file")
+        else:
+            success = merge_translations(lang, completed_path, backup=args.backup)
+            if not success:
+                print(f"\nMerge failed for {lang}.")
+                return False
+
+    return True
+
+
 def main():
     args = parse_args()
+
+    # List languages
+    if args.list_languages:
+        print("\nSupported languages:")
+        print("-" * 60)
+        for code in sorted(LANGUAGE_CONFIG.keys()):
+            config = LANGUAGE_CONFIG[code]
+            print(f"  {code:8} - {config['name']}")
+        print(f"\nTotal: {len(LANGUAGE_CONFIG)} languages")
+        print("\nTo add a new language, create a locale file (e.g., ja.json)")
+        print("and add the language config to LANGUAGE_CONFIG in this script.")
+        return
 
     # List models
     if args.list_models:
@@ -894,13 +1132,42 @@ def main():
         return
 
     project_root = get_project_root()
-    pending_path = project_root / 'i18n-pending-translations.json'
-    completed_path = project_root / 'i18n-completed-translations.json'
+
+    # Determine languages to process
+    if args.lang:
+        # Validate the specified language
+        if not is_language_supported(args.lang):
+            available = ', '.join(sorted(LANGUAGE_CONFIG.keys()))
+            print(f"\nError: Unknown language code: '{args.lang}'")
+            print(f"Available languages: {available}")
+            print("\nUse --list-languages to see all supported languages.")
+            print("To add a new language, update LANGUAGE_CONFIG in this script.")
+            sys.exit(1)
+        languages = [args.lang]
+    else:
+        # Auto-detect from locale files
+        detected = detect_available_locales()
+        if not detected:
+            print("\nNo locale files found in the locales directory.")
+            print("Please create at least one locale file (e.g., pt.json) first.")
+            sys.exit(1)
+
+        # Validate all detected languages
+        unsupported = [lang for lang in detected if not is_language_supported(lang)]
+        if unsupported:
+            print(f"\nError: Found locale files for unsupported languages: {', '.join(unsupported)}")
+            print("\nEither:")
+            print("  1. Add these languages to LANGUAGE_CONFIG in this script, or")
+            print("  2. Use --lang=<code> to process a specific supported language")
+            print("\nUse --list-languages to see all supported languages.")
+            sys.exit(1)
+
+        languages = detected
 
     print("\n" + "=" * 60)
     print("I18n Unified Workflow (Ollama)")
     print("=" * 60)
-    print(f"Language: {args.lang}")
+    print(f"Languages: {', '.join(languages)}")
     print(f"Model: {args.model}")
     print(f"Project root: {project_root}")
 
@@ -916,7 +1183,7 @@ def main():
     if args.step:
         print(f"Running only step: {args.step}")
 
-    # Step 1: Build
+    # Step 1: Build (only once, before processing any language)
     if should_build:
         if args.dry_run:
             print("\n[Would run] npm run bundle with I18N_TRANSFORM=true I18N_REPORT=true")
@@ -925,52 +1192,35 @@ def main():
                 print("\nBuild failed. Aborting workflow.")
                 sys.exit(1)
 
-    # Step 2: Extract
-    if should_extract:
-        if args.dry_run:
-            print(f"\n[Would extract] strings to {pending_path}")
-        else:
-            result = extract_strings(args.lang, pending_path)
-            if result is None:
-                print("\nExtraction failed. Aborting workflow.")
-                sys.exit(1)
+    # Process each language
+    results = {}
+    for lang in languages:
+        success = process_language(
+            lang=lang,
+            args=args,
+            should_extract=should_extract,
+            should_translate=should_translate,
+            should_merge=should_merge,
+        )
+        results[lang] = success
 
-    # Step 3: Translate
-    if should_translate:
-        if args.dry_run:
-            print(f"\n[Would translate] strings from {pending_path} to {completed_path}")
-        else:
-            success = translate_strings(
-                lang=args.lang,
-                input_path=pending_path,
-                output_path=completed_path,
-                model=args.model,
-                batch_size=args.batch_size,
-                verbose=args.verbose,
-                force=args.force,
-            )
-            if not success:
-                print("\nTranslation had some failures. Check output file.")
-
-    # Step 4: Merge
-    if should_merge:
-        if args.dry_run:
-            print(f"\n[Would merge] translations from {completed_path} into locale file")
-        else:
-            success = merge_translations(args.lang, completed_path, backup=args.backup)
-            if not success:
-                print("\nMerge failed.")
-                sys.exit(1)
-
+    # Summary
     print("\n" + "=" * 60)
     print("Workflow Complete!")
     print("=" * 60)
+
+    if len(languages) > 1:
+        print("\nResults by language:")
+        for lang, success in results.items():
+            status = "OK" if success else "FAILED"
+            print(f"  {lang}: {status}")
+
     print("\nNext steps:")
-    print("  1. Review the locale file for any issues")
+    print("  1. Review the locale files for any issues")
     print("  2. Rebuild the application:")
     print("     I18N_TRANSFORM=true npm run bundle")
-    print(f"  3. Test with the target language:")
-    print(f"     AUDITARIA_LANG={args.lang} node bundle/gemini.js")
+    print(f"  3. Test with a target language:")
+    print(f"     AUDITARIA_LANG={languages[0]} node bundle/gemini.js")
 
 
 if __name__ == '__main__':
