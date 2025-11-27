@@ -14,6 +14,9 @@ import traverse from '@babel/traverse';
 import generate from '@babel/generator';
 import * as t from '@babel/types';
 import { debugLogger } from './debug-logger.js';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { rebrand } = require('./i18n-rebrand.cjs');
 
 export async function transformCode(source, filePath, options = {}) {
   const { debug = false } = options;
@@ -311,8 +314,10 @@ function transformTextComponent(node) {
     // Skip if text looks like a variable or expression
     if (text.startsWith('{') || text.includes('${')) return null;
 
+    const rebrandedText = rebrand(text);
+
     // Create {t('text')} expression - key is used as fallback automatically
-    const tCall = t.callExpression(t.identifier('t'), [t.stringLiteral(text)]);
+    const tCall = t.callExpression(t.identifier('t'), [t.stringLiteral(rebrandedText)]);
 
     const newChild = t.jsxExpressionContainer(tCall);
 
@@ -324,7 +329,7 @@ function transformTextComponent(node) {
         [newChild],
         node.selfClosing,
       ),
-      original: text,
+      original: rebrandedText,
     };
   }
 
@@ -353,14 +358,16 @@ function transformObjectProperty(node) {
         return null;
       }
 
+      const rebrandedText = rebrand(text);
+
       // Create t() call - key is used as fallback automatically
       const tCall = t.callExpression(t.identifier('t'), [
-        t.stringLiteral(text),
+        t.stringLiteral(rebrandedText),
       ]);
 
       return {
         node: t.objectProperty(node.key, tCall),
-        original: text,
+        original: rebrandedText,
         propertyName: node.key.name,
       };
     }
@@ -1202,6 +1209,8 @@ function buildTemplateFromAnalysis(analysis, children, useTrueBranch) {
     .replace(/([([])\s+/g, '$1')
     .trim();
 
+  templateString = rebrand(templateString);
+
   return { templateString, components, params };
 }
 
@@ -1436,6 +1445,8 @@ function extractNestedContent(node) {
     .replace(/\(\s+/g, '(') // Remove space after opening paren
     .trim();
 
+  normalized = rebrand(normalized);
+
   return { templateString: normalized, components };
 }
 
@@ -1613,12 +1624,14 @@ function extractParameterizedContent(children) {
   }
 
   // Normalize whitespace
-  const normalizedTemplate = template.replace(/\s+/g, ' ').trim();
+  let normalizedTemplate = template.replace(/\s+/g, ' ').trim();
 
   // Skip if result is too short or empty
   if (!normalizedTemplate || normalizedTemplate.length < 2) {
     return null;
   }
+
+  normalizedTemplate = rebrand(normalizedTemplate);
 
   return { template: normalizedTemplate, params };
 }
@@ -1818,11 +1831,13 @@ function extractTextWithBranchCombination(
     }
   }
 
-  const normalizedText = text
+  let normalizedText = text
     .replace(/\s+/g, ' ')
     .replace(/\s+([,.:;!?)])/g, '$1')
     .replace(/([([])\s+/g, '$1')
     .trim();
+
+  normalizedText = rebrand(normalizedText);
 
   return { text: normalizedText, params };
 }
