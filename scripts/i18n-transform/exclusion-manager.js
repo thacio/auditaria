@@ -70,10 +70,29 @@ export class ExclusionManager {
       this.loadExclusions();
     }
 
+    // Normalize path and convert to forward slashes
     const normalizedPath = path.normalize(filePath).replace(/\\/g, '/');
 
+    // Convert absolute path to relative path for pattern matching
+    const cwd = process.cwd().replace(/\\/g, '/');
+    let relativePath = normalizedPath;
+    if (normalizedPath.startsWith(cwd)) {
+      relativePath = normalizedPath.slice(cwd.length).replace(/^\//, '');
+    } else {
+      // Try to extract relative path from common project structure patterns
+      // This handles cases like D:/a/auditaria/auditaria/packages/...
+      const projectMatch = normalizedPath.match(/\/packages\//);
+      if (projectMatch) {
+        relativePath = 'packages/' + normalizedPath.split('/packages/').pop();
+      }
+    }
+
     for (const pattern of this.patterns) {
-      if (minimatch(normalizedPath, pattern, { matchBase: true })) {
+      // Match against both the relative path and the full normalized path
+      if (
+        minimatch(relativePath, pattern, { matchBase: true }) ||
+        minimatch(normalizedPath, pattern, { matchBase: true })
+      ) {
         return true;
       }
     }

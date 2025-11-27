@@ -317,7 +317,9 @@ function transformTextComponent(node) {
     const rebrandedText = rebrand(text);
 
     // Create {t('text')} expression - key is used as fallback automatically
-    const tCall = t.callExpression(t.identifier('t'), [t.stringLiteral(rebrandedText)]);
+    const tCall = t.callExpression(t.identifier('t'), [
+      t.stringLiteral(rebrandedText),
+    ]);
 
     const newChild = t.jsxExpressionContainer(tCall);
 

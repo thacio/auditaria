@@ -37,8 +37,9 @@ packages/cli/src/zed-integration/**
 packages/core/src/test-utils/**
 packages/core/src/testing/**
 
-# Telemetry - contains OpenTelemetry metric descriptions (not user-facing)
-packages/core/src/telemetry/**
+# Core package - contains AI tool definitions, schemas, internal logic (not user-facing)
+# User-facing UI is in packages/cli/src/ui/
+packages/core/src/**
 
 # Development and debug files
 **/*.debug.ts
