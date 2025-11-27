@@ -37,6 +37,9 @@ packages/cli/src/zed-integration/**
 packages/core/src/test-utils/**
 packages/core/src/testing/**
 
+# Telemetry - contains OpenTelemetry metric descriptions (not user-facing)
+packages/core/src/telemetry/**
+
 # Development and debug files
 **/*.debug.ts
 **/*.dev.ts
