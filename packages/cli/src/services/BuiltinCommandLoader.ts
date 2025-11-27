@@ -40,9 +40,6 @@ import { languageCommand } from '../ui/commands/languageCommand.js';
 // WEB_INTERFACE_START: Web command import
 import { webCommand } from '../ui/commands/webCommand.js';
 // WEB_INTERFACE_END
-import { fallbackImprovedCommand } from '../ui/commands/fallbackImprovedCommand.js';
-import { modelSwitchCommand } from '../ui/commands/modelSwitchCommand.js';
-import { stayProCommand } from '../ui/commands/stayProCommand.js';
 import { settingsCommand } from '../ui/commands/settingsCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
 import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
@@ -96,9 +93,6 @@ export class BuiltinCommandLoader implements ICommandLoader {
       themeCommand,
       toolsCommand,
       languageCommand,
-      fallbackImprovedCommand,
-      modelSwitchCommand,
-      stayProCommand,
       // WEB_INTERFACE_START: Add web command to builtin commands
       webCommand,
       // WEB_INTERFACE_END

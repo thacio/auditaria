@@ -320,7 +320,6 @@ export interface ConfigParameters {
   };
   previewFeatures?: boolean;
   enableModelAvailabilityService?: boolean;
-  useImprovedFallbackStrategy?: boolean;
 }
 
 export class Config {
@@ -379,8 +378,6 @@ export class Config {
   private readonly folderTrust: boolean;
   private ideMode: boolean;
   private modelSwitchedDuringSession: boolean = false;
-  private useImprovedFallbackStrategy: boolean;
-  private disableFallbackForSession: boolean = false;
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;
   private readonly listSessions: boolean;
@@ -504,8 +501,6 @@ export class Config {
       params.enableModelAvailabilityService ?? false;
     this.modelAvailabilityService = new ModelAvailabilityService();
     this.previewFeatures = params.previewFeatures ?? undefined;
-    this.useImprovedFallbackStrategy =
-      params.useImprovedFallbackStrategy ?? true;
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
     this.experimentalZedIntegration =
       params.experimentalZedIntegration ?? false;
@@ -905,28 +900,12 @@ export class Config {
     this.previewFeatures = previewFeatures;
   }
 
-  getUseImprovedFallbackStrategy(): boolean {
-    return this.useImprovedFallbackStrategy;
-  }
-
-  setUseImprovedFallbackStrategy(enabled: boolean): void {
-    this.useImprovedFallbackStrategy = enabled;
-  }
-
   getModelSwitchedDuringSession(): boolean {
     return this.modelSwitchedDuringSession;
   }
 
   resetModelSwitchedDuringSession(): void {
     this.modelSwitchedDuringSession = false;
-  }
-
-  getDisableFallbackForSession(): boolean {
-    return this.disableFallbackForSession;
-  }
-
-  setDisableFallbackForSession(disabled: boolean): void {
-    this.disableFallbackForSession = disabled;
   }
 
   getCoreTools(): string[] | undefined {
