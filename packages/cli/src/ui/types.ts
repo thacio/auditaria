@@ -13,6 +13,7 @@ import type {
   ToolConfirmationOutcome,
   ToolResultDisplay,
   UserTierId,
+  RetrieveUserQuotaResponse,
 } from '@google/gemini-cli-core';
 import type { PartListUnion } from '@google/genai';
 import { type ReactNode } from 'react';
@@ -156,6 +157,7 @@ export type HistoryItemHelp = HistoryItemBase & {
 export type HistoryItemStats = HistoryItemBase & {
   type: 'stats';
   duration: string;
+  quotas?: RetrieveUserQuotaResponse;
 };
 
 export type HistoryItemModelStats = HistoryItemBase & {
