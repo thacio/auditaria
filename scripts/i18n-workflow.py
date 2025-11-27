@@ -6,15 +6,13 @@ I18n Unified Workflow Script
 Complete workflow for i18n translation:
 1. Build with transformation (generates report)
 2. Extract untranslated strings from report
-3. Translate strings using LLM
+3. Translate strings using Ollama (GPU-accelerated)
 4. Merge translations back into locale file
 
-Hardware requirement: NVIDIA GPU with at least 16GB VRAM for 27B Q4
-Recommended: RTX 4090 or similar
-
 Setup:
-    pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
-    pip install huggingface-hub
+    1. Install Ollama from https://ollama.com
+    2. Run: ollama pull gemma3:27b
+    3. Run this script: python scripts/i18n-workflow.py --lang=pt
 
 Usage:
     python scripts/i18n-workflow.py --lang=pt
@@ -34,6 +32,12 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
 
 def safe_print(text: str) -> None:
     """Print text safely, handling Unicode encoding errors on Windows."""
@@ -42,14 +46,6 @@ def safe_print(text: str) -> None:
     except UnicodeEncodeError:
         safe_text = text.encode('ascii', 'replace').decode('ascii')
         print(safe_text)
-
-
-# Try to import llama-cpp-python
-try:
-    from llama_cpp import Llama
-    HAS_LLAMA = True
-except ImportError:
-    HAS_LLAMA = False
 
 
 # =============================================================================
@@ -83,25 +79,15 @@ LANGUAGE_CONFIG = {
     },
 }
 
-MODEL_CONFIGS = {
-    'unsloth/gemma-3-27b-it-GGUF': {
-        'filename': 'gemma-3-27b-it-Q4_K_M.gguf',
-        'size_gb': 16.5,
-        'description': 'Unsloth Dynamic 2.0 quant - best quality',
-    },
-    'unsloth/gemma-3-12b-it-GGUF': {
-        'filename': 'gemma-3-12b-it-Q4_K_M.gguf',
-        'size_gb': 8,
-        'description': 'Smaller 12B model',
-    },
-    'unsloth/gemma-3-4b-it-GGUF': {
-        'filename': 'gemma-3-4b-it-Q8_0.gguf',
-        'size_gb': 4.5,
-        'description': 'Smallest 4B model',
-    },
-}
+# Ollama configuration
+OLLAMA_API_URL = 'http://localhost:11434/api/generate'
+DEFAULT_MODEL = 'gemma3:27b'
 
-DEFAULT_MODEL = 'unsloth/gemma-3-27b-it-GGUF'
+AVAILABLE_MODELS = {
+    'gemma3:27b': {'size': '17 GB', 'description': 'Best quality, requires ~16GB VRAM'},
+    'gemma3:12b': {'size': '8 GB', 'description': 'Good balance of quality and speed'},
+    'gemma3:4b': {'size': '3 GB', 'description': 'Fastest, lower quality'},
+}
 
 
 # =============================================================================
@@ -123,13 +109,6 @@ def get_report_path() -> Path:
     return get_project_root() / "i18n-transform-report.json"
 
 
-def get_models_dir() -> Path:
-    """Get the local models directory."""
-    models_dir = get_project_root() / "models"
-    models_dir.mkdir(exist_ok=True)
-    return models_dir
-
-
 def load_json(path: Path) -> Optional[Dict]:
     """Load JSON file."""
     try:
@@ -146,6 +125,32 @@ def save_json(path: Path, data: Dict) -> None:
     """Save JSON file."""
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def check_ollama_running() -> bool:
+    """Check if Ollama is running."""
+    if not HAS_REQUESTS:
+        return False
+    try:
+        response = requests.get('http://localhost:11434/api/tags', timeout=5)
+        return response.status_code == 200
+    except requests.exceptions.ConnectionError:
+        return False
+
+
+def check_model_available(model: str) -> bool:
+    """Check if the specified model is available in Ollama."""
+    if not HAS_REQUESTS:
+        return False
+    try:
+        response = requests.get('http://localhost:11434/api/tags', timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m['name'] for m in data.get('models', [])]
+            return model in models or any(m.startswith(model.split(':')[0]) for m in models)
+        return False
+    except:
+        return False
 
 
 # =============================================================================
@@ -363,64 +368,8 @@ def extract_strings(lang: str, output_path: Path) -> Optional[Dict]:
 
 
 # =============================================================================
-# Step 3: Translate Strings
+# Step 3: Translate Strings (using Ollama)
 # =============================================================================
-
-def download_model(repo_id: str, filename: str) -> Path:
-    """Download model to local models/ folder if not present."""
-    from huggingface_hub import hf_hub_download
-
-    models_dir = get_models_dir()
-    local_path = models_dir / filename
-
-    if local_path.exists():
-        print(f"Model found locally: {local_path}")
-        return local_path
-
-    print(f"\nDownloading model to local folder...")
-    print(f"  Repo: {repo_id}")
-    print(f"  File: {filename}")
-    print(f"  Destination: {local_path}")
-    print("\nThis may take a while (~16GB for 27B model)...")
-
-    downloaded_path = hf_hub_download(
-        repo_id=repo_id,
-        filename=filename,
-        local_dir=models_dir,
-        local_dir_use_symlinks=False,
-    )
-
-    print(f"Download complete: {downloaded_path}")
-    return Path(downloaded_path)
-
-
-def load_model(repo_id: str, filename: Optional[str], n_gpu_layers: int, n_ctx: int, verbose: bool):
-    """Load the Gemma model via llama-cpp-python."""
-    if not HAS_LLAMA:
-        raise RuntimeError("llama-cpp-python not installed")
-
-    config = MODEL_CONFIGS.get(repo_id, {})
-    if not filename:
-        filename = config.get('filename', 'gemma-3-27b-it-Q4_K_M.gguf')
-
-    local_model_path = download_model(repo_id, filename)
-
-    print(f"\nLoading model: {local_model_path}")
-    print(f"GPU layers: {n_gpu_layers} (-1 = all)")
-    print(f"Context size: {n_ctx}")
-
-    try:
-        llm = Llama(
-            model_path=str(local_model_path),
-            n_gpu_layers=n_gpu_layers,
-            n_ctx=n_ctx,
-            verbose=verbose,
-        )
-        print("Model loaded successfully!")
-        return llm
-    except Exception as e:
-        raise RuntimeError(f"Failed to load model: {e}")
-
 
 def build_batch_prompt(items: List[Dict], lang_code: str) -> str:
     """Build a batch translation prompt for multiple strings."""
@@ -436,8 +385,7 @@ def build_batch_prompt(items: List[Dict], lang_code: str) -> str:
 
     strings_text = "\n".join(strings_list)
 
-    prompt = f"""<start_of_turn>user
-Translate these UI texts from English to {lang['name']}.
+    prompt = f"""Translate these UI texts from English to {lang['name']}.
 
 RULES:
 - Output ONLY numbered translations, one per line
@@ -450,10 +398,7 @@ RULES:
 - NO explanations, NO notes, ONLY translations
 
 Texts:
-{strings_text}
-<end_of_turn>
-<start_of_turn>model
-"""
+{strings_text}"""
     return prompt
 
 
@@ -525,8 +470,37 @@ def validate_translation(original: str, translation: str, params: List[str]) -> 
     return True, ""
 
 
-def translate_batch(llm, items: List[Dict], lang_code: str, verbose: bool = False) -> List[Optional[str]]:
-    """Translate a batch of strings using the model."""
+def translate_with_ollama(prompt: str, model: str, verbose: bool = False) -> Optional[str]:
+    """Send translation request to Ollama."""
+    try:
+        response = requests.post(
+            OLLAMA_API_URL,
+            json={
+                'model': model,
+                'prompt': prompt,
+                'stream': False,
+                'options': {
+                    'temperature': 0.3,
+                    'top_p': 0.9,
+                    'num_predict': 1024,
+                }
+            },
+            timeout=120
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('response', '')
+        else:
+            print(f"Ollama error: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error calling Ollama: {e}")
+        return None
+
+
+def translate_batch(items: List[Dict], lang_code: str, model: str, verbose: bool = False) -> List[Optional[str]]:
+    """Translate a batch of strings using Ollama."""
     if not items:
         return []
 
@@ -535,48 +509,34 @@ def translate_batch(llm, items: List[Dict], lang_code: str, verbose: bool = Fals
     if verbose:
         print(f"\n--- Batch Prompt ---\n{prompt}\n--------------")
 
-    try:
-        max_tokens = min(len(items) * 100, 1024)
-
-        output = llm(
-            prompt,
-            max_tokens=max_tokens,
-            temperature=0.3,
-            top_p=0.9,
-            stop=["<end_of_turn>"],
-            echo=False,
-        )
-
-        raw_text = output['choices'][0]['text']
-
-        if verbose:
-            print(f"Raw batch output:\n{raw_text}")
-
-        translations = parse_batch_response(raw_text, len(items))
-
-        # Validate each translation
-        results = []
-        for i, (item, translation) in enumerate(zip(items, translations)):
-            if translation:
-                params = item.get('params', [])
-                is_valid, error = validate_translation(item['key'], translation, params)
-                if is_valid:
-                    results.append(translation)
-                else:
-                    if verbose:
-                        print(f"    Item {i+1} validation failed: {error}")
-                    results.append(None)
-            else:
-                results.append(None)
-
-        return results
-
-    except Exception as e:
-        print(f"    Batch error: {e}")
+    response = translate_with_ollama(prompt, model, verbose)
+    if not response:
         return [None] * len(items)
 
+    if verbose:
+        print(f"Response:\n{response}")
 
-def translate_single(llm, key: str, context: str, params: List[str], lang_code: str, verbose: bool = False) -> Optional[str]:
+    translations = parse_batch_response(response, len(items))
+
+    # Validate each translation
+    results = []
+    for i, (item, translation) in enumerate(zip(items, translations)):
+        if translation:
+            params = item.get('params', [])
+            is_valid, error = validate_translation(item['key'], translation, params)
+            if is_valid:
+                results.append(translation)
+            else:
+                if verbose:
+                    print(f"    Item {i+1} validation failed: {error}")
+                results.append(None)
+        else:
+            results.append(None)
+
+    return results
+
+
+def translate_single(key: str, context: str, params: List[str], lang_code: str, model: str, verbose: bool = False) -> Optional[str]:
     """Translate a single string (fallback for failed batch items)."""
     lang = LANGUAGE_CONFIG.get(lang_code, {
         'name': lang_code.upper(),
@@ -588,55 +548,38 @@ def translate_single(llm, key: str, context: str, params: List[str], lang_code: 
         param_list = ", ".join([f"{{{p}}}" for p in params])
         param_warning = f"\nIMPORTANT: Keep these placeholders exactly as-is: {param_list}"
 
-    prompt = f"""<start_of_turn>user
-Translate this UI text from English to {lang['name']}.
+    prompt = f"""Translate this UI text from English to {lang['name']}.
 
 Rules:
 - Output ONLY the translation, nothing else
 - Keep placeholders like {{name}}, {{count}} UNCHANGED
-- Keep slash commands (e.g., /help, /settings, /docs) exactly as they appear - do NOT translate them
+- Keep slash commands (e.g., /help, /settings, /docs) exactly as they appear
 - Keep technical terms (API, CLI, JSON, URL, MCP, OAuth, YOLO) unchanged
-- Keep leading symbols like \\n, ---, numbers (1., 2., 3.) exactly as they appear
 - {lang['instructions']}{param_warning}
 
 Context: {context}
-Text: {key}
-<end_of_turn>
-<start_of_turn>model
-"""
+Text: {key}"""
 
-    try:
-        output = llm(
-            prompt,
-            max_tokens=256,
-            temperature=0.3,
-            top_p=0.9,
-            stop=["<end_of_turn>", "\n\n"],
-            echo=False,
-        )
-
-        raw_text = output['choices'][0]['text'].strip()
-
-        # Take first line only
-        lines = raw_text.split('\n')
-        translation = lines[0].strip()
-
-        # Remove quotes
-        if (translation.startswith('"') and translation.endswith('"')) or \
-           (translation.startswith("'") and translation.endswith("'")):
-            translation = translation[1:-1]
-
-        # Validate
-        is_valid, error = validate_translation(key, translation, params)
-        if not is_valid:
-            print(f"    Validation failed: {error}")
-            return None
-
-        return translation
-
-    except Exception as e:
-        print(f"    Error: {e}")
+    response = translate_with_ollama(prompt, model, verbose)
+    if not response:
         return None
+
+    # Clean response
+    translation = response.strip().split('\n')[0].strip()
+
+    # Remove quotes
+    if (translation.startswith('"') and translation.endswith('"')) or \
+       (translation.startswith("'") and translation.endswith("'")):
+        translation = translation[1:-1]
+
+    # Validate
+    is_valid, error = validate_translation(key, translation, params)
+    if not is_valid:
+        if verbose:
+            print(f"    Validation failed: {error}")
+        return None
+
+    return translation
 
 
 def translate_strings(
@@ -645,15 +588,32 @@ def translate_strings(
     output_path: Path,
     model: str,
     batch_size: int,
-    n_gpu_layers: int,
-    n_ctx: int,
     verbose: bool,
     force: bool,
 ) -> bool:
-    """Translate all pending strings."""
+    """Translate all pending strings using Ollama."""
     print("\n" + "=" * 60)
-    print("Step 3: Translating Strings")
+    print("Step 3: Translating Strings (Ollama)")
     print("=" * 60)
+
+    # Check Ollama
+    if not HAS_REQUESTS:
+        print("\nError: 'requests' module not installed. Run: pip install requests")
+        return False
+
+    if not check_ollama_running():
+        print("\nError: Ollama is not running!")
+        print("Please start Ollama first:")
+        print("  1. Open a terminal and run: ollama serve")
+        print("  2. Or start the Ollama app")
+        return False
+
+    print(f"Ollama is running, using model: {model}")
+
+    # Check if model is available
+    if not check_model_available(model):
+        print(f"\nWarning: Model '{model}' may not be available.")
+        print(f"Run: ollama pull {model}")
 
     # Load input
     data = load_json(input_path)
@@ -699,24 +659,6 @@ def translate_strings(
         save_json(output_path, data)
         return True
 
-    # Check llama-cpp-python
-    if not HAS_LLAMA:
-        print("\nError: llama-cpp-python is required.")
-        print("Install with CUDA support:")
-        print("  pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121")
-        return False
-
-    # Load model
-    print("\n" + "-" * 40)
-    print("Loading model...")
-    print("-" * 40)
-
-    try:
-        llm = load_model(model, None, n_gpu_layers, n_ctx, verbose)
-    except Exception as e:
-        print(f"\nFailed to load model: {e}")
-        return False
-
     # Translation loop
     print("\n" + "-" * 40)
     print(f"Starting translation (batch size: {batch_size})...")
@@ -740,7 +682,7 @@ def translate_strings(
             safe_print(f"  {batch_start + i + 1}. \"{key_display}\"")
 
         # Translate batch
-        batch_translations = translate_batch(llm, batch_items, lang, verbose)
+        batch_translations = translate_batch(batch_items, lang, model, verbose)
 
         # Process results
         for i, (item, translation) in enumerate(zip(batch_items, batch_translations)):
@@ -752,8 +694,8 @@ def translate_strings(
                 # Retry single
                 safe_print(f"  -> {batch_start + i + 1}. Batch failed, retrying single...")
                 single_translation = translate_single(
-                    llm, item['key'], item.get('context', 'UI text'),
-                    item.get('params', []), lang, verbose
+                    item['key'], item.get('context', 'UI text'),
+                    item.get('params', []), lang, model, verbose
                 )
                 if single_translation:
                     item['translation'] = single_translation
@@ -906,7 +848,7 @@ def merge_translations(lang: str, input_path: Path, backup: bool = True) -> bool
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Complete i18n translation workflow',
+        description='Complete i18n translation workflow using Ollama',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -915,6 +857,10 @@ Examples:
   python scripts/i18n-workflow.py --lang=pt --step=translate  # Only translate
   python scripts/i18n-workflow.py --lang=pt --step=merge      # Only merge
   python scripts/i18n-workflow.py --list-models          # List available models
+
+Setup:
+  1. Install Ollama: https://ollama.com
+  2. Pull model: ollama pull gemma3:27b
         """
     )
 
@@ -922,10 +868,8 @@ Examples:
     parser.add_argument('--step', '-s', choices=['build', 'extract', 'translate', 'merge'], help='Run only a specific step')
     parser.add_argument('--skip-build', action='store_true', help='Skip the build step (use existing report)')
     parser.add_argument('--force', action='store_true', help='Force re-translation of all strings')
-    parser.add_argument('--model', '-m', default=DEFAULT_MODEL, help=f'Model repo ID (default: {DEFAULT_MODEL})')
-    parser.add_argument('--batch-size', '-b', type=int, default=5, help='Batch size for translation (default: 5)')
-    parser.add_argument('--n-gpu-layers', '-ngl', type=int, default=-1, help='GPU layers (-1 = all)')
-    parser.add_argument('--n-ctx', type=int, default=4096, help='Context size (default: 4096)')
+    parser.add_argument('--model', '-m', default=DEFAULT_MODEL, help=f'Ollama model name (default: {DEFAULT_MODEL})')
+    parser.add_argument('--batch-size', '-b', type=int, default=30, help='Batch size for translation (default: 30)')
     parser.add_argument('--backup', action='store_true', help="Create backup of locale file before merge (disabled by default, use git instead)")
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
     parser.add_argument('--list-models', action='store_true', help='List available models')
@@ -939,13 +883,14 @@ def main():
 
     # List models
     if args.list_models:
-        print("\nAvailable models:")
+        print("\nAvailable Ollama models for translation:")
         print("-" * 60)
-        for repo_id, config in MODEL_CONFIGS.items():
-            print(f"\n  {repo_id}")
-            print(f"    File: {config['filename']}")
-            print(f"    Size: {config['size_gb']} GB")
+        for model, config in AVAILABLE_MODELS.items():
+            print(f"\n  {model}")
+            print(f"    Size: {config['size']}")
             print(f"    Description: {config['description']}")
+        print("\nTo download a model, run:")
+        print("  ollama pull <model-name>")
         return
 
     project_root = get_project_root()
@@ -953,9 +898,10 @@ def main():
     completed_path = project_root / 'i18n-completed-translations.json'
 
     print("\n" + "=" * 60)
-    print("I18n Unified Workflow")
+    print("I18n Unified Workflow (Ollama)")
     print("=" * 60)
     print(f"Language: {args.lang}")
+    print(f"Model: {args.model}")
     print(f"Project root: {project_root}")
 
     if args.dry_run:
@@ -1000,8 +946,6 @@ def main():
                 output_path=completed_path,
                 model=args.model,
                 batch_size=args.batch_size,
-                n_gpu_layers=args.n_gpu_layers,
-                n_ctx=args.n_ctx,
                 verbose=args.verbose,
                 force=args.force,
             )
