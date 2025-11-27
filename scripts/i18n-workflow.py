@@ -7,7 +7,8 @@ Complete workflow for i18n translation:
 1. Build with transformation (generates report)
 2. Extract untranslated strings from report
 3. Translate strings using Ollama (GPU-accelerated)
-4. Merge translations back into locale file
+4. Cleanup unused keys from locale files
+5. Merge translations back into locale file
 
 Setup:
     1. Install Ollama from https://ollama.com
@@ -20,6 +21,7 @@ Usage:
     python scripts/i18n-workflow.py --lang=pt --skip-build
     python scripts/i18n-workflow.py --lang=pt --step=extract
     python scripts/i18n-workflow.py --lang=pt --step=translate
+    python scripts/i18n-workflow.py --lang=pt --step=cleanup
     python scripts/i18n-workflow.py --lang=pt --step=merge
 """
 
@@ -905,13 +907,122 @@ def translate_strings(
 
 
 # =============================================================================
-# Step 4: Merge Translations
+# Step 4: Cleanup Unused Keys
+# =============================================================================
+
+def cleanup_unused_keys(lang: str, backup: bool = True, dry_run: bool = False) -> bool:
+    """Remove unused keys from the locale file that are no longer in the codebase."""
+    print("\n" + "=" * 60)
+    print("Step 4: Cleanup Unused Keys")
+    print("=" * 60)
+
+    report_path = get_report_path()
+    locale_path = get_locale_path(lang)
+
+    print(f"Report: {report_path}")
+    print(f"Locale: {locale_path}")
+    print(f"Dry run: {dry_run}")
+    print()
+
+    # Load the transformation report
+    if not report_path.exists():
+        print(f"Error: Report file not found: {report_path}")
+        print("\nPlease run the build step first.")
+        return False
+
+    report = load_json(report_path)
+    if not report:
+        return False
+
+    # Load existing locale
+    if not locale_path.exists():
+        print(f"Locale file not found: {locale_path}")
+        print("Nothing to cleanup.")
+        return True
+
+    existing_locale = load_json(locale_path)
+    if not existing_locale:
+        return False
+
+    existing_exact_strings = existing_locale.get('_exactStrings', {})
+    if not existing_exact_strings:
+        print("No translations in locale file. Nothing to cleanup.")
+        return True
+
+    # Extract all unique strings from the report (these are the keys currently in use)
+    used_keys = set()
+    for file_detail in report.get('fileDetails', []):
+        for transformation in file_detail.get('transformations', []):
+            key = transformation.get('original', '')
+            if key and len(key.strip()) >= 2:
+                used_keys.add(key)
+
+    print(f"Unique strings in codebase: {len(used_keys)}")
+    print(f"Translations in locale file: {len(existing_exact_strings)}")
+
+    # Find unused keys (in locale but not in codebase)
+    locale_keys = set(existing_exact_strings.keys())
+    unused_keys = locale_keys - used_keys
+
+    if not unused_keys:
+        print("\nNo unused keys found. Locale file is clean!")
+        return True
+
+    print(f"\nFound {len(unused_keys)} unused keys to remove:")
+
+    # Show sample of unused keys
+    unused_list = sorted(unused_keys)
+    for key in unused_list[:10]:
+        key_display = key[:60] + '...' if len(key) > 60 else key
+        key_display = key_display.replace('\n', '\\n')
+        safe_print(f"  - \"{key_display}\"")
+    if len(unused_list) > 10:
+        print(f"  ... and {len(unused_list) - 10} more")
+
+    if dry_run:
+        print(f"\n[DRY RUN] Would remove {len(unused_keys)} unused keys from {locale_path}")
+        return True
+
+    # Create new locale without unused keys
+    cleaned_exact_strings = {k: v for k, v in existing_exact_strings.items() if k in used_keys}
+
+    # Sort alphabetically
+    sorted_exact_strings = dict(sorted(cleaned_exact_strings.items()))
+
+    # Create new locale structure
+    new_locale = {
+        '_exactStrings': sorted_exact_strings,
+    }
+
+    # Backup
+    if backup and locale_path.exists():
+        import shutil
+        timestamp = time.strftime('%Y%m%d-%H%M%S')
+        backup_path = locale_path.with_suffix(f'.backup-{timestamp}.json')
+        shutil.copy(locale_path, backup_path)
+        print(f"\nBackup created: {backup_path}")
+
+    # Write
+    save_json(locale_path, new_locale)
+
+    # Summary
+    print(f"\nCleanup Summary")
+    print(f"---------------")
+    print(f"Removed: {len(unused_keys)} unused keys")
+    print(f"Kept: {len(sorted_exact_strings)} translations")
+    print(f"\nLocale file updated: {locale_path}")
+
+    return True
+
+
+# =============================================================================
+# Step 5: Merge Translations
 # =============================================================================
 
 def merge_translations(lang: str, input_path: Path, backup: bool = True) -> bool:
     """Merge completed translations into the locale file."""
     print("\n" + "=" * 60)
-    print("Step 4: Merging Translations into Locale File")
+    print("Step 5: Merging Translations into Locale File")
     print("=" * 60)
 
     locale_path = get_locale_path(lang)
@@ -1018,7 +1129,9 @@ Examples:
   python scripts/i18n-workflow.py                        # Auto-detect all languages
   python scripts/i18n-workflow.py --lang=pt              # Single language
   python scripts/i18n-workflow.py --skip-build           # Skip build (all languages)
+  python scripts/i18n-workflow.py --skip-cleanup         # Skip cleanup (keep unused keys)
   python scripts/i18n-workflow.py --lang=pt --step=translate  # Only translate
+  python scripts/i18n-workflow.py --lang=pt --step=cleanup    # Only remove unused keys
   python scripts/i18n-workflow.py --lang=pt --step=merge      # Only merge
   python scripts/i18n-workflow.py --list-languages       # List supported languages
   python scripts/i18n-workflow.py --list-models          # List available models
@@ -1030,8 +1143,9 @@ Setup:
     )
 
     parser.add_argument('--lang', '-l', default=None, help='Target language code (auto-detects all if not specified)')
-    parser.add_argument('--step', '-s', choices=['build', 'extract', 'translate', 'merge'], help='Run only a specific step')
+    parser.add_argument('--step', '-s', choices=['build', 'extract', 'translate', 'cleanup', 'merge'], help='Run only a specific step')
     parser.add_argument('--skip-build', action='store_true', help='Skip the build step (use existing report)')
+    parser.add_argument('--skip-cleanup', action='store_true', help='Skip the cleanup step (keep unused keys in locale files)')
     parser.add_argument('--force', action='store_true', help='Force re-translation of all strings')
     parser.add_argument('--model', '-m', default=DEFAULT_MODEL, help=f'Ollama model name (default: {DEFAULT_MODEL})')
     parser.add_argument('--batch-size', '-b', type=int, default=30, help='Batch size for translation (default: 30)')
@@ -1049,9 +1163,10 @@ def process_language(
     args,
     should_extract: bool,
     should_translate: bool,
+    should_cleanup: bool,
     should_merge: bool,
 ) -> bool:
-    """Process a single language through extract, translate, and merge steps.
+    """Process a single language through extract, translate, cleanup, and merge steps.
 
     Returns True if successful, False otherwise.
     """
@@ -1091,7 +1206,18 @@ def process_language(
             if not success:
                 print(f"\nTranslation had some failures for {lang}. Check output file.")
 
-    # Step 4: Merge
+    # Step 4: Cleanup unused keys
+    if should_cleanup:
+        if args.dry_run:
+            print(f"\n[Would cleanup] unused keys from locale file for {lang}")
+            cleanup_unused_keys(lang, backup=args.backup, dry_run=True)
+        else:
+            success = cleanup_unused_keys(lang, backup=args.backup, dry_run=False)
+            if not success:
+                print(f"\nCleanup failed for {lang}.")
+                return False
+
+    # Step 5: Merge
     if should_merge:
         if args.dry_run:
             print(f"\n[Would merge] translations from {completed_path} into locale file")
@@ -1178,6 +1304,7 @@ def main():
     should_build = not args.skip_build and args.step in (None, 'build')
     should_extract = args.step in (None, 'extract')
     should_translate = args.step in (None, 'translate')
+    should_cleanup = not args.skip_cleanup and args.step in (None, 'cleanup')
     should_merge = args.step in (None, 'merge')
 
     if args.step:
@@ -1200,6 +1327,7 @@ def main():
             args=args,
             should_extract=should_extract,
             should_translate=should_translate,
+            should_cleanup=should_cleanup,
             should_merge=should_merge,
         )
         results[lang] = success
