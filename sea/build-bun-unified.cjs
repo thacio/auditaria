@@ -190,12 +190,13 @@ const conditionalUnifiedBunServer = `
 (function() {
   if (typeof Bun === 'undefined' || !Bun.version) return;
 
-  // Check if web interface is requested at startup
-  const hasWebFlag = process.argv.some(arg => arg === '--web' || arg === '-w' || arg.startsWith('--web=') || arg.startsWith('-w='));
+  // Check if web interface is disabled at startup (web is enabled by default)
+  const hasNoWebFlag = process.argv.some(arg => arg === '--no-web');
+  const webEnabled = !hasNoWebFlag;
 
   // Debug output
   if (process.env.DEBUG) {
-    console.log('[Bun] Web flag detected at startup:', hasWebFlag);
+    console.log('[Bun] Web enabled (default):', webEnabled);
     console.log('[Bun] Current argv:', process.argv);
   }
 
@@ -241,12 +242,12 @@ const conditionalUnifiedBunServer = `
 
       // Don't create the actual server yet - wait until it's needed
       // The server will be created either:
-      // 1. Immediately if --web flag was present
+      // 1. Immediately if web is enabled (default, unless --no-web)
       // 2. Later when /web command is used
 
-      // Check if we should auto-start the server (--web flag present)
-      if (hasWebFlag && !unifiedServer) {
-        // console.log('[Bun] Auto-starting server due to --web flag');
+      // Check if we should auto-start the server (web enabled by default)
+      if (webEnabled && !unifiedServer) {
+        // console.log('[Bun] Auto-starting server (web enabled by default)');
         this._createServer(options);
       }
       // Otherwise, server will be created on demand

@@ -621,8 +621,10 @@ export async function main() {
     // Render UI, passing necessary config values. Check that there is no command line question.
     if (config.isInteractive()) {
       // WEB_INTERFACE_START: Extract web interface flags from argv
-      const webEnabled = !!argv.web;
-      const webOpenBrowser = argv.web !== 'no-browser';
+      // Web is enabled by default (argv.web defaults to true)
+      // Use --no-web to disable, --no-web-browser to prevent browser from opening
+      const webEnabled = argv.web ?? true;
+      const webOpenBrowser = argv.webBrowser ?? true;
       const webPort = argv.port;
       // WEB_INTERFACE_END
 

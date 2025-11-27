@@ -72,20 +72,20 @@ echo $optionsGroup.Text = 'Launch Options'
 echo $optionsGroup.Font = New-Object System.Drawing.Font^('Segoe UI', 10^)
 echo $form.Controls.Add^($optionsGroup^)
 echo.
-echo # Create web interface checkbox
-echo $webCheckBox = New-Object System.Windows.Forms.CheckBox
-echo $webCheckBox.Location = New-Object System.Drawing.Point^(15, 25^)
-echo $webCheckBox.Size = New-Object System.Drawing.Size^(430, 25^)
-echo $webCheckBox.Text = 'Launch with Web Interface ^(--web^)'
-echo $webCheckBox.Checked = $true
-echo $webCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
-echo $optionsGroup.Controls.Add^($webCheckBox^)
+echo # Create disable web interface checkbox
+echo $disableWebCheckBox = New-Object System.Windows.Forms.CheckBox
+echo $disableWebCheckBox.Location = New-Object System.Drawing.Point^(15, 25^)
+echo $disableWebCheckBox.Size = New-Object System.Drawing.Size^(430, 25^)
+echo $disableWebCheckBox.Text = 'Disable Web Interface ^(--no-web^)'
+echo $disableWebCheckBox.Checked = $false
+echo $disableWebCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
+echo $optionsGroup.Controls.Add^($disableWebCheckBox^)
 echo.
 echo # Create no-browser checkbox
 echo $noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
 echo $noBrowserCheckBox.Location = New-Object System.Drawing.Point^(35, 50^)
 echo $noBrowserCheckBox.Size = New-Object System.Drawing.Size^(410, 25^)
-echo $noBrowserCheckBox.Text = 'Don''t open browser automatically ^(no-browser^)'
+echo $noBrowserCheckBox.Text = 'Don''t open browser automatically ^(--no-web-browser^)'
 echo $noBrowserCheckBox.Checked = $false
 echo $noBrowserCheckBox.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
 echo $noBrowserCheckBox.Enabled = $true
@@ -141,10 +141,10 @@ echo $approvalYoloRadio.Font = New-Object System.Drawing.Font^('Segoe UI', 9^)
 echo $approvalYoloRadio.ForeColor = [System.Drawing.Color]::FromArgb^(255, 69, 0^)
 echo $approvalGroup.Controls.Add^($approvalYoloRadio^)
 echo.
-echo # Update no-browser checkbox state based on web checkbox
-echo $webCheckBox.Add_CheckedChanged^({
-echo     $noBrowserCheckBox.Enabled = $webCheckBox.Checked
-echo     if ^(-not $webCheckBox.Checked^) {
+echo # Update no-browser checkbox state based on disable web checkbox
+echo $disableWebCheckBox.Add_CheckedChanged^({
+echo     $noBrowserCheckBox.Enabled = -not $disableWebCheckBox.Checked
+echo     if ^($disableWebCheckBox.Checked^) {
 echo         $noBrowserCheckBox.Checked = $false
 echo     }
 echo }^)
@@ -195,12 +195,10 @@ echo     }
 echo.
 echo     # Build command line arguments
 echo     $args = @^(^)
-echo     if ^($webCheckBox.Checked^) {
-echo         if ^($noBrowserCheckBox.Checked^) {
-echo             $args += '--web', 'no-browser'
-echo         } else {
-echo             $args += '--web'
-echo         }
+echo     if ^($disableWebCheckBox.Checked^) {
+echo         $args += '--no-web'
+echo     } elseif ^($noBrowserCheckBox.Checked^) {
+echo         $args += '--no-web-browser'
 echo     }
 echo.
 echo     # Add approval mode

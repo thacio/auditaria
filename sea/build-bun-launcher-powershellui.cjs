@@ -206,12 +206,13 @@ const conditionalUnifiedBunServer = `
 (function() {
   if (typeof Bun === 'undefined' || !Bun.version) return;
 
-  // Check if web interface is requested at startup
-  const hasWebFlag = process.argv.some(arg => arg === '--web' || arg === '-w' || arg.startsWith('--web=') || arg.startsWith('-w='));
+  // Check if web interface is disabled at startup (web is enabled by default)
+  const hasNoWebFlag = process.argv.some(arg => arg === '--no-web');
+  const webEnabled = !hasNoWebFlag;
 
   // Debug output
   if (process.env.DEBUG) {
-    console.log('[Bun] Web flag detected at startup:', hasWebFlag);
+    console.log('[Bun] Web enabled (default):', webEnabled);
     console.log('[Bun] Current argv:', process.argv);
   }
 
@@ -257,12 +258,12 @@ const conditionalUnifiedBunServer = `
 
       // Don't create the actual server yet - wait until it's needed
       // The server will be created either:
-      // 1. Immediately if --web flag was present
+      // 1. Immediately if web is enabled (default, unless --no-web)
       // 2. Later when /web command is used
 
-      // Check if we should auto-start the server (--web flag present)
-      if (hasWebFlag && !unifiedServer) {
-        // console.log('[Bun] Auto-starting server due to --web flag');
+      // Check if we should auto-start the server (web enabled by default)
+      if (webEnabled && !unifiedServer) {
+        // console.log('[Bun] Auto-starting server (web enabled by default)');
         this._createServer(options);
       }
       // Otherwise, server will be created on demand
@@ -758,8 +759,8 @@ $strings = @{
         'workingDir' = 'Working Directory:'
         'browse' = 'Browse...'
         'launchOptions' = 'Launch Options'
-        'webInterface' = 'Launch with Web Interface (--web)'
-        'noBrowser' = "Don't open browser automatically (no-browser)"
+        'disableWeb' = 'Disable Web Interface (--no-web)'
+        'noBrowser' = "Don't open browser automatically (--no-web-browser)"
         'customPort' = 'Custom port:'
         'portInfo' = '(0-65535, default: 8629)'
         'securitySettings' = 'Security Settings'
@@ -786,8 +787,8 @@ $strings = @{
         'workingDir' = 'Diretório de Trabalho:'
         'browse' = 'Procurar...'
         'launchOptions' = 'Opções de Inicialização'
-        'webInterface' = 'Iniciar com Interface Web (--web)'
-        'noBrowser' = 'Não abrir navegador automaticamente (no-browser)'
+        'disableWeb' = 'Desabilitar Interface Web (--no-web)'
+        'noBrowser' = 'Não abrir navegador automaticamente (--no-web-browser)'
         'customPort' = 'Porta personalizada:'
         'portInfo' = '(0-65535, padrão: 8629)'
         'securitySettings' = 'Configurações de Segurança'
@@ -814,8 +815,8 @@ $strings = @{
         'workingDir' = 'Directorio de Trabajo:'
         'browse' = 'Examinar...'
         'launchOptions' = 'Opciones de Inicio'
-        'webInterface' = 'Iniciar con Interfaz Web (--web)'
-        'noBrowser' = 'No abrir navegador automáticamente (no-browser)'
+        'disableWeb' = 'Deshabilitar Interfaz Web (--no-web)'
+        'noBrowser' = 'No abrir navegador automáticamente (--no-web-browser)'
         'customPort' = 'Puerto personalizado:'
         'portInfo' = '(0-65535, predeterminado: 8629)'
         'securitySettings' = 'Configuración de Seguridad'
@@ -842,8 +843,8 @@ $strings = @{
         'workingDir' = 'Répertoire de Travail:'
         'browse' = 'Parcourir...'
         'launchOptions' = 'Options de Lancement'
-        'webInterface' = 'Lancer avec Interface Web (--web)'
-        'noBrowser' = 'Ne pas ouvrir le navigateur automatiquement (no-browser)'
+        'disableWeb' = 'Désactiver Interface Web (--no-web)'
+        'noBrowser' = 'Ne pas ouvrir le navigateur automatiquement (--no-web-browser)'
         'customPort' = 'Port personnalisé:'
         'portInfo' = '(0-65535, par défaut: 8629)'
         'securitySettings' = 'Paramètres de Sécurité'
@@ -870,8 +871,8 @@ $strings = @{
         'workingDir' = 'कार्य निर्देशिका:'
         'browse' = 'ब्राउज़...'
         'launchOptions' = 'प्रारंभ विकल्प'
-        'webInterface' = 'वेब इंटरफ़ेस के साथ प्रारंभ करें (--web)'
-        'noBrowser' = 'ब्राउज़र स्वचालित रूप से न खोलें (no-browser)'
+        'disableWeb' = 'वेब इंटरफ़ेस अक्षम करें (--no-web)'
+        'noBrowser' = 'ब्राउज़र स्वचालित रूप से न खोलें (--no-web-browser)'
         'customPort' = 'कस्टम पोर्ट:'
         'portInfo' = '(0-65535, डिफ़ॉल्ट: 8629)'
         'securitySettings' = 'सुरक्षा सेटिंग्स'
@@ -1023,18 +1024,18 @@ $optionsGroup.Text = $lang.launchOptions
 $optionsGroup.Font = New-Object System.Drawing.Font('Segoe UI', 10)
 $form.Controls.Add($optionsGroup)
 
-$webCheckBox = New-Object System.Windows.Forms.CheckBox
-$webCheckBox.Location = New-Object System.Drawing.Point(15, 25)
-$webCheckBox.Size = New-Object System.Drawing.Size(490, 25)
-$webCheckBox.Text = $lang.webInterface
-# Use saved setting or default to true
-if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'webInterface') {
-    $webCheckBox.Checked = $savedSettings.webInterface
+$disableWebCheckBox = New-Object System.Windows.Forms.CheckBox
+$disableWebCheckBox.Location = New-Object System.Drawing.Point(15, 25)
+$disableWebCheckBox.Size = New-Object System.Drawing.Size(490, 25)
+$disableWebCheckBox.Text = $lang.disableWeb
+# Use saved setting or default to false (web enabled by default)
+if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'disableWeb') {
+    $disableWebCheckBox.Checked = $savedSettings.disableWeb
 } else {
-    $webCheckBox.Checked = $true
+    $disableWebCheckBox.Checked = $false
 }
-$webCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$optionsGroup.Controls.Add($webCheckBox)
+$disableWebCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
+$optionsGroup.Controls.Add($disableWebCheckBox)
 
 $noBrowserCheckBox = New-Object System.Windows.Forms.CheckBox
 $noBrowserCheckBox.Location = New-Object System.Drawing.Point(35, 50)
@@ -1047,7 +1048,7 @@ if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'noBro
     $noBrowserCheckBox.Checked = $false
 }
 $noBrowserCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$noBrowserCheckBox.Enabled = $webCheckBox.Checked
+$noBrowserCheckBox.Enabled = -not $disableWebCheckBox.Checked
 $optionsGroup.Controls.Add($noBrowserCheckBox)
 
 # Custom port checkbox and textbox
@@ -1062,7 +1063,7 @@ if ($savedSettings -and $savedSettings.PSObject.Properties.Name -contains 'custo
     $customPortCheckBox.Checked = $false
 }
 $customPortCheckBox.Font = New-Object System.Drawing.Font('Segoe UI', 9)
-$customPortCheckBox.Enabled = $webCheckBox.Checked
+$customPortCheckBox.Enabled = -not $disableWebCheckBox.Checked
 $optionsGroup.Controls.Add($customPortCheckBox)
 
 $portTextBox = New-Object System.Windows.Forms.TextBox
@@ -1151,11 +1152,11 @@ if ($savedSettings -and $savedSettings.approvalMode) {
     $approvalDefaultRadio.Checked = $true
 }
 
-# Enable/disable no-browser and custom port based on web checkbox
-$webCheckBox.Add_CheckedChanged({
-    $noBrowserCheckBox.Enabled = $webCheckBox.Checked
-    $customPortCheckBox.Enabled = $webCheckBox.Checked
-    if (-not $webCheckBox.Checked) {
+# Enable/disable no-browser and custom port based on disable web checkbox
+$disableWebCheckBox.Add_CheckedChanged({
+    $noBrowserCheckBox.Enabled = -not $disableWebCheckBox.Checked
+    $customPortCheckBox.Enabled = -not $disableWebCheckBox.Checked
+    if ($disableWebCheckBox.Checked) {
         $noBrowserCheckBox.Checked = $false
         $customPortCheckBox.Checked = $false
         $portTextBox.Enabled = $false
@@ -1220,7 +1221,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     # Save current settings for next time
     $currentSettings = @{
         workingDirectory = $workingDir
-        webInterface = $webCheckBox.Checked
+        disableWeb = $disableWebCheckBox.Checked
         noBrowser = $noBrowserCheckBox.Checked
         customPort = $customPortCheckBox.Checked
         port = $portTextBox.Text
@@ -1233,11 +1234,12 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 
     # Build command line arguments
     $args = @()
-    if ($webCheckBox.Checked) {
+    if ($disableWebCheckBox.Checked) {
+        $args += '--no-web'
+    } else {
+        # Web is enabled (default)
         if ($noBrowserCheckBox.Checked) {
-            $args += '--web', 'no-browser'
-        } else {
-            $args += '--web'
+            $args += '--no-web-browser'
         }
 
         # Add custom port if specified

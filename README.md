@@ -264,9 +264,10 @@ auditaria -p "Explique a arquitetura desta base de código"
 A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI
 através do seu navegador:
 
-- **Iniciar com interface web**: `auditaria --web` (abre automaticamente o
+- **Interface web habilitada por padrão**: `auditaria` (abre automaticamente o
   navegador)
-- **Iniciar sem abrir navegador**: `auditaria --web no-browser`
+- **Desabilitar interface web**: `auditaria --no-web`
+- **Iniciar sem abrir navegador**: `auditaria --no-web-browser`
 - **Comando durante execução**: Use `/web` para abrir a interface web a qualquer
   momento
 - **Porta padrão**: 8629 (usa uma porta aleatória se estiver ocupada)
@@ -705,8 +706,9 @@ auditaria -p "Run tests and deploy" --output-format stream-json
 The web interface provides an alternative way to interact with Auditaria CLI
 through your browser:
 
-- **Start with web interface**: `auditaria --web` (automatically opens browser)
-- **Start without opening browser**: `auditaria --web no-browser`
+- **Web interface enabled by default**: `auditaria` (automatically opens browser)
+- **Disable web interface**: `auditaria --no-web`
+- **Start without opening browser**: `auditaria --no-web-browser`
 - **Command during runtime**: Use `/web` to open the web interface at any time
 - **Default port**: 8629 (uses a random port if occupied)
 

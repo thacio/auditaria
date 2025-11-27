@@ -62,8 +62,9 @@ export interface CliArgs {
   experimentalAcp: boolean | undefined;
   extensions: string[] | undefined;
   listExtensions: boolean | undefined;
-  // WEB_INTERFACE_START: Web interface flag
-  web: boolean | string | undefined;
+  // WEB_INTERFACE_START: Web interface flags
+  web: boolean | undefined;
+  webBrowser: boolean | undefined;
   port: number | undefined;
   // WEB_INTERFACE_END
   resume: string | typeof RESUME_LATEST | undefined;
@@ -180,17 +181,18 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
           type: 'boolean',
           description: 'List all available extensions and exit.',
         })
-        // WEB_INTERFACE_START: Web interface command-line option
+        // WEB_INTERFACE_START: Web interface command-line options
+        // Web is enabled by default. Use --no-web to disable.
         .option('web', {
-          alias: 'w',
-          type: 'string',
-          description:
-            'Start with web interface enabled. Use "no-browser" to disable auto browser opening.',
-          coerce: (value) => {
-            // Handle --web (no value) as true, --web no-browser as 'no-browser'
-            if (value === true || value === '') return true;
-            return value;
-          },
+          type: 'boolean',
+          description: 'Enable web interface (default: true). Use --no-web to disable.',
+          default: true,
+        })
+        // Browser opens by default. Use --no-web-browser to disable.
+        .option('web-browser', {
+          type: 'boolean',
+          description: 'Open browser automatically (default: true). Use --no-web-browser to disable.',
+          default: true,
         })
         .option('port', {
           type: 'number',
