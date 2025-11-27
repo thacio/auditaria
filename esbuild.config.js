@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 import { wasmLoader } from 'esbuild-plugin-wasm';
 import i18nTransformPlugin from './scripts/i18n-transform/index.js'; // AUDITARIA_I18N custom feature
+import packageRenamePlugin from './scripts/package-rename-transform/index.js'; // AUDITARIA: Transform @google/gemini-cli to @thacio/auditaria-cli
 
 let esbuild;
 try {
@@ -84,7 +85,11 @@ const cliConfig = {
   define: {
     'process.env.CLI_VERSION': JSON.stringify(pkg.version),
   },
-  plugins: [...createWasmPlugins(), i18nTransformPlugin()],
+  plugins: [
+    ...createWasmPlugins(),
+    i18nTransformPlugin(), // AUDITARIA_I18N custom feature
+    packageRenamePlugin(), // AUDITARIA: Transform package names
+  ],
   alias: {
     'is-in-ci': path.resolve(__dirname, 'packages/cli/src/patches/is-in-ci.ts'),
   },
@@ -104,6 +109,7 @@ const a2aServerConfig = {
   plugins: [
     ...createWasmPlugins(),
     i18nTransformPlugin(), // AUDITARIA_I18N custom feature
+    packageRenamePlugin(), // AUDITARIA: Transform package names
   ],
 };
 
