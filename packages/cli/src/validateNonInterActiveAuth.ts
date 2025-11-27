@@ -17,10 +17,6 @@ import { type LoadedSettings } from './config/settings.js';
 import { handleError } from './utils/errors.js';
 import { runExitCleanup } from './utils/cleanup.js';
 
-export interface NonInteractiveConfig {
-  refreshAuth: (authType: AuthType) => Promise<unknown>;
-}
-
 function getAuthTypeFromEnv(): AuthType | undefined {
   if (process.env['GOOGLE_GENAI_USE_GCA'] === 'true') {
     return AuthType.LOGIN_WITH_GOOGLE;

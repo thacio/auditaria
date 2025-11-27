@@ -253,7 +253,7 @@ class WriteFileToolInvocation extends BaseToolInvocation<
         : `Error checking existing file: ${errDetails.message}`;
       return {
         llmContent: errorMsg,
-        returnDisplay: `Error checking existing file: ${errDetails.message}`,
+        returnDisplay: errorMsg,
         error: {
           message: errorMsg,
           type: ToolErrorType.FILE_WRITE_FAILURE,
@@ -383,7 +383,7 @@ class WriteFileToolInvocation extends BaseToolInvocation<
 
       return {
         llmContent: errorMsg,
-        returnDisplay: `Error: ${errorMsg}`,
+        returnDisplay: errorMsg,
         error: {
           message: errorMsg,
           type: errorType,

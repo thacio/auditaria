@@ -9,6 +9,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { clearCommand } from './clearCommand.js';
 import { type CommandContext } from './types.js';
 import { createMockCommandContext } from '../../test-utils/mockCommandContext.js';
+
 // Mock the telemetry service
 vi.mock('@google/gemini-cli-core', async () => {
   const actual = await vi.importActual('@google/gemini-cli-core');

@@ -526,8 +526,6 @@ describe('gemini.tsx main function kitty protocol', () => {
       experimentalAcp: undefined,
       extensions: undefined,
       listExtensions: undefined,
-      web: undefined,
-      port: undefined,
       includeDirectories: undefined,
       screenReader: undefined,
       useSmartEdit: undefined,

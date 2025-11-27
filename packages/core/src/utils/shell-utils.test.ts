@@ -374,9 +374,7 @@ describe('checkCommandPermissions', () => {
       expect(result).toEqual({
         allAllowed: false,
         disallowedCommands: ['git status'],
-        blockReason: expect.stringContaining(
-          `Disallowed commands: "git status"`,
-        ),
+        blockReason: `Command(s) not in the allowed commands list. Disallowed commands: "git status"`,
         isHardDenial: false,
       });
     });

@@ -707,7 +707,7 @@ describe('mcp-client', () => {
             false,
           ),
         ).rejects.toThrow(
-          /URL must be provided in the config for Google Credentials provider/,
+          'URL must be provided in the config for Google Credentials provider',
         );
       });
     });

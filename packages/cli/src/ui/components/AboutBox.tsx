@@ -8,8 +8,6 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
-import type { UserTierId } from '@google/gemini-cli-core';
-import { getLicenseDisplay } from '../../utils/license.js';
 
 interface AboutBoxProps {
   cliVersion: string;
@@ -19,7 +17,6 @@ interface AboutBoxProps {
   selectedAuthType: string;
   gcpProject: string;
   ideClient: string;
-  userTier?: UserTierId;
   userEmail?: string;
 }
 
@@ -31,7 +28,6 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
   selectedAuthType,
   gcpProject,
   ideClient,
-  userTier,
   userEmail,
 }) => (
   <Box
@@ -109,16 +105,6 @@ export const AboutBox: React.FC<AboutBoxProps> = ({
         <Text color={theme.text.primary}>
           {selectedAuthType.startsWith('oauth') ? 'OAuth' : selectedAuthType}
         </Text>
-      </Box>
-    </Box>
-    <Box flexDirection="row">
-      <Box width="35%">
-        <Text bold color={theme.text.link}>
-          License
-        </Text>
-      </Box>
-      <Box>
-        <Text>{getLicenseDisplay(selectedAuthType, userTier)}</Text>
       </Box>
     </Box>
     {userEmail && (

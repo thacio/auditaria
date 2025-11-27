@@ -327,7 +327,9 @@ export class ShellToolInvocation extends BaseToolInvocation<
           } else if (result.signal) {
             returnDisplayMessage = `Command terminated by signal: ${result.signal}`;
           } else if (result.error) {
-            returnDisplayMessage = `Command failed: ${getErrorMessage(result.error)}`;
+            returnDisplayMessage = `Command failed: ${getErrorMessage(
+              result.error,
+            )}`;
           } else if (result.exitCode !== null && result.exitCode !== 0) {
             returnDisplayMessage = `Command exited with code: ${result.exitCode}`;
           }

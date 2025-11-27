@@ -75,7 +75,9 @@ export async function handleUpdate(args: UpdateArgs) {
         updatedExtensionInfo.originalVersion !==
         updatedExtensionInfo.updatedVersion
       ) {
-        debugLogger.log(updateOutput(updatedExtensionInfo));
+        debugLogger.log(
+          `Extension "${args.name}" successfully updated: ${updatedExtensionInfo.originalVersion} → ${updatedExtensionInfo.updatedVersion}.`,
+        );
       } else {
         debugLogger.log(`Extension "${args.name}" is already up to date.`);
       }
@@ -134,9 +136,7 @@ export const updateCommand: CommandModule = {
       .conflicts('name', 'all')
       .check((argv) => {
         if (!argv.all && !argv.name) {
-          throw new Error(
-            'Either an extension name or --all must be provided',
-          );
+          throw new Error('Either an extension name or --all must be provided');
         }
         return true;
       }),

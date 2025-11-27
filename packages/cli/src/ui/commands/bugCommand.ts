@@ -12,10 +12,10 @@ import {
   CommandKind,
 } from './types.js';
 import { MessageType } from '../types.js';
-import { IdeClient, sessionId } from '@google/gemini-cli-core';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
+import { IdeClient, sessionId } from '@google/gemini-cli-core';
 
 export const bugCommand: SlashCommand = {
   name: 'bug',

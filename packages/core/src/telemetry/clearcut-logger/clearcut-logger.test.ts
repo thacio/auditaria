@@ -34,7 +34,6 @@ import {
   WebFetchFallbackAttemptEvent,
 } from '../types.js';
 import { AgentTerminateMode } from '../../agents/types.js';
- 
 import { GIT_COMMIT_INFO, CLI_VERSION } from '../../generated/git-commit.js';
 import { UserAccountManager } from '../../utils/userAccountManager.js';
 import { InstallationManager } from '../../utils/installationManager.js';

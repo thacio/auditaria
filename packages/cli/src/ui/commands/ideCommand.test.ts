@@ -36,8 +36,8 @@ describe('ideCommand', () => {
       disconnect: vi.fn(),
       connect: vi.fn(),
       getCurrentIde: vi.fn(),
-      getDetectedIdeDisplayName: vi.fn(),
       getConnectionStatus: vi.fn(),
+      getDetectedIdeDisplayName: vi.fn(),
     } as unknown as core.IdeClient;
 
     vi.mocked(core.IdeClient.getInstance).mockResolvedValue(mockIdeClient);
@@ -69,7 +69,9 @@ describe('ideCommand', () => {
   });
 
   it('should return the ide command', async () => {
-    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(IDE_DEFINITIONS.vscode);
+    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+      IDE_DEFINITIONS.vscode,
+    );
     vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
       status: core.IDEConnectionStatus.Disconnected,
     });
@@ -83,7 +85,9 @@ describe('ideCommand', () => {
   });
 
   it('should show disable command when connected', async () => {
-    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(IDE_DEFINITIONS.vscode);
+    vi.mocked(mockIdeClient.getCurrentIde).mockReturnValue(
+      IDE_DEFINITIONS.vscode,
+    );
     vi.mocked(mockIdeClient.getConnectionStatus).mockReturnValue({
       status: core.IDEConnectionStatus.Connected,
     });

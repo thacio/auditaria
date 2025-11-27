@@ -16,7 +16,6 @@ export function validateAuthMethod(authMethod: string): string | null {
     return null;
   }
 
-
   if (authMethod === AuthType.USE_GEMINI) {
     if (!process.env['GEMINI_API_KEY']) {
       return (

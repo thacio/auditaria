@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { debugLogger, type Config } from '@google/gemini-cli-core';
 import type { Message } from '../types.js';
 import { MessageType } from '../types.js';
+import { debugLogger, type Config } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 
 export function createShowMemoryAction(
@@ -49,7 +49,7 @@ export function createShowMemoryAction(
       const name = allNamesTheSame ? contextFileNames[0] : 'context';
       addMessage({
         type: MessageType.INFO,
-        content: `Loaded memory from ${fileCount} ${name ?? 'context'} file${
+        content: `Loaded memory from ${fileCount} ${name} file${
           fileCount > 1 ? 's' : ''
         }.`,
         timestamp: new Date(),

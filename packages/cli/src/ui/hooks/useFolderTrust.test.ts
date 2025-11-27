@@ -104,10 +104,10 @@ describe('useFolderTrust', () => {
     isWorkspaceTrustedSpy.mockReturnValue({ isTrusted: false, source: 'file' });
     renderHook(() => useFolderTrust(mockSettings, onTrustChange, addItem));
     expect(addItem).toHaveBeenCalledWith(
-      expect.objectContaining({
+      {
+        text: 'This folder is not trusted. Some features may be disabled. Use the `/permissions` command to change the trust level.',
         type: 'info',
-        text: expect.stringContaining('/permissions'),
-      }),
+      },
       expect.any(Number),
     );
   });

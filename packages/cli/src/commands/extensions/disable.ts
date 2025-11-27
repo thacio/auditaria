@@ -38,7 +38,7 @@ export async function handleDisable(args: DisableArgs) {
       await extensionManager.disableExtension(args.name, SettingScope.User);
     }
     debugLogger.log(
-      `Extension "${args.name}" successfully disabled for scope "${args.scope || 'user'}".`,
+      `Extension "${args.name}" successfully disabled for scope "${args.scope}".`,
     );
   } catch (error) {
     debugLogger.error(getErrorMessage(error));

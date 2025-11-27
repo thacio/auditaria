@@ -13,6 +13,7 @@ import {
   isWorkspaceTrusted,
 } from '../../config/trustedFolders.js';
 import { useSettings } from '../contexts/SettingsContext.js';
+
 import { MessageType } from '../types.js';
 import { type UseHistoryManagerReturn } from './useHistoryManager.js';
 import type { LoadedSettings } from '../../config/settings.js';

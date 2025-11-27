@@ -25,7 +25,7 @@ export interface ExtensionSetting {
 const getKeychainStorageName = (
   extensionName: string,
   extensionId: string,
-): string => `Auditaria CLI Extensions ${extensionName} ${extensionId}`;
+): string => `Gemini CLI Extensions ${extensionName} ${extensionId}`;
 
 export async function maybePromptForSettings(
   extensionConfig: ExtensionConfig,

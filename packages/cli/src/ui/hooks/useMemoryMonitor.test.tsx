@@ -51,7 +51,7 @@ describe('useMemoryMonitor', () => {
     expect(addItem).toHaveBeenCalledWith(
       {
         type: MessageType.WARNING,
-        text: expect.stringContaining('10.50 GB'),
+        text: 'High memory usage detected: 10.50 GB. If you experience a crash, please file a bug report by running `/bug`',
       },
       expect.any(Number),
     );

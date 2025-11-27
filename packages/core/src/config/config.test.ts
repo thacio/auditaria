@@ -1040,7 +1040,7 @@ describe('Server Config (config.ts)', () => {
 
       expect(mockCoreEvents.emitFeedback).toHaveBeenCalledWith(
         'error',
-        expect.stringContaining('Invalid proxy configuration detected'),
+        'Invalid proxy configuration detected. Check debug drawer for more details (F12)',
         proxyError,
       );
     });

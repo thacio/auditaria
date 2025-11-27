@@ -24,9 +24,7 @@ interface ValidateArgs {
 export async function handleValidate(args: ValidateArgs) {
   try {
     await validateExtension(args);
-    debugLogger.log(
-      `Extension ${args.path} has been successfully validated.`,
-    );
+    debugLogger.log(`Extension ${args.path} has been successfully validated.`);
   } catch (error) {
     debugLogger.error(getErrorMessage(error));
     process.exit(1);

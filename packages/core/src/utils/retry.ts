@@ -31,8 +31,6 @@ export interface RetryOptions {
   ) => Promise<string | boolean | null>;
   authType?: string;
   retryFetchErrors?: boolean;
-  useImprovedFallbackStrategy?: boolean;
-  disableFallbackForSession?: boolean;
   signal?: AbortSignal;
 }
 

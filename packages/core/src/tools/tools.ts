@@ -98,7 +98,9 @@ export abstract class BaseToolInvocation<
 
       if (decision === 'DENY') {
         throw new Error(
-          `Tool execution for "${this._toolDisplayName || this._toolName || 'unknown'}" denied by policy.`,
+          `Tool execution for "${
+            this._toolDisplayName || this._toolName
+          }" denied by policy.`,
         );
       }
 

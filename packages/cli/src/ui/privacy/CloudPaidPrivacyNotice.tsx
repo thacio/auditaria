@@ -34,10 +34,10 @@ export const CloudPaidPrivacyNotice = ({
         Service Specific Terms<Text color={theme.text.link}>[1]</Text> are
         incorporated into the agreement under which Google has agreed to provide
         Google Cloud Platform<Text color={theme.status.success}>[2]</Text> to
-        Customer (the "Agreement"). If the Agreement authorizes the resale or
+        Customer (the “Agreement”). If the Agreement authorizes the resale or
         supply of Google Cloud Platform under a Google Cloud partner or reseller
-        program, then except for in the section entitled "Partner-Specific
-        Terms", all references to Customer in the Service Specific Terms mean
+        program, then except for in the section entitled “Partner-Specific
+        Terms”, all references to Customer in the Service Specific Terms mean
         Partner or Reseller (as applicable), and all references to Customer Data
         in the Service Specific Terms mean Partner Data. Capitalized terms used
         but not defined in the Service Specific Terms have the meaning given to

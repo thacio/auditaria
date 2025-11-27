@@ -6,7 +6,6 @@
 
 import type { ThoughtSummary } from '@google/gemini-cli-core';
 import type React from 'react';
-import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { useStreamingContext } from '../contexts/StreamingContext.js';

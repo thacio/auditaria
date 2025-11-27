@@ -51,9 +51,7 @@ export async function readPathFromWorkspace(
   }
 
   if (!absolutePath) {
-    throw new Error(
-      `Path not found in workspace: ${pathStr}`,
-    );
+    throw new Error(`Path not found in workspace: ${pathStr}`);
   }
 
   const stats = await fs.stat(absolutePath);

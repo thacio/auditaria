@@ -279,10 +279,8 @@ class GrepToolInvocation extends BaseToolInvocation<
         returnDisplay: displayMessage,
       };
     } catch (error) {
+      console.error(`Error during GrepLogic execution: ${error}`);
       const errorMessage = getErrorMessage(error);
-      console.error(
-        `Error during GrepLogic execution: ${errorMessage}`,
-      );
       return {
         llmContent: `Error during grep search operation: ${errorMessage}`,
         returnDisplay: `Error: ${errorMessage}`,
@@ -443,9 +441,7 @@ class GrepToolInvocation extends BaseToolInvocation<
 
       return this.parseRipgrepJsonOutput(output, absolutePath);
     } catch (error: unknown) {
-      console.error(
-        `GrepLogic: ripgrep failed: ${getErrorMessage(error)}`,
-      );
+      console.error(`GrepLogic: ripgrep failed: ${getErrorMessage(error)}`);
       throw error;
     }
   }

@@ -43,13 +43,12 @@ describe('aboutCommand', () => {
         config: {
           getModel: vi.fn(),
           getIdeMode: vi.fn().mockReturnValue(true),
-          getGeminiClient: vi.fn(),
         },
         settings: {
           merged: {
             security: {
               auth: {
-                selectedType: 'oauth-gca',
+                selectedType: 'test-auth',
               },
             },
           },
@@ -68,11 +67,6 @@ describe('aboutCommand', () => {
     Object.defineProperty(process, 'platform', {
       value: 'test-os',
     });
-    vi.spyOn(mockContext.services.config!, 'getGeminiClient').mockReturnValue({
-      getUserTier: vi.fn().mockReturnValue(undefined),
-    } as unknown as ReturnType<
-      NonNullable<typeof mockContext.services.config>['getGeminiClient']
-    >);
   });
 
   afterEach(() => {
@@ -104,10 +98,9 @@ describe('aboutCommand', () => {
         osVersion: 'test-os',
         sandboxEnv: 'no sandbox',
         modelVersion: 'test-model',
-        selectedAuthType: 'oauth-gca',
+        selectedAuthType: 'test-auth',
         gcpProject: 'test-gcp-project',
         ideClient: 'test-ide',
-        userTier: undefined,
         userEmail: 'test-email@example.com',
       },
       expect.any(Number),
@@ -166,8 +159,8 @@ describe('aboutCommand', () => {
         osVersion: 'test-os',
         sandboxEnv: 'no sandbox',
         modelVersion: 'test-model',
-        selectedAuthType: 'oauth',
-        gcpProject: '',
+        selectedAuthType: 'test-auth',
+        gcpProject: 'test-gcp-project',
         ideClient: '',
       }),
       expect.any(Number),

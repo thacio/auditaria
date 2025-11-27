@@ -10,8 +10,9 @@ import {
   AuthType,
   type Config,
   loadApiKey,
-  getErrorMessage,
+  debugLogger,
 } from '@google/gemini-cli-core';
+import { getErrorMessage } from '@google/gemini-cli-core';
 import { AuthState } from '../types.js';
 import { validateAuthMethod } from '../../config/auth.js';
 
@@ -114,7 +115,7 @@ export const useAuthCommand = (settings: LoadedSettings, config: Config) => {
       try {
         await config.refreshAuth(authType);
 
-        console.log(`Authenticated via "${authType}".`);
+        debugLogger.log(`Authenticated via "${authType}".`);
         setAuthError(null);
         setAuthState(AuthState.Authenticated);
       } catch (e) {
