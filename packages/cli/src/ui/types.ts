@@ -12,7 +12,6 @@ import type {
   ToolCallConfirmationDetails,
   ToolConfirmationOutcome,
   ToolResultDisplay,
-  UserTierId,
   RetrieveUserQuotaResponse,
 } from '@google/gemini-cli-core';
 import type { PartListUnion } from '@google/genai';
@@ -145,7 +144,6 @@ export type HistoryItemAbout = HistoryItemBase & {
   selectedAuthType: string;
   gcpProject: string;
   ideClient: string;
-  userTier?: UserTierId;
   userEmail?: string;
 };
 
