@@ -33,15 +33,8 @@ export const aboutCommand: SlashCommand = {
     const cliVersion = await getCliVersion();
     const selectedAuthType =
       context.services.settings.merged.security?.auth?.selectedType || '';
-    // Only show GCP Project for auth types that actually use it
-    const gcpProject =
-      selectedAuthType === 'oauth-gca' ||
-      selectedAuthType === 'vertex-ai' ||
-      selectedAuthType === 'cloud-shell'
-        ? process.env['GOOGLE_CLOUD_PROJECT'] || ''
-        : '';
+    const gcpProject = process.env['GOOGLE_CLOUD_PROJECT'] || '';
     const ideClient = await getIdeClientName(context);
-    const userTier = context.services.config?.getUserTier();
 
     const userAccountManager = new UserAccountManager();
     const cachedAccount = userAccountManager.getCachedGoogleAccount();
@@ -59,7 +52,6 @@ export const aboutCommand: SlashCommand = {
       selectedAuthType,
       gcpProject,
       ideClient,
-      userTier,
       userEmail,
     };
 

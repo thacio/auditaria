@@ -8,17 +8,15 @@ import { setLanguage } from '@google/gemini-cli-core';
 import type { SupportedLanguage } from '@google/gemini-cli-core';
 
 import { useState, useCallback } from 'react';
-import type { LoadedSettings , LoadableSettingScope } from '../../config/settings.js';
+import type { LoadedSettings } from '../../config/settings.js';
+import { SettingScope } from '../../config/settings.js';
 import type { HistoryItem } from '../types.js';
 import { MessageType } from '../types.js';
 
 interface UseLanguageCommandReturn {
   isLanguageDialogOpen: boolean;
   openLanguageDialog: () => void;
-  handleLanguageSelect: (
-    languageCode: SupportedLanguage | undefined,
-    scope: LoadableSettingScope,
-  ) => void;
+  handleLanguageSelect: (languageCode: SupportedLanguage | undefined) => void;
 }
 
 export const useLanguageCommand = (
@@ -67,10 +65,7 @@ export const useLanguageCommand = (
   );
 
   const handleLanguageSelect = useCallback(
-    async (
-      languageCode: SupportedLanguage | undefined,
-      scope: LoadableSettingScope,
-    ) => {
+    async (languageCode: SupportedLanguage | undefined) => {
       if (!languageCode) {
         // Just close the dialog if no language selected
         setIsLanguageDialogOpen(false);
@@ -78,8 +73,12 @@ export const useLanguageCommand = (
       }
 
       try {
-        // Save the language setting
-        loadedSettings.setValue(scope, 'ui.language', languageCode);
+        // Save the language setting to System scope
+        loadedSettings.setValue(
+          SettingScope.System,
+          'ui.language',
+          languageCode,
+        );
 
         // Apply the language
         const success = await applyLanguage(languageCode);
@@ -95,9 +94,7 @@ export const useLanguageCommand = (
         // If not successful, keep dialog open and error message is already set
       } catch (error) {
         console.error('Failed to save language setting:', error);
-        setLanguageError(
-          'Failed to save language setting. Please try again.',
-        );
+        setLanguageError('Failed to save language setting. Please try again.');
       }
     },
     [loadedSettings, applyLanguage, setLanguageError, refreshStatic],

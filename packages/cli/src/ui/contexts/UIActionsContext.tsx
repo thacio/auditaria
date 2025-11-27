@@ -33,7 +33,6 @@ export interface UIActions {
     languageCode:
       | import('@google/gemini-cli-core').SupportedLanguage
       | undefined,
-    scope: LoadableSettingScope,
   ) => void;
   exitPrivacyNotice: () => void;
   closeSettingsDialog: () => void;
