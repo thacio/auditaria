@@ -1136,13 +1136,6 @@ export const useGeminiStream = (
               }
               if (loopDetectedRef.current) {
                 loopDetectedRef.current = false;
-                // WEB_INTERFACE_START AUDITARIA: Pre-start terminal capture for web interface before showing dialog
-                const preStartCapture = (global as Record<string, unknown>)
-                  .__preStartTerminalCapture;
-                if (typeof preStartCapture === 'function') {
-                  preStartCapture();
-                }
-                // WEB_INTERFACE_END AUDITARIA: Handle multimodal messages from web interface
 
                 // Show the confirmation dialog to choose whether to disable loop detection
                 setLoopDetectionConfirmationRequest({

@@ -141,7 +141,7 @@ export class TerminalDisplay {
             this.hide();
             return;
         }
-        
+
         // Update content with HTML from ANSI conversion
         this.contentElement.innerHTML = terminalData.content;
         

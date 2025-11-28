@@ -10,12 +10,42 @@ import { coreEvents } from './events.js';
 const originalStdoutWrite = process.stdout.write.bind(process.stdout);
 const originalStderrWrite = process.stderr.write.bind(process.stderr);
 
+// AUDITARIA_FEATURE_START: Terminal capture hook for web interface
+// Hooks that can intercept stdout/stderr writes for terminal capture
+type StdoutHook = (
+  chunk: Uint8Array | string,
+  encoding?: BufferEncoding,
+) => void;
+let stdoutHook: StdoutHook | null = null;
+
+/**
+ * Register a hook to intercept stdout writes (used for terminal capture)
+ * Returns a cleanup function to unregister the hook
+ */
+export function registerStdoutHook(hook: StdoutHook): () => void {
+  stdoutHook = hook;
+  return () => {
+    if (stdoutHook === hook) {
+      stdoutHook = null;
+    }
+  };
+}
+// AUDITARIA_FEATURE_END
+
 /**
  * Writes to the real stdout, bypassing any monkey patching on process.stdout.write.
  */
 export function writeToStdout(
   ...args: Parameters<typeof process.stdout.write>
 ): boolean {
+  // AUDITARIA_FEATURE_START: Call hook if registered
+  if (stdoutHook) {
+    const chunk = args[0];
+    const encoding =
+      typeof args[1] === 'string' ? (args[1] as BufferEncoding) : undefined;
+    stdoutHook(chunk, encoding);
+  }
+  // AUDITARIA_FEATURE_END
   return originalStdoutWrite(...args);
 }
 

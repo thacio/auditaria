@@ -16,7 +16,7 @@ interface TerminalCaptureWrapperProps {
 
 export function TerminalCaptureWrapper({ children }: TerminalCaptureWrapperProps) {
   const webInterface = useWebInterface();
-  
+
   const handleTerminalUpdate = useCallback((data: TerminalCaptureData) => {
     // Broadcast terminal capture to web interface
     if (webInterface?.service && webInterface.isRunning) {

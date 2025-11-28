@@ -1435,46 +1435,17 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, []); // Empty dependency array - only register once
 
   // Terminal capture for interactive screens
+  // The capture hook is always running (registered in TerminalCaptureContext on mount)
+  // We just need to tell it when dialogs are visible so it broadcasts the content
   const terminalCapture = useTerminalCapture();
   useKeypressContext(); // Required for keypress context initialization
 
-  // Create a function to pre-start capture for dialogs that render immediately
-  const preStartTerminalCapture = useCallback(() => {
-    // Start capture immediately to catch the initial render
-    terminalCapture.setInteractiveScreenActive(true);
-  }, [terminalCapture]);
-
-  // Expose the pre-start function globally for the slash command processor
+  // Start/stop terminal capture broadcasting when interactive screens change
+  // Uses dialogsVisible as the single source of truth for detecting any open dialog
+  // This ensures terminal capture works for ALL dialogs automatically (DRY principle)
+  // Note: No prewarming needed - the hook captures output before this effect runs
   useEffect(() => {
-    if (webInterface?.service) {
-      (global as Record<string, unknown>).__preStartTerminalCapture =
-        preStartTerminalCapture;
-    }
-    return () => {
-      delete (global as Record<string, unknown>).__preStartTerminalCapture;
-    };
-  }, [preStartTerminalCapture, webInterface]);
-
-  // Detect when any interactive screen is shown
-  const isAnyInteractiveScreenOpen =
-    authState === AuthState.Updating ||
-    authState === AuthState.Unauthenticated ||
-    isThemeDialogOpen ||
-    isEditorDialogOpen ||
-    isLanguageDialogOpen ||
-    isSettingsDialogOpen ||
-    isModelDialogOpen ||
-    showPrivacyNotice ||
-    shouldShowIdePrompt ||
-    isFolderTrustDialogOpen ||
-    !!proQuotaRequest ||
-    !!shellConfirmationRequest ||
-    !!confirmationRequest ||
-    !!loopDetectionConfirmationRequest;
-
-  // Start/stop terminal capture when interactive screens change
-  useEffect(() => {
-    if (isAnyInteractiveScreenOpen) {
+    if (dialogsVisible) {
       terminalCapture.setInteractiveScreenActive(true);
     } else {
       const timer = setTimeout(() => {
@@ -1482,7 +1453,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isAnyInteractiveScreenOpen, terminalCapture]);
+  }, [dialogsVisible, terminalCapture]);
 
   // Handle keyboard input from web interface
   useEffect(() => {
@@ -1497,7 +1468,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       alt?: boolean;
     }) => {
       // Only emit when interactive screens are open (terminal capture is active)
-      if (isAnyInteractiveScreenOpen && keyData.sequence) {
+      if (dialogsVisible && keyData.sequence) {
         // Emit as 'data' event - Ink's KeypressProvider in PassThrough mode listens for 'data', not 'keypress'
         process.stdin.emit('data', keyData.sequence);
       }
@@ -1509,7 +1480,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     return () => {
       webInterface?.service?.off('terminal_input', handleTerminalInput);
     };
-  }, [webInterface?.service, isAnyInteractiveScreenOpen]);
+  }, [webInterface?.service, dialogsVisible]);
 
   // Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
   const footerContext = useFooter();

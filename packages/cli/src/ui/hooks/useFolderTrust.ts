@@ -33,15 +33,6 @@ export const useFolderTrust = (
     const { isTrusted: trusted } = isWorkspaceTrusted(settings.merged);
     setIsTrusted(trusted);
 
-    // WEB_INTERFACE_START: Pre-start terminal capture for folder trust dialog
-    // If dialog will open, start capture before setting state to catch initial render
-    const preStartCapture = (global as Record<string, unknown>)
-      .__preStartTerminalCapture;
-    if (trusted === undefined && typeof preStartCapture === 'function') {
-      preStartCapture();
-    }
-    // WEB_INTERFACE_END
-
     setIsFolderTrustDialogOpen(trusted === undefined);
     onTrustChange(trusted);
 
