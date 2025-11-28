@@ -257,11 +257,11 @@ export async function transformCode(source, filePath, options = {}) {
 
     // Add imports if needed and not already present
     if (needsTImport && !hasTranslateImport) {
-      addTranslateImport(ast, false);
+      addTranslateImport(ast, false, filePath);
       modified = true;
     }
     if (needsI18nTextImport && !hasI18nTextImport) {
-      addTranslateImport(ast, true);
+      addTranslateImport(ast, true, filePath);
       modified = true;
     }
 
@@ -378,8 +378,33 @@ function transformObjectProperty(node) {
   return null;
 }
 
+// Helper: Calculate relative import path for core package files
+function getI18nImportPath(filePath) {
+  // Normalize path separators
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  // Check if file is within packages/core/src/
+  const coreMatch = normalizedPath.match(/packages\/core\/src\/(.+)$/);
+  if (coreMatch) {
+    // File is in core package - use relative import to avoid circular dependency
+    const relativePath = coreMatch[1]; // e.g., "tools/edit.ts" or "utils/errors.ts"
+    const parts = relativePath.split('/');
+    // Subtract 1 because the last part is the filename, not a directory
+    const dirDepth = parts.length - 1;
+    if (dirDepth === 0) {
+      // File is directly in src/ (e.g., index.ts)
+      return './i18n';
+    }
+    const upDirs = '../'.repeat(dirDepth);
+    return `${upDirs}i18n`;
+  }
+
+  // File is outside core package - use package import
+  return '@google/gemini-cli-core';
+}
+
 // Helper: Add import for t function and/or I18nText
-function addTranslateImport(ast, includeI18nText = false) {
+function addTranslateImport(ast, includeI18nText = false, filePath = '') {
   const specifiers = [t.importSpecifier(t.identifier('t'), t.identifier('t'))];
 
   if (includeI18nText) {
@@ -388,9 +413,10 @@ function addTranslateImport(ast, includeI18nText = false) {
     );
   }
 
+  const importPath = getI18nImportPath(filePath);
   const importDeclaration = t.importDeclaration(
     specifiers,
-    t.stringLiteral('@google/gemini-cli-core'),
+    t.stringLiteral(importPath),
   );
 
   // Add import at the beginning of the file

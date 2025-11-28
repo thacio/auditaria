@@ -1,6 +1,5 @@
 {
   "_exactStrings": {
-    "\n--- Content from referenced context ---": "\n--- Contenido del contexto referenciado ---",
     "\n--- Content from referenced files ---": "\n--- Contenido de los archivos referenciados ---",
     "#{value}": "#{value}",
     "(Esc to cancel)": "(Esc para cancelar)",
@@ -437,7 +436,6 @@
     "Render output in plain-text to be more screen reader accessible": "Renderiza la salida en texto plano para que sea más accesible para lectores de pantalla",
     "Reqs": "Reqs",
     "Request cancelled.": "Solicitud cancelada.",
-    "Requires setting the `GEMINI_API_KEY` environment variable": "Requiere establecer la variable de entorno `GEMINI_API_KEY`",
     "Respect .geminiignore": "Respeta .geminiignore",
     "Respect .geminiignore files when searching": "Respeta los archivos .geminiignore al buscar",
     "Respect .gitignore": "Respeta .gitignore",

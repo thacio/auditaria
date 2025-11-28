@@ -37,8 +37,10 @@ packages/cli/src/zed-integration/**
 packages/core/src/test-utils/**
 packages/core/src/testing/**
 
-# Core package - contains AI tool definitions, schemas, internal logic (not user-facing)
-# User-facing UI is in packages/cli/src/ui/
+# Core package - excluded because it's pre-built before bundle step
+# The i18n transform only works on source files during esbuild bundling,
+# but core is imported from dist/ (pre-compiled JS).
+# User-facing strings in core would need separate handling.
 packages/core/src/**
 
 # Development and debug files
