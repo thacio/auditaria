@@ -23,17 +23,20 @@ export class ExclusionManager {
     const ignorePath = path.join(process.cwd(), '.i18n-ignore');
 
     // Default exclusions
+    // Note: **/dist/** removed - now handled explicitly in .i18n-ignore
+    // to allow packages/core/dist/src/** to be processed
     this.patterns = [
       '**/*.test.ts',
       '**/*.test.tsx',
+      '**/*.test.js',
       '**/*.spec.ts',
       '**/*.spec.tsx',
+      '**/*.spec.js',
       '**/test/**',
       '**/tests/**',
       '**/mocks/**',
       '**/__mocks__/**',
       '**/node_modules/**',
-      '**/dist/**',
       '**/build/**',
       '**/bundle/**',
       '**/*.d.ts',

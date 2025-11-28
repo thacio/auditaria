@@ -15,11 +15,18 @@
 **/__mocks__/**
 
 # Build outputs
-**/dist/**
+# Note: packages/core/dist/src/** is ALLOWED for processing (user-facing strings)
+# but AI-facing files within it are excluded below
 **/build/**
 **/bundle/**
 *.bundle.js
 *.min.js
+# Exclude dist from all packages EXCEPT core (which we process)
+packages/cli/dist/**
+packages/a2a-server/dist/**
+packages/web-server/dist/**
+packages/web-client/dist/**
+packages/vscode-ide-companion/dist/**
 
 # Type definitions
 **/*.d.ts
@@ -37,11 +44,43 @@ packages/cli/src/zed-integration/**
 packages/core/src/test-utils/**
 packages/core/src/testing/**
 
-# Core package - excluded because it's pre-built before bundle step
-# The i18n transform only works on source files during esbuild bundling,
-# but core is imported from dist/ (pre-compiled JS).
-# User-facing strings in core would need separate handling.
-packages/core/src/**
+# Core package - fine-grained exclusions (AI-facing only, not user-facing)
+# These contain AI prompts, schemas, metrics - NOT shown to users
+# Include both src/ and dist/src/ paths
+packages/core/src/telemetry/**
+packages/core/dist/src/telemetry/**
+packages/core/src/prompts/**
+packages/core/dist/src/prompts/**
+packages/core/src/routing/**
+packages/core/dist/src/routing/**
+packages/core/src/agents/codebase-investigator.ts
+packages/core/dist/src/agents/codebase-investigator.js
+packages/core/src/agents/schema-utils.ts
+packages/core/dist/src/agents/schema-utils.js
+packages/core/src/agents/types.ts
+packages/core/dist/src/agents/types.js
+packages/core/src/agents/executor.ts
+packages/core/dist/src/agents/executor.js
+packages/core/src/utils/editCorrector.ts
+packages/core/dist/src/utils/editCorrector.js
+packages/core/src/utils/environmentContext.ts
+packages/core/dist/src/utils/environmentContext.js
+packages/core/src/utils/llm-edit-fixer.ts
+packages/core/dist/src/utils/llm-edit-fixer.js
+packages/core/src/utils/nextSpeakerChecker.ts
+packages/core/dist/src/utils/nextSpeakerChecker.js
+packages/core/src/utils/summarizer.ts
+packages/core/dist/src/utils/summarizer.js
+packages/core/src/core/geminiChat.ts
+packages/core/dist/src/core/geminiChat.js
+packages/core/src/core/geminiChatHookTriggers.ts
+packages/core/dist/src/core/geminiChatHookTriggers.js
+packages/core/src/services/chatCompressionService.ts
+packages/core/dist/src/services/chatCompressionService.js
+
+# i18n module itself - don't transform (would create circular reference)
+packages/core/src/i18n/**
+packages/core/dist/src/i18n/**
 
 # Development and debug files
 **/*.debug.ts

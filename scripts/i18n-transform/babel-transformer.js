@@ -236,7 +236,7 @@ export async function transformCode(source, filePath, options = {}) {
 
       // Transform object properties like { title: 'Settings' }
       ObjectProperty(path) {
-        const result = transformObjectProperty(path.node);
+        const result = transformObjectProperty(path.node, filePath);
         if (result) {
           path.replaceWith(result.node);
           modified = true;
@@ -266,6 +266,16 @@ export async function transformCode(source, filePath, options = {}) {
     }
 
     if (modified) {
+      // Cleanup pass: Remove empty imports like `import {} from 'zod'`
+      // These are artifacts from TypeScript type-only imports and cause ESBuild warnings
+      traverse.default(ast, {
+        ImportDeclaration(path) {
+          if (path.node.specifiers.length === 0) {
+            path.remove();
+          }
+        },
+      });
+
       // Generate the transformed code
       const output = generate.default(ast, {
         retainLines: false,
@@ -339,15 +349,29 @@ function transformTextComponent(node) {
 }
 
 // Helper: Transform object property
-function transformObjectProperty(node) {
+function transformObjectProperty(node, filePath = '') {
+  // Base property names that are always user-facing
   const propertyNames = [
     'title',
     'label',
-    'description',
     'message',
     'placeholder',
     'text',
   ];
+
+  // 'description' is context-dependent:
+  // - In CLI (settings): user-facing (translate)
+  // - In Core tools: AI-facing (don't translate - used for tool schemas)
+  // - 'returnDisplay' is user-facing in tool results
+  const normalizedPath = filePath.replace(/\\/g, '/');
+  const isCoreDistFile = normalizedPath.includes('packages/core/dist/');
+
+  if (!isCoreDistFile) {
+    // For non-core files, include 'description' as it's likely user-facing
+    propertyNames.push('description');
+  }
+  // For core files, 'description' is excluded (AI-facing tool schemas)
+  // but 'title' is kept (user-facing confirmation dialogs)
 
   // Check if this is a property we want to transform
   if (t.isIdentifier(node.key) && propertyNames.includes(node.key.name)) {
@@ -378,31 +402,6 @@ function transformObjectProperty(node) {
   return null;
 }
 
-// Helper: Calculate relative import path for core package files
-function getI18nImportPath(filePath) {
-  // Normalize path separators
-  const normalizedPath = filePath.replace(/\\/g, '/');
-
-  // Check if file is within packages/core/src/
-  const coreMatch = normalizedPath.match(/packages\/core\/src\/(.+)$/);
-  if (coreMatch) {
-    // File is in core package - use relative import to avoid circular dependency
-    const relativePath = coreMatch[1]; // e.g., "tools/edit.ts" or "utils/errors.ts"
-    const parts = relativePath.split('/');
-    // Subtract 1 because the last part is the filename, not a directory
-    const dirDepth = parts.length - 1;
-    if (dirDepth === 0) {
-      // File is directly in src/ (e.g., index.ts)
-      return './i18n';
-    }
-    const upDirs = '../'.repeat(dirDepth);
-    return `${upDirs}i18n`;
-  }
-
-  // File is outside core package - use package import
-  return '@google/gemini-cli-core';
-}
-
 // Helper: Add import for t function and/or I18nText
 function addTranslateImport(ast, includeI18nText = false, filePath = '') {
   const specifiers = [t.importSpecifier(t.identifier('t'), t.identifier('t'))];
@@ -413,10 +412,29 @@ function addTranslateImport(ast, includeI18nText = false, filePath = '') {
     );
   }
 
-  const importPath = getI18nImportPath(filePath);
+  // For files within packages/core (src/ or dist/src/), use relative imports
+  // to avoid circular dependency through the package entry point
+  let importSource = '@google/gemini-cli-core';
+  const normalizedPath = filePath.replace(/\\/g, '/');
+
+  // Match both packages/core/src/ and packages/core/dist/src/
+  const srcMatch = normalizedPath.match(/packages\/core\/src\/(.+)/);
+  const distMatch = normalizedPath.match(/packages\/core\/dist\/src\/(.+)/);
+  const match = distMatch || srcMatch; // Prefer dist match (more specific)
+
+  if (match) {
+    // Calculate relative path from current file to i18n module
+    const relativePath = match[1];
+    const depth = relativePath.split('/').length - 1; // -1 because the file itself doesn't count
+    const prefix = depth > 0 ? '../'.repeat(depth) : './';
+    // Use .js extension for dist files to ensure proper resolution
+    const extension = distMatch ? '/index.js' : '';
+    importSource = prefix + 'i18n' + extension;
+  }
+
   const importDeclaration = t.importDeclaration(
     specifiers,
-    t.stringLiteral(importPath),
+    t.stringLiteral(importSource),
   );
 
   // Add import at the beginning of the file

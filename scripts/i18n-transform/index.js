@@ -92,8 +92,8 @@ export function i18nTransformPlugin(options = {}) {
         transformationStats.fileDetails = [];
       });
 
-      // Transform TypeScript/TSX files
-      build.onLoad({ filter: /\.(ts|tsx)$/ }, async (args) => {
+      // Transform TypeScript/TSX and JavaScript files (for dist processing)
+      build.onLoad({ filter: /\.(ts|tsx|js|jsx)$/ }, async (args) => {
         const filePath = args.path;
 
         // Check if file should be excluded
