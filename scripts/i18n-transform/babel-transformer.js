@@ -160,6 +160,33 @@ export async function transformCode(source, filePath, options = {}) {
               }
               return;
             }
+
+            // Last resort: transform individual static JSXText nodes
+            // when nested Text has dynamic content that prevents full transformation
+            // e.g., <Text>{ternary}Select Theme<Text>{dynamic}</Text></Text>
+            // → <Text>{ternary}{t('Select Theme')}<Text>{dynamic}</Text></Text>
+            const staticTextResult = transformStaticTextNodesOnly(path.node);
+            if (staticTextResult) {
+              path.replaceWith(staticTextResult.node);
+              path.skip();
+              modified = true;
+              transformCount += staticTextResult.transformedCount;
+              needsTImport = true;
+              for (const text of staticTextResult.transformedTexts) {
+                transformations.push({
+                  type: 'StaticTextInDynamicContext',
+                  original: text,
+                  transformed: `t('${text}')`,
+                  line: path.node.loc?.start?.line || 0,
+                });
+              }
+              if (debug) {
+                debugLogger.debug(
+                  `Transformed static text nodes in dynamic context in ${filePath}`,
+                );
+              }
+              return;
+            }
           }
 
           // Try selective transformation for simple Text with mixed static/dynamic content
@@ -227,6 +254,34 @@ export async function transformCode(source, filePath, options = {}) {
             if (debug) {
               debugLogger.debug(`Transformed Text component in ${filePath}`);
             }
+            return;
+          }
+
+          // Final fallback: transform individual static JSXText nodes
+          // for any remaining Text with multiple children (ternary + text, etc.)
+          // e.g., <Text>{ternary}Apply To</Text> → <Text>{ternary}{t('Apply To')}</Text>
+          if (path.node.children && path.node.children.length > 1) {
+            const staticResult = transformStaticTextNodesOnly(path.node);
+            if (staticResult) {
+              path.replaceWith(staticResult.node);
+              path.skip();
+              modified = true;
+              transformCount += staticResult.transformedCount;
+              needsTImport = true;
+              for (const text of staticResult.transformedTexts) {
+                transformations.push({
+                  type: 'StaticTextFallback',
+                  original: text,
+                  transformed: `t('${text}')`,
+                  line: path.node.loc?.start?.line || 0,
+                });
+              }
+              if (debug) {
+                debugLogger.debug(
+                  `Transformed static text (fallback) in ${filePath}`,
+                );
+              }
+            }
           }
         },
       },
@@ -250,6 +305,27 @@ export async function transformCode(source, filePath, options = {}) {
           });
           if (debug) {
             debugLogger.debug(`Transformed object property in ${filePath}`);
+          }
+        }
+      },
+
+      // Transform function arguments for specific setter/display functions
+      // e.g., setDefaultBannerText('Hello') → setDefaultBannerText(t('Hello'))
+      CallExpression(path) {
+        const result = transformFunctionArgument(path.node);
+        if (result) {
+          path.replaceWith(result.node);
+          modified = true;
+          transformCount++;
+          needsTImport = true;
+          transformations.push({
+            type: `function:${result.functionName}`,
+            original: result.original,
+            transformed: `t('${result.original}')`,
+            line: path.node.loc?.start?.line || 0,
+          });
+          if (debug) {
+            debugLogger.debug(`Transformed function argument in ${filePath}`);
           }
         }
       },
@@ -400,6 +476,90 @@ function transformObjectProperty(node, filePath = '') {
   }
 
   return null;
+}
+
+// Helper: Transform function arguments for specific setter/display functions
+// Whitelist: specific function names known to display user-facing text
+// Pattern: functions matching set*Text, set*Message, show*Text, show*Message
+function transformFunctionArgument(node) {
+  // Whitelist of specific function names
+  const whitelist = [
+    'setDefaultBannerText',
+    'setBannerText',
+    'setErrorMessage',
+    'setSuccessMessage',
+    'setWarningMessage',
+    'setInfoMessage',
+    'setStatusText',
+    'setHelpText',
+    'setPlaceholderText',
+    'showNotification',
+    'showAlert',
+    'showError',
+    'showWarning',
+    'showInfo',
+    'showSuccess',
+  ];
+
+  // Pattern: set*Text, set*Message, show*Text, show*Message, display*Text, display*Message
+  const patterns = [
+    /^set[A-Z].*Text$/,
+    /^set[A-Z].*Message$/,
+    /^show[A-Z].*Text$/,
+    /^show[A-Z].*Message$/,
+    /^display[A-Z].*Text$/,
+    /^display[A-Z].*Message$/,
+  ];
+
+  // Get function name
+  let functionName = null;
+  if (t.isIdentifier(node.callee)) {
+    functionName = node.callee.name;
+  } else if (t.isMemberExpression(node.callee) && t.isIdentifier(node.callee.property)) {
+    // Handle this.setMessage() or obj.setMessage()
+    functionName = node.callee.property.name;
+  }
+
+  if (!functionName) return null;
+
+  // Check if function matches whitelist or patterns
+  const matchesWhitelist = whitelist.includes(functionName);
+  const matchesPattern = patterns.some((pattern) => pattern.test(functionName));
+
+  if (!matchesWhitelist && !matchesPattern) return null;
+
+  // Check if first argument is a string literal
+  if (node.arguments.length === 0) return null;
+  const firstArg = node.arguments[0];
+
+  if (!t.isStringLiteral(firstArg)) return null;
+
+  const text = firstArg.value;
+
+  // Skip empty or debug-like strings
+  if (!text || text.startsWith('DEBUG:') || text.startsWith('[')) {
+    return null;
+  }
+
+  // Skip if text is too short (likely a key or code)
+  if (text.length < 3) return null;
+
+  const rebrandedText = rebrand(text);
+
+  // Create t() call wrapping the argument
+  const tCall = t.callExpression(t.identifier('t'), [
+    t.stringLiteral(rebrandedText),
+  ]);
+
+  // Replace the first argument with t() call
+  const newArguments = [tCall, ...node.arguments.slice(1)];
+  const newNode = t.callExpression(node.callee, newArguments);
+
+  return {
+    node: newNode,
+    original: rebrandedText,
+    functionName,
+  };
 }
 
 // Helper: Add import for t function and/or I18nText
@@ -570,6 +730,184 @@ function isStaticTextComponent(node) {
     }
     return false;
   });
+}
+
+/**
+ * Transform only the static JSXText nodes within a Text element
+ * Used when nested Text has dynamic content that prevents full transformation
+ * e.g., <Text>{ternary}Select Theme{' '}<Text>{dynamic}</Text></Text>
+ * → <Text>{ternary}{t('Select Theme')}{' '}<Text>{dynamic}</Text></Text>
+ */
+function transformStaticTextNodesOnly(node) {
+  const newChildren = [];
+  const transformedTexts = [];
+  let anyTransformed = false;
+
+  for (const child of node.children) {
+    if (t.isJSXText(child)) {
+      const text = child.value.trim();
+
+      // Skip whitespace-only or very short text
+      if (!text || text.length < 2 || !/[a-zA-Z]/.test(text)) {
+        newChildren.push(child);
+        continue;
+      }
+
+      // Transform to {t('text')}
+      const rebrandedText = rebrand(text);
+      const tCall = t.jsxExpressionContainer(
+        t.callExpression(t.identifier('t'), [t.stringLiteral(rebrandedText)]),
+      );
+      newChildren.push(tCall);
+      transformedTexts.push(rebrandedText);
+      anyTransformed = true;
+    } else if (
+      t.isJSXElement(child) &&
+      child.openingElement?.name?.name === 'Text'
+    ) {
+      // Try to transform nested Text children
+      // Handles: <Text> (see /docs)</Text> (static only)
+      // Handles: <Text> ({modKey} to toggle) </Text> (static + params)
+      // Handles: <Text>{profiler.totalIdleFrames} (idle)</Text> (var + static)
+
+      if (!hasNestedTextComponents(child)) {
+        // Only simple nested Text (no further nesting)
+
+        // Try parameterized first (has variables)
+        const extracted = extractParameterizedContent(child.children);
+        if (extracted) {
+          const { template, params } = extracted;
+          const hasParams = Object.keys(params).length > 0;
+          const tCallExpr = hasParams
+            ? createTCallWithParams(template, params)
+            : t.callExpression(t.identifier('t'), [t.stringLiteral(template)]);
+
+          const transformedChild = t.jsxElement(
+            child.openingElement,
+            child.closingElement,
+            [t.jsxExpressionContainer(tCallExpr)],
+            child.selfClosing,
+          );
+          newChildren.push(transformedChild);
+          transformedTexts.push(template);
+          anyTransformed = true;
+          continue;
+        }
+
+        // Try simple text (no params, just static text)
+        if (child.children.length === 1 && t.isJSXText(child.children[0])) {
+          const text = child.children[0].value.trim();
+          if (text && text.length >= 2 && /[a-zA-Z]/.test(text)) {
+            const rebrandedText = rebrand(text);
+            const tCallExpr = t.callExpression(t.identifier('t'), [
+              t.stringLiteral(rebrandedText),
+            ]);
+            const transformedChild = t.jsxElement(
+              child.openingElement,
+              child.closingElement,
+              [t.jsxExpressionContainer(tCallExpr)],
+              child.selfClosing,
+            );
+            newChildren.push(transformedChild);
+            transformedTexts.push(rebrandedText);
+            anyTransformed = true;
+            continue;
+          }
+        }
+      }
+      // If can't transform, keep as-is
+      newChildren.push(child);
+    } else if (t.isJSXExpressionContainer(child)) {
+      // Handle: {condition && <Text>...</Text>}
+      // Transform the Text inside the LogicalExpression
+      const expr = child.expression;
+
+      if (
+        t.isLogicalExpression(expr) &&
+        expr.operator === '&&' &&
+        t.isJSXElement(expr.right) &&
+        expr.right.openingElement?.name?.name === 'Text' &&
+        !hasNestedTextComponents(expr.right)
+      ) {
+        const jsxElement = expr.right;
+
+        // Try parameterized first (has variables)
+        const extracted = extractParameterizedContent(jsxElement.children);
+        if (extracted) {
+          const { template, params } = extracted;
+          const hasParams = Object.keys(params).length > 0;
+          const tCallExpr = hasParams
+            ? createTCallWithParams(template, params)
+            : t.callExpression(t.identifier('t'), [t.stringLiteral(template)]);
+
+          const transformedJsx = t.jsxElement(
+            jsxElement.openingElement,
+            jsxElement.closingElement,
+            [t.jsxExpressionContainer(tCallExpr)],
+            jsxElement.selfClosing,
+          );
+          const newLogicalExpr = t.logicalExpression(
+            '&&',
+            expr.left,
+            transformedJsx,
+          );
+          newChildren.push(t.jsxExpressionContainer(newLogicalExpr));
+          transformedTexts.push(template);
+          anyTransformed = true;
+          continue;
+        }
+
+        // Try simple text (no params, just static text)
+        if (
+          jsxElement.children.length === 1 &&
+          t.isJSXText(jsxElement.children[0])
+        ) {
+          const text = jsxElement.children[0].value.trim();
+          if (text && text.length >= 2 && /[a-zA-Z]/.test(text)) {
+            const rebrandedText = rebrand(text);
+            const tCallExpr = t.callExpression(t.identifier('t'), [
+              t.stringLiteral(rebrandedText),
+            ]);
+            const transformedJsx = t.jsxElement(
+              jsxElement.openingElement,
+              jsxElement.closingElement,
+              [t.jsxExpressionContainer(tCallExpr)],
+              jsxElement.selfClosing,
+            );
+            const newLogicalExpr = t.logicalExpression(
+              '&&',
+              expr.left,
+              transformedJsx,
+            );
+            newChildren.push(t.jsxExpressionContainer(newLogicalExpr));
+            transformedTexts.push(rebrandedText);
+            anyTransformed = true;
+            continue;
+          }
+        }
+      }
+      // Keep expression as-is if not transformable
+      newChildren.push(child);
+    } else {
+      // Keep everything else as-is
+      newChildren.push(child);
+    }
+  }
+
+  if (!anyTransformed) return null;
+
+  const newNode = t.jsxElement(
+    node.openingElement,
+    node.closingElement,
+    newChildren,
+    node.selfClosing,
+  );
+
+  return {
+    node: newNode,
+    transformedCount: transformedTexts.length,
+    transformedTexts,
+  };
 }
 
 // Helper: Transform a static Text child to wrap content in t()

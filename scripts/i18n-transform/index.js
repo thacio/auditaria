@@ -154,6 +154,14 @@ export function i18nTransformPlugin(options = {}) {
 
       // Report statistics on build end
       build.onEnd(() => {
+        // Extract TOML descriptions (for report only, files not modified)
+        const tomlDetails = extractTomlDescriptions();
+        if (tomlDetails.length > 0) {
+          transformationStats.fileDetails.push(...tomlDetails);
+          const tomlCount = tomlDetails.reduce((sum, f) => sum + f.count, 0);
+          debugLogger.info(`TOML descriptions extracted: ${tomlCount} from ${tomlDetails.length} files`);
+        }
+
         debugLogger.info('='.repeat(50));
         debugLogger.info('i18n Transformation Summary:');
         debugLogger.info(
@@ -222,7 +230,11 @@ function writeTransformationReport(stats) {
         for (const tr of fileInfo.transformations) {
           textReport += `  [${tr.type}] Line ${tr.line}\n`;
           textReport += `    Original:    "${tr.original}"\n`;
-          textReport += `    Transformed: t('${tr.original}')\n\n`;
+          if (tr.note) {
+            textReport += `    Note:        ${tr.note}\n\n`;
+          } else {
+            textReport += `    Transformed: t('${tr.original}')\n\n`;
+          }
         }
       }
     }
@@ -241,6 +253,95 @@ function writeTransformationReport(stats) {
   } catch (error) {
     debugLogger.error(`Failed to write report: ${error.message}`);
   }
+}
+
+/**
+ * Extract descriptions from TOML files (custom commands, etc.)
+ * These are user-facing strings that need translation but we don't modify the TOML files
+ * @returns {Array} Array of file details with TOML descriptions
+ */
+function extractTomlDescriptions() {
+  const tomlDetails = [];
+  const tomlDirs = [
+    '.gemini/commands',
+    '.auditaria/commands',
+    'packages/cli/src/commands/extensions/examples',
+  ];
+
+  for (const dir of tomlDirs) {
+    const fullDir = path.join(process.cwd(), dir);
+    if (!fs.existsSync(fullDir)) continue;
+
+    const tomlFiles = findTomlFiles(fullDir);
+    for (const tomlFile of tomlFiles) {
+      try {
+        const content = fs.readFileSync(tomlFile, 'utf8');
+        const descriptions = parseTomlDescriptions(content);
+
+        if (descriptions.length > 0) {
+          const relativePath = path.relative(process.cwd(), tomlFile);
+          tomlDetails.push({
+            file: relativePath,
+            count: descriptions.length,
+            transformations: descriptions.map((desc) => ({
+              type: 'TOML:description',
+              line: desc.line,
+              original: desc.value,
+              note: 'Extract only - TOML file not modified',
+            })),
+          });
+        }
+      } catch (error) {
+        debugLogger.warn(`Failed to parse TOML file ${tomlFile}: ${error.message}`);
+      }
+    }
+  }
+
+  return tomlDetails;
+}
+
+/**
+ * Recursively find all .toml files in a directory
+ */
+function findTomlFiles(dir) {
+  const files = [];
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...findTomlFiles(fullPath));
+      } else if (entry.name.endsWith('.toml')) {
+        files.push(fullPath);
+      }
+    }
+  } catch (error) {
+    // Ignore permission errors, etc.
+  }
+  return files;
+}
+
+/**
+ * Parse description values from TOML content
+ * Looks for: description = "..."
+ */
+function parseTomlDescriptions(content) {
+  const descriptions = [];
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Match: description = "..." or description = '...'
+    const match = line.match(/^\s*description\s*=\s*["'](.+?)["']\s*$/);
+    if (match) {
+      descriptions.push({
+        line: i + 1,
+        value: match[1],
+      });
+    }
+  }
+
+  return descriptions;
 }
 
 export default i18nTransformPlugin;
