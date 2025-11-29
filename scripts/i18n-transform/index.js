@@ -197,6 +197,11 @@ function needsTransformation(source) {
     'title:',
     'label:',
     'message:',
+    // Special case patterns for exported arrays and Records
+    'INFORMATIVE_TIPS',
+    'WITTY_LOADING_PHRASES',
+    'finishReasonMessages',
+    'commandDescriptions',
   ];
 
   return patterns.some((pattern) => source.includes(pattern));

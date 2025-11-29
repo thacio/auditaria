@@ -527,6 +527,54 @@ export async function transformCode(source, filePath, options = {}) {
           if (debug) {
             debugLogger.debug(`Transformed object property in ${filePath}`);
           }
+          return; // Already handled
+        }
+
+        // SPECIAL CASE: Transform Record values with computed keys (finish reasons, command descriptions)
+        // Pattern: const messages: Record<Enum, string> = { [Enum.KEY]: 'value', ... }
+        if (path.node.computed && t.isStringLiteral(path.node.value)) {
+          // Check if this is inside a known user-facing Record variable
+          const userFacingRecords = [
+            'finishReasonMessages',
+            'commandDescriptions',
+          ];
+
+          // Walk up to find the variable declarator
+          let current = path.parentPath;
+          let variableName = null;
+          while (current) {
+            if (current.isVariableDeclarator() && t.isIdentifier(current.node.id)) {
+              variableName = current.node.id.name;
+              break;
+            }
+            current = current.parentPath;
+          }
+
+          if (variableName && userFacingRecords.includes(variableName)) {
+            const text = path.node.value.value;
+            if (text && text.length >= 2) {
+              const rebrandedText = rebrand(text);
+              path.node.value = t.callExpression(t.identifier('t'), [
+                t.stringLiteral(rebrandedText),
+              ]);
+              modified = true;
+              transformCount++;
+              needsTImport = true;
+              transformations.push({
+                type: `special:${variableName}`,
+                original:
+                  rebrandedText.substring(0, 50) +
+                  (rebrandedText.length > 50 ? '...' : ''),
+                transformed: `t('...')`,
+                line: path.node.loc?.start?.line || 0,
+              });
+              if (debug) {
+                debugLogger.debug(
+                  `Transformed Record value in ${variableName} in ${filePath}`,
+                );
+              }
+            }
+          }
         }
       },
 
@@ -550,6 +598,58 @@ export async function transformCode(source, filePath, options = {}) {
           }
         }
       },
+
+      // SPECIAL CASE: Transform exported string arrays (tips, witty phrases)
+      // Pattern: export const INFORMATIVE_TIPS = ['tip1', 'tip2', ...]
+      VariableDeclarator(path) {
+        const node = path.node;
+        if (!t.isIdentifier(node.id)) return;
+
+        // List of exported array variable names that contain user-facing strings
+        const userFacingArrays = [
+          'INFORMATIVE_TIPS',
+          'WITTY_LOADING_PHRASES',
+        ];
+
+        if (!userFacingArrays.includes(node.id.name)) return;
+        if (!t.isArrayExpression(node.init)) return;
+
+        const arrayName = node.id.name;
+        let transformedCount = 0;
+
+        // Transform each string element in the array
+        for (let i = 0; i < node.init.elements.length; i++) {
+          const element = node.init.elements[i];
+          if (t.isStringLiteral(element)) {
+            const text = element.value;
+            if (text && text.length >= 2) {
+              const rebrandedText = rebrand(text);
+              node.init.elements[i] = t.callExpression(t.identifier('t'), [
+                t.stringLiteral(rebrandedText),
+              ]);
+              transformedCount++;
+              transformations.push({
+                type: `special:${arrayName}`,
+                original: rebrandedText.substring(0, 50) + (rebrandedText.length > 50 ? '...' : ''),
+                transformed: `t('...')`,
+                line: path.node.loc?.start?.line || 0,
+              });
+            }
+          }
+        }
+
+        if (transformedCount > 0) {
+          modified = true;
+          transformCount += transformedCount;
+          needsTImport = true;
+          if (debug) {
+            debugLogger.debug(
+              `Transformed ${transformedCount} strings in ${arrayName} array in ${filePath}`,
+            );
+          }
+        }
+      },
+
     });
 
     // Add imports if needed and not already present
