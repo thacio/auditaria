@@ -3687,3 +3687,135 @@ body {
 .message-attachment.audio-attachment:hover .message-attachment-icon {
   transform: scale(1.1);
 }
+
+/* ============================================
+   Slash Command Autocomplete
+   ============================================ */
+
+.slash-autocomplete-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  margin-bottom: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.slash-autocomplete-dropdown.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.autocomplete-list {
+  padding: 4px;
+}
+
+.autocomplete-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.1s ease;
+}
+
+.autocomplete-item:hover {
+  background: var(--surface-alt);
+}
+
+.autocomplete-item.selected {
+  background: var(--primary);
+  color: white;
+}
+
+.autocomplete-item.selected .autocomplete-description {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.autocomplete-item.selected .autocomplete-subicon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.autocomplete-command {
+  font-family: 'Roboto Mono', 'Fira Code', ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 13px;
+  color: inherit;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.autocomplete-subicon {
+  font-size: 10px;
+  color: var(--text-subtle);
+  font-weight: normal;
+}
+
+.autocomplete-description {
+  color: var(--text-subtle);
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autocomplete-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Scrollbar styling for autocomplete */
+.slash-autocomplete-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.slash-autocomplete-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slash-autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.slash-autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--text-subtle);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .slash-autocomplete-dropdown {
+    max-height: 200px;
+  }
+
+  .autocomplete-item {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .autocomplete-command {
+    font-size: 12px;
+  }
+
+  .autocomplete-description {
+    font-size: 11px;
+  }
+}

@@ -16,6 +16,7 @@ import { audioPlayerModal } from './components/AudioPlayerModal.js';
 import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 import { ttsManager } from './providers/tts/TTSManager.js';
 import { ConfirmationQueue } from './confirmation-queue.js';
+import { SlashAutocompleteManager } from './managers/SlashAutocompleteManager.js';
 
 // WEB_INTERFACE_START: File browser and editor imports
 import { FileTreeManager } from './managers/FileTreeManager.js';
@@ -46,6 +47,9 @@ class AuditariaWebClient {
         // WEB_INTERFACE_START: Initialize file browser and editor
         this.initializeFileBrowser();
         // WEB_INTERFACE_END
+
+        // Initialize slash command autocomplete (after UI init)
+        this.slashAutocomplete = null; // Will be initialized after UI elements are ready
 
         // State properties
         this.hasFooterData = false;
@@ -95,6 +99,9 @@ class AuditariaWebClient {
         this.recordingIndicator = document.getElementById('recording-indicator');
         this.recordingTime = document.getElementById('recording-time');
         this.recordingStop = document.getElementById('recording-stop');
+
+        // Initialize slash command autocomplete
+        this.slashAutocomplete = new SlashAutocompleteManager(this.messageInput);
     }
     
     setupWebSocketHandlers() {
@@ -138,6 +145,10 @@ class AuditariaWebClient {
         
         this.wsManager.addEventListener('slash_commands', (e) => {
             this.modalManager.handleSlashCommands(e.detail);
+            // Also pass commands to autocomplete
+            if (this.slashAutocomplete) {
+                this.slashAutocomplete.setCommands(e.detail.commands || []);
+            }
         });
         
         this.wsManager.addEventListener('mcp_servers', (e) => {
@@ -230,6 +241,11 @@ class AuditariaWebClient {
         
         // Message input
         this.messageInput.addEventListener('keydown', (event) => {
+            // Check if autocomplete wants to handle the event first
+            if (this.slashAutocomplete && this.slashAutocomplete.handleKeyDown(event)) {
+                return; // Autocomplete consumed the event
+            }
+
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 this.sendMessage();
@@ -968,12 +984,16 @@ class AuditariaWebClient {
 document.addEventListener('DOMContentLoaded', () => {
     const client = new AuditariaWebClient();
     
-    // Clean up audio recorder and TTS on page unload
+    // Clean up audio recorder, TTS, and autocomplete on page unload
     window.addEventListener('beforeunload', () => {
         if (client.audioRecorder) {
             client.audioRecorder.cleanup();
         }
         // Stop any ongoing TTS
         ttsManager.stop();
+        // Clean up autocomplete
+        if (client.slashAutocomplete) {
+            client.slashAutocomplete.destroy();
+        }
     });
 });
