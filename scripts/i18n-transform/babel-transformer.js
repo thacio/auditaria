@@ -257,6 +257,30 @@ export async function transformCode(source, filePath, options = {}) {
             return;
           }
 
+          // Transform Text with only a variable expression as child
+          // e.g., <Text>{suggestion.description}</Text> → <Text>{t(suggestion.description)}</Text>
+          // Only for known translatable property names (description, label, message, title, text)
+          const varResult = transformVariableOnlyText(path.node);
+          if (varResult) {
+            path.replaceWith(varResult.node);
+            modified = true;
+            transformCount++;
+            needsTImport = true;
+            transformations.push({
+              type: 'VariableText',
+              original: `{${varResult.variableName}}`,
+              transformed: `{t(${varResult.variableName})}`,
+              line: path.node.loc?.start?.line || 0,
+              note: 'Runtime variable - translation key comes from data',
+            });
+            if (debug) {
+              debugLogger.debug(
+                `Transformed variable-only Text in ${filePath}`,
+              );
+            }
+            return;
+          }
+
           // Final fallback: transform individual static JSXText nodes
           // for any remaining Text with multiple children (ternary + text, etc.)
           // e.g., <Text>{ternary}Apply To</Text> → <Text>{ternary}{t('Apply To')}</Text>
@@ -476,6 +500,78 @@ function transformObjectProperty(node, filePath = '') {
   }
 
   return null;
+}
+
+// Helper: Transform Text with only a variable expression as child
+// e.g., <Text>{suggestion.description}</Text> → <Text>{t(suggestion.description)}</Text>
+// Only transforms when the variable ends with known translatable property names
+// Also handles: <Text>
+//                 {suggestion.description}
+//               </Text>  (with whitespace JSXText around the expression)
+function transformVariableOnlyText(node) {
+  if (!node.children || node.children.length === 0) {
+    return null;
+  }
+
+  // Filter out whitespace-only JSXText children
+  const significantChildren = node.children.filter((child) => {
+    if (t.isJSXText(child)) {
+      return child.value.trim().length > 0;
+    }
+    return true;
+  });
+
+  // After filtering, must have exactly one significant child
+  if (significantChildren.length !== 1) {
+    return null;
+  }
+
+  const child = significantChildren[0];
+
+  // Child must be a JSXExpressionContainer
+  if (!t.isJSXExpressionContainer(child)) {
+    return null;
+  }
+
+  const expr = child.expression;
+
+  // Known translatable property names
+  const translatableProps = ['description', 'label', 'message', 'title', 'text'];
+
+  let propertyName = null;
+  let variableName = null;
+
+  if (t.isMemberExpression(expr) && t.isIdentifier(expr.property)) {
+    // e.g., suggestion.description, command.label
+    propertyName = expr.property.name;
+
+    // Build variable name for reporting
+    if (t.isIdentifier(expr.object)) {
+      variableName = `${expr.object.name}.${propertyName}`;
+    } else if (t.isMemberExpression(expr.object)) {
+      // e.g., obj.prop.description - just use the last part for simplicity
+      variableName = `*.${propertyName}`;
+    }
+  }
+
+  // Only transform if property name is in our whitelist
+  if (!propertyName || !translatableProps.includes(propertyName)) {
+    return null;
+  }
+
+  // Create t(expression) call
+  const tCall = t.callExpression(t.identifier('t'), [expr]);
+  const newChild = t.jsxExpressionContainer(tCall);
+
+  return {
+    node: t.jsxElement(
+      node.openingElement,
+      node.closingElement,
+      [newChild],
+      node.selfClosing,
+    ),
+    variableName: variableName || propertyName,
+  };
 }
 
 // Helper: Transform function arguments for specific setter/display functions
