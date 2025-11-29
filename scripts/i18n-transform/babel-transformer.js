@@ -72,6 +72,45 @@ export async function transformCode(source, filePath, options = {}) {
       JSXElement: {
         // Use enter phase to catch nested Text BEFORE children are processed
         enter(path) {
+          // SPECIAL CASE: Transform title attribute on specific UI components
+          // These are user-facing UI labels that need translation
+          const componentName = path.node.openingElement?.name?.name;
+          const titleComponents = ['Section', 'StatRow', 'SubStatRow', 'StatsDisplay'];
+          if (titleComponents.includes(componentName)) {
+            const attributes = path.node.openingElement.attributes;
+            for (const attr of attributes) {
+              if (
+                t.isJSXAttribute(attr) &&
+                attr.name?.name === 'title' &&
+                t.isStringLiteral(attr.value)
+              ) {
+                const text = attr.value.value;
+                if (text && text.length >= 2) {
+                  const rebrandedText = rebrand(text);
+                  attr.value = t.jsxExpressionContainer(
+                    t.callExpression(t.identifier('t'), [
+                      t.stringLiteral(rebrandedText),
+                    ]),
+                  );
+                  modified = true;
+                  transformCount++;
+                  needsTImport = true;
+                  transformations.push({
+                    type: `special:${componentName}.title`,
+                    original: rebrandedText,
+                    transformed: `t('${rebrandedText}')`,
+                    line: path.node.loc?.start?.line || 0,
+                  });
+                  if (debug) {
+                    debugLogger.debug(
+                      `Transformed ${componentName} title attribute in ${filePath}`,
+                    );
+                  }
+                }
+              }
+            }
+          }
+
           if (!isTextComponent(path.node)) return;
 
           // Check for nested Text components - transform before children are visited
@@ -315,6 +354,92 @@ export async function transformCode(source, filePath, options = {}) {
 
       // Transform object properties like { title: 'Settings' }
       ObjectProperty(path) {
+        // SPECIAL CASE: Transform 'content' property in addMessage() calls
+        // These are user-facing message content that need translation
+        const node = path.node;
+        if (t.isIdentifier(node.key) && node.key.name === 'content') {
+          const grandparent = path.parentPath?.parent;
+          if (
+            t.isCallExpression(grandparent) &&
+            t.isIdentifier(grandparent.callee) &&
+            grandparent.callee.name === 'addMessage'
+          ) {
+            // Handle string literal: content: 'text'
+            if (t.isStringLiteral(node.value)) {
+              const text = node.value.value;
+              if (text && text.length >= 2) {
+                const rebrandedText = rebrand(text);
+                node.value = t.callExpression(t.identifier('t'), [
+                  t.stringLiteral(rebrandedText),
+                ]);
+                modified = true;
+                transformCount++;
+                needsTImport = true;
+                transformations.push({
+                  type: 'special:addMessage.content',
+                  original: rebrandedText,
+                  transformed: `t('${rebrandedText}')`,
+                  line: path.node.loc?.start?.line || 0,
+                });
+                if (debug) {
+                  debugLogger.debug(
+                    `Transformed addMessage content in ${filePath}`,
+                  );
+                }
+                return; // Already handled, skip generic transform
+              }
+            }
+            // Handle ternary: content: cond ? 'A' : 'B'
+            if (t.isConditionalExpression(node.value)) {
+              const ternary = node.value;
+              let transformed = false;
+              if (t.isStringLiteral(ternary.consequent)) {
+                const text = ternary.consequent.value;
+                if (text && text.length >= 2) {
+                  const rebrandedText = rebrand(text);
+                  ternary.consequent = t.callExpression(t.identifier('t'), [
+                    t.stringLiteral(rebrandedText),
+                  ]);
+                  transformations.push({
+                    type: 'special:addMessage.content',
+                    original: rebrandedText,
+                    transformed: `t('${rebrandedText}')`,
+                    line: path.node.loc?.start?.line || 0,
+                  });
+                  transformed = true;
+                }
+              }
+              if (t.isStringLiteral(ternary.alternate)) {
+                const text = ternary.alternate.value;
+                if (text && text.length >= 2) {
+                  const rebrandedText = rebrand(text);
+                  ternary.alternate = t.callExpression(t.identifier('t'), [
+                    t.stringLiteral(rebrandedText),
+                  ]);
+                  transformations.push({
+                    type: 'special:addMessage.content',
+                    original: rebrandedText,
+                    transformed: `t('${rebrandedText}')`,
+                    line: path.node.loc?.start?.line || 0,
+                  });
+                  transformed = true;
+                }
+              }
+              if (transformed) {
+                modified = true;
+                transformCount++;
+                needsTImport = true;
+                if (debug) {
+                  debugLogger.debug(
+                    `Transformed addMessage content ternary in ${filePath}`,
+                  );
+                }
+                return; // Already handled, skip generic transform
+              }
+            }
+          }
+        }
+
         const result = transformObjectProperty(path.node, filePath);
         if (result) {
           path.replaceWith(result.node);
