@@ -440,6 +440,78 @@ export async function transformCode(source, filePath, options = {}) {
           }
         }
 
+        // SPECIAL CASE: Transform 'content' property in MessageActionReturn objects
+        // Pattern: { type: 'message', content: '...' } - user-facing command messages
+        if (t.isIdentifier(node.key) && node.key.name === 'content') {
+          const parent = path.parent;
+          if (t.isObjectExpression(parent)) {
+            // Check if sibling has type: 'message'
+            const hasTypeMessage = parent.properties.some(
+              (prop) =>
+                t.isObjectProperty(prop) &&
+                t.isIdentifier(prop.key) &&
+                prop.key.name === 'type' &&
+                t.isStringLiteral(prop.value) &&
+                prop.value.value === 'message',
+            );
+            if (hasTypeMessage) {
+              // Handle string literal: content: 'text'
+              if (t.isStringLiteral(node.value)) {
+                const text = node.value.value;
+                if (text && text.length >= 2) {
+                  const rebrandedText = rebrand(text);
+                  node.value = t.callExpression(t.identifier('t'), [
+                    t.stringLiteral(rebrandedText),
+                  ]);
+                  modified = true;
+                  transformCount++;
+                  needsTImport = true;
+                  transformations.push({
+                    type: 'special:MessageActionReturn.content',
+                    original: rebrandedText,
+                    transformed: `t('${rebrandedText}')`,
+                    line: path.node.loc?.start?.line || 0,
+                  });
+                  if (debug) {
+                    debugLogger.debug(
+                      `Transformed MessageActionReturn content in ${filePath}`,
+                    );
+                  }
+                  return; // Already handled, skip generic transform
+                }
+              }
+              // Handle template literal: content: `Error: ${msg}`
+              if (t.isTemplateLiteral(node.value)) {
+                const templateLiteral = node.value;
+                let transformed = false;
+                // Transform static parts (quasis) of the template literal
+                for (const quasi of templateLiteral.quasis) {
+                  const text = quasi.value.raw;
+                  if (text && text.length >= 2) {
+                    const rebrandedText = rebrand(text);
+                    if (rebrandedText !== text) {
+                      quasi.value.raw = rebrandedText;
+                      quasi.value.cooked = rebrandedText;
+                      transformed = true;
+                    }
+                  }
+                }
+                if (transformed) {
+                  transformations.push({
+                    type: 'special:MessageActionReturn.content.template',
+                    original: '(template literal)',
+                    transformed: '(rebranded template)',
+                    line: path.node.loc?.start?.line || 0,
+                  });
+                }
+                // Note: We don't wrap the entire template in t() as it has dynamic parts
+                // The static text portions are rebranded in place
+                return;
+              }
+            }
+          }
+        }
+
         const result = transformObjectProperty(path.node, filePath);
         if (result) {
           path.replaceWith(result.node);
