@@ -48,7 +48,9 @@ import {
   ShellExecutionService,
   saveApiKey,
   debugLogger,
-  type DiscoveredMCPTool,
+  DiscoveredMCPTool, // AUDITARIA_WEB_INTERFACE
+  getMCPServerStatus, // AUDITARIA_WEB_INTERFACE
+  MCPServerStatus, // AUDITARIA_WEB_INTERFACE
   coreEvents,
   CoreEvent,
   refreshServerHierarchicalMemory,
@@ -197,6 +199,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const [modelSwitchedFromQuotaError, setModelSwitchedFromQuotaError] =
     useState<boolean>(false);
   const [historyRemountKey, setHistoryRemountKey] = useState(0);
+  const [mcpClientUpdateCounter, setMcpClientUpdateCounter] = useState(0); // WEB_INTERFACE_START: Track MCP client updates for web sync
   const [updateInfo, setUpdateInfo] = useState<UpdateObject | null>(null);
   const [isTrustedFolder, setIsTrustedFolder] = useState<boolean | undefined>(
     isWorkspaceTrusted(settings.merged).isTrusted,
@@ -901,15 +904,24 @@ Logging in with Google... Restarting Gemini CLI to continue.
   const isFocused = useFocus();
   useBracketedPaste();
 
-  // Context file names computation
   const contextFileNames = useMemo(() => {
+    // AUDITARIA_FEATURE_START: Context file names computation - use actual loaded file paths
+    // Get actual loaded file paths from config
+    const loadedFilePaths = config.getGeminiMdFilePaths();
+    if (loadedFilePaths && loadedFilePaths.length > 0) {
+      // Extract basenames from actual loaded paths
+      return loadedFilePaths.map((filePath) => basename(filePath));
+    }
+    // AUDITARIA_FEATURE_END: Fallback to configured names if no files loaded yet
     const fromSettings = settings.merged.context?.fileName;
     return fromSettings
       ? Array.isArray(fromSettings)
         ? fromSettings
         : [fromSettings]
       : getAllGeminiMdFilenames();
-  }, [settings.merged.context?.fileName]);
+  // }, [config, settings.merged.context?.fileName]); // original line
+  }, [config, settings.merged.context?.fileName]); // AUDITARIA_FEATURE
+  
 
   // Initial prompt handling
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
@@ -1093,6 +1105,19 @@ Logging in with Google... Restarting Gemini CLI to continue.
       appEvents.off(AppEvent.OpenDebugConsole, openDebugConsole);
     };
   }, [config]);
+
+  // WEB_INTERFACE_START: Listen for MCP client updates to sync tools to web
+  useEffect(() => {
+    const handleMcpClientUpdate = () => {
+      setMcpClientUpdateCounter((prev) => prev + 1);
+    };
+    appEvents.on(AppEvent.McpClientUpdate, handleMcpClientUpdate);
+
+    return () => {
+      appEvents.off(AppEvent.McpClientUpdate, handleMcpClientUpdate);
+    };
+  }, []);
+  // WEB_INTERFACE_END
 
   useEffect(() => {
     if (ctrlCTimerRef.current) {
@@ -1529,33 +1554,70 @@ Logging in with Google... Restarting Gemini CLI to continue.
     }
   }, [slashCommands, webInterface?.service, webInterface?.isRunning]);
 
-  // Broadcast MCP servers when they change
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
-      const mcpServers = config.getMcpServers();
-      if (mcpServers) {
-        // For now, pass empty arrays/maps for the additional parameters
-        // These would need to be obtained from the actual MCP system
-        const blockedServers: Array<{ name: string; extensionName: string }> =
-          [];
-        const serverTools = new Map<string, DiscoveredMCPTool[]>();
-        const serverStatuses = new Map<string, string>();
+      const mcpClientManager = config.getMcpClientManager();
+      const mcpServers = mcpClientManager?.getMcpServers() || {};
 
-        // Set all servers as connected for now
-        Object.keys(mcpServers).forEach((name) => {
-          serverStatuses.set(name, 'connected');
-          serverTools.set(name, []);
-        });
+      // Get blocked servers from MCP client manager
+      const blockedServers = mcpClientManager?.getBlockedMcpServers() || [];
 
-        webInterface.service.broadcastMCPServers(
-          mcpServers,
-          blockedServers,
-          serverTools,
-          serverStatuses,
-        );
-      }
+      // Get actual tools from tool registry and group by server name
+      const toolRegistry = config.getToolRegistry();
+      const allTools = toolRegistry?.getAllTools() || [];
+      const mcpTools = allTools.filter(
+        (tool): tool is DiscoveredMCPTool => tool instanceof DiscoveredMCPTool,
+      );
+
+      // Group tools by server name
+      const serverTools = new Map<string, DiscoveredMCPTool[]>();
+      const serverStatuses = new Map<string, string>();
+
+      // Initialize maps for all servers
+      Object.keys(mcpServers).forEach((name) => {
+        serverTools.set(name, []);
+        // Get actual server status
+        const status = getMCPServerStatus(name);
+        let statusStr: string;
+        switch (status) {
+          case MCPServerStatus.CONNECTED:
+            statusStr = 'connected';
+            break;
+          case MCPServerStatus.CONNECTING:
+            statusStr = 'connecting';
+            break;
+          case MCPServerStatus.DISCONNECTED:
+            statusStr = 'disconnected';
+            break;
+          case MCPServerStatus.DISCONNECTING:
+            statusStr = 'disconnecting';
+            break;
+          default:
+            statusStr = 'unknown';
+        }
+        serverStatuses.set(name, statusStr);
+      });
+
+      // Group tools by their server name
+      mcpTools.forEach((tool) => {
+        const tools = serverTools.get(tool.serverName) || [];
+        tools.push(tool);
+        serverTools.set(tool.serverName, tools);
+      });
+
+      webInterface.service.broadcastMCPServers(
+        mcpServers,
+        blockedServers,
+        serverTools,
+        serverStatuses,
+      );
     }
-  }, [config, webInterface?.service, webInterface?.isRunning]);
+  }, [
+    config,
+    webInterface?.service,
+    webInterface?.isRunning,
+    mcpClientUpdateCounter,
+  ]);
 
   // Broadcast console messages
   useEffect(() => {
@@ -1667,7 +1729,21 @@ Logging in with Google... Restarting Gemini CLI to continue.
       webInterface.isRunning &&
       initializationResult.geminiMdFileCount
     ) {
-      const startupMessage = `Auditaria CLI is ready. Loaded ${initializationResult.geminiMdFileCount} context file(s).`;
+      // Show breakdown by file type in startup message
+      const loadedFilePaths = config.getGeminiMdFilePaths();
+      let filesDescription = `${initializationResult.geminiMdFileCount} context file(s)`;
+      if (loadedFilePaths && loadedFilePaths.length > 0) {
+        const fileTypeCounts: Record<string, number> = {};
+        for (const filePath of loadedFilePaths) {
+          const fileName = basename(filePath);
+          fileTypeCounts[fileName] = (fileTypeCounts[fileName] || 0) + 1;
+        }
+        const parts = Object.entries(fileTypeCounts).map(
+          ([name, count]) => `${count} ${name}`,
+        );
+        filesDescription = parts.join(', ');
+      }
+      const startupMessage = `Auditaria CLI is ready. Loaded ${filesDescription}.`;
       // Use a generic broadcast since there's no specific setStartupMessage method
       webInterface.service.broadcastMessage({
         id: Date.now(),
@@ -1679,6 +1755,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     webInterface?.service,
     webInterface?.isRunning,
     initializationResult.geminiMdFileCount,
+    config,
   ]);
 
   // Tool confirmation broadcasting and response handling

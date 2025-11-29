@@ -8,6 +8,7 @@ import type { Message } from '../types.js';
 import { MessageType } from '../types.js';
 import { debugLogger, type Config } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
+import { basename } from 'node:path'; // AUDITARIA_FEATURE: load memory also from .auditaria folder
 
 export function createShowMemoryAction(
   config: Config | null,
@@ -32,10 +33,8 @@ export function createShowMemoryAction(
 
     const currentMemory = config.getUserMemory();
     const fileCount = config.getGeminiMdFileCount();
-    const contextFileName = settings.merged.context?.fileName;
-    const contextFileNames = Array.isArray(contextFileName)
-      ? contextFileName
-      : [contextFileName];
+    
+    const loadedFilePaths = config.getGeminiMdFilePaths(); // AUDITARIA: Use actual loaded file paths for accurate breakdown
 
     if (debugMode) {
       debugLogger.log(
@@ -45,13 +44,23 @@ export function createShowMemoryAction(
     }
 
     if (fileCount > 0) {
-      const allNamesTheSame = new Set(contextFileNames).size < 2;
-      const name = allNamesTheSame ? contextFileNames[0] : 'context';
+      // AUDITARIA_FEATURE_START: Show breakdown by file type
+      let filesDescription = `${fileCount} context file${fileCount > 1 ? 's' : ''}`;
+      if (loadedFilePaths && loadedFilePaths.length > 0) {
+        const fileTypeCounts: Record<string, number> = {};
+        for (const filePath of loadedFilePaths) {
+          const fileName = basename(filePath);
+          fileTypeCounts[fileName] = (fileTypeCounts[fileName] || 0) + 1;
+        }
+        const parts = Object.entries(fileTypeCounts).map(
+          ([name, count]) => `${count} ${name}`,
+        );
+        filesDescription = parts.join(', ');
+      }
+      // AUDITARIA_FEATURE_END
       addMessage({
         type: MessageType.INFO,
-        content: `Loaded memory from ${fileCount} ${name} file${
-          fileCount > 1 ? 's' : ''
-        }.`,
+        content: `Loaded memory from ${filesDescription}.`, // AUDITARIA_FEATURE
         timestamp: new Date(),
       });
     }

@@ -7,8 +7,73 @@
 import path from 'node:path';
 import os from 'node:os';
 import * as crypto from 'node:crypto';
+// AUDITARIA_FEATURE_START: Primary config directory (new)
+import * as fs from 'node:fs';
 
+export const AUDITARIA_DIR = '.auditaria';
+// Legacy config directory (kept for backward compatibility)
 export const GEMINI_DIR = '.gemini';
+
+// AUDITARIA: Primary context filename (new)
+export const AUDITARIA_CONTEXT_FILENAME = 'AUDITARIA.md';
+// Legacy context filename (kept for backward compatibility)
+export const GEMINI_CONTEXT_FILENAME = 'GEMINI.md';
+
+/**
+ * AUDITARIA: Resolves the config directory for a given base path.
+ * Tries .auditaria first, then falls back to .gemini.
+ * Returns the directory name that exists, or AUDITARIA_DIR if neither exists (for new installations).
+ */
+export function resolveConfigDir(basePath: string): string {
+  const auditariaPath = path.join(basePath, AUDITARIA_DIR);
+  const geminiPath = path.join(basePath, GEMINI_DIR);
+
+  if (fs.existsSync(auditariaPath)) return AUDITARIA_DIR;
+  if (fs.existsSync(geminiPath)) return GEMINI_DIR;
+
+  // Default to auditaria for new installations
+  return AUDITARIA_DIR;
+}
+
+/**
+ * AUDITARIA: Resolves the full config directory path for a given base path.
+ * Tries .auditaria first, then falls back to .gemini.
+ */
+export function resolveConfigDirPath(basePath: string): string {
+  return path.join(basePath, resolveConfigDir(basePath));
+}
+
+/**
+ * AUDITARIA: Gets all config directory names to search (in priority order).
+ */
+export function getConfigDirFallbacks(): string[] {
+  return [AUDITARIA_DIR, GEMINI_DIR];
+}
+
+/**
+ * AUDITARIA: Gets all context filename fallbacks to search (in priority order).
+ */
+export function getContextFilenameFallbacks(): string[] {
+  return [AUDITARIA_CONTEXT_FILENAME, GEMINI_CONTEXT_FILENAME];
+}
+
+/**
+ * AUDITARIA: Resolves a context file in a directory.
+ * Tries AUDITARIA.md first, then falls back to GEMINI.md.
+ * Returns the filename that exists, or AUDITARIA_CONTEXT_FILENAME if neither exists.
+ */
+export function resolveContextFilename(dirPath: string): string {
+  const auditariaPath = path.join(dirPath, AUDITARIA_CONTEXT_FILENAME);
+  const geminiPath = path.join(dirPath, GEMINI_CONTEXT_FILENAME);
+
+  if (fs.existsSync(auditariaPath)) return AUDITARIA_CONTEXT_FILENAME;
+  if (fs.existsSync(geminiPath)) return GEMINI_CONTEXT_FILENAME;
+
+  // Default to auditaria for new installations
+  return AUDITARIA_CONTEXT_FILENAME;
+}
+// AUDITARIA_FEATURE_END:
+
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 
 /**

@@ -12,7 +12,7 @@ import process from 'node:process';
 import {
   debugLogger,
   FatalConfigError,
-  GEMINI_DIR,
+  getConfigDirFallbacks, // AUDITARIA_FEATURE: settings/files loadnig
   getErrorMessage,
   Storage,
   coreEvents,
@@ -492,11 +492,17 @@ export class LoadedSettings {
 
 function findEnvFile(startDir: string): string | null {
   let currentDir = path.resolve(startDir);
+  
+  const configDirs = getConfigDirFallbacks(); // AUDITARIA_FEATURE: Check all config directories (.auditaria first, then .gemini)
+
   while (true) {
-    // prefer gemini-specific .env under GEMINI_DIR
-    const geminiEnvPath = path.join(currentDir, GEMINI_DIR, '.env');
-    if (fs.existsSync(geminiEnvPath)) {
-      return geminiEnvPath;
+    // AUDITARIA_FEATURE_START: prefer .env under config directories (auditaria first, then gemini)
+    for (const configDir of configDirs) {
+      const configEnvPath = path.join(currentDir, configDir, '.env');
+      if (fs.existsSync(configEnvPath)) {
+        return configEnvPath;
+      }
+      // AUDITARIA_FEATURE_END
     }
     const envPath = path.join(currentDir, '.env');
     if (fs.existsSync(envPath)) {
@@ -504,10 +510,12 @@ function findEnvFile(startDir: string): string | null {
     }
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir || !parentDir) {
-      // check .env under home as fallback, again preferring gemini-specific .env
-      const homeGeminiEnvPath = path.join(homedir(), GEMINI_DIR, '.env');
-      if (fs.existsSync(homeGeminiEnvPath)) {
-        return homeGeminiEnvPath;
+      // AUDITARIA: check .env under home as fallback, checking all config directories
+      for (const configDir of configDirs) {
+        const homeConfigEnvPath = path.join(homedir(), configDir, '.env');
+        if (fs.existsSync(homeConfigEnvPath)) {
+          return homeConfigEnvPath;
+        }
       }
       const homeEnvPath = path.join(homedir(), '.env');
       if (fs.existsSync(homeEnvPath)) {
@@ -562,7 +570,10 @@ export function loadEnvironment(settings: Settings): void {
 
       const excludedVars =
         settings?.advanced?.excludedEnvVars || DEFAULT_EXCLUDED_ENV_VARS;
-      const isProjectEnvFile = !envFilePath.includes(GEMINI_DIR);
+      // AUDITARIA: Check if env file is NOT inside any of the config directories
+      const isProjectEnvFile = !getConfigDirFallbacks().some((dir) =>
+        envFilePath.includes(dir),
+      );
 
       for (const key in parsedEnv) {
         if (Object.hasOwn(parsedEnv, key)) {

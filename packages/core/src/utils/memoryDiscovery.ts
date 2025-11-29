@@ -14,7 +14,7 @@ import type { FileDiscoveryService } from '../services/fileDiscoveryService.js';
 import { processImports } from './memoryImportProcessor.js';
 import type { FileFilteringOptions } from '../config/constants.js';
 import { DEFAULT_MEMORY_FILE_FILTERING_OPTIONS } from '../config/constants.js';
-import { GEMINI_DIR } from './paths.js';
+import { getConfigDirFallbacks } from './paths.js'; // AUDITARIA_FEATRE
 import type { ExtensionLoader } from './extensionLoader.js';
 import { debugLogger } from './debugLogger.js';
 import type { Config } from '../config/config.js';
@@ -147,24 +147,33 @@ async function getGeminiMdFilePathsInternalForEachDir(
   const allPaths = new Set<string>();
   const geminiMdFilenames = getAllGeminiMdFilenames();
 
-  for (const geminiMdFilename of geminiMdFilenames) {
-    const resolvedHome = path.resolve(userHomePath);
-    const globalMemoryPath = path.join(
-      resolvedHome,
-      GEMINI_DIR,
-      geminiMdFilename,
-    );
+  // AUDITARIA_MODIFY_START: Collect all global memory paths from all config directories
+  const resolvedHome = path.resolve(userHomePath);
+  const globalMemoryPaths = new Set<string>();
+  const configDirs = getConfigDirFallbacks();
 
-    // This part that finds the global file always runs.
-    try {
-      await fs.access(globalMemoryPath, fsSync.constants.R_OK);
-      allPaths.add(globalMemoryPath);
-      if (debugMode)
-        logger.debug(
-          `Found readable global ${geminiMdFilename}: ${globalMemoryPath}`,
-        );
-    } catch {
-      // It's okay if it's not found.
+  for (const geminiMdFilename of geminiMdFilenames) {
+    // AUDITARIA: Check all config directories (auditaria first, then gemini)
+    for (const configDir of configDirs) {
+      const globalMemoryPath = path.join(
+        resolvedHome,
+        configDir,
+        geminiMdFilename,
+      );
+      // AUDITARIA_MODIFY_EMD
+
+      // This part that finds the global file always runs.
+      try {
+        await fs.access(globalMemoryPath, fsSync.constants.R_OK);
+        allPaths.add(globalMemoryPath);
+        globalMemoryPaths.add(globalMemoryPath);
+        if (debugMode)
+          logger.debug(
+            `Found readable global ${geminiMdFilename}: ${globalMemoryPath}`,
+          );
+      } catch {
+        // It's okay if it's not found.
+      }
     }
 
     // FIX: Only perform the workspace search (upward and downward scans)
@@ -186,15 +195,20 @@ async function getGeminiMdFilePathsInternalForEachDir(
         ? path.dirname(projectRoot)
         : path.dirname(resolvedHome);
 
+      // AUDITARIA: Build list of config directories to skip during upward search
+      const configDirPaths = configDirs.map((d) => path.join(resolvedHome, d));
+
       while (currentDir && currentDir !== path.dirname(currentDir)) {
-        if (currentDir === path.join(resolvedHome, GEMINI_DIR)) {
+        // AUDITARIA: Skip if we've reached any of the global config directories
+        if (configDirPaths.includes(currentDir)) {
           break;
         }
 
         const potentialPath = path.join(currentDir, geminiMdFilename);
         try {
           await fs.access(potentialPath, fsSync.constants.R_OK);
-          if (potentialPath !== globalMemoryPath) {
+          // AUDITARIA: Skip if this is one of the global memory paths
+          if (!globalMemoryPaths.has(potentialPath)) {
             upwardPaths.unshift(potentialPath);
           }
         } catch {
@@ -334,20 +348,30 @@ export async function loadGlobalMemory(
 ): Promise<MemoryLoadResult> {
   const userHome = homedir();
   const geminiMdFilenames = getAllGeminiMdFilenames();
+  // AUDITARIA_MODIFY_START: Search in all config directories (auditaria first, then gemini)
+  const configDirs = getConfigDirFallbacks();
 
-  const accessChecks = geminiMdFilenames.map(async (filename) => {
-    const globalPath = path.join(userHome, GEMINI_DIR, filename);
-    try {
-      await fs.access(globalPath, fsSync.constants.R_OK);
-      if (debugMode) {
-        logger.debug(`Found global memory file: ${globalPath}`);
-      }
-      return globalPath;
-    } catch {
-      debugLogger.debug('A global memory file was not found.');
-      return null;
+  const accessChecks: Promise<string | null>[] = [];
+  for (const filename of geminiMdFilenames) {
+    for (const configDir of configDirs) {
+      accessChecks.push(
+        (async () => {
+          const globalPath = path.join(userHome, configDir, filename);
+          try {
+            await fs.access(globalPath, fsSync.constants.R_OK);
+            if (debugMode) {
+              logger.debug(`Found global memory file: ${globalPath}`);
+            }
+            return globalPath;
+          } catch {
+            debugLogger.debug('A global memory file was not found.');
+            return null;
+          }
+        })(),
+      );
     }
-  });
+  }
+  // AUDITARIA_MODIFY_END: Search in all config directories (auditaria first, then gemini)
 
   const foundPaths = (await Promise.all(accessChecks)).filter(
     (p): p is string => p !== null,
@@ -380,7 +404,11 @@ async function findUpwardGeminiFiles(
   let currentDir = path.resolve(startDir);
   const resolvedStopDir = path.resolve(stopDir);
   const geminiMdFilenames = getAllGeminiMdFilenames();
-  const globalGeminiDir = path.join(homedir(), GEMINI_DIR);
+  // AUDITARIA_FEATURE_START: Build list of all global config directories to skip
+  const globalConfigDirs = getConfigDirFallbacks().map((d) =>
+    path.join(homedir(), d),
+  );
+  // AUDITARIA_FEATURE_END:
 
   if (debugMode) {
     logger.debug(
@@ -389,7 +417,9 @@ async function findUpwardGeminiFiles(
   }
 
   while (true) {
-    if (currentDir === globalGeminiDir) {
+    // AUDITARIA_MODIFY_START: Skip if we've reached any of the global config directories
+    if (globalConfigDirs.includes(currentDir)) {
+      // AUDITARIA_MODIFY_END:
       break;
     }
 

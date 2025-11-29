@@ -45,6 +45,7 @@ export class ModalManager {
         this.mcpServers = [];
         this.blockedMcpServers = [];
         this.filteredMcpServers = [];
+        this.mcpDataReceived = false;
         
         this.debugLogs = [];
         this.filteredDebugLogs = [];
@@ -187,11 +188,17 @@ export class ModalManager {
         setTimeout(() => {
             this.mcpServersModal.classList.add('show');
         }, 10);
-        
+
         this.mcpSearch.focus();
-        
+
         if (this.mcpServers.length === 0 && this.blockedMcpServers.length === 0) {
-            this.mcpServersList.innerHTML = '<div class="mcp-loading">Loading MCP servers...</div>';
+            if (this.mcpDataReceived) {
+                // Data received but no servers configured - show the proper "no servers" message
+                this.renderMCPServers();
+            } else {
+                // Data not yet received - show loading
+                this.mcpServersList.innerHTML = '<div class="mcp-loading">Loading MCP servers...</div>';
+            }
         }
     }
     
@@ -206,6 +213,7 @@ export class ModalManager {
         this.mcpServers = data.servers || [];
         this.blockedMcpServers = data.blockedServers || [];
         this.filteredMcpServers = [...this.mcpServers];
+        this.mcpDataReceived = true;
         this.renderMCPServers();
         this.mcpServersButton.disabled = false;
     }

@@ -54,11 +54,30 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
     if (geminiMdFileCount === 0) {
       return '';
     }
-    const allNamesTheSame = new Set(contextFileNames).size < 2;
-    const name = allNamesTheSame ? contextFileNames[0] : 'context';
-    return `${geminiMdFileCount} ${name} file${
-      geminiMdFileCount > 1 ? 's' : ''
-    }`;
+
+    // AUDITARIA_FEATURE_START: Show breakdown by file type (e.g., "1 AUDITARIA.md, 1 GEMINI.md")
+    // Group files by their basename
+    const fileTypeCounts: Record<string, number> = {};
+    for (const fileName of contextFileNames) {
+      fileTypeCounts[fileName] = (fileTypeCounts[fileName] || 0) + 1;
+    }
+
+    const fileTypes = Object.keys(fileTypeCounts);
+
+    // If all files have the same name, show simple format
+    if (fileTypes.length === 1) {
+      const name = fileTypes[0];
+      const count = fileTypeCounts[name];
+      return `${count} ${name}${count > 1 ? ' files' : ''}`;
+    }
+
+    // Show breakdown by file type
+    const parts = fileTypes.map((name) => {
+      const count = fileTypeCounts[name];
+      return `${count} ${name}`;
+    });
+    return parts.join(', ');
+    // AUDITARIA_FEATURE_END
   })();
 
   const mcpText = (() => {

@@ -18,6 +18,11 @@ import { Storage } from '../config/storage.js';
 import * as Diff from 'diff';
 import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { tildeifyPath } from '../utils/paths.js';
+import {
+  AUDITARIA_CONTEXT_FILENAME,
+  GEMINI_CONTEXT_FILENAME,
+  getContextFilenameFallbacks,
+} from '../utils/paths.js'; // AUDITARIA_FEATURE
 import type {
   ModifiableDeclarativeTool,
   ModifyContext,
@@ -61,11 +66,13 @@ Do NOT use this tool:
 
 - \`fact\` (string, required): The specific fact or piece of information to remember. This should be a clear, self-contained statement. For example, if the user says "My favorite color is blue", the fact would be "My favorite color is blue".`;
 
-export const DEFAULT_CONTEXT_FILENAME = 'GEMINI.md';
-export const MEMORY_SECTION_HEADER = '## Gemini Added Memories';
+// AUDITARIA_FEATURE_START: Primary context filename (AUDITARIA.md), with fallback to legacy GEMINI.md
+export const DEFAULT_CONTEXT_FILENAME = AUDITARIA_CONTEXT_FILENAME;
+export const MEMORY_SECTION_HEADER = '## Auditaria Added Memories';
 
-// This variable will hold the currently configured filename for GEMINI.md context files.
+// This variable will hold the currently configured filename for context files.
 // It defaults to DEFAULT_CONTEXT_FILENAME but can be overridden by setGeminiMdFilename.
+// AUDITARIA_FEATURE_END: For discovery, we also check legacy GEMINI.md as fallback
 let currentGeminiMdFilename: string | string[] = DEFAULT_CONTEXT_FILENAME;
 
 export function setGeminiMdFilename(newFilename: string | string[]): void {
@@ -85,12 +92,25 @@ export function getCurrentGeminiMdFilename(): string {
   return currentGeminiMdFilename;
 }
 
+// AUDITARIA_MODIFY_START: Returns all context filenames to search, including fallbacks
 export function getAllGeminiMdFilenames(): string[] {
   if (Array.isArray(currentGeminiMdFilename)) {
-    return currentGeminiMdFilename;
+    // If custom filenames are set, include them plus fallbacks
+    const filenames = new Set<string>(currentGeminiMdFilename);
+    // Add fallbacks if not already included
+    for (const fallback of getContextFilenameFallbacks()) {
+      filenames.add(fallback);
+    }
+    return Array.from(filenames);
   }
-  return [currentGeminiMdFilename];
+  // If using default or single custom filename, include fallbacks
+  const filenames = new Set<string>([currentGeminiMdFilename]);
+  for (const fallback of getContextFilenameFallbacks()) {
+    filenames.add(fallback);
+  }
+  return Array.from(filenames);
 }
+// AUDITARIA_MODIFY_END
 
 interface SaveMemoryParams {
   fact: string;

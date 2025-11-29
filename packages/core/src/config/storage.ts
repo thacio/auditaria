@@ -9,6 +9,11 @@ import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import { GEMINI_DIR } from '../utils/paths.js';
+import {
+  AUDITARIA_DIR, // AUDITARIA_FEATURE
+  resolveConfigDir, // AUDITARIA_FEATURE
+  getConfigDirFallbacks, // AUDITARIA_FEATURE
+} from '../utils/paths.js';
 
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 export const OAUTH_FILE = 'oauth_creds.json';
@@ -22,21 +27,46 @@ export class Storage {
     this.targetDir = targetDir;
   }
 
+  // AUDITARIA_MODIFY_START: Use fallback resolution for global config directory
   static getGlobalGeminiDir(): string {
     const homeDir = os.homedir();
     if (!homeDir) {
-      return path.join(os.tmpdir(), GEMINI_DIR);
+      return path.join(os.tmpdir(), AUDITARIA_DIR);
     }
-    return path.join(homeDir, GEMINI_DIR);
+    const configDir = resolveConfigDir(homeDir);
+    return path.join(homeDir, configDir);
+  }
+
+  static getGlobalConfigDirFallbacks(): string[] {
+    const homeDir = os.homedir();
+    if (!homeDir) {
+      return [path.join(os.tmpdir(), AUDITARIA_DIR)];
+    }
+    return getConfigDirFallbacks().map((dir) => path.join(homeDir, dir));
+    // AUDITARIA_MODIFY_END
   }
 
   static getMcpOAuthTokensPath(): string {
     return path.join(Storage.getGlobalGeminiDir(), 'mcp-oauth-tokens.json');
   }
 
+  // AUDITARIA_MODIFY_START: Check for settings.json in both directories, file-level fallback
   static getGlobalSettingsPath(): string {
-    return path.join(Storage.getGlobalGeminiDir(), 'settings.json');
+    const homeDir = os.homedir();
+    if (!homeDir) {
+      return path.join(os.tmpdir(), AUDITARIA_DIR, 'settings.json');
+    }
+    // Check for settings.json file in each config directory
+    for (const configDir of getConfigDirFallbacks()) {
+      const settingsPath = path.join(homeDir, configDir, 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        return settingsPath;
+      }
+    }
+    // Default to auditaria for new installations
+    return path.join(homeDir, AUDITARIA_DIR, 'settings.json');
   }
+  // AUDITARIA_MODIFY_END
 
   static getInstallationIdPath(): string {
     return path.join(Storage.getGlobalGeminiDir(), 'installation_id');
@@ -58,18 +88,33 @@ export class Storage {
     return path.join(Storage.getGlobalGeminiDir(), 'policies');
   }
 
+  // AUDITARIA_MODIFY_START: Updated system settings paths with fallback to legacy gemini-cli paths
   static getSystemSettingsPath(): string {
     if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
       return process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH'];
     }
+    // Check auditaria paths first, then fall back to gemini-cli
     if (os.platform() === 'darwin') {
-      return '/Library/Application Support/GeminiCli/settings.json';
+      const auditariaPath = '/Library/Application Support/AuditariaCli/settings.json';
+      const geminiPath = '/Library/Application Support/GeminiCli/settings.json';
+      if (fs.existsSync(auditariaPath)) return auditariaPath;
+      if (fs.existsSync(geminiPath)) return geminiPath;
+      return auditariaPath; // Default to auditaria for new installations
     } else if (os.platform() === 'win32') {
-      return 'C:\\ProgramData\\gemini-cli\\settings.json';
+      const auditariaPath = 'C:\\ProgramData\\auditaria-cli\\settings.json';
+      const geminiPath = 'C:\\ProgramData\\gemini-cli\\settings.json';
+      if (fs.existsSync(auditariaPath)) return auditariaPath;
+      if (fs.existsSync(geminiPath)) return geminiPath;
+      return auditariaPath; // Default to auditaria for new installations
     } else {
-      return '/etc/gemini-cli/settings.json';
+      const auditariaPath = '/etc/auditaria-cli/settings.json';
+      const geminiPath = '/etc/gemini-cli/settings.json';
+      if (fs.existsSync(auditariaPath)) return auditariaPath;
+      if (fs.existsSync(geminiPath)) return geminiPath;
+      return auditariaPath; // Default to auditaria for new installations
     }
   }
+  // AUDITARIA_MODIFY_END
 
   static getSystemPoliciesDir(): string {
     return path.join(path.dirname(Storage.getSystemSettingsPath()), 'policies');
@@ -83,9 +128,17 @@ export class Storage {
     return path.join(Storage.getGlobalTempDir(), BIN_DIR_NAME);
   }
 
+  // AUDITARIA_MODIFY_START: Use fallback resolution for project config directory
   getGeminiDir(): string {
-    return path.join(this.targetDir, GEMINI_DIR);
+    const configDir = resolveConfigDir(this.targetDir);
+    return path.join(this.targetDir, configDir);
   }
+
+  // AUDITARIA: Get all possible project config directories for searching
+  getConfigDirFallbacks(): string[] {
+    return getConfigDirFallbacks().map((dir) => path.join(this.targetDir, dir));
+  }
+  // AUDITARIA_MODIFY_END
 
   getProjectTempDir(): string {
     const hash = this.getFilePathHash(this.getProjectRoot());
@@ -115,9 +168,19 @@ export class Storage {
     return path.join(historyDir, hash);
   }
 
+  // AUDITARIA_MODIFY_START: Check for settings.json in both directories, file-level fallback
   getWorkspaceSettingsPath(): string {
-    return path.join(this.getGeminiDir(), 'settings.json');
+    // Check for settings.json file in each config directory
+    for (const configDir of getConfigDirFallbacks()) {
+      const settingsPath = path.join(this.targetDir, configDir, 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        return settingsPath;
+      }
+    }
+    // Default to auditaria for new installations
+    return path.join(this.targetDir, AUDITARIA_DIR, 'settings.json');
   }
+  // AUDITARIA_MODIFY_END
 
   getProjectCommandsDir(): string {
     return path.join(this.getGeminiDir(), 'commands');
