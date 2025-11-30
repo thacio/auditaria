@@ -118,9 +118,9 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       windowsHide: true,
     });
 
-    // Send input via stdin
-    child.stdin.write(JSON.stringify(inputPayload));
-    child.stdin.end();
+    // Send input via stdin (with newline - Python reads first line as config)
+    // Keep stdin open for subsequent commands (like STOP)
+    child.stdin.write(JSON.stringify(inputPayload) + '\n');
 
     let stdout = '';
     let stderr = '';
@@ -128,6 +128,7 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
     let lastStep = 0;
     let finalResult: string | null = null;
     let totalSteps = 0;
+    let wasStopped = false;
 
     // Handle stdout - parse JSON lines for progress
     child.stdout.on('data', (data: Buffer) => {
@@ -172,6 +173,15 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
                 totalSteps = event.total_steps || lastStep;
                 updateOutput(`Completed in ${totalSteps} steps`);
                 break;
+              case 'stopping':
+                updateOutput('Stopping...');
+                break;
+              case 'stopped':
+                wasStopped = true;
+                finalResult = (event as { partial_result?: string }).partial_result || null;
+                totalSteps = event.total_steps || lastStep;
+                updateOutput(`Stopped after ${totalSteps} steps`);
+                break;
               case 'error':
                 updateOutput(`Error: ${event.message}`);
                 break;
@@ -192,9 +202,24 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       stderr += data.toString();
     });
 
-    // Handle abort
+    // Handle abort - send STOP command for graceful shutdown
     const abortHandler = () => {
-      child.kill('SIGTERM');
+      // Try graceful stop first by sending STOP command via stdin
+      try {
+        if (!child.stdin.destroyed) {
+          child.stdin.write('STOP\n');
+          child.stdin.end();
+        }
+      } catch {
+        // Stdin might already be closed, ignore
+      }
+
+      // Give the agent a moment to stop gracefully, then force kill
+      setTimeout(() => {
+        if (!child.killed) {
+          child.kill('SIGTERM');
+        }
+      }, 2000);
     };
     signal.addEventListener('abort', abortHandler, { once: true });
 
@@ -202,6 +227,14 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
     const exitCode = await new Promise<number | null>((resolve) => {
       child.on('close', (code) => {
         signal.removeEventListener('abort', abortHandler);
+        // Close stdin if still open
+        if (!child.stdin.destroyed) {
+          try {
+            child.stdin.end();
+          } catch {
+            // Ignore errors
+          }
+        }
         resolve(code);
       });
       child.on('error', () => {
@@ -210,7 +243,16 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       });
     });
 
-    // Parse result
+    // Parse result - check for graceful stop first
+    if (wasStopped) {
+      const result = finalResult || this.extractFinalResult(stdout);
+      const stepsInfo = totalSteps > 0 ? ` after ${totalSteps} steps` : '';
+      return {
+        llmContent: `Browser agent was stopped by user request${stepsInfo}.\n\nTask: ${this.params.task}\n\nPartial result:\n${result || 'No result before stop.'}`,
+        returnDisplay: result || 'Task stopped.',
+      };
+    }
+
     if (signal.aborted) {
       return {
         llmContent: `Browser agent task was cancelled. Partial output:\n${stdout}`,
