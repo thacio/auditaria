@@ -124,15 +124,66 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
 
     let stdout = '';
     let stderr = '';
-    let lastOutput = '';
+    let lineBuffer = '';
+    let lastStep = 0;
+    let finalResult: string | null = null;
+    let totalSteps = 0;
 
-    // Handle stdout
+    // Handle stdout - parse JSON lines for progress
     child.stdout.on('data', (data: Buffer) => {
       const text = data.toString();
       stdout += text;
-      lastOutput = text.trim();
-      if (updateOutput && lastOutput) {
-        updateOutput(`Browser agent: ${lastOutput}`);
+      lineBuffer += text;
+
+      // Process complete JSON lines
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        try {
+          const event = JSON.parse(line) as {
+            type: string;
+            step?: number;
+            goal?: string;
+            eval?: string;
+            result?: string;
+            total_steps?: number;
+            message?: string;
+            url?: string;
+          };
+
+          // Update progress based on event type
+          if (updateOutput) {
+            switch (event.type) {
+              case 'start':
+                updateOutput('Browser agent starting...');
+                break;
+              case 'step':
+                lastStep = event.step || lastStep + 1;
+                const stepInfo = event.goal
+                  ? `Step ${lastStep}: ${event.goal}`
+                  : `Step ${lastStep}`;
+                updateOutput(stepInfo);
+                break;
+              case 'done':
+                finalResult = event.result || null;
+                totalSteps = event.total_steps || lastStep;
+                updateOutput(`Completed in ${totalSteps} steps`);
+                break;
+              case 'error':
+                updateOutput(`Error: ${event.message}`);
+                break;
+              case 'info':
+                // Don't show info messages in progress
+                break;
+            }
+          }
+        } catch {
+          // Not a JSON line, might be browser-use's own logging
+          // Ignore non-JSON output
+        }
       }
     });
 
@@ -179,12 +230,13 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       };
     }
 
-    // Extract final result from output
-    const finalResult = this.extractFinalResult(stdout);
+    // Use parsed result from JSON events, or fall back to extraction
+    const result = finalResult || this.extractFinalResult(stdout);
+    const stepsInfo = totalSteps > 0 ? ` (${totalSteps} steps)` : '';
 
     return {
-      llmContent: `Browser agent completed successfully.\n\nTask: ${this.params.task}\n\nResult:\n${finalResult || stdout}`,
-      returnDisplay: finalResult || 'Task completed.',
+      llmContent: `Browser agent completed successfully${stepsInfo}.\n\nTask: ${this.params.task}\n\nResult:\n${result || 'Task completed.'}`,
+      returnDisplay: result || 'Task completed.',
     };
   }
 
