@@ -24,6 +24,7 @@ export interface BrowserAgentToolParams {
   task: string;
   headless?: boolean;
   model?: string;
+  includeScreenshots?: boolean;
 }
 
 interface OAuthCredentials {
@@ -107,6 +108,7 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       model: this.params.model || 'gemini-2.0-flash',
       credentials: credentials.type === 'oauth' ? credentials.data : null,
       api_key: credentials.type === 'api_key' ? credentials.data : null,
+      include_screenshots: this.params.includeScreenshots || false,
     };
 
     // Spawn with minimal args - data comes via stdin
@@ -129,6 +131,8 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
     let finalResult: string | null = null;
     let totalSteps = 0;
     let wasStopped = false;
+    let lastScreenshot: string | null = null;
+    let lastThumbnail: string | null = null;
 
     // Handle stdout - parse JSON lines for progress
     child.stdout.on('data', (data: Buffer) => {
@@ -153,6 +157,8 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
             total_steps?: number;
             message?: string;
             url?: string;
+            screenshot?: string;
+            thumbnail?: string;
           };
 
           // Update progress based on event type
@@ -167,6 +173,13 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
                   ? `Step ${lastStep}: ${event.goal}`
                   : `Step ${lastStep}`;
                 updateOutput(stepInfo);
+                // Capture screenshots if available
+                if (event.screenshot) {
+                  lastScreenshot = event.screenshot;
+                }
+                if (event.thumbnail) {
+                  lastThumbnail = event.thumbnail;
+                }
                 break;
               case 'done':
                 finalResult = event.result || null;
@@ -418,6 +431,11 @@ IMPORTANT: Only use this tool when the user explicitly asks you to use a browser
             type: 'string',
             description:
               'The model to use for the browser agent. Defaults to gemini-2.0-flash.',
+          },
+          includeScreenshots: {
+            type: 'boolean',
+            description:
+              'Whether to capture screenshots at each step. Defaults to false. Screenshots can be large (500KB+ each).',
           },
         },
         required: ['task'],
