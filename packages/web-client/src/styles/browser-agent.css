@@ -1,0 +1,673 @@
+/**
+ * Browser Agent Styles
+ *
+ * Styles for Browser Agent Notification (Peek Mode) and Panel (Agent Mode)
+ */
+
+/* ==========================================================================
+   CSS Variables
+   ========================================================================== */
+
+:root {
+    --browser-agent-primary: #4a9eff;
+    --browser-agent-success: #4caf50;
+    --browser-agent-warning: #ff9800;
+    --browser-agent-error: #f44336;
+    --browser-agent-bg: #1e1e2e;
+    --browser-agent-bg-secondary: #2a2a3e;
+    --browser-agent-text: #e0e0e0;
+    --browser-agent-text-muted: #a0a0a0;
+    --browser-agent-border: #3a3a4e;
+}
+
+/* ==========================================================================
+   Browser Agent Notification (Peek Mode)
+   ========================================================================== */
+
+.browser-agent-notification {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 360px;
+    background: var(--browser-agent-bg);
+    border: 1px solid var(--browser-agent-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    overflow: hidden;
+}
+
+.browser-agent-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.browser-agent-notification.hide {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Notification Header */
+.browser-agent-notification-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.browser-agent-notification-header:hover {
+    background: var(--browser-agent-bg-secondary);
+}
+
+.browser-agent-notification-icon {
+    font-size: 18px;
+    margin-right: 10px;
+}
+
+.browser-agent-notification-title-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.browser-agent-notification-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--browser-agent-text);
+}
+
+.browser-agent-notification-status {
+    display: block;
+    font-size: 12px;
+    color: var(--browser-agent-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+/* Notification Actions */
+.browser-agent-notification-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.browser-agent-notification-btn {
+    background: transparent;
+    border: none;
+    color: var(--browser-agent-text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.browser-agent-notification-btn:hover {
+    background: var(--browser-agent-bg-secondary);
+    color: var(--browser-agent-text);
+}
+
+.browser-agent-notification-btn.stop-btn:hover {
+    color: var(--browser-agent-error);
+}
+
+/* Progress Bar */
+.browser-agent-notification-progress {
+    height: 3px;
+    background: var(--browser-agent-bg-secondary);
+    overflow: hidden;
+}
+
+.browser-agent-notification-progress-bar {
+    height: 100%;
+    background: var(--browser-agent-primary);
+    transition: width 0.3s ease;
+}
+
+/* Expanded Content */
+.browser-agent-notification-expanded {
+    padding: 12px 16px;
+    border-top: 1px solid var(--browser-agent-border);
+}
+
+.browser-agent-notification-goal,
+.browser-agent-notification-url,
+.browser-agent-notification-result,
+.browser-agent-notification-session,
+.browser-agent-notification-error {
+    font-size: 12px;
+    color: var(--browser-agent-text-muted);
+    margin-bottom: 8px;
+}
+
+.browser-agent-notification-goal strong,
+.browser-agent-notification-url strong,
+.browser-agent-notification-result strong,
+.browser-agent-notification-session strong,
+.browser-agent-notification-error strong {
+    color: var(--browser-agent-text);
+}
+
+.browser-agent-notification-url a {
+    color: var(--browser-agent-primary);
+    text-decoration: none;
+}
+
+.browser-agent-notification-url a:hover {
+    text-decoration: underline;
+}
+
+.browser-agent-notification-error {
+    color: var(--browser-agent-error);
+}
+
+.browser-agent-notification-session code {
+    background: var(--browser-agent-bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+/* Screenshot Thumbnail */
+.browser-agent-notification-screenshot {
+    margin-top: 8px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--browser-agent-bg-secondary);
+}
+
+.browser-agent-notification-screenshot img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* State-specific styles */
+.browser-agent-notification.running .browser-agent-notification-icon {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.browser-agent-notification.completed .browser-agent-notification-icon {
+    color: var(--browser-agent-success);
+}
+
+.browser-agent-notification.error .browser-agent-notification-icon {
+    color: var(--browser-agent-error);
+}
+
+.browser-agent-notification.stopped .browser-agent-notification-icon {
+    color: var(--browser-agent-warning);
+}
+
+/* ==========================================================================
+   Browser Agent Panel (Agent Mode)
+   ========================================================================== */
+
+.browser-agent-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: 90vw;
+    max-width: 1200px;
+    height: 80vh;
+    max-height: 800px;
+    background: var(--browser-agent-bg);
+    border: 1px solid var(--browser-agent-border);
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.browser-agent-panel.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.browser-agent-panel.hide {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+}
+
+.browser-agent-panel.minimized {
+    height: auto;
+    max-height: none;
+}
+
+.browser-agent-panel.minimized .browser-agent-panel-content,
+.browser-agent-panel.minimized .browser-agent-panel-input {
+    display: none;
+}
+
+/* Panel Header */
+.browser-agent-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--browser-agent-border);
+    background: var(--browser-agent-bg-secondary);
+    border-radius: 16px 16px 0 0;
+}
+
+.browser-agent-panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--browser-agent-text);
+    margin: 0;
+}
+
+.browser-agent-panel-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.browser-agent-panel-btn {
+    background: transparent;
+    border: none;
+    color: var(--browser-agent-text-muted);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.browser-agent-panel-btn:hover {
+    background: var(--browser-agent-bg);
+    color: var(--browser-agent-text);
+}
+
+.browser-agent-panel-btn.close-btn:hover {
+    color: var(--browser-agent-error);
+}
+
+/* Panel Content */
+.browser-agent-panel-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Browser View */
+.browser-agent-panel-browser {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+}
+
+.browser-agent-panel-screenshot {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.browser-agent-panel-urlbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--browser-agent-text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.browser-agent-panel-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--browser-agent-text-muted);
+}
+
+.browser-agent-panel-placeholder-icon {
+    font-size: 64px;
+    opacity: 0.3;
+    margin-bottom: 16px;
+}
+
+.browser-agent-panel-placeholder-text {
+    font-size: 14px;
+}
+
+/* Status Panel */
+.browser-agent-panel-status {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--browser-agent-border);
+    overflow-y: auto;
+}
+
+.browser-agent-panel-status-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--browser-agent-border);
+}
+
+.browser-agent-panel-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    background: var(--browser-agent-text-muted);
+}
+
+.browser-agent-panel-status-dot.running {
+    background: var(--browser-agent-primary);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.browser-agent-panel-status-dot.starting {
+    background: var(--browser-agent-warning);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.browser-agent-panel-status-dot.completed {
+    background: var(--browser-agent-success);
+}
+
+.browser-agent-panel-status-dot.stopped {
+    background: var(--browser-agent-warning);
+}
+
+.browser-agent-panel-status-dot.error {
+    background: var(--browser-agent-error);
+}
+
+.browser-agent-panel-status-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--browser-agent-text);
+}
+
+/* Stats */
+.browser-agent-panel-stats {
+    display: flex;
+    padding: 12px 16px;
+    gap: 24px;
+    border-bottom: 1px solid var(--browser-agent-border);
+}
+
+.browser-agent-panel-stat {
+    font-size: 12px;
+}
+
+.browser-agent-panel-stat .label {
+    color: var(--browser-agent-text-muted);
+}
+
+.browser-agent-panel-stat .value {
+    color: var(--browser-agent-text);
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Section Labels */
+.browser-agent-panel-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--browser-agent-text-muted);
+    margin-bottom: 8px;
+}
+
+/* Goal */
+.browser-agent-panel-goal {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--browser-agent-border);
+}
+
+.browser-agent-panel-goal-text {
+    font-size: 13px;
+    color: var(--browser-agent-text);
+    line-height: 1.5;
+}
+
+/* History */
+.browser-agent-panel-history {
+    flex: 1;
+    padding: 12px 16px;
+    overflow-y: auto;
+}
+
+.browser-agent-panel-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.browser-agent-panel-step {
+    display: flex;
+    font-size: 12px;
+    color: var(--browser-agent-text-muted);
+}
+
+.browser-agent-panel-step.empty {
+    font-style: italic;
+}
+
+.browser-agent-panel-step-num {
+    width: 24px;
+    flex-shrink: 0;
+    color: var(--browser-agent-primary);
+    font-weight: 600;
+}
+
+.browser-agent-panel-step-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Action Buttons */
+.browser-agent-panel-action-buttons {
+    padding: 16px;
+    border-top: 1px solid var(--browser-agent-border);
+    display: flex;
+    gap: 8px;
+}
+
+.browser-agent-panel-action-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.browser-agent-panel-action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.browser-agent-panel-action-btn:active {
+    transform: translateY(0);
+}
+
+.browser-agent-panel-action-btn.stop {
+    background: var(--browser-agent-error);
+    color: white;
+}
+
+.browser-agent-panel-action-btn.stop:hover {
+    background: #d32f2f;
+}
+
+.browser-agent-panel-action-btn .icon {
+    font-size: 14px;
+}
+
+/* Result */
+.browser-agent-panel-result {
+    padding: 12px 16px;
+    border-top: 1px solid var(--browser-agent-border);
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.browser-agent-panel-result-text {
+    font-size: 13px;
+    color: var(--browser-agent-text);
+    line-height: 1.5;
+}
+
+/* Error */
+.browser-agent-panel-error {
+    padding: 12px 16px;
+    border-top: 1px solid var(--browser-agent-border);
+    background: rgba(244, 67, 54, 0.1);
+}
+
+.browser-agent-panel-error-text {
+    font-size: 13px;
+    color: var(--browser-agent-error);
+    line-height: 1.5;
+}
+
+/* Task Input */
+.browser-agent-panel-input {
+    padding: 16px;
+    border-top: 1px solid var(--browser-agent-border);
+    background: var(--browser-agent-bg-secondary);
+    border-radius: 0 0 16px 16px;
+}
+
+.browser-agent-panel-input-container {
+    display: flex;
+    gap: 8px;
+}
+
+.browser-agent-panel-task-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--browser-agent-border);
+    border-radius: 8px;
+    background: var(--browser-agent-bg);
+    color: var(--browser-agent-text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.browser-agent-panel-task-input:focus {
+    border-color: var(--browser-agent-primary);
+}
+
+.browser-agent-panel-task-input::placeholder {
+    color: var(--browser-agent-text-muted);
+}
+
+.browser-agent-panel-submit-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: var(--browser-agent-primary);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.browser-agent-panel-submit-btn:hover:not(:disabled) {
+    background: #3a8adf;
+    transform: translateY(-1px);
+}
+
+.browser-agent-panel-submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.browser-agent-panel-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .browser-agent-notification {
+        width: calc(100vw - 40px);
+        right: 20px;
+        left: 20px;
+    }
+
+    .browser-agent-panel {
+        width: 95vw;
+        height: 90vh;
+        max-height: none;
+    }
+
+    .browser-agent-panel-content {
+        flex-direction: column;
+    }
+
+    .browser-agent-panel-browser {
+        height: 40vh;
+    }
+
+    .browser-agent-panel-status {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--browser-agent-border);
+    }
+}
+
+/* ==========================================================================
+   Accessibility
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .browser-agent-notification,
+    .browser-agent-panel,
+    .browser-agent-panel-action-btn,
+    .browser-agent-panel-submit-btn {
+        transition: none;
+    }
+
+    .browser-agent-notification.running .browser-agent-notification-icon,
+    .browser-agent-panel-status-dot.running,
+    .browser-agent-panel-status-dot.starting {
+        animation: none;
+    }
+}

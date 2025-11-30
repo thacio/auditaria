@@ -45,6 +45,11 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 // Import DocxParserService for markdown to DOCX parsing
 import { DocxParserService } from './DocxParserService.js';
 
+// AUDITARIA_BROWSER_AGENT_START: Import BrowserAgentService for browser agent web interface
+import { BrowserAgentService } from './BrowserAgentService.js';
+import { browserAgentEventBridge } from '@google/gemini-cli-core';
+// AUDITARIA_BROWSER_AGENT_END
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -191,6 +196,10 @@ export class WebInterfaceService extends EventEmitter {
 
   // DOCX parser service for markdown to DOCX conversion
   private docxParser?: DocxParserService;
+
+  // AUDITARIA_BROWSER_AGENT_START: Browser agent service
+  private browserAgentService?: BrowserAgentService;
+  // AUDITARIA_BROWSER_AGENT_END
 
   /**
    * Start HTTP server on specified port
@@ -716,6 +725,11 @@ export class WebInterfaceService extends EventEmitter {
       // Initialize DOCX parser service
       this.docxParser = new DocxParserService(process.cwd());
 
+      // AUDITARIA_BROWSER_AGENT_START: Initialize browser agent service
+      this.browserAgentService = new BrowserAgentService(process.cwd());
+      this.setupBrowserAgentHandlers();
+      // AUDITARIA_BROWSER_AGENT_END
+
       this.isRunning = true;
       return this.port;
     } catch (error) {
@@ -753,6 +767,13 @@ export class WebInterfaceService extends EventEmitter {
       this.directoryWatcherService = undefined;
     }
     // WEB_INTERFACE_END
+
+    // AUDITARIA_BROWSER_AGENT_START: Clean up browser agent service
+    if (this.browserAgentService) {
+      this.browserAgentService.destroy();
+      this.browserAgentService = undefined;
+    }
+    // AUDITARIA_BROWSER_AGENT_END
 
     // Close WebSocket server
     if (this.wss) {
@@ -1235,7 +1256,8 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support and file operations
-  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string }): void {
+  // AUDITARIA_BROWSER_AGENT: Added task and options for browser agent messages
+  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string; task?: string; options?: any }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
       
@@ -1351,6 +1373,15 @@ export class WebInterfaceService extends EventEmitter {
     } else if (message.type === 'parse_request' && message.path) {
       this.handleParseRequest(message.path);
     }
+    // AUDITARIA_BROWSER_AGENT_START: Browser agent message handlers
+    else if (message.type === 'browser_agent_start' && message.task) {
+      this.handleBrowserAgentStart(message.task, message.options);
+    } else if (message.type === 'browser_agent_stop') {
+      this.handleBrowserAgentStop();
+    } else if (message.type === 'browser_agent_status') {
+      this.handleBrowserAgentStatus();
+    }
+    // AUDITARIA_BROWSER_AGENT_END
   }
 
   /**
@@ -1969,4 +2000,100 @@ export class WebInterfaceService extends EventEmitter {
     this.docxParser.refresh();
     this.broadcastParserStatus();
   }
+
+  // AUDITARIA_BROWSER_AGENT_START: Browser agent handler methods
+  /**
+   * Set up browser agent service event handlers
+   */
+  private setupBrowserAgentHandlers(): void {
+    // Subscribe to browser agent service events (for web-initiated tasks)
+    if (this.browserAgentService) {
+      this.browserAgentService.on('state-change', (status) => {
+        this.broadcastWithSequence('browser_agent_state', status);
+      });
+
+      this.browserAgentService.on('step', (step) => {
+        this.broadcastWithSequence('browser_agent_step', step);
+      });
+
+      this.browserAgentService.on('done', (result) => {
+        this.broadcastWithSequence('browser_agent_done', result);
+      });
+
+      this.browserAgentService.on('error', (error) => {
+        this.broadcastWithSequence('browser_agent_error', error);
+      });
+    }
+
+    // Subscribe to browser agent event bridge (for AI tool-initiated tasks - Peek Mode)
+    // This allows the web interface to show progress when AI uses browser_agent tool
+    browserAgentEventBridge.on('state', (status: unknown) => {
+      this.broadcastWithSequence('browser_agent_state', status);
+    });
+
+    browserAgentEventBridge.on('step', (step: unknown) => {
+      this.broadcastWithSequence('browser_agent_step', step);
+    });
+
+    browserAgentEventBridge.on('done', (result: unknown) => {
+      this.broadcastWithSequence('browser_agent_done', result);
+    });
+
+    browserAgentEventBridge.on('error', (error: unknown) => {
+      this.broadcastWithSequence('browser_agent_error', error);
+    });
+  }
+
+  /**
+   * Handle browser agent start request
+   */
+  private async handleBrowserAgentStart(task: string, options?: any): Promise<void> {
+    if (!this.browserAgentService) {
+      this.broadcastWithSequence('browser_agent_error', {
+        message: 'Browser agent service not initialized'
+      });
+      return;
+    }
+
+    try {
+      await this.browserAgentService.start({
+        task,
+        headless: options?.headless !== false,
+        model: options?.model || 'gemini-2.0-flash',
+        screenshotMode: options?.screenshotMode || 'all',
+        maxSteps: options?.maxSteps || 50,
+      });
+    } catch (error: any) {
+      this.broadcastWithSequence('browser_agent_error', {
+        message: error.message || 'Failed to start browser agent'
+      });
+    }
+  }
+
+  /**
+   * Handle browser agent stop request
+   */
+  private handleBrowserAgentStop(): void {
+    if (!this.browserAgentService) {
+      return;
+    }
+
+    this.browserAgentService.stop();
+  }
+
+  /**
+   * Handle browser agent status request
+   */
+  private handleBrowserAgentStatus(): void {
+    if (!this.browserAgentService) {
+      this.broadcastWithSequence('browser_agent_state', {
+        state: 'idle',
+        error: 'Browser agent service not initialized'
+      });
+      return;
+    }
+
+    this.broadcastWithSequence('browser_agent_state', this.browserAgentService.getStatus());
+  }
+  // AUDITARIA_BROWSER_AGENT_END
 }

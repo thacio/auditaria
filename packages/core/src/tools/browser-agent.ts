@@ -24,6 +24,8 @@ import type { ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { BROWSER_AGENT_TOOL_NAME } from './tool-names.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
+// AUDITARIA_BROWSER_AGENT: Import event bridge for web interface peek mode
+import { browserAgentEventBridge } from './browser-agent-events.js';
 
 export interface BrowserAgentToolParams {
   task: string;
@@ -93,7 +95,15 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
   ): Promise<ToolResult> {
     const startTime = Date.now();
 
+    // AUDITARIA_BROWSER_AGENT: Emit starting state for web interface
+    browserAgentEventBridge.emitState({
+      state: 'starting',
+      task: this.params.task,
+    });
+
     if (signal.aborted) {
+      // AUDITARIA_BROWSER_AGENT: Emit idle state on cancel
+      browserAgentEventBridge.emitState({ state: 'idle' });
       return {
         llmContent: 'Browser agent task was cancelled before it could start.',
         returnDisplay: 'Task cancelled.',
@@ -131,13 +141,14 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       };
     }
 
-    // Determine screenshot mode
+    // Screenshot mode controls SAVING to disk (default: none)
+    // But we ALWAYS request screenshots from Python for web interface peek mode
     const screenshotMode = this.params.screenshotMode || 'none';
-    const captureScreenshots = screenshotMode !== 'none';
+    const saveScreenshots = screenshotMode !== 'none';
 
-    // Create session folder if capturing screenshots
+    // Create session folder only if saving screenshots
     let sessionPath: string | null = null;
-    if (captureScreenshots) {
+    if (saveScreenshots) {
       sessionPath = this.createSessionFolder(projectRoot);
     }
 
@@ -154,7 +165,7 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
       model: this.params.model || 'gemini-2.0-flash',
       credentials: credentials.type === 'oauth' ? credentials.data : null,
       api_key: credentials.type === 'api_key' ? credentials.data : null,
-      include_screenshots: captureScreenshots,
+      include_screenshots: true, // Always send for web interface peek mode
       max_steps: this.params.maxSteps || 50,
     };
 
@@ -214,6 +225,12 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
           switch (event.type) {
             case 'start':
               if (updateOutput) updateOutput('Browser agent starting...');
+              // AUDITARIA_BROWSER_AGENT: Emit state change for web interface
+              browserAgentEventBridge.emitState({
+                state: 'running',
+                task: this.params.task,
+                currentStep: 0,
+              });
               break;
 
             case 'step': {
@@ -230,9 +247,9 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
                 actionDesc = actionKeys[0] || null;
               }
 
-              // Save screenshot if available
+              // Save screenshot to disk if configured (separate from sending to web)
               let screenshotPath: string | null = null;
-              if (sessionPath && event.screenshot) {
+              if (saveScreenshots && sessionPath && event.screenshot) {
                 const shouldSave =
                   screenshotMode === 'all' ||
                   (screenshotMode === 'final' && event.actions?.some((a) => 'done' in a));
@@ -246,7 +263,7 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
               }
 
               // Record step
-              steps.push({
+              const stepData = {
                 step: stepNum,
                 timestamp: event.timestamp || new Date().toISOString(),
                 url: event.url || null,
@@ -255,6 +272,14 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
                 action: actionDesc,
                 evaluation: event.eval || null,
                 screenshotPath,
+              };
+              steps.push(stepData);
+
+              // AUDITARIA_BROWSER_AGENT: Emit step for web interface
+              browserAgentEventBridge.emitStep({
+                ...stepData,
+                screenshot: event.screenshot,
+                thumbnail: event.thumbnail,
               });
               break;
             }
@@ -262,6 +287,16 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
             case 'done':
               finalResult = event.result || null;
               if (updateOutput) updateOutput(`Completed in ${steps.length} steps`);
+              // AUDITARIA_BROWSER_AGENT: Emit done for web interface
+              browserAgentEventBridge.emitDone({
+                success: true,
+                result: finalResult,
+                sessionPath,
+                totalSteps: steps.length,
+                durationMs: Date.now() - startTime,
+                stopped: false,
+                stopReason: null,
+              });
               break;
 
             case 'stopping':
@@ -273,10 +308,24 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
               stopReason = event.message || 'User requested stop';
               finalResult = event.partial_result || null;
               if (updateOutput) updateOutput(`Stopped after ${steps.length} steps`);
+              // AUDITARIA_BROWSER_AGENT: Emit done (stopped) for web interface
+              browserAgentEventBridge.emitDone({
+                success: false,
+                result: finalResult,
+                sessionPath,
+                totalSteps: steps.length,
+                durationMs: Date.now() - startTime,
+                stopped: true,
+                stopReason,
+              });
               break;
 
             case 'error':
               if (updateOutput) updateOutput(`Error: ${event.message}`);
+              // AUDITARIA_BROWSER_AGENT: Emit error for web interface
+              browserAgentEventBridge.emitError({
+                message: event.message || 'Unknown error',
+              });
               break;
 
             case 'info':
@@ -361,6 +410,8 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
     // Handle error cases
     if (exitCode !== 0 && !wasStopped && !signal.aborted) {
       const errorMessage = stderr || 'Unknown error';
+      // AUDITARIA_BROWSER_AGENT: Emit idle state on error
+      browserAgentEventBridge.emitState({ state: 'idle' });
       return {
         llmContent: `Browser agent task failed with exit code ${exitCode}.\nError: ${errorMessage}\n\n${llmContent}`,
         returnDisplay: `Task failed: ${errorMessage}`,
@@ -370,6 +421,9 @@ export class BrowserAgentToolInvocation extends BaseToolInvocation<
         },
       };
     }
+
+    // AUDITARIA_BROWSER_AGENT: Emit idle state on completion
+    browserAgentEventBridge.emitState({ state: 'idle' });
 
     return {
       llmContent,
@@ -628,7 +682,7 @@ IMPORTANT: Only use this tool when the user explicitly asks you to use a browser
             type: 'string',
             enum: ['none', 'all', 'final'],
             description:
-              'Screenshot capture mode. "none": no screenshots (default). "all": capture at every step. "final": capture only the final step. Screenshots are saved to the session folder.',
+              'Screenshot SAVE mode for disk storage. "none": don\'t save to disk (default). "all": save at every step. "final": save only the final step. Note: Screenshots are always sent to web interface for live viewing regardless of this setting.',
           },
           sessionFolder: {
             type: 'string',

@@ -36,6 +36,10 @@
     <link rel="stylesheet" href="styles/svg-preview.css">
     <link rel="stylesheet" href="styles/json-preview.css">
     <!-- WEB_INTERFACE_END -->
+
+    <!-- AUDITARIA_BROWSER_AGENT_START: Browser agent styles -->
+    <link rel="stylesheet" href="styles/browser-agent.css">
+    <!-- AUDITARIA_BROWSER_AGENT_END -->
 </head>
 <body>
     <div id="app">
@@ -89,6 +93,16 @@
                     </svg>
                     <span>Debug</span>
                 </button>
+                <!-- AUDITARIA_BROWSER_AGENT_START: Browser agent panel toggle button -->
+                <button id="browser-agent-button" class="browser-agent-button" title="Open Browser Agent Panel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>Browser</span>
+                </button>
+                <!-- AUDITARIA_BROWSER_AGENT_END -->
                 <div class="status" id="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>
                     <span id="message-count">0 messages</span>

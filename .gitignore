@@ -82,3 +82,4 @@ i18n-*.json
 i18n-*.txt
 # Browser-use (cloned for testing)
 browser-use/
+browser-sessions/

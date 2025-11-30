@@ -28,6 +28,12 @@ import { isBinaryFile } from './utils/binaryExtensions.js';
 import { detectLanguage } from './utils/languageDetection.js';
 // WEB_INTERFACE_END
 
+// AUDITARIA_BROWSER_AGENT_START: Browser agent imports
+import { BrowserAgentManager } from './managers/BrowserAgentManager.js';
+import { BrowserAgentNotification } from './components/BrowserAgentNotification.js';
+import { BrowserAgentPanel } from './components/BrowserAgentPanel.js';
+// AUDITARIA_BROWSER_AGENT_END
+
 class AuditariaWebClient {
     constructor() {
         // Initialize managers
@@ -47,6 +53,10 @@ class AuditariaWebClient {
         // WEB_INTERFACE_START: Initialize file browser and editor
         this.initializeFileBrowser();
         // WEB_INTERFACE_END
+
+        // AUDITARIA_BROWSER_AGENT_START: Initialize browser agent
+        this.initializeBrowserAgent();
+        // AUDITARIA_BROWSER_AGENT_END
 
         // Initialize slash command autocomplete (after UI init)
         this.slashAutocomplete = null; // Will be initialized after UI elements are ready
@@ -99,6 +109,9 @@ class AuditariaWebClient {
         this.recordingIndicator = document.getElementById('recording-indicator');
         this.recordingTime = document.getElementById('recording-time');
         this.recordingStop = document.getElementById('recording-stop');
+
+        // AUDITARIA_BROWSER_AGENT: Browser agent button
+        this.browserAgentButton = document.getElementById('browser-agent-button');
 
         // Initialize slash command autocomplete
         this.slashAutocomplete = new SlashAutocompleteManager(this.messageInput);
@@ -238,7 +251,14 @@ class AuditariaWebClient {
         this.autoscrollButton.addEventListener('click', () => {
             this.messageManager.toggleAutoScroll();
         });
-        
+
+        // AUDITARIA_BROWSER_AGENT: Browser agent panel toggle button
+        if (this.browserAgentButton && this.browserAgentPanel) {
+            this.browserAgentButton.addEventListener('click', () => {
+                this.browserAgentPanel.toggle();
+            });
+        }
+
         // Message input
         this.messageInput.addEventListener('keydown', (event) => {
             // Check if autocomplete wants to handle the event first
@@ -978,6 +998,58 @@ class AuditariaWebClient {
         }
     }
     // WEB_INTERFACE_END
+
+    // AUDITARIA_BROWSER_AGENT_START: Browser agent initialization
+    /**
+     * Initialize browser agent components
+     */
+    initializeBrowserAgent() {
+        try {
+            // Initialize manager
+            this.browserAgentManager = new BrowserAgentManager();
+            this.browserAgentManager.init(this.wsManager);
+
+            // Initialize notification (peek mode)
+            this.browserAgentNotification = new BrowserAgentNotification(this.browserAgentManager);
+            document.body.appendChild(this.browserAgentNotification.getElement());
+
+            // Initialize panel (agent mode)
+            this.browserAgentPanel = new BrowserAgentPanel(this.browserAgentManager);
+            document.body.appendChild(this.browserAgentPanel.getElement());
+
+            console.log('Browser agent initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize browser agent:', error);
+        }
+    }
+
+    /**
+     * Show browser agent panel
+     */
+    showBrowserAgentPanel() {
+        if (this.browserAgentPanel) {
+            this.browserAgentPanel.show();
+        }
+    }
+
+    /**
+     * Hide browser agent panel
+     */
+    hideBrowserAgentPanel() {
+        if (this.browserAgentPanel) {
+            this.browserAgentPanel.hide();
+        }
+    }
+
+    /**
+     * Toggle browser agent panel
+     */
+    toggleBrowserAgentPanel() {
+        if (this.browserAgentPanel) {
+            this.browserAgentPanel.toggle();
+        }
+    }
+    // AUDITARIA_BROWSER_AGENT_END
 }
 
 // Initialize the client when the page loads

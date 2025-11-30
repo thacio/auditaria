@@ -125,6 +125,7 @@ export * from './tools/mcp-tool.js';
 export * from './tools/write-todos.js';
 export * from './tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 export * from './tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+export * from './tools/browser-agent-events.js'; // AUDITARIA_BROWSER_AGENT - Event bridge for web interface
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';

@@ -1451,7 +1451,8 @@ body {
 .autoscroll-button,
 .slash-commands-button,
 .mcp-servers-button,
-.debug-logs-button {
+.debug-logs-button,
+.browser-agent-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1470,7 +1471,8 @@ body {
 .autoscroll-button:hover:not(:disabled),
 .slash-commands-button:hover:not(:disabled),
 .mcp-servers-button:hover:not(:disabled),
-.debug-logs-button:hover:not(:disabled) {
+.debug-logs-button:hover:not(:disabled),
+.browser-agent-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
@@ -1480,7 +1482,8 @@ body {
 .autoscroll-button:active:not(:disabled),
 .slash-commands-button:active:not(:disabled),
 .mcp-servers-button:active:not(:disabled),
-.debug-logs-button:active:not(:disabled) {
+.debug-logs-button:active:not(:disabled),
+.browser-agent-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
@@ -1489,7 +1492,8 @@ body {
 .autoscroll-button:disabled,
 .slash-commands-button:disabled,
 .mcp-servers-button:disabled,
-.debug-logs-button:disabled {
+.debug-logs-button:disabled,
+.browser-agent-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1498,7 +1502,8 @@ body {
 .autoscroll-button svg,
 .slash-commands-button svg,
 .mcp-servers-button svg,
-.debug-logs-button svg {
+.debug-logs-button svg,
+.browser-agent-button svg {
   flex-shrink: 0;
 }
 
