@@ -52,7 +52,9 @@ export class BrowserAgentPanel {
         const currentStep = this.manager.getCurrentStep();
 
         this.container.innerHTML = '';
-        this.container.className = `browser-agent-panel ${state}`;
+        // Preserve 'show' class to maintain visibility during re-renders
+        const showClass = this.isVisible ? 'show' : '';
+        this.container.className = `browser-agent-panel ${state} ${showClass}`.trim();
 
         // Header
         const header = this.createHeader();
@@ -366,8 +368,9 @@ export class BrowserAgentPanel {
      */
     startTask(task) {
         this.manager.start(task, {
-            headless: false, // Show browser window for agent mode
-            screenshotMode: 'all'
+            headless: false // Show browser window for agent mode
+            // Note: screenshotMode defaults to 'none' (no disk saving)
+            // Screenshots are always sent to web interface for live viewing
         });
     }
 
