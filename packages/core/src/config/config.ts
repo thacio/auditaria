@@ -64,6 +64,8 @@ import {
   CollaborativeWritingStartTool,
   CollaborativeWritingEndTool,
 } from '../tools/collaborative-writing.js';
+// AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
+import { BrowserAgentTool } from '../tools/browser-agent.js';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -1514,6 +1516,11 @@ export class Config {
     registerCoreTool(CollaborativeWritingStartTool, this);
     registerCoreTool(CollaborativeWritingEndTool, this);
     // AUDITARIA_COLLABORATIVE_WRITING_END
+
+    // AUDITARIA_BROWSER_AGENT_START - Auditaria Custom Feature
+    // Register browser agent tool
+    registerCoreTool(BrowserAgentTool, this);
+    // AUDITARIA_BROWSER_AGENT_END
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {
