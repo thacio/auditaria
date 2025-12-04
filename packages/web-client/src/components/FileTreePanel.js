@@ -35,6 +35,13 @@ export class FileTreePanel extends EventEmitter {
     this.expandTab = null;
     this.loadingIndicator = null;
     this.treeContainer = null;
+    this.resizeHandle = null;
+
+    // Resize state
+    this.isResizing = false;
+    this.panelWidth = 250;  // Default width in pixels
+    this.minWidth = 150;    // Minimum width in pixels
+    this.maxWidthPercent = 40;  // Maximum width as % of viewport
 
     // State
     this.isCollapsed = true;  // Start collapsed
@@ -108,6 +115,7 @@ export class FileTreePanel extends EventEmitter {
     this.expandTab = document.getElementById('file-tree-expand-tab');
     this.loadingIndicator = document.getElementById('file-tree-loading');
     this.treeContainer = document.querySelector('.file-tree-container');
+    this.resizeHandle = document.getElementById('file-tree-resize-handle');
   }
 
   /**
@@ -120,6 +128,7 @@ export class FileTreePanel extends EventEmitter {
     panel.className = 'file-tree-panel collapsed';  // Start collapsed
 
     panel.innerHTML = `
+      <div class="file-tree-resize-handle" id="file-tree-resize-handle"></div>
       <div class="file-tree-header">
         <span class="file-tree-title">FILES</span>
         <button class="file-tree-collapse-button" id="file-tree-collapse" title="Show file tree" aria-label="Show file tree">
@@ -238,6 +247,13 @@ export class FileTreePanel extends EventEmitter {
     if (this.expandTab) {
       this.expandTab.addEventListener('click', () => {
         this.toggleCollapse();
+      });
+    }
+
+    // Resize handle
+    if (this.resizeHandle) {
+      this.resizeHandle.addEventListener('mousedown', (e) => {
+        this.startResize(e);
       });
     }
 
@@ -503,7 +519,8 @@ export class FileTreePanel extends EventEmitter {
 
     const formatted = {
       label: node.label,
-      value: currentPath
+      value: currentPath,
+      tooltip: currentPath  // Show full path on hover
     };
 
     // Mark as selected if this is the current selection
@@ -547,19 +564,25 @@ export class FileTreePanel extends EventEmitter {
    * Handle window resize for responsive behavior
    */
   handleResize() {
-    const width = window.innerWidth;
+    const viewportWidth = window.innerWidth;
 
     // Small screens (<768px): Auto-collapse
-    if (width < 768) {
+    if (viewportWidth < 768) {
       if (!this.isCollapsed) {
         this.isCollapsed = true;
         this.panel.classList.add('collapsed');
+        this.panel.style.width = '';
         this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
         this.collapseButton.title = 'Show file tree';
       }
+    } else if (!this.isCollapsed) {
+      // On larger screens, ensure panel width doesn't exceed max
+      const maxWidth = (this.maxWidthPercent / 100) * viewportWidth;
+      if (this.panelWidth > maxWidth) {
+        this.panelWidth = maxWidth;
+        this.panel.style.width = `${this.panelWidth}px`;
+      }
     }
-    // Medium and large screens: Keep user's chosen state
-    // Don't auto-expand, respect user's choice
   }
 
   /**
@@ -570,10 +593,16 @@ export class FileTreePanel extends EventEmitter {
 
     if (this.isCollapsed) {
       this.panel.classList.add('collapsed');
+      // Clear inline width so CSS can control collapse
+      this.panel.style.width = '';
       this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
       this.collapseButton.title = 'Show file tree';
     } else {
       this.panel.classList.remove('collapsed');
+      // Apply saved width when expanding
+      if (this.panelWidth) {
+        this.panel.style.width = `${this.panelWidth}px`;
+      }
       this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-left';
       this.collapseButton.title = 'Hide file tree';
 
@@ -583,6 +612,70 @@ export class FileTreePanel extends EventEmitter {
 
     this.saveState();
     this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
+  }
+
+  /**
+   * Start resizing the panel
+   * @param {MouseEvent} e
+   */
+  startResize(e) {
+    e.preventDefault();
+    this.isResizing = true;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+
+    // Disable transition during resize for smooth dragging
+    this.panel.style.transition = 'none';
+
+    // Bind resize handlers
+    this.boundDoResize = this.doResize.bind(this);
+    this.boundStopResize = this.stopResize.bind(this);
+
+    document.addEventListener('mousemove', this.boundDoResize);
+    document.addEventListener('mouseup', this.boundStopResize);
+  }
+
+  /**
+   * Handle panel resizing
+   * @param {MouseEvent} e
+   */
+  doResize(e) {
+    if (!this.isResizing) return;
+
+    const viewportWidth = window.innerWidth;
+    const mouseX = e.clientX;
+
+    // Calculate new width (panel is on left, so width = mouseX)
+    let newWidth = mouseX;
+
+    // Apply constraints
+    const maxWidth = (this.maxWidthPercent / 100) * viewportWidth;
+    newWidth = Math.max(this.minWidth, Math.min(maxWidth, newWidth));
+
+    // Update panel width
+    this.panelWidth = newWidth;
+    this.panel.style.width = `${newWidth}px`;
+  }
+
+  /**
+   * Stop resizing the panel
+   */
+  stopResize() {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    // Re-enable transition
+    this.panel.style.transition = '';
+
+    // Remove event listeners
+    document.removeEventListener('mousemove', this.boundDoResize);
+    document.removeEventListener('mouseup', this.boundStopResize);
+
+    // Save width to localStorage
+    this.saveState();
   }
 
   /**
@@ -1228,7 +1321,20 @@ export class FileTreePanel extends EventEmitter {
    * Load state from localStorage
    */
   loadState() {
-    // File browser always starts expanded - no persistence
+    // File browser collapse state is not persisted - always starts expanded
+    // But we do persist the panel width
+    try {
+      const saved = localStorage.getItem('auditaria_file_tree_state');
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.panelWidth && typeof state.panelWidth === 'number') {
+          this.panelWidth = state.panelWidth;
+          // Don't apply width when collapsed - will be applied when panel expands
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load file tree state:', error);
+    }
   }
 
   /**
@@ -1236,6 +1342,15 @@ export class FileTreePanel extends EventEmitter {
    */
   saveState() {
     // File browser collapse state is not persisted - always starts expanded
+    // But we do persist the panel width
+    try {
+      const state = {
+        panelWidth: this.panelWidth
+      };
+      localStorage.setItem('auditaria_file_tree_state', JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to save file tree state:', error);
+    }
   }
 
   /**
