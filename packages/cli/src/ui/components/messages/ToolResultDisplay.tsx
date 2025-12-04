@@ -14,6 +14,11 @@ import { theme } from '../../semantic-colors.js';
 import type { AnsiOutput } from '@google/gemini-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
 import { useAlternateBuffer } from '../../hooks/useAlternateBuffer.js';
+// AUDITARIA: Import browser step display
+import {
+  BrowserStepDisplay,
+  tryParseBrowserStepDisplay,
+} from './BrowserStepDisplay.js';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -70,13 +75,34 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     return resultDisplay;
   }, [resultDisplay]);
 
+  // AUDITARIA: Try to parse browser step display data
+  const browserStepData = React.useMemo(
+    () => tryParseBrowserStepDisplay(truncatedResultDisplay),
+    [truncatedResultDisplay],
+  );
+
   if (!truncatedResultDisplay) return null;
 
   return (
     <Box width={childWidth} flexDirection="column">
       <Box flexDirection="column">
-        {typeof truncatedResultDisplay === 'string' &&
-        renderOutputAsMarkdown ? (
+        {/* AUDITARIA: Check browser step data FIRST (before string checks) */}
+        {browserStepData ? (
+          <BrowserStepDisplay data={browserStepData} maxWidth={childWidth} />
+        ) : typeof truncatedResultDisplay === 'object' &&
+          'fileDiff' in truncatedResultDisplay ? (
+          <DiffRenderer
+            diffContent={(truncatedResultDisplay as FileDiffResult).fileDiff}
+            filename={(truncatedResultDisplay as FileDiffResult).fileName}
+            availableTerminalHeight={availableHeight}
+            terminalWidth={childWidth}
+          />
+        ) : typeof truncatedResultDisplay === 'object' &&
+          'todos' in truncatedResultDisplay ? (
+          // display nothing, as the TodoTray will handle rendering todos
+          <></>
+        ) : typeof truncatedResultDisplay === 'string' &&
+          renderOutputAsMarkdown ? (
           <Box flexDirection="column">
             <MarkdownDisplay
               text={truncatedResultDisplay}
@@ -102,18 +128,6 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
               </Box>
             </MaxSizedBox>
           )
-        ) : typeof truncatedResultDisplay === 'object' &&
-          'fileDiff' in truncatedResultDisplay ? (
-          <DiffRenderer
-            diffContent={(truncatedResultDisplay as FileDiffResult).fileDiff}
-            filename={(truncatedResultDisplay as FileDiffResult).fileName}
-            availableTerminalHeight={availableHeight}
-            terminalWidth={childWidth}
-          />
-        ) : typeof truncatedResultDisplay === 'object' &&
-          'todos' in truncatedResultDisplay ? (
-          // display nothing, as the TodoTray will handle rendering todos
-          <></>
         ) : (
           <AnsiOutputText
             data={truncatedResultDisplay as AnsiOutput}

@@ -64,6 +64,8 @@ import {
   CollaborativeWritingStartTool,
   CollaborativeWritingEndTool,
 } from '../tools/collaborative-writing.js';
+// AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
+import { BrowserAgentTool } from '@thacio/browser-agent';
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -1514,6 +1516,8 @@ export class Config {
     registerCoreTool(CollaborativeWritingStartTool, this);
     registerCoreTool(CollaborativeWritingEndTool, this);
     // AUDITARIA_COLLABORATIVE_WRITING_END
+
+    registerCoreTool(BrowserAgentTool, this); // AUDITARIA_BROWSER_AGENT - Pass 'this' (Config) to enable CredentialBridge - browser-agent uses same auth as Auditaria
 
     // Register Subagents as Tools
     if (this.getCodebaseInvestigatorSettings().enabled) {

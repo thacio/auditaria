@@ -12,6 +12,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { promises as fs } from 'node:fs';
 import { GEMINI_DIR } from '../utils/paths.js';
+import { AUDITARIA_DIR } from '../utils/paths.js'; // AUDITARIA: Also import AUDITARIA_DIR
 import { coreEvents } from '../utils/events.js';
 
 const KEYCHAIN_SERVICE_NAME = 'gemini-cli-oauth';
@@ -90,9 +91,12 @@ export class OAuthCredentialStorage {
     try {
       await this.storage.deleteCredentials(MAIN_ACCOUNT_KEY);
 
-      // Also try to remove the old file if it exists
-      const oldFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
-      await fs.rm(oldFilePath, { force: true }).catch(() => {});
+      // AUDITARIA_MODIFY_START: Try to remove old files from both directories
+      const auditariaFilePath = path.join(os.homedir(), AUDITARIA_DIR, OAUTH_FILE);
+      // const geminiFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
+      await fs.rm(auditariaFilePath, { force: true }).catch(() => {});
+      // await fs.rm(geminiFilePath, { force: true }).catch(() => {});
+      // AUDITARIA_MODIFY_ENDS
     } catch (error: unknown) {
       coreEvents.emitFeedback(
         'error',
@@ -105,13 +109,39 @@ export class OAuthCredentialStorage {
 
   /**
    * Migrate credentials from old file-based storage to keychain
+   * AUDITARIA: Check .auditaria directory first, then fallback to .gemini
    */
   private static async migrateFromFileStorage(): Promise<Credentials | null> {
-    const oldFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
+    // AUDITARIA_MODIFY_START: Try .auditaria directory first (our fork's location)
+    const auditariaFilePath = path.join(os.homedir(), AUDITARIA_DIR, OAUTH_FILE);
+    const geminiFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
 
-    let credsJson: string;
+    let credsJson: string | null = null;
+    let usedFilePath: string | null = null;
+
+    // Try .auditaria first
     try {
-      credsJson = await fs.readFile(oldFilePath, 'utf-8');
+      credsJson = await fs.readFile(auditariaFilePath, 'utf-8');
+      usedFilePath = auditariaFilePath;
+    } catch (error: unknown) {
+      if (
+        !(typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'ENOENT')
+      ) {
+        // Non-ENOENT errors should propagate
+        throw error;
+      }
+      // File doesn't exist in .auditaria, try .gemini
+    }
+
+    // Fallback to .gemini if not found in .auditaria
+    if (!credsJson) {
+      try {
+        credsJson = await fs.readFile(geminiFilePath, 'utf-8');
+        usedFilePath = geminiFilePath;
+        // AUDITARIA_MODIFY_END
     } catch (error: unknown) {
       if (
         typeof error === 'object' &&
@@ -119,11 +149,12 @@ export class OAuthCredentialStorage {
         'code' in error &&
         error.code === 'ENOENT'
       ) {
-        // File doesn't exist, so no migration.
+          // File doesn't exist in either location
         return null;
       }
       // Other read errors should propagate.
       throw error;
+      } // AUDITARIA ADDITION
     }
 
     const credentials = JSON.parse(credsJson) as Credentials;
@@ -132,7 +163,11 @@ export class OAuthCredentialStorage {
     await this.saveCredentials(credentials);
 
     // Remove old file after successful migration
-    await fs.rm(oldFilePath, { force: true }).catch(() => {});
+    // AUDITARIA_MODIFY_START
+    if (usedFilePath) {
+      await fs.rm(usedFilePath, { force: true }).catch(() => {});
+    }
+    // AUDITARIA_MODIFY_END
 
     return credentials;
   }

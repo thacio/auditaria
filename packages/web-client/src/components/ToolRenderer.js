@@ -3,6 +3,19 @@
  */
 
 import { escapeHtml, getToolStatusIndicator, getTodoStatusIcon } from '../utils/formatters.js';
+import { createEmbeddedStreamViewer, destroyEmbeddedStreamViewer, freezeEmbeddedStreamViewer } from './BrowserStreamViewer.js';
+import { createAgentControls } from './agentControlsFactory.js';
+
+// AUDITARIA: Track active stream viewers for cleanup
+const activeStreamViewers = new Map();
+
+// AUDITARIA: Browser step status icons and colors
+const BROWSER_STEP_STATUS = {
+    pending: { icon: '○', colorClass: 'browser-step-pending' },
+    executing: { icon: '◐', colorClass: 'browser-step-executing' },
+    completed: { icon: '●', colorClass: 'browser-step-completed' },
+    error: { icon: '✗', colorClass: 'browser-step-error' },
+};
 
 /**
  * Render a tool group
@@ -100,18 +113,31 @@ function createToolHeader(tool) {
  * Create tool output element
  */
 function createToolOutput(tool) {
+    // AUDITARIA DEBUG: Log tool output processing
+    console.log('[ToolRenderer] createToolOutput called:', {
+        toolName: tool.name,
+        status: tool.status,
+        hasResultDisplay: !!tool.resultDisplay,
+        resultDisplayType: typeof tool.resultDisplay,
+        resultDisplayPreview: typeof tool.resultDisplay === 'string'
+            ? tool.resultDisplay.substring(0, 100)
+            : tool.resultDisplay,
+        hasLiveOutput: !!tool.liveOutput,
+    });
+
     // Show output for tools with resultDisplay OR for error/canceled states with messages
-    const shouldShowOutput = tool.resultDisplay || 
+    const shouldShowOutput = tool.resultDisplay ||
                            (tool.status === 'Error' || tool.status === 'Canceled') ||
                            (tool.status === 'Executing' && tool.liveOutput);
-    
+
     if (!shouldShowOutput) {
+        console.log('[ToolRenderer] No output to show for tool:', tool.name);
         return null;
     }
-    
+
     const toolOutputEl = document.createElement('div');
     toolOutputEl.className = 'tool-output';
-    
+
     // Determine what content to display
     let outputContent = tool.resultDisplay;
     if (!outputContent && tool.status === 'Error') {
@@ -122,11 +148,25 @@ function createToolOutput(tool) {
     }
     if (!outputContent && tool.status === 'Executing' && tool.liveOutput) {
         outputContent = tool.liveOutput;
+        console.log('[ToolRenderer] Using liveOutput:', outputContent.substring(0, 100));
     }
-    
+
+    console.log('[ToolRenderer] Processing outputContent:', {
+        type: typeof outputContent,
+        isString: typeof outputContent === 'string',
+        startsWithBrowserSteps: typeof outputContent === 'string' && outputContent.startsWith('{"browserSteps"'),
+        preview: typeof outputContent === 'string' ? outputContent.substring(0, 150) : outputContent,
+    });
+
     if (typeof outputContent === 'string') {
-        // Handle string output
-        if (tool.name === 'TodoWrite' && isTodoWriteResult(outputContent)) {
+        // AUDITARIA: Check for browser step display data (JSON string)
+        const browserStepData = tryParseBrowserStepDisplay(outputContent);
+        console.log('[ToolRenderer] tryParseBrowserStepDisplay result:', browserStepData);
+        if (browserStepData) {
+            console.log('[ToolRenderer] Rendering browser steps!', browserStepData);
+            toolOutputEl.appendChild(renderBrowserSteps(browserStepData));
+        } else if (tool.name === 'TodoWrite' && isTodoWriteResult(outputContent)) {
+            // Handle TodoWrite output
             const todos = extractTodosFromDisplay(outputContent);
             if (todos) {
                 toolOutputEl.appendChild(renderTodoList(todos));
@@ -144,6 +184,11 @@ function createToolOutput(tool) {
             toolOutputEl.appendChild(outputPreEl);
         }
     } else if (outputContent && typeof outputContent === 'object') {
+        // AUDITARIA: Check for browser step display data (object)
+        if (outputContent.browserSteps && Array.isArray(outputContent.browserSteps)) {
+            toolOutputEl.appendChild(renderBrowserSteps(outputContent));
+            return toolOutputEl;
+        }
         // Handle new write_todos tool format
         if (outputContent.todos && Array.isArray(outputContent.todos)) {
             toolOutputEl.appendChild(renderWriteTodosList(outputContent.todos));
@@ -355,14 +400,14 @@ function renderWriteTodosList(todos) {
 export function renderAboutInfo(aboutItem) {
     const aboutEl = document.createElement('div');
     aboutEl.className = 'about-info';
-    
+
     const infoItems = [
         { label: 'CLI Version', value: aboutItem.cliVersion },
         { label: 'OS', value: aboutItem.osVersion },
         { label: 'Model', value: aboutItem.modelVersion },
         { label: 'Auth Type', value: aboutItem.selectedAuthType }
     ];
-    
+
     infoItems.forEach(item => {
         if (item.value) {
             const itemEl = document.createElement('div');
@@ -370,6 +415,209 @@ export function renderAboutInfo(aboutItem) {
             aboutEl.appendChild(itemEl);
         }
     });
-    
+
     return aboutEl;
 }
+
+// ============================================================================
+// AUDITARIA: Browser Step Display (Phase 7)
+// ============================================================================
+
+/**
+ * Try to parse browser step display data from a string
+ * @param {string} input - Potential JSON string with browser step data
+ * @returns {object|null} - Parsed data or null if not valid
+ */
+function tryParseBrowserStepDisplay(input) {
+    if (typeof input !== 'string') {
+        return null;
+    }
+
+    // Quick check to avoid parsing non-browser step JSON
+    if (!input.startsWith('{"browserSteps"')) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(input);
+        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.browserSteps)) {
+            return parsed;
+        }
+    } catch {
+        // Not valid JSON
+    }
+
+    return null;
+}
+
+/**
+ * Render browser steps display
+ * @param {object} data - Browser step display data
+ * @returns {HTMLElement} - Container element with rendered steps
+ */
+function renderBrowserSteps(data) {
+    // DEBUG: Log what data we're receiving
+    console.log('[ToolRenderer] renderBrowserSteps called with data:', {
+        sessionId: data.sessionId,
+        action: data.action,
+        status: data.status,
+        stepNumber: data.stepNumber,
+        hasScreenshot: !!data.screenshot,
+        dataKeys: Object.keys(data)
+    });
+
+    const containerEl = document.createElement('div');
+    containerEl.className = 'browser-steps-container';
+
+    // AUDITARIA: Agent controls are now embedded in the stream viewer (see BrowserStreamViewer.js)
+    // This ensures controls move to fullscreen mode along with the viewer
+
+    // AUDITARIA: Add browser stream viewer if we have a sessionId
+    // FIX: Create viewer on FIRST encounter with sessionId (not just when status='running')
+    // This fixes API key mode where AI SDK's onStepFinish only fires AFTER steps complete
+    // NOTE: data.status is STEP status, not TASK status. We should NOT freeze based on step status
+    // because more steps may follow. The viewer will be cleaned up when the tool completes.
+    console.log('[ToolRenderer] Checking stream viewer conditions:', {
+        hasSessionId: !!data.sessionId,
+        hasExistingViewer: data.sessionId ? activeStreamViewers.has(data.sessionId) : false,
+        actualStatus: data.status
+    });
+    if (data.sessionId) {
+        // Check if stream viewer already exists for this session
+        if (!activeStreamViewers.has(data.sessionId)) {
+            try {
+                // Create viewer on first encounter - use 'running' as initial status for controls
+                const streamContainer = createEmbeddedStreamViewer(data.sessionId, 'running');
+                containerEl.appendChild(streamContainer);
+                activeStreamViewers.set(data.sessionId, streamContainer);
+
+                console.log('[ToolRenderer] Created stream viewer for session:', data.sessionId);
+            } catch (error) {
+                console.warn('[ToolRenderer] Failed to create stream viewer:', error);
+            }
+        } else {
+            // Reuse existing stream viewer - make sure it's attached to current container
+            const existingViewer = activeStreamViewers.get(data.sessionId);
+            if (existingViewer && existingViewer.parentNode !== containerEl) {
+                containerEl.appendChild(existingViewer);
+            }
+        }
+        // NOTE: Don't freeze here - data.status is step status, not task status
+        // The viewer stays active until the tool execution completes
+    }
+
+    // Header with session info and URL
+    if (data.sessionId || data.currentUrl) {
+        const headerEl = document.createElement('div');
+        headerEl.className = 'browser-steps-header';
+
+        let headerText = '';
+        if (data.sessionId) {
+            headerText += `Session: ${escapeHtml(data.sessionId)}`;
+        }
+        if (data.currentUrl) {
+            if (headerText) headerText += ' • ';
+            const truncatedUrl = data.currentUrl.length > 50
+                ? data.currentUrl.substring(0, 50) + '...'
+                : data.currentUrl;
+            headerText += escapeHtml(truncatedUrl);
+        }
+
+        headerEl.textContent = headerText;
+        containerEl.appendChild(headerEl);
+    }
+
+    // Steps list
+    const stepsListEl = document.createElement('div');
+    stepsListEl.className = 'browser-steps-list';
+
+    data.browserSteps.forEach(step => {
+        const stepEl = document.createElement('div');
+        stepEl.className = `browser-step ${BROWSER_STEP_STATUS[step.status]?.colorClass || ''}`;
+
+        // Status icon
+        const iconEl = document.createElement('span');
+        iconEl.className = 'browser-step-icon';
+        iconEl.textContent = BROWSER_STEP_STATUS[step.status]?.icon || '○';
+
+        // Step number
+        const numberEl = document.createElement('span');
+        numberEl.className = 'browser-step-number';
+        numberEl.textContent = `${step.stepNumber}. `;
+
+        // Action type
+        const actionEl = document.createElement('span');
+        actionEl.className = 'browser-step-action';
+        actionEl.textContent = formatBrowserAction(step.action);
+
+        stepEl.appendChild(iconEl);
+        stepEl.appendChild(numberEl);
+        stepEl.appendChild(actionEl);
+
+        // Reasoning (if available)
+        if (step.reasoning) {
+            const reasoningEl = document.createElement('span');
+            reasoningEl.className = 'browser-step-reasoning';
+            const truncatedReasoning = step.reasoning.length > 60
+                ? step.reasoning.substring(0, 60) + '...'
+                : step.reasoning;
+            reasoningEl.textContent = ` - ${truncatedReasoning}`;
+            stepEl.appendChild(reasoningEl);
+        }
+
+        stepsListEl.appendChild(stepEl);
+    });
+
+    containerEl.appendChild(stepsListEl);
+
+    // Overall status indicator
+    const statusEl = document.createElement('div');
+    statusEl.className = `browser-steps-status browser-steps-status-${data.status}`;
+
+    switch (data.status) {
+        case 'running':
+            statusEl.textContent = 'Running...';
+            break;
+        case 'completed':
+            statusEl.textContent = `Completed (${data.browserSteps.length} step${data.browserSteps.length !== 1 ? 's' : ''})`;
+            break;
+        case 'error':
+            statusEl.textContent = 'Error occurred';
+            break;
+        case 'cancelled':
+            statusEl.textContent = 'Cancelled';
+            break;
+        default:
+            statusEl.textContent = data.status;
+    }
+
+    containerEl.appendChild(statusEl);
+
+    return containerEl;
+}
+
+/**
+ * Format browser action type for display
+ * @param {string} action - Raw action type
+ * @returns {string} - Formatted action name
+ */
+function formatBrowserAction(action) {
+    const actionMap = {
+        click: 'Click',
+        type: 'Type',
+        navigate: 'Navigate',
+        goto: 'Go to',
+        scroll: 'Scroll',
+        keypress: 'Key press',
+        wait: 'Wait',
+        screenshot: 'Screenshot',
+        extract: 'Extract',
+        observe: 'Observe',
+    };
+    return actionMap[action?.toLowerCase()] || action || 'Action';
+}
+
+// ============================================================================
+// AUDITARIA: Agent Execution Controls (Phase 8)
+// Now imported from agentControlsFactory.js for reuse in fullscreen mode
+// ============================================================================
