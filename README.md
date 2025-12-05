@@ -28,6 +28,9 @@ software** intactas.
 - **✍️ Escrita Colaborativa**: Edite arquivos simultaneamente com a IA. Ela vê
   suas alterações em tempo real, permitindo uma verdadeira programação em par e
   co-escrita.
+- **🤖 Agente de Navegação**: Automação de navegador com IA - a IA pode navegar
+  na web, extrair dados, preencher formulários e executar tarefas complexas
+  autonomamente
 - **🎯 Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia com conta
   pessoal do Google
 - **🧠 Poderoso Gemini 2.5 Pro**: Acesso a janela de contexto de 1M tokens
@@ -50,6 +53,12 @@ software** intactas.
   colaborativo onde você e a IA podem modificar o mesmo arquivo simultaneamente.
   A IA está sempre ciente de suas edições, permitindo um trabalho de equipe
   interativo em código e documentos.
+- **🤖 Agente de Navegação (Browser Agent)**: Automação de navegador com IA
+  usando Stagehand
+  - Streaming ao vivo do navegador na interface web
+  - Controle de execução (pausar/continuar/parar)
+  - Modo takeover: assuma controle manual do navegador durante a execução
+  - Capturas de telas
 - **🎯 Gerenciamento de Contexto**: Ferramentas integradas para inspecionar,
   esquecer e restaurar conteúdo da conversa para otimizar uso de tokens
   - `context_inspect` - Inspecionar histórico e estatísticas de tokens
@@ -412,6 +421,8 @@ all original software engineering capabilities** intact.
   Monaco editor and file previewers.
 - **✍️ Collaborative Writing**: Edit files simultaneously with the AI. It sees
   your changes as you make them, enabling true pair-programming and co-writing.
+- **🤖 Browser Agent**: AI-driven browser automation - the AI can browse the
+  web, extract data, fill forms, and execute complex tasks autonomously
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
   account
 - **🧠 Powerful Gemini 2.5 Pro**: Access to 1M token context window
@@ -433,6 +444,11 @@ all original software engineering capabilities** intact.
 - **✍️ Collaborative Writing**: Enables a true collaborative workflow where you
   and the AI can modify the same file simultaneously. The AI is always aware of
   your edits, allowing for interactive teamwork on code and documents.
+- **🤖 Browser Agent**: AI-driven browser automation using Stagehand
+  - Live browser streaming in the web interface
+  - Execution control (pause/resume/stop)
+  - Takeover mode: take manual control of the browser during execution
+  - Take Screenshots
 - **🎯 Context Management**: Built-in tools to inspect, forget, and restore
   conversation content to optimize token usage
   - `context_inspect` - Inspect history and token statistics
@@ -706,7 +722,8 @@ auditaria -p "Run tests and deploy" --output-format stream-json
 The web interface provides an alternative way to interact with Auditaria CLI
 through your browser:
 
-- **Web interface enabled by default**: `auditaria` (automatically opens browser)
+- **Web interface enabled by default**: `auditaria` (automatically opens
+  browser)
 - **Disable web interface**: `auditaria --no-web`
 - **Start without opening browser**: `auditaria --no-web-browser`
 - **Command during runtime**: Use `/web` to open the web interface at any time
