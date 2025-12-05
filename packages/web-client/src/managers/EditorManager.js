@@ -403,6 +403,18 @@ export class EditorManager extends EventEmitter {
       quickSuggestions: true
     });
 
+    // Register Ctrl+S to save the active file (prevents browser's save page dialog)
+    this.editor.addAction({
+      id: 'auditaria-save-file',
+      label: 'Save File',
+      keybindings: [
+        this.monaco.KeyMod.CtrlCmd | this.monaco.KeyCode.KeyS
+      ],
+      run: () => {
+        this.saveActiveFile();
+      }
+    });
+
     // Editor is created
     this.emit('editor-created');
   }
