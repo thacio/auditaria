@@ -356,7 +356,8 @@ export class StagehandAdapter {
     const deviceScaleFactor = await this.getWindowsScaleFactor();
 
     // Get Playwright's Chromium path (auto-installed via @playwright/browser-chromium)
-    const chromiumPath = await this.getChromiumExecutablePath();
+    // COMMENTED OUT: Let chrome-launcher auto-detect system Chrome instead of using Playwright's Chrome for Testing
+    // const chromiumPath = await this.getChromiumExecutablePath();
 
     // Build clientOptions based on what credentials we have
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -406,7 +407,8 @@ export class StagehandAdapter {
       model: modelConfig,
       localBrowserLaunchOptions: {
         headless: this.config.headless ?? false,  // Default to headed mode (with takeover support)
-        ...(chromiumPath && { executablePath: chromiumPath }),  // Use Playwright's Chromium if available
+        // COMMENTED OUT: Let chrome-launcher auto-detect system Chrome
+        // ...(chromiumPath && { executablePath: chromiumPath }),
         ...(deviceScaleFactor !== undefined && { deviceScaleFactor }),  // Only set on Windows
         args: [
           '--start-minimized',                         // Start browser minimized to avoid flash
