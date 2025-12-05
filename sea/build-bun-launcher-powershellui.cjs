@@ -245,7 +245,9 @@ const conditionalUnifiedBunServer = `
     slashCommands: [],
     mcpServers: { servers: [], blockedServers: [] },
     consoleMessages: [],
-    cliActionState: null
+    cliActionState: null,
+    pendingItem: null,
+    loadingState: null
   };
 
   // Create unified Bun WebSocketServer replacement
@@ -304,8 +306,14 @@ const conditionalUnifiedBunServer = `
 
           // Handle WebSocket upgrade
           if (req.headers.get('upgrade') === 'websocket') {
-            // console.log('[Bun] WebSocket upgrade request');
+            // console.log('[Bun] WebSocket upgrade request for:', url.pathname);
+
+            // Store URL path for routing in open handler
             const success = server.upgrade(req, {
+              data: {
+                pathname: url.pathname,
+                host: req.headers.get('host') || 'localhost'
+              },
               headers: {
                 'Access-Control-Allow-Origin': '*'
               }
@@ -359,71 +367,140 @@ const conditionalUnifiedBunServer = `
 
         websocket: {
           open: (ws) => {
-            // console.log('[Bun] WebSocket connection opened');
-            wsClients.add(ws);
+            // Get pathname from upgrade data
+            const pathname = ws.data?.pathname || '/';
+            const host = ws.data?.host || 'localhost';
 
-            // Send initial connection message
-            ws.send(JSON.stringify({
-              type: 'connection',
-              data: { message: 'Connected to Auditaria CLI' },
-              timestamp: Date.now()
-            }));
+            // console.log('[Bun] WebSocket connection opened for:', pathname);
 
-            // Send current state
-            if (serverState.history.length > 0) {
+            try {
+              // Check if this is a special path that should be routed to WebInterfaceService
+              const isBrowserStream = pathname.startsWith('/stream/browser/');
+              const isAgentControl = pathname.startsWith('/control/agent/');
+
+              // For stream/control connections, route to WebInterfaceService handler
+              if ((isBrowserStream || isAgentControl) && this._connectionHandler) {
+                // Create a mock WebSocket for compatibility
+                const mockWs = {
+                  send: (data) => {
+                    try { ws.send(data); } catch (e) { /* ignore */ }
+                  },
+                  close: () => {
+                    try { ws.close(); } catch (e) { /* ignore */ }
+                  },
+                  readyState: 1,
+                  on: (event, handler) => {
+                    if (!ws._handlers) ws._handlers = {};
+                    ws._handlers[event] = handler;
+                  }
+                };
+
+                // Create mock request with URL for path-based routing
+                const mockRequest = {
+                  url: pathname,
+                  headers: { host: host }
+                };
+
+                ws._mockWs = mockWs;
+                this._connectionHandler(mockWs, mockRequest);
+                return;
+              }
+
+              // Main chat connection - add to broadcast clients
+              wsClients.add(ws);
+
+              // Send initial connection message
               ws.send(JSON.stringify({
-                type: 'history_sync',
-                data: { history: serverState.history },
+                type: 'connection',
+                data: { message: 'Connected to Auditaria CLI' },
                 timestamp: Date.now()
               }));
-            }
 
-            if (serverState.slashCommands.length > 0) {
+              // Send current state
+              if (serverState.history.length > 0) {
+                ws.send(JSON.stringify({
+                  type: 'history_sync',
+                  data: { history: serverState.history },
+                  timestamp: Date.now()
+                }));
+              }
+
+              if (serverState.slashCommands.length > 0) {
+                ws.send(JSON.stringify({
+                  type: 'slash_commands',
+                  data: { commands: serverState.slashCommands },
+                  timestamp: Date.now()
+                }));
+              }
+
               ws.send(JSON.stringify({
-                type: 'slash_commands',
-                data: { commands: serverState.slashCommands },
+                type: 'mcp_servers',
+                data: serverState.mcpServers,
                 timestamp: Date.now()
               }));
-            }
 
-            ws.send(JSON.stringify({
-              type: 'mcp_servers',
-              data: serverState.mcpServers,
-              timestamp: Date.now()
-            }));
-
-            ws.send(JSON.stringify({
-              type: 'console_messages',
-              data: serverState.consoleMessages,
-              timestamp: Date.now()
-            }));
-
-            if (serverState.cliActionState && serverState.cliActionState.active) {
               ws.send(JSON.stringify({
-                type: 'cli_action_required',
-                data: serverState.cliActionState,
+                type: 'console_messages',
+                data: serverState.consoleMessages,
                 timestamp: Date.now()
               }));
-            }
 
-            // Call the connection handler if set
-            if (this._connectionHandler) {
-              // Create a mock WebSocket for compatibility
-              const mockWs = {
-                send: (data) => ws.send(data),
-                close: () => ws.close(),
-                readyState: 1,
-                on: (event, handler) => {
-                  // Store handlers for later use
-                  if (!ws._handlers) ws._handlers = {};
-                  ws._handlers[event] = handler;
-                }
-              };
+              if (serverState.cliActionState && serverState.cliActionState.active) {
+                ws.send(JSON.stringify({
+                  type: 'cli_action_required',
+                  data: serverState.cliActionState,
+                  timestamp: Date.now()
+                }));
+              }
 
-              // Store reference
-              ws._mockWs = mockWs;
+              // Send current pending item (for live tool updates like browser agent)
+              if (serverState.pendingItem) {
+                ws.send(JSON.stringify({
+                  type: 'pending_item',
+                  data: serverState.pendingItem,
+                  ephemeral: true,
+                  timestamp: Date.now()
+                }));
+              }
 
-              this._connectionHandler(mockWs, {});
+              // Send current loading state
+              if (serverState.loadingState) {
+                ws.send(JSON.stringify({
+                  type: 'loading_state',
+                  data: serverState.loadingState,
+                  ephemeral: true,
+                  timestamp: Date.now()
+                }));
+              }
+
+              // Call the connection handler for main chat
+              if (this._connectionHandler) {
+                // Create a mock WebSocket for compatibility
+                const mockWs = {
+                  send: (data) => {
+                    try { ws.send(data); } catch (e) { /* ignore */ }
+                  },
+                  close: () => {
+                    try { ws.close(); } catch (e) { /* ignore */ }
+                  },
+                  readyState: 1,
+                  on: (event, handler) => {
+                    if (!ws._handlers) ws._handlers = {};
+                    ws._handlers[event] = handler;
+                  }
+                };
+
+                // Create mock request with URL
+                const mockRequest = {
+                  url: pathname,
+                  headers: { host: host }
+                };
+
+                ws._mockWs = mockWs;
+                this._connectionHandler(mockWs, mockRequest);
+              }
+            } catch (err) {
+              console.error('[Bun] Error in open handler:', err);
             }
           },
 
@@ -610,6 +687,8 @@ const conditionalUnifiedBunServer = `
     else if (type === 'mcpServers') serverState.mcpServers = data;
     else if (type === 'consoleMessages') serverState.consoleMessages = data;
     else if (type === 'cliActionState') serverState.cliActionState = data;
+    else if (type === 'pendingItem') serverState.pendingItem = data;
+    else if (type === 'loadingState') serverState.loadingState = data;
   };
 
   // Create handler setters
@@ -714,6 +793,70 @@ bundleContent = bundleContent.replace(
     }`
 );
 
+// Fix 7b: Patch broadcastPendingItem for live tool updates (browser agent streaming)
+bundleContent = bundleContent.replace(
+  /broadcastPendingItem\(pendingItem\)\s*{/g,
+  `broadcastPendingItem(pendingItem) {
+    // Store current pending item for new clients
+    this.currentPendingItem = pendingItem;
+    if (typeof bunBroadcast !== 'undefined') {
+      bunUpdateState('pendingItem', pendingItem);
+      bunBroadcast({ type: 'pending_item', data: pendingItem, ephemeral: true });
+      return;
+    }`
+);
+
+// Fix 7c: Patch broadcastLoadingState for loading state updates
+bundleContent = bundleContent.replace(
+  /broadcastLoadingState\(loadingState\)\s*{/g,
+  `broadcastLoadingState(loadingState) {
+    // Store current loading state for new clients
+    this.currentLoadingState = loadingState;
+    if (typeof bunBroadcast !== 'undefined') {
+      bunUpdateState('loadingState', loadingState);
+      bunBroadcast({ type: 'loading_state', data: loadingState, ephemeral: true });
+      return;
+    }`
+);
+
+// Fix 7d: Patch broadcastFooterData for footer updates
+bundleContent = bundleContent.replace(
+  /broadcastFooterData\(footerData\)\s*{/g,
+  `broadcastFooterData(footerData) {
+    if (typeof bunBroadcast !== 'undefined') {
+      bunBroadcast({ type: 'footer_data', data: footerData });
+      return;
+    }`
+);
+
+// Fix 7e: Patch broadcastWithSequence (generic broadcast helper used by many methods)
+bundleContent = bundleContent.replace(
+  /broadcastWithSequence\(type, data\)\s*{/g,
+  `broadcastWithSequence(type, data) {
+    if (typeof bunBroadcast !== 'undefined') {
+      bunBroadcast({ type, data });
+      return;
+    }`
+);
+
+// Fix 7f: Patch setAbortHandler
+bundleContent = bundleContent.replace(
+  /setAbortHandler\(handler\)\s*{/g,
+  `setAbortHandler(handler) {
+    if (typeof bunSetHandler !== 'undefined') {
+      bunSetHandler('abort', handler);
+    }`
+);
+
+// Fix 7g: Patch setConfirmationResponseHandler
+bundleContent = bundleContent.replace(
+  /setConfirmationResponseHandler\(handler\)\s*{/g,
+  `setConfirmationResponseHandler(handler) {
+    if (typeof bunSetHandler !== 'undefined') {
+      bunSetHandler('confirmation', handler);
+    }`
+);
+
 // Fix 8: Suppress locale warnings
 bundleContent = bundleContent.replace(
   /console\.warn\("Could not read locales directory, falling back to defaults:", error\);/g,
@@ -760,7 +903,7 @@ $strings = @{
         'browse' = 'Browse...'
         'launchOptions' = 'Launch Options'
         'disableWeb' = 'Disable Web Interface (--no-web)'
-        'noBrowser' = "Don't open browser automatically (--no-web-browser)"
+        'noBrowser' = "Don't open browser automatically (--web no-browser)"
         'customPort' = 'Custom port:'
         'portInfo' = '(0-65535, default: 8629)'
         'securitySettings' = 'Security Settings'
@@ -788,7 +931,7 @@ $strings = @{
         'browse' = 'Procurar...'
         'launchOptions' = 'Opções de Inicialização'
         'disableWeb' = 'Desabilitar Interface Web (--no-web)'
-        'noBrowser' = 'Não abrir navegador automaticamente (--no-web-browser)'
+        'noBrowser' = 'Não abrir navegador automaticamente (--web no-browser)'
         'customPort' = 'Porta personalizada:'
         'portInfo' = '(0-65535, padrão: 8629)'
         'securitySettings' = 'Configurações de Segurança'
@@ -816,7 +959,7 @@ $strings = @{
         'browse' = 'Examinar...'
         'launchOptions' = 'Opciones de Inicio'
         'disableWeb' = 'Deshabilitar Interfaz Web (--no-web)'
-        'noBrowser' = 'No abrir navegador automáticamente (--no-web-browser)'
+        'noBrowser' = 'No abrir navegador automáticamente (--web no-browser)'
         'customPort' = 'Puerto personalizado:'
         'portInfo' = '(0-65535, predeterminado: 8629)'
         'securitySettings' = 'Configuración de Seguridad'
@@ -844,7 +987,7 @@ $strings = @{
         'browse' = 'Parcourir...'
         'launchOptions' = 'Options de Lancement'
         'disableWeb' = 'Désactiver Interface Web (--no-web)'
-        'noBrowser' = 'Ne pas ouvrir le navigateur automatiquement (--no-web-browser)'
+        'noBrowser' = 'Ne pas ouvrir le navigateur automatiquement (--web no-browser)'
         'customPort' = 'Port personnalisé:'
         'portInfo' = '(0-65535, par défaut: 8629)'
         'securitySettings' = 'Paramètres de Sécurité'
@@ -872,7 +1015,7 @@ $strings = @{
         'browse' = 'ब्राउज़...'
         'launchOptions' = 'प्रारंभ विकल्प'
         'disableWeb' = 'वेब इंटरफ़ेस अक्षम करें (--no-web)'
-        'noBrowser' = 'ब्राउज़र स्वचालित रूप से न खोलें (--no-web-browser)'
+        'noBrowser' = 'ब्राउज़र स्वचालित रूप से न खोलें (--web no-browser)'
         'customPort' = 'कस्टम पोर्ट:'
         'portInfo' = '(0-65535, डिफ़ॉल्ट: 8629)'
         'securitySettings' = 'सुरक्षा सेटिंग्स'
@@ -1237,7 +1380,9 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     if ($disableWebCheckBox.Checked) {
         $args += '--no-web'
     } else {
-        # Web is enabled (default)
+        # Web is enabled - explicitly pass --web flag to ensure it starts
+        $args += '--web'
+
         if ($noBrowserCheckBox.Checked) {
             $args += '--no-web-browser'
         }
