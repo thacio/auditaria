@@ -186,13 +186,15 @@ export async function parseArguments(settings: Settings): Promise<CliArgs> {
         // Web is enabled by default. Use --no-web to disable.
         .option('web', {
           type: 'boolean',
-          description: 'Enable web interface (default: true). Use --no-web to disable.',
+          description:
+            'Enable web interface (default: true). Use --no-web to disable.',
           default: true,
         })
         // Browser opens by default. Use --no-web-browser to disable.
         .option('web-browser', {
           type: 'boolean',
-          description: 'Open browser automatically (default: true). Use --no-web-browser to disable.',
+          description:
+            'Open browser automatically (default: true). Use --no-web-browser to disable.',
           default: true,
         })
         .option('port', {
@@ -658,6 +660,7 @@ export async function loadCliConfig(
     enableExtensionReloading: settings.experimental?.extensionReloading,
     enableModelAvailabilityService:
       settings.experimental?.isModelAvailabilityServiceEnabled,
+    experimentalJitContext: settings.experimental?.jitContext,
     noBrowser: !!process.env['NO_BROWSER'],
     summarizeToolOutput: settings.model?.summarizeToolOutput,
     ideMode,

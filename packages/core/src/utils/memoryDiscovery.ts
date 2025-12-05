@@ -34,7 +34,7 @@ const logger = {
     console.error('[ERROR] [MemoryDiscovery]', ...args),
 };
 
-interface GeminiFileContent {
+export interface GeminiFileContent {
   filePath: string;
   content: string | null;
 }
@@ -318,7 +318,7 @@ async function readGeminiMdFiles(
   return results;
 }
 
-function concatenateInstructions(
+export function concatenateInstructions(
   instructionContents: GeminiFileContent[],
   // CWD is needed to resolve relative paths for display markers
   currentWorkingDirectoryForDisplay: string,
@@ -351,7 +351,7 @@ export async function loadGlobalMemory(
   // AUDITARIA_MODIFY_START: Search in all config directories (auditaria first, then gemini)
   const configDirs = getConfigDirFallbacks();
 
-  const accessChecks: Promise<string | null>[] = [];
+  const accessChecks: Array<Promise<string | null>> = [];
   for (const filename of geminiMdFilenames) {
     for (const configDir of configDirs) {
       accessChecks.push(
