@@ -5,6 +5,7 @@
  * FIXED: Server only initializes when --web flag is present
  * FIXED: Process.argv handling for correct argument parsing
  * FIXED: Interactive mode detection for standalone executable
+ * FIXED: Stagehand and Playwright bundled for standalone executable
  */
 
 const fs = require('fs');
@@ -12,15 +13,61 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini.js');
+const BUN_BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini-bun-prebundle.js');
 const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-standalone.exe');
 const WEB_CLIENT_PATH = path.join(__dirname, '..', 'packages', 'web-client', 'src');
 
 console.log('🔧 Building Auditaria CLI with unified Bun server...\n');
 
 if (!fs.existsSync(BUNDLE_PATH)) {
-  console.error('❌ Bundle not found');
+  console.error('❌ Bundle not found. Run "npm run bundle" first.');
   process.exit(1);
 }
+
+// Step 0: Create Bun-specific bundle that INCLUDES Stagehand and Playwright
+// The regular bundle has these as external to avoid worker thread crashes,
+// but for standalone Bun exe we need them bundled in.
+console.log('📦 Creating Bun-specific bundle (including Stagehand/Playwright)...');
+
+try {
+  // Read the main esbuild config to get base settings
+  const pkg = require(path.join(__dirname, '..', 'package.json'));
+
+  // Run esbuild with Stagehand/Playwright NOT external
+  // We keep node-pty and native modules external as they're not used in browser-agent
+  const externals = [
+    '@lydell/node-pty',
+    'node-pty',
+    '@lydell/node-pty-darwin-arm64',
+    '@lydell/node-pty-darwin-x64',
+    '@lydell/node-pty-linux-x64',
+    '@lydell/node-pty-win32-arm64',
+    '@lydell/node-pty-win32-x64',
+    'keytar',  // Native module for credential storage
+    'web-tree-sitter',  // WASM module
+    'tree-sitter-bash',  // WASM module
+  ].map(e => `--external:${e}`).join(' ');
+
+  execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
+    ${externals} \
+    --loader:.node=file \
+    --loader:.wasm=file \
+    --banner:js="const require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);" \
+    --define:process.env.CLI_VERSION='"${pkg.version}"' \
+    --outfile="${BUN_BUNDLE_PATH}"`, {
+    cwd: path.join(__dirname, '..'),
+    stdio: 'pipe'
+  });
+  console.log('   ✓ Bun-specific bundle created (Stagehand/Playwright included)');
+} catch (error) {
+  console.error('   ⚠️  Failed to create Bun-specific bundle, falling back to regular bundle');
+  console.error('   Error:', error.message);
+  // Fall back to regular bundle
+  fs.copyFileSync(BUNDLE_PATH, BUN_BUNDLE_PATH);
+}
+
+// Use the Bun-specific bundle
+const ACTUAL_BUNDLE_PATH = fs.existsSync(BUN_BUNDLE_PATH) ? BUN_BUNDLE_PATH : BUNDLE_PATH;
 
 // Embed locale files
 console.log('📦 Embedding locale files...');
@@ -63,7 +110,7 @@ if (fs.existsSync(WEB_CLIENT_PATH)) {
 }
 
 console.log('\n📖 Reading bundle...');
-let bundleContent = fs.readFileSync(BUNDLE_PATH, 'utf8');
+let bundleContent = fs.readFileSync(ACTUAL_BUNDLE_PATH, 'utf8');
 
 // Remove shebang
 if (bundleContent.startsWith('#!/')) {
@@ -229,7 +276,9 @@ const conditionalUnifiedBunServer = `
     slashCommands: [],
     mcpServers: { servers: [], blockedServers: [] },
     consoleMessages: [],
-    cliActionState: null
+    cliActionState: null,
+    pendingItem: null,
+    loadingState: null
   };
 
   // Create unified Bun WebSocketServer replacement
@@ -288,8 +337,14 @@ const conditionalUnifiedBunServer = `
 
           // Handle WebSocket upgrade
           if (req.headers.get('upgrade') === 'websocket') {
-            // console.log('[Bun] WebSocket upgrade request');
+            // console.log('[Bun] WebSocket upgrade request for:', url.pathname);
+
+            // Store URL path for routing in open handler
             const success = server.upgrade(req, {
+              data: {
+                pathname: url.pathname,
+                host: req.headers.get('host') || 'localhost'
+              },
               headers: {
                 'Access-Control-Allow-Origin': '*'
               }
@@ -343,71 +398,140 @@ const conditionalUnifiedBunServer = `
 
         websocket: {
           open: (ws) => {
-            // console.log('[Bun] WebSocket connection opened');
-            wsClients.add(ws);
+            // Get pathname from upgrade data
+            const pathname = ws.data?.pathname || '/';
+            const host = ws.data?.host || 'localhost';
 
-            // Send initial connection message
-            ws.send(JSON.stringify({
-              type: 'connection',
-              data: { message: 'Connected to Auditaria CLI' },
-              timestamp: Date.now()
-            }));
+            // console.log('[Bun] WebSocket connection opened for:', pathname);
 
-            // Send current state
-            if (serverState.history.length > 0) {
+            try {
+              // Check if this is a special path that should be routed to WebInterfaceService
+              const isBrowserStream = pathname.startsWith('/stream/browser/');
+              const isAgentControl = pathname.startsWith('/control/agent/');
+
+              // For stream/control connections, route to WebInterfaceService handler
+              if ((isBrowserStream || isAgentControl) && this._connectionHandler) {
+                // Create a mock WebSocket for compatibility
+                const mockWs = {
+                  send: (data) => {
+                    try { ws.send(data); } catch (e) { /* ignore */ }
+                  },
+                  close: () => {
+                    try { ws.close(); } catch (e) { /* ignore */ }
+                  },
+                  readyState: 1,
+                  on: (event, handler) => {
+                    if (!ws._handlers) ws._handlers = {};
+                    ws._handlers[event] = handler;
+                  }
+                };
+
+                // Create mock request with URL for path-based routing
+                const mockRequest = {
+                  url: pathname,
+                  headers: { host: host }
+                };
+
+                ws._mockWs = mockWs;
+                this._connectionHandler(mockWs, mockRequest);
+                return;
+              }
+
+              // Main chat connection - add to broadcast clients
+              wsClients.add(ws);
+
+              // Send initial connection message
               ws.send(JSON.stringify({
-                type: 'history_sync',
-                data: { history: serverState.history },
+                type: 'connection',
+                data: { message: 'Connected to Auditaria CLI' },
                 timestamp: Date.now()
               }));
-            }
 
-            if (serverState.slashCommands.length > 0) {
+              // Send current state
+              if (serverState.history.length > 0) {
+                ws.send(JSON.stringify({
+                  type: 'history_sync',
+                  data: { history: serverState.history },
+                  timestamp: Date.now()
+                }));
+              }
+
+              if (serverState.slashCommands.length > 0) {
+                ws.send(JSON.stringify({
+                  type: 'slash_commands',
+                  data: { commands: serverState.slashCommands },
+                  timestamp: Date.now()
+                }));
+              }
+
               ws.send(JSON.stringify({
-                type: 'slash_commands',
-                data: { commands: serverState.slashCommands },
+                type: 'mcp_servers',
+                data: serverState.mcpServers,
                 timestamp: Date.now()
               }));
-            }
 
-            ws.send(JSON.stringify({
-              type: 'mcp_servers',
-              data: serverState.mcpServers,
-              timestamp: Date.now()
-            }));
-
-            ws.send(JSON.stringify({
-              type: 'console_messages',
-              data: serverState.consoleMessages,
-              timestamp: Date.now()
-            }));
-
-            if (serverState.cliActionState && serverState.cliActionState.active) {
               ws.send(JSON.stringify({
-                type: 'cli_action_required',
-                data: serverState.cliActionState,
+                type: 'console_messages',
+                data: serverState.consoleMessages,
                 timestamp: Date.now()
               }));
-            }
 
-            // Call the connection handler if set
-            if (this._connectionHandler) {
-              // Create a mock WebSocket for compatibility
-              const mockWs = {
-                send: (data) => ws.send(data),
-                close: () => ws.close(),
-                readyState: 1,
-                on: (event, handler) => {
-                  // Store handlers for later use
-                  if (!ws._handlers) ws._handlers = {};
-                  ws._handlers[event] = handler;
-                }
-              };
+              if (serverState.cliActionState && serverState.cliActionState.active) {
+                ws.send(JSON.stringify({
+                  type: 'cli_action_required',
+                  data: serverState.cliActionState,
+                  timestamp: Date.now()
+                }));
+              }
 
-              // Store reference
-              ws._mockWs = mockWs;
+              // Send current pending item (for live tool updates like browser agent)
+              if (serverState.pendingItem) {
+                ws.send(JSON.stringify({
+                  type: 'pending_item',
+                  data: serverState.pendingItem,
+                  ephemeral: true,
+                  timestamp: Date.now()
+                }));
+              }
 
-              this._connectionHandler(mockWs, {});
+              // Send current loading state
+              if (serverState.loadingState) {
+                ws.send(JSON.stringify({
+                  type: 'loading_state',
+                  data: serverState.loadingState,
+                  ephemeral: true,
+                  timestamp: Date.now()
+                }));
+              }
+
+              // Call the connection handler for main chat
+              if (this._connectionHandler) {
+                // Create a mock WebSocket for compatibility
+                const mockWs = {
+                  send: (data) => {
+                    try { ws.send(data); } catch (e) { /* ignore */ }
+                  },
+                  close: () => {
+                    try { ws.close(); } catch (e) { /* ignore */ }
+                  },
+                  readyState: 1,
+                  on: (event, handler) => {
+                    if (!ws._handlers) ws._handlers = {};
+                    ws._handlers[event] = handler;
+                  }
+                };
+
+                // Create mock request with URL
+                const mockRequest = {
+                  url: pathname,
+                  headers: { host: host }
+                };
+
+                ws._mockWs = mockWs;
+                this._connectionHandler(mockWs, mockRequest);
+              }
+            } catch (err) {
+              console.error('[Bun] Error in open handler:', err);
             }
           },
 
@@ -447,8 +571,8 @@ const conditionalUnifiedBunServer = `
             }
           },
 
-          close: (ws) => {
-            // console.log('[Bun] WebSocket closed');
+          close: (ws, code, reason) => {
+            // console.log('[Bun] WebSocket closed, code:', code, 'reason:', reason?.toString() || 'none');
             wsClients.delete(ws);
 
             if (ws._mockWs && ws._handlers && ws._handlers.close) {
@@ -594,6 +718,8 @@ const conditionalUnifiedBunServer = `
     else if (type === 'mcpServers') serverState.mcpServers = data;
     else if (type === 'consoleMessages') serverState.consoleMessages = data;
     else if (type === 'cliActionState') serverState.cliActionState = data;
+    else if (type === 'pendingItem') serverState.pendingItem = data;
+    else if (type === 'loadingState') serverState.loadingState = data;
   };
 
   // Create handler setters
@@ -696,6 +822,70 @@ bundleContent = bundleContent.replace(
     }`
 );
 
+// Fix 7b: Patch broadcastPendingItem for live tool updates (browser agent streaming)
+bundleContent = bundleContent.replace(
+  /broadcastPendingItem\(pendingItem\)\s*{/g,
+  `broadcastPendingItem(pendingItem) {
+    // Store current pending item for new clients
+    this.currentPendingItem = pendingItem;
+    if (typeof bunBroadcast !== 'undefined') {
+      bunUpdateState('pendingItem', pendingItem);
+      bunBroadcast({ type: 'pending_item', data: pendingItem, ephemeral: true });
+      return;
+    }`
+);
+
+// Fix 7c: Patch broadcastLoadingState for loading state updates
+bundleContent = bundleContent.replace(
+  /broadcastLoadingState\(loadingState\)\s*{/g,
+  `broadcastLoadingState(loadingState) {
+    // Store current loading state for new clients
+    this.currentLoadingState = loadingState;
+    if (typeof bunBroadcast !== 'undefined') {
+      bunUpdateState('loadingState', loadingState);
+      bunBroadcast({ type: 'loading_state', data: loadingState, ephemeral: true });
+      return;
+    }`
+);
+
+// Fix 7d: Patch broadcastFooterData for footer updates
+bundleContent = bundleContent.replace(
+  /broadcastFooterData\(footerData\)\s*{/g,
+  `broadcastFooterData(footerData) {
+    if (typeof bunBroadcast !== 'undefined') {
+      bunBroadcast({ type: 'footer_data', data: footerData });
+      return;
+    }`
+);
+
+// Fix 7e: Patch broadcastWithSequence (generic broadcast helper used by many methods)
+bundleContent = bundleContent.replace(
+  /broadcastWithSequence\(type, data\)\s*{/g,
+  `broadcastWithSequence(type, data) {
+    if (typeof bunBroadcast !== 'undefined') {
+      bunBroadcast({ type, data });
+      return;
+    }`
+);
+
+// Fix 7f: Patch setAbortHandler
+bundleContent = bundleContent.replace(
+  /setAbortHandler\(handler\)\s*{/g,
+  `setAbortHandler(handler) {
+    if (typeof bunSetHandler !== 'undefined') {
+      bunSetHandler('abort', handler);
+    }`
+);
+
+// Fix 7g: Patch setConfirmationResponseHandler
+bundleContent = bundleContent.replace(
+  /setConfirmationResponseHandler\(handler\)\s*{/g,
+  `setConfirmationResponseHandler(handler) {
+    if (typeof bunSetHandler !== 'undefined') {
+      bunSetHandler('confirmation', handler);
+    }`
+);
+
 // Fix 8: Suppress locale warnings
 console.log('   ✓ Suppressing locale warnings...');
 bundleContent = bundleContent.replace(
@@ -757,7 +947,9 @@ if (!bunPath) {
 
 try {
   const iconPath = path.join(__dirname, '..', 'assets', 'auditaria.ico');
-  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --outfile "${OUTPUT_PATH}"`, {
+  // Use --external to skip WASM modules that can't be bundled
+  // These are only used for shell command parsing, not critical for browser-agent
+  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --external web-tree-sitter --external tree-sitter-bash --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
 
@@ -778,7 +970,11 @@ try {
 } catch (error) {
   console.error('\n❌ Build failed:', error.message);
 } finally {
+  // Clean up temporary files
   if (fs.existsSync(tempPath)) {
     fs.unlinkSync(tempPath);
+  }
+  if (fs.existsSync(BUN_BUNDLE_PATH)) {
+    fs.unlinkSync(BUN_BUNDLE_PATH);
   }
 }
