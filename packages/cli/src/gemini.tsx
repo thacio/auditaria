@@ -50,7 +50,7 @@ import {
   recordSlowRender,
   coreEvents,
   CoreEvent,
-  createInkStdio,
+  createWorkingStdio,
   patchStdio,
   writeToStdout,
   writeToStderr,
@@ -238,7 +238,7 @@ export async function startInteractiveUI(
   consolePatcher.patch();
   registerCleanup(consolePatcher.cleanup);
 
-  const { stdout: inkStdout, stderr: inkStderr } = createInkStdio();
+  const { stdout: inkStdout, stderr: inkStderr } = createWorkingStdio();
 
   // Create wrapper component to use hooks inside render
   const AppWrapper = () => {
