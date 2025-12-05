@@ -1,19 +1,24 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
-import { type SlashCommand, CommandKind, type CommandContext } from './types.js';
+import {
+  type SlashCommand,
+  CommandKind,
+  type CommandContext,
+} from './types.js';
 import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 
 export const webCommand: SlashCommand = {
   name: 'web',
   description: 'open web interface in browser',
   kind: CommandKind.BUILT_IN,
-  action: async (context: CommandContext, args: string) => {
+  autoExecute: true,
+  action: async (context: CommandContext, _args: string) => {
     if (!context.web) {
       return {
         type: 'message',
@@ -25,15 +30,15 @@ export const webCommand: SlashCommand = {
     try {
       // Start the web interface using configured port
       const result = await context.web.start();
-      
+
       // Get the actual port where the server started
       const actualPort = result.port?.toString() || '8629';
-      
+
       // Don't show the result message here as it's already shown by the web interface startup
       // Just open browser after a short delay
       setTimeout(async () => {
         const url = `http://localhost:${actualPort}`;
-        
+
         context.ui.addItem(
           {
             type: 'info',
@@ -51,7 +56,7 @@ export const webCommand: SlashCommand = {
             },
             Date.now(),
           );
-        } catch (error) {
+        } catch (_error) {
           context.ui.addItem(
             {
               type: 'info',

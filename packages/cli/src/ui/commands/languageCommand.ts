@@ -10,6 +10,7 @@ export const languageCommand: SlashCommand = {
   name: 'language',
   description: 'change language preference',
   kind: CommandKind.BUILT_IN,
+  autoExecute: true,
   action: (_context, _args) => ({
     type: 'dialog',
     dialog: 'language',

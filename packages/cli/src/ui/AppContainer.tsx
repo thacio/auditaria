@@ -62,6 +62,7 @@ import {
   enableMouseEvents,
   disableLineWrapping,
   shouldEnterAlternateScreen,
+  startupProfiler,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -298,6 +299,7 @@ export const AppContainer = (props: AppContainerProps) => {
       // handled by the global catch.
       await config.initialize();
       setConfigInitialized(true);
+      startupProfiler.flush(config);
     })();
     registerCleanup(async () => {
       // Turn off mouse scroll.
@@ -897,9 +899,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
         ? fromSettings
         : [fromSettings]
       : getAllGeminiMdFilenames();
-  // }, [config, settings.merged.context?.fileName]); // original line
+    // }, [config, settings.merged.context?.fileName]); // original line
   }, [config, settings.merged.context?.fileName]); // AUDITARIA_FEATURE
-  
 
   // Initial prompt handling
   const initialPrompt = useMemo(() => config.getQuestion(), [config]);
