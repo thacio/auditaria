@@ -9,7 +9,7 @@
 ---
 
 <a id="português"></a>
-![Captura de Tela do Auditaria CLI](./docs/assets/auditaria-screenshot-pt.png)
+![Captura de Tela do Auditaria CLI](./docs/assets/auditaria-web-screenshot.png)
 
 O Auditaria CLI é um fork especializado do
 [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) projetado
@@ -405,7 +405,7 @@ Veja o [Guia de Desinstalação](docs/Uninstall.md) para instruções de remoç�
 
 # Auditaria CLI
 
-![Auditaria CLI Screenshot](./docs/assets/auditaria-screenshot.png)
+![Auditaria CLI Screenshot](./docs/assets/auditaria-web-screenshot.png)
 
 Auditaria CLI is a specialized fork of the
 [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed
