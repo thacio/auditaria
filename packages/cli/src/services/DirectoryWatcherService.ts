@@ -58,7 +58,7 @@ export class DirectoryWatcherService extends EventEmitter {
    */
   async start(): Promise<void> {
     if (this.isWatching) {
-      console.log('Directory watcher already running');
+      // console.log('Directory watcher already running');
       return;
     }
 
@@ -81,7 +81,7 @@ export class DirectoryWatcherService extends EventEmitter {
       });
 
       this.isWatching = true;
-      console.log(`Directory watcher started for: ${this.workspaceRoot}`);
+      // console.log(`Directory watcher started for: ${this.workspaceRoot}`);
     } catch (error: any) {
       console.error('Failed to start directory watcher:', error);
       this.emit('error', error);
@@ -130,7 +130,7 @@ export class DirectoryWatcherService extends EventEmitter {
 
     // Schedule new refresh after debounce delay
     this.debounceTimeout = setTimeout(() => {
-      console.log(`Directory change detected: ${eventType} - ${filename}`);
+      // console.log(`Directory change detected: ${eventType} - ${filename}`);
 
       // Emit directory-change event
       // WebInterfaceService will listen to this and trigger tree refresh
@@ -189,7 +189,7 @@ export class DirectoryWatcherService extends EventEmitter {
     this.watcher = null;
     this.isWatching = false;
 
-    console.log('Directory watcher stopped');
+    // console.log('Directory watcher stopped');
   }
 
   /**

@@ -64,6 +64,11 @@ const external = [
   '@lydell/node-pty-linux-x64',
   '@lydell/node-pty-win32-arm64',
   '@lydell/node-pty-win32-x64',
+  // AUDITARIA_BROWSER_AGENT: Stagehand must be external to avoid worker thread crash
+  // It has heavy initialization on import that's incompatible with worker threads
+  '@browserbasehq/stagehand',
+  'playwright',
+  'playwright-core',
 ];
 
 const baseConfig = {

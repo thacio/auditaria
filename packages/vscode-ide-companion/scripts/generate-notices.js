@@ -117,6 +117,17 @@ async function main() {
     const packageJson = JSON.parse(packageJsonContent);
 
     const packageLockJsonPath = path.join(projectRoot, 'package-lock.json');
+
+    // Skip if package-lock.json doesn't exist (e.g., during initial npm install)
+    try {
+      await fs.access(packageLockJsonPath);
+    } catch {
+      console.log(
+        'package-lock.json not found, skipping NOTICES.txt generation',
+      );
+      return;
+    }
+
     const packageLockJsonContent = await fs.readFile(
       packageLockJsonPath,
       'utf-8',

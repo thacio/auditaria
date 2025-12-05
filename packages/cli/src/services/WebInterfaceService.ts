@@ -45,6 +45,9 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 // Import DocxParserService for markdown to DOCX parsing
 import { DocxParserService } from './DocxParserService.js';
 
+// AUDITARIA: Import browser streaming components
+import { StreamManager, SessionManager, type StreamFrame, type StagehandPage } from '@thacio/browser-agent';
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -192,6 +195,10 @@ export class WebInterfaceService extends EventEmitter {
   // DOCX parser service for markdown to DOCX conversion
   private docxParser?: DocxParserService;
 
+  // AUDITARIA: Browser streaming state
+  private streamManager?: StreamManager;
+  private streamClients: Map<WebSocket, { sessionId: string; unsubscribe?: () => Promise<void> }> = new Map();
+
   /**
    * Start HTTP server on specified port
    */
@@ -244,7 +251,7 @@ export class WebInterfaceService extends EventEmitter {
       if (debugMode) {
         // console.log('Web client path resolution attempts:');
         possiblePaths.forEach((testPath, index) => {
-          console.log(`  ${index + 1}. ${testPath}`);
+          // console.log(`  ${index + 1}. ${testPath}`);
         });
       }
       
@@ -278,7 +285,7 @@ export class WebInterfaceService extends EventEmitter {
         throw new Error(errorMsg);
       }
       
-      console.log('Web client serving from:', webClientPath);
+      // console.log('Web client serving from:', webClientPath);
       this.app.use(express.static(webClientPath));
       
       // API endpoint for current history
@@ -667,7 +674,7 @@ export class WebInterfaceService extends EventEmitter {
 
       // Log fallback message after we have the actual assigned port
       if (usedFallback) {
-        console.log(`Port ${requestedPort} is in use, using port ${this.port} instead`);
+        // console.log(`Port ${requestedPort} is in use, using port ${this.port} instead`);
       }
 
       // Set up WebSocket server with compression enabled
@@ -716,6 +723,17 @@ export class WebInterfaceService extends EventEmitter {
       // Initialize DOCX parser service
       this.docxParser = new DocxParserService(process.cwd());
 
+      // AUDITARIA: Initialize browser streaming manager
+      this.streamManager = StreamManager.getInstance();
+      this.streamManager.setPageResolver(async (sessionId: string) => {
+        const sessionManager = SessionManager.getInstance();
+        if (!sessionManager.hasSession(sessionId)) {
+          return null;
+        }
+        return sessionManager.getPage(sessionId);
+      });
+      // console.log('Browser streaming manager initialized');
+
       this.isRunning = true;
       return this.port;
     } catch (error) {
@@ -739,6 +757,24 @@ export class WebInterfaceService extends EventEmitter {
       }
     });
     this.clients.clear();
+
+    // AUDITARIA: Clean up stream clients
+    for (const [ws, clientInfo] of this.streamClients) {
+      if (clientInfo.unsubscribe) {
+        try {
+          await clientInfo.unsubscribe();
+        } catch {
+          // Ignore errors during cleanup
+        }
+      }
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    }
+    this.streamClients.clear();
+    if (this.streamManager) {
+      await this.streamManager.stopAll();
+    }
 
     // WEB_INTERFACE_START: Clean up file watcher service
     if (this.fileWatcherService) {
@@ -949,7 +985,7 @@ export class WebInterfaceService extends EventEmitter {
   private getNextSequence(): number {
     if (this.sequenceNumber >= this.MAX_SEQUENCE_NUMBER) {
       this.sequenceNumber = 0;
-      console.log('Sequence number wrapped around to 0');
+      // console.log('Sequence number wrapped around to 0');
     }
     return ++this.sequenceNumber;
   }
@@ -1359,9 +1395,28 @@ export class WebInterfaceService extends EventEmitter {
   private setupWebSocketHandlers(): void {
     if (!this.wss) return;
 
-    this.wss.on('connection', (ws: WebSocket) => {
+    this.wss.on('connection', (ws: WebSocket, request: import('http').IncomingMessage) => {
+      // AUDITARIA: Parse URL to route based on path
+      const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+
+      // AUDITARIA_FEATURE_START: Check if this is an agent control connection
+      if (url.pathname.startsWith('/control/agent/')) {
+        const sessionId = url.pathname.split('/').pop() || 'default';
+        this.handleAgentControlConnection(ws, sessionId);
+        return;
+      }
+      // AUDITARIA_END
+
+      // Check if this is a browser stream connection
+      if (url.pathname.startsWith('/stream/browser/')) {
+        const sessionId = url.pathname.split('/').pop() || 'default';
+        this.handleBrowserStreamConnection(ws, sessionId);
+        return;
+      }
+
+      // Standard chat connection handling
       this.clients.add(ws);
-      
+
       // WEB_INTERFACE_START: Initialize client state for message resilience
       this.clientStates.set(ws, {
         messageBuffer: new CircularMessageBuffer(this.MESSAGE_BUFFER_SIZE),
@@ -1410,6 +1465,275 @@ export class WebInterfaceService extends EventEmitter {
       console.error('WebSocket server error:', error);
     });
   }
+
+  // AUDITARIA: Browser streaming connection handler
+  /**
+   * Handle browser stream WebSocket connections
+   */
+  private async handleBrowserStreamConnection(ws: WebSocket, sessionId: string): Promise<void> {
+    // console.log(`[BrowserStream] Client connecting for session: ${sessionId}`);
+
+    if (!this.streamManager) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Stream manager not initialized' }));
+      ws.close();
+      return;
+    }
+
+    // Check if session exists
+    const sessionManager = SessionManager.getInstance();
+    if (!sessionManager.hasSession(sessionId)) {
+      ws.send(JSON.stringify({ type: 'error', message: `Session '${sessionId}' not found` }));
+      ws.close();
+      return;
+    }
+
+    // Send connected message
+    ws.send(JSON.stringify({
+      type: 'connected',
+      clientId: `stream-${Date.now()}`,
+      sessionId,
+      availableQualities: ['low', 'medium', 'high'],
+    }));
+
+    let unsubscribe: (() => Promise<void>) | undefined;
+
+    try {
+      // Subscribe to stream
+      unsubscribe = await this.streamManager.subscribe(
+        sessionId,
+        `ws-${Date.now()}`,
+        (frame: StreamFrame) => this.sendStreamFrame(ws, frame),
+        'medium',
+      );
+
+      // Store subscription for cleanup
+      this.streamClients.set(ws, { sessionId, unsubscribe });
+
+      ws.send(JSON.stringify({ type: 'started', sessionId }));
+    } catch (error: any) {
+      console.error('[BrowserStream] Error starting stream:', error);
+      ws.send(JSON.stringify({ type: 'error', message: error.message }));
+      ws.close();
+      return;
+    }
+
+    // Handle control messages from client
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        await this.handleStreamControlMessage(ws, sessionId, message);
+      } catch (error) {
+        console.error('[BrowserStream] Error handling message:', error);
+      }
+    });
+
+    // Handle disconnect
+    ws.on('close', async () => {
+      console.log(`[BrowserStream] Client disconnected from session: ${sessionId}`);
+      const clientInfo = this.streamClients.get(ws);
+      if (clientInfo?.unsubscribe) {
+        await clientInfo.unsubscribe();
+      }
+      this.streamClients.delete(ws);
+    });
+
+    ws.on('error', async (error) => {
+      console.error('[BrowserStream] WebSocket error:', error);
+      const clientInfo = this.streamClients.get(ws);
+      if (clientInfo?.unsubscribe) {
+        await clientInfo.unsubscribe();
+      }
+      this.streamClients.delete(ws);
+    });
+  }
+
+  /**
+   * Send binary frame to stream client
+   */
+  private sendStreamFrame(ws: WebSocket, frame: StreamFrame): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    try {
+      // Decode base64 to binary
+      const imageData = Buffer.from(frame.data, 'base64');
+
+      // Create header: timestamp (8 bytes) + width (2 bytes) + height (2 bytes)
+      const header = Buffer.alloc(12);
+      header.writeDoubleLE(frame.timestamp, 0);
+      header.writeUInt16LE(frame.width, 8);
+      header.writeUInt16LE(frame.height, 10);
+
+      // Combine header + image data
+      const packet = Buffer.concat([header, imageData]);
+
+      ws.send(packet, { binary: true });
+    } catch (error) {
+      console.warn('[BrowserStream] Error sending frame:', error);
+    }
+  }
+
+  /**
+   * Handle stream control messages
+   */
+  private async handleStreamControlMessage(ws: WebSocket, sessionId: string, message: any): Promise<void> {
+    if (!this.streamManager) return;
+
+    switch (message.type) {
+      case 'set_quality':
+        if (message.quality && ['low', 'medium', 'high'].includes(message.quality)) {
+          await this.streamManager.setQuality(sessionId, message.quality);
+          ws.send(JSON.stringify({ type: 'quality_changed', quality: message.quality }));
+        }
+        break;
+
+      case 'get_status':
+        const status = this.streamManager.getStatus(sessionId);
+        ws.send(JSON.stringify({ type: 'status', status }));
+        break;
+
+      case 'ping':
+        ws.send(JSON.stringify({ type: 'pong' }));
+        break;
+    }
+  }
+
+  // AUDITARIA_FEATURE_START: Agent control connection handler
+  /**
+   * Handle agent control WebSocket connections for pause/resume/stop
+   */
+  private handleAgentControlConnection(ws: WebSocket, sessionId: string): void {
+    // console.log(`[AgentControl] Client connected for session: ${sessionId}`);
+
+    const sessionManager = SessionManager.getInstance();
+
+    // Send initial state
+    const sessionInfo = sessionManager.getSessionInfo(sessionId);
+    if (sessionInfo) {
+      ws.send(JSON.stringify({
+        type: 'state',
+        state: sessionInfo.state,
+        sessionId,
+        headless: sessionInfo.headless,  // AUDITARIA: Send headless flag to hide/show takeover button
+      }));
+    } else {
+      ws.send(JSON.stringify({
+        type: 'state',
+        state: 'unknown',
+        sessionId,
+        headless: true,  // Default to headless (no takeover button)
+      }));
+    }
+
+    // Handle control messages
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        switch (message.action) {
+          case 'pause':
+            sessionManager.pauseExecution(sessionId);
+            ws.send(JSON.stringify({ type: 'state', state: 'paused', sessionId }));
+            break;
+
+          case 'resume':
+            sessionManager.resumeExecution(sessionId);
+            ws.send(JSON.stringify({ type: 'state', state: 'running', sessionId }));
+            break;
+
+          case 'stop':
+            sessionManager.stopExecution(sessionId);
+            ws.send(JSON.stringify({ type: 'state', state: 'stopping', sessionId }));
+            break;
+
+          case 'takeover':
+            // AUDITARIA_FEATURE: Takeover control - pause and switch to headful mode
+            // console.log(`[AgentControl] ====== TAKEOVER REQUESTED for session ${sessionId} ======`);
+            (async () => {
+              try {
+                // console.log(`[AgentControl] Sending taking_over state to client`);
+                ws.send(JSON.stringify({ type: 'state', state: 'taking_over', sessionId }));
+
+                // console.log(`[AgentControl] Calling sessionManager.takeOverSession(${sessionId})`);
+                await sessionManager.takeOverSession(sessionId);
+
+                // console.log(`[AgentControl] takeOverSession completed successfully`);
+                ws.send(JSON.stringify({ type: 'state', state: 'taken_over', sessionId }));
+                ws.send(JSON.stringify({
+                  type: 'takeover_ready',
+                  message: 'Browser is now visible. You can interact with it manually.',
+                }));
+                // console.log(`[AgentControl] ====== TAKEOVER COMPLETE ======`);
+              } catch (error: any) {
+                console.error('[AgentControl] ====== TAKEOVER FAILED ======');
+                console.error('[AgentControl] Error:', error);
+                console.error('[AgentControl] Stack:', error.stack);
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: error.message || 'Takeover failed',
+                }));
+              }
+            })();
+            break;
+
+          case 'end_takeover':
+            // AUDITARIA_FEATURE: End takeover - switch back to headless mode
+            // console.log(`[AgentControl] ====== END TAKEOVER REQUESTED for session ${sessionId} ======`);
+            (async () => {
+              try {
+                // console.log(`[AgentControl] Sending ending_takeover state to client`);
+                ws.send(JSON.stringify({ type: 'state', state: 'ending_takeover', sessionId }));
+
+                // console.log(`[AgentControl] Calling sessionManager.endTakeOver(${sessionId})`);
+                await sessionManager.endTakeOver(sessionId);
+
+                // console.log(`[AgentControl] endTakeOver completed successfully`);
+                // AUDITARIA: Send 'running' state since endTakeOver auto-resumes the agent
+                ws.send(JSON.stringify({ type: 'state', state: 'running', sessionId }));
+                ws.send(JSON.stringify({
+                  type: 'takeover_ended',
+                  message: 'Browser minimized. Agent execution resumed automatically.',
+                }));
+                // console.log(`[AgentControl] ====== END TAKEOVER COMPLETE ======`);
+              } catch (error: any) {
+                console.error('[AgentControl] ====== END TAKEOVER FAILED ======');
+                console.error('[AgentControl] Error:', error);
+                console.error('[AgentControl] Stack:', error.stack);
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: error.message || 'End takeover failed',
+                }));
+              }
+            })();
+            break;
+
+          case 'get_state':
+            const info = sessionManager.getSessionInfo(sessionId);
+            ws.send(JSON.stringify({
+              type: 'state',
+              state: info?.state || 'unknown',
+              sessionId,
+              headless: info?.headless ?? true,  // AUDITARIA: Send headless flag
+            }));
+            break;
+
+          default:
+            ws.send(JSON.stringify({ type: 'error', message: `Unknown action: ${message.action}` }));
+        }
+      } catch (error: any) {
+        console.error('[AgentControl] Error handling message:', error);
+        ws.send(JSON.stringify({ type: 'error', message: error.message }));
+      }
+    });
+
+    ws.on('close', () => {
+      // console.log(`[AgentControl] Client disconnected from session: ${sessionId}`);
+    });
+
+    ws.on('error', (error) => {
+      console.error(`[AgentControl] WebSocket error for session ${sessionId}:`, error);
+    });
+  }
+  // AUDITARIA_END
 
   // WEB_INTERFACE_START: File operation handler methods
   /**
@@ -1867,7 +2191,7 @@ export class WebInterfaceService extends EventEmitter {
       }
     }
 
-    console.log(`File watch started: ${path}`);
+    // console.log(`File watch started: ${path}`);
   }
 
   /**
@@ -1885,7 +2209,7 @@ export class WebInterfaceService extends EventEmitter {
       this.fileWatcherService.unwatchFile(path, client);
     }
 
-    console.log(`File watch stopped: ${path}`);
+    // console.log(`File watch stopped: ${path}`);
   }
   // WEB_INTERFACE_END
 
@@ -1900,7 +2224,7 @@ export class WebInterfaceService extends EventEmitter {
 
     // Handle directory changes - refresh file tree for all clients
     this.directoryWatcherService.on('directory-change', (event: any) => {
-      console.log(`Directory change detected: ${event.type} - ${event.path}`);
+      // console.log(`Directory change detected: ${event.type} - ${event.path}`);
 
       // Refresh file tree for all clients
       this.handleFileTreeRequest();

@@ -840,7 +840,7 @@ const SETTINGS_SCHEMA = {
             label: 'Respect .gitignore',
             category: 'Context',
             requiresRestart: true,
-            default: true,
+            default: false, // Auditaria
             description: 'Respect .gitignore files when searching',
             showInDialog: true,
           },
