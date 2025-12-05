@@ -31,12 +31,30 @@ if (!existsSync(bundleDir)) {
   mkdirSync(bundleDir);
 }
 
-// Find and copy all .sb files from packages to the root of the bundle directory
+// 1. Copy Sandbox definitions (.sb)
 const sbFiles = glob.sync('packages/**/*.sb', { cwd: root });
 for (const file of sbFiles) {
   copyFileSync(join(root, file), join(bundleDir, basename(file)));
 }
 
+// 2. Copy Policy definitions (.toml)
+const policyDir = join(bundleDir, 'policies');
+if (!existsSync(policyDir)) {
+  mkdirSync(policyDir);
+}
+
+// Locate policy files specifically in the core package
+const policyFiles = glob.sync('packages/core/src/policy/policies/*.toml', {
+  cwd: root,
+});
+
+for (const file of policyFiles) {
+  copyFileSync(join(root, file), join(policyDir, basename(file)));
+}
+
+console.log(`Copied ${policyFiles.length} policy files to bundle/policies/`);
+
+// AUDITARIA_FEATURE_START: i18n-locales
 // Create locales directory in bundle and copy translation files
 const localesDir = join(bundleDir, 'locales');
 if (!existsSync(localesDir)) {
@@ -49,6 +67,7 @@ for (const file of localeFiles) {
   const fileName = basename(file);
   copyFileSync(join(root, file), join(localesDir, fileName));
 }
+// AUDITARIA_FEATURE_END
 
 // WEB_INTERFACE_START: Copy web client files
 // Copy web client files to bundle directory
@@ -59,25 +78,25 @@ if (existsSync(webClientSrc)) {
   if (!existsSync(webClientDest)) {
     mkdirSync(webClientDest, { recursive: true });
   }
-  
+
   // Copy all files from web-client/src to bundle/web-client
-  const webClientFiles = glob.sync('**/*', { 
+  const webClientFiles = glob.sync('**/*', {
     cwd: webClientSrc,
-    nodir: true 
+    nodir: true,
   });
-  
+
   for (const file of webClientFiles) {
     const srcPath = join(webClientSrc, file);
     const destPath = join(webClientDest, file);
     const destDir = dirname(destPath);
-    
+
     if (!existsSync(destDir)) {
       mkdirSync(destDir, { recursive: true });
     }
-    
+
     copyFileSync(srcPath, destPath);
   }
-  
+
   console.log('Web client files copied to bundle/web-client/');
 }
 // WEB_INTERFACE_END
