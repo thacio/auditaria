@@ -1,4 +1,4 @@
-# Auditaria CLI Keyboard Shortcuts
+# Auditaria CLI keyboard shortcuts
 
 Auditaria CLI ships with a set of default keyboard shortcuts for editing input,
 navigating history, and controlling the UI. Use this reference to learn the
@@ -110,7 +110,7 @@ available combinations.
 
 <!-- KEYBINDINGS-AUTOGEN:END -->
 
-## Additional Context-Specific Shortcuts
+## Additional context-specific shortcuts
 
 - `Ctrl+Y`: Toggle YOLO (auto-approval) mode for tool calls.
 - `Shift+Tab`: Toggle Auto Edit (auto-accept edits) mode.

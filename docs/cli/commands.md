@@ -1,4 +1,4 @@
-# CLI Commands
+# CLI commands
 
 Gemini CLI supports several built-in commands to help you manage your session,
 customize the interface, and control its behavior. These commands are prefixed
@@ -26,7 +26,7 @@ Slash commands provide meta-level control over the CLI itself.
       - **Description:** Saves the current conversation history. You must add a
         `<tag>` for identifying the conversation state.
       - **Usage:** `/chat save <tag>`
-      - **Details on Checkpoint Location:** The default locations for saved chat
+      - **Details on checkpoint location:** The default locations for saved chat
         checkpoints are:
         - Linux/macOS: `~/.gemini/tmp/<project_hash>/`
         - Windows: `C:\Users\<YourUsername>\.gemini\tmp\<project_hash>\`
@@ -256,7 +256,7 @@ Slash commands provide meta-level control over the CLI itself.
     file, making it simpler for them to provide project-specific instructions to
     the Gemini agent.
 
-### Custom Commands
+### Custom commands
 
 For a quick start, see the
 [example](#example-a-pure-function-refactoring-command) below.
@@ -575,7 +575,7 @@ to the context, and then invoke your command:
 
 Gemini CLI will then execute the multi-line prompt defined in your TOML file.
 
-## Input Prompt Shortcuts
+## Input prompt shortcuts
 
 These shortcuts apply directly to the input prompt for text manipulation.
 
@@ -633,7 +633,7 @@ your prompt to Gemini. These commands include git-aware filtering.
 - If the `read_many_files` tool encounters an error (e.g., permission issues),
   this will also be reported.
 
-## Shell mode & passthrough commands (`!`)
+## Shell mode and passthrough commands (`!`)
 
 The `!` prefix lets you interact with your system's shell directly from within
 Gemini CLI.
@@ -661,7 +661,7 @@ Gemini CLI.
 - **Caution for all `!` usage:** Commands you execute in shell mode have the
   same permissions and impact as if you ran them directly in your terminal.
 
-- **Environment Variable:** When a command is executed via `!` or in shell mode,
+- **Environment variable:** When a command is executed via `!` or in shell mode,
   the `GEMINI_CLI=1` environment variable is set in the subprocess's
   environment. This allows scripts or tools to detect if they are being run from
   within the Gemini CLI.
