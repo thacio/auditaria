@@ -18,12 +18,19 @@
 // limitations under the License.
 
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 if (!process.cwd().includes('packages')) {
   console.error('must be invoked from a package directory');
   process.exit(1);
+}
+
+// Clean dist directory to avoid TS5055 "Cannot write file because it would overwrite input file"
+// This happens with tsc --build when dist contains stale .d.ts files
+const distPath = join(process.cwd(), 'dist');
+if (existsSync(distPath)) {
+  rmSync(distPath, { recursive: true, force: true });
 }
 
 // build typescript files
