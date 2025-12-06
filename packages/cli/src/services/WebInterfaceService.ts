@@ -178,6 +178,7 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_START: Track ephemeral states for reconnection
   private currentPendingItem: HistoryItem | null = null;
   private currentLoadingState: LoadingStateData | null = null;
+  private currentFooterData: FooterData | null = null;
   private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
   // WEB_INTERFACE_END
   // WEB_INTERFACE_START: File system service for file browser
@@ -860,6 +861,9 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast footer data to all connected web clients
    */
   broadcastFooterData(footerData: FooterData): void {
+    // Store current footer data for new clients
+    this.currentFooterData = footerData;
+
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
@@ -2028,7 +2032,12 @@ export class WebInterfaceService extends EventEmitter {
     if (this.currentLoadingState) {
       sendAndStore('loading_state', this.currentLoadingState);
     }
-    
+
+    // Send current footer data to new client
+    if (this.currentFooterData) {
+      sendAndStore('footer_data', this.currentFooterData);
+    }
+
     // Send current pending item if exists
     if (this.currentPendingItem) {
       sendAndStore('pending_item', this.currentPendingItem);

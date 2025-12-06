@@ -5,9 +5,10 @@
  */
 
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { shortenPath, tildeifyPath } from '@google/gemini-cli-core';
+import { shortenPath, tildeifyPath, tokenLimit } from '@google/gemini-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import { ThemedGradient } from './ThemedGradient.js';
@@ -19,6 +20,9 @@ import { useUIState } from '../contexts/UIStateContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { useVimMode } from '../contexts/VimModeContext.js';
+// WEB_INTERFACE_START: Import FooterContext for web interface synchronization
+import { useFooter, type FooterData } from '../contexts/FooterContext.js';
+// WEB_INTERFACE_END
 
 export const Footer: React.FC = () => {
   const uiState = useUIState();
@@ -70,6 +74,69 @@ export const Footer: React.FC = () => {
   const displayVimMode = vimEnabled ? vimMode : undefined;
 
   const showDebugProfiler = debugMode || isDevelopment;
+
+  // WEB_INTERFACE_START: Sync footer data to FooterContext for web interface
+  const footerContext = useFooter();
+  const updateFooterData = footerContext?.updateFooterData;
+  const prevFooterDataRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!updateFooterData) return;
+
+    // Determine sandbox status
+    let sandboxStatus = 'no sandbox';
+    if (isTrustedFolder === false) {
+      sandboxStatus = 'untrusted';
+    } else if (
+      process.env['SANDBOX'] &&
+      process.env['SANDBOX'] !== 'sandbox-exec'
+    ) {
+      sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+    } else if (process.env['SANDBOX'] === 'sandbox-exec') {
+      sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
+    }
+
+    // Calculate context percentage LEFT (matching ContextUsageDisplay logic)
+    const percentage = promptTokenCount / tokenLimit(model);
+    const percentageLeft = (1 - percentage) * 100;
+
+    const newData: FooterData = {
+      targetDir,
+      branchName,
+      model,
+      contextPercentage: percentageLeft,
+      sandboxStatus,
+      errorCount,
+      debugMode,
+      debugMessage,
+      corgiMode,
+      showMemoryUsage,
+      nightly,
+      showErrorDetails,
+    };
+
+    // Only update if data actually changed to avoid render loops
+    const newDataStr = JSON.stringify(newData);
+    if (newDataStr !== prevFooterDataRef.current) {
+      prevFooterDataRef.current = newDataStr;
+      updateFooterData(newData);
+    }
+  }, [
+    updateFooterData,
+    targetDir,
+    branchName,
+    model,
+    promptTokenCount,
+    isTrustedFolder,
+    errorCount,
+    debugMode,
+    debugMessage,
+    corgiMode,
+    showMemoryUsage,
+    nightly,
+    showErrorDetails,
+  ]);
+  // WEB_INTERFACE_END
 
   return (
     <Box
