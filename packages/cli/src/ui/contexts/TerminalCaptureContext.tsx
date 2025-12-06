@@ -199,6 +199,12 @@ export function TerminalCaptureProvider({
   }, []);
 
   const setInteractiveScreenActive = useCallback((active: boolean) => {
+    // CRITICAL: Update ref synchronously BEFORE setTimeout callback runs
+    // The useEffect that normally updates this ref runs AFTER React's render cycle,
+    // but setTimeout(0) runs in the next macrotask which is BEFORE the useEffect.
+    // Without this fix, processBuffer() would check isInteractiveScreenRef.current
+    // while it's still false, causing it to bail out without broadcasting.
+    isInteractiveScreenRef.current = active;
     setIsInteractiveScreen(active);
 
     if (active) {
@@ -207,7 +213,7 @@ export function TerminalCaptureProvider({
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
-      // Use setTimeout to ensure isInteractiveScreenRef is updated first
+      // Use setTimeout to allow any pending React renders to complete first
       setTimeout(() => {
         // Force process any pending buffer
         if (writeBuffer.current || capturedOutput.current) {
