@@ -549,19 +549,22 @@ def build_batch_prompt(items: List[Dict], lang_code: str) -> str:
     strings_list = []
     for i, item in enumerate(items, 1):
         key = item['key']
-        strings_list.append(f"{i}. {key}")
+        # Escape actual newlines to literal \n so AI can see them and preserve them
+        escaped_key = key.replace('\n', '\\n')
+        strings_list.append(f"{i}. {escaped_key}")
 
     strings_text = "\n".join(strings_list)
 
     prompt = f"""Translate these UI texts from English to {lang['name']}.
 
 RULES:
-- Output ONLY numbered translations, one per line
+- Output ONLY numbered translations, one per line (the entire translation on a single line)
 - Preserve formatting (bullet lists, number lists, roman lists, etc) like the original, for example: "1. original english text" -> "1. translated text"(number, dot, space, translation only). Observe that the numbering list was preserved.
 - Keep {{placeholders}} exactly as they appear - do NOT translate them
 - Keep slash commands (e.g., /help, /settings, /docs) exactly as they appear - do NOT translate them
 - Keep technical terms (API, CLI, JSON, URL, MCP, OAuth, YOLO) unchanged
-- Keep leading symbols like \\n, ---, numbers (1., 2., 3.) exactly as they appear
+- IMPORTANT: Keep \\n (backslash-n) exactly as \\n in your output - these represent line breaks. Do NOT convert them to actual newlines. Example: "Hello\\nWorld" should stay as "Olá\\nMundo"
+- If there are multiple sentences separated by \\n, translate ALL of them and keep the \\n between them
 - {lang['instructions']}
 - NO explanations, NO notes, ONLY translations
 
@@ -596,6 +599,9 @@ def parse_batch_response(response: str, count: int) -> List[Optional[str]]:
 
             # Remove any leading "N. " prefix duplicates
             translation = re.sub(r'^(\d+)\.\s*', '', translation)
+
+            # Convert escaped \n back to actual newlines
+            translation = translation.replace('\\n', '\n')
 
             if 0 <= idx < count and translation:
                 results[idx] = translation
@@ -713,29 +719,38 @@ def translate_single(key: str, context: str, params: List[str], lang_code: str, 
         param_list = ", ".join([f"{{{p}}}" for p in params])
         param_warning = f"\nIMPORTANT: Keep these placeholders exactly as-is: {param_list}"
 
+    # Escape newlines so AI sees them literally
+    escaped_key = key.replace('\n', '\\n')
+    newline_warning = ""
+    if '\n' in key:
+        newline_warning = "\nIMPORTANT: Keep \\n exactly as \\n in your output - do NOT convert to actual newlines. Translate ALL text on both sides of \\n."
+
     prompt = f"""Translate this UI text from English to {lang['name']}.
 
 Rules:
-- Output ONLY the translation, nothing else
+- Output ONLY the translation on a single line, nothing else
 - Keep placeholders like {{name}}, {{count}} UNCHANGED
 - Keep slash commands (e.g., /help, /settings, /docs) exactly as they appear
 - Keep technical terms (API, CLI, JSON, URL, MCP, OAuth, YOLO) unchanged
-- {lang['instructions']}{param_warning}
+- {lang['instructions']}{param_warning}{newline_warning}
 
 Context: {context}
-Text: {key}"""
+Text: {escaped_key}"""
 
     response = translate_with_ollama(prompt, model, verbose)
     if not response:
         return None
 
-    # Clean response
+    # Clean response - take first non-empty line (translation should be on single line)
     translation = response.strip().split('\n')[0].strip()
 
     # Remove quotes
     if (translation.startswith('"') and translation.endswith('"')) or \
        (translation.startswith("'") and translation.endswith("'")):
         translation = translation[1:-1]
+
+    # Convert escaped \n back to actual newlines
+    translation = translation.replace('\\n', '\n')
 
     # Validate
     is_valid, error = validate_translation(key, translation, params)

@@ -1055,6 +1055,7 @@
     "Updating the syntax for reality...": "Atualizando a sintaxe da realidade...",
     "Upgrade for higher limits": "Atualize para limites maiores",
     "Usage limit remaining": "Limite de uso restante",
+    "Usage limits span all sessions and reset daily.\n/auth to upgrade or switch to API key.": "Os limites de uso abrangem todas as sessões e são redefinidos diariamente.\n/auth para atualizar ou mudar para chave de API.",
     "Usage: /extensions restart <extension-names>|--all": "Uso: /extensions restart <extension-names>|--all",
     "Usage: /extensions update <extension-names>|--all": "Uso: /extensions update <extension-names>|--all",
     "Usage: /hooks disable <hook-name>": "Uso: /hooks disable <hook-name>",

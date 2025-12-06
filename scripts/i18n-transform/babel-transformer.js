@@ -75,7 +75,12 @@ export async function transformCode(source, filePath, options = {}) {
           // SPECIAL CASE: Transform title attribute on specific UI components
           // These are user-facing UI labels that need translation
           const componentName = path.node.openingElement?.name?.name;
-          const titleComponents = ['Section', 'StatRow', 'SubStatRow', 'StatsDisplay'];
+          const titleComponents = [
+            'Section',
+            'StatRow',
+            'SubStatRow',
+            'StatsDisplay',
+          ];
           if (titleComponents.includes(componentName)) {
             const attributes = path.node.openingElement.attributes;
             for (const attr of attributes) {
@@ -543,7 +548,10 @@ export async function transformCode(source, filePath, options = {}) {
           let current = path.parentPath;
           let variableName = null;
           while (current) {
-            if (current.isVariableDeclarator() && t.isIdentifier(current.node.id)) {
+            if (
+              current.isVariableDeclarator() &&
+              t.isIdentifier(current.node.id)
+            ) {
               variableName = current.node.id.name;
               break;
             }
@@ -606,10 +614,7 @@ export async function transformCode(source, filePath, options = {}) {
         if (!t.isIdentifier(node.id)) return;
 
         // List of exported array variable names that contain user-facing strings
-        const userFacingArrays = [
-          'INFORMATIVE_TIPS',
-          'WITTY_LOADING_PHRASES',
-        ];
+        const userFacingArrays = ['INFORMATIVE_TIPS', 'WITTY_LOADING_PHRASES'];
 
         if (!userFacingArrays.includes(node.id.name)) return;
         if (!t.isArrayExpression(node.init)) return;
@@ -630,7 +635,9 @@ export async function transformCode(source, filePath, options = {}) {
               transformedCount++;
               transformations.push({
                 type: `special:${arrayName}`,
-                original: rebrandedText.substring(0, 50) + (rebrandedText.length > 50 ? '...' : ''),
+                original:
+                  rebrandedText.substring(0, 50) +
+                  (rebrandedText.length > 50 ? '...' : ''),
                 transformed: `t('...')`,
                 line: path.node.loc?.start?.line || 0,
               });
@@ -649,7 +656,6 @@ export async function transformCode(source, filePath, options = {}) {
           }
         }
       },
-
     });
 
     // Add imports if needed and not already present
@@ -742,19 +748,57 @@ function transformTextComponent(node) {
     };
   }
 
+  // Handle static template literals: {`text with\nnewlines`}
+  // These are JSXExpressionContainer with a TemplateLiteral that has no expressions
+  // Filter out whitespace-only JSXText nodes to find the actual content
+  const significantChildren = node.children.filter((child) => {
+    if (t.isJSXText(child)) {
+      return child.value.trim().length > 0;
+    }
+    return true;
+  });
+
+  if (
+    significantChildren.length === 1 &&
+    t.isJSXExpressionContainer(significantChildren[0]) &&
+    t.isTemplateLiteral(significantChildren[0].expression) &&
+    significantChildren[0].expression.expressions.length === 0
+  ) {
+    const templateLiteral = significantChildren[0].expression;
+    // For static template literals, there's only one quasi with the full text
+    const text = templateLiteral.quasis[0].value.cooked;
+
+    // Skip empty or whitespace-only text
+    if (!text || !text.trim()) return null;
+
+    const rebrandedText = rebrand(text);
+
+    // Create {t('text')} expression - key is used as fallback automatically
+    const tCall = t.callExpression(t.identifier('t'), [
+      t.stringLiteral(rebrandedText),
+    ]);
+
+    const newChild = t.jsxExpressionContainer(tCall);
+
+    // Create new Text element with transformed children
+    return {
+      node: t.jsxElement(
+        node.openingElement,
+        node.closingElement,
+        [newChild],
+        node.selfClosing,
+      ),
+      original: rebrandedText,
+    };
+  }
+
   return null;
 }
 
 // Helper: Transform object property
 function transformObjectProperty(node, filePath = '') {
   // Base property names that are always user-facing
-  const propertyNames = [
-    'title',
-    'label',
-    'message',
-    'placeholder',
-    'text',
-  ];
+  const propertyNames = ['title', 'label', 'message', 'placeholder', 'text'];
 
   // 'description' is context-dependent:
   // - In CLI (settings): user-facing (translate)
@@ -833,7 +877,13 @@ function transformVariableOnlyText(node) {
   const expr = child.expression;
 
   // Known translatable property names
-  const translatableProps = ['description', 'label', 'message', 'title', 'text'];
+  const translatableProps = [
+    'description',
+    'label',
+    'message',
+    'title',
+    'text',
+  ];
 
   let propertyName = null;
   let variableName = null;
@@ -908,7 +958,10 @@ function transformFunctionArgument(node) {
   let functionName = null;
   if (t.isIdentifier(node.callee)) {
     functionName = node.callee.name;
-  } else if (t.isMemberExpression(node.callee) && t.isIdentifier(node.callee.property)) {
+  } else if (
+    t.isMemberExpression(node.callee) &&
+    t.isIdentifier(node.callee.property)
+  ) {
     // Handle this.setMessage() or obj.setMessage()
     functionName = node.callee.property.name;
   }
