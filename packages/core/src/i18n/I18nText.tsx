@@ -12,6 +12,8 @@ export interface I18nTextProps {
   i18nKey: string;
   /** Map of tag names to React elements */
   components: Record<string, React.ReactElement>;
+  /** Parameters for variable interpolation (e.g., {count}, {name}) */
+  params?: Record<string, string | number>;
   /** Children to use as fallback (not typically used) */
   children?: React.ReactNode;
 }
@@ -111,9 +113,13 @@ function parseAndRender(
  *   components={{ bold: <Text bold /> }}
  * />
  */
-export const I18nText: React.FC<I18nTextProps> = ({ i18nKey, components }) => {
-  // Get the translated string (falls back to key if no translation)
-  const translated = t(i18nKey);
+export const I18nText: React.FC<I18nTextProps> = ({
+  i18nKey,
+  components,
+  params,
+}) => {
+  // Get the translated string with variable interpolation (falls back to key if no translation)
+  const translated = t(i18nKey, undefined, params);
 
   // Parse the template and render with components
   const rendered = parseAndRender(translated, components);
