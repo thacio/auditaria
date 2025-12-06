@@ -10,8 +10,8 @@ import { t } from './index.js';
 export interface I18nTextProps {
   /** Translation key (the original English text with named tags) */
   i18nKey: string;
-  /** Map of tag names to React elements */
-  components: Record<string, React.ReactElement>;
+  /** Map of tag names to React elements (optional - if not provided, tags render as plain text) */
+  components?: Record<string, React.ReactElement>;
   /** Parameters for variable interpolation (e.g., {count}, {name}) */
   params?: Record<string, string | number>;
   /** Children to use as fallback (not typically used) */
@@ -115,7 +115,7 @@ function parseAndRender(
  */
 export const I18nText: React.FC<I18nTextProps> = ({
   i18nKey,
-  components,
+  components = {},
   params,
 }) => {
   // Get the translated string with variable interpolation (falls back to key if no translation)

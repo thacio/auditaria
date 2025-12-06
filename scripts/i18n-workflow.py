@@ -557,7 +557,7 @@ def build_batch_prompt(items: List[Dict], lang_code: str) -> str:
 
 RULES:
 - Output ONLY numbered translations, one per line
-- Format exactly: "1. translation" (number, dot, space, translation only)
+- Preserve formatting (bullet lists, number lists, roman lists, etc) like the original, for example: "1. original english text" -> "1. translated text"(number, dot, space, translation only). Observe that the numbering list was preserved.
 - Keep {{placeholders}} exactly as they appear - do NOT translate them
 - Keep slash commands (e.g., /help, /settings, /docs) exactly as they appear - do NOT translate them
 - Keep technical terms (API, CLI, JSON, URL, MCP, OAuth, YOLO) unchanged
