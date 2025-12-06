@@ -4,7 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolInvocation, ToolResult, Config } from '@google/gemini-cli-core';
+import type {
+  ToolInvocation,
+  ToolResult,
+  Config,
+} from '@google/gemini-cli-core';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
@@ -80,6 +84,13 @@ You can run multiple browser sessions in parallel using the \`sessionId\` parame
 - Maximum 5 concurrent sessions allowed
 - Screenshots are saved to browser-session/screenshots/ directory
 - The browser runs in headed (visible, minimized) mode by default with takeover support (headless: false)
+
+## Usage Tips
+
+- **Fallback for web_fetch**: When \`web_fetch\` fails (blocked by CAPTCHA, requires JavaScript, login-protected, or returns incomplete content), use \`browser_agent\` to navigate to the page and extract content with the \`extract\` action
+- **agent_task for well-defined goals**: Use \`agent_task\` when the objective is clear and fixed upfront (e.g., "login and extract something from the page", "fill form with these values"). The browser AI runs autonomously and reports results at the end. You can keep the session open for follow-up actions by setting \`closeAfter: false\`.
+- **observe/act/extract for dynamic exploration**: Use individual actions when you need step-by-step control—for exploratory tasks, when decisions depend on what's found on the page, or when you want to report progress incrementally to the user. Use \`observe\` to discover available actions, \`act\` to perform them, and \`extract\` to retrieve data.
+- **Keep sessions open for iteration**: Set \`closeAfter: false\` on \`agent_task\` if you need to perform follow-up actions after the autonomous task completes
 `;
 
 /**
@@ -175,7 +186,8 @@ const BROWSER_AGENT_SCHEMA = {
     },
     omitBackground: {
       type: 'boolean',
-      description: 'Make page background transparent, PNG only (default: false)',
+      description:
+        'Make page background transparent, PNG only (default: false)',
     },
     path: {
       type: 'string',
@@ -203,7 +215,8 @@ const BROWSER_AGENT_SCHEMA = {
         'google/gemini-2.5-flash',
         'google/gemini-2.5-pro',
       ],
-      description: 'Model to use for browser agent (default: google/gemini-2.0-flash)',
+      description:
+        'Model to use for browser agent (default: google/gemini-2.0-flash)',
     },
     headless: {
       type: 'boolean',
@@ -278,11 +291,16 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
         // Close specific or only session
         const sessionIds = sessionManager.getSessionIds();
         await sessionManager.closeSession(this.params.sessionId);
-        const closedId = this.params.sessionId || (sessionIds.length === 1 ? sessionIds[0] : 'default');
+        const closedId =
+          this.params.sessionId ||
+          (sessionIds.length === 1 ? sessionIds[0] : 'default');
         const remainingSessions = sessionManager.getSessionIds();
         return {
-          llmContent: `Browser session "${closedId}" closed.` +
-            (remainingSessions.length > 0 ? ` Active sessions: ${remainingSessions.join(', ')}` : ''),
+          llmContent:
+            `Browser session "${closedId}" closed.` +
+            (remainingSessions.length > 0
+              ? ` Active sessions: ${remainingSessions.join(', ')}`
+              : ''),
           returnDisplay: `Session "${closedId}" closed`,
         };
       }
@@ -293,7 +311,7 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       // Build session config
       const sessionConfig = {
         sessionId: this.params.sessionId,
-        model: this.params.model || 'google/gemini-2.0-flash' as const,
+        model: this.params.model || ('google/gemini-2.0-flash' as const),
         headless: this.params.headless,
         verbose: false,
         // Spread credentials based on mode
@@ -314,8 +332,11 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       const adapter = await sessionManager.getOrCreateSession(sessionConfig);
 
       // Build step callback for live updates (agent_task only)
-      const resolvedSessionId = this.params.sessionId ||
-        (sessionManager.getSessionCount() === 1 ? sessionManager.getSessionIds()[0] : 'default');
+      const resolvedSessionId =
+        this.params.sessionId ||
+        (sessionManager.getSessionCount() === 1
+          ? sessionManager.getSessionIds()[0]
+          : 'default');
 
       let onStepCallback: ((step: AgentStepCallback) => void) | undefined;
       const allSteps: BrowserStepInfo[] = [];
@@ -349,7 +370,9 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
           };
 
           // Add or update the step in our list
-          const existingIndex = allSteps.findIndex(s => s.stepNumber === step.stepNumber);
+          const existingIndex = allSteps.findIndex(
+            (s) => s.stepNumber === step.stepNumber,
+          );
           if (existingIndex >= 0) {
             allSteps[existingIndex] = stepInfo;
           } else {
@@ -403,13 +426,19 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
             onStepCallback,
             resolvedSessionId, // Pass sessionId for pause control
           );
-        } catch (error: any) {
+        } catch (error: unknown) {
           // Handle user-initiated stop
-          if (error.message?.includes('stopped by user') || error.message?.includes('Agent stopped')) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          if (
+            errorMessage.includes('stopped by user') ||
+            errorMessage.includes('Agent stopped')
+          ) {
             result = {
               success: true, // Consider it a successful stop, not an error
               action: 'agent_task',
-              message: '[Operation Cancelled] Reason: User cancelled the operation.',
+              message:
+                '[Operation Cancelled] Reason: User cancelled the operation.',
               url: (await adapter.getPage())?.url() || undefined,
               steps: [], // Steps are tracked via onStepCallback
             };
@@ -444,7 +473,10 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       // If result failed, log full error details
       if (!result.success) {
         console.error('[BrowserAgentTool] FAILED RESULT from adapter:');
-        console.error('[BrowserAgentTool] Full result object:', JSON.stringify(result, null, 2));
+        console.error(
+          '[BrowserAgentTool] Full result object:',
+          JSON.stringify(result, null, 2),
+        );
       }
 
       // Add session info to result
@@ -452,13 +484,19 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       result.activeSessions = sessionManager.getSessionIds();
 
       // Auto-close session after agent_task completes (default: true)
-      if (this.params.action === 'agent_task' && this.params.closeAfter !== false) {
+      if (
+        this.params.action === 'agent_task' &&
+        this.params.closeAfter !== false
+      ) {
         try {
           await sessionManager.closeSession(resolvedSessionId);
           // console.log(`[BrowserAgentTool] Session "${resolvedSessionId}" auto-closed after agent_task completed`);
           result.activeSessions = sessionManager.getSessionIds(); // Update active sessions list
         } catch (closeError) {
-          console.warn(`[BrowserAgentTool] Failed to auto-close session "${resolvedSessionId}":`, closeError);
+          console.warn(
+            `[BrowserAgentTool] Failed to auto-close session "${resolvedSessionId}":`,
+            closeError,
+          );
           // Don't fail the overall result if close fails
         }
       }
@@ -466,7 +504,9 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       // For agent_task, return browser steps as final display (keeps steps visible)
       if (this.params.action === 'agent_task' && allSteps.length > 0) {
         // Mark all steps as completed
-        allSteps.forEach(step => { step.status = 'completed'; });
+        allSteps.forEach((step) => {
+          step.status = 'completed';
+        });
         const finalDisplay: BrowserStepDisplay = {
           browserSteps: allSteps,
           currentUrl: result.url,
@@ -521,7 +561,13 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
     }
 
     // For agent_task, extract message from data.message
-    if (result.action === 'agent_task' && result.data && typeof result.data === 'object' && 'message' in result.data && result.data.message) {
+    if (
+      result.action === 'agent_task' &&
+      result.data &&
+      typeof result.data === 'object' &&
+      'message' in result.data &&
+      result.data.message
+    ) {
       parts.push(String(result.data.message));
     }
 
@@ -539,7 +585,9 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
     if (result.screenshotPath) {
       parts.push(`Screenshot saved: ${result.screenshotPath}`);
     } else if (result.base64) {
-      parts.push(`Screenshot captured (${result.screenshotType || 'png'}, base64 encoded, ${result.base64.length} chars)`);
+      parts.push(
+        `Screenshot captured (${result.screenshotType || 'png'}, base64 encoded, ${result.base64.length} chars)`,
+      );
     }
 
     if (result.steps && result.steps.length > 0) {
@@ -621,7 +669,7 @@ export class BrowserAgentTool extends BaseDeclarativeTool<
   protected override validateToolParamValues(
     params: BrowserAgentParams,
   ): string | null {
-    const { action, url, instruction, schema } = params;
+    const { action, url, instruction } = params;
 
     // Validate action-specific required parameters
     switch (action) {

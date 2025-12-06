@@ -225,6 +225,13 @@ export default tseslint.config(
       'import/enforce-node-protocol-usage': ['error', 'always'],
     },
   },
+  // AUDITARIA: Disable license header enforcement for our scripts
+  {
+    files: ['./packages/**/*.{tsx,ts,js}'],
+    rules: {
+      'license-header/header': 'off',
+    },
+  },
   // extra settings for scripts that we run directly with node
   {
     files: ['./scripts/**/*.js', 'esbuild.config.js'],
