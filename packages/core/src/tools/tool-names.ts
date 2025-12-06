@@ -22,13 +22,10 @@ export const MEMORY_TOOL_NAME = 'save_memory';
 
 // Context management tools --- Auditaria Custom Features
 export const WRITE_TODOS_TOOL_NAME = 'write_todos';
-export const CONTEXT_INSPECT_TOOL_NAME = 'context_inspect';
-export const CONTEXT_FORGET_TOOL_NAME = 'context_forget';
-export const CONTEXT_RESTORE_TOOL_NAME = 'context_restore';
+export const CONTEXT_MANAGEMENT_TOOL_NAME = 'context_management';
 
 // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
-export const COLLABORATIVE_WRITING_START_TOOL_NAME = 'collaborative_writing_start';
-export const COLLABORATIVE_WRITING_END_TOOL_NAME = 'collaborative_writing_end';
+export const COLLABORATIVE_WRITING_TOOL_NAME = 'collaborative_writing';
 
 // AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
 export const BROWSER_AGENT_TOOL_NAME = 'browser_agent';

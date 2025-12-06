@@ -54,16 +54,9 @@ import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
 import { ideContextStore } from '../ide/ideContext.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
-import {
-  ContextInspectTool,
-  ContextForgetTool,
-  ContextRestoreTool,
-} from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
+import { ContextManagementTool } from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
-import {
-  CollaborativeWritingStartTool,
-  CollaborativeWritingEndTool,
-} from '../tools/collaborative-writing.js';
+import { CollaborativeWritingTool } from '../tools/collaborative-writing.js';
 // AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
 import { BrowserAgentTool } from '@thacio/browser-agent';
 import type { FileSystemService } from '../services/fileSystemService.js';
@@ -1562,16 +1555,11 @@ export class Config {
       registerCoreTool(WriteTodosTool, this);
     }
 
-    // Register context management tools
-    registerCoreTool(ContextInspectTool, this); // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextForgetTool, this); // Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextRestoreTool, this); // Custom Auditaria Feature: context.management.ts tool
+    // Register context management tool --- Custom Auditaria Feature: context.management.ts tool
+    registerCoreTool(ContextManagementTool, this);
 
-    // AUDITARIA_COLLABORATIVE_WRITING_START - Auditaria Custom Feature
-    // Register collaborative writing tools
-    registerCoreTool(CollaborativeWritingStartTool, this);
-    registerCoreTool(CollaborativeWritingEndTool, this);
-    // AUDITARIA_COLLABORATIVE_WRITING_END
+    // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+    registerCoreTool(CollaborativeWritingTool, this);
 
     registerCoreTool(BrowserAgentTool, this); // AUDITARIA_BROWSER_AGENT - Pass 'this' (Config) to enable CredentialBridge - browser-agent uses same auth as Auditaria
 
