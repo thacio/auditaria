@@ -685,6 +685,7 @@ export class ShellExecutionService {
               });
             });
 
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             Promise.race([processingComplete, abortFired]).then(() => {
               finalize();
             });
@@ -724,7 +725,8 @@ export class ShellExecutionService {
       if (error.message.includes('posix_spawnp failed')) {
         onOutputEvent({
           type: 'data',
-          chunk: '[AUDITARIA_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n',
+          chunk:
+            '[AUDITARIA_CLI_WARNING] PTY execution failed, falling back to child_process. This may be due to sandbox restrictions.\n',
         });
         throw e;
       } else {

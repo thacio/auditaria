@@ -387,6 +387,7 @@ export class CoreToolScheduler {
         const sharedHandler = (request: ToolConfirmationRequest) => {
           // When ASK_USER policy decision is made, respond with requiresUserConfirmation=true
           // to tell tools to use their legacy confirmation flow
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           messageBus.publish({
             type: MessageBusType.TOOL_CONFIRMATION_RESPONSE,
             correlationId: request.correlationId,
@@ -889,8 +890,10 @@ export class CoreToolScheduler {
               confirmationDetails.type === 'edit' &&
               confirmationDetails.ideConfirmation
             ) {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               confirmationDetails.ideConfirmation.then((resolution) => {
                 if (resolution.status === 'accepted') {
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
                   this.handleConfirmationResponse(
                     reqInfo.callId,
                     confirmationDetails.onConfirm,
@@ -898,6 +901,7 @@ export class CoreToolScheduler {
                     signal,
                   );
                 } else {
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
                   this.handleConfirmationResponse(
                     reqInfo.callId,
                     confirmationDetails.onConfirm,

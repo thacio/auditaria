@@ -277,6 +277,7 @@ export const useSlashCommandProcessor = (
       reloadCommands();
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     (async () => {
       const ideClient = await IdeClient.getInstance();
       ideClient.addStatusChangeListener(listener);
@@ -297,6 +298,7 @@ export const useSlashCommandProcessor = (
     appEvents.on('extensionsStopping', extensionEventListener);
 
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
         const ideClient = await IdeClient.getInstance();
         ideClient.removeStatusChangeListener(listener);
@@ -309,6 +311,7 @@ export const useSlashCommandProcessor = (
   useEffect(() => {
     const controller = new AbortController();
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     (async () => {
       const commandService = await CommandService.create(
         [
