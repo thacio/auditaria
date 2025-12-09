@@ -145,15 +145,21 @@ class ContextStorage {
   private isForgottenPlaceholder(part: unknown): boolean {
     if (!part || typeof part !== 'object') return false;
 
-    if ('functionResponse' in part && part.functionResponse?.response?.output) {
-      const output = part.functionResponse.response.output;
-      return (
-        typeof output === 'string' && output.includes('[CONTENT FORGOTTEN')
-      );
+    if ('functionResponse' in part) {
+      const funcResponse = (part as Part).functionResponse;
+      const response = funcResponse?.response as
+        | Record<string, unknown>
+        | undefined;
+      if (response?.output) {
+        const output = response.output;
+        return (
+          typeof output === 'string' && output.includes('[CONTENT FORGOTTEN')
+        );
+      }
     }
 
-    if ('text' in part && typeof part.text === 'string') {
-      return part.text.includes('[CONTENT FORGOTTEN');
+    if ('text' in part && typeof (part as Part).text === 'string') {
+      return ((part as Part).text as string).includes('[CONTENT FORGOTTEN');
     }
 
     return false;
@@ -377,8 +383,13 @@ function _getTextFromPart(part: Part): string {
     if ('text' in part) {
       return part.text || '';
     }
-    if ('functionResponse' in part && part.functionResponse?.response?.output) {
-      return String(part.functionResponse.response.output);
+    if ('functionResponse' in part && part.functionResponse) {
+      const response = part.functionResponse.response as
+        | Record<string, unknown>
+        | undefined;
+      if (response?.output) {
+        return String(response.output);
+      }
     }
   }
   return '';
@@ -409,7 +420,10 @@ function describePart(part: Part): string {
 
     if ('functionResponse' in part && part.functionResponse) {
       const name = part.functionResponse.name || 'unknown';
-      const output = part.functionResponse.response?.output || '';
+      const response = part.functionResponse.response as
+        | Record<string, unknown>
+        | undefined;
+      const output = response?.output || '';
       const outputStr =
         typeof output === 'string' ? output : JSON.stringify(output);
       const truncatedOutput =
@@ -1068,7 +1082,11 @@ To forget items (be VERY selective), use ${CONTEXT_MANAGEMENT_TOOL_NAME} with ac
                     item.description,
                   );
 
-                  part.functionResponse.response = {
+                  (
+                    part.functionResponse as {
+                      response: Record<string, unknown>;
+                    }
+                  ).response = {
                     output: placeholder,
                   };
 
@@ -1376,7 +1394,10 @@ Forgotten content can be accessed again by either:
             const part = content.parts[j];
             if (part && typeof part === 'object') {
               if ('functionResponse' in part && part.functionResponse) {
-                const output = part.functionResponse.response?.output || '';
+                const response = part.functionResponse.response as
+                  | Record<string, unknown>
+                  | undefined;
+                const output = response?.output || '';
                 if (
                   typeof output === 'string' &&
                   output.includes(`ID: ${id}`)
