@@ -1,0 +1,51 @@
+{
+  "name": "@thacio/search",
+  "version": "0.1.0",
+  "description": "Local document search with hybrid search capabilities for Auditaria CLI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thacio/auditaria.git"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "node ../../scripts/build_package.js",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:ci": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "@huggingface/transformers": "^3.8.1",
+    "officeparser": "^5.2.2",
+    "pdf-parse": "^1.1.1",
+    "ignore": "^6.0.2",
+    "fast-glob": "^3.3.2",
+    "xxhash-wasm": "^1.1.0"
+  },
+  "optionalDependencies": {
+    "tesseract.js": "^5.1.1",
+    "chokidar": "^4.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^3.1.1",
+    "@types/pdf-parse": "^1.1.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@google/gemini-cli-core": "*"
+  },
+  "peerDependenciesMeta": {
+    "@google/gemini-cli-core": {
+      "optional": true
+    }
+  }
+}

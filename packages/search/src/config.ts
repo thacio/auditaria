@@ -1,0 +1,269 @@
+/**
+ * Configuration types and defaults for the Auditaria Search system.
+ */
+
+// ============================================================================
+// Configuration Types
+// ============================================================================
+
+export interface DatabaseConfig {
+  /** Path to the database file. Default: .auditaria/search.db */
+  path: string;
+  /** Whether to use in-memory database (for testing). Default: false */
+  inMemory: boolean;
+}
+
+export interface IndexingConfig {
+  /** Additional paths to ignore beyond .gitignore */
+  ignorePaths: string[];
+  /** If set, only index these paths (relative to root) */
+  includePaths: string[];
+  /** File extensions to index (with leading dot) */
+  fileTypes: string[];
+  /** Skip files larger than this (in bytes). Default: 50MB */
+  maxFileSize: number;
+  /** Enable OCR processing. Default: true */
+  ocrEnabled: boolean;
+  /** OCR processing priority. Default: 'low' */
+  ocrPriority: 'high' | 'low' | 'skip';
+  /** Respect .gitignore file. Default: true */
+  respectGitignore: boolean;
+}
+
+export interface ChunkingConfig {
+  /** Chunking strategy. Default: 'recursive' */
+  strategy: 'recursive' | 'semantic' | 'fixed';
+  /** Maximum chunk size in characters. Default: 1000 */
+  maxChunkSize: number;
+  /** Overlap between chunks in characters. Default: 200 */
+  chunkOverlap: number;
+  /** Preserve sentence boundaries. Default: true */
+  preserveSentences: boolean;
+  /** Preserve paragraph boundaries. Default: true */
+  preserveParagraphs: boolean;
+}
+
+export interface EmbeddingsConfig {
+  /** Model identifier for Transformers.js. Default: 'Xenova/multilingual-e5-small' */
+  model: string;
+  /** Batch size for embedding generation. Default: 10 */
+  batchSize: number;
+  /** Embedding dimensions (must match model). Default: 384 */
+  dimensions: number;
+  /** Prefix for query embeddings (E5 models need this). Default: 'query: ' */
+  queryPrefix: string;
+  /** Prefix for document embeddings. Default: 'passage: ' */
+  documentPrefix: string;
+}
+
+export interface SearchConfig {
+  /** Default number of results. Default: 10 */
+  defaultLimit: number;
+  /** Default search strategy. Default: 'hybrid' */
+  defaultStrategy: 'hybrid' | 'semantic' | 'keyword';
+  /** Weight for semantic search in hybrid mode (0-1). Default: 0.5 */
+  semanticWeight: number;
+  /** Weight for keyword search in hybrid mode (0-1). Default: 0.5 */
+  keywordWeight: number;
+  /** RRF constant k. Default: 60 */
+  rrfK: number;
+}
+
+export interface SearchSystemConfig {
+  database: DatabaseConfig;
+  indexing: IndexingConfig;
+  chunking: ChunkingConfig;
+  embeddings: EmbeddingsConfig;
+  search: SearchConfig;
+}
+
+// ============================================================================
+// Default Configuration
+// ============================================================================
+
+export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
+  path: '.auditaria/search.db',
+  inMemory: false,
+};
+
+export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
+  ignorePaths: ['node_modules', '.git', 'dist', 'build', '*.log', '.auditaria'],
+  includePaths: [],
+  fileTypes: [
+    '.pdf',
+    '.docx',
+    '.pptx',
+    '.xlsx',
+    '.txt',
+    '.md',
+    '.json',
+    '.yaml',
+    '.yml',
+    '.csv',
+    '.html',
+    '.htm',
+    '.xml',
+    '.rtf',
+    '.odt',
+    '.odp',
+    '.ods',
+  ],
+  maxFileSize: 50 * 1024 * 1024, // 50MB
+  ocrEnabled: true,
+  ocrPriority: 'low',
+  respectGitignore: true,
+};
+
+export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
+  strategy: 'recursive',
+  maxChunkSize: 1000,
+  chunkOverlap: 200,
+  preserveSentences: true,
+  preserveParagraphs: true,
+};
+
+export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
+  model: 'Xenova/multilingual-e5-small',
+  batchSize: 10,
+  dimensions: 384,
+  queryPrefix: 'query: ',
+  documentPrefix: 'passage: ',
+};
+
+export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
+  defaultLimit: 10,
+  defaultStrategy: 'hybrid',
+  semanticWeight: 0.5,
+  keywordWeight: 0.5,
+  rrfK: 60,
+};
+
+export const DEFAULT_CONFIG: SearchSystemConfig = {
+  database: DEFAULT_DATABASE_CONFIG,
+  indexing: DEFAULT_INDEXING_CONFIG,
+  chunking: DEFAULT_CHUNKING_CONFIG,
+  embeddings: DEFAULT_EMBEDDINGS_CONFIG,
+  search: DEFAULT_SEARCH_CONFIG,
+};
+
+// ============================================================================
+// Configuration Utilities
+// ============================================================================
+
+/**
+ * Deep merge two objects, with source values overriding target values.
+ */
+function deepMerge<T>(target: T, source: Partial<T>): T {
+  const result = { ...target };
+
+  for (const key of Object.keys(source) as Array<keyof T>) {
+    const sourceValue = source[key];
+    const targetValue = target[key];
+
+    if (
+      sourceValue !== undefined &&
+      typeof sourceValue === 'object' &&
+      sourceValue !== null &&
+      !Array.isArray(sourceValue) &&
+      typeof targetValue === 'object' &&
+      targetValue !== null &&
+      !Array.isArray(targetValue)
+    ) {
+      result[key] = deepMerge(targetValue, sourceValue as Partial<T[keyof T]>);
+    } else if (sourceValue !== undefined) {
+      result[key] = sourceValue as T[keyof T];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Create a complete configuration by merging partial config with defaults.
+ */
+export function createConfig(
+  partial?: DeepPartial<SearchSystemConfig>,
+): SearchSystemConfig {
+  if (!partial) {
+    return { ...DEFAULT_CONFIG };
+  }
+
+  return {
+    database: deepMerge(
+      DEFAULT_DATABASE_CONFIG,
+      (partial.database ?? {}) as Partial<DatabaseConfig>,
+    ),
+    indexing: deepMerge(
+      DEFAULT_INDEXING_CONFIG,
+      (partial.indexing ?? {}) as Partial<IndexingConfig>,
+    ),
+    chunking: deepMerge(
+      DEFAULT_CHUNKING_CONFIG,
+      (partial.chunking ?? {}) as Partial<ChunkingConfig>,
+    ),
+    embeddings: deepMerge(
+      DEFAULT_EMBEDDINGS_CONFIG,
+      (partial.embeddings ?? {}) as Partial<EmbeddingsConfig>,
+    ),
+    search: deepMerge(
+      DEFAULT_SEARCH_CONFIG,
+      (partial.search ?? {}) as Partial<SearchConfig>,
+    ),
+  };
+}
+
+/**
+ * Deep partial type for nested partial objects.
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+/**
+ * Validate configuration values.
+ * Throws an error if configuration is invalid.
+ */
+export function validateConfig(config: SearchSystemConfig): void {
+  // Validate database config
+  if (!config.database.path && !config.database.inMemory) {
+    throw new Error('Database path is required when not using in-memory mode');
+  }
+
+  // Validate indexing config
+  if (config.indexing.maxFileSize <= 0) {
+    throw new Error('maxFileSize must be positive');
+  }
+
+  // Validate chunking config
+  if (config.chunking.maxChunkSize <= 0) {
+    throw new Error('maxChunkSize must be positive');
+  }
+  if (config.chunking.chunkOverlap < 0) {
+    throw new Error('chunkOverlap cannot be negative');
+  }
+  if (config.chunking.chunkOverlap >= config.chunking.maxChunkSize) {
+    throw new Error('chunkOverlap must be less than maxChunkSize');
+  }
+
+  // Validate embeddings config
+  if (config.embeddings.batchSize <= 0) {
+    throw new Error('batchSize must be positive');
+  }
+  if (config.embeddings.dimensions <= 0) {
+    throw new Error('dimensions must be positive');
+  }
+
+  // Validate search config
+  if (config.search.defaultLimit <= 0) {
+    throw new Error('defaultLimit must be positive');
+  }
+  if (config.search.semanticWeight < 0 || config.search.semanticWeight > 1) {
+    throw new Error('semanticWeight must be between 0 and 1');
+  }
+  if (config.search.keywordWeight < 0 || config.search.keywordWeight > 1) {
+    throw new Error('keywordWeight must be between 0 and 1');
+  }
+  if (config.search.rrfK <= 0) {
+    throw new Error('rrfK must be positive');
+  }
+}
