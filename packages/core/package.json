@@ -70,7 +70,8 @@
     "ws": "^8.18.0",
     "zod": "^3.25.76",
     "js-yaml": "^4.1.1",
-    "@thacio/browser-agent": "file:../browser-agent"
+    "@thacio/browser-agent": "file:../browser-agent",
+    "@thacio/search": "file:../search"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "1.1.0",

@@ -1202,12 +1202,19 @@ export class PGliteStorage implements StorageAdapter {
 
     if (filters.folders && filters.folders.length > 0) {
       const folderConditions = filters.folders.map(() => {
-        const condition = `file_path LIKE $${paramIndex}`;
+        // Normalize path separators in both the stored path and the filter
+        const condition = `REPLACE(file_path, '\\', '/') LIKE $${paramIndex}`;
         paramIndex++;
         return condition;
       });
       conditions.push(`(${folderConditions.join(' OR ')})`);
-      params.push(...filters.folders.map((f) => `${f}%`));
+      // Normalize path separators and use %folder% pattern to match anywhere in path
+      params.push(
+        ...filters.folders.map((f) => {
+          const normalized = f.replace(/\\/g, '/');
+          return `%${normalized}%`;
+        }),
+      );
     }
 
     if (filters.fileTypes && filters.fileTypes.length > 0) {
@@ -1258,12 +1265,21 @@ export class PGliteStorage implements StorageAdapter {
 
     if (filters.folders && filters.folders.length > 0) {
       const folderConditions = filters.folders.map(() => {
-        const condition = `d.file_path LIKE $${paramIndex}`;
+        // Normalize path separators in both the stored path and the filter
+        // REPLACE(file_path, '\', '/') normalizes Windows paths to forward slashes
+        const condition = `REPLACE(d.file_path, '\\', '/') LIKE $${paramIndex}`;
         paramIndex++;
         return condition;
       });
       conditions.push(`(${folderConditions.join(' OR ')})`);
-      params.push(...filters.folders.map((f) => `${f}%`));
+      // Normalize path separators and use %folder% pattern to match anywhere in path
+      params.push(
+        ...filters.folders.map((f) => {
+          // Normalize to forward slashes, then wrap with % for partial match
+          const normalized = f.replace(/\\/g, '/');
+          return `%${normalized}%`;
+        }),
+      );
     }
 
     if (filters.fileTypes && filters.fileTypes.length > 0) {
