@@ -59,7 +59,8 @@
     "telemetry": "node scripts/telemetry.js",
     "check:lockfile": "node scripts/check-lockfile.js",
     "clean": "node scripts/clean.js",
-    "pre-commit": "node scripts/pre-commit.js"
+    "pre-commit": "node scripts/pre-commit.js",
+    "postinstall": "patch-package"
   },
   "overrides": {
     "ink": "npm:@jrichman/ink@6.4.6",

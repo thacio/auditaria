@@ -38,6 +38,28 @@ import {
 // ============================================================================
 
 /**
+ * MuPDF scheduler interface for PDF rendering.
+ */
+interface MuPDFScheduler {
+  drawPageAsPNG(args: {
+    page: number;
+    dpi?: number;
+    color?: boolean;
+    skipText?: boolean;
+  }): Promise<string>; // Returns base64 PNG data
+}
+
+/**
+ * ImageCache interface for PDF image handling.
+ */
+interface ImageCacheInterface {
+  openMainPDF(fileData: ArrayBuffer, skipText?: boolean): Promise<void>;
+  getMuPDFScheduler(numWorkers?: number): Promise<MuPDFScheduler>;
+  pageCount: number;
+  terminate(): Promise<void>;
+}
+
+/**
  * Scribe.js module interface.
  * @see https://github.com/scribeocr/scribe.js
  */
@@ -66,6 +88,10 @@ interface ScribeModule {
   ): Promise<string>;
   clear(): Promise<void>;
   terminate(): Promise<void>;
+  /** Internal data access */
+  data: {
+    image: ImageCacheInterface;
+  };
 }
 
 interface ScribeRecognizeOptions {
@@ -172,7 +198,8 @@ export class ScribeJsProvider implements OcrProvider {
         await ensureOcrCacheDir(this.config.cacheDir);
       }
 
-      // Dynamic import for scribe.js-ocr (optional dependency)
+      // Dynamic import for scribe.js-ocr (optional dependency, no @types available)
+      // @ts-expect-error - scribe.js-ocr has no type definitions
       const scribeModule = await import('scribe.js-ocr');
       this.scribe = scribeModule.default as ScribeModule;
 
@@ -321,6 +348,65 @@ export class ScribeJsProvider implements OcrProvider {
   }
 
   /**
+   * Render first page of PDF as image for script detection.
+   * Uses Scribe.js internal MuPDF to render PDF pages.
+   */
+  private async renderPdfFirstPage(
+    pdfPath: string,
+    progressCallback?: OcrProgressCallback,
+  ): Promise<Buffer> {
+    progressCallback?.({
+      stage: 'processing',
+      progress: 5,
+      message: 'Reading PDF file...',
+    });
+
+    // Read the PDF file
+    const pdfBuffer = await readFile(pdfPath);
+    const pdfArrayBuffer = pdfBuffer.buffer.slice(
+      pdfBuffer.byteOffset,
+      pdfBuffer.byteOffset + pdfBuffer.byteLength,
+    );
+
+    progressCallback?.({
+      stage: 'processing',
+      progress: 10,
+      message: 'Opening PDF with MuPDF...',
+    });
+
+    // Open the PDF using Scribe's internal ImageCache
+    const imageCache = this.scribe!.data.image;
+    await imageCache.openMainPDF(pdfArrayBuffer);
+
+    progressCallback?.({
+      stage: 'processing',
+      progress: 20,
+      message: 'Rendering first page...',
+    });
+
+    // Get MuPDF scheduler and render first page
+    const muPdfScheduler = await imageCache.getMuPDFScheduler();
+    const pngBase64 = await muPdfScheduler.drawPageAsPNG({
+      page: 1, // 1-indexed
+      dpi: 150, // Lower DPI for faster detection, still enough for script detection
+      color: false, // Grayscale is fine for script detection
+    });
+
+    progressCallback?.({
+      stage: 'processing',
+      progress: 30,
+      message: 'First page rendered, preparing for detection...',
+    });
+
+    // Convert base64 to Buffer
+    // The returned string is a data URL: "data:image/png;base64,..."
+    const base64Data = pngBase64.includes(',')
+      ? pngBase64.split(',')[1]
+      : pngBase64;
+    return Buffer.from(base64Data, 'base64');
+  }
+
+  /**
    * Recognize text with automatic language detection.
    *
    * This method:
@@ -346,30 +432,60 @@ export class ScribeJsProvider implements OcrProvider {
     progressCallback?.({
       stage: 'processing',
       progress: 0,
-      message: 'Starting automatic language detection for PDF...',
+      message: 'Starting automatic language detection...',
     });
 
-    // For PDFs, we need to detect script from the content
-    // Since Scribe.js handles PDFs internally, we'll use a simplified approach:
-    // - If it's a PDF, try to extract text first (text-native PDF)
-    // - If text extraction fails or returns minimal text, run OCR
-
     const isPdf = typeof input === 'string' && isPdfFile(input);
-
     let scriptResult: ScriptDetectionResult | undefined;
 
-    if (!isPdf && typeof input !== 'string') {
-      // For images, we can detect script directly
+    const cacheDir = getDefaultOcrCacheDir();
+    await ensureOcrCacheDir(cacheDir);
+
+    if (isPdf && typeof input === 'string') {
+      // For PDFs: render first page and detect script
+      progressCallback?.({
+        stage: 'processing',
+        progress: 5,
+        message: 'Rendering PDF page for language detection...',
+      });
+
+      try {
+        const pageImage = await this.renderPdfFirstPage(
+          input,
+          progressCallback,
+        );
+
+        progressCallback?.({
+          stage: 'processing',
+          progress: 35,
+          message: 'Detecting script from PDF page...',
+        });
+
+        scriptResult = await detectScript(pageImage, cacheDir, (info) => {
+          progressCallback?.({
+            stage: info.stage,
+            progress: 35 + info.progress * 0.15,
+            message: info.message,
+          });
+        });
+      } catch (error) {
+        // If PDF rendering fails, fall back to default languages
+        console.warn(
+          `PDF page rendering failed, using default languages: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    } else if (typeof input !== 'string' || !input.startsWith('data:')) {
+      // For images, detect script directly
       progressCallback?.({
         stage: 'processing',
         progress: 10,
         message: 'Detecting script from image...',
       });
 
-      const cacheDir = getDefaultOcrCacheDir();
-      await ensureOcrCacheDir(cacheDir);
+      const imageBuffer =
+        typeof input === 'string' ? await readFile(input) : input;
 
-      scriptResult = await detectScript(input, cacheDir, (info) => {
+      scriptResult = await detectScript(imageBuffer, cacheDir, (info) => {
         progressCallback?.({
           stage: info.stage,
           progress: 10 + info.progress * 0.3,
@@ -378,7 +494,7 @@ export class ScribeJsProvider implements OcrProvider {
       });
     }
 
-    // Determine languages
+    // Determine languages from detected script or use defaults
     const langs = scriptResult
       ? scriptResult.suggestedLanguages.slice(0, 5)
       : this.config.languages;
@@ -458,6 +574,7 @@ export function createScribeJsProvider(
  */
 export async function isScribeAvailable(): Promise<boolean> {
   try {
+    // @ts-expect-error - scribe.js-ocr has no type definitions
     await import('scribe.js-ocr');
     return true;
   } catch {
