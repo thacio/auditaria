@@ -1,6 +1,6 @@
 # Auditaria Local Search System - Implementation Plan
 
-**Version:** 1.2 **Status:** In Progress (Phase 2 Complete) **Created:**
+**Version:** 1.3 **Status:** In Progress (Phase 4 Complete) **Created:**
 2025-12-13 **Updated:** 2025-12-13
 
 ## Table of Contents
@@ -1668,40 +1668,59 @@ parsers.
 
 ---
 
-### Phase 4: Filtering & Tagging
+### Phase 4: Filtering & Tagging ✅ COMPLETED
 
 **Goal:** Enable rich filtering and organization capabilities.
+
+**Status:** COMPLETED (December 2025)
 
 **Tasks:**
 
 4.1 Implement Filter Builder
 
-- [ ] Create `FilterBuilder` class
-- [ ] Add folder filtering
-- [ ] Add file type filtering
-- [ ] Add tag filtering
-- [ ] Add date range filtering
-- [ ] Add language filtering
-- [ ] Add tests for filter builder
+- [x] Create `FilterBuilder` class
+- [x] Add folder filtering (`d.file_path LIKE $1%`)
+- [x] Add file type filtering (`d.file_extension IN (...)`)
+- [x] Add tag filtering (both ALL and ANY modes)
+- [x] Add date range filtering (uses `file_modified_at`, not creation date)
+- [x] Add status filtering
+- [x] Add language filtering (implemented, depends on parser detection)
+- [x] Add tests for filter builder
 
   4.2 Implement Tag Management
 
-- [ ] Implement tag CRUD operations
-- [ ] Add auto-tagging based on path patterns
-- [ ] Add tests for tag operations
+- [x] Implement tag CRUD operations (`addTags`, `removeTags`, `getDocumentTags`,
+      `getAllTags`)
+- [x] Add tests for tag operations (in PGliteStorage.test.ts)
+- [ ] Add auto-tagging based on path patterns (optional, not implemented)
 
   4.3 Integrate filters into search
 
-- [ ] Update all search methods to use filters
-- [ ] Add tests for filtered searches
+- [x] Update all search methods to use filters (`buildSearchFilters()`)
+- [x] Add tests for filtered searches
 
-**Success Criteria:**
+**Implementation Notes:**
 
-- Can filter by any combination of criteria
-- Tags can be added, removed, listed
-- Filtered searches return correct results
+- **FilterBuilder** provides fluent API for constructing SQL WHERE clauses
+- **Date filtering** uses `file_modified_at` (modification date), NOT file
+  creation date
+- **Language filtering** is implemented but depends on parsers detecting
+  document language
+- **Tag filtering** supports both ALL (default `tags()`) and ANY (`tagsAny()`)
+  modes
+- **Integration test** with real files validates full pipeline:
+  - Indexed 7 documents (160 chunks total)
+  - DOCX, PDF, XLSX, TXT, HTML, JS files all parsed correctly
+  - Keyword, semantic, and hybrid searches work as expected
+  - File type filtering works correctly
 
-**Estimated Test Count:** ~25 tests
+**Success Criteria:** ✅ All met
+
+- ✅ Can filter by any combination of criteria
+- ✅ Tags can be added, removed, listed
+- ✅ Filtered searches return correct results
+
+**Actual Test Count:** 250 tests (package total, +12 integration tests)
 
 ---
 
@@ -2425,8 +2444,10 @@ const searchStatusSchema = {
 
 **Document Version History:**
 
-| Version | Date       | Author | Changes                                              |
-| ------- | ---------- | ------ | ---------------------------------------------------- |
-| 1.0     | 2025-12-13 | AI     | Initial draft                                        |
-| 1.1     | 2025-12-13 | AI     | Phase 1 completed, updated deps & success criteria   |
-| 1.2     | 2025-12-13 | AI     | Phase 2 completed, parser priority system, 151 tests |
+| Version | Date       | Author | Changes                                                      |
+| ------- | ---------- | ------ | ------------------------------------------------------------ |
+| 1.0     | 2025-12-13 | AI     | Initial draft                                                |
+| 1.1     | 2025-12-13 | AI     | Phase 1 completed, updated deps & success criteria           |
+| 1.2     | 2025-12-13 | AI     | Phase 2 completed, parser priority system, 151 tests         |
+| 1.3     | 2025-12-13 | AI     | Phase 3 completed, embeddings with batch fallback, 238 tests |
+| 1.4     | 2025-12-13 | AI     | Phase 4 completed, filtering & tagging, 250 tests            |
