@@ -18,6 +18,31 @@ import { type LoadedSettings } from '../config/settings.js';
 import { performInitialAuth } from './auth.js';
 import { validateTheme } from './theme.js';
 
+// AUDITARIA_LOCAL_SEARCH: Auto-start search service function
+async function autoStartSearchService(config: Config): Promise<void> {
+  try {
+    const { searchDatabaseExists } = await import('@thacio/search');
+    const { getSearchService } = await import('@google/gemini-cli-core');
+
+    const rootPath = config.getTargetDir();
+
+    if (searchDatabaseExists(rootPath)) {
+      console.log('[SearchService] Database found, auto-starting service...');
+      const service = getSearchService();
+      // Start in background - don't await to avoid blocking app startup
+      service.start(rootPath).catch((err: Error) => {
+        console.warn('[SearchService] Background start failed:', err.message);
+      });
+    }
+  } catch (error) {
+    // Non-fatal - just log and continue
+    console.warn(
+      '[SearchService] Auto-start failed:',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
 export interface InitializationResult {
   authError: string | null;
   themeError: string | null;
@@ -57,6 +82,12 @@ export async function initializeApp(
     await ideClient.connect();
     logIdeConnection(config, new IdeConnectionEvent(IdeConnectionType.START));
   }
+
+  // AUDITARIA_LOCAL_SEARCH: Auto-start search service if database exists
+  // Run in background to avoid blocking app startup
+  autoStartSearchService(config).catch(() => {
+    // Errors already logged in the function
+  });
 
   return {
     authError,

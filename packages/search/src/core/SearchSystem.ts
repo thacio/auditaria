@@ -50,7 +50,6 @@ import { IndexingPipeline } from '../indexing/index.js';
 import type { Embedder } from '../indexing/types.js';
 import { createSearchEngine, type SearchEngine } from '../search/index.js';
 import { createStartupSync, type StartupSync } from '../sync/StartupSync.js';
-import { createFileWatcher, type FileWatcher } from '../sync/FileWatcher.js';
 import type {
   SyncResult,
   SyncOptions as FileSyncOptions,
@@ -76,8 +75,6 @@ export interface SearchSystemInitOptions {
   config?: DeepPartial<SearchSystemConfig>;
   /** Use mock embedder (for testing) */
   useMockEmbedder?: boolean;
-  /** Enable real-time file watching */
-  enableFileWatcher?: boolean;
 }
 
 export interface SearchSystemState {
@@ -85,7 +82,6 @@ export interface SearchSystemState {
   rootPath: string;
   databasePath: string;
   indexingInProgress: boolean;
-  fileWatcherEnabled: boolean;
   ocrEnabled: boolean;
   ocrAvailable: boolean;
 }
@@ -130,27 +126,23 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private pipeline: IndexingPipeline | null = null;
   private searchEngine: SearchEngine | null = null;
   private startupSync: StartupSync | null = null;
-  private fileWatcher: FileWatcher | null = null;
   private embedder: TextEmbedder | null = null;
   private ocrRegistry: OcrRegistry | null = null;
   private ocrQueueManager: OcrQueueManager | null = null;
   private initialized: boolean = false;
   private indexingInProgress: boolean = false;
   private useMockEmbedder: boolean = false;
-  private fileWatcherEnabled: boolean = false;
   private ocrAvailable: boolean = false;
 
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
     useMockEmbedder: boolean = false,
-    enableFileWatcher: boolean = false,
   ) {
     super();
     this.rootPath = resolve(rootPath);
     this.config = config;
     this.useMockEmbedder = useMockEmbedder;
-    this.fileWatcherEnabled = enableFileWatcher;
   }
 
   // -------------------------------------------------------------------------
@@ -172,7 +164,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       rootPath,
       config,
       options.useMockEmbedder ?? false,
-      options.enableFileWatcher ?? false,
     );
 
     await system.setup();
@@ -200,7 +191,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       resolvedRoot,
       config,
       options.useMockEmbedder ?? false,
-      options.enableFileWatcher ?? false,
     );
 
     await system.setup();
@@ -331,21 +321,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Initialize startup sync
     this.startupSync = createStartupSync(this.storage, this.discovery);
 
-    // Initialize file watcher (optional)
-    if (this.fileWatcherEnabled) {
-      this.fileWatcher = createFileWatcher(
-        this.rootPath,
-        this.storage,
-        {
-          enabled: true,
-          debounceMs: 300,
-          ignorePaths: this.config.indexing.ignorePaths,
-          maxFileSize: this.config.indexing.maxFileSize,
-        },
-        this.config.indexing.fileTypes,
-      );
-    }
-
     // Initialize OCR (optional - only if tesseract.js is available)
     if (this.config.ocr.enabled) {
       try {
@@ -403,11 +378,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     if (this.pipeline) {
       await this.pipeline.stop();
       this.pipeline = null;
-    }
-
-    if (this.fileWatcher) {
-      await this.fileWatcher.stop();
-      this.fileWatcher = null;
     }
 
     // Stop OCR queue manager
@@ -741,38 +711,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     return this.startupSync!.needsSync();
   }
 
-  /**
-   * Start real-time file watching.
-   */
-  async startFileWatcher(): Promise<void> {
-    this.ensureInitialized();
-
-    if (!this.fileWatcher) {
-      this.fileWatcher = createFileWatcher(
-        this.rootPath,
-        this.storage!,
-        {
-          enabled: true,
-          debounceMs: 300,
-          ignorePaths: this.config.indexing.ignorePaths,
-          maxFileSize: this.config.indexing.maxFileSize,
-        },
-        this.config.indexing.fileTypes,
-      );
-    }
-
-    await this.fileWatcher.start();
-  }
-
-  /**
-   * Stop real-time file watching.
-   */
-  async stopFileWatcher(): Promise<void> {
-    if (this.fileWatcher) {
-      await this.fileWatcher.stop();
-    }
-  }
-
   // -------------------------------------------------------------------------
   // Stats & Status
   // -------------------------------------------------------------------------
@@ -802,7 +740,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       rootPath: this.rootPath,
       databasePath: join(this.rootPath, this.config.database.path),
       indexingInProgress: this.indexingInProgress,
-      fileWatcherEnabled: this.fileWatcher?.isWatching() ?? false,
       ocrEnabled: this.config.ocr.enabled,
       ocrAvailable: this.ocrAvailable,
     };

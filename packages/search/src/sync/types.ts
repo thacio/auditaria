@@ -67,6 +67,14 @@ export interface FileChangeEvent {
 }
 
 /**
+ * Queue flushed event data.
+ */
+export interface QueueFlushedEvent {
+  /** Number of items flushed to queue */
+  count: number;
+}
+
+/**
  * Events emitted by FileWatcher.
  */
 export interface FileWatcherEvents {
@@ -75,6 +83,8 @@ export interface FileWatcherEvents {
   'file:added': FileChangeEvent;
   'file:changed': FileChangeEvent;
   'file:deleted': FileChangeEvent;
+  /** Emitted after changes are flushed to the queue */
+  'queue:flushed': QueueFlushedEvent;
   error: Error;
   ready: void;
 }

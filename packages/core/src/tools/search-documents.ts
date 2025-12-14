@@ -12,6 +12,7 @@ import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
 import { SEARCH_DOCUMENTS_TOOL_NAME } from './tool-names.js';
+import { SearchServiceManager } from '../services/search-service.js';
 
 /**
  * Parameters for the SearchDocuments tool
@@ -88,103 +89,115 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
   async execute(): Promise<ToolResult> {
     const { query, strategy, folders, file_types, tags, limit } = this.params;
 
-    try {
-      // Dynamically import search package to avoid bundling issues
-      const { loadSearchSystem, searchDatabaseExists } = await import(
-        '@thacio/search'
-      );
+    // Get the shared SearchSystem from ServiceManager
+    const service = SearchServiceManager.getInstance();
 
+    if (!service.isRunning()) {
+      // Try to start the service automatically if database exists
       const rootPath = this.config.getTargetDir();
-
-      // Check if search index exists
-      if (!searchDatabaseExists(rootPath)) {
-        const msg =
-          'Search index not found. Please initialize it first using the search_index tool with action "init".';
-        return {
-          llmContent: msg,
-          returnDisplay: msg,
-          error: {
-            message: msg,
-            type: ToolErrorType.EXECUTION_FAILED,
-          },
-        };
-      }
-
-      // Load the search system
-      const searchSystem = await loadSearchSystem(rootPath, {
-        useMockEmbedder: false,
-      });
-
-      if (!searchSystem) {
-        const msg =
-          'Failed to load search index. Please reinitialize using search_index tool with action "init".';
-        return {
-          llmContent: msg,
-          returnDisplay: msg,
-          error: {
-            message: msg,
-            type: ToolErrorType.EXECUTION_FAILED,
-          },
-        };
-      }
-
       try {
-        // Perform the search
-        const response = await searchSystem.search({
-          query,
-          strategy: strategy ?? 'hybrid',
-          filters: {
-            folders,
-            fileTypes: file_types,
-            tags,
-          },
-          limit: limit ?? 10,
-          highlight: true,
-        });
+        const { searchDatabaseExists } = await import('@thacio/search');
 
-        // Format results for display
-        const formattedResults = response.results.map((result, index) => ({
-          rank: index + 1,
-          file: result.filePath,
-          score: Math.round(result.score * 100) / 100,
-          matchType: result.matchType,
-          section: result.metadata?.section ?? null,
-          page: result.metadata?.page ?? null,
-          text:
-            result.chunkText.length > 300
-              ? result.chunkText.substring(0, 300) + '...'
-              : result.chunkText,
-          highlights: result.highlights ?? [],
-        }));
-
-        // Build response message
-        let llmContent = '';
-
-        if (response.results.length === 0) {
-          llmContent = `No results found for query: "${query}"`;
-        } else {
-          llmContent = `Found ${response.results.length} result(s) for "${query}" in ${response.took}ms:\n\n`;
-
-          formattedResults.forEach((result) => {
-            llmContent += `**${result.rank}. ${result.file}** (score: ${result.score}, ${result.matchType})\n`;
-            if (result.section) {
-              llmContent += `   Section: ${result.section}\n`;
-            }
-            if (result.page) {
-              llmContent += `   Page: ${result.page}\n`;
-            }
-            llmContent += `   ${result.text}\n\n`;
-          });
+        if (!searchDatabaseExists(rootPath)) {
+          const msg =
+            'Search index not found. Please initialize it first using the search_index tool with action "init".';
+          return {
+            llmContent: msg,
+            returnDisplay: msg,
+            error: {
+              message: msg,
+              type: ToolErrorType.EXECUTION_FAILED,
+            },
+          };
         }
 
+        // Auto-start the service
+        console.log('[SearchDocuments] Auto-starting search service...');
+        await service.start(rootPath, {
+          skipInitialSync: true, // Don't sync now, just make search available
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         return {
-          llmContent,
-          returnDisplay: `Found ${response.results.length} result(s) for "${query}" (${strategy ?? 'hybrid'} search, ${response.took}ms)`,
+          llmContent: `Failed to start search service: ${errorMessage}`,
+          returnDisplay: `Search error: ${errorMessage}`,
+          error: {
+            message: errorMessage,
+            type: ToolErrorType.EXECUTION_FAILED,
+          },
         };
-      } finally {
-        // Always close the search system to release resources
-        await searchSystem.close();
       }
+    }
+
+    const searchSystem = service.getSearchSystem();
+    if (!searchSystem) {
+      const msg = 'Search service is starting. Please try again in a moment.';
+      return {
+        llmContent: msg,
+        returnDisplay: msg,
+        error: {
+          message: msg,
+          type: ToolErrorType.EXECUTION_FAILED,
+        },
+      };
+    }
+
+    try {
+      // Perform the search
+      const response = await searchSystem.search({
+        query,
+        strategy: strategy ?? 'hybrid',
+        filters: {
+          folders,
+          fileTypes: file_types,
+          tags,
+        },
+        limit: limit ?? 10,
+        highlight: true,
+      });
+
+      // Format results for display
+      const formattedResults = response.results.map((result, index) => ({
+        rank: index + 1,
+        file: result.filePath,
+        score: Math.round(result.score * 100) / 100,
+        matchType: result.matchType,
+        section: result.metadata?.section ?? null,
+        page: result.metadata?.page ?? null,
+        text:
+          result.chunkText.length > 300
+            ? result.chunkText.substring(0, 300) + '...'
+            : result.chunkText,
+        highlights: result.highlights ?? [],
+      }));
+
+      // Build response message
+      let llmContent = '';
+
+      if (response.results.length === 0) {
+        llmContent = `No results found for query: "${query}"`;
+      } else {
+        llmContent = `Found ${response.results.length} result(s) for "${query}" in ${response.took}ms:\n\n`;
+
+        formattedResults.forEach((result) => {
+          llmContent += `**${result.rank}. ${result.file}** (score: ${result.score}, ${result.matchType})\n`;
+          if (result.section) {
+            llmContent += `   Section: ${result.section}\n`;
+          }
+          if (result.page) {
+            llmContent += `   Page: ${result.page}\n`;
+          }
+          llmContent += `   ${result.text}\n\n`;
+        });
+      }
+
+      // Note: Do NOT close the searchSystem - it's shared and managed by ServiceManager
+
+      return {
+        llmContent,
+        returnDisplay: `Found ${response.results.length} result(s) for "${query}" (${strategy ?? 'hybrid'} search, ${response.took}ms)`,
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);

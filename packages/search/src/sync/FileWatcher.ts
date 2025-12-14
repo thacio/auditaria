@@ -247,15 +247,19 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
     const changes = new Map(this.pendingChanges);
     this.pendingChanges.clear();
 
+    let processedCount = 0;
+
     for (const [absolutePath, event] of changes) {
       try {
         switch (event.type) {
           case 'add':
           case 'change':
             await this.handleFileAddOrChange(absolutePath);
+            processedCount++;
             break;
           case 'unlink':
             await this.handleFileDelete(absolutePath);
+            processedCount++;
             break;
           default:
             // Exhaustive check - should never reach here
@@ -267,6 +271,11 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
           error,
         );
       }
+    }
+
+    // Emit queue:flushed event to signal that items have been queued
+    if (processedCount > 0) {
+      void this.emit('queue:flushed', { count: processedCount });
     }
   }
 

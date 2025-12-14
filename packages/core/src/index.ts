@@ -138,6 +138,7 @@ export * from './tools/context-management.js'; // Custom Auditaria Feature: cont
 export * from './tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 export * from './tools/search-documents.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 export * from './tools/search-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
+export * from './services/search-service.js'; // AUDITARIA_LOCAL_SEARCH - Search Service Manager
 
 // MCP OAuth
 export { MCPOAuthProvider } from './mcp/oauth-provider.js';
