@@ -1,12 +1,11 @@
 /**
  * TesseractJsProvider - OCR provider using tesseract.js.
- * Provides local OCR capabilities without requiring external services.
+ * Provides local OCR capabilities for images without requiring external services.
+ *
+ * For PDF OCR, use ScribeJsProvider instead.
  */
 
-import { readFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
+import { readFile } from 'node:fs/promises';
 import type { OcrRegion } from '../parsers/types.js';
 import type {
   OcrProvider,
@@ -15,6 +14,17 @@ import type {
   OcrOptions,
   OcrProgressCallback,
 } from './types.js';
+import {
+  SUPPORTED_LANGUAGES,
+  toTesseractLang,
+  detectScript,
+  type ScriptDetectionResult,
+} from './language-detection.js';
+import {
+  getDefaultOcrCacheDir,
+  ensureOcrCacheDir,
+  CDN_LANG_PATH,
+} from './ocr-utils.js';
 
 // ============================================================================
 // Tesseract.js Types (minimal subset we need)
@@ -81,28 +91,6 @@ interface TesseractWord {
 // ============================================================================
 
 /**
- * Get the default OCR cache directory path.
- * Uses ~/.auditaria/ocr/ to store language data files (like eng.traineddata).
- * This allows reuse across projects and avoids cluttering the project root.
- */
-function getDefaultOcrCacheDir(): string {
-  const homeDir = os.homedir();
-  if (!homeDir) {
-    return path.join(os.tmpdir(), '.auditaria', 'ocr');
-  }
-  return path.join(homeDir, '.auditaria', 'ocr');
-}
-
-/**
- * Ensure the OCR cache directory exists.
- */
-async function ensureOcrCacheDir(cacheDir: string): Promise<void> {
-  if (!existsSync(cacheDir)) {
-    await mkdir(cacheDir, { recursive: true });
-  }
-}
-
-/**
  * Configuration for TesseractJsProvider.
  */
 export interface TesseractJsProviderConfig {
@@ -119,12 +107,6 @@ export interface TesseractJsProviderConfig {
 }
 
 /**
- * CDN URLs for tesseract.js resources (version 5.x).
- * Used only in browser environments.
- */
-const CDN_LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
-
-/**
  * Default configuration.
  * Note: workerPath and corePath are left empty for Node.js to use defaults.
  * langPath uses CDN for language data downloads.
@@ -139,90 +121,6 @@ const DEFAULT_CONFIG: Required<TesseractJsProviderConfig> = {
 };
 
 // ============================================================================
-// Language Code Mapping
-// ============================================================================
-
-/**
- * Map ISO 639-1 (2-letter) to ISO 639-3 (3-letter) codes used by Tesseract.
- */
-const LANG_MAP: Record<string, string> = {
-  en: 'eng',
-  pt: 'por',
-  es: 'spa',
-  fr: 'fra',
-  de: 'deu',
-  it: 'ita',
-  nl: 'nld',
-  ru: 'rus',
-  zh: 'chi_sim',
-  ja: 'jpn',
-  ko: 'kor',
-  ar: 'ara',
-};
-
-/**
- * Map detected scripts to recommended languages for OCR.
- * Script detection returns the writing system, not the specific language.
- * This mapping provides reasonable defaults for common scripts.
- *
- * Note: Script detection is not 100% accurate and may sometimes misclassify
- * (e.g., Chinese detected as Latin). Use these as hints, not guarantees.
- *
- * Languages are ordered by global usage/importance. For Latin script,
- * Portuguese is placed early due to Brazil/Portugal being major markets.
- */
-const SCRIPT_TO_LANGUAGES: Record<string, string[]> = {
-  // Latin: ordered by global importance, Portuguese early for Brazil/Portugal
-  Latin: ['eng', 'por', 'spa', 'fra', 'deu', 'ita', 'nld'],
-  Cyrillic: ['rus', 'ukr', 'bel', 'bul', 'srp'],
-  Arabic: ['ara', 'fas', 'urd'],
-  Hebrew: ['heb'],
-  Greek: ['ell'],
-  // Han: includes Japanese since Kanji may be detected as Han script
-  Han: ['chi_sim', 'chi_tra', 'jpn'],
-  Hangul: ['kor'],
-  Hiragana: ['jpn'],
-  Katakana: ['jpn'],
-  Japanese: ['jpn'],
-  Thai: ['tha'],
-  Devanagari: ['hin', 'mar', 'nep', 'san'],
-  Tamil: ['tam'],
-  Telugu: ['tel'],
-  Bengali: ['ben'],
-  Gujarati: ['guj'],
-  Kannada: ['kan'],
-  Malayalam: ['mal'],
-  Punjabi: ['pan'],
-};
-
-/**
- * Result from script detection.
- */
-export interface ScriptDetectionResult {
-  /** Detected script name (e.g., 'Latin', 'Cyrillic', 'Han') */
-  script: string;
-  /** Confidence score (0-1) */
-  confidence: number;
-  /** Suggested languages for the detected script */
-  suggestedLanguages: string[];
-  /** Detected text orientation in degrees */
-  orientationDegrees: number;
-  /** Orientation confidence (0-1) */
-  orientationConfidence: number;
-}
-
-/**
- * Convert language code to Tesseract format.
- */
-function toTesseractLang(lang: string): string {
-  // If already 3 letters, return as-is
-  if (lang.length >= 3) {
-    return lang;
-  }
-  return LANG_MAP[lang.toLowerCase()] || lang;
-}
-
-// ============================================================================
 // TesseractJsProvider Implementation
 // ============================================================================
 
@@ -232,20 +130,7 @@ function toTesseractLang(lang: string): string {
  */
 export class TesseractJsProvider implements OcrProvider {
   readonly name = 'tesseract-js';
-  readonly supportedLanguages: string[] = [
-    'en',
-    'pt',
-    'es',
-    'fr',
-    'de',
-    'it',
-    'nl',
-    'ru',
-    'zh',
-    'ja',
-    'ko',
-    'ar',
-  ];
+  readonly supportedLanguages: string[] = SUPPORTED_LANGUAGES;
   readonly priority = 100;
 
   private config: Required<TesseractJsProviderConfig>;
@@ -493,14 +378,17 @@ export class TesseractJsProvider implements OcrProvider {
       imageData = await readFile(image);
     }
 
-    // Step 1: Detect script
+    // Step 1: Detect script using shared language detection
     progressCallback?.({
       stage: 'processing',
       progress: 10,
       message: 'Detecting script and orientation...',
     });
 
-    const scriptResult = await detectScript(imageData, (info) => {
+    const cacheDir = getDefaultOcrCacheDir();
+    await ensureOcrCacheDir(cacheDir);
+
+    const scriptResult = await detectScript(imageData, cacheDir, (info) => {
       progressCallback?.({
         stage: 'loading',
         progress: 10 + info.progress * 0.3,
@@ -527,8 +415,6 @@ export class TesseractJsProvider implements OcrProvider {
 
     // Step 3: Create a worker with detected languages and run OCR
     const tesseract = await import('tesseract.js');
-    const cacheDir = getDefaultOcrCacheDir();
-    await ensureOcrCacheDir(cacheDir);
 
     const langString = detectedLangs.map(toTesseractLang).join('+');
     const workerOptions = {
@@ -635,9 +521,7 @@ export class TesseractJsProvider implements OcrProvider {
   /**
    * Extract words from a block.
    */
-  private extractWords(
-    block: TesseractBlock,
-  ): Array<{
+  private extractWords(block: TesseractBlock): Array<{
     text: string;
     confidence: number;
     bounds?: OcrTextRegion['bounds'];
@@ -694,137 +578,7 @@ export async function isTesseractAvailable(): Promise<boolean> {
   }
 }
 
-/**
- * Get the OCR cache directory path.
- * Useful for checking where language data (traineddata) files are stored.
- */
-export { getDefaultOcrCacheDir };
-
-// ============================================================================
-// Script Detection (Requires Legacy Mode)
-// ============================================================================
-
-/**
- * Detect the script (writing system) of an image using Tesseract's OSD.
- *
- * **Important**: This function requires downloading additional legacy model data
- * (~30MB) because OSD is only supported in Tesseract's legacy mode.
- *
- * This is a standalone function that creates a temporary worker with legacy mode
- * enabled, performs detection, and disposes the worker. For repeated detections,
- * consider caching the worker.
- *
- * **Limitations**:
- * - Script detection is not 100% accurate
- * - Chinese/Japanese text may sometimes be detected as Latin
- * - Works best with clear, properly oriented text
- *
- * @param image - Image buffer or file path
- * @param progressCallback - Optional progress callback
- * @returns Script detection result with suggested languages
- *
- * @example
- * ```typescript
- * const result = await detectScript('document.png');
- * console.log(`Script: ${result.script}, Suggested: ${result.suggestedLanguages}`);
- *
- * // Use detected languages for OCR
- * const provider = new TesseractJsProvider({
- *   languages: result.suggestedLanguages.slice(0, 2) // Use top 2 suggestions
- * });
- * ```
- */
-export async function detectScript(
-  image: Buffer | string,
-  progressCallback?: OcrProgressCallback,
-): Promise<ScriptDetectionResult> {
-  let worker: TesseractWorker | null = null;
-
-  try {
-    progressCallback?.({
-      stage: 'loading',
-      progress: 0,
-      message: 'Loading script detection model (legacy mode)...',
-    });
-
-    const cacheDir = getDefaultOcrCacheDir();
-    await ensureOcrCacheDir(cacheDir);
-
-    const tesseract = await import('tesseract.js');
-
-    progressCallback?.({
-      stage: 'loading',
-      progress: 30,
-      message: 'Creating legacy worker for OSD...',
-    });
-
-    // OSD requires legacy mode - this downloads additional model data
-    const workerOptions = {
-      // OEM_TESSERACT_ONLY for legacy mode (required for OSD)
-      legacyCore: true,
-      legacyLang: true,
-      cachePath: cacheDir, // tesseract.js uses 'cachePath'
-      langPath: CDN_LANG_PATH,
-      logger: (m: { status: string; progress: number }) => {
-        if (progressCallback) {
-          progressCallback({
-            stage: 'loading',
-            progress: 30 + Math.round(m.progress * 50),
-            message: m.status,
-          });
-        }
-      },
-    } as Record<string, unknown>;
-    worker = (await tesseract.createWorker(
-      'osd',
-      0,
-      workerOptions,
-    )) as unknown as TesseractWorker;
-
-    progressCallback?.({
-      stage: 'processing',
-      progress: 80,
-      message: 'Detecting script and orientation...',
-    });
-
-    // Load image if it's a file path
-    let imageData: Buffer | string = image;
-    if (typeof image === 'string' && !image.startsWith('data:')) {
-      imageData = await readFile(image);
-    }
-
-    const result = await worker.detect(imageData);
-
-    progressCallback?.({
-      stage: 'processing',
-      progress: 100,
-      message: 'Detection complete',
-    });
-
-    const detectedScript = result.data.script || 'Unknown';
-    const suggestedLanguages = SCRIPT_TO_LANGUAGES[detectedScript] || ['eng'];
-
-    return {
-      script: detectedScript,
-      confidence: result.data.script_confidence / 100,
-      suggestedLanguages,
-      orientationDegrees: result.data.orientation_degrees,
-      orientationConfidence: result.data.orientation_confidence / 100,
-    };
-  } finally {
-    if (worker) {
-      await worker.terminate();
-    }
-  }
-}
-
-/**
- * Get suggested languages for a script name.
- * Useful when you already know the script from other sources.
- *
- * @param scriptName - Script name (e.g., 'Latin', 'Cyrillic', 'Han')
- * @returns Array of suggested Tesseract language codes
- */
-export function getLanguagesForScript(scriptName: string): string[] {
-  return SCRIPT_TO_LANGUAGES[scriptName] || ['eng'];
-}
+// Re-export shared utilities for backwards compatibility
+export { getDefaultOcrCacheDir } from './ocr-utils.js';
+export { detectScript, getLanguagesForScript } from './language-detection.js';
+export type { ScriptDetectionResult } from './language-detection.js';

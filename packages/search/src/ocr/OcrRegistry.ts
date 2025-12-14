@@ -1,6 +1,10 @@
 /**
  * OcrRegistry - Registry for OCR providers.
  * Manages multiple OCR providers and selects the best one for a given task.
+ *
+ * Provider selection strategy:
+ * - PDFs: ScribeJsProvider (has native PDF support)
+ * - Images: TesseractJsProvider (faster for images)
  */
 
 import type {
@@ -11,6 +15,7 @@ import type {
   OcrProgressCallback,
 } from './types.js';
 import type { OcrRegion } from '../parsers/types.js';
+import { isPdfFile, isImageFile } from './ocr-utils.js';
 
 // ============================================================================
 // OcrRegistry Implementation
@@ -110,6 +115,42 @@ export class OcrRegistry {
 
     // Return highest priority match, or default if none match
     return matching[0] || this.getDefault();
+  }
+
+  /**
+   * Get the best provider for a specific file type.
+   * - PDFs: Prefers ScribeJsProvider (native PDF support)
+   * - Images: Prefers TesseractJsProvider (faster for images)
+   */
+  getBestForFile(filePath: string): OcrProvider | undefined {
+    if (this.providers.size === 0) {
+      return undefined;
+    }
+
+    const isPdf = isPdfFile(filePath);
+    const isImage = isImageFile(filePath);
+
+    // Get all providers sorted by priority
+    const sorted = this.getAll().sort((a, b) => b.priority - a.priority);
+
+    if (isPdf) {
+      // For PDFs, prefer ScribeJsProvider (has native PDF support)
+      const scribeProvider = sorted.find((p) => p.name === 'scribe-js');
+      if (scribeProvider) {
+        return scribeProvider;
+      }
+    }
+
+    if (isImage) {
+      // For images, prefer TesseractJsProvider (faster for images)
+      const tesseractProvider = sorted.find((p) => p.name === 'tesseract-js');
+      if (tesseractProvider) {
+        return tesseractProvider;
+      }
+    }
+
+    // Fallback to highest priority provider
+    return sorted[0] || this.getDefault();
   }
 
   /**
@@ -213,14 +254,18 @@ export class OcrRegistry {
 
   /**
    * Recognize text from a file.
+   * Automatically selects the best provider based on file type:
+   * - PDFs: ScribeJsProvider (native PDF support)
+   * - Images: TesseractJsProvider (faster)
    */
   async recognizeFile(
     filePath: string,
     options?: OcrOptions & { provider?: string },
   ): Promise<OcrResult> {
+    // Use specified provider, or auto-select based on file type
     const provider = options?.provider
       ? this.get(options.provider)
-      : this.getDefault();
+      : this.getBestForFile(filePath) || this.getDefault();
 
     if (!provider) {
       throw new Error('No OCR provider available');
@@ -240,14 +285,19 @@ export class OcrRegistry {
    * Recognize text from a file with automatic language detection.
    * Uses script detection (OSD) to determine the best languages for OCR.
    * Downloads required language data automatically.
+   *
+   * Automatically selects the best provider based on file type:
+   * - PDFs: ScribeJsProvider (native PDF support)
+   * - Images: TesseractJsProvider (faster)
    */
   async recognizeFileWithAutoDetect(
     filePath: string,
     options?: { provider?: string },
   ): Promise<OcrResult> {
+    // Use specified provider, or auto-select based on file type
     const provider = options?.provider
       ? this.get(options.provider)
-      : this.getDefault();
+      : this.getBestForFile(filePath) || this.getDefault();
 
     if (!provider) {
       throw new Error('No OCR provider available');
@@ -301,15 +351,16 @@ export function createOcrRegistry(options?: OcrRegistryOptions): OcrRegistry {
 }
 
 /**
- * Create an OcrRegistry with TesseractJsProvider if available.
+ * Create an OcrRegistry with available providers.
+ * Registers both TesseractJsProvider (for images) and ScribeJsProvider (for PDFs).
  */
 export async function createOcrRegistryAsync(
   options?: OcrRegistryOptions,
 ): Promise<OcrRegistry> {
   const registry = new OcrRegistry(options);
 
+  // Try to register TesseractJsProvider (for images)
   try {
-    // Try to import and register Tesseract.js provider
     const { TesseractJsProvider, isTesseractAvailable } = await import(
       './TesseractJsProvider.js'
     );
@@ -320,6 +371,20 @@ export async function createOcrRegistryAsync(
     }
   } catch {
     // tesseract.js not available
+  }
+
+  // Try to register ScribeJsProvider (for PDFs)
+  try {
+    const { ScribeJsProvider, isScribeAvailable } = await import(
+      './ScribeJsProvider.js'
+    );
+
+    if (await isScribeAvailable()) {
+      const provider = new ScribeJsProvider();
+      registry.register(provider);
+    }
+  } catch {
+    // scribe.js-ocr not available
   }
 
   return registry;

@@ -1,6 +1,9 @@
 /**
  * OcrQueueManager - Manages OCR processing queue.
  * Handles low-priority background OCR processing for documents that need it.
+ *
+ * Supports both images (via TesseractJsProvider) and PDFs (via ScribeJsProvider).
+ * The OcrRegistry automatically selects the best provider based on file type.
  */
 
 import { extname } from 'node:path';
@@ -17,6 +20,7 @@ import type {
   OcrMergeResult,
 } from './types.js';
 import type { OcrRegistry } from './OcrRegistry.js';
+import { isOcrSupported } from './ocr-utils.js';
 
 // ============================================================================
 // Types
@@ -56,32 +60,8 @@ export interface OcrQueueStatus {
 // Constants
 // ============================================================================
 
-/**
- * Image file extensions that can be processed directly by tesseract.js.
- * Note: PDFs cannot be processed directly by tesseract.js - they need to be
- * converted to images first. For now, we skip PDFs and rely on pdf-parse
- * for text extraction.
- */
-const SUPPORTED_IMAGE_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.bmp',
-  '.tiff',
-  '.tif',
-  '.webp',
-]);
-
-/**
- * Check if a file can be processed directly by tesseract.js.
- * Note: PDFs are NOT supported - tesseract.js/leptonica cannot read PDFs directly.
- * PDF OCR would require converting pages to images first (future enhancement).
- */
-function isOcrProcessableFile(filePath: string): boolean {
-  const ext = extname(filePath).toLowerCase();
-  return SUPPORTED_IMAGE_EXTENSIONS.has(ext);
-}
+// Note: File type checking is now done via isOcrSupported from ocr-utils.js
+// which supports both images (TesseractJsProvider) and PDFs (ScribeJsProvider)
 
 // ============================================================================
 // ID Generation
@@ -406,9 +386,11 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
         ocrResults = await this.ocrRegistry.recognizeRegions(job.regions, {
           languages: this.config.defaultLanguages,
         });
-      } else if (isOcrProcessableFile(job.filePath)) {
-        // Process image file directly
-        // Use auto-detect if enabled, otherwise use default languages
+      } else if (isOcrSupported(job.filePath)) {
+        // Process image or PDF file
+        // OcrRegistry automatically selects the best provider:
+        // - TesseractJsProvider for images (faster)
+        // - ScribeJsProvider for PDFs (native PDF support)
         if (this.config.autoDetectLanguage) {
           const result = await this.ocrRegistry.recognizeFileWithAutoDetect(
             job.filePath,
@@ -421,18 +403,11 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
           ocrResults = [result];
         }
       } else {
-        // File type not supported for direct OCR
+        // File type not supported for OCR
         const ext = extname(job.filePath).toLowerCase();
-        if (ext === '.pdf') {
-          console.log(
-            `[OcrQueueManager] Skipping ${job.filePath}: PDF OCR requires page-to-image conversion (not yet implemented). ` +
-              `Using text extracted by pdf-parse instead.`,
-          );
-        } else {
-          console.warn(
-            `[OcrQueueManager] Skipping ${job.filePath}: File type '${ext}' not supported for OCR.`,
-          );
-        }
+        console.warn(
+          `[OcrQueueManager] Skipping ${job.filePath}: File type '${ext}' not supported for OCR.`,
+        );
         job.status = 'completed';
         job.completedAt = new Date();
         await this.storage.updateDocument(job.documentId, {
