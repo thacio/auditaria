@@ -212,6 +212,46 @@ export type {
 } from './src/discovery/FileDiscovery.js';
 
 // ============================================================================
+// OCR (Direct Access)
+// ============================================================================
+
+export {
+  OcrRegistry,
+  createOcrRegistry,
+  createOcrRegistryAsync,
+  TesseractJsProvider,
+  createTesseractJsProvider,
+  isTesseractAvailable,
+  ScribeJsProvider,
+  createScribeJsProvider,
+  isScribeAvailable,
+  isScribeSupportedFile,
+  OcrQueueManager,
+  createOcrQueueManager,
+} from './src/ocr/index.js';
+
+export type {
+  OcrProvider,
+  OcrResult,
+  OcrTextRegion,
+  OcrWord,
+  OcrOptions,
+  OcrRegistryOptions,
+  OcrJob,
+  OcrJobStatus,
+  OcrQueueConfig,
+  OcrProgressCallback,
+  OcrProgressInfo,
+  OcrEvents,
+  OcrMergeOptions,
+  OcrMergeResult,
+  TesseractJsProviderConfig,
+  ScribeJsProviderConfig,
+  OcrQueueState,
+  OcrQueueStatus,
+} from './src/ocr/index.js';
+
+// ============================================================================
 // Core Utilities
 // ============================================================================
 
