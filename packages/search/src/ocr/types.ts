@@ -188,7 +188,13 @@ export interface OcrQueueConfig {
   retryDelay: number;
   /** Process OCR only after main indexing queue is empty */
   processAfterMainQueue: boolean;
-  /** Default languages to use */
+  /**
+   * Automatically detect script/language before OCR.
+   * When enabled, uses Tesseract OSD to detect the writing system.
+   * Downloads required language data automatically on first use.
+   */
+  autoDetectLanguage: boolean;
+  /** Default languages to use (fallback when auto-detect is disabled) */
   defaultLanguages: string[];
 }
 

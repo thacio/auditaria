@@ -80,6 +80,14 @@ export interface OcrConfig {
   retryDelay: number;
   /** Process OCR only after main indexing queue is empty. Default: true */
   processAfterMainQueue: boolean;
+  /**
+   * Automatically detect script/language before OCR. Default: true
+   * When enabled, uses Tesseract OSD to detect the writing system and
+   * selects appropriate languages automatically. This provides better
+   * accuracy for multilingual documents but adds ~2-3 seconds overhead.
+   * Downloads required language data automatically on first use.
+   */
+  autoDetectLanguage: boolean;
   /** Default languages for OCR (ISO 639-1 codes). Default: ['en'] */
   defaultLanguages: string[];
   /** Minimum confidence threshold for OCR results (0-1). Default: 0.5 */
@@ -168,10 +176,11 @@ export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
 
 export const DEFAULT_OCR_CONFIG: OcrConfig = {
   enabled: true,
-  concurrency: 1,
+  concurrency: 2, // Process 2 OCR jobs in parallel (OCR is CPU/memory intensive)
   maxRetries: 3,
   retryDelay: 5000,
   processAfterMainQueue: true,
+  autoDetectLanguage: true,
   defaultLanguages: ['en'],
   minConfidence: 0.5,
 };

@@ -27,10 +27,11 @@ import type { OcrRegistry } from './OcrRegistry.js';
  */
 const DEFAULT_CONFIG: OcrQueueConfig = {
   enabled: true,
-  concurrency: 1,
+  concurrency: 2, // Process 2 OCR jobs in parallel (OCR is CPU/memory intensive)
   maxRetries: 3,
   retryDelay: 5000,
   processAfterMainQueue: true,
+  autoDetectLanguage: true,
   defaultLanguages: ['en'],
 };
 
@@ -334,15 +335,10 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
   // -------------------------------------------------------------------------
 
   /**
-   * Process the next pending job.
+   * Process pending jobs up to concurrency limit (parallel processing).
    */
   private async processNext(): Promise<void> {
     if (this.state !== 'running') {
-      return;
-    }
-
-    // Check concurrency limit
-    if (this.processing.size >= this.config.concurrency) {
       return;
     }
 
@@ -354,14 +350,27 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
       }
     }
 
-    // Get next pending job
+    // Get pending jobs
     const pendingJobs = this.getPendingJobs();
     if (pendingJobs.length === 0) {
       return;
     }
 
-    const job = pendingJobs[0];
-    await this.processJob(job);
+    // Calculate how many jobs we can start (up to concurrency limit)
+    const availableSlots = this.config.concurrency - this.processing.size;
+    if (availableSlots <= 0) {
+      return;
+    }
+
+    // Start multiple jobs in parallel (up to available slots)
+    const jobsToStart = pendingJobs.slice(0, availableSlots);
+    const promises = jobsToStart.map((job) => this.processJob(job));
+
+    // Don't await - let them run in background
+    // Errors are handled inside processJob
+    Promise.all(promises).catch(() => {
+      // Errors already handled in processJob
+    });
   }
 
   /**
@@ -393,15 +402,24 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
 
       if (job.regions.length > 0 && job.regions.some((r) => r.imageData)) {
         // Process specific regions (from embedded images in documents)
+        // Note: Auto-detect not supported for regions yet, use default languages
         ocrResults = await this.ocrRegistry.recognizeRegions(job.regions, {
           languages: this.config.defaultLanguages,
         });
       } else if (isOcrProcessableFile(job.filePath)) {
-        // Process image or PDF file directly
-        const result = await this.ocrRegistry.recognizeFile(job.filePath, {
-          languages: this.config.defaultLanguages,
-        });
-        ocrResults = [result];
+        // Process image file directly
+        // Use auto-detect if enabled, otherwise use default languages
+        if (this.config.autoDetectLanguage) {
+          const result = await this.ocrRegistry.recognizeFileWithAutoDetect(
+            job.filePath,
+          );
+          ocrResults = [result];
+        } else {
+          const result = await this.ocrRegistry.recognizeFile(job.filePath, {
+            languages: this.config.defaultLanguages,
+          });
+          ocrResults = [result];
+        }
       } else {
         // File type not supported for direct OCR
         const ext = extname(job.filePath).toLowerCase();
@@ -538,7 +556,8 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
   }
 
   /**
-   * Process all pending OCR jobs.
+   * Process all pending OCR jobs with parallel processing.
+   * Respects the concurrency limit for efficient resource usage.
    */
   async processAll(): Promise<{
     processed: number;
@@ -559,18 +578,26 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
     try {
       const pendingJobs = this.getPendingJobs();
 
-      for (const job of pendingJobs) {
+      // Process jobs in batches respecting concurrency limit
+      for (let i = 0; i < pendingJobs.length; i += this.config.concurrency) {
         if (this.state !== 'running') {
           break;
         }
 
-        await this.processJob(job);
-        processed++;
+        // Get batch of jobs up to concurrency limit
+        const batch = pendingJobs.slice(i, i + this.config.concurrency);
 
-        if (job.status === 'completed') {
-          succeeded++;
-        } else if (job.status === 'failed') {
-          failed++;
+        // Process batch in parallel
+        await Promise.all(batch.map((job) => this.processJob(job)));
+
+        // Count results
+        for (const job of batch) {
+          processed++;
+          if (job.status === 'completed') {
+            succeeded++;
+          } else if (job.status === 'failed') {
+            failed++;
+          }
         }
       }
     } finally {

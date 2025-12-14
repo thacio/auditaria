@@ -26,7 +26,11 @@ export {
   TesseractJsProvider,
   createTesseractJsProvider,
   isTesseractAvailable,
+  getDefaultOcrCacheDir,
+  detectScript,
+  getLanguagesForScript,
   type TesseractJsProviderConfig,
+  type ScriptDetectionResult,
 } from './TesseractJsProvider.js';
 
 // OcrRegistry

@@ -237,6 +237,43 @@ export class OcrRegistry {
   }
 
   /**
+   * Recognize text from a file with automatic language detection.
+   * Uses script detection (OSD) to determine the best languages for OCR.
+   * Downloads required language data automatically.
+   */
+  async recognizeFileWithAutoDetect(
+    filePath: string,
+    options?: { provider?: string },
+  ): Promise<OcrResult> {
+    const provider = options?.provider
+      ? this.get(options.provider)
+      : this.getDefault();
+
+    if (!provider) {
+      throw new Error('No OCR provider available');
+    }
+
+    // Check if provider supports auto-detect
+    if ('recognizeWithAutoDetect' in provider) {
+      // Use the provider's auto-detect method
+      return (
+        provider as OcrProvider & {
+          recognizeWithAutoDetect: (
+            image: Buffer | string,
+            options?: OcrOptions,
+          ) => Promise<OcrResult>;
+        }
+      ).recognizeWithAutoDetect(filePath);
+    }
+
+    // Fallback: initialize if needed and use regular recognition
+    if (!provider.isReady()) {
+      await provider.initialize();
+    }
+    return provider.recognizeFile(filePath, this.defaultOptions);
+  }
+
+  /**
    * Dispose all providers.
    */
   async disposeAll(): Promise<void> {

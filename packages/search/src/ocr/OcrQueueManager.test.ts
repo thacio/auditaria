@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { OcrQueueManager} from './OcrQueueManager.js';
+import type { OcrQueueManager } from './OcrQueueManager.js';
 import { createOcrQueueManager } from './OcrQueueManager.js';
 import { OcrRegistry } from './OcrRegistry.js';
 import type { OcrProvider, OcrResult } from './types.js';
@@ -136,6 +136,7 @@ describe('OcrQueueManager', () => {
       maxRetries: 2,
       retryDelay: 100,
       processAfterMainQueue: false, // Don't wait for main queue in tests
+      autoDetectLanguage: false, // Disable auto-detect in tests (mock doesn't support it)
       defaultLanguages: ['en'],
     });
   });
@@ -254,6 +255,7 @@ describe('OcrQueueManager', () => {
         maxRetries: 3,
         retryDelay: 5000,
         processAfterMainQueue: true,
+        autoDetectLanguage: false,
         defaultLanguages: ['en'],
       });
 
@@ -287,7 +289,8 @@ describe('OcrQueueManager', () => {
     });
 
     it('should update document status on completion', async () => {
-      await queueManager.enqueue('doc-1', '/test/file.pdf', []);
+      // Use image file extension since PDF OCR is not supported directly
+      await queueManager.enqueue('doc-1', '/test/file.png', []);
       await queueManager.processAll();
 
       expect(storage.updateDocument).toHaveBeenCalledWith('doc-1', {
@@ -296,7 +299,8 @@ describe('OcrQueueManager', () => {
     });
 
     it('should create OCR chunk on completion', async () => {
-      await queueManager.enqueue('doc-1', '/test/file.pdf', []);
+      // Use image file extension since PDF OCR is not supported directly
+      await queueManager.enqueue('doc-1', '/test/file.png', []);
       await queueManager.processAll();
 
       expect(storage.createChunks).toHaveBeenCalled();
