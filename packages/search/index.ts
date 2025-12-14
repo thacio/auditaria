@@ -189,6 +189,8 @@ export {
   TransformersJsEmbedder,
   createTransformersJsEmbedder,
   MockEmbedder,
+  WorkerEmbedder,
+  createWorkerEmbedder,
 } from './src/embedders/index.js';
 
 export type {
@@ -198,6 +200,7 @@ export type {
   ProgressInfo,
   TransformersJsEmbedderConfig,
   EmbedderEvents,
+  WorkerEmbedderConfig,
 } from './src/embedders/index.js';
 
 // ============================================================================

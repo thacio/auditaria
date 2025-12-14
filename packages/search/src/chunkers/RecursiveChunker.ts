@@ -12,6 +12,17 @@ import type {
 import { DEFAULT_CHUNKER_OPTIONS } from './types.js';
 
 // ============================================================================
+// Utility: Event Loop Yielding
+// ============================================================================
+
+/** Yield to the event loop to prevent blocking */
+const yieldToEventLoop = (): Promise<void> =>
+  new Promise((resolve) => setImmediate(resolve));
+
+/** How often to yield during chunk processing */
+const YIELD_EVERY_N_CHUNKS = 20;
+
+// ============================================================================
 // Constants
 // ============================================================================
 
@@ -79,6 +90,11 @@ export class RecursiveChunker implements DocumentChunker {
     let currentOffset = 0;
 
     for (let i = 0; i < rawChunks.length; i++) {
+      // Yield to event loop periodically to prevent blocking
+      if (i > 0 && i % YIELD_EVERY_N_CHUNKS === 0) {
+        await yieldToEventLoop();
+      }
+
       const chunkText = rawChunks[i];
       const startOffset = text.indexOf(chunkText, currentOffset);
       const endOffset = startOffset + chunkText.length;

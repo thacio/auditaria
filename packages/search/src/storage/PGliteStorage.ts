@@ -38,6 +38,13 @@ import type { DatabaseConfig } from '../config.js';
 // Helper Functions
 // ============================================================================
 
+/** Yield to the event loop to prevent blocking */
+const yieldToEventLoop = (): Promise<void> =>
+  new Promise((resolve) => setImmediate(resolve));
+
+/** How often to yield during batch operations */
+const YIELD_EVERY_N_ITEMS = 50;
+
 function generateId(): string {
   return crypto.randomUUID();
 }
@@ -388,7 +395,13 @@ export class PGliteStorage implements StorageAdapter {
     const createdChunks: DocumentChunk[] = [];
     const now = new Date().toISOString();
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      // Yield to event loop periodically to prevent blocking
+      if (i > 0 && i % YIELD_EVERY_N_ITEMS === 0) {
+        await yieldToEventLoop();
+      }
+
+      const chunk = chunks[i];
       const id = generateId();
 
       await this.db!.query(
@@ -454,7 +467,13 @@ export class PGliteStorage implements StorageAdapter {
   ): Promise<void> {
     this.ensureInitialized();
 
-    for (const update of updates) {
+    for (let i = 0; i < updates.length; i++) {
+      // Yield to event loop periodically to prevent blocking
+      if (i > 0 && i % YIELD_EVERY_N_ITEMS === 0) {
+        await yieldToEventLoop();
+      }
+
+      const update = updates[i];
       await this.db!.query('UPDATE chunks SET embedding = $1 WHERE id = $2', [
         formatVector(update.embedding),
         update.id,

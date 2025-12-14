@@ -35,6 +35,14 @@ const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
 
 // ============================================================================
+// Utility: Event Loop Yielding
+// ============================================================================
+
+/** Yield to the event loop to prevent blocking */
+const yieldToEventLoop = (): Promise<void> =>
+  new Promise((resolve) => setImmediate(resolve));
+
+// ============================================================================
 // IndexingPipeline Class
 // ============================================================================
 
@@ -629,6 +637,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const batchSize = this.options.embeddingBatchSize;
 
     for (let i = 0; i < chunks.length; i += batchSize) {
+      // Yield to event loop between batches to prevent blocking
+      if (i > 0) {
+        await yieldToEventLoop();
+      }
+
       const batchChunks = chunks.slice(i, i + batchSize);
       const batchIds = chunkIds.slice(i, i + batchSize);
       const texts = batchChunks.map((c) => c.text);

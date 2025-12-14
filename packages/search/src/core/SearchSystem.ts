@@ -44,7 +44,11 @@ import {
 } from '../discovery/FileDiscovery.js';
 import { createParserRegistry } from '../parsers/index.js';
 import { createChunkerRegistry } from '../chunkers/index.js';
-import { MockEmbedder, TransformersJsEmbedder } from '../embedders/index.js';
+import {
+  MockEmbedder,
+  TransformersJsEmbedder,
+  WorkerEmbedder,
+} from '../embedders/index.js';
 import type { TextEmbedder } from '../embedders/types.js';
 import { IndexingPipeline } from '../indexing/index.js';
 import type { Embedder } from '../indexing/types.js';
@@ -246,13 +250,21 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     if (this.useMockEmbedder) {
       this.embedder = new MockEmbedder(this.config.embeddings.dimensions);
       console.log('[SearchSystem] Using MockEmbedder');
+    } else if (this.config.embeddings.useWorkerThread) {
+      // Use WorkerEmbedder for non-blocking embeddings (default)
+      this.embedder = new WorkerEmbedder({
+        modelId: this.config.embeddings.model,
+      });
+      console.log(
+        `[SearchSystem] Using WorkerEmbedder with model: ${this.config.embeddings.model} (non-blocking)`,
+      );
     } else {
-      // Use TransformersJsEmbedder directly for real embedding
+      // Use TransformersJsEmbedder on main thread (legacy behavior)
       this.embedder = new TransformersJsEmbedder({
         modelId: this.config.embeddings.model,
       });
       console.log(
-        `[SearchSystem] Using TransformersJsEmbedder with model: ${this.config.embeddings.model}`,
+        `[SearchSystem] Using TransformersJsEmbedder with model: ${this.config.embeddings.model} (main thread)`,
       );
     }
 

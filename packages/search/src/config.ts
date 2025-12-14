@@ -54,6 +54,12 @@ export interface EmbeddingsConfig {
   queryPrefix: string;
   /** Prefix for document embeddings. Default: 'passage: ' */
   documentPrefix: string;
+  /**
+   * Use worker thread for embeddings. Default: true
+   * When enabled, ML inference runs in a separate thread, keeping the CLI responsive.
+   * Set to false to run embeddings on the main thread (legacy behavior).
+   */
+  useWorkerThread: boolean;
 }
 
 export interface SearchConfig {
@@ -164,6 +170,7 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   dimensions: 384,
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',
+  useWorkerThread: true,
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
