@@ -1598,53 +1598,73 @@ parsers.
 
 ---
 
-### Phase 3: Embeddings & Vector Search
+### Phase 3: Embeddings & Vector Search ✅ COMPLETED
 
 **Goal:** Add semantic search capabilities with local embeddings.
+
+**Status:** COMPLETED (December 2025)
 
 **Tasks:**
 
 3.1 Implement Embedder Registry
 
-- [ ] Create `TextEmbedder` interface
-- [ ] Implement `TransformersJsEmbedder`
-- [ ] Add model download progress reporting
-- [ ] Add tests for embedding generation
+- [x] Create `TextEmbedder` interface
+- [x] Implement `TransformersJsEmbedder` using `@huggingface/transformers`
+- [x] Add model download progress reporting
+- [x] Add tests for embedding generation
 
   3.2 Integrate embeddings into pipeline
 
-- [ ] Add embed stage to pipeline
-- [ ] Implement batch embedding for efficiency
-- [ ] Store embeddings in chunks table
-- [ ] Add integration tests
+- [x] Add embed stage to pipeline (`generateEmbeddings` in IndexingPipeline)
+- [x] Implement batch embedding with automatic fallback on failure
+- [x] Store embeddings in chunks table via `updateChunkEmbeddings`
+- [x] Add integration tests
 
   3.3 Implement Semantic Search
 
-- [ ] Implement query embedding
-- [ ] Implement vector similarity search
-- [ ] Add tests for semantic search
+- [x] Implement query embedding with E5 "query:" prefix
+- [x] Implement vector similarity search via pgvector
+- [x] Add tests for semantic search
 
   3.4 Implement Keyword Search
 
-- [ ] Implement FTS query building
-- [ ] Add ranking and highlighting
-- [ ] Add tests for keyword search
+- [x] Implement FTS query building with PostgreSQL `tsvector`
+- [x] Add ranking via `ts_rank`
+- [x] Implement ILIKE fallback for compatibility
+- [x] Add tests for keyword search
 
   3.5 Implement Hybrid Search
 
-- [ ] Implement RRF fusion algorithm
-- [ ] Add configurable weights
-- [ ] Add tests for hybrid search
+- [x] Implement RRF (Reciprocal Rank Fusion) algorithm
+- [x] Add configurable semantic/keyword weights
+- [x] Add tests for hybrid search
 
-**Success Criteria:**
+**Implementation Notes:**
 
-- Embeddings are generated locally (no API calls)
-- Model downloads automatically on first use
-- Semantic search returns relevant results
-- Keyword search returns relevant results
-- Hybrid search combines both effectively
+- **Batch Fallback**: Embedder automatically halves batch size on failure until
+  minimum (1), then fails loudly. Warnings are emitted via callback.
+- **No Silent Strategy Fallback**: Search strategies fail loudly - hybrid search
+  does NOT silently fall back to keyword if semantic fails. This prevents
+  misleading results.
+- **Generic/Switchable Architecture**: `EmbedderRegistry` supports multiple
+  embedders with priority-based selection and runtime switching via
+  `setDefault(name)`.
+- **E5 Model Support**: Automatic "query:" and "passage:" prefixes for E5 models
+  via `embedQuery()`, `embedDocument()`, `embedBatchDocuments()`.
+- **API Details**:
+  - `TransformersJsEmbedder`: Uses `@huggingface/transformers` pipeline API
+  - Model: `Xenova/multilingual-e5-small` (384 dimensions)
+  - Quantization: `q8` by default for smaller model size
 
-**Estimated Test Count:** ~40 tests
+**Success Criteria:** ✅ All met
+
+- ✅ Embeddings are generated locally (no API calls)
+- ✅ Model downloads automatically on first use with progress reporting
+- ✅ Semantic search returns relevant results via vector similarity
+- ✅ Keyword search returns relevant results via FTS + ILIKE fallback
+- ✅ Hybrid search combines both effectively with RRF fusion
+
+**Actual Test Count:** 238 tests (package total)
 
 ---
 

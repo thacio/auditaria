@@ -69,8 +69,17 @@ export interface Embedder {
 
   /**
    * Generate embeddings for multiple texts (batch).
+   * Uses automatic batch size fallback on failure.
    */
   embedBatch(texts: string[]): Promise<number[][]>;
+
+  /**
+   * Generate embeddings for multiple document/passages (batch).
+   * For E5 models, adds "passage:" prefix to each text.
+   * Uses automatic batch size fallback on failure.
+   * Optional - falls back to embedBatch if not implemented.
+   */
+  embedBatchDocuments?(texts: string[]): Promise<number[][]>;
 
   /**
    * Release resources.

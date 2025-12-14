@@ -616,6 +616,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
   /**
    * Generate embeddings for chunks in batches.
+   * Uses embedBatchDocuments if available (for proper E5 prefix handling),
+   * otherwise falls back to embedBatch.
+   *
+   * The embedder handles batch size fallback internally - if a batch fails,
+   * it halves the batch size and retries until success or minimum batch size.
    */
   private async generateEmbeddings(
     chunkIds: string[],
@@ -628,7 +633,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       const batchIds = chunkIds.slice(i, i + batchSize);
       const texts = batchChunks.map((c) => c.text);
 
-      const embeddings = await this.embedder.embedBatch(texts);
+      // Use embedBatchDocuments if available (handles E5 prefix),
+      // otherwise fall back to embedBatch
+      const embeddings = this.embedder.embedBatchDocuments
+        ? await this.embedder.embedBatchDocuments(texts)
+        : await this.embedder.embedBatch(texts);
 
       const updates = batchIds.map((id, index) => ({
         id,
