@@ -8,6 +8,7 @@
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
+import { getSearchService } from '@google/gemini-cli-core';
 
 // ============================================================================
 // Lazy Loading
@@ -37,6 +38,41 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Get the search system from the singleton if running, otherwise load temporarily.
+ * Returns { system, closeAfter } where closeAfter indicates if caller should close.
+ */
+async function getSearchSystemSafe(rootPath: string): Promise<{
+  system: NonNullable<
+    Awaited<ReturnType<typeof import('@thacio/search').loadSearchSystem>>
+  >;
+  closeAfter: boolean;
+} | null> {
+  const search = await getSearchModule();
+  const searchService = getSearchService();
+
+  // Check if index exists
+  if (!search.searchDatabaseExists(rootPath)) {
+    return null;
+  }
+
+  // Use the singleton if running
+  const singletonSystem = searchService.getSearchSystem();
+  if (singletonSystem) {
+    return { system: singletonSystem, closeAfter: false };
+  }
+
+  // Load a temporary system
+  const loadedSystem = await search.loadSearchSystem(rootPath, {
+    useMockEmbedder: false,
+  });
+  if (!loadedSystem) {
+    return null;
+  }
+
+  return { system: loadedSystem, closeAfter: true };
+}
+
 // ============================================================================
 // /search-init Command
 // ============================================================================
@@ -57,19 +93,47 @@ const searchInitCommand: SlashCommand = {
 
     try {
       const search = await getSearchModule();
+      const searchService = getSearchService();
 
       // Check if index already exists
       const exists = search.searchDatabaseExists(rootPath);
 
-      // Initialize or load search system
-      const system =
-        exists && !force
-          ? await search.loadSearchSystem(rootPath, { useMockEmbedder: false })
-          : await search.initializeSearchSystem({
-              rootPath,
-              useMockEmbedder: false,
-            });
+      // Use the singleton SearchServiceManager instead of creating a new SearchSystem
+      // This prevents database lock conflicts when the service is already running
+      if (searchService.isRunning()) {
+        // Service is already running, just trigger a sync
+        context.ui.setPendingItem({
+          type: MessageType.INFO,
+          text: 'Search service running, syncing files...',
+        });
 
+        await searchService.triggerSync({ force });
+
+        const progress = searchService.getIndexingProgress();
+        context.ui.setPendingItem(null);
+
+        return {
+          type: 'message',
+          messageType: 'info',
+          content:
+            `Search index synced:\n` +
+            `  Files processed: ${progress.processedFiles}\n` +
+            `  Files failed: ${progress.failedFiles}`,
+        };
+      }
+
+      // Service not running, start it
+      context.ui.setPendingItem({
+        type: MessageType.INFO,
+        text: exists
+          ? 'Loading search service...'
+          : 'Initializing new search index...',
+      });
+
+      await searchService.start(rootPath, { forceReindex: force });
+
+      // Get the search system from the service
+      const system = searchService.getSearchSystem();
       if (!system) {
         context.ui.setPendingItem(null);
         return {
@@ -79,7 +143,7 @@ const searchInitCommand: SlashCommand = {
         };
       }
 
-      // Discover and index files
+      // Discover files to show count
       context.ui.setPendingItem({
         type: MessageType.INFO,
         text: 'Discovering files...',
@@ -88,7 +152,6 @@ const searchInitCommand: SlashCommand = {
       const files = await system.discoverFiles();
 
       if (files.length === 0) {
-        await system.close();
         context.ui.setPendingItem(null);
         return {
           type: 'message',
@@ -102,9 +165,10 @@ const searchInitCommand: SlashCommand = {
         text: `Indexing ${files.length} files...`,
       });
 
-      const result = await system.indexAll({ force });
-      await system.close();
+      // Trigger sync which handles indexing
+      await searchService.triggerSync({ force });
 
+      const progress = searchService.getIndexingProgress();
       context.ui.setPendingItem(null);
 
       return {
@@ -112,9 +176,9 @@ const searchInitCommand: SlashCommand = {
         messageType: 'info',
         content:
           `Search index ${exists ? 'updated' : 'created'}:\n` +
-          `  Files indexed: ${result.indexed}\n` +
-          `  Files failed: ${result.failed}\n` +
-          `  Duration: ${(result.duration / 1000).toFixed(1)}s`,
+          `  Files discovered: ${files.length}\n` +
+          `  Files processed: ${progress.processedFiles}\n` +
+          `  Files failed: ${progress.failedFiles}`,
       };
     } catch (error) {
       context.ui.setPendingItem(null);
@@ -174,6 +238,7 @@ const searchCommand: SlashCommand = {
 
     try {
       const search = await getSearchModule();
+      const searchService = getSearchService();
 
       // Check if index exists
       if (!search.searchDatabaseExists(rootPath)) {
@@ -184,9 +249,16 @@ const searchCommand: SlashCommand = {
         };
       }
 
-      const system = await search.loadSearchSystem(rootPath, {
-        useMockEmbedder: false,
-      });
+      // Use the singleton if running, otherwise load a temporary system
+      let system = searchService.getSearchSystem();
+      const closeAfter = !system;
+
+      if (!system) {
+        system = await search.loadSearchSystem(rootPath, {
+          useMockEmbedder: false,
+        });
+      }
+
       if (!system) {
         return {
           type: 'message',
@@ -204,7 +276,10 @@ const searchCommand: SlashCommand = {
         highlight: true,
       });
 
-      await system.close();
+      // Only close if we created a temporary system
+      if (closeAfter) {
+        await system.close();
+      }
 
       if (response.results.length === 0) {
         return {
@@ -260,6 +335,7 @@ const searchStatusCommand: SlashCommand = {
 
     try {
       const search = await getSearchModule();
+      const searchService = getSearchService();
 
       // Check if index exists
       if (!search.searchDatabaseExists(rootPath)) {
@@ -271,9 +347,16 @@ const searchStatusCommand: SlashCommand = {
         };
       }
 
-      const system = await search.loadSearchSystem(rootPath, {
-        useMockEmbedder: false,
-      });
+      // Use the singleton if running, otherwise load a temporary system
+      let system = searchService.getSearchSystem();
+      const closeAfter = !system;
+
+      if (!system) {
+        system = await search.loadSearchSystem(rootPath, {
+          useMockEmbedder: false,
+        });
+      }
+
       if (!system) {
         return {
           type: 'message',
@@ -284,13 +367,19 @@ const searchStatusCommand: SlashCommand = {
 
       const stats = await system.getStats();
       const state = system.getState();
-      await system.close();
+      const serviceState = searchService.getState();
+
+      // Only close if we created a temporary system
+      if (closeAfter) {
+        await system.close();
+      }
 
       const lines = [
         'Search Index Status:',
         '',
         `  Database: ${state.databasePath}`,
         `  Size: ${formatBytes(stats.databaseSize)}`,
+        `  Service: ${serviceState.status}`,
         '',
         'Documents:',
         `  Total: ${stats.totalDocuments}`,
@@ -348,9 +437,8 @@ const searchTagCommand: SlashCommand = {
         const rootPath = getProjectRoot(context);
 
         try {
-          const search = await getSearchModule();
-
-          if (!search.searchDatabaseExists(rootPath)) {
+          const result = await getSearchSystemSafe(rootPath);
+          if (!result) {
             return {
               type: 'message',
               messageType: 'error',
@@ -358,19 +446,12 @@ const searchTagCommand: SlashCommand = {
             };
           }
 
-          const system = await search.loadSearchSystem(rootPath, {
-            useMockEmbedder: false,
-          });
-          if (!system) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Failed to load search system',
-            };
-          }
-
+          const { system, closeAfter } = result;
           await system.addTags(filePath, tags);
-          await system.close();
+
+          if (closeAfter) {
+            await system.close();
+          }
 
           return {
             type: 'message',
@@ -406,9 +487,8 @@ const searchTagCommand: SlashCommand = {
         const rootPath = getProjectRoot(context);
 
         try {
-          const search = await getSearchModule();
-
-          if (!search.searchDatabaseExists(rootPath)) {
+          const result = await getSearchSystemSafe(rootPath);
+          if (!result) {
             return {
               type: 'message',
               messageType: 'error',
@@ -416,19 +496,12 @@ const searchTagCommand: SlashCommand = {
             };
           }
 
-          const system = await search.loadSearchSystem(rootPath, {
-            useMockEmbedder: false,
-          });
-          if (!system) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Failed to load search system',
-            };
-          }
-
+          const { system, closeAfter } = result;
           await system.removeTags(filePath, tags);
-          await system.close();
+
+          if (closeAfter) {
+            await system.close();
+          }
 
           return {
             type: 'message',
@@ -454,9 +527,8 @@ const searchTagCommand: SlashCommand = {
         const rootPath = getProjectRoot(context);
 
         try {
-          const search = await getSearchModule();
-
-          if (!search.searchDatabaseExists(rootPath)) {
+          const result = await getSearchSystemSafe(rootPath);
+          if (!result) {
             return {
               type: 'message',
               messageType: 'error',
@@ -464,21 +536,15 @@ const searchTagCommand: SlashCommand = {
             };
           }
 
-          const system = await search.loadSearchSystem(rootPath, {
-            useMockEmbedder: false,
-          });
-          if (!system) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Failed to load search system',
-            };
-          }
+          const { system, closeAfter } = result;
 
           if (filePath) {
             // List tags for specific file
             const tags = await system.getFileTags(filePath);
-            await system.close();
+
+            if (closeAfter) {
+              await system.close();
+            }
 
             if (tags.length === 0) {
               return {
@@ -496,7 +562,10 @@ const searchTagCommand: SlashCommand = {
           } else {
             // List all tags with counts
             const tags = await system.getAllTags();
-            await system.close();
+
+            if (closeAfter) {
+              await system.close();
+            }
 
             if (tags.length === 0) {
               return {
