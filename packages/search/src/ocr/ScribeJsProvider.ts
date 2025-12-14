@@ -14,6 +14,7 @@
 
 import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
+import type { ScribeModule } from 'scribe.js-ocr';
 import type { OcrRegion } from '../parsers/types.js';
 import type {
   OcrProvider,
@@ -32,76 +33,6 @@ import {
   ensureOcrCacheDir,
   isPdfFile,
 } from './ocr-utils.js';
-
-// ============================================================================
-// Scribe.js Types (minimal subset we need)
-// ============================================================================
-
-/**
- * MuPDF scheduler interface for PDF rendering.
- */
-interface MuPDFScheduler {
-  drawPageAsPNG(args: {
-    page: number;
-    dpi?: number;
-    color?: boolean;
-    skipText?: boolean;
-  }): Promise<string>; // Returns base64 PNG data
-}
-
-/**
- * ImageCache interface for PDF image handling.
- */
-interface ImageCacheInterface {
-  openMainPDF(fileData: ArrayBuffer, skipText?: boolean): Promise<void>;
-  getMuPDFScheduler(numWorkers?: number): Promise<MuPDFScheduler>;
-  pageCount: number;
-  terminate(): Promise<void>;
-}
-
-/**
- * Scribe.js module interface.
- * @see https://github.com/scribeocr/scribe.js
- */
-interface ScribeModule {
-  init(params?: {
-    pdf?: boolean;
-    ocr?: boolean;
-    font?: boolean;
-  }): Promise<void>;
-  importFiles(files: string[] | Buffer[] | ArrayBuffer[]): Promise<void>;
-  recognize(options?: ScribeRecognizeOptions): Promise<void>;
-  exportData(
-    format: string,
-    minPage?: number,
-    maxPage?: number,
-  ): Promise<string | ArrayBuffer>;
-  /**
-   * Extract text from files.
-   * API: extractText(files, langs = ['eng'], outputFormat = 'txt', options = {})
-   */
-  extractText(
-    files: Array<string | Buffer>,
-    langs?: string[],
-    outputFormat?: string,
-    options?: Record<string, unknown>,
-  ): Promise<string>;
-  clear(): Promise<void>;
-  terminate(): Promise<void>;
-  /** Internal data access */
-  data: {
-    image: ImageCacheInterface;
-  };
-}
-
-interface ScribeRecognizeOptions {
-  mode?: 'speed' | 'quality';
-  langs?: string[];
-  modeAdv?: 'lstm' | 'legacy' | 'combined';
-  combineMode?: 'conf' | 'data' | 'none';
-  vanillaMode?: boolean;
-  config?: Record<string, unknown>;
-}
 
 // ============================================================================
 // Configuration
@@ -198,10 +129,9 @@ export class ScribeJsProvider implements OcrProvider {
         await ensureOcrCacheDir(this.config.cacheDir);
       }
 
-      // Dynamic import for scribe.js-ocr (optional dependency, no @types available)
-      // @ts-expect-error - scribe.js-ocr has no type definitions
+      // Dynamic import for scribe.js-ocr (optional dependency)
       const scribeModule = await import('scribe.js-ocr');
-      this.scribe = scribeModule.default as ScribeModule;
+      this.scribe = scribeModule.default;
 
       progressCallback?.({
         stage: 'loading',
@@ -574,7 +504,6 @@ export function createScribeJsProvider(
  */
 export async function isScribeAvailable(): Promise<boolean> {
   try {
-    // @ts-expect-error - scribe.js-ocr has no type definitions
     await import('scribe.js-ocr');
     return true;
   } catch {

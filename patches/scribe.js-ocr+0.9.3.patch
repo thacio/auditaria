@@ -1,3 +1,71 @@
+diff --git a/node_modules/scribe.js-ocr/index.d.ts b/node_modules/scribe.js-ocr/index.d.ts
+new file mode 100644
+index 0000000..3ba6d76
+--- /dev/null
++++ b/node_modules/scribe.js-ocr/index.d.ts
+@@ -0,0 +1,62 @@
++/**
++ * Type declarations for scribe.js-ocr
++ * Added via patch-package for Auditaria
++ */
++
++export interface ScribeInitParams {
++  pdf?: boolean;
++  ocr?: boolean;
++  font?: boolean;
++}
++
++export interface ScribeRecognizeOptions {
++  mode?: 'speed' | 'quality';
++  langs?: string[];
++  modeAdv?: 'lstm' | 'legacy' | 'combined';
++  combineMode?: 'conf' | 'data' | 'none';
++  vanillaMode?: boolean;
++  config?: Record<string, unknown>;
++}
++
++export interface MuPDFScheduler {
++  drawPageAsPNG(args: {
++    page: number;
++    dpi?: number;
++    color?: boolean;
++    skipText?: boolean;
++  }): Promise<string>;
++}
++
++export interface ImageCache {
++  openMainPDF(fileData: ArrayBuffer, skipText?: boolean): Promise<void>;
++  getMuPDFScheduler(numWorkers?: number): Promise<MuPDFScheduler>;
++  pageCount: number;
++  terminate(): Promise<void>;
++}
++
++export interface ScribeData {
++  image: ImageCache;
++}
++
++export interface ScribeModule {
++  init(params?: ScribeInitParams): Promise<void>;
++  importFiles(files: Array<File | string | ArrayBuffer>): Promise<void>;
++  recognize(options?: ScribeRecognizeOptions): Promise<void>;
++  exportData(
++    format: 'pdf' | 'hocr' | 'docx' | 'xlsx' | 'txt' | 'text',
++    minPage?: number,
++    maxPage?: number,
++  ): Promise<string | ArrayBuffer>;
++  extractText(
++    files: Array<File | string | Buffer | ArrayBuffer>,
++    langs?: string[],
++    outputFormat?: 'txt' | 'hocr',
++    options?: Record<string, unknown>,
++  ): Promise<string>;
++  clear(): Promise<void>;
++  terminate(): Promise<void>;
++  data: ScribeData;
++}
++
++declare const scribe: ScribeModule;
++export default scribe;
 diff --git a/node_modules/scribe.js-ocr/js/worker/generalWorker.js b/node_modules/scribe.js-ocr/js/worker/generalWorker.js
 index 6daae00..df2eb55 100644
 --- a/node_modules/scribe.js-ocr/js/worker/generalWorker.js
