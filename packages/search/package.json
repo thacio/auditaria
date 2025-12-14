@@ -24,6 +24,7 @@
     "@huggingface/transformers": "^3.8.1",
     "officeparser": "^5.2.2",
     "pdf-parse": "^1.1.1",
+    "markitdown-ts": "^0.0.8",
     "ignore": "^6.0.2",
     "fast-glob": "^3.3.2",
     "xxhash-wasm": "^1.1.0"

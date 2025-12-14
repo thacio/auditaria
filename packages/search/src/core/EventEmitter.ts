@@ -16,6 +16,133 @@ type EventHandlerMap = {
 };
 
 // ============================================================================
+// Generic EventEmitter Class
+// ============================================================================
+
+/**
+ * Generic type-safe event emitter.
+ * Use this as a base class for components that need custom events.
+ *
+ * @typeParam TEvents - Map of event names to their data types
+ */
+export class EventEmitter<TEvents extends { [key: string]: unknown }> {
+  private handlers: Map<keyof TEvents, Set<EventHandler<unknown>>> = new Map();
+  private onceHandlers: Map<keyof TEvents, Set<EventHandler<unknown>>> =
+    new Map();
+
+  /**
+   * Subscribe to an event.
+   */
+  on<K extends keyof TEvents>(
+    event: K,
+    handler: EventHandler<TEvents[K]>,
+  ): () => void {
+    if (!this.handlers.has(event)) {
+      this.handlers.set(event, new Set());
+    }
+    this.handlers.get(event)!.add(handler as EventHandler<unknown>);
+
+    return () => this.off(event, handler);
+  }
+
+  /**
+   * Subscribe to an event for one-time execution.
+   */
+  once<K extends keyof TEvents>(
+    event: K,
+    handler: EventHandler<TEvents[K]>,
+  ): () => void {
+    if (!this.onceHandlers.has(event)) {
+      this.onceHandlers.set(event, new Set());
+    }
+    this.onceHandlers.get(event)!.add(handler as EventHandler<unknown>);
+
+    return () => {
+      this.onceHandlers.get(event)?.delete(handler as EventHandler<unknown>);
+    };
+  }
+
+  /**
+   * Unsubscribe from an event.
+   */
+  off<K extends keyof TEvents>(
+    event: K,
+    handler: EventHandler<TEvents[K]>,
+  ): void {
+    this.handlers.get(event)?.delete(handler as EventHandler<unknown>);
+    this.onceHandlers.get(event)?.delete(handler as EventHandler<unknown>);
+  }
+
+  /**
+   * Emit an event to all subscribers.
+   */
+  protected async emit<K extends keyof TEvents>(
+    event: K,
+    data: TEvents[K],
+  ): Promise<void> {
+    const regularHandlers = this.handlers.get(event);
+    const once = this.onceHandlers.get(event);
+
+    const allHandlers: Array<EventHandler<TEvents[K]>> = [];
+
+    if (regularHandlers) {
+      for (const handler of regularHandlers) {
+        allHandlers.push(handler as EventHandler<TEvents[K]>);
+      }
+    }
+
+    if (once) {
+      for (const handler of once) {
+        allHandlers.push(handler as EventHandler<TEvents[K]>);
+      }
+      this.onceHandlers.set(event, new Set());
+    }
+
+    const promises = allHandlers.map(async (handler) => {
+      try {
+        await handler(data);
+      } catch (error) {
+        console.error(`Error in event handler for ${String(event)}:`, error);
+      }
+    });
+
+    await Promise.all(promises);
+  }
+
+  /**
+   * Emit an event synchronously (fire and forget).
+   */
+  protected emitSync<K extends keyof TEvents>(
+    event: K,
+    data: TEvents[K],
+  ): void {
+    void this.emit(event, data);
+  }
+
+  /**
+   * Remove all handlers for a specific event.
+   */
+  removeAllListeners<K extends keyof TEvents>(event?: K): void {
+    if (event) {
+      this.handlers.delete(event);
+      this.onceHandlers.delete(event);
+    } else {
+      this.handlers.clear();
+      this.onceHandlers.clear();
+    }
+  }
+
+  /**
+   * Get the number of listeners for an event.
+   */
+  listenerCount<K extends keyof TEvents>(event: K): number {
+    const regular = this.handlers.get(event)?.size ?? 0;
+    const once = this.onceHandlers.get(event)?.size ?? 0;
+    return regular + once;
+  }
+}
+
+// ============================================================================
 // SearchEventEmitter Class
 // ============================================================================
 
