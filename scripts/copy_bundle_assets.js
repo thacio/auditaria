@@ -69,6 +69,36 @@ for (const file of localeFiles) {
 }
 // AUDITARIA_FEATURE_END
 
+// AUDITARIA_SEARCH_START: Copy PGlite WASM, data, and extension files
+// PGlite requires its WASM, data, and extension files at runtime
+const pgliteDir = join(root, 'node_modules/@electric-sql/pglite/dist');
+
+if (existsSync(pgliteDir)) {
+  // Core PGlite files
+  const pgliteFiles = ['pglite.wasm', 'pglite.data'];
+  for (const file of pgliteFiles) {
+    const srcPath = join(pgliteDir, file);
+    if (existsSync(srcPath)) {
+      copyFileSync(srcPath, join(bundleDir, file));
+    }
+  }
+
+  // PGlite extensions (pgvector for vector similarity search)
+  // Note: PGlite's bundled code uses "../vector.tar.gz" relative to bundle/gemini.js
+  // so we need to copy to project root, not bundle directory
+  const extensionFiles = ['vector.tar.gz'];
+  for (const file of extensionFiles) {
+    const srcPath = join(pgliteDir, file);
+    if (existsSync(srcPath)) {
+      // Copy to project root (parent of bundleDir)
+      copyFileSync(srcPath, join(root, file));
+    }
+  }
+
+  console.log('PGlite WASM/data/extension files copied to bundle/');
+}
+// AUDITARIA_SEARCH_END
+
 // WEB_INTERFACE_START: Copy web client files
 // Copy web client files to bundle directory
 const webClientSrc = join(root, 'packages/web-client/src');

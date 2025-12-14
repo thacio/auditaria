@@ -1,7 +1,8 @@
 /**
- * Auditaria Search - Local document search with hybrid search capabilities.
+ * Auditaria Search Package
  *
- * @packageDocumentation
+ * Local document search with hybrid search capabilities.
+ * Supports keyword, semantic, and hybrid search strategies.
  */
 
 // ============================================================================
@@ -15,37 +16,53 @@ export {
   searchDatabaseExists,
   type SearchSystemInitOptions,
   type SearchSystemState,
-} from './src/core/SearchSystem.js';
+} from './core/SearchSystem.js';
 
 // ============================================================================
-// Core types
+// Core Types
 // ============================================================================
 
 export type {
+  // Document types
   Document,
   DocumentChunk,
   DocumentStatus,
   OcrStatus,
+  // Search types
   SearchFilters,
   SearchResult,
   SearchOptions,
   SearchResponse,
   MatchType,
+  // Queue types
   QueueItem,
   QueuePriority,
   QueueItemStatus,
-  SyncResult,
-  DiscoveredFile,
-  SearchStats,
   QueueStatus,
+  // Stats types
+  SearchStats,
   TagCount,
+  // Discovery types
+  DiscoveredFile,
+  // Event types
   SearchSystemEvents,
   SearchSystemEventName,
-} from './src/types.js';
+} from './types.js';
 
 // ============================================================================
 // Configuration
 // ============================================================================
+
+export {
+  createConfig,
+  validateConfig,
+  DEFAULT_CONFIG,
+  DEFAULT_DATABASE_CONFIG,
+  DEFAULT_INDEXING_CONFIG,
+  DEFAULT_CHUNKING_CONFIG,
+  DEFAULT_EMBEDDINGS_CONFIG,
+  DEFAULT_SEARCH_CONFIG,
+} from './config.js';
 
 export type {
   SearchSystemConfig,
@@ -55,18 +72,7 @@ export type {
   EmbeddingsConfig,
   SearchConfig,
   DeepPartial,
-} from './src/config.js';
-
-export {
-  DEFAULT_CONFIG,
-  DEFAULT_DATABASE_CONFIG,
-  DEFAULT_INDEXING_CONFIG,
-  DEFAULT_CHUNKING_CONFIG,
-  DEFAULT_EMBEDDINGS_CONFIG,
-  DEFAULT_SEARCH_CONFIG,
-  createConfig,
-  validateConfig,
-} from './src/config.js';
+} from './config.js';
 
 // ============================================================================
 // Sync Module
@@ -77,15 +83,16 @@ export {
   createStartupSync,
   FileWatcher,
   createFileWatcher,
-} from './src/sync/index.js';
+} from './sync/index.js';
 
 export type {
+  SyncResult,
   SyncOptions,
   FileWatcherConfig,
   FileChangeType,
   FileChangeEvent,
   FileWatcherEvents,
-} from './src/sync/index.js';
+} from './sync/index.js';
 
 // ============================================================================
 // Search Engine (Direct Access)
@@ -96,23 +103,20 @@ export {
   createSearchEngine,
   FilterBuilder,
   createFilterBuilder,
-} from './src/search/index.js';
+} from './search/index.js';
 
 export type {
   SearchEngineConfig,
   NormalizedSearchParams,
   SearchEngineEvents,
   FilterBuildResult,
-} from './src/search/index.js';
+} from './search/index.js';
 
 // ============================================================================
 // Indexing Pipeline (Direct Access)
 // ============================================================================
 
-export {
-  IndexingPipeline,
-  createIndexingPipeline,
-} from './src/indexing/index.js';
+export { IndexingPipeline, createIndexingPipeline } from './indexing/index.js';
 
 export type {
   IndexingPipelineOptions,
@@ -122,14 +126,13 @@ export type {
   PipelineStatus,
   ProcessingResult,
   BatchProcessingResult,
-} from './src/indexing/index.js';
+} from './indexing/index.js';
 
 // ============================================================================
 // Storage (Direct Access)
 // ============================================================================
 
-export { PGliteStorage } from './src/storage/PGliteStorage.js';
-export { SCHEMA_SQL, SCHEMA_VERSION } from './src/storage/schema.js';
+export { PGliteStorage } from './storage/PGliteStorage.js';
 
 export type {
   StorageAdapter,
@@ -140,7 +143,7 @@ export type {
   CreateQueueItemInput,
   UpdateQueueItemInput,
   HybridSearchWeights,
-} from './src/storage/types.js';
+} from './storage/types.js';
 
 // ============================================================================
 // Parsers (Direct Access)
@@ -153,14 +156,14 @@ export {
   OfficeParserAdapter,
   PdfParseAdapter,
   MarkitdownParser,
-} from './src/parsers/index.js';
+} from './parsers/index.js';
 
 export type {
   DocumentParser,
   ParsedDocument,
   ParserOptions,
   OcrRegion,
-} from './src/parsers/types.js';
+} from './parsers/types.js';
 
 // ============================================================================
 // Chunkers (Direct Access)
@@ -171,13 +174,13 @@ export {
   ChunkerRegistry,
   RecursiveChunker,
   FixedSizeChunker,
-} from './src/chunkers/index.js';
+} from './chunkers/index.js';
 
 export type {
   DocumentChunker,
   Chunk,
   ChunkerOptions,
-} from './src/chunkers/types.js';
+} from './chunkers/types.js';
 
 // ============================================================================
 // Embedders (Direct Access)
@@ -189,7 +192,7 @@ export {
   TransformersJsEmbedder,
   createTransformersJsEmbedder,
   MockEmbedder,
-} from './src/embedders/index.js';
+} from './embedders/index.js';
 
 export type {
   TextEmbedder,
@@ -198,27 +201,22 @@ export type {
   ProgressInfo,
   TransformersJsEmbedderConfig,
   EmbedderEvents,
-} from './src/embedders/index.js';
+} from './embedders/index.js';
 
 // ============================================================================
 // File Discovery (Direct Access)
 // ============================================================================
 
-export { FileDiscovery, createFileDiscovery } from './src/discovery/index.js';
+export { FileDiscovery, createFileDiscovery } from './discovery/index.js';
 
 export type {
   DiscoveryOptions,
   FileDiscoveryStats,
-} from './src/discovery/FileDiscovery.js';
+} from './discovery/FileDiscovery.js';
 
 // ============================================================================
 // Core Utilities
 // ============================================================================
 
-export { EventEmitter } from './src/core/EventEmitter.js';
-export {
-  Registry,
-  createRegistry,
-  type Provider,
-  type SupportCheckProvider,
-} from './src/core/Registry.js';
+export { EventEmitter } from './core/EventEmitter.js';
+export { Registry } from './core/Registry.js';

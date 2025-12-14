@@ -81,3 +81,7 @@ gemini-conversation-*.json
 i18n-*.json
 i18n-*.txt
 stagehand/
+test-example-htl/
+
+# PGlite extension files (copied during bundle)
+vector.tar.gz

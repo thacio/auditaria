@@ -69,6 +69,11 @@ const external = [
   '@browserbasehq/stagehand',
   'playwright',
   'playwright-core',
+  // AUDITARIA_SEARCH: markitdown-ts optional dependencies (used dynamically)
+  'youtube-transcript',
+  'unzipper',
+  // AUDITARIA_SEARCH: transformers.js must be external due to complex WASM/ONNX backend initialization
+  '@huggingface/transformers',
 ];
 
 const baseConfig = {

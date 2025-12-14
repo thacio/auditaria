@@ -193,7 +193,25 @@ export class EmbedderRegistry {
 
 /**
  * Create a new EmbedderRegistry instance.
+ * Note: Use createEmbedderRegistryAsync() for auto-registration of default embedders.
  */
 export function createEmbedderRegistry(): EmbedderRegistry {
   return new EmbedderRegistry();
+}
+
+/**
+ * Create a new EmbedderRegistry with default embedders registered.
+ * This is async because it dynamically imports the TransformersJS embedder.
+ */
+export async function createEmbedderRegistryAsync(): Promise<EmbedderRegistry> {
+  const registry = new EmbedderRegistry();
+
+  // Import and register the default embedder
+  const { TransformersJsEmbedder } = await import(
+    './TransformersJsEmbedder.js'
+  );
+  const embedder = new TransformersJsEmbedder();
+  registry.register(embedder);
+
+  return registry;
 }

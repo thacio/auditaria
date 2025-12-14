@@ -17,6 +17,7 @@ export type {
 export {
   EmbedderRegistry,
   createEmbedderRegistry,
+  createEmbedderRegistryAsync,
 } from './EmbedderRegistry.js';
 
 // Implementations

@@ -47,6 +47,12 @@ import { vimCommand } from '../ui/commands/vimCommand.js';
 import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
 import { terminalSetupCommand } from '../ui/commands/terminalSetupCommand.js';
 import { setupSkillCommand } from '../ui/commands/setupSkillCommand.js';
+import {
+  searchInitCommand,
+  searchCommand,
+  searchStatusCommand,
+  searchTagCommand,
+} from '../ui/commands/searchCommand.js'; // AUDITARIA_FEATURE: Local Search System
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -104,7 +110,11 @@ export class BuiltinCommandLoader implements ICommandLoader {
       vimCommand,
       setupGithubCommand,
       terminalSetupCommand,
-      setupSkillCommand,
+      setupSkillCommand, // AUDITARIA_FEATURE: SkillCommand
+      searchInitCommand, // AUDITARIA_FEATURE: Local Search System
+      searchCommand, // AUDITARIA_FEATURE: Local Search System
+      searchStatusCommand, // AUDITARIA_FEATURE: Local Search System
+      searchTagCommand, // AUDITARIA_FEATURE: Local Search System
     ];
     handle?.end();
     return allDefinitions.filter((cmd): cmd is SlashCommand => cmd !== null);

@@ -25,10 +25,8 @@ const SUPPORTED_EXTENSIONS = [
   '.xml',
   '.rss',
   '.atom',
-  // Web
-  '.html',
-  '.htm',
-  '.xhtml',
+  // Web - disabled due to bundling issues with xhr-sync-worker.js
+  // '.html', '.htm', '.xhtml' - use PlainTextParser fallback instead
   // Jupyter
   '.ipynb',
   // Archives (markitdown can extract text from zip contents)
