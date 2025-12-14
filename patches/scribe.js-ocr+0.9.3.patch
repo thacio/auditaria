@@ -1,0 +1,28 @@
+diff --git a/node_modules/scribe.js-ocr/js/worker/generalWorker.js b/node_modules/scribe.js-ocr/js/worker/generalWorker.js
+index 6daae00..df2eb55 100644
+--- a/node_modules/scribe.js-ocr/js/worker/generalWorker.js
++++ b/node_modules/scribe.js-ocr/js/worker/generalWorker.js
+@@ -24,6 +24,14 @@ if (!parentPort) throw new Error('This file must be run in a worker');
+ 
+ const Tesseract = typeof process === 'undefined' ? (await import('../../tess/tesseract.esm.min.js')).default : await import('@scribe.js/tesseract.js');
+ 
++// Auditaria patch: Import os and path for cachePath configuration in Node.js
++const nodeOs = typeof process === 'undefined' ? null : await import('node:os');
++const nodePath = typeof process === 'undefined' ? null : await import('node:path');
++const getOcrCachePath = () => {
++  if (typeof process === 'undefined' || !nodeOs || !nodePath) return undefined;
++  return nodePath.join(nodeOs.homedir(), '.auditaria', 'ocr');
++};
++
+ // TODO: Add back support for multiple PSM modes.
+ // There is already an advanced option in the UI that claims to switch this, but it currently does nothing.
+ // tessedit_pageseg_mode: Tesseract.PSM["SINGLE_COLUMN"],
+@@ -85,7 +93,7 @@ const tessOptions = typeof process === 'undefined' ? {
+   legacyCore: true,
+   legacyLang: true,
+   workerBlobURL: false,
+-} : { legacyCore: true, legacyLang: true };
++} : { legacyCore: true, legacyLang: true, cachePath: getOcrCachePath() };
+ 
+ /** @type {?Tesseract.Worker} */
+ let worker;
