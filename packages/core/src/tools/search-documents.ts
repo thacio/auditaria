@@ -13,13 +13,19 @@ import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
 import { SEARCH_DOCUMENTS_TOOL_NAME } from './tool-names.js';
 import { SearchServiceManager } from '../services/search-service.js';
+import {
+  SearchResponseFormatter,
+  type OutputFormat,
+  type DetailLevel,
+  type SearchResultInput,
+} from './search-response-formatter.js';
 
 /**
  * Parameters for the SearchDocuments tool
  */
 export interface SearchDocumentsToolParams {
   /**
-   * The search query
+   * The search query (required unless document_id is provided)
    */
   query: string;
 
@@ -47,24 +53,80 @@ export interface SearchDocumentsToolParams {
    * Maximum number of results to return (default: 10)
    */
   limit?: number;
+
+  /**
+   * Filter to a specific document by ID (from previous search results).
+   * When provided, returns all chunks for that document.
+   */
+  document_id?: string;
+
+  /**
+   * Output format: 'markdown' (default) or 'json' for structured data
+   */
+  format?: OutputFormat;
+
+  /**
+   * Detail level: 'minimal', 'summary' (default), or 'full'
+   * - minimal: document IDs and scores only
+   * - summary: includes truncated text and metadata
+   * - full: includes complete chunk text (no truncation)
+   */
+  detail?: DetailLevel;
+
+  /**
+   * Max characters per passage (default: 300, max: 2000).
+   * Only applies when detail is 'summary'.
+   */
+  passage_length?: number;
+
+  /**
+   * Group results by document (default: true).
+   * When true, returns top passages per document instead of flat list.
+   * Set to false for flat list of all matching chunks.
+   */
+  group_by_document?: boolean;
+
+  /**
+   * Max passages per document when grouped (default: 3, max: 10)
+   */
+  passages_per_document?: number;
+
+  /**
+   * Pagination offset (default: 0)
+   */
+  offset?: number;
 }
 
 const SEARCH_DOCUMENTS_DESCRIPTION = `Search indexed documents using keyword, semantic, or hybrid search.
 
 This tool searches through all indexed documents in the project using advanced search capabilities:
 
+**Search Strategies:**
 - **hybrid** (default): Combines semantic and keyword search using Reciprocal Rank Fusion for best results
 - **semantic**: Uses vector embeddings to find semantically similar content (understands meaning)
 - **keyword**: Traditional full-text search based on exact word matches
 
-You can filter results by:
+**Filtering:**
 - **folders**: Only search in specific directories
 - **file_types**: Only search specific file types (e.g., '.pdf', '.docx')
 - **tags**: Only search documents with specific tags
+- **document_id**: Retrieve all chunks for a specific document (from previous search)
 
-The search returns relevant document chunks with their file paths, scores, and highlighted text.
+**Output Control:**
+- **format**: 'markdown' (human-readable) or 'json' (structured for programmatic use)
+- **detail**: 'minimal' (IDs/scores only), 'summary' (truncated text), 'full' (complete text)
+- **group_by_document**: Groups results by document with best passages (default: true)
+- **passage_length**: Max characters per passage (1-2000, default: 300)
 
-**Note:** The search index must be initialized first using the search_init tool.
+**Pagination:**
+- **limit**: Max results to return (default: 10, max: 50)
+- **offset**: Starting position for pagination
+
+**Workflow for retrieving full documents:**
+1. Search: \`search_documents(query: "audit methodology")\` - returns document IDs with snippets
+2. Retrieve: \`search_documents(document_id: "doc_xxx", detail: "full")\` - returns complete document content
+
+**Note:** The search index must be initialized first using the search_index tool with action "init".
 `;
 
 class SearchDocumentsToolInvocation extends BaseToolInvocation<
@@ -82,12 +144,29 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
   }
 
   getDescription(): string {
+    if (this.params.document_id) {
+      return `Retrieving document "${this.params.document_id}"`;
+    }
     const strategy = this.params.strategy ?? 'hybrid';
     return `Searching for "${this.params.query}" (${strategy})`;
   }
 
   async execute(): Promise<ToolResult> {
-    const { query, strategy, folders, file_types, tags, limit } = this.params;
+    const {
+      query,
+      strategy,
+      folders,
+      file_types,
+      tags,
+      limit,
+      document_id,
+      format,
+      detail,
+      passage_length,
+      group_by_document,
+      passages_per_document,
+      offset,
+    } = this.params;
 
     // Get the shared SearchSystem from ServiceManager
     const service = SearchServiceManager.getInstance();
@@ -144,7 +223,15 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
     }
 
     try {
+      // Handle document retrieval mode (when document_id is provided)
+      if (document_id) {
+        return await this.retrieveDocument(searchSystem, document_id);
+      }
+
       // Perform the search
+      const effectiveLimit = limit ?? 10;
+      const effectiveOffset = offset ?? 0;
+
       const response = await searchSystem.search({
         query,
         strategy: strategy ?? 'hybrid',
@@ -153,50 +240,52 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
           fileTypes: file_types,
           tags,
         },
-        limit: limit ?? 10,
+        limit: effectiveLimit + effectiveOffset, // Fetch extra for offset
+        offset: 0, // We handle offset in formatter
         highlight: true,
       });
 
-      // Format results for display
-      const formattedResults = response.results.map((result, index) => ({
-        rank: index + 1,
-        file: result.filePath,
-        score: Math.round(result.score * 100) / 100,
-        matchType: result.matchType,
-        section: result.metadata?.section ?? null,
-        page: result.metadata?.page ?? null,
-        text:
-          result.chunkText.length > 300
-            ? result.chunkText.substring(0, 300) + '...'
-            : result.chunkText,
-        highlights: result.highlights ?? [],
-      }));
+      // Apply offset to results
+      const offsetResults = response.results.slice(effectiveOffset);
 
-      // Build response message
-      let llmContent = '';
+      // Convert to formatter input format
+      const formatterInput: SearchResultInput[] = offsetResults.map(
+        (result) => ({
+          documentId: result.documentId,
+          chunkId: result.chunkId,
+          filePath: result.filePath,
+          fileName: result.fileName,
+          chunkText: result.chunkText,
+          score: result.score,
+          matchType: result.matchType,
+          highlights: result.highlights ?? [],
+          metadata: {
+            page: result.metadata?.page ?? null,
+            section: result.metadata?.section ?? null,
+            tags: result.metadata?.tags ?? [],
+          },
+        }),
+      );
 
-      if (response.results.length === 0) {
-        llmContent = `No results found for query: "${query}"`;
-      } else {
-        llmContent = `Found ${response.results.length} result(s) for "${query}" in ${response.took}ms:\n\n`;
+      // Create formatter with options
+      const formatter = new SearchResponseFormatter({
+        format: format ?? 'markdown',
+        detail: detail ?? 'summary',
+        passageLength: passage_length ?? 300,
+        groupByDocument: group_by_document ?? true,
+        passagesPerDocument: passages_per_document ?? 3,
+      });
 
-        formattedResults.forEach((result) => {
-          llmContent += `**${result.rank}. ${result.file}** (score: ${result.score}, ${result.matchType})\n`;
-          if (result.section) {
-            llmContent += `   Section: ${result.section}\n`;
-          }
-          if (result.page) {
-            llmContent += `   Page: ${result.page}\n`;
-          }
-          llmContent += `   ${result.text}\n\n`;
-        });
-      }
-
-      // Note: Do NOT close the searchSystem - it's shared and managed by ServiceManager
+      // Format the response
+      const formatted = formatter.format(formatterInput, query, response.took, {
+        offset: effectiveOffset,
+        limit: effectiveLimit,
+        totalAvailable: response.results.length,
+      });
 
       return {
-        llmContent,
-        returnDisplay: `Found ${response.results.length} result(s) for "${query}" (${strategy ?? 'hybrid'} search, ${response.took}ms)`,
+        llmContent: formatted.llmContent,
+        returnDisplay: formatted.returnDisplay,
       };
     } catch (error) {
       const errorMessage =
@@ -204,6 +293,99 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
       return {
         llmContent: `Search failed: ${errorMessage}`,
         returnDisplay: `Search error: ${errorMessage}`,
+        error: {
+          message: errorMessage,
+          type: ToolErrorType.EXECUTION_FAILED,
+        },
+      };
+    }
+  }
+
+  /**
+   * Retrieve all chunks for a specific document by ID
+   */
+  private async retrieveDocument(
+    searchSystem: NonNullable<
+      ReturnType<typeof SearchServiceManager.prototype.getSearchSystem>
+    >,
+    documentId: string,
+  ): Promise<ToolResult> {
+    const { format, detail } = this.params;
+    const startTime = Date.now();
+
+    try {
+      // Get document info
+      const document = await searchSystem.getDocument(documentId);
+
+      if (!document) {
+        const msg = `Document not found: "${documentId}"`;
+        return {
+          llmContent: msg,
+          returnDisplay: msg,
+          error: {
+            message: msg,
+            type: ToolErrorType.EXECUTION_FAILED,
+          },
+        };
+      }
+
+      // Get all chunks for this document
+      const chunks = await searchSystem.getDocumentChunks(documentId);
+      const took = Date.now() - startTime;
+
+      // Convert to formatter input
+      const formatterInput: SearchResultInput[] = chunks.map((chunk) => ({
+        documentId: document.id,
+        chunkId: chunk.id,
+        filePath: document.filePath,
+        fileName: document.fileName,
+        chunkText: chunk.text,
+        score: 1.0, // Full relevance for direct retrieval
+        matchType: 'hybrid' as const,
+        highlights: [],
+        metadata: {
+          page: chunk.page ?? null,
+          section: chunk.section ?? null,
+          tags: document.tags ?? [],
+        },
+      }));
+
+      // Create formatter - defaults to 'full' detail for document retrieval
+      // but respects user's choice if they specify a different detail level
+      const effectiveDetail = detail ?? 'full';
+      const formatter = new SearchResponseFormatter({
+        format: format ?? 'markdown',
+        detail: effectiveDetail,
+        // For 'full' detail, use max length; otherwise respect user's passage_length
+        passageLength:
+          effectiveDetail === 'full'
+            ? 10000
+            : (this.params.passage_length ?? 300),
+        groupByDocument: true, // Always group for document retrieval
+        passagesPerDocument: 1000, // Return all chunks
+      });
+
+      const formatted = formatter.format(
+        formatterInput,
+        `document:${documentId}`,
+        took,
+        {
+          offset: 0,
+          limit: chunks.length,
+          totalAvailable: chunks.length,
+        },
+      );
+
+      return {
+        llmContent: formatted.llmContent,
+        returnDisplay: `Retrieved document "${document.fileName}" (${chunks.length} chunks, ${took}ms)`,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      return {
+        llmContent: `Failed to retrieve document: ${errorMessage}`,
+        returnDisplay: `Retrieval error: ${errorMessage}`,
         error: {
           message: errorMessage,
           type: ToolErrorType.EXECUTION_FAILED,
@@ -236,7 +418,8 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
         properties: {
           query: {
             type: 'string',
-            description: 'The search query',
+            description:
+              'The search query. Required unless document_id is provided.',
           },
           strategy: {
             type: 'string',
@@ -262,7 +445,44 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
           },
           limit: {
             type: 'number',
-            description: 'Maximum number of results to return (default: 10)',
+            description:
+              'Maximum number of results to return (default: 10, max: 50)',
+          },
+          document_id: {
+            type: 'string',
+            description:
+              'Retrieve all chunks for a specific document by ID. When provided, query is optional and detail defaults to "full".',
+          },
+          format: {
+            type: 'string',
+            enum: ['markdown', 'json'],
+            description:
+              'Output format. "markdown" (default) for human-readable, "json" for structured data.',
+          },
+          detail: {
+            type: 'string',
+            enum: ['minimal', 'summary', 'full'],
+            description:
+              'Detail level. "minimal" = IDs/scores only, "summary" (default) = truncated text, "full" = complete text.',
+          },
+          passage_length: {
+            type: 'number',
+            description:
+              'Max characters per passage for summary detail (default: 300, max: 2000)',
+          },
+          group_by_document: {
+            type: 'boolean',
+            description:
+              'Group results by document showing top passages per document (default: true)',
+          },
+          passages_per_document: {
+            type: 'number',
+            description:
+              'Max passages per document when grouped (default: 3, max: 10)',
+          },
+          offset: {
+            type: 'number',
+            description: 'Pagination offset for skipping results (default: 0)',
           },
         },
         required: ['query'],
@@ -276,8 +496,11 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
   protected override validateToolParamValues(
     params: SearchDocumentsToolParams,
   ): string | null {
-    if (!params.query || params.query.trim() === '') {
-      return 'Query must be a non-empty string';
+    // Query is required unless document_id is provided
+    if (!params.document_id) {
+      if (!params.query || params.query.trim() === '') {
+        return 'Query must be a non-empty string (unless document_id is provided)';
+      }
     }
 
     if (
@@ -292,6 +515,35 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
       (params.limit <= 0 || params.limit > 50)
     ) {
       return 'Limit must be between 1 and 50';
+    }
+
+    if (params.format && !['markdown', 'json'].includes(params.format)) {
+      return 'Format must be one of: markdown, json';
+    }
+
+    if (
+      params.detail &&
+      !['minimal', 'summary', 'full'].includes(params.detail)
+    ) {
+      return 'Detail must be one of: minimal, summary, full';
+    }
+
+    if (
+      params.passage_length !== undefined &&
+      (params.passage_length < 1 || params.passage_length > 2000)
+    ) {
+      return 'Passage length must be between 1 and 2000';
+    }
+
+    if (
+      params.passages_per_document !== undefined &&
+      (params.passages_per_document < 1 || params.passages_per_document > 10)
+    ) {
+      return 'Passages per document must be between 1 and 10';
+    }
+
+    if (params.offset !== undefined && params.offset < 0) {
+      return 'Offset must be a non-negative number';
     }
 
     return null;

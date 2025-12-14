@@ -637,6 +637,40 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   }
 
   // -------------------------------------------------------------------------
+  // Document Retrieval
+  // -------------------------------------------------------------------------
+
+  /**
+   * Get a document by ID.
+   */
+  async getDocument(
+    documentId: string,
+  ): Promise<import('../types.js').Document | null> {
+    this.ensureInitialized();
+    return this.storage!.getDocument(documentId);
+  }
+
+  /**
+   * Get a document by file path.
+   */
+  async getDocumentByPath(
+    filePath: string,
+  ): Promise<import('../types.js').Document | null> {
+    this.ensureInitialized();
+    return this.storage!.getDocumentByPath(filePath);
+  }
+
+  /**
+   * Get all chunks for a document.
+   */
+  async getDocumentChunks(
+    documentId: string,
+  ): Promise<Array<import('../types.js').DocumentChunk>> {
+    this.ensureInitialized();
+    return this.storage!.getChunks(documentId);
+  }
+
+  // -------------------------------------------------------------------------
   // Tags
   // -------------------------------------------------------------------------
 
