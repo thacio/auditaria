@@ -13,6 +13,212 @@ import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
 import { SEARCH_INDEX_TOOL_NAME } from './tool-names.js';
 
+// ============================================
+// IndexingManager - Singleton for Background Indexing
+// ============================================
+
+interface IndexingProgress {
+  status: 'idle' | 'discovering' | 'indexing' | 'completed' | 'failed';
+  totalFiles: number;
+  indexed: number;
+  failed: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  lastError: string | null;
+}
+
+/**
+ * Singleton manager for background indexing operations.
+ * Keeps the search system alive during indexing and tracks progress.
+ */
+class IndexingManager {
+  private static instance: IndexingManager;
+  private searchSystem: unknown = null;
+  private progress: IndexingProgress = {
+    status: 'idle',
+    totalFiles: 0,
+    indexed: 0,
+    failed: 0,
+    startedAt: null,
+    completedAt: null,
+    lastError: null,
+  };
+  private unsubscribers: Array<() => void> = [];
+
+  static getInstance(): IndexingManager {
+    if (!IndexingManager.instance) {
+      IndexingManager.instance = new IndexingManager();
+    }
+    return IndexingManager.instance;
+  }
+
+  isIndexing(): boolean {
+    return (
+      this.progress.status === 'discovering' ||
+      this.progress.status === 'indexing'
+    );
+  }
+
+  getProgress(): IndexingProgress {
+    return { ...this.progress };
+  }
+
+  /**
+   * Start background indexing. Returns immediately with initial stats.
+   */
+  async startBackgroundIndexing(
+    rootPath: string,
+    force: boolean = false,
+  ): Promise<{
+    started: boolean;
+    totalFiles: number;
+    message: string;
+  }> {
+    if (this.isIndexing()) {
+      return {
+        started: false,
+        totalFiles: this.progress.totalFiles,
+        message: `Indexing already in progress: ${this.progress.indexed}/${this.progress.totalFiles} files processed`,
+      };
+    }
+
+    // Reset progress
+    this.progress = {
+      status: 'discovering',
+      totalFiles: 0,
+      indexed: 0,
+      failed: 0,
+      startedAt: new Date(),
+      completedAt: null,
+      lastError: null,
+    };
+
+    try {
+      const { initializeSearchSystem, loadSearchSystem, searchDatabaseExists } =
+        await import('@thacio/search');
+
+      const indexExists = searchDatabaseExists(rootPath);
+
+      if (indexExists && !force) {
+        this.searchSystem = await loadSearchSystem(rootPath, {
+          useMockEmbedder: false,
+        });
+        if (!this.searchSystem) {
+          this.searchSystem = await initializeSearchSystem({
+            rootPath,
+            useMockEmbedder: false,
+          });
+        }
+      } else {
+        this.searchSystem = await initializeSearchSystem({
+          rootPath,
+          useMockEmbedder: false,
+        });
+      }
+
+      // Type assertion for the search system
+      const system = this.searchSystem as {
+        discoverFiles: () => Promise<unknown[]>;
+        indexAll: (opts: { force?: boolean }) => Promise<{
+          indexed: number;
+          failed: number;
+          duration: number;
+        }>;
+        on: (
+          event: string,
+          handler: (data: { current: number; total: number }) => void,
+        ) => () => void;
+        close: () => Promise<void>;
+      };
+
+      // Discover files (quick operation)
+      const files = await system.discoverFiles();
+      this.progress.totalFiles = files.length;
+      this.progress.status = 'indexing';
+
+      if (files.length === 0) {
+        this.progress.status = 'completed';
+        this.progress.completedAt = new Date();
+        await this.cleanup();
+        return {
+          started: true,
+          totalFiles: 0,
+          message: 'No files to index. Index is up to date.',
+        };
+      }
+
+      // Subscribe to progress events
+      const unsubProgress = system.on(
+        'indexing:progress',
+        (event: { current: number; total: number }) => {
+          // Update based on total processed (success + failed)
+          const processed = event.current;
+          // We don't know exact split, but we can estimate
+          this.progress.indexed = processed;
+        },
+      );
+      this.unsubscribers.push(unsubProgress);
+
+      // Start indexing in background (don't await!)
+      system
+        .indexAll({ force })
+        .then(async (result) => {
+          this.progress.status = 'completed';
+          this.progress.indexed = result.indexed;
+          this.progress.failed = result.failed;
+          this.progress.completedAt = new Date();
+          await this.cleanup();
+        })
+        .catch(async (error: Error) => {
+          this.progress.status = 'failed';
+          this.progress.lastError = error.message;
+          this.progress.completedAt = new Date();
+          await this.cleanup();
+        });
+
+      return {
+        started: true,
+        totalFiles: files.length,
+        message: `Started indexing ${files.length} files in background`,
+      };
+    } catch (error) {
+      this.progress.status = 'failed';
+      this.progress.lastError =
+        error instanceof Error ? error.message : String(error);
+      this.progress.completedAt = new Date();
+      await this.cleanup();
+      throw error;
+    }
+  }
+
+  private async cleanup(): Promise<void> {
+    // Unsubscribe from events
+    for (const unsub of this.unsubscribers) {
+      unsub();
+    }
+    this.unsubscribers = [];
+
+    // Close search system
+    if (this.searchSystem) {
+      const system = this.searchSystem as { close: () => Promise<void> };
+      await system.close();
+      this.searchSystem = null;
+    }
+  }
+}
+
+/**
+ * Get the IndexingManager singleton instance.
+ * Exported for use by status checks and other tools.
+ */
+export function getIndexingManager(): IndexingManager {
+  return IndexingManager.getInstance();
+}
+
+// ============================================
+// Tool Parameters and Description
+// ============================================
+
 /**
  * Parameters for the SearchIndex tool
  */
@@ -108,95 +314,56 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
     updateOutput?: (output: string) => void,
   ): Promise<ToolResult> {
     const rootPath = this.config.getTargetDir();
+    const manager = IndexingManager.getInstance();
 
     try {
-      const { initializeSearchSystem, loadSearchSystem, searchDatabaseExists } =
-        await import('@thacio/search');
+      updateOutput?.(
+        this.params.force
+          ? 'Starting full index rebuild...'
+          : 'Starting search index initialization...',
+      );
 
-      let searchSystem;
-      const indexExists = searchDatabaseExists(rootPath);
+      const result = await manager.startBackgroundIndexing(
+        rootPath,
+        this.params.force,
+      );
 
-      if (indexExists && !this.params.force) {
-        // Load existing index and update
-        updateOutput?.('Loading existing search index...');
-        searchSystem = await loadSearchSystem(rootPath, {
-          useMockEmbedder: false,
-        });
-
-        if (!searchSystem) {
-          // Database exists but couldn't load - reinitialize
-          updateOutput?.('Reinitializing corrupted index...');
-          searchSystem = await initializeSearchSystem({
-            rootPath,
-            useMockEmbedder: false,
-          });
-        }
-      } else {
-        // Initialize new index
-        updateOutput?.(
-          this.params.force
-            ? 'Force rebuilding search index...'
-            : 'Creating new search index...',
-        );
-        searchSystem = await initializeSearchSystem({
-          rootPath,
-          useMockEmbedder: false,
-        });
-      }
-
-      try {
-        // Discover and index files
-        updateOutput?.('Discovering files...');
-        const files = await searchSystem.discoverFiles();
-        updateOutput?.(`Found ${files.length} files to index`);
-
-        // Index all files
-        updateOutput?.('Indexing documents (this may take a while)...');
-
-        // Subscribe to progress events
-        searchSystem.on('indexing:progress', (event) => {
-          updateOutput?.(
-            `Indexing progress: ${event.current}/${event.total} documents`,
+      if (!result.started) {
+        // Indexing already in progress
+        const progress = manager.getProgress();
+        let llmContent = `**Indexing Already in Progress**\n\n`;
+        llmContent += `- Status: ${progress.status}\n`;
+        llmContent += `- Progress: ${progress.indexed}/${progress.totalFiles} files\n`;
+        if (progress.startedAt) {
+          const elapsed = Math.round(
+            (Date.now() - progress.startedAt.getTime()) / 1000,
           );
-        });
-
-        const result = await searchSystem.indexAll({
-          force: this.params.force,
-        });
-
-        // Get final stats
-        const stats = await searchSystem.getStats();
-        const state = searchSystem.getState();
-
-        let llmContent = `Search index ${indexExists && !this.params.force ? 'updated' : 'created'} successfully!\n\n`;
-        llmContent += `**Indexing Results:**\n`;
-        llmContent += `- Documents indexed: ${result.indexed}\n`;
-        llmContent += `- Failed: ${result.failed}\n`;
-        llmContent += `- Duration: ${(result.duration / 1000).toFixed(1)}s\n\n`;
-        llmContent += `**Index Statistics:**\n`;
-        llmContent += `- Total documents: ${stats.totalDocuments}\n`;
-        llmContent += `- Total chunks: ${stats.totalChunks}\n`;
-        llmContent += `- Database size: ${formatBytes(stats.databaseSize)}\n`;
-
-        if (state.ocrAvailable) {
-          llmContent += `- OCR: Available\n`;
-          if (stats.ocrPending > 0) {
-            llmContent += `- OCR pending: ${stats.ocrPending} documents\n`;
-          }
+          llmContent += `- Elapsed: ${elapsed}s\n`;
         }
+        llmContent += `\nUse action "status" to check progress.`;
 
         return {
           llmContent,
-          returnDisplay: `Indexed ${result.indexed} documents (${result.failed} failed) in ${(result.duration / 1000).toFixed(1)}s`,
+          returnDisplay: result.message,
         };
-      } finally {
-        await searchSystem.close();
       }
+
+      // Indexing started successfully in background
+      let llmContent = `**Indexing Started in Background**\n\n`;
+      llmContent += `- Files to index: ${result.totalFiles}\n`;
+      llmContent += `- Mode: ${this.params.force ? 'Full rebuild' : 'Incremental update'}\n\n`;
+      llmContent += `Indexing is running in the background. Use action "status" to check progress.\n`;
+      llmContent += `You can continue using search while indexing is in progress (results may be incomplete).`;
+
+      return {
+        llmContent,
+        returnDisplay: result.message,
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       return {
-        llmContent: `Failed to initialize search index: ${errorMessage}`,
+        llmContent: `Failed to start indexing: ${errorMessage}`,
         returnDisplay: `Initialization error: ${errorMessage}`,
         error: {
           message: errorMessage,
@@ -208,11 +375,59 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
 
   private async executeStatus(): Promise<ToolResult> {
     const rootPath = this.config.getTargetDir();
+    const manager = IndexingManager.getInstance();
+    const indexingProgress = manager.getProgress();
+
+    // Check if background indexing is active
+    const isIndexing = manager.isIndexing();
 
     try {
       const { loadSearchSystem, searchDatabaseExists } = await import(
         '@thacio/search'
       );
+
+      // If indexing is in progress, show that status first
+      if (isIndexing) {
+        let llmContent = `**Background Indexing in Progress**\n\n`;
+        llmContent += `- Status: ${indexingProgress.status}\n`;
+        llmContent += `- Progress: ${indexingProgress.indexed}/${indexingProgress.totalFiles} files\n`;
+        if (indexingProgress.startedAt) {
+          const elapsed = Math.round(
+            (Date.now() - indexingProgress.startedAt.getTime()) / 1000,
+          );
+          llmContent += `- Elapsed: ${elapsed}s\n`;
+        }
+        llmContent += `\nSearch is available but results may be incomplete until indexing finishes.`;
+
+        return {
+          llmContent,
+          returnDisplay: `Indexing: ${indexingProgress.indexed}/${indexingProgress.totalFiles} files (${indexingProgress.status})`,
+        };
+      }
+
+      // Show recent indexing completion if applicable
+      let recentIndexingInfo = '';
+      if (
+        indexingProgress.status === 'completed' &&
+        indexingProgress.completedAt
+      ) {
+        const completedAgo = Math.round(
+          (Date.now() - indexingProgress.completedAt.getTime()) / 1000,
+        );
+        if (completedAgo < 300) {
+          // Show for 5 minutes after completion
+          recentIndexingInfo = `**Recent Indexing Completed**\n`;
+          recentIndexingInfo += `- Indexed: ${indexingProgress.indexed} files\n`;
+          recentIndexingInfo += `- Failed: ${indexingProgress.failed} files\n`;
+          recentIndexingInfo += `- Completed: ${completedAgo}s ago\n\n`;
+        }
+      } else if (
+        indexingProgress.status === 'failed' &&
+        indexingProgress.lastError
+      ) {
+        recentIndexingInfo = `**Recent Indexing Failed**\n`;
+        recentIndexingInfo += `- Error: ${indexingProgress.lastError}\n\n`;
+      }
 
       if (!searchDatabaseExists(rootPath)) {
         return {
@@ -240,7 +455,8 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
         const queueStatus = await searchSystem.getQueueStatus();
         const ocrStatus = searchSystem.getOcrQueueStatus();
 
-        let llmContent = `**Search Index Status**\n\n`;
+        let llmContent = recentIndexingInfo;
+        llmContent += `**Search Index Status**\n\n`;
         llmContent += `- Root path: ${state.rootPath}\n`;
         llmContent += `- Database: ${state.databasePath}\n`;
         llmContent += `- Initialized: Yes\n\n`;

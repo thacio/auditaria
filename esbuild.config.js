@@ -76,6 +76,8 @@ const external = [
   '@huggingface/transformers',
   // AUDITARIA_SEARCH: tesseract.js must be external due to worker thread spawning
   'tesseract.js',
+  // AUDITARIA_LOCAL_SEARCH: search package has complex dependencies (pglite, transformers.js)
+  '@thacio/search',
 ];
 
 const baseConfig = {
