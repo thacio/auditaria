@@ -74,6 +74,8 @@ const external = [
   'unzipper',
   // AUDITARIA_SEARCH: transformers.js must be external due to complex WASM/ONNX backend initialization
   '@huggingface/transformers',
+  // AUDITARIA_SEARCH: tesseract.js must be external due to worker thread spawning
+  'tesseract.js',
 ];
 
 const baseConfig = {

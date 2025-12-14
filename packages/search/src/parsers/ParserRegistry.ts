@@ -14,6 +14,7 @@ import { OfficeParserAdapter } from './OfficeParserAdapter.js';
 import { PdfParseAdapter } from './PdfParseAdapter.js';
 import { MarkitdownParser } from './MarkitdownParser.js';
 import { PlainTextParser } from './PlainTextParser.js';
+import { ImageParser } from './ImageParser.js';
 
 // ============================================================================
 // ParserRegistry Class
@@ -186,6 +187,7 @@ export class ParserRegistry {
  * Create a new ParserRegistry with default parsers registered.
  *
  * Parser priority order (higher = preferred):
+ * - ImageParser (250): Image files (PNG, JPG, etc.) - direct OCR
  * - OfficeParserAdapter (200): DOCX, PPTX, XLSX, ODT, ODP, ODS
  * - PdfParseAdapter (200): PDF
  * - MarkitdownParser (100): General-purpose fallback for many formats
@@ -197,6 +199,7 @@ export function createParserRegistry(
   const registry = new ParserRegistry(options);
 
   // Register specialized parsers first (highest priority)
+  registry.register(new ImageParser()); // Priority 250 - Image files
   registry.register(new OfficeParserAdapter()); // Priority 200 - Office docs
   registry.register(new PdfParseAdapter()); // Priority 200 - PDF files
   registry.register(new MarkitdownParser()); // Priority 100 - general-purpose

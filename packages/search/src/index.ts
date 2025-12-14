@@ -62,6 +62,7 @@ export {
   DEFAULT_CHUNKING_CONFIG,
   DEFAULT_EMBEDDINGS_CONFIG,
   DEFAULT_SEARCH_CONFIG,
+  DEFAULT_OCR_CONFIG,
 } from './config.js';
 
 export type {
@@ -71,6 +72,7 @@ export type {
   ChunkingConfig,
   EmbeddingsConfig,
   SearchConfig,
+  OcrConfig,
   DeepPartial,
 } from './config.js';
 
@@ -213,6 +215,41 @@ export type {
   DiscoveryOptions,
   FileDiscoveryStats,
 } from './discovery/FileDiscovery.js';
+
+// ============================================================================
+// OCR (Direct Access)
+// ============================================================================
+
+export {
+  OcrRegistry,
+  createOcrRegistry,
+  createOcrRegistryAsync,
+  TesseractJsProvider,
+  createTesseractJsProvider,
+  isTesseractAvailable,
+  OcrQueueManager,
+  createOcrQueueManager,
+} from './ocr/index.js';
+
+export type {
+  OcrProvider,
+  OcrResult,
+  OcrTextRegion,
+  OcrWord,
+  OcrOptions,
+  OcrRegistryOptions,
+  OcrJob,
+  OcrJobStatus,
+  OcrQueueConfig,
+  OcrProgressCallback,
+  OcrProgressInfo,
+  OcrEvents,
+  OcrMergeOptions,
+  OcrMergeResult,
+  TesseractJsProviderConfig,
+  OcrQueueState,
+  OcrQueueStatus,
+} from './ocr/index.js';
 
 // ============================================================================
 // Core Utilities

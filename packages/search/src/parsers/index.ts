@@ -23,6 +23,7 @@ export {
   createMarkitdownParser,
 } from './MarkitdownParser.js';
 export { PlainTextParser, createPlainTextParser } from './PlainTextParser.js';
+export { ImageParser, createImageParser } from './ImageParser.js';
 
 // Registry
 export {

@@ -3,9 +3,21 @@
  * Provides a high-level API for initializing, indexing, and searching documents.
  */
 
-import { join, resolve } from 'node:path';
+import { join, resolve, extname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+
+// Image extensions that should be directly OCR'd
+const IMAGE_EXTENSIONS_FOR_OCR = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.bmp',
+  '.tiff',
+  '.tif',
+  '.webp',
+]);
 
 import { EventEmitter } from './EventEmitter.js';
 import type {
@@ -43,6 +55,15 @@ import type {
   SyncResult,
   SyncOptions as FileSyncOptions,
 } from '../sync/types.js';
+import {
+  createOcrRegistryAsync,
+  createOcrQueueManager,
+  isTesseractAvailable,
+  type OcrRegistry,
+  type OcrQueueManager,
+  type OcrQueueStatus,
+  type OcrResult,
+} from '../ocr/index.js';
 
 // ============================================================================
 // Types
@@ -65,6 +86,8 @@ export interface SearchSystemState {
   databasePath: string;
   indexingInProgress: boolean;
   fileWatcherEnabled: boolean;
+  ocrEnabled: boolean;
+  ocrAvailable: boolean;
 }
 
 export interface SearchSystemEvents {
@@ -75,6 +98,20 @@ export interface SearchSystemEvents {
   'indexing:started': { fileCount: number };
   'indexing:progress': { current: number; total: number };
   'indexing:completed': { indexed: number; failed: number; duration: number };
+  'ocr:started': { documentId: string; filePath: string; regions: number };
+  'ocr:progress': {
+    documentId: string;
+    filePath: string;
+    completed: number;
+    total: number;
+  };
+  'ocr:completed': {
+    documentId: string;
+    filePath: string;
+    text: string;
+    confidence: number;
+  };
+  'ocr:failed': { documentId: string; filePath: string; error: Error };
 }
 
 // ============================================================================
@@ -95,10 +132,13 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private startupSync: StartupSync | null = null;
   private fileWatcher: FileWatcher | null = null;
   private embedder: TextEmbedder | null = null;
+  private ocrRegistry: OcrRegistry | null = null;
+  private ocrQueueManager: OcrQueueManager | null = null;
   private initialized: boolean = false;
   private indexingInProgress: boolean = false;
   private useMockEmbedder: boolean = false;
   private fileWatcherEnabled: boolean = false;
+  private ocrAvailable: boolean = false;
 
   private constructor(
     rootPath: string,
@@ -275,6 +315,19 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       rrfK: this.config.search.rrfK,
     });
 
+    // Listen for OCR needed events from pipeline (for PDFs and other documents)
+    this.pipeline.on('document:ocr_needed', (event) => {
+      if (this.ocrQueueManager && this.config.ocr.enabled) {
+        this.ocrQueueManager
+          .enqueue(event.documentId, event.filePath, [])
+          .catch((err) => {
+            console.warn(
+              `[SearchSystem] Failed to enqueue OCR job: ${err.message}`,
+            );
+          });
+      }
+    });
+
     // Initialize startup sync
     this.startupSync = createStartupSync(this.storage, this.discovery);
 
@@ -291,6 +344,52 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         },
         this.config.indexing.fileTypes,
       );
+    }
+
+    // Initialize OCR (optional - only if tesseract.js is available)
+    if (this.config.ocr.enabled) {
+      try {
+        this.ocrAvailable = await isTesseractAvailable();
+        if (this.ocrAvailable) {
+          console.log(
+            '[SearchSystem] Tesseract.js available, initializing OCR...',
+          );
+          this.ocrRegistry = await createOcrRegistryAsync();
+          this.ocrQueueManager = createOcrQueueManager(
+            this.storage,
+            this.ocrRegistry,
+            {
+              enabled: this.config.ocr.enabled,
+              concurrency: this.config.ocr.concurrency,
+              maxRetries: this.config.ocr.maxRetries,
+              retryDelay: this.config.ocr.retryDelay,
+              processAfterMainQueue: this.config.ocr.processAfterMainQueue,
+              defaultLanguages: this.config.ocr.defaultLanguages,
+            },
+            this.embedder as Embedder,
+          );
+
+          // Forward OCR events
+          this.ocrQueueManager.on('ocr:started', (event) => {
+            void this.emit('ocr:started', event);
+          });
+          this.ocrQueueManager.on('ocr:completed', (event) => {
+            void this.emit('ocr:completed', event);
+          });
+          this.ocrQueueManager.on('ocr:failed', (event) => {
+            void this.emit('ocr:failed', event);
+          });
+
+          console.log('[SearchSystem] OCR initialized');
+        } else {
+          console.log(
+            '[SearchSystem] Tesseract.js not available, OCR disabled',
+          );
+        }
+      } catch (error) {
+        console.warn('[SearchSystem] Failed to initialize OCR:', error);
+        this.ocrAvailable = false;
+      }
     }
 
     this.initialized = true;
@@ -311,6 +410,18 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       this.fileWatcher = null;
     }
 
+    // Stop OCR queue manager
+    if (this.ocrQueueManager) {
+      await this.ocrQueueManager.stop();
+      this.ocrQueueManager = null;
+    }
+
+    // Dispose OCR registry
+    if (this.ocrRegistry) {
+      await this.ocrRegistry.disposeAll();
+      this.ocrRegistry = null;
+    }
+
     if (this.storage) {
       await this.storage.close();
       this.storage = null;
@@ -322,6 +433,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     }
 
     this.initialized = false;
+    this.ocrAvailable = false;
   }
 
   // -------------------------------------------------------------------------
@@ -374,13 +486,30 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       let failed = 0;
 
       // Subscribe to pipeline events
-      const unsubCompleted = this.pipeline!.on('document:completed', () => {
-        indexed++;
-        void this.emit('indexing:progress', {
-          current: indexed + failed,
-          total: totalToProcess,
-        });
-      });
+      const unsubCompleted = this.pipeline!.on(
+        'document:completed',
+        (event) => {
+          indexed++;
+          void this.emit('indexing:progress', {
+            current: indexed + failed,
+            total: totalToProcess,
+          });
+
+          // Directly enqueue image files for OCR (bypass parser's requiresOcr flag)
+          if (this.ocrQueueManager && this.config.ocr.enabled) {
+            const ext = extname(event.filePath).toLowerCase();
+            if (IMAGE_EXTENSIONS_FOR_OCR.has(ext)) {
+              this.ocrQueueManager
+                .enqueue(event.documentId, event.filePath, [])
+                .catch((err) => {
+                  console.warn(
+                    `[SearchSystem] Failed to enqueue image for OCR: ${err.message}`,
+                  );
+                });
+            }
+          }
+        },
+      );
 
       const unsubFailed = this.pipeline!.on('document:failed', (event) => {
         failed++;
@@ -401,6 +530,24 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       // Cleanup
       unsubCompleted();
       unsubFailed();
+
+      // Process OCR queue if enabled
+      if (this.isOcrAvailable()) {
+        // Also check for existing image documents that need OCR
+        // (they might have been indexed before but OCR wasn't completed)
+        await this.enqueueExistingImagesForOcr();
+
+        const ocrStatus = this.ocrQueueManager!.getStatus();
+        if (ocrStatus.pendingJobs > 0) {
+          console.log(
+            `[SearchSystem] Processing ${ocrStatus.pendingJobs} OCR job(s)...`,
+          );
+          const ocrResult = await this.ocrQueueManager!.processAll();
+          console.log(
+            `[SearchSystem] OCR completed: ${ocrResult.succeeded} succeeded, ${ocrResult.failed} failed`,
+          );
+        }
+      }
 
       const duration = Date.now() - startTime;
       void this.emit('indexing:completed', { indexed, failed, duration });
@@ -656,6 +803,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       databasePath: join(this.rootPath, this.config.database.path),
       indexingInProgress: this.indexingInProgress,
       fileWatcherEnabled: this.fileWatcher?.isWatching() ?? false,
+      ocrEnabled: this.config.ocr.enabled,
+      ocrAvailable: this.ocrAvailable,
     };
   }
 
@@ -664,6 +813,154 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   getConfig(): SearchSystemConfig {
     return { ...this.config };
+  }
+
+  // -------------------------------------------------------------------------
+  // OCR
+  // -------------------------------------------------------------------------
+
+  /**
+   * Check if OCR is available.
+   */
+  isOcrAvailable(): boolean {
+    return this.ocrAvailable && this.ocrQueueManager !== null;
+  }
+
+  /**
+   * Get OCR queue status.
+   */
+  getOcrQueueStatus(): OcrQueueStatus | null {
+    if (!this.ocrQueueManager) {
+      return null;
+    }
+    return this.ocrQueueManager.getStatus();
+  }
+
+  /**
+   * Start OCR processing.
+   */
+  startOcrProcessing(): void {
+    this.ensureInitialized();
+
+    if (!this.isOcrAvailable()) {
+      throw new Error('OCR is not available');
+    }
+
+    this.ocrQueueManager!.start();
+  }
+
+  /**
+   * Stop OCR processing.
+   */
+  async stopOcrProcessing(): Promise<void> {
+    if (this.ocrQueueManager) {
+      await this.ocrQueueManager.stop();
+    }
+  }
+
+  /**
+   * Process all pending OCR jobs.
+   */
+  async processOcrQueue(): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+  }> {
+    this.ensureInitialized();
+
+    if (!this.isOcrAvailable()) {
+      return { processed: 0, succeeded: 0, failed: 0 };
+    }
+
+    return this.ocrQueueManager!.processAll();
+  }
+
+  /**
+   * Find existing image documents that need OCR and enqueue them.
+   * This handles cases where images were indexed but OCR wasn't completed
+   * (e.g., system was closed before OCR finished).
+   */
+  private async enqueueExistingImagesForOcr(): Promise<number> {
+    if (!this.ocrQueueManager || !this.storage) {
+      return 0;
+    }
+
+    // Get all documents
+    const allDocs = await this.storage.listDocuments();
+
+    let enqueuedCount = 0;
+
+    for (const doc of allDocs) {
+      // Check if it's an image file
+      const ext = doc.fileExtension.toLowerCase();
+      if (!IMAGE_EXTENSIONS_FOR_OCR.has(ext)) {
+        continue;
+      }
+
+      // Check if OCR hasn't been completed
+      if (doc.ocrStatus === 'completed') {
+        continue;
+      }
+
+      // Enqueue for OCR
+      try {
+        await this.ocrQueueManager.enqueue(doc.id, doc.filePath, []);
+        enqueuedCount++;
+      } catch (err) {
+        console.warn(
+          `[SearchSystem] Failed to enqueue existing image for OCR: ${doc.filePath}`,
+          err,
+        );
+      }
+    }
+
+    if (enqueuedCount > 0) {
+      console.log(
+        `[SearchSystem] Enqueued ${enqueuedCount} existing image(s) for OCR`,
+      );
+    }
+
+    return enqueuedCount;
+  }
+
+  /**
+   * Perform OCR on an image file directly.
+   */
+  async ocrFile(filePath: string): Promise<OcrResult> {
+    this.ensureInitialized();
+
+    if (!this.isOcrAvailable()) {
+      throw new Error('OCR is not available');
+    }
+
+    // Initialize OCR provider if needed
+    const provider = this.ocrRegistry!.getDefault();
+    if (!provider) {
+      throw new Error('No OCR provider available');
+    }
+
+    if (!provider.isReady()) {
+      await provider.initialize();
+    }
+
+    return provider.recognizeFile(filePath, {
+      languages: this.config.ocr.defaultLanguages,
+    });
+  }
+
+  /**
+   * Perform OCR on an image buffer.
+   */
+  async ocrBuffer(image: Buffer, languages?: string[]): Promise<OcrResult> {
+    this.ensureInitialized();
+
+    if (!this.isOcrAvailable()) {
+      throw new Error('OCR is not available');
+    }
+
+    return this.ocrRegistry!.recognize(image, {
+      languages: languages ?? this.config.ocr.defaultLanguages,
+    });
   }
 
   // -------------------------------------------------------------------------

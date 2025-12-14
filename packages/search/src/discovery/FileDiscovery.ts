@@ -85,6 +85,7 @@ const DEFAULT_IGNORE_PATHS = [
 ];
 
 const DEFAULT_FILE_TYPES = [
+  // Documents
   '.pdf',
   '.docx',
   '.doc',
@@ -106,6 +107,15 @@ const DEFAULT_FILE_TYPES = [
   '.ipynb',
   '.msg',
   '.eml',
+  // Images (for OCR)
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.bmp',
+  '.tiff',
+  '.tif',
+  '.webp',
 ];
 
 const DEFAULT_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB

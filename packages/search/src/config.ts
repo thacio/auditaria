@@ -69,12 +69,30 @@ export interface SearchConfig {
   rrfK: number;
 }
 
+export interface OcrConfig {
+  /** Enable OCR processing. Default: true */
+  enabled: boolean;
+  /** Maximum concurrent OCR jobs. Default: 1 */
+  concurrency: number;
+  /** Maximum retry attempts for failed OCR jobs. Default: 3 */
+  maxRetries: number;
+  /** Delay between retries in milliseconds. Default: 5000 */
+  retryDelay: number;
+  /** Process OCR only after main indexing queue is empty. Default: true */
+  processAfterMainQueue: boolean;
+  /** Default languages for OCR (ISO 639-1 codes). Default: ['en'] */
+  defaultLanguages: string[];
+  /** Minimum confidence threshold for OCR results (0-1). Default: 0.5 */
+  minConfidence: number;
+}
+
 export interface SearchSystemConfig {
   database: DatabaseConfig;
   indexing: IndexingConfig;
   chunking: ChunkingConfig;
   embeddings: EmbeddingsConfig;
   search: SearchConfig;
+  ocr: OcrConfig;
 }
 
 // ============================================================================
@@ -90,6 +108,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   ignorePaths: ['node_modules', '.git', 'dist', 'build', '*.log', '.auditaria'],
   includePaths: [],
   fileTypes: [
+    // Documents
     '.pdf',
     '.docx',
     '.pptx',
@@ -107,6 +126,15 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
     '.odt',
     '.odp',
     '.ods',
+    // Images (for OCR)
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.bmp',
+    '.tiff',
+    '.tif',
+    '.webp',
   ],
   maxFileSize: 50 * 1024 * 1024, // 50MB
   ocrEnabled: true,
@@ -138,12 +166,23 @@ export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
   rrfK: 60,
 };
 
+export const DEFAULT_OCR_CONFIG: OcrConfig = {
+  enabled: true,
+  concurrency: 1,
+  maxRetries: 3,
+  retryDelay: 5000,
+  processAfterMainQueue: true,
+  defaultLanguages: ['en'],
+  minConfidence: 0.5,
+};
+
 export const DEFAULT_CONFIG: SearchSystemConfig = {
   database: DEFAULT_DATABASE_CONFIG,
   indexing: DEFAULT_INDEXING_CONFIG,
   chunking: DEFAULT_CHUNKING_CONFIG,
   embeddings: DEFAULT_EMBEDDINGS_CONFIG,
   search: DEFAULT_SEARCH_CONFIG,
+  ocr: DEFAULT_OCR_CONFIG,
 };
 
 // ============================================================================
@@ -209,6 +248,10 @@ export function createConfig(
       DEFAULT_SEARCH_CONFIG,
       (partial.search ?? {}) as Partial<SearchConfig>,
     ),
+    ocr: deepMerge(
+      DEFAULT_OCR_CONFIG,
+      (partial.ocr ?? {}) as Partial<OcrConfig>,
+    ),
   };
 }
 
@@ -265,5 +308,19 @@ export function validateConfig(config: SearchSystemConfig): void {
   }
   if (config.search.rrfK <= 0) {
     throw new Error('rrfK must be positive');
+  }
+
+  // Validate OCR config
+  if (config.ocr.concurrency <= 0) {
+    throw new Error('OCR concurrency must be positive');
+  }
+  if (config.ocr.maxRetries < 0) {
+    throw new Error('OCR maxRetries cannot be negative');
+  }
+  if (config.ocr.retryDelay < 0) {
+    throw new Error('OCR retryDelay cannot be negative');
+  }
+  if (config.ocr.minConfidence < 0 || config.ocr.minConfidence > 1) {
+    throw new Error('OCR minConfidence must be between 0 and 1');
   }
 }
