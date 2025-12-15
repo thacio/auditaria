@@ -11,7 +11,7 @@ import type { ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
-import { SEARCH_DOCUMENTS_TOOL_NAME } from './tool-names.js';
+import { KNOWLEDGE_SEARCH_TOOL_NAME } from './tool-names.js';
 import { SearchServiceManager } from '../services/search-service.js';
 import {
   SearchResponseFormatter,
@@ -21,9 +21,9 @@ import {
 } from './search-response-formatter.js';
 
 /**
- * Parameters for the SearchDocuments tool
+ * Parameters for the KnowledgeSearch tool
  */
-export interface SearchDocumentsToolParams {
+export interface KnowledgeSearchToolParams {
   /**
    * The search query (required unless document_id is provided)
    */
@@ -43,11 +43,6 @@ export interface SearchDocumentsToolParams {
    * Filter results to specific file types (e.g., '.pdf', '.docx')
    */
   file_types?: string[];
-
-  /**
-   * Filter results to documents with specific tags
-   */
-  tags?: string[];
 
   /**
    * Maximum number of results to return (default: 30, max: 200)
@@ -97,7 +92,7 @@ export interface SearchDocumentsToolParams {
   offset?: number;
 }
 
-const SEARCH_DOCUMENTS_DESCRIPTION = `Search indexed documents using keyword, semantic, or hybrid search.
+const KNOWLEDGE_SEARCH_DESCRIPTION = `Search the knowledge base using keyword, semantic, or hybrid search.
 
 This tool searches through all indexed documents in the project using advanced search capabilities:
 
@@ -109,7 +104,6 @@ This tool searches through all indexed documents in the project using advanced s
 **Filtering:**
 - **folders**: Only search in specific directories
 - **file_types**: Only search specific file types (e.g., '.pdf', '.docx')
-- **tags**: Only search documents with specific tags
 - **document_id**: Retrieve all chunks for a specific document (from previous search)
 
 **Output Control:**
@@ -123,19 +117,19 @@ This tool searches through all indexed documents in the project using advanced s
 - **offset**: Starting position for pagination
 
 **Workflow for retrieving full documents:**
-1. Search: \`search_documents(query: "audit methodology")\` - returns document IDs with snippets
-2. Retrieve: \`search_documents(document_id: "doc_xxx", detail: "full")\` - returns complete document content
+1. Search: \`knowledge_search(query: "audit methodology")\` - returns document IDs with snippets
+2. Retrieve: \`knowledge_search(document_id: "doc_xxx", detail: "full")\` - returns complete document content
 
-**Note:** The search index must be initialized first using the search_index tool with action "init".
+**Note:** The knowledge base must be initialized first using the knowledge_index tool with action "init".
 `;
 
-class SearchDocumentsToolInvocation extends BaseToolInvocation<
-  SearchDocumentsToolParams,
+class KnowledgeSearchToolInvocation extends BaseToolInvocation<
+  KnowledgeSearchToolParams,
   ToolResult
 > {
   constructor(
     private config: Config,
-    params: SearchDocumentsToolParams,
+    params: KnowledgeSearchToolParams,
     messageBus?: MessageBus,
     toolName?: string,
     displayName?: string,
@@ -157,7 +151,6 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
       strategy,
       folders,
       file_types,
-      tags,
       limit,
       document_id,
       format,
@@ -179,7 +172,7 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
 
         if (!searchDatabaseExists(rootPath)) {
           const msg =
-            'Search index not found. Please initialize it first using the search_index tool with action "init".';
+            'Knowledge base not found. Please initialize it first using the knowledge_index tool with action "init".';
           return {
             llmContent: msg,
             returnDisplay: msg,
@@ -191,7 +184,7 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
         }
 
         // Auto-start the service
-        console.log('[SearchDocuments] Auto-starting search service...');
+        console.log('[KnowledgeSearch] Auto-starting search service...');
         await service.start(rootPath, {
           skipInitialSync: true, // Don't sync now, just make search available
         });
@@ -238,7 +231,6 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
         filters: {
           folders,
           fileTypes: file_types,
-          tags,
         },
         limit: effectiveLimit + effectiveOffset, // Fetch extra for offset
         offset: 0, // We handle offset in formatter
@@ -262,7 +254,6 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
           metadata: {
             page: result.metadata?.page ?? null,
             section: result.metadata?.section ?? null,
-            tags: result.metadata?.tags ?? [],
           },
         }),
       );
@@ -346,7 +337,6 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
         metadata: {
           page: chunk.page ?? null,
           section: chunk.section ?? null,
-          tags: document.tags ?? [],
         },
       }));
 
@@ -396,22 +386,22 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
 }
 
 /**
- * Tool for searching indexed documents
+ * Tool for searching the knowledge base
  */
-export class SearchDocumentsTool extends BaseDeclarativeTool<
-  SearchDocumentsToolParams,
+export class KnowledgeSearchTool extends BaseDeclarativeTool<
+  KnowledgeSearchToolParams,
   ToolResult
 > {
-  static readonly Name = SEARCH_DOCUMENTS_TOOL_NAME;
+  static readonly Name = KNOWLEDGE_SEARCH_TOOL_NAME;
 
   constructor(
     private readonly config: Config,
     messageBus?: MessageBus,
   ) {
     super(
-      SearchDocumentsTool.Name,
-      'SearchDocuments',
-      SEARCH_DOCUMENTS_DESCRIPTION,
+      KnowledgeSearchTool.Name,
+      'KnowledgeSearch',
+      KNOWLEDGE_SEARCH_DESCRIPTION,
       Kind.Read,
       {
         type: 'object',
@@ -437,11 +427,6 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
             items: { type: 'string' },
             description:
               'Filter results to specific file types (e.g., ".pdf", ".docx")',
-          },
-          tags: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter results to documents with specific tags',
           },
           limit: {
             type: 'number',
@@ -494,7 +479,7 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
   }
 
   protected override validateToolParamValues(
-    params: SearchDocumentsToolParams,
+    params: KnowledgeSearchToolParams,
   ): string | null {
     // Query is required unless document_id is provided
     if (!params.document_id) {
@@ -550,12 +535,12 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
   }
 
   protected createInvocation(
-    params: SearchDocumentsToolParams,
+    params: KnowledgeSearchToolParams,
     messageBus?: MessageBus,
     toolName?: string,
     displayName?: string,
-  ): ToolInvocation<SearchDocumentsToolParams, ToolResult> {
-    return new SearchDocumentsToolInvocation(
+  ): ToolInvocation<KnowledgeSearchToolParams, ToolResult> {
+    return new KnowledgeSearchToolInvocation(
       this.config,
       params,
       messageBus,

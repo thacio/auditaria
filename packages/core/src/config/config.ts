@@ -57,8 +57,8 @@ import { WriteTodosTool } from '../tools/write-todos.js';
 import { ContextManagementTool } from '../tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 import { CollaborativeWritingTool } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 import { BrowserAgentTool } from '@thacio/browser-agent'; // AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
-import { SearchDocumentsTool } from '../tools/search-documents.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
-import { SearchIndexTool } from '../tools/search-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
+import { KnowledgeSearchTool } from '../tools/knowledge-search.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
+import { KnowledgeIndexTool } from '../tools/knowledge-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback } from '../telemetry/loggers.js';
@@ -1603,8 +1603,8 @@ export class Config {
     registerCoreTool(BrowserAgentTool, this); // AUDITARIA_BROWSER_AGENT - Pass 'this' (Config) to enable CredentialBridge - browser-agent uses same auth as Auditaria
 
     // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
-    registerCoreTool(SearchDocumentsTool, this);
-    registerCoreTool(SearchIndexTool, this);
+    registerCoreTool(KnowledgeSearchTool, this);
+    registerCoreTool(KnowledgeIndexTool, this);
 
     // Register Subagents as Tools
     // Register DelegateToAgentTool if agents are enabled

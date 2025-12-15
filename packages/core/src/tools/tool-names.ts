@@ -33,5 +33,5 @@ export const COLLABORATIVE_WRITING_TOOL_NAME = 'collaborative_writing';
 export const BROWSER_AGENT_TOOL_NAME = 'browser_agent';
 
 // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
-export const SEARCH_DOCUMENTS_TOOL_NAME = 'search_documents';
-export const SEARCH_INDEX_TOOL_NAME = 'search_index';
+export const KNOWLEDGE_SEARCH_TOOL_NAME = 'knowledge_search';
+export const KNOWLEDGE_INDEX_TOOL_NAME = 'knowledge_index';

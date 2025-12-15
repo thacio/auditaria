@@ -11,7 +11,7 @@ import type { ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
-import { SEARCH_INDEX_TOOL_NAME } from './tool-names.js';
+import { KNOWLEDGE_INDEX_TOOL_NAME } from './tool-names.js';
 import {
   SearchServiceManager,
   type IndexingProgress,
@@ -22,9 +22,9 @@ import {
 // ============================================================================
 
 /**
- * Parameters for the SearchIndex tool
+ * Parameters for the KnowledgeIndex tool
  */
-export interface SearchIndexToolParams {
+export interface KnowledgeIndexToolParams {
   /**
    * Action to perform: 'init', 'status', or 'reindex'
    */
@@ -41,13 +41,13 @@ export interface SearchIndexToolParams {
   force?: boolean;
 }
 
-const SEARCH_INDEX_DESCRIPTION = `Manage the local document search index.
+const KNOWLEDGE_INDEX_DESCRIPTION = `Manage the knowledge base index.
 
-This tool manages the search index for the project. Available actions:
+This tool manages the knowledge base index for the project. Available actions:
 
-- **init**: Initialize or update the search index. Discovers all indexable files, parses them, generates embeddings, and stores them for fast searching. Use 'force: true' to rebuild the entire index from scratch.
+- **init**: Initialize or update the knowledge base. Discovers all indexable files, parses them, generates embeddings, and stores them for fast searching. Use 'force: true' to rebuild the entire index from scratch.
 
-- **status**: Get the current status of the search index including:
+- **status**: Get the current status of the knowledge base including:
   - Total documents indexed
   - Pending documents in queue
   - OCR status (if available)
@@ -55,18 +55,18 @@ This tool manages the search index for the project. Available actions:
 
 - **reindex**: Reindex a specific file. Useful when a file was updated but not picked up by the watcher. Requires 'file_path' parameter.
 
-The index stores document chunks with vector embeddings for semantic search and full-text indexes for keyword search.
+The knowledge base stores document chunks with vector embeddings for semantic search and full-text indexes for keyword search.
 
 **Supported file types:** PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, TXT, MD, HTML, images (with OCR), and more.
 `;
 
-class SearchIndexToolInvocation extends BaseToolInvocation<
-  SearchIndexToolParams,
+class KnowledgeIndexToolInvocation extends BaseToolInvocation<
+  KnowledgeIndexToolParams,
   ToolResult
 > {
   constructor(
     private config: Config,
-    params: SearchIndexToolParams,
+    params: KnowledgeIndexToolParams,
     messageBus?: MessageBus,
     toolName?: string,
     displayName?: string,
@@ -78,14 +78,14 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
     switch (this.params.action) {
       case 'init':
         return this.params.force
-          ? 'Rebuilding search index'
-          : 'Initializing search index';
+          ? 'Rebuilding knowledge base'
+          : 'Initializing knowledge base';
       case 'status':
-        return 'Checking search index status';
+        return 'Checking knowledge base status';
       case 'reindex':
         return `Reindexing ${this.params.file_path ?? 'file'}`;
       default:
-        return 'Managing search index';
+        return 'Managing knowledge base';
     }
   }
 
@@ -121,8 +121,8 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
     try {
       updateOutput?.(
         this.params.force
-          ? 'Starting full index rebuild...'
-          : 'Starting search index initialization...',
+          ? 'Starting full knowledge base rebuild...'
+          : 'Starting knowledge base initialization...',
       );
 
       if (service.isRunning()) {
@@ -142,7 +142,7 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
       });
 
       const progress = service.getIndexingProgress();
-      let llmContent = `**Search Service Started**\n\n`;
+      let llmContent = `**Knowledge Base Service Started**\n\n`;
       llmContent += `- Status: ${progress.status}\n`;
       llmContent += `- Files discovered: ${progress.totalFiles}\n`;
       llmContent += `- Mode: ${this.params.force ? 'Full rebuild' : 'Incremental update'}\n\n`;
@@ -162,7 +162,7 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       return {
-        llmContent: `Failed to start search service: ${errorMessage}`,
+        llmContent: `Failed to start knowledge base service: ${errorMessage}`,
         returnDisplay: `Initialization error: ${errorMessage}`,
         error: {
           message: errorMessage,
@@ -242,7 +242,7 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
             }
           }
 
-          llmContent += `**Search Index Status**\n\n`;
+          llmContent += `**Knowledge Base Status**\n\n`;
           llmContent += `- Root path: ${systemState.rootPath}\n`;
           llmContent += `- Database: ${systemState.databasePath}\n`;
           llmContent += `- Service running: Yes\n\n`;
@@ -280,7 +280,7 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           return {
-            llmContent: `Failed to get search index status: ${errorMessage}`,
+            llmContent: `Failed to get knowledge base status: ${errorMessage}`,
             returnDisplay: `Status error: ${errorMessage}`,
             error: {
               message: errorMessage,
@@ -298,22 +298,22 @@ class SearchIndexToolInvocation extends BaseToolInvocation<
       if (!searchDatabaseExists(rootPath)) {
         return {
           llmContent:
-            'Search index not found. Use search_index with action "init" to create it.',
-          returnDisplay: 'Search index not initialized',
+            'Knowledge base not found. Use knowledge_index with action "init" to create it.',
+          returnDisplay: 'Knowledge base not initialized',
         };
       }
 
       // Database exists but service not running
       return {
         llmContent:
-          'Search index exists but service is not running. Use action "init" to start the search service.',
-        returnDisplay: 'Search service not running',
+          'Knowledge base exists but service is not running. Use action "init" to start the knowledge base service.',
+        returnDisplay: 'Knowledge base service not running',
       };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       return {
-        llmContent: `Failed to check search index: ${errorMessage}`,
+        llmContent: `Failed to check knowledge base: ${errorMessage}`,
         returnDisplay: `Status error: ${errorMessage}`,
         error: {
           message: errorMessage,
@@ -399,22 +399,22 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * Tool for managing the search index
+ * Tool for managing the knowledge base index
  */
-export class SearchIndexTool extends BaseDeclarativeTool<
-  SearchIndexToolParams,
+export class KnowledgeIndexTool extends BaseDeclarativeTool<
+  KnowledgeIndexToolParams,
   ToolResult
 > {
-  static readonly Name = SEARCH_INDEX_TOOL_NAME;
+  static readonly Name = KNOWLEDGE_INDEX_TOOL_NAME;
 
   constructor(
     private readonly config: Config,
     messageBus?: MessageBus,
   ) {
     super(
-      SearchIndexTool.Name,
-      'SearchIndex',
-      SEARCH_INDEX_DESCRIPTION,
+      KnowledgeIndexTool.Name,
+      'KnowledgeIndex',
+      KNOWLEDGE_INDEX_DESCRIPTION,
       Kind.Other,
       {
         type: 'object',
@@ -444,7 +444,7 @@ export class SearchIndexTool extends BaseDeclarativeTool<
   }
 
   protected override validateToolParamValues(
-    params: SearchIndexToolParams,
+    params: KnowledgeIndexToolParams,
   ): string | null {
     if (!params.action) {
       return 'Action is required';
@@ -462,12 +462,12 @@ export class SearchIndexTool extends BaseDeclarativeTool<
   }
 
   protected createInvocation(
-    params: SearchIndexToolParams,
+    params: KnowledgeIndexToolParams,
     messageBus?: MessageBus,
     toolName?: string,
     displayName?: string,
-  ): ToolInvocation<SearchIndexToolParams, ToolResult> {
-    return new SearchIndexToolInvocation(
+  ): ToolInvocation<KnowledgeIndexToolParams, ToolResult> {
+    return new KnowledgeIndexToolInvocation(
       this.config,
       params,
       messageBus,

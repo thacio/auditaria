@@ -58,7 +58,7 @@ export interface SearchResultInput {
   metadata: {
     page: number | null;
     section: string | null;
-    tags: string[];
+    tags?: string[]; // Optional - not currently exposed in tools
   };
 }
 

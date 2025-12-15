@@ -1,8 +1,8 @@
 /**
- * Search Commands - Local document search functionality.
- * Provides commands for initializing, searching, and managing the search index.
+ * Knowledge Base Commands - Local document search functionality.
+ * Provides commands for initializing, searching, and managing the knowledge base.
  *
- * AUDITARIA_FEATURE: Local Search System
+ * AUDITARIA_FEATURE: Local Knowledge Base System
  */
 
 import type { SlashCommand, CommandContext } from './types.js';
@@ -38,48 +38,13 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/**
- * Get the search system from the singleton if running, otherwise load temporarily.
- * Returns { system, closeAfter } where closeAfter indicates if caller should close.
- */
-async function getSearchSystemSafe(rootPath: string): Promise<{
-  system: NonNullable<
-    Awaited<ReturnType<typeof import('@thacio/search').loadSearchSystem>>
-  >;
-  closeAfter: boolean;
-} | null> {
-  const search = await getSearchModule();
-  const searchService = getSearchService();
-
-  // Check if index exists
-  if (!search.searchDatabaseExists(rootPath)) {
-    return null;
-  }
-
-  // Use the singleton if running
-  const singletonSystem = searchService.getSearchSystem();
-  if (singletonSystem) {
-    return { system: singletonSystem, closeAfter: false };
-  }
-
-  // Load a temporary system
-  const loadedSystem = await search.loadSearchSystem(rootPath, {
-    useMockEmbedder: false,
-  });
-  if (!loadedSystem) {
-    return null;
-  }
-
-  return { system: loadedSystem, closeAfter: true };
-}
-
 // ============================================================================
-// /search-init Command
+// /knowledge-init Command
 // ============================================================================
 
-const searchInitCommand: SlashCommand = {
-  name: 'search-init',
-  description: 'Initialize or update the local document search index',
+const knowledgeInitCommand: SlashCommand = {
+  name: 'knowledge-init',
+  description: 'Initialize or update the knowledge base',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
   action: async (context, args) => {
@@ -88,7 +53,7 @@ const searchInitCommand: SlashCommand = {
 
     context.ui.setPendingItem({
       type: MessageType.INFO,
-      text: 'Initializing search index...',
+      text: 'Initializing knowledge base...',
     });
 
     try {
@@ -104,7 +69,7 @@ const searchInitCommand: SlashCommand = {
         // Service is already running, just trigger a sync
         context.ui.setPendingItem({
           type: MessageType.INFO,
-          text: 'Search service running, syncing files...',
+          text: 'Knowledge base service running, syncing files...',
         });
 
         await searchService.triggerSync({ force });
@@ -116,7 +81,7 @@ const searchInitCommand: SlashCommand = {
           type: 'message',
           messageType: 'info',
           content:
-            `Search index synced:\n` +
+            `Knowledge base synced:\n` +
             `  Files processed: ${progress.processedFiles}\n` +
             `  Files failed: ${progress.failedFiles}`,
         };
@@ -126,8 +91,8 @@ const searchInitCommand: SlashCommand = {
       context.ui.setPendingItem({
         type: MessageType.INFO,
         text: exists
-          ? 'Loading search service...'
-          : 'Initializing new search index...',
+          ? 'Loading knowledge base service...'
+          : 'Initializing new knowledge base...',
       });
 
       await searchService.start(rootPath, { forceReindex: force });
@@ -139,7 +104,7 @@ const searchInitCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Failed to initialize search system',
+          content: 'Failed to initialize knowledge base',
         };
       }
 
@@ -175,7 +140,7 @@ const searchInitCommand: SlashCommand = {
         type: 'message',
         messageType: 'info',
         content:
-          `Search index ${exists ? 'updated' : 'created'}:\n` +
+          `Knowledge base ${exists ? 'updated' : 'created'}:\n` +
           `  Files discovered: ${files.length}\n` +
           `  Files processed: ${progress.processedFiles}\n` +
           `  Files failed: ${progress.failedFiles}`,
@@ -185,19 +150,19 @@ const searchInitCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: `Failed to initialize search: ${error instanceof Error ? error.message : String(error)}`,
+        content: `Failed to initialize knowledge base: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
 };
 
 // ============================================================================
-// /search Command
+// /knowledge-search Command
 // ============================================================================
 
-const searchCommand: SlashCommand = {
-  name: 'search',
-  description: 'Search indexed documents',
+const knowledgeSearchCommand: SlashCommand = {
+  name: 'knowledge-search',
+  description: 'Search the knowledge base',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
   action: async (context, args) => {
@@ -205,7 +170,8 @@ const searchCommand: SlashCommand = {
       return {
         type: 'message',
         messageType: 'error',
-        content: 'Usage: /search <query> [--type=<pdf|docx|...>] [--limit=<n>]',
+        content:
+          'Usage: /knowledge-search <query> [--type=<pdf|docx|...>] [--limit=<n>]',
       };
     }
 
@@ -245,7 +211,7 @@ const searchCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Search index not found. Run /search-init first.',
+          content: 'Knowledge base not found. Run /knowledge-init first.',
         };
       }
 
@@ -263,7 +229,7 @@ const searchCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Failed to load search system',
+          content: 'Failed to load knowledge base',
         };
       }
 
@@ -322,12 +288,12 @@ const searchCommand: SlashCommand = {
 };
 
 // ============================================================================
-// /search-status Command
+// /knowledge-status Command
 // ============================================================================
 
-const searchStatusCommand: SlashCommand = {
-  name: 'search-status',
-  description: 'Show search index status and statistics',
+const knowledgeStatusCommand: SlashCommand = {
+  name: 'knowledge-status',
+  description: 'Show knowledge base status and statistics',
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
   action: async (context) => {
@@ -343,7 +309,7 @@ const searchStatusCommand: SlashCommand = {
           type: 'message',
           messageType: 'info',
           content:
-            'Search index not initialized. Run /search-init to create one.',
+            'Knowledge base not initialized. Run /knowledge-init to create one.',
         };
       }
 
@@ -361,7 +327,7 @@ const searchStatusCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Failed to load search system',
+          content: 'Failed to load knowledge base',
         };
       }
 
@@ -375,7 +341,7 @@ const searchStatusCommand: SlashCommand = {
       }
 
       const lines = [
-        'Search Index Status:',
+        'Knowledge Base Status:',
         '',
         `  Database: ${state.databasePath}`,
         `  Size: ${formatBytes(stats.databaseSize)}`,
@@ -389,7 +355,6 @@ const searchStatusCommand: SlashCommand = {
         `  OCR Pending: ${stats.ocrPending}`,
         '',
         `Total Chunks: ${stats.totalChunks}`,
-        `Tags: ${stats.totalTags}`,
       ];
 
       return {
@@ -408,209 +373,7 @@ const searchStatusCommand: SlashCommand = {
 };
 
 // ============================================================================
-// /search-tag Command
-// ============================================================================
-
-const searchTagCommand: SlashCommand = {
-  name: 'search-tag',
-  description: 'Manage document tags',
-  kind: CommandKind.BUILT_IN,
-  autoExecute: false,
-  subCommands: [
-    {
-      name: 'add',
-      description:
-        'Add tags to a document: /search-tag add <file> <tag1> [tag2...]',
-      kind: CommandKind.BUILT_IN,
-      action: async (context, args) => {
-        const parts = args.trim().split(/\s+/);
-        if (parts.length < 2) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: 'Usage: /search-tag add <file> <tag1> [tag2...]',
-          };
-        }
-
-        const filePath = parts[0];
-        const tags = parts.slice(1);
-        const rootPath = getProjectRoot(context);
-
-        try {
-          const result = await getSearchSystemSafe(rootPath);
-          if (!result) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Search index not initialized. Run /search-init first.',
-            };
-          }
-
-          const { system, closeAfter } = result;
-          await system.addTags(filePath, tags);
-
-          if (closeAfter) {
-            await system.close();
-          }
-
-          return {
-            type: 'message',
-            messageType: 'info',
-            content: `Added tags [${tags.join(', ')}] to ${filePath}`,
-          };
-        } catch (error) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: `Failed to add tags: ${error instanceof Error ? error.message : String(error)}`,
-          };
-        }
-      },
-    },
-    {
-      name: 'remove',
-      description:
-        'Remove tags from a document: /search-tag remove <file> <tag1> [tag2...]',
-      kind: CommandKind.BUILT_IN,
-      action: async (context, args) => {
-        const parts = args.trim().split(/\s+/);
-        if (parts.length < 2) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: 'Usage: /search-tag remove <file> <tag1> [tag2...]',
-          };
-        }
-
-        const filePath = parts[0];
-        const tags = parts.slice(1);
-        const rootPath = getProjectRoot(context);
-
-        try {
-          const result = await getSearchSystemSafe(rootPath);
-          if (!result) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Search index not initialized.',
-            };
-          }
-
-          const { system, closeAfter } = result;
-          await system.removeTags(filePath, tags);
-
-          if (closeAfter) {
-            await system.close();
-          }
-
-          return {
-            type: 'message',
-            messageType: 'info',
-            content: `Removed tags [${tags.join(', ')}] from ${filePath}`,
-          };
-        } catch (error) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: `Failed to remove tags: ${error instanceof Error ? error.message : String(error)}`,
-          };
-        }
-      },
-    },
-    {
-      name: 'list',
-      description:
-        'List all tags or tags for a specific file: /search-tag list [file]',
-      kind: CommandKind.BUILT_IN,
-      action: async (context, args) => {
-        const filePath = args.trim() || null;
-        const rootPath = getProjectRoot(context);
-
-        try {
-          const result = await getSearchSystemSafe(rootPath);
-          if (!result) {
-            return {
-              type: 'message',
-              messageType: 'error',
-              content: 'Search index not initialized.',
-            };
-          }
-
-          const { system, closeAfter } = result;
-
-          if (filePath) {
-            // List tags for specific file
-            const tags = await system.getFileTags(filePath);
-
-            if (closeAfter) {
-              await system.close();
-            }
-
-            if (tags.length === 0) {
-              return {
-                type: 'message',
-                messageType: 'info',
-                content: `No tags for ${filePath}`,
-              };
-            }
-
-            return {
-              type: 'message',
-              messageType: 'info',
-              content: `Tags for ${filePath}:\n  ${tags.join(', ')}`,
-            };
-          } else {
-            // List all tags with counts
-            const tags = await system.getAllTags();
-
-            if (closeAfter) {
-              await system.close();
-            }
-
-            if (tags.length === 0) {
-              return {
-                type: 'message',
-                messageType: 'info',
-                content: 'No tags found in index',
-              };
-            }
-
-            const lines = ['All tags:', ''];
-            for (const t of tags) {
-              lines.push(`  ${t.tag} (${t.count} documents)`);
-            }
-
-            return {
-              type: 'message',
-              messageType: 'info',
-              content: lines.join('\n'),
-            };
-          }
-        } catch (error) {
-          return {
-            type: 'message',
-            messageType: 'error',
-            content: `Failed to list tags: ${error instanceof Error ? error.message : String(error)}`,
-          };
-        }
-      },
-    },
-  ],
-  action: async () => ({
-    type: 'message',
-    messageType: 'info',
-    content:
-      'Available subcommands: /search-tag add, /search-tag remove, /search-tag list',
-  }),
-};
-
-// ============================================================================
 // Export
 // ============================================================================
 
-export {
-  searchInitCommand,
-  searchCommand,
-  searchStatusCommand,
-  searchTagCommand,
-};
+export { knowledgeInitCommand, knowledgeSearchCommand, knowledgeStatusCommand };
