@@ -130,6 +130,18 @@ export interface StorageAdapter {
    */
   isInitialized(): boolean;
 
+  /**
+   * Force a checkpoint to flush data to disk and release memory.
+   * Optional - implementations may no-op if not supported.
+   */
+  checkpoint?(): Promise<void>;
+
+  /**
+   * Run vacuum to reclaim space and reduce memory usage.
+   * Optional - implementations may no-op if not supported.
+   */
+  vacuum?(): Promise<void>;
+
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------

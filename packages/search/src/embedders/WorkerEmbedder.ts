@@ -303,6 +303,12 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
    * For E5 models, the worker adds the "query:" prefix.
    */
   async embedQuery(query: string): Promise<number[]> {
+    // Use unique timer key to avoid collisions with concurrent calls
+    const queryId = ++this.requestId;
+    const timerKey = `embedQuery-${queryId}`;
+    log.startTimer(timerKey, true);
+    log.debug('embedQuery:start', { queryId, queryLength: query.length });
+
     this.ensureReady();
 
     const response = await this.sendRequest<EmbeddingResponse>(
@@ -310,6 +316,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
 
+    log.endTimer(timerKey, 'embedQuery:complete', { queryId, embeddingDim: response.result.length });
     return response.result;
   }
 

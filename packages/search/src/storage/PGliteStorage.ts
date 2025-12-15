@@ -216,6 +216,49 @@ export class PGliteStorage implements StorageAdapter {
     return this._initialized;
   }
 
+  /**
+   * Force a WAL checkpoint to flush data to disk and release memory.
+   * Should be called periodically during long-running indexing operations.
+   */
+  async checkpoint(): Promise<void> {
+    this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `checkpoint-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.logMemory('checkpoint:memoryBefore');
+
+    try {
+      // CHECKPOINT forces WAL to be written to disk
+      await this.db!.exec('CHECKPOINT');
+      log.endTimer(timerKey, 'checkpoint:complete', {});
+      log.logMemory('checkpoint:memoryAfter');
+    } catch (error) {
+      log.endTimer(timerKey, 'checkpoint:error', { error: String(error) });
+      throw error;
+    }
+  }
+
+  /**
+   * Run VACUUM to reclaim space and reduce memory usage.
+   * More aggressive than checkpoint, but slower.
+   */
+  async vacuum(): Promise<void> {
+    this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `vacuum-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.logMemory('vacuum:memoryBefore');
+
+    try {
+      await this.db!.exec('VACUUM');
+      log.endTimer(timerKey, 'vacuum:complete', {});
+      log.logMemory('vacuum:memoryAfter');
+    } catch (error) {
+      log.endTimer(timerKey, 'vacuum:error', { error: String(error) });
+      throw error;
+    }
+  }
+
   private ensureInitialized(): void {
     if (!this._initialized || !this.db) {
       throw new Error('Storage not initialized. Call initialize() first.');
@@ -613,6 +656,10 @@ export class PGliteStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `searchKeyword-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.debug('searchKeyword:start', { queryLength: query.length, limit });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
@@ -647,7 +694,9 @@ export class PGliteStorage implements StorageAdapter {
         ftsParams,
       );
       if (ftsResult.rows.length > 0) {
-        return this.rowsToSearchResults(ftsResult.rows);
+        const results = this.rowsToSearchResults(ftsResult.rows);
+        log.endTimer(timerKey, 'searchKeyword:complete:fts', { resultCount: results.length });
+        return results;
       }
     } catch {
       // FTS might not be supported, fall through to ILIKE
@@ -658,7 +707,10 @@ export class PGliteStorage implements StorageAdapter {
       .toLowerCase()
       .split(/\s+/)
       .filter((t) => t.length > 0);
-    if (searchTerms.length === 0) return [];
+    if (searchTerms.length === 0) {
+      log.endTimer(timerKey, 'searchKeyword:complete:empty', { resultCount: 0 });
+      return [];
+    }
 
     // Build ILIKE conditions for each word
     const likeConditions = searchTerms
@@ -696,7 +748,9 @@ export class PGliteStorage implements StorageAdapter {
       likeSql,
       likeParams,
     );
-    return this.rowsToSearchResults(likeResult.rows);
+    const results = this.rowsToSearchResults(likeResult.rows);
+    log.endTimer(timerKey, 'searchKeyword:complete:ilike', { resultCount: results.length });
+    return results;
   }
 
   async searchSemantic(
@@ -705,11 +759,17 @@ export class PGliteStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `searchSemantic-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.debug('searchSemantic:start', { embeddingDim: embedding.length, limit });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
 
     const vectorStr = formatVector(embedding);
+    log.debug('searchSemantic:vectorFormatted', { vectorStrLength: vectorStr.length });
+
     const params = [vectorStr, ...filterParams, limit];
     const paramOffset = filterParams.length + 1;
 
@@ -734,7 +794,9 @@ export class PGliteStorage implements StorageAdapter {
     `;
 
     const result = await this.db!.query<SearchResultRow>(sql, params);
-    return this.rowsToSearchResults(result.rows);
+    const results = this.rowsToSearchResults(result.rows);
+    log.endTimer(timerKey, 'searchSemantic:complete', { resultCount: results.length });
+    return results;
   }
 
   async searchHybrid(

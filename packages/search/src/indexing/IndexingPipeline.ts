@@ -703,6 +703,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
             log.info('processLoop:progress', { processedCount: this.processedCount });
             log.logMemory('processLoop:memoryAt100');
           }
+
+          // Checkpoint every 500 files to flush data to disk and release memory
+          if (this.processedCount % 500 === 0 && this.storage.checkpoint) {
+            log.info('processLoop:checkpoint', { processedCount: this.processedCount });
+            await this.storage.checkpoint();
+          }
         } else {
           const attempts = item.attempts + 1;
 

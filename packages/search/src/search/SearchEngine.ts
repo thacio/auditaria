@@ -17,6 +17,9 @@ import type {
   SearchEngineEvents,
 } from './types.js';
 import { EventEmitter } from '../core/EventEmitter.js';
+import { createModuleLogger } from '../core/Logger.js';
+
+const log = createModuleLogger('SearchEngine');
 
 // ============================================================================
 // Constants
@@ -73,6 +76,11 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
   async search(options: SearchOptions): Promise<SearchResponse> {
     const startTime = Date.now();
     const queryId = this.generateQueryId();
+    const timerKey = `search-${queryId}`;
+
+    log.startTimer(timerKey, true);
+    log.debug('search:start', { queryId, strategy: options.strategy, queryLength: options.query.length });
+    log.logMemory('search:memoryBefore');
 
     const params = this.normalizeParams(options);
 
@@ -128,6 +136,9 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         strategy: params.strategy,
       });
 
+      log.endTimer(timerKey, 'search:complete', { queryId, resultCount: results.length, strategy: params.strategy });
+      log.logMemory('search:memoryAfter');
+
       return {
         results,
         total: results.length,
@@ -139,6 +150,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       void this.emit('search:error', { queryId, error: err });
+      log.endTimer(timerKey, 'search:error', { queryId, error: err.message });
       throw err;
     }
   }
@@ -323,6 +335,10 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     queryId: string,
     params: NormalizedSearchParams,
   ): Promise<SearchResult[]> {
+    const timerKey = `hybridSearch-${queryId}`;
+    log.startTimer(timerKey, true);
+    log.debug('hybridSearch:start', { queryId });
+
     // Ensure embedder is ready
     if (!this.embedder.isReady()) {
       await this.embedder.initialize();
@@ -331,15 +347,23 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     void this.emit('search:embedding', { queryId, query: params.query });
 
     // Generate query embedding
+    log.debug('hybridSearch:embeddingStart', { queryId });
     const queryEmbedding = await this.embedder.embedQuery(params.query);
+    log.debug('hybridSearch:embeddingComplete', { queryId, embeddingDim: queryEmbedding.length });
 
     // Run both searches in parallel
     const fetchLimit = (params.limit + params.offset) * 2; // Fetch more for fusion
 
+    log.debug('hybridSearch:parallelSearchStart', { queryId, fetchLimit });
     const [semanticResults, keywordResults] = await Promise.all([
       this.storage.searchSemantic(queryEmbedding, params.filters, fetchLimit),
       this.storage.searchKeyword(params.query, params.filters, fetchLimit),
     ]);
+    log.debug('hybridSearch:parallelSearchComplete', {
+      queryId,
+      semanticCount: semanticResults.length,
+      keywordCount: keywordResults.length
+    });
 
     void this.emit('search:semantic', {
       queryId,
@@ -354,13 +378,16 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     });
 
     // Apply RRF fusion
+    log.debug('hybridSearch:fusionStart', { queryId });
     const fusedResults = this.rrfFusion(
       semanticResults,
       keywordResults,
       params.semanticWeight,
       params.keywordWeight,
       params.rrfK,
+      queryId,
     );
+    log.debug('hybridSearch:fusionComplete', { queryId, fusedCount: fusedResults.length });
 
     void this.emit('search:fusion', {
       queryId,
@@ -369,6 +396,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       fusedCount: fusedResults.length,
     });
 
+    log.endTimer(timerKey, 'hybridSearch:complete', { queryId, fusedCount: fusedResults.length });
     return fusedResults;
   }
 
@@ -381,17 +409,26 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     semanticWeight: number,
     keywordWeight: number,
     k: number,
+    queryId: string,
   ): SearchResult[] {
+    log.debug('rrfFusion:start', {
+      queryId,
+      semanticCount: semanticResults.length,
+      keywordCount: keywordResults.length
+    });
+
     // Build rank maps
     const semanticRanks = new Map<string, number>();
     semanticResults.forEach((result, index) => {
       semanticRanks.set(result.chunkId, index + 1);
     });
+    log.debug('rrfFusion:semanticRanksBuilt', { queryId, mapSize: semanticRanks.size });
 
     const keywordRanks = new Map<string, number>();
     keywordResults.forEach((result, index) => {
       keywordRanks.set(result.chunkId, index + 1);
     });
+    log.debug('rrfFusion:keywordRanksBuilt', { queryId, mapSize: keywordRanks.size });
 
     // Collect all unique chunks
     const allChunks = new Map<string, SearchResult>();
@@ -403,6 +440,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         allChunks.set(result.chunkId, result);
       }
     }
+    log.debug('rrfFusion:allChunksCollected', { queryId, uniqueChunks: allChunks.size });
 
     // Calculate RRF scores
     const scoredResults: Array<{ result: SearchResult; rrfScore: number }> = [];
@@ -443,6 +481,8 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
 
     // Sort by RRF score
     scoredResults.sort((a, b) => b.rrfScore - a.rrfScore);
+
+    log.debug('rrfFusion:complete', { queryId, scoredResultsCount: scoredResults.length });
 
     return scoredResults.map((sr) => sr.result);
   }
