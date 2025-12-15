@@ -29,6 +29,10 @@ import type {
 import {
   createFilePriorityClassifier,
 } from './FilePriorityClassifier.js';
+import { createModuleLogger } from '../core/Logger.js';
+
+// Module logger for IndexingPipeline
+const log = createModuleLogger('IndexingPipeline');
 
 // ============================================================================
 // Constants
@@ -83,6 +87,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private failedCount = 0;
   private processingStartTime: number | null = null;
   private abortController: AbortController | null = null;
+  private timerCounter = 0; // Counter for unique timer keys in concurrent processing
 
   constructor(
     storage: StorageAdapter,
@@ -408,6 +413,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    */
   async processFile(filePath: string): Promise<ProcessingResult> {
     const startTime = Date.now();
+    // Use unique timer key to avoid collisions with concurrent processing
+    const timerId = ++this.timerCounter;
+    const processTimerKey = `processFile-${timerId}`;
+    log.startTimer(processTimerKey, true); // true = track memory
+    log.debug('processFile:start', { timerId, filePath, processedCount: this.processedCount });
 
     // Get or create document
     let doc = await this.storage.getDocumentByPath(filePath);
@@ -447,6 +457,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         this.options.parserOptions,
       );
 
+      log.debug('processFile:parsed', {
+        filePath,
+        textLength: parsed.text.length,
+        requiresOcr: parsed.requiresOcr
+      });
+
       // Update document with parsed metadata
       await this.storage.updateDocument(documentId, {
         title: parsed.title,
@@ -478,6 +494,12 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         this.options.chunkerOptions,
       );
 
+      log.debug('processFile:chunked', {
+        filePath,
+        chunkCount: chunks.length,
+        avgChunkSize: chunks.length > 0 ? Math.round(parsed.text.length / chunks.length) : 0
+      });
+
       // Delete existing chunks if re-indexing
       if (!isNew) {
         await this.storage.deleteChunks(documentId);
@@ -499,6 +521,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         chunkInputs,
       );
 
+      log.debug('processFile:chunksStored', { filePath, chunkCount: createdChunks.length });
+
       // Update status to embedding
       await this.storage.updateDocument(documentId, { status: 'embedding' });
       void this.emit('document:embedding', {
@@ -509,10 +533,16 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
       // Generate embeddings in batches
       if (this.embedder.isReady()) {
+        const embTimerKey = `embeddings-${documentId}`;
+        log.startTimer(embTimerKey, true);
         await this.generateEmbeddings(
           createdChunks.map((c) => c.id),
           chunks,
         );
+        log.endTimer(embTimerKey, 'processFile:embeddingsGenerated', {
+          filePath,
+          chunkCount: chunks.length
+        });
       }
 
       // Update status to indexed
@@ -529,6 +559,15 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         duration,
       });
 
+      log.endTimer(processTimerKey, 'processFile:complete', {
+        timerId,
+        filePath,
+        chunksCreated: chunks.length,
+        durationMs: duration,
+        processedCount: this.processedCount
+      });
+      log.logMemory('processFile:memoryAfter');
+
       return {
         documentId,
         filePath,
@@ -541,6 +580,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     } catch (error) {
       const duration = Date.now() - startTime;
       const err = error instanceof Error ? error : new Error(String(error));
+
+      log.endTimer(processTimerKey, 'processFile:error', {
+        timerId,
+        filePath,
+        durationMs: duration,
+        error: err.message
+      });
 
       await this.storage.updateDocument(documentId, {
         status: 'failed',
@@ -652,6 +698,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
             completedAt: new Date(),
           });
           this.processedCount++;
+
+          if (this.processedCount % 100 === 0) {
+            log.info('processLoop:progress', { processedCount: this.processedCount });
+            log.logMemory('processLoop:memoryAt100');
+          }
         } else {
           const attempts = item.attempts + 1;
 
@@ -722,6 +773,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   ): Promise<void> {
     const batchSize = this.options.embeddingBatchSize;
 
+    log.debug('generateEmbeddings:start', {
+      totalChunks: chunks.length,
+      batchSize: this.options.embeddingBatchSize
+    });
+
     for (let i = 0; i < chunks.length; i += batchSize) {
       // Yield to event loop between batches to prevent blocking
       if (i > 0) {
@@ -744,6 +800,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       }));
 
       await this.storage.updateChunkEmbeddings(updates);
+
+      log.debug('generateEmbeddings:batch', {
+        batchIndex: Math.floor(i / batchSize),
+        batchStart: i,
+        batchEnd: Math.min(i + batchSize, chunks.length),
+        totalBatches: Math.ceil(chunks.length / batchSize)
+      });
     }
   }
 

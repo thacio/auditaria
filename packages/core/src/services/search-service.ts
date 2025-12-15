@@ -146,11 +146,21 @@ export class SearchServiceManager {
 
       console.log(`[SearchService] Starting... (dbExists: ${dbExists})`);
 
+      // Logging configuration - enabled, file only (no console), debug level
+      const loggingOptions = {
+        enabled: true,
+        level: 'debug' as const,
+        console: false, // Disable console logging
+        // filePath defaults to .auditaria/search.log
+        includeMemory: true,
+      };
+
       // Initialize or load the search system
       if (dbExists && !options.forceReindex) {
         console.log('[SearchService] Loading existing database...');
         this.searchSystem = await loadSearchSystem(rootPath, {
           useMockEmbedder: false,
+          logging: loggingOptions,
         });
 
         if (!this.searchSystem) {
@@ -159,6 +169,7 @@ export class SearchServiceManager {
           this.searchSystem = await initializeSearchSystem({
             rootPath,
             useMockEmbedder: false,
+            logging: loggingOptions,
           });
         }
       } else {
@@ -166,6 +177,7 @@ export class SearchServiceManager {
         this.searchSystem = await initializeSearchSystem({
           rootPath,
           useMockEmbedder: false,
+          logging: loggingOptions,
         });
       }
 

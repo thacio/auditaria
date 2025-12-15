@@ -106,6 +106,17 @@ export interface SearchConfig {
   rrfK: number;
 }
 
+export interface LoggingConfig {
+  /** Enable debug logging. Default: false */
+  enabled: boolean;
+  /** Log file path. Default: undefined (no file logging) */
+  filePath?: string;
+  /** Log to console. Default: true */
+  console: boolean;
+  /** Include memory stats in logs. Default: true when enabled */
+  includeMemory: boolean;
+}
+
 export interface OcrConfig {
   /** Enable OCR processing. Default: true */
   enabled: boolean;

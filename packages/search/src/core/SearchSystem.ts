@@ -67,6 +67,7 @@ import {
 } from '../ocr/index.js';
 
 import type { EmbedderQuantization } from '../embedders/types.js';
+import { globalLogger, LogLevel, type LoggerConfig } from './Logger.js';
 
 // ============================================================================
 // Constants
@@ -105,6 +106,22 @@ export interface StoredEmbedderConfig {
   createdAt: string;
 }
 
+/**
+ * Logging configuration options.
+ */
+export interface LoggingOptions {
+  /** Enable logging (default: false) */
+  enabled?: boolean;
+  /** Log level (default: INFO) */
+  level?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
+  /** Log to console (default: true) */
+  console?: boolean;
+  /** Log file path (default: .auditaria/search.log) */
+  filePath?: string;
+  /** Include memory stats in logs (default: true when enabled) */
+  includeMemory?: boolean;
+}
+
 export interface SearchSystemInitOptions {
   /** Root path to index. Defaults to current working directory */
   rootPath?: string;
@@ -112,6 +129,8 @@ export interface SearchSystemInitOptions {
   config?: DeepPartial<SearchSystemConfig>;
   /** Use mock embedder (for testing) */
   useMockEmbedder?: boolean;
+  /** Logging configuration for debugging */
+  logging?: LoggingOptions;
 }
 
 export interface SearchSystemState {
@@ -175,16 +194,19 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private indexingInProgress: boolean = false;
   private useMockEmbedder: boolean = false;
   private ocrAvailable: boolean = false;
+  private loggingOptions?: LoggingOptions;
 
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
     useMockEmbedder: boolean = false,
+    loggingOptions?: LoggingOptions,
   ) {
     super();
     this.rootPath = resolve(rootPath);
     this.config = config;
     this.useMockEmbedder = useMockEmbedder;
+    this.loggingOptions = loggingOptions;
   }
 
   // -------------------------------------------------------------------------
@@ -206,6 +228,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       rootPath,
       config,
       options.useMockEmbedder ?? false,
+      options.logging,
     );
 
     await system.setup();
@@ -233,6 +256,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       resolvedRoot,
       config,
       options.useMockEmbedder ?? false,
+      options.logging,
     );
 
     await system.setup();
@@ -256,6 +280,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    * Set up all components.
    */
   private async setup(): Promise<void> {
+    // Configure logging if enabled
+    if (this.loggingOptions?.enabled) {
+      this.configureLogging();
+    }
+
     // Ensure database directory exists
     const dbDir = join(this.rootPath, '.auditaria');
     if (!existsSync(dbDir)) {
@@ -488,6 +517,41 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     }
 
     this.initialized = true;
+  }
+
+  /**
+   * Configure the global logger based on logging options.
+   */
+  private configureLogging(): void {
+    if (!this.loggingOptions) return;
+
+    const levelMap: Record<string, LogLevel> = {
+      debug: LogLevel.DEBUG,
+      info: LogLevel.INFO,
+      warn: LogLevel.WARN,
+      error: LogLevel.ERROR,
+      silent: LogLevel.SILENT,
+    };
+
+    // Default log file path if not specified
+    const defaultLogPath = join(this.rootPath, '.auditaria', 'search.log');
+
+    globalLogger.configure({
+      level: levelMap[this.loggingOptions.level ?? 'debug'] ?? LogLevel.DEBUG,
+      console: this.loggingOptions.console ?? false,
+      filePath: this.loggingOptions.filePath ?? defaultLogPath,
+      includeMemory: this.loggingOptions.includeMemory ?? true,
+      json:true, // Human readable in console, JSON in file
+      colors: true,
+      timestamps: true,
+    });
+
+    globalLogger.info('SearchSystem', 'Logging enabled', {
+      level: this.loggingOptions.level ?? 'debug',
+      filePath: this.loggingOptions.filePath ?? defaultLogPath,
+      includeMemory: this.loggingOptions.includeMemory ?? true,
+    });
+    globalLogger.logMemory('SearchSystem', 'Initial memory state');
   }
 
   /**

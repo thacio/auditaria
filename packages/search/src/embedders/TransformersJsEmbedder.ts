@@ -18,6 +18,9 @@ import type {
 } from './types.js';
 import type { Embedder } from '../indexing/types.js';
 import { debugLog } from './gpu-detection.js';
+import { createModuleLogger } from '../core/Logger.js';
+
+const log = createModuleLogger('TransformersJsEmbedder');
 
 // ============================================================================
 // Constants
@@ -109,6 +112,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   private initializingPromise: Promise<void> | null = null;
   private currentBatchSize: number;
   private onWarning?: WarningCallback;
+  private timerCounter = 0; // Counter for unique timer keys in concurrent operations
 
   constructor(config?: TransformersJsEmbedderFullConfig) {
     this.config = {
@@ -180,6 +184,9 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   }
 
   private async doInitialize(onProgress?: ProgressCallback): Promise<void> {
+    log.startTimer('initialize', true);
+    log.info('initialize:start', { modelId: this.modelId, device: this.device, quantization: this.quantization });
+
     try {
       onProgress?.({
         stage: 'download',
@@ -251,6 +258,9 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
 
       this.ready = true;
 
+      log.endTimer('initialize', 'initialize:complete');
+      log.logMemory('initialize:memoryAfter');
+
       onProgress?.({
         stage: 'ready',
         progress: 100,
@@ -314,6 +324,12 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   async embedBatch(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
 
+    // Use unique timer key to avoid collisions with concurrent calls
+    const batchId = ++this.timerCounter;
+    const timerKey = `embedBatch-${batchId}`;
+    log.startTimer(timerKey, true);
+    log.debug('embedBatch:start', { batchId, textCount: texts.length, batchSize: this.currentBatchSize });
+
     this.ensureReady();
 
     // Process in batches with fallback on failure
@@ -326,6 +342,12 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
       results.push(...batchResult);
       offset += batchTexts.length;
     }
+
+    log.endTimer(timerKey, 'embedBatch:complete', {
+      batchId,
+      textCount: texts.length,
+      resultCount: results.length
+    });
 
     return results;
   }
@@ -375,6 +397,11 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
           MIN_BATCH_SIZE,
           Math.floor(localBatchSize / 2),
         );
+
+        log.warn('processBatchWithFallback:fallback', {
+          originalBatchSize: localBatchSize,
+          newBatchSize
+        });
 
         this.emitWarning({
           type: 'batch_size_fallback',

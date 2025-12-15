@@ -26,6 +26,9 @@ import type {
   EmbeddingBatchResponse,
 } from './worker-types.js';
 import { debugLog } from './gpu-detection.js';
+import { createModuleLogger } from '../core/Logger.js';
+
+const log = createModuleLogger('WorkerEmbedder');
 
 // ============================================================================
 // Constants
@@ -169,6 +172,9 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   }
 
   private async doInitialize(): Promise<void> {
+    log.startTimer('initialize', true);
+    log.info('initialize:start', { modelId: this._modelId, device: this._device });
+
     debugLog(
       `WorkerEmbedder initializing: device=${this._device}, quantization=${this._quantization}`,
     );
@@ -216,6 +222,12 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     );
 
     this.ready = true;
+
+    log.endTimer('initialize', 'initialize:complete', {
+      modelId: this._modelId,
+      dimensions: this._dimensions
+    });
+    log.logMemory('initialize:memoryAfter');
   }
 
   /**
@@ -268,12 +280,20 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   async embedBatch(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
 
+    // Use unique timer key to avoid collisions with concurrent calls
+    const batchId = ++this.requestId;
+    const timerKey = `embedBatch-${batchId}`;
+    log.startTimer(timerKey, true);
+    log.debug('embedBatch:start', { batchId, textCount: texts.length });
+
     this.ensureReady();
 
     const response = await this.sendRequest<EmbeddingBatchResponse>(
       { type: 'embedBatch', texts },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
+
+    log.endTimer(timerKey, 'embedBatch:complete', { batchId, textCount: texts.length });
 
     return response.result;
   }
@@ -315,12 +335,20 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   async embedBatchDocuments(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
 
+    // Use unique timer key to avoid collisions with concurrent calls
+    const batchId = ++this.requestId;
+    const timerKey = `embedBatchDocuments-${batchId}`;
+    log.startTimer(timerKey, true);
+    log.debug('embedBatchDocuments:start', { batchId, textCount: texts.length });
+
     this.ensureReady();
 
     const response = await this.sendRequest<EmbeddingBatchResponse>(
       { type: 'embedBatchDocuments', texts },
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
+
+    log.endTimer(timerKey, 'embedBatchDocuments:complete', { batchId, textCount: texts.length });
 
     return response.result;
   }

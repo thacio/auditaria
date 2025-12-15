@@ -33,6 +33,9 @@ import {
   UPDATE_FTS_VECTOR_SQL,
 } from './schema.js';
 import type { DatabaseConfig } from '../config.js';
+import { createModuleLogger } from '../core/Logger.js';
+
+const log = createModuleLogger('PGliteStorage');
 
 // ============================================================================
 // Helper Functions
@@ -155,6 +158,7 @@ export class PGliteStorage implements StorageAdapter {
   private db: PGlite | null = null;
   private config: DatabaseConfig;
   private _initialized = false;
+  private timerCounter = 0; // Counter for unique timer keys in concurrent operations
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -195,6 +199,9 @@ export class PGliteStorage implements StorageAdapter {
 
     // Store initialization timestamp
     await this.setConfigValue('initialized_at', new Date().toISOString());
+
+    log.info('initialize:complete');
+    log.logMemory('initialize:memoryAfter');
   }
 
   async close(): Promise<void> {
@@ -221,6 +228,9 @@ export class PGliteStorage implements StorageAdapter {
 
   async createDocument(input: CreateDocumentInput): Promise<Document> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `createDocument-${timerId}`;
+    log.startTimer(timerKey, false);
 
     const id = generateId();
     const now = new Date().toISOString();
@@ -254,6 +264,8 @@ export class PGliteStorage implements StorageAdapter {
 
     const doc = await this.getDocument(id);
     if (!doc) throw new Error('Failed to create document');
+
+    log.endTimer(timerKey, 'createDocument:complete', { documentId: id });
     return doc;
   }
 
@@ -392,6 +404,10 @@ export class PGliteStorage implements StorageAdapter {
     chunks: CreateChunkInput[],
   ): Promise<DocumentChunk[]> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `createChunks-${timerId}`;
+    log.startTimer(timerKey, true); // track memory for chunks
+    log.debug('createChunks:start', { documentId, chunkCount: chunks.length });
 
     const createdChunks: DocumentChunk[] = [];
     const now = new Date().toISOString();
@@ -442,6 +458,10 @@ export class PGliteStorage implements StorageAdapter {
       });
     }
 
+    log.endTimer(timerKey, 'createChunks:complete', {
+      documentId,
+      chunkCount: chunks.length
+    });
     return createdChunks;
   }
 
@@ -467,6 +487,10 @@ export class PGliteStorage implements StorageAdapter {
     updates: UpdateChunkEmbeddingInput[],
   ): Promise<void> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `updateChunkEmbeddings-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.debug('updateChunkEmbeddings:start', { updateCount: updates.length });
 
     for (let i = 0; i < updates.length; i++) {
       // Yield to event loop periodically to prevent blocking
@@ -480,6 +504,10 @@ export class PGliteStorage implements StorageAdapter {
         update.id,
       ]);
     }
+
+    log.endTimer(timerKey, 'updateChunkEmbeddings:complete', {
+      updateCount: updates.length
+    });
   }
 
   async countChunks(): Promise<number> {
@@ -718,6 +746,9 @@ export class PGliteStorage implements StorageAdapter {
     rrfK = 60,
   ): Promise<SearchResult[]> {
     this.ensureInitialized();
+    const timerId = ++this.timerCounter;
+    const timerKey = `searchHybrid-${timerId}`;
+    log.startTimer(timerKey, false);
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
@@ -800,7 +831,10 @@ export class PGliteStorage implements StorageAdapter {
     `;
 
     const result = await this.db!.query<SearchResultRow>(sql, params);
-    return this.rowsToSearchResults(result.rows);
+    const results = this.rowsToSearchResults(result.rows);
+
+    log.endTimer(timerKey, 'searchHybrid:complete', { resultCount: results.length });
+    return results;
   }
 
   // -------------------------------------------------------------------------
@@ -1064,7 +1098,7 @@ export class PGliteStorage implements StorageAdapter {
 
     const stats = docResult.rows[0];
 
-    return {
+    const result = {
       totalDocuments:
         typeof stats.total_documents === 'string'
           ? parseInt(stats.total_documents, 10)
@@ -1092,6 +1126,11 @@ export class PGliteStorage implements StorageAdapter {
           ? parseInt(stats.total_file_size, 10)
           : stats.total_file_size,
     };
+
+    log.debug('getStats', result);
+    log.logMemory('getStats:memory');
+
+    return result;
   }
 
   // -------------------------------------------------------------------------

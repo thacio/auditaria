@@ -18,6 +18,7 @@ export {
   type SearchSystemInitOptions,
   type SearchSystemState,
   type StoredEmbedderConfig,
+  type LoggingOptions,
 } from './core/SearchSystem.js';
 
 // ============================================================================
@@ -282,3 +283,23 @@ export type {
 
 export { EventEmitter } from './core/EventEmitter.js';
 export { Registry } from './core/Registry.js';
+
+// ============================================================================
+// Logging
+// ============================================================================
+
+export {
+  Logger,
+  ModuleLogger,
+  LogLevel,
+  globalLogger,
+  createModuleLogger,
+  parseLogLevel,
+} from './core/Logger.js';
+
+export type {
+  LoggerConfig,
+  LogEntry,
+  MemorySnapshot,
+  BenchmarkStats,
+} from './core/Logger.js';
