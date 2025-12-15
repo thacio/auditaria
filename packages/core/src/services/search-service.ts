@@ -281,7 +281,8 @@ export class SearchServiceManager {
 
     if (
       this.indexingProgress.status === 'indexing' ||
-      this.indexingProgress.status === 'syncing'
+      this.indexingProgress.status === 'syncing' ||
+      this.indexingProgress.status === 'discovering'
     ) {
       console.log('[SearchService] Sync already in progress');
       return;
