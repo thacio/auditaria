@@ -89,6 +89,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private abortController: AbortController | null = null;
   private timerCounter = 0; // Counter for unique timer keys in concurrent processing
 
+  // Maintenance coordination - ensures workers pause at safe points during reconnect
+  private maintenanceRequested = false;
+  private maintenancePromise: Promise<void> | null = null;
+  private maintenanceResolve: (() => void) | null = null;
+  private lastMaintenanceAt = 0; // processedCount at last maintenance
+  private readonly MAINTENANCE_INTERVAL = 2000; // Reconnect every N files
+
   constructor(
     storage: StorageAdapter,
     parserRegistry: ParserRegistry,
@@ -408,6 +415,113 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     void this.emit('pipeline:stopped', undefined);
   }
 
+  // -------------------------------------------------------------------------
+  // Maintenance Coordination
+  // -------------------------------------------------------------------------
+
+  /**
+   * Check if maintenance (reconnect) is needed based on processed count.
+   * Called by workers to determine if they should trigger maintenance.
+   */
+  private shouldPerformMaintenance(): boolean {
+    if (!this.storage.reconnect) return false;
+    if (this.maintenanceRequested) return false; // Already in progress
+    if (this.processedCount === 0) return false;
+
+    // Check if we've processed MAINTENANCE_INTERVAL files since last maintenance
+    return (
+      this.processedCount - this.lastMaintenanceAt >= this.MAINTENANCE_INTERVAL
+    );
+  }
+
+  /**
+   * Request and perform maintenance (reconnect) with proper worker coordination.
+   *
+   * This method orchestrates the maintenance process:
+   * 1. Sets maintenanceRequested flag - workers will pause at their next safe point
+   * 2. Waits for all workers to reach safe point (activeCount === 0)
+   * 3. Performs the maintenance operation (storage.reconnect)
+   * 4. Releases workers to continue processing
+   *
+   * Safe to call from any worker - only one maintenance will run at a time.
+   */
+  private async performMaintenance(): Promise<void> {
+    // Only one maintenance at a time
+    if (this.maintenanceRequested) {
+      // Already in progress, wait for it
+      if (this.maintenancePromise) {
+        await this.maintenancePromise;
+      }
+      return;
+    }
+
+    log.info('maintenance:starting', {
+      processedCount: this.processedCount,
+      activeCount: this.activeCount,
+    });
+    log.logMemory('maintenance:memoryBefore');
+
+    // Signal workers to pause at their next safe point
+    this.maintenanceRequested = true;
+    this.maintenancePromise = new Promise<void>((resolve) => {
+      this.maintenanceResolve = resolve;
+    });
+
+    // Wait for all workers to reach safe point (finish current item and pause)
+    const waitStart = Date.now();
+    while (this.activeCount > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Safety timeout - if workers don't pause within 30 seconds, something is wrong
+      if (Date.now() - waitStart > 30000) {
+        log.error('maintenance:timeout', {
+          activeCount: this.activeCount,
+          waitedMs: Date.now() - waitStart,
+        });
+        // Release and skip maintenance this round
+        this.maintenanceRequested = false;
+        this.maintenanceResolve?.();
+        this.maintenancePromise = null;
+        return;
+      }
+    }
+
+    log.info('maintenance:workersIdle', {
+      waitedMs: Date.now() - waitStart,
+    });
+
+    // All workers are paused - safe to reconnect
+    try {
+      await this.storage.reconnect!();
+      this.lastMaintenanceAt = this.processedCount;
+      log.info('maintenance:complete', {
+        processedCount: this.processedCount,
+      });
+      log.logMemory('maintenance:memoryAfter');
+    } catch (error) {
+      log.error('maintenance:error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue anyway - storage should have auto-recovered
+    }
+
+    // Release workers
+    this.maintenanceRequested = false;
+    this.maintenanceResolve?.();
+    this.maintenancePromise = null;
+  }
+
+  /**
+   * Wait for any ongoing maintenance to complete.
+   * Called by workers at safe points (before processing next item).
+   */
+  private async waitForMaintenance(): Promise<void> {
+    if (this.maintenanceRequested && this.maintenancePromise) {
+      log.debug('worker:waitingForMaintenance', {});
+      await this.maintenancePromise;
+    }
+  }
+
   /**
    * Process a single document by file path.
    */
@@ -649,11 +763,28 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
   /**
    * Main processing loop (runs in background).
+   * Workers coordinate through the maintenance system for safe reconnects.
    */
   private async processLoop(): Promise<void> {
     while (this.state === 'running') {
-      // Check if we should stop
+      // SAFE POINT: Check if we should stop
       if (this.abortController?.signal.aborted) {
+        break;
+      }
+
+      // SAFE POINT: Check if maintenance is needed (reconnect for WASM memory release)
+      // One worker will trigger, others will wait. This happens at a safe point
+      // where no worker is holding an active item (activeCount reflects finished work).
+      if (this.shouldPerformMaintenance()) {
+        await this.performMaintenance();
+      }
+
+      // SAFE POINT: Wait for any ongoing maintenance before getting next item
+      // This ensures all workers pause at a consistent point during reconnect
+      await this.waitForMaintenance();
+
+      // Check if state changed while waiting for maintenance
+      if (this.state !== 'running') {
         break;
       }
 
@@ -704,11 +835,14 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
             log.logMemory('processLoop:memoryAt100');
           }
 
-          // Checkpoint every 500 files to flush data to disk and release memory
-          if (this.processedCount % 500 === 0 && this.storage.checkpoint) {
+          // Checkpoint every 250 files to flush data to disk and release memory
+          if (this.processedCount % 250 === 0 && this.storage.checkpoint) {
             log.info('processLoop:checkpoint', { processedCount: this.processedCount });
             await this.storage.checkpoint();
           }
+
+          // Note: Reconnect (WASM memory release) is handled at the SAFE POINT
+          // at the start of each iteration, coordinated through performMaintenance()
         } else {
           const attempts = item.attempts + 1;
 

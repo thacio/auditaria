@@ -159,6 +159,8 @@ export class PGliteStorage implements StorageAdapter {
   private config: DatabaseConfig;
   private _initialized = false;
   private timerCounter = 0; // Counter for unique timer keys in concurrent operations
+  private _reconnecting = false; // Flag to indicate reconnection in progress
+  private _reconnectPromise: Promise<void> | null = null; // Promise to wait for reconnection
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -219,9 +221,10 @@ export class PGliteStorage implements StorageAdapter {
   /**
    * Force a WAL checkpoint to flush data to disk and release memory.
    * Should be called periodically during long-running indexing operations.
+   * Also runs VACUUM to reclaim space and ANALYZE to update statistics.
    */
   async checkpoint(): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `checkpoint-${timerId}`;
     log.startTimer(timerKey, true);
@@ -230,6 +233,10 @@ export class PGliteStorage implements StorageAdapter {
     try {
       // CHECKPOINT forces WAL to be written to disk
       await this.db!.exec('CHECKPOINT');
+      // VACUUM reclaims storage and can help with memory
+      await this.db!.exec('VACUUM');
+      // ANALYZE updates statistics
+      await this.db!.exec('ANALYZE');
       log.endTimer(timerKey, 'checkpoint:complete', {});
       log.logMemory('checkpoint:memoryAfter');
     } catch (error) {
@@ -243,7 +250,7 @@ export class PGliteStorage implements StorageAdapter {
    * More aggressive than checkpoint, but slower.
    */
   async vacuum(): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `vacuum-${timerId}`;
     log.startTimer(timerKey, true);
@@ -259,18 +266,113 @@ export class PGliteStorage implements StorageAdapter {
     }
   }
 
-  private ensureInitialized(): void {
+  /**
+   * Reconnect to the database by closing and reopening the connection.
+   * This is the most aggressive memory release option as it destroys the
+   * WASM instance entirely, releasing all accumulated WASM memory.
+   *
+   * This method is safe to call even with concurrent operations - they will
+   * wait for reconnection to complete before proceeding.
+   */
+  async reconnect(): Promise<void> {
+    if (!this._initialized || !this.db) {
+      // Not initialized, nothing to reconnect
+      return;
+    }
+
+    // If already reconnecting, wait for that to complete
+    if (this._reconnecting && this._reconnectPromise) {
+      await this._reconnectPromise;
+      return;
+    }
+
+    const timerId = ++this.timerCounter;
+    const timerKey = `reconnect-${timerId}`;
+    log.startTimer(timerKey, true);
+    log.logMemory('reconnect:memoryBefore');
+
+    // Set reconnecting flag and create a promise that others can wait on
+    this._reconnecting = true;
+    let resolveReconnect: () => void;
+    this._reconnectPromise = new Promise<void>((resolve) => {
+      resolveReconnect = resolve;
+    });
+
+    try {
+      // First do a checkpoint to ensure all data is flushed
+      await this.db.exec('CHECKPOINT');
+
+      // Delay to let in-flight operations complete before closing
+      // This is important because concurrent operations may be using the db
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Close the database (releases WASM memory)
+      const oldDb = this.db;
+      this.db = null;
+      await oldDb.close();
+
+      // Force garbage collection if available (Node.js with --expose-gc)
+      if (global.gc) {
+        global.gc();
+      }
+
+      log.logMemory('reconnect:afterClose');
+
+      // Reopen the database
+      this.db = await PGlite.create({
+        dataDir: this.config.inMemory ? undefined : this.config.path,
+        extensions: { vector },
+      });
+
+      this._initialized = true;
+
+      log.endTimer(timerKey, 'reconnect:complete', {});
+      log.logMemory('reconnect:memoryAfter');
+    } catch (error) {
+      log.endTimer(timerKey, 'reconnect:error', { error: String(error) });
+      // Try to recover by reinitializing
+      this.db = null;
+      try {
+        this.db = await PGlite.create({
+          dataDir: this.config.inMemory ? undefined : this.config.path,
+          extensions: { vector },
+        });
+        this._initialized = true;
+        log.info('reconnect:recovered', {});
+      } catch (initError) {
+        log.error('reconnect:recoveryFailed', { error: String(initError) });
+        this._initialized = false;
+        throw initError;
+      }
+    } finally {
+      // Always clear reconnecting state
+      this._reconnecting = false;
+      this._reconnectPromise = null;
+      resolveReconnect!();
+    }
+  }
+
+  /**
+   * Waits for any ongoing reconnection to complete, then checks initialization.
+   * This is safe to call from concurrent operations during reconnect.
+   */
+  private async waitForReady(): Promise<void> {
+    // Wait for any ongoing reconnection to complete
+    if (this._reconnecting && this._reconnectPromise) {
+      await this._reconnectPromise;
+    }
     if (!this._initialized || !this.db) {
       throw new Error('Storage not initialized. Call initialize() first.');
     }
   }
+
 
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------
 
   async createDocument(input: CreateDocumentInput): Promise<Document> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `createDocument-${timerId}`;
     log.startTimer(timerKey, false);
@@ -313,7 +415,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getDocument(id: string): Promise<Document | null> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<DocumentRow>(
       'SELECT * FROM documents WHERE id = $1',
@@ -325,7 +427,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getDocumentByPath(filePath: string): Promise<Document | null> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<DocumentRow>(
       'SELECT * FROM documents WHERE file_path = $1',
@@ -340,7 +442,7 @@ export class PGliteStorage implements StorageAdapter {
     id: string,
     updates: UpdateDocumentInput,
   ): Promise<Document> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const sets: string[] = ['updated_at = CURRENT_TIMESTAMP'];
     const params: unknown[] = [];
@@ -410,12 +512,12 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async deleteDocument(id: string): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     await this.db!.query('DELETE FROM documents WHERE id = $1', [id]);
   }
 
   async listDocuments(filters?: Partial<SearchFilters>): Promise<Document[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const { where, params } = this.buildDocumentFilters(filters);
     const result = await this.db!.query<DocumentRow>(
@@ -427,7 +529,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async countDocuments(filters?: Partial<SearchFilters>): Promise<number> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const { where, params } = this.buildDocumentFilters(filters);
     const result = await this.db!.query<{ count: string }>(
@@ -446,7 +548,7 @@ export class PGliteStorage implements StorageAdapter {
     documentId: string,
     chunks: CreateChunkInput[],
   ): Promise<DocumentChunk[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `createChunks-${timerId}`;
     log.startTimer(timerKey, true); // track memory for chunks
@@ -509,7 +611,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<ChunkRow>(
       'SELECT * FROM chunks WHERE document_id = $1 ORDER BY chunk_index',
@@ -520,7 +622,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async deleteChunks(documentId: string): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     await this.db!.query('DELETE FROM chunks WHERE document_id = $1', [
       documentId,
     ]);
@@ -529,7 +631,7 @@ export class PGliteStorage implements StorageAdapter {
   async updateChunkEmbeddings(
     updates: UpdateChunkEmbeddingInput[],
   ): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `updateChunkEmbeddings-${timerId}`;
     log.startTimer(timerKey, true);
@@ -554,7 +656,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async countChunks(): Promise<number> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<{ count: string }>(
       'SELECT COUNT(*) as count FROM chunks',
@@ -567,7 +669,7 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async addTags(documentId: string, tags: string[]): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     for (const tagName of tags) {
       // Get or create tag
@@ -597,7 +699,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async removeTags(documentId: string, tags: string[]): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     for (const tagName of tags) {
       const result = await this.db!.query<TagRow>(
@@ -615,7 +717,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getDocumentTags(documentId: string): Promise<string[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<{ name: string }>(
       `SELECT t.name FROM tags t
@@ -629,7 +731,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getAllTags(): Promise<TagCount[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<TagCountRow>(
       `SELECT t.name as tag, COUNT(dt.document_id) as count
@@ -655,7 +757,7 @@ export class PGliteStorage implements StorageAdapter {
     filters?: SearchFilters,
     limit = 10,
   ): Promise<SearchResult[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `searchKeyword-${timerId}`;
     log.startTimer(timerKey, true);
@@ -758,7 +860,7 @@ export class PGliteStorage implements StorageAdapter {
     filters?: SearchFilters,
     limit = 10,
   ): Promise<SearchResult[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `searchSemantic-${timerId}`;
     log.startTimer(timerKey, true);
@@ -807,7 +909,7 @@ export class PGliteStorage implements StorageAdapter {
     weights: HybridSearchWeights = { semantic: 0.5, keyword: 0.5 },
     rrfK = 60,
   ): Promise<SearchResult[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `searchHybrid-${timerId}`;
     log.startTimer(timerKey, false);
@@ -904,7 +1006,7 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async enqueueItem(input: CreateQueueItemInput): Promise<QueueItem> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const id = generateId();
     const now = new Date().toISOString();
@@ -943,7 +1045,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async dequeueItem(): Promise<QueueItem | null> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     // Get next pending item by priority order, then file size (smaller first)
     const result = await this.db!.query<QueueItemRow>(
@@ -975,7 +1077,7 @@ export class PGliteStorage implements StorageAdapter {
     id: string,
     updates: UpdateQueueItemInput,
   ): Promise<QueueItem> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -1025,12 +1127,12 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async deleteQueueItem(id: string): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     await this.db!.query('DELETE FROM index_queue WHERE id = $1', [id]);
   }
 
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<QueueItemRow>(
       'SELECT * FROM index_queue WHERE file_path = $1',
@@ -1042,7 +1144,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getQueueStatus(): Promise<QueueStatus> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const statusResult = await this.db!.query<{
       status: string;
@@ -1086,7 +1188,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async clearCompletedQueueItems(): Promise<number> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<{ count: string }>(
       `WITH deleted AS (
@@ -1098,7 +1200,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async clearQueue(): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     await this.db!.query('DELETE FROM index_queue');
   }
 
@@ -1107,7 +1209,7 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getFileHashes(): Promise<Map<string, string>> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<{
       file_path: string;
@@ -1122,7 +1224,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async getDocumentsModifiedSince(date: Date): Promise<Document[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<DocumentRow>(
       'SELECT * FROM documents WHERE file_modified_at > $1 ORDER BY file_path',
@@ -1137,7 +1239,7 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getStats(): Promise<SearchStats> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const docResult = await this.db!.query<StatsRow>(`
       SELECT
@@ -1200,7 +1302,7 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getConfigValue<T>(key: string): Promise<T | null> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     const result = await this.db!.query<{ value: T }>(
       'SELECT value FROM search_config WHERE key = $1',
@@ -1212,7 +1314,7 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async setConfigValue<T>(key: string, value: T): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
 
     await this.db!.query(
       `INSERT INTO search_config (key, value, updated_at)
@@ -1227,13 +1329,13 @@ export class PGliteStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
-    this.ensureInitialized();
+    await this.waitForReady();
     const result = await this.db!.query<T>(sql, params);
     return result.rows;
   }
 
   async execute(sql: string, params?: unknown[]): Promise<void> {
-    this.ensureInitialized();
+    await this.waitForReady();
     await this.db!.query(sql, params);
   }
 

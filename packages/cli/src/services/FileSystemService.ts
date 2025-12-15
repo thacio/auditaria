@@ -87,6 +87,8 @@ export class FileSystemService {
       '.nuxt',
       'coverage',
       '.nyc_output',
+      '.auditaria', // Config directory - contains search.db with rapidly changing WAL files
+      '.gemini', // Upstream config directory
       'tmp',
       'temp'
     ];

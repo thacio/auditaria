@@ -50,6 +50,8 @@ export class DirectoryWatcherService extends EventEmitter {
       '.nuxt',
       'coverage',
       '.nyc_output',
+      '.auditaria',
+      '.gemini',
     ];
   }
 

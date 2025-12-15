@@ -142,6 +142,14 @@ export interface StorageAdapter {
    */
   vacuum?(): Promise<void>;
 
+  /**
+   * Reconnect to the database by closing and reopening the connection.
+   * This is the most aggressive memory release - destroys WASM instance entirely.
+   * Only call when no operations are in flight.
+   * Optional - implementations may no-op if not supported.
+   */
+  reconnect?(): Promise<void>;
+
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------
