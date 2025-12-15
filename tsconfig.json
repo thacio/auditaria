@@ -1,4 +1,9 @@
 {
+  // This is a base config only - do not run `tsc --build` from root!
+  // Each package extends this and has its own outDir configuration.
+  // Running `tsc --build` from root will generate stray .d.ts/.js files
+  // that cause TS5055 errors.
+  "files": [],
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,
