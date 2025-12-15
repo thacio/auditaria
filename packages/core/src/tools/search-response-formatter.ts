@@ -40,7 +40,7 @@ export const DEFAULT_FORMATTER_OPTIONS: FormatterOptions = {
   detail: 'summary',
   passageLength: 300,
   groupByDocument: true,
-  passagesPerDocument: 3,
+  passagesPerDocument: 0, // 0 = no limit, show all passages per document
 };
 
 /**
@@ -276,8 +276,11 @@ export class SearchResponseFormatter {
       // Sort chunks by score descending
       chunks.sort((a, b) => b.score - a.score);
 
-      // Take top N passages
-      const topChunks = chunks.slice(0, this.options.passagesPerDocument);
+      // Take top N passages (0 = no limit, show all)
+      const topChunks =
+        this.options.passagesPerDocument > 0
+          ? chunks.slice(0, this.options.passagesPerDocument)
+          : chunks;
       const firstChunk = chunks[0];
 
       grouped.push({

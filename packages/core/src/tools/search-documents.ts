@@ -50,7 +50,7 @@ export interface SearchDocumentsToolParams {
   tags?: string[];
 
   /**
-   * Maximum number of results to return (default: 10)
+   * Maximum number of results to return (default: 30, max: 200)
    */
   limit?: number;
 
@@ -87,7 +87,7 @@ export interface SearchDocumentsToolParams {
   group_by_document?: boolean;
 
   /**
-   * Max passages per document when grouped (default: 3, max: 10)
+   * Max passages per document when grouped (default: 0 = no limit)
    */
   passages_per_document?: number;
 
@@ -119,7 +119,7 @@ This tool searches through all indexed documents in the project using advanced s
 - **passage_length**: Max characters per passage (1-2000, default: 300)
 
 **Pagination:**
-- **limit**: Max results to return (default: 10, max: 50)
+- **limit**: Max passages to return (default: 30, max: 200)
 - **offset**: Starting position for pagination
 
 **Workflow for retrieving full documents:**
@@ -229,7 +229,7 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
       }
 
       // Perform the search
-      const effectiveLimit = limit ?? 10;
+      const effectiveLimit = limit ?? 30;
       const effectiveOffset = offset ?? 0;
 
       const response = await searchSystem.search({
@@ -273,7 +273,7 @@ class SearchDocumentsToolInvocation extends BaseToolInvocation<
         detail: detail ?? 'summary',
         passageLength: passage_length ?? 300,
         groupByDocument: group_by_document ?? true,
-        passagesPerDocument: passages_per_document ?? 3,
+        passagesPerDocument: passages_per_document ?? 0, // 0 = no limit
       });
 
       // Format the response
@@ -446,7 +446,7 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
           limit: {
             type: 'number',
             description:
-              'Maximum number of results to return (default: 10, max: 50)',
+              'Maximum number of passages to return (default: 30, max: 200)',
           },
           document_id: {
             type: 'string',
@@ -478,7 +478,7 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
           passages_per_document: {
             type: 'number',
             description:
-              'Max passages per document when grouped (default: 3, max: 10)',
+              'Max passages per document when grouped (default: 0 = no limit)',
           },
           offset: {
             type: 'number',
@@ -512,9 +512,9 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
 
     if (
       params.limit !== undefined &&
-      (params.limit <= 0 || params.limit > 50)
+      (params.limit <= 0 || params.limit > 200)
     ) {
-      return 'Limit must be between 1 and 50';
+      return 'Limit must be between 1 and 200';
     }
 
     if (params.format && !['markdown', 'json'].includes(params.format)) {
@@ -537,9 +537,9 @@ export class SearchDocumentsTool extends BaseDeclarativeTool<
 
     if (
       params.passages_per_document !== undefined &&
-      (params.passages_per_document < 1 || params.passages_per_document > 10)
+      params.passages_per_document < 0
     ) {
-      return 'Passages per document must be between 1 and 10';
+      return 'Passages per document must be 0 (no limit) or a positive number';
     }
 
     if (params.offset !== undefined && params.offset < 0) {
