@@ -11,6 +11,8 @@ export type {
   ProgressInfo,
   TransformersJsEmbedderConfig,
   EmbedderEvents,
+  EmbedderDevice,
+  EmbedderQuantization,
 } from './types.js';
 
 // Registry
@@ -29,6 +31,27 @@ export {
 
 // Worker-based embedder (non-blocking)
 export { WorkerEmbedder, createWorkerEmbedder } from './WorkerEmbedder.js';
+
+// Factory for creating embedders with GPU support
+export { createEmbedders, createSingleEmbedder } from './EmbedderFactory.js';
+
+export type {
+  EmbedderFactoryConfig,
+  EmbedderFactoryResult,
+} from './EmbedderFactory.js';
+
+// GPU detection utilities
+export {
+  resolveDevice,
+  resolveQuantization,
+  isGpuDevice,
+  debugLog,
+} from './gpu-detection.js';
+
+export type {
+  GpuDetectionResult,
+  ResolvedEmbedderConfig,
+} from './gpu-detection.js';
 
 // Extended types from implementations
 export type {

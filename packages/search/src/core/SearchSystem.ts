@@ -45,12 +45,9 @@ import {
 } from '../discovery/FileDiscovery.js';
 import { createParserRegistry } from '../parsers/index.js';
 import { createChunkerRegistry } from '../chunkers/index.js';
-import {
-  MockEmbedder,
-  TransformersJsEmbedder,
-  WorkerEmbedder,
-} from '../embedders/index.js';
+import { MockEmbedder, createEmbedders } from '../embedders/index.js';
 import type { TextEmbedder } from '../embedders/types.js';
+import type { ResolvedEmbedderConfig } from '../embedders/gpu-detection.js';
 import { IndexingPipeline } from '../indexing/index.js';
 import type { Embedder } from '../indexing/types.js';
 import { createSearchEngine, type SearchEngine } from '../search/index.js';
@@ -69,9 +66,33 @@ import {
   type OcrResult,
 } from '../ocr/index.js';
 
+import type { EmbedderQuantization } from '../embedders/types.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Key used to store embedder config in the database */
+const EMBEDDER_CONFIG_KEY = 'embedder_config';
+
 // ============================================================================
 // Types
 // ============================================================================
+
+/**
+ * Embedder configuration stored in the database.
+ * This ensures consistency across different machines/sessions.
+ */
+export interface StoredEmbedderConfig {
+  /** Model ID used for embeddings */
+  model: string;
+  /** Quantization used (fp16, q8, etc.) */
+  quantization: EmbedderQuantization;
+  /** Embedding dimensions */
+  dimensions: number;
+  /** When the config was first stored */
+  createdAt: string;
+}
 
 export interface SearchSystemInitOptions {
   /** Root path to index. Defaults to current working directory */
@@ -131,7 +152,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private pipeline: IndexingPipeline | null = null;
   private searchEngine: SearchEngine | null = null;
   private startupSync: StartupSync | null = null;
-  private embedder: TextEmbedder | null = null;
+  /** Embedder for indexing operations (may use GPU) */
+  private indexingEmbedder: TextEmbedder | null = null;
+  /** Embedder for search operations (always CPU, same dtype) */
+  private searchEmbedder: TextEmbedder | null = null;
+  /** Resolved embedder configuration (for debugging/info) */
+  private resolvedEmbedderConfig: ResolvedEmbedderConfig | null = null;
   private ocrRegistry: OcrRegistry | null = null;
   private ocrQueueManager: OcrQueueManager | null = null;
   private initialized: boolean = false;
@@ -247,38 +273,100 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       respectGitignore: this.config.indexing.respectGitignore,
     });
 
-    // Initialize embedder
+    // Initialize embedders using factory (handles GPU detection and fallback)
     if (this.useMockEmbedder) {
-      this.embedder = new MockEmbedder(this.config.embeddings.dimensions);
+      // Mock embedder for testing
+      const mockEmbedder = new MockEmbedder(this.config.embeddings.dimensions);
+      this.indexingEmbedder = mockEmbedder;
+      this.searchEmbedder = mockEmbedder;
+      this.resolvedEmbedderConfig = {
+        device: 'cpu',
+        quantization: 'q8',
+        gpuDetected: false,
+        gpuUsedForIndexing: false,
+      };
       console.log('[SearchSystem] Using MockEmbedder');
-    } else if (this.config.embeddings.useWorkerThread) {
-      // Use WorkerEmbedder for non-blocking embeddings (default)
-      this.embedder = new WorkerEmbedder({
-        modelId: this.config.embeddings.model,
-      });
-      console.log(
-        `[SearchSystem] Using WorkerEmbedder with model: ${this.config.embeddings.model} (non-blocking)`,
-      );
     } else {
-      // Use TransformersJsEmbedder on main thread (legacy behavior)
-      this.embedder = new TransformersJsEmbedder({
-        modelId: this.config.embeddings.model,
-      });
+      // Check for stored embedder config (ensures consistency across machines/sessions)
+      const storedConfig =
+        await this.storage.getConfigValue<StoredEmbedderConfig>(
+          EMBEDDER_CONFIG_KEY,
+        );
+
+      // Determine effective model and quantization
+      // If stored config exists, use it (database dictates settings)
+      // Otherwise, use current config (new database)
+      const effectiveModel =
+        storedConfig?.model ?? this.config.embeddings.model;
+      const effectiveQuantization =
+        storedConfig?.quantization ?? this.config.embeddings.quantization;
+
+      if (storedConfig) {
+        console.log(
+          `[SearchSystem] Using stored embedder config: model=${storedConfig.model}, ` +
+            `quantization=${storedConfig.quantization} (created: ${storedConfig.createdAt})`,
+        );
+      } else {
+        console.log(
+          '[SearchSystem] Fresh database, will store embedder config',
+        );
+      }
+
+      // Use factory to create embedders
+      console.log('[SearchSystem] Initializing embedders...');
+
+      const { indexingEmbedder, searchEmbedder, resolvedConfig } =
+        await createEmbedders(
+          {
+            model: effectiveModel,
+            device: this.config.embeddings.device, // Device is per-machine
+            quantization: effectiveQuantization,
+            preferGpuForIndexing: this.config.embeddings.preferGpuForIndexing,
+            useWorkerThread: this.config.embeddings.useWorkerThread,
+          },
+          (progress) => {
+            if (progress.stage === 'download' && progress.file) {
+              console.log(
+                `[SearchSystem] Downloading: ${progress.file} ${Math.round(progress.progress)}%`,
+              );
+            }
+          },
+        );
+
+      this.indexingEmbedder = indexingEmbedder;
+      this.searchEmbedder = searchEmbedder;
+      this.resolvedEmbedderConfig = resolvedConfig;
+
+      // Store config if this is a fresh database
+      if (!storedConfig) {
+        const newConfig: StoredEmbedderConfig = {
+          model: effectiveModel,
+          quantization: resolvedConfig.quantization,
+          dimensions: this.config.embeddings.dimensions,
+          createdAt: new Date().toISOString(),
+        };
+        await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
+        console.log(
+          `[SearchSystem] Stored embedder config: model=${newConfig.model}, ` +
+            `quantization=${newConfig.quantization}`,
+        );
+      }
+
+      // Log resolved configuration
+      const gpuStatus = resolvedConfig.gpuUsedForIndexing
+        ? `GPU (${resolvedConfig.device})`
+        : resolvedConfig.fallbackReason
+          ? `CPU (GPU fallback: ${resolvedConfig.fallbackReason})`
+          : 'CPU';
+
       console.log(
-        `[SearchSystem] Using TransformersJsEmbedder with model: ${this.config.embeddings.model} (main thread)`,
+        `[SearchSystem] Embedders ready: indexing=${gpuStatus}, ` +
+          `search=CPU, dtype=${resolvedConfig.quantization}`,
       );
     }
 
-    // Initialize the embedder (downloads model if needed)
-    console.log('[SearchSystem] Initializing embedder...');
-    await this.embedder.initialize((progress) => {
-      if (progress.stage === 'download' && progress.file) {
-        console.log(
-          `[SearchSystem] Downloading: ${progress.file} ${Math.round(progress.progress)}%`,
-        );
-      }
-    });
-    console.log('[SearchSystem] Embedder ready');
+    // Initialize search embedder (lazy - initialize on first use for faster startup)
+    // Note: Model is already cached from indexing embedder initialization
 
     // Initialize pipeline
     const parserRegistry = createParserRegistry();
@@ -288,7 +376,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       this.storage,
       parserRegistry,
       chunkerRegistry,
-      this.embedder as Embedder,
+      this.indexingEmbedder as Embedder,
       {
         rootPath: this.rootPath,
         autoStart: false,
@@ -309,8 +397,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       },
     );
 
-    // Initialize search engine
-    this.searchEngine = createSearchEngine(this.storage, this.embedder, {
+    // Initialize search engine (uses CPU embedder for search)
+    this.searchEngine = createSearchEngine(this.storage, this.searchEmbedder, {
       defaultLimit: this.config.search.defaultLimit,
       defaultStrategy: this.config.search.defaultStrategy,
       semanticWeight: this.config.search.semanticWeight,
@@ -354,7 +442,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
               processAfterMainQueue: this.config.ocr.processAfterMainQueue,
               defaultLanguages: this.config.ocr.defaultLanguages,
             },
-            this.embedder as Embedder,
+            this.indexingEmbedder as Embedder,
           );
 
           // Forward OCR events
@@ -410,11 +498,17 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       this.storage = null;
     }
 
-    if (this.embedder) {
-      await this.embedder.dispose();
-      this.embedder = null;
+    if (this.indexingEmbedder) {
+      await this.indexingEmbedder.dispose();
+      this.indexingEmbedder = null;
     }
 
+    if (this.searchEmbedder) {
+      await this.searchEmbedder.dispose();
+      this.searchEmbedder = null;
+    }
+
+    this.resolvedEmbedderConfig = null;
     this.initialized = false;
     this.ocrAvailable = false;
   }

@@ -3,7 +3,27 @@
  * Used by both WorkerEmbedder (main thread) and embedder-worker (worker thread).
  */
 
-import type { TransformersJsEmbedderConfig, ProgressInfo } from './types.js';
+import type {
+  TransformersJsEmbedderConfig,
+  ProgressInfo,
+  EmbedderDevice,
+  EmbedderQuantization,
+} from './types.js';
+
+// ============================================================================
+// Extended Config for Worker
+// ============================================================================
+
+/**
+ * Extended configuration passed to the worker.
+ * Includes explicit device and quantization for GPU support.
+ */
+export interface WorkerEmbedderInitConfig extends TransformersJsEmbedderConfig {
+  /** Device to use ('cpu', 'dml', 'cuda') */
+  device?: EmbedderDevice;
+  /** Quantization/precision ('fp16', 'fp32', 'q8', 'q4') */
+  quantization?: EmbedderQuantization;
+}
 
 // ============================================================================
 // Request Types (Main Thread → Worker)
@@ -16,7 +36,7 @@ export interface WorkerRequestBase {
 
 export interface InitializeRequest extends WorkerRequestBase {
   type: 'initialize';
-  config?: TransformersJsEmbedderConfig;
+  config?: WorkerEmbedderInitConfig;
 }
 
 export interface EmbedRequest extends WorkerRequestBase {
@@ -81,6 +101,10 @@ export interface InitializedResponse extends WorkerResponseBase {
   modelId?: string;
   /** Whether model is multilingual */
   isMultilingual?: boolean;
+  /** Actual device used (may differ from requested if fallback occurred) */
+  device?: EmbedderDevice;
+  /** Actual quantization used */
+  quantization?: EmbedderQuantization;
 }
 
 export interface ProgressResponse extends WorkerResponseBase {

@@ -15,6 +15,8 @@ import type {
   TransformersJsEmbedderConfig,
   ProgressCallback,
   EmbeddingResult,
+  EmbedderDevice,
+  EmbedderQuantization,
 } from './types.js';
 import type { Embedder } from '../indexing/types.js';
 import type {
@@ -23,6 +25,7 @@ import type {
   EmbeddingResponse,
   EmbeddingBatchResponse,
 } from './worker-types.js';
+import { debugLog } from './gpu-detection.js';
 
 // ============================================================================
 // Constants
@@ -61,6 +64,10 @@ export interface WorkerEmbedderConfig extends TransformersJsEmbedderConfig {
   initTimeout?: number;
   /** Timeout for embed operations in ms (default: 300000 = 5 min) */
   embedTimeout?: number;
+  /** Device to run on ('cpu', 'dml', 'cuda') */
+  device?: EmbedderDevice;
+  /** Quantization type ('fp32', 'fp16', 'q8', 'q4') */
+  quantization?: EmbedderQuantization;
 }
 
 // ============================================================================
@@ -80,6 +87,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   private _dimensions: number;
   private _maxTokens = 512;
   private _isMultilingual = true;
+  private _device: EmbedderDevice;
+  private _quantization: EmbedderQuantization;
 
   private worker: Worker | null = null;
   private ready = false;
@@ -94,6 +103,8 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     this.config = config ?? {};
     this._modelId = config?.modelId ?? DEFAULT_MODEL_ID;
     this._dimensions = MODEL_DIMENSIONS[this._modelId] ?? 384;
+    this._device = config?.device ?? 'cpu';
+    this._quantization = config?.quantization ?? 'q8';
   }
 
   // -------------------------------------------------------------------------
@@ -114,6 +125,16 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
   get isMultilingual(): boolean {
     return this._isMultilingual;
+  }
+
+  /** The device this embedder is configured to use */
+  get device(): EmbedderDevice {
+    return this._device;
+  }
+
+  /** The quantization this embedder is configured to use */
+  get quantization(): EmbedderQuantization {
+    return this._quantization;
   }
 
   // -------------------------------------------------------------------------
@@ -148,14 +169,22 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   }
 
   private async doInitialize(): Promise<void> {
+    debugLog(
+      `WorkerEmbedder initializing: device=${this._device}, quantization=${this._quantization}`,
+    );
+
     // Spawn worker thread
     await this.spawnWorker();
 
-    // Send initialization request
+    // Send initialization request with device/quantization
     const response = await this.sendRequest<InitializedResponse>(
       {
         type: 'initialize',
-        config: this.config,
+        config: {
+          ...this.config,
+          device: this._device,
+          quantization: this._quantization,
+        },
       },
       this.config.initTimeout ?? INIT_TIMEOUT_MS,
     );
@@ -174,6 +203,17 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     if (response.isMultilingual !== undefined) {
       this._isMultilingual = response.isMultilingual;
     }
+    // Update device/quantization in case worker resolved them differently
+    if (response.device) {
+      this._device = response.device;
+    }
+    if (response.quantization) {
+      this._quantization = response.quantization;
+    }
+
+    debugLog(
+      `WorkerEmbedder initialized: device=${this._device}, quantization=${this._quantization}`,
+    );
 
     this.ready = true;
   }

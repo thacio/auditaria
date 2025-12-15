@@ -13,8 +13,11 @@ import type {
   TransformersJsEmbedderConfig,
   ProgressCallback,
   EmbeddingResult,
+  EmbedderDevice,
+  EmbedderQuantization,
 } from './types.js';
 import type { Embedder } from '../indexing/types.js';
+import { debugLog } from './gpu-detection.js';
 
 // ============================================================================
 // Constants
@@ -93,6 +96,11 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   readonly isMultilingual: boolean;
   readonly priority = 100;
 
+  /** The device this embedder is configured to use */
+  readonly device: EmbedderDevice;
+  /** The quantization this embedder is configured to use */
+  readonly quantization: EmbedderQuantization;
+
   private config: Required<
     Omit<TransformersJsEmbedderFullConfig, 'onWarning'>
   > & { onWarning?: WarningCallback };
@@ -121,6 +129,8 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
     this.isMultilingual = this.modelId.includes('multilingual');
     this.currentBatchSize = this.config.batchSize;
     this.onWarning = config?.onWarning;
+    this.device = this.config.device;
+    this.quantization = this.config.quantization;
   }
 
   /**
@@ -188,16 +198,26 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
       // Disable remote models host if needed (use HuggingFace directly)
       env.allowRemoteModels = true;
 
+      const deviceName = this.config.device;
+      const dtypeName = this.config.quantization;
+
       onProgress?.({
         stage: 'load',
         progress: 20,
-        message: 'Initializing pipeline...',
+        message: `Initializing pipeline (device: ${deviceName}, dtype: ${dtypeName})...`,
       });
+
+      debugLog(
+        `Creating pipeline: model=${this.modelId}, device=${deviceName}, dtype=${dtypeName}`,
+      );
 
       // Create feature extraction pipeline
       // Note: Type assertion needed because @huggingface/transformers types may not include all options
       const pipelineOptions = {
-        quantized: this.config.quantization !== 'fp32',
+        // Device selection: 'cpu', 'cuda', 'dml' (DirectML), etc.
+        device: deviceName,
+        // Data type / quantization: 'fp32', 'fp16', 'q8', 'q4'
+        dtype: dtypeName,
         progress_callback: (progressData: unknown) => {
           const data = progressData as {
             status?: string;
@@ -226,6 +246,8 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
         this.modelId,
         pipelineOptions,
       );
+
+      debugLog(`Pipeline created successfully with device=${deviceName}`);
 
       this.ready = true;
 

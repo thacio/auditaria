@@ -55,9 +55,14 @@ async function handleInitialize(
   request: WorkerRequest & { type: 'initialize' },
 ): Promise<void> {
   try {
-    // Create embedder with warning callback
+    const config = request.config ?? {};
+
+    // Create embedder with device, quantization, and warning callback
     embedder = new TransformersJsEmbedder({
-      ...request.config,
+      ...config,
+      // Explicitly pass device and quantization for GPU support
+      device: config.device ?? 'cpu',
+      quantization: config.quantization ?? 'q8',
       onWarning: (warning) => {
         sendResponse({
           type: 'warning',
@@ -77,7 +82,7 @@ async function handleInitialize(
       sendProgress(request.id, progress);
     });
 
-    // Send success response with embedder info
+    // Send success response with embedder info including device/quantization
     sendResponse({
       type: 'initialized',
       id: request.id,
@@ -85,6 +90,8 @@ async function handleInitialize(
       dimensions: embedder.dimensions,
       modelId: embedder.modelId,
       isMultilingual: embedder.isMultilingual,
+      device: embedder.device,
+      quantization: embedder.quantization,
     } as InitializedResponse);
   } catch (error) {
     sendResponse({

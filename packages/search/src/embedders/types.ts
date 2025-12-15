@@ -138,15 +138,34 @@ export interface ProgressInfo {
 // ============================================================================
 
 /**
+ * Supported device types for embedder execution.
+ * - 'cpu': CPU execution (default, works everywhere)
+ * - 'dml': DirectML on Windows (GPU acceleration)
+ * - 'cuda': CUDA on Linux (GPU acceleration, requires CUDA toolkit)
+ * - 'webgpu': WebGPU in browsers (not applicable to Node.js)
+ * - 'wasm': WebAssembly (fallback)
+ */
+export type EmbedderDevice = 'cpu' | 'dml' | 'cuda' | 'webgpu' | 'wasm';
+
+/**
+ * Supported quantization/precision types.
+ * - 'fp32': Full precision (slowest, most accurate)
+ * - 'fp16': Half precision (fast on GPU, good accuracy)
+ * - 'q8': 8-bit quantization (fast on CPU)
+ * - 'q4': 4-bit quantization (fastest, lower accuracy)
+ */
+export type EmbedderQuantization = 'fp32' | 'fp16' | 'q8' | 'q4';
+
+/**
  * Configuration for TransformersJS embedder.
  */
 export interface TransformersJsEmbedderConfig {
   /** Model ID on HuggingFace (e.g., 'Xenova/multilingual-e5-small') */
   modelId?: string;
   /** Quantization type ('fp32', 'fp16', 'q8', 'q4') */
-  quantization?: 'fp32' | 'fp16' | 'q8' | 'q4';
-  /** Device to run on ('cpu', 'webgpu', 'wasm') */
-  device?: 'cpu' | 'webgpu' | 'wasm';
+  quantization?: EmbedderQuantization;
+  /** Device to run on ('cpu', 'dml', 'cuda', 'webgpu', 'wasm') */
+  device?: EmbedderDevice;
   /** Cache directory for downloaded models */
   cacheDir?: string;
   /** Whether to normalize embeddings */

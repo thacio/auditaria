@@ -205,6 +205,11 @@ export {
   MockEmbedder,
   WorkerEmbedder,
   createWorkerEmbedder,
+  createEmbedders,
+  createSingleEmbedder,
+  resolveDevice,
+  resolveQuantization,
+  isGpuDevice,
 } from './embedders/index.js';
 
 export type {
@@ -215,6 +220,12 @@ export type {
   TransformersJsEmbedderConfig,
   EmbedderEvents,
   WorkerEmbedderConfig,
+  EmbedderDevice,
+  EmbedderQuantization,
+  EmbedderFactoryConfig,
+  EmbedderFactoryResult,
+  ResolvedEmbedderConfig,
+  GpuDetectionResult,
 } from './embedders/index.js';
 
 // ============================================================================

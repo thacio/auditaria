@@ -60,6 +60,30 @@ export interface EmbeddingsConfig {
    * Set to false to run embeddings on the main thread (legacy behavior).
    */
   useWorkerThread: boolean;
+  /**
+   * Device for embeddings. Default: 'auto'
+   * - 'auto': Automatically detect best device (DirectML on Windows, CUDA on Linux, CPU on macOS)
+   * - 'cpu': Force CPU execution
+   * - 'dml': Force DirectML (Windows only)
+   * - 'cuda': Force CUDA (Linux only, requires CUDA toolkit)
+   */
+  device: 'auto' | 'cpu' | 'dml' | 'cuda';
+  /**
+   * Quantization/precision for embeddings. Default: 'auto'
+   * - 'auto': Use fp16 for GPU, q8 for CPU
+   * - 'fp32': Full precision (slowest, most accurate)
+   * - 'fp16': Half precision (fast on GPU)
+   * - 'q8': 8-bit quantization (fast on CPU)
+   * - 'q4': 4-bit quantization (fastest, lower accuracy)
+   */
+  quantization: 'auto' | 'fp32' | 'fp16' | 'q8' | 'q4';
+  /**
+   * Prefer GPU for indexing operations. Default: true
+   * When enabled, indexing will use GPU acceleration if available.
+   * Search queries always use CPU for simplicity.
+   * If GPU initialization fails, silently falls back to CPU.
+   */
+  preferGpuForIndexing: boolean;
 }
 
 export interface SearchConfig {
@@ -171,6 +195,9 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',
   useWorkerThread: true,
+  device: 'auto',
+  quantization: 'auto',
+  preferGpuForIndexing: true,
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
