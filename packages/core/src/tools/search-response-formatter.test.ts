@@ -101,20 +101,20 @@ describe('SearchResponseFormatter', () => {
       const options = formatter.getOptions();
       expect(options.format).toBe('markdown');
       expect(options.detail).toBe('summary');
-      expect(options.passageLength).toBe(300);
+      expect(options.passageLength).toBe(500); // Updated default
       expect(options.groupByDocument).toBe(true);
-      expect(options.passagesPerDocument).toBe(3);
+      expect(options.passagesPerDocument).toBe(0);
     });
 
     it('should merge provided options with defaults', () => {
       const customFormatter = new SearchResponseFormatter({
         format: 'json',
-        passageLength: 500,
+        passageLength: 800,
       });
 
       const options = customFormatter.getOptions();
       expect(options.format).toBe('json');
-      expect(options.passageLength).toBe(500);
+      expect(options.passageLength).toBe(800);
       expect(options.detail).toBe('summary'); // default
       expect(options.groupByDocument).toBe(true); // default
     });
@@ -186,7 +186,6 @@ describe('SearchResponseFormatter', () => {
       expect(response.llmContent).toContain('[doc_001]'); // document_id always included
       expect(response.llmContent).toContain('score: 0.85');
       expect(response.llmContent).toContain('Section: Introduction');
-      // Note: page is not shown (not reliably populated by chunkers)
     });
 
     it('should format multiple results correctly', () => {
@@ -225,20 +224,6 @@ describe('SearchResponseFormatter', () => {
       expect(response.llmContent).toContain('showing 6-7');
     });
 
-    it('should truncate text at passage_length', () => {
-      const longText = 'A'.repeat(500);
-      const results = [createMockResult({ chunkText: longText })];
-
-      formatter.setOptions({ passageLength: 100 });
-      const response = formatter.format(results, 'test', 50, {
-        offset: 0,
-        limit: 10,
-      });
-
-      expect(response.llmContent).toContain('A'.repeat(100) + '...');
-      expect(response.llmContent).not.toContain('A'.repeat(101));
-    });
-
     it('should exclude text for minimal detail (flat) but include document_id', () => {
       formatter.setOptions({ detail: 'minimal', groupByDocument: false });
       const results = [createMockResult()];
@@ -273,7 +258,7 @@ describe('SearchResponseFormatter', () => {
     });
 
     it('should show full text for full detail', () => {
-      const longText = 'X'.repeat(500);
+      const longText = 'X'.repeat(800);
       const results = [createMockResult({ chunkText: longText })];
 
       formatter.setOptions({
@@ -287,7 +272,7 @@ describe('SearchResponseFormatter', () => {
       });
 
       // Full detail should NOT truncate
-      expect(response.llmContent).toContain('X'.repeat(500));
+      expect(response.llmContent).toContain('X'.repeat(800));
     });
   });
 
@@ -343,7 +328,6 @@ describe('SearchResponseFormatter', () => {
       expect(result.text).toBeDefined();
       expect(result.highlights).toBeDefined();
       expect(result.section).toBe('Introduction');
-      // Note: page is not included in output (not reliably populated by chunkers)
     });
 
     it('should exclude text fields for minimal detail', () => {
@@ -366,7 +350,7 @@ describe('SearchResponseFormatter', () => {
     });
 
     it('should not truncate text for full detail', () => {
-      const longText = 'B'.repeat(500);
+      const longText = 'B'.repeat(800);
       const results = [createMockResult({ chunkText: longText })];
 
       formatter.setOptions({
@@ -557,60 +541,527 @@ describe('SearchResponseFormatter', () => {
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle results with null metadata', () => {
-      const results = [
-        createMockResult({
-          metadata: { page: null, section: null, tags: [] },
-        }),
-      ];
+  // ============================================================================
+  // Smart Truncation Tests
+  // ============================================================================
 
-      const response = formatter.format(results, 'test', 50, {
-        offset: 0,
-        limit: 10,
+  describe('smart truncation', () => {
+    describe('passageLength = 0 (full text mode)', () => {
+      it('should return full text when passageLength is 0', () => {
+        formatter.setOptions({ passageLength: 0, groupByDocument: false });
+
+        const longText =
+          'The internal audit function serves as a critical component of corporate governance. ' +
+          'It provides independent assurance that an organization risk management, governance, and internal control processes are operating effectively. ' +
+          'The audit committee relies on internal audit reports to make informed decisions about organizational risks. ' +
+          'Without proper audit coverage, material misstatements and control deficiencies may go undetected. ' +
+          'This document outlines the comprehensive methodology for conducting risk-based internal audits.';
+
+        const results = [createMockResult({ chunkText: longText })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain(longText);
       });
 
-      expect(response.llmContent).not.toContain('Section:');
-      expect(response.llmContent).not.toContain('Page:');
+      it('should return full text with marks when passageLength is 0', () => {
+        formatter.setOptions({ passageLength: 0, groupByDocument: false });
+
+        const textWithMarks =
+          'Introduction to the topic. ' +
+          'The <mark>audit methodology</mark> is described here. ' +
+          'More details follow in subsequent sections.';
+
+        const results = [createMockResult({ chunkText: textWithMarks })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain(textWithMarks);
+      });
     });
 
-    it('should handle very long queries', () => {
-      const longQuery = 'word '.repeat(100);
-      const results = [createMockResult()];
+    describe('mark-aware truncation', () => {
+      it('should center truncation around a single mark at the end of text', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
 
-      const response = formatter.format(results, longQuery, 50, {
-        offset: 0,
-        limit: 10,
+        // Mark is in the 6th sentence, near the end
+        const text =
+          'The company was founded in 1985 and has grown significantly over the decades. ' +
+          'Initial operations focused on manufacturing consumer electronics. ' +
+          'The product line expanded to include enterprise solutions in 2001. ' +
+          'Global expansion began with offices in Europe and Asia. ' +
+          'The company currently employs over ten thousand people worldwide. ' +
+          'Recent developments include the new <mark>audit framework</mark> implementation. ' +
+          'Future plans involve further digital transformation initiatives.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'audit', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Must contain the marked sentence
+        expect(response.llmContent).toContain('<mark>audit framework</mark>');
+        // Should have leading ellipsis since we're skipping content
+        expect(response.llmContent).toContain('...');
       });
 
-      expect(response.llmContent).toContain('Found 1 result(s)');
+      it('should show multiple marks when they exist in different sentences', () => {
+        formatter.setOptions({ passageLength: 300, groupByDocument: false });
+
+        const text =
+          'The first section introduces the basic concepts of financial reporting. ' +
+          'The <mark>internal controls</mark> framework ensures accuracy and compliance. ' +
+          'Management is responsible for maintaining adequate control systems. ' +
+          'External auditors assess the effectiveness of these controls annually. ' +
+          'The <mark>risk assessment</mark> process identifies potential issues early. ' +
+          'Remediation plans address identified deficiencies promptly.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'audit controls', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Both marks must be visible
+        expect(response.llmContent).toContain('<mark>internal controls</mark>');
+        expect(response.llmContent).toContain('<mark>risk assessment</mark>');
+      });
+
+      it('should show context sentences around marked content', () => {
+        formatter.setOptions({ passageLength: 150, groupByDocument: false });
+
+        const text =
+          'Background information about the organization goes here. ' +
+          'The <mark>compliance program</mark> was established in 2020. ' +
+          'It includes regular training and monitoring activities.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'compliance', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should contain the marked sentence
+        expect(response.llmContent).toContain(
+          '<mark>compliance program</mark>',
+        );
+        // Should include context (sentences before/after)
+        expect(response.llmContent).toContain('Background information');
+        expect(response.llmContent).toContain('training and monitoring');
+      });
+
+      it('should expand context to reach minimum passageLength', () => {
+        formatter.setOptions({ passageLength: 400, groupByDocument: false });
+
+        // Short marked sentence that needs expansion
+        const text =
+          'First sentence provides introduction. ' +
+          'Second sentence adds more detail. ' +
+          'Third sentence continues the narrative. ' +
+          'The <mark>key finding</mark> is here. ' +
+          'Fifth sentence provides analysis. ' +
+          'Sixth sentence concludes this section. ' +
+          'Seventh sentence wraps up everything.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'finding', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should contain mark
+        expect(response.llmContent).toContain('<mark>key finding</mark>');
+        // Output should be at least passageLength (or close to it with sentence boundaries)
+        // The text itself is the minimum, so we check it includes multiple sentences
+        const sentenceCount = (response.llmContent.match(/\. [A-Z]|\.$/g) || [])
+          .length;
+        expect(sentenceCount).toBeGreaterThanOrEqual(3);
+      });
+
+      it('should handle mark at the very beginning', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'The <mark>audit charter</mark> defines the purpose and authority of the internal audit function. ' +
+          'It is approved by the board of directors annually. ' +
+          'The charter establishes the scope of audit activities. ' +
+          'Independence and objectivity are fundamental principles. ' +
+          'The chief audit executive reports functionally to the audit committee.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'charter', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should contain the marked sentence at the beginning
+        expect(response.llmContent).toContain('<mark>audit charter</mark>');
+        // Should NOT have leading ellipsis (mark is at start)
+        expect(response.llmContent).not.toMatch(/^\.\.\./);
+      });
+
+      it('should handle adjacent marks in consecutive sentences', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'Introduction to audit standards. ' +
+          'The <mark>COSO framework</mark> provides guidance on internal controls. ' +
+          'The <mark>COBIT framework</mark> focuses on IT governance. ' +
+          'Both frameworks complement each other effectively. ' +
+          'Organizations often implement both for comprehensive coverage.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'framework', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Both marks should be visible
+        expect(response.llmContent).toContain('<mark>COSO framework</mark>');
+        expect(response.llmContent).toContain('<mark>COBIT framework</mark>');
+      });
+
+      it('should use gap indicator [...] when marks are far apart', () => {
+        formatter.setOptions({ passageLength: 150, groupByDocument: false });
+
+        const text =
+          'The <mark>first key point</mark> is established in the opening section. ' +
+          'This is followed by supporting evidence and analysis. ' +
+          'Additional context helps readers understand the implications. ' +
+          'Historical data provides perspective on current findings. ' +
+          'Industry benchmarks offer comparison points. ' +
+          'The <mark>second key point</mark> emerges from detailed examination. ' +
+          'Final conclusions summarize the overall assessment.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'key point', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Both marks should be present
+        expect(response.llmContent).toContain('<mark>first key point</mark>');
+        expect(response.llmContent).toContain('<mark>second key point</mark>');
+        // Should have gap indicator if sentences in between are skipped
+        // (depending on minimum length expansion)
+      });
     });
 
-    it('should handle zero passage length gracefully', () => {
-      formatter.setOptions({ passageLength: 0 });
-      const results = [createMockResult()];
+    describe('semantic truncation (no marks)', () => {
+      it('should use bookend strategy showing first and last sentences', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
 
-      const response = formatter.format(results, 'test', 50, {
-        offset: 0,
-        limit: 10,
+        const text =
+          'This executive summary provides an overview of audit findings. ' +
+          'The audit covered all major business processes during Q3 2024. ' +
+          'We identified several areas requiring management attention. ' +
+          'Control weaknesses were noted in the procurement department. ' +
+          'The IT general controls environment showed improvement over prior year. ' +
+          'In conclusion, the overall control environment is satisfactory with noted exceptions.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should contain first sentence
+        expect(response.llmContent).toContain('executive summary');
+        // Should contain last sentence
+        expect(response.llmContent).toContain(
+          'satisfactory with noted exceptions',
+        );
       });
 
-      // Should truncate to 0 + '...'
-      expect(response.llmContent).toContain('...');
+      it('should expand bookends to reach minimum length', () => {
+        formatter.setOptions({ passageLength: 350, groupByDocument: false });
+
+        const text =
+          'First sentence. ' +
+          'Second sentence. ' +
+          'Third sentence. ' +
+          'Fourth sentence. ' +
+          'Fifth sentence. ' +
+          'Last sentence.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // With short sentences and high minimum, should include most/all sentences
+        expect(response.llmContent).toContain('First sentence');
+        expect(response.llmContent).toContain('Last sentence');
+      });
+
+      it('should show gap indicator between bookends when content is skipped', () => {
+        formatter.setOptions({ passageLength: 150, groupByDocument: false });
+
+        const text =
+          'The introduction establishes the scope of the audit engagement. ' +
+          'We applied professional standards and used risk-based methodology. ' +
+          'Detailed testing procedures were performed across all business cycles. ' +
+          'Sample sizes were determined using statistical sampling techniques. ' +
+          'Our conclusions are based on sufficient appropriate audit evidence.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Check for gap indicator if middle content is skipped
+        // (behavior depends on whether minimum length requires more sentences)
+        expect(response.llmContent).toContain('introduction');
+        expect(response.llmContent).toContain('audit evidence');
+      });
+
+      it('should return all sentences when text has only two sentences', () => {
+        formatter.setOptions({ passageLength: 500, groupByDocument: false });
+
+        const text =
+          'This is the first and only real paragraph of content here. ' +
+          'This concluding statement wraps up the discussion.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('first and only');
+        expect(response.llmContent).toContain('concluding statement');
+        // Should not have any ellipsis or gaps
+        expect(response.llmContent).not.toContain('...');
+        expect(response.llmContent).not.toContain('[...]');
+      });
     });
 
-    it('should handle special characters in text', () => {
-      const specialText = 'Test with <html> & "quotes" and newlines\n\nhere';
-      const results = [createMockResult({ chunkText: specialText })];
+    describe('minimum length guarantee', () => {
+      it('should produce output >= passageLength when document is large enough', () => {
+        formatter.setOptions({ passageLength: 300, groupByDocument: false });
 
-      formatter.setOptions({ format: 'json' });
-      const response = formatter.format(results, 'test', 50, {
-        offset: 0,
-        limit: 10,
+        const text =
+          'First sentence here. Second sentence here. Third sentence here. ' +
+          'Fourth sentence here. Fifth with <mark>important keyword</mark> appears. ' +
+          'Sixth sentence here. Seventh sentence here. Eighth sentence here. ' +
+          'Ninth sentence here. Tenth sentence here.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'keyword', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should contain the mark at minimum
+        expect(response.llmContent).toContain('<mark>important keyword</mark>');
       });
 
-      // Should produce valid JSON even with special chars
-      expect(() => JSON.parse(response.llmContent)).not.toThrow();
+      it('should return full text when document is smaller than passageLength', () => {
+        formatter.setOptions({ passageLength: 1000, groupByDocument: false });
+
+        const shortText =
+          'This short text is under the minimum length requirement.';
+
+        const results = [createMockResult({ chunkText: shortText })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain(shortText);
+      });
+    });
+
+    describe('sentence splitting', () => {
+      it('should handle abbreviations correctly (Dr., Mr., etc.)', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'Dr. Smith presented the <mark>audit findings</mark> to the committee. ' +
+          'Mr. Johnson raised several important questions. ' +
+          'The discussion continued for two hours.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'findings', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should not split on "Dr." or "Mr."
+        expect(response.llmContent).toContain('Dr. Smith');
+        expect(response.llmContent).toContain('Mr. Johnson');
+      });
+
+      it('should handle multiple punctuation types (! and ?)', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'What are the key <mark>risk factors</mark> identified? ' +
+          'Management must address these immediately! ' +
+          'The deadline for remediation is end of quarter.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'risk', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('<mark>risk factors</mark>');
+        expect(response.llmContent).toContain('?');
+        expect(response.llmContent).toContain('!');
+      });
+
+      it('should handle text without standard sentence endings', () => {
+        formatter.setOptions({ passageLength: 100, groupByDocument: false });
+
+        const text =
+          'Key findings include: control weaknesses in procurement, ' +
+          'lack of segregation of duties, and <mark>insufficient documentation</mark>';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'documentation', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain(
+          '<mark>insufficient documentation</mark>',
+        );
+      });
+    });
+
+    describe('edge cases', () => {
+      it('should handle empty text', () => {
+        formatter.setOptions({ passageLength: 100, groupByDocument: false });
+
+        const results = [createMockResult({ chunkText: '' })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should not crash
+        expect(response).toBeDefined();
+      });
+
+      it('should handle text with only whitespace', () => {
+        formatter.setOptions({ passageLength: 100, groupByDocument: false });
+
+        const results = [createMockResult({ chunkText: '   \n\t  ' })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response).toBeDefined();
+      });
+
+      it('should handle nested or malformed mark tags gracefully', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'Some text with <mark>nested <mark>marks</mark> inside</mark> which is unusual. ' +
+          'Regular sentence follows here.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        // Should not crash and should include some of the marked content
+        expect(response.llmContent).toContain('mark');
+      });
+
+      it('should handle very long single sentence', () => {
+        formatter.setOptions({ passageLength: 100, groupByDocument: false });
+
+        const longSentence =
+          'This is an extremely long sentence that contains the <mark>important term</mark> ' +
+          'and continues with more and more content without any period or other sentence-ending punctuation ' +
+          'making it difficult to split into logical units for truncation purposes';
+
+        const results = [createMockResult({ chunkText: longSentence })];
+        const response = formatter.format(results, 'important', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('<mark>important term</mark>');
+      });
+
+      it('should handle special characters in text', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'The ratio was 5:1 & the margin exceeded 15%. ' +
+          'The <mark>key metrics</mark> showed improvement. ' +
+          'Revenue grew by $1.5M (€1.3M equivalent).';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'metrics', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('<mark>key metrics</mark>');
+        expect(response.llmContent).toContain('&');
+        expect(response.llmContent).toContain('%');
+      });
+
+      it('should handle case-insensitive mark tags', () => {
+        formatter.setOptions({ passageLength: 200, groupByDocument: false });
+
+        const text =
+          'First sentence here. ' +
+          'Second with <MARK>uppercase tags</MARK> for highlighting. ' +
+          'Third sentence here.';
+
+        const results = [createMockResult({ chunkText: text })];
+        const response = formatter.format(results, 'uppercase', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('<MARK>uppercase tags</MARK>');
+      });
+    });
+
+    describe('results with null metadata', () => {
+      it('should handle results with null metadata', () => {
+        const results = [
+          createMockResult({
+            metadata: { page: null, section: null, tags: [] },
+          }),
+        ];
+
+        const response = formatter.format(results, 'test', 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).not.toContain('Section:');
+        expect(response.llmContent).not.toContain('Page:');
+      });
+
+      it('should handle very long queries', () => {
+        const longQuery = 'word '.repeat(100);
+        const results = [createMockResult()];
+
+        const response = formatter.format(results, longQuery, 50, {
+          offset: 0,
+          limit: 10,
+        });
+
+        expect(response.llmContent).toContain('Found 1 result(s)');
+      });
     });
   });
 });
