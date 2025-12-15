@@ -75,6 +75,15 @@ import type { EmbedderQuantization } from '../embedders/types.js';
 /** Key used to store embedder config in the database */
 const EMBEDDER_CONFIG_KEY = 'embedder_config';
 
+/**
+ * Database format version for compatibility detection.
+ * Increment this when making breaking changes to:
+ * - Embedding format or dimensions
+ * - Chunking strategy that affects stored data
+ * - Storage schema in ways that affect search quality
+ */
+export const SEARCH_DB_VERSION = '1.0.0';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -84,6 +93,8 @@ const EMBEDDER_CONFIG_KEY = 'embedder_config';
  * This ensures consistency across different machines/sessions.
  */
 export interface StoredEmbedderConfig {
+  /** Database format version for compatibility detection */
+  version: string;
   /** Model ID used for embeddings */
   model: string;
   /** Quantization used (fp16, q8, etc.) */
@@ -303,8 +314,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
       if (storedConfig) {
         console.log(
-          `[SearchSystem] Using stored embedder config: model=${storedConfig.model}, ` +
-            `quantization=${storedConfig.quantization} (created: ${storedConfig.createdAt})`,
+          `[SearchSystem] Using stored embedder config: version=${storedConfig.version ?? 'unknown'}, ` +
+            `model=${storedConfig.model}, quantization=${storedConfig.quantization} ` +
+            `(created: ${storedConfig.createdAt})`,
         );
       } else {
         console.log(
@@ -340,6 +352,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       // Store config if this is a fresh database
       if (!storedConfig) {
         const newConfig: StoredEmbedderConfig = {
+          version: SEARCH_DB_VERSION,
           model: effectiveModel,
           quantization: resolvedConfig.quantization,
           dimensions: this.config.embeddings.dimensions,
@@ -347,8 +360,14 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         };
         await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
         console.log(
-          `[SearchSystem] Stored embedder config: model=${newConfig.model}, ` +
-            `quantization=${newConfig.quantization}`,
+          `[SearchSystem] Stored embedder config: version=${newConfig.version}, ` +
+            `model=${newConfig.model}, quantization=${newConfig.quantization}`,
+        );
+      } else if (storedConfig.version !== SEARCH_DB_VERSION) {
+        // Warn about version mismatch (database was created with different version)
+        console.warn(
+          `[SearchSystem] Database version mismatch: stored=${storedConfig.version ?? 'unknown'}, ` +
+            `current=${SEARCH_DB_VERSION}. Consider rebuilding the index if you experience issues.`,
         );
       }
 

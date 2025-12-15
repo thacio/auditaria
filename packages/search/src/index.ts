@@ -14,8 +14,10 @@ export {
   initializeSearchSystem,
   loadSearchSystem,
   searchDatabaseExists,
+  SEARCH_DB_VERSION,
   type SearchSystemInitOptions,
   type SearchSystemState,
+  type StoredEmbedderConfig,
 } from './core/SearchSystem.js';
 
 // ============================================================================
