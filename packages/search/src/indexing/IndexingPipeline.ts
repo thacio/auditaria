@@ -7,7 +7,7 @@ import type { StorageAdapter, CreateChunkInput } from '../storage/types.js';
 import type { ParserRegistry } from '../parsers/ParserRegistry.js';
 import type { ChunkerRegistry } from '../chunkers/ChunkerRegistry.js';
 import type { Chunk } from '../chunkers/types.js';
-import type { DiscoveredFile as _DiscoveredFile } from '../types.js';
+import type { DiscoveredFile, QueuePriority } from '../types.js';
 import {
   FileDiscovery,
   type DiscoveryOptions,
@@ -24,6 +24,11 @@ import type {
   SyncOptions,
   SyncChanges,
 } from './types.js';
+import type {
+  FilePriorityClassifier} from './FilePriorityClassifier.js';
+import {
+  createFilePriorityClassifier,
+} from './FilePriorityClassifier.js';
 
 // ============================================================================
 // Constants
@@ -54,15 +59,22 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private readonly parserRegistry: ParserRegistry;
   private readonly chunkerRegistry: ChunkerRegistry;
   private readonly embedder: Embedder;
+  private readonly classifier: FilePriorityClassifier;
   private readonly options: Required<
     Omit<
       IndexingPipelineOptions,
-      'discoveryOptions' | 'parserOptions' | 'chunkerOptions'
+      | 'discoveryOptions'
+      | 'parserOptions'
+      | 'chunkerOptions'
+      | 'pdfSizeThreshold'
     >
   > &
     Pick<
       IndexingPipelineOptions,
-      'discoveryOptions' | 'parserOptions' | 'chunkerOptions'
+      | 'discoveryOptions'
+      | 'parserOptions'
+      | 'chunkerOptions'
+      | 'pdfSizeThreshold'
     >;
 
   private state: PipelineState = 'idle';
@@ -95,7 +107,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       parserOptions: options.parserOptions,
       chunkerOptions: options.chunkerOptions,
       discoveryOptions: options.discoveryOptions,
+      pdfSizeThreshold: options.pdfSizeThreshold,
     };
+    this.classifier = createFilePriorityClassifier({
+      pdfSizeThreshold: options.pdfSizeThreshold,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -184,10 +200,54 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
   /**
    * Sync and queue detected changes for processing.
+   * Uses smart priority classification to process lightweight files first.
    */
   async syncAndQueue(options?: SyncOptions): Promise<SyncChanges> {
     const startTime = Date.now();
-    const changes = await this.sync(options);
+
+    // Discover files with full metadata (needed for classification)
+    const discoveryOpts: DiscoveryOptions = {
+      rootPath: this.options.rootPath,
+      ...this.options.discoveryOptions,
+    };
+    const discovery = new FileDiscovery(discoveryOpts);
+    const discoveredFiles = await discovery.discoverAll();
+
+    // Build lookup map for discovered files (path -> DiscoveredFile)
+    const discoveredMap = new Map<string, DiscoveredFile>();
+    for (const file of discoveredFiles) {
+      discoveredMap.set(file.absolutePath, file);
+    }
+
+    // Get existing file hashes from storage
+    const existingHashes = await this.storage.getFileHashes();
+    const existingPaths = new Set(existingHashes.keys());
+
+    const changes: SyncChanges = {
+      added: [],
+      modified: [],
+      deleted: [],
+    };
+
+    // Check each discovered file for changes
+    for (const file of discoveredFiles) {
+      const existingHash = existingHashes.get(file.absolutePath);
+
+      if (!existingHash) {
+        changes.added.push(file.absolutePath);
+      } else if (options?.forceReindex || existingHash !== file.hash) {
+        changes.modified.push(file.absolutePath);
+      }
+
+      existingPaths.delete(file.absolutePath);
+    }
+
+    // Remaining paths are deleted files
+    if (options?.deleteRemoved !== false) {
+      changes.deleted = Array.from(existingPaths);
+    }
+
+    void this.emit('sync:changes_detected', changes);
 
     // Delete removed documents
     for (const filePath of changes.deleted) {
@@ -197,13 +257,35 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       }
     }
 
-    // Queue new and modified files
-    const toQueue = [...changes.added, ...changes.modified];
-    if (toQueue.length > 0) {
+    // Queue new and modified files WITH SMART PRIORITY CLASSIFICATION
+    const toQueuePaths = [...changes.added, ...changes.modified];
+    if (toQueuePaths.length > 0) {
+      // Get discovered file metadata for files to queue
+      const toQueueFiles: DiscoveredFile[] = [];
+      for (const filePath of toQueuePaths) {
+        const file = discoveredMap.get(filePath);
+        if (file) {
+          toQueueFiles.push(file);
+        }
+      }
+
+      // Classify files to determine priority
+      const classified = await this.classifier.classifyAll(toQueueFiles);
+      const summary = this.classifier.getSummary(classified);
+
+      // Log classification summary
+      console.log(
+        `[IndexingPipeline] Queuing ${toQueuePaths.length} files with smart priority:`,
+        `text=${summary.text}, markup=${summary.markup}, pdf=${summary.pdf},`,
+        `image=${summary.image}, ocr=${summary.ocr}`,
+      );
+
+      // Enqueue with classified priorities (or override if specified)
       await this.storage.enqueueItems(
-        toQueue.map((filePath) => ({
-          filePath,
-          priority: options?.priority ?? 'normal',
+        classified.map((c) => ({
+          filePath: c.filePath,
+          fileSize: c.fileSize,
+          priority: options?.priority ?? c.priority,
         })),
       );
     }
@@ -217,7 +299,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     });
 
     // Auto-start if enabled
-    if (this.options.autoStart && toQueue.length > 0 && this.state === 'idle') {
+    if (
+      this.options.autoStart &&
+      toQueuePaths.length > 0 &&
+      this.state === 'idle'
+    ) {
       this.start();
     }
 
@@ -229,7 +315,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    */
   async queueFile(
     filePath: string,
-    priority: 'high' | 'normal' | 'low' = 'normal',
+    priority: QueuePriority = 'markup',
   ): Promise<void> {
     await this.storage.enqueueItem({ filePath, priority });
 
@@ -243,7 +329,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    */
   async queueFiles(
     filePaths: string[],
-    priority: 'high' | 'normal' | 'low' = 'normal',
+    priority: QueuePriority = 'markup',
   ): Promise<void> {
     if (filePaths.length === 0) return;
 

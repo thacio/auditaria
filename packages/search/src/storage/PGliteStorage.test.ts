@@ -318,35 +318,35 @@ describe('PGliteStorage', () => {
       expect(item.id).toBeDefined();
       expect(item.filePath).toBe('/test/file.txt');
       expect(item.status).toBe('pending');
-      expect(item.priority).toBe('normal');
+      expect(item.priority).toBe('markup');
     });
 
     it('should enqueue with priority', async () => {
       const item = await storage.enqueueItem({
         filePath: '/test/urgent.txt',
-        priority: 'high',
+        priority: 'text',
       });
 
-      expect(item.priority).toBe('high');
+      expect(item.priority).toBe('text');
     });
 
     it('should dequeue by priority order', async () => {
-      await storage.enqueueItem({ filePath: '/low.txt', priority: 'low' });
-      await storage.enqueueItem({ filePath: '/high.txt', priority: 'high' });
+      await storage.enqueueItem({ filePath: '/ocr.txt', priority: 'ocr' });
+      await storage.enqueueItem({ filePath: '/text.txt', priority: 'text' });
       await storage.enqueueItem({
-        filePath: '/normal.txt',
-        priority: 'normal',
+        filePath: '/markup.txt',
+        priority: 'markup',
       });
 
       const first = await storage.dequeueItem();
-      expect(first?.filePath).toBe('/high.txt');
+      expect(first?.filePath).toBe('/text.txt');
       expect(first?.status).toBe('processing');
 
       const second = await storage.dequeueItem();
-      expect(second?.filePath).toBe('/normal.txt');
+      expect(second?.filePath).toBe('/markup.txt');
 
       const third = await storage.dequeueItem();
-      expect(third?.filePath).toBe('/low.txt');
+      expect(third?.filePath).toBe('/ocr.txt');
     });
 
     it('should return null when queue is empty', async () => {
@@ -367,14 +367,14 @@ describe('PGliteStorage', () => {
 
     it('should get queue status', async () => {
       await storage.enqueueItem({ filePath: '/pending.txt' });
-      await storage.enqueueItem({ filePath: '/high.txt', priority: 'high' });
+      await storage.enqueueItem({ filePath: '/text.txt', priority: 'text' });
 
       const status = await storage.getQueueStatus();
 
       expect(status.total).toBe(2);
       expect(status.pending).toBe(2);
-      expect(status.byPriority.high).toBe(1);
-      expect(status.byPriority.normal).toBe(1);
+      expect(status.byPriority.text).toBe(1);
+      expect(status.byPriority.markup).toBe(1);
     });
 
     it('should clear completed items', async () => {

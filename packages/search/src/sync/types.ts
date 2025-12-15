@@ -2,6 +2,8 @@
  * Types for the sync module.
  */
 
+import type { QueuePriority } from '../types.js';
+
 // ============================================================================
 // Sync Result Types
 // ============================================================================
@@ -29,7 +31,7 @@ export interface SyncOptions {
   /** Don't actually make changes, just report what would happen */
   dryRun?: boolean;
   /** Priority for queued items */
-  priority?: 'high' | 'normal' | 'low';
+  priority?: QueuePriority;
   /** Force reindexing even for unchanged files */
   force?: boolean;
 }

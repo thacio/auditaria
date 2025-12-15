@@ -128,7 +128,7 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
     deleted: string[],
     options: SyncOptions,
   ): Promise<void> {
-    const priority = options.priority ?? 'normal';
+    const priority = options.priority ?? 'markup';
 
     // Queue new files for indexing
     if (added.length > 0) {

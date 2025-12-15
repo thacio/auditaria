@@ -118,7 +118,12 @@ export type {
 // Indexing Pipeline (Direct Access)
 // ============================================================================
 
-export { IndexingPipeline, createIndexingPipeline } from './indexing/index.js';
+export {
+  IndexingPipeline,
+  createIndexingPipeline,
+  FilePriorityClassifier,
+  createFilePriorityClassifier,
+} from './indexing/index.js';
 
 export type {
   IndexingPipelineOptions,
@@ -128,6 +133,10 @@ export type {
   PipelineStatus,
   ProcessingResult,
   BatchProcessingResult,
+  FilePriorityClassifierConfig,
+  ClassifiedFile,
+  ClassificationSummary,
+  FileCategory,
 } from './indexing/index.js';
 
 // ============================================================================

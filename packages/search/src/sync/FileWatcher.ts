@@ -308,7 +308,7 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
     if (!existingQueueItem) {
       await this.storage.enqueueItem({
         filePath: absolutePath,
-        priority: 'normal',
+        priority: 'markup',
       });
     }
   }

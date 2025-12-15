@@ -36,6 +36,8 @@ export interface IndexingPipelineOptions {
   maxRetries?: number;
   /** Delay between retries (ms) */
   retryDelay?: number;
+  /** PDF size threshold for OCR priority classification (bytes). Default: 1MB */
+  pdfSizeThreshold?: number;
 }
 
 // ============================================================================

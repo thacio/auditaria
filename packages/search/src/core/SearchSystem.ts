@@ -34,6 +34,7 @@ import type {
   SearchFilters,
   TagCount,
   QueueStatus,
+  QueuePriority,
   DiscoveredFile,
 } from '../types.js';
 import { PGliteStorage } from '../storage/PGliteStorage.js';
@@ -578,7 +579,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   async queueFiles(
     filePaths: string[],
-    priority: 'high' | 'normal' | 'low' = 'normal',
+    priority: QueuePriority = 'markup',
   ): Promise<void> {
     this.ensureInitialized();
     await this.pipeline!.queueFiles(filePaths, priority);

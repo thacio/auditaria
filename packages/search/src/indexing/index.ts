@@ -21,3 +21,13 @@ export {
   IndexingPipeline,
   createIndexingPipeline,
 } from './IndexingPipeline.js';
+
+// Priority Classification
+export {
+  FilePriorityClassifier,
+  createFilePriorityClassifier,
+  type FilePriorityClassifierConfig,
+  type ClassifiedFile,
+  type ClassificationSummary,
+  type FileCategory,
+} from './FilePriorityClassifier.js';

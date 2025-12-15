@@ -81,6 +81,7 @@ export interface UpdateChunkEmbeddingInput {
 
 export interface CreateQueueItemInput {
   filePath: string;
+  fileSize?: number;
   priority?: QueuePriority;
 }
 

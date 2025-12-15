@@ -105,6 +105,7 @@ interface ChunkRow {
 interface QueueItemRow {
   id: string;
   file_path: string;
+  file_size: string | number;
   priority: string;
   status: string;
   attempts: number;
@@ -813,16 +814,23 @@ export class PGliteStorage implements StorageAdapter {
     const now = new Date().toISOString();
 
     await this.db!.query(
-      `INSERT INTO index_queue (id, file_path, priority, status, attempts, created_at)
-       VALUES ($1, $2, $3, 'pending', 0, $4)
+      `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
+       VALUES ($1, $2, $3, $4, 'pending', 0, $5)
        ON CONFLICT (file_path) DO UPDATE SET
+         file_size = EXCLUDED.file_size,
          priority = EXCLUDED.priority,
          status = 'pending',
          attempts = 0,
          last_error = NULL,
          started_at = NULL,
          completed_at = NULL`,
-      [id, input.filePath, input.priority ?? 'normal', now],
+      [
+        id,
+        input.filePath,
+        input.fileSize ?? 0,
+        input.priority ?? 'markup',
+        now,
+      ],
     );
 
     const item = await this.getQueueItemByPath(input.filePath);
@@ -841,7 +849,7 @@ export class PGliteStorage implements StorageAdapter {
   async dequeueItem(): Promise<QueueItem | null> {
     this.ensureInitialized();
 
-    // Get next pending item by priority order
+    // Get next pending item by priority order, then file size (smaller first)
     const result = await this.db!.query<QueueItemRow>(
       `UPDATE index_queue
        SET status = 'processing', started_at = CURRENT_TIMESTAMP, attempts = attempts + 1
@@ -850,12 +858,14 @@ export class PGliteStorage implements StorageAdapter {
          WHERE status = 'pending'
          ORDER BY
            CASE priority
-             WHEN 'high' THEN 1
-             WHEN 'normal' THEN 2
-             WHEN 'low' THEN 3
-             WHEN 'ocr' THEN 4
+             WHEN 'text' THEN 1
+             WHEN 'markup' THEN 2
+             WHEN 'pdf' THEN 3
+             WHEN 'image' THEN 4
+             WHEN 'ocr' THEN 5
            END,
-           created_at
+           file_size ASC,
+           created_at ASC
          LIMIT 1
        )
        RETURNING *`,
@@ -957,9 +967,10 @@ export class PGliteStorage implements StorageAdapter {
     }
 
     const priorityCounts: Record<QueuePriority, number> = {
-      high: 0,
-      normal: 0,
-      low: 0,
+      text: 0,
+      markup: 0,
+      pdf: 0,
+      image: 0,
       ocr: 0,
     };
     for (const row of priorityResult.rows) {
@@ -1181,6 +1192,10 @@ export class PGliteStorage implements StorageAdapter {
     return {
       id: row.id,
       filePath: row.file_path,
+      fileSize:
+        typeof row.file_size === 'string'
+          ? parseInt(row.file_size, 10)
+          : row.file_size,
       priority: row.priority as QueuePriority,
       status: row.status as QueueItem['status'],
       attempts: row.attempts,

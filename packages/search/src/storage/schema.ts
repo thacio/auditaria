@@ -81,7 +81,8 @@ CREATE INDEX IF NOT EXISTS idx_document_tags_tag_id ON document_tags(tag_id);
 CREATE TABLE IF NOT EXISTS index_queue (
   id TEXT PRIMARY KEY,
   file_path TEXT NOT NULL UNIQUE,
-  priority TEXT NOT NULL DEFAULT 'normal',
+  file_size BIGINT NOT NULL DEFAULT 0,
+  priority TEXT NOT NULL DEFAULT 'markup',
   status TEXT NOT NULL DEFAULT 'pending',
   attempts INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,
@@ -90,7 +91,7 @@ CREATE TABLE IF NOT EXISTS index_queue (
   completed_at TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_queue_status_priority ON index_queue(status, priority, created_at);
+CREATE INDEX IF NOT EXISTS idx_queue_status_priority ON index_queue(status, priority, file_size, created_at);
 CREATE INDEX IF NOT EXISTS idx_queue_file_path ON index_queue(file_path);
 
 -- Configuration table

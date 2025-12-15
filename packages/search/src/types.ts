@@ -119,7 +119,7 @@ export interface SearchResponse {
 // Queue Types
 // ============================================================================
 
-export type QueuePriority = 'high' | 'normal' | 'low' | 'ocr';
+export type QueuePriority = 'text' | 'markup' | 'pdf' | 'image' | 'ocr';
 export type QueueItemStatus =
   | 'pending'
   | 'processing'
@@ -130,6 +130,7 @@ export type QueueItemStatus =
 export interface QueueItem {
   id: string;
   filePath: string;
+  fileSize: number;
   priority: QueuePriority;
   status: QueueItemStatus;
   attempts: number;
