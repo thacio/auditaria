@@ -165,13 +165,35 @@ const knowledgeSearchCommand: SlashCommand = {
   description: 'Search the knowledge base',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
+  completion: (_context, partialArg) => {
+    const flags = [
+      '--strategy=keyword',
+      '--strategy=semantic',
+      '--strategy=hybrid',
+      '--type=pdf',
+      '--type=docx',
+      '--type=txt',
+      '--type=md',
+      '--type=json',
+      '--limit=',
+    ];
+    // If partialArg starts with '--', suggest matching flags
+    if (partialArg.startsWith('--')) {
+      return flags.filter((f) => f.startsWith(partialArg));
+    }
+    // If partialArg is empty or doesn't start with '-', suggest all flags
+    if (!partialArg || !partialArg.startsWith('-')) {
+      return flags;
+    }
+    return [];
+  },
   action: async (context, args) => {
     if (!args.trim()) {
       return {
         type: 'message',
         messageType: 'error',
         content:
-          'Usage: /knowledge-search <query> [--type=<pdf|docx|...>] [--limit=<n>]',
+          'Usage: /knowledge-search <query> [--strategy=<keyword|semantic|hybrid>] [--type=<pdf|docx|...>] [--limit=<n>]',
       };
     }
 
@@ -183,7 +205,7 @@ const knowledgeSearchCommand: SlashCommand = {
     const strategyMatch = args.match(/--strategy=(keyword|semantic|hybrid)/);
 
     const fileType = typeMatch?.[1];
-    const limit = limitMatch ? parseInt(limitMatch[1], 10) : 10;
+    const limit = limitMatch ? parseInt(limitMatch[1], 10) : 20;
     const strategy =
       (strategyMatch?.[1] as 'keyword' | 'semantic' | 'hybrid') ?? 'hybrid';
 
