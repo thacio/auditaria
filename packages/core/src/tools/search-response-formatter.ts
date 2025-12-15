@@ -276,11 +276,22 @@ export class SearchResponseFormatter {
       // Sort chunks by score descending
       chunks.sort((a, b) => b.score - a.score);
 
+      // Deduplicate by text content (ignoring <mark> tags)
+      const seenTexts = new Set<string>();
+      const uniqueChunks = chunks.filter((chunk) => {
+        const normalizedText = this.stripMarkTags(chunk.chunkText);
+        if (seenTexts.has(normalizedText)) {
+          return false;
+        }
+        seenTexts.add(normalizedText);
+        return true;
+      });
+
       // Take top N passages (0 = no limit, show all)
       const topChunks =
         this.options.passagesPerDocument > 0
-          ? chunks.slice(0, this.options.passagesPerDocument)
-          : chunks;
+          ? uniqueChunks.slice(0, this.options.passagesPerDocument)
+          : uniqueChunks;
       const firstChunk = chunks[0];
 
       grouped.push({
@@ -315,7 +326,18 @@ export class SearchResponseFormatter {
   }
 
   private flattenResults(results: SearchResultInput[]): FlatResultOutput[] {
-    return results.map((result) => {
+    // Deduplicate by text content (ignoring <mark> tags)
+    const seenTexts = new Set<string>();
+    const uniqueResults = results.filter((result) => {
+      const normalizedText = this.stripMarkTags(result.chunkText);
+      if (seenTexts.has(normalizedText)) {
+        return false;
+      }
+      seenTexts.add(normalizedText);
+      return true;
+    });
+
+    return uniqueResults.map((result) => {
       const output: FlatResultOutput = {
         document_id: result.documentId,
         chunk_id: result.chunkId,
@@ -467,6 +489,14 @@ export class SearchResponseFormatter {
   private buildReturnDisplay(meta: PaginationMeta): string {
     const hasMore = meta.has_more ? ' (more available)' : '';
     return `Found ${meta.total_hits} result(s) for "${meta.query}" (${meta.strategy} search, ${meta.took_ms}ms)${hasMore}`;
+  }
+
+  /**
+   * Strip <mark> tags from text for deduplication comparison.
+   * The original text with marks is preserved in the output.
+   */
+  private stripMarkTags(text: string): string {
+    return text.replace(/<\/?mark>/gi, '');
   }
 }
 
