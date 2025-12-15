@@ -35,12 +35,14 @@ export interface KnowledgeSearchToolParams {
   strategy?: 'hybrid' | 'semantic' | 'keyword';
 
   /**
-   * Filter results to specific folders
+   * Filter to specific folders. Use relative paths from project root.
+   * Partial matching is supported (e.g., "docs" matches "docs/reports" and "my-docs").
    */
   folders?: string[];
 
   /**
-   * Filter results to specific file types (e.g., '.pdf', '.docx')
+   * Filter by file extension. Case-insensitive, leading dot is optional.
+   * Examples: ["pdf", "docx"] or [".pdf", ".docx"] or [".PDF"]
    */
   file_types?: string[];
 
@@ -102,9 +104,9 @@ This tool searches through all indexed documents in the project using advanced s
 - **keyword**: Traditional full-text search based on exact word matches
 
 **Filtering:**
-- **folders**: Only search in specific directories
-- **file_types**: Only search specific file types (e.g., '.pdf', '.docx')
-- **document_id**: Retrieve all chunks for a specific document (from previous search)
+- **folders**: Search only in specific directories. Use relative paths from project root. Partial matching is supported (e.g., "docs" matches "docs/reports" and "my-docs"). Can use forward slashes on all platforms.
+- **file_types**: Filter by file extension. Accepts with or without leading dot, case-insensitive (e.g., "pdf", ".PDF", ".docx" all work). Examples: ["pdf", "docx"] or [".pdf", ".docx"]
+- **document_id**: Retrieve all chunks for a specific document (from previous search results)
 
 **Output Control:**
 - **format**: 'markdown' (human-readable) or 'json' (structured for programmatic use)
@@ -420,13 +422,14 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
           folders: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Filter results to specific folders',
+            description:
+              'Filter to specific folders. Use relative paths from project root. Partial matching supported (e.g., "docs" matches "docs/reports").',
           },
           file_types: {
             type: 'array',
             items: { type: 'string' },
             description:
-              'Filter results to specific file types (e.g., ".pdf", ".docx")',
+              'Filter by file extension. Case-insensitive, dot optional (e.g., "pdf", ".PDF", ".docx" all work).',
           },
           limit: {
             type: 'number',

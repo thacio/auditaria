@@ -1254,8 +1254,11 @@ export class PGliteStorage implements StorageAdapter {
     if (filters.fileTypes && filters.fileTypes.length > 0) {
       const placeholders = filters.fileTypes.map(() => `$${paramIndex++}`);
       conditions.push(`file_extension IN (${placeholders.join(', ')})`);
+      // Normalize: add leading dot if missing, convert to lowercase
       params.push(
-        ...filters.fileTypes.map((t) => (t.startsWith('.') ? t : `.${t}`)),
+        ...filters.fileTypes.map((t) =>
+          t.startsWith('.') ? t.toLowerCase() : `.${t.toLowerCase()}`,
+        ),
       );
     }
 
@@ -1319,8 +1322,11 @@ export class PGliteStorage implements StorageAdapter {
     if (filters.fileTypes && filters.fileTypes.length > 0) {
       const placeholders = filters.fileTypes.map(() => `$${paramIndex++}`);
       conditions.push(`d.file_extension IN (${placeholders.join(', ')})`);
+      // Normalize: add leading dot if missing, convert to lowercase
       params.push(
-        ...filters.fileTypes.map((t) => (t.startsWith('.') ? t : `.${t}`)),
+        ...filters.fileTypes.map((t) =>
+          t.startsWith('.') ? t.toLowerCase() : `.${t.toLowerCase()}`,
+        ),
       );
     }
 
