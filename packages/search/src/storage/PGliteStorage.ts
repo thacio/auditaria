@@ -366,7 +366,6 @@ export class PGliteStorage implements StorageAdapter {
     }
   }
 
-
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------
@@ -605,7 +604,7 @@ export class PGliteStorage implements StorageAdapter {
 
     log.endTimer(timerKey, 'createChunks:complete', {
       documentId,
-      chunkCount: chunks.length
+      chunkCount: chunks.length,
     });
     return createdChunks;
   }
@@ -651,7 +650,7 @@ export class PGliteStorage implements StorageAdapter {
     }
 
     log.endTimer(timerKey, 'updateChunkEmbeddings:complete', {
-      updateCount: updates.length
+      updateCount: updates.length,
     });
   }
 
@@ -797,7 +796,9 @@ export class PGliteStorage implements StorageAdapter {
       );
       if (ftsResult.rows.length > 0) {
         const results = this.rowsToSearchResults(ftsResult.rows);
-        log.endTimer(timerKey, 'searchKeyword:complete:fts', { resultCount: results.length });
+        log.endTimer(timerKey, 'searchKeyword:complete:fts', {
+          resultCount: results.length,
+        });
         return results;
       }
     } catch {
@@ -810,7 +811,9 @@ export class PGliteStorage implements StorageAdapter {
       .split(/\s+/)
       .filter((t) => t.length > 0);
     if (searchTerms.length === 0) {
-      log.endTimer(timerKey, 'searchKeyword:complete:empty', { resultCount: 0 });
+      log.endTimer(timerKey, 'searchKeyword:complete:empty', {
+        resultCount: 0,
+      });
       return [];
     }
 
@@ -851,7 +854,9 @@ export class PGliteStorage implements StorageAdapter {
       likeParams,
     );
     const results = this.rowsToSearchResults(likeResult.rows);
-    log.endTimer(timerKey, 'searchKeyword:complete:ilike', { resultCount: results.length });
+    log.endTimer(timerKey, 'searchKeyword:complete:ilike', {
+      resultCount: results.length,
+    });
     return results;
   }
 
@@ -864,13 +869,18 @@ export class PGliteStorage implements StorageAdapter {
     const timerId = ++this.timerCounter;
     const timerKey = `searchSemantic-${timerId}`;
     log.startTimer(timerKey, true);
-    log.debug('searchSemantic:start', { embeddingDim: embedding.length, limit });
+    log.debug('searchSemantic:start', {
+      embeddingDim: embedding.length,
+      limit,
+    });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
 
     const vectorStr = formatVector(embedding);
-    log.debug('searchSemantic:vectorFormatted', { vectorStrLength: vectorStr.length });
+    log.debug('searchSemantic:vectorFormatted', {
+      vectorStrLength: vectorStr.length,
+    });
 
     const params = [vectorStr, ...filterParams, limit];
     const paramOffset = filterParams.length + 1;
@@ -897,7 +907,9 @@ export class PGliteStorage implements StorageAdapter {
 
     const result = await this.db!.query<SearchResultRow>(sql, params);
     const results = this.rowsToSearchResults(result.rows);
-    log.endTimer(timerKey, 'searchSemantic:complete', { resultCount: results.length });
+    log.endTimer(timerKey, 'searchSemantic:complete', {
+      resultCount: results.length,
+    });
     return results;
   }
 
@@ -997,7 +1009,9 @@ export class PGliteStorage implements StorageAdapter {
     const result = await this.db!.query<SearchResultRow>(sql, params);
     const results = this.rowsToSearchResults(result.rows);
 
-    log.endTimer(timerKey, 'searchHybrid:complete', { resultCount: results.length });
+    log.endTimer(timerKey, 'searchHybrid:complete', {
+      resultCount: results.length,
+    });
     return results;
   }
 
@@ -1417,7 +1431,7 @@ export class PGliteStorage implements StorageAdapter {
       filePath: row.file_path,
       fileName: row.file_name,
       chunkText: row.chunk_text,
-      score: row.score,
+      score: Number(row.score) || 0,
       matchType: row.match_type as SearchResult['matchType'],
       highlights: [],
       metadata: {
