@@ -200,8 +200,8 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   ocrEnabled: true,
   ocrPriority: 'low',
   respectGitignore: true,
-  prepareWorkers: 2,
-  preparedBufferSize: 2,
+  prepareWorkers: 1,
+  preparedBufferSize: 1,
 };
 
 export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
@@ -214,7 +214,7 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   model: 'Xenova/multilingual-e5-small',
-  batchSize: 16, // Must be power of 2 for optimal ONNX performance
+  batchSize: 8, // Power of 2, conservative for memory
   dimensions: 384,
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',

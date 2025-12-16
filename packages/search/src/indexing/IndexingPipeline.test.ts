@@ -541,14 +541,14 @@ describe('IndexingPipeline configuration', () => {
     }
   });
 
-  it('should use default prepareWorkers of 2', async () => {
+  it('should use default prepareWorkers of 1', async () => {
     testDir = await createTestDirectory(1);
     const { pipeline, cleanup } = await createTestPipeline(testDir);
 
     try {
       // Access private options via any (for testing)
       const options = (pipeline as unknown as { options: { prepareWorkers: number } }).options;
-      expect(options.prepareWorkers).toBe(2);
+      expect(options.prepareWorkers).toBe(1);
     } finally {
       await cleanup();
     }
@@ -568,7 +568,7 @@ describe('IndexingPipeline configuration', () => {
     }
   });
 
-  it('should use default embeddingBatchSize of 16', async () => {
+  it('should use default embeddingBatchSize of 8', async () => {
     testDir = await createTestDirectory(1);
 
     const storage = new PGliteStorage({ path: '', inMemory: true });
@@ -597,7 +597,7 @@ describe('IndexingPipeline configuration', () => {
 
     try {
       const options = (pipeline as unknown as { options: { embeddingBatchSize: number } }).options;
-      expect(options.embeddingBatchSize).toBe(16);
+      expect(options.embeddingBatchSize).toBe(8);
     } finally {
       await pipeline.stop();
       await embedder.dispose();

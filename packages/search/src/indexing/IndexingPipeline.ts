@@ -38,9 +38,9 @@ const log = createModuleLogger('IndexingPipeline');
 // Constants
 // ============================================================================
 
-const DEFAULT_PREPARE_WORKERS = 2;
-const DEFAULT_PREPARED_BUFFER_SIZE = 4;
-const DEFAULT_EMBEDDING_BATCH_SIZE = 16;
+const DEFAULT_PREPARE_WORKERS = 1;
+const DEFAULT_PREPARED_BUFFER_SIZE = 1;
+const DEFAULT_EMBEDDING_BATCH_SIZE = 8;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
 
