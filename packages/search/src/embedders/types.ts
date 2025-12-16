@@ -174,6 +174,8 @@ export interface TransformersJsEmbedderConfig {
   pooling?: 'mean' | 'cls' | 'max';
   /** Maximum sequence length (tokens) */
   maxLength?: number;
+  /** Batch size for embedding operations. Default: 16 */
+  batchSize?: number;
 }
 
 // ============================================================================

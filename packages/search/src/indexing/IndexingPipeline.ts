@@ -39,10 +39,10 @@ const log = createModuleLogger('IndexingPipeline');
 // ============================================================================
 
 const DEFAULT_PREPARE_WORKERS = 2;
+const DEFAULT_PREPARED_BUFFER_SIZE = 4;
 const DEFAULT_EMBEDDING_BATCH_SIZE = 16;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
-const PREPARED_BUFFER_SIZE = 4;
 
 // ============================================================================
 // Utility: Event Loop Yielding
@@ -58,15 +58,19 @@ const yieldToEventLoop = (): Promise<void> =>
 
 /**
  * Prepared file data ready for embedding.
- * Contains all data needed to generate embeddings and complete indexing.
+ * Contains only the minimal data needed for embedding to reduce memory usage.
+ * IMPORTANT: We store chunkTexts (strings) instead of full Chunk objects
+ * to avoid holding metadata and other fields in memory while waiting for embedding.
  */
 interface PreparedFile {
   queueItemId: string;
   queueItemAttempts: number;
   documentId: string;
   filePath: string;
-  chunks: Chunk[];
+  /** Chunk texts extracted for embedding - NOT full Chunk objects to save memory */
+  chunkTexts: string[];
   chunkIds: string[];
+  chunkCount: number;
   isNew: boolean;
   startTime: number;
   parsedMetadata: {
@@ -122,7 +126,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private maintenancePromise: Promise<void> | null = null;
   private maintenanceResolve: (() => void) | null = null;
   private lastMaintenanceAt = 0; // processedCount at last maintenance
-  private readonly MAINTENANCE_INTERVAL = 2000; // Reconnect every N files
+  private readonly MAINTENANCE_INTERVAL = 500; // Reconnect every N files (lower = more frequent memory release)
 
   constructor(
     storage: StorageAdapter,
@@ -139,6 +143,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.options = {
       rootPath: options.rootPath,
       prepareWorkers: options.prepareWorkers ?? DEFAULT_PREPARE_WORKERS,
+      preparedBufferSize: options.preparedBufferSize ?? DEFAULT_PREPARED_BUFFER_SIZE,
       embeddingBatchSize:
         options.embeddingBatchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE,
       autoStart: options.autoStart ?? true,
@@ -895,13 +900,18 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       chunkCount: chunks.length,
     });
 
+    // Extract only chunk texts for embedding - don't hold full Chunk objects in memory
+    const chunkTexts = chunks.map((c) => c.text);
+    const chunkCount = chunks.length;
+
     return {
       queueItemId,
       queueItemAttempts,
       documentId,
       filePath,
-      chunks,
+      chunkTexts,
       chunkIds: createdChunks.map((c) => c.id),
+      chunkCount,
       isNew,
       startTime,
       parsedMetadata: {
@@ -916,24 +926,24 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    * This is the "consumer" work - generates embeddings and stores them.
    */
   private async embedFile(prepared: PreparedFile): Promise<void> {
-    const { documentId, filePath, chunks, chunkIds } = prepared;
+    const { documentId, filePath, chunkTexts, chunkIds, chunkCount } = prepared;
 
     // Update status to embedding
     await this.storage.updateDocument(documentId, { status: 'embedding' });
     void this.emit('document:embedding', {
       documentId,
       filePath,
-      chunkCount: chunks.length,
+      chunkCount,
     });
 
     // Generate embeddings in batches
-    if (this.embedder.isReady() && chunks.length > 0) {
+    if (this.embedder.isReady() && chunkCount > 0) {
       const embTimerKey = `embeddings-${documentId}`;
       log.startTimer(embTimerKey, true);
-      await this.generateEmbeddings(chunkIds, chunks);
+      await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts);
       log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
         filePath,
-        chunkCount: chunks.length,
+        chunkCount,
       });
     }
 
@@ -963,7 +973,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     try {
       while (this.state === 'running') {
         // Backpressure: wait if buffer is full
-        if (this.preparedBuffer.length >= PREPARED_BUFFER_SIZE) {
+        if (this.preparedBuffer.length >= this.options.preparedBufferSize) {
           await new Promise((resolve) => setTimeout(resolve, 50));
           continue;
         }
@@ -1070,13 +1080,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           void this.emit('document:completed', {
             documentId: prepared.documentId,
             filePath: prepared.filePath,
-            chunksCreated: prepared.chunks.length,
+            chunksCreated: prepared.chunkCount,
             duration,
           });
 
           log.debug('embedLoop:fileComplete', {
             filePath: prepared.filePath,
-            chunkCount: prepared.chunks.length,
+            chunkCount: prepared.chunkCount,
             durationMs: duration,
             processedCount: this.processedCount,
           });
@@ -1087,8 +1097,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
             log.logMemory('embedLoop:memoryAt100');
           }
 
-          // Checkpoint every 250 files
-          if (this.processedCount % 250 === 0 && this.storage.checkpoint) {
+          // Checkpoint every 100 files (more frequent = better memory management)
+          if (this.processedCount % 100 === 0 && this.storage.checkpoint) {
             log.info('embedLoop:checkpoint', { processedCount: this.processedCount });
             await this.storage.checkpoint();
           }
@@ -1096,8 +1106,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           // Handle embedding error
           await this.handleEmbedError(prepared, error);
         } finally {
-          // Help GC by clearing large arrays
-          prepared.chunks.length = 0;
+          // Help GC by clearing large arrays (texts can be significant)
+          prepared.chunkTexts.length = 0;
           prepared.chunkIds.length = 0;
         }
       }
@@ -1208,28 +1218,39 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     chunkIds: string[],
     chunks: Chunk[],
   ): Promise<void> {
+    const texts = chunks.map((c) => c.text);
+    await this.generateEmbeddingsFromTexts(chunkIds, texts);
+  }
+
+  /**
+   * Generate embeddings from text strings in batches.
+   * Memory-optimized version that works with pre-extracted texts.
+   */
+  private async generateEmbeddingsFromTexts(
+    chunkIds: string[],
+    texts: string[],
+  ): Promise<void> {
     const batchSize = this.options.embeddingBatchSize;
 
     log.debug('generateEmbeddings:start', {
-      totalChunks: chunks.length,
+      totalChunks: texts.length,
       batchSize: this.options.embeddingBatchSize
     });
 
-    for (let i = 0; i < chunks.length; i += batchSize) {
+    for (let i = 0; i < texts.length; i += batchSize) {
       // Yield to event loop between batches to prevent blocking
       if (i > 0) {
         await yieldToEventLoop();
       }
 
-      const batchChunks = chunks.slice(i, i + batchSize);
+      const batchTexts = texts.slice(i, i + batchSize);
       const batchIds = chunkIds.slice(i, i + batchSize);
-      const texts = batchChunks.map((c) => c.text);
 
       // Use embedBatchDocuments if available (handles E5 prefix),
       // otherwise fall back to embedBatch
       const embeddings = this.embedder.embedBatchDocuments
-        ? await this.embedder.embedBatchDocuments(texts)
-        : await this.embedder.embedBatch(texts);
+        ? await this.embedder.embedBatchDocuments(batchTexts)
+        : await this.embedder.embedBatch(batchTexts);
 
       const updates = batchIds.map((id, index) => ({
         id,
@@ -1241,8 +1262,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       log.debug('generateEmbeddings:batch', {
         batchIndex: Math.floor(i / batchSize),
         batchStart: i,
-        batchEnd: Math.min(i + batchSize, chunks.length),
-        totalBatches: Math.ceil(chunks.length / batchSize)
+        batchEnd: Math.min(i + batchSize, texts.length),
+        totalBatches: Math.ceil(texts.length / batchSize)
       });
     }
   }

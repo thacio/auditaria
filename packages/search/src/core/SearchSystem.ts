@@ -364,6 +364,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             quantization: effectiveQuantization,
             preferGpuForIndexing: this.config.embeddings.preferGpuForIndexing,
             useWorkerThread: this.config.embeddings.useWorkerThread,
+            batchSize: this.config.embeddings.batchSize,
           },
           (progress) => {
             if (progress.stage === 'download' && progress.file) {
@@ -428,6 +429,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       {
         rootPath: this.rootPath,
         autoStart: false,
+        prepareWorkers: this.config.indexing.prepareWorkers,
+        preparedBufferSize: this.config.indexing.preparedBufferSize,
+        embeddingBatchSize: this.config.embeddings.batchSize,
         discoveryOptions: {
           ignorePaths: this.config.indexing.ignorePaths,
           includePatterns:

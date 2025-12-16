@@ -28,6 +28,10 @@ export interface IndexingConfig {
   ocrPriority: 'high' | 'low' | 'skip';
   /** Respect .gitignore file. Default: true */
   respectGitignore: boolean;
+  /** Number of data preparation workers (parse/chunk). Default: 2 */
+  prepareWorkers: number;
+  /** Number of files to keep prepared ahead for embedding. Default: 4 */
+  preparedBufferSize: number;
 }
 
 export interface ChunkingConfig {
@@ -196,6 +200,8 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   ocrEnabled: true,
   ocrPriority: 'low',
   respectGitignore: true,
+  prepareWorkers: 2,
+  preparedBufferSize: 2,
 };
 
 export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
@@ -208,7 +214,7 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   model: 'Xenova/multilingual-e5-small',
-  batchSize: 10,
+  batchSize: 16, // Must be power of 2 for optimal ONNX performance
   dimensions: 384,
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',

@@ -16,7 +16,9 @@ export interface IndexingPipelineOptions {
   rootPath: string;
   /** Number of data preparation workers (parse/chunk). Default: 2 */
   prepareWorkers?: number;
-  /** Batch size for embedding generation */
+  /** Number of files to keep prepared ahead for embedding. Default: 4 */
+  preparedBufferSize?: number;
+  /** Batch size for embedding generation. Default: 16 */
   embeddingBatchSize?: number;
   /** Parser options */
   parserOptions?: Partial<ParserOptions>;

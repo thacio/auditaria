@@ -8,10 +8,7 @@
  * - Error handling works for both prepare and embed phases
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
-
-// Increase test timeout for integration tests
-vi.setConfig({ testTimeout: 30000 });
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -148,7 +145,7 @@ function collectEvents<K extends keyof PipelineEvents>(
   eventName: K,
 ): PipelineEvents[K][] {
   const events: PipelineEvents[K][] = [];
-  pipeline.on(eventName, (data) => events.push(data));
+  pipeline.on(eventName, (data) => { events.push(data); });
   return events;
 }
 
@@ -205,21 +202,11 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
       try {
         const eventSequence: string[] = [];
 
-        pipeline.on('document:started', () =>
-          eventSequence.push('started'),
-        );
-        pipeline.on('document:parsing', () =>
-          eventSequence.push('parsing'),
-        );
-        pipeline.on('document:chunking', () =>
-          eventSequence.push('chunking'),
-        );
-        pipeline.on('document:embedding', () =>
-          eventSequence.push('embedding'),
-        );
-        pipeline.on('document:completed', () =>
-          eventSequence.push('completed'),
-        );
+        pipeline.on('document:started', () => { eventSequence.push('started'); });
+        pipeline.on('document:parsing', () => { eventSequence.push('parsing'); });
+        pipeline.on('document:chunking', () => { eventSequence.push('chunking'); });
+        pipeline.on('document:embedding', () => { eventSequence.push('embedding'); });
+        pipeline.on('document:completed', () => { eventSequence.push('completed'); });
 
         await pipeline.syncAndQueue();
         pipeline.start();
