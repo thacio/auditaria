@@ -39,7 +39,7 @@ const log = createModuleLogger('IndexingPipeline');
 // ============================================================================
 
 const DEFAULT_CONCURRENCY = 2;
-const DEFAULT_EMBEDDING_BATCH_SIZE = 32;
+const DEFAULT_EMBEDDING_BATCH_SIZE = 16;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
 

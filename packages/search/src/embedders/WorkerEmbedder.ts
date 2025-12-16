@@ -528,6 +528,22 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       return;
     }
 
+    // Handle worker memory reports (for debugging)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((message as any).type === 'worker_memory') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const m = message as any;
+      log.info('workerMemory', {
+        context: m.context,
+        batch: m.batch,
+        workerHeapUsed: m.memory.heapUsed,
+        workerHeapTotal: m.memory.heapTotal,
+        workerExternal: m.memory.external,
+        workerRss: m.memory.rss,
+      });
+      return;
+    }
+
     // Find and resolve/reject pending request
     const pending = this.pendingRequests.get(message.id);
     if (!pending) {

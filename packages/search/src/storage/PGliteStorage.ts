@@ -1047,7 +1047,8 @@ export class PGliteStorage implements StorageAdapter {
   async dequeueItem(): Promise<QueueItem | null> {
     await this.waitForReady();
 
-    // Get next pending item by priority order, then file size (smaller first)
+    // TESTING: Reversed order - largest/slowest files first to test memory hypothesis
+    // TODO: Revert this after testing
     const result = await this.db!.query<QueueItemRow>(
       `UPDATE index_queue
        SET status = 'processing', started_at = CURRENT_TIMESTAMP, attempts = attempts + 1
@@ -1056,13 +1057,13 @@ export class PGliteStorage implements StorageAdapter {
          WHERE status = 'pending'
          ORDER BY
            CASE priority
-             WHEN 'text' THEN 1
-             WHEN 'markup' THEN 2
+             WHEN 'text' THEN 5
+             WHEN 'markup' THEN 4
              WHEN 'pdf' THEN 3
-             WHEN 'image' THEN 4
-             WHEN 'ocr' THEN 5
+             WHEN 'image' THEN 2
+             WHEN 'ocr' THEN 1
            END,
-           file_size ASC,
+           file_size DESC,
            created_at ASC
          LIMIT 1
        )

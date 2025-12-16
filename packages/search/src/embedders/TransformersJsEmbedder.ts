@@ -42,7 +42,7 @@ const MODEL_DIMENSIONS: Record<string, number> = {
 const DEFAULT_MAX_TOKENS = 512;
 
 /** Default batch size for embedding */
-const DEFAULT_BATCH_SIZE = 32;
+const DEFAULT_BATCH_SIZE = 16;
 
 /** Minimum batch size before failing */
 const MIN_BATCH_SIZE = 1;
@@ -285,10 +285,13 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
 
   /**
    * Dispose of the embedder and release resources.
+   * Calls pipeline.dispose() to release ONNX session and model weights.
    */
   async dispose(): Promise<void> {
     if (this.pipeline) {
-      // Pipeline doesn't have explicit dispose, but we can clear the reference
+      // Dispose the pipeline to release ONNX session and model weights
+      const p = this.pipeline as { dispose?: () => Promise<void> };
+      await p.dispose?.();
       this.pipeline = null;
     }
     this.ready = false;
@@ -307,14 +310,17 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
     const pipelineFn = this.pipeline as (
       texts: string | string[],
       options?: { pooling?: string; normalize?: boolean },
-    ) => Promise<{ tolist: () => number[][] }>;
+    ) => Promise<{ tolist: () => number[][]; dispose?: () => void }>;
 
     const result = await pipelineFn(text, {
       pooling: this.config.pooling,
       normalize: this.config.normalize,
     });
 
-    return result.tolist()[0];
+    const embedding = result.tolist()[0];
+    // Dispose tensor to free WASM memory
+    result.dispose?.();
+    return embedding;
   }
 
   /**
@@ -361,7 +367,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
     const pipelineFn = this.pipeline as (
       texts: string | string[],
       options?: { pooling?: string; normalize?: boolean },
-    ) => Promise<{ tolist: () => number[][] }>;
+    ) => Promise<{ tolist: () => number[][]; dispose?: () => void }>;
 
     const currentBatch = texts;
     let localBatchSize = this.currentBatchSize;
@@ -374,7 +380,10 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
           normalize: this.config.normalize,
         });
 
-        return result.tolist();
+        const embeddings = result.tolist();
+        // Dispose tensor to free WASM memory
+        result.dispose?.();
+        return embeddings;
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
 

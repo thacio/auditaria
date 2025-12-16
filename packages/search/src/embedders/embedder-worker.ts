@@ -26,6 +26,27 @@ import type {
 // ============================================================================
 
 let embedder: TransformersJsEmbedder | null = null;
+let batchCounter = 0;
+
+// ============================================================================
+// Memory Logging (for debugging)
+// ============================================================================
+
+function logWorkerMemory(context: string): void {
+  const mem = process.memoryUsage();
+  // Send via message to main thread (console.log doesn't show from workers)
+  parentPort?.postMessage({
+    type: 'worker_memory',
+    context,
+    batch: batchCounter,
+    memory: {
+      heapUsed: (mem.heapUsed / 1024 / 1024).toFixed(2),
+      heapTotal: (mem.heapTotal / 1024 / 1024).toFixed(2),
+      external: (mem.external / 1024 / 1024).toFixed(2),
+      rss: (mem.rss / 1024 / 1024).toFixed(2),
+    },
+  });
+}
 
 // ============================================================================
 // Message Sending Helpers
@@ -81,6 +102,9 @@ async function handleInitialize(
     await embedder.initialize((progress) => {
       sendProgress(request.id, progress);
     });
+
+    // Log baseline memory after model load
+    logWorkerMemory('initialized');
 
     // Send success response with embedder info including device/quantization
     sendResponse({
@@ -192,7 +216,18 @@ async function handleEmbedBatchDocuments(
   }
 
   try {
+    batchCounter++;
+    // Log memory every 10 batches to avoid flooding
+    if (batchCounter % 10 === 0) {
+      logWorkerMemory('before');
+    }
+
     const result = await embedder.embedBatchDocuments(request.texts);
+
+    if (batchCounter % 10 === 0) {
+      logWorkerMemory('after');
+    }
+
     sendResponse({
       type: 'embeddingBatch',
       id: request.id,

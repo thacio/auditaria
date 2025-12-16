@@ -172,8 +172,11 @@ export class Logger {
   private config: LoggerConfig;
   private timers: Map<string, TimerEntry> = new Map();
   private benchmarks: Map<string, BenchmarkStats> = new Map();
-  private writeQueue: Promise<void> = Promise.resolve();
   private initialized = false;
+
+  // File write queue - uses array + processor pattern to avoid promise chain accumulation
+  private pendingWrites: string[] = [];
+  private isWriting = false;
 
   constructor(config: Partial<LoggerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -580,14 +583,32 @@ export class Logger {
 
   /**
    * Write log entry to file (non-blocking).
+   * Uses an array queue with a single processor to avoid promise chain memory accumulation.
    */
   private writeFile(entry: LogEntry): void {
     const line = JSON.stringify(entry) + '\n';
 
-    // Queue writes to ensure order and prevent race conditions
-    this.writeQueue = this.writeQueue
-      .then(async () => {
-        if (!this.config.filePath) return;
+    // Add to queue
+    this.pendingWrites.push(line);
+
+    // Start processor if not already running
+    if (!this.isWriting) {
+      void this.processWriteQueue();
+    }
+  }
+
+  /**
+   * Process pending writes sequentially.
+   * Uses a simple loop that drains the queue, avoiding promise chain accumulation.
+   */
+  private async processWriteQueue(): Promise<void> {
+    if (this.isWriting || !this.config.filePath) return;
+
+    this.isWriting = true;
+
+    try {
+      while (this.pendingWrites.length > 0) {
+        const line = this.pendingWrites.shift()!;
 
         try {
           if (!this.initialized && !existsSync(this.config.filePath)) {
@@ -601,10 +622,15 @@ export class Logger {
           // Log to console if file write fails
           console.error('[Logger] Failed to write to file:', err);
         }
-      })
-      .catch(() => {
-        // Swallow errors to prevent unhandled rejections
-      });
+      }
+    } finally {
+      this.isWriting = false;
+
+      // Check if more writes were added while we were processing
+      if (this.pendingWrites.length > 0) {
+        void this.processWriteQueue();
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -615,7 +641,10 @@ export class Logger {
    * Flush pending writes and close the logger.
    */
   async close(): Promise<void> {
-    await this.writeQueue;
+    // Wait for all pending writes to complete
+    while (this.pendingWrites.length > 0 || this.isWriting) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
   }
 
   /**
