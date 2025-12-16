@@ -14,8 +14,8 @@ import type { ParserOptions } from '../parsers/types.js';
 export interface IndexingPipelineOptions {
   /** Root path to index */
   rootPath: string;
-  /** Maximum concurrent document processing */
-  concurrency?: number;
+  /** Number of data preparation workers (parse/chunk). Default: 2 */
+  prepareWorkers?: number;
   /** Batch size for embedding generation */
   embeddingBatchSize?: number;
   /** Parser options */

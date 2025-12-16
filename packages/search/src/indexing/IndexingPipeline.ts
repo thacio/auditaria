@@ -38,10 +38,11 @@ const log = createModuleLogger('IndexingPipeline');
 // Constants
 // ============================================================================
 
-const DEFAULT_CONCURRENCY = 2;
+const DEFAULT_PREPARE_WORKERS = 2;
 const DEFAULT_EMBEDDING_BATCH_SIZE = 16;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
+const PREPARED_BUFFER_SIZE = 4;
 
 // ============================================================================
 // Utility: Event Loop Yielding
@@ -50,6 +51,29 @@ const DEFAULT_RETRY_DELAY = 1000;
 /** Yield to the event loop to prevent blocking */
 const yieldToEventLoop = (): Promise<void> =>
   new Promise((resolve) => setImmediate(resolve));
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Prepared file data ready for embedding.
+ * Contains all data needed to generate embeddings and complete indexing.
+ */
+interface PreparedFile {
+  queueItemId: string;
+  queueItemAttempts: number;
+  documentId: string;
+  filePath: string;
+  chunks: Chunk[];
+  chunkIds: string[];
+  isNew: boolean;
+  startTime: number;
+  parsedMetadata: {
+    requiresOcr: boolean;
+    ocrRegions?: number;
+  };
+}
 
 // ============================================================================
 // IndexingPipeline Class
@@ -82,12 +106,16 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     >;
 
   private state: PipelineState = 'idle';
-  private activeCount = 0;
   private processedCount = 0;
   private failedCount = 0;
   private processingStartTime: number | null = null;
   private abortController: AbortController | null = null;
   private timerCounter = 0; // Counter for unique timer keys in concurrent processing
+
+  // Producer-consumer pipeline state
+  private preparedBuffer: PreparedFile[] = [];
+  private prepareWorkersRunning = 0;
+  private embedLoopRunning = false;
 
   // Maintenance coordination - ensures workers pause at safe points during reconnect
   private maintenanceRequested = false;
@@ -110,7 +138,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.embedder = embedder;
     this.options = {
       rootPath: options.rootPath,
-      concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
+      prepareWorkers: options.prepareWorkers ?? DEFAULT_PREPARE_WORKERS,
       embeddingBatchSize:
         options.embeddingBatchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE,
       autoStart: options.autoStart ?? true,
@@ -153,7 +181,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     return {
       state: this.state,
-      activeDocuments: this.activeCount,
+      activeDocuments: this.preparedBuffer.length,
       queuedDocuments: queueStatus.pending,
       processedDocuments: this.processedCount,
       failedDocuments: this.failedCount,
@@ -356,6 +384,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
   /**
    * Start processing the queue.
+   * Launches N prepare workers (producers) and 1 embed loop (consumer).
    */
   start(): void {
     if (this.state === 'running') return;
@@ -363,12 +392,17 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.state = 'running';
     this.abortController = new AbortController();
     this.processingStartTime = Date.now();
+    this.preparedBuffer = []; // Clear buffer
+
     void this.emit('pipeline:started', undefined);
 
-    // Start worker(s)
-    for (let i = 0; i < this.options.concurrency; i++) {
-      void this.processLoop();
+    // Start prepare workers (producers)
+    for (let i = 0; i < this.options.prepareWorkers; i++) {
+      void this.prepareLoop();
     }
+
+    // Start embed loop (consumer)
+    void this.embedLoop();
   }
 
   /**
@@ -391,9 +425,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     void this.emit('pipeline:resumed', undefined);
 
     // Restart workers
-    for (let i = 0; i < this.options.concurrency; i++) {
-      void this.processLoop();
+    for (let i = 0; i < this.options.prepareWorkers; i++) {
+      void this.prepareLoop();
     }
+    void this.embedLoop();
   }
 
   /**
@@ -405,10 +440,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.state = 'stopping';
     this.abortController?.abort();
 
-    // Wait for active processing to complete
-    while (this.activeCount > 0) {
+    // Wait for all loops to finish
+    while (this.prepareWorkersRunning > 0 || this.embedLoopRunning) {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+
+    // Clear any remaining buffer
+    this.preparedBuffer = [];
 
     this.state = 'idle';
     this.abortController = null;
@@ -439,7 +477,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    *
    * This method orchestrates the maintenance process:
    * 1. Sets maintenanceRequested flag - workers will pause at their next safe point
-   * 2. Waits for all workers to reach safe point (activeCount === 0)
+   * 2. Waits for buffer to drain (embedLoop processes remaining items)
    * 3. Performs the maintenance operation (storage.reconnect)
    * 4. Releases workers to continue processing
    *
@@ -457,7 +495,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     log.info('maintenance:starting', {
       processedCount: this.processedCount,
-      activeCount: this.activeCount,
+      bufferSize: this.preparedBuffer.length,
     });
     log.logMemory('maintenance:memoryBefore');
 
@@ -467,15 +505,15 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       this.maintenanceResolve = resolve;
     });
 
-    // Wait for all workers to reach safe point (finish current item and pause)
+    // Wait for buffer to drain (embedLoop finishes current work)
     const waitStart = Date.now();
-    while (this.activeCount > 0) {
+    while (this.preparedBuffer.length > 0) {
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Safety timeout - if workers don't pause within 30 seconds, something is wrong
-      if (Date.now() - waitStart > 30000) {
+      // Safety timeout - if buffer doesn't drain within 60 seconds, something is wrong
+      if (Date.now() - waitStart > 60000) {
         log.error('maintenance:timeout', {
-          activeCount: this.activeCount,
+          bufferSize: this.preparedBuffer.length,
           waitedMs: Date.now() - waitStart,
         });
         // Release and skip maintenance this round
@@ -486,7 +524,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       }
     }
 
-    log.info('maintenance:workersIdle', {
+    log.info('maintenance:bufferDrained', {
       waitedMs: Date.now() - waitStart,
     });
 
@@ -758,146 +796,405 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   }
 
   // -------------------------------------------------------------------------
-  // Private Methods
+  // Producer-Consumer Pipeline Methods
   // -------------------------------------------------------------------------
 
   /**
-   * Main processing loop (runs in background).
-   * Workers coordinate through the maintenance system for safe reconnects.
+   * Prepare a file for embedding (parse, chunk, create DB records).
+   * This is the "producer" work - prepares data for the embedder.
    */
-  private async processLoop(): Promise<void> {
-    while (this.state === 'running') {
-      // SAFE POINT: Check if we should stop
-      if (this.abortController?.signal.aborted) {
-        break;
-      }
+  private async prepareFile(queueItemId: string, queueItemAttempts: number, filePath: string): Promise<PreparedFile> {
+    const startTime = Date.now();
+    const timerId = ++this.timerCounter;
+    log.startTimer(`prepareFile-${timerId}`, true);
+    log.debug('prepareFile:start', { timerId, filePath });
 
-      // SAFE POINT: Check if maintenance is needed (reconnect for WASM memory release)
-      // One worker will trigger, others will wait. This happens at a safe point
-      // where no worker is holding an active item (activeCount reflects finished work).
-      if (this.shouldPerformMaintenance()) {
-        await this.performMaintenance();
-      }
+    // Get or create document
+    let doc = await this.storage.getDocumentByPath(filePath);
+    const isNew = !doc;
 
-      // SAFE POINT: Wait for any ongoing maintenance before getting next item
-      // This ensures all workers pause at a consistent point during reconnect
-      await this.waitForMaintenance();
+    if (isNew) {
+      const { stat } = await import('node:fs/promises');
+      const { basename, extname } = await import('node:path');
 
-      // Check if state changed while waiting for maintenance
-      if (this.state !== 'running') {
-        break;
-      }
+      const fileStats = await stat(filePath);
+      const hash = await this.calculateFileHash(filePath);
 
-      // Get next item from queue
-      const item = await this.storage.dequeueItem();
+      doc = await this.storage.createDocument({
+        filePath,
+        fileName: basename(filePath),
+        fileExtension: extname(filePath).toLowerCase(),
+        fileSize: fileStats.size,
+        fileHash: hash,
+        fileModifiedAt: fileStats.mtime,
+        status: 'pending',
+        ocrStatus: 'not_needed',
+      });
+    }
 
-      if (!item) {
-        // Queue is empty, check again after a delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+    const documentId = doc!.id;
 
-        // Check if still empty and no active processing
-        const status = await this.storage.getQueueStatus();
-        if (status.pending === 0 && this.activeCount === 0) {
-          this.state = 'idle';
-          void this.emit('pipeline:stopped', undefined);
-          break;
+    // Update status to parsing
+    await this.storage.updateDocument(documentId, { status: 'parsing' });
+    void this.emit('document:parsing', { documentId, filePath });
+
+    // Parse the document
+    const parsed = await this.parserRegistry.parse(filePath, this.options.parserOptions);
+
+    log.debug('prepareFile:parsed', {
+      filePath,
+      textLength: parsed.text.length,
+      requiresOcr: parsed.requiresOcr,
+    });
+
+    // Update document with parsed metadata
+    await this.storage.updateDocument(documentId, {
+      title: parsed.title,
+      author: parsed.metadata.author,
+      language: parsed.metadata.language,
+      pageCount: parsed.metadata.pageCount,
+      status: 'chunking',
+      ocrStatus: parsed.requiresOcr ? 'pending' : 'not_needed',
+    });
+
+    void this.emit('document:chunking', {
+      documentId,
+      filePath,
+      textLength: parsed.text.length,
+    });
+
+    // Chunk the text
+    const chunks = await this.chunkerRegistry.chunk(parsed.text, this.options.chunkerOptions);
+
+    log.debug('prepareFile:chunked', {
+      filePath,
+      chunkCount: chunks.length,
+    });
+
+    // Delete existing chunks if re-indexing
+    if (!isNew) {
+      await this.storage.deleteChunks(documentId);
+    }
+
+    // Create chunk records (without embeddings yet)
+    const chunkInputs: CreateChunkInput[] = chunks.map((chunk) => ({
+      chunkIndex: chunk.index,
+      text: chunk.text,
+      startOffset: chunk.startOffset,
+      endOffset: chunk.endOffset,
+      page: chunk.metadata.page,
+      section: chunk.metadata.section,
+      tokenCount: chunk.metadata.tokenCount,
+    }));
+
+    const createdChunks = await this.storage.createChunks(documentId, chunkInputs);
+
+    log.endTimer(`prepareFile-${timerId}`, 'prepareFile:complete', {
+      timerId,
+      filePath,
+      chunkCount: chunks.length,
+    });
+
+    return {
+      queueItemId,
+      queueItemAttempts,
+      documentId,
+      filePath,
+      chunks,
+      chunkIds: createdChunks.map((c) => c.id),
+      isNew,
+      startTime,
+      parsedMetadata: {
+        requiresOcr: parsed.requiresOcr,
+        ocrRegions: parsed.ocrRegions?.length,
+      },
+    };
+  }
+
+  /**
+   * Embed a prepared file and complete indexing.
+   * This is the "consumer" work - generates embeddings and stores them.
+   */
+  private async embedFile(prepared: PreparedFile): Promise<void> {
+    const { documentId, filePath, chunks, chunkIds } = prepared;
+
+    // Update status to embedding
+    await this.storage.updateDocument(documentId, { status: 'embedding' });
+    void this.emit('document:embedding', {
+      documentId,
+      filePath,
+      chunkCount: chunks.length,
+    });
+
+    // Generate embeddings in batches
+    if (this.embedder.isReady() && chunks.length > 0) {
+      const embTimerKey = `embeddings-${documentId}`;
+      log.startTimer(embTimerKey, true);
+      await this.generateEmbeddings(chunkIds, chunks);
+      log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
+        filePath,
+        chunkCount: chunks.length,
+      });
+    }
+
+    // Update status to indexed
+    await this.storage.updateDocument(documentId, {
+      status: 'indexed',
+      indexedAt: new Date(),
+    });
+
+    // Emit OCR needed if required
+    if (prepared.parsedMetadata.requiresOcr) {
+      void this.emit('document:ocr_needed', {
+        documentId,
+        filePath,
+        regions: prepared.parsedMetadata.ocrRegions ?? 0,
+      });
+    }
+  }
+
+  /**
+   * Producer loop: Prepares files (parse, chunk, create records).
+   * Multiple instances run in parallel to keep the buffer fed.
+   */
+  private async prepareLoop(): Promise<void> {
+    this.prepareWorkersRunning++;
+
+    try {
+      while (this.state === 'running') {
+        // Backpressure: wait if buffer is full
+        if (this.preparedBuffer.length >= PREPARED_BUFFER_SIZE) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
         }
-        continue;
-      }
 
-      this.activeCount++;
+        // Check abort
+        if (this.abortController?.signal.aborted) break;
 
-      try {
-        // Update queue item status
-        await this.storage.updateQueueItem(item.id, {
-          status: 'processing',
-          startedAt: new Date(),
-        });
+        // Maintenance coordination
+        if (this.shouldPerformMaintenance()) {
+          await this.performMaintenance();
+        }
+        await this.waitForMaintenance();
 
-        void this.emit('document:started', {
-          documentId: '', // Will be assigned during processing
-          filePath: item.filePath,
-          queueItemId: item.id,
-        });
+        if (this.state !== 'running') break;
 
-        // Process the file
-        const result = await this.processFile(item.filePath);
+        // Dequeue next item
+        const item = await this.storage.dequeueItem();
 
-        if (result.success) {
+        if (!item) {
+          // Queue empty - check if we should exit
+          const status = await this.storage.getQueueStatus();
+          if (status.pending === 0 && status.processing === 0) {
+            // No more items in queue, prepareLoop can exit
+            // embedLoop will drain the buffer and complete
+            break;
+          }
+
+          // Still items being processed, wait and retry
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+
+        try {
+          // Update queue status
           await this.storage.updateQueueItem(item.id, {
-            status: 'completed',
-            completedAt: new Date(),
+            status: 'processing',
+            startedAt: new Date(),
           });
-          this.processedCount++;
 
-          if (this.processedCount % 100 === 0) {
-            log.info('processLoop:progress', { processedCount: this.processedCount });
-            log.logMemory('processLoop:memoryAt100');
-          }
+          void this.emit('document:started', {
+            documentId: '',
+            filePath: item.filePath,
+            queueItemId: item.id,
+          });
 
-          // Checkpoint every 250 files to flush data to disk and release memory
-          if (this.processedCount % 250 === 0 && this.storage.checkpoint) {
-            log.info('processLoop:checkpoint', { processedCount: this.processedCount });
-            await this.storage.checkpoint();
-          }
+          // Prepare the file
+          const prepared = await this.prepareFile(item.id, item.attempts, item.filePath);
 
-          // Note: Reconnect (WASM memory release) is handled at the SAFE POINT
-          // at the start of each iteration, coordinated through performMaintenance()
-        } else {
-          const attempts = item.attempts + 1;
-
-          if (attempts < this.options.maxRetries) {
-            // Retry later
-            await this.storage.updateQueueItem(item.id, {
-              status: 'pending',
-              attempts,
-              lastError: result.error?.message ?? 'Unknown error',
-            });
-
-            // Wait before retry
-            await new Promise((resolve) =>
-              setTimeout(resolve, this.options.retryDelay * attempts),
-            );
-          } else {
-            // Max retries reached
-            await this.storage.updateQueueItem(item.id, {
-              status: 'failed',
-              attempts,
-              lastError: result.error?.message ?? 'Unknown error',
-              completedAt: new Date(),
-            });
-            this.failedCount++;
-
-            void this.emit('document:failed', {
-              documentId: result.documentId,
-              filePath: item.filePath,
-              error: result.error ?? new Error('Unknown error'),
-              attempts,
-            });
-          }
+          // Push to buffer for embedding
+          this.preparedBuffer.push(prepared);
+        } catch (error) {
+          // Handle preparation error
+          await this.handlePrepareError(item.id, item.filePath, item.attempts, error);
         }
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
+      }
+    } finally {
+      this.prepareWorkersRunning--;
 
-        // Unexpected error
-        await this.storage.updateQueueItem(item.id, {
-          status: 'failed',
-          lastError: err.message,
-          completedAt: new Date(),
-        });
-        this.failedCount++;
-
-        void this.emit('document:failed', {
-          documentId: '',
-          filePath: item.filePath,
-          error: err,
-          attempts: item.attempts + 1,
-        });
-      } finally {
-        this.activeCount--;
+      // If all prepare workers done and buffer empty, signal completion
+      if (this.prepareWorkersRunning === 0 && this.preparedBuffer.length === 0) {
+        // embedLoop will detect this and stop
       }
     }
   }
+
+  /**
+   * Consumer loop: Embeds prepared files.
+   * Single instance that pulls from the prepared buffer.
+   */
+  private async embedLoop(): Promise<void> {
+    this.embedLoopRunning = true;
+
+    try {
+      while (this.state === 'running' || this.preparedBuffer.length > 0) {
+        // Wait if buffer is empty but prepare workers still running
+        if (this.preparedBuffer.length === 0) {
+          if (this.prepareWorkersRunning === 0) {
+            // All prepare workers done and buffer empty = we're done
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          continue;
+        }
+
+        // Check abort
+        if (this.abortController?.signal.aborted) break;
+
+        // Pull next prepared file
+        const prepared = this.preparedBuffer.shift()!;
+
+        try {
+          // Embed the file
+          await this.embedFile(prepared);
+
+          // Mark queue item complete
+          await this.storage.updateQueueItem(prepared.queueItemId, {
+            status: 'completed',
+            completedAt: new Date(),
+          });
+
+          this.processedCount++;
+
+          const duration = Date.now() - prepared.startTime;
+          void this.emit('document:completed', {
+            documentId: prepared.documentId,
+            filePath: prepared.filePath,
+            chunksCreated: prepared.chunks.length,
+            duration,
+          });
+
+          log.debug('embedLoop:fileComplete', {
+            filePath: prepared.filePath,
+            chunkCount: prepared.chunks.length,
+            durationMs: duration,
+            processedCount: this.processedCount,
+          });
+
+          // Progress logging
+          if (this.processedCount % 100 === 0) {
+            log.info('embedLoop:progress', { processedCount: this.processedCount });
+            log.logMemory('embedLoop:memoryAt100');
+          }
+
+          // Checkpoint every 250 files
+          if (this.processedCount % 250 === 0 && this.storage.checkpoint) {
+            log.info('embedLoop:checkpoint', { processedCount: this.processedCount });
+            await this.storage.checkpoint();
+          }
+        } catch (error) {
+          // Handle embedding error
+          await this.handleEmbedError(prepared, error);
+        } finally {
+          // Help GC by clearing large arrays
+          prepared.chunks.length = 0;
+          prepared.chunkIds.length = 0;
+        }
+      }
+    } finally {
+      this.embedLoopRunning = false;
+
+      // Signal completion if everything is done
+      if (this.prepareWorkersRunning === 0 && this.preparedBuffer.length === 0) {
+        this.state = 'idle';
+        void this.emit('pipeline:stopped', undefined);
+      }
+    }
+  }
+
+  /**
+   * Handle error during file preparation.
+   */
+  private async handlePrepareError(
+    queueItemId: string,
+    filePath: string,
+    attempts: number,
+    error: unknown,
+  ): Promise<void> {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const newAttempts = attempts + 1;
+
+    log.error('prepareLoop:error', {
+      filePath,
+      attempts: newAttempts,
+      error: err.message,
+    });
+
+    if (newAttempts < this.options.maxRetries) {
+      // Retry later
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'pending',
+        attempts: newAttempts,
+        lastError: err.message,
+      });
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.options.retryDelay * newAttempts),
+      );
+    } else {
+      // Max retries reached
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'failed',
+        attempts: newAttempts,
+        lastError: err.message,
+        completedAt: new Date(),
+      });
+      this.failedCount++;
+      void this.emit('document:failed', {
+        documentId: '',
+        filePath,
+        error: err,
+        attempts: newAttempts,
+      });
+    }
+  }
+
+  /**
+   * Handle error during file embedding.
+   */
+  private async handleEmbedError(prepared: PreparedFile, error: unknown): Promise<void> {
+    const err = error instanceof Error ? error : new Error(String(error));
+
+    log.error('embedLoop:error', {
+      filePath: prepared.filePath,
+      documentId: prepared.documentId,
+      error: err.message,
+    });
+
+    // Update document status
+    await this.storage.updateDocument(prepared.documentId, {
+      status: 'failed',
+      metadata: { lastError: err.message },
+    });
+
+    // Update queue item
+    await this.storage.updateQueueItem(prepared.queueItemId, {
+      status: 'failed',
+      lastError: err.message,
+      completedAt: new Date(),
+    });
+
+    this.failedCount++;
+    void this.emit('document:failed', {
+      documentId: prepared.documentId,
+      filePath: prepared.filePath,
+      error: err,
+      attempts: prepared.queueItemAttempts + 1,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Private Helper Methods
+  // -------------------------------------------------------------------------
 
   /**
    * Generate embeddings for chunks in batches.
