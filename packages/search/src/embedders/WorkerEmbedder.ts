@@ -173,7 +173,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
   private async doInitialize(): Promise<void> {
     log.startTimer('initialize', true);
-    log.info('initialize:start', { modelId: this._modelId, device: this._device });
+    log.info('initialize:start', {
+      modelId: this._modelId,
+      device: this._device,
+    });
 
     debugLog(
       `WorkerEmbedder initializing: device=${this._device}, quantization=${this._quantization}`,
@@ -225,7 +228,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
     log.endTimer('initialize', 'initialize:complete', {
       modelId: this._modelId,
-      dimensions: this._dimensions
+      dimensions: this._dimensions,
     });
     log.logMemory('initialize:memoryAfter');
   }
@@ -293,7 +296,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
 
-    log.endTimer(timerKey, 'embedBatch:complete', { batchId, textCount: texts.length });
+    log.endTimer(timerKey, 'embedBatch:complete', {
+      batchId,
+      textCount: texts.length,
+    });
 
     return response.result;
   }
@@ -316,7 +322,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
 
-    log.endTimer(timerKey, 'embedQuery:complete', { queryId, embeddingDim: response.result.length });
+    log.endTimer(timerKey, 'embedQuery:complete', {
+      queryId,
+      embeddingDim: response.result.length,
+    });
     return response.result;
   }
 
@@ -346,7 +355,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
     const batchId = ++this.requestId;
     const timerKey = `embedBatchDocuments-${batchId}`;
     log.startTimer(timerKey, true);
-    log.debug('embedBatchDocuments:start', { batchId, textCount: texts.length });
+    log.debug('embedBatchDocuments:start', {
+      batchId,
+      textCount: texts.length,
+    });
 
     this.ensureReady();
 
@@ -355,7 +367,10 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
       this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
     );
 
-    log.endTimer(timerKey, 'embedBatchDocuments:complete', { batchId, textCount: texts.length });
+    log.endTimer(timerKey, 'embedBatchDocuments:complete', {
+      batchId,
+      textCount: texts.length,
+    });
 
     return response.result;
   }
@@ -389,7 +404,13 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
         const currentDir = dirname(fileURLToPath(import.meta.url));
         const workerPath = join(currentDir, 'embedder-worker.js');
 
-        this.worker = new Worker(workerPath);
+        // Set worker heap size to 4GB - worker threads don't inherit NODE_OPTIONS
+        // from the main process, so we must set resourceLimits explicitly
+        this.worker = new Worker(workerPath, {
+          resourceLimits: {
+            maxOldGenerationSizeMb: 4096, // 4GB heap for embeddings
+          },
+        });
 
         // Wait for worker to signal ready
         const onReady = (message: { type: string }) => {
