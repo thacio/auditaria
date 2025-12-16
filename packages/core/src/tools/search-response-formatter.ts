@@ -9,21 +9,21 @@
 /**
  * Output format for search results
  */
-export type OutputFormat = 'markdown' | 'json';
+export type SearchOutputFormat = 'markdown' | 'json';
 
 /**
  * Detail level for search results
  */
-export type DetailLevel = 'minimal' | 'summary' | 'full';
+export type SearchDetailLevel = 'minimal' | 'summary' | 'full';
 
 /**
  * Options for the search response formatter
  */
 export interface FormatterOptions {
   /** Output format: 'markdown' or 'json' */
-  format: OutputFormat;
+  format: SearchOutputFormat;
   /** Detail level: 'minimal', 'summary', or 'full' */
-  detail: DetailLevel;
+  detail: SearchDetailLevel;
   /** Max characters per passage (only for summary detail) */
   passageLength: number;
   /** Group results by document */
@@ -836,6 +836,10 @@ export class SearchResponseFormatter {
     let content = '';
 
     groups.forEach((group, index) => {
+      // Add divider before documents 2, 3, 4, etc.
+      if (index > 0) {
+        content += '---\n\n';
+      }
       content += `**${index + 1}. ${group.file_path}** [${group.document_id}] (score: ${group.best_score}, ${group.match_count} matches)\n`;
 
       // For minimal detail, only show document info without passages

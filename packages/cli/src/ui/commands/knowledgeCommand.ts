@@ -8,7 +8,11 @@
 import type { SlashCommand, CommandContext } from './types.js';
 import { CommandKind } from './types.js';
 import { MessageType } from '../types.js';
-import { getSearchService } from '@google/gemini-cli-core';
+import {
+  getSearchService,
+  SearchResponseFormatter,
+  type SearchResultInput,
+} from '@google/gemini-cli-core';
 
 // ============================================================================
 // Lazy Loading
@@ -277,27 +281,41 @@ const knowledgeSearchCommand: SlashCommand = {
         };
       }
 
-      // Format results
-      const lines = [
-        `Found ${response.total} results for "${query}" (${response.took}ms):`,
-        '',
-      ];
+      // Transform results to SearchResultInput format for the formatter
+      const formatterResults: SearchResultInput[] = response.results.map(
+        (r) => ({
+          documentId: r.documentId ?? r.filePath,
+          chunkId: r.chunkId ?? `${r.filePath}#${r.metadata?.page ?? 0}`,
+          filePath: r.filePath,
+          fileName: r.filePath.split(/[/\\]/).pop() ?? r.filePath,
+          chunkText: r.chunkText,
+          score: r.score,
+          matchType: (r.matchType as 'semantic' | 'keyword' | 'hybrid') ?? 'hybrid',
+          highlights: r.highlights ?? [],
+          metadata: {
+            page: r.metadata?.page ?? null,
+            section: r.metadata?.section ?? null,
+          },
+        }),
+      );
 
-      for (let i = 0; i < response.results.length; i++) {
-        const r = response.results[i];
-        const snippet = r.chunkText.slice(0, 150).replace(/\n/g, ' ');
-        lines.push(`${i + 1}. ${r.filePath} (score: ${r.score.toFixed(3)})`);
-        lines.push(`   ${snippet}...`);
-        if (r.metadata.page) {
-          lines.push(`   Page: ${r.metadata.page}`);
-        }
-        lines.push('');
-      }
+      // Use SearchResponseFormatter with markdown format and summary detail
+      const formatter = new SearchResponseFormatter({
+        format: 'markdown',
+        detail: 'summary',
+        groupByDocument: true,
+      });
+
+      const formatted = formatter.format(formatterResults, query, response.took, {
+        offset: 0,
+        limit,
+        totalAvailable: response.total,
+      });
 
       return {
         type: 'message',
         messageType: 'info',
-        content: lines.join('\n'),
+        content: formatted.llmContent,
       };
     } catch (error) {
       return {

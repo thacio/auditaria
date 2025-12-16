@@ -15,8 +15,8 @@ import { KNOWLEDGE_SEARCH_TOOL_NAME } from './tool-names.js';
 import { SearchServiceManager } from '../services/search-service.js';
 import {
   SearchResponseFormatter,
-  type OutputFormat,
-  type DetailLevel,
+  type SearchOutputFormat,
+  type SearchDetailLevel,
   type SearchResultInput,
 } from './search-response-formatter.js';
 
@@ -60,7 +60,7 @@ export interface KnowledgeSearchToolParams {
   /**
    * Output format: 'markdown' (default) or 'json' for structured data
    */
-  format?: OutputFormat;
+  format?: SearchOutputFormat;
 
   /**
    * Detail level: 'minimal', 'summary' (default), or 'full'
@@ -68,7 +68,7 @@ export interface KnowledgeSearchToolParams {
    * - summary: includes truncated text and metadata
    * - full: includes complete chunk text (no truncation)
    */
-  detail?: DetailLevel;
+  detail?: SearchDetailLevel;
 
   /**
    * Max characters per passage (default: 300, max: 2000).
