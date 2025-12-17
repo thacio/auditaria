@@ -229,7 +229,7 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   device: 'cpu', // CPU is faster than GPU for small models (see benchmarks)
   quantization: 'q8', // Q8 is 2.2x faster than FP16 with identical quality
   preferGpuForIndexing: false, // GPU is 6.5x slower for this model size
-  workerHeapSizeMb: 4096, // 4GB heap for worker thread (V8 default is ~2GB)
+  // workerHeapSizeMb: 4096*8, // 4GB heap for worker thread (V8 default is ~2GB)
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
