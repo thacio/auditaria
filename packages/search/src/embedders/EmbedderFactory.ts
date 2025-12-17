@@ -46,6 +46,8 @@ export interface EmbedderFactoryConfig {
   cacheDir?: string;
   /** Batch size for embedding operations. Default: 16 */
   batchSize?: number;
+  /** Worker thread heap size in MB. Default: 4096 (4GB) */
+  workerHeapSizeMb?: number;
 }
 
 /**
@@ -118,6 +120,7 @@ export async function createEmbedders(
         quantization: targetQuantization,
         cacheDir: config.cacheDir,
         batchSize: config.batchSize,
+        workerHeapSizeMb: config.workerHeapSizeMb,
       });
 
       await indexingEmbedder.initialize(onProgress);
@@ -141,6 +144,7 @@ export async function createEmbedders(
         quantization: targetQuantization, // Keep same dtype!
         cacheDir: config.cacheDir,
         batchSize: config.batchSize,
+        workerHeapSizeMb: config.workerHeapSizeMb,
       });
 
       await indexingEmbedder.initialize(onProgress);
@@ -156,6 +160,7 @@ export async function createEmbedders(
       quantization: targetQuantization,
       cacheDir: config.cacheDir,
       batchSize: config.batchSize,
+      workerHeapSizeMb: config.workerHeapSizeMb,
     });
 
     await indexingEmbedder.initialize(onProgress);

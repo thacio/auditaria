@@ -404,11 +404,12 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
         const currentDir = dirname(fileURLToPath(import.meta.url));
         const workerPath = join(currentDir, 'embedder-worker.js');
 
-        // Set worker heap size to 4GB - worker threads don't inherit NODE_OPTIONS
+        // Set worker heap size - worker threads don't inherit NODE_OPTIONS
         // from the main process, so we must set resourceLimits explicitly
+        const heapSizeMb = this.config.workerHeapSizeMb ?? 4096; // Default 4GB
         this.worker = new Worker(workerPath, {
           resourceLimits: {
-            maxOldGenerationSizeMb: 4096, // 4GB heap for embeddings
+            maxOldGenerationSizeMb: heapSizeMb,
           },
         });
 

@@ -365,6 +365,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             preferGpuForIndexing: this.config.embeddings.preferGpuForIndexing,
             useWorkerThread: this.config.embeddings.useWorkerThread,
             batchSize: this.config.embeddings.batchSize,
+            workerHeapSizeMb: this.config.embeddings.workerHeapSizeMb,
           },
           (progress) => {
             if (progress.stage === 'download' && progress.file) {

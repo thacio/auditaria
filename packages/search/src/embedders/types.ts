@@ -176,6 +176,8 @@ export interface TransformersJsEmbedderConfig {
   maxLength?: number;
   /** Batch size for embedding operations. Default: 16 */
   batchSize?: number;
+  /** Worker thread heap size in MB. Default: 4096 (4GB) */
+  workerHeapSizeMb?: number;
 }
 
 // ============================================================================

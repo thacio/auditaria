@@ -105,7 +105,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   readonly quantization: EmbedderQuantization;
 
   private config: Required<
-    Omit<TransformersJsEmbedderFullConfig, 'onWarning'>
+    Omit<TransformersJsEmbedderFullConfig, 'onWarning' | 'workerHeapSizeMb'>
   > & { onWarning?: WarningCallback };
   private pipeline: unknown = null;
   private ready = false;
