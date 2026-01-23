@@ -8,7 +8,6 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
-import { GEMINI_DIR } from '../utils/paths.js';
 import {
   AUDITARIA_DIR, // AUDITARIA_FEATURE
   resolveConfigDir, // AUDITARIA_FEATURE
@@ -88,6 +87,10 @@ export class Storage {
     return path.join(Storage.getGlobalGeminiDir(), 'policies');
   }
 
+  static getUserAgentsDir(): string {
+    return path.join(Storage.getGlobalGeminiDir(), 'agents');
+  }
+
   // AUDITARIA_MODIFY_START: Updated system settings paths with fallback to legacy gemini-cli paths
   static getSystemSettingsPath(): string {
     if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
@@ -95,7 +98,8 @@ export class Storage {
     }
     // Check auditaria paths first, then fall back to gemini-cli
     if (os.platform() === 'darwin') {
-      const auditariaPath = '/Library/Application Support/AuditariaCli/settings.json';
+      const auditariaPath =
+        '/Library/Application Support/AuditariaCli/settings.json';
       const geminiPath = '/Library/Application Support/GeminiCli/settings.json';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;
@@ -172,7 +176,11 @@ export class Storage {
   getWorkspaceSettingsPath(): string {
     // Check for settings.json file in each config directory
     for (const configDir of getConfigDirFallbacks()) {
-      const settingsPath = path.join(this.targetDir, configDir, 'settings.json');
+      const settingsPath = path.join(
+        this.targetDir,
+        configDir,
+        'settings.json',
+      );
       if (fs.existsSync(settingsPath)) {
         return settingsPath;
       }
@@ -184,6 +192,10 @@ export class Storage {
 
   getProjectCommandsDir(): string {
     return path.join(this.getGeminiDir(), 'commands');
+  }
+
+  getProjectAgentsDir(): string {
+    return path.join(this.getGeminiDir(), 'agents');
   }
 
   getProjectTempCheckpointsDir(): string {

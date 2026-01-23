@@ -1311,7 +1311,8 @@ const SETTINGS_SCHEMA = {
         category: 'Experimental',
         requiresRestart: true,
         default: false,
-        description: 'Enable local and remote subagents.',
+        description:
+          'Enable local and remote subagents. Warning: Experimental feature, uses YOLO mode for subagents',
         showInDialog: false,
       },
       extensionManagement: {
