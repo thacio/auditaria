@@ -38,6 +38,8 @@
     "@opentelemetry/instrumentation-http": "^0.203.0",
     "@opentelemetry/resource-detector-gcp": "^0.40.0",
     "@opentelemetry/sdk-node": "^0.203.0",
+    "@thacio/browser-agent": "file:../browser-agent",
+    "@thacio/search": "file:../search",
     "@types/glob": "^8.1.0",
     "@types/html-to-text": "^9.0.4",
     "@xterm/headless": "5.5.0",
@@ -53,6 +55,7 @@
     "html-to-text": "^9.0.5",
     "https-proxy-agent": "^7.0.6",
     "ignore": "^7.0.0",
+    "js-yaml": "^4.1.1",
     "marked": "^15.0.12",
     "mime": "4.0.7",
     "mnemonist": "^0.40.3",
@@ -66,10 +69,7 @@
     "undici": "^7.10.0",
     "web-tree-sitter": "^0.25.10",
     "ws": "^8.18.0",
-    "zod": "^3.25.76",
-    "js-yaml": "^4.1.1",
-    "@thacio/browser-agent": "file:../browser-agent",
-    "@thacio/search": "file:../search"
+    "zod": "^3.25.76"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "1.1.0",
@@ -84,12 +84,13 @@
     "@google/gemini-cli-test-utils": "file:../test-utils",
     "@types/diff": "^7.0.2",
     "@types/fast-levenshtein": "^0.0.4",
+    "@types/js-yaml": "^4.0.9",
     "@types/minimatch": "^5.1.2",
     "@types/picomatch": "^4.0.1",
+    "@types/ws": "^8.18.1",
     "msw": "^2.3.4",
     "typescript": "^5.3.3",
-    "vitest": "^3.1.1",
-    "@types/js-yaml": "^4.0.9"
+    "vitest": "^3.1.1"
   },
   "engines": {
     "node": ">=20"
