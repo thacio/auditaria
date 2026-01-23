@@ -1,0 +1,106 @@
+name: Release Auditaria (NPM Only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g., v1.0.0)'
+        required: true
+        type: string
+      release_name:
+        description: 'Release name'
+        required: false
+        type: string
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-npm-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: '${{ github.event.inputs.ref || github.sha }}'
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle
+        run: npm run bundle
+
+      - name: Create tarball with built assets
+        run: |
+          npm pack
+          # Create generic filename for consistent downloads
+          cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
+          # List files to debug
+          ls -la *.tgz
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: auditaria-cli-latest.tgz
+
+  create-release:
+    needs: [build-npm-package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download npm package
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+
+      - name: List artifacts
+        run: ls -la
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          name: ${{ github.event.inputs.release_name || github.event.inputs.tag_name }}
+          files: |
+            auditaria-cli-latest.tgz
+          generate_release_notes: true
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          body: |
+            ## Auditaria Release (NPM Package Only)
+
+            ### 📦 Package Distribution
+            - **npm package**: `auditaria-cli-latest.tgz`
+
+            ### Installation
+
+            ```bash
+            # Install from release tarball
+            npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
+
+            # Or download and install locally
+            npm install -g ./auditaria-cli-latest.tgz
+            ```
+
+            ### System Requirements
+            - Node.js 20 or later
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
