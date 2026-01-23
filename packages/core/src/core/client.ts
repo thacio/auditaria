@@ -181,8 +181,10 @@ export class GeminiClient {
       return;
     }
 
-    const userMemory = this.config.getUserMemory();
-    const systemInstruction = getCoreSystemPrompt(this.config, userMemory);
+    const systemMemory = this.config.isJitContextEnabled()
+      ? this.config.getGlobalMemory()
+      : this.config.getUserMemory();
+    const systemInstruction = getCoreSystemPrompt(this.config, systemMemory);
     this.getChat().setSystemInstruction(systemInstruction);
   }
 
@@ -200,11 +202,13 @@ export class GeminiClient {
     const history = await getInitialChatHistory(this.config, extraHistory);
 
     try {
-      const userMemory = this.config.getUserMemory();
+      const systemMemory = this.config.isJitContextEnabled()
+        ? this.config.getGlobalMemory()
+        : this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage(); // AUDITARIA_LANGUAGE - Auditaria Custom Feature
       const systemInstruction = getCoreSystemPrompt(
         this.config,
-        userMemory,
+        systemMemory,
         currentLanguage /* // AUDITARIA_LANGUAGE - Auditaria Custom Feature */,
       );
       return new GeminiChat(
