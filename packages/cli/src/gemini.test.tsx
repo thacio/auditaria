@@ -127,11 +127,19 @@ vi.mock('./config/settings.js', () => ({
   },
 }));
 
+vi.mock('./ui/utils/terminalCapabilityManager.js', () => ({
+  terminalCapabilityManager: {
+    detectCapabilities: vi.fn(),
+    getTerminalBackgroundColor: vi.fn(),
+  },
+}));
+
 vi.mock('./config/config.js', () => ({
   loadCliConfig: vi.fn().mockResolvedValue({
     getSandbox: vi.fn(() => false),
     getQuestion: vi.fn(() => ''),
     isInteractive: () => false,
+    setTerminalBackground: vi.fn(),
   } as unknown as Config),
   parseArguments: vi.fn().mockResolvedValue({}),
   isDebugMode: vi.fn(() => false),
@@ -271,6 +279,7 @@ describe('gemini.tsx main function', () => {
         getOutputFormat: () => 'text',
         getExtensions: () => [],
         getUsageStatisticsEnabled: () => false,
+        setTerminalBackground: vi.fn(),
       } as unknown as Config;
     });
     vi.mocked(loadSettings).mockReturnValue({
@@ -464,9 +473,9 @@ describe('gemini.tsx main function kitty protocol', () => {
     vi.restoreAllMocks();
   });
 
-  it('should call setRawMode and detectAndEnableKittyProtocol when isInteractive is true', async () => {
-    const { detectAndEnableKittyProtocol } = await import(
-      './ui/utils/kittyProtocolDetector.js'
+  it('should call setRawMode and detectCapabilities when isInteractive is true', async () => {
+    const { terminalCapabilityManager } = await import(
+      './ui/utils/terminalCapabilityManager.js'
     );
     const { loadCliConfig, parseArguments } = await import(
       './config/config.js'
@@ -504,6 +513,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getOutputFormat: () => 'text',
       getExtensions: () => [],
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
       errors: [],
@@ -549,7 +559,9 @@ describe('gemini.tsx main function kitty protocol', () => {
     });
 
     expect(setRawModeSpy).toHaveBeenCalledWith(true);
-    expect(detectAndEnableKittyProtocol).toHaveBeenCalledTimes(1);
+    expect(terminalCapabilityManager.detectCapabilities).toHaveBeenCalledTimes(
+      1,
+    );
   });
 
   it.each([
@@ -604,6 +616,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getScreenReader: () => false,
       getGeminiMdFileCount: () => 0,
       getProjectRoot: () => '/',
+      setTerminalBackground: vi.fn(),
     } as unknown as Config;
 
     vi.mocked(loadCliConfig).mockResolvedValue(mockConfig);
@@ -686,6 +699,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getGeminiMdFileCount: () => 0,
       getProjectRoot: () => '/',
       refreshAuth: vi.fn(),
+      setTerminalBackground: vi.fn(),
     } as unknown as Config;
 
     vi.mocked(loadCliConfig).mockResolvedValue(mockConfig);
@@ -765,6 +779,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getFileFilteringRespectGitIgnore: () => true,
       getOutputFormat: () => 'text',
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     vi.spyOn(themeManager, 'setActiveTheme').mockReturnValue(false);
@@ -847,6 +862,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getFileFilteringRespectGitIgnore: () => true,
       getOutputFormat: () => 'text',
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     try {
@@ -924,6 +940,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getFileFilteringRespectGitIgnore: () => true,
       getOutputFormat: () => 'text',
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     // The mock is already set up at the top of the test
@@ -996,6 +1013,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       getFileFilteringRespectGitIgnore: () => true,
       getOutputFormat: () => 'text',
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     vi.mock('./utils/readStdin.js', () => ({
@@ -1155,6 +1173,7 @@ describe('gemini.tsx main function exit codes', () => {
       getOutputFormat: () => 'text',
       getExtensions: () => [],
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
       merged: { security: { auth: {} }, ui: {} },
@@ -1217,6 +1236,7 @@ describe('gemini.tsx main function exit codes', () => {
       getOutputFormat: () => 'text',
       getExtensions: () => [],
       getUsageStatisticsEnabled: () => false,
+      setTerminalBackground: vi.fn(),
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
       merged: { security: { auth: {} }, ui: {} },
@@ -1298,11 +1318,6 @@ describe('startInteractiveUI', () => {
     geminiMdFileCount: 0,
   };
 
-  vi.mock('./ui/utils/kittyProtocolDetector.js', () => ({
-    detectAndEnableKittyProtocol: vi.fn(() => Promise.resolve(true)),
-    isKittyProtocolSupported: vi.fn(() => true),
-    isKittyProtocolEnabled: vi.fn(() => true),
-  }));
   vi.mock('./ui/utils/updateCheck.js', () => ({
     checkForUpdates: vi.fn(() => Promise.resolve(null)),
   }));
