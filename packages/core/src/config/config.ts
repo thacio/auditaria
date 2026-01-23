@@ -331,7 +331,6 @@ export interface ConfigParameters {
       } & { disabled?: string[] });
   previewFeatures?: boolean;
   enableAgents?: boolean;
-  enableModelAvailabilityService?: boolean;
   experimentalJitContext?: boolean;
 }
 
@@ -454,7 +453,6 @@ export class Config {
 
   private previewModelFallbackMode = false;
   private previewModelBypassMode = false;
-  private readonly enableModelAvailabilityService: boolean;
   private readonly enableAgents: boolean;
 
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
@@ -519,7 +517,6 @@ export class Config {
     this.bugCommand = params.bugCommand;
     this.model = params.model;
     this._activeModel = params.model;
-    this.enableModelAvailabilityService = true;
     this.enableAgents = params.enableAgents ?? false;
     this.experimentalJitContext = params.experimentalJitContext ?? false;
     this.modelAvailabilityService = new ModelAvailabilityService();
@@ -1326,10 +1323,6 @@ export class Config {
 
   getEnableExtensionReloading(): boolean {
     return this.enableExtensionReloading;
-  }
-
-  isModelAvailabilityServiceEnabled(): boolean {
-    return this.enableModelAvailabilityService;
   }
 
   isAgentsEnabled(): boolean {
