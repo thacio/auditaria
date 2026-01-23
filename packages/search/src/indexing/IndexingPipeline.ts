@@ -24,11 +24,8 @@ import type {
   SyncOptions,
   SyncChanges,
 } from './types.js';
-import type {
-  FilePriorityClassifier} from './FilePriorityClassifier.js';
-import {
-  createFilePriorityClassifier,
-} from './FilePriorityClassifier.js';
+import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
+import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createModuleLogger } from '../core/Logger.js';
 
 // Module logger for IndexingPipeline
@@ -126,7 +123,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   private maintenancePromise: Promise<void> | null = null;
   private maintenanceResolve: (() => void) | null = null;
   private lastMaintenanceAt = 0; // processedCount at last maintenance
-  private readonly MAINTENANCE_INTERVAL = 500; // Reconnect every N files (lower = more frequent memory release)
+  private readonly MAINTENANCE_INTERVAL = 200; // Reconnect every N files (lower = more frequent memory release, reduced from 500 for better WASM memory management)
 
   constructor(
     storage: StorageAdapter,
@@ -143,7 +140,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     this.options = {
       rootPath: options.rootPath,
       prepareWorkers: options.prepareWorkers ?? DEFAULT_PREPARE_WORKERS,
-      preparedBufferSize: options.preparedBufferSize ?? DEFAULT_PREPARED_BUFFER_SIZE,
+      preparedBufferSize:
+        options.preparedBufferSize ?? DEFAULT_PREPARED_BUFFER_SIZE,
       embeddingBatchSize:
         options.embeddingBatchSize ?? DEFAULT_EMBEDDING_BATCH_SIZE,
       autoStart: options.autoStart ?? true,
@@ -574,7 +572,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const timerId = ++this.timerCounter;
     const processTimerKey = `processFile-${timerId}`;
     log.startTimer(processTimerKey, true); // true = track memory
-    log.debug('processFile:start', { timerId, filePath, processedCount: this.processedCount });
+    log.debug('processFile:start', {
+      timerId,
+      filePath,
+      processedCount: this.processedCount,
+    });
 
     // Get or create document
     let doc = await this.storage.getDocumentByPath(filePath);
@@ -617,7 +619,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       log.debug('processFile:parsed', {
         filePath,
         textLength: parsed.text.length,
-        requiresOcr: parsed.requiresOcr
+        requiresOcr: parsed.requiresOcr,
       });
 
       // Update document with parsed metadata
@@ -654,7 +656,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       log.debug('processFile:chunked', {
         filePath,
         chunkCount: chunks.length,
-        avgChunkSize: chunks.length > 0 ? Math.round(parsed.text.length / chunks.length) : 0
+        avgChunkSize:
+          chunks.length > 0
+            ? Math.round(parsed.text.length / chunks.length)
+            : 0,
       });
 
       // Delete existing chunks if re-indexing
@@ -678,7 +683,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         chunkInputs,
       );
 
-      log.debug('processFile:chunksStored', { filePath, chunkCount: createdChunks.length });
+      log.debug('processFile:chunksStored', {
+        filePath,
+        chunkCount: createdChunks.length,
+      });
 
       // Update status to embedding
       await this.storage.updateDocument(documentId, { status: 'embedding' });
@@ -698,7 +706,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         );
         log.endTimer(embTimerKey, 'processFile:embeddingsGenerated', {
           filePath,
-          chunkCount: chunks.length
+          chunkCount: chunks.length,
         });
       }
 
@@ -721,7 +729,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         filePath,
         chunksCreated: chunks.length,
         durationMs: duration,
-        processedCount: this.processedCount
+        processedCount: this.processedCount,
       });
       log.logMemory('processFile:memoryAfter');
 
@@ -742,7 +750,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         timerId,
         filePath,
         durationMs: duration,
-        error: err.message
+        error: err.message,
       });
 
       await this.storage.updateDocument(documentId, {
@@ -808,7 +816,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
    * Prepare a file for embedding (parse, chunk, create DB records).
    * This is the "producer" work - prepares data for the embedder.
    */
-  private async prepareFile(queueItemId: string, queueItemAttempts: number, filePath: string): Promise<PreparedFile> {
+  private async prepareFile(
+    queueItemId: string,
+    queueItemAttempts: number,
+    filePath: string,
+  ): Promise<PreparedFile> {
     const startTime = Date.now();
     const timerId = ++this.timerCounter;
     log.startTimer(`prepareFile-${timerId}`, true);
@@ -844,7 +856,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     void this.emit('document:parsing', { documentId, filePath });
 
     // Parse the document
-    const parsed = await this.parserRegistry.parse(filePath, this.options.parserOptions);
+    const parsed = await this.parserRegistry.parse(
+      filePath,
+      this.options.parserOptions,
+    );
 
     log.debug('prepareFile:parsed', {
       filePath,
@@ -869,7 +884,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     });
 
     // Chunk the text
-    const chunks = await this.chunkerRegistry.chunk(parsed.text, this.options.chunkerOptions);
+    const chunks = await this.chunkerRegistry.chunk(
+      parsed.text,
+      this.options.chunkerOptions,
+    );
 
     log.debug('prepareFile:chunked', {
       filePath,
@@ -892,7 +910,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       tokenCount: chunk.metadata.tokenCount,
     }));
 
-    const createdChunks = await this.storage.createChunks(documentId, chunkInputs);
+    const createdChunks = await this.storage.createChunks(
+      documentId,
+      chunkInputs,
+    );
 
     log.endTimer(`prepareFile-${timerId}`, 'prepareFile:complete', {
       timerId,
@@ -1020,20 +1041,32 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           });
 
           // Prepare the file
-          const prepared = await this.prepareFile(item.id, item.attempts, item.filePath);
+          const prepared = await this.prepareFile(
+            item.id,
+            item.attempts,
+            item.filePath,
+          );
 
           // Push to buffer for embedding
           this.preparedBuffer.push(prepared);
         } catch (error) {
           // Handle preparation error
-          await this.handlePrepareError(item.id, item.filePath, item.attempts, error);
+          await this.handlePrepareError(
+            item.id,
+            item.filePath,
+            item.attempts,
+            error,
+          );
         }
       }
     } finally {
       this.prepareWorkersRunning--;
 
       // If all prepare workers done and buffer empty, signal completion
-      if (this.prepareWorkersRunning === 0 && this.preparedBuffer.length === 0) {
+      if (
+        this.prepareWorkersRunning === 0 &&
+        this.preparedBuffer.length === 0
+      ) {
         // embedLoop will detect this and stop
       }
     }
@@ -1093,13 +1126,17 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
           // Progress logging
           if (this.processedCount % 100 === 0) {
-            log.info('embedLoop:progress', { processedCount: this.processedCount });
+            log.info('embedLoop:progress', {
+              processedCount: this.processedCount,
+            });
             log.logMemory('embedLoop:memoryAt100');
           }
 
-          // Checkpoint every 100 files (more frequent = better memory management)
-          if (this.processedCount % 100 === 0 && this.storage.checkpoint) {
-            log.info('embedLoop:checkpoint', { processedCount: this.processedCount });
+          // Checkpoint every 20 files (more frequent = better memory management)
+          if (this.processedCount % 50 === 0 && this.storage.checkpoint) {
+            log.info('embedLoop:checkpoint', {
+              processedCount: this.processedCount,
+            });
             await this.storage.checkpoint();
           }
         } catch (error) {
@@ -1115,7 +1152,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       this.embedLoopRunning = false;
 
       // Signal completion if everything is done
-      if (this.prepareWorkersRunning === 0 && this.preparedBuffer.length === 0) {
+      if (
+        this.prepareWorkersRunning === 0 &&
+        this.preparedBuffer.length === 0
+      ) {
         this.state = 'idle';
         void this.emit('pipeline:stopped', undefined);
       }
@@ -1171,7 +1211,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   /**
    * Handle error during file embedding.
    */
-  private async handleEmbedError(prepared: PreparedFile, error: unknown): Promise<void> {
+  private async handleEmbedError(
+    prepared: PreparedFile,
+    error: unknown,
+  ): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
 
     log.error('embedLoop:error', {
@@ -1234,7 +1277,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     log.debug('generateEmbeddings:start', {
       totalChunks: texts.length,
-      batchSize: this.options.embeddingBatchSize
+      batchSize: this.options.embeddingBatchSize,
     });
 
     for (let i = 0; i < texts.length; i += batchSize) {
@@ -1263,7 +1306,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         batchIndex: Math.floor(i / batchSize),
         batchStart: i,
         batchEnd: Math.min(i + batchSize, texts.length),
-        totalBatches: Math.ceil(texts.length / batchSize)
+        totalBatches: Math.ceil(texts.length / batchSize),
       });
     }
   }
