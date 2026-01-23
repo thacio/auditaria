@@ -74,6 +74,11 @@ software** intactas.
   - Crie habilidades customizadas com arquivos SKILL.md
 - **🌐 Suporte Multi-idioma**: Internacionalização completa com suporte para
   Português e Inglês (com comando `/language`)
+- **🔍 Busca de Conhecimento**: O agente pode indexar e buscar em todos os
+  documentos do projeto usando busca por palavra-chave (correspondência exata),
+  semântica (entende significado) ou híbrida (combina ambas para melhores
+  resultados). Suporta PDFs, Office, imagens com OCR e mais. Use
+  `/knowledge-init` para iniciar.
 - **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e
   capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
@@ -462,6 +467,10 @@ all original software engineering capabilities** intact.
   - Create custom skills with SKILL.md files
 - **🌐 Multi-language Support**: Full internationalization with Portuguese and
   English support (with `/language` command)
+- **🔍 Knowledge Search**: The agent can index and search through all project
+  documents using keyword (exact match), semantic (understands meaning), or
+  hybrid search (combines both for best results). Supports PDFs, Office files,
+  images with OCR, and more. Use `/knowledge-init` to get started.
 - **🎯 Audit-Focused Features**: Specialized system prompts and capabilities
   tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working
