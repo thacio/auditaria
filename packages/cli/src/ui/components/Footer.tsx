@@ -8,7 +8,12 @@ import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
-import { shortenPath, tildeifyPath, tokenLimit } from '@google/gemini-cli-core';
+import {
+  shortenPath,
+  tildeifyPath,
+  tokenLimit,
+  getDisplayString,
+} from '@google/gemini-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
 import { ThemedGradient } from './ThemedGradient.js';
@@ -212,7 +217,8 @@ export const Footer: React.FC = () => {
         <Box alignItems="center" justifyContent="flex-end">
           <Box alignItems="center">
             <Text color={theme.text.accent}>
-              {model}
+              {getDisplayString(model, config.getPreviewFeatures())}
+              <Text color={theme.text.secondary}> /model</Text>
               {!hideContextPercentage && (
                 <>
                   {' '}
