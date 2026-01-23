@@ -102,6 +102,24 @@ export interface EmbeddingsConfig {
    * Common values: 2048 (2GB), 4096 (4GB), 8192 (8GB), 16384 (16GB)
    */
   workerHeapSizeMb: number;
+  /**
+   * Prefer Python embedder over Node.js embedder. Default: false
+   * When enabled and Python 3.8+ is available with required packages,
+   * embeddings will be generated using Python's ONNX runtime instead of
+   * Node.js Transformers.js. Both produce IDENTICAL embeddings.
+   *
+   * Benefits of Python embedder:
+   * - Better memory management for large indexing jobs
+   * - More mature ML ecosystem
+   * - Potentially better performance for some configurations
+   *
+   * Requirements:
+   * - Python 3.8+
+   * - pip install onnxruntime transformers numpy huggingface_hub
+   *
+   * Falls back to Node.js if Python is not available.
+   */
+  preferPythonEmbedder: boolean;
 }
 
 export interface SearchConfig {
@@ -229,7 +247,8 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   device: 'cpu', // CPU is faster than GPU for small models (see benchmarks)
   quantization: 'q8', // Q8 is 2.2x faster than FP16 with identical quality
   preferGpuForIndexing: false, // GPU is 6.5x slower for this model size
-  // workerHeapSizeMb: 4096*8, // 4GB heap for worker thread (V8 default is ~2GB)
+  workerHeapSizeMb: 4096, // 4GB heap for worker thread (V8 default is ~2GB)
+  preferPythonEmbedder: true, // Use Node.js by default, Python as alternative
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {

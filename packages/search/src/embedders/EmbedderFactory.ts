@@ -16,6 +16,8 @@ import type {
 } from './types.js';
 import { TransformersJsEmbedder } from './TransformersJsEmbedder.js';
 import { WorkerEmbedder } from './WorkerEmbedder.js';
+import { PythonEmbedder } from './PythonEmbedder.js';
+import { detectPython } from './python-detection.js';
 import {
   debugLog,
   resolveDevice,
@@ -48,6 +50,13 @@ export interface EmbedderFactoryConfig {
   batchSize?: number;
   /** Worker thread heap size in MB. Default: 4096 (4GB) */
   workerHeapSizeMb?: number;
+  /**
+   * Whether to prefer Python embedder over Node.js. Default: false
+   * When true and Python 3.8+ is available with required packages,
+   * embeddings will be generated using Python's ONNX runtime.
+   * Produces IDENTICAL embeddings to Node.js implementation.
+   */
+  preferPythonEmbedder?: boolean;
 }
 
 /**
@@ -83,6 +92,77 @@ export async function createEmbedders(
   config: EmbedderFactoryConfig,
   onProgress?: ProgressCallback,
 ): Promise<EmbedderFactoryResult> {
+  // Step 0: Check if Python embedder is preferred and available
+  if (config.preferPythonEmbedder) {
+    console.log(
+      '[EmbedderFactory] Python embedder preferred, checking availability...',
+    );
+    debugLog('Factory: Python embedder preferred, checking availability...');
+
+    const pythonResult = await detectPython();
+    if (pythonResult.available) {
+      console.log(
+        `[EmbedderFactory] Python ${pythonResult.version} found (${pythonResult.command}), initializing Python embedder...`,
+      );
+      debugLog(
+        `Factory: Python ${pythonResult.version} available, using Python embedder`,
+      );
+
+      try {
+        const pythonEmbedder = new PythonEmbedder({
+          modelId: config.model,
+          quantization:
+            config.quantization === 'auto' ? 'q8' : config.quantization,
+          cacheDir: config.cacheDir,
+          batchSize: config.batchSize,
+        });
+
+        await pythonEmbedder.initialize(onProgress);
+
+        const resolvedConfig: ResolvedEmbedderConfig = {
+          device: 'cpu',
+          quantization:
+            config.quantization === 'auto' ? 'q8' : config.quantization,
+          gpuDetected: false,
+          gpuUsedForIndexing: false,
+          pythonEmbedder: true,
+        };
+
+        console.log(
+          '[EmbedderFactory] Python embedder initialized successfully',
+        );
+        debugLog('Factory: Python embedder initialized successfully');
+
+        return {
+          indexingEmbedder: pythonEmbedder,
+          searchEmbedder: pythonEmbedder,
+          resolvedConfig,
+        };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.warn(
+          `[EmbedderFactory] Python embedder initialization failed: ${errorMessage}. Falling back to Node.js.`,
+        );
+        debugLog(
+          `Factory: Python embedder initialization failed: ${errorMessage}. Falling back to Node.js.`,
+        );
+        // Fall through to Node.js embedder
+      }
+    } else {
+      console.log(
+        `[EmbedderFactory] Python not available (${pythonResult.error}), falling back to Node.js`,
+      );
+      debugLog(
+        `Factory: Python not available (${pythonResult.error}), falling back to Node.js`,
+      );
+    }
+  } else {
+    console.log(
+      '[EmbedderFactory] Using Node.js embedder (preferPythonEmbedder=false)',
+    );
+  }
+
   // Step 1: Resolve device and quantization
   const targetDevice = resolveDevice(config.device);
   const gpuDetected = isGpuDevice(targetDevice);
@@ -203,6 +283,9 @@ export async function createEmbedders(
     fallbackReason,
   };
 
+  console.log(
+    `[EmbedderFactory] Node.js embedder ready: device=${actualDevice}, quantization=${targetQuantization}`,
+  );
   debugLog(
     `Factory: Complete. device=${actualDevice}, dtype=${targetQuantization}, ` +
       `gpuUsed=${resolvedConfig.gpuUsedForIndexing}, sharedEmbedder=true`,

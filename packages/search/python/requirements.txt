@@ -1,0 +1,19 @@
+# Auditaria Python Embedder Dependencies
+#
+# Install with: pip install -r requirements.txt
+#
+# These packages are required for the Python embedder to produce
+# IDENTICAL embeddings to the Node.js TransformersJsEmbedder.
+
+# ONNX Runtime - executes the same ONNX model as Node.js
+# Using CPU version for cross-platform compatibility
+onnxruntime>=1.16.0
+
+# Transformers - for tokenizer (same tokenization as Node.js)
+transformers>=4.30.0
+
+# NumPy - for embedding calculations
+numpy>=1.24.0
+
+# HuggingFace Hub - for model downloading (optional but recommended)
+huggingface_hub>=0.20.0

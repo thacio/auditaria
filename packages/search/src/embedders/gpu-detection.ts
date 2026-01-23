@@ -133,6 +133,8 @@ export interface ResolvedEmbedderConfig {
   gpuUsedForIndexing: boolean;
   /** Reason for fallback if GPU was detected but not used */
   fallbackReason?: string;
+  /** Whether Python embedder is being used instead of Node.js */
+  pythonEmbedder?: boolean;
 }
 
 /**

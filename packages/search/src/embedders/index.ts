@@ -32,6 +32,19 @@ export {
 // Worker-based embedder (non-blocking)
 export { WorkerEmbedder, createWorkerEmbedder } from './WorkerEmbedder.js';
 
+// Python-based embedder (alternative to Node.js for memory efficiency)
+export { PythonEmbedder, createPythonEmbedder } from './PythonEmbedder.js';
+export type { PythonEmbedderConfig } from './PythonEmbedder.js';
+
+// Python detection utilities
+export {
+  detectPython,
+  isPythonAvailable,
+  getPythonCommand,
+  clearPythonDetectionCache,
+} from './python-detection.js';
+export type { PythonDetectionResult } from './python-detection.js';
+
 // Factory for creating embedders with GPU support
 export { createEmbedders, createSingleEmbedder } from './EmbedderFactory.js';
 

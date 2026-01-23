@@ -67,7 +67,7 @@ import {
 } from '../ocr/index.js';
 
 import type { EmbedderQuantization } from '../embedders/types.js';
-import { globalLogger, LogLevel, type LoggerConfig } from './Logger.js';
+import { globalLogger, LogLevel } from './Logger.js';
 
 // ============================================================================
 // Constants
@@ -366,6 +366,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             useWorkerThread: this.config.embeddings.useWorkerThread,
             batchSize: this.config.embeddings.batchSize,
             workerHeapSizeMb: this.config.embeddings.workerHeapSizeMb,
+            preferPythonEmbedder: this.config.embeddings.preferPythonEmbedder,
           },
           (progress) => {
             if (progress.stage === 'download' && progress.file) {
@@ -546,7 +547,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       console: this.loggingOptions.console ?? false,
       filePath: this.loggingOptions.filePath ?? defaultLogPath,
       includeMemory: this.loggingOptions.includeMemory ?? true,
-      json:true, // Human readable in console, JSON in file
+      json: true, // Human readable in console, JSON in file
       colors: true,
       timestamps: true,
     });
