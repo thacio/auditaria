@@ -76,6 +76,7 @@ patch_output.log
 .genkit
 .gemini-clipboard/
 gemini-conversation-*.json
+.eslintcache
 
 
 # Misc
