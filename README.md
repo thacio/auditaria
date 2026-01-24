@@ -521,7 +521,7 @@ may need to:
 
 ```bash
 # Using npx (no installation required)
-npx https://github.com/thacio/auditaria
+npx @thacio/auditaria-cli
 ```
 
 #### Install globally with npm
