@@ -1037,6 +1037,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
    * - Any future streaming states not explicitly allowed
    */
   const isInputActive =
+    isConfigInitialized &&
     !initError &&
     !isProcessing &&
     !!slashCommands &&
