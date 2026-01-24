@@ -29,6 +29,7 @@ import { GEMINI_DIR, homedir } from '../utils/paths.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
 import { resolveModel, isPreviewModel } from '../config/models.js';
+import type { SkillDefinition } from '../skills/skillLoader.js';
 
 export function resolvePathFromEnv(envVar?: string): {
   isSwitch: boolean;
@@ -136,32 +137,12 @@ export function getCoreSystemPrompt(
   const interactiveMode = interactiveOverride ?? config.isInteractive();
 
   const skills = config.getSkillManager().getSkills();
-  let skillsPrompt = '';
-  if (skills.length > 0) {
-    const skillsXml = skills
-      .map(
-        (skill) => `  <skill>
-    <name>${skill.name}</name>
-    <description>${skill.description}</description>
-    <location>${skill.location}</location>
-  </skill>`,
-      )
-      .join('\n');
-
-    skillsPrompt = `
-# Available Agent Skills
-
-You have access to the following specialized skills. To activate a skill and receive its detailed instructions, you can call the \`${ACTIVATE_SKILL_TOOL_NAME}\` tool with the skill's name.
-
-<available_skills>
-${skillsXml}
-</available_skills>
-`;
-  }
+  const skillsPrompt = getSkillsPrompt(skills);
 
   let basePrompt: string;
   if (systemMdEnabled) {
     basePrompt = fs.readFileSync(systemMdPath, 'utf8');
+    basePrompt = applySubstitutions(basePrompt, config, skillsPrompt);
   } else {
     const promptConfig = {
       preamble: `You are ${interactiveMode ? 'an interactive ' : 'a non-interactive '}CLI agent specializing in auditing, compliance and software engineering tasks. Your primary goal is to help users safely and efficiently, adhering strictly to the following instructions and utilizing your available tools. As an auditor, you support engagements across domains—public‑sector, IT, financial, healthcare, public‑policy, government and related areas, or any other possible audit objects. You also excel in data analysis, as a data scientist and coding.`,
@@ -599,4 +580,65 @@ The structure MUST be as follows:
     </task_state>
 </state_snapshot>
 `.trim();
+}
+
+function getSkillsPrompt(skills: SkillDefinition[]): string {
+  if (skills.length === 0) {
+    return '';
+  }
+
+  const skillsXml = skills
+    .map(
+      (skill) => `  <skill>
+    <name>${skill.name}</name>
+    <description>${skill.description}</description>
+    <location>${skill.location}</location>
+  </skill>`,
+    )
+    .join('\n');
+
+  return `
+# Available Agent Skills
+
+You have access to the following specialized skills. To activate a skill and receive its detailed instructions, you can call the \`${ACTIVATE_SKILL_TOOL_NAME}\` tool with the skill's name.
+
+<available_skills>
+${skillsXml}
+</available_skills>
+`;
+}
+
+function applySubstitutions(
+  prompt: string,
+  config: Config,
+  skillsPrompt: string,
+): string {
+  let result = prompt;
+
+  // Substitute skills and agents
+  result = result.replace(/\${AgentSkills}/g, skillsPrompt);
+  result = result.replace(
+    /\${SubAgents}/g,
+    config.getAgentRegistry().getDirectoryContext(),
+  );
+
+  // Substitute available tools list
+  const toolRegistry = config.getToolRegistry();
+  const allToolNames = toolRegistry.getAllToolNames();
+  const availableToolsList =
+    allToolNames.length > 0
+      ? allToolNames.map((name) => `- ${name}`).join('\n')
+      : 'No tools are currently available.';
+  result = result.replace(/\${AvailableTools}/g, availableToolsList);
+
+  // Substitute tool names
+  for (const toolName of allToolNames) {
+    const varName = `${toolName}_ToolName`;
+    result = result.replace(
+      new RegExp(`\\\${\\b${varName}\\b}`, 'g'),
+      toolName,
+    );
+  }
+
+  return result;
 }
