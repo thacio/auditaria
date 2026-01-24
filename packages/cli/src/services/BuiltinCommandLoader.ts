@@ -42,6 +42,7 @@ import { languageCommand } from '../ui/commands/languageCommand.js';
 // WEB_INTERFACE_START: Web command import
 import { webCommand } from '../ui/commands/webCommand.js';
 // WEB_INTERFACE_END
+import { skillsCommand } from '../ui/commands/skillsCommand.js';
 import { settingsCommand } from '../ui/commands/settingsCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
 import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
@@ -103,6 +104,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       // WEB_INTERFACE_START: Add web command to builtin commands
       webCommand,
       // WEB_INTERFACE_END
+      ...(this.config?.isSkillsSupportEnabled() ? [skillsCommand] : []),
       settingsCommand,
       vimCommand,
       setupGithubCommand,
