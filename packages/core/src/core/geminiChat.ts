@@ -676,10 +676,10 @@ export class GeminiChat {
 
   setHistory(history: Content[]): void {
     this.history = history;
-    // Recalculate token count based on new history size
-    this.lastPromptTokenCount = Math.ceil(
-      JSON.stringify(this.history).length / 4,
-    ); // Custom Auditaria Feature: context.management.ts tool
+    // AUDITARIA: Also used by context-management.ts tool to recalculate tokens after context changes
+    this.lastPromptTokenCount = estimateTokenCountSync(
+      this.history.flatMap((c) => c.parts || []),
+    );
   }
 
   stripThoughtsFromHistory(): void {
