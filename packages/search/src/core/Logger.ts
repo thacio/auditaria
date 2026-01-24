@@ -18,8 +18,9 @@
  * - Configurable at runtime
  */
 
-import { appendFile, writeFile } from 'node:fs/promises';
+import { appendFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 // ============================================================================
 // Types and Enums
@@ -30,12 +31,12 @@ import { existsSync } from 'node:fs';
  * Lower number = more verbose.
  */
 export enum LogLevel {
-  DEBUG = 0,   // Detailed debugging information
-  INFO = 1,    // General operational information
-  WARN = 2,    // Warning conditions
-  ERROR = 3,   // Error conditions
-  FATAL = 4,   // Critical errors causing shutdown
-  SILENT = 5,  // Disable all logging
+  DEBUG = 0, // Detailed debugging information
+  INFO = 1, // General operational information
+  WARN = 2, // Warning conditions
+  ERROR = 3, // Error conditions
+  FATAL = 4, // Critical errors causing shutdown
+  SILENT = 5, // Disable all logging
 }
 
 /** String names for log levels */
@@ -50,11 +51,11 @@ const LOG_LEVEL_NAMES: Record<LogLevel, string> = {
 
 /** Console colors for log levels */
 const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
-  [LogLevel.DEBUG]: '\x1b[36m',  // Cyan
-  [LogLevel.INFO]: '\x1b[32m',   // Green
-  [LogLevel.WARN]: '\x1b[33m',   // Yellow
-  [LogLevel.ERROR]: '\x1b[31m',  // Red
-  [LogLevel.FATAL]: '\x1b[35m',  // Magenta
+  [LogLevel.DEBUG]: '\x1b[36m', // Cyan
+  [LogLevel.INFO]: '\x1b[32m', // Green
+  [LogLevel.WARN]: '\x1b[33m', // Yellow
+  [LogLevel.ERROR]: '\x1b[31m', // Red
+  [LogLevel.FATAL]: '\x1b[35m', // Magenta
   [LogLevel.SILENT]: '',
 };
 
@@ -330,11 +331,11 @@ export class Logger {
   getMemorySnapshot(): MemorySnapshot {
     const mem = process.memoryUsage();
     return {
-      heapUsed: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
-      heapTotal: Math.round(mem.heapTotal / 1024 / 1024 * 100) / 100,
-      external: Math.round(mem.external / 1024 / 1024 * 100) / 100,
-      arrayBuffers: Math.round(mem.arrayBuffers / 1024 / 1024 * 100) / 100,
-      rss: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
+      heapUsed: Math.round((mem.heapUsed / 1024 / 1024) * 100) / 100,
+      heapTotal: Math.round((mem.heapTotal / 1024 / 1024) * 100) / 100,
+      external: Math.round((mem.external / 1024 / 1024) * 100) / 100,
+      arrayBuffers: Math.round((mem.arrayBuffers / 1024 / 1024) * 100) / 100,
+      rss: Math.round((mem.rss / 1024 / 1024) * 100) / 100,
     };
   }
 
@@ -391,7 +392,8 @@ export class Logger {
       return -1;
     }
 
-    const durationMs = Math.round((performance.now() - entry.startTime) * 100) / 100;
+    const durationMs =
+      Math.round((performance.now() - entry.startTime) * 100) / 100;
     this.timers.delete(name);
 
     // Build log data
@@ -404,8 +406,12 @@ export class Logger {
     if (entry.startMemory) {
       const endMemory = this.getMemorySnapshot();
       logData.memoryDelta = {
-        heapUsedMB: Math.round((endMemory.heapUsed - entry.startMemory.heapUsed) * 100) / 100,
-        externalMB: Math.round((endMemory.external - entry.startMemory.external) * 100) / 100,
+        heapUsedMB:
+          Math.round((endMemory.heapUsed - entry.startMemory.heapUsed) * 100) /
+          100,
+        externalMB:
+          Math.round((endMemory.external - entry.startMemory.external) * 100) /
+          100,
         rssMB: Math.round((endMemory.rss - entry.startMemory.rss) * 100) / 100,
       };
     }
@@ -533,6 +539,8 @@ export class Logger {
       case LogLevel.FATAL:
         console.error(output);
         break;
+      default:
+        console.log(output);
     }
   }
 
@@ -612,6 +620,11 @@ export class Logger {
 
         try {
           if (!this.initialized && !existsSync(this.config.filePath)) {
+            // Ensure parent directory exists before first write
+            const dir = dirname(this.config.filePath);
+            if (!existsSync(dir)) {
+              await mkdir(dir, { recursive: true });
+            }
             await writeFile(this.config.filePath, line);
             this.initialized = true;
           } else {
@@ -697,8 +710,17 @@ export class ModuleLogger {
     this.logger.startTimer(`${this.module}:${name}`, trackMemory);
   }
 
-  endTimer(name: string, message: string, data?: Record<string, unknown>): number {
-    return this.logger.endTimer(`${this.module}:${name}`, this.module, message, data);
+  endTimer(
+    name: string,
+    message: string,
+    data?: Record<string, unknown>,
+  ): number {
+    return this.logger.endTimer(
+      `${this.module}:${name}`,
+      this.module,
+      message,
+      data,
+    );
   }
 
   async measure<T>(name: string, fn: () => Promise<T>): Promise<T> {
