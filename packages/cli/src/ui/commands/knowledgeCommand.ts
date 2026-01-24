@@ -1,8 +1,7 @@
 /**
- * Knowledge Base Commands - Local document search functionality.
- * Provides commands for initializing, searching, and managing the knowledge base.
- *
- * AUDITARIA_FEATURE: Local Knowledge Base System
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { SlashCommand, CommandContext } from './types.js';
@@ -43,11 +42,31 @@ function formatBytes(bytes: number): string {
 }
 
 // ============================================================================
-// /knowledge-init Command
+// Default Action - Show Usage
 // ============================================================================
 
-const knowledgeInitCommand: SlashCommand = {
-  name: 'knowledge-init',
+async function showUsageAction() {
+  return {
+    type: 'message' as const,
+    messageType: 'info' as const,
+    content: `Usage: /knowledge-base <command>
+
+Commands:
+  init [--force]        Initialize or update the knowledge base
+  search <query>        Search the knowledge base
+  status                Show knowledge base status and statistics
+  set-autoindex on|off  Configure auto-indexing on CLI startup
+
+Alias: /kb`,
+  };
+}
+
+// ============================================================================
+// init Subcommand
+// ============================================================================
+
+const initSubCommand: SlashCommand = {
+  name: 'init',
   description: 'Initialize or update the knowledge base',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
@@ -91,7 +110,7 @@ const knowledgeInitCommand: SlashCommand = {
         };
       }
 
-      // Service not running, start it
+      // Service not running, start it with startIndexing: true for session-only indexing
       context.ui.setPendingItem({
         type: MessageType.INFO,
         text: exists
@@ -99,7 +118,10 @@ const knowledgeInitCommand: SlashCommand = {
           : 'Initializing new knowledge base...',
       });
 
-      await searchService.start(rootPath, { forceReindex: force });
+      await searchService.start(rootPath, {
+        forceReindex: force,
+        startIndexing: true,
+      });
 
       // Get the search system from the service
       const system = searchService.getSearchSystem();
@@ -161,11 +183,11 @@ const knowledgeInitCommand: SlashCommand = {
 };
 
 // ============================================================================
-// /knowledge-search Command
+// search Subcommand
 // ============================================================================
 
-const knowledgeSearchCommand: SlashCommand = {
-  name: 'knowledge-search',
+const searchSubCommand: SlashCommand = {
+  name: 'search',
   description: 'Search the knowledge base',
   kind: CommandKind.BUILT_IN,
   autoExecute: false,
@@ -197,7 +219,7 @@ const knowledgeSearchCommand: SlashCommand = {
         type: 'message',
         messageType: 'error',
         content:
-          'Usage: /knowledge-search <query> [--strategy=<keyword|semantic|hybrid>] [--type=<pdf|docx|...>] [--limit=<n>]',
+          'Usage: /knowledge-base search <query> [--strategy=<keyword|semantic|hybrid>] [--type=<pdf|docx|...>] [--limit=<n>]',
       };
     }
 
@@ -237,7 +259,7 @@ const knowledgeSearchCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: 'Knowledge base not found. Run /knowledge-init first.',
+          content: 'Knowledge base not found. Run /knowledge-base init first.',
         };
       }
 
@@ -290,7 +312,8 @@ const knowledgeSearchCommand: SlashCommand = {
           fileName: r.filePath.split(/[/\\]/).pop() ?? r.filePath,
           chunkText: r.chunkText,
           score: r.score,
-          matchType: (r.matchType as 'semantic' | 'keyword' | 'hybrid') ?? 'hybrid',
+          matchType:
+            (r.matchType as 'semantic' | 'keyword' | 'hybrid') ?? 'hybrid',
           highlights: r.highlights ?? [],
           metadata: {
             page: r.metadata?.page ?? null,
@@ -306,11 +329,16 @@ const knowledgeSearchCommand: SlashCommand = {
         groupByDocument: true,
       });
 
-      const formatted = formatter.format(formatterResults, query, response.took, {
-        offset: 0,
-        limit,
-        totalAvailable: response.total,
-      });
+      const formatted = formatter.format(
+        formatterResults,
+        query,
+        response.took,
+        {
+          offset: 0,
+          limit,
+          totalAvailable: response.total,
+        },
+      );
 
       return {
         type: 'message',
@@ -328,11 +356,11 @@ const knowledgeSearchCommand: SlashCommand = {
 };
 
 // ============================================================================
-// /knowledge-status Command
+// status Subcommand
 // ============================================================================
 
-const knowledgeStatusCommand: SlashCommand = {
-  name: 'knowledge-status',
+const statusSubCommand: SlashCommand = {
+  name: 'status',
   description: 'Show knowledge base status and statistics',
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
@@ -349,7 +377,7 @@ const knowledgeStatusCommand: SlashCommand = {
           type: 'message',
           messageType: 'info',
           content:
-            'Knowledge base not initialized. Run /knowledge-init to create one.',
+            'Knowledge base not initialized. Run /knowledge-base init to create one.',
         };
       }
 
@@ -375,6 +403,22 @@ const knowledgeStatusCommand: SlashCommand = {
       const state = system.getState();
       const serviceState = searchService.getState();
 
+      // Get autoIndex config
+      let autoIndexEnabled = false;
+      try {
+        const storage = (
+          system as unknown as {
+            storage: { getConfigValue: <T>(key: string) => Promise<T | null> };
+          }
+        ).storage;
+        if (storage && typeof storage.getConfigValue === 'function') {
+          const value = await storage.getConfigValue<boolean>('autoIndex');
+          autoIndexEnabled = value === true;
+        }
+      } catch {
+        // Ignore errors reading config
+      }
+
       // Only close if we created a temporary system
       if (closeAfter) {
         await system.close();
@@ -386,6 +430,7 @@ const knowledgeStatusCommand: SlashCommand = {
         `  Database: ${state.databasePath}`,
         `  Size: ${formatBytes(stats.databaseSize)}`,
         `  Service: ${serviceState.status}`,
+        `  Auto-index on startup: ${autoIndexEnabled ? 'ON' : 'OFF'}`,
         '',
         'Documents:',
         `  Total: ${stats.totalDocuments}`,
@@ -413,7 +458,113 @@ const knowledgeStatusCommand: SlashCommand = {
 };
 
 // ============================================================================
-// Export
+// set-autoindex Subcommand
 // ============================================================================
 
-export { knowledgeInitCommand, knowledgeSearchCommand, knowledgeStatusCommand };
+const setAutoindexSubCommand: SlashCommand = {
+  name: 'set-autoindex',
+  description:
+    'Configure auto-indexing on CLI startup (does not start indexing now)',
+  kind: CommandKind.BUILT_IN,
+  autoExecute: false,
+  completion: (_context, _partialArg) => ['on', 'off'],
+  action: async (context, args) => {
+    const value = args.trim().toLowerCase();
+    if (value !== 'on' && value !== 'off') {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: 'Usage: /knowledge-base set-autoindex on|off',
+      };
+    }
+
+    const rootPath = getProjectRoot(context);
+
+    try {
+      const search = await getSearchModule();
+      const searchService = getSearchService();
+
+      // Check if database exists
+      if (!search.searchDatabaseExists(rootPath)) {
+        return {
+          type: 'message',
+          messageType: 'error',
+          content: 'Knowledge base not found. Run /knowledge-base init first.',
+        };
+      }
+
+      // Use the singleton if running, otherwise load a temporary system
+      let system = searchService.getSearchSystem();
+      const closeAfter = !system;
+
+      if (!system) {
+        system = await search.loadSearchSystem(rootPath, {
+          useMockEmbedder: true, // Don't need real embeddings just to set config
+        });
+      }
+
+      if (!system) {
+        return {
+          type: 'message',
+          messageType: 'error',
+          content: 'Failed to load knowledge base',
+        };
+      }
+
+      // Access storage to save config
+      const storage = (
+        system as unknown as {
+          storage: {
+            setConfigValue: <T>(key: string, value: T) => Promise<void>;
+          };
+        }
+      ).storage;
+
+      if (storage && typeof storage.setConfigValue === 'function') {
+        await storage.setConfigValue('autoIndex', value === 'on');
+      } else {
+        throw new Error('Storage does not support config values');
+      }
+
+      // Only close if we created a temporary system
+      if (closeAfter) {
+        await system.close();
+      }
+
+      return {
+        type: 'message',
+        messageType: 'info',
+        content:
+          `Auto-indexing on startup: ${value.toUpperCase()}\n` +
+          (value === 'on'
+            ? 'Run /knowledge-base init to start indexing now.'
+            : 'Use /knowledge-base init to manually start indexing when needed.'),
+      };
+    } catch (error) {
+      return {
+        type: 'message',
+        messageType: 'error',
+        content: `Failed to set auto-index: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+};
+
+// ============================================================================
+// Main Command with Subcommands
+// ============================================================================
+
+export const knowledgeBaseCommand: SlashCommand = {
+  name: 'knowledge-base',
+  altNames: ['kb'],
+  description: 'Manage the local knowledge base for document search',
+  kind: CommandKind.BUILT_IN,
+  autoExecute: false,
+  subCommands: [
+    initSubCommand,
+    searchSubCommand,
+    statusSubCommand,
+    setAutoindexSubCommand,
+  ],
+  action: showUsageAction,
+};

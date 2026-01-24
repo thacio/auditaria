@@ -1,8 +1,12 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
+
+/* eslint-disable no-console */
 
 // AUDITARIA_LOCAL_SEARCH - Search Service Manager
 // Singleton service that maintains a persistent SearchSystem instance
@@ -44,6 +48,8 @@ export interface SearchServiceStartOptions {
   forceReindex?: boolean;
   /** Skip initial sync (for faster startup) */
   skipInitialSync?: boolean;
+  /** Explicitly start indexing for this session (used by /knowledge-base init) */
+  startIndexing?: boolean;
 }
 
 // ============================================================================
@@ -187,15 +193,25 @@ export class SearchServiceManager {
       // Subscribe to search system events
       this.subscribeToEvents();
 
-      // Start queue processor
-      this.startQueueProcessor();
+      // Check if we should auto-index:
+      // - startIndexing: true = explicitly requested (from /knowledge-base init)
+      // - autoIndex config = persistent setting in database
+      const shouldIndex =
+        options.startIndexing === true || (await this.checkAutoIndexConfig());
+
+      // Only start queue processor if indexing is enabled
+      if (shouldIndex) {
+        this.startQueueProcessor();
+      }
 
       this.state.status = 'running';
       this.state.startedAt = new Date();
-      console.log('[SearchService] Started successfully');
+      console.log(
+        `[SearchService] Started successfully (indexing: ${shouldIndex ? 'enabled' : 'disabled'})`,
+      );
 
-      // Perform initial sync unless skipped
-      if (!options.skipInitialSync) {
+      // Perform initial sync only if indexing and not skipped
+      if (shouldIndex && !options.skipInitialSync) {
         // Run sync in background, don't block startup
         this.performInitialSync(options.forceReindex ?? false).catch((err) => {
           console.warn('[SearchService] Initial sync failed:', err.message);
@@ -349,6 +365,31 @@ export class SearchServiceManager {
       // Non-fatal, just log
       console.warn('[SearchService] Could not reset stale items:', error);
     }
+  }
+
+  /**
+   * Check if auto-indexing is enabled in the database config.
+   * Returns true if autoIndex config is explicitly set to true.
+   */
+  private async checkAutoIndexConfig(): Promise<boolean> {
+    if (!this.searchSystem) return false;
+
+    try {
+      // Access storage to get config value (same pattern as resetStaleQueueItems)
+      const storage = (
+        this.searchSystem as unknown as {
+          storage: { getConfigValue: <T>(key: string) => Promise<T | null> };
+        }
+      ).storage;
+
+      if (storage && typeof storage.getConfigValue === 'function') {
+        const autoIndex = await storage.getConfigValue<boolean>('autoIndex');
+        return autoIndex === true;
+      }
+    } catch {
+      // Non-fatal, default to false
+    }
+    return false;
   }
 
   /**

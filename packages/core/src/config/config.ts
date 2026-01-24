@@ -83,9 +83,9 @@ import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
 import { ContextManager } from '../services/contextManager.js';
 import type { GenerateContentParameters } from '@google/genai';
 
+import type { AnyToolInvocation } from '../tools/tools.js';
 // Re-export OAuth config type
 export type { MCPOAuthConfig, AnyToolInvocation };
-import type { AnyToolInvocation } from '../tools/tools.js';
 import { WorkspaceContext } from '../utils/workspaceContext.js';
 import { Storage } from './storage.js';
 import type { ShellExecutionConfig } from '../services/shellExecutionService.js';
