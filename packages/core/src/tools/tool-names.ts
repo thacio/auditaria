@@ -20,6 +20,7 @@ export const READ_FILE_TOOL_NAME = 'read_file';
 export const LS_TOOL_NAME = 'list_directory';
 export const MEMORY_TOOL_NAME = 'save_memory';
 export const GET_INTERNAL_DOCS_TOOL_NAME = 'get_internal_docs';
+export const ACTIVATE_SKILL_TOOL_NAME = 'activate_skill';
 export const EDIT_TOOL_NAMES = new Set([EDIT_TOOL_NAME, WRITE_FILE_TOOL_NAME]);
 export const DELEGATE_TO_AGENT_TOOL_NAME = 'delegate_to_agent';
 
@@ -56,6 +57,7 @@ export const ALL_BUILTIN_TOOL_NAMES = [
   READ_FILE_TOOL_NAME,
   LS_TOOL_NAME,
   MEMORY_TOOL_NAME,
+  ACTIVATE_SKILL_TOOL_NAME,
   DELEGATE_TO_AGENT_TOOL_NAME,
 ] as const;
 
