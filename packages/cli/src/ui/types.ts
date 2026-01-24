@@ -157,6 +157,7 @@ export type HistoryItemAbout = HistoryItemBase & {
   gcpProject: string;
   ideClient: string;
   userEmail?: string;
+  tier?: string;
 };
 
 export type HistoryItemHelp = HistoryItemBase & {
