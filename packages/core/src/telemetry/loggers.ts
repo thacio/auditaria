@@ -80,7 +80,7 @@ export function logCliConfiguration(
   event: StartSessionEvent,
 ): void {
   // EXTERNAL TELEMETRY DISABLED: ClearcutLogger is already disabled via getInstance
-  ClearcutLogger.getInstance(config)?.logStartSessionEvent(event);
+  void ClearcutLogger.getInstance(config)?.logStartSessionEvent(event);
 
   // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
   // OpenTelemetry logger.emit() would send configuration data externally
