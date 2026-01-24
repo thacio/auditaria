@@ -838,7 +838,7 @@ their corresponding top-level category object in your `settings.json` file.
 
 - **`experimental.enableEventDrivenScheduler`** (boolean):
   - **Description:** Enables event-driven scheduler within the CLI session.
-  - **Default:** `false`
+  - **Default:** `true`
   - **Requires restart:** Yes
 
 - **`experimental.extensionReloading`** (boolean):
