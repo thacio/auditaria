@@ -3555,9 +3555,9 @@ var require_is_url = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/utils/arrayBufferToBase64.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/utils/arrayBufferToBase64.js
 var require_arrayBufferToBase64 = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/utils/arrayBufferToBase64.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/utils/arrayBufferToBase64.js"(exports2, module2) {
     module2.exports = (arrayBuffer) => {
       let base64 = "";
       const encodings = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -3595,9 +3595,9 @@ var require_arrayBufferToBase64 = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/constants/imageType.js
+// node_modules/@scribe.js/tesseract.js/src/constants/imageType.js
 var require_imageType = __commonJS({
-  "node_modules/tesseract.js/src/constants/imageType.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/constants/imageType.js"(exports2, module2) {
     module2.exports = {
       COLOR: 0,
       GREY: 1,
@@ -3606,9 +3606,9 @@ var require_imageType = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/utils/dump.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/utils/dump.js
 var require_dump = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/utils/dump.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/utils/dump.js"(exports2, module2) {
     var arrayBufferToBase64 = require_arrayBufferToBase64();
     var imageType = require_imageType();
     var deindent = (html) => {
@@ -3623,20 +3623,6 @@ var require_dump = __commonJS({
       return lines.join("\n");
     };
     module2.exports = (TessModule, api, output, options) => {
-      const ri = api.GetIterator();
-      const {
-        RIL_BLOCK,
-        RIL_PARA,
-        RIL_TEXTLINE,
-        RIL_WORD,
-        RIL_SYMBOL
-      } = TessModule;
-      const blocks = [];
-      let block;
-      let para;
-      let textline;
-      let word;
-      let symbol;
       const enumToString = (value, prefix) => Object.keys(TessModule).filter((e) => e.startsWith(`${prefix}_`) && TessModule[e] === value).map((e) => e.slice(prefix.length + 1))[0];
       const getImage = (type) => {
         api.WriteImage(type, "/image.png");
@@ -3653,117 +3639,6 @@ var require_dump = __commonJS({
         TessModule._free(pdfRenderer);
         return TessModule.FS.readFile("/tesseract-ocr.pdf");
       };
-      if (output.blocks || output.layoutBlocks) {
-        ri.Begin();
-        do {
-          if (ri.IsAtBeginningOf(RIL_BLOCK)) {
-            const poly = ri.BlockPolygon();
-            let polygon = null;
-            if (TessModule.getPointer(poly) > 0) {
-              const n = poly.get_n();
-              const px = poly.get_x();
-              const py = poly.get_y();
-              polygon = [];
-              for (let i = 0; i < n; i += 1) {
-                polygon.push([px.getValue(i), py.getValue(i)]);
-              }
-            }
-            block = {
-              paragraphs: [],
-              text: !options.skipRecognition ? ri.GetUTF8Text(RIL_BLOCK) : null,
-              confidence: !options.skipRecognition ? ri.Confidence(RIL_BLOCK) : null,
-              baseline: ri.getBaseline(RIL_BLOCK),
-              bbox: ri.getBoundingBox(RIL_BLOCK),
-              blocktype: enumToString(ri.BlockType(), "PT"),
-              polygon
-            };
-            blocks.push(block);
-          }
-          if (ri.IsAtBeginningOf(RIL_PARA)) {
-            para = {
-              lines: [],
-              text: !options.skipRecognition ? ri.GetUTF8Text(RIL_PARA) : null,
-              confidence: !options.skipRecognition ? ri.Confidence(RIL_PARA) : null,
-              baseline: ri.getBaseline(RIL_PARA),
-              bbox: ri.getBoundingBox(RIL_PARA),
-              is_ltr: !!ri.ParagraphIsLtr()
-            };
-            block.paragraphs.push(para);
-          }
-          if (ri.IsAtBeginningOf(RIL_TEXTLINE)) {
-            let rowAttributes;
-            if (ri.getRowAttributes) {
-              rowAttributes = ri.getRowAttributes();
-              rowAttributes.descenders *= -1;
-            }
-            textline = {
-              words: [],
-              text: !options.skipRecognition ? ri.GetUTF8Text(RIL_TEXTLINE) : null,
-              confidence: !options.skipRecognition ? ri.Confidence(RIL_TEXTLINE) : null,
-              baseline: ri.getBaseline(RIL_TEXTLINE),
-              rowAttributes,
-              bbox: ri.getBoundingBox(RIL_TEXTLINE)
-            };
-            para.lines.push(textline);
-          }
-          if (ri.IsAtBeginningOf(RIL_WORD)) {
-            const fontInfo = ri.getWordFontAttributes();
-            const wordDir = ri.WordDirection();
-            word = {
-              symbols: [],
-              choices: [],
-              text: !options.skipRecognition ? ri.GetUTF8Text(RIL_WORD) : null,
-              confidence: !options.skipRecognition ? ri.Confidence(RIL_WORD) : null,
-              baseline: ri.getBaseline(RIL_WORD),
-              bbox: ri.getBoundingBox(RIL_WORD),
-              is_numeric: !!ri.WordIsNumeric(),
-              in_dictionary: !!ri.WordIsFromDictionary(),
-              direction: enumToString(wordDir, "DIR"),
-              language: ri.WordRecognitionLanguage(),
-              is_bold: fontInfo.is_bold,
-              is_italic: fontInfo.is_italic,
-              is_underlined: fontInfo.is_underlined,
-              is_monospace: fontInfo.is_monospace,
-              is_serif: fontInfo.is_serif,
-              is_smallcaps: fontInfo.is_smallcaps,
-              font_size: fontInfo.pointsize,
-              font_id: fontInfo.font_id,
-              font_name: fontInfo.font_name
-            };
-            const wc = new TessModule.WordChoiceIterator(ri);
-            do {
-              word.choices.push({
-                text: !options.skipRecognition ? wc.GetUTF8Text() : null,
-                confidence: !options.skipRecognition ? wc.Confidence() : null
-              });
-            } while (wc.Next());
-            TessModule.destroy(wc);
-            textline.words.push(word);
-          }
-          if (ri.IsAtBeginningOf(RIL_SYMBOL)) {
-            symbol = {
-              choices: [],
-              image: null,
-              text: !options.skipRecognition ? ri.GetUTF8Text(RIL_SYMBOL) : null,
-              confidence: !options.skipRecognition ? ri.Confidence(RIL_SYMBOL) : null,
-              baseline: ri.getBaseline(RIL_SYMBOL),
-              bbox: ri.getBoundingBox(RIL_SYMBOL),
-              is_superscript: !!ri.SymbolIsSuperscript(),
-              is_subscript: !!ri.SymbolIsSubscript(),
-              is_dropcap: !!ri.SymbolIsDropcap()
-            };
-            word.symbols.push(symbol);
-            const ci = new TessModule.ChoiceIterator(ri);
-            do {
-              symbol.choices.push({
-                text: !options.skipRecognition ? ci.GetUTF8Text() : null,
-                confidence: !options.skipRecognition ? ci.Confidence() : null
-              });
-            } while (ci.Next());
-          }
-        } while (ri.Next(RIL_SYMBOL));
-        TessModule.destroy(ri);
-      }
       return {
         text: output.text ? api.GetUTF8Text() : null,
         hocr: output.hocr ? deindent(api.GetHOCRText()) : null,
@@ -3776,46 +3651,25 @@ var require_dump = __commonJS({
         imageGrey: output.imageGrey ? getImage(imageType.GREY) : null,
         imageBinary: output.imageBinary ? getImage(imageType.BINARY) : null,
         confidence: !options.skipRecognition ? api.MeanTextConf() : null,
-        blocks: output.blocks && !options.skipRecognition ? blocks : null,
-        layoutBlocks: output.layoutBlocks && options.skipRecognition ? blocks : null,
+        blocks: output.blocks && !options.skipRecognition ? JSON.parse(api.GetJSONText()).blocks : null,
+        layoutBlocks: output.layoutBlocks && options.skipRecognition ? JSON.parse(api.GetJSONText()).blocks : null,
         psm: enumToString(api.GetPageSegMode(), "PSM"),
         oem: enumToString(api.oem(), "OEM"),
         version: api.Version(),
-        debug: output.debug ? TessModule.FS.readFile("/debugInternal.txt", { encoding: "utf8", flags: "a+" }) : null
+        debug: output.debug ? TessModule.FS.readFile("/debugInternal.txt", { encoding: "utf8", flags: "a+" }) : null,
+        debugVis: output.debugVis ? TessModule.FS.readFile("/debugVisInternal.txt", { encoding: "utf8", flags: "a+" }) : null
       };
     };
   }
 });
 
-// node_modules/is-electron/index.js
-var require_is_electron = __commonJS({
-  "node_modules/is-electron/index.js"(exports2, module2) {
-    function isElectron() {
-      if (typeof window !== "undefined" && typeof window.process === "object" && window.process.type === "renderer") {
-        return true;
-      }
-      if (typeof process !== "undefined" && typeof process.versions === "object" && !!process.versions.electron) {
-        return true;
-      }
-      if (typeof navigator === "object" && typeof navigator.userAgent === "string" && navigator.userAgent.indexOf("Electron") >= 0) {
-        return true;
-      }
-      return false;
-    }
-    module2.exports = isElectron;
-  }
-});
-
-// node_modules/tesseract.js/src/utils/getEnvironment.js
+// node_modules/@scribe.js/tesseract.js/src/utils/getEnvironment.js
 var require_getEnvironment = __commonJS({
-  "node_modules/tesseract.js/src/utils/getEnvironment.js"(exports2, module2) {
-    var isElectron = require_is_electron();
+  "node_modules/@scribe.js/tesseract.js/src/utils/getEnvironment.js"(exports2, module2) {
     module2.exports = (key) => {
       const env = {};
       if (typeof WorkerGlobalScope !== "undefined") {
         env.type = "webworker";
-      } else if (isElectron()) {
-        env.type = "electron";
       } else if (typeof document === "object") {
         env.type = "browser";
       } else if (typeof process === "object" && typeof require === "function") {
@@ -4330,11 +4184,11 @@ var require_bmp_js = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/utils/setImage.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/utils/setImage.js
 var require_setImage = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/utils/setImage.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/utils/setImage.js"(exports2, module2) {
     var bmp = require_bmp_js();
-    module2.exports = (TessModule, api, image, angle = 0) => {
+    module2.exports = (TessModule, api, image, angle = 0, upscale = false) => {
       const isBmp = image[0] === 66 && image[1] === 77 || image[1] === 66 && image[0] === 77;
       const exif = parseInt(image.slice(0, 500).join(" ").match(/1 18 0 3 0 0 0 1 0 (\d)/)?.[1], 10) || 1;
       if (isBmp) {
@@ -4344,15 +4198,15 @@ var require_setImage = __commonJS({
       } else {
         TessModule.FS.writeFile("/input", image);
       }
-      const res = api.SetImageFile(exif, angle);
+      const res = api.SetImageFile(exif, angle, upscale);
       if (res === 1) throw Error("Error attempting to read image.");
     };
   }
 });
 
-// node_modules/tesseract.js/src/constants/PSM.js
+// node_modules/@scribe.js/tesseract.js/src/constants/PSM.js
 var require_PSM = __commonJS({
-  "node_modules/tesseract.js/src/constants/PSM.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/constants/PSM.js"(exports2, module2) {
     module2.exports = {
       OSD_ONLY: "0",
       AUTO_OSD: "1",
@@ -4372,9 +4226,9 @@ var require_PSM = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/constants/defaultParams.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/constants/defaultParams.js
 var require_defaultParams = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/constants/defaultParams.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/constants/defaultParams.js"(exports2, module2) {
     var PSM = require_PSM();
     module2.exports = {
       tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
@@ -4388,9 +4242,9 @@ var require_defaultParams = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/constants/defaultOutput.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/constants/defaultOutput.js
 var require_defaultOutput = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/constants/defaultOutput.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/constants/defaultOutput.js"(exports2, module2) {
     module2.exports = {
       text: true,
       blocks: true,
@@ -4409,9 +4263,9 @@ var require_defaultOutput = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/utils/log.js
+// node_modules/@scribe.js/tesseract.js/src/utils/log.js
 var require_log = __commonJS({
-  "node_modules/tesseract.js/src/utils/log.js"(exports2) {
+  "node_modules/@scribe.js/tesseract.js/src/utils/log.js"(exports2) {
     var logging = false;
     exports2.logging = logging;
     exports2.setLogging = (_logging) => {
@@ -4421,9 +4275,9 @@ var require_log = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/index.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/index.js
 var require_index = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/index.js"(exports2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/index.js"(exports2) {
     require_runtime();
     var isURL = require_is_url();
     var dump = require_dump();
@@ -4646,8 +4500,6 @@ var require_index = __commonJS({
         if (status === -1) {
           res.reject("initialization failed");
         }
-        params = defaultParams;
-        await setParameters({ payload: { params } });
         res.progress({
           workerId,
           status: statusText,
@@ -4691,7 +4543,7 @@ var require_index = __commonJS({
       const skipRecognition = recOutputCount === 0;
       return { workingOutput, skipRecognition };
     };
-    var tessjsOptions = ["rectangle", "pdfTitle", "pdfTextOnly", "rotateAuto", "rotateRadians"];
+    var tessjsOptions = ["rectangle", "pdfTitle", "pdfTextOnly", "rotateAuto", "rotateRadians", "lstm", "legacy", "upscale"];
     var recognize = async ({
       payload: {
         image,
@@ -4700,6 +4552,7 @@ var require_index = __commonJS({
       }
     }, res) => {
       try {
+        const upscale = options.upscale || false;
         const optionsTess = {};
         if (typeof options === "object" && Object.keys(options).length > 0) {
           for (const param of Object.keys(options)) {
@@ -4723,11 +4576,11 @@ var require_index = __commonJS({
         if (options.rotateAuto) {
           const psmInit = api.GetPageSegMode();
           let psmEdit = false;
-          if (![PSM.AUTO, PSM.AUTO_ONLY, PSM.OSD].includes(String(psmInit))) {
+          if (![PSM.AUTO, PSM.AUTO_ONLY, PSM.OSD].includes(psmInit)) {
             psmEdit = true;
             api.SetVariable("tessedit_pageseg_mode", String(PSM.AUTO));
           }
-          setImage(TessModule, api, image);
+          setImage(TessModule, api, image, 0, upscale);
           api.FindLines();
           const rotateRadiansCalc = api.GetGradient ? api.GetGradient() : api.GetAngle();
           if (psmEdit) {
@@ -4735,16 +4588,16 @@ var require_index = __commonJS({
           }
           if (Math.abs(rotateRadiansCalc) >= 5e-3) {
             rotateRadiansFinal = rotateRadiansCalc;
-            setImage(TessModule, api, image, rotateRadiansFinal);
+            setImage(TessModule, api, image, rotateRadiansFinal, upscale);
           } else {
             if (psmEdit) {
-              setImage(TessModule, api, image);
+              setImage(TessModule, api, image, 0, upscale);
             }
             rotateRadiansFinal = 0;
           }
         } else {
           rotateRadiansFinal = options.rotateRadians || 0;
-          setImage(TessModule, api, image, rotateRadiansFinal);
+          setImage(TessModule, api, image, rotateRadiansFinal, upscale);
         }
         const rec = options.rectangle;
         if (typeof rec === "object") {
@@ -4767,6 +4620,145 @@ var require_index = __commonJS({
           api.RestoreParameters();
         }
         res.resolve(result);
+      } catch (err) {
+        res.reject(err.toString());
+      }
+    };
+    var recognize2 = async ({
+      payload: {
+        image,
+        options,
+        output
+      }
+    }, res, resB) => {
+      try {
+        const lstm = options.lstm || false;
+        const legacy = options.legacy || false;
+        const upscale = options.upscale || false;
+        const optionsTess = {};
+        if (typeof options === "object" && Object.keys(options).length > 0) {
+          for (const param of Object.keys(options)) {
+            if (!param.startsWith("tessjs_") && !tessjsOptions.includes(param)) {
+              optionsTess[param] = options[param];
+            }
+          }
+        }
+        if (output.debug) {
+          optionsTess.debug_file = "/debugInternal.txt";
+          TessModule.FS.writeFile("/debugInternal.txt", "");
+        }
+        if (output.debugVis) {
+          optionsTess.vis_file = "/debugVisInternal.txt";
+          optionsTess.textord_tabfind_show_blocks = "1";
+          optionsTess.textord_tabfind_show_strokewidths = "1";
+          optionsTess.textord_tabfind_show_initialtabs = "1";
+          optionsTess.textord_tabfind_show_images = "1";
+          optionsTess.textord_tabfind_show_reject_blobs = "1";
+          optionsTess.textord_tabfind_show_finaltabs = "1";
+          optionsTess.textord_tabfind_show_columns = "1";
+          optionsTess.textord_tabfind_show_initial_partitions = "1";
+          optionsTess.textord_show_tables = "1";
+          optionsTess.textord_tabfind_show_partitions = "1";
+          optionsTess.textord_tabfind_show_vlines_scrollview = "1";
+          optionsTess.tessedit_dump_pageseg_images = "1";
+          optionsTess.textord_debug_nontext = "1";
+          optionsTess.textord_show_word_blobs = "1";
+          TessModule.FS.writeFile("/debugVisInternal.txt", "");
+        }
+        if (Object.keys(optionsTess).length > 0) {
+          api.SaveParameters();
+          for (const prop of Object.keys(optionsTess)) {
+            api.SetVariable(prop, optionsTess[prop]);
+          }
+        }
+        const { workingOutput, skipRecognition } = processOutput(output);
+        let rotateRadiansFinal;
+        let upscaleFinal = upscale;
+        if (options.rotateAuto) {
+          const psmInit = api.GetPageSegMode();
+          let psmEdit = false;
+          if (![PSM.AUTO, PSM.AUTO_ONLY, PSM.OSD].includes(String(psmInit))) {
+            psmEdit = true;
+            api.SetVariable("tessedit_pageseg_mode", String(PSM.AUTO));
+          }
+          setImage(TessModule, api, image, 0, upscale);
+          api.FindLines();
+          const rotateRadiansCalc = api.GetGradient ? api.GetGradient() : api.GetAngle();
+          const estimatedResolution = api.GetEstimatedResolution();
+          upscaleFinal = estimatedResolution < 200 ? true : upscale;
+          const upscaleEdit = upscaleFinal !== upscale;
+          if (psmEdit) {
+            api.SetVariable("tessedit_pageseg_mode", String(psmInit));
+          }
+          if (Math.abs(rotateRadiansCalc) >= 5e-3) {
+            rotateRadiansFinal = rotateRadiansCalc;
+            if (output.debugVis) TessModule.FS.writeFile("/debugVisInternal.txt", "");
+            setImage(TessModule, api, image, rotateRadiansFinal, upscaleFinal);
+          } else {
+            if (psmEdit || upscaleEdit) {
+              if (output.debugVis) TessModule.FS.writeFile("/debugVisInternal.txt", "");
+              setImage(TessModule, api, image, 0, upscaleFinal);
+            }
+            rotateRadiansFinal = 0;
+          }
+        } else {
+          rotateRadiansFinal = options.rotateRadians || 0;
+          setImage(TessModule, api, image, rotateRadiansFinal, upscale);
+        }
+        const rec = options.rectangle;
+        if (typeof rec === "object") {
+          api.SetRectangle(rec.left, rec.top, rec.width, rec.height);
+        }
+        if (!skipRecognition) {
+          if (legacy) {
+            api.SetVariable("tessedit_ocr_engine_mode", "0");
+          } else {
+            api.SetVariable("tessedit_ocr_engine_mode", "1");
+          }
+          api.Recognize(null);
+        } else {
+          if (output.layoutBlocks) {
+            api.AnalyseLayout();
+          }
+          log("Skipping recognition: all output options requiring recognition are disabled.");
+        }
+        const { pdfTitle } = options;
+        const { pdfTextOnly } = options;
+        const result = dump(TessModule, api, workingOutput, { pdfTitle, pdfTextOnly, skipRecognition });
+        result.rotateRadians = rotateRadiansFinal;
+        result.upscale = upscaleFinal;
+        if (output.debugVis) {
+          api.SetVariable("textord_tabfind_show_blocks", "0");
+          api.SetVariable("textord_tabfind_show_strokewidths", "0");
+          api.SetVariable("textord_tabfind_show_initialtabs", "0");
+          api.SetVariable("textord_tabfind_show_images", "0");
+          api.SetVariable("textord_tabfind_show_reject_blobs", "0");
+          api.SetVariable("textord_tabfind_show_finaltabs", "0");
+          api.SetVariable("textord_tabfind_show_columns", "0");
+          api.SetVariable("textord_tabfind_show_initial_partitions", "0");
+          api.SetVariable("textord_show_tables", "0");
+          api.SetVariable("textord_tabfind_show_partitions", "0");
+          api.SetVariable("textord_tabfind_show_vlines_scrollview", "0");
+          api.SetVariable("tessedit_dump_pageseg_images", "0");
+          api.SetVariable("textord_debug_nontext", "0");
+          api.SetVariable("textord_show_word_blobs", "0");
+        }
+        res.resolve(result);
+        let result2;
+        if (!skipRecognition && legacy && lstm) {
+          api.SetVariable("tessedit_ocr_engine_mode", "1");
+          api.Recognize(null);
+          workingOutput.imageColor = false;
+          workingOutput.imageGrey = false;
+          workingOutput.imageBinary = false;
+          result2 = dump(TessModule, api, workingOutput, { pdfTitle, pdfTextOnly, skipRecognition });
+        }
+        if (output.debug) TessModule.FS.unlink("/debugInternal.txt");
+        if (output.debugVis) TessModule.FS.unlink("/debugVisInternal.txt");
+        if (Object.keys(optionsTess).length > 0) {
+          api.RestoreParameters();
+        }
+        resB.resolve(result2);
       } catch (err) {
         res.reject(err.toString());
       }
@@ -4826,6 +4818,21 @@ var require_index = __commonJS({
       res.reject = res.bind(exports2, "reject");
       res.progress = res.bind(exports2, "progress");
       latestJob = res;
+      const resB = (status, data) => {
+        const packetRes = {
+          jobId: `${packet.jobId}b`,
+          workerId: packet.workerId,
+          action: packet.action
+        };
+        send({
+          ...packetRes,
+          status,
+          data
+        });
+      };
+      resB.resolve = resB.bind(exports2, "resolve");
+      resB.reject = resB.bind(exports2, "reject");
+      resB.progress = resB.bind(exports2, "progress");
       ({
         load,
         FS,
@@ -4833,10 +4840,11 @@ var require_index = __commonJS({
         initialize,
         setParameters,
         recognize,
+        recognize2,
         getPDF,
         detect,
         terminate
-      })[packet.action](packet, res).catch((err) => res.reject(err.toString()));
+      })[packet.action](packet, res, resB).catch((err) => res.reject(err.toString()));
     };
     exports2.setAdapter = (_adapter) => {
       adapter = _adapter;
@@ -4889,9 +4897,9 @@ var require_cjs = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/constants/OEM.js
+// node_modules/@scribe.js/tesseract.js/src/constants/OEM.js
 var require_OEM = __commonJS({
-  "node_modules/tesseract.js/src/constants/OEM.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/constants/OEM.js"(exports2, module2) {
     module2.exports = {
       TESSERACT_ONLY: 0,
       LSTM_ONLY: 1,
@@ -4901,9 +4909,9 @@ var require_OEM = __commonJS({
   }
 });
 
-// node_modules/tesseract.js-core/tesseract-core-simd-lstm.js
+// node_modules/@scribe.js/tesseract.js-core/tesseract-core-simd-lstm.js
 var require_tesseract_core_simd_lstm = __commonJS({
-  "node_modules/tesseract.js-core/tesseract-core-simd-lstm.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js-core/tesseract-core-simd-lstm.js"(exports2, module2) {
     var TesseractCore = (() => {
       var _scriptDir = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : void 0;
       if (typeof __filename !== "undefined") _scriptDir = _scriptDir || __filename;
@@ -5057,9 +5065,9 @@ var require_tesseract_core_simd_lstm = __commonJS({
             return Na(d, a, c);
           }));
         }
-        var y, z, Pa = { 420124: (a) => {
+        var y, z, Pa = { 424092: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 420193: (a) => {
+        }, 424161: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
         } };
         function Qa(a) {
@@ -5189,20 +5197,20 @@ var require_tesseract_core_simd_lstm = __commonJS({
           }
         }
         function Ya(a) {
-          this.Gf = a - 24;
-          this.wh = function(c) {
-            x[this.Gf + 4 >> 2] = c;
+          this.If = a - 24;
+          this.yh = function(c) {
+            x[this.If + 4 >> 2] = c;
           };
-          this.Gg = function(c) {
-            x[this.Gf + 8 >> 2] = c;
+          this.Ig = function(c) {
+            x[this.If + 8 >> 2] = c;
           };
-          this.gg = function(c, d) {
-            this.Tf();
-            this.wh(c);
-            this.Gg(d);
+          this.ig = function(c, d) {
+            this.Vf();
+            this.yh(c);
+            this.Ig(d);
           };
-          this.Tf = function() {
-            x[this.Gf + 16 >> 2] = 0;
+          this.Vf = function() {
+            x[this.If + 16 >> 2] = 0;
           };
         }
         var Za = 0, $a = 0, ab = (a, c) => {
@@ -5283,27 +5291,27 @@ var require_tesseract_core_simd_lstm = __commonJS({
         }
         var kb = [];
         function lb(a, c) {
-          kb[a] = { input: [], output: [], qg: c };
-          B.ah(a, mb);
+          kb[a] = { input: [], output: [], sg: c };
+          B.dh(a, mb);
         }
         var mb = { open: function(a) {
           var c = kb[a.node.rdev];
-          if (!c) throw new B.Hf(43);
+          if (!c) throw new B.Jf(43);
           a.tty = c;
           a.seekable = false;
         }, close: function(a) {
-          a.tty.qg.fsync(a.tty);
+          a.tty.sg.fsync(a.tty);
         }, fsync: function(a) {
-          a.tty.qg.fsync(a.tty);
+          a.tty.sg.fsync(a.tty);
         }, read: function(a, c, d, e) {
-          if (!a.tty || !a.tty.qg.oh) throw new B.Hf(60);
+          if (!a.tty || !a.tty.sg.qh) throw new B.Jf(60);
           for (var g = 0, h = 0; h < e; h++) {
             try {
-              var k = a.tty.qg.oh(a.tty);
+              var k = a.tty.sg.qh(a.tty);
             } catch (m) {
-              throw new B.Hf(29);
+              throw new B.Jf(29);
             }
-            if (void 0 === k && 0 === g) throw new B.Hf(6);
+            if (void 0 === k && 0 === g) throw new B.Jf(6);
             if (null === k || void 0 === k) break;
             g++;
             c[d + h] = k;
@@ -5311,15 +5319,15 @@ var require_tesseract_core_simd_lstm = __commonJS({
           g && (a.node.timestamp = Date.now());
           return g;
         }, write: function(a, c, d, e) {
-          if (!a.tty || !a.tty.qg.Yg) throw new B.Hf(60);
+          if (!a.tty || !a.tty.sg.$g) throw new B.Jf(60);
           try {
-            for (var g = 0; g < e; g++) a.tty.qg.Yg(a.tty, c[d + g]);
+            for (var g = 0; g < e; g++) a.tty.sg.$g(a.tty, c[d + g]);
           } catch (h) {
-            throw new B.Hf(29);
+            throw new B.Jf(29);
           }
           e && (a.node.timestamp = Date.now());
           return g;
-        } }, nb = { oh: function(a) {
+        } }, nb = { qh: function(a) {
           if (!a.input.length) {
             var c = null;
             if (ia) {
@@ -5336,15 +5344,15 @@ var require_tesseract_core_simd_lstm = __commonJS({
             a.input = jb(c, true);
           }
           return a.input.shift();
-        }, Yg: function(a, c) {
+        }, $g: function(a, c) {
           null === c || 10 === c ? (na(Va(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (na(Va(a.output, 0)), a.output = []);
-        } }, ob = { Yg: function(a, c) {
+        } }, ob = { $g: function(a, c) {
           null === c || 10 === c ? (n(Va(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (n(Va(a.output, 0)), a.output = []);
-        } }, C = { Zf: null, Qf: function() {
+        } }, C = { ag: null, Sf: function() {
           return C.createNode(
             null,
             "/",
@@ -5352,87 +5360,87 @@ var require_tesseract_core_simd_lstm = __commonJS({
             0
           );
         }, createNode: function(a, c, d, e) {
-          if (B.ii(d) || B.isFIFO(d)) throw new B.Hf(63);
-          C.Zf || (C.Zf = { dir: { node: { Wf: C.If.Wf, Sf: C.If.Sf, lookup: C.If.lookup, cg: C.If.cg, rename: C.If.rename, unlink: C.If.unlink, rmdir: C.If.rmdir, readdir: C.If.readdir, symlink: C.If.symlink }, stream: { Xf: C.Kf.Xf } }, file: { node: { Wf: C.If.Wf, Sf: C.If.Sf }, stream: { Xf: C.Kf.Xf, read: C.Kf.read, write: C.Kf.write, rg: C.Kf.rg, jg: C.Kf.jg, pg: C.Kf.pg } }, link: { node: { Wf: C.If.Wf, Sf: C.If.Sf, readlink: C.If.readlink }, stream: {} }, eh: { node: { Wf: C.If.Wf, Sf: C.If.Sf }, stream: B.Eh } });
+          if (B.ki(d) || B.isFIFO(d)) throw new B.Jf(63);
+          C.ag || (C.ag = { dir: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf, lookup: C.Kf.lookup, eg: C.Kf.eg, rename: C.Kf.rename, unlink: C.Kf.unlink, rmdir: C.Kf.rmdir, readdir: C.Kf.readdir, symlink: C.Kf.symlink }, stream: { Zf: C.Mf.Zf } }, file: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf }, stream: { Zf: C.Mf.Zf, read: C.Mf.read, write: C.Mf.write, tg: C.Mf.tg, lg: C.Mf.lg, rg: C.Mf.rg } }, link: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf, readlink: C.Kf.readlink }, stream: {} }, gh: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf }, stream: B.Gh } });
           d = B.createNode(a, c, d, e);
-          B.Rf(d.mode) ? (d.If = C.Zf.dir.node, d.Kf = C.Zf.dir.stream, d.Jf = {}) : B.isFile(d.mode) ? (d.If = C.Zf.file.node, d.Kf = C.Zf.file.stream, d.Of = 0, d.Jf = null) : B.ug(d.mode) ? (d.If = C.Zf.link.node, d.Kf = C.Zf.link.stream) : B.zg(d.mode) && (d.If = C.Zf.eh.node, d.Kf = C.Zf.eh.stream);
+          B.Tf(d.mode) ? (d.Kf = C.ag.dir.node, d.Mf = C.ag.dir.stream, d.Lf = {}) : B.isFile(d.mode) ? (d.Kf = C.ag.file.node, d.Mf = C.ag.file.stream, d.Qf = 0, d.Lf = null) : B.wg(d.mode) ? (d.Kf = C.ag.link.node, d.Mf = C.ag.link.stream) : B.Bg(d.mode) && (d.Kf = C.ag.gh.node, d.Mf = C.ag.gh.stream);
           d.timestamp = Date.now();
-          a && (a.Jf[c] = d, a.timestamp = d.timestamp);
+          a && (a.Lf[c] = d, a.timestamp = d.timestamp);
           return d;
-        }, Ci: function(a) {
-          return a.Jf ? a.Jf.subarray ? a.Jf.subarray(0, a.Of) : new Uint8Array(a.Jf) : new Uint8Array(0);
-        }, lh: function(a, c) {
-          var d = a.Jf ? a.Jf.length : 0;
-          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Jf, a.Jf = new Uint8Array(c), 0 < a.Of && a.Jf.set(d.subarray(0, a.Of), 0));
-        }, si: function(a, c) {
-          if (a.Of != c) if (0 == c) a.Jf = null, a.Of = 0;
+        }, Ei: function(a) {
+          return a.Lf ? a.Lf.subarray ? a.Lf.subarray(0, a.Qf) : new Uint8Array(a.Lf) : new Uint8Array(0);
+        }, nh: function(a, c) {
+          var d = a.Lf ? a.Lf.length : 0;
+          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Lf, a.Lf = new Uint8Array(c), 0 < a.Qf && a.Lf.set(d.subarray(0, a.Qf), 0));
+        }, ui: function(a, c) {
+          if (a.Qf != c) if (0 == c) a.Lf = null, a.Qf = 0;
           else {
-            var d = a.Jf;
-            a.Jf = new Uint8Array(c);
-            d && a.Jf.set(d.subarray(0, Math.min(c, a.Of)));
-            a.Of = c;
+            var d = a.Lf;
+            a.Lf = new Uint8Array(c);
+            d && a.Lf.set(d.subarray(0, Math.min(c, a.Qf)));
+            a.Qf = c;
           }
-        }, If: { Wf: function(a) {
+        }, Kf: { Yf: function(a) {
           var c = {};
-          c.dev = B.zg(a.mode) ? a.id : 1;
+          c.dev = B.Bg(a.mode) ? a.id : 1;
           c.ino = a.id;
           c.mode = a.mode;
           c.nlink = 1;
           c.uid = 0;
           c.gid = 0;
           c.rdev = a.rdev;
-          B.Rf(a.mode) ? c.size = 4096 : B.isFile(a.mode) ? c.size = a.Of : B.ug(a.mode) ? c.size = a.link.length : c.size = 0;
+          B.Tf(a.mode) ? c.size = 4096 : B.isFile(a.mode) ? c.size = a.Qf : B.wg(a.mode) ? c.size = a.link.length : c.size = 0;
           c.atime = new Date(a.timestamp);
           c.mtime = new Date(a.timestamp);
           c.ctime = new Date(a.timestamp);
-          c.Ch = 4096;
-          c.blocks = Math.ceil(c.size / c.Ch);
+          c.Eh = 4096;
+          c.blocks = Math.ceil(c.size / c.Eh);
           return c;
-        }, Sf: function(a, c) {
+        }, Uf: function(a, c) {
           void 0 !== c.mode && (a.mode = c.mode);
           void 0 !== c.timestamp && (a.timestamp = c.timestamp);
-          void 0 !== c.size && C.si(a, c.size);
+          void 0 !== c.size && C.ui(a, c.size);
         }, lookup: function() {
-          throw B.Lg[44];
-        }, cg: function(a, c, d, e) {
+          throw B.Ng[44];
+        }, eg: function(a, c, d, e) {
           return C.createNode(a, c, d, e);
         }, rename: function(a, c, d) {
-          if (B.Rf(a.mode)) {
+          if (B.Tf(a.mode)) {
             try {
-              var e = B.bg(c, d);
+              var e = B.dg(c, d);
             } catch (h) {
             }
-            if (e) for (var g in e.Jf) throw new B.Hf(55);
+            if (e) for (var g in e.Lf) throw new B.Jf(55);
           }
-          delete a.parent.Jf[a.name];
+          delete a.parent.Lf[a.name];
           a.parent.timestamp = Date.now();
           a.name = d;
-          c.Jf[d] = a;
+          c.Lf[d] = a;
           c.timestamp = a.parent.timestamp;
           a.parent = c;
         }, unlink: function(a, c) {
-          delete a.Jf[c];
+          delete a.Lf[c];
           a.timestamp = Date.now();
         }, rmdir: function(a, c) {
-          var d = B.bg(a, c), e;
-          for (e in d.Jf) throw new B.Hf(55);
-          delete a.Jf[c];
+          var d = B.dg(a, c), e;
+          for (e in d.Lf) throw new B.Jf(55);
+          delete a.Lf[c];
           a.timestamp = Date.now();
         }, readdir: function(a) {
           var c = [".", ".."], d;
-          for (d in a.Jf) a.Jf.hasOwnProperty(d) && c.push(d);
+          for (d in a.Lf) a.Lf.hasOwnProperty(d) && c.push(d);
           return c;
         }, symlink: function(a, c, d) {
           a = C.createNode(a, c, 41471, 0);
           a.link = d;
           return a;
         }, readlink: function(a) {
-          if (!B.ug(a.mode)) throw new B.Hf(28);
+          if (!B.wg(a.mode)) throw new B.Jf(28);
           return a.link;
-        } }, Kf: { read: function(a, c, d, e, g) {
-          var h = a.node.Jf;
-          if (g >= a.node.Of) return 0;
-          a = Math.min(a.node.Of - g, e);
+        } }, Mf: { read: function(a, c, d, e, g) {
+          var h = a.node.Lf;
+          if (g >= a.node.Qf) return 0;
+          a = Math.min(a.node.Qf - g, e);
           if (8 < a && h.subarray) c.set(h.subarray(g, g + a), d);
           else for (e = 0; e < a; e++) c[d + e] = h[g + e];
           return a;
@@ -5441,40 +5449,40 @@ var require_tesseract_core_simd_lstm = __commonJS({
           if (!e) return 0;
           a = a.node;
           a.timestamp = Date.now();
-          if (c.subarray && (!a.Jf || a.Jf.subarray)) {
-            if (h) return a.Jf = c.subarray(d, d + e), a.Of = e;
-            if (0 === a.Of && 0 === g) return a.Jf = c.slice(d, d + e), a.Of = e;
-            if (g + e <= a.Of) return a.Jf.set(c.subarray(d, d + e), g), e;
+          if (c.subarray && (!a.Lf || a.Lf.subarray)) {
+            if (h) return a.Lf = c.subarray(d, d + e), a.Qf = e;
+            if (0 === a.Qf && 0 === g) return a.Lf = c.slice(d, d + e), a.Qf = e;
+            if (g + e <= a.Qf) return a.Lf.set(c.subarray(d, d + e), g), e;
           }
-          C.lh(a, g + e);
-          if (a.Jf.subarray && c.subarray) a.Jf.set(c.subarray(
+          C.nh(a, g + e);
+          if (a.Lf.subarray && c.subarray) a.Lf.set(c.subarray(
             d,
             d + e
           ), g);
-          else for (h = 0; h < e; h++) a.Jf[g + h] = c[d + h];
-          a.Of = Math.max(a.Of, g + e);
+          else for (h = 0; h < e; h++) a.Lf[g + h] = c[d + h];
+          a.Qf = Math.max(a.Qf, g + e);
           return e;
-        }, Xf: function(a, c, d) {
-          1 === d ? c += a.position : 2 === d && B.isFile(a.node.mode) && (c += a.node.Of);
-          if (0 > c) throw new B.Hf(28);
+        }, Zf: function(a, c, d) {
+          1 === d ? c += a.position : 2 === d && B.isFile(a.node.mode) && (c += a.node.Qf);
+          if (0 > c) throw new B.Jf(28);
           return c;
-        }, rg: function(a, c, d) {
-          C.lh(a.node, c + d);
-          a.node.Of = Math.max(a.node.Of, c + d);
-        }, jg: function(a, c, d, e, g) {
-          if (!B.isFile(a.node.mode)) throw new B.Hf(43);
-          a = a.node.Jf;
+        }, tg: function(a, c, d) {
+          C.nh(a.node, c + d);
+          a.node.Qf = Math.max(a.node.Qf, c + d);
+        }, lg: function(a, c, d, e, g) {
+          if (!B.isFile(a.node.mode)) throw new B.Jf(43);
+          a = a.node.Lf;
           if (g & 2 || a.buffer !== r.buffer) {
             if (0 < d || d + c < a.length) a.subarray ? a = a.subarray(d, d + c) : a = Array.prototype.slice.call(a, d, d + c);
             d = true;
             p();
             c = void 0;
-            if (!c) throw new B.Hf(48);
+            if (!c) throw new B.Jf(48);
             r.set(a, c);
           } else d = false, c = a.byteOffset;
-          return { Gf: c, Ah: d };
-        }, pg: function(a, c, d, e) {
-          C.Kf.write(a, c, 0, e, d, false);
+          return { If: c, Ch: d };
+        }, rg: function(a, c, d, e) {
+          C.Mf.write(a, c, 0, e, d, false);
           return 0;
         } } };
         function pb(a, c, d) {
@@ -5491,7 +5499,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
         }
         var qb = b.preloadPlugins || [];
         function rb(a, c, d, e) {
-          "undefined" != typeof Browser && Browser.gg();
+          "undefined" != typeof Browser && Browser.ig();
           var g = false;
           qb.forEach(function(h) {
             !g && h.canHandle(c) && (h.handle(a, c, d, e), g = true);
@@ -5504,317 +5512,317 @@ var require_tesseract_core_simd_lstm = __commonJS({
           c && (d |= 146);
           return d;
         }
-        var B = { root: null, wg: [], jh: {}, streams: [], mi: 1, Yf: null, ih: "/", Sg: false, sh: true, Hf: null, Lg: {}, Mh: null, Dg: 0, Nf: (a, c = {}) => {
+        var B = { root: null, yg: [], lh: {}, streams: [], oi: 1, $f: null, kh: "/", Ug: false, uh: true, Jf: null, Ng: {}, Oh: null, Fg: 0, Pf: (a, c = {}) => {
           a = hb(a);
           if (!a) return { path: "", node: null };
-          c = Object.assign({ Jg: true, $g: 0 }, c);
-          if (8 < c.$g) throw new B.Hf(32);
+          c = Object.assign({ Lg: true, bh: 0 }, c);
+          if (8 < c.bh) throw new B.Jf(32);
           a = a.split("/").filter((k) => !!k);
           for (var d = B.root, e = "/", g = 0; g < a.length; g++) {
             var h = g === a.length - 1;
             if (h && c.parent) break;
-            d = B.bg(d, a[g]);
+            d = B.dg(d, a[g]);
             e = bb(e + "/" + a[g]);
-            B.hg(d) && (!h || h && c.Jg) && (d = d.vg.root);
-            if (!h || c.Vf) {
-              for (h = 0; B.ug(d.mode); ) if (d = B.readlink(e), e = hb(cb(e), d), d = B.Nf(e, { $g: c.$g + 1 }).node, 40 < h++) throw new B.Hf(32);
+            B.jg(d) && (!h || h && c.Lg) && (d = d.xg.root);
+            if (!h || c.Xf) {
+              for (h = 0; B.wg(d.mode); ) if (d = B.readlink(e), e = hb(cb(e), d), d = B.Pf(e, { bh: c.bh + 1 }).node, 40 < h++) throw new B.Jf(32);
             }
           }
           return { path: e, node: d };
-        }, dg: (a) => {
+        }, fg: (a) => {
           for (var c; ; ) {
-            if (B.Ag(a)) return a = a.Qf.th, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
+            if (B.Cg(a)) return a = a.Sf.vh, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
             c = c ? a.name + "/" + c : a.name;
             a = a.parent;
           }
-        }, Rg: (a, c) => {
+        }, Tg: (a, c) => {
           for (var d = 0, e = 0; e < c.length; e++) d = (d << 5) - d + c.charCodeAt(e) | 0;
-          return (a + d >>> 0) % B.Yf.length;
-        }, qh: (a) => {
-          var c = B.Rg(a.parent.id, a.name);
-          a.kg = B.Yf[c];
-          B.Yf[c] = a;
-        }, rh: (a) => {
-          var c = B.Rg(a.parent.id, a.name);
-          if (B.Yf[c] === a) B.Yf[c] = a.kg;
-          else for (c = B.Yf[c]; c; ) {
-            if (c.kg === a) {
-              c.kg = a.kg;
+          return (a + d >>> 0) % B.$f.length;
+        }, sh: (a) => {
+          var c = B.Tg(a.parent.id, a.name);
+          a.mg = B.$f[c];
+          B.$f[c] = a;
+        }, th: (a) => {
+          var c = B.Tg(a.parent.id, a.name);
+          if (B.$f[c] === a) B.$f[c] = a.mg;
+          else for (c = B.$f[c]; c; ) {
+            if (c.mg === a) {
+              c.mg = a.mg;
               break;
             }
-            c = c.kg;
+            c = c.mg;
           }
-        }, bg: (a, c) => {
-          var d = B.ki(a);
-          if (d) throw new B.Hf(d, a);
-          for (d = B.Yf[B.Rg(
+        }, dg: (a, c) => {
+          var d = B.mi(a);
+          if (d) throw new B.Jf(d, a);
+          for (d = B.$f[B.Tg(
             a.id,
             c
-          )]; d; d = d.kg) {
+          )]; d; d = d.mg) {
             var e = d.name;
             if (d.parent.id === a.id && e === c) return d;
           }
           return B.lookup(a, c);
         }, createNode: (a, c, d, e) => {
-          a = new B.vh(a, c, d, e);
-          B.qh(a);
+          a = new B.xh(a, c, d, e);
+          B.sh(a);
           return a;
-        }, Ig: (a) => {
-          B.rh(a);
-        }, Ag: (a) => a === a.parent, hg: (a) => !!a.vg, isFile: (a) => 32768 === (a & 61440), Rf: (a) => 16384 === (a & 61440), ug: (a) => 40960 === (a & 61440), zg: (a) => 8192 === (a & 61440), ii: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), mh: (a) => {
+        }, Kg: (a) => {
+          B.th(a);
+        }, Cg: (a) => a === a.parent, jg: (a) => !!a.xg, isFile: (a) => 32768 === (a & 61440), Tf: (a) => 16384 === (a & 61440), wg: (a) => 40960 === (a & 61440), Bg: (a) => 8192 === (a & 61440), ki: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), oh: (a) => {
           var c = ["r", "w", "rw"][a & 3];
           a & 512 && (c += "w");
           return c;
-        }, lg: (a, c) => {
-          if (B.sh) return 0;
+        }, ng: (a, c) => {
+          if (B.uh) return 0;
           if (!c.includes("r") || a.mode & 292) {
             if (c.includes("w") && !(a.mode & 146) || c.includes("x") && !(a.mode & 73)) return 2;
           } else return 2;
           return 0;
-        }, ki: (a) => {
-          var c = B.lg(a, "x");
-          return c ? c : a.If.lookup ? 0 : 2;
-        }, Xg: (a, c) => {
+        }, mi: (a) => {
+          var c = B.ng(a, "x");
+          return c ? c : a.Kf.lookup ? 0 : 2;
+        }, Zg: (a, c) => {
           try {
-            return B.bg(a, c), 20;
+            return B.dg(a, c), 20;
           } catch (d) {
           }
-          return B.lg(a, "wx");
-        }, Bg: (a, c, d) => {
+          return B.ng(a, "wx");
+        }, Dg: (a, c, d) => {
           try {
-            var e = B.bg(a, c);
+            var e = B.dg(a, c);
           } catch (g) {
-            return g.Pf;
+            return g.Rf;
           }
-          if (a = B.lg(a, "wx")) return a;
+          if (a = B.ng(a, "wx")) return a;
           if (d) {
-            if (!B.Rf(e.mode)) return 54;
-            if (B.Ag(e) || B.dg(e) === B.cwd()) return 10;
-          } else if (B.Rf(e.mode)) return 31;
+            if (!B.Tf(e.mode)) return 54;
+            if (B.Cg(e) || B.fg(e) === B.cwd()) return 10;
+          } else if (B.Tf(e.mode)) return 31;
           return 0;
-        }, li: (a, c) => a ? B.ug(a.mode) ? 32 : B.Rf(a.mode) && ("r" !== B.mh(c) || c & 512) ? 31 : B.lg(a, B.mh(c)) : 44, xh: 4096, ni: (a = 0, c = B.xh) => {
+        }, ni: (a, c) => a ? B.wg(a.mode) ? 32 : B.Tf(a.mode) && ("r" !== B.oh(c) || c & 512) ? 31 : B.ng(a, B.oh(c)) : 44, zh: 4096, pi: (a = 0, c = B.zh) => {
           for (; a <= c; a++) if (!B.streams[a]) return a;
-          throw new B.Hf(33);
-        }, sg: (a) => B.streams[a], hh: (a, c, d) => {
-          B.xg || (B.xg = function() {
-            this.Tf = {};
-          }, B.xg.prototype = {}, Object.defineProperties(B.xg.prototype, { object: { get: function() {
+          throw new B.Jf(33);
+        }, ug: (a) => B.streams[a], jh: (a, c, d) => {
+          B.zg || (B.zg = function() {
+            this.Vf = {};
+          }, B.zg.prototype = {}, Object.defineProperties(B.zg.prototype, { object: { get: function() {
             return this.node;
           }, set: function(e) {
             this.node = e;
           } }, flags: { get: function() {
-            return this.Tf.flags;
+            return this.Vf.flags;
           }, set: function(e) {
-            this.Tf.flags = e;
+            this.Vf.flags = e;
           } }, position: { get: function() {
-            return this.Tf.position;
+            return this.Vf.position;
           }, set: function(e) {
-            this.Tf.position = e;
+            this.Vf.position = e;
           } } }));
-          a = Object.assign(new B.xg(), a);
-          c = B.ni(c, d);
+          a = Object.assign(new B.zg(), a);
+          c = B.pi(c, d);
           a.fd = c;
           return B.streams[c] = a;
-        }, Fh: (a) => {
+        }, Hh: (a) => {
           B.streams[a] = null;
-        }, Eh: { open: (a) => {
-          a.Kf = B.Nh(a.node.rdev).Kf;
-          a.Kf.open && a.Kf.open(a);
-        }, Xf: () => {
-          throw new B.Hf(70);
-        } }, Wg: (a) => a >> 8, Di: (a) => a & 255, ig: (a, c) => a << 8 | c, ah: (a, c) => {
-          B.jh[a] = { Kf: c };
-        }, Nh: (a) => B.jh[a], nh: (a) => {
+        }, Gh: { open: (a) => {
+          a.Mf = B.Ph(a.node.rdev).Mf;
+          a.Mf.open && a.Mf.open(a);
+        }, Zf: () => {
+          throw new B.Jf(70);
+        } }, Yg: (a) => a >> 8, Fi: (a) => a & 255, kg: (a, c) => a << 8 | c, dh: (a, c) => {
+          B.lh[a] = { Mf: c };
+        }, Ph: (a) => B.lh[a], ph: (a) => {
           var c = [];
           for (a = [a]; a.length; ) {
             var d = a.pop();
             c.push(d);
-            a.push.apply(a, d.wg);
+            a.push.apply(a, d.yg);
           }
           return c;
-        }, uh: (a, c) => {
+        }, wh: (a, c) => {
           function d(k) {
-            B.Dg--;
+            B.Fg--;
             return c(k);
           }
           function e(k) {
             if (k) {
-              if (!e.Lh) return e.Lh = true, d(k);
+              if (!e.Nh) return e.Nh = true, d(k);
             } else ++h >= g.length && d(null);
           }
           "function" == typeof a && (c = a, a = false);
-          B.Dg++;
-          1 < B.Dg && n("warning: " + B.Dg + " FS.syncfs operations in flight at once, probably just doing extra work");
-          var g = B.nh(B.root.Qf), h = 0;
+          B.Fg++;
+          1 < B.Fg && n("warning: " + B.Fg + " FS.syncfs operations in flight at once, probably just doing extra work");
+          var g = B.ph(B.root.Sf), h = 0;
           g.forEach((k) => {
-            if (!k.type.uh) return e(null);
-            k.type.uh(k, a, e);
+            if (!k.type.wh) return e(null);
+            k.type.wh(k, a, e);
           });
-        }, Qf: (a, c, d) => {
+        }, Sf: (a, c, d) => {
           var e = "/" === d, g = !d;
-          if (e && B.root) throw new B.Hf(10);
+          if (e && B.root) throw new B.Jf(10);
           if (!e && !g) {
-            var h = B.Nf(d, { Jg: false });
+            var h = B.Pf(d, { Lg: false });
             d = h.path;
             h = h.node;
-            if (B.hg(h)) throw new B.Hf(10);
-            if (!B.Rf(h.mode)) throw new B.Hf(54);
+            if (B.jg(h)) throw new B.Jf(10);
+            if (!B.Tf(h.mode)) throw new B.Jf(54);
           }
-          c = { type: a, Gi: c, th: d, wg: [] };
-          a = a.Qf(c);
-          a.Qf = c;
+          c = { type: a, Ii: c, vh: d, yg: [] };
+          a = a.Sf(c);
+          a.Sf = c;
           c.root = a;
-          e ? B.root = a : h && (h.vg = c, h.Qf && h.Qf.wg.push(c));
+          e ? B.root = a : h && (h.xg = c, h.Sf && h.Sf.yg.push(c));
           return a;
-        }, Ji: (a) => {
-          a = B.Nf(a, { Jg: false });
-          if (!B.hg(a.node)) throw new B.Hf(28);
+        }, Li: (a) => {
+          a = B.Pf(a, { Lg: false });
+          if (!B.jg(a.node)) throw new B.Jf(28);
           a = a.node;
-          var c = a.vg, d = B.nh(c);
-          Object.keys(B.Yf).forEach((e) => {
-            for (e = B.Yf[e]; e; ) {
-              var g = e.kg;
-              d.includes(e.Qf) && B.Ig(e);
+          var c = a.xg, d = B.ph(c);
+          Object.keys(B.$f).forEach((e) => {
+            for (e = B.$f[e]; e; ) {
+              var g = e.mg;
+              d.includes(e.Sf) && B.Kg(e);
               e = g;
             }
           });
-          a.vg = null;
-          a.Qf.wg.splice(a.Qf.wg.indexOf(c), 1);
-        }, lookup: (a, c) => a.If.lookup(a, c), cg: (a, c, d) => {
-          var e = B.Nf(a, { parent: true }).node;
+          a.xg = null;
+          a.Sf.yg.splice(a.Sf.yg.indexOf(c), 1);
+        }, lookup: (a, c) => a.Kf.lookup(a, c), eg: (a, c, d) => {
+          var e = B.Pf(a, { parent: true }).node;
           a = db(a);
-          if (!a || "." === a || ".." === a) throw new B.Hf(28);
-          var g = B.Xg(e, a);
-          if (g) throw new B.Hf(g);
-          if (!e.If.cg) throw new B.Hf(63);
-          return e.If.cg(e, a, c, d);
-        }, create: (a, c) => B.cg(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => B.cg(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ei: (a, c) => {
+          if (!a || "." === a || ".." === a) throw new B.Jf(28);
+          var g = B.Zg(e, a);
+          if (g) throw new B.Jf(g);
+          if (!e.Kf.eg) throw new B.Jf(63);
+          return e.Kf.eg(e, a, c, d);
+        }, create: (a, c) => B.eg(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => B.eg(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Gi: (a, c) => {
           a = a.split("/");
           for (var d = "", e = 0; e < a.length; ++e) if (a[e]) {
             d += "/" + a[e];
             try {
               B.mkdir(d, c);
             } catch (g) {
-              if (20 != g.Pf) throw g;
+              if (20 != g.Rf) throw g;
             }
           }
-        }, Cg: (a, c, d) => {
+        }, Eg: (a, c, d) => {
           "undefined" == typeof d && (d = c, c = 438);
-          return B.cg(a, c | 8192, d);
+          return B.eg(a, c | 8192, d);
         }, symlink: (a, c) => {
-          if (!hb(a)) throw new B.Hf(44);
-          var d = B.Nf(c, { parent: true }).node;
-          if (!d) throw new B.Hf(44);
+          if (!hb(a)) throw new B.Jf(44);
+          var d = B.Pf(c, { parent: true }).node;
+          if (!d) throw new B.Jf(44);
           c = db(c);
-          var e = B.Xg(d, c);
-          if (e) throw new B.Hf(e);
-          if (!d.If.symlink) throw new B.Hf(63);
-          return d.If.symlink(d, c, a);
+          var e = B.Zg(d, c);
+          if (e) throw new B.Jf(e);
+          if (!d.Kf.symlink) throw new B.Jf(63);
+          return d.Kf.symlink(d, c, a);
         }, rename: (a, c) => {
           var d = cb(a), e = cb(c), g = db(a), h = db(c);
-          var k = B.Nf(a, { parent: true });
+          var k = B.Pf(a, { parent: true });
           var m = k.node;
-          k = B.Nf(c, { parent: true });
+          k = B.Pf(c, { parent: true });
           k = k.node;
-          if (!m || !k) throw new B.Hf(44);
-          if (m.Qf !== k.Qf) throw new B.Hf(75);
-          var v = B.bg(m, g);
+          if (!m || !k) throw new B.Jf(44);
+          if (m.Sf !== k.Sf) throw new B.Jf(75);
+          var v = B.dg(m, g);
           a = ib(a, e);
-          if ("." !== a.charAt(0)) throw new B.Hf(28);
+          if ("." !== a.charAt(0)) throw new B.Jf(28);
           a = ib(c, d);
-          if ("." !== a.charAt(0)) throw new B.Hf(55);
+          if ("." !== a.charAt(0)) throw new B.Jf(55);
           try {
-            var q = B.bg(k, h);
+            var q = B.dg(k, h);
           } catch (t) {
           }
           if (v !== q) {
-            c = B.Rf(v.mode);
-            if (g = B.Bg(m, g, c)) throw new B.Hf(g);
-            if (g = q ? B.Bg(k, h, c) : B.Xg(k, h)) throw new B.Hf(g);
-            if (!m.If.rename) throw new B.Hf(63);
-            if (B.hg(v) || q && B.hg(q)) throw new B.Hf(10);
-            if (k !== m && (g = B.lg(m, "w"))) throw new B.Hf(g);
-            B.rh(v);
+            c = B.Tf(v.mode);
+            if (g = B.Dg(m, g, c)) throw new B.Jf(g);
+            if (g = q ? B.Dg(k, h, c) : B.Zg(k, h)) throw new B.Jf(g);
+            if (!m.Kf.rename) throw new B.Jf(63);
+            if (B.jg(v) || q && B.jg(q)) throw new B.Jf(10);
+            if (k !== m && (g = B.ng(m, "w"))) throw new B.Jf(g);
+            B.th(v);
             try {
-              m.If.rename(v, k, h);
+              m.Kf.rename(v, k, h);
             } catch (t) {
               throw t;
             } finally {
-              B.qh(v);
+              B.sh(v);
             }
           }
         }, rmdir: (a) => {
-          var c = B.Nf(a, { parent: true }).node;
+          var c = B.Pf(a, { parent: true }).node;
           a = db(a);
-          var d = B.bg(c, a), e = B.Bg(c, a, true);
-          if (e) throw new B.Hf(e);
-          if (!c.If.rmdir) throw new B.Hf(63);
-          if (B.hg(d)) throw new B.Hf(10);
-          c.If.rmdir(c, a);
-          B.Ig(d);
+          var d = B.dg(c, a), e = B.Dg(c, a, true);
+          if (e) throw new B.Jf(e);
+          if (!c.Kf.rmdir) throw new B.Jf(63);
+          if (B.jg(d)) throw new B.Jf(10);
+          c.Kf.rmdir(c, a);
+          B.Kg(d);
         }, readdir: (a) => {
-          a = B.Nf(a, { Vf: true }).node;
-          if (!a.If.readdir) throw new B.Hf(54);
-          return a.If.readdir(a);
+          a = B.Pf(a, { Xf: true }).node;
+          if (!a.Kf.readdir) throw new B.Jf(54);
+          return a.Kf.readdir(a);
         }, unlink: (a) => {
-          var c = B.Nf(a, { parent: true }).node;
-          if (!c) throw new B.Hf(44);
+          var c = B.Pf(a, { parent: true }).node;
+          if (!c) throw new B.Jf(44);
           a = db(a);
-          var d = B.bg(c, a), e = B.Bg(c, a, false);
-          if (e) throw new B.Hf(e);
-          if (!c.If.unlink) throw new B.Hf(63);
-          if (B.hg(d)) throw new B.Hf(10);
-          c.If.unlink(c, a);
-          B.Ig(d);
+          var d = B.dg(c, a), e = B.Dg(c, a, false);
+          if (e) throw new B.Jf(e);
+          if (!c.Kf.unlink) throw new B.Jf(63);
+          if (B.jg(d)) throw new B.Jf(10);
+          c.Kf.unlink(c, a);
+          B.Kg(d);
         }, readlink: (a) => {
-          a = B.Nf(a).node;
-          if (!a) throw new B.Hf(44);
-          if (!a.If.readlink) throw new B.Hf(28);
-          return hb(B.dg(a.parent), a.If.readlink(a));
+          a = B.Pf(a).node;
+          if (!a) throw new B.Jf(44);
+          if (!a.Kf.readlink) throw new B.Jf(28);
+          return hb(B.fg(a.parent), a.Kf.readlink(a));
         }, stat: (a, c) => {
-          a = B.Nf(a, { Vf: !c }).node;
-          if (!a) throw new B.Hf(44);
-          if (!a.If.Wf) throw new B.Hf(63);
-          return a.If.Wf(a);
+          a = B.Pf(a, { Xf: !c }).node;
+          if (!a) throw new B.Jf(44);
+          if (!a.Kf.Yf) throw new B.Jf(63);
+          return a.Kf.Yf(a);
         }, lstat: (a) => B.stat(a, true), chmod: (a, c, d) => {
-          a = "string" == typeof a ? B.Nf(a, { Vf: !d }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          a.If.Sf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
+          a = "string" == typeof a ? B.Pf(a, { Xf: !d }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          a.Kf.Uf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
         }, lchmod: (a, c) => {
           B.chmod(a, c, true);
         }, fchmod: (a, c) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           B.chmod(a.node, c);
         }, chown: (a, c, d, e) => {
-          a = "string" == typeof a ? B.Nf(a, { Vf: !e }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          a.If.Sf(a, { timestamp: Date.now() });
+          a = "string" == typeof a ? B.Pf(a, { Xf: !e }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          a.Kf.Uf(a, { timestamp: Date.now() });
         }, lchown: (a, c, d) => {
           B.chown(a, c, d, true);
         }, fchown: (a, c, d) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           B.chown(a.node, c, d);
         }, truncate: (a, c) => {
-          if (0 > c) throw new B.Hf(28);
-          a = "string" == typeof a ? B.Nf(a, { Vf: true }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          if (B.Rf(a.mode)) throw new B.Hf(31);
-          if (!B.isFile(a.mode)) throw new B.Hf(28);
-          var d = B.lg(a, "w");
-          if (d) throw new B.Hf(d);
-          a.If.Sf(a, { size: c, timestamp: Date.now() });
-        }, Bi: (a, c) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(28);
+          if (0 > c) throw new B.Jf(28);
+          a = "string" == typeof a ? B.Pf(a, { Xf: true }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          if (B.Tf(a.mode)) throw new B.Jf(31);
+          if (!B.isFile(a.mode)) throw new B.Jf(28);
+          var d = B.ng(a, "w");
+          if (d) throw new B.Jf(d);
+          a.Kf.Uf(a, { size: c, timestamp: Date.now() });
+        }, Di: (a, c) => {
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(28);
           B.truncate(a.node, c);
-        }, Ki: (a, c, d) => {
-          a = B.Nf(a, { Vf: true }).node;
-          a.If.Sf(a, { timestamp: Math.max(c, d) });
+        }, Mi: (a, c, d) => {
+          a = B.Pf(a, { Xf: true }).node;
+          a.Kf.Uf(a, { timestamp: Math.max(c, d) });
         }, open: (a, c, d) => {
-          if ("" === a) throw new B.Hf(44);
+          if ("" === a) throw new B.Jf(44);
           if ("string" == typeof c) {
             var e = { r: 0, "r+": 2, w: 577, "w+": 578, a: 1089, "a+": 1090 }[c];
             if ("undefined" == typeof e) throw Error("Unknown file open mode: " + c);
@@ -5825,52 +5833,52 @@ var require_tesseract_core_simd_lstm = __commonJS({
           else {
             a = bb(a);
             try {
-              g = B.Nf(a, { Vf: !(c & 131072) }).node;
+              g = B.Pf(a, { Xf: !(c & 131072) }).node;
             } catch (h) {
             }
           }
           e = false;
           if (c & 64) if (g) {
-            if (c & 128) throw new B.Hf(20);
-          } else g = B.cg(a, d, 0), e = true;
-          if (!g) throw new B.Hf(44);
-          B.zg(g.mode) && (c &= -513);
-          if (c & 65536 && !B.Rf(g.mode)) throw new B.Hf(54);
-          if (!e && (d = B.li(g, c))) throw new B.Hf(d);
+            if (c & 128) throw new B.Jf(20);
+          } else g = B.eg(a, d, 0), e = true;
+          if (!g) throw new B.Jf(44);
+          B.Bg(g.mode) && (c &= -513);
+          if (c & 65536 && !B.Tf(g.mode)) throw new B.Jf(54);
+          if (!e && (d = B.ni(g, c))) throw new B.Jf(d);
           c & 512 && !e && B.truncate(g, 0);
           c &= -131713;
-          g = B.hh({ node: g, path: B.dg(g), flags: c, seekable: true, position: 0, Kf: g.Kf, zi: [], error: false });
-          g.Kf.open && g.Kf.open(g);
-          !b.logReadFiles || c & 1 || (B.Zg || (B.Zg = {}), a in B.Zg || (B.Zg[a] = 1));
+          g = B.jh({ node: g, path: B.fg(g), flags: c, seekable: true, position: 0, Mf: g.Mf, Bi: [], error: false });
+          g.Mf.open && g.Mf.open(g);
+          !b.logReadFiles || c & 1 || (B.ah || (B.ah = {}), a in B.ah || (B.ah[a] = 1));
           return g;
         }, close: (a) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          a.Qg && (a.Qg = null);
+          if (B.vg(a)) throw new B.Jf(8);
+          a.Sg && (a.Sg = null);
           try {
-            a.Kf.close && a.Kf.close(a);
+            a.Mf.close && a.Mf.close(a);
           } catch (c) {
             throw c;
           } finally {
-            B.Fh(a.fd);
+            B.Hh(a.fd);
           }
           a.fd = null;
-        }, tg: (a) => null === a.fd, Xf: (a, c, d) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          if (!a.seekable || !a.Kf.Xf) throw new B.Hf(70);
-          if (0 != d && 1 != d && 2 != d) throw new B.Hf(28);
-          a.position = a.Kf.Xf(a, c, d);
-          a.zi = [];
+        }, vg: (a) => null === a.fd, Zf: (a, c, d) => {
+          if (B.vg(a)) throw new B.Jf(8);
+          if (!a.seekable || !a.Mf.Zf) throw new B.Jf(70);
+          if (0 != d && 1 != d && 2 != d) throw new B.Jf(28);
+          a.position = a.Mf.Zf(a, c, d);
+          a.Bi = [];
           return a.position;
         }, read: (a, c, d, e, g) => {
-          if (0 > e || 0 > g) throw new B.Hf(28);
-          if (B.tg(a)) throw new B.Hf(8);
-          if (1 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (B.Rf(a.node.mode)) throw new B.Hf(31);
-          if (!a.Kf.read) throw new B.Hf(28);
+          if (0 > e || 0 > g) throw new B.Jf(28);
+          if (B.vg(a)) throw new B.Jf(8);
+          if (1 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (B.Tf(a.node.mode)) throw new B.Jf(31);
+          if (!a.Mf.read) throw new B.Jf(28);
           var h = "undefined" != typeof g;
           if (!h) g = a.position;
-          else if (!a.seekable) throw new B.Hf(70);
-          c = a.Kf.read(
+          else if (!a.seekable) throw new B.Jf(70);
+          c = a.Mf.read(
             a,
             c,
             d,
@@ -5880,33 +5888,33 @@ var require_tesseract_core_simd_lstm = __commonJS({
           h || (a.position += c);
           return c;
         }, write: (a, c, d, e, g, h) => {
-          if (0 > e || 0 > g) throw new B.Hf(28);
-          if (B.tg(a)) throw new B.Hf(8);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (B.Rf(a.node.mode)) throw new B.Hf(31);
-          if (!a.Kf.write) throw new B.Hf(28);
-          a.seekable && a.flags & 1024 && B.Xf(a, 0, 2);
+          if (0 > e || 0 > g) throw new B.Jf(28);
+          if (B.vg(a)) throw new B.Jf(8);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (B.Tf(a.node.mode)) throw new B.Jf(31);
+          if (!a.Mf.write) throw new B.Jf(28);
+          a.seekable && a.flags & 1024 && B.Zf(a, 0, 2);
           var k = "undefined" != typeof g;
           if (!k) g = a.position;
-          else if (!a.seekable) throw new B.Hf(70);
-          c = a.Kf.write(a, c, d, e, g, h);
+          else if (!a.seekable) throw new B.Jf(70);
+          c = a.Mf.write(a, c, d, e, g, h);
           k || (a.position += c);
           return c;
-        }, rg: (a, c, d) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          if (0 > c || 0 >= d) throw new B.Hf(28);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (!B.isFile(a.node.mode) && !B.Rf(a.node.mode)) throw new B.Hf(43);
-          if (!a.Kf.rg) throw new B.Hf(138);
-          a.Kf.rg(a, c, d);
-        }, jg: (a, c, d, e, g) => {
-          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new B.Hf(2);
-          if (1 === (a.flags & 2097155)) throw new B.Hf(2);
-          if (!a.Kf.jg) throw new B.Hf(43);
-          return a.Kf.jg(a, c, d, e, g);
-        }, pg: (a, c, d, e, g) => a.Kf.pg ? a.Kf.pg(a, c, d, e, g) : 0, Fi: () => 0, Tg: (a, c, d) => {
-          if (!a.Kf.Tg) throw new B.Hf(59);
-          return a.Kf.Tg(a, c, d);
+        }, tg: (a, c, d) => {
+          if (B.vg(a)) throw new B.Jf(8);
+          if (0 > c || 0 >= d) throw new B.Jf(28);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (!B.isFile(a.node.mode) && !B.Tf(a.node.mode)) throw new B.Jf(43);
+          if (!a.Mf.tg) throw new B.Jf(138);
+          a.Mf.tg(a, c, d);
+        }, lg: (a, c, d, e, g) => {
+          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new B.Jf(2);
+          if (1 === (a.flags & 2097155)) throw new B.Jf(2);
+          if (!a.Mf.lg) throw new B.Jf(43);
+          return a.Mf.lg(a, c, d, e, g);
+        }, rg: (a, c, d, e, g) => a.Mf.rg ? a.Mf.rg(a, c, d, e, g) : 0, Hi: () => 0, Vg: (a, c, d) => {
+          if (!a.Mf.Vg) throw new B.Jf(59);
+          return a.Mf.Vg(a, c, d);
         }, readFile: (a, c = {}) => {
           c.flags = c.flags || 0;
           c.encoding = c.encoding || "binary";
@@ -5924,131 +5932,131 @@ var require_tesseract_core_simd_lstm = __commonJS({
           if ("string" == typeof c) {
             var e = new Uint8Array(Sa(c) + 1);
             c = Ta(c, e, 0, e.length);
-            B.write(a, e, 0, c, void 0, d.Dh);
+            B.write(a, e, 0, c, void 0, d.Fh);
           } else if (ArrayBuffer.isView(c)) B.write(
             a,
             c,
             0,
             c.byteLength,
             void 0,
-            d.Dh
+            d.Fh
           );
           else throw Error("Unsupported data type");
           B.close(a);
-        }, cwd: () => B.ih, chdir: (a) => {
-          a = B.Nf(a, { Vf: true });
-          if (null === a.node) throw new B.Hf(44);
-          if (!B.Rf(a.node.mode)) throw new B.Hf(54);
-          var c = B.lg(a.node, "x");
-          if (c) throw new B.Hf(c);
-          B.ih = a.path;
-        }, Hh: () => {
+        }, cwd: () => B.kh, chdir: (a) => {
+          a = B.Pf(a, { Xf: true });
+          if (null === a.node) throw new B.Jf(44);
+          if (!B.Tf(a.node.mode)) throw new B.Jf(54);
+          var c = B.ng(a.node, "x");
+          if (c) throw new B.Jf(c);
+          B.kh = a.path;
+        }, Jh: () => {
           B.mkdir("/tmp");
           B.mkdir("/home");
           B.mkdir("/home/web_user");
-        }, Gh: () => {
+        }, Ih: () => {
           B.mkdir("/dev");
-          B.ah(B.ig(1, 3), { read: () => 0, write: (e, g, h, k) => k });
-          B.Cg("/dev/null", B.ig(1, 3));
-          lb(B.ig(5, 0), nb);
-          lb(B.ig(6, 0), ob);
-          B.Cg("/dev/tty", B.ig(5, 0));
-          B.Cg("/dev/tty1", B.ig(6, 0));
+          B.dh(B.kg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
+          B.Eg("/dev/null", B.kg(1, 3));
+          lb(B.kg(5, 0), nb);
+          lb(B.kg(6, 0), ob);
+          B.Eg("/dev/tty", B.kg(5, 0));
+          B.Eg("/dev/tty1", B.kg(6, 0));
           var a = new Uint8Array(1024), c = 0, d = () => {
             0 === c && (c = gb(a).byteLength);
             return a[--c];
           };
-          B.Uf("/dev", "random", d);
-          B.Uf("/dev", "urandom", d);
+          B.Wf("/dev", "random", d);
+          B.Wf("/dev", "urandom", d);
           B.mkdir("/dev/shm");
           B.mkdir("/dev/shm/tmp");
-        }, Jh: () => {
+        }, Lh: () => {
           B.mkdir("/proc");
           var a = B.mkdir("/proc/self");
           B.mkdir("/proc/self/fd");
-          B.Qf({ Qf: () => {
+          B.Sf({ Sf: () => {
             var c = B.createNode(a, "fd", 16895, 73);
-            c.If = { lookup: (d, e) => {
-              var g = B.sg(+e);
-              if (!g) throw new B.Hf(8);
-              d = { parent: null, Qf: { th: "fake" }, If: { readlink: () => g.path } };
+            c.Kf = { lookup: (d, e) => {
+              var g = B.ug(+e);
+              if (!g) throw new B.Jf(8);
+              d = { parent: null, Sf: { vh: "fake" }, Kf: { readlink: () => g.path } };
               return d.parent = d;
             } };
             return c;
           } }, {}, "/proc/self/fd");
-        }, Kh: () => {
-          b.stdin ? B.Uf(
+        }, Mh: () => {
+          b.stdin ? B.Wf(
             "/dev",
             "stdin",
             b.stdin
           ) : B.symlink("/dev/tty", "/dev/stdin");
-          b.stdout ? B.Uf("/dev", "stdout", null, b.stdout) : B.symlink("/dev/tty", "/dev/stdout");
-          b.stderr ? B.Uf("/dev", "stderr", null, b.stderr) : B.symlink("/dev/tty1", "/dev/stderr");
+          b.stdout ? B.Wf("/dev", "stdout", null, b.stdout) : B.symlink("/dev/tty", "/dev/stdout");
+          b.stderr ? B.Wf("/dev", "stderr", null, b.stderr) : B.symlink("/dev/tty1", "/dev/stderr");
           B.open("/dev/stdin", 0);
           B.open("/dev/stdout", 1);
           B.open("/dev/stderr", 1);
-        }, kh: () => {
-          B.Hf || (B.Hf = function(a, c) {
+        }, mh: () => {
+          B.Jf || (B.Jf = function(a, c) {
             this.name = "ErrnoError";
             this.node = c;
-            this.ti = function(d) {
-              this.Pf = d;
+            this.vi = function(d) {
+              this.Rf = d;
             };
-            this.ti(a);
+            this.vi(a);
             this.message = "FS error";
-          }, B.Hf.prototype = Error(), B.Hf.prototype.constructor = B.Hf, [44].forEach((a) => {
-            B.Lg[a] = new B.Hf(a);
-            B.Lg[a].stack = "<generic error, no stack>";
+          }, B.Jf.prototype = Error(), B.Jf.prototype.constructor = B.Jf, [44].forEach((a) => {
+            B.Ng[a] = new B.Jf(a);
+            B.Ng[a].stack = "<generic error, no stack>";
           }));
-        }, ui: () => {
-          B.kh();
-          B.Yf = Array(4096);
-          B.Qf(C, {}, "/");
-          B.Hh();
-          B.Gh();
+        }, wi: () => {
+          B.mh();
+          B.$f = Array(4096);
+          B.Sf(C, {}, "/");
           B.Jh();
-          B.Mh = { MEMFS: C };
-        }, gg: (a, c, d) => {
-          B.gg.Sg = true;
-          B.kh();
+          B.Ih();
+          B.Lh();
+          B.Oh = { MEMFS: C };
+        }, ig: (a, c, d) => {
+          B.ig.Ug = true;
+          B.mh();
           b.stdin = a || b.stdin;
           b.stdout = c || b.stdout;
           b.stderr = d || b.stderr;
-          B.Kh();
-        }, Hi: () => {
-          B.gg.Sg = false;
+          B.Mh();
+        }, Ji: () => {
+          B.ig.Ug = false;
           for (var a = 0; a < B.streams.length; a++) {
             var c = B.streams[a];
             c && B.close(c);
           }
-        }, Ai: (a, c) => {
-          a = B.Bh(a, c);
+        }, Ci: (a, c) => {
+          a = B.Dh(a, c);
           return a.exists ? a.object : null;
-        }, Bh: (a, c) => {
+        }, Dh: (a, c) => {
           try {
-            var d = B.Nf(a, { Vf: !c });
+            var d = B.Pf(a, { Xf: !c });
             a = d.path;
           } catch (g) {
           }
           var e = {
-            Ag: false,
+            Cg: false,
             exists: false,
             error: 0,
             name: null,
             path: null,
             object: null,
-            oi: false,
-            ri: null,
-            pi: null
+            ri: false,
+            ti: null,
+            si: null
           };
           try {
-            d = B.Nf(a, { parent: true }), e.oi = true, e.ri = d.path, e.pi = d.node, e.name = db(a), d = B.Nf(a, { Vf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.Ag = "/" === d.path;
+            d = B.Pf(a, { parent: true }), e.ri = true, e.ti = d.path, e.si = d.node, e.name = db(a), d = B.Pf(a, { Xf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.Cg = "/" === d.path;
           } catch (g) {
-            e.error = g.Pf;
+            e.error = g.Rf;
           }
           return e;
-        }, Hg: (a, c) => {
-          a = "string" == typeof a ? a : B.dg(a);
+        }, Jg: (a, c) => {
+          a = "string" == typeof a ? a : B.fg(a);
           for (c = c.split("/").reverse(); c.length; ) {
             var d = c.pop();
             if (d) {
@@ -6061,13 +6069,13 @@ var require_tesseract_core_simd_lstm = __commonJS({
             }
           }
           return e;
-        }, Ih: (a, c, d, e, g) => {
-          a = "string" == typeof a ? a : B.dg(a);
+        }, Kh: (a, c, d, e, g) => {
+          a = "string" == typeof a ? a : B.fg(a);
           c = bb(a + "/" + c);
           return B.create(c, sb(e, g));
-        }, yg: (a, c, d, e, g, h) => {
+        }, Ag: (a, c, d, e, g, h) => {
           var k = c;
-          a && (a = "string" == typeof a ? a : B.dg(a), k = c ? bb(a + "/" + c) : a);
+          a && (a = "string" == typeof a ? a : B.fg(a), k = c ? bb(a + "/" + c) : a);
           a = sb(e, g);
           k = B.create(k, a);
           if (d) {
@@ -6084,12 +6092,12 @@ var require_tesseract_core_simd_lstm = __commonJS({
             B.chmod(k, a);
           }
           return k;
-        }, Uf: (a, c, d, e) => {
-          a = eb("string" == typeof a ? a : B.dg(a), c);
+        }, Wf: (a, c, d, e) => {
+          a = eb("string" == typeof a ? a : B.fg(a), c);
           c = sb(!!d, !!e);
-          B.Uf.Wg || (B.Uf.Wg = 64);
-          var g = B.ig(B.Uf.Wg++, 0);
-          B.ah(g, { open: (h) => {
+          B.Wf.Yg || (B.Wf.Yg = 64);
+          var g = B.kg(B.Wf.Yg++, 0);
+          B.dh(g, { open: (h) => {
             h.seekable = false;
           }, close: () => {
             e && e.buffer && e.buffer.length && e(10);
@@ -6098,9 +6106,9 @@ var require_tesseract_core_simd_lstm = __commonJS({
               try {
                 var F = d();
               } catch (U) {
-                throw new B.Hf(29);
+                throw new B.Jf(29);
               }
-              if (void 0 === F && 0 === q) throw new B.Hf(6);
+              if (void 0 === F && 0 === q) throw new B.Jf(6);
               if (null === F || void 0 === F) break;
               q++;
               k[m + t] = F;
@@ -6111,36 +6119,36 @@ var require_tesseract_core_simd_lstm = __commonJS({
             for (var q = 0; q < v; q++) try {
               e(k[m + q]);
             } catch (t) {
-              throw new B.Hf(29);
+              throw new B.Jf(29);
             }
             v && (h.node.timestamp = Date.now());
             return q;
           } });
-          return B.Cg(a, c, g);
-        }, Kg: (a) => {
-          if (a.Ug || a.ji || a.link || a.Jf) return true;
+          return B.Eg(a, c, g);
+        }, Mg: (a) => {
+          if (a.Wg || a.li || a.link || a.Lf) return true;
           if ("undefined" != typeof XMLHttpRequest) throw Error("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
           if (ja) try {
-            a.Jf = jb(ja(a.url), true), a.Of = a.Jf.length;
+            a.Lf = jb(ja(a.url), true), a.Qf = a.Lf.length;
           } catch (c) {
-            throw new B.Hf(29);
+            throw new B.Jf(29);
           }
           else throw Error("Cannot load without read() or XMLHttpRequest.");
-        }, fh: (a, c, d, e, g) => {
+        }, hh: (a, c, d, e, g) => {
           function h() {
-            this.Vg = false;
-            this.Tf = [];
+            this.Xg = false;
+            this.Vf = [];
           }
           h.prototype.get = function(q) {
             if (!(q > this.length - 1 || 0 > q)) {
               var t = q % this.chunkSize;
-              return this.ph(q / this.chunkSize | 0)[t];
+              return this.rh(q / this.chunkSize | 0)[t];
             }
           };
-          h.prototype.Gg = function(q) {
-            this.ph = q;
+          h.prototype.Ig = function(q) {
+            this.rh = q;
           };
-          h.prototype.dh = function() {
+          h.prototype.fh = function() {
             var q = new XMLHttpRequest();
             q.open("HEAD", d, false);
             q.send(null);
@@ -6150,11 +6158,11 @@ var require_tesseract_core_simd_lstm = __commonJS({
             var l = 1048576;
             U || (l = t);
             var w = this;
-            w.Gg((E) => {
+            w.Ig((E) => {
               var W = E * l, qa = (E + 1) * l - 1;
               qa = Math.min(qa, t - 1);
-              if ("undefined" == typeof w.Tf[E]) {
-                var Th = w.Tf;
+              if ("undefined" == typeof w.Vf[E]) {
+                var Vh = w.Vf;
                 if (W > qa) throw Error("invalid range (" + W + ", " + qa + ") or no bytes requested!");
                 if (qa > t - 1) throw Error("only " + t + " bytes available! programmer error!");
                 var X = new XMLHttpRequest();
@@ -6169,44 +6177,44 @@ var require_tesseract_core_simd_lstm = __commonJS({
                 X.send(null);
                 if (!(200 <= X.status && 300 > X.status || 304 === X.status)) throw Error("Couldn't load " + d + ". Status: " + X.status);
                 W = void 0 !== X.response ? new Uint8Array(X.response || []) : jb(X.responseText || "", true);
-                Th[E] = W;
+                Vh[E] = W;
               }
-              if ("undefined" == typeof w.Tf[E]) throw Error("doXHR failed!");
-              return w.Tf[E];
+              if ("undefined" == typeof w.Vf[E]) throw Error("doXHR failed!");
+              return w.Vf[E];
             });
-            if (q || !t) l = t = 1, l = t = this.ph(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
-            this.zh = t;
-            this.yh = l;
-            this.Vg = true;
+            if (q || !t) l = t = 1, l = t = this.rh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
+            this.Bh = t;
+            this.Ah = l;
+            this.Xg = true;
           };
           if ("undefined" != typeof XMLHttpRequest) {
             if (!ha) throw "Cannot do synchronous binary XHRs outside webworkers in modern browsers. Use --embed-file or --preload-file in emcc";
             var k = new h();
             Object.defineProperties(k, { length: { get: function() {
-              this.Vg || this.dh();
-              return this.zh;
+              this.Xg || this.fh();
+              return this.Bh;
             } }, chunkSize: { get: function() {
-              this.Vg || this.dh();
-              return this.yh;
+              this.Xg || this.fh();
+              return this.Ah;
             } } });
-            k = { Ug: false, Jf: k };
-          } else k = { Ug: false, url: d };
-          var m = B.Ih(a, c, k, e, g);
-          k.Jf ? m.Jf = k.Jf : k.url && (m.Jf = null, m.url = k.url);
-          Object.defineProperties(m, { Of: { get: function() {
-            return this.Jf.length;
+            k = { Wg: false, Lf: k };
+          } else k = { Wg: false, url: d };
+          var m = B.Kh(a, c, k, e, g);
+          k.Lf ? m.Lf = k.Lf : k.url && (m.Lf = null, m.url = k.url);
+          Object.defineProperties(m, { Qf: { get: function() {
+            return this.Lf.length;
           } } });
           var v = {};
-          Object.keys(m.Kf).forEach((q) => {
-            var t = m.Kf[q];
+          Object.keys(m.Mf).forEach((q) => {
+            var t = m.Mf[q];
             v[q] = function() {
-              B.Kg(m);
+              B.Mg(m);
               return t.apply(null, arguments);
             };
           });
           v.read = (q, t, F, U, l) => {
-            B.Kg(m);
-            q = q.node.Jf;
+            B.Mg(m);
+            q = q.node.Lf;
             if (l >= q.length) t = 0;
             else {
               U = Math.min(q.length - l, U);
@@ -6216,19 +6224,19 @@ var require_tesseract_core_simd_lstm = __commonJS({
             }
             return t;
           };
-          v.jg = () => {
-            B.Kg(m);
+          v.lg = () => {
+            B.Mg(m);
             p();
-            throw new B.Hf(48);
+            throw new B.Jf(48);
           };
-          m.Kf = v;
+          m.Mf = v;
           return m;
         } };
         function tb(a, c, d) {
           if ("/" === c.charAt(0)) return c;
           a = -100 === a ? B.cwd() : ub(a).path;
           if (0 == c.length) {
-            if (!d) throw new B.Hf(44);
+            if (!d) throw new B.Jf(44);
             return a;
           }
           return bb(a + "/" + c);
@@ -6237,7 +6245,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             var e = a(c);
           } catch (h) {
-            if (h && h.node && bb(c) !== bb(B.dg(h.node))) return -54;
+            if (h && h.node && bb(c) !== bb(B.fg(h.node))) return -54;
             throw h;
           }
           u[d >> 2] = e.dev;
@@ -6278,8 +6286,8 @@ var require_tesseract_core_simd_lstm = __commonJS({
           return u[wb - 4 >> 2];
         }
         function ub(a) {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           return a;
         }
         function yb() {
@@ -6354,8 +6362,8 @@ var require_tesseract_core_simd_lstm = __commonJS({
             }
           }
           function v(l) {
-            var w = l.ng;
-            for (l = new Date(new Date(l.og + 1900, 0, 1).getTime()); 0 < w; ) {
+            var w = l.pg;
+            for (l = new Date(new Date(l.qg + 1900, 0, 1).getTime()); 0 < w; ) {
               var E = l.getMonth(), W = (zb(l.getFullYear()) ? Kb : Lb)[E];
               if (w > W - l.getDate()) w -= W - l.getDate() + 1, l.setDate(1), 11 > E ? l.setMonth(E + 1) : (l.setMonth(0), l.setFullYear(l.getFullYear() + 1));
               else {
@@ -6373,7 +6381,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             return 0 >= k(w, l) ? 0 >= k(E, l) ? l.getFullYear() + 1 : l.getFullYear() : l.getFullYear() - 1;
           }
           var q = u[e + 40 >> 2];
-          e = { xi: u[e >> 2], wi: u[e + 4 >> 2], Eg: u[e + 8 >> 2], bh: u[e + 12 >> 2], Fg: u[e + 16 >> 2], og: u[e + 20 >> 2], $f: u[e + 24 >> 2], ng: u[e + 28 >> 2], Ii: u[e + 32 >> 2], vi: u[e + 36 >> 2], yi: q ? A(q) : "" };
+          e = { zi: u[e >> 2], yi: u[e + 4 >> 2], Gg: u[e + 8 >> 2], eh: u[e + 12 >> 2], Hg: u[e + 16 >> 2], qg: u[e + 20 >> 2], bg: u[e + 24 >> 2], pg: u[e + 28 >> 2], Ki: u[e + 32 >> 2], xi: u[e + 36 >> 2], Ai: q ? A(q) : "" };
           d = A(d);
           q = {
             "%c": "%a %b %d %H:%M:%S %Y",
@@ -6409,25 +6417,25 @@ var require_tesseract_core_simd_lstm = __commonJS({
           var F = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" "), U = "January February March April May June July August September October November December".split(" ");
           q = {
             "%a": function(l) {
-              return F[l.$f].substring(0, 3);
+              return F[l.bg].substring(0, 3);
             },
             "%A": function(l) {
-              return F[l.$f];
+              return F[l.bg];
             },
             "%b": function(l) {
-              return U[l.Fg].substring(0, 3);
+              return U[l.Hg].substring(0, 3);
             },
             "%B": function(l) {
-              return U[l.Fg];
+              return U[l.Hg];
             },
             "%C": function(l) {
-              return h((l.og + 1900) / 100 | 0, 2);
+              return h((l.qg + 1900) / 100 | 0, 2);
             },
             "%d": function(l) {
-              return h(l.bh, 2);
+              return h(l.eh, 2);
             },
             "%e": function(l) {
-              return g(l.bh, 2, " ");
+              return g(l.eh, 2, " ");
             },
             "%g": function(l) {
               return v(l).toString().substring(2);
@@ -6436,72 +6444,72 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return v(l);
             },
             "%H": function(l) {
-              return h(l.Eg, 2);
+              return h(l.Gg, 2);
             },
             "%I": function(l) {
-              l = l.Eg;
+              l = l.Gg;
               0 == l ? l = 12 : 12 < l && (l -= 12);
               return h(l, 2);
             },
             "%j": function(l) {
-              for (var w = 0, E = 0; E <= l.Fg - 1; w += (zb(l.og + 1900) ? Kb : Lb)[E++]) ;
-              return h(l.bh + w, 3);
+              for (var w = 0, E = 0; E <= l.Hg - 1; w += (zb(l.qg + 1900) ? Kb : Lb)[E++]) ;
+              return h(l.eh + w, 3);
             },
             "%m": function(l) {
-              return h(l.Fg + 1, 2);
+              return h(l.Hg + 1, 2);
             },
             "%M": function(l) {
-              return h(l.wi, 2);
+              return h(l.yi, 2);
             },
             "%n": function() {
               return "\n";
             },
             "%p": function(l) {
-              return 0 <= l.Eg && 12 > l.Eg ? "AM" : "PM";
+              return 0 <= l.Gg && 12 > l.Gg ? "AM" : "PM";
             },
             "%S": function(l) {
-              return h(l.xi, 2);
+              return h(l.zi, 2);
             },
             "%t": function() {
               return "	";
             },
             "%u": function(l) {
-              return l.$f || 7;
+              return l.bg || 7;
             },
             "%U": function(l) {
-              return h(Math.floor((l.ng + 7 - l.$f) / 7), 2);
+              return h(Math.floor((l.pg + 7 - l.bg) / 7), 2);
             },
             "%V": function(l) {
-              var w = Math.floor((l.ng + 7 - (l.$f + 6) % 7) / 7);
-              2 >= (l.$f + 371 - l.ng - 2) % 7 && w++;
-              if (w) 53 == w && (E = (l.$f + 371 - l.ng) % 7, 4 == E || 3 == E && zb(l.og) || (w = 1));
+              var w = Math.floor((l.pg + 7 - (l.bg + 6) % 7) / 7);
+              2 >= (l.bg + 371 - l.pg - 2) % 7 && w++;
+              if (w) 53 == w && (E = (l.bg + 371 - l.pg) % 7, 4 == E || 3 == E && zb(l.qg) || (w = 1));
               else {
                 w = 52;
-                var E = (l.$f + 7 - l.ng - 1) % 7;
-                (4 == E || 5 == E && zb(l.og % 400 - 1)) && w++;
+                var E = (l.bg + 7 - l.pg - 1) % 7;
+                (4 == E || 5 == E && zb(l.qg % 400 - 1)) && w++;
               }
               return h(w, 2);
             },
             "%w": function(l) {
-              return l.$f;
+              return l.bg;
             },
             "%W": function(l) {
-              return h(Math.floor((l.ng + 7 - (l.$f + 6) % 7) / 7), 2);
+              return h(Math.floor((l.pg + 7 - (l.bg + 6) % 7) / 7), 2);
             },
             "%y": function(l) {
-              return (l.og + 1900).toString().substring(2);
+              return (l.qg + 1900).toString().substring(2);
             },
             "%Y": function(l) {
-              return l.og + 1900;
+              return l.qg + 1900;
             },
             "%z": function(l) {
-              l = l.vi;
+              l = l.xi;
               var w = 0 <= l;
               l = Math.abs(l) / 60;
               return (w ? "+" : "-") + String("0000" + (l / 60 * 100 + l % 60)).slice(-4);
             },
             "%Z": function(l) {
-              return l.yi;
+              return l.Ai;
             },
             "%%": function() {
               return "%";
@@ -6524,13 +6532,13 @@ var require_tesseract_core_simd_lstm = __commonJS({
         function Pb(a, c, d, e) {
           a || (a = this);
           this.parent = a;
-          this.Qf = a.Qf;
-          this.vg = null;
-          this.id = B.mi++;
+          this.Sf = a.Sf;
+          this.xg = null;
+          this.id = B.oi++;
           this.name = c;
           this.mode = d;
-          this.If = {};
           this.Kf = {};
+          this.Mf = {};
           this.rdev = e;
         }
         Object.defineProperties(Pb.prototype, { read: { get: function() {
@@ -6541,17 +6549,17 @@ var require_tesseract_core_simd_lstm = __commonJS({
           return 146 === (this.mode & 146);
         }, set: function(a) {
           a ? this.mode |= 146 : this.mode &= -147;
-        } }, ji: { get: function() {
-          return B.Rf(this.mode);
-        } }, Ug: { get: function() {
-          return B.zg(this.mode);
+        } }, li: { get: function() {
+          return B.Tf(this.mode);
+        } }, Wg: { get: function() {
+          return B.Bg(this.mode);
         } } });
-        B.vh = Pb;
-        B.gh = function(a, c, d, e, g, h, k, m, v, q) {
+        B.xh = Pb;
+        B.ih = function(a, c, d, e, g, h, k, m, v, q) {
           function t(l) {
             function w(E) {
               q && q();
-              m || B.yg(a, c, E, e, g, v);
+              m || B.Ag(a, c, E, e, g, v);
               h && h();
               Ha(U);
             }
@@ -6564,15 +6572,15 @@ var require_tesseract_core_simd_lstm = __commonJS({
           Ga(U);
           "string" == typeof d ? pb(d, (l) => t(l), k) : t(d);
         };
-        B.ui();
-        b.FS_createPath = B.Hg;
-        b.FS_createDataFile = B.yg;
-        b.FS_createPreloadedFile = B.gh;
+        B.wi();
+        b.FS_createPath = B.Jg;
+        b.FS_createDataFile = B.Ag;
+        b.FS_createPreloadedFile = B.ih;
         b.FS_unlink = B.unlink;
-        b.FS_createLazyFile = B.fh;
-        b.FS_createDevice = B.Uf;
+        b.FS_createLazyFile = B.hh;
+        b.FS_createDevice = B.Wf;
         var bc = {
-          U: function() {
+          V: function() {
             n("missing function: _ZN9tesseract11TessBaseAPI10GetOsdTextEi");
             p(-1);
           },
@@ -6580,11 +6588,11 @@ var require_tesseract_core_simd_lstm = __commonJS({
             n("missing function: _ZN9tesseract11TessBaseAPI23ClearAdaptiveClassifierEv");
             p(-1);
           },
-          P: function() {
+          Q: function() {
             n("missing function: _ZN9tesseract11TessBaseAPI8DetectOSEPNS_9OSResultsE");
             p(-1);
           },
-          F: function() {
+          G: function() {
             n("missing function: _ZNK9tesseract9OSResults12print_scoresEv");
             p(-1);
           },
@@ -6592,7 +6600,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             p(`Assertion failed: ${A(a)}, at: ` + [c ? A(c) : "unknown filename", d, e ? A(e) : "unknown function"]);
           },
           l: function(a, c, d) {
-            new Ya(a).gg(
+            new Ya(a).ig(
               c,
               d
             );
@@ -6600,14 +6608,14 @@ var require_tesseract_core_simd_lstm = __commonJS({
             $a++;
             throw Za;
           },
-          r: function(a, c, d) {
+          s: function(a, c, d) {
             wb = d;
             try {
               var e = ub(a);
               switch (c) {
                 case 0:
                   var g = xb();
-                  return 0 > g ? -28 : B.hh(e, g).fd;
+                  return 0 > g ? -28 : B.jh(e, g).fd;
                 case 1:
                 case 2:
                   return 0;
@@ -6630,19 +6638,19 @@ var require_tesseract_core_simd_lstm = __commonJS({
               }
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          N: function(a, c) {
+          O: function(a, c) {
             try {
               var d = ub(a);
               return vb(B.stat, d.path, c);
             } catch (e) {
               if ("undefined" == typeof B || "ErrnoError" !== e.name) throw e;
-              return -e.Pf;
+              return -e.Rf;
             }
           },
-          K: function(a, c) {
+          L: function(a, c) {
             try {
               if (0 === c) return -28;
               var d = B.cwd(), e = Sa(d) + 1;
@@ -6651,10 +6659,10 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return e;
             } catch (g) {
               if ("undefined" == typeof B || "ErrnoError" !== g.name) throw g;
-              return -g.Pf;
+              return -g.Rf;
             }
           },
-          S: function(a, c, d) {
+          T: function(a, c, d) {
             wb = d;
             try {
               var e = ub(a);
@@ -6676,7 +6684,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
                 case 21520:
                   return e.tty ? -28 : -59;
                 case 21531:
-                  return g = xb(), B.Tg(e, c, g);
+                  return g = xb(), B.Vg(e, c, g);
                 case 21523:
                   return e.tty ? 0 : -59;
                 case 21524:
@@ -6686,10 +6694,10 @@ var require_tesseract_core_simd_lstm = __commonJS({
               }
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          L: function(a, c, d, e) {
+          M: function(a, c, d, e) {
             try {
               c = A(c);
               var g = e & 256;
@@ -6697,10 +6705,10 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return vb(g ? B.lstat : B.stat, c, d);
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          p: function(a, c, d, e) {
+          q: function(a, c, d, e) {
             wb = e;
             try {
               c = A(c);
@@ -6709,34 +6717,34 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return B.open(c, d, g).fd;
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          A: function(a) {
+          B: function(a) {
             try {
               return a = A(a), B.rmdir(a), 0;
             } catch (c) {
               if ("undefined" == typeof B || "ErrnoError" !== c.name) throw c;
-              return -c.Pf;
+              return -c.Rf;
             }
           },
-          M: function(a, c) {
+          N: function(a, c) {
             try {
               return a = A(a), vb(B.stat, a, c);
             } catch (d) {
               if ("undefined" == typeof B || "ErrnoError" !== d.name) throw d;
-              return -d.Pf;
+              return -d.Rf;
             }
           },
-          B: function(a, c, d) {
+          C: function(a, c, d) {
             try {
               return c = A(c), c = tb(a, c), 0 === d ? B.unlink(c) : 512 === d ? B.rmdir(c) : p("Invalid flags passed to unlinkat"), 0;
             } catch (e) {
               if ("undefined" == typeof B || "ErrnoError" !== e.name) throw e;
-              return -e.Pf;
+              return -e.Rf;
             }
           },
-          T: function(a) {
+          U: function(a) {
             do {
               var c = x[a >> 2];
               a += 4;
@@ -6745,17 +6753,17 @@ var require_tesseract_core_simd_lstm = __commonJS({
               var e = x[a >> 2];
               a += 4;
               c = A(c);
-              B.Hg("/", cb(c), true, true);
-              B.yg(c, null, r.subarray(e, e + d), true, true, true);
+              B.Jg("/", cb(c), true, true);
+              B.Ag(c, null, r.subarray(e, e + d), true, true, true);
             } while (x[a >> 2]);
           },
-          Q: function() {
+          R: function() {
             return true;
           },
-          x: function() {
+          y: function() {
             throw Infinity;
           },
-          E: function(a, c) {
+          F: function(a, c) {
             a = new Date(1e3 * (x[a >> 2] + 4294967296 * u[a + 4 >> 2]));
             u[c >> 2] = a.getUTCSeconds();
             u[c + 4 >> 2] = a.getUTCMinutes();
@@ -6766,7 +6774,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             u[c + 24 >> 2] = a.getUTCDay();
             u[c + 28 >> 2] = (a.getTime() - Date.UTC(a.getUTCFullYear(), 0, 1, 0, 0, 0, 0)) / 864e5 | 0;
           },
-          G: function(a, c) {
+          H: function(a, c) {
             a = new Date(1e3 * (x[a >> 2] + 4294967296 * u[a + 4 >> 2]));
             u[c >> 2] = a.getSeconds();
             u[c + 4 >> 2] = a.getMinutes();
@@ -6780,7 +6788,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             var d = new Date(a.getFullYear(), 6, 1).getTimezoneOffset(), e = new Date(a.getFullYear(), 0, 1).getTimezoneOffset();
             u[c + 32 >> 2] = (d != e && a.getTimezoneOffset() == Math.min(e, d)) | 0;
           },
-          H: function(a) {
+          I: function(a) {
             var c = new Date(u[a + 20 >> 2] + 1900, u[a + 16 >> 2], u[a + 12 >> 2], u[a + 8 >> 2], u[a + 4 >> 2], u[a >> 2], 0), d = u[a + 32 >> 2], e = c.getTimezoneOffset(), g = new Date(c.getFullYear(), 6, 1).getTimezoneOffset(), h = new Date(c.getFullYear(), 0, 1).getTimezoneOffset(), k = Math.min(h, g);
             0 > d ? u[a + 32 >> 2] = Number(g != h && k == e) : 0 < d != (k == e) && (g = Math.max(h, g), c.setTime(c.getTime() + 6e4 * ((0 < d ? k : g) - e)));
             u[a + 24 >> 2] = c.getDay();
@@ -6793,33 +6801,33 @@ var require_tesseract_core_simd_lstm = __commonJS({
             u[a + 20 >> 2] = c.getYear();
             return c.getTime() / 1e3 | 0;
           },
-          C: function(a, c, d, e, g, h, k) {
+          D: function(a, c, d, e, g, h, k) {
             try {
-              var m = ub(e), v = B.jg(m, a, g, c, d), q = v.Gf;
-              u[h >> 2] = v.Ah;
+              var m = ub(e), v = B.lg(m, a, g, c, d), q = v.If;
+              u[h >> 2] = v.Ch;
               x[k >> 2] = q;
               return 0;
             } catch (t) {
               if ("undefined" == typeof B || "ErrnoError" !== t.name) throw t;
-              return -t.Pf;
+              return -t.Rf;
             }
           },
-          D: function(a, c, d, e, g, h) {
+          E: function(a, c, d, e, g, h) {
             try {
               var k = ub(g);
               if (d & 2) {
-                if (!B.isFile(k.node.mode)) throw new B.Hf(43);
+                if (!B.isFile(k.node.mode)) throw new B.Jf(43);
                 if (!(e & 2)) {
                   var m = sa.slice(a, a + c);
-                  B.pg(k, m, h, c, e);
+                  B.rg(k, m, h, c, e);
                 }
               }
             } catch (v) {
               if ("undefined" == typeof B || "ErrnoError" !== v.name) throw v;
-              return -v.Pf;
+              return -v.Rf;
             }
           },
-          z: function(a, c, d) {
+          A: function(a, c, d) {
             function e(v) {
               return (v = v.toTimeString().match(/\(([A-Za-z ]+)\)$/)) ? v[1] : "GMT";
             }
@@ -6837,7 +6845,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           k: function() {
             p("");
           },
-          u: function(a, c, d) {
+          v: function(a, c, d) {
             Fb.length = 0;
             var e;
             for (d >>= 2; e = sa[c++]; ) d += 105 != e & d, Fb.push(105 == e ? u[d] : va[d++ >> 1]), ++d;
@@ -6846,11 +6854,11 @@ var require_tesseract_core_simd_lstm = __commonJS({
           m: function() {
             return Date.now();
           },
-          O: Gb,
-          R: function(a, c, d) {
+          P: Gb,
+          S: function(a, c, d) {
             sa.copyWithin(a, c, c + d);
           },
-          y: function(a) {
+          z: function(a) {
             var c = sa.length;
             a >>>= 0;
             if (2147483648 < a) return false;
@@ -6875,7 +6883,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             }
             return false;
           },
-          I: function(a, c) {
+          J: function(a, c) {
             var d = 0;
             Ib().forEach(function(e, g) {
               var h = c + d;
@@ -6886,7 +6894,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             });
             return 0;
           },
-          J: function(a, c) {
+          K: function(a, c) {
             var d = Ib();
             x[a >> 2] = d.length;
             var e = 0;
@@ -6896,24 +6904,24 @@ var require_tesseract_core_simd_lstm = __commonJS({
             x[c >> 2] = e;
             return 0;
           },
-          V: function(a) {
+          n: function(a) {
             if (!noExitRuntime) {
               if (b.onExit) b.onExit(a);
               ra = true;
             }
             ea(a, new Qa(a));
           },
-          o: function(a) {
+          p: function(a) {
             try {
               var c = ub(a);
               B.close(c);
               return 0;
             } catch (d) {
               if ("undefined" == typeof B || "ErrnoError" !== d.name) throw d;
-              return d.Pf;
+              return d.Rf;
             }
           },
-          q: function(a, c, d, e) {
+          r: function(a, c, d, e) {
             try {
               a: {
                 var g = ub(a);
@@ -6936,26 +6944,26 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return 0;
             } catch (F) {
               if ("undefined" == typeof B || "ErrnoError" !== F.name) throw F;
-              return F.Pf;
+              return F.Rf;
             }
           },
-          v: function(a, c, d, e, g) {
+          w: function(a, c, d, e, g) {
             try {
               c = d + 2097152 >>> 0 < 4194305 - !!c ? (c >>> 0) + 4294967296 * d : NaN;
               if (isNaN(c)) return 61;
               var h = ub(a);
-              B.Xf(h, c, e);
+              B.Zf(h, c, e);
               z = [h.position >>> 0, (y = h.position, 1 <= +Math.abs(y) ? 0 < y ? +Math.floor(y / 4294967296) >>> 0 : ~~+Math.ceil((y - +(~~y >>> 0)) / 4294967296) >>> 0 : 0)];
               u[g >> 2] = z[0];
               u[g + 4 >> 2] = z[1];
-              h.Qg && 0 === c && 0 === e && (h.Qg = null);
+              h.Sg && 0 === c && 0 === e && (h.Sg = null);
               return 0;
             } catch (k) {
               if ("undefined" == typeof B || "ErrnoError" !== k.name) throw k;
-              return k.Pf;
+              return k.Rf;
             }
           },
-          n: function(a, c, d, e) {
+          o: function(a, c, d, e) {
             try {
               a: {
                 var g = ub(a);
@@ -6977,22 +6985,22 @@ var require_tesseract_core_simd_lstm = __commonJS({
               return 0;
             } catch (F) {
               if ("undefined" == typeof B || "ErrnoError" !== F.name) throw F;
-              return F.Pf;
+              return F.Rf;
             }
           },
           c: Rb,
-          f: Sb,
+          e: Sb,
           b: Tb,
           h: Ub,
           i: Vb,
-          e: Wb,
-          d: Xb,
+          d: Wb,
+          f: Xb,
           g: Yb,
           j: Zb,
-          s: $b,
-          t: ac,
+          t: $b,
+          u: ac,
           W: Mb,
-          w: function(a, c, d, e) {
+          x: function(a, c, d, e) {
             return Mb(a, c, d, e);
           }
         };
@@ -7002,7 +7010,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
             b.asm = d;
             pa = b.asm.Y;
             wa();
-            xa = b.asm.uf;
+            xa = b.asm.wf;
             za.unshift(b.asm.Z);
             Ha("wasm-instantiate");
             return d;
@@ -7411,272 +7419,261 @@ var require_tesseract_core_simd_lstm = __commonJS({
           return (Ef = b._emscripten_bind_TessBaseAPI_FindLines_0 = b.asm.vd).apply(null, arguments);
         }, Ff = b._emscripten_bind_TessBaseAPI_GetGradient_0 = function() {
           return (Ff = b._emscripten_bind_TessBaseAPI_GetGradient_0 = b.asm.wd).apply(null, arguments);
-        }, Gf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
-          return (Gf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.xd).apply(null, arguments);
-        }, Hf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
-          return (Hf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.yd).apply(null, arguments);
-        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
-          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.zd).apply(null, arguments);
-        }, Jf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
-          return (Jf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.Ad).apply(
+        }, Gf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = function() {
+          return (Gf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = b.asm.xd).apply(null, arguments);
+        }, Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
+          return (Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.yd).apply(null, arguments);
+        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
+          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.zd).apply(null, arguments);
+        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
+          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.Ad).apply(
             null,
             arguments
           );
-        }, Kf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
-          return (Kf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.Bd).apply(null, arguments);
-        }, Lf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
-          return (Lf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.Cd).apply(null, arguments);
-        }, Mf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
-          return (Mf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Dd).apply(null, arguments);
-        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
-          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Ed).apply(null, arguments);
-        }, Of = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
-          return (Of = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Fd).apply(null, arguments);
-        }, Pf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
-          return (Pf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Gd).apply(null, arguments);
-        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
-          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Hd).apply(null, arguments);
-        }, Rf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
-          return (Rf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Id).apply(null, arguments);
-        }, Sf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
-          return (Sf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Jd).apply(null, arguments);
-        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
-          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Kd).apply(
-            null,
-            arguments
-          );
-        }, Uf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
-          return (Uf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Ld).apply(null, arguments);
-        }, Vf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
-          return (Vf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Md).apply(null, arguments);
-        }, Wf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
-          return (Wf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Nd).apply(null, arguments);
-        }, Xf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
-          return (Xf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Od).apply(null, arguments);
-        }, Yf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
-          return (Yf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Pd).apply(null, arguments);
-        }, Zf = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
-          return (Zf = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Qd).apply(null, arguments);
-        }, $f = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
-          return ($f = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Rd).apply(
-            null,
-            arguments
-          );
-        }, ag = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
-          return (ag = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Sd).apply(null, arguments);
-        }, bg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
-          return (bg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Td).apply(null, arguments);
-        }, cg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
-          return (cg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Ud).apply(null, arguments);
-        }, dg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
-          return (dg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Vd).apply(null, arguments);
-        }, eg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
-          return (eg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Wd).apply(null, arguments);
-        }, fg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
-          return (fg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Xd).apply(null, arguments);
-        }, gg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
-          return (gg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Yd).apply(null, arguments);
-        }, hg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
-          return (hg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Zd).apply(null, arguments);
-        }, ig = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
-          return (ig = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm._d).apply(null, arguments);
-        }, jg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
-          return (jg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.$d).apply(null, arguments);
-        }, kg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
-          return (kg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.ae).apply(null, arguments);
-        }, lg = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
-          return (lg = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.be).apply(null, arguments);
-        }, mg = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
-          return (mg = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ce).apply(null, arguments);
-        }, ng = b._emscripten_bind_OSResults_OSResults_0 = function() {
-          return (ng = b._emscripten_bind_OSResults_OSResults_0 = b.asm.de).apply(
-            null,
-            arguments
-          );
-        }, og = b._emscripten_bind_OSResults_print_scores_0 = function() {
-          return (og = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ee).apply(null, arguments);
-        }, pg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
-          return (pg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.fe).apply(null, arguments);
-        }, qg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
-          return (qg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ge).apply(null, arguments);
-        }, rg = b._emscripten_bind_OSResults___destroy___0 = function() {
-          return (rg = b._emscripten_bind_OSResults___destroy___0 = b.asm.he).apply(null, arguments);
-        }, sg = b._emscripten_bind_Pixa_get_n_0 = function() {
-          return (sg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ie).apply(null, arguments);
-        }, tg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
-          return (tg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.je).apply(null, arguments);
-        }, ug = b._emscripten_bind_Pixa_get_refcount_0 = function() {
-          return (ug = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ke).apply(null, arguments);
-        }, vg = b._emscripten_bind_Pixa_get_pix_0 = function() {
-          return (vg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.le).apply(null, arguments);
-        }, wg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
-          return (wg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.me).apply(null, arguments);
-        }, xg = b._emscripten_bind_Pixa___destroy___0 = function() {
-          return (xg = b._emscripten_bind_Pixa___destroy___0 = b.asm.ne).apply(null, arguments);
-        }, yg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
-          return (yg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.oe).apply(null, arguments);
-        }, zg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
-          return (zg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.pe).apply(null, arguments);
-        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
-          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.qe).apply(null, arguments);
-        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
-          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.re).apply(null, arguments);
-        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
-          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.se).apply(null, arguments);
-        }, Dg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
-          return (Dg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.te).apply(null, arguments);
-        }, Eg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
-          return (Eg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.ue).apply(null, arguments);
-        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
-          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.ve).apply(null, arguments);
-        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
-          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.we).apply(null, arguments);
-        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
-          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.xe).apply(null, arguments);
-        }, Ig = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
-          return (Ig = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.ye).apply(
-            null,
-            arguments
-          );
-        }, Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
-          return (Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.ze).apply(null, arguments);
-        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
-          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.Ae).apply(null, arguments);
-        }, Lg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
-          return (Lg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.Be).apply(null, arguments);
-        }, Mg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
-          return (Mg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ce).apply(null, arguments);
-        }, Ng = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
-          return (Ng = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.De).apply(null, arguments);
-        }, Og = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
-          return (Og = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ee).apply(null, arguments);
-        }, Pg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
-          return (Pg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.Fe).apply(null, arguments);
-        }, Qg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
-          return (Qg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ge).apply(null, arguments);
-        }, Rg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
-          return (Rg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.He).apply(null, arguments);
-        }, Sg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
-          return (Sg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ie).apply(null, arguments);
-        }, Tg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
-          return (Tg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Je).apply(null, arguments);
-        }, Ug = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
-          return (Ug = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ke).apply(null, arguments);
-        }, Vg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
-          return (Vg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Le).apply(null, arguments);
-        }, Wg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
-          return (Wg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Me).apply(null, arguments);
-        }, Xg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
-          return (Xg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Ne).apply(null, arguments);
-        }, Yg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
-          return (Yg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Oe).apply(null, arguments);
-        }, Zg = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
-          return (Zg = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Pe).apply(null, arguments);
-        }, $g = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
-          return ($g = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Qe).apply(null, arguments);
-        }, ah = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
-          return (ah = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Re).apply(null, arguments);
-        }, bh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
-          return (bh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Se).apply(null, arguments);
-        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
-          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Te).apply(null, arguments);
-        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
-          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Ue).apply(null, arguments);
-        }, eh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
-          return (eh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Ve).apply(null, arguments);
-        }, fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
-          return (fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.We).apply(null, arguments);
-        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
-          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Xe).apply(null, arguments);
-        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
-          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.Ye).apply(null, arguments);
-        }, ih = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
-          return (ih = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Ze).apply(null, arguments);
-        }, jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
-          return (jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm._e).apply(null, arguments);
-        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
-          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.$e).apply(null, arguments);
-        }, lh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
-          return (lh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.af).apply(null, arguments);
-        }, mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
-          return (mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.bf).apply(null, arguments);
-        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
-          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.cf).apply(
-            null,
-            arguments
-          );
-        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
-          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.df).apply(null, arguments);
-        }, ph = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
-          return (ph = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.ef).apply(null, arguments);
-        }, qh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
-          return (qh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.ff).apply(null, arguments);
-        }, rh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
-          return (rh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.gf).apply(null, arguments);
-        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
-          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.hf).apply(null, arguments);
-        }, th = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
-          return (th = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.jf).apply(null, arguments);
-        }, uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
-          return (uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.kf).apply(null, arguments);
-        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
-          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.lf).apply(null, arguments);
-        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
-          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.mf).apply(null, arguments);
-        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
-          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.nf).apply(null, arguments);
-        }, yh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
-          return (yh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.of).apply(null, arguments);
-        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
-          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.pf).apply(null, arguments);
-        }, Ah = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
-          return (Ah = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.qf).apply(null, arguments);
-        }, Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
-          return (Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.rf).apply(null, arguments);
-        }, Ch = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
-          return (Ch = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.sf).apply(null, arguments);
-        }, Dh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
-          return (Dh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.tf).apply(null, arguments);
+        }, Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
+          return (Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.Bd).apply(null, arguments);
+        }, Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
+          return (Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.Cd).apply(null, arguments);
+        }, Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
+          return (Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.Dd).apply(null, arguments);
+        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
+          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Ed).apply(null, arguments);
+        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
+          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Fd).apply(null, arguments);
+        }, Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
+          return (Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Gd).apply(null, arguments);
+        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
+          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Hd).apply(null, arguments);
+        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
+          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Id).apply(null, arguments);
+        }, Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
+          return (Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Jd).apply(null, arguments);
+        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
+          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Kd).apply(null, arguments);
+        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
+          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Ld).apply(null, arguments);
+        }, Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
+          return (Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Md).apply(null, arguments);
+        }, Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
+          return (Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Nd).apply(null, arguments);
+        }, Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
+          return (Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Od).apply(null, arguments);
+        }, Yf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = function() {
+          return (Yf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = b.asm.Pd).apply(null, arguments);
+        }, Zf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
+          return (Zf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Qd).apply(null, arguments);
+        }, $f = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
+          return ($f = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Rd).apply(null, arguments);
+        }, ag = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
+          return (ag = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Sd).apply(null, arguments);
+        }, bg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
+          return (bg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Td).apply(null, arguments);
+        }, cg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
+          return (cg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Ud).apply(null, arguments);
+        }, dg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
+          return (dg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Vd).apply(null, arguments);
+        }, eg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
+          return (eg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Wd).apply(null, arguments);
+        }, fg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
+          return (fg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Xd).apply(null, arguments);
+        }, gg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
+          return (gg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Yd).apply(null, arguments);
+        }, hg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
+          return (hg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Zd).apply(null, arguments);
+        }, ig = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
+          return (ig = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm._d).apply(null, arguments);
+        }, jg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
+          return (jg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.$d).apply(null, arguments);
+        }, kg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
+          return (kg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.ae).apply(null, arguments);
+        }, lg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
+          return (lg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.be).apply(null, arguments);
+        }, mg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
+          return (mg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.ce).apply(null, arguments);
+        }, ng = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
+          return (ng = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.de).apply(null, arguments);
+        }, og = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
+          return (og = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ee).apply(null, arguments);
+        }, pg = b._emscripten_bind_OSResults_OSResults_0 = function() {
+          return (pg = b._emscripten_bind_OSResults_OSResults_0 = b.asm.fe).apply(null, arguments);
+        }, qg = b._emscripten_bind_OSResults_print_scores_0 = function() {
+          return (qg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ge).apply(null, arguments);
+        }, rg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
+          return (rg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.he).apply(null, arguments);
+        }, sg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
+          return (sg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ie).apply(null, arguments);
+        }, tg = b._emscripten_bind_OSResults___destroy___0 = function() {
+          return (tg = b._emscripten_bind_OSResults___destroy___0 = b.asm.je).apply(null, arguments);
+        }, ug = b._emscripten_bind_Pixa_get_n_0 = function() {
+          return (ug = b._emscripten_bind_Pixa_get_n_0 = b.asm.ke).apply(null, arguments);
+        }, vg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
+          return (vg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.le).apply(null, arguments);
+        }, wg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
+          return (wg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.me).apply(null, arguments);
+        }, xg = b._emscripten_bind_Pixa_get_pix_0 = function() {
+          return (xg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.ne).apply(null, arguments);
+        }, yg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
+          return (yg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.oe).apply(null, arguments);
+        }, zg = b._emscripten_bind_Pixa___destroy___0 = function() {
+          return (zg = b._emscripten_bind_Pixa___destroy___0 = b.asm.pe).apply(null, arguments);
+        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
+          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.qe).apply(null, arguments);
+        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
+          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.re).apply(null, arguments);
+        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
+          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.se).apply(null, arguments);
+        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
+          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.te).apply(null, arguments);
+        }, Eg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
+          return (Eg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.ue).apply(null, arguments);
+        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
+          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.ve).apply(null, arguments);
+        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
+          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.we).apply(null, arguments);
+        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
+          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.xe).apply(null, arguments);
+        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
+          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.ye).apply(null, arguments);
+        }, Jg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
+          return (Jg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.ze).apply(null, arguments);
+        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
+          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.Ae).apply(null, arguments);
+        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
+          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.Be).apply(null, arguments);
+        }, Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
+          return (Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.Ce).apply(null, arguments);
+        }, Ng = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
+          return (Ng = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.De).apply(null, arguments);
+        }, Og = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
+          return (Og = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ee).apply(null, arguments);
+        }, Pg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
+          return (Pg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.Fe).apply(null, arguments);
+        }, Qg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
+          return (Qg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ge).apply(null, arguments);
+        }, Rg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
+          return (Rg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.He).apply(null, arguments);
+        }, Sg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
+          return (Sg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ie).apply(null, arguments);
+        }, Tg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
+          return (Tg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.Je).apply(null, arguments);
+        }, Ug = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
+          return (Ug = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ke).apply(null, arguments);
+        }, Vg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
+          return (Vg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Le).apply(null, arguments);
+        }, Wg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
+          return (Wg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Me).apply(null, arguments);
+        }, Xg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
+          return (Xg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Ne).apply(null, arguments);
+        }, Yg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
+          return (Yg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Oe).apply(null, arguments);
+        }, Zg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
+          return (Zg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Pe).apply(null, arguments);
+        }, $g = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
+          return ($g = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Qe).apply(null, arguments);
+        }, ah = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
+          return (ah = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Re).apply(null, arguments);
+        }, bh = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
+          return (bh = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Se).apply(null, arguments);
+        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
+          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Te).apply(null, arguments);
+        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
+          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Ue).apply(null, arguments);
+        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
+          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Ve).apply(null, arguments);
+        }, fh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
+          return (fh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.We).apply(null, arguments);
+        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
+          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Xe).apply(null, arguments);
+        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
+          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Ye).apply(null, arguments);
+        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
+          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Ze).apply(null, arguments);
+        }, jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
+          return (jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm._e).apply(null, arguments);
+        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
+          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.$e).apply(null, arguments);
+        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
+          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.af).apply(null, arguments);
+        }, mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
+          return (mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.bf).apply(null, arguments);
+        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
+          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.cf).apply(null, arguments);
+        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
+          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.df).apply(null, arguments);
+        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
+          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.ef).apply(null, arguments);
+        }, qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
+          return (qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.ff).apply(null, arguments);
+        }, rh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
+          return (rh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.gf).apply(null, arguments);
+        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
+          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.hf).apply(null, arguments);
+        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
+          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.jf).apply(null, arguments);
+        }, uh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
+          return (uh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.kf).apply(null, arguments);
+        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
+          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.lf).apply(null, arguments);
+        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
+          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.mf).apply(null, arguments);
+        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
+          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.nf).apply(null, arguments);
+        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
+          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.of).apply(null, arguments);
+        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
+          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.pf).apply(null, arguments);
+        }, Ah = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
+          return (Ah = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.qf).apply(null, arguments);
+        }, Bh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
+          return (Bh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.rf).apply(null, arguments);
+        }, Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
+          return (Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.sf).apply(null, arguments);
+        }, Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
+          return (Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.tf).apply(null, arguments);
+        }, Eh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
+          return (Eh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.uf).apply(null, arguments);
+        }, Fh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
+          return (Fh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.vf).apply(null, arguments);
         };
         b._pixDestroy = function() {
-          return (b._pixDestroy = b.asm.vf).apply(null, arguments);
+          return (b._pixDestroy = b.asm.xf).apply(null, arguments);
         };
         b._ptaDestroy = function() {
-          return (b._ptaDestroy = b.asm.wf).apply(null, arguments);
+          return (b._ptaDestroy = b.asm.yf).apply(null, arguments);
         };
         b._boxaDestroy = function() {
-          return (b._boxaDestroy = b.asm.xf).apply(null, arguments);
+          return (b._boxaDestroy = b.asm.zf).apply(null, arguments);
         };
         b._pixaDestroy = function() {
-          return (b._pixaDestroy = b.asm.yf).apply(null, arguments);
+          return (b._pixaDestroy = b.asm.Af).apply(null, arguments);
         };
         b._pixReadMem = function() {
-          return (b._pixReadMem = b.asm.zf).apply(null, arguments);
+          return (b._pixReadMem = b.asm.Bf).apply(null, arguments);
         };
         function Qb() {
-          return (Qb = b.asm.Af).apply(null, arguments);
+          return (Qb = b.asm.Cf).apply(null, arguments);
         }
-        var Eh = b._free = function() {
-          return (Eh = b._free = b.asm.Bf).apply(null, arguments);
+        var Gh = b._free = function() {
+          return (Gh = b._free = b.asm.Df).apply(null, arguments);
         }, Eb = b._malloc = function() {
-          return (Eb = b._malloc = b.asm.Cf).apply(null, arguments);
+          return (Eb = b._malloc = b.asm.Ef).apply(null, arguments);
         };
         b._pixReadHeaderMem = function() {
-          return (b._pixReadHeaderMem = b.asm.Df).apply(null, arguments);
+          return (b._pixReadHeaderMem = b.asm.Ff).apply(null, arguments);
         };
         function D() {
-          return (D = b.asm.Ef).apply(null, arguments);
+          return (D = b.asm.Gf).apply(null, arguments);
         }
-        function Fh() {
-          return (Fh = b.asm.Ff).apply(null, arguments);
+        function Hh() {
+          return (Hh = b.asm.Hf).apply(null, arguments);
         }
-        b.___emscripten_embedded_file_data = 392368;
+        b.___emscripten_embedded_file_data = 396336;
         function Tb(a, c, d, e) {
           var g = D();
           try {
             return Ob(a)(c, d, e);
           } catch (h) {
-            Fh(g);
+            Hh(g);
             if (h !== h + 0) throw h;
             yb();
           }
@@ -7686,7 +7683,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c);
           } catch (e) {
-            Fh(d);
+            Hh(d);
             if (e !== e + 0) throw e;
             yb();
           }
@@ -7696,7 +7693,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             return Ob(a)(c);
           } catch (e) {
-            Fh(d);
+            Hh(d);
             if (e !== e + 0) throw e;
             yb();
           }
@@ -7706,7 +7703,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c, d, e);
           } catch (h) {
-            Fh(g);
+            Hh(g);
             if (h !== h + 0) throw h;
             yb();
           }
@@ -7716,7 +7713,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c, d);
           } catch (g) {
-            Fh(e);
+            Hh(e);
             if (g !== g + 0) throw g;
             yb();
           }
@@ -7726,7 +7723,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             return Ob(a)(c, d);
           } catch (g) {
-            Fh(e);
+            Hh(e);
             if (g !== g + 0) throw g;
             yb();
           }
@@ -7736,7 +7733,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             return Ob(a)(c, d, e, g);
           } catch (k) {
-            Fh(h);
+            Hh(h);
             if (k !== k + 0) throw k;
             yb();
           }
@@ -7746,7 +7743,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g);
           } catch (k) {
-            Fh(h);
+            Hh(h);
             if (k !== k + 0) throw k;
             yb();
           }
@@ -7756,7 +7753,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             return Ob(a)(c, d, e, g, h);
           } catch (m) {
-            Fh(k);
+            Hh(k);
             if (m !== m + 0) throw m;
             yb();
           }
@@ -7766,7 +7763,7 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g, h, k, m, v, q);
           } catch (F) {
-            Fh(t);
+            Hh(t);
             if (F !== F + 0) throw F;
             yb();
           }
@@ -7776,33 +7773,33 @@ var require_tesseract_core_simd_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g, h);
           } catch (m) {
-            Fh(k);
+            Hh(k);
             if (m !== m + 0) throw m;
             yb();
           }
         }
         b.addRunDependency = Ga;
         b.removeRunDependency = Ha;
-        b.FS_createPath = B.Hg;
-        b.FS_createDataFile = B.yg;
-        b.FS_createLazyFile = B.fh;
-        b.FS_createDevice = B.Uf;
+        b.FS_createPath = B.Jg;
+        b.FS_createDataFile = B.Ag;
+        b.FS_createLazyFile = B.hh;
+        b.FS_createDevice = B.Wf;
         b.FS_unlink = B.unlink;
         b.setValue = Xa;
         b.getValue = Wa;
-        b.FS_createPreloadedFile = B.gh;
+        b.FS_createPreloadedFile = B.ih;
         b.FS = B;
-        var Gh;
-        Fa = function Hh() {
-          Gh || Ih();
-          Gh || (Fa = Hh);
+        var Ih;
+        Fa = function Jh() {
+          Ih || Kh();
+          Ih || (Fa = Jh);
         };
-        function Ih() {
+        function Kh() {
           function a() {
-            if (!Gh && (Gh = true, b.calledRun = true, !ra)) {
+            if (!Ih && (Ih = true, b.calledRun = true, !ra)) {
               Ba = true;
-              b.noFSInit || B.gg.Sg || B.gg();
-              B.sh = false;
+              b.noFSInit || B.ig.Ug || B.ig();
+              B.uh = false;
               Ra(za);
               aa(b);
               if (b.onRuntimeInitialized) b.onRuntimeInitialized();
@@ -7828,70 +7825,70 @@ var require_tesseract_core_simd_lstm = __commonJS({
           }
         }
         if (b.preInit) for ("function" == typeof b.preInit && (b.preInit = [b.preInit]); 0 < b.preInit.length; ) b.preInit.pop()();
-        Ih();
+        Kh();
         function G() {
         }
         G.prototype = Object.create(G.prototype);
         G.prototype.constructor = G;
-        G.prototype.Lf = G;
-        G.Mf = {};
+        G.prototype.Nf = G;
+        G.Of = {};
         b.WrapperObject = G;
-        function Jh(a) {
-          return (a || G).Mf;
+        function Lh(a) {
+          return (a || G).Of;
         }
-        b.getCache = Jh;
+        b.getCache = Lh;
         function H(a, c) {
-          var d = Jh(c), e = d[a];
+          var d = Lh(c), e = d[a];
           if (e) return e;
           e = Object.create((c || G).prototype);
-          e.Gf = a;
+          e.If = a;
           return d[a] = e;
         }
         b.wrapPointer = H;
         b.castObject = function(a, c) {
-          return H(a.Gf, c);
+          return H(a.If, c);
         };
         b.NULL = H(0);
         b.destroy = function(a) {
           if (!a.__destroy__) throw "Error: Cannot destroy object. (Did you create it yourself?)";
           a.__destroy__();
-          delete Jh(a.Lf)[a.Gf];
+          delete Lh(a.Nf)[a.If];
         };
         b.compare = function(a, c) {
-          return a.Gf === c.Gf;
+          return a.If === c.If;
         };
         b.getPointer = function(a) {
-          return a.Gf;
+          return a.If;
         };
         b.getClass = function(a) {
-          return a.Lf;
+          return a.Nf;
         };
-        var Kh = 0, Lh = 0, Mh = 0, Nh = [], Oh = 0;
+        var Mh = 0, Nh = 0, Oh = 0, Ph = [], Qh = 0;
         function I() {
-          if (Oh) {
-            for (var a = 0; a < Nh.length; a++) b._free(Nh[a]);
-            Nh.length = 0;
-            b._free(Kh);
-            Kh = 0;
-            Lh += Oh;
-            Oh = 0;
+          if (Qh) {
+            for (var a = 0; a < Ph.length; a++) b._free(Ph[a]);
+            Ph.length = 0;
+            b._free(Mh);
+            Mh = 0;
+            Nh += Qh;
+            Qh = 0;
           }
-          Kh || (Lh += 128, (Kh = b._malloc(Lh)) || p());
-          Mh = 0;
+          Mh || (Nh += 128, (Mh = b._malloc(Nh)) || p());
+          Oh = 0;
         }
         function J(a) {
           if ("string" === typeof a) {
             a = jb(a);
             var c = r;
-            Kh || p();
+            Mh || p();
             c = a.length * c.BYTES_PER_ELEMENT;
             c = c + 7 & -8;
-            if (Mh + c >= Lh) {
+            if (Oh + c >= Nh) {
               0 < c || p();
-              Oh += c;
+              Qh += c;
               var d = b._malloc(c);
-              Nh.push(d);
-            } else d = Kh + Mh, Mh += c;
+              Ph.push(d);
+            } else d = Mh + Oh, Oh += c;
             c = d;
             d = r;
             var e = c;
@@ -7910,1062 +7907,1062 @@ var require_tesseract_core_simd_lstm = __commonJS({
           }
           return a;
         }
-        function Ph() {
+        function Rh() {
           throw "cannot construct a ParagraphJustification, no constructor in IDL";
         }
-        Ph.prototype = Object.create(G.prototype);
-        Ph.prototype.constructor = Ph;
-        Ph.prototype.Lf = Ph;
-        Ph.Mf = {};
-        b.ParagraphJustification = Ph;
-        Ph.prototype.__destroy__ = function() {
-          cc(this.Gf);
+        Rh.prototype = Object.create(G.prototype);
+        Rh.prototype.constructor = Rh;
+        Rh.prototype.Nf = Rh;
+        Rh.Of = {};
+        b.ParagraphJustification = Rh;
+        Rh.prototype.__destroy__ = function() {
+          cc(this.If);
         };
-        function Qh() {
+        function Sh() {
           throw "cannot construct a BoolPtr, no constructor in IDL";
         }
-        Qh.prototype = Object.create(G.prototype);
-        Qh.prototype.constructor = Qh;
-        Qh.prototype.Lf = Qh;
-        Qh.Mf = {};
-        b.BoolPtr = Qh;
-        Qh.prototype.__destroy__ = function() {
-          dc(this.Gf);
+        Sh.prototype = Object.create(G.prototype);
+        Sh.prototype.constructor = Sh;
+        Sh.prototype.Nf = Sh;
+        Sh.Of = {};
+        b.BoolPtr = Sh;
+        Sh.prototype.__destroy__ = function() {
+          dc(this.If);
         };
         function K() {
           throw "cannot construct a TessResultRenderer, no constructor in IDL";
         }
         K.prototype = Object.create(G.prototype);
         K.prototype.constructor = K;
-        K.prototype.Lf = K;
-        K.Mf = {};
+        K.prototype.Nf = K;
+        K.Of = {};
         b.TessResultRenderer = K;
         K.prototype.BeginDocument = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return !!ec(c, a);
         };
         K.prototype.AddImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!fc(c, a);
         };
         K.prototype.EndDocument = function() {
-          return !!gc(this.Gf);
+          return !!gc(this.If);
         };
         K.prototype.happy = function() {
-          return !!hc(this.Gf);
+          return !!hc(this.If);
         };
         K.prototype.file_extension = function() {
-          return A(ic(this.Gf));
+          return A(ic(this.If));
         };
         K.prototype.title = K.prototype.title = function() {
-          return A(jc(this.Gf));
+          return A(jc(this.If));
         };
         K.prototype.imagenum = function() {
-          return kc(this.Gf);
+          return kc(this.If);
         };
         K.prototype.__destroy__ = function() {
-          lc(this.Gf);
+          lc(this.If);
         };
-        function Rh() {
+        function Th() {
           throw "cannot construct a LongStarPtr, no constructor in IDL";
         }
-        Rh.prototype = Object.create(G.prototype);
-        Rh.prototype.constructor = Rh;
-        Rh.prototype.Lf = Rh;
-        Rh.Mf = {};
-        b.LongStarPtr = Rh;
-        Rh.prototype.__destroy__ = function() {
-          mc(this.Gf);
-        };
-        function Sh() {
-          throw "cannot construct a VoidPtr, no constructor in IDL";
-        }
-        Sh.prototype = Object.create(G.prototype);
-        Sh.prototype.constructor = Sh;
-        Sh.prototype.Lf = Sh;
-        Sh.Mf = {};
-        b.VoidPtr = Sh;
-        Sh.prototype.__destroy__ = function() {
-          nc(this.Gf);
-        };
-        function L(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = oc(a);
-          Jh(L)[this.Gf] = this;
-        }
-        L.prototype = Object.create(G.prototype);
-        L.prototype.constructor = L;
-        L.prototype.Lf = L;
-        L.Mf = {};
-        b.ResultIterator = L;
-        L.prototype.Begin = function() {
-          pc(this.Gf);
-        };
-        L.prototype.RestartParagraph = function() {
-          qc(this.Gf);
-        };
-        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!rc(this.Gf);
-        };
-        L.prototype.RestartRow = function() {
-          sc(this.Gf);
-        };
-        L.prototype.Next = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!tc(c, a);
-        };
-        L.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!uc(c, a);
-        };
-        L.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          return !!vc(d, a, c);
-        };
-        L.prototype.Cmp = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return wc(c, a);
-        };
-        L.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          xc(d, a, c);
-        };
-        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          return void 0 === h ? !!yc(k, a, c, d, e, g) : !!zc(k, a, c, d, e, g, h);
-        };
-        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return !!Ac(h, a, c, d, e, g);
-        };
-        L.prototype.Empty = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!Bc(c, a);
-        };
-        L.prototype.BlockType = function() {
-          return Cc(this.Gf);
-        };
-        L.prototype.BlockPolygon = function() {
-          return H(Dc(this.Gf), M);
-        };
-        L.prototype.GetBinaryImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Ec(c, a), N);
-        };
-        L.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return H(Fc(h, a, c, d, e, g), N);
-        };
-        L.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return !!Gc(h, a, c, d, e, g);
-        };
-        L.prototype.RowAttributes = function(a, c, d) {
-          var e = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          return !!Hc(e, a, c, d);
-        };
-        L.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          Ic(g, a, c, d, e);
-        };
-        L.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          Jc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphIsLtr = function() {
-          return !!Kc(this.Gf);
-        };
-        L.prototype.GetUTF8Text = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Lc(c, a));
-        };
-        L.prototype.SetLineSeparator = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          Mc(c, a);
-        };
-        L.prototype.SetParagraphSeparator = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          Nc(c, a);
-        };
-        L.prototype.Confidence = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return Oc(c, a);
-        };
-        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
-          var v = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
-          m && "object" === typeof m && (m = m.Gf);
-          return A(Pc(v, a, c, d, e, g, h, k, m));
-        };
-        L.prototype.WordRecognitionLanguage = function() {
-          return A(Qc(this.Gf));
-        };
-        L.prototype.WordDirection = function() {
-          return Rc(this.Gf);
-        };
-        L.prototype.WordIsFromDictionary = function() {
-          return !!Sc(this.Gf);
-        };
-        L.prototype.WordIsNumeric = function() {
-          return !!Tc(this.Gf);
-        };
-        L.prototype.HasBlamerInfo = function() {
-          return !!Uc(this.Gf);
-        };
-        L.prototype.HasTruthString = function() {
-          return !!Vc(this.Gf);
-        };
-        L.prototype.EquivalentToTruth = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return !!Wc(c, a);
-        };
-        L.prototype.WordTruthUTF8Text = function() {
-          return A(Xc(this.Gf));
-        };
-        L.prototype.WordNormedUTF8Text = function() {
-          return A(Yc(this.Gf));
-        };
-        L.prototype.WordLattice = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Zc(c, a));
-        };
-        L.prototype.SymbolIsSuperscript = function() {
-          return !!$c(this.Gf);
-        };
-        L.prototype.SymbolIsSubscript = function() {
-          return !!ad(this.Gf);
-        };
-        L.prototype.SymbolIsDropcap = function() {
-          return !!bd(this.Gf);
-        };
-        L.prototype.__destroy__ = function() {
-          cd(this.Gf);
+        Th.prototype = Object.create(G.prototype);
+        Th.prototype.constructor = Th;
+        Th.prototype.Nf = Th;
+        Th.Of = {};
+        b.LongStarPtr = Th;
+        Th.prototype.__destroy__ = function() {
+          mc(this.If);
         };
         function Uh() {
-          throw "cannot construct a TextlineOrder, no constructor in IDL";
+          throw "cannot construct a VoidPtr, no constructor in IDL";
         }
         Uh.prototype = Object.create(G.prototype);
         Uh.prototype.constructor = Uh;
-        Uh.prototype.Lf = Uh;
-        Uh.Mf = {};
-        b.TextlineOrder = Uh;
+        Uh.prototype.Nf = Uh;
+        Uh.Of = {};
+        b.VoidPtr = Uh;
         Uh.prototype.__destroy__ = function() {
-          dd(this.Gf);
+          nc(this.If);
         };
-        function Vh() {
+        function L(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = oc(a);
+          Lh(L)[this.If] = this;
+        }
+        L.prototype = Object.create(G.prototype);
+        L.prototype.constructor = L;
+        L.prototype.Nf = L;
+        L.Of = {};
+        b.ResultIterator = L;
+        L.prototype.Begin = function() {
+          pc(this.If);
+        };
+        L.prototype.RestartParagraph = function() {
+          qc(this.If);
+        };
+        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
+          return !!rc(this.If);
+        };
+        L.prototype.RestartRow = function() {
+          sc(this.If);
+        };
+        L.prototype.Next = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!tc(c, a);
+        };
+        L.prototype.IsAtBeginningOf = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!uc(c, a);
+        };
+        L.prototype.IsAtFinalElement = function(a, c) {
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          return !!vc(d, a, c);
+        };
+        L.prototype.Cmp = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return wc(c, a);
+        };
+        L.prototype.SetBoundingBoxComponents = function(a, c) {
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          xc(d, a, c);
+        };
+        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
+          var k = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          return void 0 === h ? !!yc(k, a, c, d, e, g) : !!zc(k, a, c, d, e, g, h);
+        };
+        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return !!Ac(h, a, c, d, e, g);
+        };
+        L.prototype.Empty = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!Bc(c, a);
+        };
+        L.prototype.BlockType = function() {
+          return Cc(this.If);
+        };
+        L.prototype.BlockPolygon = function() {
+          return H(Dc(this.If), M);
+        };
+        L.prototype.GetBinaryImage = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Ec(c, a), N);
+        };
+        L.prototype.GetImage = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return H(Fc(h, a, c, d, e, g), N);
+        };
+        L.prototype.Baseline = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return !!Gc(h, a, c, d, e, g);
+        };
+        L.prototype.RowAttributes = function(a, c, d) {
+          var e = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          return !!Hc(e, a, c, d);
+        };
+        L.prototype.Orientation = function(a, c, d, e) {
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          Ic(g, a, c, d, e);
+        };
+        L.prototype.ParagraphInfo = function(a, c, d, e) {
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          Jc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphIsLtr = function() {
+          return !!Kc(this.If);
+        };
+        L.prototype.GetUTF8Text = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(Lc(c, a));
+        };
+        L.prototype.SetLineSeparator = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          Mc(c, a);
+        };
+        L.prototype.SetParagraphSeparator = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          Nc(c, a);
+        };
+        L.prototype.Confidence = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return Oc(c, a);
+        };
+        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
+          var v = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
+          m && "object" === typeof m && (m = m.If);
+          return A(Pc(v, a, c, d, e, g, h, k, m));
+        };
+        L.prototype.WordRecognitionLanguage = function() {
+          return A(Qc(this.If));
+        };
+        L.prototype.WordDirection = function() {
+          return Rc(this.If);
+        };
+        L.prototype.WordIsFromDictionary = function() {
+          return !!Sc(this.If);
+        };
+        L.prototype.WordIsNumeric = function() {
+          return !!Tc(this.If);
+        };
+        L.prototype.HasBlamerInfo = function() {
+          return !!Uc(this.If);
+        };
+        L.prototype.HasTruthString = function() {
+          return !!Vc(this.If);
+        };
+        L.prototype.EquivalentToTruth = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          return !!Wc(c, a);
+        };
+        L.prototype.WordTruthUTF8Text = function() {
+          return A(Xc(this.If));
+        };
+        L.prototype.WordNormedUTF8Text = function() {
+          return A(Yc(this.If));
+        };
+        L.prototype.WordLattice = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(Zc(c, a));
+        };
+        L.prototype.SymbolIsSuperscript = function() {
+          return !!$c(this.If);
+        };
+        L.prototype.SymbolIsSubscript = function() {
+          return !!ad(this.If);
+        };
+        L.prototype.SymbolIsDropcap = function() {
+          return !!bd(this.If);
+        };
+        L.prototype.__destroy__ = function() {
+          cd(this.If);
+        };
+        function Wh() {
+          throw "cannot construct a TextlineOrder, no constructor in IDL";
+        }
+        Wh.prototype = Object.create(G.prototype);
+        Wh.prototype.constructor = Wh;
+        Wh.prototype.Nf = Wh;
+        Wh.Of = {};
+        b.TextlineOrder = Wh;
+        Wh.prototype.__destroy__ = function() {
+          dd(this.If);
+        };
+        function Xh() {
           throw "cannot construct a ETEXT_DESC, no constructor in IDL";
         }
-        Vh.prototype = Object.create(G.prototype);
-        Vh.prototype.constructor = Vh;
-        Vh.prototype.Lf = Vh;
-        Vh.Mf = {};
-        b.ETEXT_DESC = Vh;
-        Vh.prototype.__destroy__ = function() {
-          ed(this.Gf);
+        Xh.prototype = Object.create(G.prototype);
+        Xh.prototype.constructor = Xh;
+        Xh.prototype.Nf = Xh;
+        Xh.Of = {};
+        b.ETEXT_DESC = Xh;
+        Xh.prototype.__destroy__ = function() {
+          ed(this.If);
         };
         function O() {
           throw "cannot construct a PageIterator, no constructor in IDL";
         }
         O.prototype = Object.create(G.prototype);
         O.prototype.constructor = O;
-        O.prototype.Lf = O;
-        O.Mf = {};
+        O.prototype.Nf = O;
+        O.Of = {};
         b.PageIterator = O;
         O.prototype.Begin = function() {
-          fd(this.Gf);
+          fd(this.If);
         };
         O.prototype.RestartParagraph = function() {
-          gd(this.Gf);
+          gd(this.If);
         };
         O.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!hd(this.Gf);
+          return !!hd(this.If);
         };
         O.prototype.RestartRow = function() {
-          jd(this.Gf);
+          jd(this.If);
         };
         O.prototype.Next = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!kd(c, a);
         };
         O.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!ld(c, a);
         };
         O.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
           return !!md(d, a, c);
         };
         O.prototype.Cmp = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return nd(c, a);
         };
         O.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
           od(d, a, c);
         };
         O.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
+          var k = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
           return void 0 === h ? !!pd(k, a, c, d, e, g) : !!qd(k, a, c, d, e, g, h);
         };
         O.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return !!rd(h, a, c, d, e, g);
         };
         O.prototype.Empty = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!sd(c, a);
         };
         O.prototype.BlockType = function() {
-          return td(this.Gf);
+          return td(this.If);
         };
         O.prototype.BlockPolygon = function() {
-          return H(ud(this.Gf), M);
+          return H(ud(this.If), M);
         };
         O.prototype.GetBinaryImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return H(vd(c, a), N);
         };
         O.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return H(wd(h, a, c, d, e, g), N);
         };
         O.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return !!xd(h, a, c, d, e, g);
         };
         O.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           yd(g, a, c, d, e);
         };
         O.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           zd(g, a, c, d, e);
         };
         O.prototype.__destroy__ = function() {
-          Ad(this.Gf);
+          Ad(this.If);
         };
-        function Wh() {
+        function Yh() {
           throw "cannot construct a WritingDirection, no constructor in IDL";
         }
-        Wh.prototype = Object.create(G.prototype);
-        Wh.prototype.constructor = Wh;
-        Wh.prototype.Lf = Wh;
-        Wh.Mf = {};
-        b.WritingDirection = Wh;
-        Wh.prototype.__destroy__ = function() {
-          Bd(this.Gf);
+        Yh.prototype = Object.create(G.prototype);
+        Yh.prototype.constructor = Yh;
+        Yh.prototype.Nf = Yh;
+        Yh.Of = {};
+        b.WritingDirection = Yh;
+        Yh.prototype.__destroy__ = function() {
+          Bd(this.If);
         };
-        function Xh(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = Cd(a);
-          Jh(Xh)[this.Gf] = this;
+        function Zh(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = Cd(a);
+          Lh(Zh)[this.If] = this;
         }
-        Xh.prototype = Object.create(G.prototype);
-        Xh.prototype.constructor = Xh;
-        Xh.prototype.Lf = Xh;
-        Xh.Mf = {};
-        b.WordChoiceIterator = Xh;
-        Xh.prototype.Next = function() {
-          return !!Dd(this.Gf);
+        Zh.prototype = Object.create(G.prototype);
+        Zh.prototype.constructor = Zh;
+        Zh.prototype.Nf = Zh;
+        Zh.Of = {};
+        b.WordChoiceIterator = Zh;
+        Zh.prototype.Next = function() {
+          return !!Dd(this.If);
         };
-        Xh.prototype.GetUTF8Text = function() {
-          return A(Ed(this.Gf));
+        Zh.prototype.GetUTF8Text = function() {
+          return A(Ed(this.If));
         };
-        Xh.prototype.Confidence = function() {
-          return Fd(this.Gf);
+        Zh.prototype.Confidence = function() {
+          return Fd(this.If);
         };
-        Xh.prototype.__destroy__ = function() {
-          Gd(this.Gf);
+        Zh.prototype.__destroy__ = function() {
+          Gd(this.If);
         };
         function P() {
           throw "cannot construct a Box, no constructor in IDL";
         }
         P.prototype = Object.create(G.prototype);
         P.prototype.constructor = P;
-        P.prototype.Lf = P;
-        P.Mf = {};
+        P.prototype.Nf = P;
+        P.Of = {};
         b.Box = P;
-        P.prototype.get_x = P.prototype.Og = function() {
-          return Hd(this.Gf);
+        P.prototype.get_x = P.prototype.Qg = function() {
+          return Hd(this.If);
         };
-        Object.defineProperty(P.prototype, "x", { get: P.prototype.Og });
-        P.prototype.get_y = P.prototype.Pg = function() {
-          return Id(this.Gf);
+        Object.defineProperty(P.prototype, "x", { get: P.prototype.Qg });
+        P.prototype.get_y = P.prototype.Rg = function() {
+          return Id(this.If);
         };
-        Object.defineProperty(P.prototype, "y", { get: P.prototype.Pg });
-        P.prototype.get_w = P.prototype.Ng = function() {
-          return Jd(this.Gf);
+        Object.defineProperty(P.prototype, "y", { get: P.prototype.Rg });
+        P.prototype.get_w = P.prototype.Pg = function() {
+          return Jd(this.If);
         };
-        Object.defineProperty(P.prototype, "w", { get: P.prototype.Ng });
-        P.prototype.get_h = P.prototype.Mg = function() {
-          return Kd(this.Gf);
+        Object.defineProperty(P.prototype, "w", { get: P.prototype.Pg });
+        P.prototype.get_h = P.prototype.Og = function() {
+          return Kd(this.If);
         };
-        Object.defineProperty(P.prototype, "h", { get: P.prototype.Mg });
-        P.prototype.get_refcount = P.prototype.ag = function() {
-          return Ld(this.Gf);
+        Object.defineProperty(P.prototype, "h", { get: P.prototype.Og });
+        P.prototype.get_refcount = P.prototype.cg = function() {
+          return Ld(this.If);
         };
-        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.ag });
+        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.cg });
         P.prototype.__destroy__ = function() {
-          Md(this.Gf);
+          Md(this.If);
         };
         function Q(a, c, d) {
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          d && "object" === typeof d && (d = d.Gf);
-          this.Gf = Nd(a, c, d);
-          Jh(Q)[this.Gf] = this;
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          d && "object" === typeof d && (d = d.If);
+          this.If = Nd(a, c, d);
+          Lh(Q)[this.If] = this;
         }
         Q.prototype = Object.create(G.prototype);
         Q.prototype.constructor = Q;
-        Q.prototype.Lf = Q;
-        Q.Mf = {};
+        Q.prototype.Nf = Q;
+        Q.Of = {};
         b.TessPDFRenderer = Q;
         Q.prototype.BeginDocument = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return !!Od(c, a);
         };
         Q.prototype.AddImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!Pd(c, a);
         };
         Q.prototype.EndDocument = function() {
-          return !!Qd(this.Gf);
+          return !!Qd(this.If);
         };
         Q.prototype.happy = function() {
-          return !!Rd(this.Gf);
+          return !!Rd(this.If);
         };
         Q.prototype.file_extension = function() {
-          return A(Sd(this.Gf));
+          return A(Sd(this.If));
         };
         Q.prototype.title = Q.prototype.title = function() {
-          return A(Td(this.Gf));
+          return A(Td(this.If));
         };
         Q.prototype.imagenum = function() {
-          return Ud(this.Gf);
+          return Ud(this.If);
         };
         Q.prototype.__destroy__ = function() {
-          Vd(this.Gf);
+          Vd(this.If);
         };
-        function Yh() {
+        function $h() {
           throw "cannot construct a PixaPtr, no constructor in IDL";
-        }
-        Yh.prototype = Object.create(G.prototype);
-        Yh.prototype.constructor = Yh;
-        Yh.prototype.Lf = Yh;
-        Yh.Mf = {};
-        b.PixaPtr = Yh;
-        Yh.prototype.__destroy__ = function() {
-          Wd(this.Gf);
-        };
-        function Zh() {
-          throw "cannot construct a FloatPtr, no constructor in IDL";
-        }
-        Zh.prototype = Object.create(G.prototype);
-        Zh.prototype.constructor = Zh;
-        Zh.prototype.Lf = Zh;
-        Zh.Mf = {};
-        b.FloatPtr = Zh;
-        Zh.prototype.__destroy__ = function() {
-          Xd(this.Gf);
-        };
-        function $h(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = Yd(a);
-          Jh($h)[this.Gf] = this;
         }
         $h.prototype = Object.create(G.prototype);
         $h.prototype.constructor = $h;
-        $h.prototype.Lf = $h;
-        $h.Mf = {};
-        b.ChoiceIterator = $h;
-        $h.prototype.Next = function() {
-          return !!Zd(this.Gf);
-        };
-        $h.prototype.GetUTF8Text = function() {
-          return A($d(this.Gf));
-        };
-        $h.prototype.Confidence = function() {
-          return ae(this.Gf);
-        };
+        $h.prototype.Nf = $h;
+        $h.Of = {};
+        b.PixaPtr = $h;
         $h.prototype.__destroy__ = function() {
-          be(this.Gf);
+          Wd(this.If);
         };
         function ai() {
-          throw "cannot construct a PixPtr, no constructor in IDL";
+          throw "cannot construct a FloatPtr, no constructor in IDL";
         }
         ai.prototype = Object.create(G.prototype);
         ai.prototype.constructor = ai;
-        ai.prototype.Lf = ai;
-        ai.Mf = {};
-        b.PixPtr = ai;
+        ai.prototype.Nf = ai;
+        ai.Of = {};
+        b.FloatPtr = ai;
         ai.prototype.__destroy__ = function() {
-          ce(this.Gf);
+          Xd(this.If);
         };
-        function bi() {
-          throw "cannot construct a UNICHARSET, no constructor in IDL";
+        function bi(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = Yd(a);
+          Lh(bi)[this.If] = this;
         }
         bi.prototype = Object.create(G.prototype);
         bi.prototype.constructor = bi;
-        bi.prototype.Lf = bi;
-        bi.Mf = {};
-        b.UNICHARSET = bi;
-        bi.prototype.get_script_from_script_id = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(de(c, a));
+        bi.prototype.Nf = bi;
+        bi.Of = {};
+        b.ChoiceIterator = bi;
+        bi.prototype.Next = function() {
+          return !!Zd(this.If);
         };
-        bi.prototype.get_script_id_from_name = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return ee(c, a);
+        bi.prototype.GetUTF8Text = function() {
+          return A($d(this.If));
         };
-        bi.prototype.get_script_table_size = function() {
-          return fe(this.Gf);
+        bi.prototype.Confidence = function() {
+          return ae(this.If);
         };
         bi.prototype.__destroy__ = function() {
-          ge(this.Gf);
+          be(this.If);
         };
         function ci() {
-          throw "cannot construct a IntPtr, no constructor in IDL";
+          throw "cannot construct a PixPtr, no constructor in IDL";
         }
         ci.prototype = Object.create(G.prototype);
         ci.prototype.constructor = ci;
-        ci.prototype.Lf = ci;
-        ci.Mf = {};
-        b.IntPtr = ci;
+        ci.prototype.Nf = ci;
+        ci.Of = {};
+        b.PixPtr = ci;
         ci.prototype.__destroy__ = function() {
-          he(this.Gf);
+          ce(this.If);
         };
         function di() {
-          throw "cannot construct a Orientation, no constructor in IDL";
+          throw "cannot construct a UNICHARSET, no constructor in IDL";
         }
         di.prototype = Object.create(G.prototype);
         di.prototype.constructor = di;
-        di.prototype.Lf = di;
-        di.Mf = {};
-        b.Orientation = di;
+        di.prototype.Nf = di;
+        di.Of = {};
+        b.UNICHARSET = di;
+        di.prototype.get_script_from_script_id = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(de(c, a));
+        };
+        di.prototype.get_script_id_from_name = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          return ee(c, a);
+        };
+        di.prototype.get_script_table_size = function() {
+          return fe(this.If);
+        };
         di.prototype.__destroy__ = function() {
-          ie(this.Gf);
+          ge(this.If);
+        };
+        function ei() {
+          throw "cannot construct a IntPtr, no constructor in IDL";
+        }
+        ei.prototype = Object.create(G.prototype);
+        ei.prototype.constructor = ei;
+        ei.prototype.Nf = ei;
+        ei.Of = {};
+        b.IntPtr = ei;
+        ei.prototype.__destroy__ = function() {
+          he(this.If);
+        };
+        function fi() {
+          throw "cannot construct a Orientation, no constructor in IDL";
+        }
+        fi.prototype = Object.create(G.prototype);
+        fi.prototype.constructor = fi;
+        fi.prototype.Nf = fi;
+        fi.Of = {};
+        b.Orientation = fi;
+        fi.prototype.__destroy__ = function() {
+          ie(this.If);
         };
         function R() {
           throw "cannot construct a OSBestResult, no constructor in IDL";
         }
         R.prototype = Object.create(G.prototype);
         R.prototype.constructor = R;
-        R.prototype.Lf = R;
-        R.Mf = {};
+        R.prototype.Nf = R;
+        R.Of = {};
         b.OSBestResult = R;
-        R.prototype.get_orientation_id = R.prototype.Yh = function() {
-          return je(this.Gf);
+        R.prototype.get_orientation_id = R.prototype.$h = function() {
+          return je(this.If);
         };
-        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Yh });
-        R.prototype.get_script_id = R.prototype.ai = function() {
-          return ke(this.Gf);
+        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.$h });
+        R.prototype.get_script_id = R.prototype.ci = function() {
+          return ke(this.If);
         };
-        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.ai });
-        R.prototype.get_sconfidence = R.prototype.$h = function() {
-          return le(this.Gf);
+        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.ci });
+        R.prototype.get_sconfidence = R.prototype.bi = function() {
+          return le(this.If);
         };
-        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.$h });
-        R.prototype.get_oconfidence = R.prototype.Xh = function() {
-          return me(this.Gf);
+        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.bi });
+        R.prototype.get_oconfidence = R.prototype.Zh = function() {
+          return me(this.If);
         };
-        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Xh });
+        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Zh });
         R.prototype.__destroy__ = function() {
-          ne(this.Gf);
+          ne(this.If);
         };
         function S() {
           throw "cannot construct a Boxa, no constructor in IDL";
         }
         S.prototype = Object.create(G.prototype);
         S.prototype.constructor = S;
-        S.prototype.Lf = S;
-        S.Mf = {};
+        S.prototype.Nf = S;
+        S.Of = {};
         b.Boxa = S;
-        S.prototype.get_n = S.prototype.eg = function() {
-          return oe(this.Gf);
+        S.prototype.get_n = S.prototype.gg = function() {
+          return oe(this.If);
         };
-        Object.defineProperty(S.prototype, "n", { get: S.prototype.eg });
-        S.prototype.get_nalloc = S.prototype.fg = function() {
-          return pe(this.Gf);
+        Object.defineProperty(S.prototype, "n", { get: S.prototype.gg });
+        S.prototype.get_nalloc = S.prototype.hg = function() {
+          return pe(this.If);
         };
-        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.fg });
-        S.prototype.get_refcount = S.prototype.ag = function() {
-          return qe(this.Gf);
+        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.hg });
+        S.prototype.get_refcount = S.prototype.cg = function() {
+          return qe(this.If);
         };
-        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.ag });
-        S.prototype.get_box = S.prototype.Qh = function() {
-          return H(re(this.Gf), ei);
+        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.cg });
+        S.prototype.get_box = S.prototype.Sh = function() {
+          return H(re(this.If), gi);
         };
-        Object.defineProperty(S.prototype, "box", { get: S.prototype.Qh });
+        Object.defineProperty(S.prototype, "box", { get: S.prototype.Sh });
         S.prototype.__destroy__ = function() {
-          se(this.Gf);
+          se(this.If);
         };
         function T() {
           throw "cannot construct a PixColormap, no constructor in IDL";
         }
         T.prototype = Object.create(G.prototype);
         T.prototype.constructor = T;
-        T.prototype.Lf = T;
-        T.Mf = {};
+        T.prototype.Nf = T;
+        T.Of = {};
         b.PixColormap = T;
-        T.prototype.get_array = T.prototype.Oh = function() {
-          return te(this.Gf);
+        T.prototype.get_array = T.prototype.Qh = function() {
+          return te(this.If);
         };
-        Object.defineProperty(T.prototype, "array", { get: T.prototype.Oh });
-        T.prototype.get_depth = T.prototype.Vh = function() {
-          return ue(this.Gf);
+        Object.defineProperty(T.prototype, "array", { get: T.prototype.Qh });
+        T.prototype.get_depth = T.prototype.Xh = function() {
+          return ue(this.If);
         };
-        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Vh });
-        T.prototype.get_nalloc = T.prototype.fg = function() {
-          return ve(this.Gf);
+        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Xh });
+        T.prototype.get_nalloc = T.prototype.hg = function() {
+          return ve(this.If);
         };
-        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.fg });
-        T.prototype.get_n = T.prototype.eg = function() {
-          return we(this.Gf);
+        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.hg });
+        T.prototype.get_n = T.prototype.gg = function() {
+          return we(this.If);
         };
-        Object.defineProperty(T.prototype, "n", { get: T.prototype.eg });
+        Object.defineProperty(T.prototype, "n", { get: T.prototype.gg });
         T.prototype.__destroy__ = function() {
-          xe(this.Gf);
+          xe(this.If);
         };
         function M() {
           throw "cannot construct a Pta, no constructor in IDL";
         }
         M.prototype = Object.create(G.prototype);
         M.prototype.constructor = M;
-        M.prototype.Lf = M;
-        M.Mf = {};
+        M.prototype.Nf = M;
+        M.Of = {};
         b.Pta = M;
-        M.prototype.get_n = M.prototype.eg = function() {
-          return ye(this.Gf);
+        M.prototype.get_n = M.prototype.gg = function() {
+          return ye(this.If);
         };
-        Object.defineProperty(M.prototype, "n", { get: M.prototype.eg });
-        M.prototype.get_nalloc = M.prototype.fg = function() {
-          return ze(this.Gf);
+        Object.defineProperty(M.prototype, "n", { get: M.prototype.gg });
+        M.prototype.get_nalloc = M.prototype.hg = function() {
+          return ze(this.If);
         };
-        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.fg });
-        M.prototype.get_refcount = M.prototype.ag = function() {
-          return Ae(this.Gf);
+        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.hg });
+        M.prototype.get_refcount = M.prototype.cg = function() {
+          return Ae(this.If);
         };
-        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.ag });
-        M.prototype.get_x = M.prototype.Og = function() {
-          return H(Be(this.Gf), Zh);
+        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.cg });
+        M.prototype.get_x = M.prototype.Qg = function() {
+          return H(Be(this.If), ai);
         };
-        Object.defineProperty(M.prototype, "x", { get: M.prototype.Og });
-        M.prototype.get_y = M.prototype.Pg = function() {
-          return H(Ce(this.Gf), Zh);
+        Object.defineProperty(M.prototype, "x", { get: M.prototype.Qg });
+        M.prototype.get_y = M.prototype.Rg = function() {
+          return H(Ce(this.If), ai);
         };
-        Object.defineProperty(M.prototype, "y", { get: M.prototype.Pg });
+        Object.defineProperty(M.prototype, "y", { get: M.prototype.Rg });
         M.prototype.__destroy__ = function() {
-          De(this.Gf);
+          De(this.If);
         };
         function N() {
           throw "cannot construct a Pix, no constructor in IDL";
         }
         N.prototype = Object.create(G.prototype);
         N.prototype.constructor = N;
-        N.prototype.Lf = N;
-        N.Mf = {};
+        N.prototype.Nf = N;
+        N.Of = {};
         b.Pix = N;
-        N.prototype.get_w = N.prototype.Ng = function() {
-          return Ee(this.Gf);
+        N.prototype.get_w = N.prototype.Pg = function() {
+          return Ee(this.If);
         };
-        Object.defineProperty(N.prototype, "w", { get: N.prototype.Ng });
-        N.prototype.get_h = N.prototype.Mg = function() {
-          return Fe(this.Gf);
+        Object.defineProperty(N.prototype, "w", { get: N.prototype.Pg });
+        N.prototype.get_h = N.prototype.Og = function() {
+          return Fe(this.If);
         };
-        Object.defineProperty(N.prototype, "h", { get: N.prototype.Mg });
-        N.prototype.get_d = N.prototype.Th = function() {
-          return Ge(this.Gf);
+        Object.defineProperty(N.prototype, "h", { get: N.prototype.Og });
+        N.prototype.get_d = N.prototype.Vh = function() {
+          return Ge(this.If);
         };
-        Object.defineProperty(N.prototype, "d", { get: N.prototype.Th });
-        N.prototype.get_spp = N.prototype.ci = function() {
-          return He(this.Gf);
+        Object.defineProperty(N.prototype, "d", { get: N.prototype.Vh });
+        N.prototype.get_spp = N.prototype.ei = function() {
+          return He(this.If);
         };
-        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ci });
-        N.prototype.get_wpl = N.prototype.fi = function() {
-          return Ie(this.Gf);
+        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ei });
+        N.prototype.get_wpl = N.prototype.hi = function() {
+          return Ie(this.If);
         };
-        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.fi });
-        N.prototype.get_refcount = N.prototype.ag = function() {
-          return Je(this.Gf);
+        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.hi });
+        N.prototype.get_refcount = N.prototype.cg = function() {
+          return Je(this.If);
         };
-        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.ag });
-        N.prototype.get_xres = N.prototype.gi = function() {
-          return Ke(this.Gf);
+        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.cg });
+        N.prototype.get_xres = N.prototype.ii = function() {
+          return Ke(this.If);
         };
-        Object.defineProperty(N.prototype, "xres", { get: N.prototype.gi });
-        N.prototype.get_yres = N.prototype.hi = function() {
-          return Le(this.Gf);
+        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ii });
+        N.prototype.get_yres = N.prototype.ji = function() {
+          return Le(this.If);
         };
-        Object.defineProperty(N.prototype, "yres", { get: N.prototype.hi });
-        N.prototype.get_informat = N.prototype.Wh = function() {
-          return Me(this.Gf);
+        Object.defineProperty(N.prototype, "yres", { get: N.prototype.ji });
+        N.prototype.get_informat = N.prototype.Yh = function() {
+          return Me(this.If);
         };
-        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Wh });
-        N.prototype.get_special = N.prototype.bi = function() {
-          return Ne(this.Gf);
+        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Yh });
+        N.prototype.get_special = N.prototype.di = function() {
+          return Ne(this.If);
         };
-        Object.defineProperty(N.prototype, "special", { get: N.prototype.bi });
-        N.prototype.get_text = N.prototype.di = function() {
-          return A(Oe(this.Gf));
+        Object.defineProperty(N.prototype, "special", { get: N.prototype.di });
+        N.prototype.get_text = N.prototype.fi = function() {
+          return A(Oe(this.If));
         };
-        Object.defineProperty(N.prototype, "text", { get: N.prototype.di });
-        N.prototype.get_colormap = N.prototype.Sh = function() {
-          return H(Pe(this.Gf), T);
+        Object.defineProperty(N.prototype, "text", { get: N.prototype.fi });
+        N.prototype.get_colormap = N.prototype.Uh = function() {
+          return H(Pe(this.If), T);
         };
-        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Sh });
-        N.prototype.get_data = N.prototype.Uh = function() {
-          return Qe(this.Gf);
+        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Uh });
+        N.prototype.get_data = N.prototype.Wh = function() {
+          return Qe(this.If);
         };
-        Object.defineProperty(N.prototype, "data", { get: N.prototype.Uh });
+        Object.defineProperty(N.prototype, "data", { get: N.prototype.Wh });
         N.prototype.__destroy__ = function() {
-          Re(this.Gf);
+          Re(this.If);
         };
-        function fi() {
+        function hi() {
           throw "cannot construct a DoublePtr, no constructor in IDL";
         }
-        fi.prototype = Object.create(G.prototype);
-        fi.prototype.constructor = fi;
-        fi.prototype.Lf = fi;
-        fi.Mf = {};
-        b.DoublePtr = fi;
-        fi.prototype.__destroy__ = function() {
-          Se(this.Gf);
+        hi.prototype = Object.create(G.prototype);
+        hi.prototype.constructor = hi;
+        hi.prototype.Nf = hi;
+        hi.Of = {};
+        b.DoublePtr = hi;
+        hi.prototype.__destroy__ = function() {
+          Se(this.If);
+        };
+        function ii() {
+          throw "cannot construct a Dawg, no constructor in IDL";
+        }
+        ii.prototype = Object.create(G.prototype);
+        ii.prototype.constructor = ii;
+        ii.prototype.Nf = ii;
+        ii.Of = {};
+        b.Dawg = ii;
+        ii.prototype.__destroy__ = function() {
+          Te(this.If);
         };
         function gi() {
-          throw "cannot construct a Dawg, no constructor in IDL";
+          throw "cannot construct a BoxPtr, no constructor in IDL";
         }
         gi.prototype = Object.create(G.prototype);
         gi.prototype.constructor = gi;
-        gi.prototype.Lf = gi;
-        gi.Mf = {};
-        b.Dawg = gi;
+        gi.prototype.Nf = gi;
+        gi.Of = {};
+        b.BoxPtr = gi;
         gi.prototype.__destroy__ = function() {
-          Te(this.Gf);
-        };
-        function ei() {
-          throw "cannot construct a BoxPtr, no constructor in IDL";
-        }
-        ei.prototype = Object.create(G.prototype);
-        ei.prototype.constructor = ei;
-        ei.prototype.Lf = ei;
-        ei.Mf = {};
-        b.BoxPtr = ei;
-        ei.prototype.__destroy__ = function() {
-          Ue(this.Gf);
+          Ue(this.If);
         };
         function V() {
-          this.Gf = Ve();
-          Jh(V)[this.Gf] = this;
+          this.If = Ve();
+          Lh(V)[this.If] = this;
         }
         V.prototype = Object.create(G.prototype);
         V.prototype.constructor = V;
-        V.prototype.Lf = V;
-        V.Mf = {};
+        V.prototype.Nf = V;
+        V.Of = {};
         b.TessBaseAPI = V;
         V.prototype.Version = function() {
-          return A(We(this.Gf));
+          return A(We(this.If));
         };
         V.prototype.SetInputName = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           Xe(c, a);
         };
         V.prototype.GetInputName = function() {
-          return A(Ye(this.Gf));
+          return A(Ye(this.If));
         };
         V.prototype.SetInputImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           Ze(c, a);
         };
         V.prototype.GetInputImage = function() {
-          return H($e(this.Gf), N);
+          return H($e(this.If), N);
         };
         V.prototype.GetSourceYResolution = function() {
-          return af(this.Gf);
+          return af(this.If);
         };
         V.prototype.GetDatapath = function() {
-          return A(bf(this.Gf));
+          return A(bf(this.If));
         };
         V.prototype.SetOutputName = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           cf(c, a);
         };
         V.prototype.SetVariable = V.prototype.SetVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!df(d, a, c);
         };
         V.prototype.SetDebugVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!ef(d, a, c);
         };
         V.prototype.GetIntVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!ff(d, a, c);
         };
         V.prototype.GetBoolVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!gf(d, a, c);
         };
         V.prototype.GetDoubleVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!hf(d, a, c);
         };
         V.prototype.GetStringVariable = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return A(jf(c, a));
         };
         V.prototype.Init = function(a, c, d, e) {
           void 0 === d && void 0 !== e && (d = 3);
-          var g = this.Gf;
+          var g = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          e = e && "object" === typeof e ? e.Gf : J(e);
-          d && "object" === typeof d && (d = d.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          e = e && "object" === typeof e ? e.If : J(e);
+          d && "object" === typeof d && (d = d.If);
           return void 0 === d && void 0 !== e ? of(g, a, c, 3, e) : void 0 === d ? mf(g, a, c) : void 0 === e ? nf(g, a, c, d) : of(g, a, c, d, e);
         };
         V.prototype.GetInitLanguagesAsString = function() {
-          return A(pf(this.Gf));
+          return A(pf(this.If));
         };
         V.prototype.InitForAnalysePage = function() {
-          qf(this.Gf);
+          qf(this.If);
         };
         V.prototype.SaveParameters = function() {
-          kf(this.Gf);
+          kf(this.If);
         };
         V.prototype.RestoreParameters = function() {
-          lf(this.Gf);
+          lf(this.If);
         };
         V.prototype.ReadConfigFile = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           rf(c, a);
         };
         V.prototype.ReadDebugConfigFile = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           sf(c, a);
         };
         V.prototype.SetPageSegMode = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           tf(c, a);
         };
         V.prototype.GetPageSegMode = function() {
-          return uf(this.Gf);
+          return uf(this.If);
         };
         V.prototype.TesseractRect = function(a, c, d, e, g, h, k) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
+          var m = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
           return A(vf(m, a, c, d, e, g, h, k));
         };
         V.prototype.ClearAdaptiveClassifier = function() {
-          wf(this.Gf);
+          wf(this.If);
         };
-        V.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          void 0 === c || null === c ? xf(m, a, h, k) : yf(m, a, c, d, e, g, h, k);
+        V.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0, m = false) {
+          var v = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          void 0 === c || null === c ? xf(v, a, h, k, m) : yf(v, a, c, d, e, g, h, k, m);
         };
-        V.prototype.SetImageFile = function(a = 1, c = 0) {
-          return zf(this.Gf, a, c);
+        V.prototype.SetImageFile = function(a = 1, c = 0, d = false) {
+          return zf(this.If, a, c, d);
         };
         V.prototype.SetSourceResolution = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           Af(c, a);
         };
         V.prototype.SetRectangle = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           Bf(g, a, c, d, e);
         };
         V.prototype.GetThresholdedImage = function() {
-          return H(Cf(this.Gf), N);
+          return H(Cf(this.If), N);
         };
         V.prototype.WriteImage = function(a) {
-          Df(this.Gf, a);
+          Df(this.If, a);
         };
         V.prototype.GetRegions = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Gf(c, a), S);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Hf(c, a), S);
         };
         V.prototype.GetTextlines = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return void 0 === d ? H(Hf(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(If(h, a, c, d, e, g), S);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return void 0 === d ? H(If(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Jf(h, a, c, d, e, g), S);
         };
         V.prototype.GetStrips = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          return H(Jf(d, a, c), S);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          return H(Kf(d, a, c), S);
         };
         V.prototype.GetWords = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Kf(c, a), S);
-        };
-        V.prototype.GetConnectedComponents = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return H(Lf(c, a), S);
         };
+        V.prototype.GetConnectedComponents = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Mf(c, a), S);
+        };
         V.prototype.GetComponentImages = function(a, c, d, e, g, h, k) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
-          return void 0 === g ? H(Mf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Nf(
+          var m = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
+          return void 0 === g ? H(Nf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Of(
             m,
             a,
             c,
@@ -8977,318 +8974,345 @@ var require_tesseract_core_simd_lstm = __commonJS({
           ), S);
         };
         V.prototype.GetThresholdedImageScaleFactor = function() {
-          return Of(this.Gf);
+          return Pf(this.If);
         };
         V.prototype.AnalyseLayout = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return void 0 === a ? H(Pf(c), O) : H(Qf(c, a), O);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return void 0 === a ? H(Qf(c), O) : H(Rf(c, a), O);
         };
         V.prototype.Recognize = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return Rf(c, a);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return Sf(c, a);
         };
         V.prototype.FindLines = function() {
-          return Ef(this.Gf);
+          return Ef(this.If);
         };
         V.prototype.GetGradient = function() {
-          return Ff(this.Gf);
+          return Ff(this.If);
+        };
+        V.prototype.GetEstimatedResolution = function() {
+          return Gf(this.If);
         };
         V.prototype.ProcessPages = function(a, c, d, e) {
-          var g = this.Gf;
+          var g = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          return !!Sf(g, a, c, d, e);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          return !!Tf(g, a, c, d, e);
         };
         V.prototype.ProcessPage = function(a, c, d, e, g, h) {
-          var k = this.Gf;
+          var k = this.If;
           I();
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d = d && "object" === typeof d ? d.Gf : J(d);
-          e = e && "object" === typeof e ? e.Gf : J(e);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          return !!Tf(k, a, c, d, e, g, h);
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d = d && "object" === typeof d ? d.If : J(d);
+          e = e && "object" === typeof e ? e.If : J(e);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          return !!Uf(k, a, c, d, e, g, h);
         };
         V.prototype.GetIterator = function() {
-          return H(Uf(this.Gf), L);
+          return H(Vf(this.If), L);
         };
         V.prototype.GetUTF8Text = function() {
-          return A(Vf(this.Gf));
+          var a = Wf(this.If), c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetHOCRText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Wf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Xf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetTSVText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Xf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Zf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
+        };
+        V.prototype.GetJSONText = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Yf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetBoxText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Yf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = $f(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetUNLVText = function() {
-          return A(Zf(this.Gf));
+          var a = ag(this.If), c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetOsdText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A($f(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = bg(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.MeanTextConf = function() {
-          return ag(this.Gf);
+          return cg(this.If);
         };
         V.prototype.AllWordConfidences = function() {
-          return H(bg(this.Gf), ci);
+          return H(dg(this.If), ei);
         };
         V.prototype.AdaptToWordStr = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a && "object" === typeof a && (a = a.Gf);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a && "object" === typeof a && (a = a.If);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!_emscripten_bind_TessBaseAPI_AdaptToWordStr_2(d, a, c);
         };
         V.prototype.Clear = function() {
-          cg(this.Gf);
+          eg(this.If);
         };
         V.prototype.End = function() {
-          dg(this.Gf);
+          fg(this.If);
         };
         V.prototype.ClearPersistentCache = function() {
-          eg(this.Gf);
+          gg(this.If);
         };
         V.prototype.IsValidWord = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return fg(c, a);
+          a = a && "object" === typeof a ? a.If : J(a);
+          return hg(c, a);
         };
         V.prototype.IsValidCharacter = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return !!gg(c, a);
+          a = a && "object" === typeof a ? a.If : J(a);
+          return !!ig(c, a);
         };
         V.prototype.DetectOS = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!hg(c, a);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!jg(c, a);
         };
         V.prototype.GetUnichar = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(ig(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(kg(c, a));
         };
         V.prototype.GetDawg = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(jg(c, a), gi);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(lg(c, a), ii);
         };
         V.prototype.NumDawgs = function() {
-          return kg(this.Gf);
+          return mg(this.If);
         };
         V.prototype.oem = function() {
-          return lg(this.Gf);
+          return ng(this.If);
         };
         V.prototype.__destroy__ = function() {
-          mg(this.Gf);
+          og(this.If);
         };
         function Y() {
-          this.Gf = ng();
-          Jh(Y)[this.Gf] = this;
+          this.If = pg();
+          Lh(Y)[this.If] = this;
         }
         Y.prototype = Object.create(G.prototype);
         Y.prototype.constructor = Y;
-        Y.prototype.Lf = Y;
-        Y.Mf = {};
+        Y.prototype.Nf = Y;
+        Y.Of = {};
         b.OSResults = Y;
         Y.prototype.print_scores = function() {
-          og(this.Gf);
+          qg(this.If);
         };
-        Y.prototype.get_best_result = Y.prototype.Ph = function() {
-          return H(pg(this.Gf), R);
+        Y.prototype.get_best_result = Y.prototype.Rh = function() {
+          return H(rg(this.If), R);
         };
-        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Ph });
-        Y.prototype.get_unicharset = Y.prototype.ei = function() {
-          return H(qg(this.Gf), bi);
+        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Rh });
+        Y.prototype.get_unicharset = Y.prototype.gi = function() {
+          return H(sg(this.If), di);
         };
-        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ei });
+        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.gi });
         Y.prototype.__destroy__ = function() {
-          rg(this.Gf);
+          tg(this.If);
         };
         function Z() {
           throw "cannot construct a Pixa, no constructor in IDL";
         }
         Z.prototype = Object.create(G.prototype);
         Z.prototype.constructor = Z;
-        Z.prototype.Lf = Z;
-        Z.Mf = {};
+        Z.prototype.Nf = Z;
+        Z.Of = {};
         b.Pixa = Z;
-        Z.prototype.get_n = Z.prototype.eg = function() {
-          return sg(this.Gf);
+        Z.prototype.get_n = Z.prototype.gg = function() {
+          return ug(this.If);
         };
-        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.eg });
-        Z.prototype.get_nalloc = Z.prototype.fg = function() {
-          return tg(this.Gf);
+        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.gg });
+        Z.prototype.get_nalloc = Z.prototype.hg = function() {
+          return vg(this.If);
         };
-        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.fg });
-        Z.prototype.get_refcount = Z.prototype.ag = function() {
-          return ug(this.Gf);
+        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.hg });
+        Z.prototype.get_refcount = Z.prototype.cg = function() {
+          return wg(this.If);
         };
-        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.ag });
-        Z.prototype.get_pix = Z.prototype.Zh = function() {
-          return H(vg(this.Gf), ai);
+        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.cg });
+        Z.prototype.get_pix = Z.prototype.ai = function() {
+          return H(xg(this.If), ci);
         };
-        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Zh });
-        Z.prototype.get_boxa = Z.prototype.Rh = function() {
-          return H(wg(this.Gf), S);
+        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.ai });
+        Z.prototype.get_boxa = Z.prototype.Th = function() {
+          return H(yg(this.If), S);
         };
-        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Rh });
+        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Th });
         Z.prototype.__destroy__ = function() {
-          xg(this.Gf);
+          zg(this.If);
         };
         (function() {
           function a() {
-            b.RIL_BLOCK = yg();
-            b.RIL_PARA = zg();
-            b.RIL_TEXTLINE = Ag();
-            b.RIL_WORD = Bg();
-            b.RIL_SYMBOL = Cg();
-            b.OEM_TESSERACT_ONLY = Dg();
-            b.OEM_LSTM_ONLY = Eg();
-            b.OEM_TESSERACT_LSTM_COMBINED = Fg();
-            b.OEM_DEFAULT = Gg();
-            b.OEM_COUNT = Hg();
-            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Ig();
-            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Jg();
-            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Kg();
-            b.PT_UNKNOWN = Lg();
-            b.PT_FLOWING_TEXT = Mg();
-            b.PT_HEADING_TEXT = Ng();
-            b.PT_PULLOUT_TEXT = Og();
-            b.PT_EQUATION = Pg();
-            b.PT_INLINE_EQUATION = Qg();
-            b.PT_TABLE = Rg();
-            b.PT_VERTICAL_TEXT = Sg();
-            b.PT_CAPTION_TEXT = Tg();
-            b.PT_FLOWING_IMAGE = Ug();
-            b.PT_HEADING_IMAGE = Vg();
-            b.PT_PULLOUT_IMAGE = Wg();
-            b.PT_HORZ_LINE = Xg();
-            b.PT_VERT_LINE = Yg();
-            b.PT_NOISE = Zg();
-            b.PT_COUNT = $g();
-            b.DIR_NEUTRAL = ah();
-            b.DIR_LEFT_TO_RIGHT = bh();
-            b.DIR_RIGHT_TO_LEFT = ch();
-            b.DIR_MIX = dh();
-            b.JUSTIFICATION_UNKNOWN = eh();
-            b.JUSTIFICATION_LEFT = fh();
-            b.JUSTIFICATION_CENTER = gh();
-            b.JUSTIFICATION_RIGHT = hh();
-            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = ih();
-            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = jh();
-            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = kh();
-            b.ORIENTATION_PAGE_UP = lh();
-            b.ORIENTATION_PAGE_RIGHT = mh();
-            b.ORIENTATION_PAGE_DOWN = nh();
-            b.ORIENTATION_PAGE_LEFT = oh();
-            b.PSM_OSD_ONLY = ph();
-            b.PSM_AUTO_OSD = qh();
-            b.PSM_AUTO_ONLY = rh();
-            b.PSM_AUTO = sh();
-            b.PSM_SINGLE_COLUMN = th();
-            b.PSM_SINGLE_BLOCK_VERT_TEXT = uh();
-            b.PSM_SINGLE_BLOCK = vh();
-            b.PSM_SINGLE_LINE = wh();
-            b.PSM_SINGLE_WORD = xh();
-            b.PSM_CIRCLE_WORD = yh();
-            b.PSM_SINGLE_CHAR = zh();
-            b.PSM_SPARSE_TEXT = Ah();
-            b.PSM_SPARSE_TEXT_OSD = Bh();
-            b.PSM_RAW_LINE = Ch();
-            b.PSM_COUNT = Dh();
+            b.RIL_BLOCK = Ag();
+            b.RIL_PARA = Bg();
+            b.RIL_TEXTLINE = Cg();
+            b.RIL_WORD = Dg();
+            b.RIL_SYMBOL = Eg();
+            b.OEM_TESSERACT_ONLY = Fg();
+            b.OEM_LSTM_ONLY = Gg();
+            b.OEM_TESSERACT_LSTM_COMBINED = Hg();
+            b.OEM_DEFAULT = Ig();
+            b.OEM_COUNT = Jg();
+            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Kg();
+            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Lg();
+            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Mg();
+            b.PT_UNKNOWN = Ng();
+            b.PT_FLOWING_TEXT = Og();
+            b.PT_HEADING_TEXT = Pg();
+            b.PT_PULLOUT_TEXT = Qg();
+            b.PT_EQUATION = Rg();
+            b.PT_INLINE_EQUATION = Sg();
+            b.PT_TABLE = Tg();
+            b.PT_VERTICAL_TEXT = Ug();
+            b.PT_CAPTION_TEXT = Vg();
+            b.PT_FLOWING_IMAGE = Wg();
+            b.PT_HEADING_IMAGE = Xg();
+            b.PT_PULLOUT_IMAGE = Yg();
+            b.PT_HORZ_LINE = Zg();
+            b.PT_VERT_LINE = $g();
+            b.PT_NOISE = ah();
+            b.PT_COUNT = bh();
+            b.DIR_NEUTRAL = ch();
+            b.DIR_LEFT_TO_RIGHT = dh();
+            b.DIR_RIGHT_TO_LEFT = eh();
+            b.DIR_MIX = fh();
+            b.JUSTIFICATION_UNKNOWN = gh();
+            b.JUSTIFICATION_LEFT = hh();
+            b.JUSTIFICATION_CENTER = ih();
+            b.JUSTIFICATION_RIGHT = jh();
+            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = kh();
+            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = lh();
+            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = mh();
+            b.ORIENTATION_PAGE_UP = nh();
+            b.ORIENTATION_PAGE_RIGHT = oh();
+            b.ORIENTATION_PAGE_DOWN = ph();
+            b.ORIENTATION_PAGE_LEFT = qh();
+            b.PSM_OSD_ONLY = rh();
+            b.PSM_AUTO_OSD = sh();
+            b.PSM_AUTO_ONLY = th();
+            b.PSM_AUTO = uh();
+            b.PSM_SINGLE_COLUMN = vh();
+            b.PSM_SINGLE_BLOCK_VERT_TEXT = wh();
+            b.PSM_SINGLE_BLOCK = xh();
+            b.PSM_SINGLE_LINE = yh();
+            b.PSM_SINGLE_WORD = zh();
+            b.PSM_CIRCLE_WORD = Ah();
+            b.PSM_SINGLE_CHAR = Bh();
+            b.PSM_SPARSE_TEXT = Ch();
+            b.PSM_SPARSE_TEXT_OSD = Dh();
+            b.PSM_RAW_LINE = Eh();
+            b.PSM_COUNT = Fh();
           }
           Ba ? a() : za.unshift(a);
         })();
-        Qh.prototype.getValue = function(a) {
-          return !!Wa(this.Gf + (a || 0), "i8");
+        Sh.prototype.getValue = function(a) {
+          return !!Wa(this.If + (a || 0), "i8");
         };
-        ci.prototype.getValue = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "i32");
+        ei.prototype.getValue = function(a) {
+          return Wa(this.If + 4 * (a || 0), "i32");
         };
-        Zh.prototype.getValue = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "float");
+        ai.prototype.getValue = function(a) {
+          return Wa(this.If + 4 * (a || 0), "float");
         };
-        fi.prototype.getValue = function(a) {
-          return Wa(this.Gf + 8 * (a || 0), "double");
+        hi.prototype.getValue = function(a) {
+          return Wa(this.If + 8 * (a || 0), "double");
         };
-        ei.prototype.get = Yh.prototype.get = ai.prototype.get = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "*");
+        gi.prototype.get = $h.prototype.get = ci.prototype.get = function(a) {
+          return Wa(this.If + 4 * (a || 0), "*");
         };
-        function hi() {
-          this.mg = {};
+        function ji() {
+          this.og = {};
         }
-        hi.prototype.wrap = function(a, c) {
+        ji.prototype.wrap = function(a, c) {
           var d = Eb(4);
           Xa(d, 0, "i32");
-          return this.mg[a] = H(d, c);
+          return this.og[a] = H(d, c);
         };
-        hi.prototype.bool = function(a) {
-          return this.wrap(a, Qh);
+        ji.prototype.bool = function(a) {
+          return this.wrap(a, Sh);
         };
-        hi.prototype.i32 = function(a) {
-          return this.wrap(a, ci);
+        ji.prototype.i32 = function(a) {
+          return this.wrap(a, ei);
         };
-        hi.prototype.f32 = function(a) {
-          return this.wrap(a, Zh);
+        ji.prototype.f32 = function(a) {
+          return this.wrap(a, ai);
         };
-        hi.prototype.f64 = function(a) {
-          return this.mg[a] = H(Eb(8), fi);
+        ji.prototype.f64 = function(a) {
+          return this.og[a] = H(Eb(8), hi);
         };
-        hi.prototype.peek = function() {
+        ji.prototype.peek = function() {
           var a = {}, c;
-          for (c in this.mg) a[c] = this.mg[c].getValue();
+          for (c in this.og) a[c] = this.og[c].getValue();
           return a;
         };
-        hi.prototype.get = function() {
+        ji.prototype.get = function() {
           var a = {}, c;
-          for (c in this.mg) a[c] = this.mg[c].getValue(), Eh(this.mg[c].Gf);
+          for (c in this.og) a[c] = this.og[c].getValue(), Gh(this.og[c].If);
           return a;
         };
         L.prototype.getBoundingBox = function(a) {
-          var c = new hi();
+          var c = new ji();
           this.BoundingBox(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           return c.get();
         };
         L.prototype.getBaseline = function(a) {
-          var c = new hi();
+          var c = new ji();
           a = !!this.Baseline(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           c = c.get();
           c.has_baseline = a;
           return c;
         };
         L.prototype.getRowAttributes = function() {
-          var a = new hi();
+          var a = new ji();
           this.RowAttributes(a.f32("row_height"), a.f32("descenders"), a.f32("ascenders"));
           return a.get();
         };
         L.prototype.getWordFontAttributes = function() {
-          var a = new hi(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
+          var a = new ji(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
           a = a.get();
           a.font_name = c;
           return a;
         };
-        b.pointerHelper = hi;
+        b.pointerHelper = ji;
         return TesseractCore2.ready;
       };
     })();
@@ -9303,9 +9327,9 @@ var require_tesseract_core_simd_lstm = __commonJS({
   }
 });
 
-// node_modules/tesseract.js-core/tesseract-core-simd.js
+// node_modules/@scribe.js/tesseract.js-core/tesseract-core-simd.js
 var require_tesseract_core_simd = __commonJS({
-  "node_modules/tesseract.js-core/tesseract-core-simd.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js-core/tesseract-core-simd.js"(exports2, module2) {
     var TesseractCore = (() => {
       var _scriptDir = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : void 0;
       if (typeof __filename !== "undefined") _scriptDir = _scriptDir || __filename;
@@ -9459,11 +9483,11 @@ var require_tesseract_core_simd = __commonJS({
             return Oa(d, a, c);
           }));
         }
-        var x, y, Qa = { 629164: (a) => {
+        var x, y, Qa = { 633772: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 629233: (a) => {
+        }, 633841: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 629302: (a) => {
+        }, 633910: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
         } };
         function Ra(a) {
@@ -9593,20 +9617,20 @@ var require_tesseract_core_simd = __commonJS({
           }
         }
         function Za(a) {
-          this.Cf = a - 24;
-          this.rh = function(c) {
-            u[this.Cf + 4 >> 2] = c;
+          this.Ef = a - 24;
+          this.uh = function(c) {
+            u[this.Ef + 4 >> 2] = c;
           };
-          this.Cg = function(c) {
-            u[this.Cf + 8 >> 2] = c;
+          this.Eg = function(c) {
+            u[this.Ef + 8 >> 2] = c;
           };
-          this.cg = function(c, d) {
-            this.Pf();
-            this.rh(c);
-            this.Cg(d);
+          this.eg = function(c, d) {
+            this.Rf();
+            this.uh(c);
+            this.Eg(d);
           };
-          this.Pf = function() {
-            u[this.Cf + 16 >> 2] = 0;
+          this.Rf = function() {
+            u[this.Ef + 16 >> 2] = 0;
           };
         }
         var $a = 0, ab = 0, bb = (a, c) => {
@@ -9687,27 +9711,27 @@ var require_tesseract_core_simd = __commonJS({
         }
         var lb = [];
         function mb(a, c) {
-          lb[a] = { input: [], output: [], mg: c };
-          A.Xg(a, nb);
+          lb[a] = { input: [], output: [], og: c };
+          A.Zg(a, nb);
         }
         var nb = { open: function(a) {
           var c = lb[a.node.rdev];
-          if (!c) throw new A.Df(43);
+          if (!c) throw new A.Ff(43);
           a.tty = c;
           a.seekable = false;
         }, close: function(a) {
-          a.tty.mg.fsync(a.tty);
+          a.tty.og.fsync(a.tty);
         }, fsync: function(a) {
-          a.tty.mg.fsync(a.tty);
+          a.tty.og.fsync(a.tty);
         }, read: function(a, c, d, e) {
-          if (!a.tty || !a.tty.mg.kh) throw new A.Df(60);
+          if (!a.tty || !a.tty.og.mh) throw new A.Ff(60);
           for (var g = 0, h = 0; h < e; h++) {
             try {
-              var k = a.tty.mg.kh(a.tty);
+              var k = a.tty.og.mh(a.tty);
             } catch (m) {
-              throw new A.Df(29);
+              throw new A.Ff(29);
             }
-            if (void 0 === k && 0 === g) throw new A.Df(6);
+            if (void 0 === k && 0 === g) throw new A.Ff(6);
             if (null === k || void 0 === k) break;
             g++;
             c[d + h] = k;
@@ -9715,15 +9739,15 @@ var require_tesseract_core_simd = __commonJS({
           g && (a.node.timestamp = Date.now());
           return g;
         }, write: function(a, c, d, e) {
-          if (!a.tty || !a.tty.mg.Ug) throw new A.Df(60);
+          if (!a.tty || !a.tty.og.Wg) throw new A.Ff(60);
           try {
-            for (var g = 0; g < e; g++) a.tty.mg.Ug(a.tty, c[d + g]);
+            for (var g = 0; g < e; g++) a.tty.og.Wg(a.tty, c[d + g]);
           } catch (h) {
-            throw new A.Df(29);
+            throw new A.Ff(29);
           }
           e && (a.node.timestamp = Date.now());
           return g;
-        } }, ob = { kh: function(a) {
+        } }, ob = { mh: function(a) {
           if (!a.input.length) {
             var c = null;
             if (ia) {
@@ -9740,15 +9764,15 @@ var require_tesseract_core_simd = __commonJS({
             a.input = kb(c, true);
           }
           return a.input.shift();
-        }, Ug: function(a, c) {
+        }, Wg: function(a, c) {
           null === c || 10 === c ? (na(Wa(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (na(Wa(a.output, 0)), a.output = []);
-        } }, pb = { Ug: function(a, c) {
+        } }, pb = { Wg: function(a, c) {
           null === c || 10 === c ? (oa(Wa(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (oa(Wa(a.output, 0)), a.output = []);
-        } }, B = { Vf: null, Mf: function() {
+        } }, B = { Xf: null, Of: function() {
           return B.createNode(
             null,
             "/",
@@ -9756,87 +9780,87 @@ var require_tesseract_core_simd = __commonJS({
             0
           );
         }, createNode: function(a, c, d, e) {
-          if (A.ei(d) || A.isFIFO(d)) throw new A.Df(63);
-          B.Vf || (B.Vf = { dir: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of, lookup: B.Ef.lookup, Zf: B.Ef.Zf, rename: B.Ef.rename, unlink: B.Ef.unlink, rmdir: B.Ef.rmdir, readdir: B.Ef.readdir, symlink: B.Ef.symlink }, stream: { Tf: B.Gf.Tf } }, file: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of }, stream: { Tf: B.Gf.Tf, read: B.Gf.read, write: B.Gf.write, ng: B.Gf.ng, fg: B.Gf.fg, lg: B.Gf.lg } }, link: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of, readlink: B.Ef.readlink }, stream: {} }, $g: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of }, stream: A.Ah } });
+          if (A.gi(d) || A.isFIFO(d)) throw new A.Ff(63);
+          B.Xf || (B.Xf = { dir: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf, lookup: B.Gf.lookup, ag: B.Gf.ag, rename: B.Gf.rename, unlink: B.Gf.unlink, rmdir: B.Gf.rmdir, readdir: B.Gf.readdir, symlink: B.Gf.symlink }, stream: { Vf: B.If.Vf } }, file: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf }, stream: { Vf: B.If.Vf, read: B.If.read, write: B.If.write, pg: B.If.pg, hg: B.If.hg, ng: B.If.ng } }, link: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf, readlink: B.Gf.readlink }, stream: {} }, bh: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf }, stream: A.Ch } });
           d = A.createNode(a, c, d, e);
-          A.Nf(d.mode) ? (d.Ef = B.Vf.dir.node, d.Gf = B.Vf.dir.stream, d.Ff = {}) : A.isFile(d.mode) ? (d.Ef = B.Vf.file.node, d.Gf = B.Vf.file.stream, d.Kf = 0, d.Ff = null) : A.qg(d.mode) ? (d.Ef = B.Vf.link.node, d.Gf = B.Vf.link.stream) : A.vg(d.mode) && (d.Ef = B.Vf.$g.node, d.Gf = B.Vf.$g.stream);
+          A.Pf(d.mode) ? (d.Gf = B.Xf.dir.node, d.If = B.Xf.dir.stream, d.Hf = {}) : A.isFile(d.mode) ? (d.Gf = B.Xf.file.node, d.If = B.Xf.file.stream, d.Mf = 0, d.Hf = null) : A.sg(d.mode) ? (d.Gf = B.Xf.link.node, d.If = B.Xf.link.stream) : A.xg(d.mode) && (d.Gf = B.Xf.bh.node, d.If = B.Xf.bh.stream);
           d.timestamp = Date.now();
-          a && (a.Ff[c] = d, a.timestamp = d.timestamp);
+          a && (a.Hf[c] = d, a.timestamp = d.timestamp);
           return d;
-        }, yi: function(a) {
-          return a.Ff ? a.Ff.subarray ? a.Ff.subarray(0, a.Kf) : new Uint8Array(a.Ff) : new Uint8Array(0);
-        }, hh: function(a, c) {
-          var d = a.Ff ? a.Ff.length : 0;
-          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Ff, a.Ff = new Uint8Array(c), 0 < a.Kf && a.Ff.set(d.subarray(0, a.Kf), 0));
-        }, ni: function(a, c) {
-          if (a.Kf != c) if (0 == c) a.Ff = null, a.Kf = 0;
+        }, Ai: function(a) {
+          return a.Hf ? a.Hf.subarray ? a.Hf.subarray(0, a.Mf) : new Uint8Array(a.Hf) : new Uint8Array(0);
+        }, jh: function(a, c) {
+          var d = a.Hf ? a.Hf.length : 0;
+          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Hf, a.Hf = new Uint8Array(c), 0 < a.Mf && a.Hf.set(d.subarray(0, a.Mf), 0));
+        }, pi: function(a, c) {
+          if (a.Mf != c) if (0 == c) a.Hf = null, a.Mf = 0;
           else {
-            var d = a.Ff;
-            a.Ff = new Uint8Array(c);
-            d && a.Ff.set(d.subarray(0, Math.min(c, a.Kf)));
-            a.Kf = c;
+            var d = a.Hf;
+            a.Hf = new Uint8Array(c);
+            d && a.Hf.set(d.subarray(0, Math.min(c, a.Mf)));
+            a.Mf = c;
           }
-        }, Ef: { Sf: function(a) {
+        }, Gf: { Uf: function(a) {
           var c = {};
-          c.dev = A.vg(a.mode) ? a.id : 1;
+          c.dev = A.xg(a.mode) ? a.id : 1;
           c.ino = a.id;
           c.mode = a.mode;
           c.nlink = 1;
           c.uid = 0;
           c.gid = 0;
           c.rdev = a.rdev;
-          A.Nf(a.mode) ? c.size = 4096 : A.isFile(a.mode) ? c.size = a.Kf : A.qg(a.mode) ? c.size = a.link.length : c.size = 0;
+          A.Pf(a.mode) ? c.size = 4096 : A.isFile(a.mode) ? c.size = a.Mf : A.sg(a.mode) ? c.size = a.link.length : c.size = 0;
           c.atime = new Date(a.timestamp);
           c.mtime = new Date(a.timestamp);
           c.ctime = new Date(a.timestamp);
-          c.yh = 4096;
-          c.blocks = Math.ceil(c.size / c.yh);
+          c.Ah = 4096;
+          c.blocks = Math.ceil(c.size / c.Ah);
           return c;
-        }, Of: function(a, c) {
+        }, Qf: function(a, c) {
           void 0 !== c.mode && (a.mode = c.mode);
           void 0 !== c.timestamp && (a.timestamp = c.timestamp);
-          void 0 !== c.size && B.ni(a, c.size);
+          void 0 !== c.size && B.pi(a, c.size);
         }, lookup: function() {
-          throw A.Hg[44];
-        }, Zf: function(a, c, d, e) {
+          throw A.Jg[44];
+        }, ag: function(a, c, d, e) {
           return B.createNode(a, c, d, e);
         }, rename: function(a, c, d) {
-          if (A.Nf(a.mode)) {
+          if (A.Pf(a.mode)) {
             try {
-              var e = A.Yf(c, d);
+              var e = A.$f(c, d);
             } catch (h) {
             }
-            if (e) for (var g in e.Ff) throw new A.Df(55);
+            if (e) for (var g in e.Hf) throw new A.Ff(55);
           }
-          delete a.parent.Ff[a.name];
+          delete a.parent.Hf[a.name];
           a.parent.timestamp = Date.now();
           a.name = d;
-          c.Ff[d] = a;
+          c.Hf[d] = a;
           c.timestamp = a.parent.timestamp;
           a.parent = c;
         }, unlink: function(a, c) {
-          delete a.Ff[c];
+          delete a.Hf[c];
           a.timestamp = Date.now();
         }, rmdir: function(a, c) {
-          var d = A.Yf(a, c), e;
-          for (e in d.Ff) throw new A.Df(55);
-          delete a.Ff[c];
+          var d = A.$f(a, c), e;
+          for (e in d.Hf) throw new A.Ff(55);
+          delete a.Hf[c];
           a.timestamp = Date.now();
         }, readdir: function(a) {
           var c = [".", ".."], d;
-          for (d in a.Ff) a.Ff.hasOwnProperty(d) && c.push(d);
+          for (d in a.Hf) a.Hf.hasOwnProperty(d) && c.push(d);
           return c;
         }, symlink: function(a, c, d) {
           a = B.createNode(a, c, 41471, 0);
           a.link = d;
           return a;
         }, readlink: function(a) {
-          if (!A.qg(a.mode)) throw new A.Df(28);
+          if (!A.sg(a.mode)) throw new A.Ff(28);
           return a.link;
-        } }, Gf: { read: function(a, c, d, e, g) {
-          var h = a.node.Ff;
-          if (g >= a.node.Kf) return 0;
-          a = Math.min(a.node.Kf - g, e);
+        } }, If: { read: function(a, c, d, e, g) {
+          var h = a.node.Hf;
+          if (g >= a.node.Mf) return 0;
+          a = Math.min(a.node.Mf - g, e);
           if (8 < a && h.subarray) c.set(h.subarray(g, g + a), d);
           else for (e = 0; e < a; e++) c[d + e] = h[g + e];
           return a;
@@ -9845,40 +9869,40 @@ var require_tesseract_core_simd = __commonJS({
           if (!e) return 0;
           a = a.node;
           a.timestamp = Date.now();
-          if (c.subarray && (!a.Ff || a.Ff.subarray)) {
-            if (h) return a.Ff = c.subarray(d, d + e), a.Kf = e;
-            if (0 === a.Kf && 0 === g) return a.Ff = c.slice(d, d + e), a.Kf = e;
-            if (g + e <= a.Kf) return a.Ff.set(c.subarray(d, d + e), g), e;
+          if (c.subarray && (!a.Hf || a.Hf.subarray)) {
+            if (h) return a.Hf = c.subarray(d, d + e), a.Mf = e;
+            if (0 === a.Mf && 0 === g) return a.Hf = c.slice(d, d + e), a.Mf = e;
+            if (g + e <= a.Mf) return a.Hf.set(c.subarray(d, d + e), g), e;
           }
-          B.hh(a, g + e);
-          if (a.Ff.subarray && c.subarray) a.Ff.set(c.subarray(
+          B.jh(a, g + e);
+          if (a.Hf.subarray && c.subarray) a.Hf.set(c.subarray(
             d,
             d + e
           ), g);
-          else for (h = 0; h < e; h++) a.Ff[g + h] = c[d + h];
-          a.Kf = Math.max(a.Kf, g + e);
+          else for (h = 0; h < e; h++) a.Hf[g + h] = c[d + h];
+          a.Mf = Math.max(a.Mf, g + e);
           return e;
-        }, Tf: function(a, c, d) {
-          1 === d ? c += a.position : 2 === d && A.isFile(a.node.mode) && (c += a.node.Kf);
-          if (0 > c) throw new A.Df(28);
+        }, Vf: function(a, c, d) {
+          1 === d ? c += a.position : 2 === d && A.isFile(a.node.mode) && (c += a.node.Mf);
+          if (0 > c) throw new A.Ff(28);
           return c;
-        }, ng: function(a, c, d) {
-          B.hh(a.node, c + d);
-          a.node.Kf = Math.max(a.node.Kf, c + d);
-        }, fg: function(a, c, d, e, g) {
-          if (!A.isFile(a.node.mode)) throw new A.Df(43);
-          a = a.node.Ff;
+        }, pg: function(a, c, d) {
+          B.jh(a.node, c + d);
+          a.node.Mf = Math.max(a.node.Mf, c + d);
+        }, hg: function(a, c, d, e, g) {
+          if (!A.isFile(a.node.mode)) throw new A.Ff(43);
+          a = a.node.Hf;
           if (g & 2 || a.buffer !== p.buffer) {
             if (0 < d || d + c < a.length) a.subarray ? a = a.subarray(d, d + c) : a = Array.prototype.slice.call(a, d, d + c);
             d = true;
             n();
             c = void 0;
-            if (!c) throw new A.Df(48);
+            if (!c) throw new A.Ff(48);
             p.set(a, c);
           } else d = false, c = a.byteOffset;
-          return { Cf: c, wh: d };
-        }, lg: function(a, c, d, e) {
-          B.Gf.write(a, c, 0, e, d, false);
+          return { Ef: c, yh: d };
+        }, ng: function(a, c, d, e) {
+          B.If.write(a, c, 0, e, d, false);
           return 0;
         } } };
         function qb(a, c, d) {
@@ -9895,7 +9919,7 @@ var require_tesseract_core_simd = __commonJS({
         }
         var rb = b.preloadPlugins || [];
         function sb(a, c, d, e) {
-          "undefined" != typeof Browser && Browser.cg();
+          "undefined" != typeof Browser && Browser.eg();
           var g = false;
           rb.forEach(function(h) {
             !g && h.canHandle(c) && (h.handle(a, c, d, e), g = true);
@@ -9908,317 +9932,317 @@ var require_tesseract_core_simd = __commonJS({
           c && (d |= 146);
           return d;
         }
-        var A = { root: null, sg: [], fh: {}, streams: [], ii: 1, Uf: null, eh: "/", Og: false, oh: true, Df: null, Hg: {}, Ih: null, zg: 0, Jf: (a, c = {}) => {
+        var A = { root: null, ug: [], hh: {}, streams: [], ki: 1, Wf: null, gh: "/", Qg: false, qh: true, Ff: null, Jg: {}, Kh: null, Bg: 0, Lf: (a, c = {}) => {
           a = ib(a);
           if (!a) return { path: "", node: null };
-          c = Object.assign({ Fg: true, Wg: 0 }, c);
-          if (8 < c.Wg) throw new A.Df(32);
+          c = Object.assign({ Hg: true, Yg: 0 }, c);
+          if (8 < c.Yg) throw new A.Ff(32);
           a = a.split("/").filter((k) => !!k);
           for (var d = A.root, e = "/", g = 0; g < a.length; g++) {
             var h = g === a.length - 1;
             if (h && c.parent) break;
-            d = A.Yf(d, a[g]);
+            d = A.$f(d, a[g]);
             e = cb(e + "/" + a[g]);
-            A.dg(d) && (!h || h && c.Fg) && (d = d.rg.root);
-            if (!h || c.Rf) {
-              for (h = 0; A.qg(d.mode); ) if (d = A.readlink(e), e = ib(db(e), d), d = A.Jf(e, { Wg: c.Wg + 1 }).node, 40 < h++) throw new A.Df(32);
+            A.fg(d) && (!h || h && c.Hg) && (d = d.tg.root);
+            if (!h || c.Tf) {
+              for (h = 0; A.sg(d.mode); ) if (d = A.readlink(e), e = ib(db(e), d), d = A.Lf(e, { Yg: c.Yg + 1 }).node, 40 < h++) throw new A.Ff(32);
             }
           }
           return { path: e, node: d };
-        }, $f: (a) => {
+        }, bg: (a) => {
           for (var c; ; ) {
-            if (A.wg(a)) return a = a.Mf.ph, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
+            if (A.yg(a)) return a = a.Of.rh, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
             c = c ? a.name + "/" + c : a.name;
             a = a.parent;
           }
-        }, Ng: (a, c) => {
+        }, Pg: (a, c) => {
           for (var d = 0, e = 0; e < c.length; e++) d = (d << 5) - d + c.charCodeAt(e) | 0;
-          return (a + d >>> 0) % A.Uf.length;
-        }, mh: (a) => {
-          var c = A.Ng(a.parent.id, a.name);
-          a.gg = A.Uf[c];
-          A.Uf[c] = a;
-        }, nh: (a) => {
-          var c = A.Ng(a.parent.id, a.name);
-          if (A.Uf[c] === a) A.Uf[c] = a.gg;
-          else for (c = A.Uf[c]; c; ) {
-            if (c.gg === a) {
-              c.gg = a.gg;
+          return (a + d >>> 0) % A.Wf.length;
+        }, oh: (a) => {
+          var c = A.Pg(a.parent.id, a.name);
+          a.ig = A.Wf[c];
+          A.Wf[c] = a;
+        }, ph: (a) => {
+          var c = A.Pg(a.parent.id, a.name);
+          if (A.Wf[c] === a) A.Wf[c] = a.ig;
+          else for (c = A.Wf[c]; c; ) {
+            if (c.ig === a) {
+              c.ig = a.ig;
               break;
             }
-            c = c.gg;
+            c = c.ig;
           }
-        }, Yf: (a, c) => {
-          var d = A.gi(a);
-          if (d) throw new A.Df(d, a);
-          for (d = A.Uf[A.Ng(
+        }, $f: (a, c) => {
+          var d = A.ii(a);
+          if (d) throw new A.Ff(d, a);
+          for (d = A.Wf[A.Pg(
             a.id,
             c
-          )]; d; d = d.gg) {
+          )]; d; d = d.ig) {
             var e = d.name;
             if (d.parent.id === a.id && e === c) return d;
           }
           return A.lookup(a, c);
         }, createNode: (a, c, d, e) => {
-          a = new A.sh(a, c, d, e);
-          A.mh(a);
+          a = new A.th(a, c, d, e);
+          A.oh(a);
           return a;
-        }, Eg: (a) => {
-          A.nh(a);
-        }, wg: (a) => a === a.parent, dg: (a) => !!a.rg, isFile: (a) => 32768 === (a & 61440), Nf: (a) => 16384 === (a & 61440), qg: (a) => 40960 === (a & 61440), vg: (a) => 8192 === (a & 61440), ei: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), ih: (a) => {
+        }, Gg: (a) => {
+          A.ph(a);
+        }, yg: (a) => a === a.parent, fg: (a) => !!a.tg, isFile: (a) => 32768 === (a & 61440), Pf: (a) => 16384 === (a & 61440), sg: (a) => 40960 === (a & 61440), xg: (a) => 8192 === (a & 61440), gi: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), kh: (a) => {
           var c = ["r", "w", "rw"][a & 3];
           a & 512 && (c += "w");
           return c;
-        }, hg: (a, c) => {
-          if (A.oh) return 0;
+        }, jg: (a, c) => {
+          if (A.qh) return 0;
           if (!c.includes("r") || a.mode & 292) {
             if (c.includes("w") && !(a.mode & 146) || c.includes("x") && !(a.mode & 73)) return 2;
           } else return 2;
           return 0;
-        }, gi: (a) => {
-          var c = A.hg(a, "x");
-          return c ? c : a.Ef.lookup ? 0 : 2;
-        }, Tg: (a, c) => {
+        }, ii: (a) => {
+          var c = A.jg(a, "x");
+          return c ? c : a.Gf.lookup ? 0 : 2;
+        }, Vg: (a, c) => {
           try {
-            return A.Yf(a, c), 20;
+            return A.$f(a, c), 20;
           } catch (d) {
           }
-          return A.hg(a, "wx");
-        }, xg: (a, c, d) => {
+          return A.jg(a, "wx");
+        }, zg: (a, c, d) => {
           try {
-            var e = A.Yf(a, c);
+            var e = A.$f(a, c);
           } catch (g) {
-            return g.Lf;
+            return g.Nf;
           }
-          if (a = A.hg(a, "wx")) return a;
+          if (a = A.jg(a, "wx")) return a;
           if (d) {
-            if (!A.Nf(e.mode)) return 54;
-            if (A.wg(e) || A.$f(e) === A.cwd()) return 10;
-          } else if (A.Nf(e.mode)) return 31;
+            if (!A.Pf(e.mode)) return 54;
+            if (A.yg(e) || A.bg(e) === A.cwd()) return 10;
+          } else if (A.Pf(e.mode)) return 31;
           return 0;
-        }, hi: (a, c) => a ? A.qg(a.mode) ? 32 : A.Nf(a.mode) && ("r" !== A.ih(c) || c & 512) ? 31 : A.hg(a, A.ih(c)) : 44, th: 4096, ji: (a = 0, c = A.th) => {
+        }, ji: (a, c) => a ? A.sg(a.mode) ? 32 : A.Pf(a.mode) && ("r" !== A.kh(c) || c & 512) ? 31 : A.jg(a, A.kh(c)) : 44, vh: 4096, li: (a = 0, c = A.vh) => {
           for (; a <= c; a++) if (!A.streams[a]) return a;
-          throw new A.Df(33);
-        }, og: (a) => A.streams[a], dh: (a, c, d) => {
-          A.tg || (A.tg = function() {
-            this.Pf = {};
-          }, A.tg.prototype = {}, Object.defineProperties(A.tg.prototype, { object: { get: function() {
+          throw new A.Ff(33);
+        }, qg: (a) => A.streams[a], fh: (a, c, d) => {
+          A.vg || (A.vg = function() {
+            this.Rf = {};
+          }, A.vg.prototype = {}, Object.defineProperties(A.vg.prototype, { object: { get: function() {
             return this.node;
           }, set: function(e) {
             this.node = e;
           } }, flags: { get: function() {
-            return this.Pf.flags;
+            return this.Rf.flags;
           }, set: function(e) {
-            this.Pf.flags = e;
+            this.Rf.flags = e;
           } }, position: { get: function() {
-            return this.Pf.position;
+            return this.Rf.position;
           }, set: function(e) {
-            this.Pf.position = e;
+            this.Rf.position = e;
           } } }));
-          a = Object.assign(new A.tg(), a);
-          c = A.ji(c, d);
+          a = Object.assign(new A.vg(), a);
+          c = A.li(c, d);
           a.fd = c;
           return A.streams[c] = a;
-        }, Bh: (a) => {
+        }, Dh: (a) => {
           A.streams[a] = null;
-        }, Ah: { open: (a) => {
-          a.Gf = A.Jh(a.node.rdev).Gf;
-          a.Gf.open && a.Gf.open(a);
-        }, Tf: () => {
-          throw new A.Df(70);
-        } }, Sg: (a) => a >> 8, zi: (a) => a & 255, eg: (a, c) => a << 8 | c, Xg: (a, c) => {
-          A.fh[a] = { Gf: c };
-        }, Jh: (a) => A.fh[a], jh: (a) => {
+        }, Ch: { open: (a) => {
+          a.If = A.Lh(a.node.rdev).If;
+          a.If.open && a.If.open(a);
+        }, Vf: () => {
+          throw new A.Ff(70);
+        } }, Ug: (a) => a >> 8, Bi: (a) => a & 255, gg: (a, c) => a << 8 | c, Zg: (a, c) => {
+          A.hh[a] = { If: c };
+        }, Lh: (a) => A.hh[a], lh: (a) => {
           var c = [];
           for (a = [a]; a.length; ) {
             var d = a.pop();
             c.push(d);
-            a.push.apply(a, d.sg);
+            a.push.apply(a, d.ug);
           }
           return c;
-        }, qh: (a, c) => {
+        }, sh: (a, c) => {
           function d(k) {
-            A.zg--;
+            A.Bg--;
             return c(k);
           }
           function e(k) {
             if (k) {
-              if (!e.Hh) return e.Hh = true, d(k);
+              if (!e.Jh) return e.Jh = true, d(k);
             } else ++h >= g.length && d(null);
           }
           "function" == typeof a && (c = a, a = false);
-          A.zg++;
-          1 < A.zg && oa("warning: " + A.zg + " FS.syncfs operations in flight at once, probably just doing extra work");
-          var g = A.jh(A.root.Mf), h = 0;
+          A.Bg++;
+          1 < A.Bg && oa("warning: " + A.Bg + " FS.syncfs operations in flight at once, probably just doing extra work");
+          var g = A.lh(A.root.Of), h = 0;
           g.forEach((k) => {
-            if (!k.type.qh) return e(null);
-            k.type.qh(k, a, e);
+            if (!k.type.sh) return e(null);
+            k.type.sh(k, a, e);
           });
-        }, Mf: (a, c, d) => {
+        }, Of: (a, c, d) => {
           var e = "/" === d, g = !d;
-          if (e && A.root) throw new A.Df(10);
+          if (e && A.root) throw new A.Ff(10);
           if (!e && !g) {
-            var h = A.Jf(d, { Fg: false });
+            var h = A.Lf(d, { Hg: false });
             d = h.path;
             h = h.node;
-            if (A.dg(h)) throw new A.Df(10);
-            if (!A.Nf(h.mode)) throw new A.Df(54);
+            if (A.fg(h)) throw new A.Ff(10);
+            if (!A.Pf(h.mode)) throw new A.Ff(54);
           }
-          c = { type: a, Ci: c, ph: d, sg: [] };
-          a = a.Mf(c);
-          a.Mf = c;
+          c = { type: a, Ei: c, rh: d, ug: [] };
+          a = a.Of(c);
+          a.Of = c;
           c.root = a;
-          e ? A.root = a : h && (h.rg = c, h.Mf && h.Mf.sg.push(c));
+          e ? A.root = a : h && (h.tg = c, h.Of && h.Of.ug.push(c));
           return a;
-        }, Fi: (a) => {
-          a = A.Jf(a, { Fg: false });
-          if (!A.dg(a.node)) throw new A.Df(28);
+        }, Hi: (a) => {
+          a = A.Lf(a, { Hg: false });
+          if (!A.fg(a.node)) throw new A.Ff(28);
           a = a.node;
-          var c = a.rg, d = A.jh(c);
-          Object.keys(A.Uf).forEach((e) => {
-            for (e = A.Uf[e]; e; ) {
-              var g = e.gg;
-              d.includes(e.Mf) && A.Eg(e);
+          var c = a.tg, d = A.lh(c);
+          Object.keys(A.Wf).forEach((e) => {
+            for (e = A.Wf[e]; e; ) {
+              var g = e.ig;
+              d.includes(e.Of) && A.Gg(e);
               e = g;
             }
           });
-          a.rg = null;
-          a.Mf.sg.splice(a.Mf.sg.indexOf(c), 1);
-        }, lookup: (a, c) => a.Ef.lookup(a, c), Zf: (a, c, d) => {
-          var e = A.Jf(a, { parent: true }).node;
+          a.tg = null;
+          a.Of.ug.splice(a.Of.ug.indexOf(c), 1);
+        }, lookup: (a, c) => a.Gf.lookup(a, c), ag: (a, c, d) => {
+          var e = A.Lf(a, { parent: true }).node;
           a = eb(a);
-          if (!a || "." === a || ".." === a) throw new A.Df(28);
-          var g = A.Tg(e, a);
-          if (g) throw new A.Df(g);
-          if (!e.Ef.Zf) throw new A.Df(63);
-          return e.Ef.Zf(e, a, c, d);
-        }, create: (a, c) => A.Zf(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => A.Zf(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ai: (a, c) => {
+          if (!a || "." === a || ".." === a) throw new A.Ff(28);
+          var g = A.Vg(e, a);
+          if (g) throw new A.Ff(g);
+          if (!e.Gf.ag) throw new A.Ff(63);
+          return e.Gf.ag(e, a, c, d);
+        }, create: (a, c) => A.ag(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => A.ag(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ci: (a, c) => {
           a = a.split("/");
           for (var d = "", e = 0; e < a.length; ++e) if (a[e]) {
             d += "/" + a[e];
             try {
               A.mkdir(d, c);
             } catch (g) {
-              if (20 != g.Lf) throw g;
+              if (20 != g.Nf) throw g;
             }
           }
-        }, yg: (a, c, d) => {
+        }, Ag: (a, c, d) => {
           "undefined" == typeof d && (d = c, c = 438);
-          return A.Zf(a, c | 8192, d);
+          return A.ag(a, c | 8192, d);
         }, symlink: (a, c) => {
-          if (!ib(a)) throw new A.Df(44);
-          var d = A.Jf(c, { parent: true }).node;
-          if (!d) throw new A.Df(44);
+          if (!ib(a)) throw new A.Ff(44);
+          var d = A.Lf(c, { parent: true }).node;
+          if (!d) throw new A.Ff(44);
           c = eb(c);
-          var e = A.Tg(d, c);
-          if (e) throw new A.Df(e);
-          if (!d.Ef.symlink) throw new A.Df(63);
-          return d.Ef.symlink(d, c, a);
+          var e = A.Vg(d, c);
+          if (e) throw new A.Ff(e);
+          if (!d.Gf.symlink) throw new A.Ff(63);
+          return d.Gf.symlink(d, c, a);
         }, rename: (a, c) => {
           var d = db(a), e = db(c), g = eb(a), h = eb(c);
-          var k = A.Jf(a, { parent: true });
+          var k = A.Lf(a, { parent: true });
           var m = k.node;
-          k = A.Jf(c, { parent: true });
+          k = A.Lf(c, { parent: true });
           k = k.node;
-          if (!m || !k) throw new A.Df(44);
-          if (m.Mf !== k.Mf) throw new A.Df(75);
-          var v = A.Yf(m, g);
+          if (!m || !k) throw new A.Ff(44);
+          if (m.Of !== k.Of) throw new A.Ff(75);
+          var v = A.$f(m, g);
           a = jb(a, e);
-          if ("." !== a.charAt(0)) throw new A.Df(28);
+          if ("." !== a.charAt(0)) throw new A.Ff(28);
           a = jb(c, d);
-          if ("." !== a.charAt(0)) throw new A.Df(55);
+          if ("." !== a.charAt(0)) throw new A.Ff(55);
           try {
-            var q = A.Yf(k, h);
+            var q = A.$f(k, h);
           } catch (t) {
           }
           if (v !== q) {
-            c = A.Nf(v.mode);
-            if (g = A.xg(m, g, c)) throw new A.Df(g);
-            if (g = q ? A.xg(k, h, c) : A.Tg(k, h)) throw new A.Df(g);
-            if (!m.Ef.rename) throw new A.Df(63);
-            if (A.dg(v) || q && A.dg(q)) throw new A.Df(10);
-            if (k !== m && (g = A.hg(m, "w"))) throw new A.Df(g);
-            A.nh(v);
+            c = A.Pf(v.mode);
+            if (g = A.zg(m, g, c)) throw new A.Ff(g);
+            if (g = q ? A.zg(k, h, c) : A.Vg(k, h)) throw new A.Ff(g);
+            if (!m.Gf.rename) throw new A.Ff(63);
+            if (A.fg(v) || q && A.fg(q)) throw new A.Ff(10);
+            if (k !== m && (g = A.jg(m, "w"))) throw new A.Ff(g);
+            A.ph(v);
             try {
-              m.Ef.rename(v, k, h);
+              m.Gf.rename(v, k, h);
             } catch (t) {
               throw t;
             } finally {
-              A.mh(v);
+              A.oh(v);
             }
           }
         }, rmdir: (a) => {
-          var c = A.Jf(a, { parent: true }).node;
+          var c = A.Lf(a, { parent: true }).node;
           a = eb(a);
-          var d = A.Yf(c, a), e = A.xg(c, a, true);
-          if (e) throw new A.Df(e);
-          if (!c.Ef.rmdir) throw new A.Df(63);
-          if (A.dg(d)) throw new A.Df(10);
-          c.Ef.rmdir(c, a);
-          A.Eg(d);
+          var d = A.$f(c, a), e = A.zg(c, a, true);
+          if (e) throw new A.Ff(e);
+          if (!c.Gf.rmdir) throw new A.Ff(63);
+          if (A.fg(d)) throw new A.Ff(10);
+          c.Gf.rmdir(c, a);
+          A.Gg(d);
         }, readdir: (a) => {
-          a = A.Jf(a, { Rf: true }).node;
-          if (!a.Ef.readdir) throw new A.Df(54);
-          return a.Ef.readdir(a);
+          a = A.Lf(a, { Tf: true }).node;
+          if (!a.Gf.readdir) throw new A.Ff(54);
+          return a.Gf.readdir(a);
         }, unlink: (a) => {
-          var c = A.Jf(a, { parent: true }).node;
-          if (!c) throw new A.Df(44);
+          var c = A.Lf(a, { parent: true }).node;
+          if (!c) throw new A.Ff(44);
           a = eb(a);
-          var d = A.Yf(c, a), e = A.xg(c, a, false);
-          if (e) throw new A.Df(e);
-          if (!c.Ef.unlink) throw new A.Df(63);
-          if (A.dg(d)) throw new A.Df(10);
-          c.Ef.unlink(c, a);
-          A.Eg(d);
+          var d = A.$f(c, a), e = A.zg(c, a, false);
+          if (e) throw new A.Ff(e);
+          if (!c.Gf.unlink) throw new A.Ff(63);
+          if (A.fg(d)) throw new A.Ff(10);
+          c.Gf.unlink(c, a);
+          A.Gg(d);
         }, readlink: (a) => {
-          a = A.Jf(a).node;
-          if (!a) throw new A.Df(44);
-          if (!a.Ef.readlink) throw new A.Df(28);
-          return ib(A.$f(a.parent), a.Ef.readlink(a));
+          a = A.Lf(a).node;
+          if (!a) throw new A.Ff(44);
+          if (!a.Gf.readlink) throw new A.Ff(28);
+          return ib(A.bg(a.parent), a.Gf.readlink(a));
         }, stat: (a, c) => {
-          a = A.Jf(a, { Rf: !c }).node;
-          if (!a) throw new A.Df(44);
-          if (!a.Ef.Sf) throw new A.Df(63);
-          return a.Ef.Sf(a);
+          a = A.Lf(a, { Tf: !c }).node;
+          if (!a) throw new A.Ff(44);
+          if (!a.Gf.Uf) throw new A.Ff(63);
+          return a.Gf.Uf(a);
         }, lstat: (a) => A.stat(a, true), chmod: (a, c, d) => {
-          a = "string" == typeof a ? A.Jf(a, { Rf: !d }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          a.Ef.Of(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
+          a = "string" == typeof a ? A.Lf(a, { Tf: !d }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          a.Gf.Qf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
         }, lchmod: (a, c) => {
           A.chmod(a, c, true);
         }, fchmod: (a, c) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           A.chmod(a.node, c);
         }, chown: (a, c, d, e) => {
-          a = "string" == typeof a ? A.Jf(a, { Rf: !e }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          a.Ef.Of(a, { timestamp: Date.now() });
+          a = "string" == typeof a ? A.Lf(a, { Tf: !e }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          a.Gf.Qf(a, { timestamp: Date.now() });
         }, lchown: (a, c, d) => {
           A.chown(a, c, d, true);
         }, fchown: (a, c, d) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           A.chown(a.node, c, d);
         }, truncate: (a, c) => {
-          if (0 > c) throw new A.Df(28);
-          a = "string" == typeof a ? A.Jf(a, { Rf: true }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          if (A.Nf(a.mode)) throw new A.Df(31);
-          if (!A.isFile(a.mode)) throw new A.Df(28);
-          var d = A.hg(a, "w");
-          if (d) throw new A.Df(d);
-          a.Ef.Of(a, { size: c, timestamp: Date.now() });
-        }, xi: (a, c) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
-          if (0 === (a.flags & 2097155)) throw new A.Df(28);
+          if (0 > c) throw new A.Ff(28);
+          a = "string" == typeof a ? A.Lf(a, { Tf: true }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          if (A.Pf(a.mode)) throw new A.Ff(31);
+          if (!A.isFile(a.mode)) throw new A.Ff(28);
+          var d = A.jg(a, "w");
+          if (d) throw new A.Ff(d);
+          a.Gf.Qf(a, { size: c, timestamp: Date.now() });
+        }, zi: (a, c) => {
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(28);
           A.truncate(a.node, c);
-        }, Gi: (a, c, d) => {
-          a = A.Jf(a, { Rf: true }).node;
-          a.Ef.Of(a, { timestamp: Math.max(c, d) });
+        }, Ii: (a, c, d) => {
+          a = A.Lf(a, { Tf: true }).node;
+          a.Gf.Qf(a, { timestamp: Math.max(c, d) });
         }, open: (a, c, d) => {
-          if ("" === a) throw new A.Df(44);
+          if ("" === a) throw new A.Ff(44);
           if ("string" == typeof c) {
             var e = { r: 0, "r+": 2, w: 577, "w+": 578, a: 1089, "a+": 1090 }[c];
             if ("undefined" == typeof e) throw Error("Unknown file open mode: " + c);
@@ -10229,52 +10253,52 @@ var require_tesseract_core_simd = __commonJS({
           else {
             a = cb(a);
             try {
-              g = A.Jf(a, { Rf: !(c & 131072) }).node;
+              g = A.Lf(a, { Tf: !(c & 131072) }).node;
             } catch (h) {
             }
           }
           e = false;
           if (c & 64) if (g) {
-            if (c & 128) throw new A.Df(20);
-          } else g = A.Zf(a, d, 0), e = true;
-          if (!g) throw new A.Df(44);
-          A.vg(g.mode) && (c &= -513);
-          if (c & 65536 && !A.Nf(g.mode)) throw new A.Df(54);
-          if (!e && (d = A.hi(g, c))) throw new A.Df(d);
+            if (c & 128) throw new A.Ff(20);
+          } else g = A.ag(a, d, 0), e = true;
+          if (!g) throw new A.Ff(44);
+          A.xg(g.mode) && (c &= -513);
+          if (c & 65536 && !A.Pf(g.mode)) throw new A.Ff(54);
+          if (!e && (d = A.ji(g, c))) throw new A.Ff(d);
           c & 512 && !e && A.truncate(g, 0);
           c &= -131713;
-          g = A.dh({ node: g, path: A.$f(g), flags: c, seekable: true, position: 0, Gf: g.Gf, vi: [], error: false });
-          g.Gf.open && g.Gf.open(g);
-          !b.logReadFiles || c & 1 || (A.Vg || (A.Vg = {}), a in A.Vg || (A.Vg[a] = 1));
+          g = A.fh({ node: g, path: A.bg(g), flags: c, seekable: true, position: 0, If: g.If, xi: [], error: false });
+          g.If.open && g.If.open(g);
+          !b.logReadFiles || c & 1 || (A.Xg || (A.Xg = {}), a in A.Xg || (A.Xg[a] = 1));
           return g;
         }, close: (a) => {
-          if (A.pg(a)) throw new A.Df(8);
-          a.Mg && (a.Mg = null);
+          if (A.rg(a)) throw new A.Ff(8);
+          a.Og && (a.Og = null);
           try {
-            a.Gf.close && a.Gf.close(a);
+            a.If.close && a.If.close(a);
           } catch (c) {
             throw c;
           } finally {
-            A.Bh(a.fd);
+            A.Dh(a.fd);
           }
           a.fd = null;
-        }, pg: (a) => null === a.fd, Tf: (a, c, d) => {
-          if (A.pg(a)) throw new A.Df(8);
-          if (!a.seekable || !a.Gf.Tf) throw new A.Df(70);
-          if (0 != d && 1 != d && 2 != d) throw new A.Df(28);
-          a.position = a.Gf.Tf(a, c, d);
-          a.vi = [];
+        }, rg: (a) => null === a.fd, Vf: (a, c, d) => {
+          if (A.rg(a)) throw new A.Ff(8);
+          if (!a.seekable || !a.If.Vf) throw new A.Ff(70);
+          if (0 != d && 1 != d && 2 != d) throw new A.Ff(28);
+          a.position = a.If.Vf(a, c, d);
+          a.xi = [];
           return a.position;
         }, read: (a, c, d, e, g) => {
-          if (0 > e || 0 > g) throw new A.Df(28);
-          if (A.pg(a)) throw new A.Df(8);
-          if (1 === (a.flags & 2097155)) throw new A.Df(8);
-          if (A.Nf(a.node.mode)) throw new A.Df(31);
-          if (!a.Gf.read) throw new A.Df(28);
+          if (0 > e || 0 > g) throw new A.Ff(28);
+          if (A.rg(a)) throw new A.Ff(8);
+          if (1 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (A.Pf(a.node.mode)) throw new A.Ff(31);
+          if (!a.If.read) throw new A.Ff(28);
           var h = "undefined" != typeof g;
           if (!h) g = a.position;
-          else if (!a.seekable) throw new A.Df(70);
-          c = a.Gf.read(
+          else if (!a.seekable) throw new A.Ff(70);
+          c = a.If.read(
             a,
             c,
             d,
@@ -10284,33 +10308,33 @@ var require_tesseract_core_simd = __commonJS({
           h || (a.position += c);
           return c;
         }, write: (a, c, d, e, g, h) => {
-          if (0 > e || 0 > g) throw new A.Df(28);
-          if (A.pg(a)) throw new A.Df(8);
-          if (0 === (a.flags & 2097155)) throw new A.Df(8);
-          if (A.Nf(a.node.mode)) throw new A.Df(31);
-          if (!a.Gf.write) throw new A.Df(28);
-          a.seekable && a.flags & 1024 && A.Tf(a, 0, 2);
+          if (0 > e || 0 > g) throw new A.Ff(28);
+          if (A.rg(a)) throw new A.Ff(8);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (A.Pf(a.node.mode)) throw new A.Ff(31);
+          if (!a.If.write) throw new A.Ff(28);
+          a.seekable && a.flags & 1024 && A.Vf(a, 0, 2);
           var k = "undefined" != typeof g;
           if (!k) g = a.position;
-          else if (!a.seekable) throw new A.Df(70);
-          c = a.Gf.write(a, c, d, e, g, h);
+          else if (!a.seekable) throw new A.Ff(70);
+          c = a.If.write(a, c, d, e, g, h);
           k || (a.position += c);
           return c;
-        }, ng: (a, c, d) => {
-          if (A.pg(a)) throw new A.Df(8);
-          if (0 > c || 0 >= d) throw new A.Df(28);
-          if (0 === (a.flags & 2097155)) throw new A.Df(8);
-          if (!A.isFile(a.node.mode) && !A.Nf(a.node.mode)) throw new A.Df(43);
-          if (!a.Gf.ng) throw new A.Df(138);
-          a.Gf.ng(a, c, d);
-        }, fg: (a, c, d, e, g) => {
-          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new A.Df(2);
-          if (1 === (a.flags & 2097155)) throw new A.Df(2);
-          if (!a.Gf.fg) throw new A.Df(43);
-          return a.Gf.fg(a, c, d, e, g);
-        }, lg: (a, c, d, e, g) => a.Gf.lg ? a.Gf.lg(a, c, d, e, g) : 0, Bi: () => 0, Pg: (a, c, d) => {
-          if (!a.Gf.Pg) throw new A.Df(59);
-          return a.Gf.Pg(a, c, d);
+        }, pg: (a, c, d) => {
+          if (A.rg(a)) throw new A.Ff(8);
+          if (0 > c || 0 >= d) throw new A.Ff(28);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (!A.isFile(a.node.mode) && !A.Pf(a.node.mode)) throw new A.Ff(43);
+          if (!a.If.pg) throw new A.Ff(138);
+          a.If.pg(a, c, d);
+        }, hg: (a, c, d, e, g) => {
+          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new A.Ff(2);
+          if (1 === (a.flags & 2097155)) throw new A.Ff(2);
+          if (!a.If.hg) throw new A.Ff(43);
+          return a.If.hg(a, c, d, e, g);
+        }, ng: (a, c, d, e, g) => a.If.ng ? a.If.ng(a, c, d, e, g) : 0, Di: () => 0, Rg: (a, c, d) => {
+          if (!a.If.Rg) throw new A.Ff(59);
+          return a.If.Rg(a, c, d);
         }, readFile: (a, c = {}) => {
           c.flags = c.flags || 0;
           c.encoding = c.encoding || "binary";
@@ -10328,131 +10352,131 @@ var require_tesseract_core_simd = __commonJS({
           if ("string" == typeof c) {
             var e = new Uint8Array(Ta(c) + 1);
             c = Ua(c, e, 0, e.length);
-            A.write(a, e, 0, c, void 0, d.zh);
+            A.write(a, e, 0, c, void 0, d.Bh);
           } else if (ArrayBuffer.isView(c)) A.write(
             a,
             c,
             0,
             c.byteLength,
             void 0,
-            d.zh
+            d.Bh
           );
           else throw Error("Unsupported data type");
           A.close(a);
-        }, cwd: () => A.eh, chdir: (a) => {
-          a = A.Jf(a, { Rf: true });
-          if (null === a.node) throw new A.Df(44);
-          if (!A.Nf(a.node.mode)) throw new A.Df(54);
-          var c = A.hg(a.node, "x");
-          if (c) throw new A.Df(c);
-          A.eh = a.path;
-        }, Dh: () => {
+        }, cwd: () => A.gh, chdir: (a) => {
+          a = A.Lf(a, { Tf: true });
+          if (null === a.node) throw new A.Ff(44);
+          if (!A.Pf(a.node.mode)) throw new A.Ff(54);
+          var c = A.jg(a.node, "x");
+          if (c) throw new A.Ff(c);
+          A.gh = a.path;
+        }, Fh: () => {
           A.mkdir("/tmp");
           A.mkdir("/home");
           A.mkdir("/home/web_user");
-        }, Ch: () => {
+        }, Eh: () => {
           A.mkdir("/dev");
-          A.Xg(A.eg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
-          A.yg("/dev/null", A.eg(1, 3));
-          mb(A.eg(5, 0), ob);
-          mb(A.eg(6, 0), pb);
-          A.yg("/dev/tty", A.eg(5, 0));
-          A.yg("/dev/tty1", A.eg(6, 0));
+          A.Zg(A.gg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
+          A.Ag("/dev/null", A.gg(1, 3));
+          mb(A.gg(5, 0), ob);
+          mb(A.gg(6, 0), pb);
+          A.Ag("/dev/tty", A.gg(5, 0));
+          A.Ag("/dev/tty1", A.gg(6, 0));
           var a = new Uint8Array(1024), c = 0, d = () => {
             0 === c && (c = hb(a).byteLength);
             return a[--c];
           };
-          A.Qf("/dev", "random", d);
-          A.Qf("/dev", "urandom", d);
+          A.Sf("/dev", "random", d);
+          A.Sf("/dev", "urandom", d);
           A.mkdir("/dev/shm");
           A.mkdir("/dev/shm/tmp");
-        }, Fh: () => {
+        }, Hh: () => {
           A.mkdir("/proc");
           var a = A.mkdir("/proc/self");
           A.mkdir("/proc/self/fd");
-          A.Mf({ Mf: () => {
+          A.Of({ Of: () => {
             var c = A.createNode(a, "fd", 16895, 73);
-            c.Ef = { lookup: (d, e) => {
-              var g = A.og(+e);
-              if (!g) throw new A.Df(8);
-              d = { parent: null, Mf: { ph: "fake" }, Ef: { readlink: () => g.path } };
+            c.Gf = { lookup: (d, e) => {
+              var g = A.qg(+e);
+              if (!g) throw new A.Ff(8);
+              d = { parent: null, Of: { rh: "fake" }, Gf: { readlink: () => g.path } };
               return d.parent = d;
             } };
             return c;
           } }, {}, "/proc/self/fd");
-        }, Gh: () => {
-          b.stdin ? A.Qf(
+        }, Ih: () => {
+          b.stdin ? A.Sf(
             "/dev",
             "stdin",
             b.stdin
           ) : A.symlink("/dev/tty", "/dev/stdin");
-          b.stdout ? A.Qf("/dev", "stdout", null, b.stdout) : A.symlink("/dev/tty", "/dev/stdout");
-          b.stderr ? A.Qf("/dev", "stderr", null, b.stderr) : A.symlink("/dev/tty1", "/dev/stderr");
+          b.stdout ? A.Sf("/dev", "stdout", null, b.stdout) : A.symlink("/dev/tty", "/dev/stdout");
+          b.stderr ? A.Sf("/dev", "stderr", null, b.stderr) : A.symlink("/dev/tty1", "/dev/stderr");
           A.open("/dev/stdin", 0);
           A.open("/dev/stdout", 1);
           A.open("/dev/stderr", 1);
-        }, gh: () => {
-          A.Df || (A.Df = function(a, c) {
+        }, ih: () => {
+          A.Ff || (A.Ff = function(a, c) {
             this.name = "ErrnoError";
             this.node = c;
-            this.oi = function(d) {
-              this.Lf = d;
+            this.ri = function(d) {
+              this.Nf = d;
             };
-            this.oi(a);
+            this.ri(a);
             this.message = "FS error";
-          }, A.Df.prototype = Error(), A.Df.prototype.constructor = A.Df, [44].forEach((a) => {
-            A.Hg[a] = new A.Df(a);
-            A.Hg[a].stack = "<generic error, no stack>";
+          }, A.Ff.prototype = Error(), A.Ff.prototype.constructor = A.Ff, [44].forEach((a) => {
+            A.Jg[a] = new A.Ff(a);
+            A.Jg[a].stack = "<generic error, no stack>";
           }));
-        }, pi: () => {
-          A.gh();
-          A.Uf = Array(4096);
-          A.Mf(B, {}, "/");
-          A.Dh();
-          A.Ch();
+        }, si: () => {
+          A.ih();
+          A.Wf = Array(4096);
+          A.Of(B, {}, "/");
           A.Fh();
-          A.Ih = { MEMFS: B };
-        }, cg: (a, c, d) => {
-          A.cg.Og = true;
-          A.gh();
+          A.Eh();
+          A.Hh();
+          A.Kh = { MEMFS: B };
+        }, eg: (a, c, d) => {
+          A.eg.Qg = true;
+          A.ih();
           b.stdin = a || b.stdin;
           b.stdout = c || b.stdout;
           b.stderr = d || b.stderr;
-          A.Gh();
-        }, Di: () => {
-          A.cg.Og = false;
+          A.Ih();
+        }, Fi: () => {
+          A.eg.Qg = false;
           for (var a = 0; a < A.streams.length; a++) {
             var c = A.streams[a];
             c && A.close(c);
           }
-        }, wi: (a, c) => {
-          a = A.xh(a, c);
+        }, yi: (a, c) => {
+          a = A.zh(a, c);
           return a.exists ? a.object : null;
-        }, xh: (a, c) => {
+        }, zh: (a, c) => {
           try {
-            var d = A.Jf(a, { Rf: !c });
+            var d = A.Lf(a, { Tf: !c });
             a = d.path;
           } catch (g) {
           }
           var e = {
-            wg: false,
+            yg: false,
             exists: false,
             error: 0,
             name: null,
             path: null,
             object: null,
-            ki: false,
-            mi: null,
-            li: null
+            mi: false,
+            oi: null,
+            ni: null
           };
           try {
-            d = A.Jf(a, { parent: true }), e.ki = true, e.mi = d.path, e.li = d.node, e.name = eb(a), d = A.Jf(a, { Rf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.wg = "/" === d.path;
+            d = A.Lf(a, { parent: true }), e.mi = true, e.oi = d.path, e.ni = d.node, e.name = eb(a), d = A.Lf(a, { Tf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.yg = "/" === d.path;
           } catch (g) {
-            e.error = g.Lf;
+            e.error = g.Nf;
           }
           return e;
-        }, Dg: (a, c) => {
-          a = "string" == typeof a ? a : A.$f(a);
+        }, Fg: (a, c) => {
+          a = "string" == typeof a ? a : A.bg(a);
           for (c = c.split("/").reverse(); c.length; ) {
             var d = c.pop();
             if (d) {
@@ -10465,13 +10489,13 @@ var require_tesseract_core_simd = __commonJS({
             }
           }
           return e;
-        }, Eh: (a, c, d, e, g) => {
-          a = "string" == typeof a ? a : A.$f(a);
+        }, Gh: (a, c, d, e, g) => {
+          a = "string" == typeof a ? a : A.bg(a);
           c = cb(a + "/" + c);
           return A.create(c, tb(e, g));
-        }, ug: (a, c, d, e, g, h) => {
+        }, wg: (a, c, d, e, g, h) => {
           var k = c;
-          a && (a = "string" == typeof a ? a : A.$f(a), k = c ? cb(a + "/" + c) : a);
+          a && (a = "string" == typeof a ? a : A.bg(a), k = c ? cb(a + "/" + c) : a);
           a = tb(e, g);
           k = A.create(k, a);
           if (d) {
@@ -10488,12 +10512,12 @@ var require_tesseract_core_simd = __commonJS({
             A.chmod(k, a);
           }
           return k;
-        }, Qf: (a, c, d, e) => {
-          a = fb("string" == typeof a ? a : A.$f(a), c);
+        }, Sf: (a, c, d, e) => {
+          a = fb("string" == typeof a ? a : A.bg(a), c);
           c = tb(!!d, !!e);
-          A.Qf.Sg || (A.Qf.Sg = 64);
-          var g = A.eg(A.Qf.Sg++, 0);
-          A.Xg(g, { open: (h) => {
+          A.Sf.Ug || (A.Sf.Ug = 64);
+          var g = A.gg(A.Sf.Ug++, 0);
+          A.Zg(g, { open: (h) => {
             h.seekable = false;
           }, close: () => {
             e && e.buffer && e.buffer.length && e(10);
@@ -10502,9 +10526,9 @@ var require_tesseract_core_simd = __commonJS({
               try {
                 var F = d();
               } catch (U) {
-                throw new A.Df(29);
+                throw new A.Ff(29);
               }
-              if (void 0 === F && 0 === q) throw new A.Df(6);
+              if (void 0 === F && 0 === q) throw new A.Ff(6);
               if (null === F || void 0 === F) break;
               q++;
               k[m + t] = F;
@@ -10515,36 +10539,36 @@ var require_tesseract_core_simd = __commonJS({
             for (var q = 0; q < v; q++) try {
               e(k[m + q]);
             } catch (t) {
-              throw new A.Df(29);
+              throw new A.Ff(29);
             }
             v && (h.node.timestamp = Date.now());
             return q;
           } });
-          return A.yg(a, c, g);
-        }, Gg: (a) => {
-          if (a.Qg || a.fi || a.link || a.Ff) return true;
+          return A.Ag(a, c, g);
+        }, Ig: (a) => {
+          if (a.Sg || a.hi || a.link || a.Hf) return true;
           if ("undefined" != typeof XMLHttpRequest) throw Error("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
           if (ja) try {
-            a.Ff = kb(ja(a.url), true), a.Kf = a.Ff.length;
+            a.Hf = kb(ja(a.url), true), a.Mf = a.Hf.length;
           } catch (c) {
-            throw new A.Df(29);
+            throw new A.Ff(29);
           }
           else throw Error("Cannot load without read() or XMLHttpRequest.");
-        }, ah: (a, c, d, e, g) => {
+        }, dh: (a, c, d, e, g) => {
           function h() {
-            this.Rg = false;
-            this.Pf = [];
+            this.Tg = false;
+            this.Rf = [];
           }
           h.prototype.get = function(q) {
             if (!(q > this.length - 1 || 0 > q)) {
               var t = q % this.chunkSize;
-              return this.lh(q / this.chunkSize | 0)[t];
+              return this.nh(q / this.chunkSize | 0)[t];
             }
           };
-          h.prototype.Cg = function(q) {
-            this.lh = q;
+          h.prototype.Eg = function(q) {
+            this.nh = q;
           };
-          h.prototype.Zg = function() {
+          h.prototype.ah = function() {
             var q = new XMLHttpRequest();
             q.open("HEAD", d, false);
             q.send(null);
@@ -10554,11 +10578,11 @@ var require_tesseract_core_simd = __commonJS({
             var l = 1048576;
             U || (l = t);
             var w = this;
-            w.Cg((E) => {
+            w.Eg((E) => {
               var V = E * l, qa = (E + 1) * l - 1;
               qa = Math.min(qa, t - 1);
-              if ("undefined" == typeof w.Pf[E]) {
-                var Th = w.Pf;
+              if ("undefined" == typeof w.Rf[E]) {
+                var Vh = w.Rf;
                 if (V > qa) throw Error("invalid range (" + V + ", " + qa + ") or no bytes requested!");
                 if (qa > t - 1) throw Error("only " + t + " bytes available! programmer error!");
                 var W = new XMLHttpRequest();
@@ -10573,44 +10597,44 @@ var require_tesseract_core_simd = __commonJS({
                 W.send(null);
                 if (!(200 <= W.status && 300 > W.status || 304 === W.status)) throw Error("Couldn't load " + d + ". Status: " + W.status);
                 V = void 0 !== W.response ? new Uint8Array(W.response || []) : kb(W.responseText || "", true);
-                Th[E] = V;
+                Vh[E] = V;
               }
-              if ("undefined" == typeof w.Pf[E]) throw Error("doXHR failed!");
-              return w.Pf[E];
+              if ("undefined" == typeof w.Rf[E]) throw Error("doXHR failed!");
+              return w.Rf[E];
             });
-            if (q || !t) l = t = 1, l = t = this.lh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
-            this.vh = t;
-            this.uh = l;
-            this.Rg = true;
+            if (q || !t) l = t = 1, l = t = this.nh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
+            this.xh = t;
+            this.wh = l;
+            this.Tg = true;
           };
           if ("undefined" != typeof XMLHttpRequest) {
             if (!ha) throw "Cannot do synchronous binary XHRs outside webworkers in modern browsers. Use --embed-file or --preload-file in emcc";
             var k = new h();
             Object.defineProperties(k, { length: { get: function() {
-              this.Rg || this.Zg();
-              return this.vh;
+              this.Tg || this.ah();
+              return this.xh;
             } }, chunkSize: { get: function() {
-              this.Rg || this.Zg();
-              return this.uh;
+              this.Tg || this.ah();
+              return this.wh;
             } } });
-            k = { Qg: false, Ff: k };
-          } else k = { Qg: false, url: d };
-          var m = A.Eh(a, c, k, e, g);
-          k.Ff ? m.Ff = k.Ff : k.url && (m.Ff = null, m.url = k.url);
-          Object.defineProperties(m, { Kf: { get: function() {
-            return this.Ff.length;
+            k = { Sg: false, Hf: k };
+          } else k = { Sg: false, url: d };
+          var m = A.Gh(a, c, k, e, g);
+          k.Hf ? m.Hf = k.Hf : k.url && (m.Hf = null, m.url = k.url);
+          Object.defineProperties(m, { Mf: { get: function() {
+            return this.Hf.length;
           } } });
           var v = {};
-          Object.keys(m.Gf).forEach((q) => {
-            var t = m.Gf[q];
+          Object.keys(m.If).forEach((q) => {
+            var t = m.If[q];
             v[q] = function() {
-              A.Gg(m);
+              A.Ig(m);
               return t.apply(null, arguments);
             };
           });
           v.read = (q, t, F, U, l) => {
-            A.Gg(m);
-            q = q.node.Ff;
+            A.Ig(m);
+            q = q.node.Hf;
             if (l >= q.length) t = 0;
             else {
               U = Math.min(q.length - l, U);
@@ -10620,19 +10644,19 @@ var require_tesseract_core_simd = __commonJS({
             }
             return t;
           };
-          v.fg = () => {
-            A.Gg(m);
+          v.hg = () => {
+            A.Ig(m);
             n();
-            throw new A.Df(48);
+            throw new A.Ff(48);
           };
-          m.Gf = v;
+          m.If = v;
           return m;
         } };
         function ub(a, c, d) {
           if ("/" === c.charAt(0)) return c;
           a = -100 === a ? A.cwd() : vb(a).path;
           if (0 == c.length) {
-            if (!d) throw new A.Df(44);
+            if (!d) throw new A.Ff(44);
             return a;
           }
           return cb(a + "/" + c);
@@ -10641,7 +10665,7 @@ var require_tesseract_core_simd = __commonJS({
           try {
             var e = a(c);
           } catch (h) {
-            if (h && h.node && cb(c) !== cb(A.$f(h.node))) return -54;
+            if (h && h.node && cb(c) !== cb(A.bg(h.node))) return -54;
             throw h;
           }
           r[d >> 2] = e.dev;
@@ -10682,8 +10706,8 @@ var require_tesseract_core_simd = __commonJS({
           return r[xb - 4 >> 2];
         }
         function vb(a) {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           return a;
         }
         function zb() {
@@ -10758,8 +10782,8 @@ var require_tesseract_core_simd = __commonJS({
             }
           }
           function v(l) {
-            var w = l.jg;
-            for (l = new Date(new Date(l.kg + 1900, 0, 1).getTime()); 0 < w; ) {
+            var w = l.lg;
+            for (l = new Date(new Date(l.mg + 1900, 0, 1).getTime()); 0 < w; ) {
               var E = l.getMonth(), V = (Ab(l.getFullYear()) ? Lb : Mb)[E];
               if (w > V - l.getDate()) w -= V - l.getDate() + 1, l.setDate(1), 11 > E ? l.setMonth(E + 1) : (l.setMonth(0), l.setFullYear(l.getFullYear() + 1));
               else {
@@ -10777,7 +10801,7 @@ var require_tesseract_core_simd = __commonJS({
             return 0 >= k(w, l) ? 0 >= k(E, l) ? l.getFullYear() + 1 : l.getFullYear() : l.getFullYear() - 1;
           }
           var q = r[e + 40 >> 2];
-          e = { ti: r[e >> 2], si: r[e + 4 >> 2], Ag: r[e + 8 >> 2], Yg: r[e + 12 >> 2], Bg: r[e + 16 >> 2], kg: r[e + 20 >> 2], Wf: r[e + 24 >> 2], jg: r[e + 28 >> 2], Ei: r[e + 32 >> 2], ri: r[e + 36 >> 2], ui: q ? z(q) : "" };
+          e = { vi: r[e >> 2], ui: r[e + 4 >> 2], Cg: r[e + 8 >> 2], $g: r[e + 12 >> 2], Dg: r[e + 16 >> 2], mg: r[e + 20 >> 2], Yf: r[e + 24 >> 2], lg: r[e + 28 >> 2], Gi: r[e + 32 >> 2], ti: r[e + 36 >> 2], wi: q ? z(q) : "" };
           d = z(d);
           q = {
             "%c": "%a %b %d %H:%M:%S %Y",
@@ -10813,25 +10837,25 @@ var require_tesseract_core_simd = __commonJS({
           var F = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" "), U = "January February March April May June July August September October November December".split(" ");
           q = {
             "%a": function(l) {
-              return F[l.Wf].substring(0, 3);
+              return F[l.Yf].substring(0, 3);
             },
             "%A": function(l) {
-              return F[l.Wf];
+              return F[l.Yf];
             },
             "%b": function(l) {
-              return U[l.Bg].substring(0, 3);
+              return U[l.Dg].substring(0, 3);
             },
             "%B": function(l) {
-              return U[l.Bg];
+              return U[l.Dg];
             },
             "%C": function(l) {
-              return h((l.kg + 1900) / 100 | 0, 2);
+              return h((l.mg + 1900) / 100 | 0, 2);
             },
             "%d": function(l) {
-              return h(l.Yg, 2);
+              return h(l.$g, 2);
             },
             "%e": function(l) {
-              return g(l.Yg, 2, " ");
+              return g(l.$g, 2, " ");
             },
             "%g": function(l) {
               return v(l).toString().substring(2);
@@ -10840,72 +10864,72 @@ var require_tesseract_core_simd = __commonJS({
               return v(l);
             },
             "%H": function(l) {
-              return h(l.Ag, 2);
+              return h(l.Cg, 2);
             },
             "%I": function(l) {
-              l = l.Ag;
+              l = l.Cg;
               0 == l ? l = 12 : 12 < l && (l -= 12);
               return h(l, 2);
             },
             "%j": function(l) {
-              for (var w = 0, E = 0; E <= l.Bg - 1; w += (Ab(l.kg + 1900) ? Lb : Mb)[E++]) ;
-              return h(l.Yg + w, 3);
+              for (var w = 0, E = 0; E <= l.Dg - 1; w += (Ab(l.mg + 1900) ? Lb : Mb)[E++]) ;
+              return h(l.$g + w, 3);
             },
             "%m": function(l) {
-              return h(l.Bg + 1, 2);
+              return h(l.Dg + 1, 2);
             },
             "%M": function(l) {
-              return h(l.si, 2);
+              return h(l.ui, 2);
             },
             "%n": function() {
               return "\n";
             },
             "%p": function(l) {
-              return 0 <= l.Ag && 12 > l.Ag ? "AM" : "PM";
+              return 0 <= l.Cg && 12 > l.Cg ? "AM" : "PM";
             },
             "%S": function(l) {
-              return h(l.ti, 2);
+              return h(l.vi, 2);
             },
             "%t": function() {
               return "	";
             },
             "%u": function(l) {
-              return l.Wf || 7;
+              return l.Yf || 7;
             },
             "%U": function(l) {
-              return h(Math.floor((l.jg + 7 - l.Wf) / 7), 2);
+              return h(Math.floor((l.lg + 7 - l.Yf) / 7), 2);
             },
             "%V": function(l) {
-              var w = Math.floor((l.jg + 7 - (l.Wf + 6) % 7) / 7);
-              2 >= (l.Wf + 371 - l.jg - 2) % 7 && w++;
-              if (w) 53 == w && (E = (l.Wf + 371 - l.jg) % 7, 4 == E || 3 == E && Ab(l.kg) || (w = 1));
+              var w = Math.floor((l.lg + 7 - (l.Yf + 6) % 7) / 7);
+              2 >= (l.Yf + 371 - l.lg - 2) % 7 && w++;
+              if (w) 53 == w && (E = (l.Yf + 371 - l.lg) % 7, 4 == E || 3 == E && Ab(l.mg) || (w = 1));
               else {
                 w = 52;
-                var E = (l.Wf + 7 - l.jg - 1) % 7;
-                (4 == E || 5 == E && Ab(l.kg % 400 - 1)) && w++;
+                var E = (l.Yf + 7 - l.lg - 1) % 7;
+                (4 == E || 5 == E && Ab(l.mg % 400 - 1)) && w++;
               }
               return h(w, 2);
             },
             "%w": function(l) {
-              return l.Wf;
+              return l.Yf;
             },
             "%W": function(l) {
-              return h(Math.floor((l.jg + 7 - (l.Wf + 6) % 7) / 7), 2);
+              return h(Math.floor((l.lg + 7 - (l.Yf + 6) % 7) / 7), 2);
             },
             "%y": function(l) {
-              return (l.kg + 1900).toString().substring(2);
+              return (l.mg + 1900).toString().substring(2);
             },
             "%Y": function(l) {
-              return l.kg + 1900;
+              return l.mg + 1900;
             },
             "%z": function(l) {
-              l = l.ri;
+              l = l.ti;
               var w = 0 <= l;
               l = Math.abs(l) / 60;
               return (w ? "+" : "-") + String("0000" + (l / 60 * 100 + l % 60)).slice(-4);
             },
             "%Z": function(l) {
-              return l.ui;
+              return l.wi;
             },
             "%%": function() {
               return "%";
@@ -10928,13 +10952,13 @@ var require_tesseract_core_simd = __commonJS({
         function Qb(a, c, d, e) {
           a || (a = this);
           this.parent = a;
-          this.Mf = a.Mf;
-          this.rg = null;
-          this.id = A.ii++;
+          this.Of = a.Of;
+          this.tg = null;
+          this.id = A.ki++;
           this.name = c;
           this.mode = d;
-          this.Ef = {};
           this.Gf = {};
+          this.If = {};
           this.rdev = e;
         }
         Object.defineProperties(Qb.prototype, { read: { get: function() {
@@ -10945,17 +10969,17 @@ var require_tesseract_core_simd = __commonJS({
           return 146 === (this.mode & 146);
         }, set: function(a) {
           a ? this.mode |= 146 : this.mode &= -147;
-        } }, fi: { get: function() {
-          return A.Nf(this.mode);
-        } }, Qg: { get: function() {
-          return A.vg(this.mode);
+        } }, hi: { get: function() {
+          return A.Pf(this.mode);
+        } }, Sg: { get: function() {
+          return A.xg(this.mode);
         } } });
-        A.sh = Qb;
-        A.bh = function(a, c, d, e, g, h, k, m, v, q) {
+        A.th = Qb;
+        A.eh = function(a, c, d, e, g, h, k, m, v, q) {
           function t(l) {
             function w(E) {
               q && q();
-              m || A.ug(a, c, E, e, g, v);
+              m || A.wg(a, c, E, e, g, v);
               h && h();
               Ia(U);
             }
@@ -10968,17 +10992,17 @@ var require_tesseract_core_simd = __commonJS({
           Ha(U);
           "string" == typeof d ? qb(d, (l) => t(l), k) : t(d);
         };
-        A.pi();
-        b.FS_createPath = A.Dg;
-        b.FS_createDataFile = A.ug;
-        b.FS_createPreloadedFile = A.bh;
+        A.si();
+        b.FS_createPath = A.Fg;
+        b.FS_createDataFile = A.wg;
+        b.FS_createPreloadedFile = A.eh;
         b.FS_unlink = A.unlink;
-        b.FS_createLazyFile = A.ah;
-        b.FS_createDevice = A.Qf;
+        b.FS_createLazyFile = A.dh;
+        b.FS_createDevice = A.Sf;
         var cc = { a: function(a, c, d, e) {
           n(`Assertion failed: ${z(a)}, at: ` + [c ? z(c) : "unknown filename", d, e ? z(e) : "unknown function"]);
         }, n: function(a, c, d) {
-          new Za(a).cg(c, d);
+          new Za(a).eg(c, d);
           $a = a;
           ab++;
           throw $a;
@@ -10989,7 +11013,7 @@ var require_tesseract_core_simd = __commonJS({
             switch (c) {
               case 0:
                 var g = yb();
-                return 0 > g ? -28 : A.dh(e, g).fd;
+                return 0 > g ? -28 : A.fh(e, g).fd;
               case 1:
               case 2:
                 return 0;
@@ -11012,7 +11036,7 @@ var require_tesseract_core_simd = __commonJS({
             }
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, N: function(a, c) {
           try {
@@ -11020,7 +11044,7 @@ var require_tesseract_core_simd = __commonJS({
             return wb(A.stat, d.path, c);
           } catch (e) {
             if ("undefined" == typeof A || "ErrnoError" !== e.name) throw e;
-            return -e.Lf;
+            return -e.Nf;
           }
         }, K: function(a, c) {
           try {
@@ -11031,7 +11055,7 @@ var require_tesseract_core_simd = __commonJS({
             return e;
           } catch (g) {
             if ("undefined" == typeof A || "ErrnoError" !== g.name) throw g;
-            return -g.Lf;
+            return -g.Nf;
           }
         }, R: function(a, c, d) {
           xb = d;
@@ -11055,7 +11079,7 @@ var require_tesseract_core_simd = __commonJS({
               case 21520:
                 return e.tty ? -28 : -59;
               case 21531:
-                return g = yb(), A.Pg(e, c, g);
+                return g = yb(), A.Rg(e, c, g);
               case 21523:
                 return e.tty ? 0 : -59;
               case 21524:
@@ -11065,7 +11089,7 @@ var require_tesseract_core_simd = __commonJS({
             }
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, L: function(a, c, d, e) {
           try {
@@ -11075,7 +11099,7 @@ var require_tesseract_core_simd = __commonJS({
             return wb(g ? A.lstat : A.stat, c, d);
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, r: function(a, c, d, e) {
           xb = e;
@@ -11086,28 +11110,28 @@ var require_tesseract_core_simd = __commonJS({
             return A.open(c, d, g).fd;
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, B: function(a) {
           try {
             return a = z(a), A.rmdir(a), 0;
           } catch (c) {
             if ("undefined" == typeof A || "ErrnoError" !== c.name) throw c;
-            return -c.Lf;
+            return -c.Nf;
           }
         }, M: function(a, c) {
           try {
             return a = z(a), wb(A.stat, a, c);
           } catch (d) {
             if ("undefined" == typeof A || "ErrnoError" !== d.name) throw d;
-            return -d.Lf;
+            return -d.Nf;
           }
         }, C: function(a, c, d) {
           try {
             return c = z(c), c = ub(a, c), 0 === d ? A.unlink(c) : 512 === d ? A.rmdir(c) : n("Invalid flags passed to unlinkat"), 0;
           } catch (e) {
             if ("undefined" == typeof A || "ErrnoError" !== e.name) throw e;
-            return -e.Lf;
+            return -e.Nf;
           }
         }, S: function(a) {
           do {
@@ -11118,8 +11142,8 @@ var require_tesseract_core_simd = __commonJS({
             var e = u[a >> 2];
             a += 4;
             c = z(c);
-            A.Dg("/", db(c), true, true);
-            A.ug(c, null, p.subarray(e, e + d), true, true, true);
+            A.Fg("/", db(c), true, true);
+            A.wg(c, null, p.subarray(e, e + d), true, true, true);
           } while (u[a >> 2]);
         }, P: function() {
           return true;
@@ -11162,27 +11186,27 @@ var require_tesseract_core_simd = __commonJS({
           return c.getTime() / 1e3 | 0;
         }, D: function(a, c, d, e, g, h, k) {
           try {
-            var m = vb(e), v = A.fg(m, a, g, c, d), q = v.Cf;
-            r[h >> 2] = v.wh;
+            var m = vb(e), v = A.hg(m, a, g, c, d), q = v.Ef;
+            r[h >> 2] = v.yh;
             u[k >> 2] = q;
             return 0;
           } catch (t) {
             if ("undefined" == typeof A || "ErrnoError" !== t.name) throw t;
-            return -t.Lf;
+            return -t.Nf;
           }
         }, E: function(a, c, d, e, g, h) {
           try {
             var k = vb(g);
             if (d & 2) {
-              if (!A.isFile(k.node.mode)) throw new A.Df(43);
+              if (!A.isFile(k.node.mode)) throw new A.Ff(43);
               if (!(e & 2)) {
                 var m = ta.slice(a, a + c);
-                A.lg(k, m, h, c, e);
+                A.ng(k, m, h, c, e);
               }
             }
           } catch (v) {
             if ("undefined" == typeof A || "ErrnoError" !== v.name) throw v;
-            return -v.Lf;
+            return -v.Nf;
           }
         }, A: function(a, c, d) {
           function e(v) {
@@ -11268,7 +11292,7 @@ var require_tesseract_core_simd = __commonJS({
             return 0;
           } catch (d) {
             if ("undefined" == typeof A || "ErrnoError" !== d.name) throw d;
-            return d.Lf;
+            return d.Nf;
           }
         }, s: function(a, c, d, e) {
           try {
@@ -11299,22 +11323,22 @@ var require_tesseract_core_simd = __commonJS({
             return 0;
           } catch (F) {
             if ("undefined" == typeof A || "ErrnoError" !== F.name) throw F;
-            return F.Lf;
+            return F.Nf;
           }
         }, w: function(a, c, d, e, g) {
           try {
             c = d + 2097152 >>> 0 < 4194305 - !!c ? (c >>> 0) + 4294967296 * d : NaN;
             if (isNaN(c)) return 61;
             var h = vb(a);
-            A.Tf(h, c, e);
+            A.Vf(h, c, e);
             y = [h.position >>> 0, (x = h.position, 1 <= +Math.abs(x) ? 0 < x ? +Math.floor(x / 4294967296) >>> 0 : ~~+Math.ceil((x - +(~~x >>> 0)) / 4294967296) >>> 0 : 0)];
             r[g >> 2] = y[0];
             r[g + 4 >> 2] = y[1];
-            h.Mg && 0 === c && 0 === e && (h.Mg = null);
+            h.Og && 0 === c && 0 === e && (h.Og = null);
             return 0;
           } catch (k) {
             if ("undefined" == typeof A || "ErrnoError" !== k.name) throw k;
-            return k.Lf;
+            return k.Nf;
           }
         }, o: function(a, c, d, e) {
           try {
@@ -11338,9 +11362,9 @@ var require_tesseract_core_simd = __commonJS({
             return 0;
           } catch (F) {
             if ("undefined" == typeof A || "ErrnoError" !== F.name) throw F;
-            return F.Lf;
+            return F.Nf;
           }
-        }, c: Sb, f: Tb, b: Ub, h: Vb, i: Wb, e: Xb, d: Yb, g: Zb, j: $b, u: ac, v: bc, T: Nb, x: function(a, c, d, e) {
+        }, c: Sb, e: Tb, b: Ub, h: Vb, i: Wb, d: Xb, f: Yb, g: Zb, j: $b, u: ac, v: bc, T: Nb, x: function(a, c, d, e) {
           return Nb(a, c, d, e);
         } };
         (function() {
@@ -11349,7 +11373,7 @@ var require_tesseract_core_simd = __commonJS({
             b.asm = d;
             ra = b.asm.U;
             xa();
-            ya = b.asm.qf;
+            ya = b.asm.sf;
             Aa.unshift(b.asm.V);
             Ia("wasm-instantiate");
             return d;
@@ -11758,266 +11782,255 @@ var require_tesseract_core_simd = __commonJS({
           return (Ff = b._emscripten_bind_TessBaseAPI_FindLines_0 = b.asm.rd).apply(null, arguments);
         }, Gf = b._emscripten_bind_TessBaseAPI_GetGradient_0 = function() {
           return (Gf = b._emscripten_bind_TessBaseAPI_GetGradient_0 = b.asm.sd).apply(null, arguments);
-        }, Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
-          return (Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.td).apply(null, arguments);
-        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
-          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.ud).apply(null, arguments);
-        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
-          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.vd).apply(null, arguments);
-        }, Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
-          return (Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.wd).apply(
+        }, Hf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = function() {
+          return (Hf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = b.asm.td).apply(null, arguments);
+        }, If = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
+          return (If = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.ud).apply(null, arguments);
+        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
+          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.vd).apply(null, arguments);
+        }, Kf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
+          return (Kf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.wd).apply(
             null,
             arguments
           );
-        }, Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
-          return (Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.xd).apply(null, arguments);
-        }, Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
-          return (Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.yd).apply(null, arguments);
-        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
-          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.zd).apply(null, arguments);
-        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
-          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Ad).apply(null, arguments);
-        }, Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
-          return (Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Bd).apply(null, arguments);
-        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
-          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Cd).apply(null, arguments);
-        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
-          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Dd).apply(null, arguments);
-        }, Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
-          return (Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Ed).apply(null, arguments);
-        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
-          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Fd).apply(null, arguments);
-        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
-          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Gd).apply(
-            null,
-            arguments
-          );
-        }, Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
-          return (Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Hd).apply(null, arguments);
-        }, Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
-          return (Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Id).apply(null, arguments);
-        }, Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
-          return (Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Jd).apply(null, arguments);
-        }, Yf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
-          return (Yf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Kd).apply(null, arguments);
-        }, Zf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
-          return (Zf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Ld).apply(null, arguments);
-        }, $f = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
-          return ($f = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Md).apply(null, arguments);
-        }, ag = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
-          return (ag = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Nd).apply(
-            null,
-            arguments
-          );
-        }, bg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
-          return (bg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Od).apply(null, arguments);
-        }, cg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
-          return (cg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Pd).apply(null, arguments);
-        }, dg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
-          return (dg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Qd).apply(null, arguments);
-        }, eg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
-          return (eg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Rd).apply(null, arguments);
-        }, fg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
-          return (fg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Sd).apply(null, arguments);
-        }, gg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
-          return (gg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Td).apply(null, arguments);
-        }, hg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
-          return (hg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Ud).apply(null, arguments);
-        }, ig = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
-          return (ig = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Vd).apply(null, arguments);
-        }, jg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
-          return (jg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.Wd).apply(null, arguments);
-        }, kg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
-          return (kg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.Xd).apply(null, arguments);
-        }, lg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
-          return (lg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.Yd).apply(null, arguments);
-        }, mg = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
-          return (mg = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.Zd).apply(null, arguments);
-        }, ng = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
-          return (ng = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm._d).apply(null, arguments);
-        }, og = b._emscripten_bind_OSResults_OSResults_0 = function() {
-          return (og = b._emscripten_bind_OSResults_OSResults_0 = b.asm.$d).apply(
-            null,
-            arguments
-          );
-        }, pg = b._emscripten_bind_OSResults_print_scores_0 = function() {
-          return (pg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ae).apply(null, arguments);
-        }, qg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
-          return (qg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.be).apply(null, arguments);
-        }, rg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
-          return (rg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ce).apply(null, arguments);
-        }, sg = b._emscripten_bind_OSResults___destroy___0 = function() {
-          return (sg = b._emscripten_bind_OSResults___destroy___0 = b.asm.de).apply(null, arguments);
-        }, tg = b._emscripten_bind_Pixa_get_n_0 = function() {
-          return (tg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ee).apply(null, arguments);
-        }, ug = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
-          return (ug = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.fe).apply(null, arguments);
-        }, vg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
-          return (vg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ge).apply(null, arguments);
-        }, wg = b._emscripten_bind_Pixa_get_pix_0 = function() {
-          return (wg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.he).apply(null, arguments);
-        }, xg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
-          return (xg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.ie).apply(null, arguments);
-        }, yg = b._emscripten_bind_Pixa___destroy___0 = function() {
-          return (yg = b._emscripten_bind_Pixa___destroy___0 = b.asm.je).apply(null, arguments);
-        }, zg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
-          return (zg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.ke).apply(null, arguments);
-        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
-          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.le).apply(null, arguments);
-        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
-          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.me).apply(null, arguments);
-        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
-          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.ne).apply(null, arguments);
-        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
-          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.oe).apply(null, arguments);
-        }, Eg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
-          return (Eg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.pe).apply(null, arguments);
-        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
-          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.qe).apply(null, arguments);
-        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
-          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.re).apply(null, arguments);
-        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
-          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.se).apply(null, arguments);
-        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
-          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.te).apply(null, arguments);
-        }, Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
-          return (Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.ue).apply(
-            null,
-            arguments
-          );
-        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
-          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.ve).apply(null, arguments);
-        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
-          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.we).apply(null, arguments);
-        }, Mg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
-          return (Mg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.xe).apply(null, arguments);
-        }, Ng = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
-          return (Ng = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.ye).apply(null, arguments);
-        }, Og = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
-          return (Og = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.ze).apply(null, arguments);
-        }, Pg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
-          return (Pg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ae).apply(null, arguments);
-        }, Qg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
-          return (Qg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.Be).apply(null, arguments);
-        }, Rg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
-          return (Rg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ce).apply(null, arguments);
-        }, Sg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
-          return (Sg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.De).apply(null, arguments);
-        }, Tg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
-          return (Tg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ee).apply(null, arguments);
-        }, Ug = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
-          return (Ug = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Fe).apply(null, arguments);
-        }, Vg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
-          return (Vg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ge).apply(null, arguments);
-        }, Wg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
-          return (Wg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.He).apply(null, arguments);
-        }, Xg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
-          return (Xg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Ie).apply(null, arguments);
-        }, Yg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
-          return (Yg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Je).apply(null, arguments);
-        }, Zg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
-          return (Zg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Ke).apply(null, arguments);
-        }, $g = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
-          return ($g = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Le).apply(null, arguments);
-        }, ah = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
-          return (ah = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Me).apply(null, arguments);
-        }, bh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
-          return (bh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Ne).apply(null, arguments);
-        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
-          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Oe).apply(null, arguments);
-        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
-          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Pe).apply(null, arguments);
-        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
-          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Qe).apply(null, arguments);
-        }, fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
-          return (fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Re).apply(null, arguments);
-        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
-          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Se).apply(null, arguments);
-        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
-          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Te).apply(null, arguments);
-        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
-          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.Ue).apply(null, arguments);
-        }, jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
-          return (jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Ve).apply(null, arguments);
-        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
-          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.We).apply(null, arguments);
-        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
-          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.Xe).apply(null, arguments);
-        }, mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
-          return (mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.Ye).apply(null, arguments);
-        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
-          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.Ze).apply(null, arguments);
-        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
-          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm._e).apply(
-            null,
-            arguments
-          );
-        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
-          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.$e).apply(null, arguments);
-        }, qh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
-          return (qh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.af).apply(null, arguments);
-        }, rh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
-          return (rh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.bf).apply(null, arguments);
-        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
-          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.cf).apply(null, arguments);
-        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
-          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.df).apply(null, arguments);
-        }, uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
-          return (uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.ef).apply(null, arguments);
-        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
-          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.ff).apply(null, arguments);
-        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
-          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.gf).apply(null, arguments);
-        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
-          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.hf).apply(null, arguments);
-        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
-          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.jf).apply(null, arguments);
-        }, zh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
-          return (zh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.kf).apply(null, arguments);
-        }, Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
-          return (Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.lf).apply(null, arguments);
-        }, Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
-          return (Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.mf).apply(null, arguments);
-        }, Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
-          return (Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.nf).apply(null, arguments);
-        }, Dh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
-          return (Dh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.of).apply(null, arguments);
-        }, Eh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
-          return (Eh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.pf).apply(null, arguments);
+        }, Lf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
+          return (Lf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.xd).apply(null, arguments);
+        }, Mf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
+          return (Mf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.yd).apply(null, arguments);
+        }, Nf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
+          return (Nf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.zd).apply(null, arguments);
+        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
+          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Ad).apply(null, arguments);
+        }, Pf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
+          return (Pf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Bd).apply(null, arguments);
+        }, Qf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
+          return (Qf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Cd).apply(null, arguments);
+        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
+          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Dd).apply(null, arguments);
+        }, Sf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
+          return (Sf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Ed).apply(null, arguments);
+        }, Tf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
+          return (Tf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Fd).apply(null, arguments);
+        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
+          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Gd).apply(null, arguments);
+        }, Vf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
+          return (Vf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Hd).apply(null, arguments);
+        }, Wf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
+          return (Wf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Id).apply(null, arguments);
+        }, Xf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
+          return (Xf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Jd).apply(null, arguments);
+        }, Yf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
+          return (Yf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Kd).apply(null, arguments);
+        }, Zf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = function() {
+          return (Zf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = b.asm.Ld).apply(null, arguments);
+        }, $f = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
+          return ($f = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Md).apply(null, arguments);
+        }, ag = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
+          return (ag = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Nd).apply(null, arguments);
+        }, bg = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
+          return (bg = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Od).apply(null, arguments);
+        }, cg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
+          return (cg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Pd).apply(null, arguments);
+        }, dg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
+          return (dg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Qd).apply(null, arguments);
+        }, eg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
+          return (eg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Rd).apply(null, arguments);
+        }, fg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
+          return (fg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Sd).apply(null, arguments);
+        }, gg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
+          return (gg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Td).apply(null, arguments);
+        }, hg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
+          return (hg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Ud).apply(null, arguments);
+        }, ig = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
+          return (ig = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Vd).apply(null, arguments);
+        }, jg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
+          return (jg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Wd).apply(null, arguments);
+        }, kg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
+          return (kg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Xd).apply(null, arguments);
+        }, lg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
+          return (lg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.Yd).apply(null, arguments);
+        }, mg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
+          return (mg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.Zd).apply(null, arguments);
+        }, ng = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
+          return (ng = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm._d).apply(null, arguments);
+        }, og = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
+          return (og = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.$d).apply(null, arguments);
+        }, pg = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
+          return (pg = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ae).apply(null, arguments);
+        }, qg = b._emscripten_bind_OSResults_OSResults_0 = function() {
+          return (qg = b._emscripten_bind_OSResults_OSResults_0 = b.asm.be).apply(null, arguments);
+        }, rg = b._emscripten_bind_OSResults_print_scores_0 = function() {
+          return (rg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ce).apply(null, arguments);
+        }, sg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
+          return (sg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.de).apply(null, arguments);
+        }, tg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
+          return (tg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ee).apply(null, arguments);
+        }, ug = b._emscripten_bind_OSResults___destroy___0 = function() {
+          return (ug = b._emscripten_bind_OSResults___destroy___0 = b.asm.fe).apply(null, arguments);
+        }, vg = b._emscripten_bind_Pixa_get_n_0 = function() {
+          return (vg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ge).apply(null, arguments);
+        }, wg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
+          return (wg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.he).apply(null, arguments);
+        }, xg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
+          return (xg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ie).apply(null, arguments);
+        }, yg = b._emscripten_bind_Pixa_get_pix_0 = function() {
+          return (yg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.je).apply(null, arguments);
+        }, zg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
+          return (zg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.ke).apply(null, arguments);
+        }, Ag = b._emscripten_bind_Pixa___destroy___0 = function() {
+          return (Ag = b._emscripten_bind_Pixa___destroy___0 = b.asm.le).apply(null, arguments);
+        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
+          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.me).apply(null, arguments);
+        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
+          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.ne).apply(null, arguments);
+        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
+          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.oe).apply(null, arguments);
+        }, Eg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
+          return (Eg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.pe).apply(null, arguments);
+        }, Fg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
+          return (Fg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.qe).apply(null, arguments);
+        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
+          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.re).apply(null, arguments);
+        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
+          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.se).apply(null, arguments);
+        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
+          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.te).apply(null, arguments);
+        }, Jg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
+          return (Jg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.ue).apply(null, arguments);
+        }, Kg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
+          return (Kg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.ve).apply(null, arguments);
+        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
+          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.we).apply(null, arguments);
+        }, Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
+          return (Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.xe).apply(null, arguments);
+        }, Ng = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
+          return (Ng = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.ye).apply(null, arguments);
+        }, Og = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
+          return (Og = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.ze).apply(null, arguments);
+        }, Pg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
+          return (Pg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ae).apply(null, arguments);
+        }, Qg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
+          return (Qg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.Be).apply(null, arguments);
+        }, Rg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
+          return (Rg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ce).apply(null, arguments);
+        }, Sg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
+          return (Sg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.De).apply(null, arguments);
+        }, Tg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
+          return (Tg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ee).apply(null, arguments);
+        }, Ug = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
+          return (Ug = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.Fe).apply(null, arguments);
+        }, Vg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
+          return (Vg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ge).apply(null, arguments);
+        }, Wg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
+          return (Wg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.He).apply(null, arguments);
+        }, Xg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
+          return (Xg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ie).apply(null, arguments);
+        }, Yg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
+          return (Yg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Je).apply(null, arguments);
+        }, Zg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
+          return (Zg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Ke).apply(null, arguments);
+        }, $g = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
+          return ($g = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Le).apply(null, arguments);
+        }, ah = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
+          return (ah = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Me).apply(null, arguments);
+        }, bh = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
+          return (bh = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Ne).apply(null, arguments);
+        }, ch = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
+          return (ch = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Oe).apply(null, arguments);
+        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
+          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Pe).apply(null, arguments);
+        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
+          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Qe).apply(null, arguments);
+        }, fh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
+          return (fh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Re).apply(null, arguments);
+        }, gh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
+          return (gh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Se).apply(null, arguments);
+        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
+          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Te).apply(null, arguments);
+        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
+          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Ue).apply(null, arguments);
+        }, jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
+          return (jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Ve).apply(null, arguments);
+        }, kh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
+          return (kh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.We).apply(null, arguments);
+        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
+          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Xe).apply(null, arguments);
+        }, mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
+          return (mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.Ye).apply(null, arguments);
+        }, nh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
+          return (nh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.Ze).apply(null, arguments);
+        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
+          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm._e).apply(null, arguments);
+        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
+          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.$e).apply(null, arguments);
+        }, qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
+          return (qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.af).apply(null, arguments);
+        }, rh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
+          return (rh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.bf).apply(null, arguments);
+        }, sh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
+          return (sh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.cf).apply(null, arguments);
+        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
+          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.df).apply(null, arguments);
+        }, uh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
+          return (uh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.ef).apply(null, arguments);
+        }, vh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
+          return (vh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.ff).apply(null, arguments);
+        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
+          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.gf).apply(null, arguments);
+        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
+          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.hf).apply(null, arguments);
+        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
+          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.jf).apply(null, arguments);
+        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
+          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.kf).apply(null, arguments);
+        }, Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
+          return (Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.lf).apply(null, arguments);
+        }, Bh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
+          return (Bh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.mf).apply(null, arguments);
+        }, Ch = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
+          return (Ch = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.nf).apply(null, arguments);
+        }, Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
+          return (Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.of).apply(null, arguments);
+        }, Eh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
+          return (Eh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.pf).apply(null, arguments);
+        }, Fh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
+          return (Fh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.qf).apply(null, arguments);
+        }, Gh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
+          return (Gh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.rf).apply(null, arguments);
         };
         b._pixDestroy = function() {
-          return (b._pixDestroy = b.asm.rf).apply(null, arguments);
+          return (b._pixDestroy = b.asm.tf).apply(null, arguments);
         };
         b._ptaDestroy = function() {
-          return (b._ptaDestroy = b.asm.sf).apply(null, arguments);
+          return (b._ptaDestroy = b.asm.uf).apply(null, arguments);
         };
         b._pixaDestroy = function() {
-          return (b._pixaDestroy = b.asm.tf).apply(null, arguments);
+          return (b._pixaDestroy = b.asm.vf).apply(null, arguments);
         };
         b._boxaDestroy = function() {
-          return (b._boxaDestroy = b.asm.uf).apply(null, arguments);
+          return (b._boxaDestroy = b.asm.wf).apply(null, arguments);
         };
         b._pixReadMem = function() {
-          return (b._pixReadMem = b.asm.vf).apply(null, arguments);
+          return (b._pixReadMem = b.asm.xf).apply(null, arguments);
         };
         function Rb() {
-          return (Rb = b.asm.wf).apply(null, arguments);
+          return (Rb = b.asm.yf).apply(null, arguments);
         }
-        var Fh = b._free = function() {
-          return (Fh = b._free = b.asm.xf).apply(null, arguments);
+        var Hh = b._free = function() {
+          return (Hh = b._free = b.asm.zf).apply(null, arguments);
         }, Fb = b._malloc = function() {
-          return (Fb = b._malloc = b.asm.yf).apply(null, arguments);
+          return (Fb = b._malloc = b.asm.Af).apply(null, arguments);
         };
         b._pixReadHeaderMem = function() {
-          return (b._pixReadHeaderMem = b.asm.zf).apply(null, arguments);
+          return (b._pixReadHeaderMem = b.asm.Bf).apply(null, arguments);
         };
         function C() {
-          return (C = b.asm.Af).apply(null, arguments);
+          return (C = b.asm.Cf).apply(null, arguments);
         }
         function D() {
-          return (D = b.asm.Bf).apply(null, arguments);
+          return (D = b.asm.Df).apply(null, arguments);
         }
-        b.___emscripten_embedded_file_data = 601360;
+        b.___emscripten_embedded_file_data = 605952;
         function Ub(a, c, d, e) {
           var g = C();
           try {
@@ -12130,26 +12143,26 @@ var require_tesseract_core_simd = __commonJS({
         }
         b.addRunDependency = Ha;
         b.removeRunDependency = Ia;
-        b.FS_createPath = A.Dg;
-        b.FS_createDataFile = A.ug;
-        b.FS_createLazyFile = A.ah;
-        b.FS_createDevice = A.Qf;
+        b.FS_createPath = A.Fg;
+        b.FS_createDataFile = A.wg;
+        b.FS_createLazyFile = A.dh;
+        b.FS_createDevice = A.Sf;
         b.FS_unlink = A.unlink;
         b.setValue = Ya;
         b.getValue = Xa;
-        b.FS_createPreloadedFile = A.bh;
+        b.FS_createPreloadedFile = A.eh;
         b.FS = A;
-        var Gh;
-        Ga = function Hh() {
-          Gh || Ih();
-          Gh || (Ga = Hh);
+        var Ih;
+        Ga = function Jh() {
+          Ih || Kh();
+          Ih || (Ga = Jh);
         };
-        function Ih() {
+        function Kh() {
           function a() {
-            if (!Gh && (Gh = true, b.calledRun = true, !sa)) {
+            if (!Ih && (Ih = true, b.calledRun = true, !sa)) {
               Ca = true;
-              b.noFSInit || A.cg.Og || A.cg();
-              A.oh = false;
+              b.noFSInit || A.eg.Qg || A.eg();
+              A.qh = false;
               Sa(Aa);
               aa(b);
               if (b.onRuntimeInitialized) b.onRuntimeInitialized();
@@ -12175,70 +12188,70 @@ var require_tesseract_core_simd = __commonJS({
           }
         }
         if (b.preInit) for ("function" == typeof b.preInit && (b.preInit = [b.preInit]); 0 < b.preInit.length; ) b.preInit.pop()();
-        Ih();
+        Kh();
         function G() {
         }
         G.prototype = Object.create(G.prototype);
         G.prototype.constructor = G;
-        G.prototype.Hf = G;
-        G.If = {};
+        G.prototype.Jf = G;
+        G.Kf = {};
         b.WrapperObject = G;
-        function Jh(a) {
-          return (a || G).If;
+        function Lh(a) {
+          return (a || G).Kf;
         }
-        b.getCache = Jh;
+        b.getCache = Lh;
         function H(a, c) {
-          var d = Jh(c), e = d[a];
+          var d = Lh(c), e = d[a];
           if (e) return e;
           e = Object.create((c || G).prototype);
-          e.Cf = a;
+          e.Ef = a;
           return d[a] = e;
         }
         b.wrapPointer = H;
         b.castObject = function(a, c) {
-          return H(a.Cf, c);
+          return H(a.Ef, c);
         };
         b.NULL = H(0);
         b.destroy = function(a) {
           if (!a.__destroy__) throw "Error: Cannot destroy object. (Did you create it yourself?)";
           a.__destroy__();
-          delete Jh(a.Hf)[a.Cf];
+          delete Lh(a.Jf)[a.Ef];
         };
         b.compare = function(a, c) {
-          return a.Cf === c.Cf;
+          return a.Ef === c.Ef;
         };
         b.getPointer = function(a) {
-          return a.Cf;
+          return a.Ef;
         };
         b.getClass = function(a) {
-          return a.Hf;
+          return a.Jf;
         };
-        var Kh = 0, Lh = 0, Mh = 0, Nh = [], Oh = 0;
+        var Mh = 0, Nh = 0, Oh = 0, Ph = [], Qh = 0;
         function I() {
-          if (Oh) {
-            for (var a = 0; a < Nh.length; a++) b._free(Nh[a]);
-            Nh.length = 0;
-            b._free(Kh);
-            Kh = 0;
-            Lh += Oh;
-            Oh = 0;
+          if (Qh) {
+            for (var a = 0; a < Ph.length; a++) b._free(Ph[a]);
+            Ph.length = 0;
+            b._free(Mh);
+            Mh = 0;
+            Nh += Qh;
+            Qh = 0;
           }
-          Kh || (Lh += 128, (Kh = b._malloc(Lh)) || n());
-          Mh = 0;
+          Mh || (Nh += 128, (Mh = b._malloc(Nh)) || n());
+          Oh = 0;
         }
         function J(a) {
           if ("string" === typeof a) {
             a = kb(a);
             var c = p;
-            Kh || n();
+            Mh || n();
             c = a.length * c.BYTES_PER_ELEMENT;
             c = c + 7 & -8;
-            if (Mh + c >= Lh) {
+            if (Oh + c >= Nh) {
               0 < c || n();
-              Oh += c;
+              Qh += c;
               var d = b._malloc(c);
-              Nh.push(d);
-            } else d = Kh + Mh, Mh += c;
+              Ph.push(d);
+            } else d = Mh + Oh, Oh += c;
             c = d;
             d = p;
             var e = c;
@@ -12257,1062 +12270,1062 @@ var require_tesseract_core_simd = __commonJS({
           }
           return a;
         }
-        function Ph() {
+        function Rh() {
           throw "cannot construct a ParagraphJustification, no constructor in IDL";
         }
-        Ph.prototype = Object.create(G.prototype);
-        Ph.prototype.constructor = Ph;
-        Ph.prototype.Hf = Ph;
-        Ph.If = {};
-        b.ParagraphJustification = Ph;
-        Ph.prototype.__destroy__ = function() {
-          dc(this.Cf);
+        Rh.prototype = Object.create(G.prototype);
+        Rh.prototype.constructor = Rh;
+        Rh.prototype.Jf = Rh;
+        Rh.Kf = {};
+        b.ParagraphJustification = Rh;
+        Rh.prototype.__destroy__ = function() {
+          dc(this.Ef);
         };
-        function Qh() {
+        function Sh() {
           throw "cannot construct a BoolPtr, no constructor in IDL";
         }
-        Qh.prototype = Object.create(G.prototype);
-        Qh.prototype.constructor = Qh;
-        Qh.prototype.Hf = Qh;
-        Qh.If = {};
-        b.BoolPtr = Qh;
-        Qh.prototype.__destroy__ = function() {
-          ec(this.Cf);
+        Sh.prototype = Object.create(G.prototype);
+        Sh.prototype.constructor = Sh;
+        Sh.prototype.Jf = Sh;
+        Sh.Kf = {};
+        b.BoolPtr = Sh;
+        Sh.prototype.__destroy__ = function() {
+          ec(this.Ef);
         };
         function K() {
           throw "cannot construct a TessResultRenderer, no constructor in IDL";
         }
         K.prototype = Object.create(G.prototype);
         K.prototype.constructor = K;
-        K.prototype.Hf = K;
-        K.If = {};
+        K.prototype.Jf = K;
+        K.Kf = {};
         b.TessResultRenderer = K;
         K.prototype.BeginDocument = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return !!fc(c, a);
         };
         K.prototype.AddImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!gc(c, a);
         };
         K.prototype.EndDocument = function() {
-          return !!hc(this.Cf);
+          return !!hc(this.Ef);
         };
         K.prototype.happy = function() {
-          return !!ic(this.Cf);
+          return !!ic(this.Ef);
         };
         K.prototype.file_extension = function() {
-          return z(jc(this.Cf));
+          return z(jc(this.Ef));
         };
         K.prototype.title = K.prototype.title = function() {
-          return z(kc(this.Cf));
+          return z(kc(this.Ef));
         };
         K.prototype.imagenum = function() {
-          return lc(this.Cf);
+          return lc(this.Ef);
         };
         K.prototype.__destroy__ = function() {
-          mc(this.Cf);
+          mc(this.Ef);
         };
-        function Rh() {
+        function Th() {
           throw "cannot construct a LongStarPtr, no constructor in IDL";
         }
-        Rh.prototype = Object.create(G.prototype);
-        Rh.prototype.constructor = Rh;
-        Rh.prototype.Hf = Rh;
-        Rh.If = {};
-        b.LongStarPtr = Rh;
-        Rh.prototype.__destroy__ = function() {
-          nc(this.Cf);
-        };
-        function Sh() {
-          throw "cannot construct a VoidPtr, no constructor in IDL";
-        }
-        Sh.prototype = Object.create(G.prototype);
-        Sh.prototype.constructor = Sh;
-        Sh.prototype.Hf = Sh;
-        Sh.If = {};
-        b.VoidPtr = Sh;
-        Sh.prototype.__destroy__ = function() {
-          oc(this.Cf);
-        };
-        function L(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = pc(a);
-          Jh(L)[this.Cf] = this;
-        }
-        L.prototype = Object.create(G.prototype);
-        L.prototype.constructor = L;
-        L.prototype.Hf = L;
-        L.If = {};
-        b.ResultIterator = L;
-        L.prototype.Begin = function() {
-          qc(this.Cf);
-        };
-        L.prototype.RestartParagraph = function() {
-          rc(this.Cf);
-        };
-        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!sc(this.Cf);
-        };
-        L.prototype.RestartRow = function() {
-          tc(this.Cf);
-        };
-        L.prototype.Next = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!uc(c, a);
-        };
-        L.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!vc(c, a);
-        };
-        L.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          return !!wc(d, a, c);
-        };
-        L.prototype.Cmp = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return xc(c, a);
-        };
-        L.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          yc(d, a, c);
-        };
-        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          return void 0 === h ? !!zc(k, a, c, d, e, g) : !!Ac(k, a, c, d, e, g, h);
-        };
-        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return !!Bc(h, a, c, d, e, g);
-        };
-        L.prototype.Empty = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!Cc(c, a);
-        };
-        L.prototype.BlockType = function() {
-          return Dc(this.Cf);
-        };
-        L.prototype.BlockPolygon = function() {
-          return H(Ec(this.Cf), M);
-        };
-        L.prototype.GetBinaryImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Fc(c, a), N);
-        };
-        L.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return H(Gc(h, a, c, d, e, g), N);
-        };
-        L.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return !!Hc(h, a, c, d, e, g);
-        };
-        L.prototype.RowAttributes = function(a, c, d) {
-          var e = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          return !!Ic(e, a, c, d);
-        };
-        L.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          Jc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          Kc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphIsLtr = function() {
-          return !!Lc(this.Cf);
-        };
-        L.prototype.GetUTF8Text = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Mc(c, a));
-        };
-        L.prototype.SetLineSeparator = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          Nc(c, a);
-        };
-        L.prototype.SetParagraphSeparator = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          Oc(c, a);
-        };
-        L.prototype.Confidence = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return Pc(c, a);
-        };
-        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
-          var v = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
-          m && "object" === typeof m && (m = m.Cf);
-          return z(Qc(v, a, c, d, e, g, h, k, m));
-        };
-        L.prototype.WordRecognitionLanguage = function() {
-          return z(Rc(this.Cf));
-        };
-        L.prototype.WordDirection = function() {
-          return Sc(this.Cf);
-        };
-        L.prototype.WordIsFromDictionary = function() {
-          return !!Tc(this.Cf);
-        };
-        L.prototype.WordIsNumeric = function() {
-          return !!Uc(this.Cf);
-        };
-        L.prototype.HasBlamerInfo = function() {
-          return !!Vc(this.Cf);
-        };
-        L.prototype.HasTruthString = function() {
-          return !!Wc(this.Cf);
-        };
-        L.prototype.EquivalentToTruth = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return !!Xc(c, a);
-        };
-        L.prototype.WordTruthUTF8Text = function() {
-          return z(Yc(this.Cf));
-        };
-        L.prototype.WordNormedUTF8Text = function() {
-          return z(Zc(this.Cf));
-        };
-        L.prototype.WordLattice = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z($c(c, a));
-        };
-        L.prototype.SymbolIsSuperscript = function() {
-          return !!ad(this.Cf);
-        };
-        L.prototype.SymbolIsSubscript = function() {
-          return !!bd(this.Cf);
-        };
-        L.prototype.SymbolIsDropcap = function() {
-          return !!cd(this.Cf);
-        };
-        L.prototype.__destroy__ = function() {
-          dd(this.Cf);
+        Th.prototype = Object.create(G.prototype);
+        Th.prototype.constructor = Th;
+        Th.prototype.Jf = Th;
+        Th.Kf = {};
+        b.LongStarPtr = Th;
+        Th.prototype.__destroy__ = function() {
+          nc(this.Ef);
         };
         function Uh() {
-          throw "cannot construct a TextlineOrder, no constructor in IDL";
+          throw "cannot construct a VoidPtr, no constructor in IDL";
         }
         Uh.prototype = Object.create(G.prototype);
         Uh.prototype.constructor = Uh;
-        Uh.prototype.Hf = Uh;
-        Uh.If = {};
-        b.TextlineOrder = Uh;
+        Uh.prototype.Jf = Uh;
+        Uh.Kf = {};
+        b.VoidPtr = Uh;
         Uh.prototype.__destroy__ = function() {
-          ed(this.Cf);
+          oc(this.Ef);
         };
-        function Vh() {
+        function L(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = pc(a);
+          Lh(L)[this.Ef] = this;
+        }
+        L.prototype = Object.create(G.prototype);
+        L.prototype.constructor = L;
+        L.prototype.Jf = L;
+        L.Kf = {};
+        b.ResultIterator = L;
+        L.prototype.Begin = function() {
+          qc(this.Ef);
+        };
+        L.prototype.RestartParagraph = function() {
+          rc(this.Ef);
+        };
+        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
+          return !!sc(this.Ef);
+        };
+        L.prototype.RestartRow = function() {
+          tc(this.Ef);
+        };
+        L.prototype.Next = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!uc(c, a);
+        };
+        L.prototype.IsAtBeginningOf = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!vc(c, a);
+        };
+        L.prototype.IsAtFinalElement = function(a, c) {
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          return !!wc(d, a, c);
+        };
+        L.prototype.Cmp = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return xc(c, a);
+        };
+        L.prototype.SetBoundingBoxComponents = function(a, c) {
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          yc(d, a, c);
+        };
+        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
+          var k = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          return void 0 === h ? !!zc(k, a, c, d, e, g) : !!Ac(k, a, c, d, e, g, h);
+        };
+        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return !!Bc(h, a, c, d, e, g);
+        };
+        L.prototype.Empty = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!Cc(c, a);
+        };
+        L.prototype.BlockType = function() {
+          return Dc(this.Ef);
+        };
+        L.prototype.BlockPolygon = function() {
+          return H(Ec(this.Ef), M);
+        };
+        L.prototype.GetBinaryImage = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(Fc(c, a), N);
+        };
+        L.prototype.GetImage = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return H(Gc(h, a, c, d, e, g), N);
+        };
+        L.prototype.Baseline = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return !!Hc(h, a, c, d, e, g);
+        };
+        L.prototype.RowAttributes = function(a, c, d) {
+          var e = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          return !!Ic(e, a, c, d);
+        };
+        L.prototype.Orientation = function(a, c, d, e) {
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          Jc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphInfo = function(a, c, d, e) {
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          Kc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphIsLtr = function() {
+          return !!Lc(this.Ef);
+        };
+        L.prototype.GetUTF8Text = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(Mc(c, a));
+        };
+        L.prototype.SetLineSeparator = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          Nc(c, a);
+        };
+        L.prototype.SetParagraphSeparator = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          Oc(c, a);
+        };
+        L.prototype.Confidence = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return Pc(c, a);
+        };
+        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
+          var v = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
+          m && "object" === typeof m && (m = m.Ef);
+          return z(Qc(v, a, c, d, e, g, h, k, m));
+        };
+        L.prototype.WordRecognitionLanguage = function() {
+          return z(Rc(this.Ef));
+        };
+        L.prototype.WordDirection = function() {
+          return Sc(this.Ef);
+        };
+        L.prototype.WordIsFromDictionary = function() {
+          return !!Tc(this.Ef);
+        };
+        L.prototype.WordIsNumeric = function() {
+          return !!Uc(this.Ef);
+        };
+        L.prototype.HasBlamerInfo = function() {
+          return !!Vc(this.Ef);
+        };
+        L.prototype.HasTruthString = function() {
+          return !!Wc(this.Ef);
+        };
+        L.prototype.EquivalentToTruth = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return !!Xc(c, a);
+        };
+        L.prototype.WordTruthUTF8Text = function() {
+          return z(Yc(this.Ef));
+        };
+        L.prototype.WordNormedUTF8Text = function() {
+          return z(Zc(this.Ef));
+        };
+        L.prototype.WordLattice = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z($c(c, a));
+        };
+        L.prototype.SymbolIsSuperscript = function() {
+          return !!ad(this.Ef);
+        };
+        L.prototype.SymbolIsSubscript = function() {
+          return !!bd(this.Ef);
+        };
+        L.prototype.SymbolIsDropcap = function() {
+          return !!cd(this.Ef);
+        };
+        L.prototype.__destroy__ = function() {
+          dd(this.Ef);
+        };
+        function Wh() {
+          throw "cannot construct a TextlineOrder, no constructor in IDL";
+        }
+        Wh.prototype = Object.create(G.prototype);
+        Wh.prototype.constructor = Wh;
+        Wh.prototype.Jf = Wh;
+        Wh.Kf = {};
+        b.TextlineOrder = Wh;
+        Wh.prototype.__destroy__ = function() {
+          ed(this.Ef);
+        };
+        function Xh() {
           throw "cannot construct a ETEXT_DESC, no constructor in IDL";
         }
-        Vh.prototype = Object.create(G.prototype);
-        Vh.prototype.constructor = Vh;
-        Vh.prototype.Hf = Vh;
-        Vh.If = {};
-        b.ETEXT_DESC = Vh;
-        Vh.prototype.__destroy__ = function() {
-          fd(this.Cf);
+        Xh.prototype = Object.create(G.prototype);
+        Xh.prototype.constructor = Xh;
+        Xh.prototype.Jf = Xh;
+        Xh.Kf = {};
+        b.ETEXT_DESC = Xh;
+        Xh.prototype.__destroy__ = function() {
+          fd(this.Ef);
         };
         function O() {
           throw "cannot construct a PageIterator, no constructor in IDL";
         }
         O.prototype = Object.create(G.prototype);
         O.prototype.constructor = O;
-        O.prototype.Hf = O;
-        O.If = {};
+        O.prototype.Jf = O;
+        O.Kf = {};
         b.PageIterator = O;
         O.prototype.Begin = function() {
-          gd(this.Cf);
+          gd(this.Ef);
         };
         O.prototype.RestartParagraph = function() {
-          hd(this.Cf);
+          hd(this.Ef);
         };
         O.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!jd(this.Cf);
+          return !!jd(this.Ef);
         };
         O.prototype.RestartRow = function() {
-          kd(this.Cf);
+          kd(this.Ef);
         };
         O.prototype.Next = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!ld(c, a);
         };
         O.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!md(c, a);
         };
         O.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
           return !!nd(d, a, c);
         };
         O.prototype.Cmp = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return od(c, a);
         };
         O.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
           pd(d, a, c);
         };
         O.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
+          var k = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
           return void 0 === h ? !!qd(k, a, c, d, e, g) : !!rd(k, a, c, d, e, g, h);
         };
         O.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return !!sd(h, a, c, d, e, g);
         };
         O.prototype.Empty = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!td(c, a);
         };
         O.prototype.BlockType = function() {
-          return ud(this.Cf);
+          return ud(this.Ef);
         };
         O.prototype.BlockPolygon = function() {
-          return H(vd(this.Cf), M);
+          return H(vd(this.Ef), M);
         };
         O.prototype.GetBinaryImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return H(wd(c, a), N);
         };
         O.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return H(xd(h, a, c, d, e, g), N);
         };
         O.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return !!yd(h, a, c, d, e, g);
         };
         O.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           zd(g, a, c, d, e);
         };
         O.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           Ad(g, a, c, d, e);
         };
         O.prototype.__destroy__ = function() {
-          Bd(this.Cf);
+          Bd(this.Ef);
         };
-        function Wh() {
+        function Yh() {
           throw "cannot construct a WritingDirection, no constructor in IDL";
         }
-        Wh.prototype = Object.create(G.prototype);
-        Wh.prototype.constructor = Wh;
-        Wh.prototype.Hf = Wh;
-        Wh.If = {};
-        b.WritingDirection = Wh;
-        Wh.prototype.__destroy__ = function() {
-          Cd(this.Cf);
+        Yh.prototype = Object.create(G.prototype);
+        Yh.prototype.constructor = Yh;
+        Yh.prototype.Jf = Yh;
+        Yh.Kf = {};
+        b.WritingDirection = Yh;
+        Yh.prototype.__destroy__ = function() {
+          Cd(this.Ef);
         };
-        function Xh(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = Dd(a);
-          Jh(Xh)[this.Cf] = this;
+        function Zh(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = Dd(a);
+          Lh(Zh)[this.Ef] = this;
         }
-        Xh.prototype = Object.create(G.prototype);
-        Xh.prototype.constructor = Xh;
-        Xh.prototype.Hf = Xh;
-        Xh.If = {};
-        b.WordChoiceIterator = Xh;
-        Xh.prototype.Next = function() {
-          return !!Ed(this.Cf);
+        Zh.prototype = Object.create(G.prototype);
+        Zh.prototype.constructor = Zh;
+        Zh.prototype.Jf = Zh;
+        Zh.Kf = {};
+        b.WordChoiceIterator = Zh;
+        Zh.prototype.Next = function() {
+          return !!Ed(this.Ef);
         };
-        Xh.prototype.GetUTF8Text = function() {
-          return z(Fd(this.Cf));
+        Zh.prototype.GetUTF8Text = function() {
+          return z(Fd(this.Ef));
         };
-        Xh.prototype.Confidence = function() {
-          return Gd(this.Cf);
+        Zh.prototype.Confidence = function() {
+          return Gd(this.Ef);
         };
-        Xh.prototype.__destroy__ = function() {
-          Hd(this.Cf);
+        Zh.prototype.__destroy__ = function() {
+          Hd(this.Ef);
         };
         function P() {
           throw "cannot construct a Box, no constructor in IDL";
         }
         P.prototype = Object.create(G.prototype);
         P.prototype.constructor = P;
-        P.prototype.Hf = P;
-        P.If = {};
+        P.prototype.Jf = P;
+        P.Kf = {};
         b.Box = P;
-        P.prototype.get_x = P.prototype.Kg = function() {
-          return Id(this.Cf);
+        P.prototype.get_x = P.prototype.Mg = function() {
+          return Id(this.Ef);
         };
-        Object.defineProperty(P.prototype, "x", { get: P.prototype.Kg });
-        P.prototype.get_y = P.prototype.Lg = function() {
-          return Jd(this.Cf);
+        Object.defineProperty(P.prototype, "x", { get: P.prototype.Mg });
+        P.prototype.get_y = P.prototype.Ng = function() {
+          return Jd(this.Ef);
         };
-        Object.defineProperty(P.prototype, "y", { get: P.prototype.Lg });
-        P.prototype.get_w = P.prototype.Jg = function() {
-          return Kd(this.Cf);
+        Object.defineProperty(P.prototype, "y", { get: P.prototype.Ng });
+        P.prototype.get_w = P.prototype.Lg = function() {
+          return Kd(this.Ef);
         };
-        Object.defineProperty(P.prototype, "w", { get: P.prototype.Jg });
-        P.prototype.get_h = P.prototype.Ig = function() {
-          return Ld(this.Cf);
+        Object.defineProperty(P.prototype, "w", { get: P.prototype.Lg });
+        P.prototype.get_h = P.prototype.Kg = function() {
+          return Ld(this.Ef);
         };
-        Object.defineProperty(P.prototype, "h", { get: P.prototype.Ig });
-        P.prototype.get_refcount = P.prototype.Xf = function() {
-          return Md(this.Cf);
+        Object.defineProperty(P.prototype, "h", { get: P.prototype.Kg });
+        P.prototype.get_refcount = P.prototype.Zf = function() {
+          return Md(this.Ef);
         };
-        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.Xf });
+        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.Zf });
         P.prototype.__destroy__ = function() {
-          Nd(this.Cf);
+          Nd(this.Ef);
         };
         function Q(a, c, d) {
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          d && "object" === typeof d && (d = d.Cf);
-          this.Cf = Od(a, c, d);
-          Jh(Q)[this.Cf] = this;
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          d && "object" === typeof d && (d = d.Ef);
+          this.Ef = Od(a, c, d);
+          Lh(Q)[this.Ef] = this;
         }
         Q.prototype = Object.create(G.prototype);
         Q.prototype.constructor = Q;
-        Q.prototype.Hf = Q;
-        Q.If = {};
+        Q.prototype.Jf = Q;
+        Q.Kf = {};
         b.TessPDFRenderer = Q;
         Q.prototype.BeginDocument = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return !!Pd(c, a);
         };
         Q.prototype.AddImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!Qd(c, a);
         };
         Q.prototype.EndDocument = function() {
-          return !!Rd(this.Cf);
+          return !!Rd(this.Ef);
         };
         Q.prototype.happy = function() {
-          return !!Sd(this.Cf);
+          return !!Sd(this.Ef);
         };
         Q.prototype.file_extension = function() {
-          return z(Td(this.Cf));
+          return z(Td(this.Ef));
         };
         Q.prototype.title = Q.prototype.title = function() {
-          return z(Ud(this.Cf));
+          return z(Ud(this.Ef));
         };
         Q.prototype.imagenum = function() {
-          return Vd(this.Cf);
+          return Vd(this.Ef);
         };
         Q.prototype.__destroy__ = function() {
-          Wd(this.Cf);
+          Wd(this.Ef);
         };
-        function Yh() {
+        function $h() {
           throw "cannot construct a PixaPtr, no constructor in IDL";
-        }
-        Yh.prototype = Object.create(G.prototype);
-        Yh.prototype.constructor = Yh;
-        Yh.prototype.Hf = Yh;
-        Yh.If = {};
-        b.PixaPtr = Yh;
-        Yh.prototype.__destroy__ = function() {
-          Xd(this.Cf);
-        };
-        function Zh() {
-          throw "cannot construct a FloatPtr, no constructor in IDL";
-        }
-        Zh.prototype = Object.create(G.prototype);
-        Zh.prototype.constructor = Zh;
-        Zh.prototype.Hf = Zh;
-        Zh.If = {};
-        b.FloatPtr = Zh;
-        Zh.prototype.__destroy__ = function() {
-          Yd(this.Cf);
-        };
-        function $h(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = Zd(a);
-          Jh($h)[this.Cf] = this;
         }
         $h.prototype = Object.create(G.prototype);
         $h.prototype.constructor = $h;
-        $h.prototype.Hf = $h;
-        $h.If = {};
-        b.ChoiceIterator = $h;
-        $h.prototype.Next = function() {
-          return !!$d(this.Cf);
-        };
-        $h.prototype.GetUTF8Text = function() {
-          return z(ae(this.Cf));
-        };
-        $h.prototype.Confidence = function() {
-          return be(this.Cf);
-        };
+        $h.prototype.Jf = $h;
+        $h.Kf = {};
+        b.PixaPtr = $h;
         $h.prototype.__destroy__ = function() {
-          ce(this.Cf);
+          Xd(this.Ef);
         };
         function ai() {
-          throw "cannot construct a PixPtr, no constructor in IDL";
+          throw "cannot construct a FloatPtr, no constructor in IDL";
         }
         ai.prototype = Object.create(G.prototype);
         ai.prototype.constructor = ai;
-        ai.prototype.Hf = ai;
-        ai.If = {};
-        b.PixPtr = ai;
+        ai.prototype.Jf = ai;
+        ai.Kf = {};
+        b.FloatPtr = ai;
         ai.prototype.__destroy__ = function() {
-          de(this.Cf);
+          Yd(this.Ef);
         };
-        function bi() {
-          throw "cannot construct a UNICHARSET, no constructor in IDL";
+        function bi(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = Zd(a);
+          Lh(bi)[this.Ef] = this;
         }
         bi.prototype = Object.create(G.prototype);
         bi.prototype.constructor = bi;
-        bi.prototype.Hf = bi;
-        bi.If = {};
-        b.UNICHARSET = bi;
-        bi.prototype.get_script_from_script_id = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(ee(c, a));
+        bi.prototype.Jf = bi;
+        bi.Kf = {};
+        b.ChoiceIterator = bi;
+        bi.prototype.Next = function() {
+          return !!$d(this.Ef);
         };
-        bi.prototype.get_script_id_from_name = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return fe(c, a);
+        bi.prototype.GetUTF8Text = function() {
+          return z(ae(this.Ef));
         };
-        bi.prototype.get_script_table_size = function() {
-          return ge(this.Cf);
+        bi.prototype.Confidence = function() {
+          return be(this.Ef);
         };
         bi.prototype.__destroy__ = function() {
-          he(this.Cf);
+          ce(this.Ef);
         };
         function ci() {
-          throw "cannot construct a IntPtr, no constructor in IDL";
+          throw "cannot construct a PixPtr, no constructor in IDL";
         }
         ci.prototype = Object.create(G.prototype);
         ci.prototype.constructor = ci;
-        ci.prototype.Hf = ci;
-        ci.If = {};
-        b.IntPtr = ci;
+        ci.prototype.Jf = ci;
+        ci.Kf = {};
+        b.PixPtr = ci;
         ci.prototype.__destroy__ = function() {
-          ie(this.Cf);
+          de(this.Ef);
         };
         function di() {
-          throw "cannot construct a Orientation, no constructor in IDL";
+          throw "cannot construct a UNICHARSET, no constructor in IDL";
         }
         di.prototype = Object.create(G.prototype);
         di.prototype.constructor = di;
-        di.prototype.Hf = di;
-        di.If = {};
-        b.Orientation = di;
+        di.prototype.Jf = di;
+        di.Kf = {};
+        b.UNICHARSET = di;
+        di.prototype.get_script_from_script_id = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(ee(c, a));
+        };
+        di.prototype.get_script_id_from_name = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return fe(c, a);
+        };
+        di.prototype.get_script_table_size = function() {
+          return ge(this.Ef);
+        };
         di.prototype.__destroy__ = function() {
-          je(this.Cf);
+          he(this.Ef);
+        };
+        function ei() {
+          throw "cannot construct a IntPtr, no constructor in IDL";
+        }
+        ei.prototype = Object.create(G.prototype);
+        ei.prototype.constructor = ei;
+        ei.prototype.Jf = ei;
+        ei.Kf = {};
+        b.IntPtr = ei;
+        ei.prototype.__destroy__ = function() {
+          ie(this.Ef);
+        };
+        function fi() {
+          throw "cannot construct a Orientation, no constructor in IDL";
+        }
+        fi.prototype = Object.create(G.prototype);
+        fi.prototype.constructor = fi;
+        fi.prototype.Jf = fi;
+        fi.Kf = {};
+        b.Orientation = fi;
+        fi.prototype.__destroy__ = function() {
+          je(this.Ef);
         };
         function R() {
           throw "cannot construct a OSBestResult, no constructor in IDL";
         }
         R.prototype = Object.create(G.prototype);
         R.prototype.constructor = R;
-        R.prototype.Hf = R;
-        R.If = {};
+        R.prototype.Jf = R;
+        R.Kf = {};
         b.OSBestResult = R;
-        R.prototype.get_orientation_id = R.prototype.Uh = function() {
-          return ke(this.Cf);
+        R.prototype.get_orientation_id = R.prototype.Wh = function() {
+          return ke(this.Ef);
         };
-        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Uh });
-        R.prototype.get_script_id = R.prototype.Xh = function() {
-          return le(this.Cf);
+        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Wh });
+        R.prototype.get_script_id = R.prototype.Zh = function() {
+          return le(this.Ef);
         };
-        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.Xh });
-        R.prototype.get_sconfidence = R.prototype.Wh = function() {
-          return me(this.Cf);
+        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.Zh });
+        R.prototype.get_sconfidence = R.prototype.Yh = function() {
+          return me(this.Ef);
         };
-        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.Wh });
-        R.prototype.get_oconfidence = R.prototype.Th = function() {
-          return ne(this.Cf);
+        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.Yh });
+        R.prototype.get_oconfidence = R.prototype.Vh = function() {
+          return ne(this.Ef);
         };
-        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Th });
+        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Vh });
         R.prototype.__destroy__ = function() {
-          oe(this.Cf);
+          oe(this.Ef);
         };
         function S() {
           throw "cannot construct a Boxa, no constructor in IDL";
         }
         S.prototype = Object.create(G.prototype);
         S.prototype.constructor = S;
-        S.prototype.Hf = S;
-        S.If = {};
+        S.prototype.Jf = S;
+        S.Kf = {};
         b.Boxa = S;
-        S.prototype.get_n = S.prototype.ag = function() {
-          return pe(this.Cf);
+        S.prototype.get_n = S.prototype.cg = function() {
+          return pe(this.Ef);
         };
-        Object.defineProperty(S.prototype, "n", { get: S.prototype.ag });
-        S.prototype.get_nalloc = S.prototype.bg = function() {
-          return qe(this.Cf);
+        Object.defineProperty(S.prototype, "n", { get: S.prototype.cg });
+        S.prototype.get_nalloc = S.prototype.dg = function() {
+          return qe(this.Ef);
         };
-        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.bg });
-        S.prototype.get_refcount = S.prototype.Xf = function() {
-          return re(this.Cf);
+        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.dg });
+        S.prototype.get_refcount = S.prototype.Zf = function() {
+          return re(this.Ef);
         };
-        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.Xf });
-        S.prototype.get_box = S.prototype.Mh = function() {
-          return H(se(this.Cf), ei);
+        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.Zf });
+        S.prototype.get_box = S.prototype.Oh = function() {
+          return H(se(this.Ef), gi);
         };
-        Object.defineProperty(S.prototype, "box", { get: S.prototype.Mh });
+        Object.defineProperty(S.prototype, "box", { get: S.prototype.Oh });
         S.prototype.__destroy__ = function() {
-          te(this.Cf);
+          te(this.Ef);
         };
         function T() {
           throw "cannot construct a PixColormap, no constructor in IDL";
         }
         T.prototype = Object.create(G.prototype);
         T.prototype.constructor = T;
-        T.prototype.Hf = T;
-        T.If = {};
+        T.prototype.Jf = T;
+        T.Kf = {};
         b.PixColormap = T;
-        T.prototype.get_array = T.prototype.Kh = function() {
-          return ue(this.Cf);
+        T.prototype.get_array = T.prototype.Mh = function() {
+          return ue(this.Ef);
         };
-        Object.defineProperty(T.prototype, "array", { get: T.prototype.Kh });
-        T.prototype.get_depth = T.prototype.Rh = function() {
-          return ve(this.Cf);
+        Object.defineProperty(T.prototype, "array", { get: T.prototype.Mh });
+        T.prototype.get_depth = T.prototype.Th = function() {
+          return ve(this.Ef);
         };
-        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Rh });
-        T.prototype.get_nalloc = T.prototype.bg = function() {
-          return we(this.Cf);
+        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Th });
+        T.prototype.get_nalloc = T.prototype.dg = function() {
+          return we(this.Ef);
         };
-        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.bg });
-        T.prototype.get_n = T.prototype.ag = function() {
-          return xe(this.Cf);
+        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.dg });
+        T.prototype.get_n = T.prototype.cg = function() {
+          return xe(this.Ef);
         };
-        Object.defineProperty(T.prototype, "n", { get: T.prototype.ag });
+        Object.defineProperty(T.prototype, "n", { get: T.prototype.cg });
         T.prototype.__destroy__ = function() {
-          ye(this.Cf);
+          ye(this.Ef);
         };
         function M() {
           throw "cannot construct a Pta, no constructor in IDL";
         }
         M.prototype = Object.create(G.prototype);
         M.prototype.constructor = M;
-        M.prototype.Hf = M;
-        M.If = {};
+        M.prototype.Jf = M;
+        M.Kf = {};
         b.Pta = M;
-        M.prototype.get_n = M.prototype.ag = function() {
-          return ze(this.Cf);
+        M.prototype.get_n = M.prototype.cg = function() {
+          return ze(this.Ef);
         };
-        Object.defineProperty(M.prototype, "n", { get: M.prototype.ag });
-        M.prototype.get_nalloc = M.prototype.bg = function() {
-          return Ae(this.Cf);
+        Object.defineProperty(M.prototype, "n", { get: M.prototype.cg });
+        M.prototype.get_nalloc = M.prototype.dg = function() {
+          return Ae(this.Ef);
         };
-        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.bg });
-        M.prototype.get_refcount = M.prototype.Xf = function() {
-          return Be(this.Cf);
+        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.dg });
+        M.prototype.get_refcount = M.prototype.Zf = function() {
+          return Be(this.Ef);
         };
-        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.Xf });
-        M.prototype.get_x = M.prototype.Kg = function() {
-          return H(Ce(this.Cf), Zh);
+        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.Zf });
+        M.prototype.get_x = M.prototype.Mg = function() {
+          return H(Ce(this.Ef), ai);
         };
-        Object.defineProperty(M.prototype, "x", { get: M.prototype.Kg });
-        M.prototype.get_y = M.prototype.Lg = function() {
-          return H(De(this.Cf), Zh);
+        Object.defineProperty(M.prototype, "x", { get: M.prototype.Mg });
+        M.prototype.get_y = M.prototype.Ng = function() {
+          return H(De(this.Ef), ai);
         };
-        Object.defineProperty(M.prototype, "y", { get: M.prototype.Lg });
+        Object.defineProperty(M.prototype, "y", { get: M.prototype.Ng });
         M.prototype.__destroy__ = function() {
-          Ee(this.Cf);
+          Ee(this.Ef);
         };
         function N() {
           throw "cannot construct a Pix, no constructor in IDL";
         }
         N.prototype = Object.create(G.prototype);
         N.prototype.constructor = N;
-        N.prototype.Hf = N;
-        N.If = {};
+        N.prototype.Jf = N;
+        N.Kf = {};
         b.Pix = N;
-        N.prototype.get_w = N.prototype.Jg = function() {
-          return Fe(this.Cf);
+        N.prototype.get_w = N.prototype.Lg = function() {
+          return Fe(this.Ef);
         };
-        Object.defineProperty(N.prototype, "w", { get: N.prototype.Jg });
-        N.prototype.get_h = N.prototype.Ig = function() {
-          return Ge(this.Cf);
+        Object.defineProperty(N.prototype, "w", { get: N.prototype.Lg });
+        N.prototype.get_h = N.prototype.Kg = function() {
+          return Ge(this.Ef);
         };
-        Object.defineProperty(N.prototype, "h", { get: N.prototype.Ig });
-        N.prototype.get_d = N.prototype.Ph = function() {
-          return He(this.Cf);
+        Object.defineProperty(N.prototype, "h", { get: N.prototype.Kg });
+        N.prototype.get_d = N.prototype.Rh = function() {
+          return He(this.Ef);
         };
-        Object.defineProperty(N.prototype, "d", { get: N.prototype.Ph });
-        N.prototype.get_spp = N.prototype.Zh = function() {
-          return Ie(this.Cf);
+        Object.defineProperty(N.prototype, "d", { get: N.prototype.Rh });
+        N.prototype.get_spp = N.prototype.ai = function() {
+          return Ie(this.Ef);
         };
-        Object.defineProperty(N.prototype, "spp", { get: N.prototype.Zh });
-        N.prototype.get_wpl = N.prototype.bi = function() {
-          return Je(this.Cf);
+        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ai });
+        N.prototype.get_wpl = N.prototype.di = function() {
+          return Je(this.Ef);
         };
-        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.bi });
-        N.prototype.get_refcount = N.prototype.Xf = function() {
-          return Ke(this.Cf);
+        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.di });
+        N.prototype.get_refcount = N.prototype.Zf = function() {
+          return Ke(this.Ef);
         };
-        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.Xf });
-        N.prototype.get_xres = N.prototype.ci = function() {
-          return Le(this.Cf);
+        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.Zf });
+        N.prototype.get_xres = N.prototype.ei = function() {
+          return Le(this.Ef);
         };
-        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ci });
-        N.prototype.get_yres = N.prototype.di = function() {
-          return Me(this.Cf);
+        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ei });
+        N.prototype.get_yres = N.prototype.fi = function() {
+          return Me(this.Ef);
         };
-        Object.defineProperty(N.prototype, "yres", { get: N.prototype.di });
-        N.prototype.get_informat = N.prototype.Sh = function() {
-          return Ne(this.Cf);
+        Object.defineProperty(N.prototype, "yres", { get: N.prototype.fi });
+        N.prototype.get_informat = N.prototype.Uh = function() {
+          return Ne(this.Ef);
         };
-        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Sh });
-        N.prototype.get_special = N.prototype.Yh = function() {
-          return Oe(this.Cf);
+        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Uh });
+        N.prototype.get_special = N.prototype.$h = function() {
+          return Oe(this.Ef);
         };
-        Object.defineProperty(N.prototype, "special", { get: N.prototype.Yh });
-        N.prototype.get_text = N.prototype.$h = function() {
-          return z(Pe(this.Cf));
+        Object.defineProperty(N.prototype, "special", { get: N.prototype.$h });
+        N.prototype.get_text = N.prototype.bi = function() {
+          return z(Pe(this.Ef));
         };
-        Object.defineProperty(N.prototype, "text", { get: N.prototype.$h });
-        N.prototype.get_colormap = N.prototype.Oh = function() {
-          return H(Qe(this.Cf), T);
+        Object.defineProperty(N.prototype, "text", { get: N.prototype.bi });
+        N.prototype.get_colormap = N.prototype.Qh = function() {
+          return H(Qe(this.Ef), T);
         };
-        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Oh });
-        N.prototype.get_data = N.prototype.Qh = function() {
-          return Re(this.Cf);
+        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Qh });
+        N.prototype.get_data = N.prototype.Sh = function() {
+          return Re(this.Ef);
         };
-        Object.defineProperty(N.prototype, "data", { get: N.prototype.Qh });
+        Object.defineProperty(N.prototype, "data", { get: N.prototype.Sh });
         N.prototype.__destroy__ = function() {
-          Se(this.Cf);
+          Se(this.Ef);
         };
-        function fi() {
+        function hi() {
           throw "cannot construct a DoublePtr, no constructor in IDL";
         }
-        fi.prototype = Object.create(G.prototype);
-        fi.prototype.constructor = fi;
-        fi.prototype.Hf = fi;
-        fi.If = {};
-        b.DoublePtr = fi;
-        fi.prototype.__destroy__ = function() {
-          Te(this.Cf);
+        hi.prototype = Object.create(G.prototype);
+        hi.prototype.constructor = hi;
+        hi.prototype.Jf = hi;
+        hi.Kf = {};
+        b.DoublePtr = hi;
+        hi.prototype.__destroy__ = function() {
+          Te(this.Ef);
+        };
+        function ii() {
+          throw "cannot construct a Dawg, no constructor in IDL";
+        }
+        ii.prototype = Object.create(G.prototype);
+        ii.prototype.constructor = ii;
+        ii.prototype.Jf = ii;
+        ii.Kf = {};
+        b.Dawg = ii;
+        ii.prototype.__destroy__ = function() {
+          Ue(this.Ef);
         };
         function gi() {
-          throw "cannot construct a Dawg, no constructor in IDL";
+          throw "cannot construct a BoxPtr, no constructor in IDL";
         }
         gi.prototype = Object.create(G.prototype);
         gi.prototype.constructor = gi;
-        gi.prototype.Hf = gi;
-        gi.If = {};
-        b.Dawg = gi;
+        gi.prototype.Jf = gi;
+        gi.Kf = {};
+        b.BoxPtr = gi;
         gi.prototype.__destroy__ = function() {
-          Ue(this.Cf);
-        };
-        function ei() {
-          throw "cannot construct a BoxPtr, no constructor in IDL";
-        }
-        ei.prototype = Object.create(G.prototype);
-        ei.prototype.constructor = ei;
-        ei.prototype.Hf = ei;
-        ei.If = {};
-        b.BoxPtr = ei;
-        ei.prototype.__destroy__ = function() {
-          Ve(this.Cf);
+          Ve(this.Ef);
         };
         function X() {
-          this.Cf = We();
-          Jh(X)[this.Cf] = this;
+          this.Ef = We();
+          Lh(X)[this.Ef] = this;
         }
         X.prototype = Object.create(G.prototype);
         X.prototype.constructor = X;
-        X.prototype.Hf = X;
-        X.If = {};
+        X.prototype.Jf = X;
+        X.Kf = {};
         b.TessBaseAPI = X;
         X.prototype.Version = function() {
-          return z(Xe(this.Cf));
+          return z(Xe(this.Ef));
         };
         X.prototype.SetInputName = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           Ye(c, a);
         };
         X.prototype.GetInputName = function() {
-          return z(Ze(this.Cf));
+          return z(Ze(this.Ef));
         };
         X.prototype.SetInputImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           $e(c, a);
         };
         X.prototype.GetInputImage = function() {
-          return H(af(this.Cf), N);
+          return H(af(this.Ef), N);
         };
         X.prototype.GetSourceYResolution = function() {
-          return bf(this.Cf);
+          return bf(this.Ef);
         };
         X.prototype.GetDatapath = function() {
-          return z(cf(this.Cf));
+          return z(cf(this.Ef));
         };
         X.prototype.SetOutputName = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           df(c, a);
         };
         X.prototype.SetVariable = X.prototype.SetVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!ef(d, a, c);
         };
         X.prototype.SetDebugVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!ff(d, a, c);
         };
         X.prototype.GetIntVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!gf(d, a, c);
         };
         X.prototype.GetBoolVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!hf(d, a, c);
         };
         X.prototype.GetDoubleVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!jf(d, a, c);
         };
         X.prototype.GetStringVariable = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return z(kf(c, a));
         };
         X.prototype.Init = function(a, c, d, e) {
           void 0 === d && void 0 !== e && (d = 3);
-          var g = this.Cf;
+          var g = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          e = e && "object" === typeof e ? e.Cf : J(e);
-          d && "object" === typeof d && (d = d.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          e = e && "object" === typeof e ? e.Ef : J(e);
+          d && "object" === typeof d && (d = d.Ef);
           return void 0 === d && void 0 !== e ? pf(g, a, c, 3, e) : void 0 === d ? nf(g, a, c) : void 0 === e ? of(g, a, c, d) : pf(g, a, c, d, e);
         };
         X.prototype.GetInitLanguagesAsString = function() {
-          return z(qf(this.Cf));
+          return z(qf(this.Ef));
         };
         X.prototype.InitForAnalysePage = function() {
-          rf(this.Cf);
+          rf(this.Ef);
         };
         X.prototype.SaveParameters = function() {
-          lf(this.Cf);
+          lf(this.Ef);
         };
         X.prototype.RestoreParameters = function() {
-          mf(this.Cf);
+          mf(this.Ef);
         };
         X.prototype.ReadConfigFile = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           sf(c, a);
         };
         X.prototype.ReadDebugConfigFile = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           tf(c, a);
         };
         X.prototype.SetPageSegMode = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           uf(c, a);
         };
         X.prototype.GetPageSegMode = function() {
-          return vf(this.Cf);
+          return vf(this.Ef);
         };
         X.prototype.TesseractRect = function(a, c, d, e, g, h, k) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
+          var m = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
           return z(wf(m, a, c, d, e, g, h, k));
         };
         X.prototype.ClearAdaptiveClassifier = function() {
-          xf(this.Cf);
+          xf(this.Ef);
         };
-        X.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          void 0 === c || null === c ? yf(m, a, h, k) : zf(m, a, c, d, e, g, h, k);
+        X.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0, m = false) {
+          var v = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          void 0 === c || null === c ? yf(v, a, h, k, m) : zf(v, a, c, d, e, g, h, k, m);
         };
-        X.prototype.SetImageFile = function(a = 1, c = 0) {
-          return Af(this.Cf, a, c);
+        X.prototype.SetImageFile = function(a = 1, c = 0, d = false) {
+          return Af(this.Ef, a, c, d);
         };
         X.prototype.SetSourceResolution = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           Bf(c, a);
         };
         X.prototype.SetRectangle = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           Cf(g, a, c, d, e);
         };
         X.prototype.GetThresholdedImage = function() {
-          return H(Df(this.Cf), N);
+          return H(Df(this.Ef), N);
         };
         X.prototype.WriteImage = function(a) {
-          Ef(this.Cf, a);
+          Ef(this.Ef, a);
         };
         X.prototype.GetRegions = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Hf(c, a), S);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(If(c, a), S);
         };
         X.prototype.GetTextlines = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return void 0 === d ? H(If(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Jf(h, a, c, d, e, g), S);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return void 0 === d ? H(Jf(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Kf(h, a, c, d, e, g), S);
         };
         X.prototype.GetStrips = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          return H(Kf(d, a, c), S);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          return H(Lf(d, a, c), S);
         };
         X.prototype.GetWords = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Lf(c, a), S);
-        };
-        X.prototype.GetConnectedComponents = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return H(Mf(c, a), S);
         };
+        X.prototype.GetConnectedComponents = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(Nf(c, a), S);
+        };
         X.prototype.GetComponentImages = function(a, c, d, e, g, h, k) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
-          return void 0 === g ? H(Nf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Of(
+          var m = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
+          return void 0 === g ? H(Of(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Pf(
             m,
             a,
             c,
@@ -13324,318 +13337,345 @@ var require_tesseract_core_simd = __commonJS({
           ), S);
         };
         X.prototype.GetThresholdedImageScaleFactor = function() {
-          return Pf(this.Cf);
+          return Qf(this.Ef);
         };
         X.prototype.AnalyseLayout = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return void 0 === a ? H(Qf(c), O) : H(Rf(c, a), O);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return void 0 === a ? H(Rf(c), O) : H(Sf(c, a), O);
         };
         X.prototype.Recognize = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return Sf(c, a);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return Tf(c, a);
         };
         X.prototype.FindLines = function() {
-          return Ff(this.Cf);
+          return Ff(this.Ef);
         };
         X.prototype.GetGradient = function() {
-          return Gf(this.Cf);
+          return Gf(this.Ef);
+        };
+        X.prototype.GetEstimatedResolution = function() {
+          return Hf(this.Ef);
         };
         X.prototype.ProcessPages = function(a, c, d, e) {
-          var g = this.Cf;
+          var g = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          return !!Tf(g, a, c, d, e);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          return !!Uf(g, a, c, d, e);
         };
         X.prototype.ProcessPage = function(a, c, d, e, g, h) {
-          var k = this.Cf;
+          var k = this.Ef;
           I();
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d = d && "object" === typeof d ? d.Cf : J(d);
-          e = e && "object" === typeof e ? e.Cf : J(e);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          return !!Uf(k, a, c, d, e, g, h);
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d = d && "object" === typeof d ? d.Ef : J(d);
+          e = e && "object" === typeof e ? e.Ef : J(e);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          return !!Vf(k, a, c, d, e, g, h);
         };
         X.prototype.GetIterator = function() {
-          return H(Vf(this.Cf), L);
+          return H(Wf(this.Ef), L);
         };
         X.prototype.GetUTF8Text = function() {
-          return z(Wf(this.Cf));
+          var a = Xf(this.Ef), c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetHOCRText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Xf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = Yf(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetTSVText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Yf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = $f(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
+        };
+        X.prototype.GetJSONText = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = Zf(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetBoxText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Zf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = ag(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetUNLVText = function() {
-          return z($f(this.Cf));
+          var a = bg(this.Ef), c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetOsdText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(ag(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = cg(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.MeanTextConf = function() {
-          return bg(this.Cf);
+          return dg(this.Ef);
         };
         X.prototype.AllWordConfidences = function() {
-          return H(cg(this.Cf), ci);
+          return H(eg(this.Ef), ei);
         };
         X.prototype.AdaptToWordStr = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a && "object" === typeof a && (a = a.Cf);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a && "object" === typeof a && (a = a.Ef);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!_emscripten_bind_TessBaseAPI_AdaptToWordStr_2(d, a, c);
         };
         X.prototype.Clear = function() {
-          dg(this.Cf);
+          fg(this.Ef);
         };
         X.prototype.End = function() {
-          eg(this.Cf);
+          gg(this.Ef);
         };
         X.prototype.ClearPersistentCache = function() {
-          fg(this.Cf);
+          hg(this.Ef);
         };
         X.prototype.IsValidWord = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return gg(c, a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return ig(c, a);
         };
         X.prototype.IsValidCharacter = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return !!hg(c, a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return !!jg(c, a);
         };
         X.prototype.DetectOS = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!ig(c, a);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!kg(c, a);
         };
         X.prototype.GetUnichar = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(jg(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(lg(c, a));
         };
         X.prototype.GetDawg = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(kg(c, a), gi);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(mg(c, a), ii);
         };
         X.prototype.NumDawgs = function() {
-          return lg(this.Cf);
+          return ng(this.Ef);
         };
         X.prototype.oem = function() {
-          return mg(this.Cf);
+          return og(this.Ef);
         };
         X.prototype.__destroy__ = function() {
-          ng(this.Cf);
+          pg(this.Ef);
         };
         function Y() {
-          this.Cf = og();
-          Jh(Y)[this.Cf] = this;
+          this.Ef = qg();
+          Lh(Y)[this.Ef] = this;
         }
         Y.prototype = Object.create(G.prototype);
         Y.prototype.constructor = Y;
-        Y.prototype.Hf = Y;
-        Y.If = {};
+        Y.prototype.Jf = Y;
+        Y.Kf = {};
         b.OSResults = Y;
         Y.prototype.print_scores = function() {
-          pg(this.Cf);
+          rg(this.Ef);
         };
-        Y.prototype.get_best_result = Y.prototype.Lh = function() {
-          return H(qg(this.Cf), R);
+        Y.prototype.get_best_result = Y.prototype.Nh = function() {
+          return H(sg(this.Ef), R);
         };
-        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Lh });
-        Y.prototype.get_unicharset = Y.prototype.ai = function() {
-          return H(rg(this.Cf), bi);
+        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Nh });
+        Y.prototype.get_unicharset = Y.prototype.ci = function() {
+          return H(tg(this.Ef), di);
         };
-        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ai });
+        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ci });
         Y.prototype.__destroy__ = function() {
-          sg(this.Cf);
+          ug(this.Ef);
         };
         function Z() {
           throw "cannot construct a Pixa, no constructor in IDL";
         }
         Z.prototype = Object.create(G.prototype);
         Z.prototype.constructor = Z;
-        Z.prototype.Hf = Z;
-        Z.If = {};
+        Z.prototype.Jf = Z;
+        Z.Kf = {};
         b.Pixa = Z;
-        Z.prototype.get_n = Z.prototype.ag = function() {
-          return tg(this.Cf);
+        Z.prototype.get_n = Z.prototype.cg = function() {
+          return vg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.ag });
-        Z.prototype.get_nalloc = Z.prototype.bg = function() {
-          return ug(this.Cf);
+        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.cg });
+        Z.prototype.get_nalloc = Z.prototype.dg = function() {
+          return wg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.bg });
-        Z.prototype.get_refcount = Z.prototype.Xf = function() {
-          return vg(this.Cf);
+        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.dg });
+        Z.prototype.get_refcount = Z.prototype.Zf = function() {
+          return xg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.Xf });
-        Z.prototype.get_pix = Z.prototype.Vh = function() {
-          return H(wg(this.Cf), ai);
+        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.Zf });
+        Z.prototype.get_pix = Z.prototype.Xh = function() {
+          return H(yg(this.Ef), ci);
         };
-        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Vh });
-        Z.prototype.get_boxa = Z.prototype.Nh = function() {
-          return H(xg(this.Cf), S);
+        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Xh });
+        Z.prototype.get_boxa = Z.prototype.Ph = function() {
+          return H(zg(this.Ef), S);
         };
-        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Nh });
+        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Ph });
         Z.prototype.__destroy__ = function() {
-          yg(this.Cf);
+          Ag(this.Ef);
         };
         (function() {
           function a() {
-            b.RIL_BLOCK = zg();
-            b.RIL_PARA = Ag();
-            b.RIL_TEXTLINE = Bg();
-            b.RIL_WORD = Cg();
-            b.RIL_SYMBOL = Dg();
-            b.OEM_TESSERACT_ONLY = Eg();
-            b.OEM_LSTM_ONLY = Fg();
-            b.OEM_TESSERACT_LSTM_COMBINED = Gg();
-            b.OEM_DEFAULT = Hg();
-            b.OEM_COUNT = Ig();
-            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Jg();
-            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Kg();
-            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Lg();
-            b.PT_UNKNOWN = Mg();
-            b.PT_FLOWING_TEXT = Ng();
-            b.PT_HEADING_TEXT = Og();
-            b.PT_PULLOUT_TEXT = Pg();
-            b.PT_EQUATION = Qg();
-            b.PT_INLINE_EQUATION = Rg();
-            b.PT_TABLE = Sg();
-            b.PT_VERTICAL_TEXT = Tg();
-            b.PT_CAPTION_TEXT = Ug();
-            b.PT_FLOWING_IMAGE = Vg();
-            b.PT_HEADING_IMAGE = Wg();
-            b.PT_PULLOUT_IMAGE = Xg();
-            b.PT_HORZ_LINE = Yg();
-            b.PT_VERT_LINE = Zg();
-            b.PT_NOISE = $g();
-            b.PT_COUNT = ah();
-            b.DIR_NEUTRAL = bh();
-            b.DIR_LEFT_TO_RIGHT = ch();
-            b.DIR_RIGHT_TO_LEFT = dh();
-            b.DIR_MIX = eh();
-            b.JUSTIFICATION_UNKNOWN = fh();
-            b.JUSTIFICATION_LEFT = gh();
-            b.JUSTIFICATION_CENTER = hh();
-            b.JUSTIFICATION_RIGHT = ih();
-            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = jh();
-            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = kh();
-            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = lh();
-            b.ORIENTATION_PAGE_UP = mh();
-            b.ORIENTATION_PAGE_RIGHT = nh();
-            b.ORIENTATION_PAGE_DOWN = oh();
-            b.ORIENTATION_PAGE_LEFT = ph();
-            b.PSM_OSD_ONLY = qh();
-            b.PSM_AUTO_OSD = rh();
-            b.PSM_AUTO_ONLY = sh();
-            b.PSM_AUTO = th();
-            b.PSM_SINGLE_COLUMN = uh();
-            b.PSM_SINGLE_BLOCK_VERT_TEXT = vh();
-            b.PSM_SINGLE_BLOCK = wh();
-            b.PSM_SINGLE_LINE = xh();
-            b.PSM_SINGLE_WORD = yh();
-            b.PSM_CIRCLE_WORD = zh();
-            b.PSM_SINGLE_CHAR = Ah();
-            b.PSM_SPARSE_TEXT = Bh();
-            b.PSM_SPARSE_TEXT_OSD = Ch();
-            b.PSM_RAW_LINE = Dh();
-            b.PSM_COUNT = Eh();
+            b.RIL_BLOCK = Bg();
+            b.RIL_PARA = Cg();
+            b.RIL_TEXTLINE = Dg();
+            b.RIL_WORD = Eg();
+            b.RIL_SYMBOL = Fg();
+            b.OEM_TESSERACT_ONLY = Gg();
+            b.OEM_LSTM_ONLY = Hg();
+            b.OEM_TESSERACT_LSTM_COMBINED = Ig();
+            b.OEM_DEFAULT = Jg();
+            b.OEM_COUNT = Kg();
+            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Lg();
+            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Mg();
+            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Ng();
+            b.PT_UNKNOWN = Og();
+            b.PT_FLOWING_TEXT = Pg();
+            b.PT_HEADING_TEXT = Qg();
+            b.PT_PULLOUT_TEXT = Rg();
+            b.PT_EQUATION = Sg();
+            b.PT_INLINE_EQUATION = Tg();
+            b.PT_TABLE = Ug();
+            b.PT_VERTICAL_TEXT = Vg();
+            b.PT_CAPTION_TEXT = Wg();
+            b.PT_FLOWING_IMAGE = Xg();
+            b.PT_HEADING_IMAGE = Yg();
+            b.PT_PULLOUT_IMAGE = Zg();
+            b.PT_HORZ_LINE = $g();
+            b.PT_VERT_LINE = ah();
+            b.PT_NOISE = bh();
+            b.PT_COUNT = ch();
+            b.DIR_NEUTRAL = dh();
+            b.DIR_LEFT_TO_RIGHT = eh();
+            b.DIR_RIGHT_TO_LEFT = fh();
+            b.DIR_MIX = gh();
+            b.JUSTIFICATION_UNKNOWN = hh();
+            b.JUSTIFICATION_LEFT = ih();
+            b.JUSTIFICATION_CENTER = jh();
+            b.JUSTIFICATION_RIGHT = kh();
+            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = lh();
+            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = mh();
+            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = nh();
+            b.ORIENTATION_PAGE_UP = oh();
+            b.ORIENTATION_PAGE_RIGHT = ph();
+            b.ORIENTATION_PAGE_DOWN = qh();
+            b.ORIENTATION_PAGE_LEFT = rh();
+            b.PSM_OSD_ONLY = sh();
+            b.PSM_AUTO_OSD = th();
+            b.PSM_AUTO_ONLY = uh();
+            b.PSM_AUTO = vh();
+            b.PSM_SINGLE_COLUMN = wh();
+            b.PSM_SINGLE_BLOCK_VERT_TEXT = xh();
+            b.PSM_SINGLE_BLOCK = yh();
+            b.PSM_SINGLE_LINE = zh();
+            b.PSM_SINGLE_WORD = Ah();
+            b.PSM_CIRCLE_WORD = Bh();
+            b.PSM_SINGLE_CHAR = Ch();
+            b.PSM_SPARSE_TEXT = Dh();
+            b.PSM_SPARSE_TEXT_OSD = Eh();
+            b.PSM_RAW_LINE = Fh();
+            b.PSM_COUNT = Gh();
           }
           Ca ? a() : Aa.unshift(a);
         })();
-        Qh.prototype.getValue = function(a) {
-          return !!Xa(this.Cf + (a || 0), "i8");
+        Sh.prototype.getValue = function(a) {
+          return !!Xa(this.Ef + (a || 0), "i8");
         };
-        ci.prototype.getValue = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "i32");
+        ei.prototype.getValue = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "i32");
         };
-        Zh.prototype.getValue = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "float");
+        ai.prototype.getValue = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "float");
         };
-        fi.prototype.getValue = function(a) {
-          return Xa(this.Cf + 8 * (a || 0), "double");
+        hi.prototype.getValue = function(a) {
+          return Xa(this.Ef + 8 * (a || 0), "double");
         };
-        ei.prototype.get = Yh.prototype.get = ai.prototype.get = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "*");
+        gi.prototype.get = $h.prototype.get = ci.prototype.get = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "*");
         };
-        function hi() {
-          this.ig = {};
+        function ji() {
+          this.kg = {};
         }
-        hi.prototype.wrap = function(a, c) {
+        ji.prototype.wrap = function(a, c) {
           var d = Fb(4);
           Ya(d, 0, "i32");
-          return this.ig[a] = H(d, c);
+          return this.kg[a] = H(d, c);
         };
-        hi.prototype.bool = function(a) {
-          return this.wrap(a, Qh);
+        ji.prototype.bool = function(a) {
+          return this.wrap(a, Sh);
         };
-        hi.prototype.i32 = function(a) {
-          return this.wrap(a, ci);
+        ji.prototype.i32 = function(a) {
+          return this.wrap(a, ei);
         };
-        hi.prototype.f32 = function(a) {
-          return this.wrap(a, Zh);
+        ji.prototype.f32 = function(a) {
+          return this.wrap(a, ai);
         };
-        hi.prototype.f64 = function(a) {
-          return this.ig[a] = H(Fb(8), fi);
+        ji.prototype.f64 = function(a) {
+          return this.kg[a] = H(Fb(8), hi);
         };
-        hi.prototype.peek = function() {
+        ji.prototype.peek = function() {
           var a = {}, c;
-          for (c in this.ig) a[c] = this.ig[c].getValue();
+          for (c in this.kg) a[c] = this.kg[c].getValue();
           return a;
         };
-        hi.prototype.get = function() {
+        ji.prototype.get = function() {
           var a = {}, c;
-          for (c in this.ig) a[c] = this.ig[c].getValue(), Fh(this.ig[c].Cf);
+          for (c in this.kg) a[c] = this.kg[c].getValue(), Hh(this.kg[c].Ef);
           return a;
         };
         L.prototype.getBoundingBox = function(a) {
-          var c = new hi();
+          var c = new ji();
           this.BoundingBox(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           return c.get();
         };
         L.prototype.getBaseline = function(a) {
-          var c = new hi();
+          var c = new ji();
           a = !!this.Baseline(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           c = c.get();
           c.has_baseline = a;
           return c;
         };
         L.prototype.getRowAttributes = function() {
-          var a = new hi();
+          var a = new ji();
           this.RowAttributes(a.f32("row_height"), a.f32("descenders"), a.f32("ascenders"));
           return a.get();
         };
         L.prototype.getWordFontAttributes = function() {
-          var a = new hi(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
+          var a = new ji(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
           a = a.get();
           a.font_name = c;
           return a;
         };
-        b.pointerHelper = hi;
+        b.pointerHelper = ji;
         return TesseractCore2.ready;
       };
     })();
@@ -13650,9 +13690,9 @@ var require_tesseract_core_simd = __commonJS({
   }
 });
 
-// node_modules/tesseract.js-core/tesseract-core-lstm.js
+// node_modules/@scribe.js/tesseract.js-core/tesseract-core-lstm.js
 var require_tesseract_core_lstm = __commonJS({
-  "node_modules/tesseract.js-core/tesseract-core-lstm.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js-core/tesseract-core-lstm.js"(exports2, module2) {
     var TesseractCore = (() => {
       var _scriptDir = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : void 0;
       if (typeof __filename !== "undefined") _scriptDir = _scriptDir || __filename;
@@ -13806,9 +13846,9 @@ var require_tesseract_core_lstm = __commonJS({
             return Na(d, a, c);
           }));
         }
-        var y, z, Pa = { 420268: (a) => {
+        var y, z, Pa = { 424236: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 420337: (a) => {
+        }, 424305: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
         } };
         function Qa(a) {
@@ -13938,20 +13978,20 @@ var require_tesseract_core_lstm = __commonJS({
           }
         }
         function Ya(a) {
-          this.Gf = a - 24;
-          this.wh = function(c) {
-            x[this.Gf + 4 >> 2] = c;
+          this.If = a - 24;
+          this.yh = function(c) {
+            x[this.If + 4 >> 2] = c;
           };
-          this.Gg = function(c) {
-            x[this.Gf + 8 >> 2] = c;
+          this.Ig = function(c) {
+            x[this.If + 8 >> 2] = c;
           };
-          this.gg = function(c, d) {
-            this.Tf();
-            this.wh(c);
-            this.Gg(d);
+          this.ig = function(c, d) {
+            this.Vf();
+            this.yh(c);
+            this.Ig(d);
           };
-          this.Tf = function() {
-            x[this.Gf + 16 >> 2] = 0;
+          this.Vf = function() {
+            x[this.If + 16 >> 2] = 0;
           };
         }
         var Za = 0, $a = 0, ab = (a, c) => {
@@ -14032,27 +14072,27 @@ var require_tesseract_core_lstm = __commonJS({
         }
         var kb = [];
         function lb(a, c) {
-          kb[a] = { input: [], output: [], qg: c };
-          B.ah(a, mb);
+          kb[a] = { input: [], output: [], sg: c };
+          B.dh(a, mb);
         }
         var mb = { open: function(a) {
           var c = kb[a.node.rdev];
-          if (!c) throw new B.Hf(43);
+          if (!c) throw new B.Jf(43);
           a.tty = c;
           a.seekable = false;
         }, close: function(a) {
-          a.tty.qg.fsync(a.tty);
+          a.tty.sg.fsync(a.tty);
         }, fsync: function(a) {
-          a.tty.qg.fsync(a.tty);
+          a.tty.sg.fsync(a.tty);
         }, read: function(a, c, d, e) {
-          if (!a.tty || !a.tty.qg.oh) throw new B.Hf(60);
+          if (!a.tty || !a.tty.sg.qh) throw new B.Jf(60);
           for (var g = 0, h = 0; h < e; h++) {
             try {
-              var k = a.tty.qg.oh(a.tty);
+              var k = a.tty.sg.qh(a.tty);
             } catch (m) {
-              throw new B.Hf(29);
+              throw new B.Jf(29);
             }
-            if (void 0 === k && 0 === g) throw new B.Hf(6);
+            if (void 0 === k && 0 === g) throw new B.Jf(6);
             if (null === k || void 0 === k) break;
             g++;
             c[d + h] = k;
@@ -14060,15 +14100,15 @@ var require_tesseract_core_lstm = __commonJS({
           g && (a.node.timestamp = Date.now());
           return g;
         }, write: function(a, c, d, e) {
-          if (!a.tty || !a.tty.qg.Yg) throw new B.Hf(60);
+          if (!a.tty || !a.tty.sg.$g) throw new B.Jf(60);
           try {
-            for (var g = 0; g < e; g++) a.tty.qg.Yg(a.tty, c[d + g]);
+            for (var g = 0; g < e; g++) a.tty.sg.$g(a.tty, c[d + g]);
           } catch (h) {
-            throw new B.Hf(29);
+            throw new B.Jf(29);
           }
           e && (a.node.timestamp = Date.now());
           return g;
-        } }, nb = { oh: function(a) {
+        } }, nb = { qh: function(a) {
           if (!a.input.length) {
             var c = null;
             if (ia) {
@@ -14085,15 +14125,15 @@ var require_tesseract_core_lstm = __commonJS({
             a.input = jb(c, true);
           }
           return a.input.shift();
-        }, Yg: function(a, c) {
+        }, $g: function(a, c) {
           null === c || 10 === c ? (na(Va(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (na(Va(a.output, 0)), a.output = []);
-        } }, ob = { Yg: function(a, c) {
+        } }, ob = { $g: function(a, c) {
           null === c || 10 === c ? (n(Va(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (n(Va(a.output, 0)), a.output = []);
-        } }, C = { Zf: null, Qf: function() {
+        } }, C = { ag: null, Sf: function() {
           return C.createNode(
             null,
             "/",
@@ -14101,87 +14141,87 @@ var require_tesseract_core_lstm = __commonJS({
             0
           );
         }, createNode: function(a, c, d, e) {
-          if (B.ii(d) || B.isFIFO(d)) throw new B.Hf(63);
-          C.Zf || (C.Zf = { dir: { node: { Wf: C.If.Wf, Sf: C.If.Sf, lookup: C.If.lookup, cg: C.If.cg, rename: C.If.rename, unlink: C.If.unlink, rmdir: C.If.rmdir, readdir: C.If.readdir, symlink: C.If.symlink }, stream: { Xf: C.Kf.Xf } }, file: { node: { Wf: C.If.Wf, Sf: C.If.Sf }, stream: { Xf: C.Kf.Xf, read: C.Kf.read, write: C.Kf.write, rg: C.Kf.rg, jg: C.Kf.jg, pg: C.Kf.pg } }, link: { node: { Wf: C.If.Wf, Sf: C.If.Sf, readlink: C.If.readlink }, stream: {} }, eh: { node: { Wf: C.If.Wf, Sf: C.If.Sf }, stream: B.Eh } });
+          if (B.ki(d) || B.isFIFO(d)) throw new B.Jf(63);
+          C.ag || (C.ag = { dir: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf, lookup: C.Kf.lookup, eg: C.Kf.eg, rename: C.Kf.rename, unlink: C.Kf.unlink, rmdir: C.Kf.rmdir, readdir: C.Kf.readdir, symlink: C.Kf.symlink }, stream: { Zf: C.Mf.Zf } }, file: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf }, stream: { Zf: C.Mf.Zf, read: C.Mf.read, write: C.Mf.write, tg: C.Mf.tg, lg: C.Mf.lg, rg: C.Mf.rg } }, link: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf, readlink: C.Kf.readlink }, stream: {} }, gh: { node: { Yf: C.Kf.Yf, Uf: C.Kf.Uf }, stream: B.Gh } });
           d = B.createNode(a, c, d, e);
-          B.Rf(d.mode) ? (d.If = C.Zf.dir.node, d.Kf = C.Zf.dir.stream, d.Jf = {}) : B.isFile(d.mode) ? (d.If = C.Zf.file.node, d.Kf = C.Zf.file.stream, d.Of = 0, d.Jf = null) : B.ug(d.mode) ? (d.If = C.Zf.link.node, d.Kf = C.Zf.link.stream) : B.zg(d.mode) && (d.If = C.Zf.eh.node, d.Kf = C.Zf.eh.stream);
+          B.Tf(d.mode) ? (d.Kf = C.ag.dir.node, d.Mf = C.ag.dir.stream, d.Lf = {}) : B.isFile(d.mode) ? (d.Kf = C.ag.file.node, d.Mf = C.ag.file.stream, d.Qf = 0, d.Lf = null) : B.wg(d.mode) ? (d.Kf = C.ag.link.node, d.Mf = C.ag.link.stream) : B.Bg(d.mode) && (d.Kf = C.ag.gh.node, d.Mf = C.ag.gh.stream);
           d.timestamp = Date.now();
-          a && (a.Jf[c] = d, a.timestamp = d.timestamp);
+          a && (a.Lf[c] = d, a.timestamp = d.timestamp);
           return d;
-        }, Ci: function(a) {
-          return a.Jf ? a.Jf.subarray ? a.Jf.subarray(0, a.Of) : new Uint8Array(a.Jf) : new Uint8Array(0);
-        }, lh: function(a, c) {
-          var d = a.Jf ? a.Jf.length : 0;
-          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Jf, a.Jf = new Uint8Array(c), 0 < a.Of && a.Jf.set(d.subarray(0, a.Of), 0));
-        }, si: function(a, c) {
-          if (a.Of != c) if (0 == c) a.Jf = null, a.Of = 0;
+        }, Ei: function(a) {
+          return a.Lf ? a.Lf.subarray ? a.Lf.subarray(0, a.Qf) : new Uint8Array(a.Lf) : new Uint8Array(0);
+        }, nh: function(a, c) {
+          var d = a.Lf ? a.Lf.length : 0;
+          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Lf, a.Lf = new Uint8Array(c), 0 < a.Qf && a.Lf.set(d.subarray(0, a.Qf), 0));
+        }, ui: function(a, c) {
+          if (a.Qf != c) if (0 == c) a.Lf = null, a.Qf = 0;
           else {
-            var d = a.Jf;
-            a.Jf = new Uint8Array(c);
-            d && a.Jf.set(d.subarray(0, Math.min(c, a.Of)));
-            a.Of = c;
+            var d = a.Lf;
+            a.Lf = new Uint8Array(c);
+            d && a.Lf.set(d.subarray(0, Math.min(c, a.Qf)));
+            a.Qf = c;
           }
-        }, If: { Wf: function(a) {
+        }, Kf: { Yf: function(a) {
           var c = {};
-          c.dev = B.zg(a.mode) ? a.id : 1;
+          c.dev = B.Bg(a.mode) ? a.id : 1;
           c.ino = a.id;
           c.mode = a.mode;
           c.nlink = 1;
           c.uid = 0;
           c.gid = 0;
           c.rdev = a.rdev;
-          B.Rf(a.mode) ? c.size = 4096 : B.isFile(a.mode) ? c.size = a.Of : B.ug(a.mode) ? c.size = a.link.length : c.size = 0;
+          B.Tf(a.mode) ? c.size = 4096 : B.isFile(a.mode) ? c.size = a.Qf : B.wg(a.mode) ? c.size = a.link.length : c.size = 0;
           c.atime = new Date(a.timestamp);
           c.mtime = new Date(a.timestamp);
           c.ctime = new Date(a.timestamp);
-          c.Ch = 4096;
-          c.blocks = Math.ceil(c.size / c.Ch);
+          c.Eh = 4096;
+          c.blocks = Math.ceil(c.size / c.Eh);
           return c;
-        }, Sf: function(a, c) {
+        }, Uf: function(a, c) {
           void 0 !== c.mode && (a.mode = c.mode);
           void 0 !== c.timestamp && (a.timestamp = c.timestamp);
-          void 0 !== c.size && C.si(a, c.size);
+          void 0 !== c.size && C.ui(a, c.size);
         }, lookup: function() {
-          throw B.Lg[44];
-        }, cg: function(a, c, d, e) {
+          throw B.Ng[44];
+        }, eg: function(a, c, d, e) {
           return C.createNode(a, c, d, e);
         }, rename: function(a, c, d) {
-          if (B.Rf(a.mode)) {
+          if (B.Tf(a.mode)) {
             try {
-              var e = B.bg(c, d);
+              var e = B.dg(c, d);
             } catch (h) {
             }
-            if (e) for (var g in e.Jf) throw new B.Hf(55);
+            if (e) for (var g in e.Lf) throw new B.Jf(55);
           }
-          delete a.parent.Jf[a.name];
+          delete a.parent.Lf[a.name];
           a.parent.timestamp = Date.now();
           a.name = d;
-          c.Jf[d] = a;
+          c.Lf[d] = a;
           c.timestamp = a.parent.timestamp;
           a.parent = c;
         }, unlink: function(a, c) {
-          delete a.Jf[c];
+          delete a.Lf[c];
           a.timestamp = Date.now();
         }, rmdir: function(a, c) {
-          var d = B.bg(a, c), e;
-          for (e in d.Jf) throw new B.Hf(55);
-          delete a.Jf[c];
+          var d = B.dg(a, c), e;
+          for (e in d.Lf) throw new B.Jf(55);
+          delete a.Lf[c];
           a.timestamp = Date.now();
         }, readdir: function(a) {
           var c = [".", ".."], d;
-          for (d in a.Jf) a.Jf.hasOwnProperty(d) && c.push(d);
+          for (d in a.Lf) a.Lf.hasOwnProperty(d) && c.push(d);
           return c;
         }, symlink: function(a, c, d) {
           a = C.createNode(a, c, 41471, 0);
           a.link = d;
           return a;
         }, readlink: function(a) {
-          if (!B.ug(a.mode)) throw new B.Hf(28);
+          if (!B.wg(a.mode)) throw new B.Jf(28);
           return a.link;
-        } }, Kf: { read: function(a, c, d, e, g) {
-          var h = a.node.Jf;
-          if (g >= a.node.Of) return 0;
-          a = Math.min(a.node.Of - g, e);
+        } }, Mf: { read: function(a, c, d, e, g) {
+          var h = a.node.Lf;
+          if (g >= a.node.Qf) return 0;
+          a = Math.min(a.node.Qf - g, e);
           if (8 < a && h.subarray) c.set(h.subarray(g, g + a), d);
           else for (e = 0; e < a; e++) c[d + e] = h[g + e];
           return a;
@@ -14190,40 +14230,40 @@ var require_tesseract_core_lstm = __commonJS({
           if (!e) return 0;
           a = a.node;
           a.timestamp = Date.now();
-          if (c.subarray && (!a.Jf || a.Jf.subarray)) {
-            if (h) return a.Jf = c.subarray(d, d + e), a.Of = e;
-            if (0 === a.Of && 0 === g) return a.Jf = c.slice(d, d + e), a.Of = e;
-            if (g + e <= a.Of) return a.Jf.set(c.subarray(d, d + e), g), e;
+          if (c.subarray && (!a.Lf || a.Lf.subarray)) {
+            if (h) return a.Lf = c.subarray(d, d + e), a.Qf = e;
+            if (0 === a.Qf && 0 === g) return a.Lf = c.slice(d, d + e), a.Qf = e;
+            if (g + e <= a.Qf) return a.Lf.set(c.subarray(d, d + e), g), e;
           }
-          C.lh(a, g + e);
-          if (a.Jf.subarray && c.subarray) a.Jf.set(c.subarray(
+          C.nh(a, g + e);
+          if (a.Lf.subarray && c.subarray) a.Lf.set(c.subarray(
             d,
             d + e
           ), g);
-          else for (h = 0; h < e; h++) a.Jf[g + h] = c[d + h];
-          a.Of = Math.max(a.Of, g + e);
+          else for (h = 0; h < e; h++) a.Lf[g + h] = c[d + h];
+          a.Qf = Math.max(a.Qf, g + e);
           return e;
-        }, Xf: function(a, c, d) {
-          1 === d ? c += a.position : 2 === d && B.isFile(a.node.mode) && (c += a.node.Of);
-          if (0 > c) throw new B.Hf(28);
+        }, Zf: function(a, c, d) {
+          1 === d ? c += a.position : 2 === d && B.isFile(a.node.mode) && (c += a.node.Qf);
+          if (0 > c) throw new B.Jf(28);
           return c;
-        }, rg: function(a, c, d) {
-          C.lh(a.node, c + d);
-          a.node.Of = Math.max(a.node.Of, c + d);
-        }, jg: function(a, c, d, e, g) {
-          if (!B.isFile(a.node.mode)) throw new B.Hf(43);
-          a = a.node.Jf;
+        }, tg: function(a, c, d) {
+          C.nh(a.node, c + d);
+          a.node.Qf = Math.max(a.node.Qf, c + d);
+        }, lg: function(a, c, d, e, g) {
+          if (!B.isFile(a.node.mode)) throw new B.Jf(43);
+          a = a.node.Lf;
           if (g & 2 || a.buffer !== r.buffer) {
             if (0 < d || d + c < a.length) a.subarray ? a = a.subarray(d, d + c) : a = Array.prototype.slice.call(a, d, d + c);
             d = true;
             p();
             c = void 0;
-            if (!c) throw new B.Hf(48);
+            if (!c) throw new B.Jf(48);
             r.set(a, c);
           } else d = false, c = a.byteOffset;
-          return { Gf: c, Ah: d };
-        }, pg: function(a, c, d, e) {
-          C.Kf.write(a, c, 0, e, d, false);
+          return { If: c, Ch: d };
+        }, rg: function(a, c, d, e) {
+          C.Mf.write(a, c, 0, e, d, false);
           return 0;
         } } };
         function pb(a, c, d) {
@@ -14240,7 +14280,7 @@ var require_tesseract_core_lstm = __commonJS({
         }
         var qb = b.preloadPlugins || [];
         function rb(a, c, d, e) {
-          "undefined" != typeof Browser && Browser.gg();
+          "undefined" != typeof Browser && Browser.ig();
           var g = false;
           qb.forEach(function(h) {
             !g && h.canHandle(c) && (h.handle(a, c, d, e), g = true);
@@ -14253,317 +14293,317 @@ var require_tesseract_core_lstm = __commonJS({
           c && (d |= 146);
           return d;
         }
-        var B = { root: null, wg: [], jh: {}, streams: [], mi: 1, Yf: null, ih: "/", Sg: false, sh: true, Hf: null, Lg: {}, Mh: null, Dg: 0, Nf: (a, c = {}) => {
+        var B = { root: null, yg: [], lh: {}, streams: [], oi: 1, $f: null, kh: "/", Ug: false, uh: true, Jf: null, Ng: {}, Oh: null, Fg: 0, Pf: (a, c = {}) => {
           a = hb(a);
           if (!a) return { path: "", node: null };
-          c = Object.assign({ Jg: true, $g: 0 }, c);
-          if (8 < c.$g) throw new B.Hf(32);
+          c = Object.assign({ Lg: true, bh: 0 }, c);
+          if (8 < c.bh) throw new B.Jf(32);
           a = a.split("/").filter((k) => !!k);
           for (var d = B.root, e = "/", g = 0; g < a.length; g++) {
             var h = g === a.length - 1;
             if (h && c.parent) break;
-            d = B.bg(d, a[g]);
+            d = B.dg(d, a[g]);
             e = bb(e + "/" + a[g]);
-            B.hg(d) && (!h || h && c.Jg) && (d = d.vg.root);
-            if (!h || c.Vf) {
-              for (h = 0; B.ug(d.mode); ) if (d = B.readlink(e), e = hb(cb(e), d), d = B.Nf(e, { $g: c.$g + 1 }).node, 40 < h++) throw new B.Hf(32);
+            B.jg(d) && (!h || h && c.Lg) && (d = d.xg.root);
+            if (!h || c.Xf) {
+              for (h = 0; B.wg(d.mode); ) if (d = B.readlink(e), e = hb(cb(e), d), d = B.Pf(e, { bh: c.bh + 1 }).node, 40 < h++) throw new B.Jf(32);
             }
           }
           return { path: e, node: d };
-        }, dg: (a) => {
+        }, fg: (a) => {
           for (var c; ; ) {
-            if (B.Ag(a)) return a = a.Qf.th, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
+            if (B.Cg(a)) return a = a.Sf.vh, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
             c = c ? a.name + "/" + c : a.name;
             a = a.parent;
           }
-        }, Rg: (a, c) => {
+        }, Tg: (a, c) => {
           for (var d = 0, e = 0; e < c.length; e++) d = (d << 5) - d + c.charCodeAt(e) | 0;
-          return (a + d >>> 0) % B.Yf.length;
-        }, qh: (a) => {
-          var c = B.Rg(a.parent.id, a.name);
-          a.kg = B.Yf[c];
-          B.Yf[c] = a;
-        }, rh: (a) => {
-          var c = B.Rg(a.parent.id, a.name);
-          if (B.Yf[c] === a) B.Yf[c] = a.kg;
-          else for (c = B.Yf[c]; c; ) {
-            if (c.kg === a) {
-              c.kg = a.kg;
+          return (a + d >>> 0) % B.$f.length;
+        }, sh: (a) => {
+          var c = B.Tg(a.parent.id, a.name);
+          a.mg = B.$f[c];
+          B.$f[c] = a;
+        }, th: (a) => {
+          var c = B.Tg(a.parent.id, a.name);
+          if (B.$f[c] === a) B.$f[c] = a.mg;
+          else for (c = B.$f[c]; c; ) {
+            if (c.mg === a) {
+              c.mg = a.mg;
               break;
             }
-            c = c.kg;
+            c = c.mg;
           }
-        }, bg: (a, c) => {
-          var d = B.ki(a);
-          if (d) throw new B.Hf(d, a);
-          for (d = B.Yf[B.Rg(
+        }, dg: (a, c) => {
+          var d = B.mi(a);
+          if (d) throw new B.Jf(d, a);
+          for (d = B.$f[B.Tg(
             a.id,
             c
-          )]; d; d = d.kg) {
+          )]; d; d = d.mg) {
             var e = d.name;
             if (d.parent.id === a.id && e === c) return d;
           }
           return B.lookup(a, c);
         }, createNode: (a, c, d, e) => {
-          a = new B.vh(a, c, d, e);
-          B.qh(a);
+          a = new B.xh(a, c, d, e);
+          B.sh(a);
           return a;
-        }, Ig: (a) => {
-          B.rh(a);
-        }, Ag: (a) => a === a.parent, hg: (a) => !!a.vg, isFile: (a) => 32768 === (a & 61440), Rf: (a) => 16384 === (a & 61440), ug: (a) => 40960 === (a & 61440), zg: (a) => 8192 === (a & 61440), ii: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), mh: (a) => {
+        }, Kg: (a) => {
+          B.th(a);
+        }, Cg: (a) => a === a.parent, jg: (a) => !!a.xg, isFile: (a) => 32768 === (a & 61440), Tf: (a) => 16384 === (a & 61440), wg: (a) => 40960 === (a & 61440), Bg: (a) => 8192 === (a & 61440), ki: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), oh: (a) => {
           var c = ["r", "w", "rw"][a & 3];
           a & 512 && (c += "w");
           return c;
-        }, lg: (a, c) => {
-          if (B.sh) return 0;
+        }, ng: (a, c) => {
+          if (B.uh) return 0;
           if (!c.includes("r") || a.mode & 292) {
             if (c.includes("w") && !(a.mode & 146) || c.includes("x") && !(a.mode & 73)) return 2;
           } else return 2;
           return 0;
-        }, ki: (a) => {
-          var c = B.lg(a, "x");
-          return c ? c : a.If.lookup ? 0 : 2;
-        }, Xg: (a, c) => {
+        }, mi: (a) => {
+          var c = B.ng(a, "x");
+          return c ? c : a.Kf.lookup ? 0 : 2;
+        }, Zg: (a, c) => {
           try {
-            return B.bg(a, c), 20;
+            return B.dg(a, c), 20;
           } catch (d) {
           }
-          return B.lg(a, "wx");
-        }, Bg: (a, c, d) => {
+          return B.ng(a, "wx");
+        }, Dg: (a, c, d) => {
           try {
-            var e = B.bg(a, c);
+            var e = B.dg(a, c);
           } catch (g) {
-            return g.Pf;
+            return g.Rf;
           }
-          if (a = B.lg(a, "wx")) return a;
+          if (a = B.ng(a, "wx")) return a;
           if (d) {
-            if (!B.Rf(e.mode)) return 54;
-            if (B.Ag(e) || B.dg(e) === B.cwd()) return 10;
-          } else if (B.Rf(e.mode)) return 31;
+            if (!B.Tf(e.mode)) return 54;
+            if (B.Cg(e) || B.fg(e) === B.cwd()) return 10;
+          } else if (B.Tf(e.mode)) return 31;
           return 0;
-        }, li: (a, c) => a ? B.ug(a.mode) ? 32 : B.Rf(a.mode) && ("r" !== B.mh(c) || c & 512) ? 31 : B.lg(a, B.mh(c)) : 44, xh: 4096, ni: (a = 0, c = B.xh) => {
+        }, ni: (a, c) => a ? B.wg(a.mode) ? 32 : B.Tf(a.mode) && ("r" !== B.oh(c) || c & 512) ? 31 : B.ng(a, B.oh(c)) : 44, zh: 4096, pi: (a = 0, c = B.zh) => {
           for (; a <= c; a++) if (!B.streams[a]) return a;
-          throw new B.Hf(33);
-        }, sg: (a) => B.streams[a], hh: (a, c, d) => {
-          B.xg || (B.xg = function() {
-            this.Tf = {};
-          }, B.xg.prototype = {}, Object.defineProperties(B.xg.prototype, { object: { get: function() {
+          throw new B.Jf(33);
+        }, ug: (a) => B.streams[a], jh: (a, c, d) => {
+          B.zg || (B.zg = function() {
+            this.Vf = {};
+          }, B.zg.prototype = {}, Object.defineProperties(B.zg.prototype, { object: { get: function() {
             return this.node;
           }, set: function(e) {
             this.node = e;
           } }, flags: { get: function() {
-            return this.Tf.flags;
+            return this.Vf.flags;
           }, set: function(e) {
-            this.Tf.flags = e;
+            this.Vf.flags = e;
           } }, position: { get: function() {
-            return this.Tf.position;
+            return this.Vf.position;
           }, set: function(e) {
-            this.Tf.position = e;
+            this.Vf.position = e;
           } } }));
-          a = Object.assign(new B.xg(), a);
-          c = B.ni(c, d);
+          a = Object.assign(new B.zg(), a);
+          c = B.pi(c, d);
           a.fd = c;
           return B.streams[c] = a;
-        }, Fh: (a) => {
+        }, Hh: (a) => {
           B.streams[a] = null;
-        }, Eh: { open: (a) => {
-          a.Kf = B.Nh(a.node.rdev).Kf;
-          a.Kf.open && a.Kf.open(a);
-        }, Xf: () => {
-          throw new B.Hf(70);
-        } }, Wg: (a) => a >> 8, Di: (a) => a & 255, ig: (a, c) => a << 8 | c, ah: (a, c) => {
-          B.jh[a] = { Kf: c };
-        }, Nh: (a) => B.jh[a], nh: (a) => {
+        }, Gh: { open: (a) => {
+          a.Mf = B.Ph(a.node.rdev).Mf;
+          a.Mf.open && a.Mf.open(a);
+        }, Zf: () => {
+          throw new B.Jf(70);
+        } }, Yg: (a) => a >> 8, Fi: (a) => a & 255, kg: (a, c) => a << 8 | c, dh: (a, c) => {
+          B.lh[a] = { Mf: c };
+        }, Ph: (a) => B.lh[a], ph: (a) => {
           var c = [];
           for (a = [a]; a.length; ) {
             var d = a.pop();
             c.push(d);
-            a.push.apply(a, d.wg);
+            a.push.apply(a, d.yg);
           }
           return c;
-        }, uh: (a, c) => {
+        }, wh: (a, c) => {
           function d(k) {
-            B.Dg--;
+            B.Fg--;
             return c(k);
           }
           function e(k) {
             if (k) {
-              if (!e.Lh) return e.Lh = true, d(k);
+              if (!e.Nh) return e.Nh = true, d(k);
             } else ++h >= g.length && d(null);
           }
           "function" == typeof a && (c = a, a = false);
-          B.Dg++;
-          1 < B.Dg && n("warning: " + B.Dg + " FS.syncfs operations in flight at once, probably just doing extra work");
-          var g = B.nh(B.root.Qf), h = 0;
+          B.Fg++;
+          1 < B.Fg && n("warning: " + B.Fg + " FS.syncfs operations in flight at once, probably just doing extra work");
+          var g = B.ph(B.root.Sf), h = 0;
           g.forEach((k) => {
-            if (!k.type.uh) return e(null);
-            k.type.uh(k, a, e);
+            if (!k.type.wh) return e(null);
+            k.type.wh(k, a, e);
           });
-        }, Qf: (a, c, d) => {
+        }, Sf: (a, c, d) => {
           var e = "/" === d, g = !d;
-          if (e && B.root) throw new B.Hf(10);
+          if (e && B.root) throw new B.Jf(10);
           if (!e && !g) {
-            var h = B.Nf(d, { Jg: false });
+            var h = B.Pf(d, { Lg: false });
             d = h.path;
             h = h.node;
-            if (B.hg(h)) throw new B.Hf(10);
-            if (!B.Rf(h.mode)) throw new B.Hf(54);
+            if (B.jg(h)) throw new B.Jf(10);
+            if (!B.Tf(h.mode)) throw new B.Jf(54);
           }
-          c = { type: a, Gi: c, th: d, wg: [] };
-          a = a.Qf(c);
-          a.Qf = c;
+          c = { type: a, Ii: c, vh: d, yg: [] };
+          a = a.Sf(c);
+          a.Sf = c;
           c.root = a;
-          e ? B.root = a : h && (h.vg = c, h.Qf && h.Qf.wg.push(c));
+          e ? B.root = a : h && (h.xg = c, h.Sf && h.Sf.yg.push(c));
           return a;
-        }, Ji: (a) => {
-          a = B.Nf(a, { Jg: false });
-          if (!B.hg(a.node)) throw new B.Hf(28);
+        }, Li: (a) => {
+          a = B.Pf(a, { Lg: false });
+          if (!B.jg(a.node)) throw new B.Jf(28);
           a = a.node;
-          var c = a.vg, d = B.nh(c);
-          Object.keys(B.Yf).forEach((e) => {
-            for (e = B.Yf[e]; e; ) {
-              var g = e.kg;
-              d.includes(e.Qf) && B.Ig(e);
+          var c = a.xg, d = B.ph(c);
+          Object.keys(B.$f).forEach((e) => {
+            for (e = B.$f[e]; e; ) {
+              var g = e.mg;
+              d.includes(e.Sf) && B.Kg(e);
               e = g;
             }
           });
-          a.vg = null;
-          a.Qf.wg.splice(a.Qf.wg.indexOf(c), 1);
-        }, lookup: (a, c) => a.If.lookup(a, c), cg: (a, c, d) => {
-          var e = B.Nf(a, { parent: true }).node;
+          a.xg = null;
+          a.Sf.yg.splice(a.Sf.yg.indexOf(c), 1);
+        }, lookup: (a, c) => a.Kf.lookup(a, c), eg: (a, c, d) => {
+          var e = B.Pf(a, { parent: true }).node;
           a = db(a);
-          if (!a || "." === a || ".." === a) throw new B.Hf(28);
-          var g = B.Xg(e, a);
-          if (g) throw new B.Hf(g);
-          if (!e.If.cg) throw new B.Hf(63);
-          return e.If.cg(e, a, c, d);
-        }, create: (a, c) => B.cg(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => B.cg(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ei: (a, c) => {
+          if (!a || "." === a || ".." === a) throw new B.Jf(28);
+          var g = B.Zg(e, a);
+          if (g) throw new B.Jf(g);
+          if (!e.Kf.eg) throw new B.Jf(63);
+          return e.Kf.eg(e, a, c, d);
+        }, create: (a, c) => B.eg(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => B.eg(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Gi: (a, c) => {
           a = a.split("/");
           for (var d = "", e = 0; e < a.length; ++e) if (a[e]) {
             d += "/" + a[e];
             try {
               B.mkdir(d, c);
             } catch (g) {
-              if (20 != g.Pf) throw g;
+              if (20 != g.Rf) throw g;
             }
           }
-        }, Cg: (a, c, d) => {
+        }, Eg: (a, c, d) => {
           "undefined" == typeof d && (d = c, c = 438);
-          return B.cg(a, c | 8192, d);
+          return B.eg(a, c | 8192, d);
         }, symlink: (a, c) => {
-          if (!hb(a)) throw new B.Hf(44);
-          var d = B.Nf(c, { parent: true }).node;
-          if (!d) throw new B.Hf(44);
+          if (!hb(a)) throw new B.Jf(44);
+          var d = B.Pf(c, { parent: true }).node;
+          if (!d) throw new B.Jf(44);
           c = db(c);
-          var e = B.Xg(d, c);
-          if (e) throw new B.Hf(e);
-          if (!d.If.symlink) throw new B.Hf(63);
-          return d.If.symlink(d, c, a);
+          var e = B.Zg(d, c);
+          if (e) throw new B.Jf(e);
+          if (!d.Kf.symlink) throw new B.Jf(63);
+          return d.Kf.symlink(d, c, a);
         }, rename: (a, c) => {
           var d = cb(a), e = cb(c), g = db(a), h = db(c);
-          var k = B.Nf(a, { parent: true });
+          var k = B.Pf(a, { parent: true });
           var m = k.node;
-          k = B.Nf(c, { parent: true });
+          k = B.Pf(c, { parent: true });
           k = k.node;
-          if (!m || !k) throw new B.Hf(44);
-          if (m.Qf !== k.Qf) throw new B.Hf(75);
-          var v = B.bg(m, g);
+          if (!m || !k) throw new B.Jf(44);
+          if (m.Sf !== k.Sf) throw new B.Jf(75);
+          var v = B.dg(m, g);
           a = ib(a, e);
-          if ("." !== a.charAt(0)) throw new B.Hf(28);
+          if ("." !== a.charAt(0)) throw new B.Jf(28);
           a = ib(c, d);
-          if ("." !== a.charAt(0)) throw new B.Hf(55);
+          if ("." !== a.charAt(0)) throw new B.Jf(55);
           try {
-            var q = B.bg(k, h);
+            var q = B.dg(k, h);
           } catch (t) {
           }
           if (v !== q) {
-            c = B.Rf(v.mode);
-            if (g = B.Bg(m, g, c)) throw new B.Hf(g);
-            if (g = q ? B.Bg(k, h, c) : B.Xg(k, h)) throw new B.Hf(g);
-            if (!m.If.rename) throw new B.Hf(63);
-            if (B.hg(v) || q && B.hg(q)) throw new B.Hf(10);
-            if (k !== m && (g = B.lg(m, "w"))) throw new B.Hf(g);
-            B.rh(v);
+            c = B.Tf(v.mode);
+            if (g = B.Dg(m, g, c)) throw new B.Jf(g);
+            if (g = q ? B.Dg(k, h, c) : B.Zg(k, h)) throw new B.Jf(g);
+            if (!m.Kf.rename) throw new B.Jf(63);
+            if (B.jg(v) || q && B.jg(q)) throw new B.Jf(10);
+            if (k !== m && (g = B.ng(m, "w"))) throw new B.Jf(g);
+            B.th(v);
             try {
-              m.If.rename(v, k, h);
+              m.Kf.rename(v, k, h);
             } catch (t) {
               throw t;
             } finally {
-              B.qh(v);
+              B.sh(v);
             }
           }
         }, rmdir: (a) => {
-          var c = B.Nf(a, { parent: true }).node;
+          var c = B.Pf(a, { parent: true }).node;
           a = db(a);
-          var d = B.bg(c, a), e = B.Bg(c, a, true);
-          if (e) throw new B.Hf(e);
-          if (!c.If.rmdir) throw new B.Hf(63);
-          if (B.hg(d)) throw new B.Hf(10);
-          c.If.rmdir(c, a);
-          B.Ig(d);
+          var d = B.dg(c, a), e = B.Dg(c, a, true);
+          if (e) throw new B.Jf(e);
+          if (!c.Kf.rmdir) throw new B.Jf(63);
+          if (B.jg(d)) throw new B.Jf(10);
+          c.Kf.rmdir(c, a);
+          B.Kg(d);
         }, readdir: (a) => {
-          a = B.Nf(a, { Vf: true }).node;
-          if (!a.If.readdir) throw new B.Hf(54);
-          return a.If.readdir(a);
+          a = B.Pf(a, { Xf: true }).node;
+          if (!a.Kf.readdir) throw new B.Jf(54);
+          return a.Kf.readdir(a);
         }, unlink: (a) => {
-          var c = B.Nf(a, { parent: true }).node;
-          if (!c) throw new B.Hf(44);
+          var c = B.Pf(a, { parent: true }).node;
+          if (!c) throw new B.Jf(44);
           a = db(a);
-          var d = B.bg(c, a), e = B.Bg(c, a, false);
-          if (e) throw new B.Hf(e);
-          if (!c.If.unlink) throw new B.Hf(63);
-          if (B.hg(d)) throw new B.Hf(10);
-          c.If.unlink(c, a);
-          B.Ig(d);
+          var d = B.dg(c, a), e = B.Dg(c, a, false);
+          if (e) throw new B.Jf(e);
+          if (!c.Kf.unlink) throw new B.Jf(63);
+          if (B.jg(d)) throw new B.Jf(10);
+          c.Kf.unlink(c, a);
+          B.Kg(d);
         }, readlink: (a) => {
-          a = B.Nf(a).node;
-          if (!a) throw new B.Hf(44);
-          if (!a.If.readlink) throw new B.Hf(28);
-          return hb(B.dg(a.parent), a.If.readlink(a));
+          a = B.Pf(a).node;
+          if (!a) throw new B.Jf(44);
+          if (!a.Kf.readlink) throw new B.Jf(28);
+          return hb(B.fg(a.parent), a.Kf.readlink(a));
         }, stat: (a, c) => {
-          a = B.Nf(a, { Vf: !c }).node;
-          if (!a) throw new B.Hf(44);
-          if (!a.If.Wf) throw new B.Hf(63);
-          return a.If.Wf(a);
+          a = B.Pf(a, { Xf: !c }).node;
+          if (!a) throw new B.Jf(44);
+          if (!a.Kf.Yf) throw new B.Jf(63);
+          return a.Kf.Yf(a);
         }, lstat: (a) => B.stat(a, true), chmod: (a, c, d) => {
-          a = "string" == typeof a ? B.Nf(a, { Vf: !d }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          a.If.Sf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
+          a = "string" == typeof a ? B.Pf(a, { Xf: !d }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          a.Kf.Uf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
         }, lchmod: (a, c) => {
           B.chmod(a, c, true);
         }, fchmod: (a, c) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           B.chmod(a.node, c);
         }, chown: (a, c, d, e) => {
-          a = "string" == typeof a ? B.Nf(a, { Vf: !e }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          a.If.Sf(a, { timestamp: Date.now() });
+          a = "string" == typeof a ? B.Pf(a, { Xf: !e }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          a.Kf.Uf(a, { timestamp: Date.now() });
         }, lchown: (a, c, d) => {
           B.chown(a, c, d, true);
         }, fchown: (a, c, d) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           B.chown(a.node, c, d);
         }, truncate: (a, c) => {
-          if (0 > c) throw new B.Hf(28);
-          a = "string" == typeof a ? B.Nf(a, { Vf: true }).node : a;
-          if (!a.If.Sf) throw new B.Hf(63);
-          if (B.Rf(a.mode)) throw new B.Hf(31);
-          if (!B.isFile(a.mode)) throw new B.Hf(28);
-          var d = B.lg(a, "w");
-          if (d) throw new B.Hf(d);
-          a.If.Sf(a, { size: c, timestamp: Date.now() });
-        }, Bi: (a, c) => {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(28);
+          if (0 > c) throw new B.Jf(28);
+          a = "string" == typeof a ? B.Pf(a, { Xf: true }).node : a;
+          if (!a.Kf.Uf) throw new B.Jf(63);
+          if (B.Tf(a.mode)) throw new B.Jf(31);
+          if (!B.isFile(a.mode)) throw new B.Jf(28);
+          var d = B.ng(a, "w");
+          if (d) throw new B.Jf(d);
+          a.Kf.Uf(a, { size: c, timestamp: Date.now() });
+        }, Di: (a, c) => {
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(28);
           B.truncate(a.node, c);
-        }, Ki: (a, c, d) => {
-          a = B.Nf(a, { Vf: true }).node;
-          a.If.Sf(a, { timestamp: Math.max(c, d) });
+        }, Mi: (a, c, d) => {
+          a = B.Pf(a, { Xf: true }).node;
+          a.Kf.Uf(a, { timestamp: Math.max(c, d) });
         }, open: (a, c, d) => {
-          if ("" === a) throw new B.Hf(44);
+          if ("" === a) throw new B.Jf(44);
           if ("string" == typeof c) {
             var e = { r: 0, "r+": 2, w: 577, "w+": 578, a: 1089, "a+": 1090 }[c];
             if ("undefined" == typeof e) throw Error("Unknown file open mode: " + c);
@@ -14574,52 +14614,52 @@ var require_tesseract_core_lstm = __commonJS({
           else {
             a = bb(a);
             try {
-              g = B.Nf(a, { Vf: !(c & 131072) }).node;
+              g = B.Pf(a, { Xf: !(c & 131072) }).node;
             } catch (h) {
             }
           }
           e = false;
           if (c & 64) if (g) {
-            if (c & 128) throw new B.Hf(20);
-          } else g = B.cg(a, d, 0), e = true;
-          if (!g) throw new B.Hf(44);
-          B.zg(g.mode) && (c &= -513);
-          if (c & 65536 && !B.Rf(g.mode)) throw new B.Hf(54);
-          if (!e && (d = B.li(g, c))) throw new B.Hf(d);
+            if (c & 128) throw new B.Jf(20);
+          } else g = B.eg(a, d, 0), e = true;
+          if (!g) throw new B.Jf(44);
+          B.Bg(g.mode) && (c &= -513);
+          if (c & 65536 && !B.Tf(g.mode)) throw new B.Jf(54);
+          if (!e && (d = B.ni(g, c))) throw new B.Jf(d);
           c & 512 && !e && B.truncate(g, 0);
           c &= -131713;
-          g = B.hh({ node: g, path: B.dg(g), flags: c, seekable: true, position: 0, Kf: g.Kf, zi: [], error: false });
-          g.Kf.open && g.Kf.open(g);
-          !b.logReadFiles || c & 1 || (B.Zg || (B.Zg = {}), a in B.Zg || (B.Zg[a] = 1));
+          g = B.jh({ node: g, path: B.fg(g), flags: c, seekable: true, position: 0, Mf: g.Mf, Bi: [], error: false });
+          g.Mf.open && g.Mf.open(g);
+          !b.logReadFiles || c & 1 || (B.ah || (B.ah = {}), a in B.ah || (B.ah[a] = 1));
           return g;
         }, close: (a) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          a.Qg && (a.Qg = null);
+          if (B.vg(a)) throw new B.Jf(8);
+          a.Sg && (a.Sg = null);
           try {
-            a.Kf.close && a.Kf.close(a);
+            a.Mf.close && a.Mf.close(a);
           } catch (c) {
             throw c;
           } finally {
-            B.Fh(a.fd);
+            B.Hh(a.fd);
           }
           a.fd = null;
-        }, tg: (a) => null === a.fd, Xf: (a, c, d) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          if (!a.seekable || !a.Kf.Xf) throw new B.Hf(70);
-          if (0 != d && 1 != d && 2 != d) throw new B.Hf(28);
-          a.position = a.Kf.Xf(a, c, d);
-          a.zi = [];
+        }, vg: (a) => null === a.fd, Zf: (a, c, d) => {
+          if (B.vg(a)) throw new B.Jf(8);
+          if (!a.seekable || !a.Mf.Zf) throw new B.Jf(70);
+          if (0 != d && 1 != d && 2 != d) throw new B.Jf(28);
+          a.position = a.Mf.Zf(a, c, d);
+          a.Bi = [];
           return a.position;
         }, read: (a, c, d, e, g) => {
-          if (0 > e || 0 > g) throw new B.Hf(28);
-          if (B.tg(a)) throw new B.Hf(8);
-          if (1 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (B.Rf(a.node.mode)) throw new B.Hf(31);
-          if (!a.Kf.read) throw new B.Hf(28);
+          if (0 > e || 0 > g) throw new B.Jf(28);
+          if (B.vg(a)) throw new B.Jf(8);
+          if (1 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (B.Tf(a.node.mode)) throw new B.Jf(31);
+          if (!a.Mf.read) throw new B.Jf(28);
           var h = "undefined" != typeof g;
           if (!h) g = a.position;
-          else if (!a.seekable) throw new B.Hf(70);
-          c = a.Kf.read(
+          else if (!a.seekable) throw new B.Jf(70);
+          c = a.Mf.read(
             a,
             c,
             d,
@@ -14629,33 +14669,33 @@ var require_tesseract_core_lstm = __commonJS({
           h || (a.position += c);
           return c;
         }, write: (a, c, d, e, g, h) => {
-          if (0 > e || 0 > g) throw new B.Hf(28);
-          if (B.tg(a)) throw new B.Hf(8);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (B.Rf(a.node.mode)) throw new B.Hf(31);
-          if (!a.Kf.write) throw new B.Hf(28);
-          a.seekable && a.flags & 1024 && B.Xf(a, 0, 2);
+          if (0 > e || 0 > g) throw new B.Jf(28);
+          if (B.vg(a)) throw new B.Jf(8);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (B.Tf(a.node.mode)) throw new B.Jf(31);
+          if (!a.Mf.write) throw new B.Jf(28);
+          a.seekable && a.flags & 1024 && B.Zf(a, 0, 2);
           var k = "undefined" != typeof g;
           if (!k) g = a.position;
-          else if (!a.seekable) throw new B.Hf(70);
-          c = a.Kf.write(a, c, d, e, g, h);
+          else if (!a.seekable) throw new B.Jf(70);
+          c = a.Mf.write(a, c, d, e, g, h);
           k || (a.position += c);
           return c;
-        }, rg: (a, c, d) => {
-          if (B.tg(a)) throw new B.Hf(8);
-          if (0 > c || 0 >= d) throw new B.Hf(28);
-          if (0 === (a.flags & 2097155)) throw new B.Hf(8);
-          if (!B.isFile(a.node.mode) && !B.Rf(a.node.mode)) throw new B.Hf(43);
-          if (!a.Kf.rg) throw new B.Hf(138);
-          a.Kf.rg(a, c, d);
-        }, jg: (a, c, d, e, g) => {
-          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new B.Hf(2);
-          if (1 === (a.flags & 2097155)) throw new B.Hf(2);
-          if (!a.Kf.jg) throw new B.Hf(43);
-          return a.Kf.jg(a, c, d, e, g);
-        }, pg: (a, c, d, e, g) => a.Kf.pg ? a.Kf.pg(a, c, d, e, g) : 0, Fi: () => 0, Tg: (a, c, d) => {
-          if (!a.Kf.Tg) throw new B.Hf(59);
-          return a.Kf.Tg(a, c, d);
+        }, tg: (a, c, d) => {
+          if (B.vg(a)) throw new B.Jf(8);
+          if (0 > c || 0 >= d) throw new B.Jf(28);
+          if (0 === (a.flags & 2097155)) throw new B.Jf(8);
+          if (!B.isFile(a.node.mode) && !B.Tf(a.node.mode)) throw new B.Jf(43);
+          if (!a.Mf.tg) throw new B.Jf(138);
+          a.Mf.tg(a, c, d);
+        }, lg: (a, c, d, e, g) => {
+          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new B.Jf(2);
+          if (1 === (a.flags & 2097155)) throw new B.Jf(2);
+          if (!a.Mf.lg) throw new B.Jf(43);
+          return a.Mf.lg(a, c, d, e, g);
+        }, rg: (a, c, d, e, g) => a.Mf.rg ? a.Mf.rg(a, c, d, e, g) : 0, Hi: () => 0, Vg: (a, c, d) => {
+          if (!a.Mf.Vg) throw new B.Jf(59);
+          return a.Mf.Vg(a, c, d);
         }, readFile: (a, c = {}) => {
           c.flags = c.flags || 0;
           c.encoding = c.encoding || "binary";
@@ -14673,131 +14713,131 @@ var require_tesseract_core_lstm = __commonJS({
           if ("string" == typeof c) {
             var e = new Uint8Array(Sa(c) + 1);
             c = Ta(c, e, 0, e.length);
-            B.write(a, e, 0, c, void 0, d.Dh);
+            B.write(a, e, 0, c, void 0, d.Fh);
           } else if (ArrayBuffer.isView(c)) B.write(
             a,
             c,
             0,
             c.byteLength,
             void 0,
-            d.Dh
+            d.Fh
           );
           else throw Error("Unsupported data type");
           B.close(a);
-        }, cwd: () => B.ih, chdir: (a) => {
-          a = B.Nf(a, { Vf: true });
-          if (null === a.node) throw new B.Hf(44);
-          if (!B.Rf(a.node.mode)) throw new B.Hf(54);
-          var c = B.lg(a.node, "x");
-          if (c) throw new B.Hf(c);
-          B.ih = a.path;
-        }, Hh: () => {
+        }, cwd: () => B.kh, chdir: (a) => {
+          a = B.Pf(a, { Xf: true });
+          if (null === a.node) throw new B.Jf(44);
+          if (!B.Tf(a.node.mode)) throw new B.Jf(54);
+          var c = B.ng(a.node, "x");
+          if (c) throw new B.Jf(c);
+          B.kh = a.path;
+        }, Jh: () => {
           B.mkdir("/tmp");
           B.mkdir("/home");
           B.mkdir("/home/web_user");
-        }, Gh: () => {
+        }, Ih: () => {
           B.mkdir("/dev");
-          B.ah(B.ig(1, 3), { read: () => 0, write: (e, g, h, k) => k });
-          B.Cg("/dev/null", B.ig(1, 3));
-          lb(B.ig(5, 0), nb);
-          lb(B.ig(6, 0), ob);
-          B.Cg("/dev/tty", B.ig(5, 0));
-          B.Cg("/dev/tty1", B.ig(6, 0));
+          B.dh(B.kg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
+          B.Eg("/dev/null", B.kg(1, 3));
+          lb(B.kg(5, 0), nb);
+          lb(B.kg(6, 0), ob);
+          B.Eg("/dev/tty", B.kg(5, 0));
+          B.Eg("/dev/tty1", B.kg(6, 0));
           var a = new Uint8Array(1024), c = 0, d = () => {
             0 === c && (c = gb(a).byteLength);
             return a[--c];
           };
-          B.Uf("/dev", "random", d);
-          B.Uf("/dev", "urandom", d);
+          B.Wf("/dev", "random", d);
+          B.Wf("/dev", "urandom", d);
           B.mkdir("/dev/shm");
           B.mkdir("/dev/shm/tmp");
-        }, Jh: () => {
+        }, Lh: () => {
           B.mkdir("/proc");
           var a = B.mkdir("/proc/self");
           B.mkdir("/proc/self/fd");
-          B.Qf({ Qf: () => {
+          B.Sf({ Sf: () => {
             var c = B.createNode(a, "fd", 16895, 73);
-            c.If = { lookup: (d, e) => {
-              var g = B.sg(+e);
-              if (!g) throw new B.Hf(8);
-              d = { parent: null, Qf: { th: "fake" }, If: { readlink: () => g.path } };
+            c.Kf = { lookup: (d, e) => {
+              var g = B.ug(+e);
+              if (!g) throw new B.Jf(8);
+              d = { parent: null, Sf: { vh: "fake" }, Kf: { readlink: () => g.path } };
               return d.parent = d;
             } };
             return c;
           } }, {}, "/proc/self/fd");
-        }, Kh: () => {
-          b.stdin ? B.Uf(
+        }, Mh: () => {
+          b.stdin ? B.Wf(
             "/dev",
             "stdin",
             b.stdin
           ) : B.symlink("/dev/tty", "/dev/stdin");
-          b.stdout ? B.Uf("/dev", "stdout", null, b.stdout) : B.symlink("/dev/tty", "/dev/stdout");
-          b.stderr ? B.Uf("/dev", "stderr", null, b.stderr) : B.symlink("/dev/tty1", "/dev/stderr");
+          b.stdout ? B.Wf("/dev", "stdout", null, b.stdout) : B.symlink("/dev/tty", "/dev/stdout");
+          b.stderr ? B.Wf("/dev", "stderr", null, b.stderr) : B.symlink("/dev/tty1", "/dev/stderr");
           B.open("/dev/stdin", 0);
           B.open("/dev/stdout", 1);
           B.open("/dev/stderr", 1);
-        }, kh: () => {
-          B.Hf || (B.Hf = function(a, c) {
+        }, mh: () => {
+          B.Jf || (B.Jf = function(a, c) {
             this.name = "ErrnoError";
             this.node = c;
-            this.ti = function(d) {
-              this.Pf = d;
+            this.vi = function(d) {
+              this.Rf = d;
             };
-            this.ti(a);
+            this.vi(a);
             this.message = "FS error";
-          }, B.Hf.prototype = Error(), B.Hf.prototype.constructor = B.Hf, [44].forEach((a) => {
-            B.Lg[a] = new B.Hf(a);
-            B.Lg[a].stack = "<generic error, no stack>";
+          }, B.Jf.prototype = Error(), B.Jf.prototype.constructor = B.Jf, [44].forEach((a) => {
+            B.Ng[a] = new B.Jf(a);
+            B.Ng[a].stack = "<generic error, no stack>";
           }));
-        }, ui: () => {
-          B.kh();
-          B.Yf = Array(4096);
-          B.Qf(C, {}, "/");
-          B.Hh();
-          B.Gh();
+        }, wi: () => {
+          B.mh();
+          B.$f = Array(4096);
+          B.Sf(C, {}, "/");
           B.Jh();
-          B.Mh = { MEMFS: C };
-        }, gg: (a, c, d) => {
-          B.gg.Sg = true;
-          B.kh();
+          B.Ih();
+          B.Lh();
+          B.Oh = { MEMFS: C };
+        }, ig: (a, c, d) => {
+          B.ig.Ug = true;
+          B.mh();
           b.stdin = a || b.stdin;
           b.stdout = c || b.stdout;
           b.stderr = d || b.stderr;
-          B.Kh();
-        }, Hi: () => {
-          B.gg.Sg = false;
+          B.Mh();
+        }, Ji: () => {
+          B.ig.Ug = false;
           for (var a = 0; a < B.streams.length; a++) {
             var c = B.streams[a];
             c && B.close(c);
           }
-        }, Ai: (a, c) => {
-          a = B.Bh(a, c);
+        }, Ci: (a, c) => {
+          a = B.Dh(a, c);
           return a.exists ? a.object : null;
-        }, Bh: (a, c) => {
+        }, Dh: (a, c) => {
           try {
-            var d = B.Nf(a, { Vf: !c });
+            var d = B.Pf(a, { Xf: !c });
             a = d.path;
           } catch (g) {
           }
           var e = {
-            Ag: false,
+            Cg: false,
             exists: false,
             error: 0,
             name: null,
             path: null,
             object: null,
-            oi: false,
-            ri: null,
-            pi: null
+            ri: false,
+            ti: null,
+            si: null
           };
           try {
-            d = B.Nf(a, { parent: true }), e.oi = true, e.ri = d.path, e.pi = d.node, e.name = db(a), d = B.Nf(a, { Vf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.Ag = "/" === d.path;
+            d = B.Pf(a, { parent: true }), e.ri = true, e.ti = d.path, e.si = d.node, e.name = db(a), d = B.Pf(a, { Xf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.Cg = "/" === d.path;
           } catch (g) {
-            e.error = g.Pf;
+            e.error = g.Rf;
           }
           return e;
-        }, Hg: (a, c) => {
-          a = "string" == typeof a ? a : B.dg(a);
+        }, Jg: (a, c) => {
+          a = "string" == typeof a ? a : B.fg(a);
           for (c = c.split("/").reverse(); c.length; ) {
             var d = c.pop();
             if (d) {
@@ -14810,13 +14850,13 @@ var require_tesseract_core_lstm = __commonJS({
             }
           }
           return e;
-        }, Ih: (a, c, d, e, g) => {
-          a = "string" == typeof a ? a : B.dg(a);
+        }, Kh: (a, c, d, e, g) => {
+          a = "string" == typeof a ? a : B.fg(a);
           c = bb(a + "/" + c);
           return B.create(c, sb(e, g));
-        }, yg: (a, c, d, e, g, h) => {
+        }, Ag: (a, c, d, e, g, h) => {
           var k = c;
-          a && (a = "string" == typeof a ? a : B.dg(a), k = c ? bb(a + "/" + c) : a);
+          a && (a = "string" == typeof a ? a : B.fg(a), k = c ? bb(a + "/" + c) : a);
           a = sb(e, g);
           k = B.create(k, a);
           if (d) {
@@ -14833,12 +14873,12 @@ var require_tesseract_core_lstm = __commonJS({
             B.chmod(k, a);
           }
           return k;
-        }, Uf: (a, c, d, e) => {
-          a = eb("string" == typeof a ? a : B.dg(a), c);
+        }, Wf: (a, c, d, e) => {
+          a = eb("string" == typeof a ? a : B.fg(a), c);
           c = sb(!!d, !!e);
-          B.Uf.Wg || (B.Uf.Wg = 64);
-          var g = B.ig(B.Uf.Wg++, 0);
-          B.ah(g, { open: (h) => {
+          B.Wf.Yg || (B.Wf.Yg = 64);
+          var g = B.kg(B.Wf.Yg++, 0);
+          B.dh(g, { open: (h) => {
             h.seekable = false;
           }, close: () => {
             e && e.buffer && e.buffer.length && e(10);
@@ -14847,9 +14887,9 @@ var require_tesseract_core_lstm = __commonJS({
               try {
                 var F = d();
               } catch (U) {
-                throw new B.Hf(29);
+                throw new B.Jf(29);
               }
-              if (void 0 === F && 0 === q) throw new B.Hf(6);
+              if (void 0 === F && 0 === q) throw new B.Jf(6);
               if (null === F || void 0 === F) break;
               q++;
               k[m + t] = F;
@@ -14860,36 +14900,36 @@ var require_tesseract_core_lstm = __commonJS({
             for (var q = 0; q < v; q++) try {
               e(k[m + q]);
             } catch (t) {
-              throw new B.Hf(29);
+              throw new B.Jf(29);
             }
             v && (h.node.timestamp = Date.now());
             return q;
           } });
-          return B.Cg(a, c, g);
-        }, Kg: (a) => {
-          if (a.Ug || a.ji || a.link || a.Jf) return true;
+          return B.Eg(a, c, g);
+        }, Mg: (a) => {
+          if (a.Wg || a.li || a.link || a.Lf) return true;
           if ("undefined" != typeof XMLHttpRequest) throw Error("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
           if (ja) try {
-            a.Jf = jb(ja(a.url), true), a.Of = a.Jf.length;
+            a.Lf = jb(ja(a.url), true), a.Qf = a.Lf.length;
           } catch (c) {
-            throw new B.Hf(29);
+            throw new B.Jf(29);
           }
           else throw Error("Cannot load without read() or XMLHttpRequest.");
-        }, fh: (a, c, d, e, g) => {
+        }, hh: (a, c, d, e, g) => {
           function h() {
-            this.Vg = false;
-            this.Tf = [];
+            this.Xg = false;
+            this.Vf = [];
           }
           h.prototype.get = function(q) {
             if (!(q > this.length - 1 || 0 > q)) {
               var t = q % this.chunkSize;
-              return this.ph(q / this.chunkSize | 0)[t];
+              return this.rh(q / this.chunkSize | 0)[t];
             }
           };
-          h.prototype.Gg = function(q) {
-            this.ph = q;
+          h.prototype.Ig = function(q) {
+            this.rh = q;
           };
-          h.prototype.dh = function() {
+          h.prototype.fh = function() {
             var q = new XMLHttpRequest();
             q.open("HEAD", d, false);
             q.send(null);
@@ -14899,11 +14939,11 @@ var require_tesseract_core_lstm = __commonJS({
             var l = 1048576;
             U || (l = t);
             var w = this;
-            w.Gg((E) => {
+            w.Ig((E) => {
               var W = E * l, qa = (E + 1) * l - 1;
               qa = Math.min(qa, t - 1);
-              if ("undefined" == typeof w.Tf[E]) {
-                var Th = w.Tf;
+              if ("undefined" == typeof w.Vf[E]) {
+                var Vh = w.Vf;
                 if (W > qa) throw Error("invalid range (" + W + ", " + qa + ") or no bytes requested!");
                 if (qa > t - 1) throw Error("only " + t + " bytes available! programmer error!");
                 var X = new XMLHttpRequest();
@@ -14918,44 +14958,44 @@ var require_tesseract_core_lstm = __commonJS({
                 X.send(null);
                 if (!(200 <= X.status && 300 > X.status || 304 === X.status)) throw Error("Couldn't load " + d + ". Status: " + X.status);
                 W = void 0 !== X.response ? new Uint8Array(X.response || []) : jb(X.responseText || "", true);
-                Th[E] = W;
+                Vh[E] = W;
               }
-              if ("undefined" == typeof w.Tf[E]) throw Error("doXHR failed!");
-              return w.Tf[E];
+              if ("undefined" == typeof w.Vf[E]) throw Error("doXHR failed!");
+              return w.Vf[E];
             });
-            if (q || !t) l = t = 1, l = t = this.ph(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
-            this.zh = t;
-            this.yh = l;
-            this.Vg = true;
+            if (q || !t) l = t = 1, l = t = this.rh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
+            this.Bh = t;
+            this.Ah = l;
+            this.Xg = true;
           };
           if ("undefined" != typeof XMLHttpRequest) {
             if (!ha) throw "Cannot do synchronous binary XHRs outside webworkers in modern browsers. Use --embed-file or --preload-file in emcc";
             var k = new h();
             Object.defineProperties(k, { length: { get: function() {
-              this.Vg || this.dh();
-              return this.zh;
+              this.Xg || this.fh();
+              return this.Bh;
             } }, chunkSize: { get: function() {
-              this.Vg || this.dh();
-              return this.yh;
+              this.Xg || this.fh();
+              return this.Ah;
             } } });
-            k = { Ug: false, Jf: k };
-          } else k = { Ug: false, url: d };
-          var m = B.Ih(a, c, k, e, g);
-          k.Jf ? m.Jf = k.Jf : k.url && (m.Jf = null, m.url = k.url);
-          Object.defineProperties(m, { Of: { get: function() {
-            return this.Jf.length;
+            k = { Wg: false, Lf: k };
+          } else k = { Wg: false, url: d };
+          var m = B.Kh(a, c, k, e, g);
+          k.Lf ? m.Lf = k.Lf : k.url && (m.Lf = null, m.url = k.url);
+          Object.defineProperties(m, { Qf: { get: function() {
+            return this.Lf.length;
           } } });
           var v = {};
-          Object.keys(m.Kf).forEach((q) => {
-            var t = m.Kf[q];
+          Object.keys(m.Mf).forEach((q) => {
+            var t = m.Mf[q];
             v[q] = function() {
-              B.Kg(m);
+              B.Mg(m);
               return t.apply(null, arguments);
             };
           });
           v.read = (q, t, F, U, l) => {
-            B.Kg(m);
-            q = q.node.Jf;
+            B.Mg(m);
+            q = q.node.Lf;
             if (l >= q.length) t = 0;
             else {
               U = Math.min(q.length - l, U);
@@ -14965,19 +15005,19 @@ var require_tesseract_core_lstm = __commonJS({
             }
             return t;
           };
-          v.jg = () => {
-            B.Kg(m);
+          v.lg = () => {
+            B.Mg(m);
             p();
-            throw new B.Hf(48);
+            throw new B.Jf(48);
           };
-          m.Kf = v;
+          m.Mf = v;
           return m;
         } };
         function tb(a, c, d) {
           if ("/" === c.charAt(0)) return c;
           a = -100 === a ? B.cwd() : ub(a).path;
           if (0 == c.length) {
-            if (!d) throw new B.Hf(44);
+            if (!d) throw new B.Jf(44);
             return a;
           }
           return bb(a + "/" + c);
@@ -14986,7 +15026,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             var e = a(c);
           } catch (h) {
-            if (h && h.node && bb(c) !== bb(B.dg(h.node))) return -54;
+            if (h && h.node && bb(c) !== bb(B.fg(h.node))) return -54;
             throw h;
           }
           u[d >> 2] = e.dev;
@@ -15027,8 +15067,8 @@ var require_tesseract_core_lstm = __commonJS({
           return u[wb - 4 >> 2];
         }
         function ub(a) {
-          a = B.sg(a);
-          if (!a) throw new B.Hf(8);
+          a = B.ug(a);
+          if (!a) throw new B.Jf(8);
           return a;
         }
         function yb() {
@@ -15103,8 +15143,8 @@ var require_tesseract_core_lstm = __commonJS({
             }
           }
           function v(l) {
-            var w = l.ng;
-            for (l = new Date(new Date(l.og + 1900, 0, 1).getTime()); 0 < w; ) {
+            var w = l.pg;
+            for (l = new Date(new Date(l.qg + 1900, 0, 1).getTime()); 0 < w; ) {
               var E = l.getMonth(), W = (zb(l.getFullYear()) ? Kb : Lb)[E];
               if (w > W - l.getDate()) w -= W - l.getDate() + 1, l.setDate(1), 11 > E ? l.setMonth(E + 1) : (l.setMonth(0), l.setFullYear(l.getFullYear() + 1));
               else {
@@ -15122,7 +15162,7 @@ var require_tesseract_core_lstm = __commonJS({
             return 0 >= k(w, l) ? 0 >= k(E, l) ? l.getFullYear() + 1 : l.getFullYear() : l.getFullYear() - 1;
           }
           var q = u[e + 40 >> 2];
-          e = { xi: u[e >> 2], wi: u[e + 4 >> 2], Eg: u[e + 8 >> 2], bh: u[e + 12 >> 2], Fg: u[e + 16 >> 2], og: u[e + 20 >> 2], $f: u[e + 24 >> 2], ng: u[e + 28 >> 2], Ii: u[e + 32 >> 2], vi: u[e + 36 >> 2], yi: q ? A(q) : "" };
+          e = { zi: u[e >> 2], yi: u[e + 4 >> 2], Gg: u[e + 8 >> 2], eh: u[e + 12 >> 2], Hg: u[e + 16 >> 2], qg: u[e + 20 >> 2], bg: u[e + 24 >> 2], pg: u[e + 28 >> 2], Ki: u[e + 32 >> 2], xi: u[e + 36 >> 2], Ai: q ? A(q) : "" };
           d = A(d);
           q = {
             "%c": "%a %b %d %H:%M:%S %Y",
@@ -15158,25 +15198,25 @@ var require_tesseract_core_lstm = __commonJS({
           var F = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" "), U = "January February March April May June July August September October November December".split(" ");
           q = {
             "%a": function(l) {
-              return F[l.$f].substring(0, 3);
+              return F[l.bg].substring(0, 3);
             },
             "%A": function(l) {
-              return F[l.$f];
+              return F[l.bg];
             },
             "%b": function(l) {
-              return U[l.Fg].substring(0, 3);
+              return U[l.Hg].substring(0, 3);
             },
             "%B": function(l) {
-              return U[l.Fg];
+              return U[l.Hg];
             },
             "%C": function(l) {
-              return h((l.og + 1900) / 100 | 0, 2);
+              return h((l.qg + 1900) / 100 | 0, 2);
             },
             "%d": function(l) {
-              return h(l.bh, 2);
+              return h(l.eh, 2);
             },
             "%e": function(l) {
-              return g(l.bh, 2, " ");
+              return g(l.eh, 2, " ");
             },
             "%g": function(l) {
               return v(l).toString().substring(2);
@@ -15185,72 +15225,72 @@ var require_tesseract_core_lstm = __commonJS({
               return v(l);
             },
             "%H": function(l) {
-              return h(l.Eg, 2);
+              return h(l.Gg, 2);
             },
             "%I": function(l) {
-              l = l.Eg;
+              l = l.Gg;
               0 == l ? l = 12 : 12 < l && (l -= 12);
               return h(l, 2);
             },
             "%j": function(l) {
-              for (var w = 0, E = 0; E <= l.Fg - 1; w += (zb(l.og + 1900) ? Kb : Lb)[E++]) ;
-              return h(l.bh + w, 3);
+              for (var w = 0, E = 0; E <= l.Hg - 1; w += (zb(l.qg + 1900) ? Kb : Lb)[E++]) ;
+              return h(l.eh + w, 3);
             },
             "%m": function(l) {
-              return h(l.Fg + 1, 2);
+              return h(l.Hg + 1, 2);
             },
             "%M": function(l) {
-              return h(l.wi, 2);
+              return h(l.yi, 2);
             },
             "%n": function() {
               return "\n";
             },
             "%p": function(l) {
-              return 0 <= l.Eg && 12 > l.Eg ? "AM" : "PM";
+              return 0 <= l.Gg && 12 > l.Gg ? "AM" : "PM";
             },
             "%S": function(l) {
-              return h(l.xi, 2);
+              return h(l.zi, 2);
             },
             "%t": function() {
               return "	";
             },
             "%u": function(l) {
-              return l.$f || 7;
+              return l.bg || 7;
             },
             "%U": function(l) {
-              return h(Math.floor((l.ng + 7 - l.$f) / 7), 2);
+              return h(Math.floor((l.pg + 7 - l.bg) / 7), 2);
             },
             "%V": function(l) {
-              var w = Math.floor((l.ng + 7 - (l.$f + 6) % 7) / 7);
-              2 >= (l.$f + 371 - l.ng - 2) % 7 && w++;
-              if (w) 53 == w && (E = (l.$f + 371 - l.ng) % 7, 4 == E || 3 == E && zb(l.og) || (w = 1));
+              var w = Math.floor((l.pg + 7 - (l.bg + 6) % 7) / 7);
+              2 >= (l.bg + 371 - l.pg - 2) % 7 && w++;
+              if (w) 53 == w && (E = (l.bg + 371 - l.pg) % 7, 4 == E || 3 == E && zb(l.qg) || (w = 1));
               else {
                 w = 52;
-                var E = (l.$f + 7 - l.ng - 1) % 7;
-                (4 == E || 5 == E && zb(l.og % 400 - 1)) && w++;
+                var E = (l.bg + 7 - l.pg - 1) % 7;
+                (4 == E || 5 == E && zb(l.qg % 400 - 1)) && w++;
               }
               return h(w, 2);
             },
             "%w": function(l) {
-              return l.$f;
+              return l.bg;
             },
             "%W": function(l) {
-              return h(Math.floor((l.ng + 7 - (l.$f + 6) % 7) / 7), 2);
+              return h(Math.floor((l.pg + 7 - (l.bg + 6) % 7) / 7), 2);
             },
             "%y": function(l) {
-              return (l.og + 1900).toString().substring(2);
+              return (l.qg + 1900).toString().substring(2);
             },
             "%Y": function(l) {
-              return l.og + 1900;
+              return l.qg + 1900;
             },
             "%z": function(l) {
-              l = l.vi;
+              l = l.xi;
               var w = 0 <= l;
               l = Math.abs(l) / 60;
               return (w ? "+" : "-") + String("0000" + (l / 60 * 100 + l % 60)).slice(-4);
             },
             "%Z": function(l) {
-              return l.yi;
+              return l.Ai;
             },
             "%%": function() {
               return "%";
@@ -15273,13 +15313,13 @@ var require_tesseract_core_lstm = __commonJS({
         function Pb(a, c, d, e) {
           a || (a = this);
           this.parent = a;
-          this.Qf = a.Qf;
-          this.vg = null;
-          this.id = B.mi++;
+          this.Sf = a.Sf;
+          this.xg = null;
+          this.id = B.oi++;
           this.name = c;
           this.mode = d;
-          this.If = {};
           this.Kf = {};
+          this.Mf = {};
           this.rdev = e;
         }
         Object.defineProperties(Pb.prototype, { read: { get: function() {
@@ -15290,17 +15330,17 @@ var require_tesseract_core_lstm = __commonJS({
           return 146 === (this.mode & 146);
         }, set: function(a) {
           a ? this.mode |= 146 : this.mode &= -147;
-        } }, ji: { get: function() {
-          return B.Rf(this.mode);
-        } }, Ug: { get: function() {
-          return B.zg(this.mode);
+        } }, li: { get: function() {
+          return B.Tf(this.mode);
+        } }, Wg: { get: function() {
+          return B.Bg(this.mode);
         } } });
-        B.vh = Pb;
-        B.gh = function(a, c, d, e, g, h, k, m, v, q) {
+        B.xh = Pb;
+        B.ih = function(a, c, d, e, g, h, k, m, v, q) {
           function t(l) {
             function w(E) {
               q && q();
-              m || B.yg(a, c, E, e, g, v);
+              m || B.Ag(a, c, E, e, g, v);
               h && h();
               Ha(U);
             }
@@ -15313,15 +15353,15 @@ var require_tesseract_core_lstm = __commonJS({
           Ga(U);
           "string" == typeof d ? pb(d, (l) => t(l), k) : t(d);
         };
-        B.ui();
-        b.FS_createPath = B.Hg;
-        b.FS_createDataFile = B.yg;
-        b.FS_createPreloadedFile = B.gh;
+        B.wi();
+        b.FS_createPath = B.Jg;
+        b.FS_createDataFile = B.Ag;
+        b.FS_createPreloadedFile = B.ih;
         b.FS_unlink = B.unlink;
-        b.FS_createLazyFile = B.fh;
-        b.FS_createDevice = B.Uf;
+        b.FS_createLazyFile = B.hh;
+        b.FS_createDevice = B.Wf;
         var bc = {
-          U: function() {
+          V: function() {
             n("missing function: _ZN9tesseract11TessBaseAPI10GetOsdTextEi");
             p(-1);
           },
@@ -15329,11 +15369,11 @@ var require_tesseract_core_lstm = __commonJS({
             n("missing function: _ZN9tesseract11TessBaseAPI23ClearAdaptiveClassifierEv");
             p(-1);
           },
-          P: function() {
+          Q: function() {
             n("missing function: _ZN9tesseract11TessBaseAPI8DetectOSEPNS_9OSResultsE");
             p(-1);
           },
-          F: function() {
+          G: function() {
             n("missing function: _ZNK9tesseract9OSResults12print_scoresEv");
             p(-1);
           },
@@ -15341,7 +15381,7 @@ var require_tesseract_core_lstm = __commonJS({
             p(`Assertion failed: ${A(a)}, at: ` + [c ? A(c) : "unknown filename", d, e ? A(e) : "unknown function"]);
           },
           l: function(a, c, d) {
-            new Ya(a).gg(
+            new Ya(a).ig(
               c,
               d
             );
@@ -15349,14 +15389,14 @@ var require_tesseract_core_lstm = __commonJS({
             $a++;
             throw Za;
           },
-          r: function(a, c, d) {
+          s: function(a, c, d) {
             wb = d;
             try {
               var e = ub(a);
               switch (c) {
                 case 0:
                   var g = xb();
-                  return 0 > g ? -28 : B.hh(e, g).fd;
+                  return 0 > g ? -28 : B.jh(e, g).fd;
                 case 1:
                 case 2:
                   return 0;
@@ -15379,19 +15419,19 @@ var require_tesseract_core_lstm = __commonJS({
               }
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          N: function(a, c) {
+          O: function(a, c) {
             try {
               var d = ub(a);
               return vb(B.stat, d.path, c);
             } catch (e) {
               if ("undefined" == typeof B || "ErrnoError" !== e.name) throw e;
-              return -e.Pf;
+              return -e.Rf;
             }
           },
-          K: function(a, c) {
+          L: function(a, c) {
             try {
               if (0 === c) return -28;
               var d = B.cwd(), e = Sa(d) + 1;
@@ -15400,10 +15440,10 @@ var require_tesseract_core_lstm = __commonJS({
               return e;
             } catch (g) {
               if ("undefined" == typeof B || "ErrnoError" !== g.name) throw g;
-              return -g.Pf;
+              return -g.Rf;
             }
           },
-          S: function(a, c, d) {
+          T: function(a, c, d) {
             wb = d;
             try {
               var e = ub(a);
@@ -15425,7 +15465,7 @@ var require_tesseract_core_lstm = __commonJS({
                 case 21520:
                   return e.tty ? -28 : -59;
                 case 21531:
-                  return g = xb(), B.Tg(e, c, g);
+                  return g = xb(), B.Vg(e, c, g);
                 case 21523:
                   return e.tty ? 0 : -59;
                 case 21524:
@@ -15435,10 +15475,10 @@ var require_tesseract_core_lstm = __commonJS({
               }
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          L: function(a, c, d, e) {
+          M: function(a, c, d, e) {
             try {
               c = A(c);
               var g = e & 256;
@@ -15446,10 +15486,10 @@ var require_tesseract_core_lstm = __commonJS({
               return vb(g ? B.lstat : B.stat, c, d);
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          p: function(a, c, d, e) {
+          q: function(a, c, d, e) {
             wb = e;
             try {
               c = A(c);
@@ -15458,34 +15498,34 @@ var require_tesseract_core_lstm = __commonJS({
               return B.open(c, d, g).fd;
             } catch (h) {
               if ("undefined" == typeof B || "ErrnoError" !== h.name) throw h;
-              return -h.Pf;
+              return -h.Rf;
             }
           },
-          A: function(a) {
+          B: function(a) {
             try {
               return a = A(a), B.rmdir(a), 0;
             } catch (c) {
               if ("undefined" == typeof B || "ErrnoError" !== c.name) throw c;
-              return -c.Pf;
+              return -c.Rf;
             }
           },
-          M: function(a, c) {
+          N: function(a, c) {
             try {
               return a = A(a), vb(B.stat, a, c);
             } catch (d) {
               if ("undefined" == typeof B || "ErrnoError" !== d.name) throw d;
-              return -d.Pf;
+              return -d.Rf;
             }
           },
-          B: function(a, c, d) {
+          C: function(a, c, d) {
             try {
               return c = A(c), c = tb(a, c), 0 === d ? B.unlink(c) : 512 === d ? B.rmdir(c) : p("Invalid flags passed to unlinkat"), 0;
             } catch (e) {
               if ("undefined" == typeof B || "ErrnoError" !== e.name) throw e;
-              return -e.Pf;
+              return -e.Rf;
             }
           },
-          T: function(a) {
+          U: function(a) {
             do {
               var c = x[a >> 2];
               a += 4;
@@ -15494,17 +15534,17 @@ var require_tesseract_core_lstm = __commonJS({
               var e = x[a >> 2];
               a += 4;
               c = A(c);
-              B.Hg("/", cb(c), true, true);
-              B.yg(c, null, r.subarray(e, e + d), true, true, true);
+              B.Jg("/", cb(c), true, true);
+              B.Ag(c, null, r.subarray(e, e + d), true, true, true);
             } while (x[a >> 2]);
           },
-          Q: function() {
+          R: function() {
             return true;
           },
-          x: function() {
+          y: function() {
             throw Infinity;
           },
-          E: function(a, c) {
+          F: function(a, c) {
             a = new Date(1e3 * (x[a >> 2] + 4294967296 * u[a + 4 >> 2]));
             u[c >> 2] = a.getUTCSeconds();
             u[c + 4 >> 2] = a.getUTCMinutes();
@@ -15515,7 +15555,7 @@ var require_tesseract_core_lstm = __commonJS({
             u[c + 24 >> 2] = a.getUTCDay();
             u[c + 28 >> 2] = (a.getTime() - Date.UTC(a.getUTCFullYear(), 0, 1, 0, 0, 0, 0)) / 864e5 | 0;
           },
-          G: function(a, c) {
+          H: function(a, c) {
             a = new Date(1e3 * (x[a >> 2] + 4294967296 * u[a + 4 >> 2]));
             u[c >> 2] = a.getSeconds();
             u[c + 4 >> 2] = a.getMinutes();
@@ -15529,7 +15569,7 @@ var require_tesseract_core_lstm = __commonJS({
             var d = new Date(a.getFullYear(), 6, 1).getTimezoneOffset(), e = new Date(a.getFullYear(), 0, 1).getTimezoneOffset();
             u[c + 32 >> 2] = (d != e && a.getTimezoneOffset() == Math.min(e, d)) | 0;
           },
-          H: function(a) {
+          I: function(a) {
             var c = new Date(u[a + 20 >> 2] + 1900, u[a + 16 >> 2], u[a + 12 >> 2], u[a + 8 >> 2], u[a + 4 >> 2], u[a >> 2], 0), d = u[a + 32 >> 2], e = c.getTimezoneOffset(), g = new Date(c.getFullYear(), 6, 1).getTimezoneOffset(), h = new Date(c.getFullYear(), 0, 1).getTimezoneOffset(), k = Math.min(h, g);
             0 > d ? u[a + 32 >> 2] = Number(g != h && k == e) : 0 < d != (k == e) && (g = Math.max(h, g), c.setTime(c.getTime() + 6e4 * ((0 < d ? k : g) - e)));
             u[a + 24 >> 2] = c.getDay();
@@ -15542,33 +15582,33 @@ var require_tesseract_core_lstm = __commonJS({
             u[a + 20 >> 2] = c.getYear();
             return c.getTime() / 1e3 | 0;
           },
-          C: function(a, c, d, e, g, h, k) {
+          D: function(a, c, d, e, g, h, k) {
             try {
-              var m = ub(e), v = B.jg(m, a, g, c, d), q = v.Gf;
-              u[h >> 2] = v.Ah;
+              var m = ub(e), v = B.lg(m, a, g, c, d), q = v.If;
+              u[h >> 2] = v.Ch;
               x[k >> 2] = q;
               return 0;
             } catch (t) {
               if ("undefined" == typeof B || "ErrnoError" !== t.name) throw t;
-              return -t.Pf;
+              return -t.Rf;
             }
           },
-          D: function(a, c, d, e, g, h) {
+          E: function(a, c, d, e, g, h) {
             try {
               var k = ub(g);
               if (d & 2) {
-                if (!B.isFile(k.node.mode)) throw new B.Hf(43);
+                if (!B.isFile(k.node.mode)) throw new B.Jf(43);
                 if (!(e & 2)) {
                   var m = sa.slice(a, a + c);
-                  B.pg(k, m, h, c, e);
+                  B.rg(k, m, h, c, e);
                 }
               }
             } catch (v) {
               if ("undefined" == typeof B || "ErrnoError" !== v.name) throw v;
-              return -v.Pf;
+              return -v.Rf;
             }
           },
-          z: function(a, c, d) {
+          A: function(a, c, d) {
             function e(v) {
               return (v = v.toTimeString().match(/\(([A-Za-z ]+)\)$/)) ? v[1] : "GMT";
             }
@@ -15586,7 +15626,7 @@ var require_tesseract_core_lstm = __commonJS({
           k: function() {
             p("");
           },
-          u: function(a, c, d) {
+          v: function(a, c, d) {
             Fb.length = 0;
             var e;
             for (d >>= 2; e = sa[c++]; ) d += 105 != e & d, Fb.push(105 == e ? u[d] : va[d++ >> 1]), ++d;
@@ -15595,11 +15635,11 @@ var require_tesseract_core_lstm = __commonJS({
           m: function() {
             return Date.now();
           },
-          O: Gb,
-          R: function(a, c, d) {
+          P: Gb,
+          S: function(a, c, d) {
             sa.copyWithin(a, c, c + d);
           },
-          y: function(a) {
+          z: function(a) {
             var c = sa.length;
             a >>>= 0;
             if (2147483648 < a) return false;
@@ -15624,7 +15664,7 @@ var require_tesseract_core_lstm = __commonJS({
             }
             return false;
           },
-          I: function(a, c) {
+          J: function(a, c) {
             var d = 0;
             Ib().forEach(function(e, g) {
               var h = c + d;
@@ -15635,7 +15675,7 @@ var require_tesseract_core_lstm = __commonJS({
             });
             return 0;
           },
-          J: function(a, c) {
+          K: function(a, c) {
             var d = Ib();
             x[a >> 2] = d.length;
             var e = 0;
@@ -15645,24 +15685,24 @@ var require_tesseract_core_lstm = __commonJS({
             x[c >> 2] = e;
             return 0;
           },
-          V: function(a) {
+          n: function(a) {
             if (!noExitRuntime) {
               if (b.onExit) b.onExit(a);
               ra = true;
             }
             ea(a, new Qa(a));
           },
-          o: function(a) {
+          p: function(a) {
             try {
               var c = ub(a);
               B.close(c);
               return 0;
             } catch (d) {
               if ("undefined" == typeof B || "ErrnoError" !== d.name) throw d;
-              return d.Pf;
+              return d.Rf;
             }
           },
-          q: function(a, c, d, e) {
+          r: function(a, c, d, e) {
             try {
               a: {
                 var g = ub(a);
@@ -15685,26 +15725,26 @@ var require_tesseract_core_lstm = __commonJS({
               return 0;
             } catch (F) {
               if ("undefined" == typeof B || "ErrnoError" !== F.name) throw F;
-              return F.Pf;
+              return F.Rf;
             }
           },
-          v: function(a, c, d, e, g) {
+          w: function(a, c, d, e, g) {
             try {
               c = d + 2097152 >>> 0 < 4194305 - !!c ? (c >>> 0) + 4294967296 * d : NaN;
               if (isNaN(c)) return 61;
               var h = ub(a);
-              B.Xf(h, c, e);
+              B.Zf(h, c, e);
               z = [h.position >>> 0, (y = h.position, 1 <= +Math.abs(y) ? 0 < y ? +Math.floor(y / 4294967296) >>> 0 : ~~+Math.ceil((y - +(~~y >>> 0)) / 4294967296) >>> 0 : 0)];
               u[g >> 2] = z[0];
               u[g + 4 >> 2] = z[1];
-              h.Qg && 0 === c && 0 === e && (h.Qg = null);
+              h.Sg && 0 === c && 0 === e && (h.Sg = null);
               return 0;
             } catch (k) {
               if ("undefined" == typeof B || "ErrnoError" !== k.name) throw k;
-              return k.Pf;
+              return k.Rf;
             }
           },
-          n: function(a, c, d, e) {
+          o: function(a, c, d, e) {
             try {
               a: {
                 var g = ub(a);
@@ -15726,22 +15766,22 @@ var require_tesseract_core_lstm = __commonJS({
               return 0;
             } catch (F) {
               if ("undefined" == typeof B || "ErrnoError" !== F.name) throw F;
-              return F.Pf;
+              return F.Rf;
             }
           },
           c: Rb,
-          f: Sb,
+          e: Sb,
           b: Tb,
           h: Ub,
           i: Vb,
-          e: Wb,
-          d: Xb,
+          d: Wb,
+          f: Xb,
           g: Yb,
           j: Zb,
-          s: $b,
-          t: ac,
+          t: $b,
+          u: ac,
           W: Mb,
-          w: function(a, c, d, e) {
+          x: function(a, c, d, e) {
             return Mb(a, c, d, e);
           }
         };
@@ -15751,7 +15791,7 @@ var require_tesseract_core_lstm = __commonJS({
             b.asm = d;
             pa = b.asm.Y;
             wa();
-            xa = b.asm.uf;
+            xa = b.asm.wf;
             za.unshift(b.asm.Z);
             Ha("wasm-instantiate");
             return d;
@@ -16160,272 +16200,261 @@ var require_tesseract_core_lstm = __commonJS({
           return (Ef = b._emscripten_bind_TessBaseAPI_FindLines_0 = b.asm.vd).apply(null, arguments);
         }, Ff = b._emscripten_bind_TessBaseAPI_GetGradient_0 = function() {
           return (Ff = b._emscripten_bind_TessBaseAPI_GetGradient_0 = b.asm.wd).apply(null, arguments);
-        }, Gf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
-          return (Gf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.xd).apply(null, arguments);
-        }, Hf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
-          return (Hf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.yd).apply(null, arguments);
-        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
-          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.zd).apply(null, arguments);
-        }, Jf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
-          return (Jf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.Ad).apply(
+        }, Gf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = function() {
+          return (Gf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = b.asm.xd).apply(null, arguments);
+        }, Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
+          return (Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.yd).apply(null, arguments);
+        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
+          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.zd).apply(null, arguments);
+        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
+          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.Ad).apply(
             null,
             arguments
           );
-        }, Kf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
-          return (Kf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.Bd).apply(null, arguments);
-        }, Lf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
-          return (Lf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.Cd).apply(null, arguments);
-        }, Mf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
-          return (Mf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Dd).apply(null, arguments);
-        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
-          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Ed).apply(null, arguments);
-        }, Of = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
-          return (Of = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Fd).apply(null, arguments);
-        }, Pf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
-          return (Pf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Gd).apply(null, arguments);
-        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
-          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Hd).apply(null, arguments);
-        }, Rf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
-          return (Rf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Id).apply(null, arguments);
-        }, Sf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
-          return (Sf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Jd).apply(null, arguments);
-        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
-          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Kd).apply(
-            null,
-            arguments
-          );
-        }, Uf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
-          return (Uf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Ld).apply(null, arguments);
-        }, Vf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
-          return (Vf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Md).apply(null, arguments);
-        }, Wf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
-          return (Wf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Nd).apply(null, arguments);
-        }, Xf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
-          return (Xf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Od).apply(null, arguments);
-        }, Yf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
-          return (Yf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Pd).apply(null, arguments);
-        }, Zf = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
-          return (Zf = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Qd).apply(null, arguments);
-        }, $f = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
-          return ($f = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Rd).apply(
-            null,
-            arguments
-          );
-        }, ag = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
-          return (ag = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Sd).apply(null, arguments);
-        }, bg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
-          return (bg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Td).apply(null, arguments);
-        }, cg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
-          return (cg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Ud).apply(null, arguments);
-        }, dg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
-          return (dg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Vd).apply(null, arguments);
-        }, eg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
-          return (eg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Wd).apply(null, arguments);
-        }, fg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
-          return (fg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Xd).apply(null, arguments);
-        }, gg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
-          return (gg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Yd).apply(null, arguments);
-        }, hg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
-          return (hg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Zd).apply(null, arguments);
-        }, ig = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
-          return (ig = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm._d).apply(null, arguments);
-        }, jg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
-          return (jg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.$d).apply(null, arguments);
-        }, kg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
-          return (kg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.ae).apply(null, arguments);
-        }, lg = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
-          return (lg = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.be).apply(null, arguments);
-        }, mg = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
-          return (mg = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ce).apply(null, arguments);
-        }, ng = b._emscripten_bind_OSResults_OSResults_0 = function() {
-          return (ng = b._emscripten_bind_OSResults_OSResults_0 = b.asm.de).apply(
-            null,
-            arguments
-          );
-        }, og = b._emscripten_bind_OSResults_print_scores_0 = function() {
-          return (og = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ee).apply(null, arguments);
-        }, pg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
-          return (pg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.fe).apply(null, arguments);
-        }, qg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
-          return (qg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ge).apply(null, arguments);
-        }, rg = b._emscripten_bind_OSResults___destroy___0 = function() {
-          return (rg = b._emscripten_bind_OSResults___destroy___0 = b.asm.he).apply(null, arguments);
-        }, sg = b._emscripten_bind_Pixa_get_n_0 = function() {
-          return (sg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ie).apply(null, arguments);
-        }, tg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
-          return (tg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.je).apply(null, arguments);
-        }, ug = b._emscripten_bind_Pixa_get_refcount_0 = function() {
-          return (ug = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ke).apply(null, arguments);
-        }, vg = b._emscripten_bind_Pixa_get_pix_0 = function() {
-          return (vg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.le).apply(null, arguments);
-        }, wg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
-          return (wg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.me).apply(null, arguments);
-        }, xg = b._emscripten_bind_Pixa___destroy___0 = function() {
-          return (xg = b._emscripten_bind_Pixa___destroy___0 = b.asm.ne).apply(null, arguments);
-        }, yg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
-          return (yg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.oe).apply(null, arguments);
-        }, zg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
-          return (zg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.pe).apply(null, arguments);
-        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
-          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.qe).apply(null, arguments);
-        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
-          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.re).apply(null, arguments);
-        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
-          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.se).apply(null, arguments);
-        }, Dg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
-          return (Dg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.te).apply(null, arguments);
-        }, Eg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
-          return (Eg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.ue).apply(null, arguments);
-        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
-          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.ve).apply(null, arguments);
-        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
-          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.we).apply(null, arguments);
-        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
-          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.xe).apply(null, arguments);
-        }, Ig = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
-          return (Ig = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.ye).apply(
-            null,
-            arguments
-          );
-        }, Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
-          return (Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.ze).apply(null, arguments);
-        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
-          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.Ae).apply(null, arguments);
-        }, Lg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
-          return (Lg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.Be).apply(null, arguments);
-        }, Mg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
-          return (Mg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ce).apply(null, arguments);
-        }, Ng = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
-          return (Ng = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.De).apply(null, arguments);
-        }, Og = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
-          return (Og = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ee).apply(null, arguments);
-        }, Pg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
-          return (Pg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.Fe).apply(null, arguments);
-        }, Qg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
-          return (Qg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ge).apply(null, arguments);
-        }, Rg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
-          return (Rg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.He).apply(null, arguments);
-        }, Sg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
-          return (Sg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ie).apply(null, arguments);
-        }, Tg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
-          return (Tg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Je).apply(null, arguments);
-        }, Ug = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
-          return (Ug = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ke).apply(null, arguments);
-        }, Vg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
-          return (Vg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Le).apply(null, arguments);
-        }, Wg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
-          return (Wg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Me).apply(null, arguments);
-        }, Xg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
-          return (Xg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Ne).apply(null, arguments);
-        }, Yg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
-          return (Yg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Oe).apply(null, arguments);
-        }, Zg = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
-          return (Zg = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Pe).apply(null, arguments);
-        }, $g = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
-          return ($g = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Qe).apply(null, arguments);
-        }, ah = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
-          return (ah = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Re).apply(null, arguments);
-        }, bh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
-          return (bh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Se).apply(null, arguments);
-        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
-          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Te).apply(null, arguments);
-        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
-          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Ue).apply(null, arguments);
-        }, eh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
-          return (eh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Ve).apply(null, arguments);
-        }, fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
-          return (fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.We).apply(null, arguments);
-        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
-          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Xe).apply(null, arguments);
-        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
-          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.Ye).apply(null, arguments);
-        }, ih = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
-          return (ih = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Ze).apply(null, arguments);
-        }, jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
-          return (jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm._e).apply(null, arguments);
-        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
-          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.$e).apply(null, arguments);
-        }, lh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
-          return (lh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.af).apply(null, arguments);
-        }, mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
-          return (mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.bf).apply(null, arguments);
-        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
-          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.cf).apply(
-            null,
-            arguments
-          );
-        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
-          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.df).apply(null, arguments);
-        }, ph = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
-          return (ph = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.ef).apply(null, arguments);
-        }, qh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
-          return (qh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.ff).apply(null, arguments);
-        }, rh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
-          return (rh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.gf).apply(null, arguments);
-        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
-          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.hf).apply(null, arguments);
-        }, th = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
-          return (th = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.jf).apply(null, arguments);
-        }, uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
-          return (uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.kf).apply(null, arguments);
-        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
-          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.lf).apply(null, arguments);
-        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
-          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.mf).apply(null, arguments);
-        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
-          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.nf).apply(null, arguments);
-        }, yh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
-          return (yh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.of).apply(null, arguments);
-        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
-          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.pf).apply(null, arguments);
-        }, Ah = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
-          return (Ah = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.qf).apply(null, arguments);
-        }, Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
-          return (Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.rf).apply(null, arguments);
-        }, Ch = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
-          return (Ch = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.sf).apply(null, arguments);
-        }, Dh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
-          return (Dh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.tf).apply(null, arguments);
+        }, Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
+          return (Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.Bd).apply(null, arguments);
+        }, Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
+          return (Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.Cd).apply(null, arguments);
+        }, Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
+          return (Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.Dd).apply(null, arguments);
+        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
+          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Ed).apply(null, arguments);
+        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
+          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Fd).apply(null, arguments);
+        }, Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
+          return (Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Gd).apply(null, arguments);
+        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
+          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Hd).apply(null, arguments);
+        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
+          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Id).apply(null, arguments);
+        }, Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
+          return (Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Jd).apply(null, arguments);
+        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
+          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Kd).apply(null, arguments);
+        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
+          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Ld).apply(null, arguments);
+        }, Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
+          return (Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Md).apply(null, arguments);
+        }, Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
+          return (Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Nd).apply(null, arguments);
+        }, Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
+          return (Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Od).apply(null, arguments);
+        }, Yf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = function() {
+          return (Yf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = b.asm.Pd).apply(null, arguments);
+        }, Zf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
+          return (Zf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Qd).apply(null, arguments);
+        }, $f = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
+          return ($f = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Rd).apply(null, arguments);
+        }, ag = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
+          return (ag = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Sd).apply(null, arguments);
+        }, bg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
+          return (bg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Td).apply(null, arguments);
+        }, cg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
+          return (cg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Ud).apply(null, arguments);
+        }, dg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
+          return (dg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Vd).apply(null, arguments);
+        }, eg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
+          return (eg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Wd).apply(null, arguments);
+        }, fg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
+          return (fg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Xd).apply(null, arguments);
+        }, gg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
+          return (gg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Yd).apply(null, arguments);
+        }, hg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
+          return (hg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Zd).apply(null, arguments);
+        }, ig = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
+          return (ig = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm._d).apply(null, arguments);
+        }, jg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
+          return (jg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.$d).apply(null, arguments);
+        }, kg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
+          return (kg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.ae).apply(null, arguments);
+        }, lg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
+          return (lg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.be).apply(null, arguments);
+        }, mg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
+          return (mg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.ce).apply(null, arguments);
+        }, ng = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
+          return (ng = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.de).apply(null, arguments);
+        }, og = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
+          return (og = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ee).apply(null, arguments);
+        }, pg = b._emscripten_bind_OSResults_OSResults_0 = function() {
+          return (pg = b._emscripten_bind_OSResults_OSResults_0 = b.asm.fe).apply(null, arguments);
+        }, qg = b._emscripten_bind_OSResults_print_scores_0 = function() {
+          return (qg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ge).apply(null, arguments);
+        }, rg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
+          return (rg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.he).apply(null, arguments);
+        }, sg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
+          return (sg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ie).apply(null, arguments);
+        }, tg = b._emscripten_bind_OSResults___destroy___0 = function() {
+          return (tg = b._emscripten_bind_OSResults___destroy___0 = b.asm.je).apply(null, arguments);
+        }, ug = b._emscripten_bind_Pixa_get_n_0 = function() {
+          return (ug = b._emscripten_bind_Pixa_get_n_0 = b.asm.ke).apply(null, arguments);
+        }, vg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
+          return (vg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.le).apply(null, arguments);
+        }, wg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
+          return (wg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.me).apply(null, arguments);
+        }, xg = b._emscripten_bind_Pixa_get_pix_0 = function() {
+          return (xg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.ne).apply(null, arguments);
+        }, yg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
+          return (yg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.oe).apply(null, arguments);
+        }, zg = b._emscripten_bind_Pixa___destroy___0 = function() {
+          return (zg = b._emscripten_bind_Pixa___destroy___0 = b.asm.pe).apply(null, arguments);
+        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
+          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.qe).apply(null, arguments);
+        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
+          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.re).apply(null, arguments);
+        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
+          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.se).apply(null, arguments);
+        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
+          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.te).apply(null, arguments);
+        }, Eg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
+          return (Eg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.ue).apply(null, arguments);
+        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
+          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.ve).apply(null, arguments);
+        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
+          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.we).apply(null, arguments);
+        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
+          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.xe).apply(null, arguments);
+        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
+          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.ye).apply(null, arguments);
+        }, Jg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
+          return (Jg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.ze).apply(null, arguments);
+        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
+          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.Ae).apply(null, arguments);
+        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
+          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.Be).apply(null, arguments);
+        }, Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
+          return (Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.Ce).apply(null, arguments);
+        }, Ng = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
+          return (Ng = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.De).apply(null, arguments);
+        }, Og = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
+          return (Og = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ee).apply(null, arguments);
+        }, Pg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
+          return (Pg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.Fe).apply(null, arguments);
+        }, Qg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
+          return (Qg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ge).apply(null, arguments);
+        }, Rg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
+          return (Rg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.He).apply(null, arguments);
+        }, Sg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
+          return (Sg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ie).apply(null, arguments);
+        }, Tg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
+          return (Tg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.Je).apply(null, arguments);
+        }, Ug = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
+          return (Ug = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ke).apply(null, arguments);
+        }, Vg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
+          return (Vg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Le).apply(null, arguments);
+        }, Wg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
+          return (Wg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Me).apply(null, arguments);
+        }, Xg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
+          return (Xg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Ne).apply(null, arguments);
+        }, Yg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
+          return (Yg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Oe).apply(null, arguments);
+        }, Zg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
+          return (Zg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Pe).apply(null, arguments);
+        }, $g = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
+          return ($g = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Qe).apply(null, arguments);
+        }, ah = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
+          return (ah = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Re).apply(null, arguments);
+        }, bh = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
+          return (bh = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Se).apply(null, arguments);
+        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
+          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Te).apply(null, arguments);
+        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
+          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Ue).apply(null, arguments);
+        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
+          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Ve).apply(null, arguments);
+        }, fh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
+          return (fh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.We).apply(null, arguments);
+        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
+          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Xe).apply(null, arguments);
+        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
+          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Ye).apply(null, arguments);
+        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
+          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Ze).apply(null, arguments);
+        }, jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
+          return (jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm._e).apply(null, arguments);
+        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
+          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.$e).apply(null, arguments);
+        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
+          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.af).apply(null, arguments);
+        }, mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
+          return (mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.bf).apply(null, arguments);
+        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
+          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.cf).apply(null, arguments);
+        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
+          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.df).apply(null, arguments);
+        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
+          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.ef).apply(null, arguments);
+        }, qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
+          return (qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.ff).apply(null, arguments);
+        }, rh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
+          return (rh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.gf).apply(null, arguments);
+        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
+          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.hf).apply(null, arguments);
+        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
+          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.jf).apply(null, arguments);
+        }, uh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
+          return (uh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.kf).apply(null, arguments);
+        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
+          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.lf).apply(null, arguments);
+        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
+          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.mf).apply(null, arguments);
+        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
+          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.nf).apply(null, arguments);
+        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
+          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.of).apply(null, arguments);
+        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
+          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.pf).apply(null, arguments);
+        }, Ah = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
+          return (Ah = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.qf).apply(null, arguments);
+        }, Bh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
+          return (Bh = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.rf).apply(null, arguments);
+        }, Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
+          return (Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.sf).apply(null, arguments);
+        }, Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
+          return (Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.tf).apply(null, arguments);
+        }, Eh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
+          return (Eh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.uf).apply(null, arguments);
+        }, Fh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
+          return (Fh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.vf).apply(null, arguments);
         };
         b._pixDestroy = function() {
-          return (b._pixDestroy = b.asm.vf).apply(null, arguments);
+          return (b._pixDestroy = b.asm.xf).apply(null, arguments);
         };
         b._ptaDestroy = function() {
-          return (b._ptaDestroy = b.asm.wf).apply(null, arguments);
+          return (b._ptaDestroy = b.asm.yf).apply(null, arguments);
         };
         b._boxaDestroy = function() {
-          return (b._boxaDestroy = b.asm.xf).apply(null, arguments);
+          return (b._boxaDestroy = b.asm.zf).apply(null, arguments);
         };
         b._pixaDestroy = function() {
-          return (b._pixaDestroy = b.asm.yf).apply(null, arguments);
+          return (b._pixaDestroy = b.asm.Af).apply(null, arguments);
         };
         b._pixReadMem = function() {
-          return (b._pixReadMem = b.asm.zf).apply(null, arguments);
+          return (b._pixReadMem = b.asm.Bf).apply(null, arguments);
         };
         function Qb() {
-          return (Qb = b.asm.Af).apply(null, arguments);
+          return (Qb = b.asm.Cf).apply(null, arguments);
         }
-        var Eh = b._free = function() {
-          return (Eh = b._free = b.asm.Bf).apply(null, arguments);
+        var Gh = b._free = function() {
+          return (Gh = b._free = b.asm.Df).apply(null, arguments);
         }, Eb = b._malloc = function() {
-          return (Eb = b._malloc = b.asm.Cf).apply(null, arguments);
+          return (Eb = b._malloc = b.asm.Ef).apply(null, arguments);
         };
         b._pixReadHeaderMem = function() {
-          return (b._pixReadHeaderMem = b.asm.Df).apply(null, arguments);
+          return (b._pixReadHeaderMem = b.asm.Ff).apply(null, arguments);
         };
         function D() {
-          return (D = b.asm.Ef).apply(null, arguments);
+          return (D = b.asm.Gf).apply(null, arguments);
         }
-        function Fh() {
-          return (Fh = b.asm.Ff).apply(null, arguments);
+        function Hh() {
+          return (Hh = b.asm.Hf).apply(null, arguments);
         }
-        b.___emscripten_embedded_file_data = 392512;
+        b.___emscripten_embedded_file_data = 396480;
         function Tb(a, c, d, e) {
           var g = D();
           try {
             return Ob(a)(c, d, e);
           } catch (h) {
-            Fh(g);
+            Hh(g);
             if (h !== h + 0) throw h;
             yb();
           }
@@ -16435,7 +16464,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c);
           } catch (e) {
-            Fh(d);
+            Hh(d);
             if (e !== e + 0) throw e;
             yb();
           }
@@ -16445,7 +16474,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             return Ob(a)(c);
           } catch (e) {
-            Fh(d);
+            Hh(d);
             if (e !== e + 0) throw e;
             yb();
           }
@@ -16455,7 +16484,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c, d, e);
           } catch (h) {
-            Fh(g);
+            Hh(g);
             if (h !== h + 0) throw h;
             yb();
           }
@@ -16465,7 +16494,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c, d);
           } catch (g) {
-            Fh(e);
+            Hh(e);
             if (g !== g + 0) throw g;
             yb();
           }
@@ -16475,7 +16504,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             return Ob(a)(c, d);
           } catch (g) {
-            Fh(e);
+            Hh(e);
             if (g !== g + 0) throw g;
             yb();
           }
@@ -16485,7 +16514,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             return Ob(a)(c, d, e, g);
           } catch (k) {
-            Fh(h);
+            Hh(h);
             if (k !== k + 0) throw k;
             yb();
           }
@@ -16495,7 +16524,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g);
           } catch (k) {
-            Fh(h);
+            Hh(h);
             if (k !== k + 0) throw k;
             yb();
           }
@@ -16505,7 +16534,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             return Ob(a)(c, d, e, g, h);
           } catch (m) {
-            Fh(k);
+            Hh(k);
             if (m !== m + 0) throw m;
             yb();
           }
@@ -16515,7 +16544,7 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g, h, k, m, v, q);
           } catch (F) {
-            Fh(t);
+            Hh(t);
             if (F !== F + 0) throw F;
             yb();
           }
@@ -16525,33 +16554,33 @@ var require_tesseract_core_lstm = __commonJS({
           try {
             Ob(a)(c, d, e, g, h);
           } catch (m) {
-            Fh(k);
+            Hh(k);
             if (m !== m + 0) throw m;
             yb();
           }
         }
         b.addRunDependency = Ga;
         b.removeRunDependency = Ha;
-        b.FS_createPath = B.Hg;
-        b.FS_createDataFile = B.yg;
-        b.FS_createLazyFile = B.fh;
-        b.FS_createDevice = B.Uf;
+        b.FS_createPath = B.Jg;
+        b.FS_createDataFile = B.Ag;
+        b.FS_createLazyFile = B.hh;
+        b.FS_createDevice = B.Wf;
         b.FS_unlink = B.unlink;
         b.setValue = Xa;
         b.getValue = Wa;
-        b.FS_createPreloadedFile = B.gh;
+        b.FS_createPreloadedFile = B.ih;
         b.FS = B;
-        var Gh;
-        Fa = function Hh() {
-          Gh || Ih();
-          Gh || (Fa = Hh);
+        var Ih;
+        Fa = function Jh() {
+          Ih || Kh();
+          Ih || (Fa = Jh);
         };
-        function Ih() {
+        function Kh() {
           function a() {
-            if (!Gh && (Gh = true, b.calledRun = true, !ra)) {
+            if (!Ih && (Ih = true, b.calledRun = true, !ra)) {
               Ba = true;
-              b.noFSInit || B.gg.Sg || B.gg();
-              B.sh = false;
+              b.noFSInit || B.ig.Ug || B.ig();
+              B.uh = false;
               Ra(za);
               aa(b);
               if (b.onRuntimeInitialized) b.onRuntimeInitialized();
@@ -16577,70 +16606,70 @@ var require_tesseract_core_lstm = __commonJS({
           }
         }
         if (b.preInit) for ("function" == typeof b.preInit && (b.preInit = [b.preInit]); 0 < b.preInit.length; ) b.preInit.pop()();
-        Ih();
+        Kh();
         function G() {
         }
         G.prototype = Object.create(G.prototype);
         G.prototype.constructor = G;
-        G.prototype.Lf = G;
-        G.Mf = {};
+        G.prototype.Nf = G;
+        G.Of = {};
         b.WrapperObject = G;
-        function Jh(a) {
-          return (a || G).Mf;
+        function Lh(a) {
+          return (a || G).Of;
         }
-        b.getCache = Jh;
+        b.getCache = Lh;
         function H(a, c) {
-          var d = Jh(c), e = d[a];
+          var d = Lh(c), e = d[a];
           if (e) return e;
           e = Object.create((c || G).prototype);
-          e.Gf = a;
+          e.If = a;
           return d[a] = e;
         }
         b.wrapPointer = H;
         b.castObject = function(a, c) {
-          return H(a.Gf, c);
+          return H(a.If, c);
         };
         b.NULL = H(0);
         b.destroy = function(a) {
           if (!a.__destroy__) throw "Error: Cannot destroy object. (Did you create it yourself?)";
           a.__destroy__();
-          delete Jh(a.Lf)[a.Gf];
+          delete Lh(a.Nf)[a.If];
         };
         b.compare = function(a, c) {
-          return a.Gf === c.Gf;
+          return a.If === c.If;
         };
         b.getPointer = function(a) {
-          return a.Gf;
+          return a.If;
         };
         b.getClass = function(a) {
-          return a.Lf;
+          return a.Nf;
         };
-        var Kh = 0, Lh = 0, Mh = 0, Nh = [], Oh = 0;
+        var Mh = 0, Nh = 0, Oh = 0, Ph = [], Qh = 0;
         function I() {
-          if (Oh) {
-            for (var a = 0; a < Nh.length; a++) b._free(Nh[a]);
-            Nh.length = 0;
-            b._free(Kh);
-            Kh = 0;
-            Lh += Oh;
-            Oh = 0;
+          if (Qh) {
+            for (var a = 0; a < Ph.length; a++) b._free(Ph[a]);
+            Ph.length = 0;
+            b._free(Mh);
+            Mh = 0;
+            Nh += Qh;
+            Qh = 0;
           }
-          Kh || (Lh += 128, (Kh = b._malloc(Lh)) || p());
-          Mh = 0;
+          Mh || (Nh += 128, (Mh = b._malloc(Nh)) || p());
+          Oh = 0;
         }
         function J(a) {
           if ("string" === typeof a) {
             a = jb(a);
             var c = r;
-            Kh || p();
+            Mh || p();
             c = a.length * c.BYTES_PER_ELEMENT;
             c = c + 7 & -8;
-            if (Mh + c >= Lh) {
+            if (Oh + c >= Nh) {
               0 < c || p();
-              Oh += c;
+              Qh += c;
               var d = b._malloc(c);
-              Nh.push(d);
-            } else d = Kh + Mh, Mh += c;
+              Ph.push(d);
+            } else d = Mh + Oh, Oh += c;
             c = d;
             d = r;
             var e = c;
@@ -16659,1062 +16688,1062 @@ var require_tesseract_core_lstm = __commonJS({
           }
           return a;
         }
-        function Ph() {
+        function Rh() {
           throw "cannot construct a ParagraphJustification, no constructor in IDL";
         }
-        Ph.prototype = Object.create(G.prototype);
-        Ph.prototype.constructor = Ph;
-        Ph.prototype.Lf = Ph;
-        Ph.Mf = {};
-        b.ParagraphJustification = Ph;
-        Ph.prototype.__destroy__ = function() {
-          cc(this.Gf);
+        Rh.prototype = Object.create(G.prototype);
+        Rh.prototype.constructor = Rh;
+        Rh.prototype.Nf = Rh;
+        Rh.Of = {};
+        b.ParagraphJustification = Rh;
+        Rh.prototype.__destroy__ = function() {
+          cc(this.If);
         };
-        function Qh() {
+        function Sh() {
           throw "cannot construct a BoolPtr, no constructor in IDL";
         }
-        Qh.prototype = Object.create(G.prototype);
-        Qh.prototype.constructor = Qh;
-        Qh.prototype.Lf = Qh;
-        Qh.Mf = {};
-        b.BoolPtr = Qh;
-        Qh.prototype.__destroy__ = function() {
-          dc(this.Gf);
+        Sh.prototype = Object.create(G.prototype);
+        Sh.prototype.constructor = Sh;
+        Sh.prototype.Nf = Sh;
+        Sh.Of = {};
+        b.BoolPtr = Sh;
+        Sh.prototype.__destroy__ = function() {
+          dc(this.If);
         };
         function K() {
           throw "cannot construct a TessResultRenderer, no constructor in IDL";
         }
         K.prototype = Object.create(G.prototype);
         K.prototype.constructor = K;
-        K.prototype.Lf = K;
-        K.Mf = {};
+        K.prototype.Nf = K;
+        K.Of = {};
         b.TessResultRenderer = K;
         K.prototype.BeginDocument = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return !!ec(c, a);
         };
         K.prototype.AddImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!fc(c, a);
         };
         K.prototype.EndDocument = function() {
-          return !!gc(this.Gf);
+          return !!gc(this.If);
         };
         K.prototype.happy = function() {
-          return !!hc(this.Gf);
+          return !!hc(this.If);
         };
         K.prototype.file_extension = function() {
-          return A(ic(this.Gf));
+          return A(ic(this.If));
         };
         K.prototype.title = K.prototype.title = function() {
-          return A(jc(this.Gf));
+          return A(jc(this.If));
         };
         K.prototype.imagenum = function() {
-          return kc(this.Gf);
+          return kc(this.If);
         };
         K.prototype.__destroy__ = function() {
-          lc(this.Gf);
+          lc(this.If);
         };
-        function Rh() {
+        function Th() {
           throw "cannot construct a LongStarPtr, no constructor in IDL";
         }
-        Rh.prototype = Object.create(G.prototype);
-        Rh.prototype.constructor = Rh;
-        Rh.prototype.Lf = Rh;
-        Rh.Mf = {};
-        b.LongStarPtr = Rh;
-        Rh.prototype.__destroy__ = function() {
-          mc(this.Gf);
-        };
-        function Sh() {
-          throw "cannot construct a VoidPtr, no constructor in IDL";
-        }
-        Sh.prototype = Object.create(G.prototype);
-        Sh.prototype.constructor = Sh;
-        Sh.prototype.Lf = Sh;
-        Sh.Mf = {};
-        b.VoidPtr = Sh;
-        Sh.prototype.__destroy__ = function() {
-          nc(this.Gf);
-        };
-        function L(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = oc(a);
-          Jh(L)[this.Gf] = this;
-        }
-        L.prototype = Object.create(G.prototype);
-        L.prototype.constructor = L;
-        L.prototype.Lf = L;
-        L.Mf = {};
-        b.ResultIterator = L;
-        L.prototype.Begin = function() {
-          pc(this.Gf);
-        };
-        L.prototype.RestartParagraph = function() {
-          qc(this.Gf);
-        };
-        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!rc(this.Gf);
-        };
-        L.prototype.RestartRow = function() {
-          sc(this.Gf);
-        };
-        L.prototype.Next = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!tc(c, a);
-        };
-        L.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!uc(c, a);
-        };
-        L.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          return !!vc(d, a, c);
-        };
-        L.prototype.Cmp = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return wc(c, a);
-        };
-        L.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          xc(d, a, c);
-        };
-        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          return void 0 === h ? !!yc(k, a, c, d, e, g) : !!zc(k, a, c, d, e, g, h);
-        };
-        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return !!Ac(h, a, c, d, e, g);
-        };
-        L.prototype.Empty = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!Bc(c, a);
-        };
-        L.prototype.BlockType = function() {
-          return Cc(this.Gf);
-        };
-        L.prototype.BlockPolygon = function() {
-          return H(Dc(this.Gf), M);
-        };
-        L.prototype.GetBinaryImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Ec(c, a), N);
-        };
-        L.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return H(Fc(h, a, c, d, e, g), N);
-        };
-        L.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return !!Gc(h, a, c, d, e, g);
-        };
-        L.prototype.RowAttributes = function(a, c, d) {
-          var e = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          return !!Hc(e, a, c, d);
-        };
-        L.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          Ic(g, a, c, d, e);
-        };
-        L.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          Jc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphIsLtr = function() {
-          return !!Kc(this.Gf);
-        };
-        L.prototype.GetUTF8Text = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Lc(c, a));
-        };
-        L.prototype.SetLineSeparator = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          Mc(c, a);
-        };
-        L.prototype.SetParagraphSeparator = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          Nc(c, a);
-        };
-        L.prototype.Confidence = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return Oc(c, a);
-        };
-        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
-          var v = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
-          m && "object" === typeof m && (m = m.Gf);
-          return A(Pc(v, a, c, d, e, g, h, k, m));
-        };
-        L.prototype.WordRecognitionLanguage = function() {
-          return A(Qc(this.Gf));
-        };
-        L.prototype.WordDirection = function() {
-          return Rc(this.Gf);
-        };
-        L.prototype.WordIsFromDictionary = function() {
-          return !!Sc(this.Gf);
-        };
-        L.prototype.WordIsNumeric = function() {
-          return !!Tc(this.Gf);
-        };
-        L.prototype.HasBlamerInfo = function() {
-          return !!Uc(this.Gf);
-        };
-        L.prototype.HasTruthString = function() {
-          return !!Vc(this.Gf);
-        };
-        L.prototype.EquivalentToTruth = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return !!Wc(c, a);
-        };
-        L.prototype.WordTruthUTF8Text = function() {
-          return A(Xc(this.Gf));
-        };
-        L.prototype.WordNormedUTF8Text = function() {
-          return A(Yc(this.Gf));
-        };
-        L.prototype.WordLattice = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Zc(c, a));
-        };
-        L.prototype.SymbolIsSuperscript = function() {
-          return !!$c(this.Gf);
-        };
-        L.prototype.SymbolIsSubscript = function() {
-          return !!ad(this.Gf);
-        };
-        L.prototype.SymbolIsDropcap = function() {
-          return !!bd(this.Gf);
-        };
-        L.prototype.__destroy__ = function() {
-          cd(this.Gf);
+        Th.prototype = Object.create(G.prototype);
+        Th.prototype.constructor = Th;
+        Th.prototype.Nf = Th;
+        Th.Of = {};
+        b.LongStarPtr = Th;
+        Th.prototype.__destroy__ = function() {
+          mc(this.If);
         };
         function Uh() {
-          throw "cannot construct a TextlineOrder, no constructor in IDL";
+          throw "cannot construct a VoidPtr, no constructor in IDL";
         }
         Uh.prototype = Object.create(G.prototype);
         Uh.prototype.constructor = Uh;
-        Uh.prototype.Lf = Uh;
-        Uh.Mf = {};
-        b.TextlineOrder = Uh;
+        Uh.prototype.Nf = Uh;
+        Uh.Of = {};
+        b.VoidPtr = Uh;
         Uh.prototype.__destroy__ = function() {
-          dd(this.Gf);
+          nc(this.If);
         };
-        function Vh() {
+        function L(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = oc(a);
+          Lh(L)[this.If] = this;
+        }
+        L.prototype = Object.create(G.prototype);
+        L.prototype.constructor = L;
+        L.prototype.Nf = L;
+        L.Of = {};
+        b.ResultIterator = L;
+        L.prototype.Begin = function() {
+          pc(this.If);
+        };
+        L.prototype.RestartParagraph = function() {
+          qc(this.If);
+        };
+        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
+          return !!rc(this.If);
+        };
+        L.prototype.RestartRow = function() {
+          sc(this.If);
+        };
+        L.prototype.Next = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!tc(c, a);
+        };
+        L.prototype.IsAtBeginningOf = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!uc(c, a);
+        };
+        L.prototype.IsAtFinalElement = function(a, c) {
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          return !!vc(d, a, c);
+        };
+        L.prototype.Cmp = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return wc(c, a);
+        };
+        L.prototype.SetBoundingBoxComponents = function(a, c) {
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          xc(d, a, c);
+        };
+        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
+          var k = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          return void 0 === h ? !!yc(k, a, c, d, e, g) : !!zc(k, a, c, d, e, g, h);
+        };
+        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return !!Ac(h, a, c, d, e, g);
+        };
+        L.prototype.Empty = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!Bc(c, a);
+        };
+        L.prototype.BlockType = function() {
+          return Cc(this.If);
+        };
+        L.prototype.BlockPolygon = function() {
+          return H(Dc(this.If), M);
+        };
+        L.prototype.GetBinaryImage = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Ec(c, a), N);
+        };
+        L.prototype.GetImage = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return H(Fc(h, a, c, d, e, g), N);
+        };
+        L.prototype.Baseline = function(a, c, d, e, g) {
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return !!Gc(h, a, c, d, e, g);
+        };
+        L.prototype.RowAttributes = function(a, c, d) {
+          var e = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          return !!Hc(e, a, c, d);
+        };
+        L.prototype.Orientation = function(a, c, d, e) {
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          Ic(g, a, c, d, e);
+        };
+        L.prototype.ParagraphInfo = function(a, c, d, e) {
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          Jc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphIsLtr = function() {
+          return !!Kc(this.If);
+        };
+        L.prototype.GetUTF8Text = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(Lc(c, a));
+        };
+        L.prototype.SetLineSeparator = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          Mc(c, a);
+        };
+        L.prototype.SetParagraphSeparator = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          Nc(c, a);
+        };
+        L.prototype.Confidence = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return Oc(c, a);
+        };
+        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
+          var v = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
+          m && "object" === typeof m && (m = m.If);
+          return A(Pc(v, a, c, d, e, g, h, k, m));
+        };
+        L.prototype.WordRecognitionLanguage = function() {
+          return A(Qc(this.If));
+        };
+        L.prototype.WordDirection = function() {
+          return Rc(this.If);
+        };
+        L.prototype.WordIsFromDictionary = function() {
+          return !!Sc(this.If);
+        };
+        L.prototype.WordIsNumeric = function() {
+          return !!Tc(this.If);
+        };
+        L.prototype.HasBlamerInfo = function() {
+          return !!Uc(this.If);
+        };
+        L.prototype.HasTruthString = function() {
+          return !!Vc(this.If);
+        };
+        L.prototype.EquivalentToTruth = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          return !!Wc(c, a);
+        };
+        L.prototype.WordTruthUTF8Text = function() {
+          return A(Xc(this.If));
+        };
+        L.prototype.WordNormedUTF8Text = function() {
+          return A(Yc(this.If));
+        };
+        L.prototype.WordLattice = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(Zc(c, a));
+        };
+        L.prototype.SymbolIsSuperscript = function() {
+          return !!$c(this.If);
+        };
+        L.prototype.SymbolIsSubscript = function() {
+          return !!ad(this.If);
+        };
+        L.prototype.SymbolIsDropcap = function() {
+          return !!bd(this.If);
+        };
+        L.prototype.__destroy__ = function() {
+          cd(this.If);
+        };
+        function Wh() {
+          throw "cannot construct a TextlineOrder, no constructor in IDL";
+        }
+        Wh.prototype = Object.create(G.prototype);
+        Wh.prototype.constructor = Wh;
+        Wh.prototype.Nf = Wh;
+        Wh.Of = {};
+        b.TextlineOrder = Wh;
+        Wh.prototype.__destroy__ = function() {
+          dd(this.If);
+        };
+        function Xh() {
           throw "cannot construct a ETEXT_DESC, no constructor in IDL";
         }
-        Vh.prototype = Object.create(G.prototype);
-        Vh.prototype.constructor = Vh;
-        Vh.prototype.Lf = Vh;
-        Vh.Mf = {};
-        b.ETEXT_DESC = Vh;
-        Vh.prototype.__destroy__ = function() {
-          ed(this.Gf);
+        Xh.prototype = Object.create(G.prototype);
+        Xh.prototype.constructor = Xh;
+        Xh.prototype.Nf = Xh;
+        Xh.Of = {};
+        b.ETEXT_DESC = Xh;
+        Xh.prototype.__destroy__ = function() {
+          ed(this.If);
         };
         function O() {
           throw "cannot construct a PageIterator, no constructor in IDL";
         }
         O.prototype = Object.create(G.prototype);
         O.prototype.constructor = O;
-        O.prototype.Lf = O;
-        O.Mf = {};
+        O.prototype.Nf = O;
+        O.Of = {};
         b.PageIterator = O;
         O.prototype.Begin = function() {
-          fd(this.Gf);
+          fd(this.If);
         };
         O.prototype.RestartParagraph = function() {
-          gd(this.Gf);
+          gd(this.If);
         };
         O.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!hd(this.Gf);
+          return !!hd(this.If);
         };
         O.prototype.RestartRow = function() {
-          jd(this.Gf);
+          jd(this.If);
         };
         O.prototype.Next = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!kd(c, a);
         };
         O.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!ld(c, a);
         };
         O.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
           return !!md(d, a, c);
         };
         O.prototype.Cmp = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return nd(c, a);
         };
         O.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
           od(d, a, c);
         };
         O.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
+          var k = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
           return void 0 === h ? !!pd(k, a, c, d, e, g) : !!qd(k, a, c, d, e, g, h);
         };
         O.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return !!rd(h, a, c, d, e, g);
         };
         O.prototype.Empty = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!sd(c, a);
         };
         O.prototype.BlockType = function() {
-          return td(this.Gf);
+          return td(this.If);
         };
         O.prototype.BlockPolygon = function() {
-          return H(ud(this.Gf), M);
+          return H(ud(this.If), M);
         };
         O.prototype.GetBinaryImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return H(vd(c, a), N);
         };
         O.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return H(wd(h, a, c, d, e, g), N);
         };
         O.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
           return !!xd(h, a, c, d, e, g);
         };
         O.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           yd(g, a, c, d, e);
         };
         O.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           zd(g, a, c, d, e);
         };
         O.prototype.__destroy__ = function() {
-          Ad(this.Gf);
+          Ad(this.If);
         };
-        function Wh() {
+        function Yh() {
           throw "cannot construct a WritingDirection, no constructor in IDL";
         }
-        Wh.prototype = Object.create(G.prototype);
-        Wh.prototype.constructor = Wh;
-        Wh.prototype.Lf = Wh;
-        Wh.Mf = {};
-        b.WritingDirection = Wh;
-        Wh.prototype.__destroy__ = function() {
-          Bd(this.Gf);
+        Yh.prototype = Object.create(G.prototype);
+        Yh.prototype.constructor = Yh;
+        Yh.prototype.Nf = Yh;
+        Yh.Of = {};
+        b.WritingDirection = Yh;
+        Yh.prototype.__destroy__ = function() {
+          Bd(this.If);
         };
-        function Xh(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = Cd(a);
-          Jh(Xh)[this.Gf] = this;
+        function Zh(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = Cd(a);
+          Lh(Zh)[this.If] = this;
         }
-        Xh.prototype = Object.create(G.prototype);
-        Xh.prototype.constructor = Xh;
-        Xh.prototype.Lf = Xh;
-        Xh.Mf = {};
-        b.WordChoiceIterator = Xh;
-        Xh.prototype.Next = function() {
-          return !!Dd(this.Gf);
+        Zh.prototype = Object.create(G.prototype);
+        Zh.prototype.constructor = Zh;
+        Zh.prototype.Nf = Zh;
+        Zh.Of = {};
+        b.WordChoiceIterator = Zh;
+        Zh.prototype.Next = function() {
+          return !!Dd(this.If);
         };
-        Xh.prototype.GetUTF8Text = function() {
-          return A(Ed(this.Gf));
+        Zh.prototype.GetUTF8Text = function() {
+          return A(Ed(this.If));
         };
-        Xh.prototype.Confidence = function() {
-          return Fd(this.Gf);
+        Zh.prototype.Confidence = function() {
+          return Fd(this.If);
         };
-        Xh.prototype.__destroy__ = function() {
-          Gd(this.Gf);
+        Zh.prototype.__destroy__ = function() {
+          Gd(this.If);
         };
         function P() {
           throw "cannot construct a Box, no constructor in IDL";
         }
         P.prototype = Object.create(G.prototype);
         P.prototype.constructor = P;
-        P.prototype.Lf = P;
-        P.Mf = {};
+        P.prototype.Nf = P;
+        P.Of = {};
         b.Box = P;
-        P.prototype.get_x = P.prototype.Og = function() {
-          return Hd(this.Gf);
+        P.prototype.get_x = P.prototype.Qg = function() {
+          return Hd(this.If);
         };
-        Object.defineProperty(P.prototype, "x", { get: P.prototype.Og });
-        P.prototype.get_y = P.prototype.Pg = function() {
-          return Id(this.Gf);
+        Object.defineProperty(P.prototype, "x", { get: P.prototype.Qg });
+        P.prototype.get_y = P.prototype.Rg = function() {
+          return Id(this.If);
         };
-        Object.defineProperty(P.prototype, "y", { get: P.prototype.Pg });
-        P.prototype.get_w = P.prototype.Ng = function() {
-          return Jd(this.Gf);
+        Object.defineProperty(P.prototype, "y", { get: P.prototype.Rg });
+        P.prototype.get_w = P.prototype.Pg = function() {
+          return Jd(this.If);
         };
-        Object.defineProperty(P.prototype, "w", { get: P.prototype.Ng });
-        P.prototype.get_h = P.prototype.Mg = function() {
-          return Kd(this.Gf);
+        Object.defineProperty(P.prototype, "w", { get: P.prototype.Pg });
+        P.prototype.get_h = P.prototype.Og = function() {
+          return Kd(this.If);
         };
-        Object.defineProperty(P.prototype, "h", { get: P.prototype.Mg });
-        P.prototype.get_refcount = P.prototype.ag = function() {
-          return Ld(this.Gf);
+        Object.defineProperty(P.prototype, "h", { get: P.prototype.Og });
+        P.prototype.get_refcount = P.prototype.cg = function() {
+          return Ld(this.If);
         };
-        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.ag });
+        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.cg });
         P.prototype.__destroy__ = function() {
-          Md(this.Gf);
+          Md(this.If);
         };
         function Q(a, c, d) {
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          d && "object" === typeof d && (d = d.Gf);
-          this.Gf = Nd(a, c, d);
-          Jh(Q)[this.Gf] = this;
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          d && "object" === typeof d && (d = d.If);
+          this.If = Nd(a, c, d);
+          Lh(Q)[this.If] = this;
         }
         Q.prototype = Object.create(G.prototype);
         Q.prototype.constructor = Q;
-        Q.prototype.Lf = Q;
-        Q.Mf = {};
+        Q.prototype.Nf = Q;
+        Q.Of = {};
         b.TessPDFRenderer = Q;
         Q.prototype.BeginDocument = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return !!Od(c, a);
         };
         Q.prototype.AddImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return !!Pd(c, a);
         };
         Q.prototype.EndDocument = function() {
-          return !!Qd(this.Gf);
+          return !!Qd(this.If);
         };
         Q.prototype.happy = function() {
-          return !!Rd(this.Gf);
+          return !!Rd(this.If);
         };
         Q.prototype.file_extension = function() {
-          return A(Sd(this.Gf));
+          return A(Sd(this.If));
         };
         Q.prototype.title = Q.prototype.title = function() {
-          return A(Td(this.Gf));
+          return A(Td(this.If));
         };
         Q.prototype.imagenum = function() {
-          return Ud(this.Gf);
+          return Ud(this.If);
         };
         Q.prototype.__destroy__ = function() {
-          Vd(this.Gf);
+          Vd(this.If);
         };
-        function Yh() {
+        function $h() {
           throw "cannot construct a PixaPtr, no constructor in IDL";
-        }
-        Yh.prototype = Object.create(G.prototype);
-        Yh.prototype.constructor = Yh;
-        Yh.prototype.Lf = Yh;
-        Yh.Mf = {};
-        b.PixaPtr = Yh;
-        Yh.prototype.__destroy__ = function() {
-          Wd(this.Gf);
-        };
-        function Zh() {
-          throw "cannot construct a FloatPtr, no constructor in IDL";
-        }
-        Zh.prototype = Object.create(G.prototype);
-        Zh.prototype.constructor = Zh;
-        Zh.prototype.Lf = Zh;
-        Zh.Mf = {};
-        b.FloatPtr = Zh;
-        Zh.prototype.__destroy__ = function() {
-          Xd(this.Gf);
-        };
-        function $h(a) {
-          a && "object" === typeof a && (a = a.Gf);
-          this.Gf = Yd(a);
-          Jh($h)[this.Gf] = this;
         }
         $h.prototype = Object.create(G.prototype);
         $h.prototype.constructor = $h;
-        $h.prototype.Lf = $h;
-        $h.Mf = {};
-        b.ChoiceIterator = $h;
-        $h.prototype.Next = function() {
-          return !!Zd(this.Gf);
-        };
-        $h.prototype.GetUTF8Text = function() {
-          return A($d(this.Gf));
-        };
-        $h.prototype.Confidence = function() {
-          return ae(this.Gf);
-        };
+        $h.prototype.Nf = $h;
+        $h.Of = {};
+        b.PixaPtr = $h;
         $h.prototype.__destroy__ = function() {
-          be(this.Gf);
+          Wd(this.If);
         };
         function ai() {
-          throw "cannot construct a PixPtr, no constructor in IDL";
+          throw "cannot construct a FloatPtr, no constructor in IDL";
         }
         ai.prototype = Object.create(G.prototype);
         ai.prototype.constructor = ai;
-        ai.prototype.Lf = ai;
-        ai.Mf = {};
-        b.PixPtr = ai;
+        ai.prototype.Nf = ai;
+        ai.Of = {};
+        b.FloatPtr = ai;
         ai.prototype.__destroy__ = function() {
-          ce(this.Gf);
+          Xd(this.If);
         };
-        function bi() {
-          throw "cannot construct a UNICHARSET, no constructor in IDL";
+        function bi(a) {
+          a && "object" === typeof a && (a = a.If);
+          this.If = Yd(a);
+          Lh(bi)[this.If] = this;
         }
         bi.prototype = Object.create(G.prototype);
         bi.prototype.constructor = bi;
-        bi.prototype.Lf = bi;
-        bi.Mf = {};
-        b.UNICHARSET = bi;
-        bi.prototype.get_script_from_script_id = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(de(c, a));
+        bi.prototype.Nf = bi;
+        bi.Of = {};
+        b.ChoiceIterator = bi;
+        bi.prototype.Next = function() {
+          return !!Zd(this.If);
         };
-        bi.prototype.get_script_id_from_name = function(a) {
-          var c = this.Gf;
-          I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return ee(c, a);
+        bi.prototype.GetUTF8Text = function() {
+          return A($d(this.If));
         };
-        bi.prototype.get_script_table_size = function() {
-          return fe(this.Gf);
+        bi.prototype.Confidence = function() {
+          return ae(this.If);
         };
         bi.prototype.__destroy__ = function() {
-          ge(this.Gf);
+          be(this.If);
         };
         function ci() {
-          throw "cannot construct a IntPtr, no constructor in IDL";
+          throw "cannot construct a PixPtr, no constructor in IDL";
         }
         ci.prototype = Object.create(G.prototype);
         ci.prototype.constructor = ci;
-        ci.prototype.Lf = ci;
-        ci.Mf = {};
-        b.IntPtr = ci;
+        ci.prototype.Nf = ci;
+        ci.Of = {};
+        b.PixPtr = ci;
         ci.prototype.__destroy__ = function() {
-          he(this.Gf);
+          ce(this.If);
         };
         function di() {
-          throw "cannot construct a Orientation, no constructor in IDL";
+          throw "cannot construct a UNICHARSET, no constructor in IDL";
         }
         di.prototype = Object.create(G.prototype);
         di.prototype.constructor = di;
-        di.prototype.Lf = di;
-        di.Mf = {};
-        b.Orientation = di;
+        di.prototype.Nf = di;
+        di.Of = {};
+        b.UNICHARSET = di;
+        di.prototype.get_script_from_script_id = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(de(c, a));
+        };
+        di.prototype.get_script_id_from_name = function(a) {
+          var c = this.If;
+          I();
+          a = a && "object" === typeof a ? a.If : J(a);
+          return ee(c, a);
+        };
+        di.prototype.get_script_table_size = function() {
+          return fe(this.If);
+        };
         di.prototype.__destroy__ = function() {
-          ie(this.Gf);
+          ge(this.If);
+        };
+        function ei() {
+          throw "cannot construct a IntPtr, no constructor in IDL";
+        }
+        ei.prototype = Object.create(G.prototype);
+        ei.prototype.constructor = ei;
+        ei.prototype.Nf = ei;
+        ei.Of = {};
+        b.IntPtr = ei;
+        ei.prototype.__destroy__ = function() {
+          he(this.If);
+        };
+        function fi() {
+          throw "cannot construct a Orientation, no constructor in IDL";
+        }
+        fi.prototype = Object.create(G.prototype);
+        fi.prototype.constructor = fi;
+        fi.prototype.Nf = fi;
+        fi.Of = {};
+        b.Orientation = fi;
+        fi.prototype.__destroy__ = function() {
+          ie(this.If);
         };
         function R() {
           throw "cannot construct a OSBestResult, no constructor in IDL";
         }
         R.prototype = Object.create(G.prototype);
         R.prototype.constructor = R;
-        R.prototype.Lf = R;
-        R.Mf = {};
+        R.prototype.Nf = R;
+        R.Of = {};
         b.OSBestResult = R;
-        R.prototype.get_orientation_id = R.prototype.Yh = function() {
-          return je(this.Gf);
+        R.prototype.get_orientation_id = R.prototype.$h = function() {
+          return je(this.If);
         };
-        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Yh });
-        R.prototype.get_script_id = R.prototype.ai = function() {
-          return ke(this.Gf);
+        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.$h });
+        R.prototype.get_script_id = R.prototype.ci = function() {
+          return ke(this.If);
         };
-        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.ai });
-        R.prototype.get_sconfidence = R.prototype.$h = function() {
-          return le(this.Gf);
+        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.ci });
+        R.prototype.get_sconfidence = R.prototype.bi = function() {
+          return le(this.If);
         };
-        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.$h });
-        R.prototype.get_oconfidence = R.prototype.Xh = function() {
-          return me(this.Gf);
+        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.bi });
+        R.prototype.get_oconfidence = R.prototype.Zh = function() {
+          return me(this.If);
         };
-        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Xh });
+        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Zh });
         R.prototype.__destroy__ = function() {
-          ne(this.Gf);
+          ne(this.If);
         };
         function S() {
           throw "cannot construct a Boxa, no constructor in IDL";
         }
         S.prototype = Object.create(G.prototype);
         S.prototype.constructor = S;
-        S.prototype.Lf = S;
-        S.Mf = {};
+        S.prototype.Nf = S;
+        S.Of = {};
         b.Boxa = S;
-        S.prototype.get_n = S.prototype.eg = function() {
-          return oe(this.Gf);
+        S.prototype.get_n = S.prototype.gg = function() {
+          return oe(this.If);
         };
-        Object.defineProperty(S.prototype, "n", { get: S.prototype.eg });
-        S.prototype.get_nalloc = S.prototype.fg = function() {
-          return pe(this.Gf);
+        Object.defineProperty(S.prototype, "n", { get: S.prototype.gg });
+        S.prototype.get_nalloc = S.prototype.hg = function() {
+          return pe(this.If);
         };
-        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.fg });
-        S.prototype.get_refcount = S.prototype.ag = function() {
-          return qe(this.Gf);
+        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.hg });
+        S.prototype.get_refcount = S.prototype.cg = function() {
+          return qe(this.If);
         };
-        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.ag });
-        S.prototype.get_box = S.prototype.Qh = function() {
-          return H(re(this.Gf), ei);
+        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.cg });
+        S.prototype.get_box = S.prototype.Sh = function() {
+          return H(re(this.If), gi);
         };
-        Object.defineProperty(S.prototype, "box", { get: S.prototype.Qh });
+        Object.defineProperty(S.prototype, "box", { get: S.prototype.Sh });
         S.prototype.__destroy__ = function() {
-          se(this.Gf);
+          se(this.If);
         };
         function T() {
           throw "cannot construct a PixColormap, no constructor in IDL";
         }
         T.prototype = Object.create(G.prototype);
         T.prototype.constructor = T;
-        T.prototype.Lf = T;
-        T.Mf = {};
+        T.prototype.Nf = T;
+        T.Of = {};
         b.PixColormap = T;
-        T.prototype.get_array = T.prototype.Oh = function() {
-          return te(this.Gf);
+        T.prototype.get_array = T.prototype.Qh = function() {
+          return te(this.If);
         };
-        Object.defineProperty(T.prototype, "array", { get: T.prototype.Oh });
-        T.prototype.get_depth = T.prototype.Vh = function() {
-          return ue(this.Gf);
+        Object.defineProperty(T.prototype, "array", { get: T.prototype.Qh });
+        T.prototype.get_depth = T.prototype.Xh = function() {
+          return ue(this.If);
         };
-        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Vh });
-        T.prototype.get_nalloc = T.prototype.fg = function() {
-          return ve(this.Gf);
+        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Xh });
+        T.prototype.get_nalloc = T.prototype.hg = function() {
+          return ve(this.If);
         };
-        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.fg });
-        T.prototype.get_n = T.prototype.eg = function() {
-          return we(this.Gf);
+        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.hg });
+        T.prototype.get_n = T.prototype.gg = function() {
+          return we(this.If);
         };
-        Object.defineProperty(T.prototype, "n", { get: T.prototype.eg });
+        Object.defineProperty(T.prototype, "n", { get: T.prototype.gg });
         T.prototype.__destroy__ = function() {
-          xe(this.Gf);
+          xe(this.If);
         };
         function M() {
           throw "cannot construct a Pta, no constructor in IDL";
         }
         M.prototype = Object.create(G.prototype);
         M.prototype.constructor = M;
-        M.prototype.Lf = M;
-        M.Mf = {};
+        M.prototype.Nf = M;
+        M.Of = {};
         b.Pta = M;
-        M.prototype.get_n = M.prototype.eg = function() {
-          return ye(this.Gf);
+        M.prototype.get_n = M.prototype.gg = function() {
+          return ye(this.If);
         };
-        Object.defineProperty(M.prototype, "n", { get: M.prototype.eg });
-        M.prototype.get_nalloc = M.prototype.fg = function() {
-          return ze(this.Gf);
+        Object.defineProperty(M.prototype, "n", { get: M.prototype.gg });
+        M.prototype.get_nalloc = M.prototype.hg = function() {
+          return ze(this.If);
         };
-        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.fg });
-        M.prototype.get_refcount = M.prototype.ag = function() {
-          return Ae(this.Gf);
+        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.hg });
+        M.prototype.get_refcount = M.prototype.cg = function() {
+          return Ae(this.If);
         };
-        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.ag });
-        M.prototype.get_x = M.prototype.Og = function() {
-          return H(Be(this.Gf), Zh);
+        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.cg });
+        M.prototype.get_x = M.prototype.Qg = function() {
+          return H(Be(this.If), ai);
         };
-        Object.defineProperty(M.prototype, "x", { get: M.prototype.Og });
-        M.prototype.get_y = M.prototype.Pg = function() {
-          return H(Ce(this.Gf), Zh);
+        Object.defineProperty(M.prototype, "x", { get: M.prototype.Qg });
+        M.prototype.get_y = M.prototype.Rg = function() {
+          return H(Ce(this.If), ai);
         };
-        Object.defineProperty(M.prototype, "y", { get: M.prototype.Pg });
+        Object.defineProperty(M.prototype, "y", { get: M.prototype.Rg });
         M.prototype.__destroy__ = function() {
-          De(this.Gf);
+          De(this.If);
         };
         function N() {
           throw "cannot construct a Pix, no constructor in IDL";
         }
         N.prototype = Object.create(G.prototype);
         N.prototype.constructor = N;
-        N.prototype.Lf = N;
-        N.Mf = {};
+        N.prototype.Nf = N;
+        N.Of = {};
         b.Pix = N;
-        N.prototype.get_w = N.prototype.Ng = function() {
-          return Ee(this.Gf);
+        N.prototype.get_w = N.prototype.Pg = function() {
+          return Ee(this.If);
         };
-        Object.defineProperty(N.prototype, "w", { get: N.prototype.Ng });
-        N.prototype.get_h = N.prototype.Mg = function() {
-          return Fe(this.Gf);
+        Object.defineProperty(N.prototype, "w", { get: N.prototype.Pg });
+        N.prototype.get_h = N.prototype.Og = function() {
+          return Fe(this.If);
         };
-        Object.defineProperty(N.prototype, "h", { get: N.prototype.Mg });
-        N.prototype.get_d = N.prototype.Th = function() {
-          return Ge(this.Gf);
+        Object.defineProperty(N.prototype, "h", { get: N.prototype.Og });
+        N.prototype.get_d = N.prototype.Vh = function() {
+          return Ge(this.If);
         };
-        Object.defineProperty(N.prototype, "d", { get: N.prototype.Th });
-        N.prototype.get_spp = N.prototype.ci = function() {
-          return He(this.Gf);
+        Object.defineProperty(N.prototype, "d", { get: N.prototype.Vh });
+        N.prototype.get_spp = N.prototype.ei = function() {
+          return He(this.If);
         };
-        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ci });
-        N.prototype.get_wpl = N.prototype.fi = function() {
-          return Ie(this.Gf);
+        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ei });
+        N.prototype.get_wpl = N.prototype.hi = function() {
+          return Ie(this.If);
         };
-        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.fi });
-        N.prototype.get_refcount = N.prototype.ag = function() {
-          return Je(this.Gf);
+        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.hi });
+        N.prototype.get_refcount = N.prototype.cg = function() {
+          return Je(this.If);
         };
-        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.ag });
-        N.prototype.get_xres = N.prototype.gi = function() {
-          return Ke(this.Gf);
+        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.cg });
+        N.prototype.get_xres = N.prototype.ii = function() {
+          return Ke(this.If);
         };
-        Object.defineProperty(N.prototype, "xres", { get: N.prototype.gi });
-        N.prototype.get_yres = N.prototype.hi = function() {
-          return Le(this.Gf);
+        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ii });
+        N.prototype.get_yres = N.prototype.ji = function() {
+          return Le(this.If);
         };
-        Object.defineProperty(N.prototype, "yres", { get: N.prototype.hi });
-        N.prototype.get_informat = N.prototype.Wh = function() {
-          return Me(this.Gf);
+        Object.defineProperty(N.prototype, "yres", { get: N.prototype.ji });
+        N.prototype.get_informat = N.prototype.Yh = function() {
+          return Me(this.If);
         };
-        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Wh });
-        N.prototype.get_special = N.prototype.bi = function() {
-          return Ne(this.Gf);
+        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Yh });
+        N.prototype.get_special = N.prototype.di = function() {
+          return Ne(this.If);
         };
-        Object.defineProperty(N.prototype, "special", { get: N.prototype.bi });
-        N.prototype.get_text = N.prototype.di = function() {
-          return A(Oe(this.Gf));
+        Object.defineProperty(N.prototype, "special", { get: N.prototype.di });
+        N.prototype.get_text = N.prototype.fi = function() {
+          return A(Oe(this.If));
         };
-        Object.defineProperty(N.prototype, "text", { get: N.prototype.di });
-        N.prototype.get_colormap = N.prototype.Sh = function() {
-          return H(Pe(this.Gf), T);
+        Object.defineProperty(N.prototype, "text", { get: N.prototype.fi });
+        N.prototype.get_colormap = N.prototype.Uh = function() {
+          return H(Pe(this.If), T);
         };
-        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Sh });
-        N.prototype.get_data = N.prototype.Uh = function() {
-          return Qe(this.Gf);
+        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Uh });
+        N.prototype.get_data = N.prototype.Wh = function() {
+          return Qe(this.If);
         };
-        Object.defineProperty(N.prototype, "data", { get: N.prototype.Uh });
+        Object.defineProperty(N.prototype, "data", { get: N.prototype.Wh });
         N.prototype.__destroy__ = function() {
-          Re(this.Gf);
+          Re(this.If);
         };
-        function fi() {
+        function hi() {
           throw "cannot construct a DoublePtr, no constructor in IDL";
         }
-        fi.prototype = Object.create(G.prototype);
-        fi.prototype.constructor = fi;
-        fi.prototype.Lf = fi;
-        fi.Mf = {};
-        b.DoublePtr = fi;
-        fi.prototype.__destroy__ = function() {
-          Se(this.Gf);
+        hi.prototype = Object.create(G.prototype);
+        hi.prototype.constructor = hi;
+        hi.prototype.Nf = hi;
+        hi.Of = {};
+        b.DoublePtr = hi;
+        hi.prototype.__destroy__ = function() {
+          Se(this.If);
+        };
+        function ii() {
+          throw "cannot construct a Dawg, no constructor in IDL";
+        }
+        ii.prototype = Object.create(G.prototype);
+        ii.prototype.constructor = ii;
+        ii.prototype.Nf = ii;
+        ii.Of = {};
+        b.Dawg = ii;
+        ii.prototype.__destroy__ = function() {
+          Te(this.If);
         };
         function gi() {
-          throw "cannot construct a Dawg, no constructor in IDL";
+          throw "cannot construct a BoxPtr, no constructor in IDL";
         }
         gi.prototype = Object.create(G.prototype);
         gi.prototype.constructor = gi;
-        gi.prototype.Lf = gi;
-        gi.Mf = {};
-        b.Dawg = gi;
+        gi.prototype.Nf = gi;
+        gi.Of = {};
+        b.BoxPtr = gi;
         gi.prototype.__destroy__ = function() {
-          Te(this.Gf);
-        };
-        function ei() {
-          throw "cannot construct a BoxPtr, no constructor in IDL";
-        }
-        ei.prototype = Object.create(G.prototype);
-        ei.prototype.constructor = ei;
-        ei.prototype.Lf = ei;
-        ei.Mf = {};
-        b.BoxPtr = ei;
-        ei.prototype.__destroy__ = function() {
-          Ue(this.Gf);
+          Ue(this.If);
         };
         function V() {
-          this.Gf = Ve();
-          Jh(V)[this.Gf] = this;
+          this.If = Ve();
+          Lh(V)[this.If] = this;
         }
         V.prototype = Object.create(G.prototype);
         V.prototype.constructor = V;
-        V.prototype.Lf = V;
-        V.Mf = {};
+        V.prototype.Nf = V;
+        V.Of = {};
         b.TessBaseAPI = V;
         V.prototype.Version = function() {
-          return A(We(this.Gf));
+          return A(We(this.If));
         };
         V.prototype.SetInputName = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           Xe(c, a);
         };
         V.prototype.GetInputName = function() {
-          return A(Ye(this.Gf));
+          return A(Ye(this.If));
         };
         V.prototype.SetInputImage = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           Ze(c, a);
         };
         V.prototype.GetInputImage = function() {
-          return H($e(this.Gf), N);
+          return H($e(this.If), N);
         };
         V.prototype.GetSourceYResolution = function() {
-          return af(this.Gf);
+          return af(this.If);
         };
         V.prototype.GetDatapath = function() {
-          return A(bf(this.Gf));
+          return A(bf(this.If));
         };
         V.prototype.SetOutputName = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           cf(c, a);
         };
         V.prototype.SetVariable = V.prototype.SetVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!df(d, a, c);
         };
         V.prototype.SetDebugVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!ef(d, a, c);
         };
         V.prototype.GetIntVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!ff(d, a, c);
         };
         V.prototype.GetBoolVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!gf(d, a, c);
         };
         V.prototype.GetDoubleVariable = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c && "object" === typeof c && (c = c.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c && "object" === typeof c && (c = c.If);
           return !!hf(d, a, c);
         };
         V.prototype.GetStringVariable = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           return A(jf(c, a));
         };
         V.prototype.Init = function(a, c, d, e) {
           void 0 === d && void 0 !== e && (d = 3);
-          var g = this.Gf;
+          var g = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          e = e && "object" === typeof e ? e.Gf : J(e);
-          d && "object" === typeof d && (d = d.Gf);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          e = e && "object" === typeof e ? e.If : J(e);
+          d && "object" === typeof d && (d = d.If);
           return void 0 === d && void 0 !== e ? of(g, a, c, 3, e) : void 0 === d ? mf(g, a, c) : void 0 === e ? nf(g, a, c, d) : of(g, a, c, d, e);
         };
         V.prototype.GetInitLanguagesAsString = function() {
-          return A(pf(this.Gf));
+          return A(pf(this.If));
         };
         V.prototype.InitForAnalysePage = function() {
-          qf(this.Gf);
+          qf(this.If);
         };
         V.prototype.SaveParameters = function() {
-          kf(this.Gf);
+          kf(this.If);
         };
         V.prototype.RestoreParameters = function() {
-          lf(this.Gf);
+          lf(this.If);
         };
         V.prototype.ReadConfigFile = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           rf(c, a);
         };
         V.prototype.ReadDebugConfigFile = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
+          a = a && "object" === typeof a ? a.If : J(a);
           sf(c, a);
         };
         V.prototype.SetPageSegMode = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           tf(c, a);
         };
         V.prototype.GetPageSegMode = function() {
-          return uf(this.Gf);
+          return uf(this.If);
         };
         V.prototype.TesseractRect = function(a, c, d, e, g, h, k) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
+          var m = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
           return A(vf(m, a, c, d, e, g, h, k));
         };
         V.prototype.ClearAdaptiveClassifier = function() {
-          wf(this.Gf);
+          wf(this.If);
         };
-        V.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          void 0 === c || null === c ? xf(m, a, h, k) : yf(m, a, c, d, e, g, h, k);
+        V.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0, m = false) {
+          var v = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          void 0 === c || null === c ? xf(v, a, h, k, m) : yf(v, a, c, d, e, g, h, k, m);
         };
-        V.prototype.SetImageFile = function(a = 1, c = 0) {
-          return zf(this.Gf, a, c);
+        V.prototype.SetImageFile = function(a = 1, c = 0, d = false) {
+          return zf(this.If, a, c, d);
         };
         V.prototype.SetSourceResolution = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           Af(c, a);
         };
         V.prototype.SetRectangle = function(a, c, d, e) {
-          var g = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
+          var g = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
           Bf(g, a, c, d, e);
         };
         V.prototype.GetThresholdedImage = function() {
-          return H(Cf(this.Gf), N);
+          return H(Cf(this.If), N);
         };
         V.prototype.WriteImage = function(a) {
-          Df(this.Gf, a);
+          Df(this.If, a);
         };
         V.prototype.GetRegions = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Gf(c, a), S);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Hf(c, a), S);
         };
         V.prototype.GetTextlines = function(a, c, d, e, g) {
-          var h = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          return void 0 === d ? H(Hf(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(If(h, a, c, d, e, g), S);
+          var h = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          return void 0 === d ? H(If(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Jf(h, a, c, d, e, g), S);
         };
         V.prototype.GetStrips = function(a, c) {
-          var d = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          return H(Jf(d, a, c), S);
+          var d = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          return H(Kf(d, a, c), S);
         };
         V.prototype.GetWords = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(Kf(c, a), S);
-        };
-        V.prototype.GetConnectedComponents = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
           return H(Lf(c, a), S);
         };
+        V.prototype.GetConnectedComponents = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(Mf(c, a), S);
+        };
         V.prototype.GetComponentImages = function(a, c, d, e, g, h, k) {
-          var m = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          k && "object" === typeof k && (k = k.Gf);
-          return void 0 === g ? H(Mf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Nf(
+          var m = this.If;
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          k && "object" === typeof k && (k = k.If);
+          return void 0 === g ? H(Nf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Of(
             m,
             a,
             c,
@@ -17726,318 +17755,345 @@ var require_tesseract_core_lstm = __commonJS({
           ), S);
         };
         V.prototype.GetThresholdedImageScaleFactor = function() {
-          return Of(this.Gf);
+          return Pf(this.If);
         };
         V.prototype.AnalyseLayout = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return void 0 === a ? H(Pf(c), O) : H(Qf(c, a), O);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return void 0 === a ? H(Qf(c), O) : H(Rf(c, a), O);
         };
         V.prototype.Recognize = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return Rf(c, a);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return Sf(c, a);
         };
         V.prototype.FindLines = function() {
-          return Ef(this.Gf);
+          return Ef(this.If);
         };
         V.prototype.GetGradient = function() {
-          return Ff(this.Gf);
+          return Ff(this.If);
+        };
+        V.prototype.GetEstimatedResolution = function() {
+          return Gf(this.If);
         };
         V.prototype.ProcessPages = function(a, c, d, e) {
-          var g = this.Gf;
+          var g = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          c = c && "object" === typeof c ? c.Gf : J(c);
-          d && "object" === typeof d && (d = d.Gf);
-          e && "object" === typeof e && (e = e.Gf);
-          return !!Sf(g, a, c, d, e);
+          a = a && "object" === typeof a ? a.If : J(a);
+          c = c && "object" === typeof c ? c.If : J(c);
+          d && "object" === typeof d && (d = d.If);
+          e && "object" === typeof e && (e = e.If);
+          return !!Tf(g, a, c, d, e);
         };
         V.prototype.ProcessPage = function(a, c, d, e, g, h) {
-          var k = this.Gf;
+          var k = this.If;
           I();
-          a && "object" === typeof a && (a = a.Gf);
-          c && "object" === typeof c && (c = c.Gf);
-          d = d && "object" === typeof d ? d.Gf : J(d);
-          e = e && "object" === typeof e ? e.Gf : J(e);
-          g && "object" === typeof g && (g = g.Gf);
-          h && "object" === typeof h && (h = h.Gf);
-          return !!Tf(k, a, c, d, e, g, h);
+          a && "object" === typeof a && (a = a.If);
+          c && "object" === typeof c && (c = c.If);
+          d = d && "object" === typeof d ? d.If : J(d);
+          e = e && "object" === typeof e ? e.If : J(e);
+          g && "object" === typeof g && (g = g.If);
+          h && "object" === typeof h && (h = h.If);
+          return !!Uf(k, a, c, d, e, g, h);
         };
         V.prototype.GetIterator = function() {
-          return H(Uf(this.Gf), L);
+          return H(Vf(this.If), L);
         };
         V.prototype.GetUTF8Text = function() {
-          return A(Vf(this.Gf));
+          var a = Wf(this.If), c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetHOCRText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Wf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Xf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetTSVText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Xf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Zf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
+        };
+        V.prototype.GetJSONText = function(a) {
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = Yf(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetBoxText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(Yf(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = $f(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetUNLVText = function() {
-          return A(Zf(this.Gf));
+          var a = ag(this.If), c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.GetOsdText = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A($f(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          a = bg(c, a);
+          c = A(a);
+          Gh(a);
+          return c;
         };
         V.prototype.MeanTextConf = function() {
-          return ag(this.Gf);
+          return cg(this.If);
         };
         V.prototype.AllWordConfidences = function() {
-          return H(bg(this.Gf), ci);
+          return H(dg(this.If), ei);
         };
         V.prototype.AdaptToWordStr = function(a, c) {
-          var d = this.Gf;
+          var d = this.If;
           I();
-          a && "object" === typeof a && (a = a.Gf);
-          c = c && "object" === typeof c ? c.Gf : J(c);
+          a && "object" === typeof a && (a = a.If);
+          c = c && "object" === typeof c ? c.If : J(c);
           return !!_emscripten_bind_TessBaseAPI_AdaptToWordStr_2(d, a, c);
         };
         V.prototype.Clear = function() {
-          cg(this.Gf);
+          eg(this.If);
         };
         V.prototype.End = function() {
-          dg(this.Gf);
+          fg(this.If);
         };
         V.prototype.ClearPersistentCache = function() {
-          eg(this.Gf);
+          gg(this.If);
         };
         V.prototype.IsValidWord = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return fg(c, a);
+          a = a && "object" === typeof a ? a.If : J(a);
+          return hg(c, a);
         };
         V.prototype.IsValidCharacter = function(a) {
-          var c = this.Gf;
+          var c = this.If;
           I();
-          a = a && "object" === typeof a ? a.Gf : J(a);
-          return !!gg(c, a);
+          a = a && "object" === typeof a ? a.If : J(a);
+          return !!ig(c, a);
         };
         V.prototype.DetectOS = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return !!hg(c, a);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return !!jg(c, a);
         };
         V.prototype.GetUnichar = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return A(ig(c, a));
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return A(kg(c, a));
         };
         V.prototype.GetDawg = function(a) {
-          var c = this.Gf;
-          a && "object" === typeof a && (a = a.Gf);
-          return H(jg(c, a), gi);
+          var c = this.If;
+          a && "object" === typeof a && (a = a.If);
+          return H(lg(c, a), ii);
         };
         V.prototype.NumDawgs = function() {
-          return kg(this.Gf);
+          return mg(this.If);
         };
         V.prototype.oem = function() {
-          return lg(this.Gf);
+          return ng(this.If);
         };
         V.prototype.__destroy__ = function() {
-          mg(this.Gf);
+          og(this.If);
         };
         function Y() {
-          this.Gf = ng();
-          Jh(Y)[this.Gf] = this;
+          this.If = pg();
+          Lh(Y)[this.If] = this;
         }
         Y.prototype = Object.create(G.prototype);
         Y.prototype.constructor = Y;
-        Y.prototype.Lf = Y;
-        Y.Mf = {};
+        Y.prototype.Nf = Y;
+        Y.Of = {};
         b.OSResults = Y;
         Y.prototype.print_scores = function() {
-          og(this.Gf);
+          qg(this.If);
         };
-        Y.prototype.get_best_result = Y.prototype.Ph = function() {
-          return H(pg(this.Gf), R);
+        Y.prototype.get_best_result = Y.prototype.Rh = function() {
+          return H(rg(this.If), R);
         };
-        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Ph });
-        Y.prototype.get_unicharset = Y.prototype.ei = function() {
-          return H(qg(this.Gf), bi);
+        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Rh });
+        Y.prototype.get_unicharset = Y.prototype.gi = function() {
+          return H(sg(this.If), di);
         };
-        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ei });
+        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.gi });
         Y.prototype.__destroy__ = function() {
-          rg(this.Gf);
+          tg(this.If);
         };
         function Z() {
           throw "cannot construct a Pixa, no constructor in IDL";
         }
         Z.prototype = Object.create(G.prototype);
         Z.prototype.constructor = Z;
-        Z.prototype.Lf = Z;
-        Z.Mf = {};
+        Z.prototype.Nf = Z;
+        Z.Of = {};
         b.Pixa = Z;
-        Z.prototype.get_n = Z.prototype.eg = function() {
-          return sg(this.Gf);
+        Z.prototype.get_n = Z.prototype.gg = function() {
+          return ug(this.If);
         };
-        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.eg });
-        Z.prototype.get_nalloc = Z.prototype.fg = function() {
-          return tg(this.Gf);
+        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.gg });
+        Z.prototype.get_nalloc = Z.prototype.hg = function() {
+          return vg(this.If);
         };
-        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.fg });
-        Z.prototype.get_refcount = Z.prototype.ag = function() {
-          return ug(this.Gf);
+        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.hg });
+        Z.prototype.get_refcount = Z.prototype.cg = function() {
+          return wg(this.If);
         };
-        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.ag });
-        Z.prototype.get_pix = Z.prototype.Zh = function() {
-          return H(vg(this.Gf), ai);
+        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.cg });
+        Z.prototype.get_pix = Z.prototype.ai = function() {
+          return H(xg(this.If), ci);
         };
-        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Zh });
-        Z.prototype.get_boxa = Z.prototype.Rh = function() {
-          return H(wg(this.Gf), S);
+        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.ai });
+        Z.prototype.get_boxa = Z.prototype.Th = function() {
+          return H(yg(this.If), S);
         };
-        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Rh });
+        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Th });
         Z.prototype.__destroy__ = function() {
-          xg(this.Gf);
+          zg(this.If);
         };
         (function() {
           function a() {
-            b.RIL_BLOCK = yg();
-            b.RIL_PARA = zg();
-            b.RIL_TEXTLINE = Ag();
-            b.RIL_WORD = Bg();
-            b.RIL_SYMBOL = Cg();
-            b.OEM_TESSERACT_ONLY = Dg();
-            b.OEM_LSTM_ONLY = Eg();
-            b.OEM_TESSERACT_LSTM_COMBINED = Fg();
-            b.OEM_DEFAULT = Gg();
-            b.OEM_COUNT = Hg();
-            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Ig();
-            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Jg();
-            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Kg();
-            b.PT_UNKNOWN = Lg();
-            b.PT_FLOWING_TEXT = Mg();
-            b.PT_HEADING_TEXT = Ng();
-            b.PT_PULLOUT_TEXT = Og();
-            b.PT_EQUATION = Pg();
-            b.PT_INLINE_EQUATION = Qg();
-            b.PT_TABLE = Rg();
-            b.PT_VERTICAL_TEXT = Sg();
-            b.PT_CAPTION_TEXT = Tg();
-            b.PT_FLOWING_IMAGE = Ug();
-            b.PT_HEADING_IMAGE = Vg();
-            b.PT_PULLOUT_IMAGE = Wg();
-            b.PT_HORZ_LINE = Xg();
-            b.PT_VERT_LINE = Yg();
-            b.PT_NOISE = Zg();
-            b.PT_COUNT = $g();
-            b.DIR_NEUTRAL = ah();
-            b.DIR_LEFT_TO_RIGHT = bh();
-            b.DIR_RIGHT_TO_LEFT = ch();
-            b.DIR_MIX = dh();
-            b.JUSTIFICATION_UNKNOWN = eh();
-            b.JUSTIFICATION_LEFT = fh();
-            b.JUSTIFICATION_CENTER = gh();
-            b.JUSTIFICATION_RIGHT = hh();
-            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = ih();
-            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = jh();
-            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = kh();
-            b.ORIENTATION_PAGE_UP = lh();
-            b.ORIENTATION_PAGE_RIGHT = mh();
-            b.ORIENTATION_PAGE_DOWN = nh();
-            b.ORIENTATION_PAGE_LEFT = oh();
-            b.PSM_OSD_ONLY = ph();
-            b.PSM_AUTO_OSD = qh();
-            b.PSM_AUTO_ONLY = rh();
-            b.PSM_AUTO = sh();
-            b.PSM_SINGLE_COLUMN = th();
-            b.PSM_SINGLE_BLOCK_VERT_TEXT = uh();
-            b.PSM_SINGLE_BLOCK = vh();
-            b.PSM_SINGLE_LINE = wh();
-            b.PSM_SINGLE_WORD = xh();
-            b.PSM_CIRCLE_WORD = yh();
-            b.PSM_SINGLE_CHAR = zh();
-            b.PSM_SPARSE_TEXT = Ah();
-            b.PSM_SPARSE_TEXT_OSD = Bh();
-            b.PSM_RAW_LINE = Ch();
-            b.PSM_COUNT = Dh();
+            b.RIL_BLOCK = Ag();
+            b.RIL_PARA = Bg();
+            b.RIL_TEXTLINE = Cg();
+            b.RIL_WORD = Dg();
+            b.RIL_SYMBOL = Eg();
+            b.OEM_TESSERACT_ONLY = Fg();
+            b.OEM_LSTM_ONLY = Gg();
+            b.OEM_TESSERACT_LSTM_COMBINED = Hg();
+            b.OEM_DEFAULT = Ig();
+            b.OEM_COUNT = Jg();
+            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Kg();
+            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Lg();
+            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Mg();
+            b.PT_UNKNOWN = Ng();
+            b.PT_FLOWING_TEXT = Og();
+            b.PT_HEADING_TEXT = Pg();
+            b.PT_PULLOUT_TEXT = Qg();
+            b.PT_EQUATION = Rg();
+            b.PT_INLINE_EQUATION = Sg();
+            b.PT_TABLE = Tg();
+            b.PT_VERTICAL_TEXT = Ug();
+            b.PT_CAPTION_TEXT = Vg();
+            b.PT_FLOWING_IMAGE = Wg();
+            b.PT_HEADING_IMAGE = Xg();
+            b.PT_PULLOUT_IMAGE = Yg();
+            b.PT_HORZ_LINE = Zg();
+            b.PT_VERT_LINE = $g();
+            b.PT_NOISE = ah();
+            b.PT_COUNT = bh();
+            b.DIR_NEUTRAL = ch();
+            b.DIR_LEFT_TO_RIGHT = dh();
+            b.DIR_RIGHT_TO_LEFT = eh();
+            b.DIR_MIX = fh();
+            b.JUSTIFICATION_UNKNOWN = gh();
+            b.JUSTIFICATION_LEFT = hh();
+            b.JUSTIFICATION_CENTER = ih();
+            b.JUSTIFICATION_RIGHT = jh();
+            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = kh();
+            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = lh();
+            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = mh();
+            b.ORIENTATION_PAGE_UP = nh();
+            b.ORIENTATION_PAGE_RIGHT = oh();
+            b.ORIENTATION_PAGE_DOWN = ph();
+            b.ORIENTATION_PAGE_LEFT = qh();
+            b.PSM_OSD_ONLY = rh();
+            b.PSM_AUTO_OSD = sh();
+            b.PSM_AUTO_ONLY = th();
+            b.PSM_AUTO = uh();
+            b.PSM_SINGLE_COLUMN = vh();
+            b.PSM_SINGLE_BLOCK_VERT_TEXT = wh();
+            b.PSM_SINGLE_BLOCK = xh();
+            b.PSM_SINGLE_LINE = yh();
+            b.PSM_SINGLE_WORD = zh();
+            b.PSM_CIRCLE_WORD = Ah();
+            b.PSM_SINGLE_CHAR = Bh();
+            b.PSM_SPARSE_TEXT = Ch();
+            b.PSM_SPARSE_TEXT_OSD = Dh();
+            b.PSM_RAW_LINE = Eh();
+            b.PSM_COUNT = Fh();
           }
           Ba ? a() : za.unshift(a);
         })();
-        Qh.prototype.getValue = function(a) {
-          return !!Wa(this.Gf + (a || 0), "i8");
+        Sh.prototype.getValue = function(a) {
+          return !!Wa(this.If + (a || 0), "i8");
         };
-        ci.prototype.getValue = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "i32");
+        ei.prototype.getValue = function(a) {
+          return Wa(this.If + 4 * (a || 0), "i32");
         };
-        Zh.prototype.getValue = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "float");
+        ai.prototype.getValue = function(a) {
+          return Wa(this.If + 4 * (a || 0), "float");
         };
-        fi.prototype.getValue = function(a) {
-          return Wa(this.Gf + 8 * (a || 0), "double");
+        hi.prototype.getValue = function(a) {
+          return Wa(this.If + 8 * (a || 0), "double");
         };
-        ei.prototype.get = Yh.prototype.get = ai.prototype.get = function(a) {
-          return Wa(this.Gf + 4 * (a || 0), "*");
+        gi.prototype.get = $h.prototype.get = ci.prototype.get = function(a) {
+          return Wa(this.If + 4 * (a || 0), "*");
         };
-        function hi() {
-          this.mg = {};
+        function ji() {
+          this.og = {};
         }
-        hi.prototype.wrap = function(a, c) {
+        ji.prototype.wrap = function(a, c) {
           var d = Eb(4);
           Xa(d, 0, "i32");
-          return this.mg[a] = H(d, c);
+          return this.og[a] = H(d, c);
         };
-        hi.prototype.bool = function(a) {
-          return this.wrap(a, Qh);
+        ji.prototype.bool = function(a) {
+          return this.wrap(a, Sh);
         };
-        hi.prototype.i32 = function(a) {
-          return this.wrap(a, ci);
+        ji.prototype.i32 = function(a) {
+          return this.wrap(a, ei);
         };
-        hi.prototype.f32 = function(a) {
-          return this.wrap(a, Zh);
+        ji.prototype.f32 = function(a) {
+          return this.wrap(a, ai);
         };
-        hi.prototype.f64 = function(a) {
-          return this.mg[a] = H(Eb(8), fi);
+        ji.prototype.f64 = function(a) {
+          return this.og[a] = H(Eb(8), hi);
         };
-        hi.prototype.peek = function() {
+        ji.prototype.peek = function() {
           var a = {}, c;
-          for (c in this.mg) a[c] = this.mg[c].getValue();
+          for (c in this.og) a[c] = this.og[c].getValue();
           return a;
         };
-        hi.prototype.get = function() {
+        ji.prototype.get = function() {
           var a = {}, c;
-          for (c in this.mg) a[c] = this.mg[c].getValue(), Eh(this.mg[c].Gf);
+          for (c in this.og) a[c] = this.og[c].getValue(), Gh(this.og[c].If);
           return a;
         };
         L.prototype.getBoundingBox = function(a) {
-          var c = new hi();
+          var c = new ji();
           this.BoundingBox(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           return c.get();
         };
         L.prototype.getBaseline = function(a) {
-          var c = new hi();
+          var c = new ji();
           a = !!this.Baseline(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           c = c.get();
           c.has_baseline = a;
           return c;
         };
         L.prototype.getRowAttributes = function() {
-          var a = new hi();
+          var a = new ji();
           this.RowAttributes(a.f32("row_height"), a.f32("descenders"), a.f32("ascenders"));
           return a.get();
         };
         L.prototype.getWordFontAttributes = function() {
-          var a = new hi(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
+          var a = new ji(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
           a = a.get();
           a.font_name = c;
           return a;
         };
-        b.pointerHelper = hi;
+        b.pointerHelper = ji;
         return TesseractCore2.ready;
       };
     })();
@@ -18052,9 +18108,9 @@ var require_tesseract_core_lstm = __commonJS({
   }
 });
 
-// node_modules/tesseract.js-core/tesseract-core.js
+// node_modules/@scribe.js/tesseract.js-core/tesseract-core.js
 var require_tesseract_core = __commonJS({
-  "node_modules/tesseract.js-core/tesseract-core.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js-core/tesseract-core.js"(exports2, module2) {
     var TesseractCore = (() => {
       var _scriptDir = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : void 0;
       if (typeof __filename !== "undefined") _scriptDir = _scriptDir || __filename;
@@ -18208,11 +18264,11 @@ var require_tesseract_core = __commonJS({
             return Oa(d, a, c);
           }));
         }
-        var x, y, Qa = { 629308: (a) => {
+        var x, y, Qa = { 633916: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 629377: (a) => {
+        }, 633985: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
-        }, 629446: (a) => {
+        }, 634054: (a) => {
           b.TesseractProgress && b.TesseractProgress(a);
         } };
         function Ra(a) {
@@ -18342,20 +18398,20 @@ var require_tesseract_core = __commonJS({
           }
         }
         function Za(a) {
-          this.Cf = a - 24;
-          this.rh = function(c) {
-            u[this.Cf + 4 >> 2] = c;
+          this.Ef = a - 24;
+          this.uh = function(c) {
+            u[this.Ef + 4 >> 2] = c;
           };
-          this.Cg = function(c) {
-            u[this.Cf + 8 >> 2] = c;
+          this.Eg = function(c) {
+            u[this.Ef + 8 >> 2] = c;
           };
-          this.cg = function(c, d) {
-            this.Pf();
-            this.rh(c);
-            this.Cg(d);
+          this.eg = function(c, d) {
+            this.Rf();
+            this.uh(c);
+            this.Eg(d);
           };
-          this.Pf = function() {
-            u[this.Cf + 16 >> 2] = 0;
+          this.Rf = function() {
+            u[this.Ef + 16 >> 2] = 0;
           };
         }
         var $a = 0, ab = 0, bb = (a, c) => {
@@ -18436,27 +18492,27 @@ var require_tesseract_core = __commonJS({
         }
         var lb = [];
         function mb(a, c) {
-          lb[a] = { input: [], output: [], mg: c };
-          A.Xg(a, nb);
+          lb[a] = { input: [], output: [], og: c };
+          A.Zg(a, nb);
         }
         var nb = { open: function(a) {
           var c = lb[a.node.rdev];
-          if (!c) throw new A.Df(43);
+          if (!c) throw new A.Ff(43);
           a.tty = c;
           a.seekable = false;
         }, close: function(a) {
-          a.tty.mg.fsync(a.tty);
+          a.tty.og.fsync(a.tty);
         }, fsync: function(a) {
-          a.tty.mg.fsync(a.tty);
+          a.tty.og.fsync(a.tty);
         }, read: function(a, c, d, e) {
-          if (!a.tty || !a.tty.mg.kh) throw new A.Df(60);
+          if (!a.tty || !a.tty.og.mh) throw new A.Ff(60);
           for (var g = 0, h = 0; h < e; h++) {
             try {
-              var k = a.tty.mg.kh(a.tty);
+              var k = a.tty.og.mh(a.tty);
             } catch (m) {
-              throw new A.Df(29);
+              throw new A.Ff(29);
             }
-            if (void 0 === k && 0 === g) throw new A.Df(6);
+            if (void 0 === k && 0 === g) throw new A.Ff(6);
             if (null === k || void 0 === k) break;
             g++;
             c[d + h] = k;
@@ -18464,15 +18520,15 @@ var require_tesseract_core = __commonJS({
           g && (a.node.timestamp = Date.now());
           return g;
         }, write: function(a, c, d, e) {
-          if (!a.tty || !a.tty.mg.Ug) throw new A.Df(60);
+          if (!a.tty || !a.tty.og.Wg) throw new A.Ff(60);
           try {
-            for (var g = 0; g < e; g++) a.tty.mg.Ug(a.tty, c[d + g]);
+            for (var g = 0; g < e; g++) a.tty.og.Wg(a.tty, c[d + g]);
           } catch (h) {
-            throw new A.Df(29);
+            throw new A.Ff(29);
           }
           e && (a.node.timestamp = Date.now());
           return g;
-        } }, ob = { kh: function(a) {
+        } }, ob = { mh: function(a) {
           if (!a.input.length) {
             var c = null;
             if (ia) {
@@ -18489,15 +18545,15 @@ var require_tesseract_core = __commonJS({
             a.input = kb(c, true);
           }
           return a.input.shift();
-        }, Ug: function(a, c) {
+        }, Wg: function(a, c) {
           null === c || 10 === c ? (na(Wa(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (na(Wa(a.output, 0)), a.output = []);
-        } }, pb = { Ug: function(a, c) {
+        } }, pb = { Wg: function(a, c) {
           null === c || 10 === c ? (oa(Wa(a.output, 0)), a.output = []) : 0 != c && a.output.push(c);
         }, fsync: function(a) {
           a.output && 0 < a.output.length && (oa(Wa(a.output, 0)), a.output = []);
-        } }, B = { Vf: null, Mf: function() {
+        } }, B = { Xf: null, Of: function() {
           return B.createNode(
             null,
             "/",
@@ -18505,87 +18561,87 @@ var require_tesseract_core = __commonJS({
             0
           );
         }, createNode: function(a, c, d, e) {
-          if (A.ei(d) || A.isFIFO(d)) throw new A.Df(63);
-          B.Vf || (B.Vf = { dir: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of, lookup: B.Ef.lookup, Zf: B.Ef.Zf, rename: B.Ef.rename, unlink: B.Ef.unlink, rmdir: B.Ef.rmdir, readdir: B.Ef.readdir, symlink: B.Ef.symlink }, stream: { Tf: B.Gf.Tf } }, file: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of }, stream: { Tf: B.Gf.Tf, read: B.Gf.read, write: B.Gf.write, ng: B.Gf.ng, fg: B.Gf.fg, lg: B.Gf.lg } }, link: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of, readlink: B.Ef.readlink }, stream: {} }, $g: { node: { Sf: B.Ef.Sf, Of: B.Ef.Of }, stream: A.Ah } });
+          if (A.gi(d) || A.isFIFO(d)) throw new A.Ff(63);
+          B.Xf || (B.Xf = { dir: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf, lookup: B.Gf.lookup, ag: B.Gf.ag, rename: B.Gf.rename, unlink: B.Gf.unlink, rmdir: B.Gf.rmdir, readdir: B.Gf.readdir, symlink: B.Gf.symlink }, stream: { Vf: B.If.Vf } }, file: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf }, stream: { Vf: B.If.Vf, read: B.If.read, write: B.If.write, pg: B.If.pg, hg: B.If.hg, ng: B.If.ng } }, link: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf, readlink: B.Gf.readlink }, stream: {} }, bh: { node: { Uf: B.Gf.Uf, Qf: B.Gf.Qf }, stream: A.Ch } });
           d = A.createNode(a, c, d, e);
-          A.Nf(d.mode) ? (d.Ef = B.Vf.dir.node, d.Gf = B.Vf.dir.stream, d.Ff = {}) : A.isFile(d.mode) ? (d.Ef = B.Vf.file.node, d.Gf = B.Vf.file.stream, d.Kf = 0, d.Ff = null) : A.qg(d.mode) ? (d.Ef = B.Vf.link.node, d.Gf = B.Vf.link.stream) : A.vg(d.mode) && (d.Ef = B.Vf.$g.node, d.Gf = B.Vf.$g.stream);
+          A.Pf(d.mode) ? (d.Gf = B.Xf.dir.node, d.If = B.Xf.dir.stream, d.Hf = {}) : A.isFile(d.mode) ? (d.Gf = B.Xf.file.node, d.If = B.Xf.file.stream, d.Mf = 0, d.Hf = null) : A.sg(d.mode) ? (d.Gf = B.Xf.link.node, d.If = B.Xf.link.stream) : A.xg(d.mode) && (d.Gf = B.Xf.bh.node, d.If = B.Xf.bh.stream);
           d.timestamp = Date.now();
-          a && (a.Ff[c] = d, a.timestamp = d.timestamp);
+          a && (a.Hf[c] = d, a.timestamp = d.timestamp);
           return d;
-        }, yi: function(a) {
-          return a.Ff ? a.Ff.subarray ? a.Ff.subarray(0, a.Kf) : new Uint8Array(a.Ff) : new Uint8Array(0);
-        }, hh: function(a, c) {
-          var d = a.Ff ? a.Ff.length : 0;
-          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Ff, a.Ff = new Uint8Array(c), 0 < a.Kf && a.Ff.set(d.subarray(0, a.Kf), 0));
-        }, ni: function(a, c) {
-          if (a.Kf != c) if (0 == c) a.Ff = null, a.Kf = 0;
+        }, Ai: function(a) {
+          return a.Hf ? a.Hf.subarray ? a.Hf.subarray(0, a.Mf) : new Uint8Array(a.Hf) : new Uint8Array(0);
+        }, jh: function(a, c) {
+          var d = a.Hf ? a.Hf.length : 0;
+          d >= c || (c = Math.max(c, d * (1048576 > d ? 2 : 1.125) >>> 0), 0 != d && (c = Math.max(c, 256)), d = a.Hf, a.Hf = new Uint8Array(c), 0 < a.Mf && a.Hf.set(d.subarray(0, a.Mf), 0));
+        }, pi: function(a, c) {
+          if (a.Mf != c) if (0 == c) a.Hf = null, a.Mf = 0;
           else {
-            var d = a.Ff;
-            a.Ff = new Uint8Array(c);
-            d && a.Ff.set(d.subarray(0, Math.min(c, a.Kf)));
-            a.Kf = c;
+            var d = a.Hf;
+            a.Hf = new Uint8Array(c);
+            d && a.Hf.set(d.subarray(0, Math.min(c, a.Mf)));
+            a.Mf = c;
           }
-        }, Ef: { Sf: function(a) {
+        }, Gf: { Uf: function(a) {
           var c = {};
-          c.dev = A.vg(a.mode) ? a.id : 1;
+          c.dev = A.xg(a.mode) ? a.id : 1;
           c.ino = a.id;
           c.mode = a.mode;
           c.nlink = 1;
           c.uid = 0;
           c.gid = 0;
           c.rdev = a.rdev;
-          A.Nf(a.mode) ? c.size = 4096 : A.isFile(a.mode) ? c.size = a.Kf : A.qg(a.mode) ? c.size = a.link.length : c.size = 0;
+          A.Pf(a.mode) ? c.size = 4096 : A.isFile(a.mode) ? c.size = a.Mf : A.sg(a.mode) ? c.size = a.link.length : c.size = 0;
           c.atime = new Date(a.timestamp);
           c.mtime = new Date(a.timestamp);
           c.ctime = new Date(a.timestamp);
-          c.yh = 4096;
-          c.blocks = Math.ceil(c.size / c.yh);
+          c.Ah = 4096;
+          c.blocks = Math.ceil(c.size / c.Ah);
           return c;
-        }, Of: function(a, c) {
+        }, Qf: function(a, c) {
           void 0 !== c.mode && (a.mode = c.mode);
           void 0 !== c.timestamp && (a.timestamp = c.timestamp);
-          void 0 !== c.size && B.ni(a, c.size);
+          void 0 !== c.size && B.pi(a, c.size);
         }, lookup: function() {
-          throw A.Hg[44];
-        }, Zf: function(a, c, d, e) {
+          throw A.Jg[44];
+        }, ag: function(a, c, d, e) {
           return B.createNode(a, c, d, e);
         }, rename: function(a, c, d) {
-          if (A.Nf(a.mode)) {
+          if (A.Pf(a.mode)) {
             try {
-              var e = A.Yf(c, d);
+              var e = A.$f(c, d);
             } catch (h) {
             }
-            if (e) for (var g in e.Ff) throw new A.Df(55);
+            if (e) for (var g in e.Hf) throw new A.Ff(55);
           }
-          delete a.parent.Ff[a.name];
+          delete a.parent.Hf[a.name];
           a.parent.timestamp = Date.now();
           a.name = d;
-          c.Ff[d] = a;
+          c.Hf[d] = a;
           c.timestamp = a.parent.timestamp;
           a.parent = c;
         }, unlink: function(a, c) {
-          delete a.Ff[c];
+          delete a.Hf[c];
           a.timestamp = Date.now();
         }, rmdir: function(a, c) {
-          var d = A.Yf(a, c), e;
-          for (e in d.Ff) throw new A.Df(55);
-          delete a.Ff[c];
+          var d = A.$f(a, c), e;
+          for (e in d.Hf) throw new A.Ff(55);
+          delete a.Hf[c];
           a.timestamp = Date.now();
         }, readdir: function(a) {
           var c = [".", ".."], d;
-          for (d in a.Ff) a.Ff.hasOwnProperty(d) && c.push(d);
+          for (d in a.Hf) a.Hf.hasOwnProperty(d) && c.push(d);
           return c;
         }, symlink: function(a, c, d) {
           a = B.createNode(a, c, 41471, 0);
           a.link = d;
           return a;
         }, readlink: function(a) {
-          if (!A.qg(a.mode)) throw new A.Df(28);
+          if (!A.sg(a.mode)) throw new A.Ff(28);
           return a.link;
-        } }, Gf: { read: function(a, c, d, e, g) {
-          var h = a.node.Ff;
-          if (g >= a.node.Kf) return 0;
-          a = Math.min(a.node.Kf - g, e);
+        } }, If: { read: function(a, c, d, e, g) {
+          var h = a.node.Hf;
+          if (g >= a.node.Mf) return 0;
+          a = Math.min(a.node.Mf - g, e);
           if (8 < a && h.subarray) c.set(h.subarray(g, g + a), d);
           else for (e = 0; e < a; e++) c[d + e] = h[g + e];
           return a;
@@ -18594,40 +18650,40 @@ var require_tesseract_core = __commonJS({
           if (!e) return 0;
           a = a.node;
           a.timestamp = Date.now();
-          if (c.subarray && (!a.Ff || a.Ff.subarray)) {
-            if (h) return a.Ff = c.subarray(d, d + e), a.Kf = e;
-            if (0 === a.Kf && 0 === g) return a.Ff = c.slice(d, d + e), a.Kf = e;
-            if (g + e <= a.Kf) return a.Ff.set(c.subarray(d, d + e), g), e;
+          if (c.subarray && (!a.Hf || a.Hf.subarray)) {
+            if (h) return a.Hf = c.subarray(d, d + e), a.Mf = e;
+            if (0 === a.Mf && 0 === g) return a.Hf = c.slice(d, d + e), a.Mf = e;
+            if (g + e <= a.Mf) return a.Hf.set(c.subarray(d, d + e), g), e;
           }
-          B.hh(a, g + e);
-          if (a.Ff.subarray && c.subarray) a.Ff.set(c.subarray(
+          B.jh(a, g + e);
+          if (a.Hf.subarray && c.subarray) a.Hf.set(c.subarray(
             d,
             d + e
           ), g);
-          else for (h = 0; h < e; h++) a.Ff[g + h] = c[d + h];
-          a.Kf = Math.max(a.Kf, g + e);
+          else for (h = 0; h < e; h++) a.Hf[g + h] = c[d + h];
+          a.Mf = Math.max(a.Mf, g + e);
           return e;
-        }, Tf: function(a, c, d) {
-          1 === d ? c += a.position : 2 === d && A.isFile(a.node.mode) && (c += a.node.Kf);
-          if (0 > c) throw new A.Df(28);
+        }, Vf: function(a, c, d) {
+          1 === d ? c += a.position : 2 === d && A.isFile(a.node.mode) && (c += a.node.Mf);
+          if (0 > c) throw new A.Ff(28);
           return c;
-        }, ng: function(a, c, d) {
-          B.hh(a.node, c + d);
-          a.node.Kf = Math.max(a.node.Kf, c + d);
-        }, fg: function(a, c, d, e, g) {
-          if (!A.isFile(a.node.mode)) throw new A.Df(43);
-          a = a.node.Ff;
+        }, pg: function(a, c, d) {
+          B.jh(a.node, c + d);
+          a.node.Mf = Math.max(a.node.Mf, c + d);
+        }, hg: function(a, c, d, e, g) {
+          if (!A.isFile(a.node.mode)) throw new A.Ff(43);
+          a = a.node.Hf;
           if (g & 2 || a.buffer !== p.buffer) {
             if (0 < d || d + c < a.length) a.subarray ? a = a.subarray(d, d + c) : a = Array.prototype.slice.call(a, d, d + c);
             d = true;
             n();
             c = void 0;
-            if (!c) throw new A.Df(48);
+            if (!c) throw new A.Ff(48);
             p.set(a, c);
           } else d = false, c = a.byteOffset;
-          return { Cf: c, wh: d };
-        }, lg: function(a, c, d, e) {
-          B.Gf.write(a, c, 0, e, d, false);
+          return { Ef: c, yh: d };
+        }, ng: function(a, c, d, e) {
+          B.If.write(a, c, 0, e, d, false);
           return 0;
         } } };
         function qb(a, c, d) {
@@ -18644,7 +18700,7 @@ var require_tesseract_core = __commonJS({
         }
         var rb = b.preloadPlugins || [];
         function sb(a, c, d, e) {
-          "undefined" != typeof Browser && Browser.cg();
+          "undefined" != typeof Browser && Browser.eg();
           var g = false;
           rb.forEach(function(h) {
             !g && h.canHandle(c) && (h.handle(a, c, d, e), g = true);
@@ -18657,317 +18713,317 @@ var require_tesseract_core = __commonJS({
           c && (d |= 146);
           return d;
         }
-        var A = { root: null, sg: [], fh: {}, streams: [], ii: 1, Uf: null, eh: "/", Og: false, oh: true, Df: null, Hg: {}, Ih: null, zg: 0, Jf: (a, c = {}) => {
+        var A = { root: null, ug: [], hh: {}, streams: [], ki: 1, Wf: null, gh: "/", Qg: false, qh: true, Ff: null, Jg: {}, Kh: null, Bg: 0, Lf: (a, c = {}) => {
           a = ib(a);
           if (!a) return { path: "", node: null };
-          c = Object.assign({ Fg: true, Wg: 0 }, c);
-          if (8 < c.Wg) throw new A.Df(32);
+          c = Object.assign({ Hg: true, Yg: 0 }, c);
+          if (8 < c.Yg) throw new A.Ff(32);
           a = a.split("/").filter((k) => !!k);
           for (var d = A.root, e = "/", g = 0; g < a.length; g++) {
             var h = g === a.length - 1;
             if (h && c.parent) break;
-            d = A.Yf(d, a[g]);
+            d = A.$f(d, a[g]);
             e = cb(e + "/" + a[g]);
-            A.dg(d) && (!h || h && c.Fg) && (d = d.rg.root);
-            if (!h || c.Rf) {
-              for (h = 0; A.qg(d.mode); ) if (d = A.readlink(e), e = ib(db(e), d), d = A.Jf(e, { Wg: c.Wg + 1 }).node, 40 < h++) throw new A.Df(32);
+            A.fg(d) && (!h || h && c.Hg) && (d = d.tg.root);
+            if (!h || c.Tf) {
+              for (h = 0; A.sg(d.mode); ) if (d = A.readlink(e), e = ib(db(e), d), d = A.Lf(e, { Yg: c.Yg + 1 }).node, 40 < h++) throw new A.Ff(32);
             }
           }
           return { path: e, node: d };
-        }, $f: (a) => {
+        }, bg: (a) => {
           for (var c; ; ) {
-            if (A.wg(a)) return a = a.Mf.ph, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
+            if (A.yg(a)) return a = a.Of.rh, c ? "/" !== a[a.length - 1] ? a + "/" + c : a + c : a;
             c = c ? a.name + "/" + c : a.name;
             a = a.parent;
           }
-        }, Ng: (a, c) => {
+        }, Pg: (a, c) => {
           for (var d = 0, e = 0; e < c.length; e++) d = (d << 5) - d + c.charCodeAt(e) | 0;
-          return (a + d >>> 0) % A.Uf.length;
-        }, mh: (a) => {
-          var c = A.Ng(a.parent.id, a.name);
-          a.gg = A.Uf[c];
-          A.Uf[c] = a;
-        }, nh: (a) => {
-          var c = A.Ng(a.parent.id, a.name);
-          if (A.Uf[c] === a) A.Uf[c] = a.gg;
-          else for (c = A.Uf[c]; c; ) {
-            if (c.gg === a) {
-              c.gg = a.gg;
+          return (a + d >>> 0) % A.Wf.length;
+        }, oh: (a) => {
+          var c = A.Pg(a.parent.id, a.name);
+          a.ig = A.Wf[c];
+          A.Wf[c] = a;
+        }, ph: (a) => {
+          var c = A.Pg(a.parent.id, a.name);
+          if (A.Wf[c] === a) A.Wf[c] = a.ig;
+          else for (c = A.Wf[c]; c; ) {
+            if (c.ig === a) {
+              c.ig = a.ig;
               break;
             }
-            c = c.gg;
+            c = c.ig;
           }
-        }, Yf: (a, c) => {
-          var d = A.gi(a);
-          if (d) throw new A.Df(d, a);
-          for (d = A.Uf[A.Ng(
+        }, $f: (a, c) => {
+          var d = A.ii(a);
+          if (d) throw new A.Ff(d, a);
+          for (d = A.Wf[A.Pg(
             a.id,
             c
-          )]; d; d = d.gg) {
+          )]; d; d = d.ig) {
             var e = d.name;
             if (d.parent.id === a.id && e === c) return d;
           }
           return A.lookup(a, c);
         }, createNode: (a, c, d, e) => {
-          a = new A.sh(a, c, d, e);
-          A.mh(a);
+          a = new A.th(a, c, d, e);
+          A.oh(a);
           return a;
-        }, Eg: (a) => {
-          A.nh(a);
-        }, wg: (a) => a === a.parent, dg: (a) => !!a.rg, isFile: (a) => 32768 === (a & 61440), Nf: (a) => 16384 === (a & 61440), qg: (a) => 40960 === (a & 61440), vg: (a) => 8192 === (a & 61440), ei: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), ih: (a) => {
+        }, Gg: (a) => {
+          A.ph(a);
+        }, yg: (a) => a === a.parent, fg: (a) => !!a.tg, isFile: (a) => 32768 === (a & 61440), Pf: (a) => 16384 === (a & 61440), sg: (a) => 40960 === (a & 61440), xg: (a) => 8192 === (a & 61440), gi: (a) => 24576 === (a & 61440), isFIFO: (a) => 4096 === (a & 61440), isSocket: (a) => 49152 === (a & 49152), kh: (a) => {
           var c = ["r", "w", "rw"][a & 3];
           a & 512 && (c += "w");
           return c;
-        }, hg: (a, c) => {
-          if (A.oh) return 0;
+        }, jg: (a, c) => {
+          if (A.qh) return 0;
           if (!c.includes("r") || a.mode & 292) {
             if (c.includes("w") && !(a.mode & 146) || c.includes("x") && !(a.mode & 73)) return 2;
           } else return 2;
           return 0;
-        }, gi: (a) => {
-          var c = A.hg(a, "x");
-          return c ? c : a.Ef.lookup ? 0 : 2;
-        }, Tg: (a, c) => {
+        }, ii: (a) => {
+          var c = A.jg(a, "x");
+          return c ? c : a.Gf.lookup ? 0 : 2;
+        }, Vg: (a, c) => {
           try {
-            return A.Yf(a, c), 20;
+            return A.$f(a, c), 20;
           } catch (d) {
           }
-          return A.hg(a, "wx");
-        }, xg: (a, c, d) => {
+          return A.jg(a, "wx");
+        }, zg: (a, c, d) => {
           try {
-            var e = A.Yf(a, c);
+            var e = A.$f(a, c);
           } catch (g) {
-            return g.Lf;
+            return g.Nf;
           }
-          if (a = A.hg(a, "wx")) return a;
+          if (a = A.jg(a, "wx")) return a;
           if (d) {
-            if (!A.Nf(e.mode)) return 54;
-            if (A.wg(e) || A.$f(e) === A.cwd()) return 10;
-          } else if (A.Nf(e.mode)) return 31;
+            if (!A.Pf(e.mode)) return 54;
+            if (A.yg(e) || A.bg(e) === A.cwd()) return 10;
+          } else if (A.Pf(e.mode)) return 31;
           return 0;
-        }, hi: (a, c) => a ? A.qg(a.mode) ? 32 : A.Nf(a.mode) && ("r" !== A.ih(c) || c & 512) ? 31 : A.hg(a, A.ih(c)) : 44, th: 4096, ji: (a = 0, c = A.th) => {
+        }, ji: (a, c) => a ? A.sg(a.mode) ? 32 : A.Pf(a.mode) && ("r" !== A.kh(c) || c & 512) ? 31 : A.jg(a, A.kh(c)) : 44, vh: 4096, li: (a = 0, c = A.vh) => {
           for (; a <= c; a++) if (!A.streams[a]) return a;
-          throw new A.Df(33);
-        }, og: (a) => A.streams[a], dh: (a, c, d) => {
-          A.tg || (A.tg = function() {
-            this.Pf = {};
-          }, A.tg.prototype = {}, Object.defineProperties(A.tg.prototype, { object: { get: function() {
+          throw new A.Ff(33);
+        }, qg: (a) => A.streams[a], fh: (a, c, d) => {
+          A.vg || (A.vg = function() {
+            this.Rf = {};
+          }, A.vg.prototype = {}, Object.defineProperties(A.vg.prototype, { object: { get: function() {
             return this.node;
           }, set: function(e) {
             this.node = e;
           } }, flags: { get: function() {
-            return this.Pf.flags;
+            return this.Rf.flags;
           }, set: function(e) {
-            this.Pf.flags = e;
+            this.Rf.flags = e;
           } }, position: { get: function() {
-            return this.Pf.position;
+            return this.Rf.position;
           }, set: function(e) {
-            this.Pf.position = e;
+            this.Rf.position = e;
           } } }));
-          a = Object.assign(new A.tg(), a);
-          c = A.ji(c, d);
+          a = Object.assign(new A.vg(), a);
+          c = A.li(c, d);
           a.fd = c;
           return A.streams[c] = a;
-        }, Bh: (a) => {
+        }, Dh: (a) => {
           A.streams[a] = null;
-        }, Ah: { open: (a) => {
-          a.Gf = A.Jh(a.node.rdev).Gf;
-          a.Gf.open && a.Gf.open(a);
-        }, Tf: () => {
-          throw new A.Df(70);
-        } }, Sg: (a) => a >> 8, zi: (a) => a & 255, eg: (a, c) => a << 8 | c, Xg: (a, c) => {
-          A.fh[a] = { Gf: c };
-        }, Jh: (a) => A.fh[a], jh: (a) => {
+        }, Ch: { open: (a) => {
+          a.If = A.Lh(a.node.rdev).If;
+          a.If.open && a.If.open(a);
+        }, Vf: () => {
+          throw new A.Ff(70);
+        } }, Ug: (a) => a >> 8, Bi: (a) => a & 255, gg: (a, c) => a << 8 | c, Zg: (a, c) => {
+          A.hh[a] = { If: c };
+        }, Lh: (a) => A.hh[a], lh: (a) => {
           var c = [];
           for (a = [a]; a.length; ) {
             var d = a.pop();
             c.push(d);
-            a.push.apply(a, d.sg);
+            a.push.apply(a, d.ug);
           }
           return c;
-        }, qh: (a, c) => {
+        }, sh: (a, c) => {
           function d(k) {
-            A.zg--;
+            A.Bg--;
             return c(k);
           }
           function e(k) {
             if (k) {
-              if (!e.Hh) return e.Hh = true, d(k);
+              if (!e.Jh) return e.Jh = true, d(k);
             } else ++h >= g.length && d(null);
           }
           "function" == typeof a && (c = a, a = false);
-          A.zg++;
-          1 < A.zg && oa("warning: " + A.zg + " FS.syncfs operations in flight at once, probably just doing extra work");
-          var g = A.jh(A.root.Mf), h = 0;
+          A.Bg++;
+          1 < A.Bg && oa("warning: " + A.Bg + " FS.syncfs operations in flight at once, probably just doing extra work");
+          var g = A.lh(A.root.Of), h = 0;
           g.forEach((k) => {
-            if (!k.type.qh) return e(null);
-            k.type.qh(k, a, e);
+            if (!k.type.sh) return e(null);
+            k.type.sh(k, a, e);
           });
-        }, Mf: (a, c, d) => {
+        }, Of: (a, c, d) => {
           var e = "/" === d, g = !d;
-          if (e && A.root) throw new A.Df(10);
+          if (e && A.root) throw new A.Ff(10);
           if (!e && !g) {
-            var h = A.Jf(d, { Fg: false });
+            var h = A.Lf(d, { Hg: false });
             d = h.path;
             h = h.node;
-            if (A.dg(h)) throw new A.Df(10);
-            if (!A.Nf(h.mode)) throw new A.Df(54);
+            if (A.fg(h)) throw new A.Ff(10);
+            if (!A.Pf(h.mode)) throw new A.Ff(54);
           }
-          c = { type: a, Ci: c, ph: d, sg: [] };
-          a = a.Mf(c);
-          a.Mf = c;
+          c = { type: a, Ei: c, rh: d, ug: [] };
+          a = a.Of(c);
+          a.Of = c;
           c.root = a;
-          e ? A.root = a : h && (h.rg = c, h.Mf && h.Mf.sg.push(c));
+          e ? A.root = a : h && (h.tg = c, h.Of && h.Of.ug.push(c));
           return a;
-        }, Fi: (a) => {
-          a = A.Jf(a, { Fg: false });
-          if (!A.dg(a.node)) throw new A.Df(28);
+        }, Hi: (a) => {
+          a = A.Lf(a, { Hg: false });
+          if (!A.fg(a.node)) throw new A.Ff(28);
           a = a.node;
-          var c = a.rg, d = A.jh(c);
-          Object.keys(A.Uf).forEach((e) => {
-            for (e = A.Uf[e]; e; ) {
-              var g = e.gg;
-              d.includes(e.Mf) && A.Eg(e);
+          var c = a.tg, d = A.lh(c);
+          Object.keys(A.Wf).forEach((e) => {
+            for (e = A.Wf[e]; e; ) {
+              var g = e.ig;
+              d.includes(e.Of) && A.Gg(e);
               e = g;
             }
           });
-          a.rg = null;
-          a.Mf.sg.splice(a.Mf.sg.indexOf(c), 1);
-        }, lookup: (a, c) => a.Ef.lookup(a, c), Zf: (a, c, d) => {
-          var e = A.Jf(a, { parent: true }).node;
+          a.tg = null;
+          a.Of.ug.splice(a.Of.ug.indexOf(c), 1);
+        }, lookup: (a, c) => a.Gf.lookup(a, c), ag: (a, c, d) => {
+          var e = A.Lf(a, { parent: true }).node;
           a = eb(a);
-          if (!a || "." === a || ".." === a) throw new A.Df(28);
-          var g = A.Tg(e, a);
-          if (g) throw new A.Df(g);
-          if (!e.Ef.Zf) throw new A.Df(63);
-          return e.Ef.Zf(e, a, c, d);
-        }, create: (a, c) => A.Zf(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => A.Zf(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ai: (a, c) => {
+          if (!a || "." === a || ".." === a) throw new A.Ff(28);
+          var g = A.Vg(e, a);
+          if (g) throw new A.Ff(g);
+          if (!e.Gf.ag) throw new A.Ff(63);
+          return e.Gf.ag(e, a, c, d);
+        }, create: (a, c) => A.ag(a, (void 0 !== c ? c : 438) & 4095 | 32768, 0), mkdir: (a, c) => A.ag(a, (void 0 !== c ? c : 511) & 1023 | 16384, 0), Ci: (a, c) => {
           a = a.split("/");
           for (var d = "", e = 0; e < a.length; ++e) if (a[e]) {
             d += "/" + a[e];
             try {
               A.mkdir(d, c);
             } catch (g) {
-              if (20 != g.Lf) throw g;
+              if (20 != g.Nf) throw g;
             }
           }
-        }, yg: (a, c, d) => {
+        }, Ag: (a, c, d) => {
           "undefined" == typeof d && (d = c, c = 438);
-          return A.Zf(a, c | 8192, d);
+          return A.ag(a, c | 8192, d);
         }, symlink: (a, c) => {
-          if (!ib(a)) throw new A.Df(44);
-          var d = A.Jf(c, { parent: true }).node;
-          if (!d) throw new A.Df(44);
+          if (!ib(a)) throw new A.Ff(44);
+          var d = A.Lf(c, { parent: true }).node;
+          if (!d) throw new A.Ff(44);
           c = eb(c);
-          var e = A.Tg(d, c);
-          if (e) throw new A.Df(e);
-          if (!d.Ef.symlink) throw new A.Df(63);
-          return d.Ef.symlink(d, c, a);
+          var e = A.Vg(d, c);
+          if (e) throw new A.Ff(e);
+          if (!d.Gf.symlink) throw new A.Ff(63);
+          return d.Gf.symlink(d, c, a);
         }, rename: (a, c) => {
           var d = db(a), e = db(c), g = eb(a), h = eb(c);
-          var k = A.Jf(a, { parent: true });
+          var k = A.Lf(a, { parent: true });
           var m = k.node;
-          k = A.Jf(c, { parent: true });
+          k = A.Lf(c, { parent: true });
           k = k.node;
-          if (!m || !k) throw new A.Df(44);
-          if (m.Mf !== k.Mf) throw new A.Df(75);
-          var v = A.Yf(m, g);
+          if (!m || !k) throw new A.Ff(44);
+          if (m.Of !== k.Of) throw new A.Ff(75);
+          var v = A.$f(m, g);
           a = jb(a, e);
-          if ("." !== a.charAt(0)) throw new A.Df(28);
+          if ("." !== a.charAt(0)) throw new A.Ff(28);
           a = jb(c, d);
-          if ("." !== a.charAt(0)) throw new A.Df(55);
+          if ("." !== a.charAt(0)) throw new A.Ff(55);
           try {
-            var q = A.Yf(k, h);
+            var q = A.$f(k, h);
           } catch (t) {
           }
           if (v !== q) {
-            c = A.Nf(v.mode);
-            if (g = A.xg(m, g, c)) throw new A.Df(g);
-            if (g = q ? A.xg(k, h, c) : A.Tg(k, h)) throw new A.Df(g);
-            if (!m.Ef.rename) throw new A.Df(63);
-            if (A.dg(v) || q && A.dg(q)) throw new A.Df(10);
-            if (k !== m && (g = A.hg(m, "w"))) throw new A.Df(g);
-            A.nh(v);
+            c = A.Pf(v.mode);
+            if (g = A.zg(m, g, c)) throw new A.Ff(g);
+            if (g = q ? A.zg(k, h, c) : A.Vg(k, h)) throw new A.Ff(g);
+            if (!m.Gf.rename) throw new A.Ff(63);
+            if (A.fg(v) || q && A.fg(q)) throw new A.Ff(10);
+            if (k !== m && (g = A.jg(m, "w"))) throw new A.Ff(g);
+            A.ph(v);
             try {
-              m.Ef.rename(v, k, h);
+              m.Gf.rename(v, k, h);
             } catch (t) {
               throw t;
             } finally {
-              A.mh(v);
+              A.oh(v);
             }
           }
         }, rmdir: (a) => {
-          var c = A.Jf(a, { parent: true }).node;
+          var c = A.Lf(a, { parent: true }).node;
           a = eb(a);
-          var d = A.Yf(c, a), e = A.xg(c, a, true);
-          if (e) throw new A.Df(e);
-          if (!c.Ef.rmdir) throw new A.Df(63);
-          if (A.dg(d)) throw new A.Df(10);
-          c.Ef.rmdir(c, a);
-          A.Eg(d);
+          var d = A.$f(c, a), e = A.zg(c, a, true);
+          if (e) throw new A.Ff(e);
+          if (!c.Gf.rmdir) throw new A.Ff(63);
+          if (A.fg(d)) throw new A.Ff(10);
+          c.Gf.rmdir(c, a);
+          A.Gg(d);
         }, readdir: (a) => {
-          a = A.Jf(a, { Rf: true }).node;
-          if (!a.Ef.readdir) throw new A.Df(54);
-          return a.Ef.readdir(a);
+          a = A.Lf(a, { Tf: true }).node;
+          if (!a.Gf.readdir) throw new A.Ff(54);
+          return a.Gf.readdir(a);
         }, unlink: (a) => {
-          var c = A.Jf(a, { parent: true }).node;
-          if (!c) throw new A.Df(44);
+          var c = A.Lf(a, { parent: true }).node;
+          if (!c) throw new A.Ff(44);
           a = eb(a);
-          var d = A.Yf(c, a), e = A.xg(c, a, false);
-          if (e) throw new A.Df(e);
-          if (!c.Ef.unlink) throw new A.Df(63);
-          if (A.dg(d)) throw new A.Df(10);
-          c.Ef.unlink(c, a);
-          A.Eg(d);
+          var d = A.$f(c, a), e = A.zg(c, a, false);
+          if (e) throw new A.Ff(e);
+          if (!c.Gf.unlink) throw new A.Ff(63);
+          if (A.fg(d)) throw new A.Ff(10);
+          c.Gf.unlink(c, a);
+          A.Gg(d);
         }, readlink: (a) => {
-          a = A.Jf(a).node;
-          if (!a) throw new A.Df(44);
-          if (!a.Ef.readlink) throw new A.Df(28);
-          return ib(A.$f(a.parent), a.Ef.readlink(a));
+          a = A.Lf(a).node;
+          if (!a) throw new A.Ff(44);
+          if (!a.Gf.readlink) throw new A.Ff(28);
+          return ib(A.bg(a.parent), a.Gf.readlink(a));
         }, stat: (a, c) => {
-          a = A.Jf(a, { Rf: !c }).node;
-          if (!a) throw new A.Df(44);
-          if (!a.Ef.Sf) throw new A.Df(63);
-          return a.Ef.Sf(a);
+          a = A.Lf(a, { Tf: !c }).node;
+          if (!a) throw new A.Ff(44);
+          if (!a.Gf.Uf) throw new A.Ff(63);
+          return a.Gf.Uf(a);
         }, lstat: (a) => A.stat(a, true), chmod: (a, c, d) => {
-          a = "string" == typeof a ? A.Jf(a, { Rf: !d }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          a.Ef.Of(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
+          a = "string" == typeof a ? A.Lf(a, { Tf: !d }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          a.Gf.Qf(a, { mode: c & 4095 | a.mode & -4096, timestamp: Date.now() });
         }, lchmod: (a, c) => {
           A.chmod(a, c, true);
         }, fchmod: (a, c) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           A.chmod(a.node, c);
         }, chown: (a, c, d, e) => {
-          a = "string" == typeof a ? A.Jf(a, { Rf: !e }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          a.Ef.Of(a, { timestamp: Date.now() });
+          a = "string" == typeof a ? A.Lf(a, { Tf: !e }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          a.Gf.Qf(a, { timestamp: Date.now() });
         }, lchown: (a, c, d) => {
           A.chown(a, c, d, true);
         }, fchown: (a, c, d) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           A.chown(a.node, c, d);
         }, truncate: (a, c) => {
-          if (0 > c) throw new A.Df(28);
-          a = "string" == typeof a ? A.Jf(a, { Rf: true }).node : a;
-          if (!a.Ef.Of) throw new A.Df(63);
-          if (A.Nf(a.mode)) throw new A.Df(31);
-          if (!A.isFile(a.mode)) throw new A.Df(28);
-          var d = A.hg(a, "w");
-          if (d) throw new A.Df(d);
-          a.Ef.Of(a, { size: c, timestamp: Date.now() });
-        }, xi: (a, c) => {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
-          if (0 === (a.flags & 2097155)) throw new A.Df(28);
+          if (0 > c) throw new A.Ff(28);
+          a = "string" == typeof a ? A.Lf(a, { Tf: true }).node : a;
+          if (!a.Gf.Qf) throw new A.Ff(63);
+          if (A.Pf(a.mode)) throw new A.Ff(31);
+          if (!A.isFile(a.mode)) throw new A.Ff(28);
+          var d = A.jg(a, "w");
+          if (d) throw new A.Ff(d);
+          a.Gf.Qf(a, { size: c, timestamp: Date.now() });
+        }, zi: (a, c) => {
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(28);
           A.truncate(a.node, c);
-        }, Gi: (a, c, d) => {
-          a = A.Jf(a, { Rf: true }).node;
-          a.Ef.Of(a, { timestamp: Math.max(c, d) });
+        }, Ii: (a, c, d) => {
+          a = A.Lf(a, { Tf: true }).node;
+          a.Gf.Qf(a, { timestamp: Math.max(c, d) });
         }, open: (a, c, d) => {
-          if ("" === a) throw new A.Df(44);
+          if ("" === a) throw new A.Ff(44);
           if ("string" == typeof c) {
             var e = { r: 0, "r+": 2, w: 577, "w+": 578, a: 1089, "a+": 1090 }[c];
             if ("undefined" == typeof e) throw Error("Unknown file open mode: " + c);
@@ -18978,52 +19034,52 @@ var require_tesseract_core = __commonJS({
           else {
             a = cb(a);
             try {
-              g = A.Jf(a, { Rf: !(c & 131072) }).node;
+              g = A.Lf(a, { Tf: !(c & 131072) }).node;
             } catch (h) {
             }
           }
           e = false;
           if (c & 64) if (g) {
-            if (c & 128) throw new A.Df(20);
-          } else g = A.Zf(a, d, 0), e = true;
-          if (!g) throw new A.Df(44);
-          A.vg(g.mode) && (c &= -513);
-          if (c & 65536 && !A.Nf(g.mode)) throw new A.Df(54);
-          if (!e && (d = A.hi(g, c))) throw new A.Df(d);
+            if (c & 128) throw new A.Ff(20);
+          } else g = A.ag(a, d, 0), e = true;
+          if (!g) throw new A.Ff(44);
+          A.xg(g.mode) && (c &= -513);
+          if (c & 65536 && !A.Pf(g.mode)) throw new A.Ff(54);
+          if (!e && (d = A.ji(g, c))) throw new A.Ff(d);
           c & 512 && !e && A.truncate(g, 0);
           c &= -131713;
-          g = A.dh({ node: g, path: A.$f(g), flags: c, seekable: true, position: 0, Gf: g.Gf, vi: [], error: false });
-          g.Gf.open && g.Gf.open(g);
-          !b.logReadFiles || c & 1 || (A.Vg || (A.Vg = {}), a in A.Vg || (A.Vg[a] = 1));
+          g = A.fh({ node: g, path: A.bg(g), flags: c, seekable: true, position: 0, If: g.If, xi: [], error: false });
+          g.If.open && g.If.open(g);
+          !b.logReadFiles || c & 1 || (A.Xg || (A.Xg = {}), a in A.Xg || (A.Xg[a] = 1));
           return g;
         }, close: (a) => {
-          if (A.pg(a)) throw new A.Df(8);
-          a.Mg && (a.Mg = null);
+          if (A.rg(a)) throw new A.Ff(8);
+          a.Og && (a.Og = null);
           try {
-            a.Gf.close && a.Gf.close(a);
+            a.If.close && a.If.close(a);
           } catch (c) {
             throw c;
           } finally {
-            A.Bh(a.fd);
+            A.Dh(a.fd);
           }
           a.fd = null;
-        }, pg: (a) => null === a.fd, Tf: (a, c, d) => {
-          if (A.pg(a)) throw new A.Df(8);
-          if (!a.seekable || !a.Gf.Tf) throw new A.Df(70);
-          if (0 != d && 1 != d && 2 != d) throw new A.Df(28);
-          a.position = a.Gf.Tf(a, c, d);
-          a.vi = [];
+        }, rg: (a) => null === a.fd, Vf: (a, c, d) => {
+          if (A.rg(a)) throw new A.Ff(8);
+          if (!a.seekable || !a.If.Vf) throw new A.Ff(70);
+          if (0 != d && 1 != d && 2 != d) throw new A.Ff(28);
+          a.position = a.If.Vf(a, c, d);
+          a.xi = [];
           return a.position;
         }, read: (a, c, d, e, g) => {
-          if (0 > e || 0 > g) throw new A.Df(28);
-          if (A.pg(a)) throw new A.Df(8);
-          if (1 === (a.flags & 2097155)) throw new A.Df(8);
-          if (A.Nf(a.node.mode)) throw new A.Df(31);
-          if (!a.Gf.read) throw new A.Df(28);
+          if (0 > e || 0 > g) throw new A.Ff(28);
+          if (A.rg(a)) throw new A.Ff(8);
+          if (1 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (A.Pf(a.node.mode)) throw new A.Ff(31);
+          if (!a.If.read) throw new A.Ff(28);
           var h = "undefined" != typeof g;
           if (!h) g = a.position;
-          else if (!a.seekable) throw new A.Df(70);
-          c = a.Gf.read(
+          else if (!a.seekable) throw new A.Ff(70);
+          c = a.If.read(
             a,
             c,
             d,
@@ -19033,33 +19089,33 @@ var require_tesseract_core = __commonJS({
           h || (a.position += c);
           return c;
         }, write: (a, c, d, e, g, h) => {
-          if (0 > e || 0 > g) throw new A.Df(28);
-          if (A.pg(a)) throw new A.Df(8);
-          if (0 === (a.flags & 2097155)) throw new A.Df(8);
-          if (A.Nf(a.node.mode)) throw new A.Df(31);
-          if (!a.Gf.write) throw new A.Df(28);
-          a.seekable && a.flags & 1024 && A.Tf(a, 0, 2);
+          if (0 > e || 0 > g) throw new A.Ff(28);
+          if (A.rg(a)) throw new A.Ff(8);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (A.Pf(a.node.mode)) throw new A.Ff(31);
+          if (!a.If.write) throw new A.Ff(28);
+          a.seekable && a.flags & 1024 && A.Vf(a, 0, 2);
           var k = "undefined" != typeof g;
           if (!k) g = a.position;
-          else if (!a.seekable) throw new A.Df(70);
-          c = a.Gf.write(a, c, d, e, g, h);
+          else if (!a.seekable) throw new A.Ff(70);
+          c = a.If.write(a, c, d, e, g, h);
           k || (a.position += c);
           return c;
-        }, ng: (a, c, d) => {
-          if (A.pg(a)) throw new A.Df(8);
-          if (0 > c || 0 >= d) throw new A.Df(28);
-          if (0 === (a.flags & 2097155)) throw new A.Df(8);
-          if (!A.isFile(a.node.mode) && !A.Nf(a.node.mode)) throw new A.Df(43);
-          if (!a.Gf.ng) throw new A.Df(138);
-          a.Gf.ng(a, c, d);
-        }, fg: (a, c, d, e, g) => {
-          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new A.Df(2);
-          if (1 === (a.flags & 2097155)) throw new A.Df(2);
-          if (!a.Gf.fg) throw new A.Df(43);
-          return a.Gf.fg(a, c, d, e, g);
-        }, lg: (a, c, d, e, g) => a.Gf.lg ? a.Gf.lg(a, c, d, e, g) : 0, Bi: () => 0, Pg: (a, c, d) => {
-          if (!a.Gf.Pg) throw new A.Df(59);
-          return a.Gf.Pg(a, c, d);
+        }, pg: (a, c, d) => {
+          if (A.rg(a)) throw new A.Ff(8);
+          if (0 > c || 0 >= d) throw new A.Ff(28);
+          if (0 === (a.flags & 2097155)) throw new A.Ff(8);
+          if (!A.isFile(a.node.mode) && !A.Pf(a.node.mode)) throw new A.Ff(43);
+          if (!a.If.pg) throw new A.Ff(138);
+          a.If.pg(a, c, d);
+        }, hg: (a, c, d, e, g) => {
+          if (0 !== (e & 2) && 0 === (g & 2) && 2 !== (a.flags & 2097155)) throw new A.Ff(2);
+          if (1 === (a.flags & 2097155)) throw new A.Ff(2);
+          if (!a.If.hg) throw new A.Ff(43);
+          return a.If.hg(a, c, d, e, g);
+        }, ng: (a, c, d, e, g) => a.If.ng ? a.If.ng(a, c, d, e, g) : 0, Di: () => 0, Rg: (a, c, d) => {
+          if (!a.If.Rg) throw new A.Ff(59);
+          return a.If.Rg(a, c, d);
         }, readFile: (a, c = {}) => {
           c.flags = c.flags || 0;
           c.encoding = c.encoding || "binary";
@@ -19077,131 +19133,131 @@ var require_tesseract_core = __commonJS({
           if ("string" == typeof c) {
             var e = new Uint8Array(Ta(c) + 1);
             c = Ua(c, e, 0, e.length);
-            A.write(a, e, 0, c, void 0, d.zh);
+            A.write(a, e, 0, c, void 0, d.Bh);
           } else if (ArrayBuffer.isView(c)) A.write(
             a,
             c,
             0,
             c.byteLength,
             void 0,
-            d.zh
+            d.Bh
           );
           else throw Error("Unsupported data type");
           A.close(a);
-        }, cwd: () => A.eh, chdir: (a) => {
-          a = A.Jf(a, { Rf: true });
-          if (null === a.node) throw new A.Df(44);
-          if (!A.Nf(a.node.mode)) throw new A.Df(54);
-          var c = A.hg(a.node, "x");
-          if (c) throw new A.Df(c);
-          A.eh = a.path;
-        }, Dh: () => {
+        }, cwd: () => A.gh, chdir: (a) => {
+          a = A.Lf(a, { Tf: true });
+          if (null === a.node) throw new A.Ff(44);
+          if (!A.Pf(a.node.mode)) throw new A.Ff(54);
+          var c = A.jg(a.node, "x");
+          if (c) throw new A.Ff(c);
+          A.gh = a.path;
+        }, Fh: () => {
           A.mkdir("/tmp");
           A.mkdir("/home");
           A.mkdir("/home/web_user");
-        }, Ch: () => {
+        }, Eh: () => {
           A.mkdir("/dev");
-          A.Xg(A.eg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
-          A.yg("/dev/null", A.eg(1, 3));
-          mb(A.eg(5, 0), ob);
-          mb(A.eg(6, 0), pb);
-          A.yg("/dev/tty", A.eg(5, 0));
-          A.yg("/dev/tty1", A.eg(6, 0));
+          A.Zg(A.gg(1, 3), { read: () => 0, write: (e, g, h, k) => k });
+          A.Ag("/dev/null", A.gg(1, 3));
+          mb(A.gg(5, 0), ob);
+          mb(A.gg(6, 0), pb);
+          A.Ag("/dev/tty", A.gg(5, 0));
+          A.Ag("/dev/tty1", A.gg(6, 0));
           var a = new Uint8Array(1024), c = 0, d = () => {
             0 === c && (c = hb(a).byteLength);
             return a[--c];
           };
-          A.Qf("/dev", "random", d);
-          A.Qf("/dev", "urandom", d);
+          A.Sf("/dev", "random", d);
+          A.Sf("/dev", "urandom", d);
           A.mkdir("/dev/shm");
           A.mkdir("/dev/shm/tmp");
-        }, Fh: () => {
+        }, Hh: () => {
           A.mkdir("/proc");
           var a = A.mkdir("/proc/self");
           A.mkdir("/proc/self/fd");
-          A.Mf({ Mf: () => {
+          A.Of({ Of: () => {
             var c = A.createNode(a, "fd", 16895, 73);
-            c.Ef = { lookup: (d, e) => {
-              var g = A.og(+e);
-              if (!g) throw new A.Df(8);
-              d = { parent: null, Mf: { ph: "fake" }, Ef: { readlink: () => g.path } };
+            c.Gf = { lookup: (d, e) => {
+              var g = A.qg(+e);
+              if (!g) throw new A.Ff(8);
+              d = { parent: null, Of: { rh: "fake" }, Gf: { readlink: () => g.path } };
               return d.parent = d;
             } };
             return c;
           } }, {}, "/proc/self/fd");
-        }, Gh: () => {
-          b.stdin ? A.Qf(
+        }, Ih: () => {
+          b.stdin ? A.Sf(
             "/dev",
             "stdin",
             b.stdin
           ) : A.symlink("/dev/tty", "/dev/stdin");
-          b.stdout ? A.Qf("/dev", "stdout", null, b.stdout) : A.symlink("/dev/tty", "/dev/stdout");
-          b.stderr ? A.Qf("/dev", "stderr", null, b.stderr) : A.symlink("/dev/tty1", "/dev/stderr");
+          b.stdout ? A.Sf("/dev", "stdout", null, b.stdout) : A.symlink("/dev/tty", "/dev/stdout");
+          b.stderr ? A.Sf("/dev", "stderr", null, b.stderr) : A.symlink("/dev/tty1", "/dev/stderr");
           A.open("/dev/stdin", 0);
           A.open("/dev/stdout", 1);
           A.open("/dev/stderr", 1);
-        }, gh: () => {
-          A.Df || (A.Df = function(a, c) {
+        }, ih: () => {
+          A.Ff || (A.Ff = function(a, c) {
             this.name = "ErrnoError";
             this.node = c;
-            this.oi = function(d) {
-              this.Lf = d;
+            this.ri = function(d) {
+              this.Nf = d;
             };
-            this.oi(a);
+            this.ri(a);
             this.message = "FS error";
-          }, A.Df.prototype = Error(), A.Df.prototype.constructor = A.Df, [44].forEach((a) => {
-            A.Hg[a] = new A.Df(a);
-            A.Hg[a].stack = "<generic error, no stack>";
+          }, A.Ff.prototype = Error(), A.Ff.prototype.constructor = A.Ff, [44].forEach((a) => {
+            A.Jg[a] = new A.Ff(a);
+            A.Jg[a].stack = "<generic error, no stack>";
           }));
-        }, pi: () => {
-          A.gh();
-          A.Uf = Array(4096);
-          A.Mf(B, {}, "/");
-          A.Dh();
-          A.Ch();
+        }, si: () => {
+          A.ih();
+          A.Wf = Array(4096);
+          A.Of(B, {}, "/");
           A.Fh();
-          A.Ih = { MEMFS: B };
-        }, cg: (a, c, d) => {
-          A.cg.Og = true;
-          A.gh();
+          A.Eh();
+          A.Hh();
+          A.Kh = { MEMFS: B };
+        }, eg: (a, c, d) => {
+          A.eg.Qg = true;
+          A.ih();
           b.stdin = a || b.stdin;
           b.stdout = c || b.stdout;
           b.stderr = d || b.stderr;
-          A.Gh();
-        }, Di: () => {
-          A.cg.Og = false;
+          A.Ih();
+        }, Fi: () => {
+          A.eg.Qg = false;
           for (var a = 0; a < A.streams.length; a++) {
             var c = A.streams[a];
             c && A.close(c);
           }
-        }, wi: (a, c) => {
-          a = A.xh(a, c);
+        }, yi: (a, c) => {
+          a = A.zh(a, c);
           return a.exists ? a.object : null;
-        }, xh: (a, c) => {
+        }, zh: (a, c) => {
           try {
-            var d = A.Jf(a, { Rf: !c });
+            var d = A.Lf(a, { Tf: !c });
             a = d.path;
           } catch (g) {
           }
           var e = {
-            wg: false,
+            yg: false,
             exists: false,
             error: 0,
             name: null,
             path: null,
             object: null,
-            ki: false,
-            mi: null,
-            li: null
+            mi: false,
+            oi: null,
+            ni: null
           };
           try {
-            d = A.Jf(a, { parent: true }), e.ki = true, e.mi = d.path, e.li = d.node, e.name = eb(a), d = A.Jf(a, { Rf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.wg = "/" === d.path;
+            d = A.Lf(a, { parent: true }), e.mi = true, e.oi = d.path, e.ni = d.node, e.name = eb(a), d = A.Lf(a, { Tf: !c }), e.exists = true, e.path = d.path, e.object = d.node, e.name = d.node.name, e.yg = "/" === d.path;
           } catch (g) {
-            e.error = g.Lf;
+            e.error = g.Nf;
           }
           return e;
-        }, Dg: (a, c) => {
-          a = "string" == typeof a ? a : A.$f(a);
+        }, Fg: (a, c) => {
+          a = "string" == typeof a ? a : A.bg(a);
           for (c = c.split("/").reverse(); c.length; ) {
             var d = c.pop();
             if (d) {
@@ -19214,13 +19270,13 @@ var require_tesseract_core = __commonJS({
             }
           }
           return e;
-        }, Eh: (a, c, d, e, g) => {
-          a = "string" == typeof a ? a : A.$f(a);
+        }, Gh: (a, c, d, e, g) => {
+          a = "string" == typeof a ? a : A.bg(a);
           c = cb(a + "/" + c);
           return A.create(c, tb(e, g));
-        }, ug: (a, c, d, e, g, h) => {
+        }, wg: (a, c, d, e, g, h) => {
           var k = c;
-          a && (a = "string" == typeof a ? a : A.$f(a), k = c ? cb(a + "/" + c) : a);
+          a && (a = "string" == typeof a ? a : A.bg(a), k = c ? cb(a + "/" + c) : a);
           a = tb(e, g);
           k = A.create(k, a);
           if (d) {
@@ -19237,12 +19293,12 @@ var require_tesseract_core = __commonJS({
             A.chmod(k, a);
           }
           return k;
-        }, Qf: (a, c, d, e) => {
-          a = fb("string" == typeof a ? a : A.$f(a), c);
+        }, Sf: (a, c, d, e) => {
+          a = fb("string" == typeof a ? a : A.bg(a), c);
           c = tb(!!d, !!e);
-          A.Qf.Sg || (A.Qf.Sg = 64);
-          var g = A.eg(A.Qf.Sg++, 0);
-          A.Xg(g, { open: (h) => {
+          A.Sf.Ug || (A.Sf.Ug = 64);
+          var g = A.gg(A.Sf.Ug++, 0);
+          A.Zg(g, { open: (h) => {
             h.seekable = false;
           }, close: () => {
             e && e.buffer && e.buffer.length && e(10);
@@ -19251,9 +19307,9 @@ var require_tesseract_core = __commonJS({
               try {
                 var F = d();
               } catch (U) {
-                throw new A.Df(29);
+                throw new A.Ff(29);
               }
-              if (void 0 === F && 0 === q) throw new A.Df(6);
+              if (void 0 === F && 0 === q) throw new A.Ff(6);
               if (null === F || void 0 === F) break;
               q++;
               k[m + t] = F;
@@ -19264,36 +19320,36 @@ var require_tesseract_core = __commonJS({
             for (var q = 0; q < v; q++) try {
               e(k[m + q]);
             } catch (t) {
-              throw new A.Df(29);
+              throw new A.Ff(29);
             }
             v && (h.node.timestamp = Date.now());
             return q;
           } });
-          return A.yg(a, c, g);
-        }, Gg: (a) => {
-          if (a.Qg || a.fi || a.link || a.Ff) return true;
+          return A.Ag(a, c, g);
+        }, Ig: (a) => {
+          if (a.Sg || a.hi || a.link || a.Hf) return true;
           if ("undefined" != typeof XMLHttpRequest) throw Error("Lazy loading should have been performed (contents set) in createLazyFile, but it was not. Lazy loading only works in web workers. Use --embed-file or --preload-file in emcc on the main thread.");
           if (ja) try {
-            a.Ff = kb(ja(a.url), true), a.Kf = a.Ff.length;
+            a.Hf = kb(ja(a.url), true), a.Mf = a.Hf.length;
           } catch (c) {
-            throw new A.Df(29);
+            throw new A.Ff(29);
           }
           else throw Error("Cannot load without read() or XMLHttpRequest.");
-        }, ah: (a, c, d, e, g) => {
+        }, dh: (a, c, d, e, g) => {
           function h() {
-            this.Rg = false;
-            this.Pf = [];
+            this.Tg = false;
+            this.Rf = [];
           }
           h.prototype.get = function(q) {
             if (!(q > this.length - 1 || 0 > q)) {
               var t = q % this.chunkSize;
-              return this.lh(q / this.chunkSize | 0)[t];
+              return this.nh(q / this.chunkSize | 0)[t];
             }
           };
-          h.prototype.Cg = function(q) {
-            this.lh = q;
+          h.prototype.Eg = function(q) {
+            this.nh = q;
           };
-          h.prototype.Zg = function() {
+          h.prototype.ah = function() {
             var q = new XMLHttpRequest();
             q.open("HEAD", d, false);
             q.send(null);
@@ -19303,11 +19359,11 @@ var require_tesseract_core = __commonJS({
             var l = 1048576;
             U || (l = t);
             var w = this;
-            w.Cg((E) => {
+            w.Eg((E) => {
               var V = E * l, qa = (E + 1) * l - 1;
               qa = Math.min(qa, t - 1);
-              if ("undefined" == typeof w.Pf[E]) {
-                var Th = w.Pf;
+              if ("undefined" == typeof w.Rf[E]) {
+                var Vh = w.Rf;
                 if (V > qa) throw Error("invalid range (" + V + ", " + qa + ") or no bytes requested!");
                 if (qa > t - 1) throw Error("only " + t + " bytes available! programmer error!");
                 var W = new XMLHttpRequest();
@@ -19322,44 +19378,44 @@ var require_tesseract_core = __commonJS({
                 W.send(null);
                 if (!(200 <= W.status && 300 > W.status || 304 === W.status)) throw Error("Couldn't load " + d + ". Status: " + W.status);
                 V = void 0 !== W.response ? new Uint8Array(W.response || []) : kb(W.responseText || "", true);
-                Th[E] = V;
+                Vh[E] = V;
               }
-              if ("undefined" == typeof w.Pf[E]) throw Error("doXHR failed!");
-              return w.Pf[E];
+              if ("undefined" == typeof w.Rf[E]) throw Error("doXHR failed!");
+              return w.Rf[E];
             });
-            if (q || !t) l = t = 1, l = t = this.lh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
-            this.vh = t;
-            this.uh = l;
-            this.Rg = true;
+            if (q || !t) l = t = 1, l = t = this.nh(0).length, na("LazyFiles on gzip forces download of the whole file when length is accessed");
+            this.xh = t;
+            this.wh = l;
+            this.Tg = true;
           };
           if ("undefined" != typeof XMLHttpRequest) {
             if (!ha) throw "Cannot do synchronous binary XHRs outside webworkers in modern browsers. Use --embed-file or --preload-file in emcc";
             var k = new h();
             Object.defineProperties(k, { length: { get: function() {
-              this.Rg || this.Zg();
-              return this.vh;
+              this.Tg || this.ah();
+              return this.xh;
             } }, chunkSize: { get: function() {
-              this.Rg || this.Zg();
-              return this.uh;
+              this.Tg || this.ah();
+              return this.wh;
             } } });
-            k = { Qg: false, Ff: k };
-          } else k = { Qg: false, url: d };
-          var m = A.Eh(a, c, k, e, g);
-          k.Ff ? m.Ff = k.Ff : k.url && (m.Ff = null, m.url = k.url);
-          Object.defineProperties(m, { Kf: { get: function() {
-            return this.Ff.length;
+            k = { Sg: false, Hf: k };
+          } else k = { Sg: false, url: d };
+          var m = A.Gh(a, c, k, e, g);
+          k.Hf ? m.Hf = k.Hf : k.url && (m.Hf = null, m.url = k.url);
+          Object.defineProperties(m, { Mf: { get: function() {
+            return this.Hf.length;
           } } });
           var v = {};
-          Object.keys(m.Gf).forEach((q) => {
-            var t = m.Gf[q];
+          Object.keys(m.If).forEach((q) => {
+            var t = m.If[q];
             v[q] = function() {
-              A.Gg(m);
+              A.Ig(m);
               return t.apply(null, arguments);
             };
           });
           v.read = (q, t, F, U, l) => {
-            A.Gg(m);
-            q = q.node.Ff;
+            A.Ig(m);
+            q = q.node.Hf;
             if (l >= q.length) t = 0;
             else {
               U = Math.min(q.length - l, U);
@@ -19369,19 +19425,19 @@ var require_tesseract_core = __commonJS({
             }
             return t;
           };
-          v.fg = () => {
-            A.Gg(m);
+          v.hg = () => {
+            A.Ig(m);
             n();
-            throw new A.Df(48);
+            throw new A.Ff(48);
           };
-          m.Gf = v;
+          m.If = v;
           return m;
         } };
         function ub(a, c, d) {
           if ("/" === c.charAt(0)) return c;
           a = -100 === a ? A.cwd() : vb(a).path;
           if (0 == c.length) {
-            if (!d) throw new A.Df(44);
+            if (!d) throw new A.Ff(44);
             return a;
           }
           return cb(a + "/" + c);
@@ -19390,7 +19446,7 @@ var require_tesseract_core = __commonJS({
           try {
             var e = a(c);
           } catch (h) {
-            if (h && h.node && cb(c) !== cb(A.$f(h.node))) return -54;
+            if (h && h.node && cb(c) !== cb(A.bg(h.node))) return -54;
             throw h;
           }
           r[d >> 2] = e.dev;
@@ -19431,8 +19487,8 @@ var require_tesseract_core = __commonJS({
           return r[xb - 4 >> 2];
         }
         function vb(a) {
-          a = A.og(a);
-          if (!a) throw new A.Df(8);
+          a = A.qg(a);
+          if (!a) throw new A.Ff(8);
           return a;
         }
         function zb() {
@@ -19507,8 +19563,8 @@ var require_tesseract_core = __commonJS({
             }
           }
           function v(l) {
-            var w = l.jg;
-            for (l = new Date(new Date(l.kg + 1900, 0, 1).getTime()); 0 < w; ) {
+            var w = l.lg;
+            for (l = new Date(new Date(l.mg + 1900, 0, 1).getTime()); 0 < w; ) {
               var E = l.getMonth(), V = (Ab(l.getFullYear()) ? Lb : Mb)[E];
               if (w > V - l.getDate()) w -= V - l.getDate() + 1, l.setDate(1), 11 > E ? l.setMonth(E + 1) : (l.setMonth(0), l.setFullYear(l.getFullYear() + 1));
               else {
@@ -19526,7 +19582,7 @@ var require_tesseract_core = __commonJS({
             return 0 >= k(w, l) ? 0 >= k(E, l) ? l.getFullYear() + 1 : l.getFullYear() : l.getFullYear() - 1;
           }
           var q = r[e + 40 >> 2];
-          e = { ti: r[e >> 2], si: r[e + 4 >> 2], Ag: r[e + 8 >> 2], Yg: r[e + 12 >> 2], Bg: r[e + 16 >> 2], kg: r[e + 20 >> 2], Wf: r[e + 24 >> 2], jg: r[e + 28 >> 2], Ei: r[e + 32 >> 2], ri: r[e + 36 >> 2], ui: q ? z(q) : "" };
+          e = { vi: r[e >> 2], ui: r[e + 4 >> 2], Cg: r[e + 8 >> 2], $g: r[e + 12 >> 2], Dg: r[e + 16 >> 2], mg: r[e + 20 >> 2], Yf: r[e + 24 >> 2], lg: r[e + 28 >> 2], Gi: r[e + 32 >> 2], ti: r[e + 36 >> 2], wi: q ? z(q) : "" };
           d = z(d);
           q = {
             "%c": "%a %b %d %H:%M:%S %Y",
@@ -19562,25 +19618,25 @@ var require_tesseract_core = __commonJS({
           var F = "Sunday Monday Tuesday Wednesday Thursday Friday Saturday".split(" "), U = "January February March April May June July August September October November December".split(" ");
           q = {
             "%a": function(l) {
-              return F[l.Wf].substring(0, 3);
+              return F[l.Yf].substring(0, 3);
             },
             "%A": function(l) {
-              return F[l.Wf];
+              return F[l.Yf];
             },
             "%b": function(l) {
-              return U[l.Bg].substring(0, 3);
+              return U[l.Dg].substring(0, 3);
             },
             "%B": function(l) {
-              return U[l.Bg];
+              return U[l.Dg];
             },
             "%C": function(l) {
-              return h((l.kg + 1900) / 100 | 0, 2);
+              return h((l.mg + 1900) / 100 | 0, 2);
             },
             "%d": function(l) {
-              return h(l.Yg, 2);
+              return h(l.$g, 2);
             },
             "%e": function(l) {
-              return g(l.Yg, 2, " ");
+              return g(l.$g, 2, " ");
             },
             "%g": function(l) {
               return v(l).toString().substring(2);
@@ -19589,72 +19645,72 @@ var require_tesseract_core = __commonJS({
               return v(l);
             },
             "%H": function(l) {
-              return h(l.Ag, 2);
+              return h(l.Cg, 2);
             },
             "%I": function(l) {
-              l = l.Ag;
+              l = l.Cg;
               0 == l ? l = 12 : 12 < l && (l -= 12);
               return h(l, 2);
             },
             "%j": function(l) {
-              for (var w = 0, E = 0; E <= l.Bg - 1; w += (Ab(l.kg + 1900) ? Lb : Mb)[E++]) ;
-              return h(l.Yg + w, 3);
+              for (var w = 0, E = 0; E <= l.Dg - 1; w += (Ab(l.mg + 1900) ? Lb : Mb)[E++]) ;
+              return h(l.$g + w, 3);
             },
             "%m": function(l) {
-              return h(l.Bg + 1, 2);
+              return h(l.Dg + 1, 2);
             },
             "%M": function(l) {
-              return h(l.si, 2);
+              return h(l.ui, 2);
             },
             "%n": function() {
               return "\n";
             },
             "%p": function(l) {
-              return 0 <= l.Ag && 12 > l.Ag ? "AM" : "PM";
+              return 0 <= l.Cg && 12 > l.Cg ? "AM" : "PM";
             },
             "%S": function(l) {
-              return h(l.ti, 2);
+              return h(l.vi, 2);
             },
             "%t": function() {
               return "	";
             },
             "%u": function(l) {
-              return l.Wf || 7;
+              return l.Yf || 7;
             },
             "%U": function(l) {
-              return h(Math.floor((l.jg + 7 - l.Wf) / 7), 2);
+              return h(Math.floor((l.lg + 7 - l.Yf) / 7), 2);
             },
             "%V": function(l) {
-              var w = Math.floor((l.jg + 7 - (l.Wf + 6) % 7) / 7);
-              2 >= (l.Wf + 371 - l.jg - 2) % 7 && w++;
-              if (w) 53 == w && (E = (l.Wf + 371 - l.jg) % 7, 4 == E || 3 == E && Ab(l.kg) || (w = 1));
+              var w = Math.floor((l.lg + 7 - (l.Yf + 6) % 7) / 7);
+              2 >= (l.Yf + 371 - l.lg - 2) % 7 && w++;
+              if (w) 53 == w && (E = (l.Yf + 371 - l.lg) % 7, 4 == E || 3 == E && Ab(l.mg) || (w = 1));
               else {
                 w = 52;
-                var E = (l.Wf + 7 - l.jg - 1) % 7;
-                (4 == E || 5 == E && Ab(l.kg % 400 - 1)) && w++;
+                var E = (l.Yf + 7 - l.lg - 1) % 7;
+                (4 == E || 5 == E && Ab(l.mg % 400 - 1)) && w++;
               }
               return h(w, 2);
             },
             "%w": function(l) {
-              return l.Wf;
+              return l.Yf;
             },
             "%W": function(l) {
-              return h(Math.floor((l.jg + 7 - (l.Wf + 6) % 7) / 7), 2);
+              return h(Math.floor((l.lg + 7 - (l.Yf + 6) % 7) / 7), 2);
             },
             "%y": function(l) {
-              return (l.kg + 1900).toString().substring(2);
+              return (l.mg + 1900).toString().substring(2);
             },
             "%Y": function(l) {
-              return l.kg + 1900;
+              return l.mg + 1900;
             },
             "%z": function(l) {
-              l = l.ri;
+              l = l.ti;
               var w = 0 <= l;
               l = Math.abs(l) / 60;
               return (w ? "+" : "-") + String("0000" + (l / 60 * 100 + l % 60)).slice(-4);
             },
             "%Z": function(l) {
-              return l.ui;
+              return l.wi;
             },
             "%%": function() {
               return "%";
@@ -19677,13 +19733,13 @@ var require_tesseract_core = __commonJS({
         function Qb(a, c, d, e) {
           a || (a = this);
           this.parent = a;
-          this.Mf = a.Mf;
-          this.rg = null;
-          this.id = A.ii++;
+          this.Of = a.Of;
+          this.tg = null;
+          this.id = A.ki++;
           this.name = c;
           this.mode = d;
-          this.Ef = {};
           this.Gf = {};
+          this.If = {};
           this.rdev = e;
         }
         Object.defineProperties(Qb.prototype, { read: { get: function() {
@@ -19694,17 +19750,17 @@ var require_tesseract_core = __commonJS({
           return 146 === (this.mode & 146);
         }, set: function(a) {
           a ? this.mode |= 146 : this.mode &= -147;
-        } }, fi: { get: function() {
-          return A.Nf(this.mode);
-        } }, Qg: { get: function() {
-          return A.vg(this.mode);
+        } }, hi: { get: function() {
+          return A.Pf(this.mode);
+        } }, Sg: { get: function() {
+          return A.xg(this.mode);
         } } });
-        A.sh = Qb;
-        A.bh = function(a, c, d, e, g, h, k, m, v, q) {
+        A.th = Qb;
+        A.eh = function(a, c, d, e, g, h, k, m, v, q) {
           function t(l) {
             function w(E) {
               q && q();
-              m || A.ug(a, c, E, e, g, v);
+              m || A.wg(a, c, E, e, g, v);
               h && h();
               Ia(U);
             }
@@ -19717,17 +19773,17 @@ var require_tesseract_core = __commonJS({
           Ha(U);
           "string" == typeof d ? qb(d, (l) => t(l), k) : t(d);
         };
-        A.pi();
-        b.FS_createPath = A.Dg;
-        b.FS_createDataFile = A.ug;
-        b.FS_createPreloadedFile = A.bh;
+        A.si();
+        b.FS_createPath = A.Fg;
+        b.FS_createDataFile = A.wg;
+        b.FS_createPreloadedFile = A.eh;
         b.FS_unlink = A.unlink;
-        b.FS_createLazyFile = A.ah;
-        b.FS_createDevice = A.Qf;
+        b.FS_createLazyFile = A.dh;
+        b.FS_createDevice = A.Sf;
         var cc = { a: function(a, c, d, e) {
           n(`Assertion failed: ${z(a)}, at: ` + [c ? z(c) : "unknown filename", d, e ? z(e) : "unknown function"]);
         }, n: function(a, c, d) {
-          new Za(a).cg(c, d);
+          new Za(a).eg(c, d);
           $a = a;
           ab++;
           throw $a;
@@ -19738,7 +19794,7 @@ var require_tesseract_core = __commonJS({
             switch (c) {
               case 0:
                 var g = yb();
-                return 0 > g ? -28 : A.dh(e, g).fd;
+                return 0 > g ? -28 : A.fh(e, g).fd;
               case 1:
               case 2:
                 return 0;
@@ -19761,7 +19817,7 @@ var require_tesseract_core = __commonJS({
             }
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, N: function(a, c) {
           try {
@@ -19769,7 +19825,7 @@ var require_tesseract_core = __commonJS({
             return wb(A.stat, d.path, c);
           } catch (e) {
             if ("undefined" == typeof A || "ErrnoError" !== e.name) throw e;
-            return -e.Lf;
+            return -e.Nf;
           }
         }, K: function(a, c) {
           try {
@@ -19780,7 +19836,7 @@ var require_tesseract_core = __commonJS({
             return e;
           } catch (g) {
             if ("undefined" == typeof A || "ErrnoError" !== g.name) throw g;
-            return -g.Lf;
+            return -g.Nf;
           }
         }, R: function(a, c, d) {
           xb = d;
@@ -19804,7 +19860,7 @@ var require_tesseract_core = __commonJS({
               case 21520:
                 return e.tty ? -28 : -59;
               case 21531:
-                return g = yb(), A.Pg(e, c, g);
+                return g = yb(), A.Rg(e, c, g);
               case 21523:
                 return e.tty ? 0 : -59;
               case 21524:
@@ -19814,7 +19870,7 @@ var require_tesseract_core = __commonJS({
             }
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, L: function(a, c, d, e) {
           try {
@@ -19824,7 +19880,7 @@ var require_tesseract_core = __commonJS({
             return wb(g ? A.lstat : A.stat, c, d);
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, r: function(a, c, d, e) {
           xb = e;
@@ -19835,28 +19891,28 @@ var require_tesseract_core = __commonJS({
             return A.open(c, d, g).fd;
           } catch (h) {
             if ("undefined" == typeof A || "ErrnoError" !== h.name) throw h;
-            return -h.Lf;
+            return -h.Nf;
           }
         }, B: function(a) {
           try {
             return a = z(a), A.rmdir(a), 0;
           } catch (c) {
             if ("undefined" == typeof A || "ErrnoError" !== c.name) throw c;
-            return -c.Lf;
+            return -c.Nf;
           }
         }, M: function(a, c) {
           try {
             return a = z(a), wb(A.stat, a, c);
           } catch (d) {
             if ("undefined" == typeof A || "ErrnoError" !== d.name) throw d;
-            return -d.Lf;
+            return -d.Nf;
           }
         }, C: function(a, c, d) {
           try {
             return c = z(c), c = ub(a, c), 0 === d ? A.unlink(c) : 512 === d ? A.rmdir(c) : n("Invalid flags passed to unlinkat"), 0;
           } catch (e) {
             if ("undefined" == typeof A || "ErrnoError" !== e.name) throw e;
-            return -e.Lf;
+            return -e.Nf;
           }
         }, S: function(a) {
           do {
@@ -19867,8 +19923,8 @@ var require_tesseract_core = __commonJS({
             var e = u[a >> 2];
             a += 4;
             c = z(c);
-            A.Dg("/", db(c), true, true);
-            A.ug(c, null, p.subarray(e, e + d), true, true, true);
+            A.Fg("/", db(c), true, true);
+            A.wg(c, null, p.subarray(e, e + d), true, true, true);
           } while (u[a >> 2]);
         }, P: function() {
           return true;
@@ -19911,27 +19967,27 @@ var require_tesseract_core = __commonJS({
           return c.getTime() / 1e3 | 0;
         }, D: function(a, c, d, e, g, h, k) {
           try {
-            var m = vb(e), v = A.fg(m, a, g, c, d), q = v.Cf;
-            r[h >> 2] = v.wh;
+            var m = vb(e), v = A.hg(m, a, g, c, d), q = v.Ef;
+            r[h >> 2] = v.yh;
             u[k >> 2] = q;
             return 0;
           } catch (t) {
             if ("undefined" == typeof A || "ErrnoError" !== t.name) throw t;
-            return -t.Lf;
+            return -t.Nf;
           }
         }, E: function(a, c, d, e, g, h) {
           try {
             var k = vb(g);
             if (d & 2) {
-              if (!A.isFile(k.node.mode)) throw new A.Df(43);
+              if (!A.isFile(k.node.mode)) throw new A.Ff(43);
               if (!(e & 2)) {
                 var m = ta.slice(a, a + c);
-                A.lg(k, m, h, c, e);
+                A.ng(k, m, h, c, e);
               }
             }
           } catch (v) {
             if ("undefined" == typeof A || "ErrnoError" !== v.name) throw v;
-            return -v.Lf;
+            return -v.Nf;
           }
         }, A: function(a, c, d) {
           function e(v) {
@@ -20017,7 +20073,7 @@ var require_tesseract_core = __commonJS({
             return 0;
           } catch (d) {
             if ("undefined" == typeof A || "ErrnoError" !== d.name) throw d;
-            return d.Lf;
+            return d.Nf;
           }
         }, s: function(a, c, d, e) {
           try {
@@ -20048,22 +20104,22 @@ var require_tesseract_core = __commonJS({
             return 0;
           } catch (F) {
             if ("undefined" == typeof A || "ErrnoError" !== F.name) throw F;
-            return F.Lf;
+            return F.Nf;
           }
         }, w: function(a, c, d, e, g) {
           try {
             c = d + 2097152 >>> 0 < 4194305 - !!c ? (c >>> 0) + 4294967296 * d : NaN;
             if (isNaN(c)) return 61;
             var h = vb(a);
-            A.Tf(h, c, e);
+            A.Vf(h, c, e);
             y = [h.position >>> 0, (x = h.position, 1 <= +Math.abs(x) ? 0 < x ? +Math.floor(x / 4294967296) >>> 0 : ~~+Math.ceil((x - +(~~x >>> 0)) / 4294967296) >>> 0 : 0)];
             r[g >> 2] = y[0];
             r[g + 4 >> 2] = y[1];
-            h.Mg && 0 === c && 0 === e && (h.Mg = null);
+            h.Og && 0 === c && 0 === e && (h.Og = null);
             return 0;
           } catch (k) {
             if ("undefined" == typeof A || "ErrnoError" !== k.name) throw k;
-            return k.Lf;
+            return k.Nf;
           }
         }, o: function(a, c, d, e) {
           try {
@@ -20087,9 +20143,9 @@ var require_tesseract_core = __commonJS({
             return 0;
           } catch (F) {
             if ("undefined" == typeof A || "ErrnoError" !== F.name) throw F;
-            return F.Lf;
+            return F.Nf;
           }
-        }, c: Sb, f: Tb, b: Ub, h: Vb, i: Wb, e: Xb, d: Yb, g: Zb, j: $b, u: ac, v: bc, T: Nb, x: function(a, c, d, e) {
+        }, c: Sb, e: Tb, b: Ub, h: Vb, i: Wb, d: Xb, f: Yb, g: Zb, j: $b, u: ac, v: bc, T: Nb, x: function(a, c, d, e) {
           return Nb(a, c, d, e);
         } };
         (function() {
@@ -20098,7 +20154,7 @@ var require_tesseract_core = __commonJS({
             b.asm = d;
             ra = b.asm.U;
             xa();
-            ya = b.asm.qf;
+            ya = b.asm.sf;
             Aa.unshift(b.asm.V);
             Ia("wasm-instantiate");
             return d;
@@ -20507,266 +20563,255 @@ var require_tesseract_core = __commonJS({
           return (Ff = b._emscripten_bind_TessBaseAPI_FindLines_0 = b.asm.rd).apply(null, arguments);
         }, Gf = b._emscripten_bind_TessBaseAPI_GetGradient_0 = function() {
           return (Gf = b._emscripten_bind_TessBaseAPI_GetGradient_0 = b.asm.sd).apply(null, arguments);
-        }, Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
-          return (Hf = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.td).apply(null, arguments);
-        }, If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
-          return (If = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.ud).apply(null, arguments);
-        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
-          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.vd).apply(null, arguments);
-        }, Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
-          return (Kf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.wd).apply(
+        }, Hf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = function() {
+          return (Hf = b._emscripten_bind_TessBaseAPI_GetEstimatedResolution_0 = b.asm.td).apply(null, arguments);
+        }, If = b._emscripten_bind_TessBaseAPI_GetRegions_1 = function() {
+          return (If = b._emscripten_bind_TessBaseAPI_GetRegions_1 = b.asm.ud).apply(null, arguments);
+        }, Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = function() {
+          return (Jf = b._emscripten_bind_TessBaseAPI_GetTextlines_2 = b.asm.vd).apply(null, arguments);
+        }, Kf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = function() {
+          return (Kf = b._emscripten_bind_TessBaseAPI_GetTextlines_5 = b.asm.wd).apply(
             null,
             arguments
           );
-        }, Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
-          return (Lf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.xd).apply(null, arguments);
-        }, Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
-          return (Mf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.yd).apply(null, arguments);
-        }, Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
-          return (Nf = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.zd).apply(null, arguments);
-        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
-          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Ad).apply(null, arguments);
-        }, Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
-          return (Pf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Bd).apply(null, arguments);
-        }, Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
-          return (Qf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Cd).apply(null, arguments);
-        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
-          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Dd).apply(null, arguments);
-        }, Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
-          return (Sf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Ed).apply(null, arguments);
-        }, Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
-          return (Tf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Fd).apply(null, arguments);
-        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
-          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Gd).apply(
-            null,
-            arguments
-          );
-        }, Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
-          return (Vf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Hd).apply(null, arguments);
-        }, Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
-          return (Wf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Id).apply(null, arguments);
-        }, Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
-          return (Xf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Jd).apply(null, arguments);
-        }, Yf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
-          return (Yf = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Kd).apply(null, arguments);
-        }, Zf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
-          return (Zf = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Ld).apply(null, arguments);
-        }, $f = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
-          return ($f = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Md).apply(null, arguments);
-        }, ag = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
-          return (ag = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Nd).apply(
-            null,
-            arguments
-          );
-        }, bg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
-          return (bg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Od).apply(null, arguments);
-        }, cg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
-          return (cg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Pd).apply(null, arguments);
-        }, dg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
-          return (dg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Qd).apply(null, arguments);
-        }, eg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
-          return (eg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Rd).apply(null, arguments);
-        }, fg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
-          return (fg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Sd).apply(null, arguments);
-        }, gg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
-          return (gg = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Td).apply(null, arguments);
-        }, hg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
-          return (hg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Ud).apply(null, arguments);
-        }, ig = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
-          return (ig = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Vd).apply(null, arguments);
-        }, jg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
-          return (jg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.Wd).apply(null, arguments);
-        }, kg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
-          return (kg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.Xd).apply(null, arguments);
-        }, lg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
-          return (lg = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm.Yd).apply(null, arguments);
-        }, mg = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
-          return (mg = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.Zd).apply(null, arguments);
-        }, ng = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
-          return (ng = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm._d).apply(null, arguments);
-        }, og = b._emscripten_bind_OSResults_OSResults_0 = function() {
-          return (og = b._emscripten_bind_OSResults_OSResults_0 = b.asm.$d).apply(
-            null,
-            arguments
-          );
-        }, pg = b._emscripten_bind_OSResults_print_scores_0 = function() {
-          return (pg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ae).apply(null, arguments);
-        }, qg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
-          return (qg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.be).apply(null, arguments);
-        }, rg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
-          return (rg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ce).apply(null, arguments);
-        }, sg = b._emscripten_bind_OSResults___destroy___0 = function() {
-          return (sg = b._emscripten_bind_OSResults___destroy___0 = b.asm.de).apply(null, arguments);
-        }, tg = b._emscripten_bind_Pixa_get_n_0 = function() {
-          return (tg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ee).apply(null, arguments);
-        }, ug = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
-          return (ug = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.fe).apply(null, arguments);
-        }, vg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
-          return (vg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ge).apply(null, arguments);
-        }, wg = b._emscripten_bind_Pixa_get_pix_0 = function() {
-          return (wg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.he).apply(null, arguments);
-        }, xg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
-          return (xg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.ie).apply(null, arguments);
-        }, yg = b._emscripten_bind_Pixa___destroy___0 = function() {
-          return (yg = b._emscripten_bind_Pixa___destroy___0 = b.asm.je).apply(null, arguments);
-        }, zg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
-          return (zg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.ke).apply(null, arguments);
-        }, Ag = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
-          return (Ag = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.le).apply(null, arguments);
-        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
-          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.me).apply(null, arguments);
-        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
-          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.ne).apply(null, arguments);
-        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
-          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.oe).apply(null, arguments);
-        }, Eg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
-          return (Eg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.pe).apply(null, arguments);
-        }, Fg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
-          return (Fg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.qe).apply(null, arguments);
-        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
-          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.re).apply(null, arguments);
-        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
-          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.se).apply(null, arguments);
-        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
-          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.te).apply(null, arguments);
-        }, Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
-          return (Jg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.ue).apply(
-            null,
-            arguments
-          );
-        }, Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
-          return (Kg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.ve).apply(null, arguments);
-        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
-          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.we).apply(null, arguments);
-        }, Mg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
-          return (Mg = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.xe).apply(null, arguments);
-        }, Ng = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
-          return (Ng = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.ye).apply(null, arguments);
-        }, Og = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
-          return (Og = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.ze).apply(null, arguments);
-        }, Pg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
-          return (Pg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ae).apply(null, arguments);
-        }, Qg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
-          return (Qg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.Be).apply(null, arguments);
-        }, Rg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
-          return (Rg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ce).apply(null, arguments);
-        }, Sg = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
-          return (Sg = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.De).apply(null, arguments);
-        }, Tg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
-          return (Tg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ee).apply(null, arguments);
-        }, Ug = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
-          return (Ug = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.Fe).apply(null, arguments);
-        }, Vg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
-          return (Vg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ge).apply(null, arguments);
-        }, Wg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
-          return (Wg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.He).apply(null, arguments);
-        }, Xg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
-          return (Xg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Ie).apply(null, arguments);
-        }, Yg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
-          return (Yg = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Je).apply(null, arguments);
-        }, Zg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
-          return (Zg = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Ke).apply(null, arguments);
-        }, $g = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
-          return ($g = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Le).apply(null, arguments);
-        }, ah = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
-          return (ah = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Me).apply(null, arguments);
-        }, bh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
-          return (bh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Ne).apply(null, arguments);
-        }, ch = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
-          return (ch = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Oe).apply(null, arguments);
-        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
-          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Pe).apply(null, arguments);
-        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
-          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Qe).apply(null, arguments);
-        }, fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
-          return (fh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Re).apply(null, arguments);
-        }, gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
-          return (gh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Se).apply(null, arguments);
-        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
-          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Te).apply(null, arguments);
-        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
-          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.Ue).apply(null, arguments);
-        }, jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
-          return (jh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Ve).apply(null, arguments);
-        }, kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
-          return (kh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.We).apply(null, arguments);
-        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
-          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.Xe).apply(null, arguments);
-        }, mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
-          return (mh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm.Ye).apply(null, arguments);
-        }, nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
-          return (nh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.Ze).apply(null, arguments);
-        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
-          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm._e).apply(
-            null,
-            arguments
-          );
-        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
-          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.$e).apply(null, arguments);
-        }, qh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
-          return (qh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.af).apply(null, arguments);
-        }, rh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
-          return (rh = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.bf).apply(null, arguments);
-        }, sh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
-          return (sh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.cf).apply(null, arguments);
-        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
-          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.df).apply(null, arguments);
-        }, uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
-          return (uh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.ef).apply(null, arguments);
-        }, vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
-          return (vh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.ff).apply(null, arguments);
-        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
-          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.gf).apply(null, arguments);
-        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
-          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.hf).apply(null, arguments);
-        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
-          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.jf).apply(null, arguments);
-        }, zh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
-          return (zh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.kf).apply(null, arguments);
-        }, Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
-          return (Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.lf).apply(null, arguments);
-        }, Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
-          return (Bh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.mf).apply(null, arguments);
-        }, Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
-          return (Ch = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.nf).apply(null, arguments);
-        }, Dh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
-          return (Dh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.of).apply(null, arguments);
-        }, Eh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
-          return (Eh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.pf).apply(null, arguments);
+        }, Lf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = function() {
+          return (Lf = b._emscripten_bind_TessBaseAPI_GetStrips_2 = b.asm.xd).apply(null, arguments);
+        }, Mf = b._emscripten_bind_TessBaseAPI_GetWords_1 = function() {
+          return (Mf = b._emscripten_bind_TessBaseAPI_GetWords_1 = b.asm.yd).apply(null, arguments);
+        }, Nf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = function() {
+          return (Nf = b._emscripten_bind_TessBaseAPI_GetConnectedComponents_1 = b.asm.zd).apply(null, arguments);
+        }, Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = function() {
+          return (Of = b._emscripten_bind_TessBaseAPI_GetComponentImages_4 = b.asm.Ad).apply(null, arguments);
+        }, Pf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = function() {
+          return (Pf = b._emscripten_bind_TessBaseAPI_GetComponentImages_7 = b.asm.Bd).apply(null, arguments);
+        }, Qf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = function() {
+          return (Qf = b._emscripten_bind_TessBaseAPI_GetThresholdedImageScaleFactor_0 = b.asm.Cd).apply(null, arguments);
+        }, Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = function() {
+          return (Rf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_0 = b.asm.Dd).apply(null, arguments);
+        }, Sf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = function() {
+          return (Sf = b._emscripten_bind_TessBaseAPI_AnalyseLayout_1 = b.asm.Ed).apply(null, arguments);
+        }, Tf = b._emscripten_bind_TessBaseAPI_Recognize_1 = function() {
+          return (Tf = b._emscripten_bind_TessBaseAPI_Recognize_1 = b.asm.Fd).apply(null, arguments);
+        }, Uf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = function() {
+          return (Uf = b._emscripten_bind_TessBaseAPI_ProcessPages_4 = b.asm.Gd).apply(null, arguments);
+        }, Vf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = function() {
+          return (Vf = b._emscripten_bind_TessBaseAPI_ProcessPage_6 = b.asm.Hd).apply(null, arguments);
+        }, Wf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = function() {
+          return (Wf = b._emscripten_bind_TessBaseAPI_GetIterator_0 = b.asm.Id).apply(null, arguments);
+        }, Xf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = function() {
+          return (Xf = b._emscripten_bind_TessBaseAPI_GetUTF8Text_0 = b.asm.Jd).apply(null, arguments);
+        }, Yf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = function() {
+          return (Yf = b._emscripten_bind_TessBaseAPI_GetHOCRText_1 = b.asm.Kd).apply(null, arguments);
+        }, Zf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = function() {
+          return (Zf = b._emscripten_bind_TessBaseAPI_GetJSONText_1 = b.asm.Ld).apply(null, arguments);
+        }, $f = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = function() {
+          return ($f = b._emscripten_bind_TessBaseAPI_GetTSVText_1 = b.asm.Md).apply(null, arguments);
+        }, ag = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = function() {
+          return (ag = b._emscripten_bind_TessBaseAPI_GetBoxText_1 = b.asm.Nd).apply(null, arguments);
+        }, bg = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = function() {
+          return (bg = b._emscripten_bind_TessBaseAPI_GetUNLVText_0 = b.asm.Od).apply(null, arguments);
+        }, cg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = function() {
+          return (cg = b._emscripten_bind_TessBaseAPI_GetOsdText_1 = b.asm.Pd).apply(null, arguments);
+        }, dg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = function() {
+          return (dg = b._emscripten_bind_TessBaseAPI_MeanTextConf_0 = b.asm.Qd).apply(null, arguments);
+        }, eg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = function() {
+          return (eg = b._emscripten_bind_TessBaseAPI_AllWordConfidences_0 = b.asm.Rd).apply(null, arguments);
+        }, fg = b._emscripten_bind_TessBaseAPI_Clear_0 = function() {
+          return (fg = b._emscripten_bind_TessBaseAPI_Clear_0 = b.asm.Sd).apply(null, arguments);
+        }, gg = b._emscripten_bind_TessBaseAPI_End_0 = function() {
+          return (gg = b._emscripten_bind_TessBaseAPI_End_0 = b.asm.Td).apply(null, arguments);
+        }, hg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = function() {
+          return (hg = b._emscripten_bind_TessBaseAPI_ClearPersistentCache_0 = b.asm.Ud).apply(null, arguments);
+        }, ig = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = function() {
+          return (ig = b._emscripten_bind_TessBaseAPI_IsValidWord_1 = b.asm.Vd).apply(null, arguments);
+        }, jg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = function() {
+          return (jg = b._emscripten_bind_TessBaseAPI_IsValidCharacter_1 = b.asm.Wd).apply(null, arguments);
+        }, kg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = function() {
+          return (kg = b._emscripten_bind_TessBaseAPI_DetectOS_1 = b.asm.Xd).apply(null, arguments);
+        }, lg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = function() {
+          return (lg = b._emscripten_bind_TessBaseAPI_GetUnichar_1 = b.asm.Yd).apply(null, arguments);
+        }, mg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = function() {
+          return (mg = b._emscripten_bind_TessBaseAPI_GetDawg_1 = b.asm.Zd).apply(null, arguments);
+        }, ng = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = function() {
+          return (ng = b._emscripten_bind_TessBaseAPI_NumDawgs_0 = b.asm._d).apply(null, arguments);
+        }, og = b._emscripten_bind_TessBaseAPI_oem_0 = function() {
+          return (og = b._emscripten_bind_TessBaseAPI_oem_0 = b.asm.$d).apply(null, arguments);
+        }, pg = b._emscripten_bind_TessBaseAPI___destroy___0 = function() {
+          return (pg = b._emscripten_bind_TessBaseAPI___destroy___0 = b.asm.ae).apply(null, arguments);
+        }, qg = b._emscripten_bind_OSResults_OSResults_0 = function() {
+          return (qg = b._emscripten_bind_OSResults_OSResults_0 = b.asm.be).apply(null, arguments);
+        }, rg = b._emscripten_bind_OSResults_print_scores_0 = function() {
+          return (rg = b._emscripten_bind_OSResults_print_scores_0 = b.asm.ce).apply(null, arguments);
+        }, sg = b._emscripten_bind_OSResults_get_best_result_0 = function() {
+          return (sg = b._emscripten_bind_OSResults_get_best_result_0 = b.asm.de).apply(null, arguments);
+        }, tg = b._emscripten_bind_OSResults_get_unicharset_0 = function() {
+          return (tg = b._emscripten_bind_OSResults_get_unicharset_0 = b.asm.ee).apply(null, arguments);
+        }, ug = b._emscripten_bind_OSResults___destroy___0 = function() {
+          return (ug = b._emscripten_bind_OSResults___destroy___0 = b.asm.fe).apply(null, arguments);
+        }, vg = b._emscripten_bind_Pixa_get_n_0 = function() {
+          return (vg = b._emscripten_bind_Pixa_get_n_0 = b.asm.ge).apply(null, arguments);
+        }, wg = b._emscripten_bind_Pixa_get_nalloc_0 = function() {
+          return (wg = b._emscripten_bind_Pixa_get_nalloc_0 = b.asm.he).apply(null, arguments);
+        }, xg = b._emscripten_bind_Pixa_get_refcount_0 = function() {
+          return (xg = b._emscripten_bind_Pixa_get_refcount_0 = b.asm.ie).apply(null, arguments);
+        }, yg = b._emscripten_bind_Pixa_get_pix_0 = function() {
+          return (yg = b._emscripten_bind_Pixa_get_pix_0 = b.asm.je).apply(null, arguments);
+        }, zg = b._emscripten_bind_Pixa_get_boxa_0 = function() {
+          return (zg = b._emscripten_bind_Pixa_get_boxa_0 = b.asm.ke).apply(null, arguments);
+        }, Ag = b._emscripten_bind_Pixa___destroy___0 = function() {
+          return (Ag = b._emscripten_bind_Pixa___destroy___0 = b.asm.le).apply(null, arguments);
+        }, Bg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = function() {
+          return (Bg = b._emscripten_enum_PageIteratorLevel_RIL_BLOCK = b.asm.me).apply(null, arguments);
+        }, Cg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = function() {
+          return (Cg = b._emscripten_enum_PageIteratorLevel_RIL_PARA = b.asm.ne).apply(null, arguments);
+        }, Dg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = function() {
+          return (Dg = b._emscripten_enum_PageIteratorLevel_RIL_TEXTLINE = b.asm.oe).apply(null, arguments);
+        }, Eg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = function() {
+          return (Eg = b._emscripten_enum_PageIteratorLevel_RIL_WORD = b.asm.pe).apply(null, arguments);
+        }, Fg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = function() {
+          return (Fg = b._emscripten_enum_PageIteratorLevel_RIL_SYMBOL = b.asm.qe).apply(null, arguments);
+        }, Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = function() {
+          return (Gg = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_ONLY = b.asm.re).apply(null, arguments);
+        }, Hg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = function() {
+          return (Hg = b._emscripten_enum_OcrEngineMode_OEM_LSTM_ONLY = b.asm.se).apply(null, arguments);
+        }, Ig = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = function() {
+          return (Ig = b._emscripten_enum_OcrEngineMode_OEM_TESSERACT_LSTM_COMBINED = b.asm.te).apply(null, arguments);
+        }, Jg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = function() {
+          return (Jg = b._emscripten_enum_OcrEngineMode_OEM_DEFAULT = b.asm.ue).apply(null, arguments);
+        }, Kg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = function() {
+          return (Kg = b._emscripten_enum_OcrEngineMode_OEM_COUNT = b.asm.ve).apply(null, arguments);
+        }, Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = function() {
+          return (Lg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_LEFT_TO_RIGHT = b.asm.we).apply(null, arguments);
+        }, Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = function() {
+          return (Mg = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_RIGHT_TO_LEFT = b.asm.xe).apply(null, arguments);
+        }, Ng = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = function() {
+          return (Ng = b._emscripten_enum_WritingDirection__WRITING_DIRECTION_TOP_TO_BOTTOM = b.asm.ye).apply(null, arguments);
+        }, Og = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = function() {
+          return (Og = b._emscripten_enum_PolyBlockType_PT_UNKNOWN = b.asm.ze).apply(null, arguments);
+        }, Pg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = function() {
+          return (Pg = b._emscripten_enum_PolyBlockType_PT_FLOWING_TEXT = b.asm.Ae).apply(null, arguments);
+        }, Qg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = function() {
+          return (Qg = b._emscripten_enum_PolyBlockType_PT_HEADING_TEXT = b.asm.Be).apply(null, arguments);
+        }, Rg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = function() {
+          return (Rg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_TEXT = b.asm.Ce).apply(null, arguments);
+        }, Sg = b._emscripten_enum_PolyBlockType_PT_EQUATION = function() {
+          return (Sg = b._emscripten_enum_PolyBlockType_PT_EQUATION = b.asm.De).apply(null, arguments);
+        }, Tg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = function() {
+          return (Tg = b._emscripten_enum_PolyBlockType_PT_INLINE_EQUATION = b.asm.Ee).apply(null, arguments);
+        }, Ug = b._emscripten_enum_PolyBlockType_PT_TABLE = function() {
+          return (Ug = b._emscripten_enum_PolyBlockType_PT_TABLE = b.asm.Fe).apply(null, arguments);
+        }, Vg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = function() {
+          return (Vg = b._emscripten_enum_PolyBlockType_PT_VERTICAL_TEXT = b.asm.Ge).apply(null, arguments);
+        }, Wg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = function() {
+          return (Wg = b._emscripten_enum_PolyBlockType_PT_CAPTION_TEXT = b.asm.He).apply(null, arguments);
+        }, Xg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = function() {
+          return (Xg = b._emscripten_enum_PolyBlockType_PT_FLOWING_IMAGE = b.asm.Ie).apply(null, arguments);
+        }, Yg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = function() {
+          return (Yg = b._emscripten_enum_PolyBlockType_PT_HEADING_IMAGE = b.asm.Je).apply(null, arguments);
+        }, Zg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = function() {
+          return (Zg = b._emscripten_enum_PolyBlockType_PT_PULLOUT_IMAGE = b.asm.Ke).apply(null, arguments);
+        }, $g = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = function() {
+          return ($g = b._emscripten_enum_PolyBlockType_PT_HORZ_LINE = b.asm.Le).apply(null, arguments);
+        }, ah = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = function() {
+          return (ah = b._emscripten_enum_PolyBlockType_PT_VERT_LINE = b.asm.Me).apply(null, arguments);
+        }, bh = b._emscripten_enum_PolyBlockType_PT_NOISE = function() {
+          return (bh = b._emscripten_enum_PolyBlockType_PT_NOISE = b.asm.Ne).apply(null, arguments);
+        }, ch = b._emscripten_enum_PolyBlockType_PT_COUNT = function() {
+          return (ch = b._emscripten_enum_PolyBlockType_PT_COUNT = b.asm.Oe).apply(null, arguments);
+        }, dh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = function() {
+          return (dh = b._emscripten_enum_StrongScriptDirection_DIR_NEUTRAL = b.asm.Pe).apply(null, arguments);
+        }, eh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = function() {
+          return (eh = b._emscripten_enum_StrongScriptDirection_DIR_LEFT_TO_RIGHT = b.asm.Qe).apply(null, arguments);
+        }, fh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = function() {
+          return (fh = b._emscripten_enum_StrongScriptDirection_DIR_RIGHT_TO_LEFT = b.asm.Re).apply(null, arguments);
+        }, gh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = function() {
+          return (gh = b._emscripten_enum_StrongScriptDirection_DIR_MIX = b.asm.Se).apply(null, arguments);
+        }, hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = function() {
+          return (hh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_UNKNOWN = b.asm.Te).apply(null, arguments);
+        }, ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = function() {
+          return (ih = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_LEFT = b.asm.Ue).apply(null, arguments);
+        }, jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = function() {
+          return (jh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_CENTER = b.asm.Ve).apply(null, arguments);
+        }, kh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = function() {
+          return (kh = b._emscripten_enum_ParagraphJustification__JUSTIFICATION_RIGHT = b.asm.We).apply(null, arguments);
+        }, lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = function() {
+          return (lh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_LEFT_TO_RIGHT = b.asm.Xe).apply(null, arguments);
+        }, mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = function() {
+          return (mh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_RIGHT_TO_LEFT = b.asm.Ye).apply(null, arguments);
+        }, nh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = function() {
+          return (nh = b._emscripten_enum_TextlineOrder__TEXTLINE_ORDER_TOP_TO_BOTTOM = b.asm.Ze).apply(null, arguments);
+        }, oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = function() {
+          return (oh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_UP = b.asm._e).apply(null, arguments);
+        }, ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = function() {
+          return (ph = b._emscripten_enum_Orientation__ORIENTATION_PAGE_RIGHT = b.asm.$e).apply(null, arguments);
+        }, qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = function() {
+          return (qh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_DOWN = b.asm.af).apply(null, arguments);
+        }, rh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = function() {
+          return (rh = b._emscripten_enum_Orientation__ORIENTATION_PAGE_LEFT = b.asm.bf).apply(null, arguments);
+        }, sh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = function() {
+          return (sh = b._emscripten_enum_PageSegMode_PSM_OSD_ONLY = b.asm.cf).apply(null, arguments);
+        }, th = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = function() {
+          return (th = b._emscripten_enum_PageSegMode_PSM_AUTO_OSD = b.asm.df).apply(null, arguments);
+        }, uh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = function() {
+          return (uh = b._emscripten_enum_PageSegMode_PSM_AUTO_ONLY = b.asm.ef).apply(null, arguments);
+        }, vh = b._emscripten_enum_PageSegMode_PSM_AUTO = function() {
+          return (vh = b._emscripten_enum_PageSegMode_PSM_AUTO = b.asm.ff).apply(null, arguments);
+        }, wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = function() {
+          return (wh = b._emscripten_enum_PageSegMode_PSM_SINGLE_COLUMN = b.asm.gf).apply(null, arguments);
+        }, xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = function() {
+          return (xh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK_VERT_TEXT = b.asm.hf).apply(null, arguments);
+        }, yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = function() {
+          return (yh = b._emscripten_enum_PageSegMode_PSM_SINGLE_BLOCK = b.asm.jf).apply(null, arguments);
+        }, zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = function() {
+          return (zh = b._emscripten_enum_PageSegMode_PSM_SINGLE_LINE = b.asm.kf).apply(null, arguments);
+        }, Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = function() {
+          return (Ah = b._emscripten_enum_PageSegMode_PSM_SINGLE_WORD = b.asm.lf).apply(null, arguments);
+        }, Bh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = function() {
+          return (Bh = b._emscripten_enum_PageSegMode_PSM_CIRCLE_WORD = b.asm.mf).apply(null, arguments);
+        }, Ch = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = function() {
+          return (Ch = b._emscripten_enum_PageSegMode_PSM_SINGLE_CHAR = b.asm.nf).apply(null, arguments);
+        }, Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = function() {
+          return (Dh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT = b.asm.of).apply(null, arguments);
+        }, Eh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = function() {
+          return (Eh = b._emscripten_enum_PageSegMode_PSM_SPARSE_TEXT_OSD = b.asm.pf).apply(null, arguments);
+        }, Fh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = function() {
+          return (Fh = b._emscripten_enum_PageSegMode_PSM_RAW_LINE = b.asm.qf).apply(null, arguments);
+        }, Gh = b._emscripten_enum_PageSegMode_PSM_COUNT = function() {
+          return (Gh = b._emscripten_enum_PageSegMode_PSM_COUNT = b.asm.rf).apply(null, arguments);
         };
         b._pixDestroy = function() {
-          return (b._pixDestroy = b.asm.rf).apply(null, arguments);
+          return (b._pixDestroy = b.asm.tf).apply(null, arguments);
         };
         b._ptaDestroy = function() {
-          return (b._ptaDestroy = b.asm.sf).apply(null, arguments);
+          return (b._ptaDestroy = b.asm.uf).apply(null, arguments);
         };
         b._pixaDestroy = function() {
-          return (b._pixaDestroy = b.asm.tf).apply(null, arguments);
+          return (b._pixaDestroy = b.asm.vf).apply(null, arguments);
         };
         b._boxaDestroy = function() {
-          return (b._boxaDestroy = b.asm.uf).apply(null, arguments);
+          return (b._boxaDestroy = b.asm.wf).apply(null, arguments);
         };
         b._pixReadMem = function() {
-          return (b._pixReadMem = b.asm.vf).apply(null, arguments);
+          return (b._pixReadMem = b.asm.xf).apply(null, arguments);
         };
         function Rb() {
-          return (Rb = b.asm.wf).apply(null, arguments);
+          return (Rb = b.asm.yf).apply(null, arguments);
         }
-        var Fh = b._free = function() {
-          return (Fh = b._free = b.asm.xf).apply(null, arguments);
+        var Hh = b._free = function() {
+          return (Hh = b._free = b.asm.zf).apply(null, arguments);
         }, Fb = b._malloc = function() {
-          return (Fb = b._malloc = b.asm.yf).apply(null, arguments);
+          return (Fb = b._malloc = b.asm.Af).apply(null, arguments);
         };
         b._pixReadHeaderMem = function() {
-          return (b._pixReadHeaderMem = b.asm.zf).apply(null, arguments);
+          return (b._pixReadHeaderMem = b.asm.Bf).apply(null, arguments);
         };
         function C() {
-          return (C = b.asm.Af).apply(null, arguments);
+          return (C = b.asm.Cf).apply(null, arguments);
         }
         function D() {
-          return (D = b.asm.Bf).apply(null, arguments);
+          return (D = b.asm.Df).apply(null, arguments);
         }
-        b.___emscripten_embedded_file_data = 601504;
+        b.___emscripten_embedded_file_data = 606096;
         function Ub(a, c, d, e) {
           var g = C();
           try {
@@ -20879,26 +20924,26 @@ var require_tesseract_core = __commonJS({
         }
         b.addRunDependency = Ha;
         b.removeRunDependency = Ia;
-        b.FS_createPath = A.Dg;
-        b.FS_createDataFile = A.ug;
-        b.FS_createLazyFile = A.ah;
-        b.FS_createDevice = A.Qf;
+        b.FS_createPath = A.Fg;
+        b.FS_createDataFile = A.wg;
+        b.FS_createLazyFile = A.dh;
+        b.FS_createDevice = A.Sf;
         b.FS_unlink = A.unlink;
         b.setValue = Ya;
         b.getValue = Xa;
-        b.FS_createPreloadedFile = A.bh;
+        b.FS_createPreloadedFile = A.eh;
         b.FS = A;
-        var Gh;
-        Ga = function Hh() {
-          Gh || Ih();
-          Gh || (Ga = Hh);
+        var Ih;
+        Ga = function Jh() {
+          Ih || Kh();
+          Ih || (Ga = Jh);
         };
-        function Ih() {
+        function Kh() {
           function a() {
-            if (!Gh && (Gh = true, b.calledRun = true, !sa)) {
+            if (!Ih && (Ih = true, b.calledRun = true, !sa)) {
               Ca = true;
-              b.noFSInit || A.cg.Og || A.cg();
-              A.oh = false;
+              b.noFSInit || A.eg.Qg || A.eg();
+              A.qh = false;
               Sa(Aa);
               aa(b);
               if (b.onRuntimeInitialized) b.onRuntimeInitialized();
@@ -20924,70 +20969,70 @@ var require_tesseract_core = __commonJS({
           }
         }
         if (b.preInit) for ("function" == typeof b.preInit && (b.preInit = [b.preInit]); 0 < b.preInit.length; ) b.preInit.pop()();
-        Ih();
+        Kh();
         function G() {
         }
         G.prototype = Object.create(G.prototype);
         G.prototype.constructor = G;
-        G.prototype.Hf = G;
-        G.If = {};
+        G.prototype.Jf = G;
+        G.Kf = {};
         b.WrapperObject = G;
-        function Jh(a) {
-          return (a || G).If;
+        function Lh(a) {
+          return (a || G).Kf;
         }
-        b.getCache = Jh;
+        b.getCache = Lh;
         function H(a, c) {
-          var d = Jh(c), e = d[a];
+          var d = Lh(c), e = d[a];
           if (e) return e;
           e = Object.create((c || G).prototype);
-          e.Cf = a;
+          e.Ef = a;
           return d[a] = e;
         }
         b.wrapPointer = H;
         b.castObject = function(a, c) {
-          return H(a.Cf, c);
+          return H(a.Ef, c);
         };
         b.NULL = H(0);
         b.destroy = function(a) {
           if (!a.__destroy__) throw "Error: Cannot destroy object. (Did you create it yourself?)";
           a.__destroy__();
-          delete Jh(a.Hf)[a.Cf];
+          delete Lh(a.Jf)[a.Ef];
         };
         b.compare = function(a, c) {
-          return a.Cf === c.Cf;
+          return a.Ef === c.Ef;
         };
         b.getPointer = function(a) {
-          return a.Cf;
+          return a.Ef;
         };
         b.getClass = function(a) {
-          return a.Hf;
+          return a.Jf;
         };
-        var Kh = 0, Lh = 0, Mh = 0, Nh = [], Oh = 0;
+        var Mh = 0, Nh = 0, Oh = 0, Ph = [], Qh = 0;
         function I() {
-          if (Oh) {
-            for (var a = 0; a < Nh.length; a++) b._free(Nh[a]);
-            Nh.length = 0;
-            b._free(Kh);
-            Kh = 0;
-            Lh += Oh;
-            Oh = 0;
+          if (Qh) {
+            for (var a = 0; a < Ph.length; a++) b._free(Ph[a]);
+            Ph.length = 0;
+            b._free(Mh);
+            Mh = 0;
+            Nh += Qh;
+            Qh = 0;
           }
-          Kh || (Lh += 128, (Kh = b._malloc(Lh)) || n());
-          Mh = 0;
+          Mh || (Nh += 128, (Mh = b._malloc(Nh)) || n());
+          Oh = 0;
         }
         function J(a) {
           if ("string" === typeof a) {
             a = kb(a);
             var c = p;
-            Kh || n();
+            Mh || n();
             c = a.length * c.BYTES_PER_ELEMENT;
             c = c + 7 & -8;
-            if (Mh + c >= Lh) {
+            if (Oh + c >= Nh) {
               0 < c || n();
-              Oh += c;
+              Qh += c;
               var d = b._malloc(c);
-              Nh.push(d);
-            } else d = Kh + Mh, Mh += c;
+              Ph.push(d);
+            } else d = Mh + Oh, Oh += c;
             c = d;
             d = p;
             var e = c;
@@ -21006,1062 +21051,1062 @@ var require_tesseract_core = __commonJS({
           }
           return a;
         }
-        function Ph() {
+        function Rh() {
           throw "cannot construct a ParagraphJustification, no constructor in IDL";
         }
-        Ph.prototype = Object.create(G.prototype);
-        Ph.prototype.constructor = Ph;
-        Ph.prototype.Hf = Ph;
-        Ph.If = {};
-        b.ParagraphJustification = Ph;
-        Ph.prototype.__destroy__ = function() {
-          dc(this.Cf);
+        Rh.prototype = Object.create(G.prototype);
+        Rh.prototype.constructor = Rh;
+        Rh.prototype.Jf = Rh;
+        Rh.Kf = {};
+        b.ParagraphJustification = Rh;
+        Rh.prototype.__destroy__ = function() {
+          dc(this.Ef);
         };
-        function Qh() {
+        function Sh() {
           throw "cannot construct a BoolPtr, no constructor in IDL";
         }
-        Qh.prototype = Object.create(G.prototype);
-        Qh.prototype.constructor = Qh;
-        Qh.prototype.Hf = Qh;
-        Qh.If = {};
-        b.BoolPtr = Qh;
-        Qh.prototype.__destroy__ = function() {
-          ec(this.Cf);
+        Sh.prototype = Object.create(G.prototype);
+        Sh.prototype.constructor = Sh;
+        Sh.prototype.Jf = Sh;
+        Sh.Kf = {};
+        b.BoolPtr = Sh;
+        Sh.prototype.__destroy__ = function() {
+          ec(this.Ef);
         };
         function K() {
           throw "cannot construct a TessResultRenderer, no constructor in IDL";
         }
         K.prototype = Object.create(G.prototype);
         K.prototype.constructor = K;
-        K.prototype.Hf = K;
-        K.If = {};
+        K.prototype.Jf = K;
+        K.Kf = {};
         b.TessResultRenderer = K;
         K.prototype.BeginDocument = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return !!fc(c, a);
         };
         K.prototype.AddImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!gc(c, a);
         };
         K.prototype.EndDocument = function() {
-          return !!hc(this.Cf);
+          return !!hc(this.Ef);
         };
         K.prototype.happy = function() {
-          return !!ic(this.Cf);
+          return !!ic(this.Ef);
         };
         K.prototype.file_extension = function() {
-          return z(jc(this.Cf));
+          return z(jc(this.Ef));
         };
         K.prototype.title = K.prototype.title = function() {
-          return z(kc(this.Cf));
+          return z(kc(this.Ef));
         };
         K.prototype.imagenum = function() {
-          return lc(this.Cf);
+          return lc(this.Ef);
         };
         K.prototype.__destroy__ = function() {
-          mc(this.Cf);
+          mc(this.Ef);
         };
-        function Rh() {
+        function Th() {
           throw "cannot construct a LongStarPtr, no constructor in IDL";
         }
-        Rh.prototype = Object.create(G.prototype);
-        Rh.prototype.constructor = Rh;
-        Rh.prototype.Hf = Rh;
-        Rh.If = {};
-        b.LongStarPtr = Rh;
-        Rh.prototype.__destroy__ = function() {
-          nc(this.Cf);
-        };
-        function Sh() {
-          throw "cannot construct a VoidPtr, no constructor in IDL";
-        }
-        Sh.prototype = Object.create(G.prototype);
-        Sh.prototype.constructor = Sh;
-        Sh.prototype.Hf = Sh;
-        Sh.If = {};
-        b.VoidPtr = Sh;
-        Sh.prototype.__destroy__ = function() {
-          oc(this.Cf);
-        };
-        function L(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = pc(a);
-          Jh(L)[this.Cf] = this;
-        }
-        L.prototype = Object.create(G.prototype);
-        L.prototype.constructor = L;
-        L.prototype.Hf = L;
-        L.If = {};
-        b.ResultIterator = L;
-        L.prototype.Begin = function() {
-          qc(this.Cf);
-        };
-        L.prototype.RestartParagraph = function() {
-          rc(this.Cf);
-        };
-        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!sc(this.Cf);
-        };
-        L.prototype.RestartRow = function() {
-          tc(this.Cf);
-        };
-        L.prototype.Next = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!uc(c, a);
-        };
-        L.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!vc(c, a);
-        };
-        L.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          return !!wc(d, a, c);
-        };
-        L.prototype.Cmp = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return xc(c, a);
-        };
-        L.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          yc(d, a, c);
-        };
-        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          return void 0 === h ? !!zc(k, a, c, d, e, g) : !!Ac(k, a, c, d, e, g, h);
-        };
-        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return !!Bc(h, a, c, d, e, g);
-        };
-        L.prototype.Empty = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!Cc(c, a);
-        };
-        L.prototype.BlockType = function() {
-          return Dc(this.Cf);
-        };
-        L.prototype.BlockPolygon = function() {
-          return H(Ec(this.Cf), M);
-        };
-        L.prototype.GetBinaryImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Fc(c, a), N);
-        };
-        L.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return H(Gc(h, a, c, d, e, g), N);
-        };
-        L.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return !!Hc(h, a, c, d, e, g);
-        };
-        L.prototype.RowAttributes = function(a, c, d) {
-          var e = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          return !!Ic(e, a, c, d);
-        };
-        L.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          Jc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          Kc(g, a, c, d, e);
-        };
-        L.prototype.ParagraphIsLtr = function() {
-          return !!Lc(this.Cf);
-        };
-        L.prototype.GetUTF8Text = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Mc(c, a));
-        };
-        L.prototype.SetLineSeparator = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          Nc(c, a);
-        };
-        L.prototype.SetParagraphSeparator = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          Oc(c, a);
-        };
-        L.prototype.Confidence = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return Pc(c, a);
-        };
-        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
-          var v = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
-          m && "object" === typeof m && (m = m.Cf);
-          return z(Qc(v, a, c, d, e, g, h, k, m));
-        };
-        L.prototype.WordRecognitionLanguage = function() {
-          return z(Rc(this.Cf));
-        };
-        L.prototype.WordDirection = function() {
-          return Sc(this.Cf);
-        };
-        L.prototype.WordIsFromDictionary = function() {
-          return !!Tc(this.Cf);
-        };
-        L.prototype.WordIsNumeric = function() {
-          return !!Uc(this.Cf);
-        };
-        L.prototype.HasBlamerInfo = function() {
-          return !!Vc(this.Cf);
-        };
-        L.prototype.HasTruthString = function() {
-          return !!Wc(this.Cf);
-        };
-        L.prototype.EquivalentToTruth = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return !!Xc(c, a);
-        };
-        L.prototype.WordTruthUTF8Text = function() {
-          return z(Yc(this.Cf));
-        };
-        L.prototype.WordNormedUTF8Text = function() {
-          return z(Zc(this.Cf));
-        };
-        L.prototype.WordLattice = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z($c(c, a));
-        };
-        L.prototype.SymbolIsSuperscript = function() {
-          return !!ad(this.Cf);
-        };
-        L.prototype.SymbolIsSubscript = function() {
-          return !!bd(this.Cf);
-        };
-        L.prototype.SymbolIsDropcap = function() {
-          return !!cd(this.Cf);
-        };
-        L.prototype.__destroy__ = function() {
-          dd(this.Cf);
+        Th.prototype = Object.create(G.prototype);
+        Th.prototype.constructor = Th;
+        Th.prototype.Jf = Th;
+        Th.Kf = {};
+        b.LongStarPtr = Th;
+        Th.prototype.__destroy__ = function() {
+          nc(this.Ef);
         };
         function Uh() {
-          throw "cannot construct a TextlineOrder, no constructor in IDL";
+          throw "cannot construct a VoidPtr, no constructor in IDL";
         }
         Uh.prototype = Object.create(G.prototype);
         Uh.prototype.constructor = Uh;
-        Uh.prototype.Hf = Uh;
-        Uh.If = {};
-        b.TextlineOrder = Uh;
+        Uh.prototype.Jf = Uh;
+        Uh.Kf = {};
+        b.VoidPtr = Uh;
         Uh.prototype.__destroy__ = function() {
-          ed(this.Cf);
+          oc(this.Ef);
         };
-        function Vh() {
+        function L(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = pc(a);
+          Lh(L)[this.Ef] = this;
+        }
+        L.prototype = Object.create(G.prototype);
+        L.prototype.constructor = L;
+        L.prototype.Jf = L;
+        L.Kf = {};
+        b.ResultIterator = L;
+        L.prototype.Begin = function() {
+          qc(this.Ef);
+        };
+        L.prototype.RestartParagraph = function() {
+          rc(this.Ef);
+        };
+        L.prototype.IsWithinFirstTextlineOfParagraph = function() {
+          return !!sc(this.Ef);
+        };
+        L.prototype.RestartRow = function() {
+          tc(this.Ef);
+        };
+        L.prototype.Next = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!uc(c, a);
+        };
+        L.prototype.IsAtBeginningOf = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!vc(c, a);
+        };
+        L.prototype.IsAtFinalElement = function(a, c) {
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          return !!wc(d, a, c);
+        };
+        L.prototype.Cmp = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return xc(c, a);
+        };
+        L.prototype.SetBoundingBoxComponents = function(a, c) {
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          yc(d, a, c);
+        };
+        L.prototype.BoundingBox = function(a, c, d, e, g, h) {
+          var k = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          return void 0 === h ? !!zc(k, a, c, d, e, g) : !!Ac(k, a, c, d, e, g, h);
+        };
+        L.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return !!Bc(h, a, c, d, e, g);
+        };
+        L.prototype.Empty = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!Cc(c, a);
+        };
+        L.prototype.BlockType = function() {
+          return Dc(this.Ef);
+        };
+        L.prototype.BlockPolygon = function() {
+          return H(Ec(this.Ef), M);
+        };
+        L.prototype.GetBinaryImage = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(Fc(c, a), N);
+        };
+        L.prototype.GetImage = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return H(Gc(h, a, c, d, e, g), N);
+        };
+        L.prototype.Baseline = function(a, c, d, e, g) {
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return !!Hc(h, a, c, d, e, g);
+        };
+        L.prototype.RowAttributes = function(a, c, d) {
+          var e = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          return !!Ic(e, a, c, d);
+        };
+        L.prototype.Orientation = function(a, c, d, e) {
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          Jc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphInfo = function(a, c, d, e) {
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          Kc(g, a, c, d, e);
+        };
+        L.prototype.ParagraphIsLtr = function() {
+          return !!Lc(this.Ef);
+        };
+        L.prototype.GetUTF8Text = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(Mc(c, a));
+        };
+        L.prototype.SetLineSeparator = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          Nc(c, a);
+        };
+        L.prototype.SetParagraphSeparator = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          Oc(c, a);
+        };
+        L.prototype.Confidence = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return Pc(c, a);
+        };
+        L.prototype.WordFontAttributes = function(a, c, d, e, g, h, k, m) {
+          var v = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
+          m && "object" === typeof m && (m = m.Ef);
+          return z(Qc(v, a, c, d, e, g, h, k, m));
+        };
+        L.prototype.WordRecognitionLanguage = function() {
+          return z(Rc(this.Ef));
+        };
+        L.prototype.WordDirection = function() {
+          return Sc(this.Ef);
+        };
+        L.prototype.WordIsFromDictionary = function() {
+          return !!Tc(this.Ef);
+        };
+        L.prototype.WordIsNumeric = function() {
+          return !!Uc(this.Ef);
+        };
+        L.prototype.HasBlamerInfo = function() {
+          return !!Vc(this.Ef);
+        };
+        L.prototype.HasTruthString = function() {
+          return !!Wc(this.Ef);
+        };
+        L.prototype.EquivalentToTruth = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return !!Xc(c, a);
+        };
+        L.prototype.WordTruthUTF8Text = function() {
+          return z(Yc(this.Ef));
+        };
+        L.prototype.WordNormedUTF8Text = function() {
+          return z(Zc(this.Ef));
+        };
+        L.prototype.WordLattice = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z($c(c, a));
+        };
+        L.prototype.SymbolIsSuperscript = function() {
+          return !!ad(this.Ef);
+        };
+        L.prototype.SymbolIsSubscript = function() {
+          return !!bd(this.Ef);
+        };
+        L.prototype.SymbolIsDropcap = function() {
+          return !!cd(this.Ef);
+        };
+        L.prototype.__destroy__ = function() {
+          dd(this.Ef);
+        };
+        function Wh() {
+          throw "cannot construct a TextlineOrder, no constructor in IDL";
+        }
+        Wh.prototype = Object.create(G.prototype);
+        Wh.prototype.constructor = Wh;
+        Wh.prototype.Jf = Wh;
+        Wh.Kf = {};
+        b.TextlineOrder = Wh;
+        Wh.prototype.__destroy__ = function() {
+          ed(this.Ef);
+        };
+        function Xh() {
           throw "cannot construct a ETEXT_DESC, no constructor in IDL";
         }
-        Vh.prototype = Object.create(G.prototype);
-        Vh.prototype.constructor = Vh;
-        Vh.prototype.Hf = Vh;
-        Vh.If = {};
-        b.ETEXT_DESC = Vh;
-        Vh.prototype.__destroy__ = function() {
-          fd(this.Cf);
+        Xh.prototype = Object.create(G.prototype);
+        Xh.prototype.constructor = Xh;
+        Xh.prototype.Jf = Xh;
+        Xh.Kf = {};
+        b.ETEXT_DESC = Xh;
+        Xh.prototype.__destroy__ = function() {
+          fd(this.Ef);
         };
         function O() {
           throw "cannot construct a PageIterator, no constructor in IDL";
         }
         O.prototype = Object.create(G.prototype);
         O.prototype.constructor = O;
-        O.prototype.Hf = O;
-        O.If = {};
+        O.prototype.Jf = O;
+        O.Kf = {};
         b.PageIterator = O;
         O.prototype.Begin = function() {
-          gd(this.Cf);
+          gd(this.Ef);
         };
         O.prototype.RestartParagraph = function() {
-          hd(this.Cf);
+          hd(this.Ef);
         };
         O.prototype.IsWithinFirstTextlineOfParagraph = function() {
-          return !!jd(this.Cf);
+          return !!jd(this.Ef);
         };
         O.prototype.RestartRow = function() {
-          kd(this.Cf);
+          kd(this.Ef);
         };
         O.prototype.Next = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!ld(c, a);
         };
         O.prototype.IsAtBeginningOf = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!md(c, a);
         };
         O.prototype.IsAtFinalElement = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
           return !!nd(d, a, c);
         };
         O.prototype.Cmp = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return od(c, a);
         };
         O.prototype.SetBoundingBoxComponents = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
           pd(d, a, c);
         };
         O.prototype.BoundingBox = function(a, c, d, e, g, h) {
-          var k = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
+          var k = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
           return void 0 === h ? !!qd(k, a, c, d, e, g) : !!rd(k, a, c, d, e, g, h);
         };
         O.prototype.BoundingBoxInternal = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return !!sd(h, a, c, d, e, g);
         };
         O.prototype.Empty = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!td(c, a);
         };
         O.prototype.BlockType = function() {
-          return ud(this.Cf);
+          return ud(this.Ef);
         };
         O.prototype.BlockPolygon = function() {
-          return H(vd(this.Cf), M);
+          return H(vd(this.Ef), M);
         };
         O.prototype.GetBinaryImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return H(wd(c, a), N);
         };
         O.prototype.GetImage = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return H(xd(h, a, c, d, e, g), N);
         };
         O.prototype.Baseline = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
           return !!yd(h, a, c, d, e, g);
         };
         O.prototype.Orientation = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           zd(g, a, c, d, e);
         };
         O.prototype.ParagraphInfo = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           Ad(g, a, c, d, e);
         };
         O.prototype.__destroy__ = function() {
-          Bd(this.Cf);
+          Bd(this.Ef);
         };
-        function Wh() {
+        function Yh() {
           throw "cannot construct a WritingDirection, no constructor in IDL";
         }
-        Wh.prototype = Object.create(G.prototype);
-        Wh.prototype.constructor = Wh;
-        Wh.prototype.Hf = Wh;
-        Wh.If = {};
-        b.WritingDirection = Wh;
-        Wh.prototype.__destroy__ = function() {
-          Cd(this.Cf);
+        Yh.prototype = Object.create(G.prototype);
+        Yh.prototype.constructor = Yh;
+        Yh.prototype.Jf = Yh;
+        Yh.Kf = {};
+        b.WritingDirection = Yh;
+        Yh.prototype.__destroy__ = function() {
+          Cd(this.Ef);
         };
-        function Xh(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = Dd(a);
-          Jh(Xh)[this.Cf] = this;
+        function Zh(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = Dd(a);
+          Lh(Zh)[this.Ef] = this;
         }
-        Xh.prototype = Object.create(G.prototype);
-        Xh.prototype.constructor = Xh;
-        Xh.prototype.Hf = Xh;
-        Xh.If = {};
-        b.WordChoiceIterator = Xh;
-        Xh.prototype.Next = function() {
-          return !!Ed(this.Cf);
+        Zh.prototype = Object.create(G.prototype);
+        Zh.prototype.constructor = Zh;
+        Zh.prototype.Jf = Zh;
+        Zh.Kf = {};
+        b.WordChoiceIterator = Zh;
+        Zh.prototype.Next = function() {
+          return !!Ed(this.Ef);
         };
-        Xh.prototype.GetUTF8Text = function() {
-          return z(Fd(this.Cf));
+        Zh.prototype.GetUTF8Text = function() {
+          return z(Fd(this.Ef));
         };
-        Xh.prototype.Confidence = function() {
-          return Gd(this.Cf);
+        Zh.prototype.Confidence = function() {
+          return Gd(this.Ef);
         };
-        Xh.prototype.__destroy__ = function() {
-          Hd(this.Cf);
+        Zh.prototype.__destroy__ = function() {
+          Hd(this.Ef);
         };
         function P() {
           throw "cannot construct a Box, no constructor in IDL";
         }
         P.prototype = Object.create(G.prototype);
         P.prototype.constructor = P;
-        P.prototype.Hf = P;
-        P.If = {};
+        P.prototype.Jf = P;
+        P.Kf = {};
         b.Box = P;
-        P.prototype.get_x = P.prototype.Kg = function() {
-          return Id(this.Cf);
+        P.prototype.get_x = P.prototype.Mg = function() {
+          return Id(this.Ef);
         };
-        Object.defineProperty(P.prototype, "x", { get: P.prototype.Kg });
-        P.prototype.get_y = P.prototype.Lg = function() {
-          return Jd(this.Cf);
+        Object.defineProperty(P.prototype, "x", { get: P.prototype.Mg });
+        P.prototype.get_y = P.prototype.Ng = function() {
+          return Jd(this.Ef);
         };
-        Object.defineProperty(P.prototype, "y", { get: P.prototype.Lg });
-        P.prototype.get_w = P.prototype.Jg = function() {
-          return Kd(this.Cf);
+        Object.defineProperty(P.prototype, "y", { get: P.prototype.Ng });
+        P.prototype.get_w = P.prototype.Lg = function() {
+          return Kd(this.Ef);
         };
-        Object.defineProperty(P.prototype, "w", { get: P.prototype.Jg });
-        P.prototype.get_h = P.prototype.Ig = function() {
-          return Ld(this.Cf);
+        Object.defineProperty(P.prototype, "w", { get: P.prototype.Lg });
+        P.prototype.get_h = P.prototype.Kg = function() {
+          return Ld(this.Ef);
         };
-        Object.defineProperty(P.prototype, "h", { get: P.prototype.Ig });
-        P.prototype.get_refcount = P.prototype.Xf = function() {
-          return Md(this.Cf);
+        Object.defineProperty(P.prototype, "h", { get: P.prototype.Kg });
+        P.prototype.get_refcount = P.prototype.Zf = function() {
+          return Md(this.Ef);
         };
-        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.Xf });
+        Object.defineProperty(P.prototype, "refcount", { get: P.prototype.Zf });
         P.prototype.__destroy__ = function() {
-          Nd(this.Cf);
+          Nd(this.Ef);
         };
         function Q(a, c, d) {
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          d && "object" === typeof d && (d = d.Cf);
-          this.Cf = Od(a, c, d);
-          Jh(Q)[this.Cf] = this;
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          d && "object" === typeof d && (d = d.Ef);
+          this.Ef = Od(a, c, d);
+          Lh(Q)[this.Ef] = this;
         }
         Q.prototype = Object.create(G.prototype);
         Q.prototype.constructor = Q;
-        Q.prototype.Hf = Q;
-        Q.If = {};
+        Q.prototype.Jf = Q;
+        Q.Kf = {};
         b.TessPDFRenderer = Q;
         Q.prototype.BeginDocument = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return !!Pd(c, a);
         };
         Q.prototype.AddImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return !!Qd(c, a);
         };
         Q.prototype.EndDocument = function() {
-          return !!Rd(this.Cf);
+          return !!Rd(this.Ef);
         };
         Q.prototype.happy = function() {
-          return !!Sd(this.Cf);
+          return !!Sd(this.Ef);
         };
         Q.prototype.file_extension = function() {
-          return z(Td(this.Cf));
+          return z(Td(this.Ef));
         };
         Q.prototype.title = Q.prototype.title = function() {
-          return z(Ud(this.Cf));
+          return z(Ud(this.Ef));
         };
         Q.prototype.imagenum = function() {
-          return Vd(this.Cf);
+          return Vd(this.Ef);
         };
         Q.prototype.__destroy__ = function() {
-          Wd(this.Cf);
+          Wd(this.Ef);
         };
-        function Yh() {
+        function $h() {
           throw "cannot construct a PixaPtr, no constructor in IDL";
-        }
-        Yh.prototype = Object.create(G.prototype);
-        Yh.prototype.constructor = Yh;
-        Yh.prototype.Hf = Yh;
-        Yh.If = {};
-        b.PixaPtr = Yh;
-        Yh.prototype.__destroy__ = function() {
-          Xd(this.Cf);
-        };
-        function Zh() {
-          throw "cannot construct a FloatPtr, no constructor in IDL";
-        }
-        Zh.prototype = Object.create(G.prototype);
-        Zh.prototype.constructor = Zh;
-        Zh.prototype.Hf = Zh;
-        Zh.If = {};
-        b.FloatPtr = Zh;
-        Zh.prototype.__destroy__ = function() {
-          Yd(this.Cf);
-        };
-        function $h(a) {
-          a && "object" === typeof a && (a = a.Cf);
-          this.Cf = Zd(a);
-          Jh($h)[this.Cf] = this;
         }
         $h.prototype = Object.create(G.prototype);
         $h.prototype.constructor = $h;
-        $h.prototype.Hf = $h;
-        $h.If = {};
-        b.ChoiceIterator = $h;
-        $h.prototype.Next = function() {
-          return !!$d(this.Cf);
-        };
-        $h.prototype.GetUTF8Text = function() {
-          return z(ae(this.Cf));
-        };
-        $h.prototype.Confidence = function() {
-          return be(this.Cf);
-        };
+        $h.prototype.Jf = $h;
+        $h.Kf = {};
+        b.PixaPtr = $h;
         $h.prototype.__destroy__ = function() {
-          ce(this.Cf);
+          Xd(this.Ef);
         };
         function ai() {
-          throw "cannot construct a PixPtr, no constructor in IDL";
+          throw "cannot construct a FloatPtr, no constructor in IDL";
         }
         ai.prototype = Object.create(G.prototype);
         ai.prototype.constructor = ai;
-        ai.prototype.Hf = ai;
-        ai.If = {};
-        b.PixPtr = ai;
+        ai.prototype.Jf = ai;
+        ai.Kf = {};
+        b.FloatPtr = ai;
         ai.prototype.__destroy__ = function() {
-          de(this.Cf);
+          Yd(this.Ef);
         };
-        function bi() {
-          throw "cannot construct a UNICHARSET, no constructor in IDL";
+        function bi(a) {
+          a && "object" === typeof a && (a = a.Ef);
+          this.Ef = Zd(a);
+          Lh(bi)[this.Ef] = this;
         }
         bi.prototype = Object.create(G.prototype);
         bi.prototype.constructor = bi;
-        bi.prototype.Hf = bi;
-        bi.If = {};
-        b.UNICHARSET = bi;
-        bi.prototype.get_script_from_script_id = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(ee(c, a));
+        bi.prototype.Jf = bi;
+        bi.Kf = {};
+        b.ChoiceIterator = bi;
+        bi.prototype.Next = function() {
+          return !!$d(this.Ef);
         };
-        bi.prototype.get_script_id_from_name = function(a) {
-          var c = this.Cf;
-          I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return fe(c, a);
+        bi.prototype.GetUTF8Text = function() {
+          return z(ae(this.Ef));
         };
-        bi.prototype.get_script_table_size = function() {
-          return ge(this.Cf);
+        bi.prototype.Confidence = function() {
+          return be(this.Ef);
         };
         bi.prototype.__destroy__ = function() {
-          he(this.Cf);
+          ce(this.Ef);
         };
         function ci() {
-          throw "cannot construct a IntPtr, no constructor in IDL";
+          throw "cannot construct a PixPtr, no constructor in IDL";
         }
         ci.prototype = Object.create(G.prototype);
         ci.prototype.constructor = ci;
-        ci.prototype.Hf = ci;
-        ci.If = {};
-        b.IntPtr = ci;
+        ci.prototype.Jf = ci;
+        ci.Kf = {};
+        b.PixPtr = ci;
         ci.prototype.__destroy__ = function() {
-          ie(this.Cf);
+          de(this.Ef);
         };
         function di() {
-          throw "cannot construct a Orientation, no constructor in IDL";
+          throw "cannot construct a UNICHARSET, no constructor in IDL";
         }
         di.prototype = Object.create(G.prototype);
         di.prototype.constructor = di;
-        di.prototype.Hf = di;
-        di.If = {};
-        b.Orientation = di;
+        di.prototype.Jf = di;
+        di.Kf = {};
+        b.UNICHARSET = di;
+        di.prototype.get_script_from_script_id = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(ee(c, a));
+        };
+        di.prototype.get_script_id_from_name = function(a) {
+          var c = this.Ef;
+          I();
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return fe(c, a);
+        };
+        di.prototype.get_script_table_size = function() {
+          return ge(this.Ef);
+        };
         di.prototype.__destroy__ = function() {
-          je(this.Cf);
+          he(this.Ef);
+        };
+        function ei() {
+          throw "cannot construct a IntPtr, no constructor in IDL";
+        }
+        ei.prototype = Object.create(G.prototype);
+        ei.prototype.constructor = ei;
+        ei.prototype.Jf = ei;
+        ei.Kf = {};
+        b.IntPtr = ei;
+        ei.prototype.__destroy__ = function() {
+          ie(this.Ef);
+        };
+        function fi() {
+          throw "cannot construct a Orientation, no constructor in IDL";
+        }
+        fi.prototype = Object.create(G.prototype);
+        fi.prototype.constructor = fi;
+        fi.prototype.Jf = fi;
+        fi.Kf = {};
+        b.Orientation = fi;
+        fi.prototype.__destroy__ = function() {
+          je(this.Ef);
         };
         function R() {
           throw "cannot construct a OSBestResult, no constructor in IDL";
         }
         R.prototype = Object.create(G.prototype);
         R.prototype.constructor = R;
-        R.prototype.Hf = R;
-        R.If = {};
+        R.prototype.Jf = R;
+        R.Kf = {};
         b.OSBestResult = R;
-        R.prototype.get_orientation_id = R.prototype.Uh = function() {
-          return ke(this.Cf);
+        R.prototype.get_orientation_id = R.prototype.Wh = function() {
+          return ke(this.Ef);
         };
-        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Uh });
-        R.prototype.get_script_id = R.prototype.Xh = function() {
-          return le(this.Cf);
+        Object.defineProperty(R.prototype, "orientation_id", { get: R.prototype.Wh });
+        R.prototype.get_script_id = R.prototype.Zh = function() {
+          return le(this.Ef);
         };
-        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.Xh });
-        R.prototype.get_sconfidence = R.prototype.Wh = function() {
-          return me(this.Cf);
+        Object.defineProperty(R.prototype, "script_id", { get: R.prototype.Zh });
+        R.prototype.get_sconfidence = R.prototype.Yh = function() {
+          return me(this.Ef);
         };
-        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.Wh });
-        R.prototype.get_oconfidence = R.prototype.Th = function() {
-          return ne(this.Cf);
+        Object.defineProperty(R.prototype, "sconfidence", { get: R.prototype.Yh });
+        R.prototype.get_oconfidence = R.prototype.Vh = function() {
+          return ne(this.Ef);
         };
-        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Th });
+        Object.defineProperty(R.prototype, "oconfidence", { get: R.prototype.Vh });
         R.prototype.__destroy__ = function() {
-          oe(this.Cf);
+          oe(this.Ef);
         };
         function S() {
           throw "cannot construct a Boxa, no constructor in IDL";
         }
         S.prototype = Object.create(G.prototype);
         S.prototype.constructor = S;
-        S.prototype.Hf = S;
-        S.If = {};
+        S.prototype.Jf = S;
+        S.Kf = {};
         b.Boxa = S;
-        S.prototype.get_n = S.prototype.ag = function() {
-          return pe(this.Cf);
+        S.prototype.get_n = S.prototype.cg = function() {
+          return pe(this.Ef);
         };
-        Object.defineProperty(S.prototype, "n", { get: S.prototype.ag });
-        S.prototype.get_nalloc = S.prototype.bg = function() {
-          return qe(this.Cf);
+        Object.defineProperty(S.prototype, "n", { get: S.prototype.cg });
+        S.prototype.get_nalloc = S.prototype.dg = function() {
+          return qe(this.Ef);
         };
-        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.bg });
-        S.prototype.get_refcount = S.prototype.Xf = function() {
-          return re(this.Cf);
+        Object.defineProperty(S.prototype, "nalloc", { get: S.prototype.dg });
+        S.prototype.get_refcount = S.prototype.Zf = function() {
+          return re(this.Ef);
         };
-        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.Xf });
-        S.prototype.get_box = S.prototype.Mh = function() {
-          return H(se(this.Cf), ei);
+        Object.defineProperty(S.prototype, "refcount", { get: S.prototype.Zf });
+        S.prototype.get_box = S.prototype.Oh = function() {
+          return H(se(this.Ef), gi);
         };
-        Object.defineProperty(S.prototype, "box", { get: S.prototype.Mh });
+        Object.defineProperty(S.prototype, "box", { get: S.prototype.Oh });
         S.prototype.__destroy__ = function() {
-          te(this.Cf);
+          te(this.Ef);
         };
         function T() {
           throw "cannot construct a PixColormap, no constructor in IDL";
         }
         T.prototype = Object.create(G.prototype);
         T.prototype.constructor = T;
-        T.prototype.Hf = T;
-        T.If = {};
+        T.prototype.Jf = T;
+        T.Kf = {};
         b.PixColormap = T;
-        T.prototype.get_array = T.prototype.Kh = function() {
-          return ue(this.Cf);
+        T.prototype.get_array = T.prototype.Mh = function() {
+          return ue(this.Ef);
         };
-        Object.defineProperty(T.prototype, "array", { get: T.prototype.Kh });
-        T.prototype.get_depth = T.prototype.Rh = function() {
-          return ve(this.Cf);
+        Object.defineProperty(T.prototype, "array", { get: T.prototype.Mh });
+        T.prototype.get_depth = T.prototype.Th = function() {
+          return ve(this.Ef);
         };
-        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Rh });
-        T.prototype.get_nalloc = T.prototype.bg = function() {
-          return we(this.Cf);
+        Object.defineProperty(T.prototype, "depth", { get: T.prototype.Th });
+        T.prototype.get_nalloc = T.prototype.dg = function() {
+          return we(this.Ef);
         };
-        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.bg });
-        T.prototype.get_n = T.prototype.ag = function() {
-          return xe(this.Cf);
+        Object.defineProperty(T.prototype, "nalloc", { get: T.prototype.dg });
+        T.prototype.get_n = T.prototype.cg = function() {
+          return xe(this.Ef);
         };
-        Object.defineProperty(T.prototype, "n", { get: T.prototype.ag });
+        Object.defineProperty(T.prototype, "n", { get: T.prototype.cg });
         T.prototype.__destroy__ = function() {
-          ye(this.Cf);
+          ye(this.Ef);
         };
         function M() {
           throw "cannot construct a Pta, no constructor in IDL";
         }
         M.prototype = Object.create(G.prototype);
         M.prototype.constructor = M;
-        M.prototype.Hf = M;
-        M.If = {};
+        M.prototype.Jf = M;
+        M.Kf = {};
         b.Pta = M;
-        M.prototype.get_n = M.prototype.ag = function() {
-          return ze(this.Cf);
+        M.prototype.get_n = M.prototype.cg = function() {
+          return ze(this.Ef);
         };
-        Object.defineProperty(M.prototype, "n", { get: M.prototype.ag });
-        M.prototype.get_nalloc = M.prototype.bg = function() {
-          return Ae(this.Cf);
+        Object.defineProperty(M.prototype, "n", { get: M.prototype.cg });
+        M.prototype.get_nalloc = M.prototype.dg = function() {
+          return Ae(this.Ef);
         };
-        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.bg });
-        M.prototype.get_refcount = M.prototype.Xf = function() {
-          return Be(this.Cf);
+        Object.defineProperty(M.prototype, "nalloc", { get: M.prototype.dg });
+        M.prototype.get_refcount = M.prototype.Zf = function() {
+          return Be(this.Ef);
         };
-        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.Xf });
-        M.prototype.get_x = M.prototype.Kg = function() {
-          return H(Ce(this.Cf), Zh);
+        Object.defineProperty(M.prototype, "refcount", { get: M.prototype.Zf });
+        M.prototype.get_x = M.prototype.Mg = function() {
+          return H(Ce(this.Ef), ai);
         };
-        Object.defineProperty(M.prototype, "x", { get: M.prototype.Kg });
-        M.prototype.get_y = M.prototype.Lg = function() {
-          return H(De(this.Cf), Zh);
+        Object.defineProperty(M.prototype, "x", { get: M.prototype.Mg });
+        M.prototype.get_y = M.prototype.Ng = function() {
+          return H(De(this.Ef), ai);
         };
-        Object.defineProperty(M.prototype, "y", { get: M.prototype.Lg });
+        Object.defineProperty(M.prototype, "y", { get: M.prototype.Ng });
         M.prototype.__destroy__ = function() {
-          Ee(this.Cf);
+          Ee(this.Ef);
         };
         function N() {
           throw "cannot construct a Pix, no constructor in IDL";
         }
         N.prototype = Object.create(G.prototype);
         N.prototype.constructor = N;
-        N.prototype.Hf = N;
-        N.If = {};
+        N.prototype.Jf = N;
+        N.Kf = {};
         b.Pix = N;
-        N.prototype.get_w = N.prototype.Jg = function() {
-          return Fe(this.Cf);
+        N.prototype.get_w = N.prototype.Lg = function() {
+          return Fe(this.Ef);
         };
-        Object.defineProperty(N.prototype, "w", { get: N.prototype.Jg });
-        N.prototype.get_h = N.prototype.Ig = function() {
-          return Ge(this.Cf);
+        Object.defineProperty(N.prototype, "w", { get: N.prototype.Lg });
+        N.prototype.get_h = N.prototype.Kg = function() {
+          return Ge(this.Ef);
         };
-        Object.defineProperty(N.prototype, "h", { get: N.prototype.Ig });
-        N.prototype.get_d = N.prototype.Ph = function() {
-          return He(this.Cf);
+        Object.defineProperty(N.prototype, "h", { get: N.prototype.Kg });
+        N.prototype.get_d = N.prototype.Rh = function() {
+          return He(this.Ef);
         };
-        Object.defineProperty(N.prototype, "d", { get: N.prototype.Ph });
-        N.prototype.get_spp = N.prototype.Zh = function() {
-          return Ie(this.Cf);
+        Object.defineProperty(N.prototype, "d", { get: N.prototype.Rh });
+        N.prototype.get_spp = N.prototype.ai = function() {
+          return Ie(this.Ef);
         };
-        Object.defineProperty(N.prototype, "spp", { get: N.prototype.Zh });
-        N.prototype.get_wpl = N.prototype.bi = function() {
-          return Je(this.Cf);
+        Object.defineProperty(N.prototype, "spp", { get: N.prototype.ai });
+        N.prototype.get_wpl = N.prototype.di = function() {
+          return Je(this.Ef);
         };
-        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.bi });
-        N.prototype.get_refcount = N.prototype.Xf = function() {
-          return Ke(this.Cf);
+        Object.defineProperty(N.prototype, "wpl", { get: N.prototype.di });
+        N.prototype.get_refcount = N.prototype.Zf = function() {
+          return Ke(this.Ef);
         };
-        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.Xf });
-        N.prototype.get_xres = N.prototype.ci = function() {
-          return Le(this.Cf);
+        Object.defineProperty(N.prototype, "refcount", { get: N.prototype.Zf });
+        N.prototype.get_xres = N.prototype.ei = function() {
+          return Le(this.Ef);
         };
-        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ci });
-        N.prototype.get_yres = N.prototype.di = function() {
-          return Me(this.Cf);
+        Object.defineProperty(N.prototype, "xres", { get: N.prototype.ei });
+        N.prototype.get_yres = N.prototype.fi = function() {
+          return Me(this.Ef);
         };
-        Object.defineProperty(N.prototype, "yres", { get: N.prototype.di });
-        N.prototype.get_informat = N.prototype.Sh = function() {
-          return Ne(this.Cf);
+        Object.defineProperty(N.prototype, "yres", { get: N.prototype.fi });
+        N.prototype.get_informat = N.prototype.Uh = function() {
+          return Ne(this.Ef);
         };
-        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Sh });
-        N.prototype.get_special = N.prototype.Yh = function() {
-          return Oe(this.Cf);
+        Object.defineProperty(N.prototype, "informat", { get: N.prototype.Uh });
+        N.prototype.get_special = N.prototype.$h = function() {
+          return Oe(this.Ef);
         };
-        Object.defineProperty(N.prototype, "special", { get: N.prototype.Yh });
-        N.prototype.get_text = N.prototype.$h = function() {
-          return z(Pe(this.Cf));
+        Object.defineProperty(N.prototype, "special", { get: N.prototype.$h });
+        N.prototype.get_text = N.prototype.bi = function() {
+          return z(Pe(this.Ef));
         };
-        Object.defineProperty(N.prototype, "text", { get: N.prototype.$h });
-        N.prototype.get_colormap = N.prototype.Oh = function() {
-          return H(Qe(this.Cf), T);
+        Object.defineProperty(N.prototype, "text", { get: N.prototype.bi });
+        N.prototype.get_colormap = N.prototype.Qh = function() {
+          return H(Qe(this.Ef), T);
         };
-        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Oh });
-        N.prototype.get_data = N.prototype.Qh = function() {
-          return Re(this.Cf);
+        Object.defineProperty(N.prototype, "colormap", { get: N.prototype.Qh });
+        N.prototype.get_data = N.prototype.Sh = function() {
+          return Re(this.Ef);
         };
-        Object.defineProperty(N.prototype, "data", { get: N.prototype.Qh });
+        Object.defineProperty(N.prototype, "data", { get: N.prototype.Sh });
         N.prototype.__destroy__ = function() {
-          Se(this.Cf);
+          Se(this.Ef);
         };
-        function fi() {
+        function hi() {
           throw "cannot construct a DoublePtr, no constructor in IDL";
         }
-        fi.prototype = Object.create(G.prototype);
-        fi.prototype.constructor = fi;
-        fi.prototype.Hf = fi;
-        fi.If = {};
-        b.DoublePtr = fi;
-        fi.prototype.__destroy__ = function() {
-          Te(this.Cf);
+        hi.prototype = Object.create(G.prototype);
+        hi.prototype.constructor = hi;
+        hi.prototype.Jf = hi;
+        hi.Kf = {};
+        b.DoublePtr = hi;
+        hi.prototype.__destroy__ = function() {
+          Te(this.Ef);
+        };
+        function ii() {
+          throw "cannot construct a Dawg, no constructor in IDL";
+        }
+        ii.prototype = Object.create(G.prototype);
+        ii.prototype.constructor = ii;
+        ii.prototype.Jf = ii;
+        ii.Kf = {};
+        b.Dawg = ii;
+        ii.prototype.__destroy__ = function() {
+          Ue(this.Ef);
         };
         function gi() {
-          throw "cannot construct a Dawg, no constructor in IDL";
+          throw "cannot construct a BoxPtr, no constructor in IDL";
         }
         gi.prototype = Object.create(G.prototype);
         gi.prototype.constructor = gi;
-        gi.prototype.Hf = gi;
-        gi.If = {};
-        b.Dawg = gi;
+        gi.prototype.Jf = gi;
+        gi.Kf = {};
+        b.BoxPtr = gi;
         gi.prototype.__destroy__ = function() {
-          Ue(this.Cf);
-        };
-        function ei() {
-          throw "cannot construct a BoxPtr, no constructor in IDL";
-        }
-        ei.prototype = Object.create(G.prototype);
-        ei.prototype.constructor = ei;
-        ei.prototype.Hf = ei;
-        ei.If = {};
-        b.BoxPtr = ei;
-        ei.prototype.__destroy__ = function() {
-          Ve(this.Cf);
+          Ve(this.Ef);
         };
         function X() {
-          this.Cf = We();
-          Jh(X)[this.Cf] = this;
+          this.Ef = We();
+          Lh(X)[this.Ef] = this;
         }
         X.prototype = Object.create(G.prototype);
         X.prototype.constructor = X;
-        X.prototype.Hf = X;
-        X.If = {};
+        X.prototype.Jf = X;
+        X.Kf = {};
         b.TessBaseAPI = X;
         X.prototype.Version = function() {
-          return z(Xe(this.Cf));
+          return z(Xe(this.Ef));
         };
         X.prototype.SetInputName = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           Ye(c, a);
         };
         X.prototype.GetInputName = function() {
-          return z(Ze(this.Cf));
+          return z(Ze(this.Ef));
         };
         X.prototype.SetInputImage = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           $e(c, a);
         };
         X.prototype.GetInputImage = function() {
-          return H(af(this.Cf), N);
+          return H(af(this.Ef), N);
         };
         X.prototype.GetSourceYResolution = function() {
-          return bf(this.Cf);
+          return bf(this.Ef);
         };
         X.prototype.GetDatapath = function() {
-          return z(cf(this.Cf));
+          return z(cf(this.Ef));
         };
         X.prototype.SetOutputName = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           df(c, a);
         };
         X.prototype.SetVariable = X.prototype.SetVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!ef(d, a, c);
         };
         X.prototype.SetDebugVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!ff(d, a, c);
         };
         X.prototype.GetIntVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!gf(d, a, c);
         };
         X.prototype.GetBoolVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!hf(d, a, c);
         };
         X.prototype.GetDoubleVariable = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c && "object" === typeof c && (c = c.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c && "object" === typeof c && (c = c.Ef);
           return !!jf(d, a, c);
         };
         X.prototype.GetStringVariable = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           return z(kf(c, a));
         };
         X.prototype.Init = function(a, c, d, e) {
           void 0 === d && void 0 !== e && (d = 3);
-          var g = this.Cf;
+          var g = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          e = e && "object" === typeof e ? e.Cf : J(e);
-          d && "object" === typeof d && (d = d.Cf);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          e = e && "object" === typeof e ? e.Ef : J(e);
+          d && "object" === typeof d && (d = d.Ef);
           return void 0 === d && void 0 !== e ? pf(g, a, c, 3, e) : void 0 === d ? nf(g, a, c) : void 0 === e ? of(g, a, c, d) : pf(g, a, c, d, e);
         };
         X.prototype.GetInitLanguagesAsString = function() {
-          return z(qf(this.Cf));
+          return z(qf(this.Ef));
         };
         X.prototype.InitForAnalysePage = function() {
-          rf(this.Cf);
+          rf(this.Ef);
         };
         X.prototype.SaveParameters = function() {
-          lf(this.Cf);
+          lf(this.Ef);
         };
         X.prototype.RestoreParameters = function() {
-          mf(this.Cf);
+          mf(this.Ef);
         };
         X.prototype.ReadConfigFile = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           sf(c, a);
         };
         X.prototype.ReadDebugConfigFile = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
           tf(c, a);
         };
         X.prototype.SetPageSegMode = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           uf(c, a);
         };
         X.prototype.GetPageSegMode = function() {
-          return vf(this.Cf);
+          return vf(this.Ef);
         };
         X.prototype.TesseractRect = function(a, c, d, e, g, h, k) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
+          var m = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
           return z(wf(m, a, c, d, e, g, h, k));
         };
         X.prototype.ClearAdaptiveClassifier = function() {
-          xf(this.Cf);
+          xf(this.Ef);
         };
-        X.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          void 0 === c || null === c ? yf(m, a, h, k) : zf(m, a, c, d, e, g, h, k);
+        X.prototype.SetImage = function(a, c, d, e, g, h = 1, k = 0, m = false) {
+          var v = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          void 0 === c || null === c ? yf(v, a, h, k, m) : zf(v, a, c, d, e, g, h, k, m);
         };
-        X.prototype.SetImageFile = function(a = 1, c = 0) {
-          return Af(this.Cf, a, c);
+        X.prototype.SetImageFile = function(a = 1, c = 0, d = false) {
+          return Af(this.Ef, a, c, d);
         };
         X.prototype.SetSourceResolution = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           Bf(c, a);
         };
         X.prototype.SetRectangle = function(a, c, d, e) {
-          var g = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
+          var g = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
           Cf(g, a, c, d, e);
         };
         X.prototype.GetThresholdedImage = function() {
-          return H(Df(this.Cf), N);
+          return H(Df(this.Ef), N);
         };
         X.prototype.WriteImage = function(a) {
-          Ef(this.Cf, a);
+          Ef(this.Ef, a);
         };
         X.prototype.GetRegions = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Hf(c, a), S);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(If(c, a), S);
         };
         X.prototype.GetTextlines = function(a, c, d, e, g) {
-          var h = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          return void 0 === d ? H(If(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Jf(h, a, c, d, e, g), S);
+          var h = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          return void 0 === d ? H(Jf(h, a, c), S) : void 0 === e ? H(_emscripten_bind_TessBaseAPI_GetTextlines_3(h, a, c, d), S) : void 0 === g ? H(_emscripten_bind_TessBaseAPI_GetTextlines_4(h, a, c, d, e), S) : H(Kf(h, a, c, d, e, g), S);
         };
         X.prototype.GetStrips = function(a, c) {
-          var d = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          return H(Kf(d, a, c), S);
+          var d = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          return H(Lf(d, a, c), S);
         };
         X.prototype.GetWords = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(Lf(c, a), S);
-        };
-        X.prototype.GetConnectedComponents = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
           return H(Mf(c, a), S);
         };
+        X.prototype.GetConnectedComponents = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(Nf(c, a), S);
+        };
         X.prototype.GetComponentImages = function(a, c, d, e, g, h, k) {
-          var m = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          k && "object" === typeof k && (k = k.Cf);
-          return void 0 === g ? H(Nf(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Of(
+          var m = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          k && "object" === typeof k && (k = k.Ef);
+          return void 0 === g ? H(Of(m, a, c, d, e), S) : void 0 === h ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_5(m, a, c, d, e, g), S) : void 0 === k ? H(_emscripten_bind_TessBaseAPI_GetComponentImages_6(m, a, c, d, e, g, h), S) : H(Pf(
             m,
             a,
             c,
@@ -22073,318 +22118,345 @@ var require_tesseract_core = __commonJS({
           ), S);
         };
         X.prototype.GetThresholdedImageScaleFactor = function() {
-          return Pf(this.Cf);
+          return Qf(this.Ef);
         };
         X.prototype.AnalyseLayout = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return void 0 === a ? H(Qf(c), O) : H(Rf(c, a), O);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return void 0 === a ? H(Rf(c), O) : H(Sf(c, a), O);
         };
         X.prototype.Recognize = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return Sf(c, a);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return Tf(c, a);
         };
         X.prototype.FindLines = function() {
-          return Ff(this.Cf);
+          return Ff(this.Ef);
         };
         X.prototype.GetGradient = function() {
-          return Gf(this.Cf);
+          return Gf(this.Ef);
+        };
+        X.prototype.GetEstimatedResolution = function() {
+          return Hf(this.Ef);
         };
         X.prototype.ProcessPages = function(a, c, d, e) {
-          var g = this.Cf;
+          var g = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          c = c && "object" === typeof c ? c.Cf : J(c);
-          d && "object" === typeof d && (d = d.Cf);
-          e && "object" === typeof e && (e = e.Cf);
-          return !!Tf(g, a, c, d, e);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          c = c && "object" === typeof c ? c.Ef : J(c);
+          d && "object" === typeof d && (d = d.Ef);
+          e && "object" === typeof e && (e = e.Ef);
+          return !!Uf(g, a, c, d, e);
         };
         X.prototype.ProcessPage = function(a, c, d, e, g, h) {
-          var k = this.Cf;
+          var k = this.Ef;
           I();
-          a && "object" === typeof a && (a = a.Cf);
-          c && "object" === typeof c && (c = c.Cf);
-          d = d && "object" === typeof d ? d.Cf : J(d);
-          e = e && "object" === typeof e ? e.Cf : J(e);
-          g && "object" === typeof g && (g = g.Cf);
-          h && "object" === typeof h && (h = h.Cf);
-          return !!Uf(k, a, c, d, e, g, h);
+          a && "object" === typeof a && (a = a.Ef);
+          c && "object" === typeof c && (c = c.Ef);
+          d = d && "object" === typeof d ? d.Ef : J(d);
+          e = e && "object" === typeof e ? e.Ef : J(e);
+          g && "object" === typeof g && (g = g.Ef);
+          h && "object" === typeof h && (h = h.Ef);
+          return !!Vf(k, a, c, d, e, g, h);
         };
         X.prototype.GetIterator = function() {
-          return H(Vf(this.Cf), L);
+          return H(Wf(this.Ef), L);
         };
         X.prototype.GetUTF8Text = function() {
-          return z(Wf(this.Cf));
+          var a = Xf(this.Ef), c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetHOCRText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Xf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = Yf(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetTSVText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Yf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = $f(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
+        };
+        X.prototype.GetJSONText = function(a) {
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = Zf(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetBoxText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(Zf(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = ag(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetUNLVText = function() {
-          return z($f(this.Cf));
+          var a = bg(this.Ef), c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.GetOsdText = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(ag(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          a = cg(c, a);
+          c = z(a);
+          Hh(a);
+          return c;
         };
         X.prototype.MeanTextConf = function() {
-          return bg(this.Cf);
+          return dg(this.Ef);
         };
         X.prototype.AllWordConfidences = function() {
-          return H(cg(this.Cf), ci);
+          return H(eg(this.Ef), ei);
         };
         X.prototype.AdaptToWordStr = function(a, c) {
-          var d = this.Cf;
+          var d = this.Ef;
           I();
-          a && "object" === typeof a && (a = a.Cf);
-          c = c && "object" === typeof c ? c.Cf : J(c);
+          a && "object" === typeof a && (a = a.Ef);
+          c = c && "object" === typeof c ? c.Ef : J(c);
           return !!_emscripten_bind_TessBaseAPI_AdaptToWordStr_2(d, a, c);
         };
         X.prototype.Clear = function() {
-          dg(this.Cf);
+          fg(this.Ef);
         };
         X.prototype.End = function() {
-          eg(this.Cf);
+          gg(this.Ef);
         };
         X.prototype.ClearPersistentCache = function() {
-          fg(this.Cf);
+          hg(this.Ef);
         };
         X.prototype.IsValidWord = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return gg(c, a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return ig(c, a);
         };
         X.prototype.IsValidCharacter = function(a) {
-          var c = this.Cf;
+          var c = this.Ef;
           I();
-          a = a && "object" === typeof a ? a.Cf : J(a);
-          return !!hg(c, a);
+          a = a && "object" === typeof a ? a.Ef : J(a);
+          return !!jg(c, a);
         };
         X.prototype.DetectOS = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return !!ig(c, a);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return !!kg(c, a);
         };
         X.prototype.GetUnichar = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return z(jg(c, a));
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return z(lg(c, a));
         };
         X.prototype.GetDawg = function(a) {
-          var c = this.Cf;
-          a && "object" === typeof a && (a = a.Cf);
-          return H(kg(c, a), gi);
+          var c = this.Ef;
+          a && "object" === typeof a && (a = a.Ef);
+          return H(mg(c, a), ii);
         };
         X.prototype.NumDawgs = function() {
-          return lg(this.Cf);
+          return ng(this.Ef);
         };
         X.prototype.oem = function() {
-          return mg(this.Cf);
+          return og(this.Ef);
         };
         X.prototype.__destroy__ = function() {
-          ng(this.Cf);
+          pg(this.Ef);
         };
         function Y() {
-          this.Cf = og();
-          Jh(Y)[this.Cf] = this;
+          this.Ef = qg();
+          Lh(Y)[this.Ef] = this;
         }
         Y.prototype = Object.create(G.prototype);
         Y.prototype.constructor = Y;
-        Y.prototype.Hf = Y;
-        Y.If = {};
+        Y.prototype.Jf = Y;
+        Y.Kf = {};
         b.OSResults = Y;
         Y.prototype.print_scores = function() {
-          pg(this.Cf);
+          rg(this.Ef);
         };
-        Y.prototype.get_best_result = Y.prototype.Lh = function() {
-          return H(qg(this.Cf), R);
+        Y.prototype.get_best_result = Y.prototype.Nh = function() {
+          return H(sg(this.Ef), R);
         };
-        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Lh });
-        Y.prototype.get_unicharset = Y.prototype.ai = function() {
-          return H(rg(this.Cf), bi);
+        Object.defineProperty(Y.prototype, "best_result", { get: Y.prototype.Nh });
+        Y.prototype.get_unicharset = Y.prototype.ci = function() {
+          return H(tg(this.Ef), di);
         };
-        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ai });
+        Object.defineProperty(Y.prototype, "unicharset", { get: Y.prototype.ci });
         Y.prototype.__destroy__ = function() {
-          sg(this.Cf);
+          ug(this.Ef);
         };
         function Z() {
           throw "cannot construct a Pixa, no constructor in IDL";
         }
         Z.prototype = Object.create(G.prototype);
         Z.prototype.constructor = Z;
-        Z.prototype.Hf = Z;
-        Z.If = {};
+        Z.prototype.Jf = Z;
+        Z.Kf = {};
         b.Pixa = Z;
-        Z.prototype.get_n = Z.prototype.ag = function() {
-          return tg(this.Cf);
+        Z.prototype.get_n = Z.prototype.cg = function() {
+          return vg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.ag });
-        Z.prototype.get_nalloc = Z.prototype.bg = function() {
-          return ug(this.Cf);
+        Object.defineProperty(Z.prototype, "n", { get: Z.prototype.cg });
+        Z.prototype.get_nalloc = Z.prototype.dg = function() {
+          return wg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.bg });
-        Z.prototype.get_refcount = Z.prototype.Xf = function() {
-          return vg(this.Cf);
+        Object.defineProperty(Z.prototype, "nalloc", { get: Z.prototype.dg });
+        Z.prototype.get_refcount = Z.prototype.Zf = function() {
+          return xg(this.Ef);
         };
-        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.Xf });
-        Z.prototype.get_pix = Z.prototype.Vh = function() {
-          return H(wg(this.Cf), ai);
+        Object.defineProperty(Z.prototype, "refcount", { get: Z.prototype.Zf });
+        Z.prototype.get_pix = Z.prototype.Xh = function() {
+          return H(yg(this.Ef), ci);
         };
-        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Vh });
-        Z.prototype.get_boxa = Z.prototype.Nh = function() {
-          return H(xg(this.Cf), S);
+        Object.defineProperty(Z.prototype, "pix", { get: Z.prototype.Xh });
+        Z.prototype.get_boxa = Z.prototype.Ph = function() {
+          return H(zg(this.Ef), S);
         };
-        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Nh });
+        Object.defineProperty(Z.prototype, "boxa", { get: Z.prototype.Ph });
         Z.prototype.__destroy__ = function() {
-          yg(this.Cf);
+          Ag(this.Ef);
         };
         (function() {
           function a() {
-            b.RIL_BLOCK = zg();
-            b.RIL_PARA = Ag();
-            b.RIL_TEXTLINE = Bg();
-            b.RIL_WORD = Cg();
-            b.RIL_SYMBOL = Dg();
-            b.OEM_TESSERACT_ONLY = Eg();
-            b.OEM_LSTM_ONLY = Fg();
-            b.OEM_TESSERACT_LSTM_COMBINED = Gg();
-            b.OEM_DEFAULT = Hg();
-            b.OEM_COUNT = Ig();
-            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Jg();
-            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Kg();
-            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Lg();
-            b.PT_UNKNOWN = Mg();
-            b.PT_FLOWING_TEXT = Ng();
-            b.PT_HEADING_TEXT = Og();
-            b.PT_PULLOUT_TEXT = Pg();
-            b.PT_EQUATION = Qg();
-            b.PT_INLINE_EQUATION = Rg();
-            b.PT_TABLE = Sg();
-            b.PT_VERTICAL_TEXT = Tg();
-            b.PT_CAPTION_TEXT = Ug();
-            b.PT_FLOWING_IMAGE = Vg();
-            b.PT_HEADING_IMAGE = Wg();
-            b.PT_PULLOUT_IMAGE = Xg();
-            b.PT_HORZ_LINE = Yg();
-            b.PT_VERT_LINE = Zg();
-            b.PT_NOISE = $g();
-            b.PT_COUNT = ah();
-            b.DIR_NEUTRAL = bh();
-            b.DIR_LEFT_TO_RIGHT = ch();
-            b.DIR_RIGHT_TO_LEFT = dh();
-            b.DIR_MIX = eh();
-            b.JUSTIFICATION_UNKNOWN = fh();
-            b.JUSTIFICATION_LEFT = gh();
-            b.JUSTIFICATION_CENTER = hh();
-            b.JUSTIFICATION_RIGHT = ih();
-            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = jh();
-            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = kh();
-            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = lh();
-            b.ORIENTATION_PAGE_UP = mh();
-            b.ORIENTATION_PAGE_RIGHT = nh();
-            b.ORIENTATION_PAGE_DOWN = oh();
-            b.ORIENTATION_PAGE_LEFT = ph();
-            b.PSM_OSD_ONLY = qh();
-            b.PSM_AUTO_OSD = rh();
-            b.PSM_AUTO_ONLY = sh();
-            b.PSM_AUTO = th();
-            b.PSM_SINGLE_COLUMN = uh();
-            b.PSM_SINGLE_BLOCK_VERT_TEXT = vh();
-            b.PSM_SINGLE_BLOCK = wh();
-            b.PSM_SINGLE_LINE = xh();
-            b.PSM_SINGLE_WORD = yh();
-            b.PSM_CIRCLE_WORD = zh();
-            b.PSM_SINGLE_CHAR = Ah();
-            b.PSM_SPARSE_TEXT = Bh();
-            b.PSM_SPARSE_TEXT_OSD = Ch();
-            b.PSM_RAW_LINE = Dh();
-            b.PSM_COUNT = Eh();
+            b.RIL_BLOCK = Bg();
+            b.RIL_PARA = Cg();
+            b.RIL_TEXTLINE = Dg();
+            b.RIL_WORD = Eg();
+            b.RIL_SYMBOL = Fg();
+            b.OEM_TESSERACT_ONLY = Gg();
+            b.OEM_LSTM_ONLY = Hg();
+            b.OEM_TESSERACT_LSTM_COMBINED = Ig();
+            b.OEM_DEFAULT = Jg();
+            b.OEM_COUNT = Kg();
+            b.WRITING_DIRECTION_LEFT_TO_RIGHT = Lg();
+            b.WRITING_DIRECTION_RIGHT_TO_LEFT = Mg();
+            b.WRITING_DIRECTION_TOP_TO_BOTTOM = Ng();
+            b.PT_UNKNOWN = Og();
+            b.PT_FLOWING_TEXT = Pg();
+            b.PT_HEADING_TEXT = Qg();
+            b.PT_PULLOUT_TEXT = Rg();
+            b.PT_EQUATION = Sg();
+            b.PT_INLINE_EQUATION = Tg();
+            b.PT_TABLE = Ug();
+            b.PT_VERTICAL_TEXT = Vg();
+            b.PT_CAPTION_TEXT = Wg();
+            b.PT_FLOWING_IMAGE = Xg();
+            b.PT_HEADING_IMAGE = Yg();
+            b.PT_PULLOUT_IMAGE = Zg();
+            b.PT_HORZ_LINE = $g();
+            b.PT_VERT_LINE = ah();
+            b.PT_NOISE = bh();
+            b.PT_COUNT = ch();
+            b.DIR_NEUTRAL = dh();
+            b.DIR_LEFT_TO_RIGHT = eh();
+            b.DIR_RIGHT_TO_LEFT = fh();
+            b.DIR_MIX = gh();
+            b.JUSTIFICATION_UNKNOWN = hh();
+            b.JUSTIFICATION_LEFT = ih();
+            b.JUSTIFICATION_CENTER = jh();
+            b.JUSTIFICATION_RIGHT = kh();
+            b.TEXTLINE_ORDER_LEFT_TO_RIGHT = lh();
+            b.TEXTLINE_ORDER_RIGHT_TO_LEFT = mh();
+            b.TEXTLINE_ORDER_TOP_TO_BOTTOM = nh();
+            b.ORIENTATION_PAGE_UP = oh();
+            b.ORIENTATION_PAGE_RIGHT = ph();
+            b.ORIENTATION_PAGE_DOWN = qh();
+            b.ORIENTATION_PAGE_LEFT = rh();
+            b.PSM_OSD_ONLY = sh();
+            b.PSM_AUTO_OSD = th();
+            b.PSM_AUTO_ONLY = uh();
+            b.PSM_AUTO = vh();
+            b.PSM_SINGLE_COLUMN = wh();
+            b.PSM_SINGLE_BLOCK_VERT_TEXT = xh();
+            b.PSM_SINGLE_BLOCK = yh();
+            b.PSM_SINGLE_LINE = zh();
+            b.PSM_SINGLE_WORD = Ah();
+            b.PSM_CIRCLE_WORD = Bh();
+            b.PSM_SINGLE_CHAR = Ch();
+            b.PSM_SPARSE_TEXT = Dh();
+            b.PSM_SPARSE_TEXT_OSD = Eh();
+            b.PSM_RAW_LINE = Fh();
+            b.PSM_COUNT = Gh();
           }
           Ca ? a() : Aa.unshift(a);
         })();
-        Qh.prototype.getValue = function(a) {
-          return !!Xa(this.Cf + (a || 0), "i8");
+        Sh.prototype.getValue = function(a) {
+          return !!Xa(this.Ef + (a || 0), "i8");
         };
-        ci.prototype.getValue = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "i32");
+        ei.prototype.getValue = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "i32");
         };
-        Zh.prototype.getValue = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "float");
+        ai.prototype.getValue = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "float");
         };
-        fi.prototype.getValue = function(a) {
-          return Xa(this.Cf + 8 * (a || 0), "double");
+        hi.prototype.getValue = function(a) {
+          return Xa(this.Ef + 8 * (a || 0), "double");
         };
-        ei.prototype.get = Yh.prototype.get = ai.prototype.get = function(a) {
-          return Xa(this.Cf + 4 * (a || 0), "*");
+        gi.prototype.get = $h.prototype.get = ci.prototype.get = function(a) {
+          return Xa(this.Ef + 4 * (a || 0), "*");
         };
-        function hi() {
-          this.ig = {};
+        function ji() {
+          this.kg = {};
         }
-        hi.prototype.wrap = function(a, c) {
+        ji.prototype.wrap = function(a, c) {
           var d = Fb(4);
           Ya(d, 0, "i32");
-          return this.ig[a] = H(d, c);
+          return this.kg[a] = H(d, c);
         };
-        hi.prototype.bool = function(a) {
-          return this.wrap(a, Qh);
+        ji.prototype.bool = function(a) {
+          return this.wrap(a, Sh);
         };
-        hi.prototype.i32 = function(a) {
-          return this.wrap(a, ci);
+        ji.prototype.i32 = function(a) {
+          return this.wrap(a, ei);
         };
-        hi.prototype.f32 = function(a) {
-          return this.wrap(a, Zh);
+        ji.prototype.f32 = function(a) {
+          return this.wrap(a, ai);
         };
-        hi.prototype.f64 = function(a) {
-          return this.ig[a] = H(Fb(8), fi);
+        ji.prototype.f64 = function(a) {
+          return this.kg[a] = H(Fb(8), hi);
         };
-        hi.prototype.peek = function() {
+        ji.prototype.peek = function() {
           var a = {}, c;
-          for (c in this.ig) a[c] = this.ig[c].getValue();
+          for (c in this.kg) a[c] = this.kg[c].getValue();
           return a;
         };
-        hi.prototype.get = function() {
+        ji.prototype.get = function() {
           var a = {}, c;
-          for (c in this.ig) a[c] = this.ig[c].getValue(), Fh(this.ig[c].Cf);
+          for (c in this.kg) a[c] = this.kg[c].getValue(), Hh(this.kg[c].Ef);
           return a;
         };
         L.prototype.getBoundingBox = function(a) {
-          var c = new hi();
+          var c = new ji();
           this.BoundingBox(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           return c.get();
         };
         L.prototype.getBaseline = function(a) {
-          var c = new hi();
+          var c = new ji();
           a = !!this.Baseline(a, c.i32("x0"), c.i32("y0"), c.i32("x1"), c.i32("y1"));
           c = c.get();
           c.has_baseline = a;
           return c;
         };
         L.prototype.getRowAttributes = function() {
-          var a = new hi();
+          var a = new ji();
           this.RowAttributes(a.f32("row_height"), a.f32("descenders"), a.f32("ascenders"));
           return a.get();
         };
         L.prototype.getWordFontAttributes = function() {
-          var a = new hi(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
+          var a = new ji(), c = this.WordFontAttributes(a.bool("is_bold"), a.bool("is_italic"), a.bool("is_underlined"), a.bool("is_monospace"), a.bool("is_serif"), a.bool("is_smallcaps"), a.i32("pointsize"), a.i32("font_id"));
           a = a.get();
           a.font_name = c;
           return a;
         };
-        b.pointerHelper = hi;
+        b.pointerHelper = ji;
         return TesseractCore2.ready;
       };
     })();
@@ -22399,9 +22471,9 @@ var require_tesseract_core = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/node/getCore.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/node/getCore.js
 var require_getCore = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/node/getCore.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/node/getCore.js"(exports2, module2) {
     var { simd } = require_cjs();
     var OEM = require_OEM();
     var TesseractCore = null;
@@ -22428,16 +22500,16 @@ var require_getCore = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/node/gunzip.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/node/gunzip.js
 var require_gunzip = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/node/gunzip.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/node/gunzip.js"(exports2, module2) {
     module2.exports = require("zlib").gunzipSync;
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/node/cache.js
+// node_modules/@scribe.js/tesseract.js/src/worker-script/node/cache.js
 var require_cache = __commonJS({
-  "node_modules/tesseract.js/src/worker-script/node/cache.js"(exports2, module2) {
+  "node_modules/@scribe.js/tesseract.js/src/worker-script/node/cache.js"(exports2, module2) {
     var util = require("util");
     var fs = require("fs");
     module2.exports = {
@@ -22450,8 +22522,8 @@ var require_cache = __commonJS({
   }
 });
 
-// node_modules/tesseract.js/src/worker-script/node/index.js
-var fetch2 = require_lib2();
+// node_modules/@scribe.js/tesseract.js/src/worker-script/node/index.js
+var fetch2 = global.fetch || require_lib2();
 var { parentPort } = require("worker_threads");
 var worker = require_index();
 var getCore = require_getCore();

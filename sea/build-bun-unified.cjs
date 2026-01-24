@@ -54,11 +54,13 @@ try {
   // onnxruntime-node: shim that re-exports from onnxruntime-web/wasm (for Bun compatibility)
   // onnxruntime-web: NOT aliased - let it resolve naturally so the shim can import from it
   // sharp: stub shim (only needed for image processing, not text embeddings)
+  // scribe.js-ocr: bundled version with patched font loading for Bun executables
   const sharpShimPath = path.join(__dirname, 'sharp-shim.js').replace(/\\/g, '/');
   const onnxNodeShimPath = path.join(__dirname, 'onnx-node-shim.js').replace(/\\/g, '/');
+  const scribeBundledPath = path.join(__dirname, 'scribe-main-bundled.js').replace(/\\/g, '/');
   // NOTE: We do NOT alias onnxruntime-web - the onnx-node-shim.js imports from 'onnxruntime-web/wasm'
   // and esbuild needs to resolve that naturally to the actual package
-  const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath}`;
+  const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath} --alias:scribe.js-ocr=${scribeBundledPath}`;
 
   execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
     ${externals} \
@@ -222,8 +224,8 @@ try {
     console.warn('   ⚠️  Tesseract worker bundle not found');
   }
 
-  // Also embed tesseract-core WASM files
-  const tesseractCoreDir = path.join(__dirname, '..', 'node_modules', 'tesseract.js-core');
+  // Also embed tesseract-core WASM files (use @scribe.js version which scribe.js-ocr expects)
+  const tesseractCoreDir = path.join(__dirname, '..', 'node_modules', '@scribe.js', 'tesseract.js-core');
   const wasmFiles = ['tesseract-core-simd-lstm.wasm', 'tesseract-core-simd.wasm', 'tesseract-core-lstm.wasm', 'tesseract-core.wasm'];
 
   for (const wasmFile of wasmFiles) {
@@ -236,6 +238,133 @@ try {
   }
 } catch (error) {
   console.warn('   ⚠️  Failed to embed Tesseract assets:', error.message);
+}
+
+// === MUPDF WORKER EMBEDDING === (for Scribe.js PDF OCR in Bun executable)
+console.log('\n📦 Embedding MuPDF assets...');
+let mupdfAssets = {};
+
+try {
+  // First, try to bundle the worker if it doesn't exist
+  const bundledWorkerPath = path.join(__dirname, 'mupdf-worker-bundled.js');
+  if (!fs.existsSync(bundledWorkerPath)) {
+    console.log('   → Bundling mupdf worker...');
+    execSync(`node "${path.join(__dirname, 'bundle-mupdf-worker.cjs')}"`, {
+      cwd: __dirname,
+      stdio: 'pipe'
+    });
+  }
+
+  if (fs.existsSync(bundledWorkerPath)) {
+    mupdfAssets.worker = fs.readFileSync(bundledWorkerPath, 'base64');
+    console.log(`   ✓ Embedded mupdf-worker-bundled.js (${(fs.statSync(bundledWorkerPath).size / 1024).toFixed(1)} KB)`);
+  } else {
+    console.warn('   ⚠️  MuPDF worker bundle not found');
+  }
+
+  // Embed libmupdf.wasm
+  const libmupdfWasmPath = path.join(__dirname, '..', 'node_modules', 'scribe.js-ocr', 'mupdf', 'libmupdf.wasm');
+  if (fs.existsSync(libmupdfWasmPath)) {
+    mupdfAssets.wasm = fs.readFileSync(libmupdfWasmPath, 'base64');
+    console.log(`   ✓ Embedded libmupdf.wasm (${(fs.statSync(libmupdfWasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+  } else {
+    console.warn('   ⚠️  libmupdf.wasm not found');
+  }
+
+  // Also embed libmupdf.js (the JS loader)
+  const libmupdfJsPath = path.join(__dirname, '..', 'node_modules', 'scribe.js-ocr', 'mupdf', 'libmupdf.js');
+  if (fs.existsSync(libmupdfJsPath)) {
+    mupdfAssets.js = fs.readFileSync(libmupdfJsPath, 'base64');
+    console.log(`   ✓ Embedded libmupdf.js (${(fs.statSync(libmupdfJsPath).size / 1024).toFixed(1)} KB)`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed MuPDF assets:', error.message);
+}
+
+// === SCRIBE FONTS EMBEDDING === (for Scribe.js OCR in Bun executable)
+console.log('\n📦 Embedding Scribe.js fonts...');
+let scribeFontAssets = { all: {}, latin: {} };
+
+try {
+  const fontsBaseDir = path.join(__dirname, '..', 'node_modules', 'scribe.js-ocr', 'fonts');
+
+  // Embed fonts from 'all' directory
+  const fontsAllDir = path.join(fontsBaseDir, 'all');
+  if (fs.existsSync(fontsAllDir)) {
+    const fontFiles = fs.readdirSync(fontsAllDir).filter(f => f.endsWith('.woff') || f.endsWith('.ttf'));
+    for (const fontFile of fontFiles) {
+      const fontPath = path.join(fontsAllDir, fontFile);
+      scribeFontAssets.all[fontFile] = fs.readFileSync(fontPath, 'base64');
+    }
+    console.log(`   ✓ Embedded ${Object.keys(scribeFontAssets.all).length} fonts from 'all'`);
+  }
+
+  // Embed fonts from 'latin' directory
+  const fontsLatinDir = path.join(fontsBaseDir, 'latin');
+  if (fs.existsSync(fontsLatinDir)) {
+    const fontFiles = fs.readdirSync(fontsLatinDir).filter(f => f.endsWith('.woff') || f.endsWith('.ttf'));
+    for (const fontFile of fontFiles) {
+      const fontPath = path.join(fontsLatinDir, fontFile);
+      scribeFontAssets.latin[fontFile] = fs.readFileSync(fontPath, 'base64');
+    }
+    console.log(`   ✓ Embedded ${Object.keys(scribeFontAssets.latin).length} fonts from 'latin'`);
+  }
+
+  const totalSize = [...Object.values(scribeFontAssets.all), ...Object.values(scribeFontAssets.latin)]
+    .reduce((sum, b64) => sum + b64.length * 0.75, 0) / 1024 / 1024;
+  console.log(`   ✓ Total fonts: ~${totalSize.toFixed(2)} MB`);
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed Scribe fonts:', error.message);
+}
+
+// === SCRIBE MAIN MODULE EMBEDDING === (bundled scribe.js-ocr for Bun executable)
+console.log('\n📦 Embedding Scribe.js main module...');
+let scribeMainAssets = {};
+
+try {
+  // Bundle the main scribe.js module with patched font loading
+  const bundledMainPath = path.join(__dirname, 'scribe-main-bundled.js');
+  if (!fs.existsSync(bundledMainPath)) {
+    console.log('   → Bundling scribe.js main module...');
+    execSync(`node "${path.join(__dirname, 'bundle-scribe-main.cjs')}"`, {
+      cwd: __dirname,
+      stdio: 'pipe'
+    });
+  }
+
+  if (fs.existsSync(bundledMainPath)) {
+    scribeMainAssets.main = fs.readFileSync(bundledMainPath, 'base64');
+    console.log(`   ✓ Embedded scribe-main-bundled.js (${(fs.statSync(bundledMainPath).size / 1024 / 1024).toFixed(2)} MB)`);
+  } else {
+    console.warn('   ⚠️  Scribe main bundle not found');
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed Scribe main module:', error.message);
+}
+
+// === SCRIBE GENERAL WORKER EMBEDDING === (for Scribe.js OCR processing in Bun executable)
+console.log('\n📦 Embedding Scribe.js general worker...');
+let scribeWorkerAssets = {};
+
+try {
+  // First, try to bundle the worker if it doesn't exist
+  const bundledWorkerPath = path.join(__dirname, 'scribe-worker-bundled.js');
+  if (!fs.existsSync(bundledWorkerPath)) {
+    console.log('   → Bundling scribe worker...');
+    execSync(`node "${path.join(__dirname, 'bundle-scribe-worker.cjs')}"`, {
+      cwd: __dirname,
+      stdio: 'pipe'
+    });
+  }
+
+  if (fs.existsSync(bundledWorkerPath)) {
+    scribeWorkerAssets.worker = fs.readFileSync(bundledWorkerPath, 'base64');
+    console.log(`   ✓ Embedded scribe-worker-bundled.js (${(fs.statSync(bundledWorkerPath).size / 1024).toFixed(1)} KB)`);
+  } else {
+    console.warn('   ⚠️  Scribe worker bundle not found');
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed Scribe worker:', error.message);
 }
 
 // Embed web client files
@@ -307,6 +436,10 @@ if (typeof Bun !== 'undefined') {
   globalThis.__ONNX_EMBEDDED_ASSETS = ${Object.keys(onnxAssets).length > 0 ? JSON.stringify(onnxAssets) : 'null'};
   globalThis.__CANVASKIT_EMBEDDED_ASSETS = ${Object.keys(canvaskitAssets).length > 0 ? JSON.stringify(canvaskitAssets) : 'null'};
   globalThis.__TESSERACT_EMBEDDED_ASSETS = ${Object.keys(tesseractWorkerAssets).length > 0 ? JSON.stringify(tesseractWorkerAssets) : 'null'};
+  globalThis.__MUPDF_EMBEDDED_ASSETS = ${Object.keys(mupdfAssets).length > 0 ? JSON.stringify(mupdfAssets) : 'null'};
+  globalThis.__SCRIBE_WORKER_EMBEDDED_ASSETS = ${Object.keys(scribeWorkerAssets).length > 0 ? JSON.stringify(scribeWorkerAssets) : 'null'};
+  globalThis.__SCRIBE_MAIN_EMBEDDED_ASSETS = ${Object.keys(scribeMainAssets).length > 0 ? JSON.stringify(scribeMainAssets) : 'null'};
+  globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS = ${(Object.keys(scribeFontAssets.all).length > 0 || Object.keys(scribeFontAssets.latin).length > 0) ? JSON.stringify(scribeFontAssets) : 'null'};
 
   // Extract embedded ONNX WASM files if available
   if (globalThis.__ONNX_EMBEDDED_ASSETS && globalThis.__ONNX_EMBEDDED_ASSETS.wasmSimdThreaded) {
@@ -381,6 +514,46 @@ if (typeof Bun !== 'undefined') {
         }
         globalThis.__BUN_TESSERACT_CORE_PATH = tesseractDir;
       }
+
+      // Extract MuPDF worker and WASM files if available (for Scribe.js PDF OCR)
+      if (globalThis.__MUPDF_EMBEDDED_ASSETS && globalThis.__MUPDF_EMBEDDED_ASSETS.worker) {
+        const mupdfDir = path.join(homeDir, '.auditaria', 'mupdf');
+        if (!fs.existsSync(mupdfDir)) {
+          fs.mkdirSync(mupdfDir, { recursive: true });
+        }
+
+        // Extract bundled worker
+        const workerPath = path.join(mupdfDir, 'mupdf-worker-bundled.js');
+        const workerData = Buffer.from(globalThis.__MUPDF_EMBEDDED_ASSETS.worker, 'base64');
+        if (!fs.existsSync(workerPath) || fs.statSync(workerPath).size !== workerData.length) {
+          fs.writeFileSync(workerPath, workerData);
+        }
+        globalThis.__BUN_MUPDF_WORKER_PATH = workerPath;
+
+        // Extract libmupdf.wasm
+        if (globalThis.__MUPDF_EMBEDDED_ASSETS.wasm) {
+          const wasmPath = path.join(mupdfDir, 'libmupdf.wasm');
+          const wasmData = Buffer.from(globalThis.__MUPDF_EMBEDDED_ASSETS.wasm, 'base64');
+          if (!fs.existsSync(wasmPath) || fs.statSync(wasmPath).size !== wasmData.length) {
+            fs.writeFileSync(wasmPath, wasmData);
+          }
+          globalThis.__BUN_MUPDF_WASM_PATH = wasmPath;
+        }
+
+        // Extract libmupdf.js (the JS loader)
+        if (globalThis.__MUPDF_EMBEDDED_ASSETS.js) {
+          const jsPath = path.join(mupdfDir, 'libmupdf.js');
+          const jsData = Buffer.from(globalThis.__MUPDF_EMBEDDED_ASSETS.js, 'base64');
+          if (!fs.existsSync(jsPath) || fs.statSync(jsPath).size !== jsData.length) {
+            fs.writeFileSync(jsPath, jsData);
+          }
+          globalThis.__BUN_MUPDF_JS_PATH = jsPath;
+        }
+
+        globalThis.__BUN_MUPDF_DIR = mupdfDir;
+      }
+
+      // NOTE: Scribe extraction moved to separate independent block below (after ONNX try block)
 
       // CRITICAL: Pre-configure ONNX environment BEFORE any imports
       // Use regular path (not file:// URL) for Bun compatibility
@@ -479,6 +652,24 @@ if (typeof Bun !== 'undefined') {
           }
         }
 
+        // Check if this is a font request from Bun virtual path or scribe fonts
+        if (url && (url.includes('~BUN') || url.includes('fonts/'))) {
+          const fontMatch = url.match(/fonts[\\\\/](all|latin)[\\\\/]([^?\\\\/]+)/);
+          if (fontMatch && globalThis.__BUN_SCRIBE_DIR) {
+            const fontDir = fontMatch[1];
+            const fontFile = fontMatch[2];
+            const localFontPath = path.join(globalThis.__BUN_SCRIBE_DIR, 'fonts', fontDir, fontFile);
+
+            if (fs.existsSync(localFontPath)) {
+              const data = fs.readFileSync(localFontPath);
+              return new Response(data, {
+                status: 200,
+                headers: { 'Content-Type': 'font/woff' }
+              });
+            }
+          }
+        }
+
         // Call original fetch for remote URLs
         try {
           return await originalFetch.apply(this, arguments);
@@ -491,9 +682,136 @@ if (typeof Bun !== 'undefined') {
       // Also store the wasm dir globally for debugging
       globalThis.__ONNX_WASM_DIR_DEBUG = onnxWasmDir;
       globalThis.__BUN_ONNX_WASM_DIR = onnxWasmDir;
+
+      // Note: fs/promises patching doesn't work in Bun (modules are immutable)
+      // Instead, we bundle scribe.js-ocr with patched font paths and import that
+
     } catch (e) {
       console.error('[Bun] Failed to extract ONNX WASM:', e.message);
     }
+  }
+
+  // SCRIBE EXTRACTION - Independent of ONNX (moved outside ONNX try block)
+  // This ensures scribe fonts are extracted even if ONNX extraction fails
+  try {
+    const homeDir = os.homedir();
+    const scribeDir = path.join(homeDir, '.auditaria', 'scribe');
+
+    // Extract Scribe main module if available (bundled scribe.js-ocr with patched fonts)
+    if (globalThis.__SCRIBE_MAIN_EMBEDDED_ASSETS && globalThis.__SCRIBE_MAIN_EMBEDDED_ASSETS.main) {
+      if (!fs.existsSync(scribeDir)) {
+        fs.mkdirSync(scribeDir, { recursive: true });
+      }
+
+      // IMPORTANT: Set __BUN_SCRIBE_DIR FIRST - the bundled module needs it for font paths
+      globalThis.__BUN_SCRIBE_DIR = scribeDir;
+
+      // Extract bundled main module
+      const mainPath = path.join(scribeDir, 'scribe-main-bundled.mjs');
+      const mainData = Buffer.from(globalThis.__SCRIBE_MAIN_EMBEDDED_ASSETS.main, 'base64');
+      if (!fs.existsSync(mainPath) || fs.statSync(mainPath).size !== mainData.length) {
+        fs.writeFileSync(mainPath, mainData);
+      }
+      globalThis.__BUN_SCRIBE_MAIN_PATH = mainPath;
+    }
+
+    // Extract Scribe fonts
+    if (globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS) {
+      // Make sure scribeDir is set
+      if (!globalThis.__BUN_SCRIBE_DIR) {
+        globalThis.__BUN_SCRIBE_DIR = scribeDir;
+        if (!fs.existsSync(scribeDir)) {
+          fs.mkdirSync(scribeDir, { recursive: true });
+        }
+      }
+
+      // Extract 'all' fonts
+      if (globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS.all) {
+        const fontsAllDir = path.join(scribeDir, 'fonts', 'all');
+        if (!fs.existsSync(fontsAllDir)) {
+          fs.mkdirSync(fontsAllDir, { recursive: true });
+        }
+        for (const [fontFile, fontBase64] of Object.entries(globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS.all)) {
+          const fontPath = path.join(fontsAllDir, fontFile);
+          const fontData = Buffer.from(fontBase64, 'base64');
+          if (!fs.existsSync(fontPath) || fs.statSync(fontPath).size !== fontData.length) {
+            fs.writeFileSync(fontPath, fontData);
+          }
+        }
+      }
+
+      // Extract 'latin' fonts
+      if (globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS.latin) {
+        const fontsLatinDir = path.join(scribeDir, 'fonts', 'latin');
+        if (!fs.existsSync(fontsLatinDir)) {
+          fs.mkdirSync(fontsLatinDir, { recursive: true });
+        }
+        for (const [fontFile, fontBase64] of Object.entries(globalThis.__SCRIBE_FONT_EMBEDDED_ASSETS.latin)) {
+          const fontPath = path.join(fontsLatinDir, fontFile);
+          const fontData = Buffer.from(fontBase64, 'base64');
+          if (!fs.existsSync(fontPath) || fs.statSync(fontPath).size !== fontData.length) {
+            fs.writeFileSync(fontPath, fontData);
+          }
+        }
+      }
+    }
+
+    // Extract Scribe general worker
+    if (globalThis.__SCRIBE_WORKER_EMBEDDED_ASSETS && globalThis.__SCRIBE_WORKER_EMBEDDED_ASSETS.worker) {
+      if (!fs.existsSync(scribeDir)) {
+        fs.mkdirSync(scribeDir, { recursive: true });
+      }
+
+      const workerPath = path.join(scribeDir, 'scribe-worker-bundled.js');
+      const workerData = Buffer.from(globalThis.__SCRIBE_WORKER_EMBEDDED_ASSETS.worker, 'base64');
+      if (!fs.existsSync(workerPath) || fs.statSync(workerPath).size !== workerData.length) {
+        fs.writeFileSync(workerPath, workerData);
+      }
+      globalThis.__BUN_SCRIBE_WORKER_PATH = workerPath;
+
+      // Ensure __BUN_SCRIBE_DIR is set
+      if (!globalThis.__BUN_SCRIBE_DIR) {
+        globalThis.__BUN_SCRIBE_DIR = scribeDir;
+      }
+    }
+
+    // Extract canvaskit.wasm to scribe directory (worker loads it from its own directory)
+    if (globalThis.__CANVASKIT_EMBEDDED_ASSETS && globalThis.__CANVASKIT_EMBEDDED_ASSETS.wasm) {
+      const scribeCanvaskitPath = path.join(scribeDir, 'canvaskit.wasm');
+      const canvaskitData = Buffer.from(globalThis.__CANVASKIT_EMBEDDED_ASSETS.wasm, 'base64');
+      if (!fs.existsSync(scribeCanvaskitPath) || fs.statSync(scribeCanvaskitPath).size !== canvaskitData.length) {
+        fs.writeFileSync(scribeCanvaskitPath, canvaskitData);
+      }
+    }
+
+    // Extract tesseract worker and WASM files to scribe directory (scribe worker spawns tesseract workers)
+    if (globalThis.__TESSERACT_EMBEDDED_ASSETS && globalThis.__TESSERACT_EMBEDDED_ASSETS.worker) {
+      const scribeTesseractPath = path.join(scribeDir, 'tesseract-worker.js');
+      const tesseractData = Buffer.from(globalThis.__TESSERACT_EMBEDDED_ASSETS.worker, 'base64');
+      if (!fs.existsSync(scribeTesseractPath) || fs.statSync(scribeTesseractPath).size !== tesseractData.length) {
+        fs.writeFileSync(scribeTesseractPath, tesseractData);
+      }
+
+      // Extract tesseract-core WASM files to scribe directory too
+      const wasmFiles = [
+        ['tesseract_core_simd_lstm', 'tesseract-core-simd-lstm.wasm'],
+        ['tesseract_core_simd', 'tesseract-core-simd.wasm'],
+        ['tesseract_core_lstm', 'tesseract-core-lstm.wasm'],
+        ['tesseract_core', 'tesseract-core.wasm']
+      ];
+      for (const [key, filename] of wasmFiles) {
+        if (globalThis.__TESSERACT_EMBEDDED_ASSETS[key]) {
+          const wasmPath = path.join(scribeDir, filename);
+          const wasmData = Buffer.from(globalThis.__TESSERACT_EMBEDDED_ASSETS[key], 'base64');
+          if (!fs.existsSync(wasmPath) || fs.statSync(wasmPath).size !== wasmData.length) {
+            fs.writeFileSync(wasmPath, wasmData);
+          }
+        }
+      }
+    }
+
+  } catch (e) {
+    console.error('[Bun] Failed to extract Scribe assets:', e.message);
   }
 }
 `;
@@ -1384,6 +1702,51 @@ bundleContent = bundleContent.replace(
       : path${pathNum}.join(__dirname, "..", "..", "worker-script", "node", "index.js")`
 );
 
+// Fix 9e: Patch MuPDF worker URL for Bun executables
+// Scribe.js uses new URL("./mupdf-worker.js", import.meta.url) which doesn't work in Bun executables
+console.log('   ✓ Patching MuPDF worker path for Bun...');
+// Pattern: worker = new WorkerNode(new URL("./mupdf-worker.js", import.meta.url));
+bundleContent = bundleContent.replace(
+  /worker = new WorkerNode\(new URL\("\.\/mupdf-worker\.js", import\.meta\.url\)\);/g,
+  `worker = new WorkerNode(
+      (typeof Bun !== 'undefined' && globalThis.__BUN_MUPDF_WORKER_PATH)
+        ? globalThis.__BUN_MUPDF_WORKER_PATH
+        : new URL("./mupdf-worker.js", import.meta.url)
+    );`
+);
+
+// Fix 9f: Patch Scribe generalWorker URL for Bun executables
+// Scribe.js uses new URL("./worker/generalWorker.js", import.meta.url) which doesn't work in Bun executables
+console.log('   ✓ Patching Scribe general worker path for Bun...');
+// Pattern: worker = new WorkerNode(new URL("./worker/generalWorker.js", import.meta.url));
+bundleContent = bundleContent.replace(
+  /worker = new WorkerNode\(new URL\("\.\/worker\/generalWorker\.js", import\.meta\.url\)\);/g,
+  `worker = new WorkerNode(
+      (typeof Bun !== 'undefined' && globalThis.__BUN_SCRIBE_WORKER_PATH)
+        ? globalThis.__BUN_SCRIBE_WORKER_PATH
+        : new URL("./worker/generalWorker.js", import.meta.url)
+    );`
+);
+
+// Fix 9g: Patch scribe.js-ocr import to use bundled version in Bun executables
+// The bundled version has patched font loading that works with Bun's virtual filesystem
+console.log('   ✓ Patching scribe.js-ocr import for Bun...');
+
+// Pattern: await import("scribe.js-ocr") or import('scribe.js-ocr')
+// Replace with code that imports from extracted bundled version in Bun
+const scribeImportCount = (bundleContent.match(/import\s*\(\s*["']scribe\.js-ocr["']\s*\)/g) || []).length;
+console.log(`      Found ${scribeImportCount} scribe.js-ocr import(s) to patch`);
+
+bundleContent = bundleContent.replace(
+  /import\s*\(\s*["']scribe\.js-ocr["']\s*\)/g,
+  `(async () => {
+    if (typeof Bun !== 'undefined' && globalThis.__BUN_SCRIBE_MAIN_PATH) {
+      return import(globalThis.__BUN_SCRIBE_MAIN_PATH);
+    }
+    return import("scribe.js-ocr");
+  })()`
+);
+
 // Fix 9: Replace file reading with embedded data check
 bundleContent = bundleContent.replace(
   /const fileContent = await fs\d+\.readFile\(filePath, "utf-8"\);[\s]*const translations = JSON\.parse\(fileContent\);/g,
@@ -1395,6 +1758,10 @@ bundleContent = bundleContent.replace(
      translations = JSON.parse(fileContent);
    }`
 );
+
+// Verify scribe.js patches are in the bundle
+const scribeDirCount = (bundleContent.match(/globalThis\.__BUN_SCRIBE_DIR/g) || []).length;
+console.log(`   ✓ Scribe.js __BUN_SCRIBE_DIR references in bundle: ${scribeDirCount}`);
 
 // Write modified bundle
 const tempPath = path.join(__dirname, '..', 'bundle', 'gemini-bun-unified.js');

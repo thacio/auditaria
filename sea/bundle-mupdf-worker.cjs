@@ -1,30 +1,31 @@
 #!/usr/bin/env node
 /**
- * Bundle the tesseract.js worker script for embedding in Bun executables.
+ * Bundle the mupdf worker script for embedding in Bun executables.
  *
  * This creates a single bundled worker file that can be extracted at runtime,
- * avoiding the __dirname issues when tesseract.js is bundled.
+ * avoiding the import.meta.url issues when scribe.js-ocr is bundled.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// Use @scribe.js/tesseract.js which is the version scribe.js-ocr expects
-const WORKER_PATH = path.join(__dirname, '..', 'node_modules', '@scribe.js', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js');
-const OUTPUT_PATH = path.join(__dirname, 'tesseract-worker-bundled.js');
+const WORKER_PATH = path.join(__dirname, '..', 'node_modules', 'scribe.js-ocr', 'mupdf', 'mupdf-worker.js');
+const OUTPUT_PATH = path.join(__dirname, 'mupdf-worker-bundled.js');
 
-console.log('📦 Bundling tesseract.js worker script...');
+console.log('📦 Bundling mupdf worker script...');
 
 if (!fs.existsSync(WORKER_PATH)) {
-  console.error('❌ Tesseract worker not found at:', WORKER_PATH);
+  console.error('❌ MuPDF worker not found at:', WORKER_PATH);
   process.exit(1);
 }
 
 try {
   // Bundle the worker with all its dependencies
-  // We use CJS format since the worker uses require()
-  execSync(`npx esbuild "${WORKER_PATH}" --bundle --platform=node --format=cjs \
+  // We use ESM format since the worker uses dynamic imports
+  // We need to mark libmupdf.js as external since it loads WASM dynamically
+  execSync(`npx esbuild "${WORKER_PATH}" --bundle --platform=node --format=esm \
+    --external:./libmupdf.js \
     --outfile="${OUTPUT_PATH}"`, {
     cwd: path.join(__dirname, '..'),
     stdio: 'inherit'
