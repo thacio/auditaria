@@ -1,8 +1,7 @@
 /**
- * Auditaria Search Package
- *
- * Local document search with hybrid search capabilities.
- * Supports keyword, semantic, and hybrid search strategies.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 // ============================================================================
@@ -295,6 +294,8 @@ export {
   globalLogger,
   createModuleLogger,
   parseLogLevel,
+  FORCE_FILE_LOGGING,
+  isFileLoggingEnabled,
 } from './core/Logger.js';
 
 export type {

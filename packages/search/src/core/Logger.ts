@@ -1,26 +1,39 @@
 /**
- * Logger - Production-grade logging system for the search package.
- *
- * Features:
- * - Log levels: DEBUG, INFO, WARN, ERROR, FATAL
- * - Multiple outputs: console, file, or both
- * - Structured logging (JSON) or human-readable format
- * - Module-based filtering
- * - Performance timing utilities
- * - Memory usage tracking
- * - Benchmarking support
- *
- * Industry best practices implemented:
- * - RFC 5424 severity levels
- * - Structured logging for machine parsing
- * - Context propagation (module, function, data)
- * - Non-blocking file writes
- * - Configurable at runtime
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { appendFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname } from 'node:path';
+
+// ============================================================================
+// File Logging Control
+// ============================================================================
+
+/**
+ * Force file logging override.
+ * Set this to true to always enable file logging regardless of DEBUG env var.
+ * This takes priority over the DEBUG environment variable check.
+ */
+export const FORCE_FILE_LOGGING = false;
+
+/**
+ * Determines if file logging should be active.
+ * Checks at runtime (not module load time) so env var changes are respected.
+ * Returns true if FORCE_FILE_LOGGING is enabled OR DEBUG env var is set.
+ * Supports DEBUG=auditaria:search or DEBUG=auditaria:* patterns.
+ */
+export function isFileLoggingEnabled(): boolean {
+  if (FORCE_FILE_LOGGING) return true;
+  const debug = process.env.DEBUG;
+  return (
+    debug?.includes('auditaria:search') ||
+    debug?.includes('auditaria:*') ||
+    false
+  );
+}
 
 // ============================================================================
 // Types and Enums
@@ -315,8 +328,8 @@ export class Logger {
       this.writeConsole(entry);
     }
 
-    // Output to file
-    if (this.config.filePath) {
+    // Output to file (only if DEBUG=auditaria:search or FORCE_FILE_LOGGING is enabled)
+    if (this.config.filePath && isFileLoggingEnabled()) {
       this.writeFile(entry);
     }
   }
@@ -524,7 +537,7 @@ export class Logger {
       output = this.formatHumanReadable(entry);
     }
 
-    // Use appropriate console method
+    /* eslint-disable no-console -- Logger legitimately uses console methods */
     switch (entry.level) {
       case LogLevel.DEBUG:
         console.debug(output);
@@ -542,6 +555,7 @@ export class Logger {
       default:
         console.log(output);
     }
+    /* eslint-enable no-console */
   }
 
   /**
@@ -632,7 +646,7 @@ export class Logger {
             this.initialized = true;
           }
         } catch (err) {
-          // Log to console if file write fails
+          // eslint-disable-next-line no-console -- Fallback when file write fails
           console.error('[Logger] Failed to write to file:', err);
         }
       }
