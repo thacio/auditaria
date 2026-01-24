@@ -1068,3 +1068,5 @@
 .codicon-split-horizontal::before { content: '\eb56'; }
 .codicon-cloud-download::before { content: '\eb5d'; }
 .codicon-refresh::before { content: '\eb6e'; }
+.codicon-eye::before { content: '\ea70'; }
+.codicon-eye-closed::before { content: '\ea71'; }

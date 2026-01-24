@@ -37,6 +37,7 @@ export class EditorPanel extends EventEmitter {
     this.codeButton = null;
     this.splitButton = null;
     this.diffButton = null;
+    this.trackChangesButton = null;
     this.closeButton = null;
     this.collapseButton = null;
     this.expandTab = null;
@@ -56,6 +57,7 @@ export class EditorPanel extends EventEmitter {
     this.isPreviewMode = false;
     this.isSplitMode = false;
     this.isDiffMode = false;
+    this.trackChangesEnabled = true; // Default: show diff when files change externally
     this.isBinaryPreviewMode = false; // Binary files can only be previewed, not edited
     this.activeBinaryFile = null; // Store binary file info { path, language, filename }
     this.previewUpdateListener = null;
@@ -95,6 +97,9 @@ export class EditorPanel extends EventEmitter {
     if (this.diffContainer) {
       this.editorManager.setDiffContainer(this.diffContainer);
     }
+
+    // Set track changes callback so EditorManager can check the preference
+    this.editorManager.setTrackChangesCallback(() => this.trackChangesEnabled);
   }
 
   /**
@@ -117,6 +122,7 @@ export class EditorPanel extends EventEmitter {
     this.codeButton = document.getElementById('editor-code-button');
     this.splitButton = document.getElementById('editor-split-button');
     this.diffButton = document.getElementById('editor-diff-button');
+    this.trackChangesButton = document.getElementById('editor-track-changes-button');
     this.closeButton = document.getElementById('editor-close-button');
     this.collapseButton = document.getElementById('editor-collapse-button');
     this.expandTab = document.getElementById('editor-expand-tab');
@@ -238,6 +244,16 @@ export class EditorPanel extends EventEmitter {
             <span class="editor-toolbar-button-text">Diff</span>
           </button>
 
+          <button
+            id="editor-track-changes-button"
+            class="editor-toolbar-button active"
+            title="Tracking external changes - shows diff when files change on disk (click to toggle)"
+            aria-label="Toggle track changes"
+          >
+            <span class="codicon codicon-eye"></span>
+            <span class="editor-toolbar-button-text">Track Changes</span>
+          </button>
+
           <div class="editor-toolbar-spacer"></div>
 
           <button
@@ -341,6 +357,13 @@ export class EditorPanel extends EventEmitter {
           // Show diff mode
           this.showDiff();
         }
+      });
+    }
+
+    // Track changes button (toggle)
+    if (this.trackChangesButton) {
+      this.trackChangesButton.addEventListener('click', () => {
+        this.toggleTrackChanges();
       });
     }
 
@@ -978,6 +1001,35 @@ export class EditorPanel extends EventEmitter {
   }
 
   /**
+   * Toggle track changes mode
+   * When enabled: Shows diff when files change externally (instead of auto-reloading)
+   * When disabled: Auto-reloads files silently when changed externally
+   */
+  toggleTrackChanges() {
+    this.trackChangesEnabled = !this.trackChangesEnabled;
+
+    if (this.trackChangesButton) {
+      const icon = this.trackChangesButton.querySelector('.codicon');
+
+      if (this.trackChangesEnabled) {
+        this.trackChangesButton.classList.add('active');
+        this.trackChangesButton.title = 'Tracking external changes - shows diff when files change on disk (click to toggle)';
+        if (icon) {
+          icon.className = 'codicon codicon-eye';
+        }
+      } else {
+        this.trackChangesButton.classList.remove('active');
+        this.trackChangesButton.title = 'Auto-reload enabled - files reload silently when changed on disk (click to toggle)';
+        if (icon) {
+          icon.className = 'codicon codicon-eye-closed';
+        }
+      }
+    }
+
+    this.saveState();
+  }
+
+  /**
    * Update preview with current editor content
    */
   updatePreview() {
@@ -1402,6 +1454,24 @@ export class EditorPanel extends EventEmitter {
         if (state.splitRatio) {
           this.splitRatio = state.splitRatio;
         }
+
+        // Restore track changes preference
+        if (typeof state.trackChangesEnabled === 'boolean') {
+          this.trackChangesEnabled = state.trackChangesEnabled;
+          // Update button UI to match restored state
+          if (this.trackChangesButton) {
+            const icon = this.trackChangesButton.querySelector('.codicon');
+            if (this.trackChangesEnabled) {
+              this.trackChangesButton.classList.add('active');
+              this.trackChangesButton.title = 'Tracking external changes - shows diff when files change on disk (click to toggle)';
+              if (icon) icon.className = 'codicon codicon-eye';
+            } else {
+              this.trackChangesButton.classList.remove('active');
+              this.trackChangesButton.title = 'Auto-reload enabled - files reload silently when changed on disk (click to toggle)';
+              if (icon) icon.className = 'codicon codicon-eye-closed';
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to load editor panel state:', error);
@@ -1416,7 +1486,8 @@ export class EditorPanel extends EventEmitter {
       const state = {
         // Don't save isVisible - panel should always start closed
         panelWidth: this.panelWidth,
-        splitRatio: this.splitRatio
+        splitRatio: this.splitRatio,
+        trackChangesEnabled: this.trackChangesEnabled
       };
       localStorage.setItem('auditaria_editor_panel_state', JSON.stringify(state));
     } catch (error) {
