@@ -195,7 +195,8 @@ describe('useSlashCommandProcessor', () => {
             toggleDebugProfiler: vi.fn(),
             dispatchExtensionStateUpdate: vi.fn(),
             addConfirmUpdateExtensionRequest: vi.fn(),
-            openLanguageDialog: vi.fn(),
+            openLanguageDialog: vi.fn(), // AUDITARIA: Custom language command
+            setText: vi.fn(),
           },
           new Map(), // extensionsUpdateState
           true, // isConfigInitialized

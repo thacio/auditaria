@@ -718,6 +718,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       toggleDebugProfiler,
       dispatchExtensionStateUpdate,
       addConfirmUpdateExtensionRequest,
+      setText: (text: string) => buffer.setText(text),
     }),
     [
       setAuthState,
@@ -735,6 +736,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       openPermissionsDialog,
       addConfirmUpdateExtensionRequest,
       toggleDebugProfiler,
+      buffer,
     ],
   );
 
