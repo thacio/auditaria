@@ -1261,10 +1261,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
     const handleMcpClientUpdate = () => {
       setMcpClientUpdateCounter((prev) => prev + 1);
     };
-    appEvents.on(AppEvent.McpClientUpdate, handleMcpClientUpdate);
+    coreEvents.on(CoreEvent.McpClientUpdate, handleMcpClientUpdate);
 
     return () => {
-      appEvents.off(AppEvent.McpClientUpdate, handleMcpClientUpdate);
+      coreEvents.off(CoreEvent.McpClientUpdate, handleMcpClientUpdate);
     };
   }, []);
   // WEB_INTERFACE_END

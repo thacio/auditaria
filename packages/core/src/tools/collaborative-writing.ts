@@ -18,6 +18,7 @@ import type { Content } from '@google/genai';
 import type { Config } from '../config/config.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import { COLLABORATIVE_WRITING_TOOL_NAME } from './tool-names.js';
+import { debugLogger } from '../core/logger.js';
 
 // ============================================
 // Interfaces and Type Definitions
@@ -105,24 +106,34 @@ class CollaborativeWritingRegistry {
           tracked.pendingNotification = 'modified';
         } else if (eventType === 'rename') {
           tracked.pendingNotification = 'deleted';
-          console.log('[COLLAB-WRITE] Marked as pending deletion:', filePath);
+          debugLogger.log(
+            '[COLLAB-WRITE] Marked as pending deletion:',
+            filePath,
+          );
         }
       });
 
       watcher.on('error', (error) => {
-        console.error('[COLLAB-WRITE] Watcher error for', filePath, ':', error);
+        debugLogger.error(
+          '[COLLAB-WRITE] Watcher error for',
+          filePath,
+          ':',
+          error,
+        );
         tracked.pendingNotification = 'modified';
       });
 
       tracked.watcher = watcher;
     } catch (error) {
-      console.warn(
+      debugLogger.warn(
         '[COLLAB-WRITE] Failed to create file watcher for',
         filePath,
         ':',
         error,
       );
-      console.warn('[COLLAB-WRITE] Falling back to polling-based detection');
+      debugLogger.warn(
+        '[COLLAB-WRITE] Falling back to polling-based detection',
+      );
     }
 
     this.trackedFiles.set(filePath, tracked);
@@ -145,7 +156,7 @@ class CollaborativeWritingRegistry {
         tracked.watcher.close();
         tracked.watcher = undefined;
       } catch (error) {
-        console.warn(
+        debugLogger.warn(
           '[COLLAB-WRITE] Error closing watcher for',
           tracked.filePath,
           ':',
@@ -207,13 +218,13 @@ function computeHash(content: string): string {
   return crypto.createHash('sha256').update(content, 'utf-8').digest('hex');
 }
 
-function formatDiffWithLineNumbers(patch: Diff.ParsedDiff): string {
+function formatDiffWithLineNumbers(patch: Diff.StructuredPatch): string {
   let result = '';
 
-  patch.hunks.forEach((hunk) => {
+  patch.hunks.forEach((hunk: Diff.StructuredPatchHunk) => {
     result += `@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@\n`;
 
-    hunk.lines.forEach((line) => {
+    hunk.lines.forEach((line: string) => {
       result += line + '\n';
     });
   });
@@ -438,7 +449,7 @@ class CollaborativeWritingService {
           changes.push(change);
         }
       } catch (error) {
-        console.error(
+        debugLogger.error(
           `[COLLAB-WRITE] Error checking file ${tracked.filePath} for changes:`,
           error,
         );
@@ -501,7 +512,7 @@ class CollaborativeWritingService {
         tracked.pendingNotification = undefined;
       }
     } catch (error) {
-      console.error('[COLLAB-WRITE] Error updating after AI edit:', error);
+      debugLogger.error('[COLLAB-WRITE] Error updating after AI edit:', error);
     }
   }
 
