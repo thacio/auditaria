@@ -2,6 +2,15 @@
  * @license
  * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
+ */
+
+/**
+ * Knowledge Base Commands - Local document search functionality.
+ * Provides commands for initializing, searching, and managing the knowledge base.
+ *
+ * AUDITARIA_FEATURE: Local Knowledge Base System
  */
 
 import type { SlashCommand, CommandContext } from './types.js';
