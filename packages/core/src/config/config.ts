@@ -773,6 +773,7 @@ export class Config {
 
       // Re-register ActivateSkillTool to update its schema with the discovered enabled skill enums
       if (this.getSkillManager().getSkills().length > 0) {
+        this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
         this.getToolRegistry().registerTool(
           new ActivateSkillTool(this, this.messageBus),
         );
@@ -1588,6 +1589,7 @@ export class Config {
 
     // Re-register ActivateSkillTool to update its schema with the newly discovered skills
     if (this.getSkillManager().getSkills().length > 0) {
+      this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
       this.getToolRegistry().registerTool(
         new ActivateSkillTool(this, this.messageBus),
       );
