@@ -685,6 +685,7 @@ export async function loadCliConfig(
     mcpServers: mcpEnabled ? settings.mcpServers : {},
     mcpEnabled,
     extensionsEnabled,
+    agents: settings.agents,
     allowedMcpServers: mcpEnabled
       ? (argv.allowedMcpServerNames ?? settings.mcp?.allowed)
       : undefined,
