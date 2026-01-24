@@ -78,6 +78,8 @@ const external = [
   'tesseract.js',
   // AUDITARIA_LOCAL_SEARCH: search package has complex dependencies (pglite, transformers.js)
   '@thacio/search',
+  // AUDITARIA: keytar is a native module that cannot be bundled
+  'keytar',
 ];
 
 const baseConfig = {

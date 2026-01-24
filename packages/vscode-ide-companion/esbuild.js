@@ -41,7 +41,18 @@ async function main() {
     sourcesContent: false,
     platform: 'node',
     outfile: 'dist/extension.cjs',
-    external: ['vscode'],
+    external: [
+      'vscode',
+      // AUDITARIA: Mark problematic transitive dependencies as external
+      'keytar', // Native module
+      'scribe.js-ocr', // Uses top-level await
+      'youtube-transcript', // Optional markitdown-ts dep
+      'unzipper', // Optional markitdown-ts dep
+      '@thacio/search', // Search package with complex deps
+      '@huggingface/transformers', // WASM/ONNX
+      'tesseract.js', // Worker thread spawning
+      'markitdown-ts', // Has problematic optional deps
+    ],
     logLevel: 'silent',
     banner: {
       js: `const import_meta = { url: require('url').pathToFileURL(__filename).href };`,
