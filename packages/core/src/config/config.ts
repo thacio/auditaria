@@ -765,7 +765,7 @@ export class Config {
     }
 
     // Initialize hook system if enabled
-    if (this.enableHooks) {
+    if (this.getEnableHooks()) {
       this.hookSystem = new HookSystem(this);
       await this.hookSystem.initialize();
     }
