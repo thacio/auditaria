@@ -819,6 +819,8 @@ export function migrateDeprecatedSettings(
 
   processScope(SettingScope.User);
   processScope(SettingScope.Workspace);
+  processScope(SettingScope.System);
+  processScope(SettingScope.SystemDefaults);
 
   return anyModified;
 }
