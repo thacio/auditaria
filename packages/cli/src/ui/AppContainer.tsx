@@ -107,7 +107,7 @@ import { registerCleanup, runExitCleanup } from '../utils/cleanup.js';
 import { RELAUNCH_EXIT_CODE } from '../utils/processUtils.js';
 import type { SessionInfo } from '../utils/sessionUtils.js';
 import { useMessageQueue } from './hooks/useMessageQueue.js';
-import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
+import { useApprovalModeIndicator } from './hooks/useApprovalModeIndicator.js';
 import { useSessionStats } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
 // WEB_INTERFACE_START: Import hooks for web interface support
@@ -881,7 +881,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
   );
 
   // Auto-accept indicator
-  const showAutoAcceptIndicator = useAutoAcceptIndicator({
+  const showApprovalModeIndicator = useApprovalModeIndicator({
     config,
     addItem: historyManager.addItem,
     onApprovalModeChange: handleApprovalModeChange,
@@ -2065,7 +2065,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       activeHooks,
       messageQueue,
       queueErrorMessage,
-      showAutoAcceptIndicator,
+      showApprovalModeIndicator,
       currentModel,
       userTier,
       proQuotaRequest,
@@ -2159,7 +2159,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       activeHooks,
       messageQueue,
       queueErrorMessage,
-      showAutoAcceptIndicator,
+      showApprovalModeIndicator,
       userTier,
       proQuotaRequest,
       validationRequest,
