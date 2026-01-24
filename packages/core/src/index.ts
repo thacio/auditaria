@@ -52,6 +52,7 @@ export * from './code_assist/oauth-credential-storage.js'; // AUDITARIA: Export 
 export * from './core/apiKeyCredentialStorage.js';
 
 // Export utilities
+export { homedir, tmpdir } from './utils/paths.js';
 export * from './utils/paths.js';
 export * from './utils/schemaValidator.js';
 export * from './utils/errors.js';

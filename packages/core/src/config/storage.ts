@@ -12,6 +12,7 @@ import {
   AUDITARIA_DIR, // AUDITARIA_FEATURE
   resolveConfigDir, // AUDITARIA_FEATURE
   getConfigDirFallbacks, // AUDITARIA_FEATURE
+  homedir, // Added from upstream for test isolation
 } from '../utils/paths.js';
 
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
@@ -28,7 +29,7 @@ export class Storage {
 
   // AUDITARIA_MODIFY_START: Use fallback resolution for global config directory
   static getGlobalGeminiDir(): string {
-    const homeDir = os.homedir();
+    const homeDir = homedir();
     if (!homeDir) {
       return path.join(os.tmpdir(), AUDITARIA_DIR);
     }

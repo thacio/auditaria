@@ -9,9 +9,8 @@ import { HybridTokenStorage } from '../mcp/token-storage/hybrid-token-storage.js
 import { OAUTH_FILE } from '../config/storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { promises as fs } from 'node:fs';
-import { GEMINI_DIR } from '../utils/paths.js';
+import { GEMINI_DIR, homedir } from '../utils/paths.js';
 import { AUDITARIA_DIR } from '../utils/paths.js'; // AUDITARIA: Also import AUDITARIA_DIR
 import { coreEvents } from '../utils/events.js';
 
@@ -92,8 +91,8 @@ export class OAuthCredentialStorage {
       await this.storage.deleteCredentials(MAIN_ACCOUNT_KEY);
 
       // AUDITARIA_MODIFY_START: Try to remove old files from both directories
-      const auditariaFilePath = path.join(os.homedir(), AUDITARIA_DIR, OAUTH_FILE);
-      // const geminiFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
+      const auditariaFilePath = path.join(homedir(), AUDITARIA_DIR, OAUTH_FILE);
+      // const geminiFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
       await fs.rm(auditariaFilePath, { force: true }).catch(() => {});
       // await fs.rm(geminiFilePath, { force: true }).catch(() => {});
       // AUDITARIA_MODIFY_ENDS
@@ -113,8 +112,8 @@ export class OAuthCredentialStorage {
    */
   private static async migrateFromFileStorage(): Promise<Credentials | null> {
     // AUDITARIA_MODIFY_START: Try .auditaria directory first (our fork's location)
-    const auditariaFilePath = path.join(os.homedir(), AUDITARIA_DIR, OAUTH_FILE);
-    const geminiFilePath = path.join(os.homedir(), GEMINI_DIR, OAUTH_FILE);
+    const auditariaFilePath = path.join(homedir(), AUDITARIA_DIR, OAUTH_FILE);
+    const geminiFilePath = path.join(homedir(), GEMINI_DIR, OAUTH_FILE);
 
     let credsJson: string | null = null;
     let usedFilePath: string | null = null;
@@ -125,10 +124,12 @@ export class OAuthCredentialStorage {
       usedFilePath = auditariaFilePath;
     } catch (error: unknown) {
       if (
-        !(typeof error === 'object' &&
+        !(
+          typeof error === 'object' &&
           error !== null &&
           'code' in error &&
-          error.code === 'ENOENT')
+          error.code === 'ENOENT'
+        )
       ) {
         // Non-ENOENT errors should propagate
         throw error;
@@ -142,18 +143,18 @@ export class OAuthCredentialStorage {
         credsJson = await fs.readFile(geminiFilePath, 'utf-8');
         usedFilePath = geminiFilePath;
         // AUDITARIA_MODIFY_END
-    } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ) {
+      } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        ) {
           // File doesn't exist in either location
-        return null;
-      }
-      // Other read errors should propagate.
-      throw error;
+          return null;
+        }
+        // Other read errors should propagate.
+        throw error;
       } // AUDITARIA ADDITION
     }
 

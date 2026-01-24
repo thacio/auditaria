@@ -6,7 +6,6 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import os from 'node:os';
 import {
   EDIT_TOOL_NAME,
   GLOB_TOOL_NAME,
@@ -26,7 +25,7 @@ import type { SupportedLanguage } from '../i18n/index.js';
 import { getLanguageInfo } from '../i18n/index.js';
 import { CodebaseInvestigatorAgent } from '../agents/codebase-investigator.js';
 import type { Config } from '../config/config.js';
-import { GEMINI_DIR } from '../utils/paths.js';
+import { GEMINI_DIR, homedir } from '../utils/paths.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { WriteTodosTool } from '../tools/write-todos.js';
 import { resolveModel, isPreviewModel } from '../config/models.js';
@@ -56,7 +55,7 @@ export function resolvePathFromEnv(envVar?: string): {
   // Safely expand the tilde (~) character to the user's home directory.
   if (customPath.startsWith('~/') || customPath === '~') {
     try {
-      const home = os.homedir(); // This is the call that can throw an error.
+      const home = homedir(); // This is the call that can throw an error.
       if (customPath === '~') {
         customPath = home;
       } else {
