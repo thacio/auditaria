@@ -185,6 +185,12 @@ their corresponding top-level category object in your `settings.json` file.
     window title
   - **Default:** `false`
 
+- **`ui.showHomeDirectoryWarning`** (boolean):
+  - **Description:** Show a warning when running Gemini CLI in the home
+    directory.
+  - **Default:** `true`
+  - **Requires restart:** Yes
+
 - **`ui.hideTips`** (boolean):
   - **Description:** Hide helpful tips in the UI
   - **Default:** `false`
