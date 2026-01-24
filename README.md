@@ -429,13 +429,14 @@ all original software engineering capabilities** intact.
 - **🤖 Browser Agent**: AI-driven browser automation - the AI can browse the
   web, extract data, fill forms, and execute complex tasks autonomously
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
-  account
-- **🧠 Powerful Gemini 2.5 Pro**: Access to 1M token context window
+  account.
+- **🧠 Powerful Gemini 3 models**: Access to improved reasoning and 1M token
+  context window.
 - **🌐 Multi-language**: Full support for Portuguese and English with
   `/language` command
 - **📦 Windows Executables**: Standalone executables compiled with Bun (no
   Node.js installation required)
-- **🛡️ Open source**: Apache 2.0 licensed
+- **🛡️ Open source**: Apache 2.0 licensed.
 
 ## 📋 Key Features
 
@@ -630,8 +631,8 @@ for details._
 
 **Benefits:**
 
-- **Free tier** with 60 requests/min and 1,000 requests/day
-- **Gemini 2.5 Pro and Flash** with 1M token context window
+- **Free tier**: 60 requests/min and 1,000 requests/day
+- **Gemini 3 models** with 1M token context window
 - **No API key management** - just sign in with your Google account
 - **Automatic updates** to our latest models
 
@@ -655,7 +656,7 @@ auditaria
 
 **Benefits:**
 
-- **Free tier**: 100 requests/day with Gemini 2.5 Pro
+- **Free tier**: 1000 requests/day with Gemini 3 (mix of flash and pro)
 - **Model selection**: Choose specific Gemini models
 - **Usage-based billing**: Upgrade for higher limits when needed
 
