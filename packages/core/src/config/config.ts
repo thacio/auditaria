@@ -382,13 +382,17 @@ export interface ConfigParameters {
   enableAgents?: boolean;
   skillsSupport?: boolean;
   disabledSkills?: string[];
+  adminSkillsEnabled?: boolean;
   experimentalJitContext?: boolean;
   disableLLMCorrection?: boolean;
   onModelChange?: (model: string) => void;
   mcpEnabled?: boolean;
   extensionsEnabled?: boolean;
   agents?: AgentSettings;
-  onReload?: () => Promise<{ disabledSkills?: string[] }>;
+  onReload?: () => Promise<{
+    disabledSkills?: string[];
+    adminSkillsEnabled?: boolean;
+  }>;
 }
 
 export class Config {
@@ -517,13 +521,17 @@ export class Config {
   private hookSystem?: HookSystem;
   private readonly onModelChange: ((model: string) => void) | undefined;
   private readonly onReload:
-    | (() => Promise<{ disabledSkills?: string[] }>)
+    | (() => Promise<{
+        disabledSkills?: string[];
+        adminSkillsEnabled?: boolean;
+      }>)
     | undefined;
 
   private readonly enableAgents: boolean;
   private readonly agents: AgentSettings;
   private readonly skillsSupport: boolean;
   private disabledSkills: string[];
+  private readonly adminSkillsEnabled: boolean;
 
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
   private readonly experimentalJitContext: boolean;
@@ -601,6 +609,7 @@ export class Config {
     this.disableLLMCorrection = params.disableLLMCorrection ?? false;
     this.skillsSupport = params.skillsSupport ?? false;
     this.disabledSkills = params.disabledSkills ?? [];
+    this.adminSkillsEnabled = params.adminSkillsEnabled ?? true;
     this.modelAvailabilityService = new ModelAvailabilityService();
     this.previewFeatures = params.previewFeatures ?? undefined;
     this.experimentalJitContext = params.experimentalJitContext ?? false;
@@ -791,18 +800,21 @@ export class Config {
 
     // Discover skills if enabled (upstream skill manager)
     if (this.skillsSupport) {
-      await this.getSkillManager().discoverSkills(
-        this.storage,
-        this.getExtensions(),
-      );
-      this.getSkillManager().setDisabledSkills(this.disabledSkills);
-
-      // Re-register ActivateSkillTool to update its schema with the discovered enabled skill enums
-      if (this.getSkillManager().getSkills().length > 0) {
-        this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
-        this.getToolRegistry().registerTool(
-          new ActivateSkillTool(this, this.messageBus),
+      this.getSkillManager().setAdminSettings(this.adminSkillsEnabled);
+      if (this.adminSkillsEnabled) {
+        await this.getSkillManager().discoverSkills(
+          this.storage,
+          this.getExtensions(),
         );
+        this.getSkillManager().setDisabledSkills(this.disabledSkills);
+
+        // Re-register ActivateSkillTool to update its schema with the discovered enabled skill enums
+        if (this.getSkillManager().getSkills().length > 0) {
+          this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
+          this.getToolRegistry().registerTool(
+            new ActivateSkillTool(this, this.messageBus),
+          );
+        }
       }
     }
 
@@ -1613,21 +1625,29 @@ export class Config {
     if (this.onReload) {
       const refreshed = await this.onReload();
       this.disabledSkills = refreshed.disabledSkills ?? [];
+      this.getSkillManager().setAdminSettings(
+        refreshed.adminSkillsEnabled ?? this.adminSkillsEnabled,
+      );
     }
 
-    await this.getSkillManager().discoverSkills(
-      this.storage,
-      this.getExtensions(),
-    );
-    this.getSkillManager().setDisabledSkills(this.disabledSkills);
-
-    // Re-register ActivateSkillTool to update its schema with the newly discovered skills
-    if (this.getSkillManager().getSkills().length > 0) {
-      this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
-      this.getToolRegistry().registerTool(
-        new ActivateSkillTool(this, this.messageBus),
+    if (this.getSkillManager().isAdminEnabled()) {
+      await this.getSkillManager().discoverSkills(
+        this.storage,
+        this.getExtensions(),
       );
+      this.getSkillManager().setDisabledSkills(this.disabledSkills);
+
+      // Re-register ActivateSkillTool to update its schema with the newly discovered skills
+      if (this.getSkillManager().getSkills().length > 0) {
+        this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
+        this.getToolRegistry().registerTool(
+          new ActivateSkillTool(this, this.messageBus),
+        );
+      } else {
+        this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
+      }
     } else {
+      this.getSkillManager().clearSkills();
       this.getToolRegistry().unregisterTool(ActivateSkillTool.Name);
     }
 
