@@ -45,6 +45,9 @@ export class EditorManager extends EventEmitter {
     // Parser state
     this.parserAvailable = false;
 
+    // Track changes callback (provided by EditorPanel)
+    this.getTrackChangesEnabled = null;
+
     // Setup WebSocket handlers
     this.setupMessageHandlers();
 
@@ -70,6 +73,14 @@ export class EditorManager extends EventEmitter {
       console.error('Failed to load Monaco:', error);
       this.emit('error', { message: 'Failed to load code editor' });
     }
+  }
+
+  /**
+   * Set callback to check if track changes mode is enabled
+   * @param {Function} callback - Function that returns boolean
+   */
+  setTrackChangesCallback(callback) {
+    this.getTrackChangesEnabled = callback;
   }
 
   /**
@@ -723,16 +734,32 @@ export class EditorManager extends EventEmitter {
       });
       this.emit('tabs-changed', { tabs: this.getTabsInfo() });
     } else {
-      // User has no unsaved changes - auto-reload silently
-      // Update savedContent FIRST, before setValue(), so markFileDirty() won't trigger
-      fileInfo.savedContent = diskContent;
-      fileInfo.model.setValue(diskContent);
-      fileInfo.isDirty = false;
+      // User has no unsaved changes - check track changes preference
+      const trackChangesEnabled = this.getTrackChangesEnabled ? this.getTrackChangesEnabled() : false;
 
-      this.emit('file-auto-reloaded', { path });
-      this.emit('dirty-changed', { path, isDirty: false });
-      this.emit('tabs-changed', { tabs: this.getTabsInfo() });
-      this.showToast('✓ File reloaded from disk', 'success');
+      if (trackChangesEnabled) {
+        // Track changes mode: Show diff instead of auto-reloading
+        fileInfo.hasExternalChange = true;
+        fileInfo.externalContent = diskContent;
+        fileInfo.showWarning = true;
+
+        this.emit('external-change-warning', {
+          path,
+          hasChanges: false  // User has no local changes
+        });
+        this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+      } else {
+        // Auto-reload mode: Silent reload (current behavior)
+        // Update savedContent FIRST, before setValue(), so markFileDirty() won't trigger
+        fileInfo.savedContent = diskContent;
+        fileInfo.model.setValue(diskContent);
+        fileInfo.isDirty = false;
+
+        this.emit('file-auto-reloaded', { path });
+        this.emit('dirty-changed', { path, isDirty: false });
+        this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+        this.showToast('✓ File reloaded from disk', 'success');
+      }
     }
   }
 
