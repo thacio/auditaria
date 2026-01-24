@@ -239,7 +239,7 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
   constructor(
     config: Config,
     params: BrowserAgentParams,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
     toolName?: string,
     toolDisplayName?: string,
   ) {
@@ -652,16 +652,16 @@ export class BrowserAgentTool extends BaseDeclarativeTool<
   static readonly Name = BROWSER_AGENT_TOOL_NAME;
   private readonly config: Config;
 
-  constructor(config: Config, messageBus?: MessageBus) {
+  constructor(config: Config, messageBus: MessageBus) {
     super(
       BrowserAgentTool.Name,
       'BrowserAgent',
       BROWSER_AGENT_DESCRIPTION,
       Kind.Fetch, // Similar to web_fetch - retrieves external data
       BROWSER_AGENT_SCHEMA,
+      messageBus,
       true, // isOutputMarkdown
       true, // canUpdateOutput - AUDITARIA: Enable for live step updates
-      messageBus,
     );
     this.config = config;
   }
@@ -722,7 +722,7 @@ export class BrowserAgentTool extends BaseDeclarativeTool<
     return new BrowserAgentToolInvocation(
       this.config,
       params,
-      messageBus,
+      messageBus ?? this.messageBus,
       toolName,
       displayName,
     );

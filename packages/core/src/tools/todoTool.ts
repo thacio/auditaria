@@ -8,6 +8,7 @@ import type { ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { Config } from '../config/config.js';
 import type { FunctionDeclaration } from '@google/genai';
+import type { MessageBus } from '../confirmation-bus/message-bus.js';
 
 const todoToolSchemaData: FunctionDeclaration = {
   name: 'TodoWrite',
@@ -125,8 +126,9 @@ class TodoToolInvocation extends BaseToolInvocation<TodoWriteParams, ToolResult>
   constructor(
     params: TodoWriteParams,
     private readonly config: Config,
+    messageBus: MessageBus,
   ) {
-    super(params);
+    super(params, messageBus);
   }
 
   getDescription(): string {
@@ -214,21 +216,25 @@ class TodoToolInvocation extends BaseToolInvocation<TodoWriteParams, ToolResult>
 
 export class TodoTool extends BaseDeclarativeTool<TodoWriteParams, ToolResult> {
   static readonly Name: string = todoToolSchemaData.name!;
-  
-  constructor(private readonly config: Config) {
+
+  constructor(
+    private readonly config: Config,
+    messageBus: MessageBus,
+  ) {
     super(
       TodoTool.Name,
       'TodoWrite',
       todoToolDescription,
       Kind.Other,
       todoToolSchemaData.parametersJsonSchema as Record<string, unknown>,
+      messageBus,
       false, // output is not markdown
       false, // output cannot be updated
     );
   }
 
   protected createInvocation(params: TodoWriteParams): TodoToolInvocation {
-    return new TodoToolInvocation(params, this.config);
+    return new TodoToolInvocation(params, this.config, this.messageBus);
   }
 
   /**

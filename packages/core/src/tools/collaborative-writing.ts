@@ -616,7 +616,7 @@ class CollaborativeWritingToolInvocation extends BaseToolInvocation<
   constructor(
     private readonly config: Config,
     params: CollaborativeWritingToolParams,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
     toolName?: string,
     displayName?: string,
   ) {
@@ -801,7 +801,7 @@ export class CollaborativeWritingTool extends BaseDeclarativeTool<
 
   constructor(
     private readonly config: Config,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
   ) {
     super(
       CollaborativeWritingTool.Name,
@@ -826,9 +826,9 @@ export class CollaborativeWritingTool extends BaseDeclarativeTool<
         required: ['action'],
         additionalProperties: false,
       },
+      messageBus,
       true,
       false,
-      messageBus,
     );
   }
 

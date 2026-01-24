@@ -67,7 +67,7 @@ class KnowledgeIndexToolInvocation extends BaseToolInvocation<
   constructor(
     private config: Config,
     params: KnowledgeIndexToolParams,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
     toolName?: string,
     displayName?: string,
   ) {
@@ -409,7 +409,7 @@ export class KnowledgeIndexTool extends BaseDeclarativeTool<
 
   constructor(
     private readonly config: Config,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
   ) {
     super(
       KnowledgeIndexTool.Name,
@@ -437,9 +437,9 @@ export class KnowledgeIndexTool extends BaseDeclarativeTool<
         },
         required: ['action'],
       },
+      messageBus,
       true,
       false,
-      messageBus,
     );
   }
 
@@ -470,7 +470,7 @@ export class KnowledgeIndexTool extends BaseDeclarativeTool<
     return new KnowledgeIndexToolInvocation(
       this.config,
       params,
-      messageBus,
+      messageBus ?? this.messageBus,
       toolName,
       displayName,
     );

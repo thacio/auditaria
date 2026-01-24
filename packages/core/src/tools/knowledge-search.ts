@@ -132,7 +132,7 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
   constructor(
     private config: Config,
     params: KnowledgeSearchToolParams,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
     toolName?: string,
     displayName?: string,
   ) {
@@ -398,7 +398,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
 
   constructor(
     private readonly config: Config,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
   ) {
     super(
       KnowledgeSearchTool.Name,
@@ -475,9 +475,9 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
         },
         required: ['query'],
       },
+      messageBus,
       true,
       false,
-      messageBus,
     );
   }
 
@@ -546,7 +546,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
     return new KnowledgeSearchToolInvocation(
       this.config,
       params,
-      messageBus,
+      messageBus ?? this.messageBus,
       toolName,
       displayName,
     );

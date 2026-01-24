@@ -831,7 +831,7 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
   constructor(
     private readonly config: Config,
     params: ContextManagementToolParams,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
     toolName?: string,
     displayName?: string,
   ) {
@@ -1524,7 +1524,7 @@ export class ContextManagementTool extends BaseDeclarativeTool<
 
   constructor(
     private readonly config: Config,
-    messageBus?: MessageBus,
+    messageBus: MessageBus,
   ) {
     super(
       ContextManagementTool.Name,
@@ -1572,9 +1572,9 @@ export class ContextManagementTool extends BaseDeclarativeTool<
         required: ['action'],
         additionalProperties: false,
       },
-      false,
-      false,
       messageBus,
+      false,
+      false,
     );
   }
 

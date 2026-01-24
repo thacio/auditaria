@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TodoTool } from './todoTool.js';
 import { Config } from '../config/config.js';
+import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
 
 describe('TodoTool', () => {
   let todoTool: TodoTool;
@@ -14,7 +15,8 @@ describe('TodoTool', () => {
 
   beforeEach(() => {
     mockConfig = {} as Config;
-    todoTool = new TodoTool(mockConfig);
+    const mockMessageBus = createMockMessageBus();
+    todoTool = new TodoTool(mockConfig, mockMessageBus);
     TodoTool.clearTodos(); // Clear any existing todos before each test
   });
 
