@@ -5,7 +5,6 @@
  */
 
 import {
-  type ToolResult,
   type ToolResultDisplay,
   type AnyDeclarativeTool,
   type AnyToolInvocation,
@@ -15,18 +14,15 @@ import {
 } from '../tools/tools.js';
 import type { EditorType } from '../utils/editor.js';
 import type { Config } from '../config/config.js';
-import type { AnsiOutput } from '../utils/terminalSerializer.js';
 import { ApprovalMode } from '../policy/types.js';
-import { logToolCall, logToolOutputTruncated } from '../telemetry/loggers.js';
+import { logToolCall } from '../telemetry/loggers.js';
 import { ToolErrorType } from '../tools/tool-error.js';
-import { ToolCallEvent, ToolOutputTruncatedEvent } from '../telemetry/types.js';
+import { ToolCallEvent } from '../telemetry/types.js';
 import { runInDevTraceSpan } from '../telemetry/trace.js';
-import {
-  SHELL_TOOL_NAME,
-  EDIT_TOOL_NAME, // AUDITARIA_COLLABORATIVE_WRITING
-} from '../tools/tool-names.js';
+import { EDIT_TOOL_NAME } from '../tools/tool-names.js'; // AUDITARIA_COLLABORATIVE_WRITING
 // AUDITARIA_COLLABORATIVE_WRITING - Hook for updating collaborative writing registry after AI edits
 import { collaborativeWritingService } from '../tools/collaborative-writing.js';
+import { debugLogger } from '../utils/debugLogger.js'; // AUDITARIA_COLLABORATIVE_WRITING
 import type { ModifyContext } from '../tools/modifiable-tool.js';
 import {
   isModifiableDeclarativeTool,
@@ -39,14 +35,10 @@ import {
   getToolSuggestion,
 } from '../utils/tool-utils.js';
 import { isShellInvocationAllowlisted } from '../utils/shell-permissions.js';
-import { ShellToolInvocation } from '../tools/shell.js';
 import type { ToolConfirmationRequest } from '../confirmation-bus/types.js';
 import { MessageBusType } from '../confirmation-bus/types.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
-import {
-  fireToolNotificationHook,
-  executeToolWithHooks,
-} from './coreToolHookTriggers.js';
+import { fireToolNotificationHook } from './coreToolHookTriggers.js';
 import {
   type ToolCall,
   type ValidatingToolCall,
@@ -65,8 +57,7 @@ import {
   type ToolCallRequestInfo,
   type ToolCallResponseInfo,
 } from '../scheduler/types.js';
-import { saveTruncatedContent } from '../utils/fileUtils.js';
-import { convertToFunctionResponse } from '../utils/generateContentResponseUtilities.js';
+import { ToolExecutor } from '../scheduler/tool-executor.js';
 
 export type {
   ToolCall,
@@ -141,6 +132,7 @@ export class CoreToolScheduler {
   }> = [];
   private toolCallQueue: ToolCall[] = [];
   private completedToolCallsForBatch: CompletedToolCall[] = [];
+  private toolExecutor: ToolExecutor;
 
   constructor(options: CoreToolSchedulerOptions) {
     this.config = options.config;
@@ -148,6 +140,7 @@ export class CoreToolScheduler {
     this.onAllToolCallsComplete = options.onAllToolCallsComplete;
     this.onToolCallsUpdate = options.onToolCallsUpdate;
     this.getPreferredEditor = options.getPreferredEditor;
+    this.toolExecutor = new ToolExecutor(this.config);
 
     // Subscribe to message bus for ASK_USER policy decisions
     // Use a static WeakMap to ensure we only subscribe ONCE per MessageBus instance
@@ -852,209 +845,70 @@ export class CoreToolScheduler {
       for (const toolCall of callsToExecute) {
         if (toolCall.status !== 'scheduled') continue;
 
-        const scheduledCall = toolCall;
-        const { callId, name: toolName } = scheduledCall.request;
-        const invocation = scheduledCall.invocation;
-        this.setStatusInternal(callId, 'executing', signal);
-
-        const liveOutputCallback =
-          scheduledCall.tool.canUpdateOutput && this.outputUpdateHandler
-            ? (outputChunk: string | AnsiOutput) => {
-                if (this.outputUpdateHandler) {
-                  this.outputUpdateHandler(callId, outputChunk);
-                }
-                this.toolCalls = this.toolCalls.map((tc) =>
-                  tc.request.callId === callId && tc.status === 'executing'
-                    ? { ...tc, liveOutput: outputChunk }
-                    : tc,
-                );
-                this.notifyToolCallsUpdate();
-              }
-            : undefined;
-
-        const shellExecutionConfig = this.config.getShellExecutionConfig();
-        const hooksEnabled = this.config.getEnableHooks();
-        const messageBus = this.config.getMessageBus();
-
-        await runInDevTraceSpan(
-          {
-            name: toolCall.tool.name,
-            attributes: { type: 'tool-call' },
-          },
-          async ({ metadata: spanMetadata }) => {
-            spanMetadata.input = {
-              request: toolCall.request,
-            };
-            // TODO: Refactor to remove special casing for ShellToolInvocation.
-            // Introduce a generic callbacks object for the execute method to handle
-            // things like `onPid` and `onLiveOutput`. This will make the scheduler
-            // agnostic to the invocation type.
-            let promise: Promise<ToolResult>;
-            if (invocation instanceof ShellToolInvocation) {
-              const setPidCallback = (pid: number) => {
-                this.toolCalls = this.toolCalls.map((tc) =>
-                  tc.request.callId === callId && tc.status === 'executing'
-                    ? { ...tc, pid }
-                    : tc,
-                );
-                this.notifyToolCallsUpdate();
-              };
-              promise = executeToolWithHooks(
-                invocation,
-                toolName,
-                signal,
-                messageBus,
-                hooksEnabled,
-                toolCall.tool,
-                liveOutputCallback,
-                shellExecutionConfig,
-                setPidCallback,
-              );
-            } else {
-              promise = executeToolWithHooks(
-                invocation,
-                toolName,
-                signal,
-                messageBus,
-                hooksEnabled,
-                toolCall.tool,
-                liveOutputCallback,
-                shellExecutionConfig,
-              );
-            }
-
-            try {
-              const toolResult: ToolResult = await promise;
-              spanMetadata.output = toolResult;
-              if (signal.aborted) {
-                this.setStatusInternal(
-                  callId,
-                  'cancelled',
-                  signal,
-                  'User cancelled tool execution.',
-                );
-              } else if (toolResult.error === undefined) {
-                let content = toolResult.llmContent;
-                let outputFile: string | undefined = undefined;
-                const contentLength =
-                  typeof content === 'string' ? content.length : undefined;
-                if (
-                  typeof content === 'string' &&
-                  toolName === SHELL_TOOL_NAME &&
-                  this.config.getEnableToolOutputTruncation() &&
-                  this.config.getTruncateToolOutputThreshold() > 0 &&
-                  this.config.getTruncateToolOutputLines() > 0
-                ) {
-                  const originalContentLength = content.length;
-                  const threshold =
-                    this.config.getTruncateToolOutputThreshold();
-                  const lines = this.config.getTruncateToolOutputLines();
-                  const truncatedResult = await saveTruncatedContent(
-                    content,
-                    callId,
-                    this.config.storage.getProjectTempDir(),
-                    threshold,
-                    lines,
-                  );
-                  content = truncatedResult.content;
-                  outputFile = truncatedResult.outputFile;
-
-                  if (outputFile) {
-                    logToolOutputTruncated(
-                      this.config,
-                      new ToolOutputTruncatedEvent(
-                        scheduledCall.request.prompt_id,
-                        {
-                          toolName,
-                          originalContentLength,
-                          truncatedContentLength: content.length,
-                          threshold,
-                          lines,
-                        },
-                      ),
-                    );
-                  }
-                }
-
-                const response = convertToFunctionResponse(
-                  toolName,
-                  callId,
-                  content,
-                  this.config.getActiveModel(),
-                );
-                const successResponse: ToolCallResponseInfo = {
-                  callId,
-                  responseParts: response,
-                  resultDisplay: toolResult.returnDisplay,
-                  error: undefined,
-                  errorType: undefined,
-                  outputFile,
-                  contentLength,
-                };
-                this.setStatusInternal(
-                  callId,
-                  'success',
-                  signal,
-                  successResponse,
-                );
-
-                // AUDITORIA_COLLABORATIVE_WRITING_START - Update collaborative writing registry after AI edit
-                if (toolName === EDIT_TOOL_NAME && scheduledCall.request.args) {
-                  const filePath = (
-                    scheduledCall.request.args as { file_path?: string }
-                  ).file_path;
-                  if (filePath) {
-                    // IMPORTANT: We must await this to ensure registry is updated before next message
-                    try {
-                      await collaborativeWritingService.updateAfterAIEdit(
-                        filePath,
-                      );
-                    } catch (error) {
-                      console.error(
-                        '[COLLAB-WRITE] Failed to update registry after AI edit:',
-                        error,
-                      );
-                    }
-                  }
-                }
-                // AUDITARIA_COLLABORATIVE_WRITING_END
-              } else {
-                // It is a failure
-                const error = new Error(toolResult.error.message);
-                const errorResponse = createErrorResponse(
-                  scheduledCall.request,
-                  error,
-                  toolResult.error.type,
-                );
-                this.setStatusInternal(callId, 'error', signal, errorResponse);
-              }
-            } catch (executionError: unknown) {
-              spanMetadata.error = executionError;
-              if (signal.aborted) {
-                this.setStatusInternal(
-                  callId,
-                  'cancelled',
-                  signal,
-                  'User cancelled tool execution.',
-                );
-              } else {
-                this.setStatusInternal(
-                  callId,
-                  'error',
-                  signal,
-                  createErrorResponse(
-                    scheduledCall.request,
-                    executionError instanceof Error
-                      ? executionError
-                      : new Error(String(executionError)),
-                    ToolErrorType.UNHANDLED_EXCEPTION,
-                  ),
-                );
-              }
-            }
-            await this.checkAndNotifyCompletion(signal);
-          },
+        this.setStatusInternal(toolCall.request.callId, 'executing', signal);
+        const executingCall = this.toolCalls.find(
+          (c) => c.request.callId === toolCall.request.callId,
         );
+
+        if (!executingCall) {
+          // Should not happen, but safe guard
+          continue;
+        }
+
+        const completedCall = await this.toolExecutor.execute({
+          call: executingCall,
+          signal,
+          outputUpdateHandler: (callId, output) => {
+            if (this.outputUpdateHandler) {
+              this.outputUpdateHandler(callId, output);
+            }
+            this.toolCalls = this.toolCalls.map((tc) =>
+              tc.request.callId === callId && tc.status === 'executing'
+                ? { ...tc, liveOutput: output }
+                : tc,
+            );
+            this.notifyToolCallsUpdate();
+          },
+          onUpdateToolCall: (updatedCall) => {
+            this.toolCalls = this.toolCalls.map((tc) =>
+              tc.request.callId === updatedCall.request.callId
+                ? updatedCall
+                : tc,
+            );
+            this.notifyToolCallsUpdate();
+          },
+        });
+
+        // AUDITARIA_COLLABORATIVE_WRITING_START - Update collaborative writing registry after AI edit
+        if (
+          completedCall.status === 'success' &&
+          completedCall.request.name === EDIT_TOOL_NAME &&
+          completedCall.request.args
+        ) {
+          const filePath = (
+            completedCall.request.args as { file_path?: string }
+          ).file_path;
+          if (filePath) {
+            try {
+              await collaborativeWritingService.updateAfterAIEdit(filePath);
+            } catch (error) {
+              debugLogger.error(
+                '[COLLAB-WRITE] Failed to update registry after AI edit:',
+                error,
+              );
+            }
+          }
+        }
+        // AUDITARIA_COLLABORATIVE_WRITING_END
+
+        this.toolCalls = this.toolCalls.map((tc) =>
+          tc.request.callId === completedCall.request.callId
+            ? completedCall
+            : tc,
+        );
+        this.notifyToolCallsUpdate();
+
+        await this.checkAndNotifyCompletion(signal);
       }
     }
   }
