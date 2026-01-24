@@ -26,10 +26,53 @@ export async function readWasmBinaryFromDisk(
   return new Uint8Array(buffer);
 }
 
+// AUDITARIA: Check for embedded WASM assets (for Bun executables)
+function getEmbeddedWasmAsset(specifier: string): Uint8Array | null {
+  const embeddedAssets = (
+    globalThis as Record<string, Record<string, string> | undefined>
+  ).__TREESITTER_EMBEDDED_ASSETS;
+  if (!embeddedAssets) {
+    return null;
+  }
+
+  // Map specifier to asset key
+  let assetKey: string | null = null;
+  if (
+    specifier.includes('tree-sitter.wasm') ||
+    specifier.includes('web-tree-sitter')
+  ) {
+    assetKey = 'treeSitter';
+  } else if (
+    specifier.includes('tree-sitter-bash') ||
+    specifier.includes('bash.wasm')
+  ) {
+    assetKey = 'bash';
+  }
+
+  if (!assetKey || !embeddedAssets[assetKey]) {
+    return null;
+  }
+
+  // Decode base64 to Uint8Array
+  const base64 = embeddedAssets[assetKey];
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 export async function loadWasmBinary(
   dynamicImport: () => Promise<{ default: Uint8Array }>,
   fallbackSpecifier: string,
 ): Promise<Uint8Array> {
+  // AUDITARIA: Check embedded assets first (for Bun executables)
+  const embeddedAsset = getEmbeddedWasmAsset(fallbackSpecifier);
+  if (embeddedAsset) {
+    return embeddedAsset;
+  }
+
   try {
     const module = await dynamicImport();
     if (module?.default instanceof Uint8Array) {

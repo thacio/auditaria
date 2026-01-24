@@ -35,6 +35,8 @@ try {
 
   // Run esbuild with Stagehand/Playwright NOT external
   // We keep node-pty and native modules external as they're not used in browser-agent
+  // Note: web-tree-sitter and tree-sitter-bash are NOT external - they get bundled,
+  // and their WASM files are loaded from embedded assets
   const externals = [
     '@lydell/node-pty',
     'node-pty',
@@ -44,12 +46,23 @@ try {
     '@lydell/node-pty-win32-arm64',
     '@lydell/node-pty-win32-x64',
     'keytar',  // Native module for credential storage
-    'web-tree-sitter',  // WASM module
-    'tree-sitter-bash',  // WASM module
+    'youtube-transcript',  // Optional dep of markitdown-ts
+    'unzipper',  // Optional dep of markitdown-ts
   ].map(e => `--external:${e}`).join(' ');
+
+  // Alias native modules to shims for Bun compatibility
+  // onnxruntime-node: shim that re-exports from onnxruntime-web/wasm (for Bun compatibility)
+  // onnxruntime-web: NOT aliased - let it resolve naturally so the shim can import from it
+  // sharp: stub shim (only needed for image processing, not text embeddings)
+  const sharpShimPath = path.join(__dirname, 'sharp-shim.js').replace(/\\/g, '/');
+  const onnxNodeShimPath = path.join(__dirname, 'onnx-node-shim.js').replace(/\\/g, '/');
+  // NOTE: We do NOT alias onnxruntime-web - the onnx-node-shim.js imports from 'onnxruntime-web/wasm'
+  // and esbuild needs to resolve that naturally to the actual package
+  const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath}`;
 
   execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
     ${externals} \
+    ${aliases} \
     --loader:.node=file \
     --loader:.wasm=file \
     --banner:js="const require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);" \
@@ -86,6 +99,126 @@ if (fs.existsSync(LOCALE_PATH)) {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
 }
 
+// === PGLITE ASSETS EMBEDDING === (for knowledge search in Bun executable)
+console.log('\n📦 Embedding PGlite assets...');
+const PGLITE_DIST_PATH = path.join(__dirname, '..', 'node_modules', '@electric-sql', 'pglite', 'dist');
+let pgliteAssets = {};
+
+try {
+  const wasmPath = path.join(PGLITE_DIST_PATH, 'pglite.wasm');
+  const dataPath = path.join(PGLITE_DIST_PATH, 'pglite.data');
+  const vectorPath = path.join(PGLITE_DIST_PATH, 'vector.tar.gz');
+
+  if (fs.existsSync(wasmPath) && fs.existsSync(dataPath) && fs.existsSync(vectorPath)) {
+    pgliteAssets = {
+      wasm: fs.readFileSync(wasmPath, 'base64'),
+      data: fs.readFileSync(dataPath, 'base64'),
+      vector: fs.readFileSync(vectorPath, 'base64'),
+    };
+    const totalSize = (pgliteAssets.wasm.length + pgliteAssets.data.length + pgliteAssets.vector.length) / 1024 / 1024 * 0.75; // Approx original size
+    console.log(`   ✓ Embedded pglite.wasm (${(fs.statSync(wasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`   ✓ Embedded pglite.data (${(fs.statSync(dataPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`   ✓ Embedded vector.tar.gz (${(fs.statSync(vectorPath).size / 1024).toFixed(1)} KB)`);
+    console.log(`   ✓ Total PGlite assets: ~${totalSize.toFixed(2)} MB`);
+  } else {
+    console.warn('   ⚠️  PGlite assets not found, knowledge search will not work in executable');
+    console.warn(`      Looked for: ${wasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed PGlite assets:', error.message);
+}
+
+// === TREE-SITTER WASM EMBEDDING === (for shell parsing in Bun executable)
+console.log('\n📦 Embedding tree-sitter WASM assets...');
+let treeSitterAssets = {};
+
+try {
+  const treeSitterWasmPath = path.join(__dirname, '..', 'node_modules', 'web-tree-sitter', 'tree-sitter.wasm');
+  const bashWasmPath = path.join(__dirname, '..', 'node_modules', 'tree-sitter-bash', 'tree-sitter-bash.wasm');
+
+  if (fs.existsSync(treeSitterWasmPath) && fs.existsSync(bashWasmPath)) {
+    treeSitterAssets = {
+      treeSitter: fs.readFileSync(treeSitterWasmPath, 'base64'),
+      bash: fs.readFileSync(bashWasmPath, 'base64'),
+    };
+    console.log(`   ✓ Embedded tree-sitter.wasm (${(fs.statSync(treeSitterWasmPath).size / 1024).toFixed(1)} KB)`);
+    console.log(`   ✓ Embedded tree-sitter-bash.wasm (${(fs.statSync(bashWasmPath).size / 1024).toFixed(1)} KB)`);
+  } else {
+    console.warn('   ⚠️  Tree-sitter WASM files not found');
+    if (!fs.existsSync(treeSitterWasmPath)) console.warn(`      Missing: ${treeSitterWasmPath}`);
+    if (!fs.existsSync(bashWasmPath)) console.warn(`      Missing: ${bashWasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed tree-sitter assets:', error.message);
+}
+
+// === ONNX RUNTIME WASM EMBEDDING === (for TransformersJS embeddings in Bun executable)
+console.log('\n📦 Embedding ONNX Runtime WASM assets...');
+let onnxAssets = {};
+
+try {
+  const onnxWasmPath = path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist', 'ort-wasm-simd-threaded.wasm');
+  const onnxMjsPath = path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist', 'ort-wasm-simd-threaded.mjs');
+
+  if (fs.existsSync(onnxWasmPath)) {
+    onnxAssets = {
+      wasmSimdThreaded: fs.readFileSync(onnxWasmPath, 'base64'),
+      // Also embed the loader mjs if it exists
+      mjsSimdThreaded: fs.existsSync(onnxMjsPath) ? fs.readFileSync(onnxMjsPath, 'base64') : null,
+    };
+    console.log(`   ✓ Embedded ort-wasm-simd-threaded.wasm (${(fs.statSync(onnxWasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    if (onnxAssets.mjsSimdThreaded) {
+      console.log(`   ✓ Embedded ort-wasm-simd-threaded.mjs (${(fs.statSync(onnxMjsPath).size / 1024).toFixed(1)} KB)`);
+    }
+  } else {
+    console.warn('   ⚠️  ONNX WASM files not found');
+    console.warn(`      Missing: ${onnxWasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed ONNX assets:', error.message);
+}
+
+// === CANVASKIT WASM EMBEDDING === (for Tesseract.js OCR in Bun executable)
+console.log('\n📦 Embedding CanvasKit WASM assets...');
+let canvaskitAssets = {};
+
+try {
+  const canvaskitWasmPath = path.join(__dirname, '..', 'node_modules', 'canvaskit-wasm', 'bin', 'canvaskit.wasm');
+
+  if (fs.existsSync(canvaskitWasmPath)) {
+    canvaskitAssets = {
+      wasm: fs.readFileSync(canvaskitWasmPath, 'base64'),
+    };
+    console.log(`   ✓ Embedded canvaskit.wasm (${(fs.statSync(canvaskitWasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+  } else {
+    console.warn('   ⚠️  CanvasKit WASM not found');
+    console.warn(`      Missing: ${canvaskitWasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed CanvasKit assets:', error.message);
+}
+
+// === TESSERACT CORE WASM EMBEDDING === (for Tesseract.js OCR in Bun executable)
+console.log('\n📦 Embedding Tesseract Core WASM assets...');
+let tesseractAssets = {};
+
+try {
+  // tesseract-core-simd-lstm.wasm is the most commonly used variant (SIMD + LSTM, used with OEM=1)
+  const tesseractWasmPath = path.join(__dirname, '..', 'node_modules', 'tesseract.js-core', 'tesseract-core-simd-lstm.wasm');
+
+  if (fs.existsSync(tesseractWasmPath)) {
+    tesseractAssets = {
+      simdLstm: fs.readFileSync(tesseractWasmPath, 'base64'),
+    };
+    console.log(`   ✓ Embedded tesseract-core-simd-lstm.wasm (${(fs.statSync(tesseractWasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+  } else {
+    console.warn('   ⚠️  Tesseract Core WASM not found');
+    console.warn(`      Missing: ${tesseractWasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed Tesseract assets:', error.message);
+}
+
 // Embed web client files
 console.log('\n📦 Embedding web client files...');
 const webClientFiles = {};
@@ -118,6 +251,203 @@ if (bundleContent.startsWith('#!/')) {
 }
 
 console.log('🔨 Applying fixes...');
+
+// Fix 0: Set up proper cache directories for Bun executables
+// In Bun executables, import.meta.url returns virtual paths that break path resolution
+const bunCacheFix = `
+// BUN CACHE DIRECTORY FIX
+// TransformersJS computes cache dir from import.meta.url which is broken in Bun executables
+// We need to set a proper cache directory before TransformersJS initializes
+if (typeof Bun !== 'undefined') {
+  const os = await import('os');
+  const path = await import('path');
+  const fs = await import('fs');
+
+  // Set up proper cache directory in user's home folder
+  const homeDir = os.homedir();
+  const bunCacheDir = path.join(homeDir, '.auditaria', 'models');
+  const onnxWasmDir = path.join(homeDir, '.auditaria', 'onnx-wasm');
+
+  // Store for later use by TransformersJS env setup
+  globalThis.__BUN_TRANSFORMERS_CACHE_DIR = bunCacheDir;
+
+  // Create directories if they don't exist
+  try {
+    if (!fs.existsSync(bunCacheDir)) {
+      fs.mkdirSync(bunCacheDir, { recursive: true });
+    }
+    if (!fs.existsSync(onnxWasmDir)) {
+      fs.mkdirSync(onnxWasmDir, { recursive: true });
+    }
+  } catch (e) {
+    // Ignore - will be created later if needed
+  }
+
+  // SET EMBEDDED ASSETS HERE (before the check below)
+  // This must be set before we try to extract them
+  globalThis.__ONNX_EMBEDDED_ASSETS = ${Object.keys(onnxAssets).length > 0 ? JSON.stringify(onnxAssets) : 'null'};
+  globalThis.__CANVASKIT_EMBEDDED_ASSETS = ${Object.keys(canvaskitAssets).length > 0 ? JSON.stringify(canvaskitAssets) : 'null'};
+  // NOTE: Tesseract WASM is embedded but not extracted - worker thread path issues need fixing first
+
+  // Extract embedded ONNX WASM files if available
+  if (globalThis.__ONNX_EMBEDDED_ASSETS && globalThis.__ONNX_EMBEDDED_ASSETS.wasmSimdThreaded) {
+    try {
+      const wasmPath = path.join(onnxWasmDir, 'ort-wasm-simd-threaded.wasm');
+      // Only extract if file doesn't exist or is different size
+      const wasmData = Buffer.from(globalThis.__ONNX_EMBEDDED_ASSETS.wasmSimdThreaded, 'base64');
+      let needsExtract = true;
+      if (fs.existsSync(wasmPath)) {
+        const stat = fs.statSync(wasmPath);
+        if (stat.size === wasmData.length) {
+          needsExtract = false;
+        }
+      }
+      if (needsExtract) {
+        fs.writeFileSync(wasmPath, wasmData);
+        // console.log('[Bun] Extracted ONNX WASM to:', wasmPath);
+      }
+
+      // Also extract the mjs loader if available
+      if (globalThis.__ONNX_EMBEDDED_ASSETS.mjsSimdThreaded) {
+        const mjsPath = path.join(onnxWasmDir, 'ort-wasm-simd-threaded.mjs');
+        const mjsData = Buffer.from(globalThis.__ONNX_EMBEDDED_ASSETS.mjsSimdThreaded, 'base64');
+        if (!fs.existsSync(mjsPath) || fs.statSync(mjsPath).size !== mjsData.length) {
+          fs.writeFileSync(mjsPath, mjsData);
+        }
+      }
+
+      // Store the ONNX WASM directory for ONNX runtime configuration
+      globalThis.__BUN_ONNX_WASM_DIR = onnxWasmDir;
+
+      // Extract canvaskit.wasm if available (for Tesseract.js OCR)
+      if (globalThis.__CANVASKIT_EMBEDDED_ASSETS && globalThis.__CANVASKIT_EMBEDDED_ASSETS.wasm) {
+        const canvaskitPath = path.join(onnxWasmDir, 'canvaskit.wasm');
+        const canvaskitData = Buffer.from(globalThis.__CANVASKIT_EMBEDDED_ASSETS.wasm, 'base64');
+        if (!fs.existsSync(canvaskitPath) || fs.statSync(canvaskitPath).size !== canvaskitData.length) {
+          fs.writeFileSync(canvaskitPath, canvaskitData);
+        }
+        globalThis.__BUN_CANVASKIT_PATH = canvaskitPath;
+      }
+
+      // NOTE: Tesseract Core WASM embedding is prepared but not extracted yet
+      // Tesseract.js uses worker threads which have path resolution issues in Bun executables
+      // The worker script path needs to be fixed before we can use embedded tesseract WASM
+
+      // CRITICAL: Pre-configure ONNX environment BEFORE any imports
+      // Use regular path (not file:// URL) for Bun compatibility
+      const wasmPathsValue = onnxWasmDir.replace(/\\\\/g, '/') + '/';
+      globalThis.ort = globalThis.ort || {};
+      globalThis.ort.env = globalThis.ort.env || {};
+      globalThis.ort.env.wasm = globalThis.ort.env.wasm || {};
+      globalThis.ort.env.wasm.wasmPaths = wasmPathsValue;
+      globalThis.ort.env.wasm.numThreads = 1;
+
+      // Pre-load the WASM binary so ONNX doesn't need to fetch it
+      const wasmBinaryPath = path.join(onnxWasmDir, 'ort-wasm-simd-threaded.wasm');
+      if (fs.existsSync(wasmBinaryPath)) {
+        const wasmBinary = fs.readFileSync(wasmBinaryPath);
+        globalThis.ort.env.wasm.wasmBinary = wasmBinary.buffer;
+        // console.log('[Bun] Pre-loaded WASM binary:', wasmBinaryPath, 'size:', wasmBinary.length);
+      }
+
+      // console.log('[Bun] Pre-configured ONNX wasmPaths:', globalThis.ort.env.wasm.wasmPaths);
+      // console.log('[Bun] ONNX WASM dir contents:', fs.readdirSync(onnxWasmDir));
+
+      // CRITICAL: Intercept fetch requests for local files and ONNX CDN
+      // In Bun executables, fetch() can't access local file paths
+      const originalFetch = globalThis.fetch;
+      // console.log('[Bun] Setting up fetch interceptor for local files');
+      globalThis.fetch = async function(input, init) {
+        const url = typeof input === 'string' ? input : (input && input.url ? input.url : String(input));
+
+        // Check if this is a local file path (Windows or Unix style)
+        const isWindowsPath = url && url.length > 2 && url.charAt(1) === ':' && (url.charAt(2) === '\\\\' || url.charAt(2) === '/');
+        const isUnixPath = url && url.charAt(0) === '/' && url.charAt(1) !== '/';
+        const isFileUrl = url && url.indexOf('file://') === 0;
+        const isLocalPath = isWindowsPath || isUnixPath || isFileUrl;
+
+        if (isLocalPath) {
+          // Convert to proper path
+          let localPath = url;
+          if (isFileUrl) {
+            localPath = url.substring(7); // Remove 'file://'
+            // Handle Windows file:// URLs (file:///C:/...)
+            if (localPath.charAt(0) === '/' && localPath.charAt(2) === ':') {
+              localPath = localPath.substring(1);
+            }
+          }
+
+          // Normalize path separators - replace forward slashes with backslashes on Windows
+          localPath = localPath.split('/').join(path.sep);
+
+          if (fs.existsSync(localPath)) {
+            // console.log('[Bun] Serving local file:', localPath);
+            const data = fs.readFileSync(localPath);
+            const ext = path.extname(localPath).toLowerCase();
+            const mimeTypes = {
+              '.onnx': 'application/octet-stream',
+              '.json': 'application/json',
+              '.wasm': 'application/wasm',
+              '.mjs': 'application/javascript',
+              '.js': 'application/javascript',
+              '.bin': 'application/octet-stream',
+            };
+            return new Response(data, {
+              status: 200,
+              headers: { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' }
+            });
+          } else {
+            // console.log('[Bun] Local file not found:', localPath);
+            return new Response('Not found', { status: 404 });
+          }
+        }
+
+        // Check if this is an ONNX WASM request from CDN - serve locally
+        if (url && (url.includes('ort-wasm') || url.includes('onnxruntime'))) {
+          const filename = url.split('/').pop().split('?')[0];
+          const localOnnxPath = path.join(onnxWasmDir, filename);
+
+          if (fs.existsSync(localOnnxPath)) {
+            const data = fs.readFileSync(localOnnxPath);
+            const contentType = filename.endsWith('.wasm') ? 'application/wasm' :
+                               filename.endsWith('.mjs') ? 'application/javascript' :
+                               'application/octet-stream';
+            return new Response(data, {
+              status: 200,
+              headers: { 'Content-Type': contentType }
+            });
+          }
+        }
+
+        // Check if this is a canvaskit.wasm request - serve from extracted location
+        if (url && url.includes('canvaskit.wasm') && globalThis.__BUN_CANVASKIT_PATH) {
+          if (fs.existsSync(globalThis.__BUN_CANVASKIT_PATH)) {
+            const data = fs.readFileSync(globalThis.__BUN_CANVASKIT_PATH);
+            return new Response(data, {
+              status: 200,
+              headers: { 'Content-Type': 'application/wasm' }
+            });
+          }
+        }
+
+        // Call original fetch for remote URLs
+        try {
+          return await originalFetch.apply(this, arguments);
+        } catch (fetchError) {
+          // Silently handle fetch errors - don't spam console
+          throw fetchError;
+        }
+      };
+
+      // Also store the wasm dir globally for debugging
+      globalThis.__ONNX_WASM_DIR_DEBUG = onnxWasmDir;
+      globalThis.__BUN_ONNX_WASM_DIR = onnxWasmDir;
+    } catch (e) {
+      console.error('[Bun] Failed to extract ONNX WASM:', e.message);
+    }
+  }
+}
+`;
 
 // Fix 1: Process.argv cleanup for Bun environment
 // This ensures clean argument parsing and prevents extra Bun-specific arguments
@@ -251,6 +581,18 @@ const conditionalUnifiedBunServer = `
   if (typeof globalThis.__EMBEDDED_LOCALES === 'undefined') {
     globalThis.__EMBEDDED_LOCALES = ${JSON.stringify(localeData)};
   }
+
+  // Embedded PGlite assets for Bun executable (for knowledge search)
+  if (typeof globalThis.__PGLITE_EMBEDDED_ASSETS === 'undefined') {
+    globalThis.__PGLITE_EMBEDDED_ASSETS = ${Object.keys(pgliteAssets).length > 0 ? JSON.stringify(pgliteAssets) : 'null'};
+  }
+
+  // Embedded tree-sitter WASM assets for Bun executable (for shell parsing)
+  if (typeof globalThis.__TREESITTER_EMBEDDED_ASSETS === 'undefined') {
+    globalThis.__TREESITTER_EMBEDDED_ASSETS = ${Object.keys(treeSitterAssets).length > 0 ? JSON.stringify(treeSitterAssets) : 'null'};
+  }
+
+  // NOTE: ONNX embedded assets are set in bunCacheFix (must be set early for extraction)
 
   // ALWAYS initialize server infrastructure (needed for /web command)
   // console.log('[Bun] Initializing server infrastructure...');
@@ -747,8 +1089,9 @@ const conditionalUnifiedBunServer = `
 })();
 `;
 
-// Apply all fixes in order
-bundleContent = argvCleanupFix + '\n' +
+// Apply all fixes in order (bunCacheFix must be first to set up cache dirs before TransformersJS loads)
+bundleContent = bunCacheFix + '\n' +
+                argvCleanupFix + '\n' +
                 interactiveModeFixEnhanced + '\n' +
                 conditionalUnifiedBunServer + '\n' +
                 bundleContent;
@@ -898,6 +1241,88 @@ bundleContent = bundleContent.replace(
   '// Warning suppressed for Bun executable'
 );
 
+// Fix 9a: Force TransformersJS cacheDir and ONNX WASM paths in Bun executables
+// The env.cacheDir is broken in Bun because it's computed from import.meta.url
+// Also configure ONNX to use local WASM files instead of CDN
+console.log('   ✓ Patching TransformersJS cache directory for Bun...');
+bundleContent = bundleContent.replace(
+  /const (env\d+) = transformers\.env;/g,
+  (match, varName) => `const ${varName} = transformers.env;
+      // BUN FIX: Set proper cache directory (import.meta.url is broken in Bun executables)
+      if (typeof Bun !== 'undefined' && globalThis.__BUN_TRANSFORMERS_CACHE_DIR) {
+        ${varName}.cacheDir = globalThis.__BUN_TRANSFORMERS_CACHE_DIR;
+      }
+      // BUN FIX: Configure ONNX WASM paths to use extracted files instead of CDN
+      if (typeof Bun !== 'undefined' && globalThis.__BUN_ONNX_WASM_DIR) {
+        // Set ONNX runtime to use local WASM files
+        // This must be done BEFORE creating any ONNX session
+        if (${varName}.backends && ${varName}.backends.onnx && ${varName}.backends.onnx.wasm) {
+          ${varName}.backends.onnx.wasm.wasmPaths = globalThis.__BUN_ONNX_WASM_DIR + '/';
+        }
+      }`
+);
+
+// Fix 9b: Patch the dynamic import of @huggingface/transformers to configure ONNX paths
+// This ensures WASM paths are set before any ONNX operations
+console.log('   ✓ Patching ONNX runtime WASM paths for Bun...');
+bundleContent = bundleContent.replace(
+  /const transformers = await import\("@huggingface\/transformers"\);/g,
+  `const transformers = await import("@huggingface/transformers");
+      // BUN FIX: Configure ONNX WASM paths immediately after import
+      if (typeof Bun !== 'undefined' && globalThis.__BUN_ONNX_WASM_DIR) {
+        try {
+          const onnxWasmDir = globalThis.__BUN_ONNX_WASM_DIR;
+
+          // Configure TransformersJS env.backends.onnx
+          if (transformers.env && transformers.env.backends && transformers.env.backends.onnx) {
+            transformers.env.backends.onnx.wasm = transformers.env.backends.onnx.wasm || {};
+            transformers.env.backends.onnx.wasm.wasmPaths = onnxWasmDir + '/';
+            transformers.env.backends.onnx.wasm.numThreads = 1;
+            // Pre-load WASM binary if available
+            if (globalThis.ort && globalThis.ort.env && globalThis.ort.env.wasm && globalThis.ort.env.wasm.wasmBinary) {
+              transformers.env.backends.onnx.wasm.wasmBinary = globalThis.ort.env.wasm.wasmBinary;
+            }
+          }
+
+          // Also try to configure onnxruntime-web directly
+          try {
+            const ort = await import("onnxruntime-web");
+            if (ort && ort.env && ort.env.wasm) {
+              ort.env.wasm.wasmPaths = onnxWasmDir + '/';
+              ort.env.wasm.numThreads = 1;
+              if (globalThis.ort && globalThis.ort.env && globalThis.ort.env.wasm && globalThis.ort.env.wasm.wasmBinary) {
+                ort.env.wasm.wasmBinary = globalThis.ort.env.wasm.wasmBinary;
+              }
+            }
+          } catch (ortErr) {
+            // ONNX direct configuration failed, but TransformersJS config should work
+          }
+        } catch (e) {
+          // ONNX configuration error - embeddings may not work
+        }
+      }`
+);
+
+// Fix 9c: Patch CanvasKitInit to use locateFile for canvaskit.wasm in Bun executables
+// Scribe.js uses canvaskit-wasm but doesn't pass locateFile, so it fails in Bun
+console.log('   ✓ Patching CanvasKit initialization for Bun...');
+bundleContent = bundleContent.replace(
+  /ca\.CanvasKit = await CanvasKitInit\(\);/g,
+  `// BUN FIX: Pass locateFile to find canvaskit.wasm from extracted location
+      ca.CanvasKit = await CanvasKitInit(
+        typeof Bun !== 'undefined' && globalThis.__BUN_CANVASKIT_PATH
+          ? {
+              locateFile: (file) => {
+                if (file === 'canvaskit.wasm' || file.endsWith('canvaskit.wasm')) {
+                  return globalThis.__BUN_CANVASKIT_PATH;
+                }
+                return file;
+              }
+            }
+          : undefined
+      );`
+);
+
 // Fix 9: Replace file reading with embedded data check
 bundleContent = bundleContent.replace(
   /const fileContent = await fs\d+\.readFile\(filePath, "utf-8"\);[\s]*const translations = JSON\.parse\(fileContent\);/g,
@@ -947,9 +1372,13 @@ if (!bunPath) {
 
 try {
   const iconPath = path.join(__dirname, '..', 'assets', 'auditaria.ico');
-  // Use --external to skip WASM modules that can't be bundled
-  // These are only used for shell command parsing, not critical for browser-agent
-  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --external web-tree-sitter --external tree-sitter-bash --outfile "${OUTPUT_PATH}"`, {
+  // External packages that can't be bundled by Bun
+  // Note: web-tree-sitter and tree-sitter-bash are now bundled, WASM loaded from embedded assets
+  const bunExternals = [
+    'youtube-transcript',  // Optional dep of markitdown-ts
+    'unzipper',  // Optional dep of markitdown-ts
+  ].map(e => `--external ${e}`).join(' ');
+  execSync(`"${bunPath}" build "${tempPath}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" ${bunExternals} --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
 

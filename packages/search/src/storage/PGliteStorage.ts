@@ -5,6 +5,7 @@
 
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite/vector';
+import type { Extension, ExtensionSetupResult, PGliteInterface } from '@electric-sql/pglite';
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -34,8 +35,169 @@ import {
 } from './schema.js';
 import type { DatabaseConfig } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const log = createModuleLogger('PGliteStorage');
+
+// ============================================================================
+// Bun Executable Detection and Asset Management
+// ============================================================================
+
+/**
+ * Check if we're running inside a Bun compiled executable.
+ * In Bun executables, import.meta.url points to the virtual filesystem.
+ */
+function isRunningInBunExecutable(): boolean {
+  // Check for Bun runtime
+  if (typeof (globalThis as Record<string, unknown>).Bun === 'undefined') {
+    return false;
+  }
+
+  // Check for embedded assets indicator (set by build script)
+  if ((globalThis as Record<string, unknown>).__PGLITE_EMBEDDED_ASSETS) {
+    return true;
+  }
+
+  // Check for Bun's virtual filesystem path patterns
+  try {
+    const metaUrl = import.meta.url;
+    if (metaUrl.includes('/$bunfs/') || metaUrl.includes('/~BUN/') || metaUrl.includes('%7EBUN')) {
+      return true;
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return false;
+}
+
+/**
+ * Get the path where PGlite assets should be extracted/stored.
+ * Uses .auditaria/pglite-assets/ in the user's home directory.
+ */
+function getPGliteAssetsPath(): string {
+  const homeDir = process.env.HOME || process.env.USERPROFILE || '.';
+  return path.join(homeDir, '.auditaria', 'pglite-assets');
+}
+
+/**
+ * Extract embedded PGlite assets to the filesystem.
+ * This is needed for Bun compiled executables where the assets
+ * can't be loaded from the virtual filesystem.
+ */
+async function extractPGliteAssets(): Promise<{
+  wasmPath: string;
+  dataPath: string;
+  vectorPath: string;
+} | null> {
+  const assetsPath = getPGliteAssetsPath();
+
+  // Check for embedded assets from build script
+  const embeddedAssets = (globalThis as Record<string, unknown>).__PGLITE_EMBEDDED_ASSETS as {
+    wasm?: string;  // Base64 encoded
+    data?: string;  // Base64 encoded
+    vector?: string;  // Base64 encoded
+  } | undefined;
+
+  if (!embeddedAssets) {
+    log.warn('extractPGliteAssets:noEmbeddedAssets', {});
+    return null;
+  }
+
+  // Ensure the assets directory exists
+  if (!fs.existsSync(assetsPath)) {
+    fs.mkdirSync(assetsPath, { recursive: true });
+  }
+
+  const wasmPath = path.join(assetsPath, 'pglite.wasm');
+  const dataPath = path.join(assetsPath, 'pglite.data');
+  const vectorPath = path.join(assetsPath, 'vector.tar.gz');
+
+  // Extract assets if they don't exist or are outdated
+  const versionFile = path.join(assetsPath, 'version.txt');
+  const currentVersion = embeddedAssets.wasm?.substring(0, 32) || 'unknown';
+  let needsExtraction = true;
+
+  if (fs.existsSync(versionFile)) {
+    try {
+      const storedVersion = fs.readFileSync(versionFile, 'utf-8').trim();
+      if (storedVersion === currentVersion &&
+          fs.existsSync(wasmPath) &&
+          fs.existsSync(dataPath) &&
+          fs.existsSync(vectorPath)) {
+        needsExtraction = false;
+        log.debug('extractPGliteAssets:cached', { assetsPath });
+      }
+    } catch {
+      // Ignore errors, will re-extract
+    }
+  }
+
+  if (needsExtraction) {
+    log.info('extractPGliteAssets:extracting', { assetsPath });
+
+    try {
+      if (embeddedAssets.wasm) {
+        fs.writeFileSync(wasmPath, Buffer.from(embeddedAssets.wasm, 'base64'));
+      }
+      if (embeddedAssets.data) {
+        fs.writeFileSync(dataPath, Buffer.from(embeddedAssets.data, 'base64'));
+      }
+      if (embeddedAssets.vector) {
+        fs.writeFileSync(vectorPath, Buffer.from(embeddedAssets.vector, 'base64'));
+      }
+      fs.writeFileSync(versionFile, currentVersion);
+
+      log.info('extractPGliteAssets:complete', { assetsPath });
+    } catch (error) {
+      log.error('extractPGliteAssets:failed', { error: String(error) });
+      return null;
+    }
+  }
+
+  return { wasmPath, dataPath, vectorPath };
+}
+
+/**
+ * Create a custom vector extension that uses an absolute path for the bundle.
+ * This is needed for Bun compiled executables.
+ */
+function createCustomVectorExtension(bundlePath: string): Extension {
+  const setup = async (_pg: PGliteInterface, emscriptenOpts: unknown): Promise<ExtensionSetupResult> => {
+    return {
+      emscriptenOpts,
+      bundlePath: new URL(`file://${bundlePath.replace(/\\/g, '/')}`),
+    };
+  };
+
+  return {
+    name: 'pgvector',
+    setup,
+  };
+}
+
+/**
+ * Load PGlite options for Bun executable environment.
+ * Returns wasmModule and fsBundle loaded from extracted assets.
+ */
+async function loadPGliteOptionsForBun(assets: {
+  wasmPath: string;
+  dataPath: string;
+}): Promise<{
+  wasmModule: WebAssembly.Module;
+  fsBundle: Blob;
+}> {
+  const [wasmBuffer, dataBuffer] = await Promise.all([
+    fs.promises.readFile(assets.wasmPath),
+    fs.promises.readFile(assets.dataPath),
+  ]);
+
+  const wasmModule = await WebAssembly.compile(wasmBuffer);
+  const fsBundle = new Blob([dataBuffer]);
+
+  return { wasmModule, fsBundle };
+}
 
 // ============================================================================
 // Helper Functions
@@ -170,14 +332,54 @@ export class PGliteStorage implements StorageAdapter {
   // Lifecycle
   // -------------------------------------------------------------------------
 
-  async initialize(): Promise<void> {
-    if (this._initialized) return;
+  /**
+   * Create a PGlite instance, handling Bun executable environments.
+   * This is a helper method used by both initialize() and reconnect().
+   */
+  private async createPGliteInstance(): Promise<PGlite> {
+    const isBunExe = isRunningInBunExecutable();
 
-    // Initialize PGlite with pgvector extension
-    this.db = await PGlite.create({
+    if (isBunExe) {
+      log.info('createPGliteInstance:bunExecutableDetected', {});
+
+      // Extract embedded assets
+      const assets = await extractPGliteAssets();
+
+      if (assets) {
+        // Load WASM module and filesystem bundle from extracted files
+        const { wasmModule, fsBundle } = await loadPGliteOptionsForBun(assets);
+
+        // Create custom vector extension with absolute path
+        const customVector = createCustomVectorExtension(assets.vectorPath);
+
+        // Initialize PGlite with custom options for Bun executable
+        const db = await PGlite.create({
+          dataDir: this.config.inMemory ? undefined : this.config.path,
+          wasmModule,
+          fsBundle,
+          extensions: { vector: customVector },
+        });
+
+        log.info('createPGliteInstance:bunExecutableInitialized', { assetsPath: getPGliteAssetsPath() });
+        return db;
+      } else {
+        // Fallback: Try standard initialization (may fail in Bun executable)
+        log.warn('createPGliteInstance:noEmbeddedAssets:tryingStandard', {});
+      }
+    }
+
+    // Standard initialization for Node.js/development
+    return await PGlite.create({
       dataDir: this.config.inMemory ? undefined : this.config.path,
       extensions: { vector },
     });
+  }
+
+  async initialize(): Promise<void> {
+    if (this._initialized) return;
+
+    // Create PGlite instance (handles Bun executable environment)
+    this.db = await this.createPGliteInstance();
 
     // Run schema SQL
     await this.db.exec(SCHEMA_SQL);
@@ -318,11 +520,8 @@ export class PGliteStorage implements StorageAdapter {
 
       log.logMemory('reconnect:afterClose');
 
-      // Reopen the database
-      this.db = await PGlite.create({
-        dataDir: this.config.inMemory ? undefined : this.config.path,
-        extensions: { vector },
-      });
+      // Reopen the database using helper method (handles Bun executable)
+      this.db = await this.createPGliteInstance();
 
       this._initialized = true;
 
@@ -333,10 +532,7 @@ export class PGliteStorage implements StorageAdapter {
       // Try to recover by reinitializing
       this.db = null;
       try {
-        this.db = await PGlite.create({
-          dataDir: this.config.inMemory ? undefined : this.config.path,
-          extensions: { vector },
-        });
+        this.db = await this.createPGliteInstance();
         this._initialized = true;
         log.info('reconnect:recovered', {});
       } catch (initError) {

@@ -27,6 +27,38 @@ import {
 } from './gpu-detection.js';
 
 // ============================================================================
+// Bun Detection
+// ============================================================================
+
+/**
+ * Check if we're running inside a Bun compiled executable.
+ * Worker threads don't work properly in Bun executables.
+ */
+function isRunningInBunExecutable(): boolean {
+  // Check for Bun runtime
+  if (typeof (globalThis as Record<string, unknown>).Bun === 'undefined') {
+    return false;
+  }
+
+  // Check for embedded assets indicator (set by build script)
+  if ((globalThis as Record<string, unknown>).__PGLITE_EMBEDDED_ASSETS) {
+    return true;
+  }
+
+  // Check for Bun's virtual filesystem path patterns
+  try {
+    const metaUrl = import.meta.url;
+    if (metaUrl.includes('/$bunfs/') || metaUrl.includes('/~BUN/') || metaUrl.includes('%7EBUN')) {
+      return true;
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return false;
+}
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -92,8 +124,22 @@ export async function createEmbedders(
   config: EmbedderFactoryConfig,
   onProgress?: ProgressCallback,
 ): Promise<EmbedderFactoryResult> {
-  // Step 0: Check if Python embedder is preferred and available
-  if (config.preferPythonEmbedder) {
+  // Step 0a: Check if running in Bun executable - disable workers if so
+  const isBunExe = isRunningInBunExecutable();
+  let effectiveUseWorkerThread = config.useWorkerThread;
+  let effectivePreferPythonEmbedder = config.preferPythonEmbedder;
+
+  if (isBunExe) {
+    console.log(
+      '[EmbedderFactory] Running in Bun executable - disabling worker threads and Python embedder',
+    );
+    debugLog('Factory: Bun executable detected, disabling worker threads');
+    effectiveUseWorkerThread = false;
+    effectivePreferPythonEmbedder = false; // Python subprocess may also have issues in Bun
+  }
+
+  // Step 0b: Check if Python embedder is preferred and available
+  if (effectivePreferPythonEmbedder) {
     console.log(
       '[EmbedderFactory] Python embedder preferred, checking availability...',
     );
@@ -187,7 +233,7 @@ export async function createEmbedders(
   let actualDevice: EmbedderDevice = 'cpu';
   let fallbackReason: string | undefined;
 
-  if (shouldTryGpu && config.useWorkerThread) {
+  if (shouldTryGpu && effectiveUseWorkerThread) {
     // Try GPU with worker thread
     try {
       debugLog(
@@ -230,7 +276,7 @@ export async function createEmbedders(
       await indexingEmbedder.initialize(onProgress);
       actualDevice = 'cpu';
     }
-  } else if (config.useWorkerThread) {
+  } else if (effectiveUseWorkerThread) {
     // CPU with worker thread
     debugLog(`Factory: Creating CPU worker embedder`);
 

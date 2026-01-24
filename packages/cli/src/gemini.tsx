@@ -136,8 +136,13 @@ export function getNodeMemoryArgs(isDebugMode: boolean): string[] {
     heapStats.heap_size_limit / 1024 / 1024,
   );
 
-  // Set target to 50% of total memory
-  const targetMaxOldSpaceSizeInMB = Math.floor(totalMemoryMB * 0.5);
+  // AUDITARIA: Minimum 4GB heap for knowledge indexing (PGlite WASM needs significant heap)
+  // For machines with more RAM, use 50% of total memory
+  const MIN_HEAP_SIZE_MB = 4096;
+  const targetMaxOldSpaceSizeInMB = Math.max(
+    MIN_HEAP_SIZE_MB,
+    Math.floor(totalMemoryMB * 0.5),
+  );
   if (isDebugMode) {
     debugLogger.debug(
       `Current heap size ${currentMaxOldSpaceSizeMb.toFixed(2)} MB`,

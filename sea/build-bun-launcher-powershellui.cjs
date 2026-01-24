@@ -23,20 +23,75 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini.js');
+// Prefer the Bun-specific bundle which has onnxruntime-node aliased to onnxruntime-web
+const BUN_BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini-bun.js');
+const REGULAR_BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini.js');
+const BUNDLE_PATH = fs.existsSync(BUN_BUNDLE_PATH) ? BUN_BUNDLE_PATH : REGULAR_BUNDLE_PATH;
 const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-launcher.exe');
 const LAUNCHER_ENTRY_PATH = path.join(__dirname, '..', 'bundle', 'gemini-launcher-entry.js');
 const WEB_CLIENT_PATH = path.join(__dirname, '..', 'packages', 'web-client', 'src');
 
 console.log('🚀 Building Auditaria Launcher with PowerShell GUI and Bun fixes...\n');
 
+// Step 0: Create Bun-specific bundle with onnxruntime-node aliased to onnxruntime-web
+console.log('📦 Creating Bun-specific bundle with ONNX web alias...');
+const pkg = require(path.join(__dirname, '..', 'package.json'));
+
+try {
+  // Note: web-tree-sitter and tree-sitter-bash are NOT marked as external
+  // Their JS code gets bundled, and WASM files are loaded from embedded assets
+  const externals = [
+    '@lydell/node-pty',
+    'node-pty',
+    '@lydell/node-pty-darwin-arm64',
+    '@lydell/node-pty-darwin-x64',
+    '@lydell/node-pty-linux-x64',
+    '@lydell/node-pty-win32-arm64',
+    '@lydell/node-pty-win32-x64',
+    'keytar',
+    'youtube-transcript',
+    'unzipper',
+  ].map(e => `--external:${e}`).join(' ');
+
+  // Alias native modules to shims for Bun compatibility
+  // onnxruntime-node: stub shim (not used in Bun since IS_NODE_ENV=false)
+  // sharp: stub shim (only needed for image processing, not text embeddings)
+  const sharpShimPath = path.join(__dirname, 'sharp-shim.js').replace(/\\/g, '/');
+  const onnxNodeShimPath = path.join(__dirname, 'onnx-node-shim.js').replace(/\\/g, '/');
+  // Inject onnxruntime-web via Symbol.for('onnxruntime') so TransformersJS uses it
+  const onnxInjectPath = path.join(__dirname, 'onnx-web-inject.js').replace(/\\/g, '/');
+  const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath}`;
+  const inject = `--inject:${onnxInjectPath}`;
+
+  // For Bun, we need to bundle @huggingface/transformers and @thacio/search
+  // (they're external in main esbuild.config.js but needed inline for Bun executable)
+  // Note: We keep the same externals as main build EXCEPT for search-related packages
+  execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
+    ${externals} \
+    ${aliases} \
+    ${inject} \
+    --loader:.node=file \
+    --loader:.wasm=file \
+    --banner:js="const require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);" \
+    --define:process.env.CLI_VERSION='"${pkg.version}"' \
+    --outfile="${BUN_BUNDLE_PATH}"`, {
+    cwd: path.join(__dirname, '..'),
+    stdio: 'pipe'
+  });
+  console.log('   ✓ Bun-specific bundle created with onnxruntime-web alias');
+} catch (error) {
+  console.warn('   ⚠️  Failed to create Bun-specific bundle:', error.message);
+  console.warn('   Falling back to regular bundle (ONNX may not work correctly)');
+}
+
 // Step 1: Ensure the application bundle exists
-if (!fs.existsSync(BUNDLE_PATH)) {
-  console.error(`❌ Application bundle not found at: ${BUNDLE_PATH}`);
+const ACTUAL_BUNDLE_PATH = fs.existsSync(BUN_BUNDLE_PATH) ? BUN_BUNDLE_PATH : REGULAR_BUNDLE_PATH;
+if (!fs.existsSync(ACTUAL_BUNDLE_PATH)) {
+  console.error(`❌ Application bundle not found at: ${ACTUAL_BUNDLE_PATH}`);
   console.error('Please run "npm run bundle" first.');
   process.exit(1);
 }
-console.log('✓ Application bundle found.');
+console.log(`✓ Application bundle found: ${path.basename(ACTUAL_BUNDLE_PATH)}`);
 
 // === LOCALE EMBEDDING === (from build-bun-unified.cjs)
 console.log('\n📦 Embedding locale files...');
@@ -53,6 +108,59 @@ if (fs.existsSync(LOCALE_PATH)) {
   });
 } else {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
+}
+
+// === PGLITE ASSETS EMBEDDING === (for knowledge search in Bun executable)
+console.log('\n📦 Embedding PGlite assets...');
+const PGLITE_DIST_PATH = path.join(__dirname, '..', 'node_modules', '@electric-sql', 'pglite', 'dist');
+let pgliteAssets = {};
+
+try {
+  const wasmPath = path.join(PGLITE_DIST_PATH, 'pglite.wasm');
+  const dataPath = path.join(PGLITE_DIST_PATH, 'pglite.data');
+  const vectorPath = path.join(PGLITE_DIST_PATH, 'vector.tar.gz');
+
+  if (fs.existsSync(wasmPath) && fs.existsSync(dataPath) && fs.existsSync(vectorPath)) {
+    pgliteAssets = {
+      wasm: fs.readFileSync(wasmPath, 'base64'),
+      data: fs.readFileSync(dataPath, 'base64'),
+      vector: fs.readFileSync(vectorPath, 'base64'),
+    };
+    const totalSize = (pgliteAssets.wasm.length + pgliteAssets.data.length + pgliteAssets.vector.length) / 1024 / 1024 * 0.75; // Approx original size
+    console.log(`   ✓ Embedded pglite.wasm (${(fs.statSync(wasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`   ✓ Embedded pglite.data (${(fs.statSync(dataPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`   ✓ Embedded vector.tar.gz (${(fs.statSync(vectorPath).size / 1024).toFixed(1)} KB)`);
+    console.log(`   ✓ Total PGlite assets: ~${totalSize.toFixed(2)} MB`);
+  } else {
+    console.warn('   ⚠️  PGlite assets not found, knowledge search will not work in executable');
+    console.warn(`      Looked for: ${wasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed PGlite assets:', error.message);
+}
+
+// === TREE-SITTER WASM EMBEDDING === (for shell parsing in Bun executable)
+console.log('\n📦 Embedding tree-sitter WASM assets...');
+let treeSitterAssets = {};
+
+try {
+  const treeSitterWasmPath = path.join(__dirname, '..', 'node_modules', 'web-tree-sitter', 'tree-sitter.wasm');
+  const bashWasmPath = path.join(__dirname, '..', 'node_modules', 'tree-sitter-bash', 'tree-sitter-bash.wasm');
+
+  if (fs.existsSync(treeSitterWasmPath) && fs.existsSync(bashWasmPath)) {
+    treeSitterAssets = {
+      treeSitter: fs.readFileSync(treeSitterWasmPath, 'base64'),
+      bash: fs.readFileSync(bashWasmPath, 'base64'),
+    };
+    console.log(`   ✓ Embedded tree-sitter.wasm (${(fs.statSync(treeSitterWasmPath).size / 1024).toFixed(1)} KB)`);
+    console.log(`   ✓ Embedded tree-sitter-bash.wasm (${(fs.statSync(bashWasmPath).size / 1024).toFixed(1)} KB)`);
+  } else {
+    console.warn('   ⚠️  Tree-sitter WASM files not found');
+    if (!fs.existsSync(treeSitterWasmPath)) console.warn(`      Missing: ${treeSitterWasmPath}`);
+    if (!fs.existsSync(bashWasmPath)) console.warn(`      Missing: ${bashWasmPath}`);
+  }
+} catch (error) {
+  console.warn('   ⚠️  Failed to embed tree-sitter assets:', error.message);
 }
 
 // === WEB CLIENT EMBEDDING === (from build-bun-unified.cjs)
@@ -80,7 +188,7 @@ if (fs.existsSync(WEB_CLIENT_PATH)) {
 
 // === BUNDLE READING === (from build-bun-unified.cjs)
 console.log('\n📖 Reading bundle...');
-let bundleContent = fs.readFileSync(BUNDLE_PATH, 'utf8');
+let bundleContent = fs.readFileSync(ACTUAL_BUNDLE_PATH, 'utf8');
 
 // Remove shebang
 if (bundleContent.startsWith('#!/')) {
@@ -89,6 +197,50 @@ if (bundleContent.startsWith('#!/')) {
 
 // === BUN COMPATIBILITY FIXES === (from build-bun-unified.cjs)
 console.log('🔨 Applying Bun compatibility fixes...');
+
+// Fix 0: Force onnxruntime-web instead of onnxruntime-node in Bun
+// Since onnxruntime-node is marked as external, we need to shim it at runtime.
+// We intercept require/import of onnxruntime-node and return onnxruntime-web instead.
+const onnxWebFix = `
+// ONNX RUNTIME WEB FIX FOR BUN
+// Shim onnxruntime-node to use onnxruntime-web (WASM) instead
+// This fixes "Failed to initialize ONNX Runtime API" errors in Bun executables
+if (typeof Bun !== 'undefined') {
+  // Cache the onnxruntime-web module
+  let _onnxWebModule = null;
+  const getOnnxWeb = () => {
+    if (!_onnxWebModule) {
+      _onnxWebModule = require('onnxruntime-web');
+      console.log('[Bun] Loaded onnxruntime-web as replacement for onnxruntime-node');
+    }
+    return _onnxWebModule;
+  };
+
+  // Override require to intercept onnxruntime-node
+  const originalRequire = globalThis.require;
+  if (originalRequire) {
+    globalThis.require = function(id) {
+      if (id === 'onnxruntime-node') {
+        return getOnnxWeb();
+      }
+      return originalRequire.apply(this, arguments);
+    };
+    // Copy properties from original require
+    Object.assign(globalThis.require, originalRequire);
+  }
+
+  // Also set the Symbol.for('onnxruntime') for TransformersJS
+  const ORT_SYMBOL = Symbol.for('onnxruntime');
+  if (!(ORT_SYMBOL in globalThis)) {
+    // Use a getter to lazily load onnxruntime-web
+    Object.defineProperty(globalThis, ORT_SYMBOL, {
+      get: getOnnxWeb,
+      configurable: true
+    });
+    console.log('[Bun] Registered onnxruntime-web shim for ONNX runtime');
+  }
+}
+`;
 
 // Fix 1: Process.argv cleanup for Bun environment
 const argvCleanupFix = `
@@ -219,6 +371,16 @@ const conditionalUnifiedBunServer = `
   // Embedded locale data for Bun executable (always set this)
   if (typeof globalThis.__EMBEDDED_LOCALES === 'undefined') {
     globalThis.__EMBEDDED_LOCALES = ${JSON.stringify(localeData)};
+  }
+
+  // Embedded PGlite assets for Bun executable (for knowledge search)
+  if (typeof globalThis.__PGLITE_EMBEDDED_ASSETS === 'undefined') {
+    globalThis.__PGLITE_EMBEDDED_ASSETS = ${Object.keys(pgliteAssets).length > 0 ? JSON.stringify(pgliteAssets) : 'null'};
+  }
+
+  // Embedded tree-sitter WASM assets for Bun executable (for shell parsing)
+  if (typeof globalThis.__TREESITTER_EMBEDDED_ASSETS === 'undefined') {
+    globalThis.__TREESITTER_EMBEDDED_ASSETS = ${Object.keys(treeSitterAssets).length > 0 ? JSON.stringify(treeSitterAssets) : 'null'};
   }
 
   // ALWAYS initialize server infrastructure (needed for /web command)
@@ -716,8 +878,9 @@ const conditionalUnifiedBunServer = `
 })();
 `;
 
-// Apply all fixes in order
-bundleContent = argvCleanupFix + '\n' +
+// Apply all fixes in order (onnxWebFix must be first to inject before TransformersJS loads)
+bundleContent = onnxWebFix + '\n' +
+                argvCleanupFix + '\n' +
                 interactiveModeFixEnhanced + '\n' +
                 conditionalUnifiedBunServer + '\n' +
                 bundleContent;
@@ -1612,7 +1775,13 @@ if (!bunPath) {
 
 try {
   const iconPath = path.join(__dirname, '..', 'assets', 'auditaria.ico');
-  execSync(`"${bunPath}" build "${LAUNCHER_ENTRY_PATH}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" --outfile "${OUTPUT_PATH}"`, {
+  // Mark optional dependencies that may not be installed as external
+  // Note: web-tree-sitter and tree-sitter-bash are bundled, WASM loaded from embedded assets
+  const externalDeps = [
+    'youtube-transcript',  // Optional dep of markitdown-ts
+    'unzipper',           // Optional dep of markitdown-ts
+  ].map(dep => `--external ${dep}`).join(' ');
+  execSync(`"${bunPath}" build "${LAUNCHER_ENTRY_PATH}" --compile --target=bun-windows-x64 --windows-icon="${iconPath}" ${externalDeps} --outfile "${OUTPUT_PATH}"`, {
     stdio: 'inherit'
   });
 
