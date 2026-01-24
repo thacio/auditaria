@@ -20,11 +20,7 @@ import {
   loadTrustedFolders,
   type TrustedFoldersError,
 } from './config/trustedFolders.js';
-import {
-  loadSettings,
-  migrateDeprecatedSettings,
-  SettingScope,
-} from './config/settings.js';
+import { loadSettings, SettingScope } from './config/settings.js';
 import { getStartupWarnings } from './utils/startupWarnings.js';
 import { getUserStartupWarnings } from './utils/userStartupWarnings.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
@@ -96,9 +92,7 @@ import {
 } from './utils/relaunch.js';
 import { loadSandboxConfig } from './config/sandboxConfig.js';
 import { deleteSession, listSessions } from './utils/sessions.js';
-import { ExtensionManager } from './config/extension-manager.js';
 import { createPolicyUpdater } from './config/policy.js';
-import { requestConsentNonInteractive } from './config/extensions/consent.js';
 // WEB_INTERFACE_START: Import web interface providers
 import { SubmitQueryProvider } from './ui/contexts/SubmitQueryContext.js';
 import { WebInterfaceProvider } from './ui/contexts/WebInterfaceContext.js';
@@ -374,20 +368,7 @@ export async function main() {
     );
   });
 
-  const migrateHandle = startupProfiler.start('migrate_settings');
-  migrateDeprecatedSettings(
-    settings,
-    // Temporary extension manager only used during this non-interactive UI phase.
-    new ExtensionManager({
-      workspaceDir: process.cwd(),
-      settings: settings.merged,
-      enabledExtensionOverrides: [],
-      requestConsent: requestConsentNonInteractive,
-      requestSetting: null,
-    }),
-  );
-  migrateHandle?.end();
-
+  // AUDITARIA_FEATURE_START: i18n initialization
   // Initialize i18n system with settings-based language or fallback to detection
   const settingsLanguage = settings.merged.ui?.language;
   const language: SupportedLanguage =
@@ -395,6 +376,8 @@ export async function main() {
       ? settingsLanguage
       : detectLanguage();
   await initI18n(language);
+  // AUDITARIA_FEATURE_END
+
   await cleanupCheckpoints();
 
   const parseArgsHandle = startupProfiler.start('parse_arguments');
