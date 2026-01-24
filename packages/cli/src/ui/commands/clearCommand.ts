@@ -31,7 +31,10 @@ export const clearCommand: SlashCommand = {
       .getChatRecordingService();
 
     // Fire SessionEnd hook before clearing
-    await config?.getHookSystem()?.fireSessionEndEvent(SessionEndReason.Clear);
+    const hookSystem = config?.getHookSystem();
+    if (hookSystem) {
+      await hookSystem.fireSessionEndEvent(SessionEndReason.Clear);
+    }
 
     if (geminiClient) {
       context.ui.setDebugMessage('Clearing terminal and resetting chat.');
@@ -60,9 +63,10 @@ export const clearCommand: SlashCommand = {
     // AUDITARIA_FEATURE_END
 
     // Fire SessionStart hook after clearing
-    const result = await config
-      ?.getHookSystem()
-      ?.fireSessionStartEvent(SessionStartSource.Clear);
+    let result;
+    if (hookSystem) {
+      result = await hookSystem.fireSessionStartEvent(SessionStartSource.Clear);
+    }
 
     // Give the event loop a chance to process any pending telemetry operations
     // This ensures logger.emit() calls have fully propagated to the BatchLogRecordProcessor
@@ -77,11 +81,11 @@ export const clearCommand: SlashCommand = {
     uiTelemetryService.setLastPromptTokenCount(0);
     context.ui.clear();
 
-    if (result?.finalOutput?.systemMessage) {
+    if (result?.systemMessage) {
       context.ui.addItem(
         {
           type: MessageType.INFO,
-          text: result.finalOutput.systemMessage,
+          text: result.systemMessage,
         },
         Date.now(),
       );
