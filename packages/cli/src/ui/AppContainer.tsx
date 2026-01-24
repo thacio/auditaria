@@ -511,7 +511,12 @@ export const AppContainer = (props: AppContainerProps) => {
     }
   }, [authState, authContext, setAuthState]);
 
-  const { proQuotaRequest, handleProQuotaChoice } = useQuotaAndFallback({
+  const {
+    proQuotaRequest,
+    handleProQuotaChoice,
+    validationRequest,
+    handleValidationChoice,
+  } = useQuotaAndFallback({
     config,
     historyManager,
     userTier,
@@ -1520,6 +1525,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     showPrivacyNotice ||
     showIdeRestartPrompt ||
     !!proQuotaRequest ||
+    !!validationRequest ||
     isSessionBrowserOpen ||
     isAuthDialogOpen ||
     authState === AuthState.AwaitingApiKeyInput;
@@ -2063,6 +2069,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       currentModel,
       userTier,
       proQuotaRequest,
+      validationRequest,
       contextFileNames,
       errorCount,
       availableTerminalHeight,
@@ -2155,6 +2162,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       showAutoAcceptIndicator,
       userTier,
       proQuotaRequest,
+      validationRequest,
       contextFileNames,
       errorCount,
       availableTerminalHeight,
@@ -2225,6 +2233,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleFinalSubmit,
       handleClearScreen,
       handleProQuotaChoice,
+      handleValidationChoice,
       openSessionBrowser,
       closeSessionBrowser,
       handleResumeSession,
@@ -2266,6 +2275,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       handleFinalSubmit,
       handleClearScreen,
       handleProQuotaChoice,
+      handleValidationChoice,
       openSessionBrowser,
       closeSessionBrowser,
       handleResumeSession,

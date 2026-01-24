@@ -72,7 +72,10 @@ import {
   ApprovalModeSwitchEvent,
   ApprovalModeDurationEvent,
 } from '../telemetry/types.js';
-import type { FallbackModelHandler } from '../fallback/types.js';
+import type {
+  FallbackModelHandler,
+  ValidationHandler,
+} from '../fallback/types.js';
 import { ModelAvailabilityService } from '../availability/modelAvailabilityService.js';
 import { ModelRouterService } from '../routing/modelRouterService.js';
 import { OutputFormat } from '../output/types.js';
@@ -483,6 +486,7 @@ export class Config {
   private readonly _enabledExtensions: string[];
   private readonly enableExtensionReloading: boolean;
   fallbackModelHandler?: FallbackModelHandler;
+  validationHandler?: ValidationHandler;
   private quotaErrorOccurred: boolean = false;
   private readonly summarizeToolOutput:
     | Record<string, SummarizeToolOutputSettings>
@@ -1077,6 +1081,14 @@ export class Config {
 
   getFallbackModelHandler(): FallbackModelHandler | undefined {
     return this.fallbackModelHandler;
+  }
+
+  setValidationHandler(handler: ValidationHandler): void {
+    this.validationHandler = handler;
+  }
+
+  getValidationHandler(): ValidationHandler | undefined {
+    return this.validationHandler;
   }
 
   resetTurn(): void {
