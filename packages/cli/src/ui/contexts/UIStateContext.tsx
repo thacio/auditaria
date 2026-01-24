@@ -140,6 +140,7 @@ export interface UIState {
   bannerVisible: boolean;
   customDialog: React.ReactNode | null;
   terminalBackgroundColor: TerminalBackgroundColor;
+  settingsNonce: number;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);
