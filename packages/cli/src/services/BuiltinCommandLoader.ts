@@ -91,9 +91,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       modelCommand,
       ...(this.config?.getFolderTrust() ? [permissionsCommand] : []),
       privacyCommand,
-      ...(this.config?.getEnableMessageBusIntegration()
-        ? [policiesCommand]
-        : []),
+      policiesCommand,
       ...(isDevelopment ? [profileCommand] : []),
       quitCommand,
       restoreCommand(this.config),

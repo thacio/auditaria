@@ -567,9 +567,6 @@ export async function loadCliConfig(
     approvalMode,
   );
 
-  const enableMessageBusIntegration =
-    settings.tools?.enableMessageBusIntegration ?? true;
-
   const allowedTools = argv.allowedTools || settings.tools?.allowed || [];
   const allowedToolsSet = new Set(allowedTools);
 
@@ -720,7 +717,6 @@ export async function loadCliConfig(
     output: {
       format: (argv.outputFormat ?? settings.output?.format) as OutputFormat,
     },
-    enableMessageBusIntegration,
     codebaseInvestigatorSettings:
       settings.experimental?.codebaseInvestigatorSettings,
     introspectionAgentSettings:
