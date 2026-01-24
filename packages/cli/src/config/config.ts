@@ -90,6 +90,7 @@ export interface CliArgs {
   recordResponses: string | undefined;
   rawOutput: boolean | undefined;
   acceptRawOutputRisk: boolean | undefined;
+  isCommand: boolean | undefined;
 }
 
 export async function parseArguments(
@@ -102,7 +103,6 @@ export async function parseArguments(
     .usage(
       'Usage: gemini [options] [command]\n\nGemini CLI - Launch an interactive CLI, use -p/--prompt for non-interactive mode',
     )
-
     .option('debug', {
       alias: 'd',
       type: 'boolean',
@@ -600,7 +600,7 @@ export async function loadCliConfig(
   const interactive =
     !!argv.promptInteractive ||
     !!argv.experimentalAcp ||
-    (process.stdin.isTTY && !hasQuery && !argv.prompt);
+    (process.stdin.isTTY && !hasQuery && !argv.prompt && !argv.isCommand);
 
   const allowedTools = argv.allowedTools || settings.tools?.allowed || [];
   const allowedToolsSet = new Set(allowedTools);
