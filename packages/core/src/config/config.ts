@@ -342,6 +342,7 @@ export interface ConfigParameters {
   previewFeatures?: boolean;
   enableAgents?: boolean;
   experimentalJitContext?: boolean;
+  onModelChange?: (model: string) => void;
 }
 
 export class Config {
@@ -463,6 +464,7 @@ export class Config {
   private experiments: Experiments | undefined;
   private experimentsPromise: Promise<void> | undefined;
   private hookSystem?: HookSystem;
+  private readonly onModelChange: ((model: string) => void) | undefined;
 
   private readonly enableAgents: boolean;
 
@@ -630,6 +632,7 @@ export class Config {
     this.disableYoloMode = params.disableYoloMode ?? false;
     this.hooks = params.hooks;
     this.experiments = params.experiments;
+    this.onModelChange = params.onModelChange;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -891,6 +894,9 @@ export class Config {
       // When the user explicitly sets a model, that becomes the active model.
       this._activeModel = newModel;
       coreEvents.emitModelChanged(newModel);
+      if (this.onModelChange) {
+        this.onModelChange(newModel);
+      }
     }
     this.modelAvailabilityService.reset();
   }
