@@ -1074,6 +1074,222 @@ const conditionalUnifiedBunServer = `
             });
           }
 
+          // Handle file preview endpoint - serves files from filesystem
+          if (url.pathname.startsWith('/preview-file/')) {
+            try {
+              const fs = require('fs');
+              const nodePath = require('path');
+
+              // Get the file path from the URL (everything after /preview-file/)
+              const requestedPath = url.pathname.slice('/preview-file/'.length);
+              if (!requestedPath) {
+                return new Response('Missing file path', { status: 400 });
+              }
+
+              // Decode the path
+              const decodedPath = decodeURIComponent(requestedPath);
+
+              // Security: ensure path is absolute and normalized
+              const absolutePath = nodePath.isAbsolute(decodedPath)
+                ? nodePath.normalize(decodedPath)
+                : nodePath.resolve(decodedPath);
+
+              // Check if file exists
+              if (!fs.existsSync(absolutePath)) {
+                return new Response('File not found', { status: 404 });
+              }
+
+              // Get file stats for size information
+              const stats = fs.statSync(absolutePath);
+              const fileSize = stats.size;
+
+              // Read file extension
+              const ext = nodePath.extname(absolutePath).toLowerCase();
+
+              // Determine if media file (needs Range support)
+              const mediaExtensions = [
+                '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.m4v', '.ogv',
+                '.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.wma', '.opus'
+              ];
+              const isMedia = mediaExtensions.includes(ext);
+
+              // MIME type mapping
+              const contentTypes = {
+                // HTML & Web
+                '.html': 'text/html; charset=utf-8',
+                '.htm': 'text/html; charset=utf-8',
+                '.css': 'text/css; charset=utf-8',
+                '.js': 'application/javascript; charset=utf-8',
+                '.mjs': 'application/javascript; charset=utf-8',
+                '.json': 'application/json; charset=utf-8',
+                '.xml': 'application/xml; charset=utf-8',
+                // Images
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.svg': 'image/svg+xml',
+                '.webp': 'image/webp',
+                '.ico': 'image/x-icon',
+                '.bmp': 'image/bmp',
+                '.tiff': 'image/tiff',
+                '.tif': 'image/tiff',
+                '.avif': 'image/avif',
+                // Fonts
+                '.woff': 'font/woff',
+                '.woff2': 'font/woff2',
+                '.ttf': 'font/ttf',
+                '.otf': 'font/otf',
+                // Documents
+                '.pdf': 'application/pdf',
+                '.doc': 'application/msword',
+                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                '.xls': 'application/vnd.ms-excel',
+                '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                '.ppt': 'application/vnd.ms-powerpoint',
+                '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                // Data formats
+                '.csv': 'text/csv; charset=utf-8',
+                '.yaml': 'text/yaml; charset=utf-8',
+                '.yml': 'text/yaml; charset=utf-8',
+                '.toml': 'application/toml; charset=utf-8',
+                // Text files
+                '.txt': 'text/plain; charset=utf-8',
+                '.md': 'text/markdown; charset=utf-8',
+                '.log': 'text/plain; charset=utf-8',
+                // Video
+                '.mp4': 'video/mp4',
+                '.webm': 'video/webm',
+                '.avi': 'video/x-msvideo',
+                '.mov': 'video/quicktime',
+                '.wmv': 'video/x-ms-wmv',
+                '.flv': 'video/x-flv',
+                '.mkv': 'video/x-matroska',
+                '.m4v': 'video/x-m4v',
+                '.ogv': 'video/ogg',
+                // Audio
+                '.mp3': 'audio/mpeg',
+                '.wav': 'audio/wav',
+                '.ogg': 'audio/ogg',
+                '.aac': 'audio/aac',
+                '.m4a': 'audio/mp4',
+                '.flac': 'audio/flac',
+                '.wma': 'audio/x-ms-wma',
+                '.opus': 'audio/opus',
+                // Programming languages
+                '.ts': 'text/typescript; charset=utf-8',
+                '.tsx': 'text/typescript; charset=utf-8',
+                '.jsx': 'text/jsx; charset=utf-8',
+                '.py': 'text/x-python; charset=utf-8',
+                '.java': 'text/x-java; charset=utf-8',
+                '.c': 'text/x-c; charset=utf-8',
+                '.cpp': 'text/x-c++; charset=utf-8',
+                '.go': 'text/x-go; charset=utf-8',
+                '.rs': 'text/x-rust; charset=utf-8',
+                '.sh': 'application/x-sh; charset=utf-8',
+                // Other
+                '.wasm': 'application/wasm'
+              };
+
+              const contentType = contentTypes[ext] || 'application/octet-stream';
+
+              // Handle Range requests for media files (enables seeking)
+              const rangeHeader = req.headers.get('range');
+              if (isMedia && rangeHeader) {
+                // Parse range header (e.g., "bytes=0-1023" or "bytes=1024-")
+                const parts = rangeHeader.replace(/bytes=/, '').split('-');
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+                // Validate range
+                if (start >= fileSize || end >= fileSize || start > end) {
+                  return new Response('Range Not Satisfiable', {
+                    status: 416,
+                    headers: { 'Content-Range': \`bytes */\${fileSize}\` }
+                  });
+                }
+
+                const chunkSize = (end - start) + 1;
+
+                // Read the requested range
+                const buffer = Buffer.alloc(chunkSize);
+                const fd = fs.openSync(absolutePath, 'r');
+                fs.readSync(fd, buffer, 0, chunkSize, start);
+                fs.closeSync(fd);
+
+                return new Response(buffer, {
+                  status: 206, // Partial Content
+                  headers: {
+                    'Content-Type': contentType,
+                    'Content-Range': \`bytes \${start}-\${end}/\${fileSize}\`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunkSize.toString(),
+                    'Access-Control-Allow-Origin': '*'
+                  }
+                });
+              }
+
+              // For media files without range, indicate range support
+              if (isMedia) {
+                const fileContent = fs.readFileSync(absolutePath);
+                return new Response(fileContent, {
+                  headers: {
+                    'Content-Type': contentType,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': fileSize.toString(),
+                    'Access-Control-Allow-Origin': '*'
+                  }
+                });
+              }
+
+              // For non-media files, read and send
+              const fileContent = fs.readFileSync(absolutePath);
+
+              // For HTML files, rewrite relative URLs to preview URLs
+              if (ext === '.html' || ext === '.htm') {
+                const baseDir = nodePath.dirname(absolutePath);
+                let htmlContent = fileContent.toString('utf-8');
+
+                // Rewrite relative URLs in common attributes (href, src, data, action)
+                // Matches: href="./file.html" src="images/pic.png" etc.
+                htmlContent = htmlContent.replace(
+                  /(href|src|data|action)\\s*=\\s*["'](?!https?:\\/\\/|data:|mailto:|tel:|javascript:|#|\\/\\/)([^"']+)["']/gi,
+                  (match, attr, url) => {
+                    // Skip if already a preview URL
+                    if (url.startsWith('/preview-file/')) return match;
+                    // Resolve relative path to absolute
+                    const resolvedPath = nodePath.resolve(baseDir, url);
+                    const normalizedPath = resolvedPath.replace(/\\\\/g, '/');
+                    return \`\${attr}="/preview-file/\${encodeURIComponent(normalizedPath)}"\`;
+                  }
+                );
+
+                return new Response(htmlContent, {
+                  headers: {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'no-cache',
+                    'Access-Control-Allow-Origin': '*'
+                  }
+                });
+              }
+
+              return new Response(fileContent, {
+                headers: {
+                  'Content-Type': contentType,
+                  'Cache-Control': 'no-cache',
+                  'Access-Control-Allow-Origin': '*'
+                }
+              });
+
+            } catch (error) {
+              console.error('[Bun] Preview file error:', error.message);
+              if (error.code === 'ENOENT') {
+                return new Response('File not found', { status: 404 });
+              }
+              return new Response(\`Error: \${error.message}\`, { status: 500 });
+            }
+          }
+
           // Serve static files
           const filePath = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
           const fileContent = WEB_CLIENT_FILES[filePath];
