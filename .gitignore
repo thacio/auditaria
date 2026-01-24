@@ -79,7 +79,7 @@ patch_output.log
 .gemini-clipboard/
 gemini-conversation-*.json
 .eslintcache
-
+evals/logs/
 
 # Misc
 i18n-*.json
