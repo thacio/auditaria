@@ -508,7 +508,7 @@ export const useGeminiStream = (
                   isClientInitiated: true,
                   prompt_id,
                 };
-                scheduleToolCalls([toolCallRequest], abortSignal);
+                await scheduleToolCalls([toolCallRequest], abortSignal);
                 return { queryToSend: null, shouldProceed: false };
               }
               case 'submit_prompt': {
@@ -1088,7 +1088,7 @@ export const useGeminiStream = (
         }
       }
       if (toolCallRequests.length > 0) {
-        scheduleToolCalls(toolCallRequests, signal);
+        await scheduleToolCalls(toolCallRequests, signal);
       }
       return StreamProcessingStatus.Completed;
     },
