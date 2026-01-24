@@ -17,7 +17,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, cpSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { glob } from 'glob';
@@ -53,6 +53,14 @@ for (const file of policyFiles) {
 }
 
 console.log(`Copied ${policyFiles.length} policy files to bundle/policies/`);
+
+// 3. Copy Documentation (docs/)
+const docsSrc = join(root, 'docs');
+const docsDest = join(bundleDir, 'docs');
+if (existsSync(docsSrc)) {
+  cpSync(docsSrc, docsDest, { recursive: true, dereference: true });
+  console.log('Copied docs to bundle/docs/');
+}
 
 // AUDITARIA_FEATURE_START: i18n-locales
 // Create locales directory in bundle and copy translation files
