@@ -29,7 +29,7 @@ export async function readWasmBinaryFromDisk(
 // AUDITARIA: Check for embedded WASM assets (for Bun executables)
 function getEmbeddedWasmAsset(specifier: string): Uint8Array | null {
   const embeddedAssets = (
-    globalThis as Record<string, Record<string, string> | undefined>
+    globalThis as unknown as Record<string, Record<string, string> | undefined>
   ).__TREESITTER_EMBEDDED_ASSETS;
   if (!embeddedAssets) {
     return null;
