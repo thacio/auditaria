@@ -23,6 +23,7 @@ export const GET_INTERNAL_DOCS_TOOL_NAME = 'get_internal_docs';
 export const ACTIVATE_SKILL_TOOL_NAME = 'activate_skill';
 export const EDIT_TOOL_NAMES = new Set([EDIT_TOOL_NAME, WRITE_FILE_TOOL_NAME]);
 export const DELEGATE_TO_AGENT_TOOL_NAME = 'delegate_to_agent';
+export const ASK_USER_TOOL_NAME = 'ask_user';
 
 // Context management tools --- Auditaria Custom Features
 export const WRITE_TODOS_TOOL_NAME = 'write_todos';
@@ -59,6 +60,7 @@ export const ALL_BUILTIN_TOOL_NAMES = [
   MEMORY_TOOL_NAME,
   ACTIVATE_SKILL_TOOL_NAME,
   DELEGATE_TO_AGENT_TOOL_NAME,
+  ASK_USER_TOOL_NAME,
 ] as const;
 
 /**
