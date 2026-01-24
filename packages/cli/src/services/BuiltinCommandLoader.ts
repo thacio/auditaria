@@ -88,7 +88,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       editorCommand,
       extensionsCommand(this.config?.getEnableExtensionReloading()),
       helpCommand,
-      ...(this.config?.getEnableHooks() ? [hooksCommand] : []),
+      ...(this.config?.getEnableHooksUI() ? [hooksCommand] : []),
       await ideCommand(),
       initCommand,
       ...(this.config?.getMcpEnabled() === false
