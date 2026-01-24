@@ -63,7 +63,7 @@
     "postinstall": "patch-package"
   },
   "overrides": {
-    "ink": "npm:@jrichman/ink@6.4.6",
+    "ink": "npm:@jrichman/ink@6.4.7",
     "wrap-ansi": "9.0.2",
     "cliui": {
       "wrap-ansi": "7.0.0"
@@ -133,7 +133,7 @@
     "@google/genai": "^1.30.0",
     "@vscode/codicons": "^0.0.43",
     "ansi-to-html": "^0.7.2",
-    "ink": "npm:@jrichman/ink@6.4.6",
+    "ink": "npm:@jrichman/ink@6.4.7",
     "latest-version": "^9.0.0",
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0",
