@@ -27,15 +27,18 @@ async function autoStartSearchService(config: Config): Promise<void> {
     const rootPath = config.getTargetDir();
 
     if (searchDatabaseExists(rootPath)) {
+      // eslint-disable-next-line no-console
       console.log('[SearchService] Database found, auto-starting service...');
       const service = getSearchService();
       // Start in background - don't await to avoid blocking app startup
       service.start(rootPath).catch((err: Error) => {
+        // eslint-disable-next-line no-console
         console.warn('[SearchService] Background start failed:', err.message);
       });
     }
   } catch (error) {
     // Non-fatal - just log and continue
+    // eslint-disable-next-line no-console
     console.warn(
       '[SearchService] Auto-start failed:',
       error instanceof Error ? error.message : String(error),
@@ -64,13 +67,13 @@ export async function initializeApp(
   const authHandle = startupProfiler.start('authenticate');
   const authError = await performInitialAuth(
     config,
-    settings.merged.security?.auth?.selectedType,
+    settings.merged.security.auth.selectedType,
   );
   authHandle?.end();
   const themeError = validateTheme(settings);
 
   const shouldOpenAuthDialog =
-    settings.merged.security?.auth?.selectedType === undefined || !!authError;
+    settings.merged.security.auth.selectedType === undefined || !!authError;
 
   logCliConfiguration(
     config,

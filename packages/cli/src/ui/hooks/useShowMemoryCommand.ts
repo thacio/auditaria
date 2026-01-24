@@ -33,7 +33,7 @@ export function createShowMemoryAction(
 
     const currentMemory = config.getUserMemory();
     const fileCount = config.getGeminiMdFileCount();
-    
+
     const loadedFilePaths = config.getGeminiMdFilePaths(); // AUDITARIA: Use actual loaded file paths for accurate breakdown
 
     if (debugMode) {
