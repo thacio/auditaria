@@ -13,7 +13,6 @@ import { MaxSizedBox } from '../shared/MaxSizedBox.js';
 import { theme } from '../../semantic-colors.js';
 import type { AnsiOutput } from '@google/gemini-cli-core';
 import { useUIState } from '../../contexts/UIStateContext.js';
-import { useAlternateBuffer } from '../../hooks/useAlternateBuffer.js';
 // AUDITARIA: Import browser step display
 import {
   BrowserStepDisplay,
@@ -47,7 +46,6 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
   renderOutputAsMarkdown = true,
 }) => {
   const { renderMarkdown } = useUIState();
-  const isAlternateBuffer = useAlternateBuffer();
 
   const availableHeight = availableTerminalHeight
     ? Math.max(
@@ -55,13 +53,6 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
         MIN_LINES_SHOWN + 1, // enforce minimum lines shown
       )
     : undefined;
-
-  // Long tool call response in MarkdownDisplay doesn't respect availableTerminalHeight properly,
-  // so if we aren't using alternate buffer mode, we're forcing it to not render as markdown when the response is too long, it will fallback
-  // to render as plain text, which is contained within the terminal using MaxSizedBox
-  if (availableHeight && !isAlternateBuffer) {
-    renderOutputAsMarkdown = false;
-  }
 
   const combinedPaddingAndBorderWidth = 4;
   const childWidth = terminalWidth - combinedPaddingAndBorderWidth;
@@ -83,59 +74,64 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
 
   if (!truncatedResultDisplay) return null;
 
+  let content: React.ReactNode;
+
+  // AUDITARIA: Check browser step data FIRST (before other checks)
+  if (browserStepData) {
+    content = (
+      <BrowserStepDisplay data={browserStepData} maxWidth={childWidth} />
+    );
+  } else if (typeof truncatedResultDisplay === 'string' && renderOutputAsMarkdown) {
+    content = (
+      <MarkdownDisplay
+        text={truncatedResultDisplay}
+        terminalWidth={childWidth}
+        renderMarkdown={renderMarkdown}
+        isPending={false}
+      />
+    );
+  } else if (
+    typeof truncatedResultDisplay === 'string' &&
+    !renderOutputAsMarkdown
+  ) {
+    content = (
+      <Text wrap="wrap" color={theme.text.primary}>
+        {truncatedResultDisplay}
+      </Text>
+    );
+  } else if (
+    typeof truncatedResultDisplay === 'object' &&
+    'fileDiff' in truncatedResultDisplay
+  ) {
+    content = (
+      <DiffRenderer
+        diffContent={(truncatedResultDisplay as FileDiffResult).fileDiff}
+        filename={(truncatedResultDisplay as FileDiffResult).fileName}
+        availableTerminalHeight={availableHeight}
+        terminalWidth={childWidth}
+      />
+    );
+  } else if (
+    typeof truncatedResultDisplay === 'object' &&
+    'todos' in truncatedResultDisplay
+  ) {
+    // display nothing, as the TodoTray will handle rendering todos
+    return null;
+  } else {
+    content = (
+      <AnsiOutputText
+        data={truncatedResultDisplay as AnsiOutput}
+        availableTerminalHeight={availableHeight}
+        width={childWidth}
+      />
+    );
+  }
+
   return (
     <Box width={childWidth} flexDirection="column">
-      <Box flexDirection="column">
-        {/* AUDITARIA: Check browser step data FIRST (before string checks) */}
-        {browserStepData ? (
-          <BrowserStepDisplay data={browserStepData} maxWidth={childWidth} />
-        ) : typeof truncatedResultDisplay === 'object' &&
-          'fileDiff' in truncatedResultDisplay ? (
-          <DiffRenderer
-            diffContent={(truncatedResultDisplay as FileDiffResult).fileDiff}
-            filename={(truncatedResultDisplay as FileDiffResult).fileName}
-            availableTerminalHeight={availableHeight}
-            terminalWidth={childWidth}
-          />
-        ) : typeof truncatedResultDisplay === 'object' &&
-          'todos' in truncatedResultDisplay ? (
-          // display nothing, as the TodoTray will handle rendering todos
-          <></>
-        ) : typeof truncatedResultDisplay === 'string' &&
-          renderOutputAsMarkdown ? (
-          <Box flexDirection="column">
-            <MarkdownDisplay
-              text={truncatedResultDisplay}
-              terminalWidth={childWidth}
-              renderMarkdown={renderMarkdown}
-              isPending={false}
-            />
-          </Box>
-        ) : typeof truncatedResultDisplay === 'string' &&
-          !renderOutputAsMarkdown ? (
-          isAlternateBuffer ? (
-            <Box flexDirection="column" width={childWidth}>
-              <Text wrap="wrap" color={theme.text.primary}>
-                {truncatedResultDisplay}
-              </Text>
-            </Box>
-          ) : (
-            <MaxSizedBox maxHeight={availableHeight} maxWidth={childWidth}>
-              <Box>
-                <Text wrap="wrap" color={theme.text.primary}>
-                  {truncatedResultDisplay}
-                </Text>
-              </Box>
-            </MaxSizedBox>
-          )
-        ) : (
-          <AnsiOutputText
-            data={truncatedResultDisplay as AnsiOutput}
-            availableTerminalHeight={availableHeight}
-            width={childWidth}
-          />
-        )}
-      </Box>
+      <MaxSizedBox maxHeight={availableHeight} maxWidth={childWidth}>
+        {content}
+      </MaxSizedBox>
     </Box>
   );
 };
