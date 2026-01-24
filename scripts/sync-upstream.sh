@@ -190,7 +190,7 @@ for COMMIT in $COMMITS; do
 
     echo -e "${BLUE}[$((MERGED + 1))/$COMMIT_COUNT] Merging $SHORT_HASH: $TITLE${NC}"
 
-    if git merge "$COMMIT" -m "Merge Commit '$SHORT_HASH': $TITLE"; then
+    if git merge "$COMMIT" -m "Merge(Auto) Commit '$SHORT_HASH': $TITLE"; then
         MERGED=$((MERGED + 1))
         echo -e "${GREEN}✓ Merged successfully${NC}"
     else
