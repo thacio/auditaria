@@ -160,7 +160,7 @@ their corresponding top-level category object in your `settings.json` file.
 #### `output`
 
 - **`output.format`** (enum):
-  - **Description:** The format of the CLI output.
+  - **Description:** The format of the CLI output. Can be `text` or `json`.
   - **Default:** `"text"`
   - **Values:** `"text"`, `"json"`
 
@@ -276,7 +276,7 @@ their corresponding top-level category object in your `settings.json` file.
 #### `ide`
 
 - **`ide.enabled`** (boolean):
-  - **Description:** Enable IDE integration mode
+  - **Description:** Enable IDE integration mode.
   - **Default:** `false`
   - **Requires restart:** Yes
 
@@ -580,12 +580,12 @@ their corresponding top-level category object in your `settings.json` file.
   - **Default:** `false`
 
 - **`context.fileFiltering.respectGitIgnore`** (boolean):
-  - **Description:** Respect .gitignore files when searching
+  - **Description:** Respect .gitignore files when searching.
   - **Default:** `true`
   - **Requires restart:** Yes
 
 - **`context.fileFiltering.respectGeminiIgnore`** (boolean):
-  - **Description:** Respect .geminiignore files when searching
+  - **Description:** Respect .geminiignore files when searching.
   - **Default:** `true`
   - **Requires restart:** Yes
 
