@@ -198,22 +198,41 @@ try {
   console.warn('   ⚠️  Failed to embed CanvasKit assets:', error.message);
 }
 
-// === TESSERACT CORE WASM EMBEDDING === (for Tesseract.js OCR in Bun executable)
-console.log('\n📦 Embedding Tesseract Core WASM assets...');
-let tesseractAssets = {};
+// === TESSERACT WORKER EMBEDDING === (pre-bundled worker for Bun executable)
+console.log('\n📦 Embedding Tesseract.js worker...');
+let tesseractWorkerAssets = {};
 
 try {
-  // tesseract-core-simd-lstm.wasm is the most commonly used variant (SIMD + LSTM, used with OEM=1)
-  const tesseractWasmPath = path.join(__dirname, '..', 'node_modules', 'tesseract.js-core', 'tesseract-core-simd-lstm.wasm');
+  // First, try to bundle the worker if it doesn't exist
+  const bundledWorkerPath = path.join(__dirname, 'tesseract-worker-bundled.js');
+  if (!fs.existsSync(bundledWorkerPath)) {
+    console.log('   → Bundling tesseract worker...');
+    execSync(`node "${path.join(__dirname, 'bundle-tesseract-worker.cjs')}"`, {
+      cwd: __dirname,
+      stdio: 'pipe'
+    });
+  }
 
-  if (fs.existsSync(tesseractWasmPath)) {
-    tesseractAssets = {
-      simdLstm: fs.readFileSync(tesseractWasmPath, 'base64'),
+  if (fs.existsSync(bundledWorkerPath)) {
+    tesseractWorkerAssets = {
+      worker: fs.readFileSync(bundledWorkerPath, 'base64'),
     };
-    console.log(`   ✓ Embedded tesseract-core-simd-lstm.wasm (${(fs.statSync(tesseractWasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`   ✓ Embedded tesseract-worker-bundled.js (${(fs.statSync(bundledWorkerPath).size / 1024).toFixed(1)} KB)`);
   } else {
-    console.warn('   ⚠️  Tesseract Core WASM not found');
-    console.warn(`      Missing: ${tesseractWasmPath}`);
+    console.warn('   ⚠️  Tesseract worker bundle not found');
+  }
+
+  // Also embed tesseract-core WASM files
+  const tesseractCoreDir = path.join(__dirname, '..', 'node_modules', 'tesseract.js-core');
+  const wasmFiles = ['tesseract-core-simd-lstm.wasm', 'tesseract-core-simd.wasm', 'tesseract-core-lstm.wasm', 'tesseract-core.wasm'];
+
+  for (const wasmFile of wasmFiles) {
+    const wasmPath = path.join(tesseractCoreDir, wasmFile);
+    if (fs.existsSync(wasmPath)) {
+      const key = wasmFile.replace('.wasm', '').replace(/-/g, '_');
+      tesseractWorkerAssets[key] = fs.readFileSync(wasmPath, 'base64');
+      console.log(`   ✓ Embedded ${wasmFile} (${(fs.statSync(wasmPath).size / 1024 / 1024).toFixed(2)} MB)`);
+    }
   }
 } catch (error) {
   console.warn('   ⚠️  Failed to embed Tesseract assets:', error.message);
@@ -287,7 +306,7 @@ if (typeof Bun !== 'undefined') {
   // This must be set before we try to extract them
   globalThis.__ONNX_EMBEDDED_ASSETS = ${Object.keys(onnxAssets).length > 0 ? JSON.stringify(onnxAssets) : 'null'};
   globalThis.__CANVASKIT_EMBEDDED_ASSETS = ${Object.keys(canvaskitAssets).length > 0 ? JSON.stringify(canvaskitAssets) : 'null'};
-  // NOTE: Tesseract WASM is embedded but not extracted - worker thread path issues need fixing first
+  globalThis.__TESSERACT_EMBEDDED_ASSETS = ${Object.keys(tesseractWorkerAssets).length > 0 ? JSON.stringify(tesseractWorkerAssets) : 'null'};
 
   // Extract embedded ONNX WASM files if available
   if (globalThis.__ONNX_EMBEDDED_ASSETS && globalThis.__ONNX_EMBEDDED_ASSETS.wasmSimdThreaded) {
@@ -329,9 +348,39 @@ if (typeof Bun !== 'undefined') {
         globalThis.__BUN_CANVASKIT_PATH = canvaskitPath;
       }
 
-      // NOTE: Tesseract Core WASM embedding is prepared but not extracted yet
-      // Tesseract.js uses worker threads which have path resolution issues in Bun executables
-      // The worker script path needs to be fixed before we can use embedded tesseract WASM
+      // Extract tesseract.js worker and WASM files if available
+      if (globalThis.__TESSERACT_EMBEDDED_ASSETS && globalThis.__TESSERACT_EMBEDDED_ASSETS.worker) {
+        const tesseractDir = path.join(homeDir, '.auditaria', 'tesseract');
+        if (!fs.existsSync(tesseractDir)) {
+          fs.mkdirSync(tesseractDir, { recursive: true });
+        }
+
+        // Extract bundled worker
+        const workerPath = path.join(tesseractDir, 'tesseract-worker-bundled.js');
+        const workerData = Buffer.from(globalThis.__TESSERACT_EMBEDDED_ASSETS.worker, 'base64');
+        if (!fs.existsSync(workerPath) || fs.statSync(workerPath).size !== workerData.length) {
+          fs.writeFileSync(workerPath, workerData);
+        }
+        globalThis.__BUN_TESSERACT_WORKER_PATH = workerPath;
+
+        // Extract tesseract-core WASM files
+        const wasmFiles = [
+          ['tesseract_core_simd_lstm', 'tesseract-core-simd-lstm.wasm'],
+          ['tesseract_core_simd', 'tesseract-core-simd.wasm'],
+          ['tesseract_core_lstm', 'tesseract-core-lstm.wasm'],
+          ['tesseract_core', 'tesseract-core.wasm']
+        ];
+        for (const [key, filename] of wasmFiles) {
+          if (globalThis.__TESSERACT_EMBEDDED_ASSETS[key]) {
+            const wasmPath = path.join(tesseractDir, filename);
+            const wasmData = Buffer.from(globalThis.__TESSERACT_EMBEDDED_ASSETS[key], 'base64');
+            if (!fs.existsSync(wasmPath) || fs.statSync(wasmPath).size !== wasmData.length) {
+              fs.writeFileSync(wasmPath, wasmData);
+            }
+          }
+        }
+        globalThis.__BUN_TESSERACT_CORE_PATH = tesseractDir;
+      }
 
       // CRITICAL: Pre-configure ONNX environment BEFORE any imports
       // Use regular path (not file:// URL) for Bun compatibility
@@ -1321,6 +1370,18 @@ bundleContent = bundleContent.replace(
             }
           : undefined
       );`
+);
+
+// Fix 9d: Patch tesseract.js worker path resolution for Bun executables
+// Tesseract.js computes workerPath from __dirname which doesn't work in bundled executables
+console.log('   ✓ Patching tesseract.js worker path for Bun...');
+// Pattern: workerPath: path137.join(__dirname, "..", "..", "worker-script", "node", "index.js")
+const tesseractWorkerPathPattern = /workerPath:\s*path(\d+)\.join\(__dirname,\s*"\.\.",\s*"\.\.",\s*"worker-script",\s*"node",\s*"index\.js"\)/g;
+bundleContent = bundleContent.replace(
+  tesseractWorkerPathPattern,
+  (match, pathNum) => `workerPath: (typeof Bun !== 'undefined' && globalThis.__BUN_TESSERACT_WORKER_PATH)
+      ? globalThis.__BUN_TESSERACT_WORKER_PATH
+      : path${pathNum}.join(__dirname, "..", "..", "worker-script", "node", "index.js")`
 );
 
 // Fix 9: Replace file reading with embedded data check
