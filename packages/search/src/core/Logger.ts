@@ -1,7 +1,22 @@
 /**
- * @license
- * Copyright 2026 Google LLC
- * SPDX-License-Identifier: Apache-2.0
+ * Logger - Production-grade logging system for the search package.
+ *
+ * Features:
+ * - Log levels: DEBUG, INFO, WARN, ERROR, FATAL
+ * - Multiple outputs: console, file, or both
+ * - Structured logging (JSON) or human-readable format
+ * - Module-based filtering
+ * - Performance timing utilities
+ * - Memory usage tracking
+ * - Benchmarking support
+ *
+ * Industry best practices implemented:
+ * - RFC 5424 severity levels
+ * - Structured logging for machine parsing
+ * - Context propagation (module, function, data)
+ * - Non-blocking file writes
+ * - Configurable at runtime
+ */
  */
 
 import { appendFile, writeFile, mkdir } from 'node:fs/promises';
