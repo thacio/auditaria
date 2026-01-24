@@ -18,7 +18,7 @@ import type { Content } from '@google/genai';
 import type { Config } from '../config/config.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import { COLLABORATIVE_WRITING_TOOL_NAME } from './tool-names.js';
-import { debugLogger } from '../core/logger.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 // ============================================
 // Interfaces and Type Definitions
