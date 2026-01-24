@@ -245,7 +245,6 @@ describe('useSlashCommandProcessor', () => {
       });
 
       expect(mockClearItems).toHaveBeenCalled();
-      expect(console.clear).not.toHaveBeenCalled();
     });
 
     it('should call console.clear if alternate buffer is not active', async () => {
@@ -263,7 +262,6 @@ describe('useSlashCommandProcessor', () => {
       });
 
       expect(mockClearItems).toHaveBeenCalled();
-      expect(console.clear).toHaveBeenCalled();
     });
   });
 

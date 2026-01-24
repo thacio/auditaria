@@ -157,7 +157,6 @@ export async function initializeTelemetry(
     ) {
       const message = `Telemetry credentials have changed (from ${activeTelemetryEmail} to ${credentials.client_email}), but telemetry cannot be re-initialized in this process. Please restart the CLI to use the new account for telemetry.`;
       debugLogger.error(message);
-      console.error(message);
     }
     return;
   }
@@ -332,7 +331,7 @@ export async function initializeTelemetry(
     initializeMetrics(config);
     void flushTelemetryBuffer();
   } catch (error) {
-    console.error('Error starting OpenTelemetry SDK:', error);
+    debugLogger.error('Error starting OpenTelemetry SDK:', error);
   }
 
   // Note: We don't use process.on('exit') here because that callback is synchronous
@@ -366,7 +365,7 @@ export async function flushTelemetry(config: Config): Promise<void> {
       debugLogger.log('OpenTelemetry SDK flushed successfully.');
     }
   } catch (error) {
-    console.error('Error flushing SDK:', error);
+    debugLogger.error('Error flushing SDK:', error);
   }
 }
 
@@ -384,7 +383,7 @@ export async function shutdownTelemetry(
       debugLogger.log('OpenTelemetry SDK shut down successfully.');
     }
   } catch (error) {
-    console.error('Error shutting down SDK:', error);
+    debugLogger.error('Error shutting down SDK:', error);
   } finally {
     telemetryInitialized = false;
     sdk = undefined;
