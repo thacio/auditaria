@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2026 Google LLC
+ * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  *
  * @license
@@ -31,6 +31,9 @@ export interface PendingToolConfirmation {
     | ToolCallConfirmationDetails
     | SerializableConfirmationDetails;
   timestamp: number;
+  // Flags for web interface to determine which buttons to show
+  isTrustedFolder?: boolean;
+  allowPermanentApproval?: boolean;
 }
 
 interface ToolConfirmationContextValue {

@@ -149,7 +149,7 @@ export class ConfirmationQueue {
                     </div>
                 `;
                 break;
-            case 'info':
+            case 'info': {
                 const urlsHtml = confirmationDetails.urls && confirmationDetails.urls.length > 0
                     ? `<ul>${confirmationDetails.urls.map(url => `<li>${url}</li>`).join('')}</ul>`
                     : '';
@@ -160,6 +160,7 @@ export class ConfirmationQueue {
                     </div>
                 `;
                 break;
+            }
             default: // MCP
                 container.innerHTML = `
                     <div class="confirmation-mcp">
@@ -189,7 +190,14 @@ export class ConfirmationQueue {
         const container = document.createElement('div');
         container.className = 'confirmation-buttons';
 
-        const buttons = this.getConfirmationButtons(confirmationData.confirmationDetails);
+        // Pass the trusted folder and permanent approval flags from the server
+        const isTrustedFolder = confirmationData.isTrustedFolder || false;
+        const allowPermanentApproval = confirmationData.allowPermanentApproval || false;
+        const buttons = this.getConfirmationButtons(
+            confirmationData.confirmationDetails,
+            isTrustedFolder,
+            allowPermanentApproval
+        );
 
         buttons.forEach((buttonConfig, index) => {
             const button = document.createElement('button');
@@ -227,38 +235,63 @@ export class ConfirmationQueue {
         return container;
     }
 
-    getConfirmationButtons(confirmationDetails) {
+    getConfirmationButtons(confirmationDetails, isTrustedFolder = false, allowPermanentApproval = false) {
+        const buttons = [];
+
         switch (confirmationDetails.type) {
-            case 'edit':
-                return [
-                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
-                    { label: 'Yes, allow always', outcome: 'proceed_always', type: 'primary' },
-                    { label: 'Modify with external editor', outcome: 'modify_with_editor', type: 'secondary' },
-                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
-                ];
-            case 'exec':
-                const rootCommand = confirmationDetails.rootCommand || 'command';
-                return [
-                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
-                    { label: `Yes, allow always "${rootCommand} ..."`, outcome: 'proceed_always', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
-                ];
-            case 'info':
-                return [
-                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
-                    { label: 'Yes, allow always', outcome: 'proceed_always', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
-                ];
-            default: // MCP
-                const toolName = confirmationDetails.toolName || 'tool';
-                const serverName = confirmationDetails.serverName || 'server';
-                return [
-                    { label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' },
-                    { label: `Yes, always allow tool "${toolName}" from server "${serverName}"`, outcome: 'proceed_always_tool', type: 'primary' },
-                    { label: `Yes, always allow all tools from server "${serverName}"`, outcome: 'proceed_always_server', type: 'primary' },
-                    { label: 'No (esc)', outcome: 'cancel', type: 'cancel' }
-                ];
+            case 'edit': {
+                buttons.push({ label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' });
+                if (isTrustedFolder) {
+                    buttons.push({ label: 'Yes, allow for this session', outcome: 'proceed_always', type: 'primary' });
+                    if (allowPermanentApproval) {
+                        buttons.push({ label: 'Yes, allow for all future sessions', outcome: 'proceed_always_and_save', type: 'primary' });
+                    }
+                }
+                buttons.push({ label: 'Modify with external editor', outcome: 'modify_with_editor', type: 'secondary' });
+                buttons.push({ label: 'No (esc)', outcome: 'cancel', type: 'cancel' });
+                break;
+            }
+
+            case 'exec': {
+                buttons.push({ label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' });
+                if (isTrustedFolder) {
+                    buttons.push({ label: 'Yes, allow for this session', outcome: 'proceed_always', type: 'primary' });
+                    if (allowPermanentApproval) {
+                        buttons.push({ label: 'Yes, allow for all future sessions', outcome: 'proceed_always_and_save', type: 'primary' });
+                    }
+                }
+                buttons.push({ label: 'No (esc)', outcome: 'cancel', type: 'cancel' });
+                break;
+            }
+
+            case 'info': {
+                buttons.push({ label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' });
+                if (isTrustedFolder) {
+                    buttons.push({ label: 'Yes, allow for this session', outcome: 'proceed_always', type: 'primary' });
+                    if (allowPermanentApproval) {
+                        buttons.push({ label: 'Yes, allow for all future sessions', outcome: 'proceed_always_and_save', type: 'primary' });
+                    }
+                }
+                buttons.push({ label: 'No (esc)', outcome: 'cancel', type: 'cancel' });
+                break;
+            }
+
+            default: {
+                // MCP tools
+                buttons.push({ label: 'Yes, allow once', outcome: 'proceed_once', type: 'primary' });
+                if (isTrustedFolder) {
+                    buttons.push({ label: 'Yes, allow tool for this session', outcome: 'proceed_always_tool', type: 'primary' });
+                    buttons.push({ label: 'Yes, allow all server tools for this session', outcome: 'proceed_always_server', type: 'primary' });
+                    if (allowPermanentApproval) {
+                        buttons.push({ label: 'Yes, allow tool for all future sessions', outcome: 'proceed_always_and_save', type: 'primary' });
+                    }
+                }
+                buttons.push({ label: 'No (esc)', outcome: 'cancel', type: 'cancel' });
+                break;
+            }
         }
+
+        return buttons;
     }
 
     /**

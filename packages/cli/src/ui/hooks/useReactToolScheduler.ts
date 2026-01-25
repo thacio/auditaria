@@ -23,6 +23,7 @@ import { CoreToolScheduler } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 // WEB_INTERFACE_START
 import { useToolConfirmation } from '../contexts/ToolConfirmationContext.js';
+import { useSettings } from '../contexts/SettingsContext.js';
 // WEB_INTERFACE_END
 
 export type ScheduleFn = (
@@ -85,6 +86,10 @@ export function useReactToolScheduler(
 
   // WEB_INTERFACE_START
   const toolConfirmationContext = useToolConfirmation();
+  const settings = useSettings();
+  const allowPermanentApproval =
+    settings?.merged?.security?.enablePermanentToolApproval ?? false;
+  const isTrustedFolder = config?.isTrustedFolder?.() ?? false;
   // WEB_INTERFACE_END
 
   const onCompleteRef = useRef(onComplete);
@@ -182,6 +187,9 @@ export function useReactToolScheduler(
           toolName: waitingCall.tool?.displayName || waitingCall.request.name,
           confirmationDetails: waitingCall.confirmationDetails,
           timestamp: Date.now(),
+          // WEB_INTERFACE: Include flags for conditional button display
+          isTrustedFolder,
+          allowPermanentApproval,
         };
 
         toolConfirmationContext.addPendingConfirmation(pendingConfirmation);

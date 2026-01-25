@@ -1335,6 +1335,9 @@ export class WebInterfaceService extends EventEmitter {
           case 'proceed_always':
             outcome = ToolConfirmationOutcome.ProceedAlways;
             break;
+          case 'proceed_always_and_save':
+            outcome = ToolConfirmationOutcome.ProceedAlwaysAndSave;
+            break;
           case 'proceed_always_server':
             outcome = ToolConfirmationOutcome.ProceedAlwaysServer;
             break;

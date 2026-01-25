@@ -18,6 +18,10 @@ import {
   type ToolCallsUpdateMessage,
 } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+// WEB_INTERFACE_START
+import { useToolConfirmation } from '../contexts/ToolConfirmationContext.js';
+import { useSettings } from '../contexts/SettingsContext.js';
+// WEB_INTERFACE_END
 
 // Re-exporting types compatible with legacy hook expectations
 export type ScheduleFn = (
@@ -57,6 +61,14 @@ export function useToolExecutionScheduler(
   // State stores Core objects, not Display objects
   const [toolCalls, setToolCalls] = useState<TrackedToolCall[]>([]);
   const [lastToolOutputTime, setLastToolOutputTime] = useState<number>(0);
+
+  // WEB_INTERFACE_START
+  const toolConfirmationContext = useToolConfirmation();
+  const settings = useSettings();
+  const allowPermanentApproval =
+    settings?.merged?.security?.enablePermanentToolApproval ?? false;
+  const isTrustedFolder = config?.isTrustedFolder?.() ?? false;
+  // WEB_INTERFACE_END
 
   const messageBus = useMemo(() => config.getMessageBus(), [config]);
 
@@ -105,6 +117,55 @@ export function useToolExecutionScheduler(
       messageBus.unsubscribe(MessageBusType.TOOL_CALLS_UPDATE, handler);
     };
   }, [messageBus, internalAdaptToolCalls]);
+
+  // WEB_INTERFACE_START
+  // Handle tool confirmations for web interface
+  const prevAwaitingApprovalIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!toolConfirmationContext) return;
+
+    // Get current call IDs that are awaiting approval
+    const currentAwaitingApprovalIds = new Set(
+      toolCalls
+        .filter((tc) => tc.status === 'awaiting_approval')
+        .map((tc) => tc.request.callId),
+    );
+
+    const prevAwaitingApprovalIds = prevAwaitingApprovalIdsRef.current;
+
+    // Add new confirmations (only those not seen before)
+    toolCalls.forEach((toolCall) => {
+      if (
+        toolCall.status === 'awaiting_approval' &&
+        'confirmationDetails' in toolCall &&
+        !prevAwaitingApprovalIds.has(toolCall.request.callId)
+      ) {
+        const pendingConfirmation = {
+          callId: toolCall.request.callId,
+          toolName: toolCall.tool?.displayName || toolCall.request.name,
+          confirmationDetails: toolCall.confirmationDetails,
+          timestamp: Date.now(),
+          // WEB_INTERFACE: Include flags for conditional button display
+          isTrustedFolder,
+          allowPermanentApproval,
+        };
+
+        toolConfirmationContext.addPendingConfirmation(pendingConfirmation);
+      }
+    });
+
+    // Remove confirmations that are no longer awaiting approval
+    prevAwaitingApprovalIds.forEach((prevCallId) => {
+      if (!currentAwaitingApprovalIds.has(prevCallId)) {
+        toolConfirmationContext.removePendingConfirmation(prevCallId);
+      }
+    });
+
+    // Update the ref for next time
+    prevAwaitingApprovalIdsRef.current = currentAwaitingApprovalIds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolCalls]); // Only depend on toolCalls
+  // WEB_INTERFACE_END
 
   const schedule: ScheduleFn = useCallback(
     async (request, signal) => {
