@@ -1083,6 +1083,21 @@
   color: var(--text);
 }
 
+.kb-passage-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.kb-passage-rank {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-subtle);
+  padding: 2px 6px;
+  background: var(--surface-alt);
+  border-radius: 3px;
+}
+
 .kb-passage-score-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1117,13 +1132,23 @@
 }
 
 .kb-passage-also-in {
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
   font-size: 11px;
-  color: var(--text-subtle);
 }
 
-.kb-passage-also-in span {
-  color: var(--primary);
+.kb-passage-also-in-label {
+  color: var(--text-subtle);
+  font-weight: 500;
+  margin-right: 6px;
+}
+
+.kb-passage-also-in-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .kb-result-expand {

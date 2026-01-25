@@ -616,31 +616,52 @@ export class KnowledgeBaseModal {
 
   /**
    * Group results by document (filePath)
-   * Each passage keeps its own additionalSources for per-passage "Also found in"
+   * Each passage keeps its own additionalSources and original search rank
    */
   groupResultsByDocument(results) {
     const docMap = new Map();
 
-    for (const result of results) {
+    // Track ranks - same scores get the same (lowest) rank
+    const scoreToRank = new Map();
+    let currentRank = 1;
+    let lastScore = null;
+    let lastRank = 1;
+
+    for (let i = 0; i < results.length; i++) {
+      const score = results[i].score;
+      if (score !== lastScore) {
+        currentRank = i + 1;
+        lastScore = score;
+      }
+      scoreToRank.set(i, currentRank);
+    }
+
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
       const key = result.filePath || result.fileName || 'Unknown';
+      const rank = scoreToRank.get(i);
+
       if (!docMap.has(key)) {
         docMap.set(key, {
           filePath: result.filePath,
           fileName: result.fileName,
           bestScore: result.score,
+          bestRank: rank,
           passages: []
         });
       }
       const doc = docMap.get(key);
-      // Update best score
+      // Update best score and rank
       if (result.score > doc.bestScore) {
         doc.bestScore = result.score;
+        doc.bestRank = rank;
       }
-      // Add passage with its own additionalSources
+      // Add passage with its own additionalSources and rank
       if (result.chunkText) {
         doc.passages.push({
           content: result.chunkText,
           score: result.score,
+          rank: rank,
           page: result.metadata?.page || null,
           additionalSources: result.additionalSources || []
         });
@@ -648,6 +669,7 @@ export class KnowledgeBaseModal {
         doc.passages.push(...result.passages.map(p => ({
           ...p,
           score: result.score,
+          rank: rank,
           additionalSources: result.additionalSources || []
         })));
       }
@@ -688,9 +710,9 @@ export class KnowledgeBaseModal {
           <div class="kb-passage-bar"></div>
           <div class="kb-passage-body">
             <div class="kb-passage-meta">
-              <span class="kb-passage-num">#${pIndex + 1}</span>
-              ${showScore ? `<span class="kb-passage-score-badge">${scorePercent}%</span>` : ''}
-              ${p.page ? `<span class="kb-passage-page">Page ${p.page}</span>` : ''}
+              <span class="kb-passage-label">Passage ${pIndex + 1}</span>
+              <span class="kb-passage-rank">Ranked #${p.rank}</span>
+              ${showScore ? `<span class="kb-passage-score-badge ${scoreClass}">${scorePercent}%</span>` : ''}
             </div>
             <div class="kb-passage-text">${safeHtml}</div>
             ${alsoInHtml}
@@ -735,25 +757,52 @@ export class KnowledgeBaseModal {
   }
 
   /**
-   * Render "Also found in" for a single passage (compact inline version)
+   * Render "Also found in" for a single passage (expandable version)
    */
   renderPassageAlsoFoundIn(additionalSources) {
     if (!additionalSources || additionalSources.length === 0) {
       return '';
     }
 
-    const maxDisplay = 2;
+    const maxDisplay = 3;
     const visiblePaths = additionalSources.slice(0, maxDisplay).map(src =>
-      this.escapeHtml(this.getFileName(src.filePath))
+      this.escapeHtml(this.shortenPath(src.filePath))
     );
-    const remaining = additionalSources.length - maxDisplay;
+    const hiddenSources = additionalSources.slice(maxDisplay);
+    const remaining = hiddenSources.length;
 
-    let filesText = visiblePaths.join(', ');
+    // Build visible files list
+    const visibleHtml = visiblePaths.map(path =>
+      `<span class="kb-also-in-file">${path}</span>`
+    ).join('');
+
+    // Build hidden files list (if any)
+    let hiddenHtml = '';
+    let expandToggle = '';
     if (remaining > 0) {
-      filesText += ` +${remaining}`;
+      const hiddenPaths = hiddenSources.map(src =>
+        `<span class="kb-also-in-file">${this.escapeHtml(this.shortenPath(src.filePath))}</span>`
+      ).join('');
+
+      hiddenHtml = `<div class="kb-also-in-hidden">${hiddenPaths}</div>`;
+      expandToggle = `
+        <button class="kb-also-in-toggle" data-expanded="false">
+          <span class="kb-also-in-expand">+${remaining} more</span>
+          <span class="kb-also-in-collapse" style="display:none;">Show less</span>
+        </button>
+      `;
     }
 
-    return `<div class="kb-passage-also-in">Also in: <span>${filesText}</span></div>`;
+    return `
+      <div class="kb-passage-also-in">
+        <span class="kb-passage-also-in-label">Also found in:</span>
+        <div class="kb-passage-also-in-files">
+          <div class="kb-also-in-visible">${visibleHtml}</div>
+          ${hiddenHtml}
+          ${expandToggle}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -802,11 +851,7 @@ export class KnowledgeBaseModal {
           <div class="kb-passage-item">
             <div class="kb-passage-bar"></div>
             <div class="kb-passage-body">
-              <div class="kb-passage-meta">
-                <span class="kb-passage-num">#${pIndex + 1}</span>
-                ${showScore ? `<span class="kb-passage-score-badge">${scorePercent}%</span>` : ''}
-                ${p.page ? `<span class="kb-passage-page">Page ${p.page}</span>` : ''}
-              </div>
+              ${showScore ? `<div class="kb-passage-meta"><span class="kb-passage-score-badge">${scorePercent}%</span></div>` : ''}
               <div class="kb-passage-text">${safeHtml}</div>
               ${this.renderPassageAlsoFoundIn(result.additionalSources)}
             </div>
@@ -1424,10 +1469,14 @@ export class KnowledgeBaseModal {
         }
       }
 
-      // "Also found in" expand/collapse toggle
+      // "Also found in" expand/collapse toggle (works for both document-level and passage-level)
       const alsoInToggle = e.target.closest('.kb-also-in-toggle');
       if (alsoInToggle) {
-        const container = alsoInToggle.closest('.kb-result-also-in-files');
+        // Find container - could be either document-level or passage-level
+        const container = alsoInToggle.closest('.kb-result-also-in-files') ||
+                          alsoInToggle.closest('.kb-passage-also-in-files');
+        if (!container) return;
+
         const hiddenDiv = container.querySelector('.kb-also-in-hidden');
         const expandSpan = alsoInToggle.querySelector('.kb-also-in-expand');
         const collapseSpan = alsoInToggle.querySelector('.kb-also-in-collapse');
