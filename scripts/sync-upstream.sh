@@ -188,9 +188,12 @@ for COMMIT in $COMMITS; do
         exit 1
     fi
 
-    echo -e "${BLUE}[$((MERGED + 1))/$COMMIT_COUNT] Merging $SHORT_HASH: $TITLE${NC}"
+    # Strip PR references like (#1234) to avoid GitHub back-linking to upstream PRs
+    CLEAN_TITLE=$(echo "$TITLE" | sed -E 's/ *\(#[0-9]+\)$//')
 
-    if git merge "$COMMIT" -m "Merge(Auto) Commit '$SHORT_HASH': $TITLE"; then
+    echo -e "${BLUE}[$((MERGED + 1))/$COMMIT_COUNT] Merging $SHORT_HASH: $CLEAN_TITLE${NC}"
+
+    if git merge "$COMMIT" -m "Merge(Auto) Commit '$SHORT_HASH': $CLEAN_TITLE"; then
         MERGED=$((MERGED + 1))
         echo -e "${GREEN}✓ Merged successfully${NC}"
     else
