@@ -2613,6 +2613,12 @@ export class WebInterfaceService extends EventEmitter {
     };
     page?: number;
     limit?: number;
+    // Diversity options
+    diversityStrategy?: 'none' | 'score_penalty' | 'cap_then_fill';
+    diversityDecay?: number;
+    maxPerDocument?: number;
+    semanticDedup?: boolean;
+    semanticDedupThreshold?: number;
   }): Promise<void> {
     const searchService = getSearchService();
     let searchSystem = searchService.getSearchSystem();
@@ -2663,7 +2669,19 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     try {
-      const { query, searchType = 'hybrid', filters = {}, page = 1, limit = 25 } = request;
+      const {
+        query,
+        searchType = 'hybrid',
+        filters = {},
+        page = 1,
+        limit = 25,
+        // Diversity options with defaults
+        diversityStrategy = 'score_penalty',
+        diversityDecay = 0.85,
+        maxPerDocument = 5,
+        semanticDedup = true,
+        semanticDedupThreshold = 0.97,
+      } = request;
 
       // Fetch a larger batch of results to enable proper pagination.
       // The search engine doesn't return total count, so we fetch up to MAX_SEARCH_RESULTS
@@ -2677,6 +2695,14 @@ export class WebInterfaceService extends EventEmitter {
         limit: MAX_SEARCH_RESULTS,
         offset: 0, // Always start from beginning, paginate after
         highlight: true, // Enable <mark> highlighting for search term matches
+        // Diversity options
+        diversity: {
+          strategy: diversityStrategy,
+          decayFactor: diversityDecay,
+          maxPerDocument: maxPerDocument,
+          semanticDedup: semanticDedup,
+          semanticDedupThreshold: semanticDedupThreshold,
+        },
       };
 
       // Apply filters if provided
@@ -2713,6 +2739,13 @@ export class WebInterfaceService extends EventEmitter {
           content: result.chunkText || '',
           lineNumber: result.metadata?.page || null,
         }],
+        // Include additional sources from semantic deduplication
+        additionalSources: result.additionalSources?.map((src: any) => ({
+          filePath: src.filePath,
+          fileName: src.fileName,
+          documentId: src.documentId,
+          score: src.score,
+        })) || [],
       }));
 
       this.broadcastWithSequence('knowledge_base_search_response', {

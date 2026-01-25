@@ -36,6 +36,10 @@ export type {
   SearchOptions,
   SearchResponse,
   MatchType,
+  // Diversity types
+  DiversityStrategy,
+  DiversityOptions,
+  AdditionalSource,
   // Queue types
   QueueItem,
   QueuePriority,
@@ -112,6 +116,7 @@ export {
 export type {
   SearchEngineConfig,
   NormalizedSearchParams,
+  NormalizedDiversityOptions,
   SearchEngineEvents,
   FilterBuildResult,
 } from './search/index.js';

@@ -66,6 +66,16 @@ interface SentenceInfo {
 }
 
 /**
+ * Additional source info for deduplicated results
+ */
+export interface AdditionalSourceInput {
+  filePath: string;
+  fileName: string;
+  documentId: string;
+  score: number;
+}
+
+/**
  * Search result from the search engine
  */
 export interface SearchResultInput {
@@ -82,6 +92,8 @@ export interface SearchResultInput {
     section: string | null;
     tags?: string[]; // Optional - not currently exposed in tools
   };
+  /** Additional files containing the same/similar passage (from semantic dedup) */
+  additionalSources?: AdditionalSourceInput[];
 }
 
 /**
@@ -99,6 +111,16 @@ export interface PaginationMeta {
 }
 
 /**
+ * Additional source in output format
+ */
+export interface AdditionalSourceOutput {
+  file_path: string;
+  file_name: string;
+  document_id: string;
+  score: number;
+}
+
+/**
  * Passage within a grouped document
  */
 export interface PassageOutput {
@@ -107,6 +129,8 @@ export interface PassageOutput {
   text: string;
   highlights: string[];
   section?: string;
+  /** Additional files containing the same/similar passage */
+  additional_sources?: AdditionalSourceOutput[];
 }
 
 /**
@@ -135,6 +159,8 @@ export interface FlatResultOutput {
   highlights?: string[];
   section?: string;
   tags?: string[];
+  /** Additional files containing the same/similar passage */
+  additional_sources?: AdditionalSourceOutput[];
 }
 
 /**
@@ -344,6 +370,16 @@ export class SearchResponseFormatter {
       passage.section = chunk.metadata.section;
     }
 
+    // Include additional sources from semantic deduplication
+    if (chunk.additionalSources && chunk.additionalSources.length > 0) {
+      passage.additional_sources = chunk.additionalSources.map(src => ({
+        file_path: src.filePath,
+        file_name: src.fileName,
+        document_id: src.documentId,
+        score: Math.round(src.score * 100) / 100,
+      }));
+    }
+
     return passage;
   }
 
@@ -379,6 +415,16 @@ export class SearchResponseFormatter {
         }
         if (result.metadata.tags && result.metadata.tags.length > 0) {
           output.tags = result.metadata.tags;
+        }
+
+        // Include additional sources from semantic deduplication
+        if (result.additionalSources && result.additionalSources.length > 0) {
+          output.additional_sources = result.additionalSources.map(src => ({
+            file_path: src.filePath,
+            file_name: src.fileName,
+            document_id: src.documentId,
+            score: Math.round(src.score * 100) / 100,
+          }));
         }
       }
 
@@ -858,6 +904,13 @@ export class SearchResponseFormatter {
         if (location) {
           content += `   ${location}\n`;
         }
+
+        // Show "Also found in:" for deduplicated passages
+        if (passage.additional_sources && passage.additional_sources.length > 0) {
+          const alsoIn = this.formatAdditionalSources(passage.additional_sources);
+          content += `   ${alsoIn}\n`;
+        }
+
         content += `   ${passage.text}\n\n`;
       });
     });
@@ -876,6 +929,13 @@ export class SearchResponseFormatter {
         if (location) {
           content += `   ${location}\n`;
         }
+
+        // Show "Also found in:" for deduplicated passages
+        if (result.additional_sources && result.additional_sources.length > 0) {
+          const alsoIn = this.formatAdditionalSources(result.additional_sources);
+          content += `   ${alsoIn}\n`;
+        }
+
         if (result.text) {
           content += `   ${result.text}\n`;
         }
@@ -893,6 +953,27 @@ export class SearchResponseFormatter {
       return `Section: ${section}`;
     }
     return null;
+  }
+
+  /**
+   * Format additional sources for display.
+   * Shows "Also found in: file1, file2 (+N more)" format.
+   */
+  private formatAdditionalSources(sources: AdditionalSourceOutput[]): string {
+    if (sources.length === 0) {
+      return '';
+    }
+
+    const maxDisplay = 3; // Show up to 3 file paths
+    const displayPaths = sources.slice(0, maxDisplay).map(s => s.file_path);
+    const remaining = sources.length - maxDisplay;
+
+    let result = `Also found in: ${displayPaths.join(', ')}`;
+    if (remaining > 0) {
+      result += ` (+${remaining} more)`;
+    }
+
+    return result;
   }
 
   private buildReturnDisplay(meta: PaginationMeta): string {

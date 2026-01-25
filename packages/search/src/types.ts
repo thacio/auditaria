@@ -76,6 +76,18 @@ export interface SearchFilters {
 
 export type MatchType = 'semantic' | 'keyword' | 'hybrid';
 
+/**
+ * Additional source information for deduplicated results.
+ * When semantic deduplication merges similar passages, this tracks
+ * all the files that contain the same/similar content.
+ */
+export interface AdditionalSource {
+  filePath: string;
+  fileName: string;
+  documentId: string;
+  score: number;
+}
+
 export interface SearchResult {
   documentId: string;
   chunkId: string;
@@ -90,6 +102,34 @@ export interface SearchResult {
     section: string | null;
     tags: string[];
   };
+  /** Embedding vector for semantic deduplication (optional, only included when needed) */
+  embedding?: number[];
+  /** Additional files containing the same/similar passage (populated by semantic dedup) */
+  additionalSources?: AdditionalSource[];
+}
+
+/**
+ * Diversity strategy for search results.
+ * - 'none': No diversity filtering, pure relevance ranking
+ * - 'score_penalty': Apply decay factor to subsequent passages from same document
+ * - 'cap_then_fill': Hard cap per document, then fill remaining slots progressively
+ */
+export type DiversityStrategy = 'none' | 'score_penalty' | 'cap_then_fill';
+
+/**
+ * Options for controlling result diversity.
+ */
+export interface DiversityOptions {
+  /** Diversity strategy to apply (default: 'score_penalty') */
+  strategy?: DiversityStrategy;
+  /** Decay factor for score_penalty strategy (default: 0.85) */
+  decayFactor?: number;
+  /** Max passages per document for cap_then_fill strategy (default: 5) */
+  maxPerDocument?: number;
+  /** Enable semantic deduplication to merge similar passages (default: true) */
+  semanticDedup?: boolean;
+  /** Cosine similarity threshold for semantic dedup (default: 0.97) */
+  semanticDedupThreshold?: number;
 }
 
 export interface SearchOptions {
@@ -104,6 +144,8 @@ export interface SearchOptions {
   };
   highlight?: boolean;
   highlightTag?: string;
+  /** Diversity options for result diversification */
+  diversity?: DiversityOptions;
 }
 
 export interface SearchResponse {

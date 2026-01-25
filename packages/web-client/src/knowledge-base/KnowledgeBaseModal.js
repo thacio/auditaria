@@ -32,6 +32,8 @@ export class KnowledgeBaseModal {
     this.container = null;
     this.activeTab = 'search';
     this.filtersExpanded = false;
+    this.diversityExpanded = false; // Track diversity panel state
+    this.groupByDocument = true; // Track group by document display option (default: true for better UX)
     this.confirmDialog = null;
     this.selectedExtensions = []; // Track selected file extensions
     this.selectedFolders = []; // Track selected folder paths
@@ -188,18 +190,38 @@ export class KnowledgeBaseModal {
           <div class="kb-option-group">
             <label class="kb-option-label" for="kb-search-type">Search type:</label>
             <select id="kb-search-type" class="kb-select kb-search-type-select">
-              <option value="hybrid" selected>Hybrid (Recommended)</option>
+              <option value="hybrid" selected>Hybrid</option>
               <option value="semantic">Semantic</option>
               <option value="keyword">Keyword</option>
             </select>
           </div>
           <div class="kb-option-group">
-            <label class="kb-option-label" for="kb-results-limit">Results per page:</label>
+            <label class="kb-option-label" for="kb-results-limit">Per page:</label>
             <select id="kb-results-limit" class="kb-select kb-limit-select">
               <option value="10">10</option>
               <option value="25" selected>25</option>
               <option value="50">50</option>
             </select>
+          </div>
+          <div class="kb-option-group">
+            <label class="kb-option-label" for="kb-diversity-strategy">Diversity:</label>
+            <select id="kb-diversity-strategy" class="kb-select kb-diversity-strategy-select">
+              <option value="score_penalty" selected>Score Penalty</option>
+              <option value="cap_then_fill">Cap Then Fill</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+          <div class="kb-option-group kb-option-checkbox">
+            <label class="kb-option-label-inline">
+              <input type="checkbox" id="kb-semantic-dedup" class="kb-checkbox" checked />
+              Merge duplicates
+            </label>
+          </div>
+          <div class="kb-option-group kb-option-checkbox">
+            <label class="kb-option-label-inline">
+              <input type="checkbox" id="kb-group-by-document" class="kb-checkbox" checked />
+              Group by document
+            </label>
           </div>
         </div>
 
@@ -546,16 +568,33 @@ export class KnowledgeBaseModal {
       return this.renderNoResultsState(query);
     }
 
-    const startIndex = (page - 1) * limit + 1;
-    const endIndex = Math.min(page * limit, total);
-
     // Check if indexing is in progress
     const isIndexing = this.manager.status.indexingProgress?.status === 'indexing' ||
                        this.manager.status.indexingProgress?.status === 'discovering' ||
                        this.manager.status.indexingProgress?.status === 'syncing';
 
-    // Generate cards with correct numbering based on current page
-    const cardsHtml = results.map((result, index) => this.renderResultCard(result, index, startIndex + index)).join('');
+    const searchType = this.manager.searchState.type || 'hybrid';
+    let cardsHtml;
+    let displayTotal;
+    let startIndex;
+    let endIndex;
+
+    if (this.groupByDocument) {
+      // Group results by document
+      const grouped = this.groupResultsByDocument(results);
+      displayTotal = grouped.length;
+      startIndex = 1;
+      endIndex = grouped.length;
+      cardsHtml = grouped.map((doc, index) => this.renderDocumentCard(doc, index, index + 1, searchType)).join('');
+    } else {
+      // Regular passage-based display
+      startIndex = (page - 1) * limit + 1;
+      endIndex = Math.min(page * limit, total);
+      displayTotal = total;
+      cardsHtml = results.map((result, index) => this.renderResultCard(result, index, startIndex + index, searchType)).join('');
+    }
+
+    const resultLabel = this.groupByDocument ? 'document' : 'result';
 
     return `
       ${isIndexing ? `
@@ -565,79 +604,285 @@ export class KnowledgeBaseModal {
         </div>
       ` : ''}
       <div class="kb-results-header">
-        <span class="kb-results-count">Found <strong>${total}</strong> result${total !== 1 ? 's' : ''}</span>
+        <span class="kb-results-count">Found <strong>${displayTotal}</strong> ${resultLabel}${displayTotal !== 1 ? 's' : ''}</span>
         <span class="kb-results-showing">Showing ${startIndex}-${endIndex}</span>
       </div>
       <div class="kb-results-list">
         ${cardsHtml}
       </div>
-      ${totalPages > 1 ? this.renderPagination(page, totalPages) : ''}
+      ${!this.groupByDocument && totalPages > 1 ? this.renderPagination(page, totalPages) : ''}
     `;
   }
 
   /**
-   * Render a single result card
+   * Group results by document (filePath)
+   * Each passage keeps its own additionalSources for per-passage "Also found in"
    */
-  renderResultCard(result, index, resultNumber) {
+  groupResultsByDocument(results) {
+    const docMap = new Map();
+
+    for (const result of results) {
+      const key = result.filePath || result.fileName || 'Unknown';
+      if (!docMap.has(key)) {
+        docMap.set(key, {
+          filePath: result.filePath,
+          fileName: result.fileName,
+          bestScore: result.score,
+          passages: []
+        });
+      }
+      const doc = docMap.get(key);
+      // Update best score
+      if (result.score > doc.bestScore) {
+        doc.bestScore = result.score;
+      }
+      // Add passage with its own additionalSources
+      if (result.chunkText) {
+        doc.passages.push({
+          content: result.chunkText,
+          score: result.score,
+          page: result.metadata?.page || null,
+          additionalSources: result.additionalSources || []
+        });
+      } else if (result.passages) {
+        doc.passages.push(...result.passages.map(p => ({
+          ...p,
+          score: result.score,
+          additionalSources: result.additionalSources || []
+        })));
+      }
+    }
+
+    return Array.from(docMap.values());
+  }
+
+  /**
+   * Render a document card (grouped view) - clean UI
+   */
+  renderDocumentCard(doc, index, resultNumber, searchType = 'hybrid') {
+    const filePath = doc.filePath || doc.fileName || 'Unknown file';
+    const showScore = searchType !== 'keyword';
+
+    const fileIcon = ICONS.file.replace('<svg ', '<svg width="16" height="16" ');
+
+    // Render all passages (show first 3, collapse rest)
+    const visibleCount = 3;
+    const visiblePassages = doc.passages.slice(0, visibleCount);
+    const hiddenPassages = doc.passages.slice(visibleCount);
+
+    const renderPassage = (p, pIndex) => {
+      const content = p.content || p.text || '';
+      const truncated = this.smartTruncate(content, 400);
+      const safeHtml = this.escapeHtmlPreservingMarks(truncated);
+
+      // Score indicator - subtle colored bar on the left
+      const score = p.score || 0;
+      const scorePercent = Math.round(score * 100);
+      const scoreClass = score >= 0.5 ? 'high' : score >= 0.3 ? 'medium' : 'low';
+
+      // Per-passage "Also found in"
+      const alsoInHtml = this.renderPassageAlsoFoundIn(p.additionalSources);
+
+      return `
+        <div class="kb-passage-item">
+          <div class="kb-passage-bar"></div>
+          <div class="kb-passage-body">
+            <div class="kb-passage-meta">
+              <span class="kb-passage-num">#${pIndex + 1}</span>
+              ${showScore ? `<span class="kb-passage-score-badge">${scorePercent}%</span>` : ''}
+              ${p.page ? `<span class="kb-passage-page">Page ${p.page}</span>` : ''}
+            </div>
+            <div class="kb-passage-text">${safeHtml}</div>
+            ${alsoInHtml}
+          </div>
+        </div>
+      `;
+    };
+
+    let passagesHtml = visiblePassages.map((p, i) => renderPassage(p, i)).join('');
+
+    // Hidden passages with expand button
+    if (hiddenPassages.length > 0) {
+      const hiddenHtml = hiddenPassages.map((p, i) => renderPassage(p, visibleCount + i)).join('');
+
+      passagesHtml += `
+        <div class="kb-result-hidden-passages" style="display: none;">
+          ${hiddenHtml}
+        </div>
+        <button class="kb-result-expand">
+          ${ICONS.chevronDown} ${hiddenPassages.length} more passage${hiddenPassages.length > 1 ? 's' : ''}
+        </button>
+      `;
+    }
+
+    return `
+      <div class="kb-result-card kb-document-card" data-result-index="${index}">
+        <div class="kb-result-header">
+          <span class="kb-result-number">${resultNumber}.</span>
+          <div class="kb-result-file">
+            <span class="kb-result-file-icon">${fileIcon}</span>
+            <span class="kb-result-path" title="${this.escapeHtml(filePath)}">
+              ${this.escapeHtml(this.shortenPath(filePath))}
+            </span>
+          </div>
+          <span class="kb-passage-count">${doc.passages.length} passage${doc.passages.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="kb-passages-container">
+          ${passagesHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render "Also found in" for a single passage (compact inline version)
+   */
+  renderPassageAlsoFoundIn(additionalSources) {
+    if (!additionalSources || additionalSources.length === 0) {
+      return '';
+    }
+
+    const maxDisplay = 2;
+    const visiblePaths = additionalSources.slice(0, maxDisplay).map(src =>
+      this.escapeHtml(this.getFileName(src.filePath))
+    );
+    const remaining = additionalSources.length - maxDisplay;
+
+    let filesText = visiblePaths.join(', ');
+    if (remaining > 0) {
+      filesText += ` +${remaining}`;
+    }
+
+    return `<div class="kb-passage-also-in">Also in: <span>${filesText}</span></div>`;
+  }
+
+  /**
+   * Get just the file name from a path
+   */
+  getFileName(filePath) {
+    if (!filePath) return 'Unknown';
+    const parts = filePath.replace(/\\/g, '/').split('/');
+    return parts[parts.length - 1] || filePath;
+  }
+
+  /**
+   * Render a single result card (non-grouped view)
+   */
+  renderResultCard(result, index, resultNumber, searchType = 'hybrid') {
     // Handle both direct SearchResult format and our formatted version
     const filePath = result.filePath || result.fileName || 'Unknown file';
     const score = typeof result.score === 'number' ? result.score : 0;
-    const scoreClass = score >= 0.7 ? 'high' : score >= 0.4 ? 'medium' : 'low';
+    const scoreClass = score >= 0.5 ? 'high' : score >= 0.3 ? 'medium' : 'low';
     const scorePercent = Math.round(score * 100);
+    const showScore = searchType !== 'keyword';
 
     // Handle passages - could be our format or direct chunkText
     let passages = [];
     if (Array.isArray(result.passages) && result.passages.length > 0) {
       passages = result.passages;
     } else if (result.chunkText) {
-      // Direct SearchResult format - create passage from chunkText
       passages = [{
         content: result.chunkText,
-        lineNumber: result.metadata?.page || null
+        page: result.metadata?.page || null
       }];
     }
 
-    const visiblePassages = passages.slice(0, 2);
+    // Get file icon
+    const fileIcon = ICONS.file.replace('<svg ', '<svg width="16" height="16" ');
 
-    // Build passage HTML with smart truncation and mark highlighting
+    // Build passage HTML with colored bar design
     let passagesHtml = '';
-    if (visiblePassages.length > 0) {
-      passagesHtml = visiblePassages.map((p, pIndex) => {
+    if (passages.length > 0) {
+      passagesHtml = passages.slice(0, 2).map((p, pIndex) => {
         const content = p.content || p.text || '';
         const truncated = this.smartTruncate(content, 400);
         const safeHtml = this.escapeHtmlPreservingMarks(truncated);
-        return `<div class="kb-passage">
-          <div class="kb-passage-content">${safeHtml}</div>
-        </div>`;
+
+        return `
+          <div class="kb-passage-item">
+            <div class="kb-passage-bar"></div>
+            <div class="kb-passage-body">
+              <div class="kb-passage-meta">
+                <span class="kb-passage-num">#${pIndex + 1}</span>
+                ${showScore ? `<span class="kb-passage-score-badge">${scorePercent}%</span>` : ''}
+                ${p.page ? `<span class="kb-passage-page">Page ${p.page}</span>` : ''}
+              </div>
+              <div class="kb-passage-text">${safeHtml}</div>
+              ${this.renderPassageAlsoFoundIn(result.additionalSources)}
+            </div>
+          </div>
+        `;
       }).join('');
     } else {
       passagesHtml = '<div class="kb-passage kb-passage-empty">No preview available</div>';
     }
 
-    // Get file icon with explicit dimensions for proper scaling
-    const fileIcon = ICONS.file.replace('<svg ', '<svg width="16" height="16" ');
-
-    const html = `
+    return `
       <div class="kb-result-card" data-result-index="${index}">
         <div class="kb-result-header">
           <span class="kb-result-number">${resultNumber}.</span>
           <div class="kb-result-file">
             <span class="kb-result-file-icon">${fileIcon}</span>
-            <a class="kb-result-path" title="${this.escapeHtml(filePath)}" data-path="${this.escapeHtml(filePath)}">
+            <span class="kb-result-path" title="${this.escapeHtml(filePath)}">
               ${this.escapeHtml(this.shortenPath(filePath))}
-            </a>
-          </div>
-          <div class="kb-result-meta">
-            <span class="kb-result-score ${scoreClass}">${scorePercent}% match</span>
+            </span>
           </div>
         </div>
-        <div class="kb-result-passages">
+        <div class="kb-passages-container">
           ${passagesHtml}
         </div>
       </div>
     `;
+  }
 
-    return html;
+  /**
+   * Render "Also found in" section for deduplicated results
+   */
+  renderAlsoFoundIn(additionalSources) {
+    if (!additionalSources || additionalSources.length === 0) {
+      return '';
+    }
+
+    const maxDisplay = 3;
+    const visiblePaths = additionalSources.slice(0, maxDisplay).map(src =>
+      this.escapeHtml(this.shortenPath(src.filePath))
+    );
+    const hiddenSources = additionalSources.slice(maxDisplay);
+    const remaining = hiddenSources.length;
+
+    // Build visible files list
+    const visibleHtml = visiblePaths.map(path =>
+      `<span class="kb-also-in-file">${path}</span>`
+    ).join('');
+
+    // Build hidden files list (if any)
+    let hiddenHtml = '';
+    let expandToggle = '';
+    if (remaining > 0) {
+      const hiddenPaths = hiddenSources.map(src =>
+        `<span class="kb-also-in-file">${this.escapeHtml(this.shortenPath(src.filePath))}</span>`
+      ).join('');
+
+      hiddenHtml = `<div class="kb-also-in-hidden">${hiddenPaths}</div>`;
+      expandToggle = `
+        <button class="kb-also-in-toggle" data-expanded="false">
+          <span class="kb-also-in-expand">+${remaining} more</span>
+          <span class="kb-also-in-collapse" style="display:none;">Show less</span>
+        </button>
+      `;
+    }
+
+    return `
+      <div class="kb-result-also-in">
+        <span class="kb-result-also-in-icon">&#128196;</span>
+        <span class="kb-result-also-in-label">Also found in:</span>
+        <div class="kb-result-also-in-files">
+          <div class="kb-also-in-visible">${visibleHtml}</div>
+          ${hiddenHtml}
+          ${expandToggle}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -1114,6 +1359,40 @@ export class KnowledgeBaseModal {
       this.renderExtensionTags();
     });
 
+    // Diversity strategy select
+    const diversityStrategy = this.container.querySelector('#kb-diversity-strategy');
+    if (diversityStrategy) {
+      diversityStrategy.addEventListener('change', (e) => {
+        this.manager.setDiversitySettings({ diversityStrategy: e.target.value });
+      });
+    }
+
+    // Semantic dedup checkbox
+    const semanticDedup = this.container.querySelector('#kb-semantic-dedup');
+    if (semanticDedup) {
+      semanticDedup.addEventListener('change', (e) => {
+        this.manager.setDiversitySettings({ semanticDedup: e.target.checked });
+      });
+    }
+
+    // Group by document checkbox
+    const groupByDoc = this.container.querySelector('#kb-group-by-document');
+    if (groupByDoc) {
+      groupByDoc.addEventListener('change', (e) => {
+        this.groupByDocument = e.target.checked;
+        // Re-render current results with new grouping
+        if (this.manager.searchState.results.length > 0) {
+          this.updateSearchResults({
+            results: this.manager.searchState.results,
+            total: this.manager.searchState.total,
+            page: this.manager.searchState.page,
+            totalPages: this.manager.searchState.totalPages,
+            query: this.manager.searchState.query
+          });
+        }
+      });
+    }
+
     // Go to management button (in not initialized state)
     this.container.addEventListener('click', (e) => {
       if (e.target.closest('.kb-go-to-management')) {
@@ -1145,13 +1424,22 @@ export class KnowledgeBaseModal {
         }
       }
 
-      // Open file in editor
-      const resultPath = e.target.closest('.kb-result-path');
-      if (resultPath) {
-        const path = resultPath.dataset.path;
-        if (path && this.manager.onOpenFile) {
-          this.manager.onOpenFile(path);
+      // "Also found in" expand/collapse toggle
+      const alsoInToggle = e.target.closest('.kb-also-in-toggle');
+      if (alsoInToggle) {
+        const container = alsoInToggle.closest('.kb-result-also-in-files');
+        const hiddenDiv = container.querySelector('.kb-also-in-hidden');
+        const expandSpan = alsoInToggle.querySelector('.kb-also-in-expand');
+        const collapseSpan = alsoInToggle.querySelector('.kb-also-in-collapse');
+
+        const isExpanded = alsoInToggle.dataset.expanded === 'true';
+        alsoInToggle.dataset.expanded = (!isExpanded).toString();
+
+        if (hiddenDiv) {
+          hiddenDiv.style.display = isExpanded ? 'none' : 'flex';
         }
+        if (expandSpan) expandSpan.style.display = isExpanded ? 'inline' : 'none';
+        if (collapseSpan) collapseSpan.style.display = isExpanded ? 'none' : 'inline';
       }
 
       // Pagination

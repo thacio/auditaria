@@ -32,7 +32,13 @@ export class KnowledgeBaseManager {
       total: 0,
       totalPages: 0,
       loading: false,
-      error: null
+      error: null,
+      // Diversity options
+      diversityStrategy: 'score_penalty', // 'none' | 'score_penalty' | 'cap_then_fill'
+      diversityDecay: 0.85,
+      maxPerDocument: 5,
+      semanticDedup: true,
+      semanticDedupThreshold: 0.97
     };
 
     // Callbacks
@@ -282,7 +288,13 @@ export class KnowledgeBaseManager {
       page: options.page || 1,
       limit: options.limit || this.searchState.limit,
       loading: true,
-      error: null
+      error: null,
+      // Update diversity options if provided
+      diversityStrategy: options.diversityStrategy ?? this.searchState.diversityStrategy,
+      diversityDecay: options.diversityDecay ?? this.searchState.diversityDecay,
+      maxPerDocument: options.maxPerDocument ?? this.searchState.maxPerDocument,
+      semanticDedup: options.semanticDedup ?? this.searchState.semanticDedup,
+      semanticDedupThreshold: options.semanticDedupThreshold ?? this.searchState.semanticDedupThreshold
     };
 
     // Send search request
@@ -292,8 +304,37 @@ export class KnowledgeBaseManager {
       searchType: this.searchState.type,
       filters: this.searchState.filters,
       page: this.searchState.page,
-      limit: this.searchState.limit
+      limit: this.searchState.limit,
+      // Include diversity options
+      diversityStrategy: this.searchState.diversityStrategy,
+      diversityDecay: this.searchState.diversityDecay,
+      maxPerDocument: this.searchState.maxPerDocument,
+      semanticDedup: this.searchState.semanticDedup,
+      semanticDedupThreshold: this.searchState.semanticDedupThreshold
     });
+  }
+
+  /**
+   * Update diversity settings
+   */
+  setDiversitySettings(settings) {
+    this.searchState = {
+      ...this.searchState,
+      ...settings
+    };
+  }
+
+  /**
+   * Get current diversity settings
+   */
+  getDiversitySettings() {
+    return {
+      diversityStrategy: this.searchState.diversityStrategy,
+      diversityDecay: this.searchState.diversityDecay,
+      maxPerDocument: this.searchState.maxPerDocument,
+      semanticDedup: this.searchState.semanticDedup,
+      semanticDedupThreshold: this.searchState.semanticDedupThreshold
+    };
   }
 
   /**

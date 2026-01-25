@@ -21,6 +21,11 @@ import {
 } from './search-response-formatter.js';
 
 /**
+ * Diversity strategy for search results
+ */
+export type DiversityStrategyParam = 'none' | 'score_penalty' | 'cap_then_fill';
+
+/**
  * Parameters for the KnowledgeSearch tool
  */
 export interface KnowledgeSearchToolParams {
@@ -92,6 +97,44 @@ export interface KnowledgeSearchToolParams {
    * Pagination offset (default: 0)
    */
   offset?: number;
+
+  // -------------------------------------------------------------------------
+  // Diversity Options
+  // -------------------------------------------------------------------------
+
+  /**
+   * Diversity strategy for search results (default: 'score_penalty')
+   * - 'none': No diversity filtering, pure relevance ranking
+   * - 'score_penalty': Apply decay factor to subsequent passages from same document
+   * - 'cap_then_fill': Hard cap per document, then fill remaining slots progressively
+   */
+  diversity_strategy?: DiversityStrategyParam;
+
+  /**
+   * Decay factor for score_penalty strategy (default: 0.85).
+   * Lower values increase diversity by penalizing same-document passages more.
+   * Range: 0.5 to 1.0
+   */
+  diversity_decay?: number;
+
+  /**
+   * Max passages per document for cap_then_fill strategy (default: 5).
+   * After the cap is reached, remaining slots are filled progressively.
+   */
+  max_per_document?: number;
+
+  /**
+   * Enable semantic deduplication to merge near-duplicate passages (default: true).
+   * When enabled, similar passages from different files are merged, showing
+   * "Also found in: file1, file2" in results.
+   */
+  semantic_dedup?: boolean;
+
+  /**
+   * Cosine similarity threshold for semantic deduplication (default: 0.97).
+   * Higher values require more similarity to merge. Range: 0.9 to 1.0
+   */
+  semantic_dedup_threshold?: number;
 }
 
 const KNOWLEDGE_SEARCH_DESCRIPTION = `Search the knowledge base using keyword, semantic, or hybrid search.
@@ -113,6 +156,17 @@ This tool searches through all indexed documents in the project using advanced s
 - **detail**: 'minimal' (IDs/scores only), 'summary' (truncated text), 'full' (complete text)
 - **group_by_document**: Groups results by document with best passages (default: true)
 - **passage_length**: Max characters per passage (1-2000, default: 300)
+
+**Result Diversity (prevents single document from dominating results):**
+- **diversity_strategy**: 'score_penalty' (default), 'cap_then_fill', or 'none'
+  - 'score_penalty': Penalizes subsequent passages from same document (good balance)
+  - 'cap_then_fill': Hard cap per document, fills remaining slots progressively (maximum diversity)
+  - 'none': Pure relevance ranking (no diversity adjustment)
+- **diversity_decay**: Decay factor for score_penalty (0.5-1.0, default: 0.85). Lower = more diversity
+- **max_per_document**: Max passages per document for cap_then_fill (default: 5)
+- **semantic_dedup**: Merge near-duplicate passages from different files (default: true)
+  - Shows "Also found in: file1, file2" for duplicated content
+- **semantic_dedup_threshold**: Cosine similarity for dedup (0.9-1.0, default: 0.97)
 
 **Pagination:**
 - **limit**: Max passages to return (default: 30, max: 200)
@@ -161,6 +215,12 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       group_by_document,
       passages_per_document,
       offset,
+      // Diversity options
+      diversity_strategy,
+      diversity_decay,
+      max_per_document,
+      semantic_dedup,
+      semantic_dedup_threshold,
     } = this.params;
 
     // Get the shared SearchSystem from ServiceManager
@@ -237,6 +297,14 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
         limit: effectiveLimit + effectiveOffset, // Fetch extra for offset
         offset: 0, // We handle offset in formatter
         highlight: true,
+        // Diversity options
+        diversity: {
+          strategy: diversity_strategy,
+          decayFactor: diversity_decay,
+          maxPerDocument: max_per_document,
+          semanticDedup: semantic_dedup,
+          semanticDedupThreshold: semantic_dedup_threshold,
+        },
       });
 
       // Apply offset to results
@@ -257,6 +325,13 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
             page: result.metadata?.page ?? null,
             section: result.metadata?.section ?? null,
           },
+          // Include additional sources from semantic deduplication
+          additionalSources: result.additionalSources?.map(src => ({
+            filePath: src.filePath,
+            fileName: src.fileName,
+            documentId: src.documentId,
+            score: src.score,
+          })),
         }),
       );
 
@@ -472,6 +547,32 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
             type: 'number',
             description: 'Pagination offset for skipping results (default: 0)',
           },
+          diversity_strategy: {
+            type: 'string',
+            enum: ['none', 'score_penalty', 'cap_then_fill'],
+            description:
+              'Diversity strategy for results. "score_penalty" (default) penalizes same-document passages, "cap_then_fill" caps per document then fills, "none" uses pure relevance.',
+          },
+          diversity_decay: {
+            type: 'number',
+            description:
+              'Decay factor for score_penalty strategy (0.5-1.0, default: 0.85). Lower values increase diversity.',
+          },
+          max_per_document: {
+            type: 'number',
+            description:
+              'Max passages per document for cap_then_fill strategy (default: 5).',
+          },
+          semantic_dedup: {
+            type: 'boolean',
+            description:
+              'Merge near-duplicate passages from different files (default: true). Shows "Also found in:" for duplicates.',
+          },
+          semantic_dedup_threshold: {
+            type: 'number',
+            description:
+              'Cosine similarity threshold for semantic dedup (0.9-1.0, default: 0.97). Higher = stricter matching.',
+          },
         },
         required: ['query'],
       },
@@ -532,6 +633,32 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
 
     if (params.offset !== undefined && params.offset < 0) {
       return 'Offset must be a non-negative number';
+    }
+
+    // Diversity parameter validation
+    if (
+      params.diversity_strategy &&
+      !['none', 'score_penalty', 'cap_then_fill'].includes(params.diversity_strategy)
+    ) {
+      return 'Diversity strategy must be one of: none, score_penalty, cap_then_fill';
+    }
+
+    if (
+      params.diversity_decay !== undefined &&
+      (params.diversity_decay < 0.5 || params.diversity_decay > 1.0)
+    ) {
+      return 'Diversity decay must be between 0.5 and 1.0';
+    }
+
+    if (params.max_per_document !== undefined && params.max_per_document < 1) {
+      return 'Max per document must be at least 1';
+    }
+
+    if (
+      params.semantic_dedup_threshold !== undefined &&
+      (params.semantic_dedup_threshold < 0.9 || params.semantic_dedup_threshold > 1.0)
+    ) {
+      return 'Semantic dedup threshold must be between 0.9 and 1.0';
     }
 
     return null;

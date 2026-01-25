@@ -13,6 +13,9 @@ export type {
   SearchOptions,
   SearchResponse,
   MatchType,
+  DiversityStrategy,
+  DiversityOptions,
+  AdditionalSource,
 } from '../types.js';
 
 // Local alias for use in this file
@@ -43,6 +46,17 @@ export interface SearchEngineConfig {
 }
 
 /**
+ * Normalized diversity options after applying defaults.
+ */
+export interface NormalizedDiversityOptions {
+  strategy: 'none' | 'score_penalty' | 'cap_then_fill';
+  decayFactor: number;
+  maxPerDocument: number;
+  semanticDedup: boolean;
+  semanticDedupThreshold: number;
+}
+
+/**
  * Internal search parameters after normalization.
  */
 export interface NormalizedSearchParams {
@@ -56,6 +70,7 @@ export interface NormalizedSearchParams {
   rrfK: number;
   highlight: boolean;
   highlightTag: string;
+  diversity: NormalizedDiversityOptions;
 }
 
 // ============================================================================

@@ -10,8 +10,12 @@ export type {
   SearchOptions,
   SearchResponse,
   MatchType,
+  DiversityStrategy,
+  DiversityOptions,
+  AdditionalSource,
   SearchEngineConfig,
   NormalizedSearchParams,
+  NormalizedDiversityOptions,
   SearchEngineEvents,
 } from './types.js';
 
