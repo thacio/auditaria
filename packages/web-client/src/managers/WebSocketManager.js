@@ -133,8 +133,10 @@ export class WebSocketManager extends EventTarget {
         }
         
         // Dispatch specific event for message type
-        this.dispatchEvent(new CustomEvent(message.type, { detail: message.data }));
-        
+        // Support both nested data (message.data) and flat structure (data spread into message)
+        const eventDetail = message.data !== undefined ? message.data : message;
+        this.dispatchEvent(new CustomEvent(message.type, { detail: eventDetail }));
+
         // Also dispatch generic message event
         this.dispatchEvent(new CustomEvent('message', { detail: message }));
     }

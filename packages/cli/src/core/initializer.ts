@@ -21,7 +21,7 @@ import { validateTheme } from './theme.js';
 // AUDITARIA_LOCAL_SEARCH: Auto-start search service function
 async function autoStartSearchService(config: Config): Promise<void> {
   try {
-    const { searchDatabaseExists } = await import('@thacio/search');
+    const { searchDatabaseExists } = await import('@thacio/auditaria-cli-search');
     const { getSearchService } = await import('@google/gemini-cli-core');
 
     const rootPath = config.getTargetDir();

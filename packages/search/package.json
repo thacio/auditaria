@@ -1,5 +1,5 @@
 {
-  "name": "@thacio/search",
+  "name": "@thacio/auditaria-cli-search",
   "version": "0.1.0",
   "description": "Local document search with hybrid search capabilities for Auditaria CLI",
   "repository": {

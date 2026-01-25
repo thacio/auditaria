@@ -7,8 +7,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { SearchServiceManager, getSearchService } from './search-service.js';
 
-// Mock the @thacio/search module
-vi.mock('@thacio/search', () => {
+// Mock the @thacio/auditaria-cli-search module
+vi.mock('@thacio/auditaria-cli-search', () => {
   const mockSearchSystem = {
     discoverFiles: vi.fn().mockResolvedValue([]),
     indexAll: vi.fn().mockResolvedValue({ indexed: 0, failed: 0, duration: 0 }),
@@ -221,7 +221,7 @@ describe('SearchServiceManager', () => {
 
   describe('error handling', () => {
     it('should set error state on start failure', async () => {
-      const { initializeSearchSystem } = await import('@thacio/search');
+      const { initializeSearchSystem } = await import('@thacio/auditaria-cli-search');
       vi.mocked(initializeSearchSystem).mockRejectedValueOnce(
         new Error('Init failed'),
       );

@@ -45,6 +45,18 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 // Import DocxParserService for markdown to DOCX parsing
 import { DocxParserService } from './DocxParserService.js';
 
+// Knowledge Base Search Service
+import { SearchServiceManager, getSearchService } from '@google/gemini-cli-core';
+
+// AUDITARIA: Lazy load search module to check database existence
+let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
+async function getSearchModule(): Promise<typeof import('@thacio/auditaria-cli-search')> {
+  if (!searchModule) {
+    searchModule = await import('@thacio/auditaria-cli-search');
+  }
+  return searchModule;
+}
+
 // AUDITARIA: Import browser streaming components
 import { StreamManager, SessionManager, type StreamFrame, type StagehandPage } from '@thacio/browser-agent';
 
@@ -1335,9 +1347,6 @@ export class WebInterfaceService extends EventEmitter {
           case 'proceed_always':
             outcome = ToolConfirmationOutcome.ProceedAlways;
             break;
-          case 'proceed_always_and_save':
-            outcome = ToolConfirmationOutcome.ProceedAlwaysAndSave;
-            break;
           case 'proceed_always_server':
             outcome = ToolConfirmationOutcome.ProceedAlwaysServer;
             break;
@@ -1393,6 +1402,20 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastParserStatus();
     } else if (message.type === 'parse_request' && message.path) {
       this.handleParseRequest(message.path);
+    }
+    // Knowledge Base handlers
+    else if (message.type === 'knowledge_base_status_request') {
+      this.handleKnowledgeBaseStatusRequest();
+    } else if (message.type === 'knowledge_base_init_request') {
+      this.handleKnowledgeBaseInitRequest();
+    } else if (message.type === 'knowledge_base_resume_request') {
+      this.handleKnowledgeBaseResumeRequest();
+    } else if (message.type === 'knowledge_base_reindex_request') {
+      this.handleKnowledgeBaseReindexRequest((message as any).force);
+    } else if (message.type === 'knowledge_base_autoindex_request') {
+      this.handleKnowledgeBaseAutoIndexRequest((message as any).enabled);
+    } else if (message.type === 'knowledge_base_search_request') {
+      this.handleKnowledgeBaseSearchRequest(message as any);
     }
   }
 
@@ -2304,5 +2327,469 @@ export class WebInterfaceService extends EventEmitter {
 
     this.docxParser.refresh();
     this.broadcastParserStatus();
+  }
+
+  // =========================================================================
+  // Knowledge Base Handlers
+  // =========================================================================
+
+  /**
+   * Handle knowledge base status request
+   */
+  private handleKnowledgeBaseStatusRequest(): void {
+    const searchService = getSearchService();
+    const progress = searchService.getIndexingProgress();
+    const searchSystem = searchService.getSearchSystem();
+
+    // Check if the indexing service is online (queue processor started)
+    // This is true when /knowledge-base init was run or auto-index is enabled
+    const isIndexingServiceOnline = searchService.isIndexingEnabled();
+
+    if (searchSystem) {
+      // Service is running, get stats from the active search system
+      (async () => {
+        let autoIndex = false;
+        try {
+          const storage = (searchSystem as any).storage;
+          if (storage && typeof storage.getConfigValue === 'function') {
+            const config = await storage.getConfigValue('autoIndex');
+            autoIndex = config === true;
+          }
+        } catch {
+          // Ignore errors
+        }
+
+        // Get stats if available - include full document counts like CLI
+        let stats: any = null;
+        try {
+          const fullStats = await searchSystem.getStats();
+          stats = {
+            totalDocuments: fullStats?.totalDocuments || 0,
+            filesIndexed: fullStats?.indexedDocuments || 0,
+            pendingDocuments: fullStats?.pendingDocuments || 0,
+            failedDocuments: fullStats?.failedDocuments || 0,
+            ocrPending: fullStats?.ocrPending || 0,
+            totalPassages: fullStats?.totalChunks || 0,
+            dbSize: fullStats?.databaseSize || 0,
+          };
+        } catch {
+          // Stats not available
+        }
+
+        const state = searchService.getState();
+        this.broadcastWithSequence('knowledge_base_status', {
+          initialized: true,
+          running: isIndexingServiceOnline, // True when indexing service is online (queue processor running)
+          autoIndex,
+          lastSync: state.lastSyncAt?.toISOString() || null,
+          stats,
+          indexingProgress: progress,
+        });
+      })();
+    } else {
+      // Service not running at the moment - check if database file exists
+      // If database exists, user can search without needing to "initialize"
+      (async () => {
+        const rootPath = process.cwd();
+        let databaseExists = false;
+        let stats: any = null;
+        let autoIndexConfig = false;
+
+        try {
+          const search = await getSearchModule();
+          databaseExists = search.searchDatabaseExists(rootPath);
+
+          // If database exists, try to get stats by loading it temporarily
+          if (databaseExists) {
+            try {
+              const tempSystem = await search.loadSearchSystem(rootPath, {
+                useMockEmbedder: true, // Don't need real embeddings just to check status
+              });
+              if (tempSystem) {
+                const tempStats = await tempSystem.getStats();
+                stats = {
+                  totalDocuments: tempStats?.totalDocuments || 0,
+                  filesIndexed: tempStats?.indexedDocuments || 0,
+                  pendingDocuments: tempStats?.pendingDocuments || 0,
+                  failedDocuments: tempStats?.failedDocuments || 0,
+                  ocrPending: tempStats?.ocrPending || 0,
+                  totalPassages: tempStats?.totalChunks || 0,
+                  dbSize: tempStats?.databaseSize || 0,
+                };
+
+                // Try to get autoIndex config
+                try {
+                  const storage = (tempSystem as any).storage;
+                  if (storage && typeof storage.getConfigValue === 'function') {
+                    const config = await storage.getConfigValue('autoIndex');
+                    autoIndexConfig = config === true;
+                  }
+                } catch {
+                  // Ignore
+                }
+
+                await tempSystem.close();
+              }
+            } catch {
+              // Could not load temp system, but database exists
+            }
+          }
+        } catch {
+          // Module not available or other error
+        }
+
+        // Re-check if indexing service started while we were loading
+        const finalIndexingServiceOnline = searchService.isIndexingEnabled();
+
+        this.broadcastWithSequence('knowledge_base_status', {
+          initialized: databaseExists,
+          running: finalIndexingServiceOnline, // True when indexing service is online
+          autoIndex: autoIndexConfig,
+          lastSync: null,
+          stats,
+          indexingProgress: progress,
+          databaseExists, // Additional flag for UI
+        });
+      })();
+    }
+  }
+
+  /**
+   * Handle knowledge base initialization request
+   */
+  private async handleKnowledgeBaseInitRequest(): Promise<void> {
+    const searchService = getSearchService();
+
+    try {
+      // Get root path from current working directory
+      const rootPath = process.cwd();
+
+      // Start the search service with indexing enabled
+      await searchService.start(rootPath, { startIndexing: true });
+
+      this.broadcastWithSequence('knowledge_base_init_response', {
+        success: true,
+      });
+
+      // Setup progress broadcasting
+      this.setupKnowledgeBaseProgressBroadcasting(searchService);
+
+      // Request status update after init
+      setTimeout(() => this.handleKnowledgeBaseStatusRequest(), 500);
+    } catch (error) {
+      this.broadcastWithSequence('knowledge_base_init_response', {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Handle knowledge base start service request
+   * Equivalent to /knowledge-base init - starts service and begins indexing
+   */
+  private async handleKnowledgeBaseResumeRequest(): Promise<void> {
+    const searchService = getSearchService();
+
+    try {
+      const rootPath = process.cwd();
+
+      // Behavior matches /knowledge-base init:
+      // 1. If service not running: start it with indexing enabled
+      // 2. If service running but indexing not enabled: enable indexing
+      // 3. Then trigger a sync to process new/changed files
+      if (!searchService.isRunning()) {
+        await searchService.start(rootPath, { startIndexing: true });
+      } else if (!searchService.isIndexingEnabled()) {
+        // Service is running but queue processor not started - enable it
+        searchService.enableIndexing();
+      }
+
+      // Trigger sync to start processing files (runs in background, don't await)
+      searchService.triggerSync({ force: false }).catch((err) => {
+        console.warn('[KB Resume] Sync failed:', err.message);
+      });
+
+      this.broadcastWithSequence('knowledge_base_resume_response', {
+        success: true,
+        running: true,
+      });
+
+      // Setup progress broadcasting
+      this.setupKnowledgeBaseProgressBroadcasting(searchService);
+
+      // Request status update
+      setTimeout(() => this.handleKnowledgeBaseStatusRequest(), 500);
+    } catch (error) {
+      this.broadcastWithSequence('knowledge_base_resume_response', {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Handle knowledge base reindex request
+   */
+  private async handleKnowledgeBaseReindexRequest(force?: boolean): Promise<void> {
+    const searchService = getSearchService();
+
+    if (!searchService.isRunning()) {
+      // Start the service first, then trigger reindex
+      try {
+        const rootPath = process.cwd();
+        await searchService.start(rootPath, { startIndexing: false });
+      } catch (error) {
+        this.broadcastWithSequence('knowledge_base_reindex_progress', {
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return;
+      }
+    }
+
+    try {
+      // Setup progress broadcasting
+      this.setupKnowledgeBaseProgressBroadcasting(searchService);
+
+      // Trigger sync with force option
+      await searchService.triggerSync({ force: force ?? true });
+    } catch (error) {
+      this.broadcastWithSequence('knowledge_base_reindex_progress', {
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Handle knowledge base auto-index toggle request
+   */
+  private async handleKnowledgeBaseAutoIndexRequest(enabled: boolean): Promise<void> {
+    const searchService = getSearchService();
+    const searchSystem = searchService.getSearchSystem();
+
+    if (!searchSystem) {
+      this.broadcastWithSequence('knowledge_base_autoindex_response', {
+        success: false,
+        error: 'Knowledge base not initialized',
+      });
+      return;
+    }
+
+    try {
+      // Set autoIndex config in storage
+      const storage = (searchSystem as any).storage;
+      if (storage && typeof storage.setConfigValue === 'function') {
+        await storage.setConfigValue('autoIndex', enabled);
+
+        this.broadcastWithSequence('knowledge_base_autoindex_response', {
+          success: true,
+          enabled,
+        });
+      } else {
+        this.broadcastWithSequence('knowledge_base_autoindex_response', {
+          success: false,
+          error: 'Storage not available',
+        });
+      }
+    } catch (error) {
+      this.broadcastWithSequence('knowledge_base_autoindex_response', {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * Handle knowledge base search request
+   */
+  private async handleKnowledgeBaseSearchRequest(request: {
+    query: string;
+    searchType?: 'keyword' | 'semantic' | 'hybrid';
+    filters?: {
+      folders?: string[];
+      extensions?: string[];
+    };
+    page?: number;
+    limit?: number;
+  }): Promise<void> {
+    const searchService = getSearchService();
+    let searchSystem = searchService.getSearchSystem();
+    let tempSystem: any = null;
+
+    // If service isn't running, try to load a temporary system if database exists
+    if (!searchSystem) {
+      const rootPath = process.cwd();
+      try {
+        const search = await getSearchModule();
+        if (!search.searchDatabaseExists(rootPath)) {
+          this.broadcastWithSequence('knowledge_base_search_response', {
+            error: 'Knowledge base not found. Please initialize it first.',
+            results: [],
+            total: 0,
+            page: 1,
+            totalPages: 0,
+          });
+          return;
+        }
+
+        // Database exists - load a temporary system for searching
+        tempSystem = await search.loadSearchSystem(rootPath, {
+          useMockEmbedder: false, // Need real embeddings for semantic search
+        });
+        searchSystem = tempSystem;
+      } catch (loadError) {
+        this.broadcastWithSequence('knowledge_base_search_response', {
+          error: `Failed to load knowledge base: ${loadError instanceof Error ? loadError.message : String(loadError)}`,
+          results: [],
+          total: 0,
+          page: 1,
+          totalPages: 0,
+        });
+        return;
+      }
+    }
+
+    if (!searchSystem) {
+      this.broadcastWithSequence('knowledge_base_search_response', {
+        error: 'Knowledge base not available',
+        results: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      });
+      return;
+    }
+
+    try {
+      const { query, searchType = 'hybrid', filters = {}, page = 1, limit = 25 } = request;
+
+      // Fetch a larger batch of results to enable proper pagination.
+      // The search engine doesn't return total count, so we fetch up to MAX_SEARCH_RESULTS
+      // and paginate on the server side.
+      const MAX_SEARCH_RESULTS = 200;
+
+      // Build search options matching SearchOptions interface
+      const searchOptions: any = {
+        query,
+        strategy: searchType,
+        limit: MAX_SEARCH_RESULTS,
+        offset: 0, // Always start from beginning, paginate after
+        highlight: true, // Enable <mark> highlighting for search term matches
+      };
+
+      // Apply filters if provided
+      const searchFilters: any = {};
+      if (filters.folders && filters.folders.length > 0) {
+        searchFilters.folders = filters.folders;
+      }
+      if (filters.extensions && filters.extensions.length > 0) {
+        searchFilters.fileTypes = filters.extensions.map((ext: string) =>
+          ext.startsWith('.') ? ext : `.${ext}`
+        );
+      }
+      if (Object.keys(searchFilters).length > 0) {
+        searchOptions.filters = searchFilters;
+      }
+
+      // Execute search - returns SearchResponse with results array
+      const response = await searchSystem.search(searchOptions);
+
+      // Calculate pagination from the full result set
+      const total = response.results.length;
+      const totalPages = Math.ceil(total / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = Math.min(startIndex + limit, total);
+      const paginatedResults = response.results.slice(startIndex, endIndex);
+
+      // Format results for frontend - include all relevant fields
+      const formattedResults = paginatedResults.map((result: any) => ({
+        filePath: result.filePath || '',
+        fileName: result.fileName || '',
+        score: result.score || 0,
+        chunkText: result.chunkText || '',
+        passages: [{
+          content: result.chunkText || '',
+          lineNumber: result.metadata?.page || null,
+        }],
+      }));
+
+      this.broadcastWithSequence('knowledge_base_search_response', {
+        results: formattedResults,
+        total,
+        page,
+        totalPages,
+        hasMore: endIndex < total,
+        query,
+      });
+    } catch (error) {
+      this.broadcastWithSequence('knowledge_base_search_response', {
+        error: error instanceof Error ? error.message : String(error),
+        results: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+      });
+    } finally {
+      // Close temporary system if we created one
+      if (tempSystem) {
+        try {
+          await tempSystem.close();
+        } catch {
+          // Ignore close errors
+        }
+      }
+    }
+  }
+
+  /**
+   * Setup progress broadcasting for knowledge base indexing
+   */
+  private setupKnowledgeBaseProgressBroadcasting(searchService: SearchServiceManager): void {
+    // Poll for progress updates during indexing
+    const progressInterval = setInterval(async () => {
+      const progress = searchService.getIndexingProgress();
+      const searchSystem = searchService.getSearchSystem();
+
+      // Get real-time stats from the search system for accurate progress
+      let liveStats: any = null;
+      if (searchSystem) {
+        try {
+          const fullStats = await searchSystem.getStats();
+          liveStats = {
+            totalDocuments: fullStats?.totalDocuments || 0,
+            filesIndexed: fullStats?.indexedDocuments || 0,
+            pendingDocuments: fullStats?.pendingDocuments || 0,
+            failedDocuments: fullStats?.failedDocuments || 0,
+            totalPassages: fullStats?.totalChunks || 0,
+            dbSize: fullStats?.databaseSize || 0,
+          };
+        } catch {
+          // Stats not available
+        }
+      }
+
+      this.broadcastWithSequence('knowledge_base_reindex_progress', {
+        status: progress.status,
+        totalFiles: progress.totalFiles,
+        processedFiles: progress.processedFiles,
+        failedFiles: progress.failedFiles,
+        currentFile: progress.currentFile,
+        // Include live stats for real-time updates
+        stats: liveStats,
+      });
+
+      // Stop polling when completed or failed
+      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'idle') {
+        clearInterval(progressInterval);
+
+        // Send final status update
+        setTimeout(() => this.handleKnowledgeBaseStatusRequest(), 500);
+      }
+    }, 5000); // Every 5 seconds during active indexing
+
+    // Clean up after 30 minutes max (safety)
+    setTimeout(() => clearInterval(progressInterval), 30 * 60 * 1000);
   }
 }

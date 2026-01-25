@@ -54,7 +54,7 @@ PGlite (PostgreSQL-compatible) and pgvector for vector storage.
 ## Quick Start
 
 ```typescript
-import { SearchSystem } from '@thacio/auditaria-cli/search';
+import { SearchSystem } from '@thacio/auditaria-cli-search';
 
 // Initialize the search system
 const search = await SearchSystem.initialize({
@@ -651,6 +651,104 @@ Formats search results for AI consumption (`search-response-formatter.ts`):
 - **Output formats**: Markdown (human-readable) or JSON (structured)
 - **Detail levels**: `minimal` (IDs only), `summary` (truncated), `full`
   (complete)
+
+---
+
+## SearchServiceManager (`packages/core/src/services/search-service.ts`)
+
+A singleton service that wraps `SearchSystem` to provide persistent background
+indexing capabilities for the CLI. It manages the search system lifecycle and
+coordinates background queue processing.
+
+### Features
+
+- **Singleton pattern**: Single shared instance across the application
+- **Background queue processor**: Processes indexing queue at regular intervals
+- **Progress tracking**: Real-time indexing progress via `IndexingProgress`
+- **Auto-index support**: Optionally starts indexing on startup based on config
+- **Event forwarding**: Subscribes to SearchSystem events for progress updates
+
+### Usage
+
+```typescript
+import { getSearchService } from '@google/gemini-cli-core';
+
+const searchService = getSearchService();
+
+// Start the service with indexing enabled
+await searchService.start('/path/to/project', { startIndexing: true });
+
+// Check if service is running
+if (searchService.isRunning()) {
+  // Check if indexing service (queue processor) is active
+  if (searchService.isIndexingEnabled()) {
+    console.log('Indexing service is online');
+  }
+
+  // Trigger a sync to process new/changed files
+  await searchService.triggerSync({ force: false });
+
+  // Get indexing progress
+  const progress = searchService.getIndexingProgress();
+  console.log(`${progress.processedFiles}/${progress.totalFiles} files`);
+}
+
+// Access the underlying SearchSystem
+const searchSystem = searchService.getSearchSystem();
+if (searchSystem) {
+  const results = await searchSystem.search({ query: 'my query' });
+}
+
+// Stop the service
+await searchService.stop();
+```
+
+### Key Methods
+
+| Method | Description |
+| --- | --- |
+| `start(rootPath, options)` | Start the service, optionally with indexing enabled |
+| `stop()` | Stop the service and cleanup resources |
+| `isRunning()` | Check if service state is 'running' |
+| `isIndexingEnabled()` | Check if queue processor is active (indexing service online) |
+| `enableIndexing()` | Start queue processor if service is running but indexing wasn't enabled |
+| `triggerSync(options)` | Discover and index new/changed files |
+| `getSearchSystem()` | Get the underlying SearchSystem instance |
+| `getIndexingProgress()` | Get current indexing progress (status, files processed, etc.) |
+| `getState()` | Get service state (status, rootPath, timestamps, errors) |
+
+### Start Options
+
+```typescript
+interface SearchServiceStartOptions {
+  forceReindex?: boolean;    // Force full reindex even if index exists
+  skipInitialSync?: boolean; // Skip initial sync for faster startup
+  startIndexing?: boolean;   // Start queue processor (used by /knowledge-base init)
+}
+```
+
+### Indexing Progress
+
+```typescript
+interface IndexingProgress {
+  status: 'idle' | 'discovering' | 'syncing' | 'indexing' | 'completed' | 'failed';
+  totalFiles: number;
+  processedFiles: number;
+  failedFiles: number;
+  currentFile: string | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  lastError: string | null;
+}
+```
+
+### How It Works
+
+1. **Service starts** → Loads or initializes SearchSystem
+2. **If `startIndexing: true` or `autoIndex` config** → Starts queue processor
+3. **Queue processor** → Polls every 5 seconds for pending items
+4. **`triggerSync()`** → Discovers files, queues them, processes via `indexAll()`
+5. **Progress events** → SearchSystem emits `indexing:progress`, service updates `IndexingProgress`
 
 ---
 

@@ -13,7 +13,7 @@
 // Singleton service that maintains a persistent SearchSystem instance
 // with background indexing capabilities.
 
-import type { SearchSystem } from '@thacio/search';
+import type { SearchSystem } from '@thacio/auditaria-cli-search';
 
 // ============================================================================
 // Types
@@ -147,7 +147,7 @@ export class SearchServiceManager {
 
     try {
       const { initializeSearchSystem, loadSearchSystem, searchDatabaseExists } =
-        await import('@thacio/search');
+        await import('@thacio/auditaria-cli-search');
 
       const dbExists = searchDatabaseExists(rootPath);
 
@@ -278,6 +278,33 @@ export class SearchServiceManager {
 
   isRunning(): boolean {
     return this.state.status === 'running';
+  }
+
+  /**
+   * Check if the indexing service is enabled (queue processor running).
+   * This is true when /knowledge-base init was run or auto-index is enabled.
+   * The indexing service handles background file watching and queue processing.
+   */
+  isIndexingEnabled(): boolean {
+    return this.queueProcessorInterval !== null;
+  }
+
+  /**
+   * Enable the indexing service if not already enabled.
+   * This starts the queue processor for background indexing.
+   * Use this when the service is already running but indexing wasn't initially enabled.
+   */
+  enableIndexing(): void {
+    if (this.queueProcessorInterval) {
+      console.log('[SearchService] Indexing already enabled');
+      return;
+    }
+    if (this.state.status !== 'running') {
+      console.log('[SearchService] Cannot enable indexing - service not running');
+      return;
+    }
+    this.startQueueProcessor();
+    console.log('[SearchService] Indexing enabled');
   }
 
   getState(): SearchServiceState {
@@ -523,6 +550,9 @@ export class SearchServiceManager {
   private async performSync(force: boolean): Promise<void> {
     if (!this.searchSystem) return;
 
+    // Prevent queue processor from interfering during sync
+    this.isProcessingQueue = true;
+
     try {
       console.log('[SearchService] Starting sync...');
 
@@ -531,6 +561,7 @@ export class SearchServiceManager {
       this.indexingProgress.startedAt = new Date();
       this.indexingProgress.completedAt = null;
       this.indexingProgress.failedFiles = 0;
+      this.indexingProgress.processedFiles = 0;
 
       // Discover files
       this.indexingProgress.status = 'discovering';
@@ -542,7 +573,7 @@ export class SearchServiceManager {
       if (files.length === 0) {
         this.indexingProgress.status = 'completed';
         this.indexingProgress.completedAt = new Date();
-        return;
+        return; // finally block will reset isProcessingQueue
       }
 
       // Index all files
@@ -565,6 +596,8 @@ export class SearchServiceManager {
       this.indexingProgress.completedAt = new Date();
       console.error('[SearchService] Sync failed:', error);
       throw error;
+    } finally {
+      this.isProcessingQueue = false;
     }
   }
 }

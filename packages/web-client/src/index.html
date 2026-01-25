@@ -36,6 +36,9 @@
     <link rel="stylesheet" href="styles/svg-preview.css">
     <link rel="stylesheet" href="styles/json-preview.css">
     <!-- WEB_INTERFACE_END -->
+
+    <!-- Knowledge Base Search & Management -->
+    <link rel="stylesheet" href="styles/knowledge-base.css">
 </head>
 <body>
     <div id="app">
@@ -88,6 +91,14 @@
                         <line x1="17" y1="17" x2="17" y2="17"></line>
                     </svg>
                     <span>Debug</span>
+                </button>
+                <button id="knowledge-base-button" title="Search Knowledge Base" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                        <circle cx="10" cy="10" r="3"></circle>
+                        <path d="m21 21-4.3-4.3"></path>
+                    </svg>
+                    <span>Search Knowledge Base</span>
                 </button>
                 <div class="status" id="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>

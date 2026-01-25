@@ -78,7 +78,7 @@ software** intactas.
   documentos do projeto usando busca por palavra-chave (correspondência exata),
   semântica (entende significado) ou híbrida (combina ambas para melhores
   resultados). Suporta PDFs, Office, imagens com OCR e mais. Use
-  `/knowledge-init` para iniciar.
+  `/knowledge-base init` para iniciar.
 - **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e
   capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
@@ -471,7 +471,7 @@ all original software engineering capabilities** intact.
 - **🔍 Knowledge Search**: The agent can index and search through all project
   documents using keyword (exact match), semantic (understands meaning), or
   hybrid search (combines both for best results). Supports PDFs, Office files,
-  images with OCR, and more. Use `/knowledge-init` to get started.
+  images with OCR, and more. Use `/knowledge-base init` to get started.
 - **🎯 Audit-Focused Features**: Specialized system prompts and capabilities
   tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working

@@ -48,7 +48,7 @@ async function main() {
       'scribe.js-ocr', // Uses top-level await
       'youtube-transcript', // Optional markitdown-ts dep
       'unzipper', // Optional markitdown-ts dep
-      '@thacio/search', // Search package with complex deps
+      '@thacio/auditaria-cli-search', // Search package with complex deps
       '@huggingface/transformers', // WASM/ONNX
       'tesseract.js', // Worker thread spawning
       'markitdown-ts', // Has problematic optional deps

@@ -27,11 +27,11 @@ import {
 // ============================================================================
 
 // Lazy load the search module to avoid loading it on startup
-let searchModule: typeof import('@thacio/search') | null = null;
+let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
 
-async function getSearchModule(): Promise<typeof import('@thacio/search')> {
+async function getSearchModule(): Promise<typeof import('@thacio/auditaria-cli-search')> {
   if (!searchModule) {
-    searchModule = await import('@thacio/search');
+    searchModule = await import('@thacio/auditaria-cli-search');
   }
   return searchModule;
 }
@@ -98,24 +98,25 @@ const initSubCommand: SlashCommand = {
       // Use the singleton SearchServiceManager instead of creating a new SearchSystem
       // This prevents database lock conflicts when the service is already running
       if (searchService.isRunning()) {
-        // Service is already running, just trigger a sync
-        context.ui.setPendingItem({
-          type: MessageType.INFO,
-          text: 'Knowledge base service running, syncing files...',
+        // Service is already running
+        // If indexing not enabled, enable it first (starts queue processor)
+        if (!searchService.isIndexingEnabled()) {
+          searchService.enableIndexing();
+        }
+
+        // Trigger sync in background (don't block UI)
+        searchService.triggerSync({ force }).catch((err) => {
+          console.warn('[KB Init] Sync failed:', err.message);
         });
 
-        await searchService.triggerSync({ force });
-
-        const progress = searchService.getIndexingProgress();
         context.ui.setPendingItem(null);
 
         return {
           type: 'message',
           messageType: 'info',
           content:
-            `Knowledge base synced:\n` +
-            `  Files processed: ${progress.processedFiles}\n` +
-            `  Files failed: ${progress.failedFiles}`,
+            'Knowledge base service running. Indexing started in background.\n' +
+            'Use /knowledge-base status to check progress.',
         };
       }
 

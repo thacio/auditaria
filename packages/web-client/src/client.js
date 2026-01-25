@@ -28,6 +28,9 @@ import { isBinaryFile } from './utils/binaryExtensions.js';
 import { detectLanguage } from './utils/languageDetection.js';
 // WEB_INTERFACE_END
 
+// Knowledge Base Search & Management
+import { KnowledgeBaseManager } from './knowledge-base/KnowledgeBaseManager.js';
+
 class AuditariaWebClient {
     constructor() {
         // Initialize managers
@@ -47,6 +50,9 @@ class AuditariaWebClient {
         // WEB_INTERFACE_START: Initialize file browser and editor
         this.initializeFileBrowser();
         // WEB_INTERFACE_END
+
+        // Initialize Knowledge Base manager
+        this.knowledgeBaseManager = new KnowledgeBaseManager(this.wsManager);
 
         // Initialize slash command autocomplete (after UI init)
         this.slashAutocomplete = null; // Will be initialized after UI elements are ready
@@ -102,8 +108,27 @@ class AuditariaWebClient {
 
         // Initialize slash command autocomplete
         this.slashAutocomplete = new SlashAutocompleteManager(this.messageInput);
+
+        // Knowledge Base button
+        this.knowledgeBaseButton = document.getElementById('knowledge-base-button');
+        if (this.knowledgeBaseButton) {
+            this.knowledgeBaseButton.addEventListener('click', () => {
+                if (this.knowledgeBaseManager) {
+                    this.knowledgeBaseManager.openModal();
+                }
+            });
+        }
+
+        // Set up Knowledge Base open file callback
+        if (this.knowledgeBaseManager) {
+            this.knowledgeBaseManager.setOpenFileCallback((path) => {
+                if (this.editorManager) {
+                    this.handleFileOpen(path);
+                }
+            });
+        }
     }
-    
+
     setupWebSocketHandlers() {
         // Connection events
         this.wsManager.addEventListener('connected', () => {
@@ -115,11 +140,24 @@ class AuditariaWebClient {
                 this.fileTreeManager.initialize();
             }
             // WEB_INTERFACE_END
+
+            // Enable Knowledge Base button and request status
+            if (this.knowledgeBaseButton) {
+                this.knowledgeBaseButton.disabled = false;
+            }
+            if (this.knowledgeBaseManager) {
+                this.knowledgeBaseManager.requestStatus();
+            }
         });
         
         this.wsManager.addEventListener('disconnected', () => {
             this.updateConnectionStatus(false);
             this.updateInputState();
+
+            // Disable Knowledge Base button on disconnect
+            if (this.knowledgeBaseButton) {
+                this.knowledgeBaseButton.disabled = true;
+            }
         });
         
         this.wsManager.addEventListener('reconnect_failed', () => {

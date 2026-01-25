@@ -170,7 +170,7 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       // Try to start the service automatically if database exists
       const rootPath = this.config.getTargetDir();
       try {
-        const { searchDatabaseExists } = await import('@thacio/search');
+        const { searchDatabaseExists } = await import('@thacio/auditaria-cli-search');
 
         if (!searchDatabaseExists(rootPath)) {
           const msg =

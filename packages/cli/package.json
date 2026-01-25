@@ -71,7 +71,7 @@
     "@browserbasehq/stagehand": "https://github.com/thacio/stagehand/releases/latest/download/stagehand-core.tgz",
     "playwright": "^1.52.0",
     "@playwright/browser-chromium": "^1.52.0",
-    "@thacio/search": "file:../search"
+    "@thacio/auditaria-cli-search": "file:../search"
   },
   "devDependencies": {
     "@babel/runtime": "^7.27.6",
