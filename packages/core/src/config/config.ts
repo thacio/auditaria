@@ -62,6 +62,7 @@ import { CollaborativeWritingTool } from '../tools/collaborative-writing.js'; //
 import { BrowserAgentTool } from '@thacio/browser-agent'; // AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
 import { KnowledgeSearchTool } from '../tools/knowledge-search.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 import { KnowledgeIndexTool } from '../tools/knowledge-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
+import { ConvertToMarkdownTool } from '../tools/convert-to-markdown.js'; // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback, logFlashFallback } from '../telemetry/loggers.js';
@@ -2011,6 +2012,9 @@ export class Config {
     // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
     registerCoreTool(KnowledgeSearchTool, this);
     registerCoreTool(KnowledgeIndexTool, this);
+
+    // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
+    registerCoreTool(ConvertToMarkdownTool, this);
 
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);

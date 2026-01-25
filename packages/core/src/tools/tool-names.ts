@@ -38,6 +38,9 @@ export const BROWSER_AGENT_TOOL_NAME = 'browser_agent';
 export const KNOWLEDGE_SEARCH_TOOL_NAME = 'knowledge_search';
 export const KNOWLEDGE_INDEX_TOOL_NAME = 'knowledge_index';
 
+// AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
+export const CONVERT_TO_MARKDOWN_TOOL_NAME = 'convert_to_markdown';
+
 /** Prefix used for tools discovered via the toolDiscoveryCommand. */
 export const DISCOVERED_TOOL_PREFIX = 'discovered_tool_';
 
