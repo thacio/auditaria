@@ -198,6 +198,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private useMockEmbedder: boolean = false;
   private ocrAvailable: boolean = false;
   private loggingOptions?: LoggingOptions;
+  /** Flag to signal graceful shutdown is in progress */
+  private closing: boolean = false;
 
   private constructor(
     rootPath: string,
@@ -589,6 +591,28 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    * are cleaned up even if one step fails or hangs.
    */
   async close(): Promise<void> {
+    // Signal shutdown immediately so ongoing operations can exit gracefully
+    this.closing = true;
+    this.initialized = false;
+
+    // Wait for any ongoing indexing to finish (with timeout)
+    // This prevents race conditions where indexAll() is still accessing resources
+    if (this.indexingInProgress) {
+      console.log(
+        '[SearchSystem] Waiting for indexing to finish before close...',
+      );
+      const waitStart = Date.now();
+      const MAX_WAIT_MS = 5000; // 5 second max wait for indexing to exit
+      while (this.indexingInProgress && Date.now() - waitStart < MAX_WAIT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (this.indexingInProgress) {
+        console.warn(
+          '[SearchSystem] Indexing did not finish in time, proceeding with close',
+        );
+      }
+    }
+
     const errors: Array<{ step: string; error: unknown }> = [];
     const STEP_TIMEOUT_MS = 10000; // 10 second timeout per step
 
@@ -769,12 +793,33 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         });
       });
 
-      // Wait for pipeline to finish
-      await this.waitForPipelineIdle();
+      // Wait for pipeline to finish, with graceful shutdown handling
+      try {
+        await this.waitForPipelineIdle();
+      } catch (error) {
+        // If shutdown was triggered, clean up and return partial results
+        if (this.closing) {
+          console.log('[SearchSystem] Indexing interrupted by shutdown');
+          unsubCompleted();
+          unsubFailed();
+          const duration = Date.now() - startTime;
+          void this.emit('indexing:completed', { indexed, failed, duration });
+          return { indexed, failed, duration };
+        }
+        throw error;
+      }
 
       // Cleanup
       unsubCompleted();
       unsubFailed();
+
+      // Skip OCR and backup if shutdown was triggered
+      if (this.closing) {
+        console.log('[SearchSystem] Skipping OCR and backup due to shutdown');
+        const duration = Date.now() - startTime;
+        void this.emit('indexing:completed', { indexed, failed, duration });
+        return { indexed, failed, duration };
+      }
 
       // Process OCR queue if enabled
       if (this.isOcrAvailable()) {
@@ -783,7 +828,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         await this.enqueueExistingImagesForOcr();
 
         const ocrStatus = this.ocrQueueManager!.getStatus();
-        if (ocrStatus.pendingJobs > 0) {
+        if (ocrStatus.pendingJobs > 0 && !this.closing) {
           console.log(
             `[SearchSystem] Processing ${ocrStatus.pendingJobs} OCR job(s)...`,
           );
@@ -797,19 +842,21 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       const duration = Date.now() - startTime;
       void this.emit('indexing:completed', { indexed, failed, duration });
 
-      // Create backup after successful indexing
-      try {
-        const storage = this.storage as PGliteStorage;
-        if (typeof storage.createBackup === 'function') {
-          const backed = await storage.createBackup();
-          if (backed) {
-            console.log('[SearchSystem] Post-indexing backup created');
+      // Create backup after successful indexing (skip if closing)
+      if (!this.closing) {
+        try {
+          const storage = this.storage as PGliteStorage;
+          if (typeof storage.createBackup === 'function') {
+            const backed = await storage.createBackup();
+            if (backed) {
+              console.log('[SearchSystem] Post-indexing backup created');
+            }
           }
+        } catch (error) {
+          console.warn(
+            `[SearchSystem] Post-indexing backup failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-      } catch (error) {
-        console.warn(
-          `[SearchSystem] Post-indexing backup failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
       }
 
       return { indexed, failed, duration };
@@ -822,8 +869,18 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    * Wait for pipeline to become idle.
    */
   private async waitForPipelineIdle(): Promise<void> {
-    while (this.pipeline!.getState() !== 'idle') {
+    // Check closing flag and pipeline existence before each iteration
+    // to handle graceful shutdown during indexing
+    while (
+      !this.closing &&
+      this.pipeline &&
+      this.pipeline.getState() !== 'idle'
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    // If we exited due to shutdown, throw a specific error
+    if (this.closing) {
+      throw new Error('Operation cancelled: system is shutting down');
     }
   }
 
