@@ -253,7 +253,7 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   quantization: 'q8', // Q8 is 2.2x faster than FP16 with identical quality
   preferGpuForIndexing: false, // GPU is 6.5x slower for this model size
   workerHeapSizeMb: 4096, // 4GB heap for worker thread (V8 default is ~2GB)
-  preferPythonEmbedder: true, // Use Node.js by default, Python as alternative
+  preferPythonEmbedder: false, // Use Node.js by default, Python as alternative
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {

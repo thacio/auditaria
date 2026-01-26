@@ -137,6 +137,9 @@ export function getNodeMemoryArgs(isDebugMode: boolean): string[] {
 
   // AUDITARIA: Minimum 4GB heap for knowledge indexing (PGlite WASM needs significant heap)
   // For machines with more RAM, use 50% of total memory
+  if (process.versions.bun) {
+    return [];
+  }
   const MIN_HEAP_SIZE_MB = 4096;
   const targetMaxOldSpaceSizeInMB = Math.max(
     MIN_HEAP_SIZE_MB,
