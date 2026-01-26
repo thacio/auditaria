@@ -11,36 +11,44 @@ import {
 } from './types.js';
 import { SkillSetupService } from '../../services/SkillSetupService.js';
 
+// AUDITARIA_FEATURE_START: Skill definition as discriminated union
 /**
- * Skill Definition Interface
+ * Skill Definition - Discriminated Union
+ *
+ * Use `type` field to distinguish between skill installation methods:
+ * - 'platform-zip': Platform-specific ZIP downloads (binaries, assets)
+ * - 'skill-md': Simple SKILL.md file download (instructions only)
+ *
+ * To add a new installation method, add a new union member.
  */
-interface SkillDefinition {
-  name: string;
-  description: string;
-  platforms: {
-    windows: {
-      url: string;
-      zipName: string;
+type SkillDefinition =
+  | {
+      type: 'platform-zip';
+      name: string;
+      description: string;
+      platforms: {
+        windows: { url: string; zipName: string };
+        linux: { url: string; zipName: string };
+        macos: { url: string; zipName: string };
+      };
+    }
+  | {
+      type: 'skill-md';
+      name: string;
+      description: string;
+      skillMdUrl: string;
     };
-    linux: {
-      url: string;
-      zipName: string;
-    };
-    macos: {
-      url: string;
-      zipName: string;
-    };
-  };
-}
+// AUDITARIA_FEATURE_END
 
 /**
  * Available Skills Registry
  *
- * This is the centralized list of all available skills.
- * To add a new skill, simply add it to this object.
+ * Centralized list of all available skills.
+ * To add a new skill, add an entry with the appropriate `type`.
  */
 const AVAILABLE_SKILLS: Record<string, SkillDefinition> = {
   'docx-writing-skill': {
+    type: 'platform-zip',
     name: 'DOCX Writing Skill',
     description: 'Parse markdown to DOCX format',
     platforms: {
@@ -58,7 +66,14 @@ const AVAILABLE_SKILLS: Record<string, SkillDefinition> = {
       },
     },
   },
-  // Future skills can be added here
+  'deep-research-knowledge-base': {
+    type: 'skill-md',
+    name: 'Deep Research Knowledge Base',
+    description:
+      'Iterative research on knowledge base with evidence-based reports',
+    skillMdUrl:
+      'https://github.com/thacio/auditaria/raw/refs/heads/main/.auditaria/skills/deep-research-knowledge-base/SKILL.md',
+  },
 };
 
 /**
@@ -71,73 +86,32 @@ function detectPlatform(): 'windows' | 'linux' | 'macos' {
 }
 
 /**
- * Execute skill setup action - shared by both direct action and subcommand actions
+ * Execute skill setup - handles all skill types via discriminated union
  */
 async function executeSkillSetup(
   context: CommandContext,
   skillId: string,
   skill: SkillDefinition,
 ): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
-  // Detect platform and get appropriate download config
-  const platform = detectPlatform();
-  const platformConfig = skill.platforms[platform];
-
-  if (!platformConfig) {
-    return {
-      type: 'message',
-      messageType: 'error',
-      content: `Skill ${skillId} is not available for platform: ${platform}`,
-    };
-  }
-
-  // Initialize generic skill setup service
-  const workingDir = context.services.config?.getWorkingDir() || process.cwd();
-  const skillService = new SkillSetupService(workingDir);
-
   // Show progress message
   context.ui.addItem(
-    {
-      type: 'info',
-      text: `Installing skill: ${skill.name}...`,
-    },
+    { type: 'info', text: `Installing skill: ${skill.name}...` },
     Date.now(),
   );
 
+  const workingDir = context.services.config?.getWorkingDir() || process.cwd();
+
   try {
-    // Execute generic setup
-    const result = await skillService.setupSkill({
-      skillName: skillId,
-      downloadUrl: platformConfig.url,
-      zipFileName: platformConfig.zipName,
-    });
-
-    // If setup was successful and it's docx-writing-skill, refresh parser status
-    if (result.success && skillId === 'docx-writing-skill' && context.web) {
-      // Notify web interface to refresh parser detection
-      // The web interface will handle this through WebInterfaceService.refreshParserStatus()
-      setTimeout(() => {
-        // This will be called via WebInterfaceService after command completes
-        context.ui.addItem(
-          {
-            type: 'info',
-            text: 'DOCX parser is now available in the web interface.',
-          },
-          Date.now(),
-        );
-      }, 500);
+    // AUDITARIA_FEATURE_START: Handle skill types via discriminated union
+    if (skill.type === 'platform-zip') {
+      return await setupPlatformZipSkill(context, skillId, skill, workingDir);
+    } else if (skill.type === 'skill-md') {
+      return await setupSkillMdSkill(skillId, skill, workingDir);
     }
-
-    return result.success
-      ? {
-          type: 'message',
-          messageType: 'info',
-          content: `✓ ${result.message}`,
-        }
-      : {
-          type: 'message',
-          messageType: 'error',
-          content: `✗ ${result.message}`,
-        };
+    // TypeScript will error if we miss a case (exhaustiveness check)
+    const _exhaustive: never = skill;
+    return _exhaustive;
+    // AUDITARIA_FEATURE_END
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     return {
@@ -149,8 +123,88 @@ async function executeSkillSetup(
 }
 
 /**
+ * Setup platform-specific ZIP skill
+ */
+async function setupPlatformZipSkill(
+  context: CommandContext,
+  skillId: string,
+  skill: Extract<SkillDefinition, { type: 'platform-zip' }>,
+  workingDir: string,
+): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
+  const platform = detectPlatform();
+  const platformConfig = skill.platforms[platform];
+
+  if (!platformConfig) {
+    return {
+      type: 'message',
+      messageType: 'error',
+      content: `Skill ${skillId} is not available for platform: ${platform}`,
+    };
+  }
+
+  const skillService = new SkillSetupService(workingDir);
+  const result = await skillService.setupSkill({
+    skillName: skillId,
+    downloadUrl: platformConfig.url,
+    zipFileName: platformConfig.zipName,
+  });
+
+  // Special handling for docx-writing-skill
+  if (result.success && skillId === 'docx-writing-skill' && context.web) {
+    setTimeout(() => {
+      context.ui.addItem(
+        {
+          type: 'info',
+          text: 'DOCX parser is now available in the web interface.',
+        },
+        Date.now(),
+      );
+    }, 500);
+  }
+
+  return result.success
+    ? { type: 'message', messageType: 'info', content: `✓ ${result.message}` }
+    : { type: 'message', messageType: 'error', content: `✗ ${result.message}` };
+}
+
+/**
+ * Setup simple SKILL.md skill
+ */
+async function setupSkillMdSkill(
+  skillId: string,
+  skill: Extract<SkillDefinition, { type: 'skill-md' }>,
+  workingDir: string,
+): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+
+  const skillDir = path.join(workingDir, '.auditaria', 'skills', skillId);
+  const skillMdPath = path.join(skillDir, 'SKILL.md');
+
+  // Create skill directory
+  await fs.mkdir(skillDir, { recursive: true });
+
+  // Download SKILL.md
+  const response = await fetch(skill.skillMdUrl);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download SKILL.md: ${response.status} ${response.statusText}`,
+    );
+  }
+  const content = await response.text();
+
+  // Save SKILL.md
+  await fs.writeFile(skillMdPath, content, 'utf-8');
+
+  return {
+    type: 'message',
+    messageType: 'info',
+    content: `✓ Skill "${skill.name}" installed successfully at ${skillDir}`,
+  };
+}
+
+/**
  * Generate subCommands from AVAILABLE_SKILLS registry
- * This enables autocomplete in both CLI and web interface
  */
 function generateSkillSubCommands(): SlashCommand[] {
   return Object.entries(AVAILABLE_SKILLS).map(([skillId, skill]) => ({
@@ -170,22 +224,17 @@ function generateSkillSubCommands(): SlashCommand[] {
  * Example: /setup-skill docx-writing-skill
  *
  * This command downloads and installs skills from predefined sources.
- * The skill setup is generic - specific skill functionality is handled
- * by dedicated services (e.g., DocxParserService for docx-writing-skill).
  */
 export const setupSkillCommand: SlashCommand = {
   name: 'setup-skill',
   description: 'download and setup a skill',
   kind: CommandKind.BUILT_IN,
-  // SubCommands enable autocomplete in web interface (which can't use completion functions)
   subCommands: generateSkillSubCommands(),
-  // completion is kept for CLI compatibility (fuzzy search, filtering)
   completion: async (_context: CommandContext, _partialArg: string) =>
     Object.keys(AVAILABLE_SKILLS),
   action: async (context: CommandContext, args: string) => {
     const skillId = args.trim();
 
-    // Validate skill name provided
     if (!skillId) {
       const availableSkills = Object.keys(AVAILABLE_SKILLS).join(', ');
       return {
@@ -195,7 +244,6 @@ export const setupSkillCommand: SlashCommand = {
       };
     }
 
-    // Validate skill exists
     const skill = AVAILABLE_SKILLS[skillId];
     if (!skill) {
       const availableSkills = Object.keys(AVAILABLE_SKILLS).join(', ');
