@@ -371,6 +371,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             batchSize: this.config.embeddings.batchSize,
             workerHeapSizeMb: this.config.embeddings.workerHeapSizeMb,
             preferPythonEmbedder: this.config.embeddings.preferPythonEmbedder,
+            cacheDir: this.config.embeddings.cacheDir, // Use consistent path across runtimes
           },
           (progress) => {
             if (progress.stage === 'download' && progress.file) {

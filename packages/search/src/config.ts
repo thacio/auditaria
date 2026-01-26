@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
 // ============================================================================
 // Configuration Types
 // ============================================================================
@@ -124,6 +127,12 @@ export interface EmbeddingsConfig {
    * Falls back to Node.js if Python is not available.
    */
   preferPythonEmbedder: boolean;
+  /**
+   * Cache directory for downloaded models. Default: ~/.auditaria/models
+   * Using a fixed path in the user's home directory ensures models are
+   * shared across projects and consistent regardless of runtime (node/bun).
+   */
+  cacheDir: string;
 }
 
 export interface SearchConfig {
@@ -254,6 +263,7 @@ export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
   preferGpuForIndexing: false, // GPU is 6.5x slower for this model size
   workerHeapSizeMb: 4096, // 4GB heap for worker thread (V8 default is ~2GB)
   preferPythonEmbedder: false, // Use Node.js by default, Python as alternative
+  cacheDir: join(homedir(), '.auditaria', 'models'), // Consistent path across runtimes
 };
 
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
