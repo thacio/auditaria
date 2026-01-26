@@ -1,7 +1,10 @@
 /**
- * SearchSystem - Main orchestrator for the Auditaria Search system.
- * Provides a high-level API for initializing, indexing, and searching documents.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
+
+/* eslint-disable no-console */
 
 import { join, resolve, extname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
@@ -295,6 +298,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     const dbConfig: DatabaseConfig = {
       path: join(this.rootPath, this.config.database.path),
       inMemory: this.config.database.inMemory,
+      backupEnabled: this.config.database.backupEnabled,
     };
 
     this.storage = new PGliteStorage(dbConfig);
@@ -473,6 +477,23 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       }
     });
 
+    // Listen for maintenance completion events to trigger backup at safe points
+    this.pipeline.on('maintenance:completed', async () => {
+      try {
+        const storage = this.storage as PGliteStorage;
+        if (typeof storage.createBackup === 'function') {
+          const backed = await storage.createBackup();
+          if (backed) {
+            console.log('[SearchSystem] Backup created during maintenance');
+          }
+        }
+      } catch (error) {
+        console.warn(
+          `[SearchSystem] Backup during maintenance failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
+
     // Initialize startup sync
     this.startupSync = createStartupSync(this.storage, this.discovery);
 
@@ -562,44 +583,100 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
   /**
    * Close the search system and release resources.
+   * Each cleanup step is wrapped in try-catch with timeout to ensure all resources
+   * are cleaned up even if one step fails or hangs.
    */
   async close(): Promise<void> {
+    const errors: Array<{ step: string; error: unknown }> = [];
+    const STEP_TIMEOUT_MS = 10000; // 10 second timeout per step
+
+    // Helper to safely close a resource with timeout
+    const safeClose = async (
+      step: string,
+      resource: unknown,
+      closeFn: () => Promise<void>,
+    ): Promise<void> => {
+      if (!resource) return;
+      try {
+        await Promise.race([
+          closeFn(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(`${step} timed out after ${STEP_TIMEOUT_MS}ms`),
+                ),
+              STEP_TIMEOUT_MS,
+            ),
+          ),
+        ]);
+      } catch (error) {
+        // Log and collect errors but continue cleanup
+        console.warn(`[SearchSystem] Error during ${step}:`, error);
+        errors.push({ step, error });
+      }
+    };
+
     // Stop pipeline first to prevent race condition with storage
-    if (this.pipeline) {
-      await this.pipeline.stop();
+    await safeClose('pipeline.stop', this.pipeline, async () => {
+      await this.pipeline!.stop();
       this.pipeline = null;
-    }
+    });
 
     // Stop OCR queue manager
-    if (this.ocrQueueManager) {
-      await this.ocrQueueManager.stop();
+    await safeClose('ocrQueueManager.stop', this.ocrQueueManager, async () => {
+      await this.ocrQueueManager!.stop();
       this.ocrQueueManager = null;
-    }
+    });
 
     // Dispose OCR registry
-    if (this.ocrRegistry) {
-      await this.ocrRegistry.disposeAll();
+    await safeClose('ocrRegistry.disposeAll', this.ocrRegistry, async () => {
+      await this.ocrRegistry!.disposeAll();
       this.ocrRegistry = null;
-    }
+    });
 
-    if (this.storage) {
-      await this.storage.close();
+    // Close storage
+    await safeClose('storage.close', this.storage, async () => {
+      await this.storage!.close();
       this.storage = null;
-    }
+    });
 
-    if (this.indexingEmbedder) {
-      await this.indexingEmbedder.dispose();
-      this.indexingEmbedder = null;
-    }
+    // Dispose indexing embedder
+    await safeClose(
+      'indexingEmbedder.dispose',
+      this.indexingEmbedder,
+      async () => {
+        await this.indexingEmbedder!.dispose();
+        this.indexingEmbedder = null;
+      },
+    );
 
-    if (this.searchEmbedder) {
-      await this.searchEmbedder.dispose();
+    // Dispose search embedder
+    await safeClose('searchEmbedder.dispose', this.searchEmbedder, async () => {
+      await this.searchEmbedder!.dispose();
       this.searchEmbedder = null;
-    }
+    });
 
     this.resolvedEmbedderConfig = null;
     this.initialized = false;
     this.ocrAvailable = false;
+
+    // If any errors occurred, throw a combined error
+    if (errors.length > 0) {
+      const errorMessages = errors
+        .map(({ step, error }) => {
+          // Handle unusual error types (like Infinity)
+          const errorStr =
+            error instanceof Error
+              ? error.message
+              : typeof error === 'number' || typeof error === 'string'
+                ? `Unexpected value: ${error}`
+                : String(error);
+          return `${step}: ${errorStr}`;
+        })
+        .join('; ');
+      throw new Error(`Close errors: ${errorMessages}`);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -717,6 +794,21 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
       const duration = Date.now() - startTime;
       void this.emit('indexing:completed', { indexed, failed, duration });
+
+      // Create backup after successful indexing
+      try {
+        const storage = this.storage as PGliteStorage;
+        if (typeof storage.createBackup === 'function') {
+          const backed = await storage.createBackup();
+          if (backed) {
+            console.log('[SearchSystem] Post-indexing backup created');
+          }
+        }
+      } catch (error) {
+        console.warn(
+          `[SearchSystem] Post-indexing backup failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
 
       return { indexed, failed, duration };
     } finally {

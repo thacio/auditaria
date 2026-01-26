@@ -1,6 +1,7 @@
 /**
- * Indexing Pipeline.
- * Orchestrates the flow: Discovery → Queue → Parser → Chunker → Embedder → Storage
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { StorageAdapter, CreateChunkInput } from '../storage/types.js';
@@ -317,6 +318,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       const summary = this.classifier.getSummary(classified);
 
       // Log classification summary
+      // eslint-disable-next-line no-console
       console.log(
         `[IndexingPipeline] Queuing ${toQueuePaths.length} files with smart priority:`,
         `text=${summary.text}, markup=${summary.markup}, pdf=${summary.pdf},`,
@@ -539,6 +541,11 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         processedCount: this.processedCount,
       });
       log.logMemory('maintenance:memoryAfter');
+
+      // Emit event so SearchSystem can trigger backup at this safe point
+      void this.emit('maintenance:completed', {
+        processedCount: this.processedCount,
+      });
     } catch (error) {
       log.error('maintenance:error', {
         error: error instanceof Error ? error.message : String(error),

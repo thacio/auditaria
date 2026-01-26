@@ -643,12 +643,20 @@ export async function main() {
         // Ink will cleanup so there is no need for us to manually cleanup.
       }
 
-      // This cleanup isn't strictly needed but may help in certain situations.
+      // Handle SIGTERM/SIGINT to ensure graceful cleanup (database backup, etc.)
       process.on('SIGTERM', () => {
         process.stdin.setRawMode(wasRaw);
+        // Run cleanup asynchronously before exit
+        void runExitCleanup().finally(() => {
+          process.exit(0);
+        });
       });
       process.on('SIGINT', () => {
         process.stdin.setRawMode(wasRaw);
+        // Run cleanup asynchronously before exit
+        void runExitCleanup().finally(() => {
+          process.exit(0);
+        });
       });
     }
 

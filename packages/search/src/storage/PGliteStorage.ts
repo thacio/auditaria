@@ -1,11 +1,16 @@
 /**
- * PGlite storage adapter implementation.
- * Provides embedded PostgreSQL with pgvector for the search system.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite/vector';
-import type { Extension, ExtensionSetupResult, PGliteInterface } from '@electric-sql/pglite';
+import type {
+  Extension,
+  ExtensionSetupResult,
+  PGliteInterface,
+} from '@electric-sql/pglite';
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -35,10 +40,37 @@ import {
 } from './schema.js';
 import type { DatabaseConfig } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const log = createModuleLogger('PGliteStorage');
+
+// ============================================================================
+// Backup Constants
+// ============================================================================
+
+/** Maximum database size for automatic backup (300MB) */
+const BACKUP_MAX_SIZE_BYTES = 300 * 1024 * 1024;
+
+/** Suffix for backup directory */
+const BACKUP_SUFFIX = '.backup';
+
+// ============================================================================
+// Corruption Detection
+// ============================================================================
+
+/**
+ * Check if an error is likely due to database corruption.
+ * These errors typically occur when PGlite can't recover from WAL.
+ */
+function isLikelyCorruptionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('PANIC:') ||
+    message.includes('could not locate a valid checkpoint record') ||
+    (message.includes('Aborted') && message.includes('-sASSERTIONS'))
+  );
+}
 
 // ============================================================================
 // Bun Executable Detection and Asset Management
@@ -62,7 +94,11 @@ function isRunningInBunExecutable(): boolean {
   // Check for Bun's virtual filesystem path patterns
   try {
     const metaUrl = import.meta.url;
-    if (metaUrl.includes('/$bunfs/') || metaUrl.includes('/~BUN/') || metaUrl.includes('%7EBUN')) {
+    if (
+      metaUrl.includes('/$bunfs/') ||
+      metaUrl.includes('/~BUN/') ||
+      metaUrl.includes('%7EBUN')
+    ) {
       return true;
     }
   } catch {
@@ -94,11 +130,14 @@ async function extractPGliteAssets(): Promise<{
   const assetsPath = getPGliteAssetsPath();
 
   // Check for embedded assets from build script
-  const embeddedAssets = (globalThis as Record<string, unknown>).__PGLITE_EMBEDDED_ASSETS as {
-    wasm?: string;  // Base64 encoded
-    data?: string;  // Base64 encoded
-    vector?: string;  // Base64 encoded
-  } | undefined;
+  const embeddedAssets = (globalThis as Record<string, unknown>)
+    .__PGLITE_EMBEDDED_ASSETS as
+    | {
+        wasm?: string; // Base64 encoded
+        data?: string; // Base64 encoded
+        vector?: string; // Base64 encoded
+      }
+    | undefined;
 
   if (!embeddedAssets) {
     log.warn('extractPGliteAssets:noEmbeddedAssets', {});
@@ -122,10 +161,12 @@ async function extractPGliteAssets(): Promise<{
   if (fs.existsSync(versionFile)) {
     try {
       const storedVersion = fs.readFileSync(versionFile, 'utf-8').trim();
-      if (storedVersion === currentVersion &&
-          fs.existsSync(wasmPath) &&
-          fs.existsSync(dataPath) &&
-          fs.existsSync(vectorPath)) {
+      if (
+        storedVersion === currentVersion &&
+        fs.existsSync(wasmPath) &&
+        fs.existsSync(dataPath) &&
+        fs.existsSync(vectorPath)
+      ) {
         needsExtraction = false;
         log.debug('extractPGliteAssets:cached', { assetsPath });
       }
@@ -145,7 +186,10 @@ async function extractPGliteAssets(): Promise<{
         fs.writeFileSync(dataPath, Buffer.from(embeddedAssets.data, 'base64'));
       }
       if (embeddedAssets.vector) {
-        fs.writeFileSync(vectorPath, Buffer.from(embeddedAssets.vector, 'base64'));
+        fs.writeFileSync(
+          vectorPath,
+          Buffer.from(embeddedAssets.vector, 'base64'),
+        );
       }
       fs.writeFileSync(versionFile, currentVersion);
 
@@ -164,12 +208,13 @@ async function extractPGliteAssets(): Promise<{
  * This is needed for Bun compiled executables.
  */
 function createCustomVectorExtension(bundlePath: string): Extension {
-  const setup = async (_pg: PGliteInterface, emscriptenOpts: unknown): Promise<ExtensionSetupResult> => {
-    return {
+  const setup = async (
+    _pg: PGliteInterface,
+    emscriptenOpts: unknown,
+  ): Promise<ExtensionSetupResult> => ({
       emscriptenOpts,
       bundlePath: new URL(`file://${bundlePath.replace(/\\/g, '/')}`),
-    };
-  };
+    });
 
   return {
     name: 'pgvector',
@@ -323,6 +368,7 @@ export class PGliteStorage implements StorageAdapter {
   private timerCounter = 0; // Counter for unique timer keys in concurrent operations
   private _reconnecting = false; // Flag to indicate reconnection in progress
   private _reconnectPromise: Promise<void> | null = null; // Promise to wait for reconnection
+  private _dirty = false; // Tracks if database has been modified since last backup
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -360,7 +406,9 @@ export class PGliteStorage implements StorageAdapter {
           extensions: { vector: customVector },
         });
 
-        log.info('createPGliteInstance:bunExecutableInitialized', { assetsPath: getPGliteAssetsPath() });
+        log.info('createPGliteInstance:bunExecutableInitialized', {
+          assetsPath: getPGliteAssetsPath(),
+        });
         return db;
       } else {
         // Fallback: Try standard initialization (may fail in Bun executable)
@@ -369,7 +417,7 @@ export class PGliteStorage implements StorageAdapter {
     }
 
     // Standard initialization for Node.js/development
-    return await PGlite.create({
+    return PGlite.create({
       dataDir: this.config.inMemory ? undefined : this.config.path,
       extensions: { vector },
     });
@@ -378,8 +426,101 @@ export class PGliteStorage implements StorageAdapter {
   async initialize(): Promise<void> {
     if (this._initialized) return;
 
+    const dbPath = this.config.path || 'in-memory';
+    const backupPath = this.config.path
+      ? `${this.config.path}${BACKUP_SUFFIX}`
+      : null;
+
     // Create PGlite instance (handles Bun executable environment)
-    this.db = await this.createPGliteInstance();
+    try {
+      this.db = await this.createPGliteInstance();
+    } catch (error) {
+      if (isLikelyCorruptionError(error)) {
+        const originalError =
+          error instanceof Error ? error.message : String(error);
+        log.warn('initialize:corruption_detected', { error: originalError });
+
+        // Attempt auto-recovery from backup if available
+        if (backupPath && fs.existsSync(backupPath)) {
+          log.info('initialize:attempting_recovery_from_backup');
+          /* eslint-disable no-console */
+          console.warn('[KnowledgeBase] ⚠️  Database corruption detected!');
+          console.warn(
+            '[KnowledgeBase] Cause: Application was likely closed during database operations.',
+          );
+          console.warn(
+            '[KnowledgeBase] Attempting automatic recovery from backup...',
+          );
+          /* eslint-enable no-console */
+
+          try {
+            // Remove corrupted database and restore from backup
+            await this.removeDirectory(dbPath);
+            await this.copyDirectory(backupPath, dbPath);
+            log.info('initialize:backup_restored');
+
+            // Retry initialization with restored database
+            try {
+              this.db = await this.createPGliteInstance();
+              /* eslint-disable no-console */
+              console.warn(
+                '[KnowledgeBase] ✓ Successfully recovered from backup!',
+              );
+              console.warn(
+                '[KnowledgeBase] Note: Some recent changes may have been lost. Run `/knowledge-base init` to reindex.',
+              );
+              /* eslint-enable no-console */
+              log.info('initialize:recovery_successful');
+            } catch (retryError) {
+              // Recovery failed - backup might also be corrupted
+              const retryErrorMsg =
+                retryError instanceof Error
+                  ? retryError.message
+                  : String(retryError);
+              log.error('initialize:recovery_failed', { error: retryErrorMsg });
+              throw new Error(
+                `Knowledge base database is corrupted and recovery from backup failed.\n\n` +
+                  `This may happen if the backup was also corrupted.\n\n` +
+                  `To fix this issue:\n` +
+                  `  1. Delete the database folder: ${dbPath}\n` +
+                  `  2. Delete the backup folder: ${backupPath}\n` +
+                  `  3. Run '/knowledge-base init' to rebuild the index\n\n` +
+                  `Original error: ${originalError}\n` +
+                  `Recovery error: ${retryErrorMsg}`,
+              );
+            }
+          } catch (restoreError) {
+            // Failed to restore backup files
+            const restoreErrorMsg =
+              restoreError instanceof Error
+                ? restoreError.message
+                : String(restoreError);
+            log.error('initialize:restore_failed', { error: restoreErrorMsg });
+            throw new Error(
+              `Knowledge base database is corrupted and failed to restore backup.\n\n` +
+                `To fix this issue:\n` +
+                `  1. Delete the database folder: ${dbPath}\n` +
+                `  2. Run '/knowledge-base init' to rebuild the index\n\n` +
+                `Original error: ${originalError}\n` +
+                `Restore error: ${restoreErrorMsg}`,
+            );
+          }
+        } else {
+          // No backup available
+          throw new Error(
+            `Knowledge base database appears to be corrupted.\n\n` +
+              `This usually happens when the application was forcefully closed during database operations.\n` +
+              `No backup is available for automatic recovery.\n\n` +
+              `To fix this issue:\n` +
+              `  1. Delete the database folder: ${dbPath}\n` +
+              `  2. Run '/knowledge-base init' to rebuild the index\n\n` +
+              `Original error: ${originalError}`,
+          );
+        }
+      } else {
+        throw error;
+      }
+    }
 
     // Run schema SQL
     await this.db.exec(SCHEMA_SQL);
@@ -410,9 +551,41 @@ export class PGliteStorage implements StorageAdapter {
 
   async close(): Promise<void> {
     if (this.db) {
-      await this.db.close();
+      // Create backup before closing (non-blocking on failure)
+      try {
+        await this.createBackup();
+      } catch (error) {
+        log.warn('close:backup_failed', { error: String(error) });
+      }
+
+      // Close the database with timeout and defensive error handling
+      // PGlite/WASM can sometimes hang or throw unusual values during shutdown
+      const CLOSE_TIMEOUT_MS = 5000; // 5 second timeout
+      try {
+        await Promise.race([
+          this.db.close(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('PGlite close() timed out')),
+              CLOSE_TIMEOUT_MS,
+            ),
+          ),
+        ]);
+      } catch (error) {
+        // Handle unusual error types (like Infinity from WASM) or timeout
+        const errorMsg =
+          error instanceof Error
+            ? error.message
+            : typeof error === 'number'
+              ? `WASM numeric error: ${error}`
+              : String(error);
+        log.warn('close:db_close_error', { error: errorMsg });
+        // Don't rethrow - we still want to clean up state
+      }
+
       this.db = null;
       this._initialized = false;
+      this._dirty = false;
     }
   }
 
@@ -465,6 +638,193 @@ export class PGliteStorage implements StorageAdapter {
     } catch (error) {
       log.endTimer(timerKey, 'vacuum:error', { error: String(error) });
       throw error;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Backup & Recovery
+  // -------------------------------------------------------------------------
+
+  /**
+   * Check if a backup exists for this database.
+   */
+  async backupExists(): Promise<boolean> {
+    if (this.config.inMemory || !this.config.path) return false;
+    const backupPath = `${this.config.path}${BACKUP_SUFFIX}`;
+    return fs.existsSync(backupPath);
+  }
+
+  /**
+   * Get the total size of a directory in bytes.
+   */
+  private async getDirectorySize(dirPath: string): Promise<number> {
+    let totalSize = 0;
+
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        totalSize += await this.getDirectorySize(entryPath);
+      } else if (entry.isFile()) {
+        const stats = await fs.promises.stat(entryPath);
+        totalSize += stats.size;
+      }
+    }
+
+    return totalSize;
+  }
+
+  /**
+   * Copy a directory recursively.
+   */
+  private async copyDirectory(src: string, dest: string): Promise<void> {
+    await fs.promises.mkdir(dest, { recursive: true });
+
+    const entries = await fs.promises.readdir(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+
+      if (entry.isDirectory()) {
+        await this.copyDirectory(srcPath, destPath);
+      } else if (entry.isFile()) {
+        await fs.promises.copyFile(srcPath, destPath);
+      }
+    }
+  }
+
+  /**
+   * Remove a directory recursively.
+   */
+  private async removeDirectory(dirPath: string): Promise<void> {
+    if (fs.existsSync(dirPath)) {
+      await fs.promises.rm(dirPath, { recursive: true, force: true });
+    }
+  }
+
+  /**
+   * Create a backup of the database.
+   * Only creates backup if:
+   * - Database has been modified since last backup (dirty flag)
+   * - Database is not empty (has documents)
+   * - Database size is under 100MB
+   *
+   * @returns true if backup was created, false if skipped
+   */
+  async createBackup(): Promise<boolean> {
+    // Skip if backups are disabled
+    if (this.config.backupEnabled === false) {
+      log.debug('createBackup:skipped_disabled');
+      return false;
+    }
+
+    // Skip for in-memory databases
+    if (this.config.inMemory || !this.config.path) {
+      log.debug('createBackup:skipped_in_memory');
+      return false;
+    }
+
+    // Skip if no changes since last backup
+    if (!this._dirty) {
+      log.debug('createBackup:skipped_no_changes');
+      return false;
+    }
+
+    // Skip if database is empty
+    try {
+      const docCount = await this.countDocuments();
+      if (docCount === 0) {
+        log.debug('createBackup:skipped_empty_database');
+        return false;
+      }
+    } catch {
+      // If we can't count documents, skip backup
+      log.debug('createBackup:skipped_count_failed');
+      return false;
+    }
+
+    const dbPath = this.config.path;
+    const backupPath = `${dbPath}${BACKUP_SUFFIX}`;
+
+    // Check database size
+    let size: number;
+    try {
+      size = await this.getDirectorySize(dbPath);
+      if (size > BACKUP_MAX_SIZE_BYTES) {
+        log.debug('createBackup:skipped_too_large', {
+          size,
+          maxSize: BACKUP_MAX_SIZE_BYTES,
+        });
+        return false;
+      }
+    } catch {
+      log.debug('createBackup:skipped_size_check_failed');
+      return false;
+    }
+
+    const timerId = ++this.timerCounter;
+    const timerKey = `createBackup-${timerId}`;
+    log.startTimer(timerKey, true);
+
+    try {
+      // Checkpoint to flush WAL before backup
+      await this.checkpoint();
+
+      // Remove old backup and create new one
+      await this.removeDirectory(backupPath);
+      await this.copyDirectory(dbPath, backupPath);
+
+      // Mark as clean (no changes since backup)
+      this._dirty = false;
+
+      log.endTimer(timerKey, 'createBackup:success', {
+        size,
+        path: backupPath,
+      });
+      return true;
+    } catch (error) {
+      log.endTimer(timerKey, 'createBackup:error', { error: String(error) });
+      throw error;
+    }
+  }
+
+  /**
+   * Restore database from backup.
+   * This should only be called when the main database is corrupted.
+   *
+   * @returns true if restored successfully, false if no backup or restore failed
+   */
+  async restoreFromBackup(): Promise<boolean> {
+    if (this.config.inMemory || !this.config.path) {
+      return false;
+    }
+
+    const dbPath = this.config.path;
+    const backupPath = `${dbPath}${BACKUP_SUFFIX}`;
+
+    if (!fs.existsSync(backupPath)) {
+      log.info('restoreFromBackup:no_backup_found');
+      return false;
+    }
+
+    const timerId = ++this.timerCounter;
+    const timerKey = `restoreFromBackup-${timerId}`;
+    log.startTimer(timerKey, true);
+
+    try {
+      // Remove corrupted database
+      await this.removeDirectory(dbPath);
+
+      // Copy backup to database location
+      await this.copyDirectory(backupPath, dbPath);
+
+      log.endTimer(timerKey, 'restoreFromBackup:success', { path: dbPath });
+      return true;
+    } catch (error) {
+      log.endTimer(timerKey, 'restoreFromBackup:error', {
+        error: String(error),
+      });
+      return false;
     }
   }
 
@@ -605,6 +965,7 @@ export class PGliteStorage implements StorageAdapter {
     const doc = await this.getDocument(id);
     if (!doc) throw new Error('Failed to create document');
 
+    this._dirty = true;
     log.endTimer(timerKey, 'createDocument:complete', { documentId: id });
     return doc;
   }
@@ -703,12 +1064,14 @@ export class PGliteStorage implements StorageAdapter {
 
     const doc = await this.getDocument(id);
     if (!doc) throw new Error('Document not found after update');
+    this._dirty = true;
     return doc;
   }
 
   async deleteDocument(id: string): Promise<void> {
     await this.waitForReady();
     await this.db!.query('DELETE FROM documents WHERE id = $1', [id]);
+    this._dirty = true;
   }
 
   async listDocuments(filters?: Partial<SearchFilters>): Promise<Document[]> {
@@ -798,6 +1161,7 @@ export class PGliteStorage implements StorageAdapter {
       });
     }
 
+    this._dirty = true;
     log.endTimer(timerKey, 'createChunks:complete', {
       documentId,
       chunkCount: chunks.length,
@@ -821,6 +1185,7 @@ export class PGliteStorage implements StorageAdapter {
     await this.db!.query('DELETE FROM chunks WHERE document_id = $1', [
       documentId,
     ]);
+    this._dirty = true;
   }
 
   async updateChunkEmbeddings(
@@ -845,6 +1210,7 @@ export class PGliteStorage implements StorageAdapter {
       ]);
     }
 
+    this._dirty = true;
     log.endTimer(timerKey, 'updateChunkEmbeddings:complete', {
       updateCount: updates.length,
     });
@@ -891,6 +1257,7 @@ export class PGliteStorage implements StorageAdapter {
         [documentId, tagId],
       );
     }
+    this._dirty = true;
   }
 
   async removeTags(documentId: string, tags: string[]): Promise<void> {
@@ -909,6 +1276,7 @@ export class PGliteStorage implements StorageAdapter {
         );
       }
     }
+    this._dirty = true;
   }
 
   async getDocumentTags(documentId: string): Promise<string[]> {
@@ -1243,6 +1611,7 @@ export class PGliteStorage implements StorageAdapter {
 
     const item = await this.getQueueItemByPath(input.filePath);
     if (!item) throw new Error('Failed to create queue item');
+    this._dirty = true;
     return item;
   }
 
@@ -1334,12 +1703,14 @@ export class PGliteStorage implements StorageAdapter {
       [id],
     );
     if (result.rows.length === 0) throw new Error('Queue item not found');
+    this._dirty = true;
     return this.rowToQueueItem(result.rows[0]);
   }
 
   async deleteQueueItem(id: string): Promise<void> {
     await this.waitForReady();
     await this.db!.query('DELETE FROM index_queue WHERE id = $1', [id]);
+    this._dirty = true;
   }
 
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
@@ -1407,12 +1778,15 @@ export class PGliteStorage implements StorageAdapter {
       ) SELECT COUNT(*) as count FROM deleted`,
     );
 
-    return parseInt(result.rows[0].count, 10);
+    const count = parseInt(result.rows[0].count, 10);
+    if (count > 0) this._dirty = true;
+    return count;
   }
 
   async clearQueue(): Promise<void> {
     await this.waitForReady();
     await this.db!.query('DELETE FROM index_queue');
+    this._dirty = true;
   }
 
   // -------------------------------------------------------------------------
@@ -1533,6 +1907,7 @@ export class PGliteStorage implements StorageAdapter {
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
       [key, JSON.stringify(value)],
     );
+    this._dirty = true;
   }
 
   // -------------------------------------------------------------------------

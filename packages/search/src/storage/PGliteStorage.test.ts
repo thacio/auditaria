@@ -1,3 +1,8 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PGliteStorage } from './PGliteStorage.js';
 import type { CreateDocumentInput, CreateChunkInput } from './types.js';
@@ -10,6 +15,7 @@ describe('PGliteStorage', () => {
     storage = new PGliteStorage({
       path: '',
       inMemory: true,
+      backupEnabled: false,
     });
     await storage.initialize();
   });
@@ -34,7 +40,11 @@ describe('PGliteStorage', () => {
     });
 
     it('should throw when not initialized', async () => {
-      const newStorage = new PGliteStorage({ path: '', inMemory: true });
+      const newStorage = new PGliteStorage({
+        path: '',
+        inMemory: true,
+        backupEnabled: false,
+      });
       await expect(newStorage.getStats()).rejects.toThrow(
         'Storage not initialized',
       );

@@ -1,3 +1,8 @@
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { describe, it, expect } from 'vitest';
 import {
   createConfig,
@@ -159,7 +164,7 @@ describe('Configuration', () => {
     it('should throw for empty database path when not in-memory', () => {
       const config: SearchSystemConfig = {
         ...DEFAULT_CONFIG,
-        database: { path: '', inMemory: false },
+        database: { path: '', inMemory: false, backupEnabled: true },
       };
 
       expect(() => validateConfig(config)).toThrow(
@@ -170,7 +175,7 @@ describe('Configuration', () => {
     it('should not throw for empty database path when in-memory', () => {
       const config: SearchSystemConfig = {
         ...DEFAULT_CONFIG,
-        database: { path: '', inMemory: true },
+        database: { path: '', inMemory: true, backupEnabled: false },
       };
 
       expect(() => validateConfig(config)).not.toThrow();

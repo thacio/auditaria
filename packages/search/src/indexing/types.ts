@@ -1,6 +1,7 @@
 /**
- * Types for the indexing pipeline.
- * The pipeline orchestrates document processing from discovery to storage.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { QueuePriority, DocumentStatus, OcrStatus } from '../types.js';
@@ -107,6 +108,11 @@ export interface PipelineEvents {
   'pipeline:paused': undefined;
   /** Fired when pipeline is resumed */
   'pipeline:resumed': undefined;
+
+  /** Fired when maintenance (reconnect) completes - safe point for backup */
+  'maintenance:completed': {
+    processedCount: number;
+  };
 
   /** Fired when a document starts processing */
   'document:started': {

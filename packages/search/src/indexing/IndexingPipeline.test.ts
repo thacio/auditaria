@@ -1,14 +1,10 @@
 /**
- * Tests for IndexingPipeline producer-consumer pattern.
- * Verifies that:
- * - Multiple prepareLoops (producers) work concurrently
- * - Single embedLoop (consumer) processes prepared files
- * - Buffer backpressure works correctly
- * - Memory cleanup happens properly
- * - Error handling works for both prepare and embed phases
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -77,7 +73,11 @@ async function createTestPipeline(
   cleanup: () => Promise<void>;
 }> {
   // Create storage
-  const storage = new PGliteStorage({ path: '', inMemory: true });
+  const storage = new PGliteStorage({
+    path: '',
+    inMemory: true,
+    backupEnabled: false,
+  });
   await storage.initialize();
 
   // Create parser registry
@@ -89,9 +89,7 @@ async function createTestPipeline(
   chunkerRegistry.register(new RecursiveChunker());
 
   // Create embedder
-  const embedder = new MockEmbedder(
-    options?.mockEmbedderDimensions ?? 384,
-  );
+  const embedder = new MockEmbedder(options?.mockEmbedderDimensions ?? 384);
   await embedder.initialize();
 
   // Create pipeline
@@ -143,9 +141,11 @@ async function waitForIdle(
 function collectEvents<K extends keyof PipelineEvents>(
   pipeline: IndexingPipeline,
   eventName: K,
-): PipelineEvents[K][] {
-  const events: PipelineEvents[K][] = [];
-  pipeline.on(eventName, (data) => { events.push(data); });
+): Array<PipelineEvents[K]> {
+  const events: Array<PipelineEvents[K]> = [];
+  pipeline.on(eventName, (data) => {
+    events.push(data);
+  });
   return events;
 }
 
@@ -202,11 +202,21 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
       try {
         const eventSequence: string[] = [];
 
-        pipeline.on('document:started', () => { eventSequence.push('started'); });
-        pipeline.on('document:parsing', () => { eventSequence.push('parsing'); });
-        pipeline.on('document:chunking', () => { eventSequence.push('chunking'); });
-        pipeline.on('document:embedding', () => { eventSequence.push('embedding'); });
-        pipeline.on('document:completed', () => { eventSequence.push('completed'); });
+        pipeline.on('document:started', () => {
+          eventSequence.push('started');
+        });
+        pipeline.on('document:parsing', () => {
+          eventSequence.push('parsing');
+        });
+        pipeline.on('document:chunking', () => {
+          eventSequence.push('chunking');
+        });
+        pipeline.on('document:embedding', () => {
+          eventSequence.push('embedding');
+        });
+        pipeline.on('document:completed', () => {
+          eventSequence.push('completed');
+        });
 
         await pipeline.syncAndQueue();
         pipeline.start();
@@ -271,7 +281,7 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
       });
 
       try {
-        const parsingEvents: { filePath: string; timestamp: number }[] = [];
+        const parsingEvents: Array<{ filePath: string; timestamp: number }> = [];
 
         pipeline.on('document:parsing', (data) => {
           parsingEvents.push({
@@ -347,7 +357,10 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
     it('should handle parse errors gracefully', async () => {
       testDir = await createTestDirectory(3);
       // Create a file that will cause issues
-      await writeFile(join(testDir, 'binary.bin'), Buffer.from([0x00, 0x01, 0xff, 0xfe]));
+      await writeFile(
+        join(testDir, 'binary.bin'),
+        Buffer.from([0x00, 0x01, 0xff, 0xfe]),
+      );
 
       const { pipeline, cleanup } = await createTestPipeline(testDir);
 
@@ -361,7 +374,9 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
 
         // Should have processed the text files at minimum
         // Binary file may or may not fail depending on parser behavior
-        expect(completedEvents.length + failedEvents.length).toBeGreaterThanOrEqual(3);
+        expect(
+          completedEvents.length + failedEvents.length,
+        ).toBeGreaterThanOrEqual(3);
       } finally {
         await cleanup();
       }
@@ -473,6 +488,7 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
 
         // Memory growth should be reasonable (< 50MB for 50 small files)
         // This is a loose check as memory behavior varies
+        // eslint-disable-next-line no-console
         console.log(`Memory growth: ${memoryGrowthMB.toFixed(2)} MB`);
 
         // Just verify processing completed
@@ -547,7 +563,9 @@ describe('IndexingPipeline configuration', () => {
 
     try {
       // Access private options via any (for testing)
-      const options = (pipeline as unknown as { options: { prepareWorkers: number } }).options;
+      const options = (
+        pipeline as unknown as { options: { prepareWorkers: number } }
+      ).options;
       expect(options.prepareWorkers).toBe(1);
     } finally {
       await cleanup();
@@ -561,7 +579,9 @@ describe('IndexingPipeline configuration', () => {
     });
 
     try {
-      const options = (pipeline as unknown as { options: { prepareWorkers: number } }).options;
+      const options = (
+        pipeline as unknown as { options: { prepareWorkers: number } }
+      ).options;
       expect(options.prepareWorkers).toBe(4);
     } finally {
       await cleanup();
@@ -571,7 +591,11 @@ describe('IndexingPipeline configuration', () => {
   it('should use default embeddingBatchSize of 8', async () => {
     testDir = await createTestDirectory(1);
 
-    const storage = new PGliteStorage({ path: '', inMemory: true });
+    const storage = new PGliteStorage({
+      path: '',
+      inMemory: true,
+      backupEnabled: false,
+    });
     await storage.initialize();
 
     const parserRegistry = new ParserRegistry();
@@ -596,7 +620,9 @@ describe('IndexingPipeline configuration', () => {
     );
 
     try {
-      const options = (pipeline as unknown as { options: { embeddingBatchSize: number } }).options;
+      const options = (
+        pipeline as unknown as { options: { embeddingBatchSize: number } }
+      ).options;
       expect(options.embeddingBatchSize).toBe(8);
     } finally {
       await pipeline.stop();

@@ -17,11 +17,14 @@ import {
 import { type LoadedSettings } from '../config/settings.js';
 import { performInitialAuth } from './auth.js';
 import { validateTheme } from './theme.js';
+import { registerCleanup } from '../utils/cleanup.js';
 
 // AUDITARIA_LOCAL_SEARCH: Auto-start search service function
 async function autoStartSearchService(config: Config): Promise<void> {
   try {
-    const { searchDatabaseExists } = await import('@thacio/auditaria-cli-search');
+    const { searchDatabaseExists } = await import(
+      '@thacio/auditaria-cli-search'
+    );
     const { getSearchService } = await import('@google/gemini-cli-core');
 
     const rootPath = config.getTargetDir();
@@ -30,6 +33,18 @@ async function autoStartSearchService(config: Config): Promise<void> {
       // eslint-disable-next-line no-console
       console.log('[SearchService] Database found, auto-starting service...');
       const service = getSearchService();
+
+      // Register cleanup BEFORE starting to ensure it runs even if start fails partway
+      registerCleanup(async () => {
+        if (service.isRunning()) {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[SearchService] Stopping service for graceful shutdown...',
+          );
+          await service.stop();
+        }
+      });
+
       // Start in background - don't await to avoid blocking app startup
       service.start(rootPath).catch((err: Error) => {
         // eslint-disable-next-line no-console

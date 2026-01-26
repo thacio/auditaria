@@ -1,5 +1,7 @@
 /**
- * Configuration types and defaults for the Auditaria Search system.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 // ============================================================================
@@ -11,6 +13,8 @@ export interface DatabaseConfig {
   path: string;
   /** Whether to use in-memory database (for testing). Default: false */
   inMemory: boolean;
+  /** Enable automatic backups on close and during indexing. Default: true */
+  backupEnabled: boolean;
 }
 
 export interface IndexingConfig {
@@ -187,6 +191,7 @@ export interface SearchSystemConfig {
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
   path: '.auditaria/search.db',
   inMemory: false,
+  backupEnabled: true,
 };
 
 export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
