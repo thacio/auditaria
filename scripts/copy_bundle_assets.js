@@ -88,7 +88,49 @@ for (const file of localeFiles) {
 }
 // AUDITARIA_FEATURE_END
 
-// AUDITARIA_SEARCH_START: Copy PGlite WASM, data, and extension files
+// AUDITARIA_SEARCH_START: Copy search package and PGlite files
+// The search package is marked as external in esbuild because it has complex
+// dependencies (PGlite, transformers.js). We need to copy the built package
+// to bundle/node_modules so it can be found at runtime.
+
+// 1. Copy the built search package to bundle/node_modules
+const searchPackageSrc = join(root, 'packages/search');
+const searchPackageDest = join(
+  bundleDir,
+  'node_modules/@thacio/auditaria-cli-search',
+);
+
+if (existsSync(join(searchPackageSrc, 'dist'))) {
+  // Create destination directory
+  mkdirSync(searchPackageDest, { recursive: true });
+
+  // Copy dist folder
+  cpSync(join(searchPackageSrc, 'dist'), join(searchPackageDest, 'dist'), {
+    recursive: true,
+    dereference: true,
+  });
+
+  // Copy package.json
+  copyFileSync(
+    join(searchPackageSrc, 'package.json'),
+    join(searchPackageDest, 'package.json'),
+  );
+
+  // Copy python folder if it exists (for Python embedder)
+  const pythonSrc = join(searchPackageSrc, 'python');
+  if (existsSync(pythonSrc)) {
+    cpSync(pythonSrc, join(searchPackageDest, 'python'), {
+      recursive: true,
+      dereference: true,
+    });
+  }
+
+  console.log(
+    'Search package copied to bundle/node_modules/@thacio/auditaria-cli-search/',
+  );
+}
+
+// 2. Copy PGlite WASM, data, and extension files
 // PGlite requires its WASM, data, and extension files at runtime
 const pgliteDir = join(root, 'node_modules/@electric-sql/pglite/dist');
 
