@@ -543,6 +543,12 @@ npm install -g .
 - Node.js version 20 or higher
 - macOS, Linux, or Windows
 
+#### Install globally with MacPorts (macOS)
+
+```bash
+sudo port install gemini-cli
+```
+
 #### Install with Anaconda (for restricted environments)
 
 ```bash
