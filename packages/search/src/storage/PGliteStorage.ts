@@ -6,6 +6,7 @@
 
 import { PGlite } from '@electric-sql/pglite';
 import { vector } from '@electric-sql/pglite/vector';
+import { amcheck } from '@electric-sql/pglite/contrib/amcheck';
 import type {
   Extension,
   ExtensionSetupResult,
@@ -212,9 +213,9 @@ function createCustomVectorExtension(bundlePath: string): Extension {
     _pg: PGliteInterface,
     emscriptenOpts: unknown,
   ): Promise<ExtensionSetupResult> => ({
-      emscriptenOpts,
-      bundlePath: new URL(`file://${bundlePath.replace(/\\/g, '/')}`),
-    });
+    emscriptenOpts,
+    bundlePath: new URL(`file://${bundlePath.replace(/\\/g, '/')}`),
+  });
 
   return {
     name: 'pgvector',
@@ -399,11 +400,13 @@ export class PGliteStorage implements StorageAdapter {
         const customVector = createCustomVectorExtension(assets.vectorPath);
 
         // Initialize PGlite with custom options for Bun executable
+        // Note: amcheck is included for integrity checks; it may not work in Bun executable
+        // but will gracefully degrade in checkIntegrity()
         const db = await PGlite.create({
           dataDir: this.config.inMemory ? undefined : this.config.path,
           wasmModule,
           fsBundle,
-          extensions: { vector: customVector },
+          extensions: { vector: customVector, amcheck },
         });
 
         log.info('createPGliteInstance:bunExecutableInitialized', {
@@ -419,7 +422,7 @@ export class PGliteStorage implements StorageAdapter {
     // Standard initialization for Node.js/development
     return PGlite.create({
       dataDir: this.config.inMemory ? undefined : this.config.path,
-      extensions: { vector },
+      extensions: { vector, amcheck },
     });
   }
 
@@ -703,11 +706,149 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   /**
+   * Check database integrity before backup.
+   * Uses a hybrid approach:
+   * 1. amcheck extension for structural integrity (B-tree indexes)
+   * 2. Custom queries for data-level consistency
+   *
+   * @returns Object with valid flag and any errors found
+   */
+  async checkIntegrity(): Promise<{ valid: boolean; errors: string[] }> {
+    const errors: string[] = [];
+
+    // Check if amcheck extension is available
+    let amcheckAvailable = false;
+    try {
+      const extResult = await this.db!.query<{ count: string }>(
+        `SELECT COUNT(*)::text as count FROM pg_extension WHERE extname = 'amcheck'`,
+      );
+      amcheckAvailable = parseInt(extResult.rows[0]?.count || '0', 10) > 0;
+    } catch {
+      // amcheck not available, skip structural checks
+      log.debug('checkIntegrity:amcheck_not_available');
+    }
+
+    // 1. Structural integrity checks using amcheck (if available)
+    if (amcheckAvailable) {
+      try {
+        // Check B-tree indexes on core tables (fast check)
+        const indexes = await this.db!.query<{ oid: number; relname: string }>(`
+          SELECT c.oid, c.relname
+          FROM pg_index i
+          JOIN pg_class c ON i.indexrelid = c.oid
+          JOIN pg_class t ON i.indrelid = t.oid
+          JOIN pg_am am ON c.relam = am.oid
+          WHERE t.relname IN ('documents', 'chunks', 'index_queue', 'tags')
+            AND am.amname = 'btree'
+            AND c.relkind = 'i'
+          LIMIT 10
+        `);
+
+        for (const idx of indexes.rows) {
+          try {
+            await this.db!.query(`SELECT bt_index_check($1)`, [idx.oid]);
+          } catch (indexError) {
+            if (isLikelyCorruptionError(indexError)) {
+              errors.push(
+                `Index corruption in ${idx.relname}: ${indexError instanceof Error ? indexError.message : String(indexError)}`,
+              );
+            }
+            // Non-corruption errors (e.g., unsupported index type) are ignored
+          }
+        }
+        log.debug('checkIntegrity:amcheck_completed', {
+          indexesChecked: indexes.rows.length,
+        });
+      } catch (error) {
+        if (isLikelyCorruptionError(error)) {
+          errors.push(
+            `Structural corruption detected: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+        // Other errors mean amcheck couldn't run, not corruption
+        log.debug('checkIntegrity:amcheck_failed', { error: String(error) });
+      }
+    }
+
+    // 2. Data-level consistency checks (always run)
+    try {
+      // Check core tables are readable (catches PANIC on corrupted data)
+      await this.db!.query('SELECT 1 FROM documents LIMIT 1');
+      await this.db!.query('SELECT 1 FROM chunks LIMIT 1');
+      await this.db!.query('SELECT 1 FROM tags LIMIT 1');
+      await this.db!.query('SELECT 1 FROM index_queue LIMIT 1');
+    } catch (error) {
+      if (isLikelyCorruptionError(error)) {
+        errors.push(
+          `Table corruption: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      } else {
+        errors.push(
+          `Table read failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // 3. Referential integrity: Check for orphaned chunks
+    try {
+      const orphanedChunks = await this.db!.query<{ count: string }>(`
+        SELECT COUNT(*)::text as count FROM chunks c
+        LEFT JOIN documents d ON c.document_id = d.id
+        WHERE d.id IS NULL
+      `);
+      const orphanCount = parseInt(orphanedChunks.rows[0]?.count || '0', 10);
+      if (orphanCount > 0) {
+        errors.push(
+          `Found ${orphanCount} orphaned chunks (no matching document)`,
+        );
+      }
+    } catch (error) {
+      if (isLikelyCorruptionError(error)) {
+        errors.push(
+          `Orphan check corruption: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    // 4. Consistency: Check indexed documents have chunks
+    try {
+      const missingChunks = await this.db!.query<{ count: string }>(`
+        SELECT COUNT(*)::text as count FROM documents d
+        WHERE d.status = 'indexed'
+        AND NOT EXISTS (SELECT 1 FROM chunks c WHERE c.document_id = d.id)
+      `);
+      const missingCount = parseInt(missingChunks.rows[0]?.count || '0', 10);
+      if (missingCount > 0) {
+        // This is a warning, not necessarily corruption - could be empty files
+        log.warn('checkIntegrity:indexed_docs_without_chunks', {
+          count: missingCount,
+        });
+      }
+    } catch (error) {
+      if (isLikelyCorruptionError(error)) {
+        errors.push(
+          `Consistency check corruption: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    const valid = errors.length === 0;
+    if (!valid) {
+      log.warn('checkIntegrity:failed', { errors });
+    } else {
+      log.debug('checkIntegrity:passed', { amcheckAvailable });
+    }
+
+    return { valid, errors };
+  }
+
+  /**
    * Create a backup of the database.
    * Only creates backup if:
    * - Database has been modified since last backup (dirty flag)
    * - Database is not empty (has documents)
    * - Database size is under 100MB
+   * - Database passes integrity checks
    *
    * @returns true if backup was created, false if skipped
    */
@@ -759,6 +900,32 @@ export class PGliteStorage implements StorageAdapter {
       }
     } catch {
       log.debug('createBackup:skipped_size_check_failed');
+      return false;
+    }
+
+    // Verify database integrity before backup
+    try {
+      const integrity = await this.checkIntegrity();
+      if (!integrity.valid) {
+        log.warn('createBackup:skipped_integrity_failed', {
+          errors: integrity.errors,
+        });
+        /* eslint-disable no-console */
+        console.warn(
+          '[KnowledgeBase] ⚠️  Backup skipped: database integrity check failed',
+        );
+        console.warn('[KnowledgeBase] Errors:', integrity.errors.join('; '));
+        console.warn(
+          '[KnowledgeBase] Run `/knowledge-base init` to rebuild the index.',
+        );
+        /* eslint-enable no-console */
+        return false;
+      }
+    } catch (integrityError) {
+      // If integrity check itself fails catastrophically, skip backup
+      log.warn('createBackup:integrity_check_error', {
+        error: String(integrityError),
+      });
       return false;
     }
 
@@ -1923,6 +2090,106 @@ export class PGliteStorage implements StorageAdapter {
   async execute(sql: string, params?: unknown[]): Promise<void> {
     await this.waitForReady();
     await this.db!.query(sql, params);
+  }
+
+  // -------------------------------------------------------------------------
+  // Recovery
+  // -------------------------------------------------------------------------
+
+  /**
+   * Recover documents stuck in intermediate states (parsing, chunking, embedding).
+   * This handles crash recovery where indexing was interrupted mid-process.
+   *
+   * On crash during indexing:
+   * - Document status may be 'parsing', 'chunking', or 'embedding'
+   * - Chunks may be partially created (some with NULL embeddings)
+   * - Queue item may still show 'processing'
+   *
+   * Recovery process:
+   * 1. Find all documents in intermediate states
+   * 2. Delete their partial chunks (will be recreated on re-index)
+   * 3. Reset document status to 'pending'
+   * 4. Re-queue them for indexing
+   *
+   * @returns Number of documents recovered
+   */
+  async recoverStuckDocuments(): Promise<number> {
+    await this.waitForReady();
+
+    // Find documents stuck in intermediate states
+    const stuckDocs = await this.db!.query<{
+      id: string;
+      file_path: string;
+      status: string;
+    }>(
+      `SELECT id, file_path, status FROM documents
+       WHERE status IN ('parsing', 'chunking', 'embedding')`,
+    );
+
+    if (stuckDocs.rows.length === 0) {
+      return 0;
+    }
+
+    log.info('recoverStuckDocuments:found', {
+      count: stuckDocs.rows.length,
+      statuses: stuckDocs.rows.map((r) => r.status),
+    });
+
+    let recoveredCount = 0;
+
+    for (const doc of stuckDocs.rows) {
+      try {
+        // 1. Delete partial chunks (they may be incomplete or have NULL embeddings)
+        await this.db!.query('DELETE FROM chunks WHERE document_id = $1', [
+          doc.id,
+        ]);
+
+        // 2. Reset document status to 'pending'
+        await this.db!.query(
+          `UPDATE documents SET status = 'pending', updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [doc.id],
+        );
+
+        // 3. Re-queue for indexing (upsert to handle existing queue items)
+        await this.db!.query(
+          `INSERT INTO index_queue (id, file_path, priority, status, attempts, created_at)
+           VALUES (gen_random_uuid(), $1, 'text', 'pending', 0, CURRENT_TIMESTAMP)
+           ON CONFLICT (file_path) DO UPDATE SET
+             status = 'pending',
+             attempts = 0,
+             last_error = NULL,
+             started_at = NULL,
+             completed_at = NULL`,
+          [doc.file_path],
+        );
+
+        recoveredCount++;
+        log.info('recoverStuckDocuments:recovered', {
+          documentId: doc.id,
+          filePath: doc.file_path,
+          previousStatus: doc.status,
+        });
+      } catch (error) {
+        log.error('recoverStuckDocuments:error', {
+          documentId: doc.id,
+          filePath: doc.file_path,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue with other documents
+      }
+    }
+
+    if (recoveredCount > 0) {
+      this._dirty = true;
+    }
+
+    log.info('recoverStuckDocuments:complete', {
+      total: stuckDocs.rows.length,
+      recovered: recoveredCount,
+    });
+
+    return recoveredCount;
   }
 
   // -------------------------------------------------------------------------

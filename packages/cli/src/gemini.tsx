@@ -144,6 +144,7 @@ export function getNodeMemoryArgs(isDebugMode: boolean): string[] {
   const targetMaxOldSpaceSizeInMB = Math.max(
     MIN_HEAP_SIZE_MB,
     Math.floor(totalMemoryMB * 0.5),
+    2048 * 16,
   );
   if (isDebugMode) {
     debugLogger.debug(

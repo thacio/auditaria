@@ -1,5 +1,7 @@
 /**
- * Database schema definitions for PGlite storage.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /**
@@ -9,6 +11,9 @@
 export const SCHEMA_SQL = `
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Enable amcheck extension for integrity verification (optional, may not be available in all environments)
+CREATE EXTENSION IF NOT EXISTS amcheck;
 
 -- Documents table
 CREATE TABLE IF NOT EXISTS documents (

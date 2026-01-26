@@ -1,6 +1,7 @@
 /**
- * Storage adapter interface for the search system.
- * Defines the contract for database operations.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type {
@@ -381,4 +382,16 @@ export interface StorageAdapter {
    * Execute a raw SQL command (use with caution).
    */
   execute(sql: string, params?: unknown[]): Promise<void>;
+
+  // -------------------------------------------------------------------------
+  // Recovery
+  // -------------------------------------------------------------------------
+
+  /**
+   * Recover documents stuck in intermediate states (parsing, chunking, embedding).
+   * This handles crash recovery where indexing was interrupted mid-process.
+   * Returns the number of documents recovered.
+   * Optional - implementations may return 0 if not supported.
+   */
+  recoverStuckDocuments?(): Promise<number>;
 }

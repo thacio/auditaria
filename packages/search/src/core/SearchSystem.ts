@@ -306,6 +306,17 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     this.storage = new PGliteStorage(dbConfig);
     await this.storage.initialize();
 
+    // Recover documents stuck in intermediate states (crash recovery)
+    // This handles cases where indexing was interrupted by crash/power loss
+    if (this.storage.recoverStuckDocuments) {
+      const recoveredCount = await this.storage.recoverStuckDocuments();
+      if (recoveredCount > 0) {
+        console.log(
+          `[SearchSystem] Recovered ${recoveredCount} document(s) from interrupted indexing`,
+        );
+      }
+    }
+
     // Initialize file discovery
     this.discovery = createFileDiscovery({
       rootPath: this.rootPath,
