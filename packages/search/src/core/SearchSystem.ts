@@ -516,6 +516,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
               retryDelay: this.config.ocr.retryDelay,
               processAfterMainQueue: this.config.ocr.processAfterMainQueue,
               defaultLanguages: this.config.ocr.defaultLanguages,
+              rootPath: this.rootPath, // For resolving relative file paths
             },
             this.indexingEmbedder as Embedder,
           );

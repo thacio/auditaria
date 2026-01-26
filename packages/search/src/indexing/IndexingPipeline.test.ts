@@ -281,7 +281,8 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
       });
 
       try {
-        const parsingEvents: Array<{ filePath: string; timestamp: number }> = [];
+        const parsingEvents: Array<{ filePath: string; timestamp: number }> =
+          [];
 
         pipeline.on('document:parsing', (data) => {
           parsingEvents.push({
@@ -536,9 +537,11 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
 
         expect(result.success).toBe(true);
         expect(result.chunksCreated).toBeGreaterThan(0);
+        // Result should return relative path
+        expect(result.filePath).toBe('file0.txt');
 
-        // Verify in storage
-        const doc = await storage.getDocumentByPath(filePath);
+        // Verify in storage (use relative path since DB stores relative paths)
+        const doc = await storage.getDocumentByPath('file0.txt');
         expect(doc).not.toBeNull();
         expect(doc?.status).toBe('indexed');
       } finally {

@@ -1,15 +1,7 @@
 /**
- * FilePriorityClassifier - Classifies files for queue prioritization.
- *
- * Assigns priority based on file extension and size (for PDFs).
- * For large PDFs, performs a quick pre-scan to check for existing text.
- *
- * Priority order (fastest processing first):
- * 1. text   - Pure text files (.txt, .md, .json, etc.)
- * 2. markup - MarkitDown-supported files (.docx, .xlsx, etc.)
- * 3. pdf    - Small PDFs (<threshold) or large PDFs with existing text
- * 4. image  - Images (need OCR)
- * 5. ocr    - Large PDFs without text (need OCR)
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { readFile } from 'node:fs/promises';
@@ -150,7 +142,7 @@ export class FilePriorityClassifier {
     // Pure text files - highest priority
     if (TEXT_EXTENSIONS.has(ext)) {
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: 'text',
         category: 'text',
@@ -160,7 +152,7 @@ export class FilePriorityClassifier {
     // MarkitDown-supported files
     if (MARKUP_EXTENSIONS.has(ext)) {
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: 'markup',
         category: 'markup',
@@ -175,7 +167,7 @@ export class FilePriorityClassifier {
     // Image files - need OCR
     if (IMAGE_EXTENSIONS.has(ext)) {
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: 'image',
         category: 'image',
@@ -184,7 +176,7 @@ export class FilePriorityClassifier {
 
     // Unknown/unsupported - treat as markup (medium priority)
     return {
-      filePath: file.absolutePath,
+      filePath: file.relativePath, // Use relative path for DB storage
       fileSize: file.size,
       priority: 'markup',
       category: 'unknown',
@@ -200,7 +192,7 @@ export class FilePriorityClassifier {
     // Small PDFs - assume text-native
     if (file.size < this.pdfSizeThreshold) {
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: 'pdf',
         category: 'pdf',
@@ -208,10 +200,11 @@ export class FilePriorityClassifier {
     }
 
     // Large PDFs - quick pre-scan to check for existing text
+    // Note: quickPdfTextCheck needs absolute path for file I/O
     try {
       const hasText = await this.quickPdfTextCheck(file.absolutePath);
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: hasText ? 'pdf' : 'ocr',
         category: hasText ? 'pdf-with-text' : 'pdf-needs-ocr',
@@ -219,7 +212,7 @@ export class FilePriorityClassifier {
     } catch {
       // If pre-scan fails, assume OCR is needed (pessimistic)
       return {
-        filePath: file.absolutePath,
+        filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
         priority: 'ocr',
         category: 'pdf-needs-ocr',

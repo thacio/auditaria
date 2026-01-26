@@ -1,11 +1,21 @@
 /**
- * File discovery system.
- * Finds files to index while respecting .gitignore and configuration.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { readFile, stat } from 'node:fs/promises';
 import { join, relative, basename, extname, resolve } from 'node:path';
 import fg from 'fast-glob';
+
+/**
+ * Normalize path separators to forward slashes for cross-platform DB compatibility.
+ * Windows uses backslashes, but we store forward slashes so databases can be shared
+ * across Windows, Linux, and Mac without causing duplicate entries.
+ */
+function normalizeSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
 // The 'ignore' module has complex ESM/CJS interop - use dynamic type handling
 import ignoreFactory from 'ignore';
 
@@ -250,7 +260,10 @@ export class FileDiscovery {
     for (const absolutePath of entries) {
       stats.totalFiles++;
 
-      const relativePath = relative(this.rootPath, absolutePath);
+      // Normalize separators for cross-platform DB compatibility
+      const relativePath = normalizeSeparators(
+        relative(this.rootPath, absolutePath),
+      );
 
       // Check gitignore
       if (this.shouldIgnore(relativePath)) {
@@ -317,7 +330,10 @@ export class FileDiscovery {
 
     for await (const entry of stream) {
       const absolutePath = entry.toString();
-      const relativePath = relative(this.rootPath, absolutePath);
+      // Normalize separators for cross-platform DB compatibility
+      const relativePath = normalizeSeparators(
+        relative(this.rootPath, absolutePath),
+      );
 
       // Check gitignore
       if (this.shouldIgnore(relativePath)) {

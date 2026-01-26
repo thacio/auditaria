@@ -1,12 +1,10 @@
 /**
- * OcrQueueManager - Manages OCR processing queue.
- * Handles low-priority background OCR processing for documents that need it.
- *
- * Supports both images (via TesseractJsProvider) and PDFs (via ScribeJsProvider).
- * The OcrRegistry automatically selects the best provider based on file type.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { extname } from 'node:path';
+import { extname, join } from 'node:path';
 import { EventEmitter } from '../core/EventEmitter.js';
 import type { StorageAdapter } from '../storage/types.js';
 import type { OcrRegion } from '../parsers/types.js';
@@ -37,7 +35,22 @@ const DEFAULT_CONFIG: OcrQueueConfig = {
   processAfterMainQueue: true,
   autoDetectLanguage: true,
   defaultLanguages: ['en'],
+  rootPath: undefined, // Must be provided if file paths are relative
 };
+
+/**
+ * Resolve a relative file path to absolute using rootPath.
+ * If rootPath is not set, assumes filePath is already absolute.
+ */
+function resolveAbsolutePath(
+  rootPath: string | undefined,
+  filePath: string,
+): string {
+  if (rootPath) {
+    return join(rootPath, filePath);
+  }
+  return filePath;
+}
 
 /**
  * State of the OCR queue manager.
@@ -256,6 +269,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
     // Start processing loop
     this.processInterval = setInterval(() => {
       this.processNext().catch((error) => {
+        // eslint-disable-next-line no-console
         console.error('[OcrQueueManager] Processing error:', error);
       });
     }, 1000);
@@ -391,20 +405,30 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
         // OcrRegistry automatically selects the best provider:
         // - TesseractJsProvider for images (faster)
         // - ScribeJsProvider for PDFs (native PDF support)
+        // Resolve absolute path for file I/O (filePath may be relative)
+        const absoluteFilePath = resolveAbsolutePath(
+          this.config.rootPath,
+          job.filePath,
+        );
         if (this.config.autoDetectLanguage) {
-          const result = await this.ocrRegistry.recognizeFileWithAutoDetect(
-            job.filePath,
-          );
+          const result =
+            await this.ocrRegistry.recognizeFileWithAutoDetect(
+              absoluteFilePath,
+            );
           ocrResults = [result];
         } else {
-          const result = await this.ocrRegistry.recognizeFile(job.filePath, {
-            languages: this.config.defaultLanguages,
-          });
+          const result = await this.ocrRegistry.recognizeFile(
+            absoluteFilePath,
+            {
+              languages: this.config.defaultLanguages,
+            },
+          );
           ocrResults = [result];
         }
       } else {
         // File type not supported for OCR
         const ext = extname(job.filePath).toLowerCase();
+        // eslint-disable-next-line no-console
         console.warn(
           `[OcrQueueManager] Skipping ${job.filePath}: File type '${ext}' not supported for OCR.`,
         );
@@ -459,6 +483,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
               },
             ]);
           } catch (embedError) {
+            // eslint-disable-next-line no-console
             console.warn(
               `[OcrQueueManager] Failed to generate embedding for OCR chunk: ${
                 embedError instanceof Error
@@ -494,6 +519,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
       job.lastError = error instanceof Error ? error.message : String(error);
 
       // Log the error for debugging
+      // eslint-disable-next-line no-console
       console.error(
         `[OcrQueueManager] Error processing OCR job for ${job.filePath}:`,
         job.lastError,
@@ -501,6 +527,7 @@ export class OcrQueueManager extends EventEmitter<OcrEvents> {
 
       if (job.attempts < this.config.maxRetries) {
         // Schedule retry
+        // eslint-disable-next-line no-console
         console.log(
           `[OcrQueueManager] Will retry (attempt ${job.attempts}/${this.config.maxRetries})`,
         );

@@ -1,6 +1,7 @@
 /**
- * Types and interfaces for OCR (Optical Character Recognition) support.
- * OCR is used to extract text from images and scanned documents.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { OcrRegion } from '../parsers/types.js';
@@ -196,6 +197,8 @@ export interface OcrQueueConfig {
   autoDetectLanguage: boolean;
   /** Default languages to use (fallback when auto-detect is disabled) */
   defaultLanguages: string[];
+  /** Root path for resolving relative file paths to absolute paths for I/O */
+  rootPath?: string;
 }
 
 // ============================================================================

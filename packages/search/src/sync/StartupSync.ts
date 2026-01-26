@@ -1,6 +1,7 @@
 /**
- * StartupSync - Detects file changes since last sync.
- * Compares discovered files on disk with stored hashes in the database.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { StorageAdapter } from '../storage/types.js';
@@ -53,11 +54,12 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
 
     // 1. Get current file states from disk
     const currentFiles = await this.discovery.discoverAll();
-    const currentMap = new Map(currentFiles.map((f) => [f.absolutePath, f]));
+    // Use relativePath as key for DB comparison
+    const currentMap = new Map(currentFiles.map((f) => [f.relativePath, f]));
 
     void this.emit('sync:started', { totalFiles: currentFiles.length });
 
-    // 2. Get stored file hashes from database
+    // 2. Get stored file hashes from database (keyed by relativePath)
     const storedHashes = await this.storage.getFileHashes();
 
     // 3. Compare and categorize
@@ -66,7 +68,7 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
     const deleted: string[] = [];
     let unchanged = 0;
 
-    // Find added and modified files
+    // Find added and modified files (using relativePath for comparison)
     let checked = 0;
     for (const [filePath, file] of currentMap) {
       checked++;
@@ -197,12 +199,12 @@ export class StartupSync extends EventEmitter<StartupSyncEvents> {
         return true;
       }
 
-      // Sample check: verify a few random files
+      // Sample check: verify a few random files (using relativePath for comparison)
       const sampleSize = Math.min(10, currentFiles.length);
       const sample = currentFiles.slice(0, sampleSize);
 
       for (const file of sample) {
-        const storedHash = storedHashes.get(file.absolutePath);
+        const storedHash = storedHashes.get(file.relativePath);
         if (!storedHash || storedHash !== file.hash) {
           return true;
         }

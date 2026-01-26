@@ -28,9 +28,46 @@ import type {
 import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createModuleLogger } from '../core/Logger.js';
+import { join, isAbsolute, relative } from 'node:path';
 
 // Module logger for IndexingPipeline
 const log = createModuleLogger('IndexingPipeline');
+
+/**
+ * Normalize path separators to forward slashes for cross-platform DB compatibility.
+ * Windows uses backslashes, but we store forward slashes so databases can be shared
+ * across Windows, Linux, and Mac without causing duplicate entries.
+ */
+function normalizeSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+/**
+ * Resolve a file path to an absolute path.
+ * If the path is already absolute, returns it as-is.
+ * If the path is relative, joins it with rootPath.
+ */
+function toAbsolutePath(rootPath: string, filePath: string): string {
+  if (isAbsolute(filePath)) {
+    return filePath;
+  }
+  return join(rootPath, filePath);
+}
+
+/**
+ * Ensure a file path is relative to rootPath with normalized separators.
+ * If the path is absolute, extracts the relative part.
+ * If the path is already relative, normalizes separators.
+ * Always returns forward slashes for cross-platform DB compatibility.
+ */
+function toRelativePath(rootPath: string, filePath: string): string {
+  if (isAbsolute(filePath)) {
+    // Convert absolute path to relative and normalize
+    return normalizeSeparators(relative(rootPath, filePath));
+  }
+  // Already relative, just normalize separators
+  return normalizeSeparators(filePath);
+}
 
 // ============================================================================
 // Constants
@@ -217,19 +254,19 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       deleted: [],
     };
 
-    // Check each discovered file
+    // Check each discovered file (use relativePath for DB storage/comparison)
     for (const file of discoveredFiles) {
-      const existingHash = existingHashes.get(file.absolutePath);
+      const existingHash = existingHashes.get(file.relativePath);
 
       if (!existingHash) {
         // New file
-        changes.added.push(file.absolutePath);
+        changes.added.push(file.relativePath);
       } else if (options?.forceReindex || existingHash !== file.hash) {
         // Modified file
-        changes.modified.push(file.absolutePath);
+        changes.modified.push(file.relativePath);
       }
 
-      existingPaths.delete(file.absolutePath);
+      existingPaths.delete(file.relativePath);
     }
 
     // Remaining paths are deleted files
@@ -257,13 +294,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const discovery = new FileDiscovery(discoveryOpts);
     const discoveredFiles = await discovery.discoverAll();
 
-    // Build lookup map for discovered files (path -> DiscoveredFile)
+    // Build lookup map for discovered files (relativePath -> DiscoveredFile)
     const discoveredMap = new Map<string, DiscoveredFile>();
     for (const file of discoveredFiles) {
-      discoveredMap.set(file.absolutePath, file);
+      discoveredMap.set(file.relativePath, file);
     }
 
-    // Get existing file hashes from storage
+    // Get existing file hashes from storage (keyed by relativePath)
     const existingHashes = await this.storage.getFileHashes();
     const existingPaths = new Set(existingHashes.keys());
 
@@ -273,17 +310,17 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       deleted: [],
     };
 
-    // Check each discovered file for changes
+    // Check each discovered file for changes (use relativePath for DB storage/comparison)
     for (const file of discoveredFiles) {
-      const existingHash = existingHashes.get(file.absolutePath);
+      const existingHash = existingHashes.get(file.relativePath);
 
       if (!existingHash) {
-        changes.added.push(file.absolutePath);
+        changes.added.push(file.relativePath);
       } else if (options?.forceReindex || existingHash !== file.hash) {
-        changes.modified.push(file.absolutePath);
+        changes.modified.push(file.relativePath);
       }
 
-      existingPaths.delete(file.absolutePath);
+      existingPaths.delete(file.relativePath);
     }
 
     // Remaining paths are deleted files
@@ -572,6 +609,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
   /**
    * Process a single document by file path.
+   * Accepts both absolute and relative paths for backward compatibility.
+   * @param filePath - Path to the file (absolute or relative to rootPath)
    */
   async processFile(filePath: string): Promise<ProcessingResult> {
     const startTime = Date.now();
@@ -579,14 +618,19 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const timerId = ++this.timerCounter;
     const processTimerKey = `processFile-${timerId}`;
     log.startTimer(processTimerKey, true); // true = track memory
+
+    // Normalize paths: relative for DB storage, absolute for file I/O
+    const relativePath = toRelativePath(this.options.rootPath, filePath);
+    const absolutePath = toAbsolutePath(this.options.rootPath, filePath);
+
     log.debug('processFile:start', {
       timerId,
-      filePath,
+      filePath: relativePath,
       processedCount: this.processedCount,
     });
 
-    // Get or create document
-    let doc = await this.storage.getDocumentByPath(filePath);
+    // Get or create document (using relative path for DB)
+    let doc = await this.storage.getDocumentByPath(relativePath);
     const isNew = !doc;
 
     if (isNew) {
@@ -594,13 +638,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       const { stat } = await import('node:fs/promises');
       const { basename, extname } = await import('node:path');
 
-      const fileStats = await stat(filePath);
-      const hash = await this.calculateFileHash(filePath);
+      const fileStats = await stat(absolutePath);
+      const hash = await this.calculateFileHash(absolutePath);
 
       doc = await this.storage.createDocument({
-        filePath,
-        fileName: basename(filePath),
-        fileExtension: extname(filePath).toLowerCase(),
+        filePath: relativePath, // Store relative path in DB
+        fileName: basename(relativePath),
+        fileExtension: extname(relativePath).toLowerCase(),
         fileSize: fileStats.size,
         fileHash: hash,
         fileModifiedAt: fileStats.mtime,
@@ -615,16 +659,19 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     try {
       // Update status to parsing
       await this.storage.updateDocument(documentId, { status: 'parsing' });
-      void this.emit('document:parsing', { documentId, filePath });
+      void this.emit('document:parsing', {
+        documentId,
+        filePath: relativePath,
+      });
 
-      // Parse the document
+      // Parse the document (using absolute path for file I/O)
       const parsed = await this.parserRegistry.parse(
-        filePath,
+        absolutePath,
         this.options.parserOptions,
       );
 
       log.debug('processFile:parsed', {
-        filePath,
+        filePath: relativePath,
         textLength: parsed.text.length,
         requiresOcr: parsed.requiresOcr,
       });
@@ -643,14 +690,14 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       if (parsed.requiresOcr) {
         void this.emit('document:ocr_needed', {
           documentId,
-          filePath,
+          filePath: relativePath,
           regions: parsed.ocrRegions?.length ?? 0,
         });
       }
 
       void this.emit('document:chunking', {
         documentId,
-        filePath,
+        filePath: relativePath,
         textLength: parsed.text.length,
       });
 
@@ -661,7 +708,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       );
 
       log.debug('processFile:chunked', {
-        filePath,
+        filePath: relativePath,
         chunkCount: chunks.length,
         avgChunkSize:
           chunks.length > 0
@@ -691,7 +738,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       );
 
       log.debug('processFile:chunksStored', {
-        filePath,
+        filePath: relativePath,
         chunkCount: createdChunks.length,
       });
 
@@ -699,7 +746,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       await this.storage.updateDocument(documentId, { status: 'embedding' });
       void this.emit('document:embedding', {
         documentId,
-        filePath,
+        filePath: relativePath,
         chunkCount: chunks.length,
       });
 
@@ -712,7 +759,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           chunks,
         );
         log.endTimer(embTimerKey, 'processFile:embeddingsGenerated', {
-          filePath,
+          filePath: relativePath,
           chunkCount: chunks.length,
         });
       }
@@ -726,14 +773,14 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
       void this.emit('document:completed', {
         documentId,
-        filePath,
+        filePath: relativePath,
         chunksCreated: chunks.length,
         duration,
       });
 
       log.endTimer(processTimerKey, 'processFile:complete', {
         timerId,
-        filePath,
+        filePath: relativePath,
         chunksCreated: chunks.length,
         durationMs: duration,
         processedCount: this.processedCount,
@@ -742,7 +789,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
       return {
         documentId,
-        filePath,
+        filePath: relativePath,
         success: true,
         chunksCreated: chunks.length,
         duration,
@@ -755,7 +802,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
       log.endTimer(processTimerKey, 'processFile:error', {
         timerId,
-        filePath,
+        filePath: relativePath,
         durationMs: duration,
         error: err.message,
       });
@@ -767,7 +814,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
       return {
         documentId,
-        filePath,
+        filePath: relativePath,
         success: false,
         chunksCreated: 0,
         duration,
@@ -822,6 +869,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   /**
    * Prepare a file for embedding (parse, chunk, create DB records).
    * This is the "producer" work - prepares data for the embedder.
+   * Accepts both absolute and relative paths for backward compatibility.
+   * @param filePath - Path to the file (absolute or relative to rootPath)
    */
   private async prepareFile(
     queueItemId: string,
@@ -831,23 +880,28 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     const startTime = Date.now();
     const timerId = ++this.timerCounter;
     log.startTimer(`prepareFile-${timerId}`, true);
-    log.debug('prepareFile:start', { timerId, filePath });
 
-    // Get or create document
-    let doc = await this.storage.getDocumentByPath(filePath);
+    // Normalize paths: relative for DB storage, absolute for file I/O
+    const relativePath = toRelativePath(this.options.rootPath, filePath);
+    const absolutePath = toAbsolutePath(this.options.rootPath, filePath);
+
+    log.debug('prepareFile:start', { timerId, filePath: relativePath });
+
+    // Get or create document (using relative path for DB)
+    let doc = await this.storage.getDocumentByPath(relativePath);
     const isNew = !doc;
 
     if (isNew) {
       const { stat } = await import('node:fs/promises');
       const { basename, extname } = await import('node:path');
 
-      const fileStats = await stat(filePath);
-      const hash = await this.calculateFileHash(filePath);
+      const fileStats = await stat(absolutePath);
+      const hash = await this.calculateFileHash(absolutePath);
 
       doc = await this.storage.createDocument({
-        filePath,
-        fileName: basename(filePath),
-        fileExtension: extname(filePath).toLowerCase(),
+        filePath: relativePath, // Store relative path in DB
+        fileName: basename(relativePath),
+        fileExtension: extname(relativePath).toLowerCase(),
         fileSize: fileStats.size,
         fileHash: hash,
         fileModifiedAt: fileStats.mtime,
@@ -860,16 +914,16 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     // Update status to parsing
     await this.storage.updateDocument(documentId, { status: 'parsing' });
-    void this.emit('document:parsing', { documentId, filePath });
+    void this.emit('document:parsing', { documentId, filePath: relativePath });
 
-    // Parse the document
+    // Parse the document (using absolute path for file I/O)
     const parsed = await this.parserRegistry.parse(
-      filePath,
+      absolutePath,
       this.options.parserOptions,
     );
 
     log.debug('prepareFile:parsed', {
-      filePath,
+      filePath: relativePath,
       textLength: parsed.text.length,
       requiresOcr: parsed.requiresOcr,
     });
@@ -886,7 +940,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     void this.emit('document:chunking', {
       documentId,
-      filePath,
+      filePath: relativePath,
       textLength: parsed.text.length,
     });
 
@@ -897,7 +951,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     );
 
     log.debug('prepareFile:chunked', {
-      filePath,
+      filePath: relativePath,
       chunkCount: chunks.length,
     });
 
@@ -924,7 +978,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     log.endTimer(`prepareFile-${timerId}`, 'prepareFile:complete', {
       timerId,
-      filePath,
+      filePath: relativePath,
       chunkCount: chunks.length,
     });
 
@@ -936,7 +990,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       queueItemId,
       queueItemAttempts,
       documentId,
-      filePath,
+      filePath: relativePath,
       chunkTexts,
       chunkIds: createdChunks.map((c) => c.id),
       chunkCount,

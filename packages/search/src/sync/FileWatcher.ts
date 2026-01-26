@@ -1,6 +1,7 @@
 /**
- * FileWatcher - Real-time file watching using chokidar.
- * Optional component for detecting file changes during a session.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { resolve, relative, extname } from 'node:path';
@@ -12,6 +13,17 @@ import type {
   FileChangeEvent,
   FileWatcherEvents,
 } from './types.js';
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Normalize path separators to forward slashes for cross-platform DB compatibility.
+ */
+function normalizeSeparators(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
 
 // ============================================================================
 // Constants
@@ -148,6 +160,7 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
         });
     } catch (error) {
       // chokidar might not be installed (optional dependency)
+      // eslint-disable-next-line no-console
       console.warn(
         'FileWatcher: chokidar not available, real-time watching disabled',
       );
@@ -196,7 +209,10 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
       return;
     }
 
-    const relativePath = relative(this.rootPath, absolutePath);
+    // Normalize separators for cross-platform DB compatibility
+    const relativePath = normalizeSeparators(
+      relative(this.rootPath, absolutePath),
+    );
 
     const event: FileChangeEvent = {
       type,
@@ -254,11 +270,13 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
         switch (event.type) {
           case 'add':
           case 'change':
-            await this.handleFileAddOrChange(absolutePath);
+            // Pass relative path for DB, absolute path for file I/O
+            await this.handleFileAddOrChange(event.filePath, absolutePath);
             processedCount++;
             break;
           case 'unlink':
-            await this.handleFileDelete(absolutePath);
+            // Pass relative path for DB lookup
+            await this.handleFileDelete(event.filePath);
             processedCount++;
             break;
           default:
@@ -266,6 +284,7 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
             break;
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(
           `FileWatcher: Error handling ${event.type} for ${absolutePath}:`,
           error,
@@ -281,9 +300,14 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
 
   /**
    * Handle file add or change.
+   * @param relativePath - Relative path for DB storage/lookup
+   * @param absolutePath - Absolute path for file I/O
    */
-  private async handleFileAddOrChange(absolutePath: string): Promise<void> {
-    // Check file size
+  private async handleFileAddOrChange(
+    relativePath: string,
+    absolutePath: string,
+  ): Promise<void> {
+    // Check file size (using absolute path for file I/O)
     try {
       const stats = await stat(absolutePath);
       if (stats.size > this.config.maxFileSize) {
@@ -293,8 +317,8 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
       return; // File doesn't exist anymore
     }
 
-    // Check if document already exists
-    const existingDoc = await this.storage.getDocumentByPath(absolutePath);
+    // Check if document already exists (using relative path for DB)
+    const existingDoc = await this.storage.getDocumentByPath(relativePath);
 
     if (existingDoc) {
       // Delete existing chunks and mark for re-indexing
@@ -302,12 +326,12 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
       await this.storage.updateDocument(existingDoc.id, { status: 'pending' });
     }
 
-    // Queue for indexing
+    // Queue for indexing (using relative path for DB)
     const existingQueueItem =
-      await this.storage.getQueueItemByPath(absolutePath);
+      await this.storage.getQueueItemByPath(relativePath);
     if (!existingQueueItem) {
       await this.storage.enqueueItem({
-        filePath: absolutePath,
+        filePath: relativePath, // Store relative path in DB
         priority: 'markup',
       });
     }
@@ -315,9 +339,10 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
 
   /**
    * Handle file deletion.
+   * @param relativePath - Relative path for DB lookup
    */
-  private async handleFileDelete(absolutePath: string): Promise<void> {
-    const doc = await this.storage.getDocumentByPath(absolutePath);
+  private async handleFileDelete(relativePath: string): Promise<void> {
+    const doc = await this.storage.getDocumentByPath(relativePath);
     if (doc) {
       await this.storage.deleteDocument(doc.id);
     }
