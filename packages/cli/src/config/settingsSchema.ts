@@ -1377,7 +1377,7 @@ const SETTINGS_SCHEMA = {
         label: 'Auto Configure Max Old Space Size',
         category: 'Advanced',
         requiresRestart: true,
-        default: false, // AUDITARIA_MEMORY: Enable for knowledge indexing which needs more heap for PGlite WASM
+        default: true, // AUDITARIA_MEMORY: Enable for knowledge indexing which needs more heap for PGlite WASM
         description: 'Automatically configure Node.js memory limits',
         showInDialog: false,
       },
