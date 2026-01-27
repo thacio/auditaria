@@ -137,7 +137,7 @@ WITH (m = 16, ef_construction = 64);
  * SQL to update FTS vector for a single chunk.
  */
 export const UPDATE_FTS_VECTOR_SQL = `
-UPDATE chunks SET fts_vector = to_tsvector('english', text)
+UPDATE chunks SET fts_vector = to_tsvector('simple', text)
 WHERE id = $1;
 `;
 
