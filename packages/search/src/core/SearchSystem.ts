@@ -387,9 +387,13 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             cacheDir: this.config.embeddings.cacheDir, // Use consistent path across runtimes
           },
           (progress) => {
-            if (progress.stage === 'download' && progress.file) {
+            // Show progress for model loading (files are usually cached locally)
+            if (
+              (progress.stage === 'load' || progress.stage === 'download') &&
+              progress.file
+            ) {
               console.log(
-                `[SearchSystem] Downloading: ${progress.file} ${Math.round(progress.progress)}%`,
+                `[SearchSystem] Loading: ${progress.file} ${Math.round(progress.progress)}%`,
               );
             }
           },

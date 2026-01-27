@@ -1,11 +1,7 @@
 /**
- * Text embedder using Transformers.js.
- * Runs embedding models locally using ONNX runtime.
- *
- * Features:
- * - Batch size fallback: When batch processing fails, halves batch size until success
- * - Warning callbacks: Reports when fallback is triggered
- * - Progress callbacks: Reports model loading and embedding progress
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import type {
@@ -185,7 +181,11 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
 
   private async doInitialize(onProgress?: ProgressCallback): Promise<void> {
     log.startTimer('initialize', true);
-    log.info('initialize:start', { modelId: this.modelId, device: this.device, quantization: this.quantization });
+    log.info('initialize:start', {
+      modelId: this.modelId,
+      device: this.device,
+      quantization: this.quantization,
+    });
 
     try {
       onProgress?.({
@@ -232,17 +232,21 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
             file?: string;
             loaded?: number;
             total?: number;
+            name?: string;
           };
 
+          // 'initiate' fires for each file, 'progress' fires during loading
+          // The library fires progress events for BOTH network downloads AND cache loads
+          // We use 'Loading' instead of 'Downloading' since files are usually cached
           if (data.status === 'progress' && onProgress) {
             const progressPct = Math.round((data.progress ?? 0) * 0.8) + 20;
             onProgress({
-              stage: 'download',
+              stage: 'load',
               progress: progressPct,
               file: data.file,
               loaded: data.loaded,
               total: data.total,
-              message: `Downloading ${data.file ?? 'model files'}...`,
+              message: `Loading ${data.file ?? 'model files'}...`,
             });
           }
         },
@@ -334,7 +338,11 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
     const batchId = ++this.timerCounter;
     const timerKey = `embedBatch-${batchId}`;
     log.startTimer(timerKey, true);
-    log.debug('embedBatch:start', { batchId, textCount: texts.length, batchSize: this.currentBatchSize });
+    log.debug('embedBatch:start', {
+      batchId,
+      textCount: texts.length,
+      batchSize: this.currentBatchSize,
+    });
 
     this.ensureReady();
 
@@ -352,7 +360,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
     log.endTimer(timerKey, 'embedBatch:complete', {
       batchId,
       textCount: texts.length,
-      resultCount: results.length
+      resultCount: results.length,
     });
 
     return results;
@@ -409,7 +417,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
 
         log.warn('processBatchWithFallback:fallback', {
           originalBatchSize: localBatchSize,
-          newBatchSize
+          newBatchSize,
         });
 
         this.emitWarning({
@@ -453,6 +461,7 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
       }
     }
     // Also log to console for visibility
+    // eslint-disable-next-line no-console
     console.warn(`[TransformersJsEmbedder] ${warning.message}`);
   }
 
