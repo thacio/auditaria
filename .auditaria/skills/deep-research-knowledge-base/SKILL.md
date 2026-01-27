@@ -21,7 +21,7 @@ These are the standard settings for research. Adjust based on query complexity.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| **Iterations** | 5 | Number of search iterations to perform |
+| **Iterations** | 7 (minimum) | Number of search iterations to perform |
 | **Searches per iteration** | 5 | Parallel searches in each iteration |
 | **Search limit** | 100 | Results per search (`limit: 100`) |
 | **Detail level** | summary | Use `summary` for exploration, `full` for document retrieval |
@@ -31,14 +31,13 @@ These are the standard settings for research. Adjust based on query complexity.
 
 **Iteration Guidelines:**
 
-| Query Type | Iterations | When to Adjust |
-|------------|------------|----------------|
-| Simple factual | 2-3 | Can stop at 2 if clearly answered |
-| Moderate question | 4-5 | Standard default |
-| Complex investigation | 6-8 | User asks for "thorough" or "comprehensive" |
-| Comprehensive report | 8-12 | User asks for "everything" or "deep dive" |
+| Query Type | Iterations | Notes |
+|------------|------------|-------|
+| Standard research | 7 | Minimum for any research task |
+| Complex investigation | 8-10 | User asks for "thorough" or "comprehensive", usually on demand |
+| Comprehensive report | 10-15 | User asks for "everything" or "deep dive" |
 
-**Important:** The default is 5 iterations. Complete all 5 unless the question is clearly and comprehensively answered earlier. Do not stop at iteration 2 just because you found "some" results. Continue until you have explored the topic thoroughly.
+**Important:** The minimum is 7 iterations. Complete ALL planned iterations - do not stop early. Each iteration should actively explore and discover new information. The user may request more iterations, and you MUST follow their instructions.
 
 ---
 
@@ -54,7 +53,32 @@ These principles are non-negotiable and must guide every research action:
 
 - **Intellectual Honesty:** If the documents are silent on a topic, say so explicitly. If evidence is contradictory, present both sides. If evidence is weak or limited, acknowledge the limitation. Never fabricate, extrapolate beyond what sources say, or fill gaps with assumptions presented as facts.
 
-- **Thoroughness by Default:** Complete the planned iterations. Do not prematurely conclude that you have "enough" evidence unless the answer is unambiguously clear and complete. When in doubt, continue searching.
+- **Thoroughness by Default:** Complete ALL planned iterations. Do not prematurely conclude that you have "enough" evidence. Continue exploring and discovering until the final iteration.
+
+---
+
+# Core Principles
+
+## Research Principles
+
+- **Explore until the end:** Every iteration should actively search for new information. Do not coast through later iterations.
+- **Follow every lead:** When documents reference other topics, people, events, or documents, pursue those leads.
+- **Vary your approach:** Use different search strategies, terminology, and angles throughout all iterations.
+- **Collect exhaustively:** Gather more evidence than you think you need. It's better to have too much than too little.
+
+## Analysis Principles
+
+- **Ground everything in evidence:** Every analytical point must connect to specific excerpts from documents.
+- **Show your reasoning:** When you draw conclusions, explain the logical steps from evidence to conclusion.
+- **Acknowledge uncertainty:** Clearly state when evidence is limited, conflicting, or inconclusive.
+- **Distinguish levels of confidence:** Some findings are well-supported by multiple sources; others rest on single mentions.
+
+## Report Principles
+
+- **Excerpts are mandatory:** Every finding MUST include direct quotes from source documents. Summaries without excerpts are not acceptable.
+- **Verifiability is paramount:** The user must be able to verify every claim by checking the cited source and excerpt.
+- **Detail over brevity:** Err on the side of including more information. Provide context, background, and related details.
+- **Rich documentation:** Include document paths, section references, and enough context for the user to locate the original.
 
 ---
 
@@ -112,21 +136,22 @@ knowledge_search({
 **Characteristics:**
 - Retrieve full documents using `document_id` parameter
 - Follow terminology and concepts discovered in Phase 1
-- Cross-reference findings across multiple sources
-- Build chains of evidence
-- Look for corroboration or contradiction between sources
+- Explore specific aspects in depth
+- Build detailed understanding of key topics
+- Pursue references and leads found in documents
 
-## Phase 3: Targeted Validation (Iteration 5+)
+## Phase 3: Continued Exploration (Iteration 5+)
 
-For comprehensive investigations, validate and fill gaps.
+Continue exploring with refined focus based on what you've learned.
 
-**Purpose:** Confirm critical findings, resolve contradictions, ensure completeness.
+**Purpose:** Pursue new angles, explore related topics, and ensure comprehensive coverage.
 
 **Characteristics:**
-- Verify key facts with authoritative sources
-- Search for counter-evidence or alternative perspectives
-- Fill identified gaps in the evidence base
-- Confirm recent developments or updates
+- Explore aspects that emerged from earlier iterations
+- Search for additional perspectives and related information
+- Pursue leads and references found in documents
+- Investigate connections between findings
+- Continue discovering new relevant content until the final iteration
 
 ---
 
@@ -147,41 +172,67 @@ Each iteration should:
 
 ## Iteration Execution
 
-For each iteration:
+**CRITICAL: Steps must be executed SEQUENTIALLY, not in parallel.**
+
+Each iteration follows a strict sequence. Do NOT run document reads in parallel with searches. Complete each step before moving to the next.
 
 ```
-1. FORMULATE: Create ~5 different search queries
+STEP 1: FORMULATE (prepare queries)
+   - Create ~5 different search queries
    - Vary terminology (synonyms, formal/informal terms)
    - Vary angles (different aspects of the same topic)
    - Use findings from previous iterations to refine queries
 
-2. EXECUTE: Run 5 searches in parallel
+STEP 2: SEARCH (run searches in parallel)
+   - Run the 5 searches in parallel
    - Mix strategies: 2-3 hybrid, 1-2 semantic, 1 keyword
    - Use limit: 100 for comprehensive results
-   - Apply diversity settings based on phase (wide vs deep)
+   ⏸️ WAIT for all search results before proceeding
 
-3. EXTRACT: From each search result
-   - Identify key passages and excerpts
-   - Note document IDs for full retrieval
-   - Mark findings as FACT (directly stated) or INFERENCE (your interpretation)
+STEP 3: ANALYZE RESULTS (review what you found)
+   - Review search results
+   - Identify promising documents that need full retrieval
+   - Note document IDs for the next step
+   ⏸️ DO NOT start next iteration yet
 
-4. RETRIEVE: Get full documents for important findings
-   - Use knowledge_search with document_id parameter and detail: "full"
-   - Read complete context around key excerpts
+STEP 4: READ DOCUMENTS (MANDATORY - sequential)
+   ⚠️ THIS STEP IS NOT OPTIONAL
+   - Retrieve full documents using document_id parameter
+   - Read them ONE BY ONE, not in parallel with searches
+   - Extract substantial excerpts for the report
+   - If a read fails: FIX THE PARAMETERS AND RETRY
+   - NEVER skip reading because of a failed attempt
 
-5. REFLECT: After analyzing results, assess:
-   - What facts did I learn? (cite documents)
+STEP 5: REFLECT (after reading is complete)
+   - What facts did I learn? (with excerpts)
    - What gaps remain in my understanding?
    - What new search terms or angles emerged?
-   - Am I approaching saturation (seeing same content repeatedly)?
-   - Do I need more iterations? (default: YES, unless clearly complete)
-   - Should next iteration go wider (new angles) or deeper (specific follow-ups)?
+   - What should the next iteration explore?
 
-6. ADAPT: Plan the next iteration
-   - Adjust strategy based on what's working
-   - Focus on remaining gaps
-   - Follow new leads discovered
+STEP 6: NEXT ITERATION
+   - Only now proceed to the next iteration
+   - Start again from STEP 1 with refined queries
 ```
+
+## Document Reading Rules
+
+**Reading documents is MANDATORY. You cannot produce a quality report without reading the source documents.**
+
+1. **Never skip reading:** If you found relevant documents in search, you MUST read them.
+
+2. **Sequential, not parallel:** Read documents AFTER searches complete, not alongside them.
+
+3. **Retry on failure:** If `knowledge_search` with `document_id` fails:
+   - Check the error message
+   - Verify the document_id is correct
+   - Try again with correct parameters
+   - Do NOT give up and skip the document
+
+4. **No excuses:** "I couldn't read the document" is not acceptable. Either:
+   - Fix the issue and read it, OR
+   - Explain specifically why reading failed after multiple attempts
+
+5. **Extract excerpts:** When you read a document, extract the relevant excerpts immediately. You need these for the report.
 
 ---
 
@@ -201,10 +252,12 @@ For complex investigations (5+ iterations), use the `write_todos` tool to track 
 ```
 1. Iteration 1 - Wide exploration with varied terminology
 2. Iteration 2 - Follow up on key documents found
-3. Iteration 3 - Deep dive into [specific aspect]
-4. Iteration 4 - Cross-reference and verify findings
-5. Iteration 5 - Fill gaps and validate
-6. Write report
+3. Iteration 3 - Deep dive into [specific aspect 1]
+4. Iteration 4 - Deep dive into [specific aspect 2]
+5. Iteration 5 - Explore related topics and connections
+6. Iteration 6 - Pursue remaining leads and angles
+7. Iteration 7 - Final exploration sweep
+8. Write detailed report with excerpts
 ```
 
 *Option B: By phase/objective*
@@ -213,9 +266,10 @@ For complex investigations (5+ iterations), use the `write_todos` tool to track 
 2. [Phase 1] Map information landscape
 3. [Phase 2] Investigate: [specific aspect 1]
 4. [Phase 2] Investigate: [specific aspect 2]
-5. [Phase 3] Verify critical findings
-6. [Phase 3] Fill identified gaps
-7. Synthesize and write report
+5. [Phase 2] Investigate: [specific aspect 3]
+6. [Phase 3] Explore connections and related topics
+7. [Phase 3] Pursue additional leads
+8. Synthesize and write detailed report
 ```
 
 Mark each item `in_progress` when starting, `completed` when done. Only one item should be `in_progress` at a time.
@@ -473,33 +527,49 @@ The [document name] states:
 
 Use for: General research, topic overviews, investigations. The most common template.
 
+**Remember: Reports must be detailed and verifiable. Every finding needs excerpts.**
+
 ```markdown
 # [Title]
 *Generated: YYYY-MM-DD*
 
 ## Executive Summary
-[150-250 words summarizing key findings - facts with citations]
+[250-400 words summarizing key findings with citations and brief excerpts]
 
 ## Methodology
 - Research iterations: [X]
 - Documents analyzed: [Y]
 - Key search terms: [list]
+- Search strategies used: [hybrid/semantic/keyword]
 
 ## Findings
 
-> **Note: All statements in this section are documented facts with citations.**
+> **Note: All statements in this section are documented facts with citations
+> and direct excerpts. The user must be able to verify each claim.**
 
 ### [Topic/Finding 1]
 
-The [source document] states:
-> "[Direct quote]" [1]
+**Source:** [Document name] [1]
+
+The document explicitly states:
+> "[Direct quote - include substantial excerpt, not just a phrase]" [1, Section X]
+
+**Context:** [Explain where this appears in the document and surrounding context]
+
+**Additional evidence:**
+> "[Another relevant excerpt from same or different source]" [1] or [2]
 
 Key documented points:
-- [Point] [1]
-- [Point] [2]
+- [Specific point with excerpt]: "[quote]" [1]
+- [Specific point with excerpt]: "[quote]" [2]
 
 ### [Topic/Finding 2]
-[Continue with cited evidence...]
+
+**Source:** [Document name] [2]
+
+> "[Substantial excerpt that supports the finding]" [2]
+
+[Continue with detailed, cited evidence for each finding...]
 
 ---
 
@@ -508,74 +578,90 @@ Key documented points:
 > **Important: This section contains interpretation and reasoning based on
 > the evidence above. These are NOT documented facts.**
 
-[Your analysis, clearly separated from facts]
+### Interpretation of Findings
+[Your analysis, explaining reasoning step by step]
+
+Based on the evidence that "[excerpt]" [1] and "[excerpt]" [2], it can be
+reasoned that...
+
+### Connections and Patterns
+[Analysis of how different findings relate]
+
+### Implications
+[What the findings suggest, clearly marked as inference]
 
 ---
 
 ## Limitations and Gaps
 - The documents do not address [topic]
-- [Other gaps]
+- Evidence for [aspect] is limited to single source
+- [Other gaps with specific detail]
 
 ## Conclusions
-[Summary based on documented evidence]
+[Detailed summary based on documented evidence, with key excerpts reiterated]
 
 ## References
-[1] path/to/file.pdf (doc_xxx) - Description
-[2] path/to/another.docx (doc_xxx) - Description
+[1] path/to/file.pdf (doc_xxx) - [Detailed description of document content]
+[2] path/to/another.docx (doc_xxx) - [Detailed description of document content]
 ```
 
 ---
 
 ## Template: Narrative Timeline
 
-Use for: Chronological reconstructions, event sequences, historical analysis.
+Use for: Chronological reconstructions, event sequences, historical analysis, evolution of topics over time.
+
+**Note:** This is a suggested structure. Adapt it freely to fit your topic and the user's needs - add sections, change the organization, include more detail where relevant, and adjust the format to best tell the story of how events unfolded.
 
 ```markdown
-# Timeline: [Subject]
-*Generated: YYYY-MM-DD*
+# [Descriptive Title]: Timeline of [Subject]
 
-## Executive Summary
-[Chronological overview - facts with citations]
-
-## Methodology
-- Period covered: [start] to [end]
-- Documents reviewed: [count]
-- Search iterations: [number]
+[Opening paragraph explaining what this timeline covers and why it matters.
+Provide context for the reader about the scope and significance of the events.]
 
 ---
 
-## Timeline of Events
+### **[Year] – [Descriptive Period Title]**
 
-> **Note: All dates and events are documented in sources. Each entry is cited.**
+[Narrative introduction for this period - 1-2 sentences explaining what was
+happening during this time and how it fits into the overall evolution.]
 
-### [Year/Period 1]
+*   **[Document Title/Name] (document_id)**
+    *   **Summary:** [Plain language explanation of what this document says
+        and its significance in the timeline]
+    *   **Evidence:**
+        > "[Substantial direct quote from the document that supports the
+        summary. Include enough context for the reader to understand.]"
 
-#### [Date]: [Event Title]
-**Source:** [Document name] [1]
-
-> "[Quote describing the event]" [1]
-
-[Documented context]
-
-#### [Date]: [Next Event]
-**Source:** [Document name] [2]
-
-> "[Quote]" [2]
-
----
-
-### [Year/Period 2]
-
-[Continue pattern...]
+*   **[Another Document] (document_id)**
+    *   **Summary:** [What this document contributes to the timeline]
+    *   **Evidence:**
+        > "[Direct quote with sufficient context]"
 
 ---
 
-## Summary Table
+### **[Next Year] – [Descriptive Period Title]**
 
-| Date | Event | Source |
-|------|-------|--------|
-| YYYY-MM-DD | [Description] | [1] |
-| YYYY-MM-DD | [Description] | [2] |
+[Narrative introduction explaining how the situation evolved from the
+previous period. What changed? What new developments occurred?]
+
+*   **[Document Title] (document_id)**
+    *   **Summary:** [Explanation]
+    *   **Evidence:**
+        > "[Quote]"
+
+[Continue pattern for each significant period...]
+
+---
+
+### **[Most Recent Year] – [Descriptive Period Title]**
+
+[Narrative explaining the current state or most recent developments.]
+
+*   **[Document Title] (document_id)**
+    *   **Summary:** [Explanation]
+    *   **Evidence:**
+        > "[Quote]"
 
 ---
 
@@ -583,24 +669,31 @@ Use for: Chronological reconstructions, event sequences, historical analysis.
 
 > **Important: The following is interpretation, not documented fact.**
 
-### Sequence Analysis
-Based on the documented chronology...
+### Evolution and Patterns
+[Analysis of how the subject evolved across the documented periods]
 
-### Patterns Observed
-[Your analysis]
+### Key Turning Points
+[Identification of significant moments that changed the trajectory]
+
+### Current State and Implications
+[Where things stand now based on the documented evidence]
 
 ---
 
 ## Timeline Gaps
-- No documentation for period [X] to [Y]
-- Contradictory dates for [event]: [source 1] says A, [source 2] says B
-
-## Conclusions
-[Summary based on chronology]
+- No documentation found for period [X] to [Y]
+- [Other gaps or limitations in the evidence]
 
 ## References
-[1] path/to/file.pdf (doc_xxx) - Description
+[1] path/to/file.pdf (doc_xxx) - [Description of document]
+[2] path/to/another.pdf (doc_xxx) - [Description of document]
 ```
+
+**Key elements of an effective timeline:**
+- **Descriptive period titles** - Not just "2020" but "2020 – Focus on Governance and Risks"
+- **Narrative flow** - Each period intro explains the evolution
+- **Summary + Evidence format** - Plain language summary followed by verifiable quote
+- **Shows progression** - Reader can follow how the topic evolved over time
 
 ---
 
@@ -666,8 +759,8 @@ Based on findings [1, 2, 3]...
 ## DO NOT:
 
 1. **Stop too early**
-   - BAD: "I found some results in iteration 2, that's probably enough"
-   - GOOD: Complete the planned iterations unless answer is unambiguously complete
+   - BAD: "I found some results in iteration 3, that's probably enough"
+   - GOOD: Complete ALL 7+ iterations - continue exploring until the final iteration
 
 2. **State inferences as facts**
    - BAD: "The report concluded the system was poorly designed" (unless explicitly stated)
@@ -693,24 +786,48 @@ Based on findings [1, 2, 3]...
    - BAD: Forgetting iteration 4 results when you're on iteration 5
    - GOOD: Only forget iterations older than the last 2
 
+8. **Write reports without excerpts**
+   - BAD: "The document discusses authentication issues [1]"
+   - GOOD: "The document states: 'Authentication tokens were not properly validated, allowing unauthorized access' [1, Section 3.2]"
+
+9. **Be too brief**
+   - BAD: A few sentences per finding
+   - GOOD: Detailed findings with context, multiple excerpts, and thorough explanation
+
+10. **Run reads in parallel with searches**
+    - BAD: Starting next search iteration while still reading documents
+    - GOOD: Complete ALL reads, extract excerpts, THEN start next iteration
+
+11. **Skip reading after a failed attempt**
+    - BAD: "The read failed, I'll just summarize from the search snippet"
+    - GOOD: Fix the parameters, retry the read, get the full document
+
+12. **Give up on document retrieval**
+    - BAD: "I couldn't access the document" (and move on)
+    - GOOD: Troubleshoot the issue, retry with correct document_id, persist until successful
+
 ---
 
 # Quick Reference
 
 ```
-DEFAULTS   → 5 iterations, 5 searches/iteration, limit: 100
+DEFAULTS   → 7 iterations minimum, 5 searches/iteration, limit: 100
+SEQUENCE   → Search → Wait → Read documents → Analyze → THEN next iteration
+READING    → MANDATORY. Never skip. Retry on failure. No excuses.
 CLARIFY    → Only genuine ambiguities, 1-2 questions max
-TRACK      → Use write_todos for complex investigations (5+ iterations)
-ITERATE    → Complete planned iterations unless unambiguously answered
+TRACK      → Use write_todos for complex investigations (7+ iterations)
+ITERATE    → Complete ALL planned iterations - no autonomous early stopping
+EXCERPTS   → Every finding MUST include direct quotes from sources
 SEPARATE   → Facts (with citations) vs. Analysis (clearly marked)
-CITE       → [n] path/file.ext (doc_id)
+CITE       → [n] path/file.ext (doc_id) + excerpt
 CONTEXT    → If needed, forget old iterations but KEEP LAST 2
 TEMPLATES  → Suggestions only - adapt to fit the research
+USER       → If user requests more iterations, follow their instructions
 ```
 
 **Phase progression:**
 - Wide (1-2): cap_then_fill, varied queries, map the landscape
 - Deep (3-4): score_penalty, follow leads, retrieve full documents
-- Validate (5+): fill gaps, verify findings, resolve contradictions
+- Explore (5+): pursue new angles, connections, and related topics
 
 **Save reports to:** `reports/{topic-slug}-{YYYY-MM-DD}.md`
