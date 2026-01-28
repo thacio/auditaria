@@ -128,6 +128,54 @@ export function useToolExecutionScheduler(
     };
   }, [messageBus, internalAdaptToolCalls]);
 
+  const schedule: ScheduleFn = useCallback(
+    async (request, signal) => {
+      // Clear state for new run
+      setToolCallsMap({});
+
+      // 1. Await Core Scheduler directly
+      const results = await scheduler.schedule(request, signal);
+
+      // 2. Trigger legacy reinjection logic (useGeminiStream loop)
+      // Since this hook instance owns the "root" scheduler, we always trigger
+      // onComplete when it finishes its batch.
+      await onCompleteRef.current(results);
+
+      return results;
+    },
+    [scheduler],
+  );
+
+  const cancelAll: CancelAllFn = useCallback(
+    (_signal) => {
+      scheduler.cancelAll();
+    },
+    [scheduler],
+  );
+
+  const markToolsAsSubmitted: MarkToolsAsSubmittedFn = useCallback(
+    (callIdsToMark: string[]) => {
+      setToolCallsMap((prevMap) => {
+        const nextMap = { ...prevMap };
+        for (const [sid, calls] of Object.entries(nextMap)) {
+          nextMap[sid] = calls.map((tc) =>
+            callIdsToMark.includes(tc.request.callId)
+              ? { ...tc, responseSubmittedToGemini: true }
+              : tc,
+          );
+        }
+        return nextMap;
+      });
+    },
+    [],
+  );
+
+  // Flatten the map for the UI components that expect a single list of tools.
+  const toolCalls = useMemo(
+    () => Object.values(toolCallsMap).flat(),
+    [toolCallsMap],
+  );
+
   // WEB_INTERFACE_START
   // Handle tool confirmations for web interface
   const prevAwaitingApprovalIdsRef = useRef<Set<string>>(new Set());
@@ -176,54 +224,6 @@ export function useToolExecutionScheduler(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toolCalls]); // Only depend on toolCalls
   // WEB_INTERFACE_END
-
-  const schedule: ScheduleFn = useCallback(
-    async (request, signal) => {
-      // Clear state for new run
-      setToolCallsMap({});
-
-      // 1. Await Core Scheduler directly
-      const results = await scheduler.schedule(request, signal);
-
-      // 2. Trigger legacy reinjection logic (useGeminiStream loop)
-      // Since this hook instance owns the "root" scheduler, we always trigger
-      // onComplete when it finishes its batch.
-      await onCompleteRef.current(results);
-
-      return results;
-    },
-    [scheduler],
-  );
-
-  const cancelAll: CancelAllFn = useCallback(
-    (_signal) => {
-      scheduler.cancelAll();
-    },
-    [scheduler],
-  );
-
-  const markToolsAsSubmitted: MarkToolsAsSubmittedFn = useCallback(
-    (callIdsToMark: string[]) => {
-      setToolCallsMap((prevMap) => {
-        const nextMap = { ...prevMap };
-        for (const [sid, calls] of Object.entries(nextMap)) {
-          nextMap[sid] = calls.map((tc) =>
-            callIdsToMark.includes(tc.request.callId)
-              ? { ...tc, responseSubmittedToGemini: true }
-              : tc,
-          );
-        }
-        return nextMap;
-      });
-    },
-    [],
-  );
-
-  // Flatten the map for the UI components that expect a single list of tools.
-  const toolCalls = useMemo(
-    () => Object.values(toolCallsMap).flat(),
-    [toolCallsMap],
-  );
 
   // Provide a setter that maintains compatibility with legacy [].
   const setToolCallsForDisplay = useCallback(
