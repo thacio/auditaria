@@ -96,6 +96,14 @@ export class Storage {
     return path.join(Storage.getGlobalGeminiDir(), 'agents');
   }
 
+  static getAcknowledgedAgentsPath(): string {
+    return path.join(
+      Storage.getGlobalGeminiDir(),
+      'acknowledgments',
+      'agents.json',
+    );
+  }
+
   // AUDITARIA_MODIFY_START: Updated system settings paths with fallback to legacy gemini-cli paths
   static getSystemSettingsPath(): string {
     if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {

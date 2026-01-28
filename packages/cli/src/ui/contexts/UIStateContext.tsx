@@ -157,6 +157,7 @@ export interface UIState {
   terminalBackgroundColor: TerminalBackgroundColor;
   settingsNonce: number;
   adminSettingsChanged: boolean;
+  newAgents: AgentDefinition[] | null;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);

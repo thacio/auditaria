@@ -67,6 +67,7 @@ import {
   SessionStartSource,
   SessionEndReason,
   generateSummary,
+  type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
@@ -148,6 +149,7 @@ import {
   QUEUE_ERROR_DISPLAY_DURATION_MS,
 } from './constants.js';
 import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialog.js';
+import { NewAgentsChoice } from './components/NewAgentsNotification.js';
 import { isSlashCommand } from './utils/commandUtils.js';
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
@@ -233,6 +235,8 @@ export const AppContainer = (props: AppContainerProps) => {
   const [queueErrorMessage, setQueueErrorMessage] = useState<string | null>(
     null,
   );
+
+  const [newAgents, setNewAgents] = useState<AgentDefinition[] | null>(null);
 
   const [defaultBannerText, setDefaultBannerText] = useState('');
   const [warningBannerText, setWarningBannerText] = useState('');
@@ -430,14 +434,20 @@ export const AppContainer = (props: AppContainerProps) => {
       setAdminSettingsChanged(true);
     };
 
+    const handleAgentsDiscovered = (payload: AgentsDiscoveredPayload) => {
+      setNewAgents(payload.agents);
+    };
+
     coreEvents.on(CoreEvent.SettingsChanged, handleSettingsChanged);
     coreEvents.on(CoreEvent.AdminSettingsChanged, handleAdminSettingsChanged);
+    coreEvents.on(CoreEvent.AgentsDiscovered, handleAgentsDiscovered);
     return () => {
       coreEvents.off(CoreEvent.SettingsChanged, handleSettingsChanged);
       coreEvents.off(
         CoreEvent.AdminSettingsChanged,
         handleAdminSettingsChanged,
       );
+      coreEvents.off(CoreEvent.AgentsDiscovered, handleAgentsDiscovered);
     };
   }, []);
 
@@ -1613,8 +1623,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
     !!proQuotaRequest ||
     !!validationRequest ||
     isSessionBrowserOpen ||
-    isAuthDialogOpen ||
-    authState === AuthState.AwaitingApiKeyInput;
+    authState === AuthState.AwaitingApiKeyInput ||
+    !!newAgents;
 
   const pendingHistoryItems = useMemo(
     () => [...pendingSlashCommandHistoryItems, ...pendingGeminiHistoryItems],
@@ -2204,6 +2214,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       terminalBackgroundColor: config.getTerminalBackground(),
       settingsNonce,
       adminSettingsChanged,
+      newAgents,
     }),
     [
       isThemeDialogOpen,
@@ -2306,6 +2317,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       config,
       settingsNonce,
       adminSettingsChanged,
+      newAgents,
     ],
   );
 
@@ -2358,6 +2370,26 @@ Logging in with Google... Restarting Gemini CLI to continue.
         await runExitCleanup();
         process.exit(RELAUNCH_EXIT_CODE);
       },
+      handleNewAgentsSelect: async (choice: NewAgentsChoice) => {
+        if (newAgents && choice === NewAgentsChoice.ACKNOWLEDGE) {
+          const registry = config.getAgentRegistry();
+          try {
+            await Promise.all(
+              newAgents.map((agent) => registry.acknowledgeAgent(agent)),
+            );
+          } catch (error) {
+            debugLogger.error('Failed to acknowledge agents:', error);
+            historyManager.addItem(
+              {
+                type: MessageType.ERROR,
+                text: `Failed to acknowledge agents: ${getErrorMessage(error)}`,
+              },
+              Date.now(),
+            );
+          }
+        }
+        setNewAgents(null);
+      },
     }),
     [
       handleThemeSelect,
@@ -2398,6 +2430,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       setBannerVisible,
       setEmbeddedShellFocused,
       setAuthContext,
+      newAgents,
+      config,
+      historyManager,
     ],
   );
 
