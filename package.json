@@ -65,7 +65,7 @@
     "postinstall": "node scripts/postinstall.js"
   },
   "overrides": {
-    "ink": "npm:@jrichman/ink@6.4.7",
+    "ink": "npm:@jrichman/ink@6.4.8",
     "wrap-ansi": "9.0.2",
     "cliui": {
       "wrap-ansi": "7.0.0"
@@ -141,7 +141,7 @@
     "ansi-to-html": "^0.7.2",
     "fast-glob": "^3.3.2",
     "ignore": "^6.0.2",
-    "ink": "npm:@jrichman/ink@6.4.7",
+    "ink": "npm:@jrichman/ink@6.4.8",
     "latest-version": "^9.0.0",
     "markitdown-ts": "^0.0.8",
     "officeparser": "^5.2.2",

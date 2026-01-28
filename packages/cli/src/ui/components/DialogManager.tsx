@@ -51,8 +51,12 @@ export const DialogManager = ({
 
   const uiState = useUIState();
   const uiActions = useUIActions();
-  const { constrainHeight, terminalHeight, staticExtraHeight, mainAreaWidth } =
-    uiState;
+  const {
+    constrainHeight,
+    terminalHeight,
+    staticExtraHeight,
+    terminalWidth: uiTerminalWidth,
+  } = uiState;
 
   if (uiState.adminSettingsChanged) {
     return <AdminSettingsChangedDialog />;
@@ -148,7 +152,7 @@ export const DialogManager = ({
           availableTerminalHeight={
             constrainHeight ? terminalHeight - staticExtraHeight : undefined
           }
-          terminalWidth={mainAreaWidth}
+          terminalWidth={uiTerminalWidth}
         />
       </Box>
     );

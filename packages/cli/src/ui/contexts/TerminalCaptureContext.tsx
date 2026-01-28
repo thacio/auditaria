@@ -105,22 +105,23 @@ export function TerminalCaptureProvider({
   // Process buffered writes and broadcast (only when interactive screen is active)
   // This function is called via setTimeout, so we use refs to get the latest values
   const processBuffer = useCallback(() => {
-    if (!writeBuffer.current) return;
+    // Process any pending writes first
+    if (writeBuffer.current) {
+      // Detect Ink re-render signals
+      // \x1B[...A - Cursor up (most reliable signal for redraw)
+      // \x1B[...J - Clear screen (fallback)
+      // \x1B[H - Cursor home (often precedes redraw)
+      const redrawSignalRegex = /\x1B\[(\d+)?A|\x1B\[[0-2]?J|\x1B\[H/;
 
-    // Detect Ink re-render signals
-    // \x1B[...A - Cursor up (most reliable signal for redraw)
-    // \x1B[...J - Clear screen (fallback)
-    // \x1B[H - Cursor home (often precedes redraw)
-    const redrawSignalRegex = /\x1B\[(\d+)?A|\x1B\[[0-2]?J|\x1B\[H/;
+      // If redraw signal detected, reset the captured output
+      if (redrawSignalRegex.test(writeBuffer.current)) {
+        capturedOutput.current = '';
+      }
 
-    // If redraw signal detected, reset the captured output
-    if (redrawSignalRegex.test(writeBuffer.current)) {
-      capturedOutput.current = '';
+      // Append the buffered content
+      capturedOutput.current += writeBuffer.current;
+      writeBuffer.current = ''; // Clear buffer after processing
     }
-
-    // Append the buffered content
-    capturedOutput.current += writeBuffer.current;
-    writeBuffer.current = ''; // Clear buffer after processing
 
     // Only broadcast when interactive screen is active
     // This is the key to the generic prewarming solution:
@@ -133,6 +134,8 @@ export function TerminalCaptureProvider({
     }
 
     // Broadcast the update - use ref to get latest callback
+    // IMPORTANT: We broadcast even if writeBuffer was empty, because capturedOutput
+    // might have content that was processed before the interactive screen became active
     const callback = onTerminalUpdateRef.current;
     if (callback && capturedOutput.current !== lastBroadcast.current) {
       lastBroadcast.current = capturedOutput.current;
