@@ -370,12 +370,22 @@ export class Logger {
   // Timing Utilities
   // -------------------------------------------------------------------------
 
+  /** Maximum timer entries to prevent memory leaks from orphaned timers */
+  private static readonly MAX_TIMER_ENTRIES = 500;
+  /** Timer TTL in ms - timers older than this are considered orphaned (5 minutes) */
+  private static readonly TIMER_TTL_MS = 5 * 60 * 1000;
+
   /**
    * Start a timer for measuring duration.
    * @param name - Unique timer name
    * @param trackMemory - Also track memory delta (default: false)
    */
   startTimer(name: string, trackMemory = false): void {
+    // Clean up orphaned timers if we're at the limit
+    if (this.timers.size >= Logger.MAX_TIMER_ENTRIES) {
+      this.cleanupOrphanedTimers();
+    }
+
     const entry: TimerEntry = {
       startTime: performance.now(),
     };
@@ -383,6 +393,39 @@ export class Logger {
       entry.startMemory = this.getMemorySnapshot();
     }
     this.timers.set(name, entry);
+  }
+
+  /**
+   * Clean up timers that have been running longer than TIMER_TTL_MS.
+   * These are likely orphaned due to exceptions or forgotten endTimer calls.
+   */
+  private cleanupOrphanedTimers(): void {
+    const now = performance.now();
+    const orphanedKeys: string[] = [];
+
+    for (const [name, entry] of this.timers) {
+      if (now - entry.startTime > Logger.TIMER_TTL_MS) {
+        orphanedKeys.push(name);
+      }
+    }
+
+    for (const key of orphanedKeys) {
+      this.timers.delete(key);
+    }
+
+    if (orphanedKeys.length > 0) {
+      this.warn(
+        'Logger',
+        `Cleaned up ${orphanedKeys.length} orphaned timers (running > 5min)`,
+      );
+    }
+  }
+
+  /**
+   * Clear all timers. Useful for cleanup between indexing sessions.
+   */
+  clearTimers(): void {
+    this.timers.clear();
   }
 
   /**
@@ -457,13 +500,31 @@ export class Logger {
   // Benchmarking
   // -------------------------------------------------------------------------
 
+  /** Maximum benchmark entries to prevent memory leaks */
+  private static readonly MAX_BENCHMARK_ENTRIES = 100;
+
   /**
    * Record a benchmark measurement.
    * Use this to track statistics over multiple calls.
+   * Only active when DEBUG=auditaria:search or auditaria:* is set.
    */
   benchmark(name: string, durationMs: number): void {
+    // Only track benchmarks when debug logging is enabled to prevent memory leaks
+    if (!isFileLoggingEnabled()) {
+      return;
+    }
+
     let stats = this.benchmarks.get(name);
     if (!stats) {
+      // Prevent unbounded growth - clear old entries if at limit
+      if (this.benchmarks.size >= Logger.MAX_BENCHMARK_ENTRIES) {
+        // Remove oldest entry (first in map iteration order)
+        const firstKey = this.benchmarks.keys().next().value;
+        if (firstKey) {
+          this.benchmarks.delete(firstKey);
+        }
+      }
+
       stats = {
         count: 0,
         totalMs: 0,
@@ -518,6 +579,15 @@ export class Logger {
    * Reset benchmark statistics.
    */
   resetBenchmarks(): void {
+    this.benchmarks.clear();
+  }
+
+  /**
+   * Clear all accumulated state (timers, benchmarks).
+   * Call this between indexing sessions to prevent memory leaks.
+   */
+  clearAll(): void {
+    this.timers.clear();
     this.benchmarks.clear();
   }
 

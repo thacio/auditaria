@@ -27,7 +27,7 @@ import type {
 } from './types.js';
 import type { FilePriorityClassifier } from './FilePriorityClassifier.js';
 import { createFilePriorityClassifier } from './FilePriorityClassifier.js';
-import { createModuleLogger } from '../core/Logger.js';
+import { createModuleLogger, globalLogger } from '../core/Logger.js';
 import { join, isAbsolute, relative } from 'node:path';
 
 // Module logger for IndexingPipeline
@@ -586,6 +586,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     try {
       await this.storage.reconnect!();
       this.lastMaintenanceAt = this.processedCount;
+
+      // Clear accumulated logger state (timers, benchmarks) to prevent memory leaks
+      globalLogger.clearAll();
+
       log.info('maintenance:complete', {
         processedCount: this.processedCount,
       });
@@ -1395,10 +1399,10 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     // Use streaming if available (memory-efficient)
     if (this.embedder.embedBatchDocumentsStreaming) {
-      for await (const { startIndex, embeddings } of this.embedder.embedBatchDocumentsStreaming(
-        texts,
-        batchSize,
-      )) {
+      for await (const {
+        startIndex,
+        embeddings,
+      } of this.embedder.embedBatchDocumentsStreaming(texts, batchSize)) {
         // Yield to event loop between batches to prevent blocking
         if (startIndex > 0) {
           await yieldToEventLoop();

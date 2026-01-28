@@ -70,6 +70,9 @@ function isLikelyCorruptionError(error: unknown): boolean {
   return (
     message.includes('PANIC:') ||
     message.includes('could not locate a valid checkpoint record') ||
+    message.includes('pg_toast_') || // TOAST table corruption
+    message.includes('missing chunk number') || // Missing TOAST chunks
+    message.includes('integrity check failed') || // Our proactive check
     (message.includes('Aborted') && message.includes('-sASSERTIONS'))
   );
 }
@@ -544,6 +547,93 @@ export class PGliteStorage implements StorageAdapter {
       // HNSW index creation might fail if no data, that's ok
     }
 
+    // Proactive integrity check: detect TOAST corruption and other data issues
+    // before marking as initialized. This catches corruption that only manifests
+    // when reading data, not during instance creation.
+    try {
+      // Quick sanity check: read from core tables to trigger TOAST access
+      await this.db.query('SELECT id, file_path FROM documents LIMIT 1');
+      await this.db.query('SELECT id, content FROM chunks LIMIT 1');
+      await this.db.query('SELECT file_path FROM index_queue LIMIT 1');
+      log.debug('initialize:integrity_check_passed');
+    } catch (integrityError) {
+      const errorMsg =
+        integrityError instanceof Error
+          ? integrityError.message
+          : String(integrityError);
+      log.error('initialize:integrity_check_failed', { error: errorMsg });
+
+      // Close the corrupted database
+      try {
+        await this.db.close();
+      } catch {
+        // Ignore close errors
+      }
+      this.db = null as unknown as PGlite;
+
+      // Attempt recovery from backup if available
+      if (backupPath && fs.existsSync(backupPath)) {
+        /* eslint-disable no-console */
+        console.warn(
+          '[KnowledgeBase] ⚠️  Database corruption detected during integrity check!',
+        );
+        console.warn(
+          '[KnowledgeBase] Attempting automatic recovery from backup...',
+        );
+        /* eslint-enable no-console */
+
+        try {
+          await this.removeDirectory(dbPath);
+          await this.copyDirectory(backupPath, dbPath);
+          log.info('initialize:integrity_recovery_backup_restored');
+
+          // Retry initialization with restored database
+          this.db = await this.createPGliteInstance();
+          await this.db.exec(SCHEMA_SQL);
+
+          // Verify the restored database
+          await this.db.query('SELECT id FROM documents LIMIT 1');
+          await this.db.query('SELECT id FROM chunks LIMIT 1');
+          await this.db.query('SELECT file_path FROM index_queue LIMIT 1');
+
+          /* eslint-disable no-console */
+          console.warn('[KnowledgeBase] ✓ Successfully recovered from backup!');
+          console.warn(
+            '[KnowledgeBase] Note: Some recent changes may have been lost.',
+          );
+          /* eslint-enable no-console */
+          log.info('initialize:integrity_recovery_successful');
+        } catch (recoveryError) {
+          const recoveryMsg =
+            recoveryError instanceof Error
+              ? recoveryError.message
+              : String(recoveryError);
+          log.error('initialize:integrity_recovery_failed', {
+            error: recoveryMsg,
+          });
+          throw new Error(
+            `Knowledge base database is corrupted and recovery from backup failed.\n\n` +
+              `To fix this issue:\n` +
+              `  1. Delete the database folder: ${dbPath}\n` +
+              `  2. Delete the backup folder: ${backupPath}\n` +
+              `  3. Run '/knowledge-base init' to rebuild the index\n\n` +
+              `Original error: ${errorMsg}\n` +
+              `Recovery error: ${recoveryMsg}`,
+          );
+        }
+      } else {
+        // No backup available
+        throw new Error(
+          `Knowledge base database is corrupted (detected during integrity check).\n\n` +
+            `No backup is available for automatic recovery.\n\n` +
+            `To fix this issue:\n` +
+            `  1. Delete the database folder: ${dbPath}\n` +
+            `  2. Run '/knowledge-base init' to rebuild the index\n\n` +
+            `Original error: ${errorMsg}`,
+        );
+      }
+    }
+
     // Mark as initialized (must be set before using methods that call ensureInitialized)
     this._initialized = true;
 
@@ -773,12 +863,16 @@ export class PGliteStorage implements StorageAdapter {
     }
 
     // 2. Data-level consistency checks (always run)
+    // IMPORTANT: Must read actual columns (not just 'SELECT 1') to trigger TOAST access
+    // TOAST corruption only manifests when reading large text/bytea columns
     try {
-      // Check core tables are readable (catches PANIC on corrupted data)
-      await this.db!.query('SELECT 1 FROM documents LIMIT 1');
-      await this.db!.query('SELECT 1 FROM chunks LIMIT 1');
-      await this.db!.query('SELECT 1 FROM tags LIMIT 1');
-      await this.db!.query('SELECT 1 FROM index_queue LIMIT 1');
+      // Read columns that might be TOASTed (large text fields)
+      await this.db!.query(
+        'SELECT id, file_path, content_hash FROM documents LIMIT 1',
+      );
+      await this.db!.query('SELECT id, content FROM chunks LIMIT 1');
+      await this.db!.query('SELECT name FROM tags LIMIT 1');
+      await this.db!.query('SELECT file_path, error FROM index_queue LIMIT 1');
     } catch (error) {
       if (isLikelyCorruptionError(error)) {
         errors.push(
@@ -1494,7 +1588,11 @@ export class PGliteStorage implements StorageAdapter {
     const timerId = ++this.timerCounter;
     const timerKey = `searchKeyword-${timerId}`;
     log.startTimer(timerKey, true);
-    log.debug('searchKeyword:start', { queryLength: query.length, limit, useWebSearchSyntax: options?.useWebSearchSyntax });
+    log.debug('searchKeyword:start', {
+      queryLength: query.length,
+      limit,
+      useWebSearchSyntax: options?.useWebSearchSyntax,
+    });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
