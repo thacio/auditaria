@@ -18,6 +18,7 @@ import {
   BrowserStepDisplay,
   tryParseBrowserStepDisplay,
 } from './BrowserStepDisplay.js';
+import { tryParseJSON } from '../../../utils/jsonoutput.js';
 
 const STATIC_HEIGHT = 1;
 const RESERVED_LINE_COUNT = 5; // for tool name, status, padding etc.
@@ -74,6 +75,13 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
 
   if (!truncatedResultDisplay) return null;
 
+  // Check if string content is valid JSON and pretty-print it
+  const prettyJSON =
+    typeof truncatedResultDisplay === 'string'
+      ? tryParseJSON(truncatedResultDisplay)
+      : null;
+  const formattedJSON = prettyJSON ? JSON.stringify(prettyJSON, null, 2) : null;
+
   let content: React.ReactNode;
 
   // AUDITARIA: Check browser step data FIRST (before other checks)
@@ -81,7 +89,17 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
     content = (
       <BrowserStepDisplay data={browserStepData} maxWidth={childWidth} />
     );
-  } else if (typeof truncatedResultDisplay === 'string' && renderOutputAsMarkdown) {
+  } else if (formattedJSON) {
+    // Render pretty-printed JSON
+    content = (
+      <Text wrap="wrap" color={theme.text.primary}>
+        {formattedJSON}
+      </Text>
+    );
+  } else if (
+    typeof truncatedResultDisplay === 'string' &&
+    renderOutputAsMarkdown
+  ) {
     content = (
       <MarkdownDisplay
         text={truncatedResultDisplay}
