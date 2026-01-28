@@ -28,7 +28,7 @@ PGlite (PostgreSQL-compatible) and pgvector for vector storage.
         ▼                           ▼                           ▼
 ┌───────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │ FileDiscovery │         │ IndexingPipeline │         │  SearchEngine   │
-│ + FileWatcher │         │ + StartupSync    │         │ + FilterBuilder │
+│               │         │ + StartupSync    │         │ + FilterBuilder │
 └───────────────┘         └─────────────────┘         └─────────────────┘
         │                           │                           │
         │                    ┌──────┴──────┐                    │
@@ -48,6 +48,7 @@ PGlite (PostgreSQL-compatible) and pgvector for vector storage.
                     ┌─────────────────┐
                     │  PGliteStorage  │
                     │ (SQLite+pgvector)│
+                    │  + Backup/Recovery│
                     └─────────────────┘
 ```
 
@@ -93,6 +94,7 @@ interface SearchSystemConfig {
   database: {
     path: string; // Default: '.auditaria/search.db'
     inMemory: boolean; // Default: false
+    backupEnabled: boolean; // Default: true - auto-backup on close
   };
 
   indexing: {
@@ -113,9 +115,11 @@ interface SearchSystemConfig {
     model: string; // Default: 'Xenova/multilingual-e5-small'
     device: 'auto' | 'cpu' | 'dml' | 'cuda';
     quantization: 'q8' | 'fp16' | 'fp32' | 'q4';
-    preferPythonEmbedder: boolean; // Default: true
+    preferPythonEmbedder: boolean; // Default: false
     useWorkerThread: boolean; // Default: true
     batchSize: number; // Default: 8
+    workerHeapSizeMb: number; // Default: 4096 (4GB)
+    cacheDir: string; // Default: '~/.auditaria/models'
   };
 
   search: {
@@ -402,6 +406,21 @@ score = (semantic_weight / (k + semantic_rank)) + (keyword_weight / (k + keyword
 
 Where `k = 60` (RRF constant)
 
+### Result Diversity
+
+Prevents single documents from dominating results. Configured via `diversity`
+option in search. See `src/search/SearchEngine.ts` for implementation.
+
+**Strategies** (`diversity.strategy`):
+
+- `score_penalty` (default): Decay factor on subsequent passages from same doc
+- `cap_then_fill`: Hard cap per document with round-robin distribution
+- `none`: Pure relevance ranking
+
+**Semantic Deduplication** (`diversity.semanticDedup`): Merges near-duplicate
+passages across files using cosine similarity. Merged results include
+`additionalSources` showing "Also found in: file1, file2".
+
 ### Filter Builder
 
 Fluent API for building search filters:
@@ -475,9 +494,49 @@ storage.vacuum(); // Reclaim space
 storage.reconnect(); // Release all WASM memory
 ```
 
+### Backup & Recovery
+
+The storage layer provides automatic backup and crash recovery. See
+`src/storage/PGliteStorage.ts` for implementation.
+
+**Backup** (`.auditaria/search.db.backup/`):
+
+- Auto-created on `close()` when `backupEnabled: true` (default)
+- Only if: database modified (dirty flag), not empty, size < 300MB, passes
+  integrity checks
+- Methods: `createBackup()`, `backupExists()`, `restoreFromBackup()`
+
+**Corruption Recovery**:
+
+- Detects corruption on initialization (PGlite errors)
+- Auto-restores from backup if available
+- Clear error messages guide manual recovery if backup fails
+
+**Integrity Checks** (`checkIntegrity()`):
+
+- Structural integrity via amcheck extension (B-tree indexes)
+- Data consistency (tables readable, no orphans)
+
+**Crash Recovery** (`recoverStuckDocuments()`):
+
+- Recovers documents stuck in `parsing`/`chunking`/`embedding` status
+- Resets to `pending` and re-queues for indexing
+
+### Graceful Shutdown
+
+`SearchSystem.close()` ensures data integrity on exit:
+
+- Sets `closing` flag so ongoing operations exit at next checkpoint
+- Timeout protection per cleanup step (10s each, 5s for PGlite)
+- Creates backup before closing (skipped if shutdown interrupted indexing)
+
 ---
 
 ## File Discovery & Sync (`src/discovery/`, `src/sync/`)
+
+> **Note**: Real-time file watching (FileWatcher) was removed to prevent
+> database corruption issues. Use `StartupSync` or manual `syncAndQueue()` calls
+> instead.
 
 ### FileDiscovery
 
@@ -502,23 +561,6 @@ for await (const file of discovery.discover()) {
 ```
 node_modules, .git, .auditaria, dist, build, .next, .nuxt, .cache,
 coverage, __pycache__, .pytest_cache, venv, .venv, *.log, *.lock
-```
-
-### FileWatcher
-
-Real-time file monitoring using chokidar:
-
-```typescript
-const watcher = new FileWatcher(storage, {
-  rootPath: '/path/to/watch',
-  debounceMs: 300,
-});
-
-watcher.on('file:added', (path) => console.log('Added:', path));
-watcher.on('file:changed', (path) => console.log('Changed:', path));
-watcher.on('file:deleted', (path) => console.log('Deleted:', path));
-
-await watcher.start();
 ```
 
 ### StartupSync
@@ -705,25 +747,25 @@ await searchService.stop();
 
 ### Key Methods
 
-| Method | Description |
-| --- | --- |
-| `start(rootPath, options)` | Start the service, optionally with indexing enabled |
-| `stop()` | Stop the service and cleanup resources |
-| `isRunning()` | Check if service state is 'running' |
-| `isIndexingEnabled()` | Check if queue processor is active (indexing service online) |
-| `enableIndexing()` | Start queue processor if service is running but indexing wasn't enabled |
-| `triggerSync(options)` | Discover and index new/changed files |
-| `getSearchSystem()` | Get the underlying SearchSystem instance |
-| `getIndexingProgress()` | Get current indexing progress (status, files processed, etc.) |
-| `getState()` | Get service state (status, rootPath, timestamps, errors) |
+| Method                     | Description                                                             |
+| -------------------------- | ----------------------------------------------------------------------- |
+| `start(rootPath, options)` | Start the service, optionally with indexing enabled                     |
+| `stop()`                   | Stop the service and cleanup resources                                  |
+| `isRunning()`              | Check if service state is 'running'                                     |
+| `isIndexingEnabled()`      | Check if queue processor is active (indexing service online)            |
+| `enableIndexing()`         | Start queue processor if service is running but indexing wasn't enabled |
+| `triggerSync(options)`     | Discover and index new/changed files                                    |
+| `getSearchSystem()`        | Get the underlying SearchSystem instance                                |
+| `getIndexingProgress()`    | Get current indexing progress (status, files processed, etc.)           |
+| `getState()`               | Get service state (status, rootPath, timestamps, errors)                |
 
 ### Start Options
 
 ```typescript
 interface SearchServiceStartOptions {
-  forceReindex?: boolean;    // Force full reindex even if index exists
+  forceReindex?: boolean; // Force full reindex even if index exists
   skipInitialSync?: boolean; // Skip initial sync for faster startup
-  startIndexing?: boolean;   // Start queue processor (used by /knowledge-base init)
+  startIndexing?: boolean; // Start queue processor (used by /knowledge-base init)
 }
 ```
 
@@ -731,7 +773,13 @@ interface SearchServiceStartOptions {
 
 ```typescript
 interface IndexingProgress {
-  status: 'idle' | 'discovering' | 'syncing' | 'indexing' | 'completed' | 'failed';
+  status:
+    | 'idle'
+    | 'discovering'
+    | 'syncing'
+    | 'indexing'
+    | 'completed'
+    | 'failed';
   totalFiles: number;
   processedFiles: number;
   failedFiles: number;
@@ -747,8 +795,10 @@ interface IndexingProgress {
 1. **Service starts** → Loads or initializes SearchSystem
 2. **If `startIndexing: true` or `autoIndex` config** → Starts queue processor
 3. **Queue processor** → Polls every 5 seconds for pending items
-4. **`triggerSync()`** → Discovers files, queues them, processes via `indexAll()`
-5. **Progress events** → SearchSystem emits `indexing:progress`, service updates `IndexingProgress`
+4. **`triggerSync()`** → Discovers files, queues them, processes via
+   `indexAll()`
+5. **Progress events** → SearchSystem emits `indexing:progress`, service updates
+   `IndexingProgress`
 
 ---
 
@@ -773,7 +823,7 @@ class SearchSystem {
 
   // Management
   getStats(): Promise<Stats>;
-  dispose(): Promise<void>;
+  close(): Promise<void>; // Graceful shutdown with backup
 }
 ```
 
@@ -781,6 +831,7 @@ class SearchSystem {
 
 ```typescript
 interface SearchOptions {
+  query: string;
   strategy?: 'hybrid' | 'semantic' | 'keyword';
   limit?: number;
   offset?: number;
@@ -789,6 +840,7 @@ interface SearchOptions {
   minScore?: number;
   filters?: FilterResult;
   highlight?: boolean;
+  diversity?: DiversityOptions; // See "Result Diversity" section
 }
 ```
 
@@ -813,6 +865,7 @@ interface SearchResult {
   score: number;
   matchType: 'hybrid' | 'semantic' | 'keyword';
   highlights?: string[];
+  additionalSources?: AdditionalSource[]; // From semantic dedup - "Also found in"
 }
 ```
 
