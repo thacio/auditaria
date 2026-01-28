@@ -105,36 +105,39 @@ export class Storage {
   }
 
   // AUDITARIA_MODIFY_START: Updated system settings paths with fallback to legacy gemini-cli paths
-  static getSystemSettingsPath(): string {
-    if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
-      return process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH'];
-    }
+  private static getSystemConfigDir(): string {
     // Check auditaria paths first, then fall back to gemini-cli
     if (os.platform() === 'darwin') {
-      const auditariaPath =
-        '/Library/Application Support/AuditariaCli/settings.json';
-      const geminiPath = '/Library/Application Support/GeminiCli/settings.json';
+      const auditariaPath = '/Library/Application Support/AuditariaCli';
+      const geminiPath = '/Library/Application Support/GeminiCli';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;
       return auditariaPath; // Default to auditaria for new installations
     } else if (os.platform() === 'win32') {
-      const auditariaPath = 'C:\\ProgramData\\auditaria-cli\\settings.json';
-      const geminiPath = 'C:\\ProgramData\\gemini-cli\\settings.json';
+      const auditariaPath = 'C:\\ProgramData\\auditaria-cli';
+      const geminiPath = 'C:\\ProgramData\\gemini-cli';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;
       return auditariaPath; // Default to auditaria for new installations
     } else {
-      const auditariaPath = '/etc/auditaria-cli/settings.json';
-      const geminiPath = '/etc/gemini-cli/settings.json';
+      const auditariaPath = '/etc/auditaria-cli';
+      const geminiPath = '/etc/gemini-cli';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;
       return auditariaPath; // Default to auditaria for new installations
     }
   }
+
+  static getSystemSettingsPath(): string {
+    if (process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']) {
+      return process.env['GEMINI_CLI_SYSTEM_SETTINGS_PATH'];
+    }
+    return path.join(Storage.getSystemConfigDir(), 'settings.json');
+  }
   // AUDITARIA_MODIFY_END
 
   static getSystemPoliciesDir(): string {
-    return path.join(path.dirname(Storage.getSystemSettingsPath()), 'policies');
+    return path.join(Storage.getSystemConfigDir(), 'policies');
   }
 
   static getGlobalTempDir(): string {
