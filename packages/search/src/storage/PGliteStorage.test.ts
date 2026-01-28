@@ -611,4 +611,188 @@ describe('PGliteStorage', () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe('read-only mode', () => {
+    it('should report not read-only by default', () => {
+      expect(storage.isReadOnly()).toBe(false);
+    });
+
+    it('should set read-only mode', async () => {
+      await storage.setReadOnly(true);
+      expect(storage.isReadOnly()).toBe(true);
+    });
+
+    it('should unset read-only mode', async () => {
+      await storage.setReadOnly(true);
+      expect(storage.isReadOnly()).toBe(true);
+
+      await storage.setReadOnly(false);
+      expect(storage.isReadOnly()).toBe(false);
+    });
+
+    it('should allow read operations in read-only mode', async () => {
+      // Create document before going read-only
+      const doc = await storage.createDocument({
+        filePath: '/test/readonly.txt',
+        fileName: 'readonly.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-readonly',
+        fileModifiedAt: new Date(),
+      });
+
+      await storage.setReadOnly(true);
+
+      // These read operations should work
+      const found = await storage.getDocument(doc.id);
+      expect(found).toBeDefined();
+
+      const list = await storage.listDocuments();
+      expect(list.length).toBeGreaterThan(0);
+
+      const stats = await storage.getStats();
+      expect(stats).toBeDefined();
+
+      const count = await storage.countDocuments();
+      expect(count).toBeGreaterThan(0);
+    });
+
+    it('should block createDocument in read-only mode', async () => {
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.createDocument({
+          filePath: '/test/blocked.txt',
+          fileName: 'blocked.txt',
+          fileExtension: '.txt',
+          fileSize: 100,
+          fileHash: 'hash-blocked',
+          fileModifiedAt: new Date(),
+        }),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should block updateDocument in read-only mode', async () => {
+      const doc = await storage.createDocument({
+        filePath: '/test/update-blocked.txt',
+        fileName: 'update-blocked.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-update',
+        fileModifiedAt: new Date(),
+      });
+
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.updateDocument(doc.id, { status: 'indexed' }),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should block deleteDocument in read-only mode', async () => {
+      const doc = await storage.createDocument({
+        filePath: '/test/delete-blocked.txt',
+        fileName: 'delete-blocked.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-delete',
+        fileModifiedAt: new Date(),
+      });
+
+      await storage.setReadOnly(true);
+
+      await expect(storage.deleteDocument(doc.id)).rejects.toThrow('read-only');
+    });
+
+    it('should block createChunks in read-only mode', async () => {
+      const doc = await storage.createDocument({
+        filePath: '/test/chunks-blocked.txt',
+        fileName: 'chunks-blocked.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-chunks',
+        fileModifiedAt: new Date(),
+      });
+
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.createChunks(doc.id, [
+          {
+            chunkIndex: 0,
+            text: 'Test chunk',
+            startOffset: 0,
+            endOffset: 10,
+          },
+        ]),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should block enqueueItem in read-only mode', async () => {
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.enqueueItem({ filePath: '/test/queue-blocked.txt' }),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should block addTags in read-only mode', async () => {
+      const doc = await storage.createDocument({
+        filePath: '/test/tags-blocked.txt',
+        fileName: 'tags-blocked.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-tags',
+        fileModifiedAt: new Date(),
+      });
+
+      await storage.setReadOnly(true);
+
+      await expect(storage.addTags(doc.id, ['blocked'])).rejects.toThrow(
+        'read-only',
+      );
+    });
+
+    it('should block setConfigValue in read-only mode', async () => {
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.setConfigValue('blocked_key', 'blocked_value'),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should block execute in read-only mode', async () => {
+      await storage.setReadOnly(true);
+
+      await expect(
+        storage.execute('DELETE FROM documents WHERE 1=0'),
+      ).rejects.toThrow('read-only');
+    });
+
+    it('should allow queries in read-only mode', async () => {
+      await storage.setReadOnly(true);
+
+      const result = await storage.query<{ result: number }>(
+        'SELECT 1 + 1 as result',
+      );
+      expect(result[0].result).toBe(2);
+    });
+
+    it('should resume write operations after leaving read-only mode', async () => {
+      await storage.setReadOnly(true);
+      await storage.setReadOnly(false);
+
+      // Should work now
+      const doc = await storage.createDocument({
+        filePath: '/test/resumed.txt',
+        fileName: 'resumed.txt',
+        fileExtension: '.txt',
+        fileSize: 100,
+        fileHash: 'hash-resumed',
+        fileModifiedAt: new Date(),
+      });
+
+      expect(doc.id).toBeDefined();
+    });
+  });
 });

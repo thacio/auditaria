@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// eslint-disable-next-line no-restricted-imports -- search package is independent of cli-core
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -39,6 +40,24 @@ export interface IndexingConfig {
   prepareWorkers: number;
   /** Number of files to keep prepared ahead for embedding. Default: 4 */
   preparedBufferSize: number;
+
+  // Child process options for WASM memory management
+  /**
+   * Use child process for indexing to prevent WASM memory accumulation. Default: true
+   * When enabled, indexing runs in a child process that exits after each batch,
+   * completely releasing all WASM memory (which cannot shrink in-process).
+   */
+  useChildProcess: boolean;
+  /**
+   * Documents to process per child batch before respawning. Default: 500
+   * Lower values = more frequent memory release but more overhead.
+   */
+  childProcessBatchSize: number;
+  /**
+   * Memory threshold (MB) for early child respawn. Default: 3000
+   * If child memory exceeds this, it will exit early to release memory.
+   */
+  childProcessMemoryThresholdMb: number;
 }
 
 export interface ChunkingConfig {
@@ -241,6 +260,10 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   respectGitignore: true,
   prepareWorkers: 1,
   preparedBufferSize: 1,
+  // Child process options
+  useChildProcess: true,
+  childProcessBatchSize: 500,
+  childProcessMemoryThresholdMb: 3000,
 };
 
 export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {

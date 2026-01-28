@@ -375,6 +375,7 @@ export class PGliteStorage implements StorageAdapter {
   private _reconnecting = false; // Flag to indicate reconnection in progress
   private _reconnectPromise: Promise<void> | null = null; // Promise to wait for reconnection
   private _dirty = false; // Tracks if database has been modified since last backup
+  private _readOnly = false; // Read-only mode for concurrent child process indexing
 
   constructor(config: DatabaseConfig) {
     this.config = config;
@@ -552,9 +553,12 @@ export class PGliteStorage implements StorageAdapter {
     // when reading data, not during instance creation.
     try {
       // Quick sanity check: read from core tables to trigger TOAST access
+      // Must read actual text columns, not just 'SELECT 1', to detect TOAST corruption
       await this.db.query('SELECT id, file_path FROM documents LIMIT 1');
-      await this.db.query('SELECT id, content FROM chunks LIMIT 1');
-      await this.db.query('SELECT file_path FROM index_queue LIMIT 1');
+      await this.db.query('SELECT id, text FROM chunks LIMIT 1');
+      await this.db.query(
+        'SELECT file_path, last_error FROM index_queue LIMIT 1',
+      );
       log.debug('initialize:integrity_check_passed');
     } catch (integrityError) {
       const errorMsg =
@@ -591,10 +595,12 @@ export class PGliteStorage implements StorageAdapter {
           this.db = await this.createPGliteInstance();
           await this.db.exec(SCHEMA_SQL);
 
-          // Verify the restored database
-          await this.db.query('SELECT id FROM documents LIMIT 1');
-          await this.db.query('SELECT id FROM chunks LIMIT 1');
-          await this.db.query('SELECT file_path FROM index_queue LIMIT 1');
+          // Verify the restored database (read text columns to check TOAST integrity)
+          await this.db.query('SELECT id, file_path FROM documents LIMIT 1');
+          await this.db.query('SELECT id, text FROM chunks LIMIT 1');
+          await this.db.query(
+            'SELECT file_path, last_error FROM index_queue LIMIT 1',
+          );
 
           /* eslint-disable no-console */
           console.warn('[KnowledgeBase] ✓ Successfully recovered from backup!');
@@ -868,11 +874,13 @@ export class PGliteStorage implements StorageAdapter {
     try {
       // Read columns that might be TOASTed (large text fields)
       await this.db!.query(
-        'SELECT id, file_path, content_hash FROM documents LIMIT 1',
+        'SELECT id, file_path, file_hash FROM documents LIMIT 1',
       );
-      await this.db!.query('SELECT id, content FROM chunks LIMIT 1');
+      await this.db!.query('SELECT id, text FROM chunks LIMIT 1');
       await this.db!.query('SELECT name FROM tags LIMIT 1');
-      await this.db!.query('SELECT file_path, error FROM index_queue LIMIT 1');
+      await this.db!.query(
+        'SELECT file_path, last_error FROM index_queue LIMIT 1',
+      );
     } catch (error) {
       if (isLikelyCorruptionError(error)) {
         errors.push(
@@ -1172,6 +1180,48 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   /**
+   * Set read-only mode for concurrent access during child process indexing.
+   *
+   * When in read-only mode:
+   * - Write operations will throw an error
+   * - The main process can search while a child process indexes
+   *
+   * This does NOT change the database connection itself (PGlite doesn't have
+   * a true read-only mode), but it adds a guard to prevent accidental writes
+   * from the main process during child process indexing.
+   */
+  async setReadOnly(readOnly: boolean): Promise<void> {
+    if (this._readOnly === readOnly) return;
+
+    log.info('setReadOnly', { readOnly, previous: this._readOnly });
+    this._readOnly = readOnly;
+
+    // If switching to read-only, do a checkpoint to ensure consistency
+    if (readOnly && this.db) {
+      await this.db.exec('CHECKPOINT');
+    }
+  }
+
+  /**
+   * Check if the storage is in read-only mode.
+   */
+  isReadOnly(): boolean {
+    return this._readOnly;
+  }
+
+  /**
+   * Throw if in read-only mode. Used by write operations.
+   */
+  private ensureWritable(): void {
+    if (this._readOnly) {
+      throw new Error(
+        'Storage is in read-only mode. Write operations are not allowed ' +
+          'while child process indexing is in progress.',
+      );
+    }
+  }
+
+  /**
    * Waits for any ongoing reconnection to complete, then checks initialization.
    * This is safe to call from concurrent operations during reconnect.
    */
@@ -1191,6 +1241,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async createDocument(input: CreateDocumentInput): Promise<Document> {
     await this.waitForReady();
+    this.ensureWritable();
     const timerId = ++this.timerCounter;
     const timerKey = `createDocument-${timerId}`;
     log.startTimer(timerKey, false);
@@ -1262,6 +1313,7 @@ export class PGliteStorage implements StorageAdapter {
     updates: UpdateDocumentInput,
   ): Promise<Document> {
     await this.waitForReady();
+    this.ensureWritable();
 
     const sets: string[] = ['updated_at = CURRENT_TIMESTAMP'];
     const params: unknown[] = [];
@@ -1333,6 +1385,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async deleteDocument(id: string): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     await this.db!.query('DELETE FROM documents WHERE id = $1', [id]);
     this._dirty = true;
   }
@@ -1370,6 +1423,7 @@ export class PGliteStorage implements StorageAdapter {
     chunks: CreateChunkInput[],
   ): Promise<DocumentChunk[]> {
     await this.waitForReady();
+    this.ensureWritable();
     const timerId = ++this.timerCounter;
     const timerKey = `createChunks-${timerId}`;
     log.startTimer(timerKey, true); // track memory for chunks
@@ -1445,6 +1499,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async deleteChunks(documentId: string): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     await this.db!.query('DELETE FROM chunks WHERE document_id = $1', [
       documentId,
     ]);
@@ -1455,6 +1510,7 @@ export class PGliteStorage implements StorageAdapter {
     updates: UpdateChunkEmbeddingInput[],
   ): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     const timerId = ++this.timerCounter;
     const timerKey = `updateChunkEmbeddings-${timerId}`;
     log.startTimer(timerKey, true);
@@ -1494,6 +1550,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async addTags(documentId: string, tags: string[]): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
 
     for (const tagName of tags) {
       // Get or create tag
@@ -1525,6 +1582,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async removeTags(documentId: string, tags: string[]): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
 
     for (const tagName of tags) {
       const result = await this.db!.query<TagRow>(
@@ -1884,6 +1942,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async enqueueItem(input: CreateQueueItemInput): Promise<QueueItem> {
     await this.waitForReady();
+    this.ensureWritable();
 
     const id = generateId();
     const now = new Date().toISOString();
@@ -1924,6 +1983,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async dequeueItem(): Promise<QueueItem | null> {
     await this.waitForReady();
+    this.ensureWritable();
 
     // Order: text files first (fastest), then by file size (smallest first)
     // Priority: text=1, markup=2, pdf=3, image=4, ocr=5
@@ -1957,6 +2017,7 @@ export class PGliteStorage implements StorageAdapter {
     updates: UpdateQueueItemInput,
   ): Promise<QueueItem> {
     await this.waitForReady();
+    this.ensureWritable();
 
     const sets: string[] = [];
     const params: unknown[] = [];
@@ -2008,6 +2069,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async deleteQueueItem(id: string): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     await this.db!.query('DELETE FROM index_queue WHERE id = $1', [id]);
     this._dirty = true;
   }
@@ -2070,6 +2132,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async clearCompletedQueueItems(): Promise<number> {
     await this.waitForReady();
+    this.ensureWritable();
 
     const result = await this.db!.query<{ count: string }>(
       `WITH deleted AS (
@@ -2084,6 +2147,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async clearQueue(): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     await this.db!.query('DELETE FROM index_queue');
     this._dirty = true;
   }
@@ -2199,6 +2263,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async setConfigValue<T>(key: string, value: T): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
 
     await this.db!.query(
       `INSERT INTO search_config (key, value, updated_at)
@@ -2221,6 +2286,7 @@ export class PGliteStorage implements StorageAdapter {
 
   async execute(sql: string, params?: unknown[]): Promise<void> {
     await this.waitForReady();
+    this.ensureWritable();
     await this.db!.query(sql, params);
   }
 

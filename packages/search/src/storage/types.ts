@@ -164,6 +164,19 @@ export interface StorageAdapter {
    */
   reconnect?(): Promise<void>;
 
+  /**
+   * Set read-only mode for concurrent access during child process indexing.
+   * When read-only, the main process can search while a child process indexes.
+   * Optional - implementations may no-op if not supported.
+   */
+  setReadOnly?(readOnly: boolean): Promise<void>;
+
+  /**
+   * Check if the storage is in read-only mode.
+   * Optional - implementations may return false if not supported.
+   */
+  isReadOnly?(): boolean;
+
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------

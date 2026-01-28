@@ -52,6 +52,7 @@ import { MockEmbedder, createEmbedders } from '../embedders/index.js';
 import type { TextEmbedder } from '../embedders/types.js';
 import type { ResolvedEmbedderConfig } from '../embedders/gpu-detection.js';
 import { IndexingPipeline } from '../indexing/index.js';
+import { IndexingChildManager } from '../indexing/IndexingChildManager.js';
 import type { Embedder } from '../indexing/types.js';
 import { createSearchEngine, type SearchEngine } from '../search/index.js';
 import { createStartupSync, type StartupSync } from '../sync/StartupSync.js';
@@ -200,6 +201,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private loggingOptions?: LoggingOptions;
   /** Flag to signal graceful shutdown is in progress */
   private closing: boolean = false;
+  /** Child process manager for memory-safe indexing */
+  private childManager: IndexingChildManager | null = null;
 
   private constructor(
     rootPath: string,
@@ -610,6 +613,20 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     this.closing = true;
     this.initialized = false;
 
+    // Stop child manager FIRST if running (this signals abort and stops the child process)
+    // Must happen before waiting for indexingInProgress to avoid deadlock
+    if (this.childManager) {
+      console.log('[SearchSystem] Stopping child indexing process...');
+      try {
+        await this.childManager.stop();
+      } catch (error) {
+        console.warn(
+          '[SearchSystem] Error stopping child manager:',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+
     // Wait for any ongoing indexing to finish (with timeout)
     // This prevents race conditions where indexAll() is still accessing resources
     if (this.indexingInProgress) {
@@ -657,6 +674,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         errors.push({ step, error });
       }
     };
+
+    // Stop child manager if running
+    await safeClose('childManager.stop', this.childManager, async () => {
+      await this.childManager!.stop();
+      this.childManager = null;
+    });
 
     // Stop pipeline first to prevent race condition with storage
     await safeClose('pipeline.stop', this.pipeline, async () => {
@@ -735,12 +758,133 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   /**
    * Index all discovered files.
    * Uses sync to detect changes and queues them for processing.
+   *
+   * By default, uses child process for indexing to prevent WASM memory accumulation.
+   * Set `useChildProcess: false` to use in-process indexing (for testing or debugging).
    */
   async indexAll(
-    options: { force?: boolean } = {},
+    options: {
+      force?: boolean;
+      /** Use child process for indexing (default: true from config) */
+      useChildProcess?: boolean;
+      /** Maximum documents per batch when using child process */
+      maxDocuments?: number;
+    } = {},
   ): Promise<{ indexed: number; failed: number; duration: number }> {
     this.ensureInitialized();
 
+    // Determine whether to use child process
+    // Default to config value, can be overridden by options
+    const useChildProcess =
+      options.useChildProcess ?? this.config.indexing.useChildProcess;
+
+    // Use child process for indexing (solves WASM memory accumulation issue)
+    if (useChildProcess) {
+      return this.indexAllWithChildProcess(options);
+    }
+
+    // In-process indexing (legacy behavior, for testing/debugging)
+    return this.indexAllInProcess(options);
+  }
+
+  /**
+   * Index all files using child process.
+   * Each child processes a batch then exits, releasing all WASM memory.
+   */
+  private async indexAllWithChildProcess(options: {
+    force?: boolean;
+    maxDocuments?: number;
+  }): Promise<{ indexed: number; failed: number; duration: number }> {
+    if (this.indexingInProgress) {
+      throw new Error('Indexing already in progress');
+    }
+
+    this.indexingInProgress = true;
+
+    try {
+      // Set storage to read-only mode (child will write)
+      if (this.storage?.setReadOnly) {
+        await this.storage.setReadOnly(true);
+      }
+
+      // Create child manager
+      const databasePath = join(this.rootPath, this.config.database.path);
+      this.childManager = new IndexingChildManager(
+        this.rootPath,
+        databasePath,
+        {
+          database: this.config.database,
+          indexing: this.config.indexing,
+          chunking: this.config.chunking,
+          embeddings: this.config.embeddings,
+          search: this.config.search,
+          ocr: this.config.ocr,
+        },
+        {
+          batchSize:
+            options.maxDocuments ?? this.config.indexing.childProcessBatchSize,
+          memoryThresholdMb: this.config.indexing.childProcessMemoryThresholdMb,
+        },
+      );
+
+      // Forward progress events
+      this.childManager.on('progress', (event) => {
+        void this.emit('indexing:progress', {
+          current: event.current,
+          total: event.total,
+        });
+      });
+
+      this.childManager.on('batch:complete', (stats) => {
+        console.log(
+          `[SearchSystem] Child batch complete: ${stats.processed} indexed, ` +
+            `${stats.failed} failed, memory=${stats.memoryUsageMb}MB, hasMore=${stats.hasMore}`,
+        );
+      });
+
+      this.childManager.on('child:spawned', (event) => {
+        console.log(
+          `[SearchSystem] Child process spawned: pid=${event.pid}, batch=${event.batchNumber}`,
+        );
+      });
+
+      this.childManager.on('child:exited', (event) => {
+        console.log(
+          `[SearchSystem] Child process exited: pid=${event.pid}, code=${event.code}, batch=${event.batchNumber}`,
+        );
+      });
+
+      this.childManager.on('error', (event) => {
+        console.error(
+          `[SearchSystem] Child process error: ${event.error}, fatal=${event.fatal}`,
+        );
+      });
+
+      // Run indexing in child process(es)
+      const result = await this.childManager.indexAll({ force: options.force });
+
+      void this.emit('indexing:completed', result);
+
+      return result;
+    } finally {
+      this.indexingInProgress = false;
+      this.childManager = null;
+
+      // Restore write mode
+      if (this.storage?.setReadOnly) {
+        await this.storage.setReadOnly(false);
+      }
+    }
+  }
+
+  /**
+   * Index all files in-process (legacy behavior).
+   * Uses sync to detect changes and queues them for processing.
+   */
+  private async indexAllInProcess(options: {
+    force?: boolean;
+    maxDocuments?: number;
+  }): Promise<{ indexed: number; failed: number; duration: number }> {
     if (this.indexingInProgress) {
       throw new Error('Indexing already in progress');
     }
@@ -754,7 +898,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         forceReindex: options.force,
       });
 
-      const totalToProcess = changes.added.length + changes.modified.length;
+      let totalToProcess = changes.added.length + changes.modified.length;
+
+      // Limit to maxDocuments if specified (for child process batching)
+      if (options.maxDocuments && totalToProcess > options.maxDocuments) {
+        totalToProcess = options.maxDocuments;
+      }
 
       void this.emit('indexing:started', { fileCount: totalToProcess });
 
@@ -792,6 +941,16 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
                 });
             }
           }
+
+          // Stop early if we've reached maxDocuments
+          if (
+            options.maxDocuments &&
+            indexed + failed >= options.maxDocuments
+          ) {
+            this.pipeline!.stop().catch(() => {
+              // Ignore stop errors
+            });
+          }
         },
       );
 
@@ -806,6 +965,13 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           current: indexed + failed,
           total: totalToProcess,
         });
+
+        // Stop early if we've reached maxDocuments
+        if (options.maxDocuments && indexed + failed >= options.maxDocuments) {
+          this.pipeline!.stop().catch(() => {
+            // Ignore stop errors
+          });
+        }
       });
 
       // Wait for pipeline to finish, with graceful shutdown handling
