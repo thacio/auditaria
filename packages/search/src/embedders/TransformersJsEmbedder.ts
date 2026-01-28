@@ -501,6 +501,32 @@ export class TransformersJsEmbedder implements TextEmbedder, Embedder {
   }
 
   /**
+   * Stream embeddings for multiple documents/passages.
+   * Yields batches of embeddings for memory efficiency - prevents accumulation
+   * of all embeddings in memory at once.
+   * For E5 models, adds "passage:" prefix to each.
+   */
+  async *embedBatchDocumentsStreaming(
+    texts: string[],
+    batchSize?: number,
+  ): AsyncGenerator<{ startIndex: number; embeddings: number[][] }> {
+    if (texts.length === 0) return;
+
+    this.ensureReady();
+
+    const effectiveBatchSize = batchSize ?? this.currentBatchSize;
+    const prefixedTexts = this.isE5Model()
+      ? texts.map((text) => `passage: ${text}`)
+      : texts;
+
+    for (let i = 0; i < prefixedTexts.length; i += effectiveBatchSize) {
+      const batch = prefixedTexts.slice(i, i + effectiveBatchSize);
+      const embeddings = await this.processBatchWithFallback(batch);
+      yield { startIndex: i, embeddings };
+    }
+  }
+
+  /**
    * Generate embedding with detailed result.
    */
   async embedWithDetails(text: string): Promise<EmbeddingResult> {
@@ -736,6 +762,26 @@ export class MockEmbedder implements TextEmbedder, Embedder {
     if (texts.length === 0) return [];
     const prefixedTexts = texts.map((text) => `passage: ${text}`);
     return this.embedBatch(prefixedTexts);
+  }
+
+  /**
+   * Stream embeddings for multiple documents/passages.
+   * Yields batches of embeddings for memory efficiency.
+   */
+  async *embedBatchDocumentsStreaming(
+    texts: string[],
+    batchSize?: number,
+  ): AsyncGenerator<{ startIndex: number; embeddings: number[][] }> {
+    if (texts.length === 0) return;
+
+    const effectiveBatchSize = batchSize ?? this.currentBatchSize;
+    const prefixedTexts = texts.map((text) => `passage: ${text}`);
+
+    for (let i = 0; i < prefixedTexts.length; i += effectiveBatchSize) {
+      const batch = prefixedTexts.slice(i, i + effectiveBatchSize);
+      const embeddings = batch.map((text) => this.generateMockEmbedding(text));
+      yield { startIndex: i, embeddings };
+    }
   }
 
   async embedWithDetails(text: string): Promise<EmbeddingResult> {

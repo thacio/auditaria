@@ -87,6 +87,19 @@ export interface Embedder {
   embedBatchDocuments?(texts: string[]): Promise<number[][]>;
 
   /**
+   * Stream embeddings for multiple documents/passages.
+   * Yields batches of embeddings for memory efficiency - prevents accumulation
+   * of all embeddings in memory at once.
+   * Optional - falls back to embedBatchDocuments if not implemented.
+   * @param texts - Array of document/passage texts
+   * @param batchSize - Optional batch size override (defaults to embedder's configured batch size)
+   */
+  embedBatchDocumentsStreaming?(
+    texts: string[],
+    batchSize?: number,
+  ): AsyncGenerator<{ startIndex: number; embeddings: number[][] }>;
+
+  /**
    * Release resources.
    */
   dispose(): Promise<void>;

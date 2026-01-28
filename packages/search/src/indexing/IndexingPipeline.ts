@@ -1043,7 +1043,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     if (this.embedder.isReady() && chunkCount > 0) {
       const embTimerKey = `embeddings-${documentId}`;
       log.startTimer(embTimerKey, true);
-      await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts);
+      // Pass prepared to enable progressive clearing of chunkTexts for memory efficiency
+      await this.generateEmbeddingsFromTexts(chunkIds, chunkTexts, prepared);
       log.endTimer(embTimerKey, 'embedFile:embeddingsGenerated', {
         filePath,
         chunkCount,
@@ -1371,20 +1372,65 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   }
 
   /**
-   * Generate embeddings from text strings in batches.
-   * Memory-optimized version that works with pre-extracted texts.
+   * Generate embeddings from text strings using streaming for memory efficiency.
+   * Progressively clears processed chunk texts to minimize memory footprint.
+   *
+   * @param chunkIds - Array of chunk IDs to update with embeddings
+   * @param texts - Array of text strings to embed
+   * @param prepared - Optional PreparedFile to enable progressive clearing of chunkTexts
    */
   private async generateEmbeddingsFromTexts(
     chunkIds: string[],
     texts: string[],
+    prepared?: PreparedFile,
   ): Promise<void> {
     const batchSize = this.options.embeddingBatchSize;
 
     log.debug('generateEmbeddings:start', {
       totalChunks: texts.length,
-      batchSize: this.options.embeddingBatchSize,
+      batchSize,
+      streaming: !!this.embedder.embedBatchDocumentsStreaming,
+      progressiveClearing: !!prepared,
     });
 
+    // Use streaming if available (memory-efficient)
+    if (this.embedder.embedBatchDocumentsStreaming) {
+      for await (const { startIndex, embeddings } of this.embedder.embedBatchDocumentsStreaming(
+        texts,
+        batchSize,
+      )) {
+        // Yield to event loop between batches to prevent blocking
+        if (startIndex > 0) {
+          await yieldToEventLoop();
+        }
+
+        // Prepare updates for this batch
+        const updates = embeddings.map((embedding, i) => ({
+          id: chunkIds[startIndex + i],
+          embedding,
+        }));
+
+        // Store immediately
+        await this.storage.updateChunkEmbeddings(updates);
+
+        // Progressive clearing (Option B): release processed texts to free memory
+        if (prepared) {
+          for (let i = startIndex; i < startIndex + embeddings.length; i++) {
+            prepared.chunkTexts[i] = ''; // Release string reference
+          }
+        }
+
+        log.debug('generateEmbeddings:batch', {
+          batchIndex: Math.floor(startIndex / batchSize),
+          batchStart: startIndex,
+          batchEnd: startIndex + embeddings.length,
+          totalBatches: Math.ceil(texts.length / batchSize),
+        });
+      }
+      return;
+    }
+
+    // Fallback: non-streaming path (existing logic with progressive clearing)
     for (let i = 0; i < texts.length; i += batchSize) {
       // Yield to event loop between batches to prevent blocking
       if (i > 0) {
@@ -1406,6 +1452,13 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       }));
 
       await this.storage.updateChunkEmbeddings(updates);
+
+      // Progressive clearing (Option B): release processed texts to free memory
+      if (prepared) {
+        for (let j = i; j < Math.min(i + batchSize, texts.length); j++) {
+          prepared.chunkTexts[j] = ''; // Release string reference
+        }
+      }
 
       log.debug('generateEmbeddings:batch', {
         batchIndex: Math.floor(i / batchSize),

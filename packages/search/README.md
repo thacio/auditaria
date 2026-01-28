@@ -225,6 +225,24 @@ preferPythonEmbedder=true?
 | `Xenova/multilingual-e5-base`  | 768        | Better quality        |
 | `Xenova/multilingual-e5-large` | 1024       | Best quality          |
 
+### Streaming Embeddings
+
+All embedders implement `embedBatchDocumentsStreaming()`, an async generator that
+yields embeddings batch-by-batch instead of accumulating all results in memory:
+
+```typescript
+// Memory-efficient: yields batches, doesn't accumulate
+for await (const { startIndex, embeddings } of embedder.embedBatchDocumentsStreaming(texts, batchSize)) {
+  // Process and store each batch immediately
+  await storage.updateChunkEmbeddings(updates);
+  // Memory released after each iteration
+}
+```
+
+This prevents memory exhaustion when indexing large documents with thousands of
+chunks (e.g., a 50MB document with 50,000 chunks stays bounded to ~12KB of
+embeddings in memory instead of ~150MB).
+
 ### GPU Detection
 
 - **Windows**: DirectML (built into Windows 10+)
@@ -327,6 +345,11 @@ Discovery → Queue → Parser → Chunker → Embedder → Storage
 
 ### Memory Optimization
 
+- **Streaming embeddings**: Embedders yield batches via async generators instead
+  of accumulating all embeddings in memory. This bounds memory usage to
+  `batchSize` embeddings at any time, regardless of document size.
+- **Progressive clearing**: Chunk texts are cleared from memory immediately after
+  embedding, preventing accumulation during large document processing.
 - Periodic storage reconnects every 500 files
 - Checkpoints every 100 files
 - Event loop yielding to prevent blocking

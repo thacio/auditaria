@@ -376,6 +376,32 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
   }
 
   /**
+   * Stream embeddings for multiple documents/passages.
+   * Yields batches of embeddings for memory efficiency - prevents accumulation
+   * of all embeddings in memory at once.
+   * For E5 models, the worker adds the "passage:" prefix to each.
+   */
+  async *embedBatchDocumentsStreaming(
+    texts: string[],
+    batchSize?: number,
+  ): AsyncGenerator<{ startIndex: number; embeddings: number[][] }> {
+    if (texts.length === 0) return;
+
+    this.ensureReady();
+
+    const effectiveBatchSize = batchSize ?? 16; // Default batch size
+
+    for (let i = 0; i < texts.length; i += effectiveBatchSize) {
+      const batch = texts.slice(i, i + effectiveBatchSize);
+      const response = await this.sendRequest<EmbeddingBatchResponse>(
+        { type: 'embedBatchDocuments', texts: batch },
+        this.config.embedTimeout ?? EMBED_TIMEOUT_MS,
+      );
+      yield { startIndex: i, embeddings: response.result };
+    }
+  }
+
+  /**
    * Generate embedding with detailed result.
    */
   async embedWithDetails(text: string): Promise<EmbeddingResult> {

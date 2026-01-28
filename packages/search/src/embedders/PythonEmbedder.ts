@@ -634,6 +634,32 @@ export class PythonEmbedder
   }
 
   /**
+   * Stream embeddings for multiple documents/passages.
+   * Yields batches of embeddings for memory efficiency - prevents accumulation
+   * of all embeddings in memory at once.
+   * For E5 models, adds "passage:" prefix to each.
+   */
+  async *embedBatchDocumentsStreaming(
+    texts: string[],
+    batchSize?: number,
+  ): AsyncGenerator<{ startIndex: number; embeddings: number[][] }> {
+    if (texts.length === 0) return;
+
+    this.ensureReady();
+
+    const effectiveBatchSize = batchSize ?? this.currentBatchSize;
+
+    for (let i = 0; i < texts.length; i += effectiveBatchSize) {
+      const batch = texts.slice(i, i + effectiveBatchSize);
+      const embeddings = await this.sendRequestWithResponse<number[][]>(
+        { type: 'embed_batch_documents', texts: batch },
+        'embed_batch_documents',
+      );
+      yield { startIndex: i, embeddings };
+    }
+  }
+
+  /**
    * Generate embedding with detailed result.
    */
   async embedWithDetails(text: string): Promise<EmbeddingResult> {
