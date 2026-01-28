@@ -342,6 +342,12 @@ export class FileWatcher extends EventEmitter<FileWatcherEvents> {
    * @param relativePath - Relative path for DB lookup
    */
   private async handleFileDelete(relativePath: string): Promise<void> {
+    // Also remove pending queue items to prevent wasteful processing attempts
+    const queueItem = await this.storage.getQueueItemByPath(relativePath);
+    if (queueItem && queueItem.status === 'pending') {
+      await this.storage.deleteQueueItem(queueItem.id);
+    }
+
     const doc = await this.storage.getDocumentByPath(relativePath);
     if (doc) {
       await this.storage.deleteDocument(doc.id);

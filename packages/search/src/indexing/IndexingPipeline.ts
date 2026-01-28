@@ -34,6 +34,18 @@ import { join, isAbsolute, relative } from 'node:path';
 const log = createModuleLogger('IndexingPipeline');
 
 /**
+ * Error thrown when a file no longer exists on disk.
+ * Used to distinguish file-not-found errors from other transient errors,
+ * allowing the pipeline to fail immediately without wasteful retries.
+ */
+class FileNotFoundError extends Error {
+  constructor(filePath: string) {
+    super(`File no longer exists: ${filePath}`);
+    this.name = 'FileNotFoundError';
+  }
+}
+
+/**
  * Normalize path separators to forward slashes for cross-platform DB compatibility.
  * Windows uses backslashes, but we store forward slashes so databases can be shared
  * across Windows, Linux, and Mac without causing duplicate entries.
@@ -887,6 +899,15 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     log.debug('prepareFile:start', { timerId, filePath: relativePath });
 
+    // AUDITARIA: Check if file exists before processing to avoid wasteful retries
+    // Files can be deleted between being queued and being processed
+    const { access } = await import('node:fs/promises');
+    try {
+      await access(absolutePath);
+    } catch {
+      throw new FileNotFoundError(relativePath);
+    }
+
     // Get or create document (using relative path for DB)
     let doc = await this.storage.getDocumentByPath(relativePath);
     const isNew = !doc;
@@ -1234,6 +1255,29 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
   ): Promise<void> {
     const err = error instanceof Error ? error : new Error(String(error));
     const newAttempts = attempts + 1;
+
+    // AUDITARIA: Handle file-not-found errors specially - fail immediately without retries
+    // Retrying a deleted file is wasteful since it will never succeed
+    if (err instanceof FileNotFoundError) {
+      log.warn('prepareLoop:fileNotFound', {
+        filePath,
+        message: 'File was deleted before processing, skipping',
+      });
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'failed',
+        attempts: newAttempts,
+        lastError: err.message,
+        completedAt: new Date(),
+      });
+      this.failedCount++;
+      void this.emit('document:failed', {
+        documentId: '',
+        filePath,
+        error: err,
+        attempts: newAttempts,
+      });
+      return;
+    }
 
     log.error('prepareLoop:error', {
       filePath,
