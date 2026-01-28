@@ -1,10 +1,7 @@
 /**
- * WorkerEmbedder - Worker thread-based embedder for non-blocking embeddings.
- *
- * This class wraps TransformersJsEmbedder and runs it in a separate worker thread,
- * preventing ML inference from blocking the main thread and keeping the CLI responsive.
- *
- * Implements the same TextEmbedder and Embedder interfaces for drop-in compatibility.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { Worker } from 'node:worker_threads';
@@ -504,6 +501,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
    * Handle worker error by rejecting all pending requests.
    */
   private handleWorkerError(error: Error): void {
+    // eslint-disable-next-line no-console
     console.error('[WorkerEmbedder] Worker error:', error.message);
 
     // Reject all pending requests
@@ -572,6 +570,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
     // Handle warnings (informational, don't resolve)
     if (message.type === 'warning') {
+      // eslint-disable-next-line no-console
       console.warn(`[WorkerEmbedder] ${message.warning.message}`);
       return;
     }
