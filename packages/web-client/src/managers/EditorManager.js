@@ -42,6 +42,9 @@ export class EditorManager extends EventEmitter {
     // Editor container
     this.editorContainer = null;
 
+    // Diff container
+    this.diffContainer = null;
+
     // Parser state
     this.parserAvailable = false;
 
@@ -73,6 +76,14 @@ export class EditorManager extends EventEmitter {
       console.error('Failed to load Monaco:', error);
       this.emit('error', { message: 'Failed to load code editor' });
     }
+  }
+
+  /**
+   * Set the diff container element
+   * @param {HTMLElement} container - Container element for diff editor
+   */
+  setDiffContainer(container) {
+    this.diffContainer = container;
   }
 
   /**
@@ -706,7 +717,6 @@ export class EditorManager extends EventEmitter {
     const fileInfo = this.openFiles.get(path);
 
     if (!fileInfo) {
-      console.log(`External change for file not open: ${path}`);
       return; // File not open anymore
     }
 
@@ -716,7 +726,6 @@ export class EditorManager extends EventEmitter {
     // Check if content actually differs
     if (editorContent === diskContent) {
       // No actual difference, just update metadata
-      console.log(`External change detected but content is same: ${path}`);
       fileInfo.savedContent = diskContent;
       return;
     }
