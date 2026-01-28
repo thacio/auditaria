@@ -223,6 +223,10 @@ export class Storage {
     return path.join(this.getProjectTempDir(), 'logs');
   }
 
+  getProjectTempPlansDir(): string {
+    return path.join(this.getProjectTempDir(), 'plans');
+  }
+
   getExtensionsDir(): string {
     return path.join(this.getGeminiDir(), 'extensions');
   }
