@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getCoreSystemPrompt, resolvePathFromEnv } from './prompts.js';
+import { getCoreSystemPrompt } from './prompts.js';
+import { resolvePathFromEnv } from '../prompts/utils.js';
 import { isGitRepository } from '../utils/gitUtils.js';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -41,7 +42,7 @@ vi.mock('../agents/codebase-investigator.js', () => ({
   CodebaseInvestigatorAgent: { name: 'codebase_investigator' },
 }));
 vi.mock('../utils/gitUtils', () => ({
-  isGitRepository: vi.fn(),
+  isGitRepository: vi.fn().mockReturnValue(false),
 }));
 vi.mock('node:fs');
 vi.mock('../config/models.js', async (importOriginal) => {
@@ -239,9 +240,9 @@ describe('Core System Prompt (prompts.ts)', () => {
           `your **first and primary action** must be to delegate to the '${CodebaseInvestigatorAgent.name}' agent`,
         );
         expect(prompt).toContain(`do not ignore the output of the agent`);
-        expect(prompt).not.toContain(
-          "Use 'search_file_content' and 'glob' search tools extensively",
-        );
+        // AUDITARIA: Our custom "Auditing Tasks" section always contains the
+        // search tools text, regardless of CodebaseInvestigator setting.
+        // The CodebaseInvestigator only affects the "Software Engineering Tasks" section.
       } else {
         expect(prompt).not.toContain(
           `your **first and primary action** must be to delegate to the '${CodebaseInvestigatorAgent.name}' agent`,
