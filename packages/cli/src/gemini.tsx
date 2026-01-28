@@ -64,6 +64,8 @@ import {
   SessionStartSource,
   SessionEndReason,
   getVersion,
+  ValidationCancelledError,
+  ValidationRequiredError,
   type FetchAdminControlsResponse,
 } from '@google/gemini-cli-core';
 import {
@@ -479,8 +481,19 @@ export async function main() {
         await partialConfig.refreshAuth(authType);
       }
     } catch (err) {
-      debugLogger.error('Error authenticating:', err);
-      initialAuthFailed = true;
+      if (err instanceof ValidationCancelledError) {
+        // User cancelled verification, exit immediately.
+        await runExitCleanup();
+        process.exit(ExitCodes.SUCCESS);
+      }
+
+      // If validation is required, we don't treat it as a fatal failure.
+      // We allow the app to start, and the React-based ValidationDialog
+      // will handle it.
+      if (!(err instanceof ValidationRequiredError)) {
+        debugLogger.error('Error authenticating:', err);
+        initialAuthFailed = true;
+      }
     }
   }
 
