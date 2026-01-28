@@ -2695,6 +2695,8 @@ export class WebInterfaceService extends EventEmitter {
         limit: MAX_SEARCH_RESULTS,
         offset: 0, // Always start from beginning, paginate after
         highlight: true, // Enable <mark> highlighting for search term matches
+        // Use web search syntax for user-facing searches (supports "quoted phrases", OR, -exclusion)
+        useWebSearchSyntax: true,
         // Diversity options
         diversity: {
           strategy: diversityStrategy,

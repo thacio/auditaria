@@ -103,6 +103,19 @@ export interface HybridSearchWeights {
   keyword: number;
 }
 
+/**
+ * Options for keyword search behavior.
+ */
+export interface KeywordSearchOptions {
+  /**
+   * Use Google-style web search syntax (websearch_to_tsquery) instead of
+   * PostgreSQL's plainto_tsquery.
+   * When true, supports: "quoted phrase", OR, -exclusion
+   * When false (default), all terms are AND'ed together.
+   */
+  useWebSearchSyntax?: boolean;
+}
+
 // ============================================================================
 // Storage Adapter Interface
 // ============================================================================
@@ -257,6 +270,7 @@ export interface StorageAdapter {
     query: string,
     filters?: SearchFilters,
     limit?: number,
+    options?: KeywordSearchOptions,
   ): Promise<SearchResult[]>;
 
   /**
@@ -278,6 +292,7 @@ export interface StorageAdapter {
     limit?: number,
     weights?: HybridSearchWeights,
     rrfK?: number,
+    options?: KeywordSearchOptions,
   ): Promise<SearchResult[]>;
 
   // -------------------------------------------------------------------------

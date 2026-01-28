@@ -11,8 +11,6 @@ import type {
   SearchOptions,
   SearchResponse,
   DiversityStrategy,
-  DiversityOptions,
-  AdditionalSource,
 } from '../types.js';
 import type {
   SearchEngineConfig,
@@ -171,8 +169,11 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       results = results.slice(0, params.limit);
 
       // Apply highlighting
-      if (params.highlight) {
-        results = this.addHighlights(
+      // For keyword and hybrid searches, PostgreSQL's ts_headline() already provides
+      // highlighting via the storage layer. Only use legacy highlighting for pure
+      // semantic searches where FTS highlighting is not available.
+      if (params.highlight && params.strategy === 'semantic') {
+        results = this.addHighlightsLegacy(
           results,
           params.query,
           params.highlightTag,
@@ -328,6 +329,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       highlight: options.highlight ?? false,
       highlightTag: options.highlightTag ?? this.config.highlightTag,
       diversity,
+      useWebSearchSyntax: options.useWebSearchSyntax ?? false,
     };
   }
 
@@ -344,6 +346,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       params.query,
       params.filters,
       params.limit + params.offset,
+      { useWebSearchSyntax: params.useWebSearchSyntax },
     );
 
     void this.emit('search:keyword', {
@@ -418,7 +421,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
     log.debug('hybridSearch:parallelSearchStart', { queryId, fetchLimit });
     const [semanticResults, keywordResults] = await Promise.all([
       this.storage.searchSemantic(queryEmbedding, params.filters, fetchLimit),
-      this.storage.searchKeyword(params.query, params.filters, fetchLimit),
+      this.storage.searchKeyword(params.query, params.filters, fetchLimit, { useWebSearchSyntax: params.useWebSearchSyntax }),
     ]);
     log.debug('hybridSearch:parallelSearchComplete', {
       queryId,
@@ -550,26 +553,43 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
 
   /**
    * Add highlight markers to search results.
+   *
+   * LEGACY: This method is kept for semantic-only searches where PostgreSQL's
+   * ts_headline() cannot be used. For keyword and hybrid searches, highlighting
+   * is now done natively by PostgreSQL using ts_headline() with <mark> tags.
+   *
+   * This method parses the query to extract quoted phrases and individual terms,
+   * then highlights them in the text using regex replacement.
    */
-  private addHighlights(
+  private addHighlightsLegacy(
     results: SearchResult[],
     query: string,
     tag: string,
   ): SearchResult[] {
-    const queryTerms = query
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((t) => t.length > 2);
+    // Parse query to extract quoted phrases and individual terms
+    const { phrases, terms } = this.parseQueryForHighlighting(query);
 
-    if (queryTerms.length === 0) {
+    // Combine phrases and terms for highlighting
+    // Phrases should be matched first (longer matches take priority)
+    const highlightPatterns = [
+      ...phrases.map((p) => this.escapeRegex(p)),
+      ...terms.map((t) => this.escapeRegex(t)),
+    ].filter((p) => p.length > 0);
+
+    if (highlightPatterns.length === 0) {
       return results;
     }
 
-    // Create regex for highlighting
+    // Create regex for highlighting - phrases first (longer), then individual terms
+    // Sort by length descending so longer matches are tried first
+    highlightPatterns.sort((a, b) => b.length - a.length);
     const pattern = new RegExp(
-      `(${queryTerms.map((t) => this.escapeRegex(t)).join('|')})`,
+      `(${highlightPatterns.join('|')})`,
       'gi',
     );
+
+    // For snippet extraction, use phrases first, then terms
+    const snippetTerms = [...phrases, ...terms];
 
     return results.map((result) => {
       const highlightedText = result.chunkText.replace(
@@ -580,7 +600,7 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
       // Extract snippets around matches
       const highlights = this.extractSnippets(
         result.chunkText,
-        queryTerms,
+        snippetTerms,
         this.config.maxSnippetLength,
       );
 
@@ -590,6 +610,43 @@ export class SearchEngine extends EventEmitter<SearchEngineEvents> {
         highlights,
       };
     });
+  }
+
+  /**
+   * Parse a search query to extract quoted phrases and individual terms.
+   * Handles Google-style syntax: "exact phrase" word1 word2
+   */
+  private parseQueryForHighlighting(query: string): {
+    phrases: string[];
+    terms: string[];
+  } {
+    const phrases: string[] = [];
+    const terms: string[] = [];
+
+    // Extract quoted phrases first
+    const phraseRegex = /"([^"]+)"/g;
+    let match;
+    let remainingQuery = query;
+
+    while ((match = phraseRegex.exec(query)) !== null) {
+      const phrase = match[1].trim();
+      if (phrase.length > 0) {
+        phrases.push(phrase);
+      }
+      // Remove the matched phrase from remaining query
+      remainingQuery = remainingQuery.replace(match[0], ' ');
+    }
+
+    // Extract individual terms from remaining query
+    // Filter out short words (length > 2) and operators (OR, -)
+    const words = remainingQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length > 2 && t !== 'or' && !t.startsWith('-'));
+
+    terms.push(...words);
+
+    return { phrases, terms };
   }
 
   /**

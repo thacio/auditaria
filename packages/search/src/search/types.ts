@@ -71,6 +71,8 @@ export interface NormalizedSearchParams {
   highlight: boolean;
   highlightTag: string;
   diversity: NormalizedDiversityOptions;
+  /** Use Google-style web search syntax (default: false) */
+  useWebSearchSyntax: boolean;
 }
 
 // ============================================================================

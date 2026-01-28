@@ -139,12 +139,18 @@ export interface KnowledgeSearchToolParams {
 
 const KNOWLEDGE_SEARCH_DESCRIPTION = `Search the knowledge base using keyword, semantic, or hybrid search.
 
-This tool searches through all indexed documents in the project using advanced search capabilities:
+This tool searches through indexed documents in PostgreSQL, usually it's the files of the project (but might be something difference in some cases if the rare case where user shares database), using advanced search capabilities:
 
 **Search Strategies:**
 - **hybrid** (default): Combines semantic and keyword search using Reciprocal Rank Fusion for best results
 - **semantic**: Uses vector embeddings to find semantically similar content (understands meaning)
-- **keyword**: Traditional full-text search based on exact word matches
+- **keyword**: PostgreSQL full-text search based on word matches
+
+**Keyword Search Behavior:**
+The keyword search uses PostgreSQL full-text search (plainto_tsquery). Key behaviors:
+- All search terms are AND'ed together: \`database connection\` finds documents containing BOTH words (any order)
+- Search is case-insensitive and uses word stemming (e.g., "running" matches "run")
+- Uses the 'simple' configuration (no language-specific stemming, good for multilingual content)
 
 **Filtering:**
 - **folders**: Search only in specific directories. Use relative paths from project root. Partial matching is supported (e.g., "docs" matches "docs/reports" and "my-docs"). Can use forward slashes on all platforms.
@@ -169,11 +175,11 @@ This tool searches through all indexed documents in the project using advanced s
 - **semantic_dedup_threshold**: Cosine similarity for dedup (0.9-1.0, default: 0.97)
 
 **Pagination:**
-- **limit**: Max passages to return (default: 30, max: 200)
+- **limit**: Max passages to return (default: 100, max: 300)
 - **offset**: Starting position for pagination
 
 **Workflow for retrieving full documents:**
-1. Search: \`knowledge_search(query: "audit methodology")\` - returns document IDs with snippets
+1. Search: \`knowledge_search(query: "configuration guide")\` - returns document IDs with snippets
 2. Retrieve: \`knowledge_search(document_id: "doc_xxx", detail: "full")\` - returns complete document content
 
 **Note:** The knowledge base must be initialized first using the knowledge_index tool with action "init".
@@ -284,7 +290,7 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       }
 
       // Perform the search
-      const effectiveLimit = limit ?? 30;
+      const effectiveLimit = limit ?? 100;
       const effectiveOffset = offset ?? 0;
 
       const response = await searchSystem.search({
@@ -601,9 +607,9 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
 
     if (
       params.limit !== undefined &&
-      (params.limit <= 0 || params.limit > 200)
+      (params.limit <= 0 || params.limit > 300)
     ) {
-      return 'Limit must be between 1 and 200';
+      return 'Limit must be between 1 and 300';
     }
 
     if (params.format && !['markdown', 'json'].includes(params.format)) {

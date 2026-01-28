@@ -146,6 +146,17 @@ export interface SearchOptions {
   highlightTag?: string;
   /** Diversity options for result diversification */
   diversity?: DiversityOptions;
+  /**
+   * Use Google-style web search syntax for keyword queries (default: false).
+   * When true, supports:
+   *   - "quoted phrase" for exact phrase search
+   *   - word1 word2 for AND search (both words, any order)
+   *   - word1 OR word2 for OR search
+   *   - -word for exclusion
+   * When false (default), uses PostgreSQL plainto_tsquery which treats
+   * all words as AND search.
+   */
+  useWebSearchSyntax?: boolean;
 }
 
 export interface SearchResponse {

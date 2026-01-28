@@ -292,13 +292,16 @@ const searchSubCommand: SlashCommand = {
       }
 
       // Build search options
+      // Use web search syntax for user-facing searches (supports "quoted phrases", OR, -exclusion)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- useWebSearchSyntax is new, types will be updated on rebuild
       const response = await system.search({
         query,
         strategy,
         limit,
         filters: fileType ? { fileTypes: [`.${fileType}`] } : undefined,
         highlight: true,
-      });
+        useWebSearchSyntax: true, // Google-style: "exact phrase", OR, -exclude
+      } as any);
 
       // Only close if we created a temporary system
       if (closeAfter) {

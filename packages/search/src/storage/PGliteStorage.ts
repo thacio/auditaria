@@ -21,6 +21,7 @@ import type {
   CreateQueueItemInput,
   UpdateQueueItemInput,
   HybridSearchWeights,
+  KeywordSearchOptions,
 } from './types.js';
 import type {
   Document,
@@ -352,6 +353,7 @@ interface SearchResultRow {
   file_path: string;
   file_name: string;
   chunk_text: string;
+  highlighted_text?: string; // PostgreSQL ts_headline output (keyword search only)
   page: number | null;
   section: string | null;
   score: number;
@@ -1486,20 +1488,30 @@ export class PGliteStorage implements StorageAdapter {
     query: string,
     filters?: SearchFilters,
     limit = 10,
+    options?: KeywordSearchOptions,
   ): Promise<SearchResult[]> {
     await this.waitForReady();
     const timerId = ++this.timerCounter;
     const timerKey = `searchKeyword-${timerId}`;
     log.startTimer(timerKey, true);
-    log.debug('searchKeyword:start', { queryLength: query.length, limit });
+    log.debug('searchKeyword:start', { queryLength: query.length, limit, useWebSearchSyntax: options?.useWebSearchSyntax });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
+
+    // Choose tsquery function based on options:
+    // - websearch_to_tsquery: Google-style syntax ("quoted phrase", OR, -exclusion)
+    // - plainto_tsquery: Simple AND of all terms (default)
+    const tsqueryFn = options?.useWebSearchSyntax
+      ? 'websearch_to_tsquery'
+      : 'plainto_tsquery';
 
     // Try FTS first, then fall back to ILIKE
     const ftsParams = [query, ...filterParams, limit];
     const ftsParamOffset = filterParams.length + 1;
 
+    // Use ts_headline for native PostgreSQL highlighting with <mark> tags
+    // This properly handles phrase queries (highlights "base de apoio" as a unit)
     const ftsSql = `
       SELECT
         c.id as chunk_id,
@@ -1507,13 +1519,19 @@ export class PGliteStorage implements StorageAdapter {
         d.file_path,
         d.file_name,
         c.text as chunk_text,
+        ts_headline(
+          'simple',
+          c.text,
+          ${tsqueryFn}('simple', $1),
+          'StartSel=<mark>, StopSel=</mark>, MaxFragments=0, HighlightAll=true'
+        ) as highlighted_text,
         c.page,
         c.section,
-        ts_rank(c.fts_vector, plainto_tsquery($1)) as score,
+        ts_rank(c.fts_vector, ${tsqueryFn}('simple', $1)) as score,
         'keyword' as match_type
       FROM chunks c
       JOIN documents d ON c.document_id = d.id
-      WHERE c.fts_vector @@ plainto_tsquery($1)
+      WHERE c.fts_vector @@ ${tsqueryFn}('simple', $1)
         AND d.status = 'indexed'
         ${filterWhere ? `AND ${filterWhere}` : ''}
       ORDER BY score DESC
@@ -1651,6 +1669,7 @@ export class PGliteStorage implements StorageAdapter {
     limit = 10,
     weights: HybridSearchWeights = { semantic: 0.5, keyword: 0.5 },
     rrfK = 60,
+    options?: KeywordSearchOptions,
   ): Promise<SearchResult[]> {
     await this.waitForReady();
     const timerId = ++this.timerCounter;
@@ -1663,6 +1682,11 @@ export class PGliteStorage implements StorageAdapter {
     const vectorStr = formatVector(embedding);
     const filterClause = filterWhere ? `AND ${filterWhere}` : '';
 
+    // Choose tsquery function based on options
+    const tsqueryFn = options?.useWebSearchSyntax
+      ? 'websearch_to_tsquery'
+      : 'plainto_tsquery';
+
     // Build parameter list
     const params = [
       vectorStr,
@@ -1674,6 +1698,8 @@ export class PGliteStorage implements StorageAdapter {
       limit,
     ];
 
+    // Use ts_headline for native PostgreSQL highlighting with <mark> tags
+    // Hybrid search combines semantic and keyword results with RRF fusion
     const sql = `
       WITH semantic_results AS (
         SELECT
@@ -1700,17 +1726,23 @@ export class PGliteStorage implements StorageAdapter {
           d.file_path,
           d.file_name,
           c.text as chunk_text,
+          ts_headline(
+            'simple',
+            c.text,
+            ${tsqueryFn}('simple', $2),
+            'StartSel=<mark>, StopSel=</mark>, MaxFragments=0, HighlightAll=true'
+          ) as highlighted_text,
           c.page,
           c.section,
           ROW_NUMBER() OVER (
-            ORDER BY ts_rank(c.fts_vector, plainto_tsquery($2)) DESC
+            ORDER BY ts_rank(c.fts_vector, ${tsqueryFn}('simple', $2)) DESC
           ) as rank
         FROM chunks c
         JOIN documents d ON c.document_id = d.id
-        WHERE c.fts_vector @@ plainto_tsquery($2)
+        WHERE c.fts_vector @@ ${tsqueryFn}('simple', $2)
           AND d.status = 'indexed'
           ${filterClause}
-        ORDER BY ts_rank(c.fts_vector, plainto_tsquery($2)) DESC
+        ORDER BY ts_rank(c.fts_vector, ${tsqueryFn}('simple', $2)) DESC
         LIMIT 50
       ),
       combined AS (
@@ -1720,6 +1752,8 @@ export class PGliteStorage implements StorageAdapter {
           COALESCE(s.file_path, k.file_path) as file_path,
           COALESCE(s.file_name, k.file_name) as file_name,
           COALESCE(s.chunk_text, k.chunk_text) as chunk_text,
+          -- Use highlighted text when we have a keyword match
+          k.highlighted_text as highlighted_text,
           COALESCE(s.page, k.page) as page,
           COALESCE(s.section, k.section) as section,
           COALESCE($3::float / ($5::float + s.rank), 0) +
@@ -2268,7 +2302,9 @@ export class PGliteStorage implements StorageAdapter {
       chunkId: row.chunk_id,
       filePath: row.file_path,
       fileName: row.file_name,
-      chunkText: row.chunk_text,
+      // Use PostgreSQL's ts_headline highlighted text when available (keyword search),
+      // otherwise use the original chunk text (semantic search)
+      chunkText: row.highlighted_text ?? row.chunk_text,
       score: Number(row.score) || 0,
       matchType: row.match_type as SearchResult['matchType'],
       highlights: [],

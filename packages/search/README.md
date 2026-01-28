@@ -379,12 +379,54 @@ Simple fixed-size splitting:
 #### 1. Keyword Search (Full-Text Search)
 
 ```sql
-WHERE fts_vector @@ plainto_tsquery(query)
-ORDER BY ts_rank(fts_vector, plainto_tsquery(query)) DESC
+-- Default mode (plainto_tsquery): All terms AND'ed
+WHERE fts_vector @@ plainto_tsquery('simple', query)
+ORDER BY ts_rank(fts_vector, plainto_tsquery('simple', query)) DESC
+
+-- Web search syntax mode (websearch_to_tsquery): Google-style
+WHERE fts_vector @@ websearch_to_tsquery('simple', query)
+ORDER BY ts_rank(fts_vector, websearch_to_tsquery('simple', query)) DESC
+```
+
+**Query Syntax Modes:**
+
+| Mode | Function | Syntax | Use Case |
+|------|----------|--------|----------|
+| Default | `plainto_tsquery` | All terms AND'ed | AI agent queries |
+| Web Search | `websearch_to_tsquery` | Google-style | User-facing interfaces |
+
+**Web Search Syntax (when `useWebSearchSyntax: true`):**
+- `"quoted phrase"` - exact phrase search (words must appear adjacent and in order)
+- `word1 word2` - both words required (any order)
+- `word1 OR word2` - either word
+- `-word` - exclude word
+
+**Examples:**
+```typescript
+// Exact phrase search
+await searchSystem.search({
+  query: '"error handling"',
+  strategy: 'keyword',
+  useWebSearchSyntax: true,
+});
+
+// Multiple required terms
+await searchSystem.search({
+  query: 'database connection',
+  strategy: 'keyword',
+  useWebSearchSyntax: true,
+});
+
+// OR search with exclusion
+await searchSystem.search({
+  query: 'typescript OR javascript -deprecated',
+  strategy: 'keyword',
+  useWebSearchSyntax: true,
+});
 ```
 
 - Uses PostgreSQL's built-in FTS with GIN index
-- Falls back to ILIKE pattern matching if needed
+- Falls back to ILIKE pattern matching if FTS fails
 
 #### 2. Semantic Search (Vector Search)
 
@@ -668,10 +710,10 @@ Search the indexed documents:
 ```typescript
 // Example: Hybrid search with filters
 knowledge_search({
-  query: 'audit methodology',
+  query: 'installation guide',
   strategy: 'hybrid',
-  folders: ['docs/reports'],
-  file_types: ['pdf'],
+  folders: ['docs'],
+  file_types: ['pdf', 'md'],
   limit: 10,
 });
 
