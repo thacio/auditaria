@@ -52,6 +52,50 @@ PGlite (PostgreSQL-compatible) and pgvector for vector storage.
                     └─────────────────┘
 ```
 
+### Child Process Architecture (Memory Management)
+
+By default, indexing runs in **child processes** to solve the fundamental
+WebAssembly memory limitation: WASM memory can only grow, never shrink. When a
+child process exits after processing a batch of documents, the OS completely
+releases ALL its memory, including WASM heaps.
+
+```
+Main Process (CLI)                              Child Process (respawns)
+┌──────────────────────────────────┐            ┌──────────────────────────────┐
+│ SearchSystem                     │            │ Full Indexing Stack:         │
+│  ├─ SearchEngine (search)        │   JSONL   │  ├─ PGliteStorage (write)    │
+│  ├─ PGliteStorage (read-only)   │◄─────────►│  ├─ IndexingPipeline         │
+│  └─ IndexingChildManager ───────┼───stdin───►│  ├─ Embedder (ONNX/WASM)     │
+│                                  │◄──stdout──┤  └─ Parsers/Chunkers         │
+└──────────────────────────────────┘            └──────────────────────────────┘
+                                                         │
+                                                         ▼
+                                                 Exits after batch
+                                                 → ALL memory freed!
+                                                         │
+                                                         ▼
+                                                ┌──────────────────────────────┐
+                                                │ New Child (fresh memory)     │
+                                                │  ...continues indexing       │
+                                                └──────────────────────────────┘
+```
+
+**How it works:**
+
+1. Main process spawns a child for each batch (default: 500 documents)
+2. Child runs the full indexing stack (PGlite, Embedder, Pipeline)
+3. Child reports progress to main process via JSONL over stdin/stdout
+4. When batch completes, child exits and OS releases all memory
+5. If more documents remain, main process spawns a new child
+6. Main process remains in read-only mode during indexing (can still search)
+
+**Memory improvement:** With child process indexing, memory stays bounded at
+~7GB regardless of corpus size. Without it, 10k documents could consume 17GB+.
+
+**Configuration:** Child process indexing is enabled by default. It can be
+disabled via the `useChildProcess` option in `indexAll()` for debugging or
+testing purposes.
+
 ## Quick Start
 
 ```typescript
@@ -103,6 +147,8 @@ interface SearchSystemConfig {
     maxFileSize: number; // Default: 50MB
     respectGitignore: boolean;
     prepareWorkers: number; // Parallel parsing workers (default: 1)
+    useChildProcess: boolean; // Default: true - run indexing in child process
+    childProcessBatchSize: number; // Default: 500 - docs per child before respawn
   };
 
   chunking: {
@@ -227,12 +273,16 @@ preferPythonEmbedder=true?
 
 ### Streaming Embeddings
 
-All embedders implement `embedBatchDocumentsStreaming()`, an async generator that
-yields embeddings batch-by-batch instead of accumulating all results in memory:
+All embedders implement `embedBatchDocumentsStreaming()`, an async generator
+that yields embeddings batch-by-batch instead of accumulating all results in
+memory:
 
 ```typescript
 // Memory-efficient: yields batches, doesn't accumulate
-for await (const { startIndex, embeddings } of embedder.embedBatchDocumentsStreaming(texts, batchSize)) {
+for await (const {
+  startIndex,
+  embeddings,
+} of embedder.embedBatchDocumentsStreaming(texts, batchSize)) {
   // Process and store each batch immediately
   await storage.updateChunkEmbeddings(updates);
   // Memory released after each iteration
@@ -343,16 +393,29 @@ Discovery → Queue → Parser → Chunker → Embedder → Storage
 - **Embed loop** (consumer): Generates embeddings and stores results
 - **Backpressure control**: Producers wait if buffer is full
 
-### Memory Optimization
+### Memory Management
+
+The indexing system uses multiple strategies to manage memory:
+
+**Primary: Child Process Isolation** (see Architecture Overview)
+
+- Indexing runs in child processes that exit after each batch
+- OS completely releases all WASM memory when child exits
+- Main process stays lean and can continue serving search queries
+- This is the most effective strategy for large corpus indexing
+
+**Secondary: In-Process Optimizations**
+
+When running in-process (for debugging or when `useChildProcess: false`):
 
 - **Streaming embeddings**: Embedders yield batches via async generators instead
-  of accumulating all embeddings in memory. This bounds memory usage to
-  `batchSize` embeddings at any time, regardless of document size.
-- **Progressive clearing**: Chunk texts are cleared from memory immediately after
-  embedding, preventing accumulation during large document processing.
-- Periodic storage reconnects every 500 files
-- Checkpoints every 100 files
-- Event loop yielding to prevent blocking
+  of accumulating all embeddings in memory
+- **Progressive clearing**: Chunk texts are cleared from memory immediately
+  after embedding
+- **Periodic reconnects**: Storage reconnects every 500 files to attempt memory
+  recovery (limited effectiveness due to WASM limitations)
+- **Checkpoints**: Flush WAL every 50 files for durability
+- **Event loop yielding**: Prevents blocking during long operations
 
 ---
 
@@ -413,18 +476,21 @@ ORDER BY ts_rank(fts_vector, websearch_to_tsquery('simple', query)) DESC
 
 **Query Syntax Modes:**
 
-| Mode | Function | Syntax | Use Case |
-|------|----------|--------|----------|
-| Default | `plainto_tsquery` | All terms AND'ed | AI agent queries |
-| Web Search | `websearch_to_tsquery` | Google-style | User-facing interfaces |
+| Mode       | Function               | Syntax           | Use Case               |
+| ---------- | ---------------------- | ---------------- | ---------------------- |
+| Default    | `plainto_tsquery`      | All terms AND'ed | AI agent queries       |
+| Web Search | `websearch_to_tsquery` | Google-style     | User-facing interfaces |
 
 **Web Search Syntax (when `useWebSearchSyntax: true`):**
-- `"quoted phrase"` - exact phrase search (words must appear adjacent and in order)
+
+- `"quoted phrase"` - exact phrase search (words must appear adjacent and in
+  order)
 - `word1 word2` - both words required (any order)
 - `word1 OR word2` - either word
 - `-word` - exclude word
 
 **Examples:**
+
 ```typescript
 // Exact phrase search
 await searchSystem.search({
@@ -551,13 +617,18 @@ PostgreSQL-compatible SQLite with pgvector extension:
 - **HNSW index** on `embedding` for fast vector search (m=16,
   ef_construction=64)
 
-### Memory Management
+### Storage Memory Management
 
-```typescript
-storage.checkpoint(); // Flush WAL, run VACUUM/ANALYZE
-storage.vacuum(); // Reclaim space
-storage.reconnect(); // Release all WASM memory
-```
+> **Note:** Due to WASM limitations (memory can only grow, never shrink),
+> in-process memory management has limited effectiveness. The recommended
+> approach is to use child process indexing (enabled by default), which
+> completely releases memory when each child exits.
+
+For in-process scenarios, these methods are available:
+
+- `checkpoint()` - Flush WAL to disk, run VACUUM/ANALYZE
+- `vacuum()` - Reclaim disk space
+- `reconnect()` - Close and reopen database (limited memory benefit due to WASM)
 
 ### Backup & Recovery
 
@@ -938,12 +1009,15 @@ interface SearchResult {
 
 ## Performance Tips
 
-1. **Use Python embedder** for large indexing jobs (better memory)
-2. **Keep `useWorkerThread: true`** to maintain CLI responsiveness
-3. **Use `q8` quantization** (2.2x faster than fp16 with same quality)
-4. **Use CPU for small models** (6.5x faster than GPU due to transfer overhead)
-5. **Adjust `prepareWorkers`** for parallel parsing on multi-core systems
-6. **Use hybrid search** for best results (combines keyword precision + semantic
+1. **Keep child process indexing enabled** (default) for large corpus indexing -
+   this is the most effective memory management strategy
+2. **Use Python embedder** for additional memory isolation (runs in separate
+   process)
+3. **Keep `useWorkerThread: true`** to maintain CLI responsiveness during search
+4. **Use `q8` quantization** (2.2x faster than fp16 with same quality)
+5. **Use CPU for small models** (6.5x faster than GPU due to transfer overhead)
+6. **Adjust `prepareWorkers`** for parallel parsing on multi-core systems
+7. **Use hybrid search** for best results (combines keyword precision + semantic
    understanding)
 
 ---
