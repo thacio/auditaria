@@ -1,5 +1,7 @@
 /**
- * Auditaria Search - Local document search with hybrid search capabilities.
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  *
  * @packageDocumentation
  */
@@ -59,6 +61,8 @@ export type {
   ChunkingConfig,
   EmbeddingsConfig,
   SearchConfig,
+  VectorIndexConfig,
+  VectorIndexType,
   DeepPartial,
 } from './src/config.js';
 
@@ -69,6 +73,8 @@ export {
   DEFAULT_CHUNKING_CONFIG,
   DEFAULT_EMBEDDINGS_CONFIG,
   DEFAULT_SEARCH_CONFIG,
+  DEFAULT_VECTOR_INDEX_CONFIG,
+  VECTOR_INDEX_TYPES,
   createConfig,
   validateConfig,
 } from './src/config.js';
@@ -135,7 +141,33 @@ export type {
 // ============================================================================
 
 export { PGliteStorage } from './src/storage/PGliteStorage.js';
-export { SCHEMA_SQL, SCHEMA_VERSION } from './src/storage/schema.js';
+export {
+  BASE_SCHEMA_SQL,
+  SCHEMA_VERSION,
+  FTS_INDEX_SQL,
+  getChunksTableSQL,
+  getVectorIndexSQL,
+  getDropVectorIndexSQL,
+  type ChunksTableOptions,
+  type VectorIndexOptions,
+} from './src/storage/schema.js';
+export {
+  readMetadata,
+  writeMetadata,
+  createMetadata,
+  validateCompatibility,
+  updateMetadataStats,
+  deleteMetadata,
+  metadataExists,
+  getMetadataPath,
+  METADATA_VERSION,
+  METADATA_FILENAME,
+  type DatabaseMetadata,
+  type MetadataVectorIndex,
+  type MetadataEmbeddings,
+  type MetadataStats,
+  type MetadataSchema,
+} from './src/storage/metadata.js';
 
 export type {
   StorageAdapter,

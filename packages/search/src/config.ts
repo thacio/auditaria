@@ -167,6 +167,96 @@ export interface SearchConfig {
   rrfK: number;
 }
 
+/**
+ * Supported vector index types.
+ *
+ * - `'hnsw'`: Hierarchical Navigable Small World
+ *   - Best for: High query throughput, high recall requirements
+ *   - Trade-off: Higher memory usage (2-3x vector size), slower build time
+ *
+ * - `'ivfflat'`: Inverted File with Flat compression
+ *   - Best for: Memory-constrained environments, large datasets
+ *   - Trade-off: Slower queries (tunable via probes), requires data for index creation
+ *
+ * - `'none'`: No index (exact search)
+ *   - Best for: Small datasets (<10k vectors), maximum accuracy
+ *   - Trade-off: O(n) search time, not suitable for large datasets
+ */
+export type VectorIndexType = 'hnsw' | 'ivfflat' | 'none';
+
+/** Array of all supported vector index types (for validation/UI) */
+export const VECTOR_INDEX_TYPES: readonly VectorIndexType[] = [
+  'hnsw',
+  'ivfflat',
+  'none',
+] as const;
+
+export interface VectorIndexConfig {
+  /**
+   * Index type for vector similarity search. Default: 'hnsw'
+   * - 'hnsw': Hierarchical Navigable Small World - fast queries, higher memory
+   * - 'ivfflat': Inverted File Flat - lower memory, faster build, tunable recall via probes
+   * - 'none': No index - exact search (slow for large datasets)
+   */
+  type: VectorIndexType;
+  /**
+   * Defer index creation until after bulk indexing completes. Default: true
+   * When true:
+   * - Index is NOT created during initialize()
+   * - Searches use sequential scan during indexing (slower but works)
+   * - Index is created after indexAll() completes
+   * - Better memory usage and faster bulk indexing
+   * When false:
+   * - Index is created immediately in initialize()
+   * - HNSW: each insert updates index (overhead per insert)
+   * - IVFFlat: new rows go to heap, need manual REINDEX
+   */
+  deferIndexCreation?: boolean;
+  /**
+   * Whether to create the vector index at all. Default: true
+   * When false:
+   * - No index is ever created, regardless of 'type' setting
+   * - All searches use brute force (sequential scan)
+   * - Useful if index creation crashes or for small databases (<50k vectors)
+   * - The 'type' setting is preserved so you can re-enable later
+   * This setting is stored in metadata, so it persists with the database.
+   */
+  createIndex?: boolean;
+  /**
+   * Use half-precision vectors (halfvec). Reduces storage by 50%. Default: false
+   * Near-identical accuracy for most use cases. Works with both HNSW and IVFFlat.
+   * Note: No conflict with Q8 quantization - Q8 affects model inference,
+   * halfvec affects database storage.
+   */
+  useHalfVec: boolean;
+
+  // HNSW parameters
+  /**
+   * HNSW: Max edges per node (m parameter). Default: 16
+   * Higher = better recall, more memory. Typical range: 8-64.
+   */
+  hnswM?: number;
+  /**
+   * HNSW: Construction effort (ef_construction). Default: 64
+   * Higher = better index quality, slower build. Typical range: 32-256.
+   */
+  hnswEfConstruction?: number;
+
+  // IVFFlat parameters
+  /**
+   * IVFFlat: Number of lists/clusters. Default: 'auto'
+   * - 'auto': Calculated from row count (rows/1000 for <1M, sqrt(rows) for >1M)
+   * - number: Fixed number of lists
+   */
+  ivfflatLists?: number | 'auto';
+  /**
+   * IVFFlat: Probes for search (clusters to search). Default: 40
+   * Higher = better recall, slower search. Start with sqrt(lists) or 40.
+   * This is set before each query via SET ivfflat.probes.
+   */
+  ivfflatProbes?: number;
+}
+
 export interface LoggingConfig {
   /** Enable debug logging. Default: false */
   enabled: boolean;
@@ -210,6 +300,7 @@ export interface SearchSystemConfig {
   embeddings: EmbeddingsConfig;
   search: SearchConfig;
   ocr: OcrConfig;
+  vectorIndex: VectorIndexConfig;
 }
 
 // ============================================================================
@@ -254,14 +345,14 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
     '.tif',
     '.webp',
   ],
-  maxFileSize: 50 * 1024 * 1024, // 50MB
+  maxFileSize: 100 * 1024 * 1024, // 50MB
   ocrEnabled: true,
   ocrPriority: 'low',
   respectGitignore: true,
   prepareWorkers: 1,
   preparedBufferSize: 1,
   // Child process options
-  useChildProcess: true,
+  useChildProcess: false,
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
 };
@@ -308,6 +399,19 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
   minConfidence: 0.5,
 };
 
+export const DEFAULT_VECTOR_INDEX_CONFIG: VectorIndexConfig = {
+  type: 'hnsw', // 'hnsw', 'ivfflat', 'none'
+  useHalfVec: true,
+  deferIndexCreation: true, // Better performance for bulk indexing
+  createIndex: true, // Set to false to disable index entirely (use brute force)
+  // HNSW defaults (used if type is changed to 'hnsw')
+  hnswM: 16,
+  hnswEfConstruction: 64,
+  // IVFFlat defaults
+  ivfflatLists: 'auto',
+  ivfflatProbes: 40,
+};
+
 export const DEFAULT_CONFIG: SearchSystemConfig = {
   database: DEFAULT_DATABASE_CONFIG,
   indexing: DEFAULT_INDEXING_CONFIG,
@@ -315,6 +419,7 @@ export const DEFAULT_CONFIG: SearchSystemConfig = {
   embeddings: DEFAULT_EMBEDDINGS_CONFIG,
   search: DEFAULT_SEARCH_CONFIG,
   ocr: DEFAULT_OCR_CONFIG,
+  vectorIndex: DEFAULT_VECTOR_INDEX_CONFIG,
 };
 
 // ============================================================================
@@ -383,6 +488,10 @@ export function createConfig(
     ocr: deepMerge(
       DEFAULT_OCR_CONFIG,
       (partial.ocr ?? {}) as Partial<OcrConfig>,
+    ),
+    vectorIndex: deepMerge(
+      DEFAULT_VECTOR_INDEX_CONFIG,
+      (partial.vectorIndex ?? {}) as Partial<VectorIndexConfig>,
     ),
   };
 }
@@ -454,5 +563,35 @@ export function validateConfig(config: SearchSystemConfig): void {
   }
   if (config.ocr.minConfidence < 0 || config.ocr.minConfidence > 1) {
     throw new Error('OCR minConfidence must be between 0 and 1');
+  }
+
+  // Validate vector index config
+  const validIndexTypes: VectorIndexType[] = ['hnsw', 'ivfflat', 'none'];
+  if (!validIndexTypes.includes(config.vectorIndex.type)) {
+    throw new Error(
+      `vectorIndex.type must be one of: ${validIndexTypes.join(', ')}`,
+    );
+  }
+  if (config.vectorIndex.hnswM !== undefined && config.vectorIndex.hnswM <= 0) {
+    throw new Error('vectorIndex.hnswM must be positive');
+  }
+  if (
+    config.vectorIndex.hnswEfConstruction !== undefined &&
+    config.vectorIndex.hnswEfConstruction <= 0
+  ) {
+    throw new Error('vectorIndex.hnswEfConstruction must be positive');
+  }
+  if (
+    config.vectorIndex.ivfflatLists !== undefined &&
+    config.vectorIndex.ivfflatLists !== 'auto' &&
+    config.vectorIndex.ivfflatLists <= 0
+  ) {
+    throw new Error('vectorIndex.ivfflatLists must be positive or "auto"');
+  }
+  if (
+    config.vectorIndex.ivfflatProbes !== undefined &&
+    config.vectorIndex.ivfflatProbes <= 0
+  ) {
+    throw new Error('vectorIndex.ivfflatProbes must be positive');
   }
 }

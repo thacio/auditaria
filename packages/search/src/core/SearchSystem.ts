@@ -299,14 +299,20 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       await mkdir(dbDir, { recursive: true });
     }
 
-    // Initialize storage
+    // Initialize storage with vector index configuration
+    const dbPath = join(this.rootPath, this.config.database.path);
     const dbConfig: DatabaseConfig = {
-      path: join(this.rootPath, this.config.database.path),
+      path: dbPath,
       inMemory: this.config.database.inMemory,
       backupEnabled: this.config.database.backupEnabled,
     };
 
-    this.storage = new PGliteStorage(dbConfig);
+    // Initialize storage - it handles metadata file automatically
+    this.storage = new PGliteStorage(
+      dbConfig,
+      this.config.vectorIndex,
+      this.config.embeddings.dimensions,
+    );
     await this.storage.initialize();
 
     // Recover documents stuck in intermediate states (crash recovery)
@@ -426,6 +432,16 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           `[SearchSystem] Database version mismatch: stored=${storedConfig.version ?? 'unknown'}, ` +
             `current=${SEARCH_DB_VERSION}. Consider rebuilding the index if you experience issues.`,
         );
+      }
+
+      // Update metadata file with embeddings config (for human visibility)
+      const pgliteStorage = this.storage as PGliteStorage;
+      if (pgliteStorage.updateMetadataEmbeddings) {
+        pgliteStorage.updateMetadataEmbeddings({
+          model: effectiveModel,
+          dimensions: this.config.embeddings.dimensions,
+          quantization: resolvedConfig.quantization,
+        });
       }
 
       // Log resolved configuration
@@ -863,6 +879,18 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       // Run indexing in child process(es)
       const result = await this.childManager.indexAll({ force: options.force });
 
+      // Ensure vector index exists after bulk indexing
+      // (handles deferred index creation and edge case where no new docs were indexed)
+      const pgliteStorage = this.storage as PGliteStorage;
+      if (pgliteStorage.ensureVectorIndex) {
+        const indexCreated = await pgliteStorage.ensureVectorIndex();
+        if (indexCreated) {
+          console.log(
+            `[SearchSystem] Vector index created (${this.config.vectorIndex.type})`,
+          );
+        }
+      }
+
       void this.emit('indexing:completed', result);
 
       return result;
@@ -1017,6 +1045,20 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           console.log(
             `[SearchSystem] OCR completed: ${ocrResult.succeeded} succeeded, ${ocrResult.failed} failed`,
           );
+        }
+      }
+
+      // Ensure vector index exists after bulk indexing
+      // (handles deferred index creation and edge case where no new docs were indexed)
+      if (!this.closing) {
+        const pgliteStorage = this.storage as PGliteStorage;
+        if (pgliteStorage.ensureVectorIndex) {
+          const indexCreated = await pgliteStorage.ensureVectorIndex();
+          if (indexCreated) {
+            console.log(
+              `[SearchSystem] Vector index created (${this.config.vectorIndex.type})`,
+            );
+          }
         }
       }
 

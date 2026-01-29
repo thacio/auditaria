@@ -4,11 +4,45 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { VectorIndexType } from '../config.js';
+
+// ============================================================================
+// Schema Configuration Types
+// ============================================================================
+
+export interface ChunksTableOptions {
+  /** Embedding dimensions. Default: 384 */
+  dimensions: number;
+  /** Use half-precision vectors (halfvec). Default: false */
+  useHalfVec: boolean;
+}
+
+export interface VectorIndexOptions {
+  /** Index type: hnsw, ivfflat, or none */
+  type: VectorIndexType;
+  /** Use half-precision vectors (halfvec) */
+  useHalfVec: boolean;
+  /** Embedding dimensions */
+  dimensions: number;
+  // HNSW parameters
+  /** HNSW: m parameter (max edges per node) */
+  hnswM?: number;
+  /** HNSW: ef_construction parameter */
+  hnswEfConstruction?: number;
+  // IVFFlat parameters
+  /** IVFFlat: number of lists/clusters */
+  ivfflatLists?: number;
+}
+
+// ============================================================================
+// Dynamic Schema Generation Functions
+// ============================================================================
+
 /**
- * SQL to initialize the database schema.
- * Includes tables for documents, chunks, tags, queue, and config.
+ * Base schema SQL without chunks table.
+ * Use with getChunksTableSQL() for configurable vector type.
  */
-export const SCHEMA_SQL = `
+export const BASE_SCHEMA_SQL = `
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -43,25 +77,6 @@ CREATE INDEX IF NOT EXISTS idx_documents_ocr_status ON documents(ocr_status);
 CREATE INDEX IF NOT EXISTS idx_documents_file_extension ON documents(file_extension);
 CREATE INDEX IF NOT EXISTS idx_documents_file_modified_at ON documents(file_modified_at);
 CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(file_hash);
-
--- Chunks table
-CREATE TABLE IF NOT EXISTS chunks (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  chunk_index INTEGER NOT NULL,
-  text TEXT NOT NULL,
-  embedding vector(384),
-  fts_vector tsvector,
-  start_offset INTEGER NOT NULL,
-  end_offset INTEGER NOT NULL,
-  page INTEGER,
-  section TEXT,
-  token_count INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(document_id, chunk_index)
-);
-
-CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
 
 -- Tags table
 CREATE TABLE IF NOT EXISTS tags (
@@ -114,23 +129,87 @@ ON CONFLICT (key) DO NOTHING;
 `;
 
 /**
+ * Generate the chunks table SQL with configurable vector type.
+ * @param options - Configuration for the chunks table
+ * @returns SQL to create the chunks table
+ */
+export function getChunksTableSQL(options: ChunksTableOptions): string {
+  const vectorType = options.useHalfVec ? 'halfvec' : 'vector';
+  return `
+-- Chunks table
+CREATE TABLE IF NOT EXISTS chunks (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  chunk_index INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  embedding ${vectorType}(${options.dimensions}),
+  fts_vector tsvector,
+  start_offset INTEGER NOT NULL,
+  end_offset INTEGER NOT NULL,
+  page INTEGER,
+  section TEXT,
+  token_count INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(document_id, chunk_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
+`.trim();
+}
+
+/**
+ * Generate vector index SQL based on configuration.
+ * @param options - Configuration for the vector index
+ * @returns SQL to create the index, or null if type is 'none'
+ */
+export function getVectorIndexSQL(options: VectorIndexOptions): string | null {
+  if (options.type === 'none') {
+    return null;
+  }
+
+  // pgvector operator class for cosine distance
+  // halfvec uses halfvec_cosine_ops, vector uses vector_cosine_ops
+  const vectorOps = options.useHalfVec
+    ? 'halfvec_cosine_ops'
+    : 'vector_cosine_ops';
+
+  if (options.type === 'hnsw') {
+    const m = options.hnswM ?? 16;
+    const efConstruction = options.hnswEfConstruction ?? 64;
+    return `
+-- Create HNSW index for vector similarity search
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks
+USING hnsw (embedding ${vectorOps})
+WITH (m = ${m}, ef_construction = ${efConstruction});
+`.trim();
+  }
+
+  if (options.type === 'ivfflat') {
+    const lists = options.ivfflatLists ?? 100;
+    return `
+-- Create IVFFlat index for vector similarity search
+CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks
+USING ivfflat (embedding ${vectorOps})
+WITH (lists = ${lists});
+`.trim();
+  }
+
+  return null;
+}
+
+/**
+ * Get SQL to drop the vector index.
+ */
+export function getDropVectorIndexSQL(): string {
+  return 'DROP INDEX IF EXISTS idx_chunks_embedding;';
+}
+
+/**
  * SQL to create FTS index on chunks after table creation.
- * This needs to run after the chunks table exists.
  */
 export const FTS_INDEX_SQL = `
 -- Create GIN index for FTS
 CREATE INDEX IF NOT EXISTS idx_chunks_fts ON chunks USING GIN(fts_vector);
-`;
-
-/**
- * SQL to create HNSW index on chunks embedding column.
- * This enables fast approximate nearest neighbor search.
- */
-export const HNSW_INDEX_SQL = `
--- Create HNSW index for vector similarity search
-CREATE INDEX IF NOT EXISTS idx_chunks_embedding ON chunks
-USING hnsw (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
 `;
 
 /**

@@ -35,12 +35,26 @@ import type {
   QueueStatus,
 } from '../types.js';
 import {
-  SCHEMA_SQL,
+  BASE_SCHEMA_SQL,
   FTS_INDEX_SQL,
-  HNSW_INDEX_SQL,
   UPDATE_FTS_VECTOR_SQL,
+  getChunksTableSQL,
+  getVectorIndexSQL,
+  getDropVectorIndexSQL,
 } from './schema.js';
-import type { DatabaseConfig } from '../config.js';
+import {
+  readMetadata,
+  writeMetadata,
+  createMetadata,
+  validateCompatibility,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  updateMetadataStats,
+  type DatabaseMetadata,
+  type MetadataVectorIndex,
+  type MetadataEmbeddings,
+} from './metadata.js';
+import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
+import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -370,6 +384,8 @@ interface SearchResultRow {
 export class PGliteStorage implements StorageAdapter {
   private db: PGlite | null = null;
   private config: DatabaseConfig;
+  private vectorIndexConfig: VectorIndexConfig;
+  private embeddingDimensions: number;
   private _initialized = false;
   private timerCounter = 0; // Counter for unique timer keys in concurrent operations
   private _reconnecting = false; // Flag to indicate reconnection in progress
@@ -377,8 +393,264 @@ export class PGliteStorage implements StorageAdapter {
   private _dirty = false; // Tracks if database has been modified since last backup
   private _readOnly = false; // Read-only mode for concurrent child process indexing
 
-  constructor(config: DatabaseConfig) {
+  constructor(
+    config: DatabaseConfig,
+    vectorIndexConfig?: VectorIndexConfig,
+    embeddingDimensions?: number,
+  ) {
     this.config = config;
+    this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
+    this.embeddingDimensions = embeddingDimensions ?? 384;
+  }
+
+  // -------------------------------------------------------------------------
+  // Vector Index Management
+  // -------------------------------------------------------------------------
+
+  /**
+   * Create the vector index based on current configuration.
+   * Called during initialize() and rebuildVectorIndex().
+   */
+  private async createVectorIndex(): Promise<void> {
+    if (!this.db) return;
+
+    // Check if index creation is disabled
+    if (this.vectorIndexConfig.createIndex === false) {
+      log.info('createVectorIndex:skipped', { reason: 'createIndex is false' });
+      return;
+    }
+
+    // Calculate IVFFlat lists if needed
+    let ivfflatLists: number | undefined;
+    if (this.vectorIndexConfig.type === 'ivfflat') {
+      ivfflatLists = await this.calculateIvfflatLists();
+    }
+
+    const indexSQL = getVectorIndexSQL({
+      type: this.vectorIndexConfig.type,
+      useHalfVec: this.vectorIndexConfig.useHalfVec,
+      dimensions: this.embeddingDimensions,
+      hnswM: this.vectorIndexConfig.hnswM,
+      hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+      ivfflatLists,
+    });
+
+    if (indexSQL) {
+      try {
+        await this.db.exec(indexSQL);
+        log.info('createVectorIndex:created', {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          ivfflatLists,
+        });
+      } catch (error) {
+        // Index creation might fail if no data (IVFFlat requires data)
+        // This is expected for empty databases
+        log.debug('createVectorIndex:deferred', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  /**
+   * Calculate the optimal number of IVFFlat lists based on row count.
+   * - For < 1M rows: rows / 1000 (minimum 10)
+   * - For >= 1M rows: sqrt(rows)
+   */
+  private async calculateIvfflatLists(): Promise<number> {
+    // Use configured value if not 'auto'
+    if (
+      this.vectorIndexConfig.ivfflatLists !== undefined &&
+      this.vectorIndexConfig.ivfflatLists !== 'auto'
+    ) {
+      return this.vectorIndexConfig.ivfflatLists;
+    }
+
+    // Calculate based on row count
+    if (!this.db) return 100; // Default for uninitialized database
+
+    try {
+      const result = await this.db.query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM chunks WHERE embedding IS NOT NULL',
+      );
+      const rowCount = parseInt(result.rows[0]?.count ?? '0', 10);
+
+      if (rowCount === 0) return 100; // Default for empty database
+      if (rowCount < 1000000) return Math.max(Math.floor(rowCount / 1000), 10);
+      return Math.floor(Math.sqrt(rowCount));
+    } catch {
+      return 100; // Default on error
+    }
+  }
+
+  /**
+   * Rebuild the vector index with new configuration.
+   * Drops the existing index and creates a new one.
+   * Note: This only changes the index type, not the vector storage type (halfvec).
+   * To change halfvec setting, the database must be recreated.
+   */
+  async rebuildVectorIndex(
+    newConfig?: Partial<VectorIndexConfig>,
+  ): Promise<void> {
+    await this.waitForReady();
+    this.ensureWritable();
+
+    // Merge new config with existing (but don't allow changing useHalfVec)
+    if (newConfig) {
+      if (
+        newConfig.useHalfVec !== undefined &&
+        newConfig.useHalfVec !== this.vectorIndexConfig.useHalfVec
+      ) {
+        throw new Error(
+          'Cannot change useHalfVec without recreating the database. ' +
+            'Delete the database and metadata files, then rebuild.',
+        );
+      }
+      this.vectorIndexConfig = { ...this.vectorIndexConfig, ...newConfig };
+    }
+
+    // Drop existing index
+    await this.db!.exec(getDropVectorIndexSQL());
+    log.info('rebuildVectorIndex:dropped');
+
+    // Recreate index with new config
+    await this.createVectorIndex();
+
+    // Update metadata file
+    const dbPath = this.config.path;
+    if (dbPath && !this.config.inMemory) {
+      const metadata = readMetadata(dbPath);
+      if (metadata) {
+        metadata.vectorIndex = {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          createIndex: this.vectorIndexConfig.createIndex ?? true,
+          hnswM: this.vectorIndexConfig.hnswM,
+          hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+          ivfflatLists:
+            this.vectorIndexConfig.ivfflatLists === 'auto'
+              ? undefined
+              : this.vectorIndexConfig.ivfflatLists,
+          ivfflatProbes: this.vectorIndexConfig.ivfflatProbes,
+        };
+        writeMetadata(dbPath, metadata);
+      }
+    }
+
+    log.info('rebuildVectorIndex:complete', {
+      type: this.vectorIndexConfig.type,
+      useHalfVec: this.vectorIndexConfig.useHalfVec,
+    });
+  }
+
+  /**
+   * Get the current vector index configuration.
+   */
+  getVectorIndexConfig(): VectorIndexConfig {
+    return { ...this.vectorIndexConfig };
+  }
+
+  /**
+   * Update the embeddings configuration in metadata.
+   * Called by SearchSystem after embedder initialization to store full config.
+   */
+  updateMetadataEmbeddings(embeddings: MetadataEmbeddings): void {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return;
+
+    const metadata = readMetadata(dbPath);
+    if (metadata) {
+      metadata.embeddings = embeddings;
+      writeMetadata(dbPath, metadata);
+      log.info('updateMetadataEmbeddings:updated', {
+        model: embeddings.model,
+        quantization: embeddings.quantization,
+      });
+    }
+  }
+
+  /**
+   * Get the database metadata.
+   */
+  getMetadata(): DatabaseMetadata | null {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return null;
+    return readMetadata(dbPath);
+  }
+
+  /**
+   * Check if the vector index exists.
+   */
+  async hasVectorIndex(): Promise<boolean> {
+    if (!this.db || this.vectorIndexConfig.type === 'none') {
+      return false;
+    }
+
+    try {
+      const result = await this.db.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE indexname = 'idx_chunks_embedding'
+        ) as exists`,
+      );
+      return result.rows[0]?.exists ?? false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Ensure the vector index exists, creating it if missing.
+   * Call this after bulk indexing completes or when no documents need indexing
+   * but the index should still be created.
+   *
+   * @returns true if index was created, false if it already existed, disabled, or type is 'none'
+   */
+  async ensureVectorIndex(): Promise<boolean> {
+    await this.waitForReady();
+
+    // Check if index creation is disabled
+    if (this.vectorIndexConfig.createIndex === false) {
+      log.info('ensureVectorIndex:skipped', {
+        reason: 'createIndex is false (brute force mode)',
+      });
+      return false;
+    }
+
+    if (this.vectorIndexConfig.type === 'none') {
+      log.info('ensureVectorIndex:skipped', { reason: 'type is none' });
+      return false;
+    }
+
+    const hasIndex = await this.hasVectorIndex();
+    if (hasIndex) {
+      log.info('ensureVectorIndex:exists', {
+        type: this.vectorIndexConfig.type,
+      });
+      return false;
+    }
+
+    // Check if there's data to index
+    const countResult = await this.db!.query<{ count: string }>(
+      'SELECT COUNT(*) as count FROM chunks WHERE embedding IS NOT NULL',
+    );
+    const chunkCount = parseInt(countResult.rows[0]?.count ?? '0', 10);
+
+    if (chunkCount === 0) {
+      log.info('ensureVectorIndex:skipped', {
+        reason: 'no embeddings to index',
+      });
+      return false;
+    }
+
+    log.info('ensureVectorIndex:creating', {
+      type: this.vectorIndexConfig.type,
+      chunkCount,
+    });
+
+    await this.createVectorIndex();
+    return true;
   }
 
   // -------------------------------------------------------------------------
@@ -439,6 +711,49 @@ export class PGliteStorage implements StorageAdapter {
     const backupPath = this.config.path
       ? `${this.config.path}${BACKUP_SUFFIX}`
       : null;
+
+    // Handle metadata file (stores config for human visibility and consistency)
+    if (!this.config.inMemory && dbPath !== 'in-memory') {
+      const existingMetadata = readMetadata(dbPath);
+
+      if (existingMetadata) {
+        // Existing database - use stored config (metadata is authoritative)
+        // This allows sharing databases between users with different default configs
+        const { compatible, errors } = validateCompatibility(
+          existingMetadata,
+          {} as MetadataVectorIndex, // Not used anymore
+          {} as MetadataEmbeddings, // Not used anymore
+        );
+
+        if (!compatible) {
+          throw new Error(
+            `Database metadata is corrupted:\n` +
+              errors.map((e) => `  - ${e}`).join('\n') +
+              `\n\nTo fix: Delete the database folder and rebuild.`,
+          );
+        }
+
+        // Use stored config (database dictates settings)
+        this.vectorIndexConfig = {
+          ...this.vectorIndexConfig,
+          type: existingMetadata.vectorIndex.type,
+          useHalfVec: existingMetadata.vectorIndex.useHalfVec,
+          createIndex: existingMetadata.vectorIndex.createIndex ?? true,
+          hnswM: existingMetadata.vectorIndex.hnswM,
+          hnswEfConstruction: existingMetadata.vectorIndex.hnswEfConstruction,
+          ivfflatLists: existingMetadata.vectorIndex.ivfflatLists,
+          ivfflatProbes: existingMetadata.vectorIndex.ivfflatProbes,
+        };
+        this.embeddingDimensions = existingMetadata.embeddings.dimensions;
+
+        log.info('initialize:using_database_config', {
+          type: existingMetadata.vectorIndex.type,
+          useHalfVec: existingMetadata.vectorIndex.useHalfVec,
+          dimensions: existingMetadata.embeddings.dimensions,
+        });
+      }
+      // If no metadata exists, we'll create it after schema initialization
+    }
 
     // Create PGlite instance (handles Bun executable environment)
     try {
@@ -531,8 +846,15 @@ export class PGliteStorage implements StorageAdapter {
       }
     }
 
-    // Run schema SQL
-    await this.db.exec(SCHEMA_SQL);
+    // Run base schema SQL (everything except chunks table)
+    await this.db.exec(BASE_SCHEMA_SQL);
+
+    // Create chunks table with configurable vector type (vector vs halfvec)
+    const chunksTableSQL = getChunksTableSQL({
+      dimensions: this.embeddingDimensions,
+      useHalfVec: this.vectorIndexConfig.useHalfVec,
+    });
+    await this.db.exec(chunksTableSQL);
 
     // Create FTS index
     try {
@@ -541,11 +863,15 @@ export class PGliteStorage implements StorageAdapter {
       // FTS index might fail on first run, that's ok
     }
 
-    // Create HNSW index
-    try {
-      await this.db.exec(HNSW_INDEX_SQL);
-    } catch {
-      // HNSW index creation might fail if no data, that's ok
+    // Create vector index based on configuration
+    // Skip if deferIndexCreation is enabled (index will be created after bulk indexing)
+    if (!this.vectorIndexConfig.deferIndexCreation) {
+      await this.createVectorIndex();
+    } else {
+      log.info('initialize:index_deferred', {
+        type: this.vectorIndexConfig.type,
+        reason: 'deferIndexCreation enabled',
+      });
     }
 
     // Proactive integrity check: detect TOAST corruption and other data issues
@@ -593,7 +919,13 @@ export class PGliteStorage implements StorageAdapter {
 
           // Retry initialization with restored database
           this.db = await this.createPGliteInstance();
-          await this.db.exec(SCHEMA_SQL);
+          await this.db.exec(BASE_SCHEMA_SQL);
+          await this.db.exec(
+            getChunksTableSQL({
+              dimensions: this.embeddingDimensions,
+              useHalfVec: this.vectorIndexConfig.useHalfVec,
+            }),
+          );
 
           // Verify the restored database (read text columns to check TOAST integrity)
           await this.db.query('SELECT id, file_path FROM documents LIMIT 1');
@@ -637,6 +969,38 @@ export class PGliteStorage implements StorageAdapter {
             `  2. Run '/knowledge-base init' to rebuild the index\n\n` +
             `Original error: ${errorMsg}`,
         );
+      }
+    }
+
+    // Create metadata file if it doesn't exist (for new databases)
+    if (!this.config.inMemory && dbPath !== 'in-memory') {
+      const existingMetadata = readMetadata(dbPath);
+      if (!existingMetadata) {
+        const metadata = createMetadata(
+          {
+            type: this.vectorIndexConfig.type,
+            useHalfVec: this.vectorIndexConfig.useHalfVec,
+            createIndex: this.vectorIndexConfig.createIndex ?? true,
+            hnswM: this.vectorIndexConfig.hnswM,
+            hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+            ivfflatLists:
+              this.vectorIndexConfig.ivfflatLists === 'auto'
+                ? undefined
+                : this.vectorIndexConfig.ivfflatLists,
+            ivfflatProbes: this.vectorIndexConfig.ivfflatProbes,
+          },
+          {
+            model: 'unknown', // Will be updated by SearchSystem
+            dimensions: this.embeddingDimensions,
+            quantization: 'q8', // Default, will be updated by SearchSystem
+          },
+        );
+        writeMetadata(dbPath, metadata);
+        log.info('initialize:created_metadata', {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          dimensions: this.embeddingDimensions,
+        });
       }
     }
 
@@ -1771,6 +2135,13 @@ export class PGliteStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     await this.waitForReady();
+
+    // Set IVFFlat probes if using IVFFlat index
+    if (this.vectorIndexConfig.type === 'ivfflat') {
+      const probes = this.vectorIndexConfig.ivfflatProbes ?? 40;
+      await this.db!.exec(`SET ivfflat.probes = ${probes}`);
+    }
+
     const timerId = ++this.timerCounter;
     const timerKey = `searchSemantic-${timerId}`;
     log.startTimer(timerKey, true);
@@ -1828,6 +2199,13 @@ export class PGliteStorage implements StorageAdapter {
     options?: KeywordSearchOptions,
   ): Promise<SearchResult[]> {
     await this.waitForReady();
+
+    // Set IVFFlat probes if using IVFFlat index
+    if (this.vectorIndexConfig.type === 'ivfflat') {
+      const probes = this.vectorIndexConfig.ivfflatProbes ?? 40;
+      await this.db!.exec(`SET ivfflat.probes = ${probes}`);
+    }
+
     const timerId = ++this.timerCounter;
     const timerKey = `searchHybrid-${timerId}`;
     log.startTimer(timerKey, false);
