@@ -1058,6 +1058,120 @@ export class PGliteStorage implements StorageAdapter {
     return this._initialized;
   }
 
+  // -------------------------------------------------------------------------
+  // Suspend/Resume (for child process indexing)
+  // -------------------------------------------------------------------------
+
+  /** Flag indicating storage is suspended (closed but config preserved) */
+  private _suspended = false;
+
+  /**
+   * Suspend the storage by closing the database connection.
+   * Unlike close(), this preserves config and allows resume().
+   *
+   * Use this before spawning a child process for indexing to free
+   * WASM memory in the main process.
+   */
+  async suspend(): Promise<void> {
+    if (this._suspended) return;
+    if (!this._initialized || !this.db) return;
+
+    log.info('suspend:starting', {});
+    log.logMemory('suspend:memoryBefore');
+
+    // Create backup before suspending
+    try {
+      await this.createBackup();
+    } catch (error) {
+      log.warn('suspend:backup_failed', { error: String(error) });
+    }
+
+    // Close the database
+    const CLOSE_TIMEOUT_MS = 5000;
+    try {
+      await Promise.race([
+        this.db.close(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('PGlite close() timed out')),
+            CLOSE_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+    } catch (error) {
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'number'
+            ? `WASM numeric error: ${error}`
+            : String(error);
+      log.warn('suspend:db_close_error', { error: errorMsg });
+    }
+
+    this.db = null;
+    this._initialized = false;
+    this._suspended = true;
+
+    log.info('suspend:complete', {});
+    log.logMemory('suspend:memoryAfter');
+  }
+
+  /**
+   * Resume the storage by reopening the database connection.
+   * Call this after child process indexing completes.
+   *
+   * This creates a fresh WASM instance, reclaiming memory from
+   * any previous heavy operations.
+   */
+  async resume(): Promise<void> {
+    if (!this._suspended) return;
+
+    log.info('resume:starting', {});
+    log.logMemory('resume:memoryBefore');
+
+    try {
+      // Create fresh PGlite instance
+      this.db = await this.createPGliteInstance();
+      this._initialized = true;
+      this._suspended = false;
+
+      log.info('resume:complete', {});
+      log.logMemory('resume:memoryAfter');
+    } catch (error) {
+      log.error('resume:failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this._suspended = false; // Reset flag even on failure
+      throw error;
+    }
+  }
+
+  /**
+   * Check if storage is suspended.
+   */
+  isSuspended(): boolean {
+    return this._suspended;
+  }
+
+  /**
+   * Refresh the storage view to see latest writes from other connections.
+   * This is lighter than reconnect() - just checkpoints the WAL.
+   * Use this to see child process writes without closing the connection.
+   */
+  async refresh(): Promise<void> {
+    if (!this._initialized || !this.db) return;
+
+    try {
+      // Checkpoint WAL to ensure we see latest committed writes
+      await this.db.exec('PRAGMA wal_checkpoint(PASSIVE)');
+      log.debug('refresh:checkpointed', {});
+    } catch (error) {
+      log.warn('refresh:error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   /**
    * Force a WAL checkpoint to flush data to disk and release memory.
    * Should be called periodically during long-running indexing operations.

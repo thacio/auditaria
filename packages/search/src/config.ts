@@ -352,7 +352,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   prepareWorkers: 1,
   preparedBufferSize: 1,
   // Child process options
-  useChildProcess: false,
+  useChildProcess: true,
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
 };

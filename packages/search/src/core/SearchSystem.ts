@@ -818,7 +818,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     this.indexingInProgress = true;
 
     try {
-      // Set storage to read-only mode (child will write)
+      // Main's PGlite stays OPEN for search (read-only mode)
+      // Child process has its own PGlite for WRITES
+      // This allows searching during indexing while child handles memory-heavy writes
       if (this.storage?.setReadOnly) {
         await this.storage.setReadOnly(true);
       }
@@ -864,10 +866,24 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         );
       });
 
-      this.childManager.on('child:exited', (event) => {
+      this.childManager.on('child:exited', async (event) => {
         console.log(
           `[SearchSystem] Child process exited: pid=${event.pid}, code=${event.code}, batch=${event.batchNumber}`,
         );
+
+        // Refresh main's PGlite to see child's writes (lightweight, no reconnect)
+        const pgliteStorage = this.storage as PGliteStorage;
+        if (pgliteStorage?.refresh && event.code === 0) {
+          try {
+            await pgliteStorage.refresh();
+            console.log('[SearchSystem] Main PGlite refreshed - now sees child writes');
+          } catch (error) {
+            console.warn(
+              '[SearchSystem] Failed to refresh:',
+              error instanceof Error ? error.message : String(error),
+            );
+          }
+        }
       });
 
       this.childManager.on('error', (event) => {
@@ -880,7 +896,6 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       const result = await this.childManager.indexAll({ force: options.force });
 
       // Ensure vector index exists after bulk indexing
-      // (handles deferred index creation and edge case where no new docs were indexed)
       const pgliteStorage = this.storage as PGliteStorage;
       if (pgliteStorage.ensureVectorIndex) {
         const indexCreated = await pgliteStorage.ensureVectorIndex();
@@ -898,7 +913,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       this.indexingInProgress = false;
       this.childManager = null;
 
-      // Restore write mode
+      // Restore write mode on main's PGlite
+      // (reconnect already happened after last child exit)
       if (this.storage?.setReadOnly) {
         await this.storage.setReadOnly(false);
       }

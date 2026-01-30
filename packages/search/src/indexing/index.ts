@@ -52,3 +52,23 @@ export type {
 } from './child-process-types.js';
 
 export { getMemoryUsageMb, serializeMessage } from './child-process-types.js';
+
+// Storage Writer (thin child for PGlite-only writes)
+export {
+  StorageWriterManager,
+  type StorageWriterConfig,
+  type StorageWriterEvents,
+} from './StorageWriterManager.js';
+
+// Storage Writer types (for IPC communication)
+export type {
+  StorageWriterRequest,
+  StorageWriterResponse,
+  PreparedDocumentWrite,
+} from './storage-writer-types.js';
+
+export {
+  getMemoryUsageMb as getStorageWriterMemoryUsageMb,
+  serializeStorageMessage,
+  parseStorageMessage,
+} from './storage-writer-types.js';

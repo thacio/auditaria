@@ -177,6 +177,33 @@ export interface StorageAdapter {
    */
   isReadOnly?(): boolean;
 
+  /**
+   * Suspend the storage by closing the database connection but preserving config.
+   * Use this before spawning a child process to free WASM memory.
+   * Optional - implementations may no-op if not supported.
+   */
+  suspend?(): Promise<void>;
+
+  /**
+   * Resume the storage by reopening the database connection.
+   * Creates a fresh WASM instance, reclaiming memory.
+   * Optional - implementations may no-op if not supported.
+   */
+  resume?(): Promise<void>;
+
+  /**
+   * Check if the storage is suspended.
+   * Optional - implementations may return false if not supported.
+   */
+  isSuspended?(): boolean;
+
+  /**
+   * Refresh the storage view to see latest writes from other connections.
+   * Lighter than reconnect - just checkpoints WAL without closing connection.
+   * Optional - implementations may no-op if not supported.
+   */
+  refresh?(): Promise<void>;
+
   // -------------------------------------------------------------------------
   // Documents
   // -------------------------------------------------------------------------

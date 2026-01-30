@@ -306,10 +306,11 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
         }
       });
 
-      // Timeouts
+      // Timeouts and state
       let startupTimeout: ReturnType<typeof setTimeout> | null = null;
       let batchTimeout: ReturnType<typeof setTimeout> | null = null;
       let isResolved = false;
+      let batchResult: BatchCompleteMessage | null = null;
 
       const cleanup = () => {
         if (startupTimeout) clearTimeout(startupTimeout);
@@ -399,8 +400,10 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
                 stats: msg.stats,
                 hasMore: msg.hasMore,
               });
-              // Don't cleanup here - let the child exit naturally
-              doResolve(msg);
+              // Store result but DON'T resolve yet - wait for child to fully exit
+              // This ensures the database is fully released before we spawn a new child
+              // or reconnect main's PGlite
+              batchResult = msg;
               break;
 
             case 'error':
@@ -449,10 +452,13 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
           batchNumber: this.batchNumber,
         });
 
-        // If we haven't resolved yet, it's an unexpected exit
+        // Now resolve - child has fully exited and released database
         if (!isResolved) {
-          if (code === 0) {
-            // Unexpected clean exit - maybe no work was needed
+          if (batchResult) {
+            // Normal completion: batch_complete was received, now child exited
+            doResolve(batchResult);
+          } else if (code === 0) {
+            // Clean exit without batch_complete - maybe no work was needed
             doResolve({
               type: 'batch_complete',
               id: '',
@@ -465,6 +471,7 @@ export class IndexingChildManager extends EventEmitter<IndexingChildEvents> {
               hasMore: false,
             });
           } else {
+            // Error exit
             doReject(
               new Error(
                 `Child process exited unexpectedly with code ${code}, signal ${signal}`,
