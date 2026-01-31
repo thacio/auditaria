@@ -12,6 +12,7 @@ import type {
 } from '../config.js';
 import { PGliteStorage } from './PGliteStorage.js';
 import { SQLiteVectorliteStorage } from './SQLiteVectorliteStorage.js';
+import { LanceDBStorage } from './LanceDBStorage.js';
 import { createModuleLogger } from '../core/Logger.js';
 
 const log = createModuleLogger('StorageFactory');
@@ -40,6 +41,11 @@ export function createStorage(
     dimensions: embeddingDimensions,
   });
 
+  if (backend === 'lancedb') {
+    log.info('createStorage:usingLanceDB');
+    return new LanceDBStorage(config, vectorIndexConfig, embeddingDimensions);
+  }
+
   if (backend === 'pglite') {
     log.info('createStorage:usingPGlite');
     return new PGliteStorage(config, vectorIndexConfig, embeddingDimensions);
@@ -58,13 +64,18 @@ export function createStorage(
 /**
  * Check if a storage backend is available.
  *
- * @param backend - The backend to check ('sqlite' or 'pglite')
+ * @param backend - The backend to check ('sqlite', 'pglite', or 'lancedb')
  * @returns true if the backend dependencies are available
  */
 export async function isBackendAvailable(
-  backend: 'sqlite' | 'pglite',
+  backend: 'sqlite' | 'pglite' | 'lancedb',
 ): Promise<boolean> {
   try {
+    if (backend === 'lancedb') {
+      await import('@lancedb/lancedb');
+      return true;
+    }
+
     if (backend === 'pglite') {
       await import('@electric-sql/pglite');
       return true;

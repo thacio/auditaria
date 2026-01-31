@@ -22,13 +22,18 @@ import { join } from 'node:path';
  * - `'pglite'`: PostgreSQL-compatible with pgvector
  *   - Best for: PostgreSQL compatibility, advanced features
  *   - Uses: PGlite (WASM), pgvector extension
+ *
+ * - `'lancedb'`: LanceDB columnar vector database
+ *   - Best for: Native hybrid search, simpler setup (no extensions)
+ *   - Uses: @lancedb/lancedb with Tantivy FTS
  */
-export type StorageBackend = 'sqlite' | 'pglite';
+export type StorageBackend = 'sqlite' | 'pglite' | 'lancedb';
 
 /** Array of all supported storage backends (for validation/UI) */
 export const STORAGE_BACKENDS: readonly StorageBackend[] = [
   'sqlite',
   'pglite',
+  'lancedb',
 ] as const;
 
 /**
@@ -360,7 +365,7 @@ export interface SearchSystemConfig {
 // ============================================================================
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
-  backend: 'pglite', // SQLite with vectorlite is the default
+  backend: 'sqlite', // pglite, sqlite, lancedb
   path: '.auditaria/search.db',
   inMemory: false,
   backupEnabled: true,
@@ -454,10 +459,10 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
 };
 
 export const DEFAULT_VECTOR_INDEX_CONFIG: VectorIndexConfig = {
-  type: 'none', // 'hnsw', 'ivfflat', 'none'
+  type: 'hnsw', // 'hnsw', 'ivfflat', 'none'
   useHalfVec: true,
   deferIndexCreation: false, // Better performance for bulk indexing
-  createIndex: false, // Set to false to disable index entirely (use brute force)
+  createIndex: true, // Set to false to disable index entirely (use brute force)
   // HNSW defaults (used if type is changed to 'hnsw')
   hnswM: 16,
   hnswEfConstruction: 64,
@@ -566,7 +571,7 @@ export function validateConfig(config: SearchSystemConfig): void {
   if (!config.database.path && !config.database.inMemory) {
     throw new Error('Database path is required when not using in-memory mode');
   }
-  const validBackends: StorageBackend[] = ['sqlite', 'pglite'];
+  const validBackends: StorageBackend[] = ['sqlite', 'pglite', 'lancedb'];
   if (!validBackends.includes(config.database.backend)) {
     throw new Error(
       `database.backend must be one of: ${validBackends.join(', ')}`,

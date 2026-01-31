@@ -1181,6 +1181,9 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         // Check abort
         if (this.abortController?.signal.aborted) break;
 
+        // Wait for any maintenance to complete before accessing storage
+        await this.waitForMaintenance();
+
         // Pull next prepared file
         const prepared = this.preparedBuffer.shift()!;
 
@@ -1333,18 +1336,27 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       error: err.message,
     });
 
-    // Update document status
-    await this.storage.updateDocument(prepared.documentId, {
-      status: 'failed',
-      metadata: { lastError: err.message },
-    });
+    // Try to update storage, but don't fail if storage is unavailable
+    // (can happen during maintenance/reconnect)
+    try {
+      // Update document status
+      await this.storage.updateDocument(prepared.documentId, {
+        status: 'failed',
+        metadata: { lastError: err.message },
+      });
 
-    // Update queue item
-    await this.storage.updateQueueItem(prepared.queueItemId, {
-      status: 'failed',
-      lastError: err.message,
-      completedAt: new Date(),
-    });
+      // Update queue item
+      await this.storage.updateQueueItem(prepared.queueItemId, {
+        status: 'failed',
+        lastError: err.message,
+        completedAt: new Date(),
+      });
+    } catch (storageError) {
+      log.warn('handleEmbedError:storageUnavailable', {
+        filePath: prepared.filePath,
+        storageError: storageError instanceof Error ? storageError.message : String(storageError),
+      });
+    }
 
     this.failedCount++;
     void this.emit('document:failed', {
