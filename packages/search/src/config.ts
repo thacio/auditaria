@@ -12,7 +12,53 @@ import { join } from 'node:path';
 // Configuration Types
 // ============================================================================
 
+/**
+ * Supported storage backends.
+ *
+ * - `'sqlite'`: SQLite with vectorlite and FTS5 (default)
+ *   - Best for: Cross-platform compatibility, native performance
+ *   - Uses: better-sqlite3, vectorlite extension, FTS5
+ *
+ * - `'pglite'`: PostgreSQL-compatible with pgvector
+ *   - Best for: PostgreSQL compatibility, advanced features
+ *   - Uses: PGlite (WASM), pgvector extension
+ */
+export type StorageBackend = 'sqlite' | 'pglite';
+
+/** Array of all supported storage backends (for validation/UI) */
+export const STORAGE_BACKENDS: readonly StorageBackend[] = [
+  'sqlite',
+  'pglite',
+] as const;
+
+/**
+ * Hybrid search implementation strategies.
+ *
+ * - `'application'`: Application-level RRF fusion (default)
+ *   - Runs semantic and keyword searches in parallel
+ *   - Merges results using RRF in TypeScript code
+ *   - Simpler, easier to debug, works with all backends
+ *
+ * - `'sql'`: SQL-based fusion with temp tables
+ *   - Attempts to replicate PostgreSQL CTE approach
+ *   - May have better performance for large result sets
+ *   - More complex, backend-specific implementation
+ */
+export type HybridSearchStrategy = 'application' | 'sql';
+
+/** Array of all supported hybrid search strategies (for validation/UI) */
+export const HYBRID_SEARCH_STRATEGIES: readonly HybridSearchStrategy[] = [
+  'application',
+  'sql',
+] as const;
+
 export interface DatabaseConfig {
+  /**
+   * Storage backend to use. Default: 'sqlite'
+   * - 'sqlite': SQLite with vectorlite and FTS5 (recommended)
+   * - 'pglite': PostgreSQL-compatible with pgvector (legacy)
+   */
+  backend: StorageBackend;
   /** Path to the database file. Default: .auditaria/search.db */
   path: string;
   /** Whether to use in-memory database (for testing). Default: false */
@@ -165,6 +211,12 @@ export interface SearchConfig {
   keywordWeight: number;
   /** RRF constant k. Default: 60 */
   rrfK: number;
+  /**
+   * Hybrid search implementation strategy. Default: 'application'
+   * - 'application': Run semantic/keyword in parallel, merge with RRF in code
+   * - 'sql': Use SQL temp tables to compute RRF (PostgreSQL CTE-style)
+   */
+  hybridStrategy: HybridSearchStrategy;
 }
 
 /**
@@ -308,6 +360,7 @@ export interface SearchSystemConfig {
 // ============================================================================
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
+  backend: 'pglite', // SQLite with vectorlite is the default
   path: '.auditaria/search.db',
   inMemory: false,
   backupEnabled: true,
@@ -352,7 +405,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   prepareWorkers: 1,
   preparedBufferSize: 1,
   // Child process options
-  useChildProcess: true,
+  useChildProcess: false,
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
 };
@@ -366,9 +419,9 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 };
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
-  model: 'Xenova/multilingual-e5-small',
+  model: 'Xenova/multilingual-e5-small', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
   batchSize: 8, // Power of 2, conservative for memory
-  dimensions: 384,
+  dimensions: 384, // 384, 768, 1024
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',
   useWorkerThread: true,
@@ -386,6 +439,7 @@ export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
   semanticWeight: 0.5,
   keywordWeight: 0.5,
   rrfK: 60,
+  hybridStrategy: 'application', // Application-level RRF fusion is the default
 };
 
 export const DEFAULT_OCR_CONFIG: OcrConfig = {
@@ -400,10 +454,10 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
 };
 
 export const DEFAULT_VECTOR_INDEX_CONFIG: VectorIndexConfig = {
-  type: 'hnsw', // 'hnsw', 'ivfflat', 'none'
+  type: 'none', // 'hnsw', 'ivfflat', 'none'
   useHalfVec: true,
-  deferIndexCreation: true, // Better performance for bulk indexing
-  createIndex: true, // Set to false to disable index entirely (use brute force)
+  deferIndexCreation: false, // Better performance for bulk indexing
+  createIndex: false, // Set to false to disable index entirely (use brute force)
   // HNSW defaults (used if type is changed to 'hnsw')
   hnswM: 16,
   hnswEfConstruction: 64,
@@ -512,6 +566,12 @@ export function validateConfig(config: SearchSystemConfig): void {
   if (!config.database.path && !config.database.inMemory) {
     throw new Error('Database path is required when not using in-memory mode');
   }
+  const validBackends: StorageBackend[] = ['sqlite', 'pglite'];
+  if (!validBackends.includes(config.database.backend)) {
+    throw new Error(
+      `database.backend must be one of: ${validBackends.join(', ')}`,
+    );
+  }
 
   // Validate indexing config
   if (config.indexing.maxFileSize <= 0) {
@@ -549,6 +609,12 @@ export function validateConfig(config: SearchSystemConfig): void {
   }
   if (config.search.rrfK <= 0) {
     throw new Error('rrfK must be positive');
+  }
+  const validHybridStrategies: HybridSearchStrategy[] = ['application', 'sql'];
+  if (!validHybridStrategies.includes(config.search.hybridStrategy)) {
+    throw new Error(
+      `search.hybridStrategy must be one of: ${validHybridStrategies.join(', ')}`,
+    );
   }
 
   // Validate OCR config

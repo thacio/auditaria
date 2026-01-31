@@ -79,7 +79,17 @@ export type {
   EmbeddingsConfig,
   SearchConfig,
   OcrConfig,
+  VectorIndexConfig,
+  VectorIndexType,
+  StorageBackend,
+  HybridSearchStrategy,
   DeepPartial,
+} from './config.js';
+
+export {
+  STORAGE_BACKENDS,
+  HYBRID_SEARCH_STRATEGIES,
+  VECTOR_INDEX_TYPES,
 } from './config.js';
 
 // ============================================================================
@@ -151,6 +161,12 @@ export type {
 // ============================================================================
 
 export { PGliteStorage } from './storage/PGliteStorage.js';
+export { SQLiteVectorliteStorage } from './storage/SQLiteVectorliteStorage.js';
+export {
+  createStorage,
+  isBackendAvailable,
+  isVectorliteAvailable,
+} from './storage/StorageFactory.js';
 
 export type {
   StorageAdapter,

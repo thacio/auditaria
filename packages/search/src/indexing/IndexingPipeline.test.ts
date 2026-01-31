@@ -74,6 +74,7 @@ async function createTestPipeline(
 }> {
   // Create storage
   const storage = new PGliteStorage({
+    backend: 'pglite',
     path: '',
     inMemory: true,
     backupEnabled: false,
@@ -595,6 +596,7 @@ describe('IndexingPipeline configuration', () => {
     testDir = await createTestDirectory(1);
 
     const storage = new PGliteStorage({
+      backend: 'pglite',
       path: '',
       inMemory: true,
       backupEnabled: false,

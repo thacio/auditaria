@@ -41,6 +41,8 @@ import type {
   DiscoveredFile,
 } from '../types.js';
 import { PGliteStorage } from '../storage/PGliteStorage.js';
+import { SQLiteVectorliteStorage } from '../storage/SQLiteVectorliteStorage.js';
+import { createStorage } from '../storage/StorageFactory.js';
 import type { StorageAdapter } from '../storage/types.js';
 import {
   createFileDiscovery,
@@ -302,16 +304,18 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Initialize storage with vector index configuration
     const dbPath = join(this.rootPath, this.config.database.path);
     const dbConfig: DatabaseConfig = {
+      backend: this.config.database.backend,
       path: dbPath,
       inMemory: this.config.database.inMemory,
       backupEnabled: this.config.database.backupEnabled,
     };
 
-    // Initialize storage - it handles metadata file automatically
-    this.storage = new PGliteStorage(
+    // Initialize storage using factory - it handles backend selection and metadata
+    this.storage = createStorage(
       dbConfig,
       this.config.vectorIndex,
       this.config.embeddings.dimensions,
+      this.config.search.hybridStrategy,
     );
     await this.storage.initialize();
 
@@ -871,12 +875,12 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
           `[SearchSystem] Child process exited: pid=${event.pid}, code=${event.code}, batch=${event.batchNumber}`,
         );
 
-        // Refresh main's PGlite to see child's writes (lightweight, no reconnect)
-        const pgliteStorage = this.storage as PGliteStorage;
-        if (pgliteStorage?.refresh && event.code === 0) {
+        // Refresh main storage to see child's writes (lightweight, no reconnect)
+        const storageWithRefresh = this.storage as PGliteStorage | SQLiteVectorliteStorage;
+        if (storageWithRefresh?.refresh && event.code === 0) {
           try {
-            await pgliteStorage.refresh();
-            console.log('[SearchSystem] Main PGlite refreshed - now sees child writes');
+            await storageWithRefresh.refresh();
+            console.log('[SearchSystem] Storage refreshed - now sees child writes');
           } catch (error) {
             console.warn(
               '[SearchSystem] Failed to refresh:',

@@ -105,8 +105,9 @@ async function handleInit(msg: StorageInitMessage): Promise<void> {
       '../storage/PGliteStorage.js'
     );
 
-    // Create PGlite storage
+    // Create PGlite storage (child process always uses PGlite for indexing)
     storage = new PGliteStorageClass({
+      backend: 'pglite',
       path: msg.databasePath,
       inMemory: false,
       backupEnabled: msg.config.database?.backupEnabled ?? true,

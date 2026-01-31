@@ -22,6 +22,8 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
     "@huggingface/transformers": "^3.8.1",
+    "better-sqlite3": "^11.0.0",
+    "vectorlite": "^0.2.0",
     "officeparser": "^5.2.2",
     "pdf-parse": "^1.1.1",
     "markitdown-ts": "^0.0.8",
@@ -35,6 +37,7 @@
     "chokidar": "^4.0.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
     "typescript": "^5.3.3",
     "vitest": "^3.1.1",
     "@types/pdf-parse": "^1.1.4"

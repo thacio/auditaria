@@ -48,9 +48,9 @@ describe('Configuration', () => {
 
     it('should have valid default embeddings config', () => {
       expect(DEFAULT_EMBEDDINGS_CONFIG.model).toBe(
-        'Xenova/multilingual-e5-small',
+        'Xenova/multilingual-e5-base',
       );
-      expect(DEFAULT_EMBEDDINGS_CONFIG.dimensions).toBe(384);
+      expect(DEFAULT_EMBEDDINGS_CONFIG.dimensions).toBe(768);
       expect(DEFAULT_EMBEDDINGS_CONFIG.batchSize).toBeGreaterThan(0);
     });
 
@@ -164,7 +164,7 @@ describe('Configuration', () => {
     it('should throw for empty database path when not in-memory', () => {
       const config: SearchSystemConfig = {
         ...DEFAULT_CONFIG,
-        database: { path: '', inMemory: false, backupEnabled: true },
+        database: { backend: 'sqlite', path: '', inMemory: false, backupEnabled: true },
       };
 
       expect(() => validateConfig(config)).toThrow(
@@ -175,7 +175,7 @@ describe('Configuration', () => {
     it('should not throw for empty database path when in-memory', () => {
       const config: SearchSystemConfig = {
         ...DEFAULT_CONFIG,
-        database: { path: '', inMemory: true, backupEnabled: false },
+        database: { backend: 'sqlite', path: '', inMemory: true, backupEnabled: false },
       };
 
       expect(() => validateConfig(config)).not.toThrow();
