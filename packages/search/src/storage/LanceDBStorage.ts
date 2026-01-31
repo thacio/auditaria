@@ -164,6 +164,8 @@ export class LanceDBStorage implements StorageAdapter {
   private _readOnly = false;
   private _suspended = false;
   private _ftsIndexCreated = false;
+  private _reconnecting = false;
+  private _reconnectPromise: Promise<void> | null = null;
 
   /** Pending documents waiting for chunks to be created */
   private pendingDocuments = new Map<string, PendingDocument>();
@@ -333,6 +335,9 @@ export class LanceDBStorage implements StorageAdapter {
   /**
    * Reconnect to the database by closing and reopening the connection.
    * This helps release memory and ensures data is persisted.
+   *
+   * This method is safe to call even with concurrent operations - they will
+   * wait for reconnection to complete before proceeding.
    */
   async reconnect(): Promise<void> {
     if (!this.db || !this._initialized) {
@@ -340,8 +345,21 @@ export class LanceDBStorage implements StorageAdapter {
       return;
     }
 
+    // If already reconnecting, wait for that to complete
+    if (this._reconnecting && this._reconnectPromise) {
+      await this._reconnectPromise;
+      return;
+    }
+
     log.info('reconnect:start');
     log.logMemory('reconnect:memoryBefore');
+
+    // Set reconnecting flag and create a promise that others can wait on
+    this._reconnecting = true;
+    let resolveReconnect: () => void;
+    this._reconnectPromise = new Promise<void>((resolve) => {
+      resolveReconnect = resolve;
+    });
 
     try {
       // Close current connection (nulls references)
@@ -386,6 +404,11 @@ export class LanceDBStorage implements StorageAdapter {
         });
         throw initError;
       }
+    } finally {
+      // Always clear reconnecting state
+      this._reconnecting = false;
+      this._reconnectPromise = null;
+      resolveReconnect!();
     }
   }
 
@@ -424,7 +447,15 @@ export class LanceDBStorage implements StorageAdapter {
     log.debug('refresh:noop');
   }
 
-  private ensureReady(): void {
+  /**
+   * Waits for any ongoing reconnection to complete, then checks initialization.
+   * This is safe to call from concurrent operations during reconnect.
+   */
+  private async waitForReady(): Promise<void> {
+    // Wait for any ongoing reconnection to complete
+    if (this._reconnecting && this._reconnectPromise) {
+      await this._reconnectPromise;
+    }
     if (!this.db || !this._initialized) {
       throw new Error('Storage not initialized');
     }
@@ -441,7 +472,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async createDocument(input: CreateDocumentInput): Promise<Document> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     const id = generateId();
@@ -483,7 +514,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getDocument(id: string): Promise<Document | null> {
-    this.ensureReady();
+    await this.waitForReady();
 
     // Check pending documents first
     const pending = this.pendingDocuments.get(id);
@@ -545,7 +576,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getDocumentByPath(filePath: string): Promise<Document | null> {
-    this.ensureReady();
+    await this.waitForReady();
 
     // Check pending documents
     for (const pending of this.pendingDocuments.values()) {
@@ -576,7 +607,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async updateDocument(id: string, updates: UpdateDocumentInput): Promise<Document> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     // Check pending documents (before chunks created)
@@ -667,7 +698,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async deleteDocument(id: string): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     // Remove from pending
@@ -689,7 +720,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async listDocuments(filters?: Partial<SearchFilters>): Promise<Document[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     const documents: Document[] = [];
     const seenIds = new Set<string>();
@@ -743,7 +774,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async createChunks(documentId: string, chunks: CreateChunkInput[]): Promise<DocumentChunk[]> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     log.debug('createChunks:start', { documentId, chunkCount: chunks.length });
@@ -897,7 +928,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getChunks(documentId: string): Promise<DocumentChunk[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return [];
 
@@ -921,7 +952,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async deleteChunks(documentId: string): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.chunksTable) return;
@@ -938,7 +969,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async updateChunkEmbeddings(updates: UpdateChunkEmbeddingInput[]): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.chunksTable || updates.length === 0) {
@@ -1007,7 +1038,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async countChunks(): Promise<number> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return 0;
 
@@ -1023,7 +1054,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async addTags(documentId: string, tags: string[]): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     // Check pending documents
@@ -1071,7 +1102,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async removeTags(documentId: string, tags: string[]): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     // Check pending documents
@@ -1113,7 +1144,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getDocumentTags(documentId: string): Promise<string[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     // Check pending documents
     const pending = this.pendingDocuments.get(documentId);
@@ -1140,7 +1171,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getAllTags(): Promise<TagCount[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     const tagCounts = new Map<string, Set<string>>();
 
@@ -1195,7 +1226,7 @@ export class LanceDBStorage implements StorageAdapter {
     limit = 10,
     _options?: KeywordSearchOptions,
   ): Promise<SearchResult[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return [];
 
@@ -1287,7 +1318,7 @@ export class LanceDBStorage implements StorageAdapter {
     filters?: SearchFilters,
     limit = 10,
   ): Promise<SearchResult[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return [];
 
@@ -1339,7 +1370,7 @@ export class LanceDBStorage implements StorageAdapter {
     rrfK = 60,
     options?: KeywordSearchOptions,
   ): Promise<SearchResult[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return [];
 
@@ -1463,7 +1494,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async enqueueItem(input: CreateQueueItemInput): Promise<QueueItem> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) {
@@ -1506,7 +1537,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async enqueueItems(inputs: CreateQueueItemInput[]): Promise<QueueItem[]> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) {
@@ -1545,7 +1576,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async dequeueItem(): Promise<QueueItem | null> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) {
@@ -1603,7 +1634,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async updateQueueItem(id: string, updates: UpdateQueueItemInput): Promise<QueueItem> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) {
@@ -1647,7 +1678,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async deleteQueueItem(id: string): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) return;
@@ -1657,7 +1688,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.queueTable) return null;
 
@@ -1677,7 +1708,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getQueueStatus(): Promise<QueueStatus> {
-    this.ensureReady();
+    await this.waitForReady();
 
     const statusCounts: Record<string, number> = {
       pending: 0,
@@ -1759,7 +1790,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async clearCompletedQueueItems(): Promise<number> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) return 0;
@@ -1785,7 +1816,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async clearQueue(): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.queueTable) return;
@@ -1809,7 +1840,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getFileHashes(): Promise<Map<string, string>> {
-    this.ensureReady();
+    await this.waitForReady();
 
     const map = new Map<string, string>();
 
@@ -1839,7 +1870,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async getDocumentsModifiedSince(date: Date): Promise<Document[]> {
-    this.ensureReady();
+    await this.waitForReady();
 
     const timestamp = date.getTime();
     const documents: Document[] = [];
@@ -1884,7 +1915,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getStats(): Promise<SearchStats> {
-    this.ensureReady();
+    await this.waitForReady();
 
     let totalDocuments = 0;
     let totalChunks = 0;
@@ -1954,7 +1985,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async getConfigValue<T>(key: string): Promise<T | null> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.configTable) return null;
 
@@ -1975,7 +2006,7 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   async setConfigValue<T>(key: string, value: T): Promise<void> {
-    this.ensureReady();
+    await this.waitForReady();
     this.ensureWritable();
 
     if (!this.configTable) return;
@@ -2031,7 +2062,7 @@ export class LanceDBStorage implements StorageAdapter {
   // -------------------------------------------------------------------------
 
   async recoverStuckDocuments(): Promise<number> {
-    this.ensureReady();
+    await this.waitForReady();
 
     if (!this.chunksTable) return 0;
 
