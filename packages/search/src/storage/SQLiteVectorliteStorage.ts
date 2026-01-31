@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2026 Google LLC
+ * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -399,22 +399,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   async reconnect(): Promise<void> {
-    if (!this.db) return;
-
-    log.info('reconnect:start');
-    const wasInitialized = this._initialized;
-
-    // Close current connection
-    this.db.close();
-    this.db = null;
-    this._initialized = false;
-
-    // Reopen if was initialized
-    if (wasInitialized) {
-      await this.initialize();
-    }
-
-    log.info('reconnect:complete');
+    // SQLite uses native code (better-sqlite3), not WASM,
+    // so reconnect is a no-op to avoid race conditions with embedLoop
+    log.debug('reconnect:noop');
   }
 
   async setReadOnly(readOnly: boolean): Promise<void> {
@@ -1469,11 +1456,57 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   async enqueueItems(inputs: CreateQueueItemInput[]): Promise<QueueItem[]> {
-    const items: QueueItem[] = [];
-    for (const input of inputs) {
-      items.push(await this.enqueueItem(input));
+    this.ensureReady();
+    this.ensureWritable();
+
+    if (inputs.length === 0) {
+      return [];
     }
-    return items;
+
+    // Use transaction for batch insert - much faster than individual inserts
+    const now = new Date().toISOString();
+    const nowDate = new Date(now);
+    const insertStmt = this.db!.prepare(`
+      INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
+      VALUES (?, ?, ?, ?, 'pending', 0, ?)
+      ON CONFLICT (file_path) DO UPDATE SET
+        file_size = excluded.file_size,
+        priority = excluded.priority,
+        status = 'pending',
+        attempts = 0,
+        last_error = NULL,
+        started_at = NULL,
+        completed_at = NULL
+    `);
+
+    // Pre-generate IDs so we can return them
+    const itemsWithIds = inputs.map((input) => ({
+      id: generateId(),
+      input,
+    }));
+
+    const insertMany = this.db!.transaction((items: typeof itemsWithIds) => {
+      for (const { id, input } of items) {
+        insertStmt.run(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+      }
+    });
+
+    insertMany(itemsWithIds);
+    this._dirty = true;
+
+    // Return items with correct IDs
+    return itemsWithIds.map(({ id, input }) => ({
+      id,
+      filePath: input.filePath,
+      fileSize: input.fileSize ?? 0,
+      priority: (input.priority ?? 'markup') as QueuePriority,
+      status: 'pending' as const,
+      attempts: 0,
+      lastError: null,
+      createdAt: nowDate,
+      startedAt: null,
+      completedAt: null,
+    }));
   }
 
   async dequeueItem(): Promise<QueueItem | null> {

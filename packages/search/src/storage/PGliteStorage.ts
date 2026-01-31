@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2026 Google LLC
+ * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -2466,11 +2466,68 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   async enqueueItems(inputs: CreateQueueItemInput[]): Promise<QueueItem[]> {
-    const items: QueueItem[] = [];
-    for (const input of inputs) {
-      items.push(await this.enqueueItem(input));
+    await this.waitForReady();
+    this.ensureWritable();
+
+    if (inputs.length === 0) {
+      return [];
     }
-    return items;
+
+    const now = new Date().toISOString();
+    const nowDate = new Date(now);
+
+    // Pre-generate IDs
+    const itemsWithIds = inputs.map((input) => ({
+      id: generateId(),
+      input,
+    }));
+
+    // Batch insert using multi-value INSERT for better performance
+    // Process in chunks to avoid query size limits
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < itemsWithIds.length; i += CHUNK_SIZE) {
+      const chunk = itemsWithIds.slice(i, i + CHUNK_SIZE);
+
+      // Build multi-value INSERT
+      const values: unknown[] = [];
+      const placeholders: string[] = [];
+
+      chunk.forEach(({ id, input }, idx) => {
+        const offset = idx * 5;
+        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, 'pending', 0, $${offset + 5})`);
+        values.push(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+      });
+
+      await this.db!.query(
+        `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
+         VALUES ${placeholders.join(', ')}
+         ON CONFLICT (file_path) DO UPDATE SET
+           file_size = EXCLUDED.file_size,
+           priority = EXCLUDED.priority,
+           status = 'pending',
+           attempts = 0,
+           last_error = NULL,
+           started_at = NULL,
+           completed_at = NULL`,
+        values,
+      );
+    }
+
+    this._dirty = true;
+
+    // Return items with correct IDs
+    return itemsWithIds.map(({ id, input }) => ({
+      id,
+      filePath: input.filePath,
+      fileSize: input.fileSize ?? 0,
+      priority: (input.priority ?? 'markup') as QueuePriority,
+      status: 'pending' as const,
+      attempts: 0,
+      lastError: null,
+      createdAt: nowDate,
+      startedAt: null,
+      completedAt: null,
+    }));
   }
 
   async dequeueItem(): Promise<QueueItem | null> {
