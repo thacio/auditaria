@@ -90,7 +90,36 @@ export {
   STORAGE_BACKENDS,
   HYBRID_SEARCH_STRATEGIES,
   VECTOR_INDEX_TYPES,
+  SUPERVISOR_STRATEGIES,
 } from './config.js';
+
+export type { SupervisorStrategy } from './config.js';
+
+// ============================================================================
+// SearchSystem Supervisor (Automatic Memory Management)
+// ============================================================================
+
+export {
+  SearchSystemSupervisor,
+  createSearchSystemSupervisor,
+  DEFAULT_SUPERVISOR_CONFIG,
+  INITIAL_SUPERVISOR_STATE,
+  getMemoryUsageMb,
+  createSupervisorConfig,
+  InProcessStrategy,
+  ChildProcessStrategy,
+} from './supervisor/index.js';
+
+export type {
+  SupervisorConfig,
+  SupervisorState,
+  SupervisorStatus,
+  SupervisorEvents,
+  IndexAllResult,
+  IndexAllOptions,
+  SupervisorInitOptions,
+  RestartStrategy,
+} from './supervisor/index.js';
 
 // ============================================================================
 // Sync Module

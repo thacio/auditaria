@@ -12,8 +12,13 @@
 // AUDITARIA_LOCAL_SEARCH - Search Service Manager
 // Singleton service that maintains a persistent SearchSystem instance
 // with background indexing capabilities.
+// AUDITARIA_FEATURE: Integrated with SearchSystemSupervisor for automatic memory management.
 
-import type { SearchSystem } from '@thacio/auditaria-cli-search';
+import type {
+  SearchSystem,
+  SearchSystemSupervisor,
+  SupervisorState,
+} from '@thacio/auditaria-cli-search';
 
 // ============================================================================
 // Types
@@ -66,7 +71,8 @@ export interface SearchServiceStartOptions {
 export class SearchServiceManager {
   private static instance: SearchServiceManager;
 
-  private searchSystem: SearchSystem | null = null;
+  // AUDITARIA_FEATURE: Can be either SearchSystem directly or SearchSystemSupervisor wrapper
+  private searchSystem: SearchSystem | SearchSystemSupervisor | null = null;
   private state: SearchServiceState = {
     status: 'stopped',
     rootPath: null,
@@ -146,12 +152,21 @@ export class SearchServiceManager {
     this.state.error = null;
 
     try {
-      const { initializeSearchSystem, loadSearchSystem, searchDatabaseExists } =
-        await import('@thacio/auditaria-cli-search');
+      const {
+        createSearchSystemSupervisor,
+        createConfig,
+        DEFAULT_CONFIG,
+        searchDatabaseExists,
+      } = await import('@thacio/auditaria-cli-search');
 
       const dbExists = searchDatabaseExists(rootPath);
+      const config = createConfig(); // Get default config with supervisor settings
 
       console.log(`[SearchService] Starting... (dbExists: ${dbExists})`);
+      console.log(
+        `[SearchService] Supervisor strategy: ${config.indexing.supervisorStrategy}, ` +
+          `restart threshold: ${config.indexing.supervisorRestartThreshold}`,
+      );
 
       // Logging configuration - enabled, file only (no console), debug level
       const loggingOptions = {
@@ -162,31 +177,22 @@ export class SearchServiceManager {
         includeMemory: true,
       };
 
-      // Initialize or load the search system
-      if (dbExists && !options.forceReindex) {
-        console.log('[SearchService] Loading existing database...');
-        this.searchSystem = await loadSearchSystem(rootPath, {
-          useMockEmbedder: false,
-          logging: loggingOptions,
-        });
-
-        if (!this.searchSystem) {
-          // Database exists but failed to load - reinitialize
-          console.log('[SearchService] Failed to load, reinitializing...');
-          this.searchSystem = await initializeSearchSystem({
-            rootPath,
-            useMockEmbedder: false,
-            logging: loggingOptions,
-          });
-        }
-      } else {
-        console.log('[SearchService] Initializing new database...');
-        this.searchSystem = await initializeSearchSystem({
-          rootPath,
-          useMockEmbedder: false,
-          logging: loggingOptions,
-        });
-      }
+      // AUDITARIA_FEATURE: Use SearchSystemSupervisor for automatic memory management
+      // The supervisor wraps SearchSystem and automatically restarts it after N documents
+      // to prevent memory bloat from WASM, embedder models, and other resources.
+      console.log('[SearchService] Initializing with supervisor...');
+      this.searchSystem = await createSearchSystemSupervisor({
+        rootPath,
+        config: {
+          ...config,
+          // Force reindex clears the database
+          database: {
+            ...config.database,
+            // If forceReindex, we want a fresh start
+          },
+        },
+        logging: loggingOptions,
+      });
 
       // Reset any stuck queue items from previous crash
       await this.resetStaleQueueItems();
@@ -316,11 +322,24 @@ export class SearchServiceManager {
   }
 
   /**
-   * Get the shared SearchSystem instance.
+   * Get the shared SearchSystem instance (or SearchSystemSupervisor wrapper).
    * Returns null if service is not running.
    */
-  getSearchSystem(): SearchSystem | null {
+  getSearchSystem(): SearchSystem | SearchSystemSupervisor | null {
     return this.searchSystem;
+  }
+
+  /**
+   * Get supervisor state if using SearchSystemSupervisor.
+   * Returns null if not using supervisor or service not running.
+   */
+  getSupervisorState(): SupervisorState | null {
+    if (!this.searchSystem) return null;
+    // Check if it's a supervisor by looking for getSupervisorState method
+    if ('getSupervisorState' in this.searchSystem) {
+      return (this.searchSystem as SearchSystemSupervisor).getSupervisorState();
+    }
+    return null;
   }
 
   // -------------------------------------------------------------------------
@@ -451,6 +470,47 @@ export class SearchServiceManager {
       },
     );
     this.eventUnsubscribers.push(unsubCompleted);
+
+    // AUDITARIA_FEATURE: Supervisor restart events (memory management)
+    // These events are only emitted when using SearchSystemSupervisor
+    // Use type assertion to handle supervisor-specific events
+    const searchSystemAny = this.searchSystem as unknown as {
+      on: (event: string, handler: (data: unknown) => void) => () => void;
+    };
+
+    const unsubRestartStarting = searchSystemAny.on(
+      'supervisor:restart:starting',
+      (data: unknown) => {
+        const event = data as {
+          reason: string;
+          documentsProcessed: number;
+          memoryMb: number;
+        };
+        console.log(
+          `[SearchService] Supervisor restarting: ${event.reason} ` +
+            `(docs: ${event.documentsProcessed}, memory: ${event.memoryMb}MB)`,
+        );
+      },
+    );
+    this.eventUnsubscribers.push(unsubRestartStarting);
+
+    const unsubRestartCompleted = searchSystemAny.on(
+      'supervisor:restart:completed',
+      (data: unknown) => {
+        const event = data as {
+          restartCount: number;
+          durationMs: number;
+          memoryBeforeMb: number;
+          memoryAfterMb: number;
+        };
+        const memoryFreed = event.memoryBeforeMb - event.memoryAfterMb;
+        console.log(
+          `[SearchService] Supervisor restart #${event.restartCount} complete: ` +
+            `${event.memoryBeforeMb}MB → ${event.memoryAfterMb}MB (freed ${memoryFreed}MB, took ${event.durationMs}ms)`,
+        );
+      },
+    );
+    this.eventUnsubscribers.push(unsubRestartCompleted);
   }
 
   /**

@@ -22,21 +22,21 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
     "@huggingface/transformers": "^3.8.1",
-    "@lancedb/lancedb": "^0.17.0",
-    "better-sqlite3": "^11.0.0",
     "libsql": "^0.5.0",
-    "vectorlite": "^0.2.0",
     "officeparser": "^5.2.2",
     "pdf-parse": "^1.1.1",
     "markitdown-ts": "^0.0.8",
     "ignore": "^6.0.2",
     "fast-glob": "^3.3.2",
-    "xxhash-wasm": "^1.1.0"
-  },
-  "optionalDependencies": {
+    "xxhash-wasm": "^1.1.0",
     "tesseract.js": "^5.1.1",
     "scribe.js-ocr": "^0.9.3",
     "chokidar": "^4.0.3"
+  },
+  "optionalDependencies": {
+    "@lancedb/lancedb": "^0.17.0",
+    "better-sqlite3": "^11.0.0",
+    "vectorlite": "^0.2.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",

@@ -13,6 +13,32 @@ import { join } from 'node:path';
 // ============================================================================
 
 /**
+ * Supervisor restart strategy for memory management.
+ *
+ * - `'in-process'`: Close SearchSystem, run GC, reinitialize in same process
+ *   - Memory recovery: ~60-80% (JS objects freed, WASM may not fully release)
+ *   - Overhead: Minimal (no IPC)
+ *   - Use with --expose-gc for best results
+ *
+ * - `'child-process'`: Run entire SearchSystem in child process, kill and respawn
+ *   - Memory recovery: 100% (OS releases all memory on process exit)
+ *   - Overhead: ~1-5ms per call (IPC serialization)
+ *   - Recommended for large indexing jobs
+ *
+ * - `'none'`: Disable automatic restarts
+ *   - Memory may accumulate over time
+ *   - Use for short-lived sessions or debugging
+ */
+export type SupervisorStrategy = 'in-process' | 'child-process' | 'none';
+
+/** Array of all supported supervisor strategies (for validation/UI) */
+export const SUPERVISOR_STRATEGIES: readonly SupervisorStrategy[] = [
+  'in-process',
+  'child-process',
+  'none',
+] as const;
+
+/**
  * Supported storage backends.
  *
  * - `'sqlite'`: SQLite with vectorlite and FTS5 (default)
@@ -115,6 +141,27 @@ export interface IndexingConfig {
    * If child memory exceeds this, it will exit early to release memory.
    */
   childProcessMemoryThresholdMb: number;
+
+  // Supervisor options for automatic restarts
+  /**
+   * Supervisor restart strategy for memory management. Default: 'in-process'
+   * - 'in-process': Close/GC/reinitialize in same process (~60-80% memory recovery)
+   * - 'child-process': Run SearchSystem in child process, kill/respawn (100% recovery)
+   * - 'none': Disable automatic restarts
+   */
+  supervisorStrategy: SupervisorStrategy;
+  /**
+   * Restart SearchSystem after N documents processed. Default: 2000, 0 = disabled
+   * This prevents memory bloat from WASM/native bindings that cannot release memory.
+   * Set to 0 to disable automatic restarts (manual control via forceRestart()).
+   */
+  supervisorRestartThreshold: number;
+  /**
+   * Memory threshold (MB) for early supervisor restart. Default: 4000
+   * If memory exceeds this during indexing, supervisor will trigger restart early.
+   * This is a safety net - the threshold-based restart is preferred.
+   */
+  supervisorMemoryThresholdMb: number;
 }
 
 export interface ChunkingConfig {
@@ -371,7 +418,7 @@ export interface SearchSystemConfig {
 // ============================================================================
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
-  backend: 'pglite', // pglite, sqlite, lancedb, libsql
+  backend: 'libsql', // pglite, sqlite, lancedb, libsql
   path: '.auditaria/search.db',
   inMemory: false,
   backupEnabled: true,
@@ -419,6 +466,10 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   useChildProcess: false,
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
+  // Supervisor options
+  supervisorStrategy: 'in-process', // in-process (recommended), child-process, none
+  supervisorRestartThreshold: 400,
+  supervisorMemoryThresholdMb: 4000,
 };
 
 export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
@@ -430,9 +481,9 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 };
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
-  model: 'Xenova/multilingual-e5-small', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
+  model: 'Xenova/multilingual-e5-large', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
   batchSize: 8, // Power of 2, conservative for memory
-  dimensions: 384, // 384, 768, 1024
+  dimensions: 1024, // 384, 768, 1024
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',
   useWorkerThread: true,
@@ -587,6 +638,22 @@ export function validateConfig(config: SearchSystemConfig): void {
   // Validate indexing config
   if (config.indexing.maxFileSize <= 0) {
     throw new Error('maxFileSize must be positive');
+  }
+  const validSupervisorStrategies: SupervisorStrategy[] = [
+    'in-process',
+    'child-process',
+    'none',
+  ];
+  if (!validSupervisorStrategies.includes(config.indexing.supervisorStrategy)) {
+    throw new Error(
+      `indexing.supervisorStrategy must be one of: ${validSupervisorStrategies.join(', ')}`,
+    );
+  }
+  if (config.indexing.supervisorRestartThreshold < 0) {
+    throw new Error('indexing.supervisorRestartThreshold cannot be negative');
+  }
+  if (config.indexing.supervisorMemoryThresholdMb <= 0) {
+    throw new Error('indexing.supervisorMemoryThresholdMb must be positive');
   }
 
   // Validate chunking config

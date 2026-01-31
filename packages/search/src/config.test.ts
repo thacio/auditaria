@@ -368,4 +368,86 @@ describe('Configuration', () => {
       expect(() => validateConfig(config)).not.toThrow();
     });
   });
+
+  describe('supervisor config validation', () => {
+    it('should accept valid supervisor strategy values', () => {
+      const strategies = ['in-process', 'child-process', 'none'] as const;
+
+      for (const strategy of strategies) {
+        const config = createConfig({
+          indexing: { supervisorStrategy: strategy },
+        });
+        expect(() => validateConfig(config)).not.toThrow();
+      }
+    });
+
+    it('should throw for invalid supervisor strategy', () => {
+      const config = createConfig({
+        indexing: { supervisorStrategy: 'invalid' as 'in-process' },
+      });
+
+      expect(() => validateConfig(config)).toThrow(
+        'indexing.supervisorStrategy must be one of: in-process, child-process, none',
+      );
+    });
+
+    it('should throw for negative supervisorRestartThreshold', () => {
+      const config = createConfig({
+        indexing: { supervisorRestartThreshold: -1 },
+      });
+
+      expect(() => validateConfig(config)).toThrow(
+        'indexing.supervisorRestartThreshold cannot be negative',
+      );
+    });
+
+    it('should allow zero supervisorRestartThreshold (disabled)', () => {
+      const config = createConfig({
+        indexing: { supervisorRestartThreshold: 0 },
+      });
+
+      expect(() => validateConfig(config)).not.toThrow();
+    });
+
+    it('should throw for zero supervisorMemoryThresholdMb', () => {
+      const config = createConfig({
+        indexing: { supervisorMemoryThresholdMb: 0 },
+      });
+
+      expect(() => validateConfig(config)).toThrow(
+        'indexing.supervisorMemoryThresholdMb must be positive',
+      );
+    });
+
+    it('should throw for negative supervisorMemoryThresholdMb', () => {
+      const config = createConfig({
+        indexing: { supervisorMemoryThresholdMb: -100 },
+      });
+
+      expect(() => validateConfig(config)).toThrow(
+        'indexing.supervisorMemoryThresholdMb must be positive',
+      );
+    });
+
+    it('should have correct default supervisor config values', () => {
+      const config = createConfig();
+
+      expect(config.indexing.supervisorStrategy).toBe('in-process');
+      expect(config.indexing.supervisorRestartThreshold).toBe(2000);
+      expect(config.indexing.supervisorMemoryThresholdMb).toBe(4000);
+    });
+
+    it('should merge partial supervisor config', () => {
+      const config = createConfig({
+        indexing: {
+          supervisorStrategy: 'child-process',
+          supervisorRestartThreshold: 500,
+        },
+      });
+
+      expect(config.indexing.supervisorStrategy).toBe('child-process');
+      expect(config.indexing.supervisorRestartThreshold).toBe(500);
+      expect(config.indexing.supervisorMemoryThresholdMb).toBe(4000); // Default
+    });
+  });
 });

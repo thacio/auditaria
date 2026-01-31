@@ -75,9 +75,39 @@ export {
   DEFAULT_SEARCH_CONFIG,
   DEFAULT_VECTOR_INDEX_CONFIG,
   VECTOR_INDEX_TYPES,
+  SUPERVISOR_STRATEGIES,
   createConfig,
   validateConfig,
 } from './src/config.js';
+
+export type { SupervisorStrategy } from './src/config.js';
+
+// ============================================================================
+// SearchSystem Supervisor (Automatic Memory Management)
+// AUDITARIA_FEATURE: Provides automatic restart after N documents to prevent memory bloat
+// ============================================================================
+
+export {
+  SearchSystemSupervisor,
+  createSearchSystemSupervisor,
+  DEFAULT_SUPERVISOR_CONFIG,
+  INITIAL_SUPERVISOR_STATE,
+  getMemoryUsageMb,
+  createSupervisorConfig,
+  InProcessStrategy,
+  ChildProcessStrategy,
+} from './src/supervisor/index.js';
+
+export type {
+  SupervisorConfig,
+  SupervisorState,
+  SupervisorStatus,
+  SupervisorEvents,
+  IndexAllResult,
+  IndexAllOptions,
+  SupervisorInitOptions,
+  RestartStrategy,
+} from './src/supervisor/index.js';
 
 // ============================================================================
 // Sync Module
