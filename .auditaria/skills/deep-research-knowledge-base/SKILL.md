@@ -23,7 +23,7 @@ These are the standard settings for research. Adjust based on query complexity.
 |-----------|---------|-------------|
 | **Iterations** | 7 (minimum) | Number of search iterations to perform |
 | **Searches per iteration** | 5 | Parallel searches in each iteration |
-| **Search limit** | 100 | Results per search (`limit: 100`) |
+| **Search limit** | 75 | Results per search (`limit: 75`) |
 | **Detail level** | summary | Use `summary` for exploration, `full` for document retrieval |
 | **Diversity (wide phase)** | cap_then_fill | Maximum document variety in early iterations |
 | **Diversity (deep phase)** | score_penalty | Balance relevance and variety in later iterations |
@@ -98,16 +98,21 @@ Cast a broad net to understand the landscape of available information.
 ```javascript
 knowledge_search({
   query: "varied terms",
-  strategy: "hybrid",
-  limit: 100,
+  strategy: "hybrid",  // Also use semantic AND keyword in wide phase
+  limit: 75,
   diversity_strategy: "cap_then_fill",
   max_per_document: 3
 })
 ```
 
+**IMPORTANT - Use ALL three strategies in wide phase:**
+- 2 hybrid searches (balanced)
+- 2 semantic searches (conceptual)
+- 1 keyword search (exact terms, jargon, identifiers)
+
 **Characteristics:**
 - Use varied terminology and synonyms
-- Try different search strategies (hybrid, semantic, keyword)
+- **MUST use all three search strategies** (hybrid, semantic, AND keyword)
 - Don't commit to any particular direction yet
 - Collect document IDs for later deep dives
 - Note unexpected or surprising results - they often lead to important findings
@@ -124,7 +129,7 @@ Once you've mapped the terrain, drill down into the most promising areas.
 knowledge_search({
   query: "specific terms from Phase 1",
   strategy: "hybrid",
-  limit: 100,
+  limit: 75,
   diversity_strategy: "score_penalty"
 })
 
@@ -182,21 +187,23 @@ Do NOT confuse these. You complete all PHASES within one ITERATION before moving
 ```
 ITERATION 1/7
   └── Phase A: Plan (select objective, formulate queries)
-  └── Phase B: Search (execute 5 searches)
+  └── Phase B: Search (execute 5 searches, limit 75)
   └── Phase C: Read (review results, read documents)
-  └── Phase D: Clarify (optional - extra searches in KB or internet)
+  └── Phase D: Clarify (optional - internet only: google_search/web_fetch)
   └── Phase E: Analyze (extract evidence, key findings)
-  └── Phase F: Iteration Report (MANDATORY - document all work)
+  └── Phase F: Iteration Report (MANDATORY - write to FILE)
   └── Phase G: Reflect & Adapt (evaluate progress, plan next)
 
 ITERATION 2/7
-  └── Phase A: Plan (select objective, formulate queries)
-  └── Phase B: Search (execute 5 searches)
-  └── Phase C: Read (review results, read documents)
-  └── Phase D: Clarify (optional - extra searches in KB or internet)
-  └── Phase E: Analyze (extract evidence, key findings)
-  └── Phase F: Iteration Report (MANDATORY - document all work)
-  └── Phase G: Reflect & Adapt (evaluate progress, plan next)
+  └── ... same phases ...
+
+ITERATION 4/7
+  └── ... same phases ...
+  └── 🧹 CONTEXT MANAGEMENT after Phase G (forget iterations 1-2 raw search results)
+
+ITERATION 6/7
+  └── ... same phases ...
+  └── 🧹 CONTEXT MANAGEMENT after Phase G (forget iterations 3-4 raw search results)
 
 ... and so on
 ```
@@ -240,16 +247,27 @@ Each iteration has 7 phases. Complete them in order: A → B → C → D → E �
 **Rules:**
 - ALWAYS run exactly 5 searches in parallel
 - Never do fewer than 5 searches
-- Mix strategies: 2-3 hybrid, 1-2 semantic, 1 keyword
-- Use limit: 100 for all searches
+- Use limit: 75 for all searches
 - Use the queries formulated in Phase A
 
+**Strategy mix depends on iteration:**
+
+*Wide iterations (1-2):* Use ALL three strategies
 ```
 Search 1: [query] - hybrid
 Search 2: [query] - hybrid
-Search 3: [query] - hybrid
+Search 3: [query] - semantic
 Search 4: [query] - semantic
-Search 5: [query] - keyword
+Search 5: [query] - keyword   ← REQUIRED in wide phase
+```
+
+*Deep iterations (3+):* Focus on what works best
+```
+Search 1: [query] - hybrid
+Search 2: [query] - hybrid
+Search 3: [query] - semantic/keyword
+Search 4: [query] - semantic
+Search 5: [query] - keyword (if exact terms needed; if you identified patterns on the searchs, it might be really usefull)
 ```
 
 ⏸️ **WAIT** for all 5 search results before proceeding to Phase C.
@@ -277,36 +295,25 @@ Search 5: [query] - keyword
 
 ---
 
-### Phase D: CLARIFY (Optional - extra searches in KB or internet)
+### Phase D: CLARIFY (Optional - internet only)
 
 📢 **Announce:** "**Iteration X/7 - Phase D: Clarification**" (if needed)
 
 **When to use this phase:**
-- Something in the documents needs clarification
-- A term, acronym, or concept is unclear
+- A term, acronym, or concept needs external definition
 - You need external context to interpret findings
-- You want to verify a specific fact
 - A referenced standard, law, or specification needs explanation
+- You want to verify a public fact (dates, regulations, read laws, understand conecpts, etc.)
 
-**Two options for clarification:**
+**Use internet tools only**:
 
-**Option 1: Knowledge Base (knowledge_search)**
-- Extra targeted searches to pinpoint specific information
-- Search for related documents that might explain unclear concepts
-- Find cross-references mentioned in documents
-
-**Option 2: Internet (google_search + web_fetch)**
-- `google_search` for definitions, context, or verification
-- `web_fetch` to read official documentation, standards, regulations
-- Use for external context that the knowledge base doesn't contain
+- `google_search` - for definitions, context, or verification
+- `web_fetch` - to read official documentation, standards, regulations
 
 **Examples:**
 ```
-# KB clarification
-knowledge_search({ query: "definition of [term found in documents]", strategy: "semantic" })
-
-# Internet clarification
 google_search({ query: "[technical term] definition" })
+google_search({ query: "[regulation name] requirements" })
 web_fetch({ url: "https://official-source.com/standard", prompt: "Extract the definition of X" })
 ```
 
@@ -337,62 +344,58 @@ web_fetch({ url: "https://official-source.com/standard", prompt: "Extract the de
 
 ---
 
-### Phase F: ITERATION REPORT (MANDATORY - DO NOT SKIP)
+### Phase F: ITERATION REPORT (MANDATORY - WRITE TO FILE)
 
-📢 **Announce:** "**Iteration X/7 - Phase F: Writing Iteration Report**"
+📢 **Announce:** "**Iteration X/7 - Phase F: Writing Iteration Report to File**"
 
 ⚠️ **THIS PHASE IS MANDATORY. DO NOT SKIP IT.**
 
-Write a structured report documenting everything done in this iteration. This creates accountability and provides a record of your research process.
+**Write the iteration report to a file** (not inline). This forces detailed documentation and saves context space.
 
-**Write the following report structure:**
+**File:** `reports/{topic-slug}-iteration-reports.md` (append each iteration)
+
+**Append the following structure to the file:**
 
 ```markdown
----
 ## Iteration X/7 Report
 
 ### Objective
 [What this iteration aimed to discover/investigate]
 
 ### Searches Performed
-| # | Query | Strategy | Limit | Results |
-|---|-------|----------|-------|---------|
-| 1 | "[exact query]" | hybrid | 100 | X results |
-| 2 | "[exact query]" | hybrid | 100 | X results |
-| 3 | "[exact query]" | hybrid | 100 | X results |
-| 4 | "[exact query]" | semantic | 100 | X results |
-| 5 | "[exact query]" | keyword | 100 | X results |
+| # | Query | Strategy | Results |
+|---|-------|----------|---------|
+| 1 | "[query]" | hybrid | X |
+| 2 | "[query]" | hybrid | X |
+| 3 | "[query]" | semantic | X |
+| 4 | "[query]" | semantic | X |
+| 5 | "[query]" | keyword | X |
 
 ### Documents Read
-| Document | Path | Why Selected |
-|----------|------|--------------|
-| [Name] | path/to/doc (doc_id) | [Reason for reading] |
-| [Name] | path/to/doc (doc_id) | [Reason for reading] |
+| Document | Path (doc_id) | Why Selected |
+|----------|---------------|--------------|
+| [Name] | path/to/doc (doc_id) | [Reason] |
 
-### Clarification Searches (if any)
-[List any extra KB or internet searches performed in Phase D]
+### Clarifications (if any)
+[Internet searches performed in Phase D]
 
-### Key Excerpts Found
-**From [Document 1]:**
-> "[Substantial excerpt - include enough context]"
+### Key Excerpts
+**[Document 1]:**
+> "[Substantial excerpt]"
 
-**From [Document 2]:**
-> "[Substantial excerpt - include enough context]"
+**[Document 2]:**
+> "[Substantial excerpt]"
 
-### Analysis of Findings
-[Write a substantive analysis - not just bullet points. Discuss:
-- What do these findings tell us about the research question?
-- How do they connect to findings from previous iterations?
-- What patterns or themes are emerging?
-- What is the significance of what was discovered?]
+### Analysis
+[What findings mean for research question, patterns emerging, connections to previous iterations]
 
-### Gaps and Uncertainties
-- [What remains unclear or unaddressed]
-- [What contradictions or questions emerged]
+### Gaps
+[What remains unclear, next focus areas]
+
 ---
 ```
 
-⏸️ **WAIT** - complete the full iteration report before proceeding to Phase G.
+⏸️ **WAIT** - file must be written before proceeding to Phase G.
 
 ---
 
@@ -518,54 +521,26 @@ Ask clarifying questions when:
 
 ---
 
-# Optional: Internet Search Enhancement
+# Internet Search (Phase D: Clarify)
 
-When researching the knowledge base, you may encounter terms, standards, or references that would benefit from external context. The `google_search` and `web_fetch` tools can enrich your research, but should be used strategically since they involve network calls and processing time.
+Phase D uses internet tools (`google_search`, `web_fetch`) for external context. Use sparingly.
 
-## When Internet Search Adds Value
+## When to Use (Phase D)
 
-**Use `google_search` for:**
-- **Clarifying domain terminology** - Document uses unfamiliar terms (e.g., legal jargon, technical acronyms, industry-specific concepts)
-- **Understanding referenced standards** - Document mentions ISO standards, RFCs, legal codes, or frameworks you need to interpret
-- **Verifying public facts** - Checking dates, events, company information, or regulatory changes mentioned in documents
-- **Methodology context** - Understanding frameworks, methodologies, or processes referenced in findings
+- **Unfamiliar terms** - Legal jargon, technical acronyms, industry concepts
+- **Referenced standards** - ISO, RFCs, legal codes, frameworks
+- **Verify public facts** - Dates, regulations, company information
+- **Official sources** - Laws, standards, specifications cited in documents
 
-**Use `web_fetch` for:**
-- **Reading official sources** - Fetching actual text of laws, regulations, standards, or specifications cited in documents
-- **Referenced URLs** - When documents contain links to external resources
-- **Technical documentation** - API docs, library references, official guides for systems or tools mentioned in the knowledge base
+## When NOT to Use
 
-## When NOT to Use Internet Search
-
-- **For every unfamiliar term** - This would significantly slow research; use judgment
-- **When knowledge base has sufficient context** - The documents themselves may explain terms
-- **For basic facts you already know** - Don't search for knowledge you are confident about
-- **Mid-iteration unnecessarily** - Complete your search iteration, then decide if external context is needed
-
-## How to Use Effectively
-
-```
-1. Complete at least 1-2 knowledge base iterations first
-   - Understand what the documents contain
-   - Identify specific gaps that need external context
-
-2. Identify HIGH-VALUE searches only
-   - Critical terms that affect interpretation of findings
-   - Standards/regulations central to the research topic
-   - Facts that need verification for report accuracy
-
-3. Execute targeted searches (1-3 max per research session)
-   - google_search for definitions, context, verification
-   - web_fetch for specific documents/pages you need to read
-
-4. Integrate findings and continue knowledge base research
-   - Use external context to better interpret documents
-   - Note which insights came from internet vs knowledge base
-```
+- Every unfamiliar term (too slow)
+- When KB documents already explain it
+- Facts you're confident about
 
 ## Citation Distinction
 
-When using internet sources, clearly distinguish them from knowledge base sources:
+Distinguish internet sources from knowledge base sources:
 
 ```markdown
 ## From Knowledge Base
@@ -583,58 +558,51 @@ According to the official REST API guidelines, pagination should use cursor-base
 
 # Context Management for Long Research Sessions
 
-When research extends beyond 5-6 iterations, context may become constrained. Use the `context_management` tool strategically to maintain working space.
+Context management is **mandatory** to prevent context explosion during research.
 
-## When to Consider Context Management
+## When to Run Context Management
 
-- After completing 6+ iterations
-- When you notice context warnings
-- When you're planning additional iterations but context is limited
-- Before starting the synthesis/report writing phase
+**Schedule:** Starting at iteration 4, then every 2 iterations.
 
-## Context Management Rules
+| After Iteration | Action |
+|-----------------|--------|
+| 4 | Forget iterations 1-2 raw search results |
+| 6 | Forget iterations 3-4 raw search results |
+| 8 | Forget iterations 5-6 raw search results |
 
-**CRITICAL: Always preserve the last 2 iterations in context.**
+## What Can Be Forgotten
 
-The most recent search results and reflections are essential for:
-- Continuity of research direction
-- Remembering what was just discovered
-- Avoiding redundant searches
-- Building on recent findings
+**ONLY forget raw search results from Phase B.** Everything else must be preserved.
 
-## How to Use Context Management
+| Phase | Content | Forget? |
+|-------|---------|---------|
+| A: Plan | Objective, queries | ❌ NO |
+| **B: Search** | **Raw search results** | ✅ YES |
+| C: Read | Document excerpts | ❌ NO |
+| D: Clarify | Internet lookups | ❌ NO |
+| E: Analyze | Analysis notes | ❌ NO |
+| F: Report | **Iteration Report (in file)** | ❌ NO - this is your record |
+| G: Reflect | Reflection notes | ❌ NO |
 
-```
-1. Use context_management with action: "inspect" to see forgettable items
+**The Iteration Report file preserves everything important.** Raw search results become redundant once documented.
 
-2. Identify search results from iterations OLDER than the last 2
-   - Iteration 1-2 results can be forgotten if you're on iteration 5+
-   - Iteration 3 results can be forgotten if you're on iteration 6+
-
-3. Before forgetting, ensure your REFLECT notes captured the key findings
-   - Document IDs you identified
-   - Key facts discovered
-   - Important terminology
-
-4. Use context_management with action: "forget" and detailed summaries
-   - Summary must include: document IDs found, key facts, search terms used
-   - This becomes your only record of those searches
-
-5. Continue research with freed context space
-```
-
-**Summary Template for Forgetting Search Results:**
+## How to Run Context Management
 
 ```
-Summary: Search iteration [N] results for [topic]. Found [X] relevant documents
-including [doc_id_1] (about...), [doc_id_2] (about...). Key findings: [fact 1],
-[fact 2]. Important terms discovered: [term 1], [term 2]. These findings have
-been incorporated into subsequent iterations.
+1. After iteration 4 (and every 2 iterations after):
+   context_management({ action: "inspect" })
 
-Why forgetting is safe NOW: The key document IDs and findings from this
-iteration have been noted and used in later searches. The raw search results
-are no longer needed as we have moved to deeper investigation phases.
+2. Identify raw search results from Phase B of OLD iterations (not last 2)
+
+3. Forget with summary:
+   context_management({
+     action: "forget",
+     ids: [raw_search_result_ids],
+     summary: "Phase B search results from iterations 1-2. Key docs and excerpts preserved in iteration report file."
+   })
 ```
+
+**Keep the last 2 iterations' raw results** for continuity.
 
 ---
 
@@ -660,8 +628,8 @@ knowledge_search({
   // Strategy (default: hybrid)
   strategy: "hybrid" | "semantic" | "keyword",
 
-  // Results (default: 30, use 100 for research)
-  limit: 100,
+  // Results (default: 30, use 75 for research)
+  limit: 75,
 
   // Detail (default: summary)
   detail: "summary" | "full" | "minimal",
@@ -994,7 +962,7 @@ Based on findings [1, 2, 3]...
 
 5. **Use low search limits**
    - BAD: `limit: 20` (misses relevant results)
-   - GOOD: `limit: 100` (comprehensive coverage)
+   - GOOD: `limit: 75` (balanced coverage and context)
 
 6. **Mix facts and analysis without marking**
    - BAD: Blending documented facts with your interpretation
@@ -1051,28 +1019,29 @@ Based on findings [1, 2, 3]...
 ```
 ITERATIONS → 7 minimum. Each iteration has 7 phases (A through G)
 PHASES     → A: Plan → B: Search (5) → C: Read → D: Clarify → E: Analyze → F: Report → G: Reflect
-SEARCHES   → ALWAYS 5 searches per iteration. Never fewer.
+LIMIT      → 75 results per search
+SEARCHES   → ALWAYS 5 searches per iteration. Wide (1-2): use ALL 3 strategies including keyword
 PLAN       → Phase A: Select objective, formulate 5 queries, choose strategies
 READ       → Phase C: Review results, read full documents, extract excerpts
-CLARIFY    → Phase D: Optional extra searches (knowledge_search OR google_search/web_fetch)
+CLARIFY    → Phase D: Optional - INTERNET ONLY (google_search/web_fetch)
 ANALYZE    → Phase E: Organize evidence, identify key findings, spot patterns
-REPORT     → Phase F: Write full iteration report (MANDATORY - do not skip)
+REPORT     → Phase F: Write to FILE (reports/{topic}-iteration-reports.md) - MANDATORY
 REFLECT    → Phase G: Evaluate progress, adapt strategy, plan next iteration
 ANNOUNCE   → State "Iteration X/7 - Phase Y" at each step
 READING    → MANDATORY. Never skip. Retry on failure. No excuses.
-TRACK      → Use write_todos for complex investigations
+CONTEXT    → Run at iteration 4, then every 2 iterations. Forget Phase B raw results only.
 ITERATE    → Complete ALL iterations - no early stopping
 VERBOSE    → Reports must be detailed and comprehensive, NEVER brief
 EXCERPTS   → Every finding MUST include direct quotes from sources
 SEPARATE   → Facts (with citations) vs. Analysis (clearly marked)
 CITE       → [n] path/file.ext (doc_id) + excerpt
-CONTEXT    → If needed, forget old iterations but KEEP LAST 2
 USER       → Follow user's instructions on iteration count
 ```
 
 **Phase progression:**
-- Wide (1-2): cap_then_fill, varied queries, map the landscape
+- Wide (1-2): cap_then_fill, ALL 3 strategies (hybrid + semantic + keyword)
 - Deep (3-4): score_penalty, follow leads, retrieve full documents
 - Explore (5+): pursue new angles, connections, and related topics
 
-**Save reports to:** `reports/{topic-slug}-{YYYY-MM-DD}.md`
+**Save final report to:** `reports/{topic-slug}-{YYYY-MM-DD}.md`
+**Save iteration reports to:** `reports/{topic-slug}-iteration-reports.md`
