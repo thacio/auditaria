@@ -320,9 +320,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         const vectorSQL = getSQLiteVectorTableSQL({
           dimensions: this.embeddingDimensions,
           maxElements: 1000000,
-          efConstruction: this.vectorIndexConfig.hnswEfConstruction ?? 64,
-          hnswM: this.vectorIndexConfig.hnswM ?? 16,
-          distanceType: 'cosine',
+          efConstruction: this.vectorIndexConfig.hnswEfConstruction ?? 200,
+          hnswM: this.vectorIndexConfig.hnswM ?? 32,
+          distanceType: 'ip', // Inner product: better for pre-normalized vectors (avoids Float32 precision loss in magnitude calc)
           indexFilePath,
         });
         log.info('createSchema:vectorlite:sql', { sql: vectorSQL, indexFilePath });
@@ -399,9 +399,76 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   async reconnect(): Promise<void> {
-    // SQLite uses native code (better-sqlite3), not WASM,
-    // so reconnect is a no-op to avoid race conditions with embedLoop
-    log.debug('reconnect:noop');
+    if (!this.db || !this._initialized) {
+      // Not initialized, nothing to reconnect
+      return;
+    }
+
+    log.info('reconnect:start');
+    log.logMemory('reconnect:memoryBefore');
+
+    try {
+      // Checkpoint WAL to ensure all data is flushed
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+
+      // Close the database - THIS TRIGGERS VECTORLITE TO SAVE THE HNSW INDEX!
+      this.db.close();
+      this.db = null;
+      this._initialized = false;
+
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+      }
+
+      log.logMemory('reconnect:afterClose');
+
+      // Reopen the database
+      const dbPath = this.config.inMemory ? ':memory:' : this.config.path;
+      this.db = new Database(dbPath);
+
+      // Re-enable foreign keys
+      this.db.pragma('foreign_keys = ON');
+
+      // Re-register custom functions
+      this.registerCosineSimilarityFunction();
+
+      // Reload vectorlite extension if it was available
+      if (this._vectorliteAvailable) {
+        try {
+          const vectorlite = await import('vectorlite');
+          const extensionPath = vectorlite.vectorlitePath();
+          this.db.loadExtension(extensionPath);
+          log.info('reconnect:vectorlite:reloaded');
+        } catch (error) {
+          this._vectorliteAvailable = false;
+          log.error('reconnect:vectorlite:failed', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      this._initialized = true;
+
+      log.info('reconnect:complete');
+      log.logMemory('reconnect:memoryAfter');
+    } catch (error) {
+      log.error('reconnect:error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Try to recover by reinitializing
+      this.db = null;
+      this._initialized = false;
+      try {
+        await this.initialize();
+        log.info('reconnect:recovered');
+      } catch (initError) {
+        log.error('reconnect:recoveryFailed', {
+          error: initError instanceof Error ? initError.message : String(initError),
+        });
+        throw initError;
+      }
+    }
   }
 
   async setReadOnly(readOnly: boolean): Promise<void> {
@@ -441,13 +508,32 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   /**
-   * Register the cosine_similarity SQL function for brute force vector search.
-   * This allows computing cosine similarity directly in SQL queries.
+   * Register the cosine_similarity and dot_product SQL functions for brute force vector search.
+   * dot_product is preferred for pre-normalized vectors (avoids Float32 precision loss in magnitude calc).
    */
   private registerCosineSimilarityFunction(): void {
     if (!this.db) return;
 
-    // Register a custom SQL function that computes cosine similarity between two vector BLOBs
+    // Register dot_product function - preferred for normalized vectors
+    // Avoids magnitude calculation which compounds Float32 precision errors
+    this.db.function('dot_product', (a: Buffer | null, b: Buffer | null) => {
+      if (!a || !b || a.length !== b.length || a.length === 0) {
+        return null;
+      }
+
+      let dot = 0;
+
+      // Both vectors are stored as float32 arrays (4 bytes per element)
+      for (let i = 0; i < a.length; i += 4) {
+        const va = a.readFloatLE(i);
+        const vb = b.readFloatLE(i);
+        dot += va * vb;
+      }
+
+      return dot;
+    });
+
+    // Register cosine_similarity function (kept for backwards compatibility)
     this.db.function('cosine_similarity', (a: Buffer | null, b: Buffer | null) => {
       if (!a || !b || a.length !== b.length || a.length === 0) {
         return null;
@@ -472,7 +558,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       return dot / denominator;
     });
 
-    log.info('registerCosineSimilarityFunction:registered');
+    log.info('registerSimilarityFunctions:registered');
   }
 
   private ensureReady(): void {
@@ -1076,7 +1162,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
 
     try {
-      // Brute force: compute cosine similarity for all chunks with embeddings
+      // Brute force: use dot_product for normalized vectors (avoids Float32 precision loss in magnitude calc)
+      // For normalized vectors: dot_product = cosine_similarity
       const sql = `
         SELECT
           c.id as chunk_id,
@@ -1086,7 +1173,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
           c.text as chunk_text,
           c.page,
           c.section,
-          cosine_similarity(c.embedding, ?) as score,
+          dot_product(c.embedding, ?) as score,
           'semantic' as match_type
         FROM chunks c
         JOIN documents d ON c.document_id = d.id

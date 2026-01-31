@@ -289,12 +289,12 @@ export interface VectorIndexConfig {
 
   // HNSW parameters
   /**
-   * HNSW: Max edges per node (m parameter). Default: 16
+   * HNSW: Max edges per node (m parameter). Default: 32
    * Higher = better recall, more memory. Typical range: 8-64.
    */
   hnswM?: number;
   /**
-   * HNSW: Construction effort (ef_construction). Default: 64
+   * HNSW: Construction effort (ef_construction). Default: 200
    * Higher = better index quality, slower build. Typical range: 32-256.
    */
   hnswEfConstruction?: number;
@@ -463,9 +463,9 @@ export const DEFAULT_VECTOR_INDEX_CONFIG: VectorIndexConfig = {
   useHalfVec: true,
   deferIndexCreation: false, // Better performance for bulk indexing
   createIndex: true, // Set to false to disable index entirely (use brute force)
-  // HNSW defaults (used if type is changed to 'hnsw')
-  hnswM: 16,
-  hnswEfConstruction: 64,
+  // HNSW defaults - optimized for recall (M=32, ef=200)
+  hnswM: 32, // 16, 32, 64 are common values
+  hnswEfConstruction: 200, // 100.200 is good for high quality
   // IVFFlat defaults
   ivfflatLists: 'auto',
   ivfflatProbes: 40,

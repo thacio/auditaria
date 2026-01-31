@@ -13,11 +13,11 @@ export interface SQLiteChunksVecOptions {
   dimensions: number;
   /** HNSW max_elements parameter. Default: 1000000 */
   maxElements: number;
-  /** HNSW ef_construction parameter. Default: 64 */
+  /** HNSW ef_construction parameter. Default: 200 */
   efConstruction: number;
-  /** HNSW M parameter (max edges per node). Default: 16 */
+  /** HNSW M parameter (max edges per node). Default: 32 */
   hnswM: number;
-  /** Distance metric: 'l2', 'cosine', or 'ip'. Default: 'cosine' */
+  /** Distance metric: 'l2', 'cosine', or 'ip'. Default: 'ip' (inner product, best for normalized vectors) */
   distanceType: 'l2' | 'cosine' | 'ip';
   /** Optional path to persist the index file */
   indexFilePath?: string;

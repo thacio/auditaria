@@ -330,10 +330,63 @@ export class LanceDBStorage implements StorageAdapter {
     log.debug('vacuum:noop');
   }
 
+  /**
+   * Reconnect to the database by closing and reopening the connection.
+   * This helps release memory and ensures data is persisted.
+   */
   async reconnect(): Promise<void> {
-    // LanceDB doesn't have WASM memory issues like PGlite,
-    // so reconnect is a no-op to avoid race conditions with embedLoop
-    log.debug('reconnect:noop');
+    if (!this.db || !this._initialized) {
+      // Not initialized, nothing to reconnect
+      return;
+    }
+
+    log.info('reconnect:start');
+    log.logMemory('reconnect:memoryBefore');
+
+    try {
+      // Close current connection (nulls references)
+      this.chunksTable = null;
+      this.queueTable = null;
+      this.configTable = null;
+      this.db = null;
+      this._initialized = false;
+      this._ftsIndexCreated = false;
+
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+      }
+
+      log.logMemory('reconnect:afterClose');
+
+      // Reopen connection
+      const dbPath = this.getDbPath();
+      this.db = await lancedb.connect(dbPath);
+
+      // Reopen tables
+      await this.openOrCreateTables();
+
+      this._initialized = true;
+
+      log.info('reconnect:complete');
+      log.logMemory('reconnect:memoryAfter');
+    } catch (error) {
+      log.error('reconnect:error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Try to recover by reinitializing
+      this.db = null;
+      this._initialized = false;
+      try {
+        await this.initialize();
+        log.info('reconnect:recovered');
+      } catch (initError) {
+        log.error('reconnect:recoveryFailed', {
+          error: initError instanceof Error ? initError.message : String(initError),
+        });
+        throw initError;
+      }
+    }
   }
 
   async setReadOnly(readOnly: boolean): Promise<void> {
@@ -1576,18 +1629,21 @@ export class LanceDBStorage implements StorageAdapter {
 
     this._dirty = true;
 
-    // Get updated item
-    const results = await this.queueTable
-      .query()
-      .where(`id = '${this.escapeString(id)}'`)
-      .limit(1)
-      .toArray();
-
-    if (results.length === 0) {
-      throw new Error('Queue item not found');
-    }
-
-    return this.rowToQueueItem(results[0] as QueueRow);
+    // Construct result from updates without querying
+    // This is faster and the caller usually doesn't need the full item
+    const now = Date.now();
+    return {
+      id,
+      filePath: '', // Not needed by callers
+      fileSize: 0,
+      priority: 'text' as QueuePriority,
+      status: (updates.status ?? 'pending') as QueueItem['status'],
+      attempts: updates.attempts ?? 0,
+      lastError: updates.lastError ?? null,
+      createdAt: new Date(now),
+      startedAt: updates.startedAt ?? null,
+      completedAt: updates.completedAt ?? null,
+    };
   }
 
   async deleteQueueItem(id: string): Promise<void> {
@@ -1640,13 +1696,49 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (this.queueTable) {
       try {
-        const results = await this.queueTable.query().limit(QUERY_ALL_LIMIT).toArray();
+        // Fast check: just see if there are any pending or processing items
+        // This is the common case when the pipeline checks if it should exit
+        const pendingCheck = await this.queueTable
+          .query()
+          .where("status = 'pending'")
+          .limit(1)
+          .toArray();
 
-        for (const row of results as QueueRow[]) {
-          statusCounts[row.status] = (statusCounts[row.status] ?? 0) + 1;
-          if (row.status === 'pending') {
-            const priority = row.priority as QueuePriority;
-            priorityCounts[priority] = (priorityCounts[priority] ?? 0) + 1;
+        const processingCheck = await this.queueTable
+          .query()
+          .where("status = 'processing'")
+          .limit(1)
+          .toArray();
+
+        // If there are pending or processing items, use countRows for accurate count
+        // Otherwise return zeros quickly
+        if (pendingCheck.length > 0 || processingCheck.length > 0) {
+          // Get total count
+          const totalCount = await this.queueTable.countRows();
+
+          // Count completed and failed (usually smaller sets)
+          const completedResults = await this.queueTable
+            .query()
+            .where("status = 'completed'")
+            .limit(QUERY_ALL_LIMIT)
+            .toArray();
+          statusCounts.completed = completedResults.length;
+
+          const failedResults = await this.queueTable
+            .query()
+            .where("status = 'failed'")
+            .limit(QUERY_ALL_LIMIT)
+            .toArray();
+          statusCounts.failed = failedResults.length;
+
+          // Derive pending and processing from total
+          statusCounts.processing = processingCheck.length > 0 ? 1 : 0; // Approximate
+          statusCounts.pending = totalCount - statusCounts.completed - statusCounts.failed - statusCounts.processing;
+
+          // For priority counts, we don't need accurate counts during indexing
+          // Just note that there are pending items
+          if (statusCounts.pending > 0) {
+            priorityCounts.text = statusCounts.pending; // Approximate
           }
         }
       } catch {

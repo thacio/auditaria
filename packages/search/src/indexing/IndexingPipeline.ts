@@ -1246,6 +1246,24 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         this.prepareWorkersRunning === 0 &&
         this.preparedBuffer.length === 0
       ) {
+        // IMPORTANT: Final reconnect to persist any remaining vectors
+        // Without this, the last batch (up to MAINTENANCE_INTERVAL files) would be lost
+        if (this.storage.reconnect && this.processedCount > this.lastMaintenanceAt) {
+          log.info('embedLoop:finalReconnect', {
+            processedCount: this.processedCount,
+            lastMaintenanceAt: this.lastMaintenanceAt,
+            unsavedFiles: this.processedCount - this.lastMaintenanceAt,
+          });
+          try {
+            await this.storage.reconnect();
+            log.info('embedLoop:finalReconnect:complete');
+          } catch (error) {
+            log.error('embedLoop:finalReconnect:failed', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
         this.state = 'idle';
         void this.emit('pipeline:stopped', undefined);
       }
