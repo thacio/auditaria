@@ -94,6 +94,16 @@ declare module 'xxhash-wasm' {
   export function xxhash64(): Promise<Hasher>;
 }
 
+declare module 'vectorlite' {
+  /**
+   * Returns the path to the vectorlite SQLite extension.
+   * Use this with better-sqlite3's loadExtension() method.
+   *
+   * @returns The file path to the vectorlite extension
+   */
+  export function vectorlitePath(): string;
+}
+
 declare module 'scribe.js-ocr' {
   /**
    * Scribe.js module interface.
