@@ -104,6 +104,79 @@ declare module 'vectorlite' {
   export function vectorlitePath(): string;
 }
 
+declare module 'libsql' {
+  /**
+   * libSQL Database class (better-sqlite3 compatible API).
+   * Provides native vector column support with DiskANN indexing.
+   */
+  interface Database {
+    /**
+     * Prepare a SQL statement for execution.
+     */
+    prepare(sql: string): Statement;
+
+    /**
+     * Execute raw SQL (for DDL statements).
+     */
+    exec(sql: string): void;
+
+    /**
+     * Execute a PRAGMA command.
+     */
+    pragma(pragma: string, options?: { simple?: boolean }): unknown;
+
+    /**
+     * Create a transaction function.
+     */
+    transaction<F extends (...args: unknown[]) => unknown>(fn: F): F;
+
+    /**
+     * Close the database connection.
+     */
+    close(): void;
+
+    /**
+     * Register a user-defined function.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function(name: string, fn: (...args: any[]) => any): void;
+  }
+
+  interface Statement {
+    /**
+     * Run a statement with parameters.
+     */
+    run(...params: unknown[]): { changes: number; lastInsertRowid: bigint | number };
+
+    /**
+     * Get a single row.
+     */
+    get(...params: unknown[]): unknown;
+
+    /**
+     * Get all rows.
+     */
+    all(...params: unknown[]): unknown[];
+  }
+
+  /**
+   * Create a new database connection.
+   * @param path - Path to database file (use ':memory:' for in-memory)
+   */
+  class DatabaseConstructor implements Database {
+    constructor(path: string);
+    prepare(sql: string): Statement;
+    exec(sql: string): void;
+    pragma(pragma: string, options?: { simple?: boolean }): unknown;
+    transaction<F extends (...args: unknown[]) => unknown>(fn: F): F;
+    close(): void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function(name: string, fn: (...args: any[]) => any): void;
+  }
+
+  export default DatabaseConstructor;
+}
+
 declare module 'scribe.js-ocr' {
   /**
    * Scribe.js module interface.

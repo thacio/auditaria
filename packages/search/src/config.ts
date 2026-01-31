@@ -26,14 +26,20 @@ import { join } from 'node:path';
  * - `'lancedb'`: LanceDB columnar vector database
  *   - Best for: Native hybrid search, simpler setup (no extensions)
  *   - Uses: @lancedb/lancedb with Tantivy FTS
+ *
+ * - `'libsql'`: libSQL (Turso) with native vector columns
+ *   - Best for: Crash-safe vectors, no external index files
+ *   - Uses: libsql package, native F32_BLOB vectors, DiskANN index
+ *   - Vectors stored inside DB file (crash-safe!)
  */
-export type StorageBackend = 'sqlite' | 'pglite' | 'lancedb';
+export type StorageBackend = 'sqlite' | 'pglite' | 'lancedb' | 'libsql';
 
 /** Array of all supported storage backends (for validation/UI) */
 export const STORAGE_BACKENDS: readonly StorageBackend[] = [
   'sqlite',
   'pglite',
   'lancedb',
+  'libsql',
 ] as const;
 
 /**
@@ -365,7 +371,7 @@ export interface SearchSystemConfig {
 // ============================================================================
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
-  backend: 'sqlite', // pglite, sqlite, lancedb
+  backend: 'pglite', // pglite, sqlite, lancedb, libsql
   path: '.auditaria/search.db',
   inMemory: false,
   backupEnabled: true,
@@ -571,7 +577,7 @@ export function validateConfig(config: SearchSystemConfig): void {
   if (!config.database.path && !config.database.inMemory) {
     throw new Error('Database path is required when not using in-memory mode');
   }
-  const validBackends: StorageBackend[] = ['sqlite', 'pglite', 'lancedb'];
+  const validBackends: StorageBackend[] = ['sqlite', 'pglite', 'lancedb', 'libsql'];
   if (!validBackends.includes(config.database.backend)) {
     throw new Error(
       `database.backend must be one of: ${validBackends.join(', ')}`,

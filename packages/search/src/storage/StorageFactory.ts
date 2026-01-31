@@ -13,6 +13,7 @@ import type {
 import { PGliteStorage } from './PGliteStorage.js';
 import { SQLiteVectorliteStorage } from './SQLiteVectorliteStorage.js';
 import { LanceDBStorage } from './LanceDBStorage.js';
+import { LibSQLStorage } from './LibSQLStorage.js';
 import { createModuleLogger } from '../core/Logger.js';
 
 const log = createModuleLogger('StorageFactory');
@@ -51,6 +52,16 @@ export function createStorage(
     return new PGliteStorage(config, vectorIndexConfig, embeddingDimensions);
   }
 
+  if (backend === 'libsql') {
+    log.info('createStorage:usingLibSQL');
+    return new LibSQLStorage(
+      config,
+      vectorIndexConfig,
+      embeddingDimensions,
+      hybridStrategy,
+    );
+  }
+
   // SQLite is the default
   log.info('createStorage:usingSQLite');
   return new SQLiteVectorliteStorage(
@@ -64,11 +75,11 @@ export function createStorage(
 /**
  * Check if a storage backend is available.
  *
- * @param backend - The backend to check ('sqlite', 'pglite', or 'lancedb')
+ * @param backend - The backend to check ('sqlite', 'pglite', 'lancedb', or 'libsql')
  * @returns true if the backend dependencies are available
  */
 export async function isBackendAvailable(
-  backend: 'sqlite' | 'pglite' | 'lancedb',
+  backend: 'sqlite' | 'pglite' | 'lancedb' | 'libsql',
 ): Promise<boolean> {
   try {
     if (backend === 'lancedb') {
@@ -78,6 +89,11 @@ export async function isBackendAvailable(
 
     if (backend === 'pglite') {
       await import('@electric-sql/pglite');
+      return true;
+    }
+
+    if (backend === 'libsql') {
+      await import('libsql');
       return true;
     }
 

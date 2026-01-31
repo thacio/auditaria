@@ -162,6 +162,8 @@ export type {
 
 export { PGliteStorage } from './storage/PGliteStorage.js';
 export { SQLiteVectorliteStorage } from './storage/SQLiteVectorliteStorage.js';
+export { LanceDBStorage } from './storage/LanceDBStorage.js';
+export { LibSQLStorage } from './storage/LibSQLStorage.js';
 export {
   createStorage,
   isBackendAvailable,
