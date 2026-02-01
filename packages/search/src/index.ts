@@ -197,7 +197,18 @@ export {
   createStorage,
   isBackendAvailable,
   isVectorliteAvailable,
+  detectBackendFromMetadata,
 } from './storage/StorageFactory.js';
+
+export {
+  readMetadata,
+  metadataExists,
+  getDatabaseFilePath,
+  DATABASE_FILENAMES,
+  METADATA_VERSION,
+} from './storage/metadata.js';
+
+export type { DatabaseMetadata, MetadataVectorIndex, MetadataEmbeddings, MetadataStats } from './storage/metadata.js';
 
 export type {
   StorageAdapter,

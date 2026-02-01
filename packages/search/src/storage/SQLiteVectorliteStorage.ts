@@ -37,6 +37,13 @@ import {
   SQLITE_FTS5_OPTIMIZE_SQL,
   SQLITE_DROP_VECTOR_TABLE_SQL,
 } from './sqlite-schema.js';
+import {
+  readMetadata,
+  writeMetadata,
+  createMetadata,
+  getDatabaseFilePath,
+  ensureDatabaseDirectory,
+} from './metadata.js';
 import type {
   DatabaseConfig,
   VectorIndexConfig,
@@ -221,17 +228,17 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       dimensions: this.embeddingDimensions,
     });
 
-    // Ensure directory exists
+    // Ensure database directory exists (we use directory-based storage like PGlite)
     if (!this.config.inMemory && this.config.path) {
-      const dir = path.dirname(this.config.path);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      ensureDatabaseDirectory(this.config.path);
     }
 
-    // Create database
-    const dbPath = this.config.inMemory ? ':memory:' : this.config.path;
-    this.db = new Database(dbPath);
+    // Get actual database file path (inside the directory)
+    const dbFilePath = this.config.inMemory
+      ? ':memory:'
+      : getDatabaseFilePath(this.config.path, 'sqlite');
+    this.db = new Database(dbFilePath);
+    log.info('initialize:database:opened', { dbFilePath });
 
     // Enable foreign keys
     this.db.pragma('foreign_keys = ON');
@@ -268,6 +275,39 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     // Create schema
     await this.createSchema();
+
+    // Create metadata file if it doesn't exist (for new databases)
+    if (!this.config.inMemory && this.config.path) {
+      const existingMetadata = readMetadata(this.config.path);
+      if (!existingMetadata) {
+        const metadata = createMetadata(
+          'sqlite',
+          {
+            type: this.vectorIndexConfig.type,
+            useHalfVec: this.vectorIndexConfig.useHalfVec,
+            createIndex: this.vectorIndexConfig.createIndex ?? true,
+            hnswM: this.vectorIndexConfig.hnswM,
+            hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+            ivfflatLists:
+              this.vectorIndexConfig.ivfflatLists === 'auto'
+                ? undefined
+                : this.vectorIndexConfig.ivfflatLists,
+            ivfflatProbes: this.vectorIndexConfig.ivfflatProbes,
+          },
+          {
+            model: 'unknown', // Will be updated by SearchSystem
+            dimensions: this.embeddingDimensions,
+            quantization: 'q8', // Default, will be updated by SearchSystem
+          },
+        );
+        writeMetadata(this.config.path, metadata);
+        log.info('initialize:created_metadata', {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          dimensions: this.embeddingDimensions,
+        });
+      }
+    }
 
     this._initialized = true;
     log.info('initialize:complete');
@@ -312,10 +352,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     if (shouldCreateVectorIndex) {
       try {
-        // Generate index file path for persistence (alongside the database file)
+        // Generate index file path for persistence (inside the database directory)
         const indexFilePath = this.config.inMemory
           ? undefined
-          : `${this.config.path}.vec_index`;
+          : path.join(this.config.path, 'vectors.index');
 
         const vectorSQL = getSQLiteVectorTableSQL({
           dimensions: this.embeddingDimensions,

@@ -17,7 +17,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { VectorIndexType } from '../config.js';
+import type { VectorIndexType, StorageBackend } from '../config.js';
 import type { EmbedderQuantization } from '../embedders/types.js';
 
 // ============================================================================
@@ -92,6 +92,8 @@ export interface MetadataSchema {
 export interface DatabaseMetadata {
   /** Metadata format version (for future migrations) */
   version: string;
+  /** Storage backend that created this database */
+  backend: StorageBackend;
   /** When the database was created */
   createdAt: string;
   /** When metadata was last updated */
@@ -114,7 +116,18 @@ export interface DatabaseMetadata {
 export const METADATA_VERSION = '1.0.0';
 
 /** Default metadata filename (inside db folder) */
-export const METADATA_FILENAME = 'meta.json';
+export const METADATA_FILENAME = 'db-config.json';
+
+/**
+ * Database filenames for each backend (inside the db folder).
+ * All backends now use directory-based storage for consistency and metadata support.
+ */
+export const DATABASE_FILENAMES: Record<StorageBackend, string> = {
+  pglite: '', // PGlite uses the directory itself, no separate file
+  sqlite: 'data.sqlite',
+  libsql: 'data.db',
+  lancedb: '', // LanceDB uses the directory itself, no separate file
+};
 
 // ============================================================================
 // Functions
@@ -123,11 +136,39 @@ export const METADATA_FILENAME = 'meta.json';
 /**
  * Get the metadata file path for a database.
  * @param dbPath - Path to the database directory (e.g., '.auditaria/search.db')
- * @returns Path to the metadata file inside the db folder (e.g., '.auditaria/search.db/meta.json')
+ * @returns Path to the metadata file inside the db folder (e.g., '.auditaria/search.db/db-config.json')
  */
 export function getMetadataPath(dbPath: string): string {
   // Put metadata inside the database folder for portability
-  return path.join(dbPath, 'meta.json');
+  return path.join(dbPath, METADATA_FILENAME);
+}
+
+/**
+ * Get the actual database file path for a backend.
+ * All backends use directory-based storage. This returns the path to the database file inside the directory.
+ *
+ * @param dbPath - Path to the database directory (e.g., '.auditaria/search.db')
+ * @param backend - Storage backend type
+ * @returns Path to the database file (e.g., '.auditaria/search.db/data.sqlite')
+ *          For PGlite and LanceDB, returns the directory path itself.
+ */
+export function getDatabaseFilePath(dbPath: string, backend: StorageBackend): string {
+  const filename = DATABASE_FILENAMES[backend];
+  if (!filename) {
+    // PGlite and LanceDB use the directory itself
+    return dbPath;
+  }
+  return path.join(dbPath, filename);
+}
+
+/**
+ * Ensure the database directory exists.
+ * @param dbPath - Path to the database directory
+ */
+export function ensureDatabaseDirectory(dbPath: string): void {
+  if (!fs.existsSync(dbPath)) {
+    fs.mkdirSync(dbPath, { recursive: true });
+  }
 }
 
 /**
@@ -157,6 +198,12 @@ export function readMetadata(dbPath: string): DatabaseMetadata | null {
     // Basic validation
     if (!metadata.version || !metadata.vectorIndex || !metadata.embeddings) {
       throw new Error('Invalid metadata structure');
+    }
+
+    // Backwards compatibility: if backend is missing, default to 'pglite'
+    // (only PGlite had metadata before this change)
+    if (!metadata.backend) {
+      metadata.backend = 'pglite';
     }
 
     return metadata;
@@ -197,12 +244,14 @@ export function writeMetadata(
  * Create initial metadata for a new database.
  */
 export function createMetadata(
+  backend: StorageBackend,
   vectorIndex: MetadataVectorIndex,
   embeddings: MetadataEmbeddings,
 ): DatabaseMetadata {
   const now = new Date().toISOString();
   return {
     version: METADATA_VERSION,
+    backend,
     createdAt: now,
     updatedAt: now,
     vectorIndex,

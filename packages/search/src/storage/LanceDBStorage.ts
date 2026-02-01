@@ -30,6 +30,12 @@ import type {
 } from '../types.js';
 import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
 import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
+import {
+  readMetadata,
+  writeMetadata,
+  createMetadata,
+  ensureDatabaseDirectory,
+} from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -196,13 +202,10 @@ export class LanceDBStorage implements StorageAdapter {
       dimensions: this.embeddingDimensions,
     });
 
-    // Ensure directory exists
+    // Ensure directory exists (LanceDB uses directory-based storage)
     const dbPath = this.getDbPath();
     if (!this.config.inMemory && dbPath) {
-      const dir = path.dirname(dbPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      ensureDatabaseDirectory(dbPath);
     }
 
     // Connect to LanceDB (creates directory if doesn't exist)
@@ -210,6 +213,39 @@ export class LanceDBStorage implements StorageAdapter {
 
     // Open or create tables
     await this.openOrCreateTables();
+
+    // Create metadata file if it doesn't exist (for new databases)
+    if (!this.config.inMemory && this.config.path) {
+      const existingMetadata = readMetadata(this.config.path);
+      if (!existingMetadata) {
+        const metadata = createMetadata(
+          'lancedb',
+          {
+            type: this.vectorIndexConfig.type,
+            useHalfVec: this.vectorIndexConfig.useHalfVec,
+            createIndex: this.vectorIndexConfig.createIndex ?? true,
+            hnswM: this.vectorIndexConfig.hnswM,
+            hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+            ivfflatLists:
+              this.vectorIndexConfig.ivfflatLists === 'auto'
+                ? undefined
+                : this.vectorIndexConfig.ivfflatLists,
+            ivfflatProbes: this.vectorIndexConfig.ivfflatProbes,
+          },
+          {
+            model: 'unknown', // Will be updated by SearchSystem
+            dimensions: this.embeddingDimensions,
+            quantization: 'q8', // Default, will be updated by SearchSystem
+          },
+        );
+        writeMetadata(this.config.path, metadata);
+        log.info('initialize:created_metadata', {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          dimensions: this.embeddingDimensions,
+        });
+      }
+    }
 
     this._initialized = true;
     log.info('initialize:complete');

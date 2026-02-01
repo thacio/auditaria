@@ -9,17 +9,53 @@ import type {
   DatabaseConfig,
   VectorIndexConfig,
   HybridSearchStrategy,
+  StorageBackend,
 } from '../config.js';
 import { PGliteStorage } from './PGliteStorage.js';
 import { SQLiteVectorliteStorage } from './SQLiteVectorliteStorage.js';
 import { LanceDBStorage } from './LanceDBStorage.js';
 import { LibSQLStorage } from './LibSQLStorage.js';
+import { readMetadata, metadataExists } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
 
 const log = createModuleLogger('StorageFactory');
 
 /**
+ * Detect the storage backend from an existing database's metadata.
+ * Returns null if no database exists or metadata is missing.
+ *
+ * @param dbPath - Path to the database directory
+ * @returns The backend type stored in metadata, or null if not found
+ */
+export function detectBackendFromMetadata(dbPath: string): StorageBackend | null {
+  if (!metadataExists(dbPath)) {
+    return null;
+  }
+
+  try {
+    const metadata = readMetadata(dbPath);
+    if (metadata && metadata.backend) {
+      log.info('detectBackendFromMetadata:found', {
+        path: dbPath,
+        backend: metadata.backend,
+      });
+      return metadata.backend;
+    }
+  } catch (error) {
+    log.warn('detectBackendFromMetadata:error', {
+      path: dbPath,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return null;
+}
+
+/**
  * Create a storage adapter based on the database configuration.
+ *
+ * If an existing database exists at the path, the backend stored in metadata
+ * takes precedence over the config to prevent data corruption.
  *
  * @param config - Database configuration including backend type
  * @param vectorIndexConfig - Vector index configuration
@@ -33,10 +69,26 @@ export function createStorage(
   embeddingDimensions?: number,
   hybridStrategy?: HybridSearchStrategy,
 ): StorageAdapter {
-  const backend = config.backend ?? 'sqlite';
+  // If an existing database has metadata, use its backend (authoritative)
+  const existingBackend = config.inMemory
+    ? null
+    : detectBackendFromMetadata(config.path);
+
+  const backend = existingBackend ?? config.backend ?? 'sqlite';
+
+  // Warn if there's a mismatch between config and existing database
+  if (existingBackend && config.backend && existingBackend !== config.backend) {
+    log.warn('createStorage:backendMismatch', {
+      configBackend: config.backend,
+      existingBackend,
+      message: 'Using existing database backend from metadata',
+    });
+  }
 
   log.info('createStorage', {
     backend,
+    configuredBackend: config.backend,
+    detectedBackend: existingBackend,
     path: config.path,
     inMemory: config.inMemory,
     dimensions: embeddingDimensions,

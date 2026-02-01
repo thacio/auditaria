@@ -38,6 +38,13 @@ import {
   type LibSQLVectorOptions,
   type LibSQLVectorType,
 } from './libsql-schema.js';
+import {
+  readMetadata,
+  writeMetadata,
+  createMetadata,
+  getDatabaseFilePath,
+  ensureDatabaseDirectory,
+} from './metadata.js';
 import type {
   DatabaseConfig,
   VectorIndexConfig,
@@ -45,8 +52,6 @@ import type {
 } from '../config.js';
 import { DEFAULT_VECTOR_INDEX_CONFIG, DEFAULT_SEARCH_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 
 const log = createModuleLogger('LibSQLStorage');
 
@@ -225,25 +230,22 @@ export class LibSQLStorage implements StorageAdapter {
       dimensions: this.embeddingDimensions,
     });
 
-    // Ensure directory exists
+    // Ensure database directory exists (we use directory-based storage like PGlite)
     if (!this.config.inMemory && this.config.path) {
-      const dir = path.dirname(this.config.path);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      ensureDatabaseDirectory(this.config.path);
     }
 
     // Dynamically import libsql (better-sqlite3 compatible API)
     try {
       const { default: Database } = await import('libsql');
 
-      // Create database - libsql uses 'file:' prefix for local files
-      const dbPath = this.config.inMemory
+      // Get actual database file path (inside the directory)
+      const dbFilePath = this.config.inMemory
         ? ':memory:'
-        : this.config.path;
+        : getDatabaseFilePath(this.config.path, 'libsql');
 
-      this.db = new Database(dbPath) as unknown as LibSQLDatabase;
-      log.info('initialize:database:opened', { dbPath });
+      this.db = new Database(dbFilePath) as unknown as LibSQLDatabase;
+      log.info('initialize:database:opened', { dbFilePath });
     } catch (error) {
       log.error('initialize:database:failed', {
         error: error instanceof Error ? error.message : String(error),
@@ -267,6 +269,39 @@ export class LibSQLStorage implements StorageAdapter {
 
     // Create schema
     await this.createSchema();
+
+    // Create metadata file if it doesn't exist (for new databases)
+    if (!this.config.inMemory && this.config.path) {
+      const existingMetadata = readMetadata(this.config.path);
+      if (!existingMetadata) {
+        const metadata = createMetadata(
+          'libsql',
+          {
+            type: this.vectorIndexConfig.type,
+            useHalfVec: this.vectorIndexConfig.useHalfVec,
+            createIndex: this.vectorIndexConfig.createIndex ?? true,
+            hnswM: this.vectorIndexConfig.hnswM,
+            hnswEfConstruction: this.vectorIndexConfig.hnswEfConstruction,
+            ivfflatLists:
+              this.vectorIndexConfig.ivfflatLists === 'auto'
+                ? undefined
+                : this.vectorIndexConfig.ivfflatLists,
+            ivfflatProbes: this.vectorIndexConfig.ivfflatProbes,
+          },
+          {
+            model: 'unknown', // Will be updated by SearchSystem
+            dimensions: this.embeddingDimensions,
+            quantization: 'q8', // Default, will be updated by SearchSystem
+          },
+        );
+        writeMetadata(this.config.path, metadata);
+        log.info('initialize:created_metadata', {
+          type: this.vectorIndexConfig.type,
+          useHalfVec: this.vectorIndexConfig.useHalfVec,
+          dimensions: this.embeddingDimensions,
+        });
+      }
+    }
 
     this._initialized = true;
     log.info('initialize:complete');

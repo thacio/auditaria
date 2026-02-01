@@ -977,6 +977,7 @@ export class PGliteStorage implements StorageAdapter {
       const existingMetadata = readMetadata(dbPath);
       if (!existingMetadata) {
         const metadata = createMetadata(
+          'pglite',
           {
             type: this.vectorIndexConfig.type,
             useHalfVec: this.vectorIndexConfig.useHalfVec,
