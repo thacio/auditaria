@@ -502,7 +502,7 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
    */
   private handleWorkerError(error: Error): void {
     // eslint-disable-next-line no-console
-    console.error('[WorkerEmbedder] Worker error:', error.message);
+    console.warn('[WorkerEmbedder] Worker error:', error.message);
 
     // Reject all pending requests
     for (const [_id, pending] of this.pendingRequests) {
