@@ -204,6 +204,7 @@ export {
   readMetadata,
   metadataExists,
   getDatabaseFilePath,
+  ensureDatabaseDirectory,
   DATABASE_FILENAMES,
   METADATA_VERSION,
 } from './storage/metadata.js';

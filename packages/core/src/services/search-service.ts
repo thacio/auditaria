@@ -563,31 +563,18 @@ export class SearchServiceManager {
         this.indexingProgress.startedAt = new Date();
         this.indexingProgress.completedAt = null;
 
-        // Start pipeline processing
-        this.searchSystem.startProcessing();
-
-        // Wait for pipeline to become idle
-        while (
-          this.searchSystem &&
-          (
-            this.searchSystem as unknown as {
-              pipeline: { getState: () => string };
-            }
-          ).pipeline?.getState() !== 'idle'
-        ) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
+        // Use processQueue() to process items already in the queue
+        // This properly emits indexing:progress events for supervisor auto-restart tracking
+        const result = await (this.searchSystem as unknown as {
+          processQueue: () => Promise<{ indexed: number; failed: number; duration: number }>;
+        }).processQueue();
 
         // Update progress
-        const newStatus = await this.searchSystem.getQueueStatus();
-        this.indexingProgress.processedFiles =
-          queueStatus.pending - newStatus.pending;
-        this.indexingProgress.status =
-          newStatus.pending > 0 ? 'indexing' : 'completed';
-        if (newStatus.pending === 0) {
-          this.indexingProgress.completedAt = new Date();
-          this.state.lastSyncAt = new Date();
-        }
+        this.indexingProgress.processedFiles = result.indexed;
+        this.indexingProgress.failedFiles = result.failed;
+        this.indexingProgress.status = 'completed';
+        this.indexingProgress.completedAt = new Date();
+        this.state.lastSyncAt = new Date();
 
         this.isProcessingQueue = false;
       }

@@ -405,9 +405,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
               (progress.stage === 'load' || progress.stage === 'download') &&
               progress.file
             ) {
-              console.log(
-                `[SearchSystem] Loading: ${progress.file} ${Math.round(progress.progress)}%`,
-              );
+              if (Math.round(progress.progress) % 100 === 0) {
+                console.log(
+                  `[SearchSystem] Loading: ${progress.file} ${Math.round(progress.progress)}%`,
+                );
+              }
             }
           },
         );
@@ -1176,6 +1178,100 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   async stopProcessing(): Promise<void> {
     this.ensureInitialized();
     await this.pipeline!.stop();
+  }
+
+  /**
+   * Check if the indexing pipeline is idle (not processing).
+   * Used by SearchService/Supervisor to wait for processing to complete.
+   */
+  isProcessingIdle(): boolean {
+    if (!this.pipeline) return true;
+    return this.pipeline.getState() === 'idle';
+  }
+
+  /**
+   * Process items already in the queue with proper event emission.
+   * Unlike startProcessing(), this method:
+   * - Emits indexing:progress events for supervisor tracking
+   * - Returns when processing is complete
+   * - Handles graceful shutdown
+   *
+   * Use this when you need to resume processing after a restart.
+   */
+  async processQueue(): Promise<{ indexed: number; failed: number; duration: number }> {
+    this.ensureInitialized();
+
+    if (this.indexingInProgress) {
+      throw new Error('Indexing already in progress');
+    }
+
+    // Get queue status to know how many items to process
+    const queueStatus = await this.storage!.getQueueStatus();
+    const totalToProcess = queueStatus.pending;
+
+    if (totalToProcess === 0) {
+      return { indexed: 0, failed: 0, duration: 0 };
+    }
+
+    this.indexingInProgress = true;
+    const startTime = Date.now();
+
+    try {
+      void this.emit('indexing:started', { fileCount: totalToProcess });
+
+      // Start pipeline processing
+      this.pipeline!.start();
+
+      // Wait for processing to complete with event tracking
+      let indexed = 0;
+      let failed = 0;
+
+      // Subscribe to pipeline events
+      const unsubCompleted = this.pipeline!.on('document:completed', () => {
+        indexed++;
+        void this.emit('indexing:progress', {
+          current: indexed + failed,
+          total: totalToProcess,
+        });
+      });
+
+      const unsubFailed = this.pipeline!.on('document:failed', (event) => {
+        failed++;
+        console.error(
+          `[SearchSystem] Failed to index: ${event.filePath}`,
+          event.error?.message ?? 'Unknown error',
+        );
+        void this.emit('indexing:progress', {
+          current: indexed + failed,
+          total: totalToProcess,
+        });
+      });
+
+      // Wait for pipeline to finish
+      try {
+        await this.waitForPipelineIdle();
+      } catch (error) {
+        if (this.closing) {
+          console.log('[SearchSystem] Queue processing interrupted by shutdown');
+          unsubCompleted();
+          unsubFailed();
+          const duration = Date.now() - startTime;
+          void this.emit('indexing:completed', { indexed, failed, duration });
+          return { indexed, failed, duration };
+        }
+        throw error;
+      }
+
+      // Cleanup
+      unsubCompleted();
+      unsubFailed();
+
+      const duration = Date.now() - startTime;
+      void this.emit('indexing:completed', { indexed, failed, duration });
+      return { indexed, failed, duration };
+    } finally {
+      this.indexingInProgress = false;
+    }
   }
 
   // -------------------------------------------------------------------------

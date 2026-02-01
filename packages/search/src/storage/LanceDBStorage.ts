@@ -35,6 +35,8 @@ import {
   writeMetadata,
   createMetadata,
   ensureDatabaseDirectory,
+  type MetadataEmbeddings,
+  type DatabaseMetadata,
 } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
 import * as fs from 'node:fs';
@@ -356,6 +358,34 @@ export class LanceDBStorage implements StorageAdapter {
 
   isInitialized(): boolean {
     return this._initialized;
+  }
+
+  /**
+   * Update the embeddings configuration in metadata.
+   * Called by SearchSystem after embedder initialization to store full config.
+   */
+  updateMetadataEmbeddings(embeddings: MetadataEmbeddings): void {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return;
+
+    const metadata = readMetadata(dbPath);
+    if (metadata) {
+      metadata.embeddings = embeddings;
+      writeMetadata(dbPath, metadata);
+      log.info('updateMetadataEmbeddings:updated', {
+        model: embeddings.model,
+        quantization: embeddings.quantization,
+      });
+    }
+  }
+
+  /**
+   * Get the database metadata.
+   */
+  getMetadata(): DatabaseMetadata | null {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return null;
+    return readMetadata(dbPath);
   }
 
   async checkpoint(): Promise<void> {

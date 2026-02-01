@@ -293,4 +293,5 @@ describe('metadata', () => {
       expect(() => updateMetadataStats(dbPath, { documentCount: 10 })).not.toThrow();
     });
   });
+
 });

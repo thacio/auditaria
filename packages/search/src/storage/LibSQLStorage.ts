@@ -44,6 +44,8 @@ import {
   createMetadata,
   getDatabaseFilePath,
   ensureDatabaseDirectory,
+  type MetadataEmbeddings,
+  type DatabaseMetadata,
 } from './metadata.js';
 import type {
   DatabaseConfig,
@@ -424,6 +426,34 @@ export class LibSQLStorage implements StorageAdapter {
     return this._initialized;
   }
 
+  /**
+   * Update the embeddings configuration in metadata.
+   * Called by SearchSystem after embedder initialization to store full config.
+   */
+  updateMetadataEmbeddings(embeddings: MetadataEmbeddings): void {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return;
+
+    const metadata = readMetadata(dbPath);
+    if (metadata) {
+      metadata.embeddings = embeddings;
+      writeMetadata(dbPath, metadata);
+      log.info('updateMetadataEmbeddings:updated', {
+        model: embeddings.model,
+        quantization: embeddings.quantization,
+      });
+    }
+  }
+
+  /**
+   * Get the database metadata.
+   */
+  getMetadata(): DatabaseMetadata | null {
+    const dbPath = this.config.path;
+    if (!dbPath || this.config.inMemory) return null;
+    return readMetadata(dbPath);
+  }
+
   async checkpoint(): Promise<void> {
     if (!this.db) return;
     this.db.pragma('wal_checkpoint(TRUNCATE)');
@@ -465,8 +495,10 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Reopen the database
       const { default: Database } = await import('libsql');
-      const dbPath = this.config.inMemory ? ':memory:' : this.config.path;
-      this.db = new Database(dbPath) as unknown as LibSQLDatabase;
+      const dbFilePath = this.config.inMemory
+        ? ':memory:'
+        : getDatabaseFilePath(this.config.path, 'libsql');
+      this.db = new Database(dbFilePath) as unknown as LibSQLDatabase;
 
       // Re-enable foreign keys and memory optimization pragmas
       this.db.pragma('foreign_keys = ON');

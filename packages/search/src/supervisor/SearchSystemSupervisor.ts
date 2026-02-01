@@ -68,6 +68,15 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private rootPath: string;
   private databasePath: string;
 
+  // Track last progress for delta calculation (must be class property to reset on restart)
+  private lastProgressCurrent: number = 0;
+
+  // Restart loop protection (commented out - enable if needed)
+  // private lastMemoryRestartAt: number = 0;
+  // private consecutiveMemoryRestarts: number = 0;
+  // private static readonly MIN_RESTART_COOLDOWN_MS = 60000; // 1 minute
+  // private static readonly MAX_CONSECUTIVE_MEMORY_RESTARTS = 3;
+
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
@@ -272,6 +281,22 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     return this.call<void>('stopProcessing', []);
   }
 
+  /**
+   * Check if the indexing pipeline is idle.
+   * Used by SearchService to wait for processing to complete.
+   */
+  async isProcessingIdle(): Promise<boolean> {
+    return this.call<boolean>('isProcessingIdle', []);
+  }
+
+  /**
+   * Process items already in the queue with proper event emission.
+   * Use this to resume processing after a restart.
+   */
+  async processQueue(): Promise<{ indexed: number; failed: number; duration: number }> {
+    return this.call<{ indexed: number; failed: number; duration: number }>('processQueue', []);
+  }
+
   // -------------------------------------------------------------------------
   // Status Methods (Proxy to SearchSystem)
   // -------------------------------------------------------------------------
@@ -430,9 +455,6 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private subscribeToStrategyEvents(): void {
     if (!this.strategy) return;
 
-    // Track last known progress to compute delta
-    let lastProgressCurrent = 0;
-
     // Forward all events from strategy
     const events: Array<keyof SupervisorEvents> = [
       'search:started',
@@ -451,12 +473,12 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
         // Track document progress for restart threshold
         if (event === 'indexing:progress') {
           const progress = data as { current: number; total: number };
-          const delta = progress.current - lastProgressCurrent;
+          const delta = progress.current - this.lastProgressCurrent;
 
           if (delta > 0) {
             this.state.documentsProcessedSinceRestart += delta;
             this.state.totalDocumentsProcessed += delta;
-            lastProgressCurrent = progress.current;
+            this.lastProgressCurrent = progress.current;
 
             // Check if restart is needed (async, don't await)
             void this.checkAndRestartIfNeeded();
@@ -465,7 +487,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
 
         // Reset progress counter on indexing:completed
         if (event === 'indexing:completed') {
-          lastProgressCurrent = 0;
+          this.lastProgressCurrent = 0;
         }
 
         // Forward the event
@@ -493,17 +515,46 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       await this.performRestart(
         `Threshold reached: ${this.state.documentsProcessedSinceRestart} documents`,
       );
+      // Reset consecutive memory restart counter after successful document-based restart
+      // (uncomment if using restart loop protection)
+      // this.consecutiveMemoryRestarts = 0;
       return;
     }
 
     // Check memory threshold
     const currentMemoryMb = this.strategy?.getMemoryUsageMb() ?? getMemoryUsageMb();
     if (currentMemoryMb >= this.supervisorConfig.memoryThresholdMb) {
+      // RESTART LOOP PROTECTION (uncomment if experiencing continuous restarts)
+      // Prevents restart loops when memory is naturally high (e.g., large embedding model)
+      // const now = Date.now();
+      // const timeSinceLastRestart = now - this.lastMemoryRestartAt;
+      //
+      // // Enforce minimum cooldown between memory-based restarts
+      // if (timeSinceLastRestart < SearchSystemSupervisor.MIN_RESTART_COOLDOWN_MS) {
+      //   return; // Too soon since last restart, skip
+      // }
+      //
+      // // Check if we've exceeded max consecutive memory restarts
+      // if (this.consecutiveMemoryRestarts >= SearchSystemSupervisor.MAX_CONSECUTIVE_MEMORY_RESTARTS) {
+      //   console.warn(
+      //     `[SearchSystemSupervisor] Memory threshold exceeded but max restarts (${SearchSystemSupervisor.MAX_CONSECUTIVE_MEMORY_RESTARTS}) reached. ` +
+      //     `Memory may be naturally high. Disabling memory-based restarts for this session.`
+      //   );
+      //   return;
+      // }
+      //
+      // this.lastMemoryRestartAt = now;
+      // this.consecutiveMemoryRestarts++;
+
       void this.emit('supervisor:memory:warning', {
         currentMb: currentMemoryMb,
         thresholdMb: this.supervisorConfig.memoryThresholdMb,
       });
       await this.performRestart(`Memory threshold reached: ${currentMemoryMb}MB`);
+
+      // Reset consecutive counter after successful document-based restart
+      // (uncomment if using restart loop protection)
+      // Note: This reset should happen after document threshold restarts, not memory restarts
     }
   }
 
@@ -530,8 +581,9 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     try {
       await this.strategy.restart(reason);
 
-      // Reset document counter
+      // Reset counters for fresh start
       this.state.documentsProcessedSinceRestart = 0;
+      this.lastProgressCurrent = 0; // Reset progress tracker for new SearchSystem
       this.state.restartCount++;
       this.state.lastRestartAt = new Date();
       this.state.status = 'running';

@@ -163,6 +163,7 @@ export function getDatabaseFilePath(dbPath: string, backend: StorageBackend): st
 
 /**
  * Ensure the database directory exists.
+ *
  * @param dbPath - Path to the database directory
  */
 export function ensureDatabaseDirectory(dbPath: string): void {
