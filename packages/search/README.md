@@ -1,24 +1,33 @@
 # Auditaria Knowledge Search
 
 A powerful, local-first search system that provides **keyword**, **semantic**,
-and **hybrid** search capabilities across your working directory. Built with
-PGlite (PostgreSQL-compatible) and pgvector for vector storage.
+and **hybrid** search capabilities across your working directory. Supports
+multiple storage backends with LibSQL as the default.
 
 ## Features
 
 - **Hybrid Search**: Combines keyword (BM25/FTS) and semantic (vector) search
   using Reciprocal Rank Fusion (RRF)
+- **Multiple Storage Backends**: LibSQL (default), SQLite+Vectorlite, PGlite,
+  and LanceDB
 - **Local Embeddings**: Uses ONNX models via Transformers.js or Python (no
   external API calls)
+- **Memory Management**: SearchSystemSupervisor with automatic process restart
+  to prevent WASM memory bloat
 - **OCR Support**: Extracts text from images and scanned PDFs using Tesseract.js
   or Scribe.js
 - **Multi-format Support**: PDFs, Office documents, images, code files, and more
-- **Real-time Sync**: File watching for automatic re-indexing on changes
 - **GPU Acceleration**: Optional DirectML (Windows) or CUDA (Linux) support
 
 ## Architecture Overview
 
 ```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      SearchSystemSupervisor (Optional)                   │
+│  (Wraps SearchSystem, manages process restarts for memory control)      │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           SearchSystem                                   │
 │  (Orchestrates all components, provides public API)                     │
@@ -46,25 +55,34 @@ PGlite (PostgreSQL-compatible) and pgvector for vector storage.
         └────────────────────┼──────────────────────────────────┘
                              ▼
                     ┌─────────────────┐
-                    │  PGliteStorage  │
-                    │ (SQLite+pgvector)│
-                    │  + Backup/Recovery│
-                    └─────────────────┘
+                    │  StorageAdapter │
+                    │   (Interface)   │
+                    └────────┬────────┘
+                             │
+        ┌────────────┬───────┴───────┬────────────┐
+        ▼            ▼               ▼            ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────┐ ┌─────────┐
+│LibSQLStorage│ │SQLiteVector-│ │ PGlite  │ │ LanceDB │
+│  (Default)  │ │liteStorage  │ │ Storage │ │ Storage │
+└─────────────┘ └─────────────┘ └─────────┘ └─────────┘
 ```
 
 ### Child Process Architecture (Memory Management)
 
-By default, indexing runs in **child processes** to solve the fundamental
+Optionally, indexing can run in **child processes** to solve the fundamental
 WebAssembly memory limitation: WASM memory can only grow, never shrink. When a
 child process exits after processing a batch of documents, the OS completely
 releases ALL its memory, including WASM heaps.
+
+**Note:** This is different from SearchSystemSupervisor - child process indexing
+spawns workers per batch, while the supervisor restarts the entire SearchSystem.
 
 ```
 Main Process (CLI)                              Child Process (respawns)
 ┌──────────────────────────────────┐            ┌──────────────────────────────┐
 │ SearchSystem                     │            │ Full Indexing Stack:         │
-│  ├─ SearchEngine (search)        │   JSONL   │  ├─ PGliteStorage (write)    │
-│  ├─ PGliteStorage (read-only)   │◄─────────►│  ├─ IndexingPipeline         │
+│  ├─ SearchEngine (search)        │   JSONL   │  ├─ Storage (write)          │
+│  ├─ Storage (read-only)         │◄─────────►│  ├─ IndexingPipeline         │
 │  └─ IndexingChildManager ───────┼───stdin───►│  ├─ Embedder (ONNX/WASM)     │
 │                                  │◄──stdout──┤  └─ Parsers/Chunkers         │
 └──────────────────────────────────┘            └──────────────────────────────┘
@@ -80,10 +98,10 @@ Main Process (CLI)                              Child Process (respawns)
                                                 └──────────────────────────────┘
 ```
 
-**How it works:**
+**How it works (when enabled):**
 
 1. Main process spawns a child for each batch (default: 500 documents)
-2. Child runs the full indexing stack (PGlite, Embedder, Pipeline)
+2. Child runs the full indexing stack (Storage, Embedder, Pipeline)
 3. Child reports progress to main process via JSONL over stdin/stdout
 4. When batch completes, child exits and OS releases all memory
 5. If more documents remain, main process spawns a new child
@@ -92,22 +110,62 @@ Main Process (CLI)                              Child Process (respawns)
 **Memory improvement:** With child process indexing, memory stays bounded at
 ~7GB regardless of corpus size. Without it, 10k documents could consume 17GB+.
 
-**Configuration:** Child process indexing is enabled by default. It can be
-disabled via the `useChildProcess` option in `indexAll()` for debugging or
-testing purposes.
+**Configuration:** Child process indexing is disabled by default
+(`useChildProcess: false`). Enable via indexing config when WASM memory
+accumulation is a concern.
+
+### SearchSystemSupervisor (Process Restart for Memory Management)
+
+For very large indexing jobs, the SearchSystemSupervisor provides automatic
+process restarts to completely reclaim WASM memory. This is a wrapper around
+SearchSystem that exposes the same API.
+
+```
+SearchServiceManager
+        │
+        ▼
+SearchSystemSupervisor (optional)
+        │
+        ├── InProcessStrategy (close→GC→reinit, ~60-80% memory recovery)
+        │
+        └── ChildProcessStrategy (fork→kill→respawn, 100% memory recovery)
+                │
+                ▼
+        SearchSystem (actual implementation)
+```
+
+**Restart Strategies:**
+
+| Strategy        | Memory Recovery | Overhead   | Use Case                 |
+| --------------- | --------------- | ---------- | ------------------------ |
+| `in-process`    | 60-80%          | Minimal    | General use (default)    |
+| `child-process` | 100%            | ~1-5ms IPC | Large corpus (10k+ docs) |
+| `none`          | N/A             | None       | Disable restarts         |
+
+**Configuration:**
+
+- `supervisorStrategy`: `'in-process'` | `'child-process'` | `'none'`
+- `supervisorRestartThreshold`: Documents before restart (default: 0 = disabled)
+- `supervisorMemoryThresholdMb`: Memory threshold for early restart (default:
+  4000 MB)
+
+**Note:** The supervisor is disabled by default (`restartThreshold: 0`). Enable
+it for large indexing jobs where memory bloat is a concern.
 
 ## Quick Start
 
 ```typescript
 import { SearchSystem } from '@thacio/auditaria-cli-search';
 
-// Initialize the search system
+// Initialize the search system (uses LibSQL backend by default)
 const search = await SearchSystem.initialize({
   rootPath: '/path/to/index',
   config: {
+    database: {
+      backend: 'libsql', // 'libsql' | 'sqlite' | 'pglite' | 'lancedb'
+    },
     embeddings: {
-      model: 'Xenova/multilingual-e5-small',
-      preferPythonEmbedder: true,
+      model: 'Xenova/multilingual-e5-large', // Default model
     },
   },
 });
@@ -127,6 +185,35 @@ await search.dispose();
 
 ---
 
+## Directory Structure
+
+```
+packages/search/src/
+├── core/              # Core utilities (Logger, EventEmitter, Registry)
+├── storage/           # Storage backends
+│   ├── LibSQLStorage.ts        # Default backend
+│   ├── SQLiteVectorliteStorage.ts
+│   ├── PGliteStorage.ts
+│   ├── LanceDBStorage.ts
+│   ├── StorageFactory.ts       # Backend selection logic
+│   └── types.ts                # StorageAdapter interface
+├── supervisor/        # Process restart management
+│   ├── SearchSystemSupervisor.ts
+│   ├── strategies/             # InProcess, ChildProcess, None
+│   └── ipc/                    # Inter-process communication
+├── indexing/          # Indexing pipeline and child process management
+├── embedders/         # Embedding providers (Worker, Python, TransformersJS)
+├── search/            # Search engine and FilterBuilder
+├── parsers/           # File format parsers
+├── chunkers/          # Text chunking strategies
+├── ocr/               # OCR providers (Tesseract, Scribe)
+├── discovery/         # File discovery
+├── sync/              # Startup sync
+└── config.ts          # Configuration and defaults
+```
+
+---
+
 ## Core Components
 
 ### Configuration (`src/config.ts`)
@@ -136,9 +223,10 @@ The system uses a hierarchical configuration with sensible defaults:
 ```typescript
 interface SearchSystemConfig {
   database: {
+    backend: 'libsql' | 'sqlite' | 'pglite' | 'lancedb'; // Default: 'libsql'
     path: string; // Default: '.auditaria/search.db'
     inMemory: boolean; // Default: false
-    backupEnabled: boolean; // Default: true - auto-backup on close
+    backupEnabled: boolean; // Default: true
   };
 
   indexing: {
@@ -147,8 +235,13 @@ interface SearchSystemConfig {
     maxFileSize: number; // Default: 50MB
     respectGitignore: boolean;
     prepareWorkers: number; // Parallel parsing workers (default: 1)
-    useChildProcess: boolean; // Default: true - run indexing in child process
-    childProcessBatchSize: number; // Default: 500 - docs per child before respawn
+    useChildProcess: boolean; // Default: false
+    childProcessBatchSize: number; // Default: 500
+    childProcessMemoryThresholdMb: number; // Default: 3000
+    // Supervisor options
+    supervisorStrategy: 'in-process' | 'child-process' | 'none'; // Default: 'in-process'
+    supervisorRestartThreshold: number; // Default: 0 (disabled)
+    supervisorMemoryThresholdMb: number; // Default: 4000
   };
 
   chunking: {
@@ -158,9 +251,9 @@ interface SearchSystemConfig {
   };
 
   embeddings: {
-    model: string; // Default: 'Xenova/multilingual-e5-small'
-    device: 'auto' | 'cpu' | 'dml' | 'cuda';
-    quantization: 'q8' | 'fp16' | 'fp32' | 'q4';
+    model: string; // Default: 'Xenova/multilingual-e5-large'
+    device: 'auto' | 'cpu' | 'dml' | 'cuda'; // Default: 'cpu'
+    quantization: 'q8' | 'fp16' | 'fp32' | 'q4'; // Default: 'q8'
     preferPythonEmbedder: boolean; // Default: false
     useWorkerThread: boolean; // Default: true
     batchSize: number; // Default: 8
@@ -169,14 +262,21 @@ interface SearchSystemConfig {
   };
 
   search: {
-    defaultStrategy: 'hybrid' | 'semantic' | 'keyword';
+    defaultStrategy: 'hybrid' | 'semantic' | 'keyword'; // Default: 'hybrid'
     semanticWeight: number; // Default: 0.5
     keywordWeight: number; // Default: 0.5
+    hybridImplementation: 'application' | 'database'; // Default: 'application'
+  };
+
+  vectorIndex: {
+    type: 'hnsw' | 'flat' | 'ivf'; // Default: 'hnsw'
+    useHalfPrecision: boolean; // Default: true (50% storage reduction)
+    deferIndexCreation: boolean; // Default: false
   };
 
   ocr: {
-    enabled: boolean;
-    autoDetectLanguage: boolean;
+    enabled: boolean; // Default: true
+    autoDetectLanguage: boolean; // Default: true
     defaultLanguages: string[];
     concurrency: number; // Default: 2
   };
@@ -265,11 +365,11 @@ preferPythonEmbedder=true?
 
 ### Supported Models
 
-| Model                          | Dimensions | Best For              |
-| ------------------------------ | ---------- | --------------------- |
-| `Xenova/multilingual-e5-small` | 384        | General use (default) |
-| `Xenova/multilingual-e5-base`  | 768        | Better quality        |
-| `Xenova/multilingual-e5-large` | 1024       | Best quality          |
+| Model                          | Dimensions | Best For               |
+| ------------------------------ | ---------- | ---------------------- |
+| `Xenova/multilingual-e5-small` | 384        | Faster, lower memory   |
+| `Xenova/multilingual-e5-base`  | 768        | Balanced               |
+| `Xenova/multilingual-e5-large` | 1024       | Best quality (default) |
 
 ### Streaming Embeddings
 
@@ -580,55 +680,69 @@ const results = await search.search('query', { filters });
 
 ## Storage (`src/storage/`)
 
-### PGliteStorage
+All storage backends implement the `StorageAdapter` interface, enabling seamless
+swapping without code changes. The `StorageFactory` handles instantiation and
+detects existing databases to prevent backend switching corruption.
 
-PostgreSQL-compatible SQLite with pgvector extension:
+### Available Backends
 
-```typescript
-// Database location
-.auditaria/search.db
+| Backend                 | Library                           | Default | Best For                        |
+| ----------------------- | --------------------------------- | ------- | ------------------------------- |
+| **LibSQLStorage**       | `libsql` (Turso)                  | **Yes** | General use, crash-safe vectors |
+| SQLiteVectorliteStorage | `better-sqlite3` + `vectorlite`   | No      | Native performance, single-user |
+| PGliteStorage           | `@electric-sql/pglite` + pgvector | No      | PostgreSQL compatibility        |
+| LanceDBStorage          | `@lancedb/lancedb`                | No      | Vector-heavy workloads          |
 
-// Vector dimensions
-384 (for multilingual-e5-small)
-```
+### LibSQLStorage (Default)
+
+- SQLite fork from Turso with native vector support
+- Vectors stored directly in the database file (crash-safe)
+- FTS5 for full-text search
+
+### SQLiteVectorliteStorage
+
+- Native SQLite via `better-sqlite3`
+- Optional `vectorlite` extension for vector operations
+- Cross-platform, excellent performance
+
+### PGliteStorage (Legacy)
+
+- PostgreSQL compiled to WASM
+- pgvector extension for vector operations
+- Full PostgreSQL SQL compatibility
+
+### LanceDBStorage
+
+- Specialized columnar vector database
+- Tantivy for full-text search
+- Optimized for semantic search workloads
 
 ### Database Schema
 
-#### documents table
+All backends share a common schema:
 
-- File metadata (path, name, size, hash, MIME type)
-- Content metadata (title, author, language, page count)
-- Status tracking (pending/indexed/failed, OCR status)
+**documents table**: File metadata (path, name, size, hash, MIME type), content
+metadata (title, author, language, page count), status tracking
 
-#### chunks table
+**chunks table**: Document text chunks, vector embeddings, FTS vectors
 
-- Document text chunks
-- `embedding vector(384)` - pgvector for semantic search
-- `fts_vector tsvector` - PostgreSQL FTS for keyword search
+**index_queue table**: Priority queue for indexing with retry mechanism
 
-#### index_queue table
+### Backend Selection
 
-- Priority queue for document indexing
-- Status tracking with retry mechanism
+```
+Existing database? → Use metadata to determine backend
+                ↓ No
+Config specified? → Use config.backend
+                ↓ No
+Default → 'libsql'
+```
 
-### Indexes
-
-- **GIN index** on `fts_vector` for fast full-text search
-- **HNSW index** on `embedding` for fast vector search (m=16,
-  ef_construction=64)
-
-### Storage Memory Management
-
-> **Note:** Due to WASM limitations (memory can only grow, never shrink),
-> in-process memory management has limited effectiveness. The recommended
-> approach is to use child process indexing (enabled by default), which
-> completely releases memory when each child exits.
-
-For in-process scenarios, these methods are available:
+### Storage Operations
 
 - `checkpoint()` - Flush WAL to disk, run VACUUM/ANALYZE
 - `vacuum()` - Reclaim disk space
-- `reconnect()` - Close and reopen database (limited memory benefit due to WASM)
+- `reconnect()` - Close and reopen database (useful for long-running processes)
 
 ### Backup & Recovery
 
@@ -834,13 +948,16 @@ Formats search results for AI consumption (`search-response-formatter.ts`):
 
 ## SearchServiceManager (`packages/core/src/services/search-service.ts`)
 
-A singleton service that wraps `SearchSystem` to provide persistent background
-indexing capabilities for the CLI. It manages the search system lifecycle and
-coordinates background queue processing.
+A singleton service that wraps `SearchSystem` (optionally via
+`SearchSystemSupervisor`) to provide persistent background indexing capabilities
+for the CLI. It manages the search system lifecycle and coordinates background
+queue processing.
 
 ### Features
 
 - **Singleton pattern**: Single shared instance across the application
+- **Supervisor integration**: Can use SearchSystemSupervisor for automatic
+  process restarts during large indexing jobs
 - **Background queue processor**: Processes indexing queue at regular intervals
 - **Progress tracking**: Real-time indexing progress via `IndexingProgress`
 - **Auto-index support**: Optionally starts indexing on startup based on config
@@ -1009,8 +1126,8 @@ interface SearchResult {
 
 ## Performance Tips
 
-1. **Keep child process indexing enabled** (default) for large corpus indexing -
-   this is the most effective memory management strategy
+1. **Enable SearchSystemSupervisor** for large corpus indexing (10k+ docs) -
+   configure `supervisorRestartThreshold` to prevent memory bloat
 2. **Use Python embedder** for additional memory isolation (runs in separate
    process)
 3. **Keep `useWorkerThread: true`** to maintain CLI responsiveness during search
@@ -1019,6 +1136,8 @@ interface SearchResult {
 6. **Adjust `prepareWorkers`** for parallel parsing on multi-core systems
 7. **Use hybrid search** for best results (combines keyword precision + semantic
    understanding)
+8. **LibSQL backend** (default) provides crash-safe vectors with good
+   performance
 
 ---
 
