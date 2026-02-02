@@ -146,11 +146,9 @@
     "markitdown-ts": "^0.0.8",
     "officeparser": "^5.2.2",
     "pdf-parse": "^1.1.1",
-    "punycode": "^2.3.1",
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0",
     "vscode-material-icons": "^0.1.1",
-    "whatwg-url": "^5.0.0",
     "xxhash-wasm": "^1.1.0"
   },
   "optionalDependencies": {
