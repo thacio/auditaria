@@ -43,6 +43,7 @@ import type {
   ServerGeminiStreamEvent as GeminiEvent,
   ThoughtSummary,
   ToolCallRequestInfo,
+  ToolCallResponseInfo,
   GeminiErrorEventValue,
   RetryAttemptPayload,
   ToolCallConfirmationDetails,
@@ -72,6 +73,7 @@ import {
   type TrackedCompletedToolCall,
   type TrackedCancelledToolCall,
   type TrackedWaitingToolCall,
+  type TrackedExecutingToolCall,
 } from './useToolScheduler.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -81,10 +83,32 @@ import type { LoadedSettings } from '../../config/settings.js';
 import { attachmentMetadataMap } from '../../services/WebInterfaceService.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
 import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
 
+type ToolResponseWithParts = ToolCallResponseInfo & {
+  llmContent?: PartListUnion;
+};
+
+interface ShellToolData {
+  pid?: number;
+  command?: string;
+  initialOutput?: string;
+}
+
 enum StreamProcessingStatus {
   Completed,
   UserCancelled,
   Error,
+}
+
+function isShellToolData(data: unknown): data is ShellToolData {
+  if (typeof data !== 'object' || data === null) {
+    return false;
+  }
+  const d = data as Partial<ShellToolData>;
+  return (
+    (d.pid === undefined || typeof d.pid === 'number') &&
+    (d.command === undefined || typeof d.command === 'string') &&
+    (d.initialOutput === undefined || typeof d.initialOutput === 'string')
+  );
 }
 
 function showCitations(settings: LoadedSettings): boolean {
@@ -420,14 +444,11 @@ export const useGeminiStream = (
   }, [toolCalls, pushedToolCallIds, config]);
 
   const activeToolPtyId = useMemo(() => {
-    const executingShellTool = toolCalls?.find(
+    const executingShellTool = toolCalls.find(
       (tc) =>
         tc.status === 'executing' && tc.request.name === 'run_shell_command',
     );
-    if (executingShellTool) {
-      return (executingShellTool as { pid?: number }).pid;
-    }
-    return undefined;
+    return (executingShellTool as TrackedExecutingToolCall | undefined)?.pid;
   }, [toolCalls]);
 
   // WEB_INTERFACE_START
@@ -480,18 +501,30 @@ export const useGeminiStream = (
     await done;
     setIsResponding(false);
   }, []);
-  const { handleShellCommand, activeShellPtyId, lastShellOutputTime } =
-    useShellCommandProcessor(
-      addItem,
-      setPendingHistoryItem,
-      onExec,
-      onDebugMessage,
-      config,
-      geminiClient,
-      setShellInputFocused,
-      terminalWidth,
-      terminalHeight,
-    );
+
+  const {
+    handleShellCommand,
+    activeShellPtyId,
+    lastShellOutputTime,
+    backgroundShellCount,
+    isBackgroundShellVisible,
+    toggleBackgroundShell,
+    backgroundCurrentShell,
+    registerBackgroundShell,
+    dismissBackgroundShell,
+    backgroundShells,
+  } = useShellCommandProcessor(
+    addItem,
+    setPendingHistoryItem,
+    onExec,
+    onDebugMessage,
+    config,
+    geminiClient,
+    setShellInputFocused,
+    terminalWidth,
+    terminalHeight,
+    activeToolPtyId,
+  );
 
   const activePtyId = activeShellPtyId || activeToolPtyId;
 
@@ -1576,6 +1609,25 @@ export const useGeminiStream = (
           !processedMemoryToolsRef.current.has(t.request.callId),
       );
 
+      // Handle backgrounded shell tools
+      completedAndReadyToSubmitTools.forEach((t) => {
+        const isShell = t.request.name === 'run_shell_command';
+        // Access result from the tracked tool call response
+        const response = t.response as ToolResponseWithParts;
+        const rawData = response?.data;
+        const data = isShellToolData(rawData) ? rawData : undefined;
+
+        // Use data.pid for shell commands moved to the background.
+        const pid = data?.pid;
+
+        if (isShell && pid) {
+          const command = (data?.['command'] as string) ?? 'shell';
+          const initialOutput = (data?.['initialOutput'] as string) ?? '';
+
+          registerBackgroundShell(pid, command, initialOutput);
+        }
+      });
+
       if (newSuccessfulMemorySaves.length > 0) {
         // Perform the refresh only if there are new ones.
         void performMemoryRefresh();
@@ -1682,6 +1734,7 @@ export const useGeminiStream = (
       performMemoryRefresh,
       modelSwitchedFromQuotaError,
       addItem,
+      registerBackgroundShell,
     ],
   );
 
@@ -1771,6 +1824,12 @@ export const useGeminiStream = (
     activePtyId,
     loopDetectionConfirmationRequest,
     lastOutputTime,
+    backgroundShellCount,
+    isBackgroundShellVisible,
+    toggleBackgroundShell,
+    backgroundCurrentShell,
+    backgroundShells,
+    dismissBackgroundShell,
     retryStatus,
   };
 };

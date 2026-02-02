@@ -44,7 +44,6 @@ export type TrackedWaitingToolCall = WaitingToolCall & {
 };
 export type TrackedExecutingToolCall = ExecutingToolCall & {
   responseSubmittedToGemini?: boolean;
-  pid?: number;
 };
 export type TrackedCompletedToolCall = CompletedToolCall & {
   responseSubmittedToGemini?: boolean;
@@ -146,7 +145,15 @@ export function useReactToolScheduler(
               ...coreTc,
               responseSubmittedToGemini,
               liveOutput,
-              pid: coreTc.pid,
+            };
+          } else if (
+            coreTc.status === 'success' ||
+            coreTc.status === 'error' ||
+            coreTc.status === 'cancelled'
+          ) {
+            return {
+              ...coreTc,
+              responseSubmittedToGemini,
             };
           } else {
             return {
