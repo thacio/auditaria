@@ -467,7 +467,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
   // Supervisor options
-  supervisorStrategy: 'child-process', // in-process (recommended), child-process, none
+  supervisorStrategy: 'in-process', // in-process (recommended), child-process, none
   supervisorRestartThreshold: 0,
   supervisorMemoryThresholdMb: 4000,
 };

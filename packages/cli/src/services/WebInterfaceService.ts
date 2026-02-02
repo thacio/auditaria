@@ -68,22 +68,39 @@ interface SequencedMessage {
   ephemeral?: boolean;
 }
 
+// AUDITARIA: Message types that are full state snapshots - only keep latest, not history
+// For these types, we replace the previous message instead of accumulating
+const LATEST_ONLY_MESSAGE_TYPES = new Set([
+  'file_tree_response',    // Full tree snapshot (5MB+) - only latest matters
+  'mcp_servers',           // Full server list - only latest matters
+  'slash_commands',        // Full command list - only latest matters
+  // NOTE: console_messages intentionally NOT included - user needs to see live logs
+]);
+
 class CircularMessageBuffer {
   private buffer: (SequencedMessage | null)[];
   private head: number = 0;
   private tail: number = 0;
   private size: number = 0;
   private capacity: number;
+  // AUDITARIA: Store latest-only messages separately (one per type)
+  private latestOnlyMessages: Map<string, SequencedMessage> = new Map();
 
   constructor(capacity: number = 100) {
     this.capacity = capacity;
     this.buffer = new Array(capacity).fill(null);
   }
 
-  add(message: SequencedMessage): void {
+  add(message: SequencedMessage, messageType?: string): void {
+    // AUDITARIA: For state-snapshot messages, only keep the latest (replace previous)
+    if (messageType && LATEST_ONLY_MESSAGE_TYPES.has(messageType)) {
+      this.latestOnlyMessages.set(messageType, message);
+      return;
+    }
+
     this.buffer[this.tail] = message;
     this.tail = (this.tail + 1) % this.capacity;
-    
+
     if (this.size < this.capacity) {
       this.size++;
     } else {
@@ -95,7 +112,8 @@ class CircularMessageBuffer {
   getMessagesFrom(sequence: number, persistentOnly: boolean = false): SequencedMessage[] {
     const messages: SequencedMessage[] = [];
     let current = this.head;
-    
+
+    // Get messages from circular buffer
     for (let i = 0; i < this.size; i++) {
       const msg = this.buffer[current];
       if (msg && msg.sequence > sequence) {
@@ -106,13 +124,23 @@ class CircularMessageBuffer {
       }
       current = (current + 1) % this.capacity;
     }
-    
+
+    // AUDITARIA: Also include latest-only messages if they're newer than requested sequence
+    for (const msg of this.latestOnlyMessages.values()) {
+      if (msg.sequence > sequence) {
+        // Respect persistentOnly filter for consistency
+        if (!persistentOnly || !msg.ephemeral) {
+          messages.push(msg);
+        }
+      }
+    }
+
     return messages.sort((a, b) => a.sequence - b.sequence);
   }
 
   hasSequence(sequence: number): boolean {
+    // Check circular buffer
     let current = this.head;
-    
     for (let i = 0; i < this.size; i++) {
       const msg = this.buffer[current];
       if (msg && msg.sequence === sequence) {
@@ -120,7 +148,14 @@ class CircularMessageBuffer {
       }
       current = (current + 1) % this.capacity;
     }
-    
+
+    // AUDITARIA: Also check latest-only messages for consistency
+    for (const msg of this.latestOnlyMessages.values()) {
+      if (msg.sequence === sequence) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -1012,7 +1047,7 @@ export class WebInterfaceService extends EventEmitter {
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
-    
+
     const sequence = this.getNextSequence();
     const message = JSON.stringify({
       type,
@@ -1020,14 +1055,15 @@ export class WebInterfaceService extends EventEmitter {
       sequence,
       timestamp: Date.now(),
     });
-    
+
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            // Pass message type so buffer can handle state-snapshot types appropriately
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now() }, type);
           }
         } catch (_error) {
           this.clients.delete(client);
@@ -2258,10 +2294,7 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     // Handle directory changes - refresh file tree for all clients
-    this.directoryWatcherService.on('directory-change', (event: any) => {
-      // console.log(`Directory change detected: ${event.type} - ${event.path}`);
-
-      // Refresh file tree for all clients
+    this.directoryWatcherService.on('directory-change', (_event: any) => {
       this.handleFileTreeRequest();
     });
 
@@ -2825,6 +2858,8 @@ export class WebInterfaceService extends EventEmitter {
     }, 5000); // Every 5 seconds during active indexing
 
     // Clean up after 30 minutes max (safety)
-    setTimeout(() => clearInterval(progressInterval), 30 * 60 * 1000);
+    setTimeout(() => {
+      clearInterval(progressInterval);
+    }, 30 * 60 * 1000);
   }
 }

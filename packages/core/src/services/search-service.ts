@@ -92,14 +92,13 @@ export class SearchServiceManager {
   };
 
   private queueProcessorInterval: ReturnType<typeof setInterval> | null = null;
-  private memoryDebugInterval: ReturnType<typeof setInterval> | null = null;
   private eventUnsubscribers: Array<() => void> = [];
   private isProcessingQueue: boolean = false;
 
-  // AUDITARIA: Set to true to silence SearchService console output
+  // AUDITARIA: Set to true to silence SearchService info/debug console output
   private static SILENT_MODE = true;
 
-  // Helper to conditionally log
+  // Helper to conditionally log (info/debug are silenced, errors always show)
   private log(...args: unknown[]): void {
     if (!SearchServiceManager.SILENT_MODE) console.log(...args);
   }
@@ -107,7 +106,7 @@ export class SearchServiceManager {
     if (!SearchServiceManager.SILENT_MODE) console.warn(...args);
   }
   private error(...args: unknown[]): void {
-    if (!SearchServiceManager.SILENT_MODE) console.error(...args);
+    console.error(...args); // Errors always show regardless of SILENT_MODE
   }
 
   // -------------------------------------------------------------------------
@@ -215,9 +214,6 @@ export class SearchServiceManager {
       // Subscribe to search system events
       this.subscribeToEvents();
 
-      // Memory debugging disabled by default (enable for debugging memory leaks)
-      // this.startMemoryDebugger();
-
       // Check if we should auto-index:
       // - startIndexing: true = explicitly requested (from /knowledge-base init)
       // - autoIndex config = persistent setting in database
@@ -271,9 +267,6 @@ export class SearchServiceManager {
     this.log('[SearchService] Stopping...');
 
     try {
-      // Stop memory debugger
-      this.stopMemoryDebugger();
-
       // Stop queue processor
       this.stopQueueProcessor();
 
@@ -559,61 +552,6 @@ export class SearchServiceManager {
       clearInterval(this.queueProcessorInterval);
       this.queueProcessorInterval = null;
       this.log('[SearchService] Queue processor stopped');
-    }
-  }
-
-  /**
-   * Start memory debugging interval.
-   * Logs memory every 30 seconds to track growth during indexing.
-   */
-  private startMemoryDebugger(): void {
-    if (this.memoryDebugInterval) return;
-    this.logMemoryDebug();
-    this.memoryDebugInterval = setInterval(() => {
-      this.logMemoryDebug();
-    }, 30000); // Every 30 seconds
-  }
-
-  /**
-   * Stop memory debugging interval.
-   */
-  private stopMemoryDebugger(): void {
-    if (this.memoryDebugInterval) {
-      clearInterval(this.memoryDebugInterval);
-      this.memoryDebugInterval = null;
-    }
-  }
-
-  /**
-   * Log memory debug information.
-   */
-  private lastHeapUsed = 0;
-  private lastProgressCount = 0;
-
-  private logMemoryDebug(): void {
-    // Log main process memory with delta
-    const memUsage = process.memoryUsage();
-    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-    const deltaMB = heapUsedMB - this.lastHeapUsed;
-    const progressDelta = this.indexingProgress.processedFiles - this.lastProgressCount;
-    const kbPerDoc = progressDelta > 0 ? Math.round((deltaMB * 1024) / progressDelta) : 0;
-
-    console.log('[MEMORY] Main:', {
-      heapMB: heapUsedMB,
-      deltaMB: deltaMB > 0 ? `+${deltaMB}` : deltaMB,
-      externalMB: Math.round(memUsage.external / 1024 / 1024),
-      rssMB: Math.round(memUsage.rss / 1024 / 1024),
-      docs: this.indexingProgress.processedFiles,
-      docsDelta: progressDelta,
-      kbPerDoc: kbPerDoc,
-    });
-
-    this.lastHeapUsed = heapUsedMB;
-    this.lastProgressCount = this.indexingProgress.processedFiles;
-
-    // Force GC if available to get accurate numbers
-    if (typeof global.gc === 'function') {
-      global.gc();
     }
   }
 

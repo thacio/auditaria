@@ -15,14 +15,18 @@ import path from 'node:path';
  * Directory Watcher Service
  *
  * Watches workspace directory for file/folder changes using native fs.watch
- * - Monitors file/folder additions, deletions, and modifications
+ * - Monitors file/folder additions and deletions (rename events)
+ * - Ignores content modifications (change events) - they don't affect tree structure
  * - Debounces rapid changes to prevent excessive tree refreshes
  * - Respects ignore patterns (node_modules, .git, etc.)
- * - Emits events when directory structure changes
  *
  * Events emitted:
  * - 'directory-change': { type, path } - When workspace structure changes
  * - 'error': Error - When watcher encounters errors
+ *
+ * Note: On Windows, fs.watch triggers 'change' events when files are read
+ * (due to access time updates). We intentionally ignore these to prevent
+ * memory bloat during operations like indexing that read many files.
  */
 export class DirectoryWatcherService extends EventEmitter {
   private workspaceRoot: string;
@@ -60,7 +64,6 @@ export class DirectoryWatcherService extends EventEmitter {
    */
   async start(): Promise<void> {
     if (this.isWatching) {
-      // console.log('Directory watcher already running');
       return;
     }
 
@@ -83,7 +86,6 @@ export class DirectoryWatcherService extends EventEmitter {
       });
 
       this.isWatching = true;
-      // console.log(`Directory watcher started for: ${this.workspaceRoot}`);
     } catch (error: any) {
       console.error('Failed to start directory watcher:', error);
       this.emit('error', error);
@@ -101,8 +103,10 @@ export class DirectoryWatcherService extends EventEmitter {
     // If filename is null, we can't determine what changed
     // This can happen on some platforms/configurations
     if (!filename) {
-      // Trigger a generic refresh
-      this.scheduleRefresh('change', '.');
+      // Trigger a generic refresh only for rename events
+      if (eventType === 'rename') {
+        this.scheduleRefresh('rename', '.');
+      }
       return;
     }
 
@@ -111,10 +115,13 @@ export class DirectoryWatcherService extends EventEmitter {
       return;
     }
 
-    // Schedule debounced refresh
-    // eventType: 'rename' = file/folder added or deleted
-    // eventType: 'change' = file content modified
-    this.scheduleRefresh(eventType, filename);
+    // Only refresh tree on 'rename' events (file/folder add/delete)
+    // 'change' events (file content modified) don't affect tree structure
+    // This prevents memory bloat during indexing when files are being read
+    // (Windows fs.watch triggers 'change' events on file reads due to access time updates)
+    if (eventType === 'rename') {
+      this.scheduleRefresh(eventType, filename);
+    }
   }
 
   /**
@@ -190,8 +197,6 @@ export class DirectoryWatcherService extends EventEmitter {
     this.watcher.close();
     this.watcher = null;
     this.isWatching = false;
-
-    // console.log('Directory watcher stopped');
   }
 
   /**
