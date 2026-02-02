@@ -440,7 +440,7 @@ export async function main() {
     ) {
       settings.setValue(
         SettingScope.User,
-        'selectedAuthType',
+        'security.auth.selectedType',
         AuthType.COMPUTE_ADC,
       );
     }
