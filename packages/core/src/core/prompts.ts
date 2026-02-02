@@ -7,7 +7,7 @@
 import type { Config } from '../config/config.js';
 import { PromptProvider } from '../prompts/promptProvider.js';
 import { resolvePathFromEnv as resolvePathFromEnvImpl } from '../prompts/utils.js';
-// AUDITARIA: Import SupportedLanguage type for i18n support
+// AUDITARIA_FEATURE: Import SupportedLanguage type for i18n support
 import type { SupportedLanguage } from '../i18n/index.js';
 
 /**
@@ -20,18 +20,18 @@ export function resolvePathFromEnv(envVar?: string) {
 
 /**
  * Returns the core system prompt for the agent.
- * AUDITARIA: Added language parameter for i18n support
+ * AUDITARIA_FEATURE: Added language parameter for i18n support
  */
 export function getCoreSystemPrompt(
   config: Config,
   userMemory?: string,
-  language?: SupportedLanguage,
+  language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
   interactiveOverride?: boolean,
 ): string {
   return new PromptProvider().getCoreSystemPrompt(
     config,
     userMemory,
-    language,
+    language, // AUDITARIA_FEATURE: pass language to PromptProvider
     interactiveOverride,
   );
 }

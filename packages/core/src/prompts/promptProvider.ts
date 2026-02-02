@@ -25,7 +25,7 @@ import {
   READ_FILE_TOOL_NAME,
 } from '../tools/tool-names.js';
 import { resolveModel, isPreviewModel } from '../config/models.js';
-// AUDITARIA: Import SupportedLanguage type for i18n support
+// AUDITARIA_FEATURE: Import SupportedLanguage type for i18n support
 import type { SupportedLanguage } from '../i18n/index.js';
 
 /**
@@ -34,12 +34,12 @@ import type { SupportedLanguage } from '../i18n/index.js';
 export class PromptProvider {
   /**
    * Generates the core system prompt.
-   * AUDITARIA: Added language parameter for i18n support
+   * AUDITARIA_FEATURE: Added language parameter for i18n support
    */
   getCoreSystemPrompt(
     config: Config,
     userMemory?: string,
-    language?: SupportedLanguage,
+    language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
     interactiveOverride?: boolean,
   ): string {
     const systemMdResolution = resolvePathFromEnv(
@@ -132,7 +132,7 @@ export class PromptProvider {
             interactive: interactiveMode,
             isGemini3,
             enableShellEfficiency: config.getEnableShellOutputEfficiency(),
-            // AUDITARIA: Pass language for i18n instructions
+            // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
           }),
         ),
@@ -150,12 +150,12 @@ export class PromptProvider {
       basePrompt = snippets.getCoreSystemPrompt(options);
     }
 
-    // AUDITARIA_START: Custom skills section
+    // AUDITARIA_FEATURE_START: Custom skills section
     const skillsSection = config.getSkillsPromptSection?.();
     if (skillsSection) {
       basePrompt += skillsSection;
     }
-    // AUDITARIA_END: Custom skills section
+    // AUDITARIA_FEATURE_END: Custom skills section
 
     // --- Finalization (Shell) ---
     const finalPrompt = snippets.renderFinalShell(
