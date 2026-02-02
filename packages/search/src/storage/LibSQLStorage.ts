@@ -415,9 +415,32 @@ export class LibSQLStorage implements StorageAdapter {
       // Ignore errors
     }
 
+    // Checkpoint WAL to flush all data to main database file
+    try {
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Ignore errors
+    }
+
+    // Ask SQLite to release as much memory as possible
+    try {
+      this.db.pragma('shrink_memory');
+    } catch {
+      // Ignore errors
+    }
+
     this.db.close();
     this.db = null;
     this._initialized = false;
+
+    // Aggressively trigger garbage collection to release the native libsql::Database handle
+    // The Rust Drop impl only runs when V8 collects the JS Database object
+    if (typeof global.gc === 'function') {
+      global.gc();
+      // Second pass after a microtask to catch weak refs
+      await new Promise((resolve) => setImmediate(resolve));
+      global.gc();
+    }
 
     log.info('close:complete');
   }
@@ -478,6 +501,13 @@ export class LibSQLStorage implements StorageAdapter {
       // Checkpoint WAL to ensure all data is flushed
       this.db.pragma('wal_checkpoint(TRUNCATE)');
 
+      // Ask SQLite to release as much memory as possible before closing
+      try {
+        this.db.pragma('shrink_memory');
+      } catch {
+        // Ignore errors
+      }
+
       // Close the database
       // Unlike vectorlite, libSQL vectors are stored in the DB file itself
       // so there's no external index file to worry about
@@ -486,8 +516,12 @@ export class LibSQLStorage implements StorageAdapter {
       this._initialized = false;
       this._vectorIndexCreated = false;
 
-      // Force garbage collection if available
-      if (global.gc) {
+      // Aggressively trigger garbage collection to release the native libsql::Database handle
+      // The Rust Drop impl only runs when V8 collects the JS Database object
+      if (typeof global.gc === 'function') {
+        global.gc();
+        // Second pass after a microtask to catch weak refs
+        await new Promise((resolve) => setImmediate(resolve));
         global.gc();
       }
 

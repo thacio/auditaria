@@ -92,8 +92,23 @@ export class SearchServiceManager {
   };
 
   private queueProcessorInterval: ReturnType<typeof setInterval> | null = null;
+  private memoryDebugInterval: ReturnType<typeof setInterval> | null = null;
   private eventUnsubscribers: Array<() => void> = [];
   private isProcessingQueue: boolean = false;
+
+  // AUDITARIA: Set to true to silence SearchService console output
+  private static SILENT_MODE = true;
+
+  // Helper to conditionally log
+  private log(...args: unknown[]): void {
+    if (!SearchServiceManager.SILENT_MODE) console.log(...args);
+  }
+  private warn(...args: unknown[]): void {
+    if (!SearchServiceManager.SILENT_MODE) console.warn(...args);
+  }
+  private error(...args: unknown[]): void {
+    if (!SearchServiceManager.SILENT_MODE) console.error(...args);
+  }
 
   // -------------------------------------------------------------------------
   // Singleton
@@ -138,12 +153,12 @@ export class SearchServiceManager {
     options: SearchServiceStartOptions = {},
   ): Promise<void> {
     if (this.state.status === 'running') {
-      console.log('[SearchService] Already running');
+      this.log('[SearchService] Already running');
       return;
     }
 
     if (this.state.status === 'starting') {
-      console.log('[SearchService] Already starting');
+      this.log('[SearchService] Already starting');
       return;
     }
 
@@ -162,8 +177,8 @@ export class SearchServiceManager {
       const dbExists = searchDatabaseExists(rootPath);
       const config = createConfig(); // Get default config with supervisor settings
 
-      console.log(`[SearchService] Starting... (dbExists: ${dbExists})`);
-      console.log(
+      this.log(`[SearchService] Starting... (dbExists: ${dbExists})`);
+      this.log(
         `[SearchService] Supervisor strategy: ${config.indexing.supervisorStrategy}, ` +
           `restart threshold: ${config.indexing.supervisorRestartThreshold}`,
       );
@@ -180,7 +195,7 @@ export class SearchServiceManager {
       // AUDITARIA_FEATURE: Use SearchSystemSupervisor for automatic memory management
       // The supervisor wraps SearchSystem and automatically restarts it after N documents
       // to prevent memory bloat from WASM, embedder models, and other resources.
-      console.log('[SearchService] Initializing with supervisor...');
+      this.log('[SearchService] Initializing with supervisor...');
       this.searchSystem = await createSearchSystemSupervisor({
         rootPath,
         config: {
@@ -200,6 +215,9 @@ export class SearchServiceManager {
       // Subscribe to search system events
       this.subscribeToEvents();
 
+      // Memory debugging disabled by default (enable for debugging memory leaks)
+      // this.startMemoryDebugger();
+
       // Check if we should auto-index:
       // - startIndexing: true = explicitly requested (from /knowledge-base init)
       // - autoIndex config = persistent setting in database
@@ -213,7 +231,7 @@ export class SearchServiceManager {
 
       this.state.status = 'running';
       this.state.startedAt = new Date();
-      console.log(
+      this.log(
         `[SearchService] Started successfully (indexing: ${shouldIndex ? 'enabled' : 'disabled'})`,
       );
 
@@ -221,13 +239,13 @@ export class SearchServiceManager {
       if (shouldIndex && !options.skipInitialSync) {
         // Run sync in background, don't block startup
         this.performInitialSync(options.forceReindex ?? false).catch((err) => {
-          console.warn('[SearchService] Initial sync failed:', err.message);
+          this.warn('[SearchService] Initial sync failed:', err.message);
         });
       }
     } catch (error) {
       this.state.status = 'error';
       this.state.error = error instanceof Error ? error.message : String(error);
-      console.error('[SearchService] Failed to start:', this.state.error);
+      this.error('[SearchService] Failed to start:', this.state.error);
       throw error;
     }
   }
@@ -250,9 +268,12 @@ export class SearchServiceManager {
     }
 
     this.state.status = 'stopping';
-    console.log('[SearchService] Stopping...');
+    this.log('[SearchService] Stopping...');
 
     try {
+      // Stop memory debugger
+      this.stopMemoryDebugger();
+
       // Stop queue processor
       this.stopQueueProcessor();
 
@@ -270,11 +291,11 @@ export class SearchServiceManager {
 
       this.state.status = 'stopped';
       this.state.startedAt = null;
-      console.log('[SearchService] Stopped');
+      this.log('[SearchService] Stopped');
     } catch (error) {
       this.state.status = 'error';
       this.state.error = error instanceof Error ? error.message : String(error);
-      console.error('[SearchService] Error during stop:', this.state.error);
+      this.error('[SearchService] Error during stop:', this.state.error);
     }
   }
 
@@ -302,15 +323,15 @@ export class SearchServiceManager {
    */
   enableIndexing(): void {
     if (this.queueProcessorInterval) {
-      console.log('[SearchService] Indexing already enabled');
+      this.log('[SearchService] Indexing already enabled');
       return;
     }
     if (this.state.status !== 'running') {
-      console.log('[SearchService] Cannot enable indexing - service not running');
+      this.log('[SearchService] Cannot enable indexing - service not running');
       return;
     }
     this.startQueueProcessor();
-    console.log('[SearchService] Indexing enabled');
+    this.log('[SearchService] Indexing enabled');
   }
 
   getState(): SearchServiceState {
@@ -359,7 +380,7 @@ export class SearchServiceManager {
       this.indexingProgress.status === 'syncing' ||
       this.indexingProgress.status === 'discovering'
     ) {
-      console.log('[SearchService] Sync already in progress');
+      this.log('[SearchService] Sync already in progress');
       return;
     }
 
@@ -378,7 +399,7 @@ export class SearchServiceManager {
       const result = await this.searchSystem.reindexFile(filePath);
       return result;
     } catch (error) {
-      console.error('[SearchService] Reindex failed:', error);
+      this.error('[SearchService] Reindex failed:', error);
       return false;
     }
   }
@@ -406,11 +427,11 @@ export class SearchServiceManager {
           SET status = 'pending', started_at = NULL
           WHERE status = 'processing'
         `);
-        console.log('[SearchService] Reset stale queue items');
+        this.log('[SearchService] Reset stale queue items');
       }
     } catch (error) {
       // Non-fatal, just log
-      console.warn('[SearchService] Could not reset stale items:', error);
+      this.warn('[SearchService] Could not reset stale items:', error);
     }
   }
 
@@ -464,7 +485,7 @@ export class SearchServiceManager {
         this.indexingProgress.failedFiles = event.failed;
         this.indexingProgress.completedAt = new Date();
         this.state.lastSyncAt = new Date();
-        console.log(
+        this.log(
           `[SearchService] Indexing completed: ${event.indexed} indexed, ${event.failed} failed (${event.duration}ms)`,
         );
       },
@@ -478,39 +499,40 @@ export class SearchServiceManager {
       on: (event: string, handler: (data: unknown) => void) => () => void;
     };
 
-    const unsubRestartStarting = searchSystemAny.on(
-      'supervisor:restart:starting',
-      (data: unknown) => {
-        const event = data as {
-          reason: string;
-          documentsProcessed: number;
-          memoryMb: number;
-        };
-        console.log(
-          `[SearchService] Supervisor restarting: ${event.reason} ` +
-            `(docs: ${event.documentsProcessed}, memory: ${event.memoryMb}MB)`,
-        );
-      },
-    );
-    this.eventUnsubscribers.push(unsubRestartStarting);
+    // NOTE: Supervisor event logging disabled to test if console output causes memory leak
+    // const unsubRestartStarting = searchSystemAny.on(
+    //   'supervisor:restart:starting',
+    //   (data: unknown) => {
+    //     const event = data as {
+    //       reason: string;
+    //       documentsProcessed: number;
+    //       memoryMb: number;
+    //     };
+    //     console.log(
+    //       `[SearchService] Supervisor restarting: ${event.reason} ` +
+    //         `(docs: ${event.documentsProcessed}, memory: ${event.memoryMb}MB)`,
+    //     );
+    //   },
+    // );
+    // this.eventUnsubscribers.push(unsubRestartStarting);
 
-    const unsubRestartCompleted = searchSystemAny.on(
-      'supervisor:restart:completed',
-      (data: unknown) => {
-        const event = data as {
-          restartCount: number;
-          durationMs: number;
-          memoryBeforeMb: number;
-          memoryAfterMb: number;
-        };
-        const memoryFreed = event.memoryBeforeMb - event.memoryAfterMb;
-        console.log(
-          `[SearchService] Supervisor restart #${event.restartCount} complete: ` +
-            `${event.memoryBeforeMb}MB → ${event.memoryAfterMb}MB (freed ${memoryFreed}MB, took ${event.durationMs}ms)`,
-        );
-      },
-    );
-    this.eventUnsubscribers.push(unsubRestartCompleted);
+    // const unsubRestartCompleted = searchSystemAny.on(
+    //   'supervisor:restart:completed',
+    //   (data: unknown) => {
+    //     const event = data as {
+    //       restartCount: number;
+    //       durationMs: number;
+    //       memoryBeforeMb: number;
+    //       memoryAfterMb: number;
+    //     };
+    //     const memoryFreed = event.memoryBeforeMb - event.memoryAfterMb;
+    //     console.log(
+    //       `[SearchService] Supervisor restart #${event.restartCount} complete: ` +
+    //         `${event.memoryBeforeMb}MB → ${event.memoryAfterMb}MB (freed ${memoryFreed}MB, took ${event.durationMs}ms)`,
+    //     );
+    //   },
+    // );
+    // this.eventUnsubscribers.push(unsubRestartCompleted);
   }
 
   /**
@@ -519,14 +541,14 @@ export class SearchServiceManager {
   private startQueueProcessor(): void {
     if (this.queueProcessorInterval) return;
 
-    // Process queue every 5 seconds
+    // Process queue every 10 seconds (increased from 5 to reduce overhead)
     this.queueProcessorInterval = setInterval(() => {
-      this.processQueueIfNeeded().catch((err) => {
-        console.warn('[SearchService] Queue processing error:', err.message);
+      this.processQueueIfNeeded().catch(() => {
+        // Silently ignore errors - they're expected during active indexing
       });
-    }, 5000);
+    }, 10000);
 
-    console.log('[SearchService] Queue processor started');
+    this.log('[SearchService] Queue processor started');
   }
 
   /**
@@ -536,7 +558,62 @@ export class SearchServiceManager {
     if (this.queueProcessorInterval) {
       clearInterval(this.queueProcessorInterval);
       this.queueProcessorInterval = null;
-      console.log('[SearchService] Queue processor stopped');
+      this.log('[SearchService] Queue processor stopped');
+    }
+  }
+
+  /**
+   * Start memory debugging interval.
+   * Logs memory every 30 seconds to track growth during indexing.
+   */
+  private startMemoryDebugger(): void {
+    if (this.memoryDebugInterval) return;
+    this.logMemoryDebug();
+    this.memoryDebugInterval = setInterval(() => {
+      this.logMemoryDebug();
+    }, 30000); // Every 30 seconds
+  }
+
+  /**
+   * Stop memory debugging interval.
+   */
+  private stopMemoryDebugger(): void {
+    if (this.memoryDebugInterval) {
+      clearInterval(this.memoryDebugInterval);
+      this.memoryDebugInterval = null;
+    }
+  }
+
+  /**
+   * Log memory debug information.
+   */
+  private lastHeapUsed = 0;
+  private lastProgressCount = 0;
+
+  private logMemoryDebug(): void {
+    // Log main process memory with delta
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    const deltaMB = heapUsedMB - this.lastHeapUsed;
+    const progressDelta = this.indexingProgress.processedFiles - this.lastProgressCount;
+    const kbPerDoc = progressDelta > 0 ? Math.round((deltaMB * 1024) / progressDelta) : 0;
+
+    console.log('[MEMORY] Main:', {
+      heapMB: heapUsedMB,
+      deltaMB: deltaMB > 0 ? `+${deltaMB}` : deltaMB,
+      externalMB: Math.round(memUsage.external / 1024 / 1024),
+      rssMB: Math.round(memUsage.rss / 1024 / 1024),
+      docs: this.indexingProgress.processedFiles,
+      docsDelta: progressDelta,
+      kbPerDoc: kbPerDoc,
+    });
+
+    this.lastHeapUsed = heapUsedMB;
+    this.lastProgressCount = this.indexingProgress.processedFiles;
+
+    // Force GC if available to get accurate numbers
+    if (typeof global.gc === 'function') {
+      global.gc();
     }
   }
 
@@ -544,6 +621,7 @@ export class SearchServiceManager {
    * Check queue and process items if needed.
    */
   private async processQueueIfNeeded(): Promise<void> {
+    // Skip if already processing (either via queue processor or via indexAll/performSync)
     if (!this.searchSystem || this.isProcessingQueue) return;
 
     try {
@@ -551,17 +629,6 @@ export class SearchServiceManager {
 
       if (queueStatus.pending > 0) {
         this.isProcessingQueue = true;
-
-        console.log(
-          `[SearchService] Processing ${queueStatus.pending} queued items...`,
-        );
-
-        // Update progress
-        this.indexingProgress.status = 'indexing';
-        this.indexingProgress.totalFiles = queueStatus.pending;
-        this.indexingProgress.processedFiles = 0;
-        this.indexingProgress.startedAt = new Date();
-        this.indexingProgress.completedAt = null;
 
         // Use processQueue() to process items already in the queue
         // This properly emits indexing:progress events for supervisor auto-restart tracking
@@ -580,7 +647,10 @@ export class SearchServiceManager {
       }
     } catch (error) {
       this.isProcessingQueue = false;
-      console.warn('[SearchService] Queue check failed:', error);
+      // Only log if it's not the expected "already in progress" error during sync
+      if (!(error instanceof Error && error.message.includes('already in progress'))) {
+        this.warn('[SearchService] Queue check failed:', error);
+      }
     }
   }
 
@@ -601,7 +671,7 @@ export class SearchServiceManager {
     this.isProcessingQueue = true;
 
     try {
-      console.log('[SearchService] Starting sync...');
+      this.log('[SearchService] Starting sync...');
 
       // Update progress
       this.indexingProgress.status = 'syncing';
@@ -610,14 +680,14 @@ export class SearchServiceManager {
       this.indexingProgress.failedFiles = 0;
       this.indexingProgress.processedFiles = 0;
 
-      // Discover files
+      // Discover files - get count then release array to avoid holding 38k+ objects in memory
       this.indexingProgress.status = 'discovering';
-      const files = await this.searchSystem.discoverFiles();
-      this.indexingProgress.totalFiles = files.length;
+      const fileCount = (await this.searchSystem.discoverFiles()).length;
+      this.indexingProgress.totalFiles = fileCount;
 
-      console.log(`[SearchService] Discovered ${files.length} files`);
+      this.log(`[SearchService] Discovered ${fileCount} files`);
 
-      if (files.length === 0) {
+      if (fileCount === 0) {
         this.indexingProgress.status = 'completed';
         this.indexingProgress.completedAt = new Date();
         return; // finally block will reset isProcessingQueue
@@ -633,7 +703,7 @@ export class SearchServiceManager {
       this.indexingProgress.completedAt = new Date();
       this.state.lastSyncAt = new Date();
 
-      console.log(
+      this.log(
         `[SearchService] Sync completed: ${result.indexed} indexed, ${result.failed} failed (${result.duration}ms)`,
       );
     } catch (error) {
@@ -641,7 +711,7 @@ export class SearchServiceManager {
       this.indexingProgress.lastError =
         error instanceof Error ? error.message : String(error);
       this.indexingProgress.completedAt = new Date();
-      console.error('[SearchService] Sync failed:', error);
+      this.error('[SearchService] Sync failed:', error);
       throw error;
     } finally {
       this.isProcessingQueue = false;

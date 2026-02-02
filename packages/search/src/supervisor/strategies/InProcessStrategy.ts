@@ -109,13 +109,15 @@ export class InProcessStrategy implements RestartStrategy {
     }
     this.searchSystem = null;
 
-    // 3. Trigger garbage collection if available
+    // 3. Aggressive garbage collection to try to free native/WASM memory
+    // Note: in-process GC is limited - WASM memory often isn't fully released
+    // For guaranteed memory recovery, use child-process strategy instead
     this.forceGarbageCollection();
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for GC
+    this.forceGarbageCollection(); // Second pass for weak refs
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait again
 
-    // 4. Wait for event loop to clear
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // 5. Reinitialize SearchSystem
+    // 4. Reinitialize SearchSystem
     // console.log('[InProcessStrategy] Reinitializing SearchSystem...');
     this.searchSystem = await SearchSystem.initialize({
       rootPath: this.rootPath,
