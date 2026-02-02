@@ -601,12 +601,12 @@ Gemini CLI will then execute the multi-line prompt defined in your TOML file.
 These shortcuts apply directly to the input prompt for text manipulation.
 
 - **Undo:**
-  - **Keyboard shortcut:** Press **Ctrl+z** to undo the last action in the input
-    prompt.
+  - **Keyboard shortcut:** Press **Cmd+z** or **Alt+z** to undo the last action
+    in the input prompt.
 
 - **Redo:**
-  - **Keyboard shortcut:** Press **Ctrl+Shift+Z** to redo the last undone action
-    in the input prompt.
+  - **Keyboard shortcut:** Press **Shift+Cmd+Z** or **Shift+Alt+Z** to redo the
+    last undone action in the input prompt.
 
 ## At commands (`@`)
 
