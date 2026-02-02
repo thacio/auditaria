@@ -33,6 +33,10 @@ import {
   registerTelemetryConfig,
 } from './utils/cleanup.js';
 import {
+  cleanupToolOutputFiles,
+  cleanupExpiredSessions,
+} from './utils/sessionCleanup.js';
+import {
   type Config,
   type SupportedLanguage,
   type ResumedSessionData,
@@ -74,7 +78,6 @@ import {
 } from './core/initializer.js';
 import { validateAuthMethod } from './config/auth.js';
 import { runZedIntegration } from './zed-integration/zedIntegration.js';
-import { cleanupExpiredSessions } from './utils/sessionCleanup.js';
 import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
 import { checkForUpdates } from './ui/utils/updateCheck.js';
 import { handleAutoUpdate } from './utils/handleAutoUpdate.js';
@@ -393,7 +396,10 @@ export async function main() {
   await initI18n(language);
   // AUDITARIA_FEATURE_END
 
-  await cleanupCheckpoints();
+  await Promise.all([
+    cleanupCheckpoints(),
+    cleanupToolOutputFiles(settings.merged),
+  ]);
 
   const parseArgsHandle = startupProfiler.start('parse_arguments');
   const argv = await parseArguments(settings.merged);
