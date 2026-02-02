@@ -32,6 +32,10 @@ import {
 } from './types.js';
 import { ToolActionsProvider } from './contexts/ToolActionsContext.js';
 import {
+  AskUserActionsProvider,
+  type AskUserState,
+} from './contexts/AskUserActionsContext.js';
+import {
   type EditorType,
   type Config,
   type IdeInfo,
@@ -67,6 +71,8 @@ import {
   SessionStartSource,
   SessionEndReason,
   generateSummary,
+  MessageBusType,
+  type AskUserRequest,
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
 } from '@google/gemini-cli-core';
@@ -298,6 +304,11 @@ export const AppContainer = (props: AppContainerProps) => {
     AgentDefinition | undefined
   >();
 
+  // AskUser dialog state
+  const [askUserRequest, setAskUserRequest] = useState<AskUserState | null>(
+    null,
+  );
+
   const openAgentConfigDialog = useCallback(
     (name: string, displayName: string, definition: AgentDefinition) => {
       setSelectedAgentName(name);
@@ -314,6 +325,56 @@ export const AppContainer = (props: AppContainerProps) => {
     setSelectedAgentDisplayName(undefined);
     setSelectedAgentDefinition(undefined);
   }, []);
+
+  // Subscribe to ASK_USER_REQUEST messages from the message bus
+  useEffect(() => {
+    const messageBus = config.getMessageBus();
+
+    const handler = (msg: AskUserRequest) => {
+      setAskUserRequest({
+        questions: msg.questions,
+        correlationId: msg.correlationId,
+      });
+    };
+
+    messageBus.subscribe(MessageBusType.ASK_USER_REQUEST, handler);
+
+    return () => {
+      messageBus.unsubscribe(MessageBusType.ASK_USER_REQUEST, handler);
+    };
+  }, [config]);
+
+  // Handler to submit ask_user answers
+  const handleAskUserSubmit = useCallback(
+    async (answers: { [questionIndex: string]: string }) => {
+      if (!askUserRequest) return;
+
+      const messageBus = config.getMessageBus();
+      await messageBus.publish({
+        type: MessageBusType.ASK_USER_RESPONSE,
+        correlationId: askUserRequest.correlationId,
+        answers,
+      });
+
+      setAskUserRequest(null);
+    },
+    [config, askUserRequest],
+  );
+
+  // Handler to cancel ask_user dialog
+  const handleAskUserCancel = useCallback(async () => {
+    if (!askUserRequest) return;
+
+    const messageBus = config.getMessageBus();
+    await messageBus.publish({
+      type: MessageBusType.ASK_USER_RESPONSE,
+      correlationId: askUserRequest.correlationId,
+      answers: {},
+      cancelled: true,
+    });
+
+    setAskUserRequest(null);
+  }, [config, askUserRequest]);
 
   const toggleDebugProfiler = useCallback(
     () => setShowDebugProfiler((prev) => !prev),
@@ -1403,6 +1464,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       }
 
       if (keyMatchers[Command.QUIT](key)) {
+        // Skip when ask_user dialog is open (use Esc to cancel instead)
+        if (askUserRequest) {
+          return;
+        }
         // If the user presses Ctrl+C, we want to cancel any ongoing requests.
         // This should happen regardless of the count.
         cancelOngoingRequest?.();
@@ -1490,6 +1555,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       setCtrlDPressCount,
       handleSlashCommand,
       cancelOngoingRequest,
+      askUserRequest,
       activePtyId,
       embeddedShellFocused,
       settings.merged.general.debugKeystrokeLogging,
@@ -1602,6 +1668,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
   const nightly = props.version.includes('nightly');
 
   const dialogsVisible =
+    !!askUserRequest ||
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
     adminSettingsChanged ||
@@ -2468,9 +2535,15 @@ Logging in with Google... Restarting Gemini CLI to continue.
             }}
           >
             <ToolActionsProvider config={config} toolCalls={allToolCalls}>
-              <ShellFocusContext.Provider value={isFocused}>
-                <App />
-              </ShellFocusContext.Provider>
+              <AskUserActionsProvider
+                request={askUserRequest}
+                onSubmit={handleAskUserSubmit}
+                onCancel={handleAskUserCancel}
+              >
+                <ShellFocusContext.Provider value={isFocused}>
+                  <App />
+                </ShellFocusContext.Provider>
+              </AskUserActionsProvider>
             </ToolActionsProvider>
           </AppContext.Provider>
         </ConfigContext.Provider>
