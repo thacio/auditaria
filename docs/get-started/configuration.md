@@ -863,7 +863,7 @@ their corresponding top-level category object in your `settings.json` file.
   - **Requires restart:** Yes
 
 - **`experimental.skills`** (boolean):
-  - **Description:** Enable Agent Skills (experimental).
+  - **Description:** [Deprecated] Enable Agent Skills (experimental).
   - **Default:** `false`
   - **Requires restart:** Yes
 
@@ -878,6 +878,11 @@ their corresponding top-level category object in your `settings.json` file.
   - **Requires restart:** Yes
 
 #### `skills`
+
+- **`skills.enabled`** (boolean):
+  - **Description:** Enable Agent Skills.
+  - **Default:** `true`
+  - **Requires restart:** Yes
 
 - **`skills.disabled`** (array):
   - **Description:** List of disabled skills.
