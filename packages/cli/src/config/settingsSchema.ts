@@ -1488,6 +1488,15 @@ const SETTINGS_SCHEMA = {
         description: 'Enable Just-In-Time (JIT) context loading.',
         showInDialog: false,
       },
+      skills: {
+        type: 'boolean',
+        label: 'Agent Skills',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: false,
+        description: 'Enable Agent Skills (experimental).',
+        showInDialog: true,
+      },
       useOSC52Paste: {
         type: 'boolean',
         label: 'Use OSC 52 Paste',
@@ -1562,6 +1571,7 @@ const SETTINGS_SCHEMA = {
         default: true,
         description: 'Enable Agent Skills.',
         showInDialog: true,
+        ignoreInDocs: true,
       },
       disabled: {
         type: 'array',
