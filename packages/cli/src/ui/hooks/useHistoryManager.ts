@@ -39,10 +39,12 @@ export interface UseHistoryManagerReturn {
  */
 export function useHistory({
   chatRecordingService,
+  initialItems = [],
 }: {
   chatRecordingService?: ChatRecordingService | null;
+  initialItems?: HistoryItem[];
 } = {}): UseHistoryManagerReturn {
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>(initialItems);
   const messageIdCounterRef = useRef(0);
   // WEB_INTERFACE_START: Web interface integration
   const webInterface = useWebInterface();
