@@ -424,9 +424,15 @@ export const useGeminiStream = (
   // WEB_INTERFACE_START
   // Broadcast pending tool calls to web interface when they change
   useEffect(() => {
-    if (webInterface && pendingToolCallGroupDisplay) {
+    // Find the first tool_group item with actual tools from pendingToolGroupItems
+    const pendingToolGroup = pendingToolGroupItems.find(
+      (item): item is HistoryItemToolGroup =>
+        item.type === 'tool_group' && 'tools' in item && item.tools.length > 0,
+    );
+
+    if (webInterface && pendingToolGroup) {
       // Only broadcast tools that are actually still pending/executing (not completed)
-      const activePendingTools = pendingToolCallGroupDisplay.tools.filter(
+      const activePendingTools = pendingToolGroup.tools.filter(
         (tool) =>
           tool.status === 'Pending' ||
           tool.status === 'Executing' ||
@@ -436,7 +442,7 @@ export const useGeminiStream = (
       // Only broadcast if there are actually pending tools
       if (activePendingTools.length > 0) {
         const pendingToolItemWithId: HistoryItem = {
-          ...pendingToolCallGroupDisplay,
+          ...pendingToolGroup,
           tools: activePendingTools,
           id: -2, // Temporary ID for pending tool calls (different from text responses)
         } as HistoryItem;
@@ -447,7 +453,7 @@ export const useGeminiStream = (
         webInterface.broadcastPendingItem(null);
       }
     }
-  }, [pendingToolCallGroupDisplay, webInterface]);
+  }, [pendingToolGroupItems, webInterface]);
   // WEB_INTERFACE_END
 
   const lastQueryRef = useRef<PartListUnion | null>(null);
