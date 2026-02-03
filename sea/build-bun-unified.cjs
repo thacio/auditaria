@@ -56,10 +56,10 @@ try {
     'youtube-transcript',  // Optional dep of markitdown-ts
     'unzipper',  // Optional dep of markitdown-ts
     // These are dynamically imported and will throw runtime error if used in Bun
-    // 'vectorlite',  // SQLite vector extension (native)
-    // 'better-sqlite3',  // SQLite native bindings
-    // '@electric-sql/pglite',  // PGlite embedded postgres
-    // '@lancedb/lancedb',  // LanceDB vector storage
+    'vectorlite',  // SQLite vector extension (native)
+    'better-sqlite3',  // SQLite native bindings
+    '@electric-sql/pglite',  // PGlite embedded postgres
+    '@lancedb/lancedb',  // LanceDB vector storage
   ].map(e => `--external:${e}`).join(' ');
 
   // Alias native modules to shims for Bun compatibility
