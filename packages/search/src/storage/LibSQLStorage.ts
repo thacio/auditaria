@@ -379,7 +379,7 @@ export class LibSQLStorage implements StorageAdapter {
       createIndex: true,
       vectorType,
       compressNeighbors: 'float8', // 3x smaller index
-      maxNeighbors: 50, // Reduced from 50 for ~8x smaller index (per Turso benchmarks)
+      maxNeighbors: 20, // Reduced from 50 to 20 for ~8x smaller index (per Turso benchmarks)
     };
 
     try {
