@@ -38,6 +38,7 @@ export class EditorPanel extends EventEmitter {
     this.splitButton = null;
     this.diffButton = null;
     this.trackChangesButton = null;
+    this.collaborativeWritingButton = null; // AUDITARIA: AI Collaborative Writing toggle
     this.closeButton = null;
     this.collapseButton = null;
     this.expandTab = null;
@@ -123,6 +124,7 @@ export class EditorPanel extends EventEmitter {
     this.splitButton = document.getElementById('editor-split-button');
     this.diffButton = document.getElementById('editor-diff-button');
     this.trackChangesButton = document.getElementById('editor-track-changes-button');
+    this.collaborativeWritingButton = document.getElementById('editor-collab-writing-button'); // AUDITARIA
     this.closeButton = document.getElementById('editor-close-button');
     this.collapseButton = document.getElementById('editor-collapse-button');
     this.expandTab = document.getElementById('editor-expand-tab');
@@ -254,6 +256,16 @@ export class EditorPanel extends EventEmitter {
             <span class="editor-toolbar-button-text">Track Changes</span>
           </button>
 
+          <button
+            id="editor-collab-writing-button"
+            class="editor-toolbar-button"
+            title="AI Collaborative Writing - sync file changes with AI (click to enable)"
+            aria-label="Toggle AI Collaborative Writing"
+          >
+            <span class="codicon codicon-sync-ignored"></span>
+            <span class="editor-toolbar-button-text">AI Collab</span>
+          </button>
+
           <div class="editor-toolbar-spacer"></div>
 
           <button
@@ -367,6 +379,13 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
+    // AUDITARIA: Collaborative writing button (toggle AI file tracking)
+    if (this.collaborativeWritingButton) {
+      this.collaborativeWritingButton.addEventListener('click', () => {
+        this.toggleCollaborativeWriting();
+      });
+    }
+
     // Close button
     if (this.closeButton) {
       this.closeButton.addEventListener('click', () => {
@@ -427,6 +446,9 @@ export class EditorPanel extends EventEmitter {
       }
 
       this.updateToolbar(language, filename);
+
+      // AUDITARIA: Update collaborative writing button state for new file
+      this.updateCollaborativeWritingButton();
     });
 
     this.editorManager.on('file-switched', ({ path }) => {
@@ -455,6 +477,9 @@ export class EditorPanel extends EventEmitter {
         }
 
         this.updateToolbar(fileInfo.language, filename);
+
+        // AUDITARIA: Update collaborative writing button state for new file
+        this.updateCollaborativeWritingButton();
 
         // Update warning visibility based on file state
         if (fileInfo.showWarning) {
@@ -521,6 +546,11 @@ export class EditorPanel extends EventEmitter {
     // Handle warning dismissed
     this.editorManager.on('external-warning-dismissed', ({ path }) => {
       this.externalChangeWarning.hide();
+    });
+
+    // AUDITARIA: Handle collaborative writing status changes
+    this.editorManager.on('collaborative-writing-changed', () => {
+      this.updateCollaborativeWritingButton();
     });
 
   }
@@ -1029,6 +1059,51 @@ export class EditorPanel extends EventEmitter {
     this.saveState();
   }
 
+  // =========================================================================
+  // AUDITARIA: AI Collaborative Writing Toggle
+  // =========================================================================
+
+  /**
+   * Toggle AI collaborative writing for the active file
+   * When enabled: AI receives notifications when file changes externally
+   * When disabled: AI is not notified of external changes
+   */
+  toggleCollaborativeWriting() {
+    const activeFile = this.editorManager.getActiveFile();
+    if (!activeFile) {
+      console.warn('No active file to toggle collaborative writing');
+      return;
+    }
+
+    // Delegate to EditorManager
+    this.editorManager.toggleCollaborativeWriting(activeFile);
+  }
+
+  /**
+   * Update collaborative writing button state based on current file
+   */
+  updateCollaborativeWritingButton() {
+    if (!this.collaborativeWritingButton) return;
+
+    const activeFile = this.editorManager.getActiveFile();
+    const isActive = activeFile && this.editorManager.isCollaborativeWritingActive(activeFile);
+    const icon = this.collaborativeWritingButton.querySelector('.codicon');
+
+    if (isActive) {
+      this.collaborativeWritingButton.classList.add('active');
+      this.collaborativeWritingButton.title = 'AI Collaborative Writing enabled - AI receives file change notifications (click to disable)';
+      if (icon) {
+        icon.className = 'codicon codicon-sync';
+      }
+    } else {
+      this.collaborativeWritingButton.classList.remove('active');
+      this.collaborativeWritingButton.title = 'AI Collaborative Writing disabled - AI is not notified of file changes (click to enable)';
+      if (icon) {
+        icon.className = 'codicon codicon-sync-ignored';
+      }
+    }
+  }
+
   /**
    * Update preview with current editor content
    */
@@ -1072,7 +1147,7 @@ export class EditorPanel extends EventEmitter {
     const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
     const activePreview = canPreview ? this.previewManager.getPreviewerFor(language, filename) : null;
 
-    // Binary preview mode: Only show Preview button, hide Code/Split
+    // Binary preview mode: Only show Preview button, hide Code/Split and AI Collab
     if (this.isBinaryPreviewMode) {
       if (this.previewButton) {
         this.previewButton.style.display = canPreview ? '' : 'none';
@@ -1082,6 +1157,10 @@ export class EditorPanel extends EventEmitter {
       }
       if (this.splitButton) {
         this.splitButton.style.display = 'none'; // Always hide for binary files
+      }
+      // AUDITARIA: Hide AI Collab for binary files (not editable)
+      if (this.collaborativeWritingButton) {
+        this.collaborativeWritingButton.style.display = 'none';
       }
     } else {
       // Normal mode: Show/hide base preview buttons (Code/Preview/Split)
@@ -1095,6 +1174,11 @@ export class EditorPanel extends EventEmitter {
 
       if (this.splitButton) {
         this.splitButton.style.display = canPreview ? '' : 'none';
+      }
+
+      // AUDITARIA: Show AI Collab button for editable files
+      if (this.collaborativeWritingButton) {
+        this.collaborativeWritingButton.style.display = '';
       }
     }
 

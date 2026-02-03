@@ -51,6 +51,10 @@ export class EditorManager extends EventEmitter {
     // Track changes callback (provided by EditorPanel)
     this.getTrackChangesEnabled = null;
 
+    // AUDITARIA: Collaborative writing state (AI file tracking)
+    this.collaborativeWritingFiles = new Map(); // path -> { startedAt, lastChangeSource }
+    this.collaborativeWritingPending = false; // True while waiting for toggle response
+
     // Setup WebSocket handlers
     this.setupMessageHandlers();
 
@@ -152,6 +156,16 @@ export class EditorManager extends EventEmitter {
     // Handle parse errors
     this.wsManager.addEventListener('parse_error', (event) => {
       alert(`✗ Parse failed:\n\n${event.detail.error}`);
+    });
+
+    // AUDITARIA: Handle collaborative writing status updates
+    this.wsManager.addEventListener('collaborative_writing_status', (event) => {
+      this.handleCollaborativeWritingStatus(event.detail);
+    });
+
+    // AUDITARIA: Handle collaborative writing toggle results
+    this.wsManager.addEventListener('collaborative_writing_toggle_result', (event) => {
+      this.handleCollaborativeWritingToggleResult(event.detail);
     });
   }
 
@@ -974,5 +988,164 @@ export class EditorManager extends EventEmitter {
       type: 'parse_request',
       path: mdPath
     });
+  }
+
+  // =========================================================================
+  // AUDITARIA: Collaborative Writing (AI File Tracking)
+  // =========================================================================
+
+  /**
+   * Handle collaborative writing status update from server
+   * @param {Object} data - { trackedFiles: Array<{path, startedAt, lastChangeSource}> }
+   */
+  handleCollaborativeWritingStatus(data) {
+    const { trackedFiles } = data;
+
+    // Update local cache
+    this.collaborativeWritingFiles.clear();
+    if (trackedFiles && Array.isArray(trackedFiles)) {
+      for (const file of trackedFiles) {
+        this.collaborativeWritingFiles.set(file.path, {
+          startedAt: file.startedAt,
+          lastChangeSource: file.lastChangeSource,
+        });
+      }
+    }
+
+    // Emit event for UI update
+    this.emit('collaborative-writing-changed', {
+      trackedFiles: Array.from(this.collaborativeWritingFiles.keys()),
+    });
+  }
+
+  /**
+   * Handle collaborative writing toggle result from server
+   * @param {Object} data - { path, action, success, message }
+   */
+  handleCollaborativeWritingToggleResult(data) {
+    this.collaborativeWritingPending = false;
+
+    const { path, action, success, message } = data;
+
+    if (success) {
+      this.showToast(
+        action === 'start'
+          ? '✓ AI collaborative writing enabled'
+          : '✓ AI collaborative writing disabled',
+        'success'
+      );
+    } else {
+      this.showToast(`✗ ${message}`, 'error');
+    }
+
+    // Status update will come separately via collaborative_writing_status
+  }
+
+  /**
+   * Request collaborative writing status from server
+   */
+  requestCollaborativeWritingStatus() {
+    this.wsManager.send({
+      type: 'collaborative_writing_status_request',
+    });
+  }
+
+  /**
+   * Toggle collaborative writing for a file
+   * @param {string} path - File path
+   */
+  toggleCollaborativeWriting(path) {
+    if (!path) {
+      console.warn('Cannot toggle collaborative writing: no path provided');
+      return;
+    }
+
+    if (this.collaborativeWritingPending) {
+      console.warn('Collaborative writing toggle already in progress');
+      return;
+    }
+
+    const isActive = this.isCollaborativeWritingActive(path);
+    const action = isActive ? 'end' : 'start';
+
+    // For 'end' action, find the actual tracked path to send to server
+    let pathToSend = path;
+    if (action === 'end') {
+      const trackedPath = this.findTrackedPath(path);
+      if (trackedPath) {
+        pathToSend = trackedPath;
+      }
+    }
+
+    this.collaborativeWritingPending = true;
+
+    this.wsManager.send({
+      type: 'collaborative_writing_toggle',
+      path: pathToSend,
+      action,
+    });
+  }
+
+  /**
+   * Find the actual tracked path that matches a given path
+   * @param {string} path - File path to match
+   * @returns {string|null} - The tracked path or null if not found
+   */
+  findTrackedPath(path) {
+    if (!path) return null;
+
+    const normalizedPath = path.replace(/\\/g, '/');
+
+    // Check exact match first
+    if (this.collaborativeWritingFiles.has(path)) return path;
+    if (this.collaborativeWritingFiles.has(normalizedPath)) return normalizedPath;
+
+    // Check if any tracked path ends with this path
+    for (const trackedPath of this.collaborativeWritingFiles.keys()) {
+      const normalizedTracked = trackedPath.replace(/\\/g, '/');
+      if (normalizedTracked.endsWith('/' + normalizedPath) ||
+          normalizedTracked === normalizedPath ||
+          normalizedPath.endsWith('/' + normalizedTracked)) {
+        return trackedPath;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if collaborative writing is active for a file
+   * @param {string} path - File path
+   * @returns {boolean}
+   */
+  isCollaborativeWritingActive(path) {
+    if (!path) return false;
+
+    // Normalize path separators for comparison
+    const normalizedPath = path.replace(/\\/g, '/');
+
+    // Check exact match first
+    if (this.collaborativeWritingFiles.has(path)) return true;
+    if (this.collaborativeWritingFiles.has(normalizedPath)) return true;
+
+    // Check if any tracked path ends with this path (handles absolute vs relative)
+    for (const trackedPath of this.collaborativeWritingFiles.keys()) {
+      const normalizedTracked = trackedPath.replace(/\\/g, '/');
+      if (normalizedTracked.endsWith('/' + normalizedPath) ||
+          normalizedTracked === normalizedPath ||
+          normalizedPath.endsWith('/' + normalizedTracked)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Get all files with collaborative writing active
+   * @returns {string[]}
+   */
+  getCollaborativeWritingFiles() {
+    return Array.from(this.collaborativeWritingFiles.keys());
   }
 }

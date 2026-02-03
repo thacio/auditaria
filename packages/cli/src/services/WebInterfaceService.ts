@@ -46,7 +46,7 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 import { DocxParserService } from './DocxParserService.js';
 
 // Knowledge Base Search Service
-import { SearchServiceManager, getSearchService } from '@google/gemini-cli-core';
+import { SearchServiceManager, getSearchService, collaborativeWritingService } from '@google/gemini-cli-core';
 
 // AUDITARIA: Lazy load search module to check database existence
 let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
@@ -1453,6 +1453,12 @@ export class WebInterfaceService extends EventEmitter {
     } else if (message.type === 'knowledge_base_search_request') {
       this.handleKnowledgeBaseSearchRequest(message as any);
     }
+    // AUDITARIA: Collaborative Writing handlers for web toggle
+    else if (message.type === 'collaborative_writing_status_request') {
+      this.handleCollaborativeWritingStatusRequest();
+    } else if (message.type === 'collaborative_writing_toggle') {
+      this.handleCollaborativeWritingToggle((message as any).path, (message as any).action);
+    }
   }
 
   /**
@@ -2118,6 +2124,15 @@ export class WebInterfaceService extends EventEmitter {
         path: this.docxParser.getParserPath()
       });
     }
+
+    // AUDITARIA: Send collaborative writing status to new client
+    const registry = collaborativeWritingService.getRegistry();
+    const trackedFiles = registry.getAllTrackedFiles().map((f: any) => ({
+      path: f.filePath,
+      startedAt: f.startedAt.toISOString(),
+      lastChangeSource: f.lastChangeSource,
+    }));
+    sendAndStore('collaborative_writing_status', { trackedFiles });
   }
   // WEB_INTERFACE_END
 
@@ -2360,6 +2375,100 @@ export class WebInterfaceService extends EventEmitter {
 
     this.docxParser.refresh();
     this.broadcastParserStatus();
+  }
+
+  // =========================================================================
+  // AUDITARIA: Collaborative Writing Handlers (Web Toggle)
+  // =========================================================================
+
+  /**
+   * Handle collaborative writing status request from web client
+   * Returns list of all tracked files
+   */
+  private handleCollaborativeWritingStatusRequest(): void {
+    const registry = collaborativeWritingService.getRegistry();
+    const trackedFiles = registry.getAllTrackedFiles().map((f: any) => ({
+      path: f.filePath,
+      startedAt: f.startedAt.toISOString(),
+      lastChangeSource: f.lastChangeSource,
+    }));
+
+    this.broadcastWithSequence('collaborative_writing_status', {
+      trackedFiles,
+    });
+  }
+
+  /**
+   * Handle collaborative writing toggle request from web client
+   * Starts or stops tracking a file for collaborative writing
+   */
+  private async handleCollaborativeWritingToggle(filePath: string, action: 'start' | 'end'): Promise<void> {
+    if (!filePath) {
+      this.broadcastWithSequence('collaborative_writing_toggle_result', {
+        path: filePath,
+        action,
+        success: false,
+        message: 'File path is required',
+      });
+      return;
+    }
+
+    const registry = collaborativeWritingService.getRegistry();
+    const path = await import('node:path');
+    const resolvedPath = path.resolve(filePath);
+
+    try {
+      if (action === 'start') {
+        if (registry.isTracking(resolvedPath)) {
+          this.broadcastWithSequence('collaborative_writing_toggle_result', {
+            path: resolvedPath,
+            action,
+            success: true,
+            message: 'Already tracking this file',
+          });
+        } else {
+          await registry.startTracking(resolvedPath);
+          this.broadcastWithSequence('collaborative_writing_toggle_result', {
+            path: resolvedPath,
+            action,
+            success: true,
+            message: 'Started collaborative writing for this file',
+          });
+        }
+      } else if (action === 'end') {
+        if (!registry.isTracking(resolvedPath)) {
+          this.broadcastWithSequence('collaborative_writing_toggle_result', {
+            path: resolvedPath,
+            action,
+            success: true,
+            message: 'File was not being tracked',
+          });
+        } else {
+          registry.stopTracking(resolvedPath);
+          this.broadcastWithSequence('collaborative_writing_toggle_result', {
+            path: resolvedPath,
+            action,
+            success: true,
+            message: 'Stopped collaborative writing for this file',
+          });
+        }
+      }
+
+      // Broadcast updated status to all clients
+      this.handleCollaborativeWritingStatusRequest();
+    } catch (error: any) {
+      const errorMsg = error.message || String(error);
+      this.broadcastWithSequence('collaborative_writing_toggle_result', {
+        path: resolvedPath,
+        action,
+        success: false,
+        message: errorMsg.includes('ENOENT')
+          ? 'File not found'
+          : errorMsg.includes('EACCES') || errorMsg.includes('EPERM')
+            ? 'Permission denied'
+            : errorMsg,
+      });
+    }
   }
 
   // =========================================================================
