@@ -38,8 +38,17 @@ console.log('📦 Creating Bun-specific bundle with ONNX web alias...');
 const pkg = require(path.join(__dirname, '..', 'package.json'));
 
 try {
-  // Note: web-tree-sitter and tree-sitter-bash are NOT marked as external
-  // Their JS code gets bundled, and WASM files are loaded from embedded assets
+  // IMPORTANT: Marking packages as external INCREASES final exe size!
+  // When external: esbuild keeps `import 'pkg'` statements → Bun tries to resolve/include them
+  // When NOT external: esbuild fails to bundle native modules → imports get removed
+  // So for packages we want to EXCLUDE from Bun, do NOT add them here.
+  //
+  // Only mark as external if the package:
+  // 1. Is actually needed at runtime in Bun
+  // 2. Must be resolved by Bun's module system (not bundled)
+  //
+  // Note: web-tree-sitter and tree-sitter-bash are NOT external - they get bundled,
+  // and their WASM files are loaded from embedded assets
   const externals = [
     '@lydell/node-pty',
     'node-pty',
@@ -51,6 +60,11 @@ try {
     'keytar',
     'youtube-transcript',
     'unzipper',
+    // These are dynamically imported and will throw runtime error if used in Bun
+    // 'vectorlite',  // SQLite vector extension (native)
+    // 'better-sqlite3',  // SQLite native bindings
+    // '@electric-sql/pglite',  // PGlite embedded postgres
+    // '@lancedb/lancedb',  // LanceDB vector storage
   ].map(e => `--external:${e}`).join(' ');
 
   // Alias native modules to shims for Bun compatibility

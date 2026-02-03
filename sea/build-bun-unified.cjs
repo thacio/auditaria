@@ -33,8 +33,15 @@ try {
   // Read the main esbuild config to get base settings
   const pkg = require(path.join(__dirname, '..', 'package.json'));
 
-  // Run esbuild with Stagehand/Playwright NOT external
-  // We keep node-pty and native modules external as they're not used in browser-agent
+  // IMPORTANT: Marking packages as external INCREASES final exe size!
+  // When external: esbuild keeps `import 'pkg'` statements → Bun tries to resolve/include them
+  // When NOT external: esbuild fails to bundle native modules → imports get removed
+  // So for packages we want to EXCLUDE from Bun, do NOT add them here.
+  //
+  // Only mark as external if the package:
+  // 1. Is actually needed at runtime in Bun
+  // 2. Must be resolved by Bun's module system (not bundled)
+  //
   // Note: web-tree-sitter and tree-sitter-bash are NOT external - they get bundled,
   // and their WASM files are loaded from embedded assets
   const externals = [
@@ -48,6 +55,11 @@ try {
     'keytar',  // Native module for credential storage
     'youtube-transcript',  // Optional dep of markitdown-ts
     'unzipper',  // Optional dep of markitdown-ts
+    // These are dynamically imported and will throw runtime error if used in Bun
+    // 'vectorlite',  // SQLite vector extension (native)
+    // 'better-sqlite3',  // SQLite native bindings
+    // '@electric-sql/pglite',  // PGlite embedded postgres
+    // '@lancedb/lancedb',  // LanceDB vector storage
   ].map(e => `--external:${e}`).join(' ');
 
   // Alias native modules to shims for Bun compatibility
@@ -58,8 +70,8 @@ try {
   const sharpShimPath = path.join(__dirname, 'sharp-shim.js').replace(/\\/g, '/');
   const onnxNodeShimPath = path.join(__dirname, 'onnx-node-shim.js').replace(/\\/g, '/');
   const scribeBundledPath = path.join(__dirname, 'scribe-main-bundled.js').replace(/\\/g, '/');
-  // NOTE: We do NOT alias onnxruntime-web - the onnx-node-shim.js imports from 'onnxruntime-web/wasm'
-  // and esbuild needs to resolve that naturally to the actual package
+  // NOTE: We do NOT alias @huggingface/transformers - let it use the default entry point
+  // which imports onnxruntime-node. Our onnx-node-shim redirects to onnxruntime-web/wasm
   const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath} --alias:scribe.js-ocr=${scribeBundledPath}`;
 
   execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
@@ -101,11 +113,12 @@ if (fs.existsSync(LOCALE_PATH)) {
   console.warn('   ⚠️  Locale directory not found, translations may not work');
 }
 
-// === PGLITE ASSETS EMBEDDING === (for knowledge search in Bun executable)
-console.log('\n📦 Embedding PGlite assets...');
-const PGLITE_DIST_PATH = path.join(__dirname, '..', 'node_modules', '@electric-sql', 'pglite', 'dist');
-let pgliteAssets = {};
-
+// === PGLITE ASSETS EMBEDDING === (DISABLED - Bun only supports libsql backend)
+// PGlite is not needed since we use libsql for the Bun executable
+// console.log('\n📦 Embedding PGlite assets...');
+// const PGLITE_DIST_PATH = path.join(__dirname, '..', 'node_modules', '@electric-sql', 'pglite', 'dist');
+let pgliteAssets = {}; // Keep empty - not used in Bun executable
+/*
 try {
   const wasmPath = path.join(PGLITE_DIST_PATH, 'pglite.wasm');
   const dataPath = path.join(PGLITE_DIST_PATH, 'pglite.data');
@@ -129,6 +142,7 @@ try {
 } catch (error) {
   console.warn('   ⚠️  Failed to embed PGlite assets:', error.message);
 }
+*/
 
 // === TREE-SITTER WASM EMBEDDING === (for shell parsing in Bun executable)
 console.log('\n📦 Embedding tree-sitter WASM assets...');
