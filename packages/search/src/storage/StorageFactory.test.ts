@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
@@ -15,7 +17,10 @@ describe('StorageFactory', () => {
 
   beforeEach(() => {
     // Create a temporary directory for each test
-    testDir = path.join(os.tmpdir(), `storage-factory-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    testDir = path.join(
+      os.tmpdir(),
+      `storage-factory-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     fs.mkdirSync(testDir, { recursive: true });
   });
 
@@ -81,8 +86,8 @@ describe('StorageFactory', () => {
   });
 
   describe('createStorage', () => {
-    it('should use in-memory storage without checking metadata', () => {
-      const storage = createStorage({
+    it('should use in-memory storage without checking metadata', async () => {
+      const storage = await createStorage({
         backend: 'sqlite',
         path: '',
         inMemory: true,
@@ -93,10 +98,10 @@ describe('StorageFactory', () => {
       expect(storage.constructor.name).toBe('SQLiteVectorliteStorage');
     });
 
-    it('should use config backend when no metadata exists', () => {
+    it('should use config backend when no metadata exists', async () => {
       const dbPath = path.join(testDir, 'new-sqlite-db');
 
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'sqlite',
         path: dbPath,
         inMemory: false,
@@ -107,7 +112,7 @@ describe('StorageFactory', () => {
       expect(storage.constructor.name).toBe('SQLiteVectorliteStorage');
     });
 
-    it('should use existing metadata backend over config backend', () => {
+    it('should use existing metadata backend over config backend', async () => {
       const dbPath = path.join(testDir, 'existing-libsql-db');
       fs.mkdirSync(dbPath);
 
@@ -120,7 +125,7 @@ describe('StorageFactory', () => {
       writeMetadata(dbPath, metadata);
 
       // Try to open with sqlite config - should use libsql from metadata
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'sqlite', // Config says sqlite
         path: dbPath,
         inMemory: false,
@@ -131,7 +136,7 @@ describe('StorageFactory', () => {
       expect(storage.constructor.name).toBe('LibSQLStorage'); // But metadata wins
     });
 
-    it('should create correct storage for each backend type', () => {
+    it('should create correct storage for each backend type', async () => {
       const backendToClass = {
         sqlite: 'SQLiteVectorliteStorage',
         libsql: 'LibSQLStorage',
@@ -140,7 +145,7 @@ describe('StorageFactory', () => {
       } as const;
 
       for (const [backend, className] of Object.entries(backendToClass)) {
-        const storage = createStorage({
+        const storage = await createStorage({
           backend: backend as 'sqlite' | 'libsql' | 'pglite' | 'lancedb',
           path: '',
           inMemory: true,
@@ -156,7 +161,7 @@ describe('StorageFactory', () => {
     it('should create metadata when initializing SQLite storage', async () => {
       const dbPath = path.join(testDir, 'sqlite-init');
 
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'sqlite',
         path: dbPath,
         inMemory: false,
@@ -176,7 +181,7 @@ describe('StorageFactory', () => {
     it('should create metadata when initializing LibSQL storage', async () => {
       const dbPath = path.join(testDir, 'libsql-init');
 
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'libsql',
         path: dbPath,
         inMemory: false,
@@ -194,7 +199,7 @@ describe('StorageFactory', () => {
     });
 
     it('should not create metadata for in-memory storage', async () => {
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'sqlite',
         path: '',
         inMemory: true,
@@ -212,7 +217,7 @@ describe('StorageFactory', () => {
     it('should create metadata when initializing LanceDB storage', async () => {
       const dbPath = path.join(testDir, 'lancedb-init');
 
-      const storage = createStorage({
+      const storage = await createStorage({
         backend: 'lancedb',
         path: dbPath,
         inMemory: false,

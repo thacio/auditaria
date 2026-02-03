@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 /* eslint-disable no-console */
@@ -40,8 +42,8 @@ import type {
   QueuePriority,
   DiscoveredFile,
 } from '../types.js';
-import { PGliteStorage } from '../storage/PGliteStorage.js';
-import { SQLiteVectorliteStorage } from '../storage/SQLiteVectorliteStorage.js';
+import type { PGliteStorage } from '../storage/PGliteStorage.js';
+import type { SQLiteVectorliteStorage } from '../storage/SQLiteVectorliteStorage.js';
 import { createStorage } from '../storage/StorageFactory.js';
 import type { StorageAdapter } from '../storage/types.js';
 import {
@@ -311,7 +313,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     };
 
     // Initialize storage using factory - it handles backend selection and metadata
-    this.storage = createStorage(
+    // createStorage is async to support dynamic imports of optional backends
+    this.storage = await createStorage(
       dbConfig,
       this.config.vectorIndex,
       this.config.embeddings.dimensions,
@@ -878,11 +881,15 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         );
 
         // Refresh main storage to see child's writes (lightweight, no reconnect)
-        const storageWithRefresh = this.storage as PGliteStorage | SQLiteVectorliteStorage;
+        const storageWithRefresh = this.storage as
+          | PGliteStorage
+          | SQLiteVectorliteStorage;
         if (storageWithRefresh?.refresh && event.code === 0) {
           try {
             await storageWithRefresh.refresh();
-            console.log('[SearchSystem] Storage refreshed - now sees child writes');
+            console.log(
+              '[SearchSystem] Storage refreshed - now sees child writes',
+            );
           } catch (error) {
             console.warn(
               '[SearchSystem] Failed to refresh:',
@@ -1198,7 +1205,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    *
    * Use this when you need to resume processing after a restart.
    */
-  async processQueue(): Promise<{ indexed: number; failed: number; duration: number }> {
+  async processQueue(): Promise<{
+    indexed: number;
+    failed: number;
+    duration: number;
+  }> {
     this.ensureInitialized();
 
     if (this.indexingInProgress) {
@@ -1252,7 +1263,9 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         await this.waitForPipelineIdle();
       } catch (error) {
         if (this.closing) {
-          console.log('[SearchSystem] Queue processing interrupted by shutdown');
+          console.log(
+            '[SearchSystem] Queue processing interrupted by shutdown',
+          );
           unsubCompleted();
           unsubFailed();
           const duration = Date.now() - startTime;

@@ -32,14 +32,12 @@
     "scribe.js-ocr": "^0.9.3",
     "chokidar": "^4.0.3"
   },
-  "optionalDependencies": {
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
     "@lancedb/lancedb": "^0.17.0",
     "better-sqlite3": "^11.0.0",
     "vectorlite": "^0.2.0",
-    "@electric-sql/pglite": "^0.3.14"
-  },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
+    "@electric-sql/pglite": "^0.3.14",
     "typescript": "^5.3.3",
     "vitest": "^3.1.1",
     "@types/pdf-parse": "^1.1.4"
@@ -48,10 +46,26 @@
     "node": ">=20"
   },
   "peerDependencies": {
-    "@google/gemini-cli-core": "*"
+    "@google/gemini-cli-core": "*",
+    "@lancedb/lancedb": "^0.17.0",
+    "better-sqlite3": "^11.0.0",
+    "vectorlite": "^0.2.0",
+    "@electric-sql/pglite": "^0.3.14"
   },
   "peerDependenciesMeta": {
     "@google/gemini-cli-core": {
+      "optional": true
+    },
+    "@lancedb/lancedb": {
+      "optional": true
+    },
+    "better-sqlite3": {
+      "optional": true
+    },
+    "vectorlite": {
+      "optional": true
+    },
+    "@electric-sql/pglite": {
       "optional": true
     }
   }

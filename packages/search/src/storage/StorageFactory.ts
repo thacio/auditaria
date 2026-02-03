@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 import type { StorageAdapter } from './types.js';
@@ -11,14 +13,22 @@ import type {
   HybridSearchStrategy,
   StorageBackend,
 } from '../config.js';
-import { PGliteStorage } from './PGliteStorage.js';
-import { SQLiteVectorliteStorage } from './SQLiteVectorliteStorage.js';
-import { LanceDBStorage } from './LanceDBStorage.js';
+// LibSQL is the default backend - always available
 import { LibSQLStorage } from './LibSQLStorage.js';
+// Other backends are dynamically imported to avoid requiring their dependencies
+// when not in use. This allows `npm install -g` to work without optional deps.
 import { readMetadata, metadataExists } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
 
 const log = createModuleLogger('StorageFactory');
+
+/**
+ * Check if running under Bun runtime.
+ * Bun only supports LibSQL backend (native deps like better-sqlite3, pglite don't work).
+ */
+export function isRunningInBun(): boolean {
+  return typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
+}
 
 /**
  * Detect the storage backend from an existing database's metadata.
@@ -27,7 +37,9 @@ const log = createModuleLogger('StorageFactory');
  * @param dbPath - Path to the database directory
  * @returns The backend type stored in metadata, or null if not found
  */
-export function detectBackendFromMetadata(dbPath: string): StorageBackend | null {
+export function detectBackendFromMetadata(
+  dbPath: string,
+): StorageBackend | null {
   if (!metadataExists(dbPath)) {
     return null;
   }
@@ -57,24 +69,38 @@ export function detectBackendFromMetadata(dbPath: string): StorageBackend | null
  * If an existing database exists at the path, the backend stored in metadata
  * takes precedence over the config to prevent data corruption.
  *
+ * Non-default backends (pglite, lancedb, sqlite/vectorlite) are dynamically
+ * imported to avoid requiring their dependencies when not in use.
+ *
  * @param config - Database configuration including backend type
  * @param vectorIndexConfig - Vector index configuration
  * @param embeddingDimensions - Embedding dimensions (default: 384)
  * @param hybridStrategy - Hybrid search strategy (default: 'application')
- * @returns A StorageAdapter instance (SQLiteVectorliteStorage or PGliteStorage)
+ * @returns A StorageAdapter instance
  */
-export function createStorage(
+export async function createStorage(
   config: DatabaseConfig,
   vectorIndexConfig?: VectorIndexConfig,
   embeddingDimensions?: number,
   hybridStrategy?: HybridSearchStrategy,
-): StorageAdapter {
+): Promise<StorageAdapter> {
+  const isBun = isRunningInBun();
+
   // If an existing database has metadata, use its backend (authoritative)
   const existingBackend = config.inMemory
     ? null
     : detectBackendFromMetadata(config.path);
 
-  const backend = existingBackend ?? config.backend ?? 'sqlite';
+  const backend = existingBackend ?? config.backend ?? 'libsql';
+
+  // Bun only supports LibSQL (native deps like better-sqlite3, pglite don't work)
+  if (isBun && backend !== 'libsql') {
+    throw new Error(
+      `Bun runtime only supports the LibSQL backend. ` +
+        `Requested backend '${backend}' requires native dependencies that are incompatible with Bun.\n` +
+        `Either use LibSQL (default) or run with Node.js instead of Bun.`,
+    );
+  }
 
   // Warn if there's a mismatch between config and existing database
   if (existingBackend && config.backend && existingBackend !== config.backend) {
@@ -94,29 +120,56 @@ export function createStorage(
     dimensions: embeddingDimensions,
   });
 
+  // Dynamic imports for optional backends - only loaded when needed
   if (backend === 'lancedb') {
     log.info('createStorage:usingLanceDB');
-    return new LanceDBStorage(config, vectorIndexConfig, embeddingDimensions);
+    try {
+      const { LanceDBStorage } = await import('./LanceDBStorage.js');
+      return new LanceDBStorage(config, vectorIndexConfig, embeddingDimensions);
+    } catch (error) {
+      throw new Error(
+        `LanceDB backend requires @lancedb/lancedb. Install it with: npm install @lancedb/lancedb\n` +
+          `Original error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   if (backend === 'pglite') {
     log.info('createStorage:usingPGlite');
-    return new PGliteStorage(config, vectorIndexConfig, embeddingDimensions);
+    try {
+      const { PGliteStorage } = await import('./PGliteStorage.js');
+      return new PGliteStorage(config, vectorIndexConfig, embeddingDimensions);
+    } catch (error) {
+      throw new Error(
+        `PGlite backend requires @electric-sql/pglite. Install it with: npm install @electric-sql/pglite\n` +
+          `Original error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
-  if (backend === 'libsql') {
-    log.info('createStorage:usingLibSQL');
-    return new LibSQLStorage(
-      config,
-      vectorIndexConfig,
-      embeddingDimensions,
-      hybridStrategy,
-    );
+  if (backend === 'sqlite') {
+    log.info('createStorage:usingSQLite');
+    try {
+      const { SQLiteVectorliteStorage } = await import(
+        './SQLiteVectorliteStorage.js'
+      );
+      return new SQLiteVectorliteStorage(
+        config,
+        vectorIndexConfig,
+        embeddingDimensions,
+        hybridStrategy,
+      );
+    } catch (error) {
+      throw new Error(
+        `SQLite backend requires better-sqlite3. Install it with: npm install better-sqlite3\n` +
+          `Original error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
-  // SQLite is the default
-  log.info('createStorage:usingSQLite');
-  return new SQLiteVectorliteStorage(
+  // LibSQL is the default - always available (statically imported)
+  log.info('createStorage:usingLibSQL');
+  return new LibSQLStorage(
     config,
     vectorIndexConfig,
     embeddingDimensions,
@@ -126,6 +179,7 @@ export function createStorage(
 
 /**
  * Check if a storage backend is available.
+ * Under Bun runtime, only LibSQL is supported.
  *
  * @param backend - The backend to check ('sqlite', 'pglite', 'lancedb', or 'libsql')
  * @returns true if the backend dependencies are available
@@ -133,6 +187,11 @@ export function createStorage(
 export async function isBackendAvailable(
   backend: 'sqlite' | 'pglite' | 'lancedb' | 'libsql',
 ): Promise<boolean> {
+  // Bun only supports LibSQL (native deps don't work)
+  if (isRunningInBun() && backend !== 'libsql') {
+    return false;
+  }
+
   try {
     if (backend === 'lancedb') {
       await import('@lancedb/lancedb');
