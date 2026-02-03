@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
@@ -236,7 +238,9 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       // Try to start the service automatically if database exists
       const rootPath = this.config.getTargetDir();
       try {
-        const { searchDatabaseExists } = await import('@thacio/auditaria-cli-search');
+        const { searchDatabaseExists } = await import(
+          '@thacio/auditaria-cli-search'
+        );
 
         if (!searchDatabaseExists(rootPath)) {
           const msg =
@@ -252,7 +256,6 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
         }
 
         // Auto-start the service
-        console.log('[KnowledgeSearch] Auto-starting search service...');
         await service.start(rootPath, {
           skipInitialSync: true, // Don't sync now, just make search available
         });
@@ -332,7 +335,7 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
             section: result.metadata?.section ?? null,
           },
           // Include additional sources from semantic deduplication
-          additionalSources: result.additionalSources?.map(src => ({
+          additionalSources: result.additionalSources?.map((src) => ({
             filePath: src.filePath,
             fileName: src.fileName,
             documentId: src.documentId,
@@ -580,7 +583,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
               'Cosine similarity threshold for semantic dedup (0.9-1.0, default: 0.97). Higher = stricter matching.',
           },
         },
-        required: ['query'],
+        required: [],
       },
       messageBus,
       true,
@@ -644,7 +647,9 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
     // Diversity parameter validation
     if (
       params.diversity_strategy &&
-      !['none', 'score_penalty', 'cap_then_fill'].includes(params.diversity_strategy)
+      !['none', 'score_penalty', 'cap_then_fill'].includes(
+        params.diversity_strategy,
+      )
     ) {
       return 'Diversity strategy must be one of: none, score_penalty, cap_then_fill';
     }
@@ -662,7 +667,8 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
 
     if (
       params.semantic_dedup_threshold !== undefined &&
-      (params.semantic_dedup_threshold < 0.9 || params.semantic_dedup_threshold > 1.0)
+      (params.semantic_dedup_threshold < 0.9 ||
+        params.semantic_dedup_threshold > 1.0)
     ) {
       return 'Semantic dedup threshold must be between 0.9 and 1.0';
     }
