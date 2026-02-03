@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 // eslint-disable-next-line no-restricted-imports -- search package is independent of cli-core
@@ -467,7 +469,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   childProcessBatchSize: 500,
   childProcessMemoryThresholdMb: 3000,
   // Supervisor options
-  supervisorStrategy: 'in-process', // in-process (recommended), child-process, none
+  supervisorStrategy: 'none', // in-process (recommended), child-process, none
   supervisorRestartThreshold: 0,
   supervisorMemoryThresholdMb: 4000,
 };
@@ -628,7 +630,12 @@ export function validateConfig(config: SearchSystemConfig): void {
   if (!config.database.path && !config.database.inMemory) {
     throw new Error('Database path is required when not using in-memory mode');
   }
-  const validBackends: StorageBackend[] = ['sqlite', 'pglite', 'lancedb', 'libsql'];
+  const validBackends: StorageBackend[] = [
+    'sqlite',
+    'pglite',
+    'lancedb',
+    'libsql',
+  ];
   if (!validBackends.includes(config.database.backend)) {
     throw new Error(
       `database.backend must be one of: ${validBackends.join(', ')}`,

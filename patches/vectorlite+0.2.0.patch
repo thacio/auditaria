@@ -1,0 +1,14 @@
+diff --git a/node_modules/vectorlite/src/index.d.ts b/node_modules/vectorlite/src/index.d.ts
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/node_modules/vectorlite/src/index.d.ts
+@@ -0,0 +1,8 @@
++/**
++ * Type declarations for vectorlite
++ * @see https://github.com/1yefuwang1/vectorlite
++ */
++
++/** Returns the path to the vectorlite SQLite extension. */
++export function vectorlitePath(): string;
++

@@ -20,7 +20,6 @@
     "dist"
   ],
   "dependencies": {
-    "@electric-sql/pglite": "^0.3.14",
     "@huggingface/transformers": "^3.8.1",
     "libsql": "^0.5.0",
     "officeparser": "^5.2.2",
@@ -36,7 +35,8 @@
   "optionalDependencies": {
     "@lancedb/lancedb": "^0.17.0",
     "better-sqlite3": "^11.0.0",
-    "vectorlite": "^0.2.0"
+    "vectorlite": "^0.2.0",
+    "@electric-sql/pglite": "^0.3.14"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
