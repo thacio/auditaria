@@ -143,6 +143,7 @@
     "ignore": "^6.0.2",
     "ink": "npm:@jrichman/ink@6.4.8",
     "latest-version": "^9.0.0",
+    "libsql": "^0.5.0",
     "markitdown-ts": "^0.0.8",
     "officeparser": "^5.2.2",
     "pdf-parse": "^1.1.1",
