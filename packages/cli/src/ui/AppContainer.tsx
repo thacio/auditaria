@@ -396,6 +396,8 @@ export const AppContainer = (props: AppContainerProps) => {
   const { stats: sessionStats } = useSessionStats();
   const branchName = useGitBranchName(config.getTargetDir());
 
+  const toolConfirmationContext = useToolConfirmation(); // AUDITARIA: Tool confirmation context (moved earlier to support terminal capture)
+
   // Layout measurements
   const mainControlsRef = useRef<DOMElement>(null);
   // For performance profiling only
@@ -766,7 +768,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       settings.merged.security.auth.enforcedType &&
       settings.merged.security.auth.selectedType &&
       settings.merged.security.auth.enforcedType !==
-        settings.merged.security.auth.selectedType
+      settings.merged.security.auth.selectedType
     ) {
       onAuthError(
         `Authentication is enforced to be ${settings.merged.security.auth.enforcedType}, but you are currently using ${settings.merged.security.auth.selectedType}.`,
@@ -940,11 +942,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.INFO,
-          text: `Memory refreshed successfully. ${
-            memoryContent.length > 0
+          text: `Memory refreshed successfully. ${memoryContent.length > 0
               ? `Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
               : 'No memory content found.'
-          }`,
+            }`,
         },
         Date.now(),
       );
@@ -1213,10 +1214,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
   const availableTerminalHeight = Math.max(
     0,
     terminalHeight -
-      controlsHeight -
-      staticExtraHeight -
-      2 -
-      backgroundShellHeight,
+    controlsHeight -
+    staticExtraHeight -
+    2 -
+    backgroundShellHeight,
   );
 
   config.setShellExecutionConfig({
@@ -1321,9 +1322,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, []);
   const shouldShowIdePrompt = Boolean(
     currentIDE &&
-      !config.getIdeMode() &&
-      !settings.merged.ide.hasSeenNudge &&
-      !idePromptAnswered,
+    !config.getIdeMode() &&
+    !settings.merged.ide.hasSeenNudge &&
+    !idePromptAnswered,
   );
 
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
@@ -1798,7 +1799,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const nightly = props.version.includes('nightly');
 
+  const hasToolConfirmation = (toolConfirmationContext?.pendingConfirmations?.length ?? 0) > 0; // AUDITARIA: Tool confirmations trigger terminal capture for web interface
+
   const dialogsVisible =
+    hasToolConfirmation || // AUDITARIA: Enables terminal capture for tool confirmations
     shouldShowIdePrompt ||
     isFolderTrustDialogOpen ||
     adminSettingsChanged ||
@@ -2175,7 +2179,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
   ]);
 
   // Tool confirmation broadcasting and response handling
-  const toolConfirmationContext = useToolConfirmation();
+  // (toolConfirmationContext is now defined earlier in the component for terminal capture support)
 
   // Register confirmation response handler from web interface
   useEffect(() => {
@@ -2192,8 +2196,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
     }
   }, [toolConfirmationContext, webInterface?.service]);
 
+  // AUDITARIA: Set to false to revert to web-based tool confirmation dialog
+  // When true, tool confirmations use terminal capture instead of custom web UI
+  const DISABLE_WEB_TOOL_CONFIRMATION = true;
+
   // Broadcast pending confirmations
   useEffect(() => {
+    if (DISABLE_WEB_TOOL_CONFIRMATION) return; // AUDITARIA: Use terminal capture instead
     const pendingConfirmation =
       toolConfirmationContext?.pendingConfirmations?.[0];
     if (
@@ -2211,6 +2220,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   // Broadcast confirmation removal when confirmations are resolved
   useEffect(() => {
+    if (DISABLE_WEB_TOOL_CONFIRMATION) return;
     if (webInterface?.service && webInterface.isRunning) {
       // When a confirmation is removed from the queue, broadcast the removal
       const activeConfirmations =
