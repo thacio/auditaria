@@ -70,7 +70,7 @@ import {
   getVersion,
   ValidationCancelledError,
   ValidationRequiredError,
-  type FetchAdminControlsResponse,
+  type AdminControlsSettings,
 } from '@google/gemini-cli-core';
 import {
   initializeApp,
@@ -902,13 +902,13 @@ export function initializeOutputListenersAndFlush() {
 }
 
 function setupAdminControlsListener() {
-  let pendingSettings: FetchAdminControlsResponse | undefined;
+  let pendingSettings: AdminControlsSettings | undefined;
   let config: Config | undefined;
 
   const messageHandler = (msg: unknown) => {
     const message = msg as {
       type?: string;
-      settings?: FetchAdminControlsResponse;
+      settings?: AdminControlsSettings;
     };
     if (message?.type === 'admin-settings' && message.settings) {
       if (config) {
