@@ -1,9 +1,9 @@
 {
-  "$schema": "https://auditaria.dev/schemas/knowledge-base.json",
+  "$schema": "https://auditaria.dev/schemas/knowledge-base.config.json",
   "$version": "1.0.0",
   "_docs": {
     "description": "Configuration file for the Auditaria Knowledge Base system",
-    "location": ".auditaria/knowledge-base.json",
+    "location": ".auditaria/knowledge-base.config.json",
     "priority": "This file overrides code defaults. Database metadata (db-config.json) overrides this for schema-defining fields.",
     "sections": {
       "config": "Search system configuration (database, indexing, chunking, embeddings, search, ocr, vectorIndex)",
