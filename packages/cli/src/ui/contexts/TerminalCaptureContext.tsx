@@ -39,21 +39,28 @@ export interface TerminalCaptureData {
   isInteractive: boolean;
 }
 
-// Strip ANSI cursor movement and screen control sequences that ansi-to-html doesn't handle
-// These sequences cause garbage like "AAAAAG" when converted to HTML
-// Cursor movement: \x1B[nA (up), nB (down), nC (forward), nD (back), nG (column), n;mH (position)
-// Screen control: \x1B[nJ (clear screen), nK (clear line)
-// Cursor visibility: \x1B[?25h (show), ?25l (hide)
-// Cursor save/restore: \x1B[s, \x1B[u
-// Also: \x1B[H (home), \x1B[f (position alt)
+// Strip ANSI escape sequences that ansi-to-html doesn't handle
+// These sequences cause garbage in the web interface terminal display
 const ESC = '\x1B'; // Escape character - extracted to avoid no-control-regex lint error
-const CURSOR_SEQUENCE_REGEX = new RegExp(
-  `${ESC}\\[\\d*[ABCDGHJKfsu]|${ESC}\\[\\d*;\\d*[Hf]|${ESC}\\[\\?25[hl]`,
+const BEL = '\x07'; // Bell character - OSC terminator
+// CSI sequences (ESC [):
+// - Cursor movement: nA (up), nB (down), nC (forward), nD (back), nG (column), n;mH (position)
+// - Screen control: nJ (clear screen), nK (clear line)
+// - Cursor visibility: ?25h (show), ?25l (hide)
+// - Cursor save/restore: s, u
+// - Also: H (home), f (position alt)
+// OSC sequences (ESC ]): e.g. ]11;? (query bg color), ]0;title (set title)
+// - Terminated by BEL (\x07) or ST (ESC \)
+const ANSI_SEQUENCE_REGEX = new RegExp(
+  // CSI sequences
+  `${ESC}\\[\\d*[ABCDGHJKfsu]|${ESC}\\[\\d*;\\d*[Hf]|${ESC}\\[\\?25[hl]|` +
+    // OSC sequences (terminated by BEL or ST)
+    `${ESC}\\][^${BEL}${ESC}]*(?:${BEL}|${ESC}\\\\)?`,
   'g',
 );
 
-function stripCursorSequences(text: string): string {
-  return text.replace(CURSOR_SEQUENCE_REGEX, '');
+function stripUnsupportedAnsiSequences(text: string): string {
+  return text.replace(ANSI_SEQUENCE_REGEX, '');
 }
 
 interface TerminalCaptureContextValue {
@@ -167,7 +174,9 @@ export function TerminalCaptureProvider({
       lastBroadcast.current = capturedOutput.current;
 
       // Strip cursor sequences before conversion - ansi-to-html doesn't handle them
-      const cleanedOutput = stripCursorSequences(capturedOutput.current);
+      const cleanedOutput = stripUnsupportedAnsiSequences(
+        capturedOutput.current,
+      );
       const htmlContent = converter.current
         ? converter.current.toHtml(cleanedOutput)
         : `<pre>${cleanedOutput}</pre>`;
