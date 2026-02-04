@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 // AUDITARIA_FEATURE: SearchSystem Supervisor
@@ -12,7 +14,11 @@
 
 import { join } from 'node:path';
 import { EventEmitter } from '../core/EventEmitter.js';
-import type { SearchSystemConfig, DeepPartial, SupervisorStrategy } from '../config.js';
+import type {
+  SearchSystemConfig,
+  DeepPartial,
+  SupervisorStrategy,
+} from '../config.js';
 import { createConfig } from '../config.js';
 import type {
   SearchOptions,
@@ -37,7 +43,6 @@ import type {
   SupervisorInitOptions,
 } from './types.js';
 import {
-  DEFAULT_SUPERVISOR_CONFIG,
   INITIAL_SUPERVISOR_STATE,
   createSupervisorConfig,
   getMemoryUsageMb,
@@ -63,6 +68,8 @@ import { ChildProcessStrategy } from './strategies/ChildProcessStrategy.js';
 export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private strategy: RestartStrategy | null = null;
   private config: SearchSystemConfig;
+  /** Original partial config - passed to SearchSystem for proper user config merging */
+  private partialConfig: DeepPartial<SearchSystemConfig>;
   private supervisorConfig: SupervisorConfig;
   private state: SupervisorState = { ...INITIAL_SUPERVISOR_STATE };
   private rootPath: string;
@@ -80,11 +87,13 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
+    partialConfig: DeepPartial<SearchSystemConfig>,
     supervisorConfig: SupervisorConfig,
   ) {
     super();
     this.rootPath = rootPath;
     this.config = config;
+    this.partialConfig = partialConfig;
     this.supervisorConfig = supervisorConfig;
     this.databasePath = join(rootPath, config.database.path);
   }
@@ -96,8 +105,17 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   /**
    * Create and initialize a new supervisor.
    */
-  static async create(options: SupervisorInitOptions): Promise<SearchSystemSupervisor> {
-    const config = createConfig(options.config);
+  static async create(
+    options: SupervisorInitOptions,
+  ): Promise<SearchSystemSupervisor> {
+    // Store the original partial config - this will be passed to SearchSystem
+    // so it can properly merge with user config (knowledge-base.json).
+    // Priority: database metadata > user config > programmatic options > defaults
+    const partialConfig = options.config ?? {};
+
+    // Create full config for Supervisor's internal use (e.g., databasePath, ocr.enabled)
+    const config = createConfig(partialConfig);
+
     const supervisorConfig = createSupervisorConfig(
       config.indexing,
       options.supervisorConfig,
@@ -106,6 +124,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     const supervisor = new SearchSystemSupervisor(
       options.rootPath,
       config,
+      partialConfig,
       supervisorConfig,
     );
 
@@ -122,18 +141,22 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    */
   private async initialize(): Promise<void> {
     this.state.status = 'starting';
-    void this.emit('supervisor:starting', { strategy: this.supervisorConfig.strategy });
+    void this.emit('supervisor:starting', {
+      strategy: this.supervisorConfig.strategy,
+    });
 
     // console.log(`[SearchSystemSupervisor] Initializing with strategy: ${this.supervisorConfig.strategy}`);
 
     // Create the appropriate strategy
     this.strategy = this.createStrategy(this.supervisorConfig.strategy);
 
-    // Initialize the strategy
+    // Initialize the strategy with PARTIAL config
+    // The strategy passes this to SearchSystem.initialize() which merges it properly
+    // with user config (knowledge-base.json) using the correct priority order.
     await this.strategy.initialize(
       this.rootPath,
       this.databasePath,
-      this.config,
+      this.partialConfig,
       this.supervisorConfig,
     );
 
@@ -263,7 +286,10 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   /**
    * Queue files for indexing.
    */
-  async queueFiles(filePaths: string[], priority?: QueuePriority): Promise<void> {
+  async queueFiles(
+    filePaths: string[],
+    priority?: QueuePriority,
+  ): Promise<void> {
     return this.call<void>('queueFiles', [filePaths, priority]);
   }
 
@@ -293,8 +319,15 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    * Process items already in the queue with proper event emission.
    * Use this to resume processing after a restart.
    */
-  async processQueue(): Promise<{ indexed: number; failed: number; duration: number }> {
-    return this.call<{ indexed: number; failed: number; duration: number }>('processQueue', []);
+  async processQueue(): Promise<{
+    indexed: number;
+    failed: number;
+    duration: number;
+  }> {
+    return this.call<{ indexed: number; failed: number; duration: number }>(
+      'processQueue',
+      [],
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -491,7 +524,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
         }
 
         // Forward the event
-        void this.emit(event, data as SupervisorEvents[typeof event]);
+        void this.emit(event, data);
       });
     }
   }
@@ -510,7 +543,8 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
 
     // Check document threshold
     if (
-      this.state.documentsProcessedSinceRestart >= this.supervisorConfig.restartThreshold
+      this.state.documentsProcessedSinceRestart >=
+      this.supervisorConfig.restartThreshold
     ) {
       await this.performRestart(
         `Threshold reached: ${this.state.documentsProcessedSinceRestart} documents`,
@@ -522,7 +556,8 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     }
 
     // Check memory threshold
-    const currentMemoryMb = this.strategy?.getMemoryUsageMb() ?? getMemoryUsageMb();
+    const currentMemoryMb =
+      this.strategy?.getMemoryUsageMb() ?? getMemoryUsageMb();
     if (currentMemoryMb >= this.supervisorConfig.memoryThresholdMb) {
       // RESTART LOOP PROTECTION (uncomment if experiencing continuous restarts)
       // Prevents restart loops when memory is naturally high (e.g., large embedding model)
@@ -550,7 +585,9 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
         currentMb: currentMemoryMb,
         thresholdMb: this.supervisorConfig.memoryThresholdMb,
       });
-      await this.performRestart(`Memory threshold reached: ${currentMemoryMb}MB`);
+      await this.performRestart(
+        `Memory threshold reached: ${currentMemoryMb}MB`,
+      );
 
       // Reset consecutive counter after successful document-based restart
       // (uncomment if using restart loop protection)
@@ -609,7 +646,10 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
         fatal: true,
       });
 
-      console.error('[SearchSystemSupervisor] Restart failed:', this.state.error);
+      console.error(
+        '[SearchSystemSupervisor] Restart failed:',
+        this.state.error,
+      );
       throw error;
     }
   }

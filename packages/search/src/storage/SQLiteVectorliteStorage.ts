@@ -1,8 +1,12 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
+
+/* eslint-disable no-console */
 
 import Database from 'better-sqlite3';
 import type {
@@ -35,7 +39,7 @@ import {
   getSQLiteVectorTableSQL,
   SQLITE_FTS5_REBUILD_SQL,
   SQLITE_FTS5_OPTIMIZE_SQL,
-  SQLITE_DROP_VECTOR_TABLE_SQL,
+  SQLITE_DROP_VECTOR_TABLE_SQL as _SQLITE_DROP_VECTOR_TABLE_SQL,
 } from './sqlite-schema.js';
 import {
   readMetadata,
@@ -51,9 +55,14 @@ import type {
   VectorIndexConfig,
   HybridSearchStrategy,
 } from '../config.js';
-import { DEFAULT_VECTOR_INDEX_CONFIG, DEFAULT_SEARCH_CONFIG } from '../config.js';
+import {
+  DEFAULT_VECTOR_INDEX_CONFIG,
+  DEFAULT_SEARCH_CONFIG,
+} from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
-import * as fs from 'node:fs';
+import type { SQLiteBackendOptions } from '../config/backend-options.js';
+import { DEFAULT_SQLITE_OPTIONS } from '../config/backend-options.js';
+import * as _fs from 'node:fs';
 import * as path from 'node:path';
 
 const log = createModuleLogger('SQLiteVectorliteStorage');
@@ -90,7 +99,7 @@ function vectorToBlob(embedding: number[]): Buffer {
 /**
  * Convert a Float32 buffer from vectorlite to a number array.
  */
-function blobToVector(blob: Buffer): number[] {
+function _blobToVector(blob: Buffer): number[] {
   const result: number[] = [];
   for (let i = 0; i < blob.length; i += 4) {
     result.push(blob.readFloatLE(i));
@@ -150,7 +159,7 @@ interface QueueItemRow {
   completed_at: string | null;
 }
 
-interface TagRow {
+interface _TagRow {
   id: string;
   name: string;
   created_at: string;
@@ -198,6 +207,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   private vectorIndexConfig: VectorIndexConfig;
   private embeddingDimensions: number;
   private hybridStrategy: HybridSearchStrategy;
+  private backendOptions: SQLiteBackendOptions;
   private _initialized = false;
   private _dirty = false;
   private _readOnly = false;
@@ -210,11 +220,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     vectorIndexConfig?: VectorIndexConfig,
     embeddingDimensions?: number,
     hybridStrategy?: HybridSearchStrategy,
+    backendOptions?: Partial<SQLiteBackendOptions>,
   ) {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
-    this.hybridStrategy = hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.hybridStrategy =
+      hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.backendOptions = { ...DEFAULT_SQLITE_OPTIONS, ...backendOptions };
   }
 
   // -------------------------------------------------------------------------
@@ -301,12 +314,15 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
             dimensions: this.embeddingDimensions,
             quantization: 'q8', // Default, will be updated by SearchSystem
           },
+          // Save backend-specific options for this database
+          { backend: 'sqlite', ...this.backendOptions },
         );
         writeMetadata(this.config.path, metadata);
         log.info('initialize:created_metadata', {
           type: this.vectorIndexConfig.type,
           useHalfVec: this.vectorIndexConfig.useHalfVec,
           dimensions: this.embeddingDimensions,
+          backendOptions: this.backendOptions,
         });
       }
     }
@@ -367,7 +383,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
           distanceType: 'ip', // Inner product: better for pre-normalized vectors (avoids Float32 precision loss in magnitude calc)
           indexFilePath,
         });
-        log.info('createSchema:vectorlite:sql', { sql: vectorSQL, indexFilePath });
+        log.info('createSchema:vectorlite:sql', {
+          sql: vectorSQL,
+          indexFilePath,
+        });
         this.db.exec(vectorSQL);
         log.info('createSchema:vectorlite:created', {
           dimensions: this.embeddingDimensions,
@@ -401,7 +420,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         extensionLoaded,
         configDisabled,
       });
-      console.log('[SQLiteVectorliteStorage] Semantic search disabled:', reason);
+      console.log(
+        '[SQLiteVectorliteStorage] Semantic search disabled:',
+        reason,
+      );
     }
   }
 
@@ -536,7 +558,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         log.info('reconnect:recovered');
       } catch (initError) {
         log.error('reconnect:recoveryFailed', {
-          error: initError instanceof Error ? initError.message : String(initError),
+          error:
+            initError instanceof Error ? initError.message : String(initError),
         });
         throw initError;
       }
@@ -606,29 +629,32 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     });
 
     // Register cosine_similarity function (kept for backwards compatibility)
-    this.db.function('cosine_similarity', (a: Buffer | null, b: Buffer | null) => {
-      if (!a || !b || a.length !== b.length || a.length === 0) {
-        return null;
-      }
+    this.db.function(
+      'cosine_similarity',
+      (a: Buffer | null, b: Buffer | null) => {
+        if (!a || !b || a.length !== b.length || a.length === 0) {
+          return null;
+        }
 
-      let dot = 0;
-      let normA = 0;
-      let normB = 0;
+        let dot = 0;
+        let normA = 0;
+        let normB = 0;
 
-      // Both vectors are stored as float32 arrays (4 bytes per element)
-      for (let i = 0; i < a.length; i += 4) {
-        const va = a.readFloatLE(i);
-        const vb = b.readFloatLE(i);
-        dot += va * vb;
-        normA += va * va;
-        normB += vb * vb;
-      }
+        // Both vectors are stored as float32 arrays (4 bytes per element)
+        for (let i = 0; i < a.length; i += 4) {
+          const va = a.readFloatLE(i);
+          const vb = b.readFloatLE(i);
+          dot += va * vb;
+          normA += va * va;
+          normB += vb * vb;
+        }
 
-      const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-      if (denominator === 0) return 0;
+        const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+        if (denominator === 0) return 0;
 
-      return dot / denominator;
-    });
+        return dot / denominator;
+      },
+    );
 
     log.info('registerSimilarityFunctions:registered');
   }
@@ -693,7 +719,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getDocument(id: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(id) as DocumentRow | undefined;
+    const row = this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(
+      id,
+    ) as DocumentRow | undefined;
 
     if (!row) return null;
     return this.rowToDocument(row);
@@ -702,13 +730,18 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getDocumentByPath(filePath: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM documents WHERE file_path = ?').get(filePath) as DocumentRow | undefined;
+    const row = this.db!.prepare(
+      'SELECT * FROM documents WHERE file_path = ?',
+    ).get(filePath) as DocumentRow | undefined;
 
     if (!row) return null;
     return this.rowToDocument(row);
   }
 
-  async updateDocument(id: string, updates: UpdateDocumentInput): Promise<Document> {
+  async updateDocument(
+    id: string,
+    updates: UpdateDocumentInput,
+  ): Promise<Document> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -748,7 +781,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     params.push(id);
 
-    this.db!.prepare(`UPDATE documents SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    this.db!.prepare(
+      `UPDATE documents SET ${sets.join(', ')} WHERE id = ?`,
+    ).run(...params);
 
     this._dirty = true;
     const doc = await this.getDocument(id);
@@ -761,10 +796,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureWritable();
 
     // Delete associated vectors first (vectorlite doesn't cascade)
-    const chunks = this.db!.prepare('SELECT rowid FROM chunks WHERE document_id = ?').all(id) as { rowid: number }[];
+    const chunks = this.db!.prepare(
+      'SELECT rowid FROM chunks WHERE document_id = ?',
+    ).all(id) as Array<{ rowid: number }>;
     for (const chunk of chunks) {
       try {
-        this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(chunk.rowid);
+        this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(
+          chunk.rowid,
+        );
       } catch {
         // Ignore vectorlite errors
       }
@@ -800,7 +839,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   // Chunks
   // -------------------------------------------------------------------------
 
-  async createChunks(documentId: string, chunks: CreateChunkInput[]): Promise<DocumentChunk[]> {
+  async createChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+  ): Promise<DocumentChunk[]> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -833,8 +875,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
           now,
         );
 
-        // Get the rowid for the inserted chunk
-        const rowInfo = this.db!.prepare('SELECT rowid FROM chunks WHERE id = ?').get(id) as { rowid: number };
+        // Get the rowid for the inserted chunk (reserved for future vector operations)
+        const _rowInfo = this.db!.prepare(
+          'SELECT rowid FROM chunks WHERE id = ?',
+        ).get(id) as { rowid: number };
 
         createdChunks.push({
           id,
@@ -855,7 +899,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     transaction();
     this._dirty = true;
 
-    log.debug('createChunks:complete', { documentId, chunkCount: chunks.length });
+    log.debug('createChunks:complete', {
+      documentId,
+      chunkCount: chunks.length,
+    });
     return createdChunks;
   }
 
@@ -874,20 +921,28 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureWritable();
 
     // Delete associated vectors first
-    const chunks = this.db!.prepare('SELECT rowid FROM chunks WHERE document_id = ?').all(documentId) as { rowid: number }[];
+    const chunks = this.db!.prepare(
+      'SELECT rowid FROM chunks WHERE document_id = ?',
+    ).all(documentId) as Array<{ rowid: number }>;
     for (const chunk of chunks) {
       try {
-        this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(chunk.rowid);
+        this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(
+          chunk.rowid,
+        );
       } catch {
         // Ignore vectorlite errors
       }
     }
 
-    this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(documentId);
+    this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+      documentId,
+    );
     this._dirty = true;
   }
 
-  async updateChunkEmbeddings(updates: UpdateChunkEmbeddingInput[]): Promise<void> {
+  async updateChunkEmbeddings(
+    updates: UpdateChunkEmbeddingInput[],
+  ): Promise<void> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -905,7 +960,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       await this.updateChunkEmbeddingsHnsw(updates);
     } else {
       log.error('updateChunkEmbeddings:failed', {
-        reason: 'No embedding storage available (vectorlite not loaded and not in brute force mode)',
+        reason:
+          'No embedding storage available (vectorlite not loaded and not in brute force mode)',
         updateCount: updates.length,
       });
       console.error(
@@ -917,7 +973,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   private async updateChunkEmbeddingsBruteForce(
     updates: UpdateChunkEmbeddingInput[],
   ): Promise<void> {
-    const updateStmt = this.db!.prepare('UPDATE chunks SET embedding = ? WHERE id = ?');
+    const updateStmt = this.db!.prepare(
+      'UPDATE chunks SET embedding = ? WHERE id = ?',
+    );
 
     const transaction = this.db!.transaction(() => {
       for (const update of updates) {
@@ -944,16 +1002,22 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   private async updateChunkEmbeddingsHnsw(
     updates: UpdateChunkEmbeddingInput[],
   ): Promise<void> {
-    const getRowidStmt = this.db!.prepare('SELECT rowid FROM chunks WHERE id = ?');
+    const getRowidStmt = this.db!.prepare(
+      'SELECT rowid FROM chunks WHERE id = ?',
+    );
     const insertVecStmt = this.db!.prepare(
       'INSERT OR REPLACE INTO chunks_vec(rowid, embedding) VALUES (?, ?)',
     );
 
     const transaction = this.db!.transaction(() => {
       for (const update of updates) {
-        const rowInfo = getRowidStmt.get(update.id) as { rowid: number } | undefined;
+        const rowInfo = getRowidStmt.get(update.id) as
+          | { rowid: number }
+          | undefined;
         if (!rowInfo) {
-          log.warn('updateChunkEmbeddings:hnsw:chunkNotFound', { chunkId: update.id });
+          log.warn('updateChunkEmbeddings:hnsw:chunkNotFound', {
+            chunkId: update.id,
+          });
           continue;
         }
 
@@ -972,13 +1036,17 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     transaction();
     this._dirty = true;
 
-    log.debug('updateChunkEmbeddings:hnsw:complete', { updateCount: updates.length });
+    log.debug('updateChunkEmbeddings:hnsw:complete', {
+      updateCount: updates.length,
+    });
   }
 
   async countChunks(): Promise<number> {
     this.ensureReady();
 
-    const result = this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number };
+    const result = this.db!.prepare(
+      'SELECT COUNT(*) as count FROM chunks',
+    ).get() as { count: number };
     return result.count;
   }
 
@@ -991,7 +1059,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureWritable();
 
     const getTagStmt = this.db!.prepare('SELECT id FROM tags WHERE name = ?');
-    const insertTagStmt = this.db!.prepare('INSERT INTO tags (id, name) VALUES (?, ?)');
+    const insertTagStmt = this.db!.prepare(
+      'INSERT INTO tags (id, name) VALUES (?, ?)',
+    );
     const linkTagStmt = this.db!.prepare(
       'INSERT OR IGNORE INTO document_tags (document_id, tag_id) VALUES (?, ?)',
     );
@@ -1039,12 +1109,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getDocumentTags(documentId: string): Promise<string[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT t.name FROM tags t
       JOIN document_tags dt ON t.id = dt.tag_id
       WHERE dt.document_id = ?
       ORDER BY t.name
-    `).all(documentId) as { name: string }[];
+    `,
+    ).all(documentId) as Array<{ name: string }>;
 
     return rows.map((row) => row.name);
   }
@@ -1052,13 +1124,15 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getAllTags(): Promise<TagCount[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT t.name as tag, COUNT(dt.document_id) as count
       FROM tags t
       LEFT JOIN document_tags dt ON t.id = dt.tag_id
       GROUP BY t.id, t.name
       ORDER BY count DESC, t.name
-    `).all() as TagCountRow[];
+    `,
+    ).all() as TagCountRow[];
 
     return rows.map((row) => ({
       tag: row.tag,
@@ -1082,9 +1156,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     // Convert query to FTS5 format
     // FTS5 uses different syntax than PostgreSQL tsquery
-    const ftsQuery = this.convertToFTS5Query(query, options?.useWebSearchSyntax);
+    const ftsQuery = this.convertToFTS5Query(
+      query,
+      options?.useWebSearchSyntax,
+    );
 
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Use FTS5 with highlight() for highlighting
@@ -1138,10 +1216,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     if (searchTerms.length === 0) return [];
 
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     // Build LIKE conditions for each word
-    const likeConditions = searchTerms.map(() => `LOWER(c.text) LIKE ?`).join(' AND ');
+    const likeConditions = searchTerms
+      .map(() => `LOWER(c.text) LIKE ?`)
+      .join(' AND ');
     const likeParams = searchTerms.map((t) => `%${t}%`);
 
     const sql = `
@@ -1171,7 +1252,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     return this.rowsToSearchResults(rows);
   }
 
-  private convertToFTS5Query(query: string, useWebSearchSyntax?: boolean): string {
+  private convertToFTS5Query(
+    query: string,
+    useWebSearchSyntax?: boolean,
+  ): string {
     if (!useWebSearchSyntax) {
       // Simple mode: AND all terms
       const terms = query.split(/\s+/).filter((t) => t.length > 0);
@@ -1217,7 +1301,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     if (!this._vectorliteAvailable) {
       log.warn('searchSemantic:disabled', {
-        reason: 'vectorlite extension not available and not in brute force mode',
+        reason:
+          'vectorlite extension not available and not in brute force mode',
       });
       return [];
     }
@@ -1231,7 +1316,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     const vectorBlob = vectorToBlob(embedding);
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Brute force: use dot_product for normalized vectors (avoids Float32 precision loss in magnitude calc)
@@ -1260,7 +1346,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       const rows = this.db!.prepare(sql).all(...params) as SearchResultRow[];
 
       const results = this.rowsToSearchResults(rows);
-      log.debug('searchSemantic:bruteForce:complete', { resultCount: results.length });
+      log.debug('searchSemantic:bruteForce:complete', {
+        resultCount: results.length,
+      });
       return results;
     } catch (error) {
       log.warn('searchSemantic:bruteForce:failed', {
@@ -1276,7 +1364,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     const vectorBlob = vectorToBlob(embedding);
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Use vectorlite knn_search
@@ -1288,7 +1377,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         WHERE knn_search(embedding, knn_param(?, ${kLimit}))
       `;
 
-      const vecRows = this.db!.prepare(vecSql).all(vectorBlob) as VectorResultRow[];
+      const vecRows = this.db!.prepare(vecSql).all(
+        vectorBlob,
+      ) as VectorResultRow[];
 
       if (vecRows.length === 0) {
         log.debug('searchSemantic:hnsw:complete:empty', { resultCount: 0 });
@@ -1320,7 +1411,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       `;
 
       const params = [...rowids, ...filterParams];
-      const rows = this.db!.prepare(sql).all(...params) as (SearchResultRow & { chunk_rowid: number })[];
+      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
+        chunk_rowid: number;
+      }>;
 
       // Add scores and sort by distance
       const results: SearchResult[] = rows
@@ -1345,7 +1438,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
 
-      log.debug('searchSemantic:hnsw:complete', { resultCount: results.length });
+      log.debug('searchSemantic:hnsw:complete', {
+        resultCount: results.length,
+      });
       return results;
     } catch (error) {
       log.warn('searchSemantic:hnsw:failed', {
@@ -1369,10 +1464,26 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     log.debug('searchHybrid:start', { strategy: this.hybridStrategy, limit });
 
     if (this.hybridStrategy === 'sql') {
-      return this.searchHybridSQL(query, embedding, filters, limit, weights, rrfK, options);
+      return this.searchHybridSQL(
+        query,
+        embedding,
+        filters,
+        limit,
+        weights,
+        rrfK,
+        options,
+      );
     }
 
-    return this.searchHybridApplication(query, embedding, filters, limit, weights, rrfK, options);
+    return this.searchHybridApplication(
+      query,
+      embedding,
+      filters,
+      limit,
+      weights,
+      rrfK,
+      options,
+    );
   }
 
   private async searchHybridApplication(
@@ -1391,7 +1502,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     ]);
 
     // Merge using RRF
-    return this.fuseWithRRF(semanticResults, keywordResults, weights, rrfK, limit);
+    return this.fuseWithRRF(
+      semanticResults,
+      keywordResults,
+      weights,
+      rrfK,
+      limit,
+    );
   }
 
   private fuseWithRRF(
@@ -1424,7 +1541,11 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     }
 
     // Calculate RRF scores
-    const scored: Array<{ result: SearchResult; score: number; matchType: string }> = [];
+    const scored: Array<{
+      result: SearchResult;
+      score: number;
+      matchType: string;
+    }> = [];
 
     for (const [chunkId, result] of allChunks) {
       const semRank = semanticRank.get(chunkId);
@@ -1439,7 +1560,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       else if (semRank) matchType = 'semantic';
 
       scored.push({
-        result: { ...result, matchType: matchType as 'hybrid' | 'semantic' | 'keyword' },
+        result: {
+          ...result,
+          matchType: matchType as 'hybrid' | 'semantic' | 'keyword',
+        },
         score: totalScore,
         matchType,
       });
@@ -1468,8 +1592,12 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     try {
       const vectorBlob = vectorToBlob(embedding);
-      const ftsQuery = this.convertToFTS5Query(query, options?.useWebSearchSyntax);
-      const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+      const ftsQuery = this.convertToFTS5Query(
+        query,
+        options?.useWebSearchSyntax,
+      );
+      const { where: filterWhere, params: filterParams } =
+        this.buildSearchFilters(filters);
 
       // Create temp tables for semantic and keyword results
       this.db!.exec('DROP TABLE IF EXISTS temp_semantic');
@@ -1493,11 +1621,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
       // Populate semantic results
       try {
-        const vecRows = this.db!.prepare(`
+        const vecRows = this.db!.prepare(
+          `
           SELECT rowid, distance
           FROM chunks_vec
           WHERE knn_search(embedding, knn_param(?, 50))
-        `).all(vectorBlob) as VectorResultRow[];
+        `,
+        ).all(vectorBlob) as VectorResultRow[];
 
         const insertSemantic = this.db!.prepare(
           'INSERT INTO temp_semantic (rowid, distance, rank) VALUES (?, ?, ?)',
@@ -1511,13 +1641,15 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
       // Populate keyword results
       try {
-        const ftsRows = this.db!.prepare(`
+        const ftsRows = this.db!.prepare(
+          `
           SELECT chunks_fts.rowid, bm25(chunks_fts) as score
           FROM chunks_fts
           WHERE chunks_fts MATCH ?
           ORDER BY bm25(chunks_fts)
           LIMIT 50
-        `).all(ftsQuery) as { rowid: number; score: number }[];
+        `,
+        ).all(ftsQuery) as Array<{ rowid: number; score: number }>;
 
         const insertKeyword = this.db!.prepare(
           'INSERT INTO temp_keyword (rowid, score, rank) VALUES (?, ?, ?)',
@@ -1580,7 +1712,15 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       });
 
       // Fallback to application-level hybrid
-      return this.searchHybridApplication(query, embedding, filters, limit, weights, rrfK, options);
+      return this.searchHybridApplication(
+        query,
+        embedding,
+        filters,
+        limit,
+        weights,
+        rrfK,
+        options,
+      );
     }
   }
 
@@ -1595,7 +1735,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const id = generateId();
     const now = new Date().toISOString();
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
       VALUES (?, ?, ?, ?, 'pending', 0, ?)
       ON CONFLICT (file_path) DO UPDATE SET
@@ -1606,7 +1747,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         last_error = NULL,
         started_at = NULL,
         completed_at = NULL
-    `).run(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+    `,
+    ).run(
+      id,
+      input.filePath,
+      input.fileSize ?? 0,
+      input.priority ?? 'markup',
+      now,
+    );
 
     this._dirty = true;
     const item = await this.getQueueItemByPath(input.filePath);
@@ -1646,7 +1794,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     const insertMany = this.db!.transaction((items: typeof itemsWithIds) => {
       for (const { id, input } of items) {
-        insertStmt.run(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+        insertStmt.run(
+          id,
+          input.filePath,
+          input.fileSize ?? 0,
+          input.priority ?? 'markup',
+          now,
+        );
       }
     });
 
@@ -1658,7 +1812,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup') as QueuePriority,
+      priority: (input.priority ?? 'markup'),
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
@@ -1673,7 +1827,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureWritable();
 
     // Order: text files first (fastest), then by file size (smallest first)
-    const row = this.db!.prepare(`
+    const row = this.db!.prepare(
+      `
       SELECT * FROM index_queue
       WHERE status = 'pending'
       ORDER BY
@@ -1687,22 +1842,32 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         file_size ASC,
         created_at ASC
       LIMIT 1
-    `).get() as QueueItemRow | undefined;
+    `,
+    ).get() as QueueItemRow | undefined;
 
     if (!row) return null;
 
     // Update status to processing
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       UPDATE index_queue
       SET status = 'processing', started_at = ?, attempts = attempts + 1
       WHERE id = ?
-    `).run(new Date().toISOString(), row.id);
+    `,
+    ).run(new Date().toISOString(), row.id);
 
     this._dirty = true;
-    return this.rowToQueueItem({ ...row, status: 'processing', attempts: row.attempts + 1 });
+    return this.rowToQueueItem({
+      ...row,
+      status: 'processing',
+      attempts: row.attempts + 1,
+    });
   }
 
-  async updateQueueItem(id: string, updates: UpdateQueueItemInput): Promise<QueueItem> {
+  async updateQueueItem(
+    id: string,
+    updates: UpdateQueueItemInput,
+  ): Promise<QueueItem> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -1732,10 +1897,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     if (sets.length > 0) {
       params.push(id);
-      this.db!.prepare(`UPDATE index_queue SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+      this.db!.prepare(
+        `UPDATE index_queue SET ${sets.join(', ')} WHERE id = ?`,
+      ).run(...params);
     }
 
-    const row = this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(id) as QueueItemRow | undefined;
+    const row = this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(
+      id,
+    ) as QueueItemRow | undefined;
     if (!row) throw new Error('Queue item not found');
 
     this._dirty = true;
@@ -1753,7 +1922,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM index_queue WHERE file_path = ?').get(filePath) as QueueItemRow | undefined;
+    const row = this.db!.prepare(
+      'SELECT * FROM index_queue WHERE file_path = ?',
+    ).get(filePath) as QueueItemRow | undefined;
 
     if (!row) return null;
     return this.rowToQueueItem(row);
@@ -1762,14 +1933,18 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getQueueStatus(): Promise<QueueStatus> {
     this.ensureReady();
 
-    const statusRows = this.db!.prepare(`
+    const statusRows = this.db!.prepare(
+      `
       SELECT status, COUNT(*) as count FROM index_queue GROUP BY status
-    `).all() as { status: string; count: number }[];
+    `,
+    ).all() as Array<{ status: string; count: number }>;
 
-    const priorityRows = this.db!.prepare(`
+    const priorityRows = this.db!.prepare(
+      `
       SELECT priority, COUNT(*) as count FROM index_queue
       WHERE status = 'pending' GROUP BY priority
-    `).all() as { priority: string; count: number }[];
+    `,
+    ).all() as Array<{ priority: string; count: number }>;
 
     const statusCounts: Record<string, number> = {};
     for (const row of statusRows) {
@@ -1803,7 +1978,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    const result = this.db!.prepare("DELETE FROM index_queue WHERE status = 'completed'").run();
+    const result = this.db!.prepare(
+      "DELETE FROM index_queue WHERE status = 'completed'",
+    ).run();
     if (result.changes > 0) this._dirty = true;
     return result.changes;
   }
@@ -1823,10 +2000,12 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getFileHashes(): Promise<Map<string, string>> {
     this.ensureReady();
 
-    const rows = this.db!.prepare('SELECT file_path, file_hash FROM documents').all() as {
+    const rows = this.db!.prepare(
+      'SELECT file_path, file_hash FROM documents',
+    ).all() as Array<{
       file_path: string;
       file_hash: string;
-    }[];
+    }>;
 
     const map = new Map<string, string>();
     for (const row of rows) {
@@ -1852,7 +2031,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getStats(): Promise<SearchStats> {
     this.ensureReady();
 
-    const docStats = this.db!.prepare(`
+    const docStats = this.db!.prepare(
+      `
       SELECT
         COUNT(*) as total_documents,
         SUM(CASE WHEN status = 'indexed' THEN 1 ELSE 0 END) as indexed_documents,
@@ -1861,10 +2041,19 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
         SUM(CASE WHEN ocr_status = 'pending' THEN 1 ELSE 0 END) as ocr_pending,
         COALESCE(SUM(file_size), 0) as total_file_size
       FROM documents
-    `).get() as StatsRow;
+    `,
+    ).get() as StatsRow;
 
-    const chunkCount = (this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number }).count;
-    const tagCount = (this.db!.prepare('SELECT COUNT(*) as count FROM tags').get() as { count: number }).count;
+    const chunkCount = (
+      this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as {
+        count: number;
+      }
+    ).count;
+    const tagCount = (
+      this.db!.prepare('SELECT COUNT(*) as count FROM tags').get() as {
+        count: number;
+      }
+    ).count;
 
     return {
       totalDocuments: docStats.total_documents,
@@ -1885,7 +2074,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async getConfigValue<T>(key: string): Promise<T | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT value FROM search_config WHERE key = ?').get(key) as { value: string } | undefined;
+    const row = this.db!.prepare(
+      'SELECT value FROM search_config WHERE key = ?',
+    ).get(key) as { value: string } | undefined;
 
     if (!row) return null;
     return JSON.parse(row.value) as T;
@@ -1895,11 +2086,13 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO search_config (key, value, updated_at)
       VALUES (?, ?, ?)
       ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(key, JSON.stringify(value), new Date().toISOString());
+    `,
+    ).run(key, JSON.stringify(value), new Date().toISOString());
 
     this._dirty = true;
   }
@@ -1926,10 +2119,12 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   async recoverStuckDocuments(): Promise<number> {
     this.ensureReady();
 
-    const stuckDocs = this.db!.prepare(`
+    const stuckDocs = this.db!.prepare(
+      `
       SELECT id, file_path, status FROM documents
       WHERE status IN ('parsing', 'chunking', 'embedding')
-    `).all() as { id: string; file_path: string; status: string }[];
+    `,
+    ).all() as Array<{ id: string; file_path: string; status: string }>;
 
     if (stuckDocs.length === 0) return 0;
 
@@ -1944,25 +2139,34 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       for (const doc of stuckDocs) {
         try {
           // Delete partial chunks and vectors
-          const chunks = this.db!.prepare('SELECT rowid FROM chunks WHERE document_id = ?').all(doc.id) as { rowid: number }[];
+          const chunks = this.db!.prepare(
+            'SELECT rowid FROM chunks WHERE document_id = ?',
+          ).all(doc.id) as Array<{ rowid: number }>;
           for (const chunk of chunks) {
             try {
-              this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(chunk.rowid);
+              this.db!.prepare('DELETE FROM chunks_vec WHERE rowid = ?').run(
+                chunk.rowid,
+              );
             } catch {
               // Ignore
             }
           }
-          this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(doc.id);
+          this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+            doc.id,
+          );
 
           // Reset document status
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             UPDATE documents SET status = 'pending', updated_at = ?
             WHERE id = ?
-          `).run(new Date().toISOString(), doc.id);
+          `,
+          ).run(new Date().toISOString(), doc.id);
 
           // Re-queue for indexing
           const queueId = generateId();
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             INSERT INTO index_queue (id, file_path, priority, status, attempts, created_at)
             VALUES (?, ?, 'text', 'pending', 0, ?)
             ON CONFLICT (file_path) DO UPDATE SET
@@ -1971,7 +2175,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
               last_error = NULL,
               started_at = NULL,
               completed_at = NULL
-          `).run(queueId, doc.file_path, new Date().toISOString());
+          `,
+          ).run(queueId, doc.file_path, new Date().toISOString());
 
           recoveredCount++;
           log.info('recoverStuckDocuments:recovered', {
@@ -2088,9 +2293,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => {
-        return `REPLACE(file_path, '\\', '/') LIKE ?`;
-      });
+      const folderConditions = filters.folders.map(() => `REPLACE(file_path, '\\', '/') LIKE ?`);
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }
@@ -2127,7 +2330,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       params.push(...filters.languages);
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     return { where, params };
   }
@@ -2142,9 +2346,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => {
-        return `REPLACE(d.file_path, '\\', '/') LIKE ?`;
-      });
+      const folderConditions = filters.folders.map(() => `REPLACE(d.file_path, '\\', '/') LIKE ?`);
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }

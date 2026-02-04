@@ -169,17 +169,22 @@ export class SearchServiceManager {
       const {
         createSearchSystemSupervisor,
         createConfig,
-        DEFAULT_CONFIG,
         searchDatabaseExists,
       } = await import('@thacio/auditaria-cli-search');
 
       const dbExists = searchDatabaseExists(rootPath);
-      const config = createConfig(); // Get default config with supervisor settings
+
+      // IMPORTANT: Do NOT call createConfig() here and pass it to the supervisor!
+      // SearchSystem.initialize() will load user config from knowledge-base.json
+      // and merge it properly with defaults. If we pass a full config here,
+      // it will override the user's preferences.
+      // We only need createConfig() for logging the supervisor strategy.
+      const defaultConfig = createConfig();
 
       this.log(`[SearchService] Starting... (dbExists: ${dbExists})`);
       this.log(
-        `[SearchService] Supervisor strategy: ${config.indexing.supervisorStrategy}, ` +
-          `restart threshold: ${config.indexing.supervisorRestartThreshold}`,
+        `[SearchService] Supervisor strategy: ${defaultConfig.indexing.supervisorStrategy}, ` +
+          `restart threshold: ${defaultConfig.indexing.supervisorRestartThreshold}`,
       );
 
       // Logging configuration - enabled, file only (no console), debug level
@@ -194,17 +199,12 @@ export class SearchServiceManager {
       // AUDITARIA_FEATURE: Use SearchSystemSupervisor for automatic memory management
       // The supervisor wraps SearchSystem and automatically restarts it after N documents
       // to prevent memory bloat from WASM, embedder models, and other resources.
+      // Note: Do NOT pass a full config here - let SearchSystem load user config properly.
       this.log('[SearchService] Initializing with supervisor...');
       this.searchSystem = await createSearchSystemSupervisor({
         rootPath,
-        config: {
-          ...config,
-          // Force reindex clears the database
-          database: {
-            ...config.database,
-            // If forceReindex, we want a fresh start
-          },
-        },
+        // config is intentionally omitted - SearchSystem.initialize() will load
+        // user config from .auditaria/knowledge-base.json with proper priority
         logging: loggingOptions,
       });
 
@@ -351,7 +351,7 @@ export class SearchServiceManager {
     if (!this.searchSystem) return null;
     // Check if it's a supervisor by looking for getSupervisorState method
     if ('getSupervisorState' in this.searchSystem) {
-      return (this.searchSystem as SearchSystemSupervisor).getSupervisorState();
+      return (this.searchSystem).getSupervisorState();
     }
     return null;
   }
@@ -488,7 +488,7 @@ export class SearchServiceManager {
     // AUDITARIA_FEATURE: Supervisor restart events (memory management)
     // These events are only emitted when using SearchSystemSupervisor
     // Use type assertion to handle supervisor-specific events
-    const searchSystemAny = this.searchSystem as unknown as {
+    const _searchSystemAny = this.searchSystem as unknown as {
       on: (event: string, handler: (data: unknown) => void) => () => void;
     };
 
@@ -570,9 +570,15 @@ export class SearchServiceManager {
 
         // Use processQueue() to process items already in the queue
         // This properly emits indexing:progress events for supervisor auto-restart tracking
-        const result = await (this.searchSystem as unknown as {
-          processQueue: () => Promise<{ indexed: number; failed: number; duration: number }>;
-        }).processQueue();
+        const result = await (
+          this.searchSystem as unknown as {
+            processQueue: () => Promise<{
+              indexed: number;
+              failed: number;
+              duration: number;
+            }>;
+          }
+        ).processQueue();
 
         // Update progress
         this.indexingProgress.processedFiles = result.indexed;
@@ -586,7 +592,12 @@ export class SearchServiceManager {
     } catch (error) {
       this.isProcessingQueue = false;
       // Only log if it's not the expected "already in progress" error during sync
-      if (!(error instanceof Error && error.message.includes('already in progress'))) {
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes('already in progress')
+        )
+      ) {
         this.warn('[SearchService] Queue check failed:', error);
       }
     }

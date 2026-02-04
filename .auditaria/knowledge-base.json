@@ -1,0 +1,178 @@
+{
+  "$schema": "https://auditaria.dev/schemas/knowledge-base.json",
+  "$version": "1.0.0",
+  "_docs": {
+    "description": "Configuration file for the Auditaria Knowledge Base system",
+    "location": ".auditaria/knowledge-base.json",
+    "priority": "This file overrides code defaults. Database metadata (db-config.json) overrides this for schema-defining fields.",
+    "sections": {
+      "config": "Search system configuration (database, indexing, chunking, embeddings, search, ocr, vectorIndex)",
+      "backendOptions": "Backend-specific storage options for new databases"
+    }
+  },
+  
+  "config": {
+    "database": {
+      "_docs": "Database storage configuration",
+      "backend": "libsql",
+      "path": ".auditaria/search.db",
+      "inMemory": false,
+      "backupEnabled": true
+    },
+
+    "indexing": {
+      "_docs": "File indexing configuration",
+      "ignorePaths": ["node_modules", ".git", "dist", "build", "*.log", ".auditaria"],
+      "includePaths": [],
+      "fileTypes": [
+        ".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".md", ".json", ".yaml", ".yml",
+        ".csv", ".html", ".htm", ".xml", ".rtf", ".odt", ".odp", ".ods",
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp"
+      ],
+      "maxFileSize": 104857600,
+      "ocrEnabled": true,
+      "ocrPriority": "low",
+      "respectGitignore": true,
+      "prepareWorkers": 1,
+      "preparedBufferSize": 1,
+      "useChildProcess": false,
+      "childProcessBatchSize": 500,
+      "childProcessMemoryThresholdMb": 3000,
+      "supervisorStrategy": "none",
+      "supervisorRestartThreshold": 0,
+      "supervisorMemoryThresholdMb": 4000
+    },
+
+    "chunking": {
+      "_docs": "Text chunking configuration for splitting documents",
+      "strategy": "recursive",
+      "maxChunkSize": 1000,
+      "chunkOverlap": 200,
+      "preserveSentences": true,
+      "preserveParagraphs": true
+    },
+
+    "embeddings": {
+      "_docs": "Embedding model configuration",
+      "model": "Xenova/multilingual-e5-large",
+      "batchSize": 8,
+      "dimensions": 1024,
+      "queryPrefix": "query: ",
+      "documentPrefix": "passage: ",
+      "useWorkerThread": true,
+      "device": "cpu",
+      "quantization": "q8",
+      "preferGpuForIndexing": false,
+      "workerHeapSizeMb": 4096,
+      "preferPythonEmbedder": false,
+      "cacheDir": "~/.auditaria/models"
+    },
+
+    "search": {
+      "_docs": "Search behavior configuration",
+      "defaultLimit": 10,
+      "defaultStrategy": "hybrid",
+      "semanticWeight": 0.5,
+      "keywordWeight": 0.5,
+      "rrfK": 60,
+      "hybridStrategy": "application"
+    },
+
+    "ocr": {
+      "_docs": "Optical Character Recognition configuration",
+      "enabled": true,
+      "concurrency": 2,
+      "maxRetries": 3,
+      "retryDelay": 5000,
+      "processAfterMainQueue": true,
+      "autoDetectLanguage": true,
+      "defaultLanguages": ["en"],
+      "minConfidence": 0.5
+    },
+
+    "vectorIndex": {
+      "_docs": "Vector index configuration for similarity search",
+      "type": "hnsw",
+      "useHalfVec": true,
+      "deferIndexCreation": false,
+      "createIndex": true,
+      "hnswM": 32,
+      "hnswEfConstruction": 200,
+      "ivfflatLists": "auto",
+      "ivfflatProbes": 40
+    }
+  },
+
+  "backendOptions": {
+    "_docs": "Backend-specific options applied when creating NEW databases. Existing databases use their stored options from db-config.json.",
+
+    "libsql": {
+      "_docs": "LibSQL/Turso native vector storage options",
+      "metric": "cosine",
+      "compressNeighbors": "float8",
+      "maxNeighbors": 20
+    },
+
+    "pglite": {
+      "_docs": "PGLite (WASM PostgreSQL) options - currently no specific options"
+    },
+
+    "sqlite": {
+      "_docs": "SQLite with vectorlite extension options"
+    },
+
+    "lancedb": {
+      "_docs": "LanceDB columnar vector database options"
+    }
+  },
+
+  "_reference": {
+    "backends": {
+      "libsql": "LibSQL (Turso) - Default, crash-safe vectors stored inside DB, DiskANN index",
+      "pglite": "PGLite - WASM PostgreSQL with pgvector extension",
+      "sqlite": "SQLite - Native SQLite with vectorlite extension",
+      "lancedb": "LanceDB - Columnar vector database with Tantivy FTS"
+    },
+    "supervisorStrategies": {
+      "none": "Disable automatic restarts",
+      "in-process": "Close/GC/reinitialize in same process",
+      "child-process": "Run SearchSystem in child process, kill/respawn"
+    },
+    "chunkingStrategies": {
+      "recursive": "Recursively split on separators (paragraphs, sentences, words)",
+      "semantic": "Split based on semantic boundaries",
+      "fixed": "Fixed-size chunks with overlap"
+    },
+    "searchStrategies": {
+      "hybrid": "Combine semantic and keyword search using RRF",
+      "semantic": "Vector similarity search only",
+      "keyword": "BM25/FTS5 keyword search only"
+    },
+    "vectorIndexTypes": {
+      "hnsw": "Hierarchical Navigable Small World - fast queries",
+      "ivfflat": "Inverted File Flat - tunable recall via probes",
+      "none": "No index - exact brute force search"
+    },
+    "embeddingModels": {
+      "Xenova/multilingual-e5-small": "384 dimensions, fastest, good for most use cases",
+      "Xenova/multilingual-e5-base": "768 dimensions, balanced",
+      "Xenova/multilingual-e5-large": "1024 dimensions, best quality, slower"
+    },
+    "quantization": {
+      "fp32": "Full precision (slowest, most accurate)",
+      "fp16": "Half precision (fast on GPU)",
+      "q8": "8-bit quantization (fast on CPU, recommended)",
+      "q4": "4-bit quantization (fastest, lower accuracy)"
+    },
+    "libsqlMetrics": {
+      "cosine": "Cosine similarity (recommended for text embeddings)",
+      "l2": "Euclidean distance",
+      "inner_product": "Dot product similarity"
+    },
+    "libsqlCompression": {
+      "float8": "8-bit quantization (recommended)",
+      "float1bit": "1-bit quantization (lowest accuracy)",
+      "null": "No compression (full precision)"
+    }
+  }
+}

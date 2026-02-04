@@ -421,7 +421,7 @@ export interface SearchSystemConfig {
 
 export const DEFAULT_DATABASE_CONFIG: DatabaseConfig = {
   backend: 'libsql', // pglite, sqlite, lancedb, libsql
-  path: '.auditaria/search.db',
+  path: '.auditaria/knowledge-base.db',
   inMemory: false,
   backupEnabled: true,
 };
@@ -462,7 +462,7 @@ export const DEFAULT_INDEXING_CONFIG: IndexingConfig = {
   ocrEnabled: true,
   ocrPriority: 'low',
   respectGitignore: true,
-  prepareWorkers: 1,
+  prepareWorkers: 2,
   preparedBufferSize: 1,
   // Child process options
   useChildProcess: false,
@@ -483,9 +483,9 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 };
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
-  model: 'Xenova/multilingual-e5-large', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
-  batchSize: 8, // Power of 2, conservative for memory
-  dimensions: 1024, // 384, 768, 1024
+  model: 'Xenova/multilingual-e5-small', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
+  batchSize: 2, // Power of 2, conservative for memory
+  dimensions: 384, // 384, 768, 1024
   queryPrefix: 'query: ',
   documentPrefix: 'passage: ',
   useWorkerThread: true,
@@ -513,7 +513,7 @@ export const DEFAULT_OCR_CONFIG: OcrConfig = {
   retryDelay: 5000,
   processAfterMainQueue: true,
   autoDetectLanguage: true,
-  defaultLanguages: ['en'],
+  defaultLanguages: ['pt', 'en'],
   minConfidence: 0.5,
 };
 
@@ -546,8 +546,9 @@ export const DEFAULT_CONFIG: SearchSystemConfig = {
 
 /**
  * Deep merge two objects, with source values overriding target values.
+ * Arrays are replaced, not merged.
  */
-function deepMerge<T>(target: T, source: Partial<T>): T {
+export function deepMerge<T>(target: T, source: Partial<T>): T {
   const result = { ...target };
 
   for (const key of Object.keys(source) as Array<keyof T>) {
@@ -746,3 +747,40 @@ export function validateConfig(config: SearchSystemConfig): void {
     throw new Error('vectorIndex.ivfflatProbes must be positive');
   }
 }
+
+// ============================================================================
+// Re-exports from config submodules
+// ============================================================================
+
+// Backend-specific options (libsql, pglite, sqlite, lancedb)
+export {
+  type LibSQLBackendOptions,
+  type PGLiteBackendOptions,
+  type SQLiteBackendOptions,
+  type LanceDBBackendOptions,
+  type BackendOptions,
+  type BackendOptionsMap,
+  DEFAULT_LIBSQL_OPTIONS,
+  DEFAULT_PGLITE_OPTIONS,
+  DEFAULT_SQLITE_OPTIONS,
+  DEFAULT_LANCEDB_OPTIONS,
+  getDefaultBackendOptions,
+  mergeBackendOptions,
+  getTypedBackendOptions,
+  validateBackendOptions,
+} from './config/backend-options.js';
+
+// User configuration management (search.config.json)
+export {
+  USER_CONFIG_FILENAME,
+  USER_CONFIG_VERSION,
+  type UserConfigFile,
+  type MergedConfigResult,
+  getUserConfigPath,
+  loadUserConfig,
+  saveUserConfig,
+  userConfigExists,
+  dbMetadataToPartialConfig,
+  loadMergedConfig,
+  createSampleUserConfig,
+} from './config/user-config.js';

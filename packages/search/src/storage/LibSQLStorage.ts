@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 import type {
@@ -52,8 +54,13 @@ import type {
   VectorIndexConfig,
   HybridSearchStrategy,
 } from '../config.js';
-import { DEFAULT_VECTOR_INDEX_CONFIG, DEFAULT_SEARCH_CONFIG } from '../config.js';
+import {
+  DEFAULT_VECTOR_INDEX_CONFIG,
+  DEFAULT_SEARCH_CONFIG,
+} from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
+import type { LibSQLBackendOptions } from '../config/backend-options.js';
+import { DEFAULT_LIBSQL_OPTIONS } from '../config/backend-options.js';
 
 const log = createModuleLogger('LibSQLStorage');
 
@@ -162,7 +169,7 @@ interface SearchResultRow {
   match_type: string;
 }
 
-interface VectorResultRow {
+interface _VectorResultRow {
   id: number;
   distance: number;
 }
@@ -184,7 +191,10 @@ interface LibSQLDatabase {
 }
 
 interface LibSQLStatement {
-  run(...params: unknown[]): { changes: number; lastInsertRowid: bigint | number };
+  run(...params: unknown[]): {
+    changes: number;
+    lastInsertRowid: bigint | number;
+  };
   get(...params: unknown[]): unknown;
   all(...params: unknown[]): unknown[];
 }
@@ -199,6 +209,7 @@ export class LibSQLStorage implements StorageAdapter {
   private vectorIndexConfig: VectorIndexConfig;
   private embeddingDimensions: number;
   private hybridStrategy: HybridSearchStrategy;
+  private backendOptions: LibSQLBackendOptions;
   private _initialized = false;
   private _dirty = false;
   private _readOnly = false;
@@ -212,11 +223,14 @@ export class LibSQLStorage implements StorageAdapter {
     vectorIndexConfig?: VectorIndexConfig,
     embeddingDimensions?: number,
     hybridStrategy?: HybridSearchStrategy,
+    backendOptions?: Partial<LibSQLBackendOptions>,
   ) {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
-    this.hybridStrategy = hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.hybridStrategy =
+      hybridStrategy ?? DEFAULT_SEARCH_CONFIG.hybridStrategy;
+    this.backendOptions = { ...DEFAULT_LIBSQL_OPTIONS, ...backendOptions };
   }
 
   // -------------------------------------------------------------------------
@@ -261,10 +275,10 @@ export class LibSQLStorage implements StorageAdapter {
     this.db.pragma('foreign_keys = ON');
 
     // Memory optimization pragmas
-    this.db.pragma('journal_mode = WAL');      // Better write performance, safe with synchronous=normal
-    this.db.pragma('synchronous = normal');    // Less fsync, still corruption-safe in WAL mode
-    this.db.pragma('cache_size = -16000');     // Limit page cache to ~16MB (negative = KB)
-    this.db.pragma('mmap_size = 268435456');   // 256MB memory-mapped I/O (OS manages efficiently)
+    this.db.pragma('journal_mode = WAL'); // Better write performance, safe with synchronous=normal
+    this.db.pragma('synchronous = normal'); // Less fsync, still corruption-safe in WAL mode
+    this.db.pragma('cache_size = -16000'); // Limit page cache to ~16MB (negative = KB)
+    this.db.pragma('mmap_size = 268435456'); // 256MB memory-mapped I/O (OS manages efficiently)
 
     // Note: libsql doesn't support custom functions like better-sqlite3
     // We rely on libSQL's native vector_distance_cos() function instead
@@ -295,12 +309,15 @@ export class LibSQLStorage implements StorageAdapter {
             dimensions: this.embeddingDimensions,
             quantization: 'q8', // Default, will be updated by SearchSystem
           },
+          // Save backend-specific options for this database
+          { backend: 'libsql', ...this.backendOptions },
         );
         writeMetadata(this.config.path, metadata);
         log.info('initialize:created_metadata', {
           type: this.vectorIndexConfig.type,
           useHalfVec: this.vectorIndexConfig.useHalfVec,
           dimensions: this.embeddingDimensions,
+          backendOptions: this.backendOptions,
         });
       }
     }
@@ -321,10 +338,15 @@ export class LibSQLStorage implements StorageAdapter {
       : 'F32_BLOB';
 
     // Set the vector function to use for this storage instance
-    this._vectorFunc = this.vectorIndexConfig.useHalfVec ? 'vector16' : 'vector';
+    this._vectorFunc = this.vectorIndexConfig.useHalfVec
+      ? 'vector16'
+      : 'vector';
 
     // Create chunks table with vector column
-    const chunksSQL = getLibSQLChunksTableSQL(this.embeddingDimensions, vectorType);
+    const chunksSQL = getLibSQLChunksTableSQL(
+      this.embeddingDimensions,
+      vectorType,
+    );
     this.db.exec(chunksSQL);
     log.info('createSchema:chunks:created', {
       dimensions: this.embeddingDimensions,
@@ -375,11 +397,11 @@ export class LibSQLStorage implements StorageAdapter {
 
     const options: LibSQLVectorOptions = {
       dimensions: this.embeddingDimensions,
-      metric: 'cosine',
+      metric: this.backendOptions.metric,
       createIndex: true,
       vectorType,
-      compressNeighbors: 'float8', // 3x smaller index
-      maxNeighbors: 20, // Reduced from 50 to 20 for ~8x smaller index (per Turso benchmarks)
+      compressNeighbors: this.backendOptions.compressNeighbors,
+      maxNeighbors: this.backendOptions.maxNeighbors,
     };
 
     try {
@@ -396,10 +418,7 @@ export class LibSQLStorage implements StorageAdapter {
         error: error instanceof Error ? error.message : String(error),
       });
       // Vector index creation failed - will fall back to brute force search
-      console.error(
-        '[LibSQLStorage] Failed to create vector index. Semantic search will use brute force.',
-        error instanceof Error ? error.message : error,
-      );
+      // Error already logged above via log.error
     }
   }
 
@@ -543,9 +562,11 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Check if vector index exists
       try {
-        const indexCheck = this.db.prepare(
-          "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_chunks_embedding'",
-        ).get() as { name: string } | undefined;
+        const indexCheck = this.db
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_chunks_embedding'",
+          )
+          .get() as { name: string } | undefined;
         this._vectorIndexCreated = !!indexCheck;
       } catch {
         this._vectorIndexCreated = false;
@@ -567,7 +588,8 @@ export class LibSQLStorage implements StorageAdapter {
         log.info('reconnect:recovered');
       } catch (initError) {
         log.error('reconnect:recoveryFailed', {
-          error: initError instanceof Error ? initError.message : String(initError),
+          error:
+            initError instanceof Error ? initError.message : String(initError),
         });
         throw initError;
       }
@@ -670,7 +692,9 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocument(id: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(id) as DocumentRow | undefined;
+    const row = this.db!.prepare('SELECT * FROM documents WHERE id = ?').get(
+      id,
+    ) as DocumentRow | undefined;
 
     if (!row) return null;
     return this.rowToDocument(row);
@@ -679,13 +703,18 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocumentByPath(filePath: string): Promise<Document | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM documents WHERE file_path = ?').get(filePath) as DocumentRow | undefined;
+    const row = this.db!.prepare(
+      'SELECT * FROM documents WHERE file_path = ?',
+    ).get(filePath) as DocumentRow | undefined;
 
     if (!row) return null;
     return this.rowToDocument(row);
   }
 
-  async updateDocument(id: string, updates: UpdateDocumentInput): Promise<Document> {
+  async updateDocument(
+    id: string,
+    updates: UpdateDocumentInput,
+  ): Promise<Document> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -725,7 +754,9 @@ export class LibSQLStorage implements StorageAdapter {
 
     params.push(id);
 
-    this.db!.prepare(`UPDATE documents SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+    this.db!.prepare(
+      `UPDATE documents SET ${sets.join(', ')} WHERE id = ?`,
+    ).run(...params);
 
     this._dirty = true;
     const doc = await this.getDocument(id);
@@ -767,7 +798,10 @@ export class LibSQLStorage implements StorageAdapter {
   // Chunks
   // -------------------------------------------------------------------------
 
-  async createChunks(documentId: string, chunks: CreateChunkInput[]): Promise<DocumentChunk[]> {
+  async createChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+  ): Promise<DocumentChunk[]> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -819,7 +853,10 @@ export class LibSQLStorage implements StorageAdapter {
     transaction();
     this._dirty = true;
 
-    log.debug('createChunks:complete', { documentId, chunkCount: chunks.length });
+    log.debug('createChunks:complete', {
+      documentId,
+      chunkCount: chunks.length,
+    });
     return createdChunks;
   }
 
@@ -837,11 +874,15 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(documentId);
+    this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+      documentId,
+    );
     this._dirty = true;
   }
 
-  async updateChunkEmbeddings(updates: UpdateChunkEmbeddingInput[]): Promise<void> {
+  async updateChunkEmbeddings(
+    updates: UpdateChunkEmbeddingInput[],
+  ): Promise<void> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -873,13 +914,17 @@ export class LibSQLStorage implements StorageAdapter {
     transaction();
     this._dirty = true;
 
-    log.debug('updateChunkEmbeddings:complete', { updateCount: updates.length });
+    log.debug('updateChunkEmbeddings:complete', {
+      updateCount: updates.length,
+    });
   }
 
   async countChunks(): Promise<number> {
     this.ensureReady();
 
-    const result = this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number };
+    const result = this.db!.prepare(
+      'SELECT COUNT(*) as count FROM chunks',
+    ).get() as { count: number };
     return result.count;
   }
 
@@ -892,7 +937,9 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureWritable();
 
     const getTagStmt = this.db!.prepare('SELECT id FROM tags WHERE name = ?');
-    const insertTagStmt = this.db!.prepare('INSERT INTO tags (id, name) VALUES (?, ?)');
+    const insertTagStmt = this.db!.prepare(
+      'INSERT INTO tags (id, name) VALUES (?, ?)',
+    );
     const linkTagStmt = this.db!.prepare(
       'INSERT OR IGNORE INTO document_tags (document_id, tag_id) VALUES (?, ?)',
     );
@@ -940,12 +987,14 @@ export class LibSQLStorage implements StorageAdapter {
   async getDocumentTags(documentId: string): Promise<string[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT t.name FROM tags t
       JOIN document_tags dt ON t.id = dt.tag_id
       WHERE dt.document_id = ?
       ORDER BY t.name
-    `).all(documentId) as { name: string }[];
+    `,
+    ).all(documentId) as Array<{ name: string }>;
 
     return rows.map((row) => row.name);
   }
@@ -953,13 +1002,15 @@ export class LibSQLStorage implements StorageAdapter {
   async getAllTags(): Promise<TagCount[]> {
     this.ensureReady();
 
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT t.name as tag, COUNT(dt.document_id) as count
       FROM tags t
       LEFT JOIN document_tags dt ON t.id = dt.tag_id
       GROUP BY t.id, t.name
       ORDER BY count DESC, t.name
-    `).all() as TagCountRow[];
+    `,
+    ).all() as TagCountRow[];
 
     return rows.map((row) => ({
       tag: row.tag,
@@ -982,9 +1033,13 @@ export class LibSQLStorage implements StorageAdapter {
     log.debug('searchKeyword:start', { queryLength: query.length, limit });
 
     // Convert query to FTS5 format
-    const ftsQuery = this.convertToFTS5Query(query, options?.useWebSearchSyntax);
+    const ftsQuery = this.convertToFTS5Query(
+      query,
+      options?.useWebSearchSyntax,
+    );
 
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Use FTS5 with highlight() for highlighting
@@ -1038,10 +1093,13 @@ export class LibSQLStorage implements StorageAdapter {
 
     if (searchTerms.length === 0) return [];
 
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     // Build LIKE conditions for each word
-    const likeConditions = searchTerms.map(() => `LOWER(c.text) LIKE ?`).join(' AND ');
+    const likeConditions = searchTerms
+      .map(() => `LOWER(c.text) LIKE ?`)
+      .join(' AND ');
     const likeParams = searchTerms.map((t) => `%${t}%`);
 
     const sql = `
@@ -1071,7 +1129,10 @@ export class LibSQLStorage implements StorageAdapter {
     return this.rowsToSearchResults(rows);
   }
 
-  private convertToFTS5Query(query: string, useWebSearchSyntax?: boolean): string {
+  private convertToFTS5Query(
+    query: string,
+    useWebSearchSyntax?: boolean,
+  ): string {
     if (!useWebSearchSyntax) {
       // Simple mode: AND all terms
       const terms = query.split(/\s+/).filter((t) => t.length > 0);
@@ -1111,7 +1172,8 @@ export class LibSQLStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     const vectorJson = vectorToJson(embedding);
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Use vector_top_k() table-valued function for ANN search
@@ -1142,7 +1204,9 @@ export class LibSQLStorage implements StorageAdapter {
 
       // Pass vectorJson twice: once for distance calc, once for vector_top_k
       const params = [vectorJson, vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as (SearchResultRow & { distance: number })[];
+      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
+        distance: number;
+      }>;
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1161,7 +1225,9 @@ export class LibSQLStorage implements StorageAdapter {
         },
       }));
 
-      log.debug('searchSemantic:index:complete', { resultCount: results.length });
+      log.debug('searchSemantic:index:complete', {
+        resultCount: results.length,
+      });
       return results;
     } catch (error) {
       log.warn('searchSemantic:index:failed', {
@@ -1178,7 +1244,8 @@ export class LibSQLStorage implements StorageAdapter {
     limit = 10,
   ): Promise<SearchResult[]> {
     const vectorJson = vectorToJson(embedding);
-    const { where: filterWhere, params: filterParams } = this.buildSearchFilters(filters);
+    const { where: filterWhere, params: filterParams } =
+      this.buildSearchFilters(filters);
 
     try {
       // Brute force: use vector_distance_cos() function
@@ -1204,7 +1271,9 @@ export class LibSQLStorage implements StorageAdapter {
       `;
 
       const params = [vectorJson, ...filterParams, limit];
-      const rows = this.db!.prepare(sql).all(...params) as (SearchResultRow & { distance: number })[];
+      const rows = this.db!.prepare(sql).all(...params) as Array<SearchResultRow & {
+        distance: number;
+      }>;
 
       // Convert distance to similarity score (1 - distance for cosine)
       const results: SearchResult[] = rows.map((row) => ({
@@ -1223,7 +1292,9 @@ export class LibSQLStorage implements StorageAdapter {
         },
       }));
 
-      log.debug('searchSemantic:bruteForce:complete', { resultCount: results.length });
+      log.debug('searchSemantic:bruteForce:complete', {
+        resultCount: results.length,
+      });
       return results;
     } catch (error) {
       log.warn('searchSemantic:bruteForce:failed', {
@@ -1248,7 +1319,15 @@ export class LibSQLStorage implements StorageAdapter {
 
     // Always use application-level fusion for libSQL
     // (SQL-based would require temp tables which may not work well with vector_top_k)
-    return this.searchHybridApplication(query, embedding, filters, limit, weights, rrfK, options);
+    return this.searchHybridApplication(
+      query,
+      embedding,
+      filters,
+      limit,
+      weights,
+      rrfK,
+      options,
+    );
   }
 
   private async searchHybridApplication(
@@ -1267,7 +1346,13 @@ export class LibSQLStorage implements StorageAdapter {
     ]);
 
     // Merge using RRF
-    return this.fuseWithRRF(semanticResults, keywordResults, weights, rrfK, limit);
+    return this.fuseWithRRF(
+      semanticResults,
+      keywordResults,
+      weights,
+      rrfK,
+      limit,
+    );
   }
 
   private fuseWithRRF(
@@ -1300,7 +1385,11 @@ export class LibSQLStorage implements StorageAdapter {
     }
 
     // Calculate RRF scores
-    const scored: Array<{ result: SearchResult; score: number; matchType: string }> = [];
+    const scored: Array<{
+      result: SearchResult;
+      score: number;
+      matchType: string;
+    }> = [];
 
     for (const [chunkId, result] of allChunks) {
       const semRank = semanticRank.get(chunkId);
@@ -1315,7 +1404,10 @@ export class LibSQLStorage implements StorageAdapter {
       else if (semRank) matchType = 'semantic';
 
       scored.push({
-        result: { ...result, matchType: matchType as 'hybrid' | 'semantic' | 'keyword' },
+        result: {
+          ...result,
+          matchType: matchType as 'hybrid' | 'semantic' | 'keyword',
+        },
         score: totalScore,
         matchType,
       });
@@ -1341,7 +1433,8 @@ export class LibSQLStorage implements StorageAdapter {
     const id = generateId();
     const now = new Date().toISOString();
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
       VALUES (?, ?, ?, ?, 'pending', 0, ?)
       ON CONFLICT (file_path) DO UPDATE SET
@@ -1352,7 +1445,14 @@ export class LibSQLStorage implements StorageAdapter {
         last_error = NULL,
         started_at = NULL,
         completed_at = NULL
-    `).run(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+    `,
+    ).run(
+      id,
+      input.filePath,
+      input.fileSize ?? 0,
+      input.priority ?? 'markup',
+      now,
+    );
 
     this._dirty = true;
     const item = await this.getQueueItemByPath(input.filePath);
@@ -1391,7 +1491,13 @@ export class LibSQLStorage implements StorageAdapter {
     // Use transaction to batch inserts for performance
     const insertMany = this.db!.transaction(() => {
       for (const { id, input } of itemsWithIds) {
-        insertStmt.run(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+        insertStmt.run(
+          id,
+          input.filePath,
+          input.fileSize ?? 0,
+          input.priority ?? 'markup',
+          now,
+        );
       }
     });
 
@@ -1402,7 +1508,7 @@ export class LibSQLStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup') as QueuePriority,
+      priority: (input.priority ?? 'markup'),
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
@@ -1416,7 +1522,8 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    const row = this.db!.prepare(`
+    const row = this.db!.prepare(
+      `
       SELECT * FROM index_queue
       WHERE status = 'pending'
       ORDER BY
@@ -1430,21 +1537,31 @@ export class LibSQLStorage implements StorageAdapter {
         file_size ASC,
         created_at ASC
       LIMIT 1
-    `).get() as QueueItemRow | undefined;
+    `,
+    ).get() as QueueItemRow | undefined;
 
     if (!row) return null;
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       UPDATE index_queue
       SET status = 'processing', started_at = ?, attempts = attempts + 1
       WHERE id = ?
-    `).run(new Date().toISOString(), row.id);
+    `,
+    ).run(new Date().toISOString(), row.id);
 
     this._dirty = true;
-    return this.rowToQueueItem({ ...row, status: 'processing', attempts: row.attempts + 1 });
+    return this.rowToQueueItem({
+      ...row,
+      status: 'processing',
+      attempts: row.attempts + 1,
+    });
   }
 
-  async updateQueueItem(id: string, updates: UpdateQueueItemInput): Promise<QueueItem> {
+  async updateQueueItem(
+    id: string,
+    updates: UpdateQueueItemInput,
+  ): Promise<QueueItem> {
     this.ensureReady();
     this.ensureWritable();
 
@@ -1474,10 +1591,14 @@ export class LibSQLStorage implements StorageAdapter {
 
     if (sets.length > 0) {
       params.push(id);
-      this.db!.prepare(`UPDATE index_queue SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+      this.db!.prepare(
+        `UPDATE index_queue SET ${sets.join(', ')} WHERE id = ?`,
+      ).run(...params);
     }
 
-    const row = this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(id) as QueueItemRow | undefined;
+    const row = this.db!.prepare('SELECT * FROM index_queue WHERE id = ?').get(
+      id,
+    ) as QueueItemRow | undefined;
     if (!row) throw new Error('Queue item not found');
 
     this._dirty = true;
@@ -1495,7 +1616,9 @@ export class LibSQLStorage implements StorageAdapter {
   async getQueueItemByPath(filePath: string): Promise<QueueItem | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT * FROM index_queue WHERE file_path = ?').get(filePath) as QueueItemRow | undefined;
+    const row = this.db!.prepare(
+      'SELECT * FROM index_queue WHERE file_path = ?',
+    ).get(filePath) as QueueItemRow | undefined;
 
     if (!row) return null;
     return this.rowToQueueItem(row);
@@ -1504,14 +1627,18 @@ export class LibSQLStorage implements StorageAdapter {
   async getQueueStatus(): Promise<QueueStatus> {
     this.ensureReady();
 
-    const statusRows = this.db!.prepare(`
+    const statusRows = this.db!.prepare(
+      `
       SELECT status, COUNT(*) as count FROM index_queue GROUP BY status
-    `).all() as { status: string; count: number }[];
+    `,
+    ).all() as Array<{ status: string; count: number }>;
 
-    const priorityRows = this.db!.prepare(`
+    const priorityRows = this.db!.prepare(
+      `
       SELECT priority, COUNT(*) as count FROM index_queue
       WHERE status = 'pending' GROUP BY priority
-    `).all() as { priority: string; count: number }[];
+    `,
+    ).all() as Array<{ priority: string; count: number }>;
 
     const statusCounts: Record<string, number> = {};
     for (const row of statusRows) {
@@ -1545,7 +1672,9 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    const result = this.db!.prepare("DELETE FROM index_queue WHERE status = 'completed'").run();
+    const result = this.db!.prepare(
+      "DELETE FROM index_queue WHERE status = 'completed'",
+    ).run();
     if (result.changes > 0) this._dirty = true;
     return result.changes;
   }
@@ -1565,10 +1694,12 @@ export class LibSQLStorage implements StorageAdapter {
   async getFileHashes(): Promise<Map<string, string>> {
     this.ensureReady();
 
-    const rows = this.db!.prepare('SELECT file_path, file_hash FROM documents').all() as {
+    const rows = this.db!.prepare(
+      'SELECT file_path, file_hash FROM documents',
+    ).all() as Array<{
       file_path: string;
       file_hash: string;
-    }[];
+    }>;
 
     const map = new Map<string, string>();
     for (const row of rows) {
@@ -1594,7 +1725,8 @@ export class LibSQLStorage implements StorageAdapter {
   async getStats(): Promise<SearchStats> {
     this.ensureReady();
 
-    const docStats = this.db!.prepare(`
+    const docStats = this.db!.prepare(
+      `
       SELECT
         COUNT(*) as total_documents,
         SUM(CASE WHEN status = 'indexed' THEN 1 ELSE 0 END) as indexed_documents,
@@ -1603,10 +1735,19 @@ export class LibSQLStorage implements StorageAdapter {
         SUM(CASE WHEN ocr_status = 'pending' THEN 1 ELSE 0 END) as ocr_pending,
         COALESCE(SUM(file_size), 0) as total_file_size
       FROM documents
-    `).get() as StatsRow;
+    `,
+    ).get() as StatsRow;
 
-    const chunkCount = (this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as { count: number }).count;
-    const tagCount = (this.db!.prepare('SELECT COUNT(*) as count FROM tags').get() as { count: number }).count;
+    const chunkCount = (
+      this.db!.prepare('SELECT COUNT(*) as count FROM chunks').get() as {
+        count: number;
+      }
+    ).count;
+    const tagCount = (
+      this.db!.prepare('SELECT COUNT(*) as count FROM tags').get() as {
+        count: number;
+      }
+    ).count;
 
     return {
       totalDocuments: docStats.total_documents,
@@ -1627,7 +1768,9 @@ export class LibSQLStorage implements StorageAdapter {
   async getConfigValue<T>(key: string): Promise<T | null> {
     this.ensureReady();
 
-    const row = this.db!.prepare('SELECT value FROM search_config WHERE key = ?').get(key) as { value: string } | undefined;
+    const row = this.db!.prepare(
+      'SELECT value FROM search_config WHERE key = ?',
+    ).get(key) as { value: string } | undefined;
 
     if (!row) return null;
     return JSON.parse(row.value) as T;
@@ -1637,11 +1780,13 @@ export class LibSQLStorage implements StorageAdapter {
     this.ensureReady();
     this.ensureWritable();
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO search_config (key, value, updated_at)
       VALUES (?, ?, ?)
       ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(key, JSON.stringify(value), new Date().toISOString());
+    `,
+    ).run(key, JSON.stringify(value), new Date().toISOString());
 
     this._dirty = true;
   }
@@ -1668,10 +1813,12 @@ export class LibSQLStorage implements StorageAdapter {
   async recoverStuckDocuments(): Promise<number> {
     this.ensureReady();
 
-    const stuckDocs = this.db!.prepare(`
+    const stuckDocs = this.db!.prepare(
+      `
       SELECT id, file_path, status FROM documents
       WHERE status IN ('parsing', 'chunking', 'embedding')
-    `).all() as { id: string; file_path: string; status: string }[];
+    `,
+    ).all() as Array<{ id: string; file_path: string; status: string }>;
 
     if (stuckDocs.length === 0) return 0;
 
@@ -1686,17 +1833,22 @@ export class LibSQLStorage implements StorageAdapter {
       for (const doc of stuckDocs) {
         try {
           // Delete partial chunks
-          this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(doc.id);
+          this.db!.prepare('DELETE FROM chunks WHERE document_id = ?').run(
+            doc.id,
+          );
 
           // Reset document status
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             UPDATE documents SET status = 'pending', updated_at = ?
             WHERE id = ?
-          `).run(new Date().toISOString(), doc.id);
+          `,
+          ).run(new Date().toISOString(), doc.id);
 
           // Re-queue for indexing
           const queueId = generateId();
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             INSERT INTO index_queue (id, file_path, priority, status, attempts, created_at)
             VALUES (?, ?, 'text', 'pending', 0, ?)
             ON CONFLICT (file_path) DO UPDATE SET
@@ -1705,7 +1857,8 @@ export class LibSQLStorage implements StorageAdapter {
               last_error = NULL,
               started_at = NULL,
               completed_at = NULL
-          `).run(queueId, doc.file_path, new Date().toISOString());
+          `,
+          ).run(queueId, doc.file_path, new Date().toISOString());
 
           recoveredCount++;
           log.info('recoverStuckDocuments:recovered', {
@@ -1822,9 +1975,7 @@ export class LibSQLStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => {
-        return `REPLACE(file_path, '\\', '/') LIKE ?`;
-      });
+      const folderConditions = filters.folders.map(() => `REPLACE(file_path, '\\', '/') LIKE ?`);
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }
@@ -1861,7 +2012,8 @@ export class LibSQLStorage implements StorageAdapter {
       params.push(...filters.languages);
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     return { where, params };
   }
@@ -1876,9 +2028,7 @@ export class LibSQLStorage implements StorageAdapter {
     const params: unknown[] = [];
 
     if (filters.folders && filters.folders.length > 0) {
-      const folderConditions = filters.folders.map(() => {
-        return `REPLACE(d.file_path, '\\', '/') LIKE ?`;
-      });
+      const folderConditions = filters.folders.map(() => `REPLACE(d.file_path, '\\', '/') LIKE ?`);
       conditions.push(`(${folderConditions.join(' OR ')})`);
       params.push(...filters.folders.map((f) => `%${f.replace(/\\/g, '/')}%`));
     }

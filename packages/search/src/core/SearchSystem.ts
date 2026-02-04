@@ -30,7 +30,14 @@ import type {
   DeepPartial,
   DatabaseConfig,
 } from '../config.js';
-import { createConfig, validateConfig } from '../config.js';
+import {
+  createConfig,
+  validateConfig,
+  loadUserConfig,
+  loadMergedConfig,
+  deepMerge,
+  type BackendOptionsMap,
+} from '../config.js';
 import type {
   SearchStats,
   SearchOptions,
@@ -207,18 +214,22 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private closing: boolean = false;
   /** Child process manager for memory-safe indexing */
   private childManager: IndexingChildManager | null = null;
+  /** User backend options from knowledge-base.json (passed to createStorage) */
+  private userBackendOptions: BackendOptionsMap | null = null;
 
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
     useMockEmbedder: boolean = false,
     loggingOptions?: LoggingOptions,
+    userBackendOptions?: BackendOptionsMap,
   ) {
     super();
     this.rootPath = resolve(rootPath);
     this.config = config;
     this.useMockEmbedder = useMockEmbedder;
     this.loggingOptions = loggingOptions;
+    this.userBackendOptions = userBackendOptions ?? null;
   }
 
   // -------------------------------------------------------------------------
@@ -228,19 +239,52 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   /**
    * Initialize a new search system.
    * Creates database and sets up all components.
+   *
+   * Configuration is loaded from multiple sources with priority:
+   * 1. Database metadata (db-config.json) - for schema-defining fields (existing databases)
+   * 2. options.config (programmatic overrides) - for runtime preferences
+   * 3. .auditaria/knowledge-base.json (user preferences)
+   * 4. Code defaults
+   *
+   * Schema-defining fields (backend, embeddings model/dimensions, vectorIndex) from an
+   * existing database's metadata ALWAYS take precedence to ensure data consistency.
    */
   static async initialize(
     options: SearchSystemInitOptions = {},
   ): Promise<SearchSystem> {
-    const rootPath = options.rootPath ?? process.cwd();
-    const config = createConfig(options.config);
-    validateConfig(config);
+    const rootPath = resolve(options.rootPath ?? process.cwd());
+    const auditariaDir = join(rootPath, '.auditaria');
+
+    // Compute the database path to check for existing database
+    // First load user config to determine the configured path
+    const userConfig = loadUserConfig(auditariaDir);
+    const prelimConfig = createConfig(userConfig?.config);
+    const dbPath = join(rootPath, prelimConfig.database.path);
+
+    // Load merged config with proper priority:
+    // database metadata (schema fields) > user config (knowledge-base.json) > code defaults
+    const merged = loadMergedConfig(auditariaDir, dbPath);
+
+    // Apply programmatic overrides on top (for non-schema runtime preferences)
+    // Note: For existing databases, schema fields are already locked by db metadata
+    let config = merged.config;
+    if (options.config) {
+      config = deepMerge(config, options.config as Partial<SearchSystemConfig>);
+      validateConfig(config);
+    }
+
+    // Get the user backend options for new databases
+    // For existing databases, createStorage() will use stored options from metadata
+    const backendOptions = merged.existingDatabase
+      ? undefined // createStorage() will read from metadata
+      : userConfig?.backendOptions;
 
     const system = new SearchSystem(
       rootPath,
       config,
       options.useMockEmbedder ?? false,
       options.logging,
+      backendOptions,
     );
 
     await system.setup();
@@ -250,25 +294,49 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   /**
    * Load an existing search system from database.
    * Returns null if database doesn't exist.
+   *
+   * Configuration priority:
+   * 1. Database metadata (db-config.json) - for schema-defining fields (ALWAYS wins)
+   * 2. options.config (programmatic overrides) - for runtime preferences
+   * 3. .auditaria/knowledge-base.json (user preferences)
+   * 4. Code defaults
    */
   static async load(
     rootPath?: string,
     options: Omit<SearchSystemInitOptions, 'rootPath'> = {},
   ): Promise<SearchSystem | null> {
     const resolvedRoot = resolve(rootPath ?? process.cwd());
-    const config = createConfig(options.config);
-    const dbPath = join(resolvedRoot, config.database.path);
+    const auditariaDir = join(resolvedRoot, '.auditaria');
+
+    // First load user config to determine the configured database path
+    const userConfig = loadUserConfig(auditariaDir);
+    const prelimConfig = createConfig(userConfig?.config);
+    const dbPath = join(resolvedRoot, prelimConfig.database.path);
 
     // Check if database exists
-    if (!existsSync(dbPath) && !config.database.inMemory) {
+    if (!existsSync(dbPath) && !prelimConfig.database.inMemory) {
       return null;
     }
 
+    // Load merged config with proper priority:
+    // database metadata (schema fields) > user config (knowledge-base.json) > code defaults
+    const merged = loadMergedConfig(auditariaDir, dbPath);
+
+    // Apply programmatic overrides on top (for non-schema runtime preferences)
+    // Note: Schema fields are already locked by database metadata
+    let config = merged.config;
+    if (options.config) {
+      config = deepMerge(config, options.config as Partial<SearchSystemConfig>);
+      validateConfig(config);
+    }
+
+    // For existing databases, createStorage() will read backend options from metadata
     const system = new SearchSystem(
       resolvedRoot,
       config,
       options.useMockEmbedder ?? false,
       options.logging,
+      undefined, // createStorage() will use stored options from metadata
     );
 
     await system.setup();
@@ -314,11 +382,13 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
     // Initialize storage using factory - it handles backend selection and metadata
     // createStorage is async to support dynamic imports of optional backends
+    // Priority for backend options: existing db-config.json > user knowledge-base.json > defaults
     this.storage = await createStorage(
       dbConfig,
       this.config.vectorIndex,
       this.config.embeddings.dimensions,
       this.config.search.hybridStrategy,
+      this.userBackendOptions ?? undefined,
     );
     await this.storage.initialize();
 

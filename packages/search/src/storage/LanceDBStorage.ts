@@ -1,11 +1,13 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 import * as lancedb from '@lancedb/lancedb';
-import type { Table } from '@lancedb/lancedb';
+import type { Table as _Table } from '@lancedb/lancedb';
 import type {
   StorageAdapter,
   CreateDocumentInput,
@@ -39,6 +41,8 @@ import {
   type DatabaseMetadata,
 } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
+import type { LanceDBBackendOptions } from '../config/backend-options.js';
+import { DEFAULT_LANCEDB_OPTIONS } from '../config/backend-options.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -62,7 +66,7 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
-function toDate(value: unknown): Date | null {
+function _toDate(value: unknown): Date | null {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value;
   if (typeof value === 'string' || typeof value === 'number') {
@@ -167,6 +171,7 @@ export class LanceDBStorage implements StorageAdapter {
   private config: DatabaseConfig;
   private vectorIndexConfig: VectorIndexConfig;
   private embeddingDimensions: number;
+  private backendOptions: LanceDBBackendOptions;
   private _initialized = false;
   private _dirty = false;
   private _readOnly = false;
@@ -179,16 +184,21 @@ export class LanceDBStorage implements StorageAdapter {
   private pendingDocuments = new Map<string, PendingDocument>();
 
   /** Recently created documents - cache updates until status=indexed to avoid repeated chunk updates */
-  private recentDocuments = new Map<string, { status: string; indexedAt: Date | null }>();
+  private recentDocuments = new Map<
+    string,
+    { status: string; indexedAt: Date | null }
+  >();
 
   constructor(
     config: DatabaseConfig,
     vectorIndexConfig?: VectorIndexConfig,
     embeddingDimensions?: number,
+    backendOptions?: Partial<LanceDBBackendOptions>,
   ) {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
+    this.backendOptions = { ...DEFAULT_LANCEDB_OPTIONS, ...backendOptions };
   }
 
   // -------------------------------------------------------------------------
@@ -239,12 +249,15 @@ export class LanceDBStorage implements StorageAdapter {
             dimensions: this.embeddingDimensions,
             quantization: 'q8', // Default, will be updated by SearchSystem
           },
+          // Save backend-specific options for this database
+          { backend: 'lancedb', ...this.backendOptions },
         );
         writeMetadata(this.config.path, metadata);
         log.info('initialize:created_metadata', {
           type: this.vectorIndexConfig.type,
           useHalfVec: this.vectorIndexConfig.useHalfVec,
           dimensions: this.embeddingDimensions,
+          backendOptions: this.backendOptions,
         });
       }
     }
@@ -256,8 +269,11 @@ export class LanceDBStorage implements StorageAdapter {
   private getDbPath(): string {
     if (this.config.inMemory) {
       // LanceDB doesn't have true in-memory mode, use temp directory
+      // Get temp directory from environment variables (cross-platform)
+      const systemTempDir =
+        process.env.TMPDIR || process.env.TMP || process.env.TEMP || '/tmp';
       const tempDir = path.join(
-        require('os').tmpdir(),
+        systemTempDir,
         `lancedb-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       );
       fs.mkdirSync(tempDir, { recursive: true });
@@ -333,7 +349,10 @@ export class LanceDBStorage implements StorageAdapter {
     } catch (error) {
       // Index might already exist or table is empty
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes('already exists') || msg.includes('Index already exists')) {
+      if (
+        msg.includes('already exists') ||
+        msg.includes('Index already exists')
+      ) {
         this._ftsIndexCreated = true;
         log.info('ensureFtsIndex:alreadyExists');
       } else {
@@ -466,7 +485,8 @@ export class LanceDBStorage implements StorageAdapter {
         log.info('reconnect:recovered');
       } catch (initError) {
         log.error('reconnect:recoveryFailed', {
-          error: initError instanceof Error ? initError.message : String(initError),
+          error:
+            initError instanceof Error ? initError.message : String(initError),
         });
         throw initError;
       }
@@ -672,7 +692,10 @@ export class LanceDBStorage implements StorageAdapter {
     }
   }
 
-  async updateDocument(id: string, updates: UpdateDocumentInput): Promise<Document> {
+  async updateDocument(
+    id: string,
+    updates: UpdateDocumentInput,
+  ): Promise<Document> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -680,19 +703,29 @@ export class LanceDBStorage implements StorageAdapter {
     const pending = this.pendingDocuments.get(id);
     if (pending) {
       // Update pending document - in memory only
-      if (updates.filePath !== undefined) pending.input.filePath = updates.filePath;
-      if (updates.fileName !== undefined) pending.input.fileName = updates.fileName;
-      if (updates.fileExtension !== undefined) pending.input.fileExtension = updates.fileExtension;
-      if (updates.fileSize !== undefined) pending.input.fileSize = updates.fileSize;
-      if (updates.fileHash !== undefined) pending.input.fileHash = updates.fileHash;
-      if (updates.mimeType !== undefined) pending.input.mimeType = updates.mimeType;
+      if (updates.filePath !== undefined)
+        pending.input.filePath = updates.filePath;
+      if (updates.fileName !== undefined)
+        pending.input.fileName = updates.fileName;
+      if (updates.fileExtension !== undefined)
+        pending.input.fileExtension = updates.fileExtension;
+      if (updates.fileSize !== undefined)
+        pending.input.fileSize = updates.fileSize;
+      if (updates.fileHash !== undefined)
+        pending.input.fileHash = updates.fileHash;
+      if (updates.mimeType !== undefined)
+        pending.input.mimeType = updates.mimeType;
       if (updates.title !== undefined) pending.input.title = updates.title;
       if (updates.author !== undefined) pending.input.author = updates.author;
-      if (updates.language !== undefined) pending.input.language = updates.language;
-      if (updates.pageCount !== undefined) pending.input.pageCount = updates.pageCount;
+      if (updates.language !== undefined)
+        pending.input.language = updates.language;
+      if (updates.pageCount !== undefined)
+        pending.input.pageCount = updates.pageCount;
       if (updates.status !== undefined) pending.input.status = updates.status;
-      if (updates.ocrStatus !== undefined) pending.input.ocrStatus = updates.ocrStatus;
-      if (updates.metadata !== undefined) pending.input.metadata = updates.metadata;
+      if (updates.ocrStatus !== undefined)
+        pending.input.ocrStatus = updates.ocrStatus;
+      if (updates.metadata !== undefined)
+        pending.input.metadata = updates.metadata;
 
       const doc = await this.getDocument(id);
       if (!doc) throw new Error('Document not found after update');
@@ -735,7 +768,8 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (updates.filePath !== undefined) values.file_path = updates.filePath;
     if (updates.fileName !== undefined) values.file_name = updates.fileName;
-    if (updates.fileExtension !== undefined) values.file_extension = updates.fileExtension;
+    if (updates.fileExtension !== undefined)
+      values.file_extension = updates.fileExtension;
     if (updates.fileSize !== undefined) values.file_size = updates.fileSize;
     if (updates.fileHash !== undefined) values.file_hash = updates.fileHash;
     if (updates.mimeType !== undefined) values.mime_type = updates.mimeType;
@@ -748,7 +782,8 @@ export class LanceDBStorage implements StorageAdapter {
     if (updates.indexedAt !== undefined) {
       values.indexed_at = updates.indexedAt?.getTime() ?? null;
     }
-    if (updates.metadata !== undefined) values.metadata = JSON.stringify(updates.metadata);
+    if (updates.metadata !== undefined)
+      values.metadata = JSON.stringify(updates.metadata);
 
     // Update all chunks for this document
     await this.chunksTable.update({
@@ -773,7 +808,9 @@ export class LanceDBStorage implements StorageAdapter {
     // Delete all chunks for this document
     if (this.chunksTable) {
       try {
-        await this.chunksTable.delete(`document_id = '${this.escapeString(id)}'`);
+        await this.chunksTable.delete(
+          `document_id = '${this.escapeString(id)}'`,
+        );
       } catch (error) {
         log.warn('deleteDocument:failed', {
           id,
@@ -839,7 +876,10 @@ export class LanceDBStorage implements StorageAdapter {
   // Chunks
   // -------------------------------------------------------------------------
 
-  async createChunks(documentId: string, chunks: CreateChunkInput[]): Promise<DocumentChunk[]> {
+  async createChunks(
+    documentId: string,
+    chunks: CreateChunkInput[],
+  ): Promise<DocumentChunk[]> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -987,9 +1027,15 @@ export class LanceDBStorage implements StorageAdapter {
     this._dirty = true;
 
     // Add to recentDocuments cache - we'll batch status updates until indexed
-    this.recentDocuments.set(documentId, { status: 'chunking', indexedAt: null });
+    this.recentDocuments.set(documentId, {
+      status: 'chunking',
+      indexedAt: null,
+    });
 
-    log.debug('createChunks:complete', { documentId, chunkCount: chunks.length });
+    log.debug('createChunks:complete', {
+      documentId,
+      chunkCount: chunks.length,
+    });
     return createdChunks;
   }
 
@@ -1024,7 +1070,9 @@ export class LanceDBStorage implements StorageAdapter {
     if (!this.chunksTable) return;
 
     try {
-      await this.chunksTable.delete(`document_id = '${this.escapeString(documentId)}'`);
+      await this.chunksTable.delete(
+        `document_id = '${this.escapeString(documentId)}'`,
+      );
       this._dirty = true;
     } catch (error) {
       log.warn('deleteChunks:failed', {
@@ -1034,7 +1082,9 @@ export class LanceDBStorage implements StorageAdapter {
     }
   }
 
-  async updateChunkEmbeddings(updates: UpdateChunkEmbeddingInput[]): Promise<void> {
+  async updateChunkEmbeddings(
+    updates: UpdateChunkEmbeddingInput[],
+  ): Promise<void> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -1079,7 +1129,9 @@ export class LanceDBStorage implements StorageAdapter {
         .execute(updatedRows);
 
       this._dirty = true;
-      log.debug('updateChunkEmbeddings:complete', { updateCount: updates.length });
+      log.debug('updateChunkEmbeddings:complete', {
+        updateCount: updates.length,
+      });
     } catch (error) {
       // Fallback to individual updates if mergeInsert fails
       log.warn('updateChunkEmbeddings:mergeInsertFailed, falling back', {
@@ -1090,7 +1142,10 @@ export class LanceDBStorage implements StorageAdapter {
         try {
           await this.chunksTable.update({
             where: `chunk_id = '${this.escapeString(update.id)}'`,
-            values: { vector: update.embedding } as Record<string, lancedb.IntoSql>,
+            values: { vector: update.embedding } as Record<
+              string,
+              lancedb.IntoSql
+            >,
           });
         } catch (err) {
           log.warn('updateChunkEmbeddings:chunkFailed', {
@@ -1155,7 +1210,10 @@ export class LanceDBStorage implements StorageAdapter {
       // Update all chunks
       await this.chunksTable.update({
         where: `document_id = '${this.escapeString(documentId)}'`,
-        values: { tags: JSON.stringify(Array.from(currentTags)) } as Record<string, lancedb.IntoSql>,
+        values: { tags: JSON.stringify(Array.from(currentTags)) } as Record<
+          string,
+          lancedb.IntoSql
+        >,
       });
 
       this._dirty = true;
@@ -1197,7 +1255,10 @@ export class LanceDBStorage implements StorageAdapter {
 
       await this.chunksTable.update({
         where: `document_id = '${this.escapeString(documentId)}'`,
-        values: { tags: JSON.stringify(Array.from(currentTags)) } as Record<string, lancedb.IntoSql>,
+        values: { tags: JSON.stringify(Array.from(currentTags)) } as Record<
+          string,
+          lancedb.IntoSql
+        >,
       });
 
       this._dirty = true;
@@ -1254,7 +1315,10 @@ export class LanceDBStorage implements StorageAdapter {
     if (this.chunksTable) {
       try {
         // Get all chunks and aggregate tags
-        const results = await this.chunksTable.query().limit(QUERY_ALL_LIMIT).toArray();
+        const results = await this.chunksTable
+          .query()
+          .limit(QUERY_ALL_LIMIT)
+          .toArray();
         const seenDocs = new Set<string>();
 
         for (const row of results) {
@@ -1314,13 +1378,18 @@ export class LanceDBStorage implements StorageAdapter {
       // Apply additional filters in code
       const filtered = results
         .map((row: Record<string, unknown>) => {
-          const chunkRow = row as ChunkRow & { _score?: number; score?: number };
+          const chunkRow = row as ChunkRow & {
+            _score?: number;
+            score?: number;
+          };
           return {
             row: chunkRow,
             score: chunkRow._score ?? chunkRow.score ?? 0.5,
           };
         })
-        .filter(({ row }: { row: ChunkRow }) => this.matchesSearchFilters(row, filters))
+        .filter(({ row }: { row: ChunkRow }) =>
+          this.matchesSearchFilters(row, filters),
+        )
         .slice(0, limit);
 
       const searchResults = filtered.map(
@@ -1328,7 +1397,9 @@ export class LanceDBStorage implements StorageAdapter {
           this.rowToSearchResult(row, score, 'keyword'),
       );
 
-      log.debug('searchKeyword:complete', { resultCount: searchResults.length });
+      log.debug('searchKeyword:complete', {
+        resultCount: searchResults.length,
+      });
       return searchResults;
     } catch (error) {
       log.warn('searchKeyword:failed', {
@@ -1388,7 +1459,10 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (!this.chunksTable) return [];
 
-    log.debug('searchSemantic:start', { embeddingDim: embedding.length, limit });
+    log.debug('searchSemantic:start', {
+      embeddingDim: embedding.length,
+      limit,
+    });
 
     try {
       // Vector search with cosine distance
@@ -1409,7 +1483,9 @@ export class LanceDBStorage implements StorageAdapter {
           const score = 1 - distance; // Convert cosine distance to similarity
           return { row: chunkRow, score };
         })
-        .filter(({ row }: { row: ChunkRow }) => this.matchesSearchFilters(row, filters))
+        .filter(({ row }: { row: ChunkRow }) =>
+          this.matchesSearchFilters(row, filters),
+        )
         .slice(0, limit);
 
       const searchResults = filtered.map(
@@ -1417,7 +1493,9 @@ export class LanceDBStorage implements StorageAdapter {
           this.rowToSearchResult(row, score, 'semantic'),
       );
 
-      log.debug('searchSemantic:complete', { resultCount: searchResults.length });
+      log.debug('searchSemantic:complete', {
+        resultCount: searchResults.length,
+      });
       return searchResults;
     } catch (error) {
       log.warn('searchSemantic:failed', {
@@ -1459,11 +1537,16 @@ export class LanceDBStorage implements StorageAdapter {
       // Apply additional filters
       const filtered = results
         .map((row: Record<string, unknown>) => {
-          const chunkRow = row as ChunkRow & { _score?: number; _distance?: number };
-          const score = chunkRow._score ?? (1 - (chunkRow._distance ?? 0));
+          const chunkRow = row as ChunkRow & {
+            _score?: number;
+            _distance?: number;
+          };
+          const score = chunkRow._score ?? 1 - (chunkRow._distance ?? 0);
           return { row: chunkRow, score };
         })
-        .filter(({ row }: { row: ChunkRow }) => this.matchesSearchFilters(row, filters))
+        .filter(({ row }: { row: ChunkRow }) =>
+          this.matchesSearchFilters(row, filters),
+        )
         .slice(0, limit);
 
       const searchResults = filtered.map(
@@ -1471,14 +1554,24 @@ export class LanceDBStorage implements StorageAdapter {
           this.rowToSearchResult(row, score, 'hybrid'),
       );
 
-      log.debug('searchHybrid:complete:native', { resultCount: searchResults.length });
+      log.debug('searchHybrid:complete:native', {
+        resultCount: searchResults.length,
+      });
       return searchResults;
     } catch (error) {
       log.warn('searchHybrid:native:failed', {
         error: error instanceof Error ? error.message : String(error),
       });
       // Fallback to application-level fusion
-      return this.searchHybridFallback(query, embedding, filters, limit, weights, rrfK, options);
+      return this.searchHybridFallback(
+        query,
+        embedding,
+        filters,
+        limit,
+        weights,
+        rrfK,
+        options,
+      );
     }
   }
 
@@ -1498,7 +1591,13 @@ export class LanceDBStorage implements StorageAdapter {
     ]);
 
     // Merge using RRF
-    return this.fuseWithRRF(semanticResults, keywordResults, weights, rrfK, limit);
+    return this.fuseWithRRF(
+      semanticResults,
+      keywordResults,
+      weights,
+      rrfK,
+      limit,
+    );
   }
 
   private fuseWithRRF(
@@ -1525,7 +1624,11 @@ export class LanceDBStorage implements StorageAdapter {
     }
 
     // Calculate RRF scores
-    const scored: Array<{ result: SearchResult; score: number; matchType: string }> = [];
+    const scored: Array<{
+      result: SearchResult;
+      score: number;
+      matchType: string;
+    }> = [];
 
     for (const [chunkId, result] of allChunks) {
       const semRank = semanticRank.get(chunkId);
@@ -1540,7 +1643,10 @@ export class LanceDBStorage implements StorageAdapter {
       else if (semRank) matchType = 'semantic';
 
       scored.push({
-        result: { ...result, matchType: matchType as 'hybrid' | 'semantic' | 'keyword' },
+        result: {
+          ...result,
+          matchType: matchType as 'hybrid' | 'semantic' | 'keyword',
+        },
         score: totalScore,
         matchType,
       });
@@ -1665,7 +1771,9 @@ export class LanceDBStorage implements StorageAdapter {
 
         if (results.length > 0) {
           // Sort by file size (smallest first) and pick the first
-          const sorted = (results as QueueRow[]).sort((a, b) => a.file_size - b.file_size);
+          const sorted = (results as QueueRow[]).sort(
+            (a, b) => a.file_size - b.file_size,
+          );
           item = sorted[0];
           break;
         }
@@ -1699,7 +1807,10 @@ export class LanceDBStorage implements StorageAdapter {
     }
   }
 
-  async updateQueueItem(id: string, updates: UpdateQueueItemInput): Promise<QueueItem> {
+  async updateQueueItem(
+    id: string,
+    updates: UpdateQueueItemInput,
+  ): Promise<QueueItem> {
     await this.waitForReady();
     this.ensureWritable();
 
@@ -1711,7 +1822,8 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (updates.status !== undefined) values.status = updates.status;
     if (updates.attempts !== undefined) values.attempts = updates.attempts;
-    if (updates.lastError !== undefined) values.last_error = updates.lastError ?? '';
+    if (updates.lastError !== undefined)
+      values.last_error = updates.lastError ?? '';
     if (updates.startedAt !== undefined) {
       values.started_at = updates.startedAt?.getTime() ?? 0;
     }
@@ -1734,7 +1846,7 @@ export class LanceDBStorage implements StorageAdapter {
       filePath: '', // Not needed by callers
       fileSize: 0,
       priority: 'text' as QueuePriority,
-      status: (updates.status ?? 'pending') as QueueItem['status'],
+      status: (updates.status ?? 'pending'),
       attempts: updates.attempts ?? 0,
       lastError: updates.lastError ?? null,
       createdAt: new Date(now),
@@ -1830,7 +1942,11 @@ export class LanceDBStorage implements StorageAdapter {
 
           // Derive pending and processing from total
           statusCounts.processing = processingCheck.length > 0 ? 1 : 0; // Approximate
-          statusCounts.pending = totalCount - statusCounts.completed - statusCounts.failed - statusCounts.processing;
+          statusCounts.pending =
+            totalCount -
+            statusCounts.completed -
+            statusCounts.failed -
+            statusCounts.processing;
 
           // For priority counts, we don't need accurate counts during indexing
           // Just note that there are pending items
@@ -1889,7 +2005,10 @@ export class LanceDBStorage implements StorageAdapter {
 
     try {
       // Delete all by using a true condition
-      const results = await this.queueTable.query().limit(QUERY_ALL_LIMIT).toArray();
+      const results = await this.queueTable
+        .query()
+        .limit(QUERY_ALL_LIMIT)
+        .toArray();
       for (const row of results as QueueRow[]) {
         await this.queueTable.delete(`id = '${this.escapeString(row.id)}'`);
       }
@@ -1917,7 +2036,10 @@ export class LanceDBStorage implements StorageAdapter {
 
     if (this.chunksTable) {
       try {
-        const results = await this.chunksTable.query().limit(QUERY_ALL_LIMIT).toArray();
+        const results = await this.chunksTable
+          .query()
+          .limit(QUERY_ALL_LIMIT)
+          .toArray();
         const seenDocs = new Set<string>();
 
         for (const row of results) {
@@ -2011,7 +2133,10 @@ export class LanceDBStorage implements StorageAdapter {
       try {
         totalChunks = await this.chunksTable.countRows();
 
-        const results = await this.chunksTable.query().limit(QUERY_ALL_LIMIT).toArray();
+        const results = await this.chunksTable
+          .query()
+          .limit(QUERY_ALL_LIMIT)
+          .toArray();
 
         for (const row of results) {
           const chunkRow = row as ChunkRow;
@@ -2091,7 +2216,10 @@ export class LanceDBStorage implements StorageAdapter {
       if (results.length > 0) {
         await this.configTable.update({
           where: `key = '${this.escapeString(key)}'`,
-          values: { value: jsonValue, updated_at: now } as Record<string, lancedb.IntoSql>,
+          values: { value: jsonValue, updated_at: now } as Record<
+            string,
+            lancedb.IntoSql
+          >,
         });
       } else {
         await this.configTable.add([
@@ -2114,13 +2242,17 @@ export class LanceDBStorage implements StorageAdapter {
 
   async query<T>(_sql: string, _params?: unknown[]): Promise<T[]> {
     // LanceDB doesn't support raw SQL queries
-    log.warn('query:notSupported', { reason: 'LanceDB does not support raw SQL' });
+    log.warn('query:notSupported', {
+      reason: 'LanceDB does not support raw SQL',
+    });
     return [];
   }
 
   async execute(_sql: string, _params?: unknown[]): Promise<void> {
     // LanceDB doesn't support raw SQL execution
-    log.warn('execute:notSupported', { reason: 'LanceDB does not support raw SQL' });
+    log.warn('execute:notSupported', {
+      reason: 'LanceDB does not support raw SQL',
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -2134,7 +2266,10 @@ export class LanceDBStorage implements StorageAdapter {
 
     try {
       // Find documents stuck in intermediate states
-      const results = await this.chunksTable.query().limit(QUERY_ALL_LIMIT).toArray();
+      const results = await this.chunksTable
+        .query()
+        .limit(QUERY_ALL_LIMIT)
+        .toArray();
       const stuckDocs = new Map<string, ChunkRow>();
 
       for (const row of results) {
@@ -2156,7 +2291,9 @@ export class LanceDBStorage implements StorageAdapter {
       for (const [docId, row] of stuckDocs) {
         try {
           // Delete chunks
-          await this.chunksTable.delete(`document_id = '${this.escapeString(docId)}'`);
+          await this.chunksTable.delete(
+            `document_id = '${this.escapeString(docId)}'`,
+          );
 
           // Re-queue for indexing
           await this.enqueueItem({
@@ -2275,22 +2412,33 @@ export class LanceDBStorage implements StorageAdapter {
     };
   }
 
-  private matchesFilters(doc: Document, filters?: Partial<SearchFilters>): boolean {
+  private matchesFilters(
+    doc: Document,
+    filters?: Partial<SearchFilters>,
+  ): boolean {
     if (!filters) return true;
 
     if (filters.folders && filters.folders.length > 0) {
       const normalizedPath = doc.filePath.replace(/\\/g, '/');
-      if (!filters.folders.some((f) => normalizedPath.includes(f.replace(/\\/g, '/')))) {
+      if (
+        !filters.folders.some((f) =>
+          normalizedPath.includes(f.replace(/\\/g, '/')),
+        )
+      ) {
         return false;
       }
     }
 
     if (filters.fileTypes && filters.fileTypes.length > 0) {
       const ext = doc.fileExtension.toLowerCase();
-      if (!filters.fileTypes.some((t) => {
-        const normalized = t.startsWith('.') ? t.toLowerCase() : `.${t.toLowerCase()}`;
-        return ext === normalized;
-      })) {
+      if (
+        !filters.fileTypes.some((t) => {
+          const normalized = t.startsWith('.')
+            ? t.toLowerCase()
+            : `.${t.toLowerCase()}`;
+          return ext === normalized;
+        })
+      ) {
         return false;
       }
     }
@@ -2318,22 +2466,33 @@ export class LanceDBStorage implements StorageAdapter {
     return true;
   }
 
-  private matchesSearchFilters(row: ChunkRow, filters?: SearchFilters): boolean {
+  private matchesSearchFilters(
+    row: ChunkRow,
+    filters?: SearchFilters,
+  ): boolean {
     if (!filters) return true;
 
     if (filters.folders && filters.folders.length > 0) {
       const normalizedPath = row.file_path.replace(/\\/g, '/');
-      if (!filters.folders.some((f) => normalizedPath.includes(f.replace(/\\/g, '/')))) {
+      if (
+        !filters.folders.some((f) =>
+          normalizedPath.includes(f.replace(/\\/g, '/')),
+        )
+      ) {
         return false;
       }
     }
 
     if (filters.fileTypes && filters.fileTypes.length > 0) {
       const ext = row.file_extension.toLowerCase();
-      if (!filters.fileTypes.some((t) => {
-        const normalized = t.startsWith('.') ? t.toLowerCase() : `.${t.toLowerCase()}`;
-        return ext === normalized;
-      })) {
+      if (
+        !filters.fileTypes.some((t) => {
+          const normalized = t.startsWith('.')
+            ? t.toLowerCase()
+            : `.${t.toLowerCase()}`;
+          return ext === normalized;
+        })
+      ) {
         return false;
       }
     }
@@ -2366,7 +2525,9 @@ export class LanceDBStorage implements StorageAdapter {
     return true;
   }
 
-  private buildDocumentFilterWhere(filters?: Partial<SearchFilters>): string | null {
+  private buildDocumentFilterWhere(
+    filters?: Partial<SearchFilters>,
+  ): string | null {
     if (!filters) return null;
 
     const conditions: string[] = [];

@@ -19,6 +19,12 @@ import { LibSQLStorage } from './LibSQLStorage.js';
 // when not in use. This allows `npm install -g` to work without optional deps.
 import { readMetadata, metadataExists } from './metadata.js';
 import { createModuleLogger } from '../core/Logger.js';
+import type {
+  BackendOptions,
+  BackendOptionsMap,
+  LibSQLBackendOptions,
+} from '../config/backend-options.js';
+import { mergeBackendOptions } from '../config/backend-options.js';
 
 const log = createModuleLogger('StorageFactory');
 
@@ -67,7 +73,9 @@ export function detectBackendFromMetadata(
  * Create a storage adapter based on the database configuration.
  *
  * If an existing database exists at the path, the backend stored in metadata
- * takes precedence over the config to prevent data corruption.
+ * takes precedence over the config to prevent data corruption. Similarly,
+ * backend-specific options from an existing database's metadata take precedence
+ * over user-provided options.
  *
  * Non-default backends (pglite, lancedb, sqlite/vectorlite) are dynamically
  * imported to avoid requiring their dependencies when not in use.
@@ -76,6 +84,7 @@ export function detectBackendFromMetadata(
  * @param vectorIndexConfig - Vector index configuration
  * @param embeddingDimensions - Embedding dimensions (default: 384)
  * @param hybridStrategy - Hybrid search strategy (default: 'application')
+ * @param backendOptions - Optional backend-specific options (for new databases)
  * @returns A StorageAdapter instance
  */
 export async function createStorage(
@@ -83,13 +92,13 @@ export async function createStorage(
   vectorIndexConfig?: VectorIndexConfig,
   embeddingDimensions?: number,
   hybridStrategy?: HybridSearchStrategy,
+  backendOptions?: BackendOptionsMap,
 ): Promise<StorageAdapter> {
   const isBun = isRunningInBun();
 
   // If an existing database has metadata, use its backend (authoritative)
-  const existingBackend = config.inMemory
-    ? null
-    : detectBackendFromMetadata(config.path);
+  const existingMetadata = config.inMemory ? null : readMetadata(config.path);
+  const existingBackend = existingMetadata?.backend ?? null;
 
   const backend = existingBackend ?? config.backend ?? 'libsql';
 
@@ -111,6 +120,24 @@ export async function createStorage(
     });
   }
 
+  // Determine backend options: existing db > user config > defaults
+  let resolvedBackendOptions: BackendOptions;
+  if (existingMetadata?.backendOptions) {
+    // Existing database has stored backend options - use them
+    resolvedBackendOptions = existingMetadata.backendOptions;
+    log.info('createStorage:usingExistingBackendOptions', {
+      backend,
+      source: 'database',
+    });
+  } else {
+    // New database or old database without options - merge user options with defaults
+    resolvedBackendOptions = mergeBackendOptions(backend, backendOptions);
+    log.info('createStorage:usingMergedBackendOptions', {
+      backend,
+      source: backendOptions?.[backend] ? 'user' : 'default',
+    });
+  }
+
   log.info('createStorage', {
     backend,
     configuredBackend: config.backend,
@@ -118,6 +145,7 @@ export async function createStorage(
     path: config.path,
     inMemory: config.inMemory,
     dimensions: embeddingDimensions,
+    backendOptions: resolvedBackendOptions,
   });
 
   // Dynamic imports for optional backends - only loaded when needed
@@ -125,7 +153,20 @@ export async function createStorage(
     log.info('createStorage:usingLanceDB');
     try {
       const { LanceDBStorage } = await import('./LanceDBStorage.js');
-      return new LanceDBStorage(config, vectorIndexConfig, embeddingDimensions);
+      // Extract LanceDB-specific options
+      const lancedbOptions =
+        resolvedBackendOptions.backend === 'lancedb'
+          ? {
+              numPartitions: resolvedBackendOptions.numPartitions,
+              numSubVectors: resolvedBackendOptions.numSubVectors,
+            }
+          : undefined;
+      return new LanceDBStorage(
+        config,
+        vectorIndexConfig,
+        embeddingDimensions,
+        lancedbOptions,
+      );
     } catch (error) {
       throw new Error(
         `LanceDB backend requires @lancedb/lancedb. Install it with: npm install @lancedb/lancedb\n` +
@@ -138,7 +179,15 @@ export async function createStorage(
     log.info('createStorage:usingPGlite');
     try {
       const { PGliteStorage } = await import('./PGliteStorage.js');
-      return new PGliteStorage(config, vectorIndexConfig, embeddingDimensions);
+      // Extract PGLite-specific options (currently empty, but infrastructure ready)
+      const pgliteOptions =
+        resolvedBackendOptions.backend === 'pglite' ? {} : undefined;
+      return new PGliteStorage(
+        config,
+        vectorIndexConfig,
+        embeddingDimensions,
+        pgliteOptions,
+      );
     } catch (error) {
       throw new Error(
         `PGlite backend requires @electric-sql/pglite. Install it with: npm install @electric-sql/pglite\n` +
@@ -153,11 +202,19 @@ export async function createStorage(
       const { SQLiteVectorliteStorage } = await import(
         './SQLiteVectorliteStorage.js'
       );
+      // Extract SQLite-specific options
+      const sqliteOptions =
+        resolvedBackendOptions.backend === 'sqlite'
+          ? {
+              indexPath: resolvedBackendOptions.indexPath,
+            }
+          : undefined;
       return new SQLiteVectorliteStorage(
         config,
         vectorIndexConfig,
         embeddingDimensions,
         hybridStrategy,
+        sqliteOptions,
       );
     } catch (error) {
       throw new Error(
@@ -169,11 +226,21 @@ export async function createStorage(
 
   // LibSQL is the default - always available (statically imported)
   log.info('createStorage:usingLibSQL');
+  // Extract LibSQL-specific options from the resolved backend options
+  const libsqlOptions: Partial<LibSQLBackendOptions> | undefined =
+    resolvedBackendOptions.backend === 'libsql'
+      ? {
+          metric: resolvedBackendOptions.metric,
+          compressNeighbors: resolvedBackendOptions.compressNeighbors,
+          maxNeighbors: resolvedBackendOptions.maxNeighbors,
+        }
+      : undefined;
   return new LibSQLStorage(
     config,
     vectorIndexConfig,
     embeddingDimensions,
     hybridStrategy,
+    libsqlOptions,
   );
 }
 

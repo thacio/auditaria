@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 import { PGlite } from '@electric-sql/pglite';
@@ -56,6 +58,8 @@ import {
 import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
 import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
+import type { PGLiteBackendOptions } from '../config/backend-options.js';
+import { DEFAULT_PGLITE_OPTIONS } from '../config/backend-options.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -386,6 +390,7 @@ export class PGliteStorage implements StorageAdapter {
   private config: DatabaseConfig;
   private vectorIndexConfig: VectorIndexConfig;
   private embeddingDimensions: number;
+  private backendOptions: PGLiteBackendOptions;
   private _initialized = false;
   private timerCounter = 0; // Counter for unique timer keys in concurrent operations
   private _reconnecting = false; // Flag to indicate reconnection in progress
@@ -397,10 +402,12 @@ export class PGliteStorage implements StorageAdapter {
     config: DatabaseConfig,
     vectorIndexConfig?: VectorIndexConfig,
     embeddingDimensions?: number,
+    backendOptions?: Partial<PGLiteBackendOptions>,
   ) {
     this.config = config;
     this.vectorIndexConfig = vectorIndexConfig ?? DEFAULT_VECTOR_INDEX_CONFIG;
     this.embeddingDimensions = embeddingDimensions ?? 384;
+    this.backendOptions = { ...DEFAULT_PGLITE_OPTIONS, ...backendOptions };
   }
 
   // -------------------------------------------------------------------------
@@ -995,12 +1002,15 @@ export class PGliteStorage implements StorageAdapter {
             dimensions: this.embeddingDimensions,
             quantization: 'q8', // Default, will be updated by SearchSystem
           },
+          // Save backend-specific options for this database
+          { backend: 'pglite', ...this.backendOptions },
         );
         writeMetadata(dbPath, metadata);
         log.info('initialize:created_metadata', {
           type: this.vectorIndexConfig.type,
           useHalfVec: this.vectorIndexConfig.useHalfVec,
           dimensions: this.embeddingDimensions,
+          backendOptions: this.backendOptions,
         });
       }
     }
@@ -2495,8 +2505,16 @@ export class PGliteStorage implements StorageAdapter {
 
       chunk.forEach(({ id, input }, idx) => {
         const offset = idx * 5;
-        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, 'pending', 0, $${offset + 5})`);
-        values.push(id, input.filePath, input.fileSize ?? 0, input.priority ?? 'markup', now);
+        placeholders.push(
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, 'pending', 0, $${offset + 5})`,
+        );
+        values.push(
+          id,
+          input.filePath,
+          input.fileSize ?? 0,
+          input.priority ?? 'markup',
+          now,
+        );
       });
 
       await this.db!.query(
@@ -2521,7 +2539,7 @@ export class PGliteStorage implements StorageAdapter {
       id,
       filePath: input.filePath,
       fileSize: input.fileSize ?? 0,
-      priority: (input.priority ?? 'markup') as QueuePriority,
+      priority: (input.priority ?? 'markup'),
       status: 'pending' as const,
       attempts: 0,
       lastError: null,

@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2026 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 /**
@@ -19,6 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { VectorIndexType, StorageBackend } from '../config.js';
 import type { EmbedderQuantization } from '../embedders/types.js';
+import type { BackendOptions } from '../config/backend-options.js';
 
 // ============================================================================
 // Types
@@ -102,6 +105,12 @@ export interface DatabaseMetadata {
   vectorIndex: MetadataVectorIndex;
   /** Embeddings configuration */
   embeddings: MetadataEmbeddings;
+  /**
+   * Backend-specific storage options.
+   * These are frozen at database creation and define how vectors are stored.
+   * E.g., libsql: metric, compressNeighbors, maxNeighbors
+   */
+  backendOptions?: BackendOptions;
   /** Optional statistics */
   stats?: MetadataStats;
   /** Schema documentation (for user reference when viewing file) */
@@ -152,7 +161,10 @@ export function getMetadataPath(dbPath: string): string {
  * @returns Path to the database file (e.g., '.auditaria/search.db/data.sqlite')
  *          For PGlite and LanceDB, returns the directory path itself.
  */
-export function getDatabaseFilePath(dbPath: string, backend: StorageBackend): string {
+export function getDatabaseFilePath(
+  dbPath: string,
+  backend: StorageBackend,
+): string {
   const filename = DATABASE_FILENAMES[backend];
   if (!filename) {
     // PGlite and LanceDB use the directory itself
@@ -243,20 +255,28 @@ export function writeMetadata(
 
 /**
  * Create initial metadata for a new database.
+ *
+ * @param backend - Storage backend type
+ * @param vectorIndex - Vector index configuration
+ * @param embeddings - Embeddings configuration
+ * @param backendOptions - Optional backend-specific storage options
  */
 export function createMetadata(
   backend: StorageBackend,
   vectorIndex: MetadataVectorIndex,
   embeddings: MetadataEmbeddings,
+  backendOptions?: BackendOptions,
 ): DatabaseMetadata {
   const now = new Date().toISOString();
+  // Order fields by importance: backend options > embeddings > vector index
   return {
     version: METADATA_VERSION,
     backend,
     createdAt: now,
     updatedAt: now,
-    vectorIndex,
+    backendOptions,
     embeddings,
+    vectorIndex,
     // Include schema documentation for users viewing the file
     _schema: {
       vectorIndexTypes: ['hnsw', 'ivfflat', 'none'],
