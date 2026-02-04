@@ -53,9 +53,9 @@
 
     "embeddings": {
       "_docs": "Embedding model configuration",
-      "model": "Xenova/multilingual-e5-large",
-      "batchSize": 8,
-      "dimensions": 1024,
+      "model": "Xenova/multilingual-e5-small",
+      "batchSize": 2,
+      "dimensions": 384,
       "queryPrefix": "query: ",
       "documentPrefix": "passage: ",
       "useWorkerThread": true,
