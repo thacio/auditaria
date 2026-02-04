@@ -157,17 +157,10 @@ it for large indexing jobs where memory bloat is a concern.
 ```typescript
 import { SearchSystem } from '@thacio/auditaria-cli-search';
 
-// Initialize the search system (uses LibSQL backend by default)
+// Initialize the search system
+// Configuration is loaded automatically from .auditaria/knowledge-base.config.json
 const search = await SearchSystem.initialize({
   rootPath: '/path/to/index',
-  config: {
-    database: {
-      backend: 'libsql', // 'libsql' | 'sqlite' | 'pglite' | 'lancedb'
-    },
-    embeddings: {
-      model: 'Xenova/multilingual-e5-large', // Default model
-    },
-  },
 });
 
 // Index files
@@ -185,17 +178,79 @@ await search.dispose();
 
 ---
 
+## User Configuration
+
+Users can customize search system defaults via a configuration file at
+`.auditaria/knowledge-base.config.json`. This allows changing settings without
+modifying code.
+
+### Configuration Priority
+
+When `SearchSystem.initialize()` is called, configuration is loaded from
+multiple sources with the following priority (highest to lowest):
+
+1. **Database metadata** (`db-config.json`) - For existing databases,
+   schema-defining fields (backend, model, dimensions, vector index settings)
+   are locked to ensure data consistency
+2. **User config file** (`.auditaria/knowledge-base.config.json`) - User
+   preferences override code defaults
+3. **Code defaults** - Built-in sensible defaults
+
+### Schema-Defining vs Runtime Fields
+
+- **Schema-defining fields** (locked for existing databases): `backend`,
+  `embeddings.model`, `embeddings.dimensions`, `vectorIndex.type`,
+  `vectorIndex.useHalfVec`
+- **Runtime fields** (can always be changed): search weights, batch sizes,
+  logging, OCR settings, etc.
+
+### Example Configuration File
+
+```json
+{
+  "$version": "1.0.0",
+  "config": {
+    "database": {
+      "backend": "pglite"
+    },
+    "embeddings": {
+      "model": "Xenova/multilingual-e5-small",
+      "dimensions": 384
+    },
+    "search": {
+      "defaultStrategy": "hybrid",
+      "defaultLimit": 20
+    }
+  }
+}
+```
+
+### Database Metadata
+
+When a database is created, its schema-defining configuration is saved to
+`db-config.json` inside the database directory. This ensures:
+
+- Consistency when reopening the database
+- Portability when sharing databases between machines
+- Protection against accidental misconfiguration
+
+---
+
 ## Directory Structure
 
 ```
 packages/search/src/
 ├── core/              # Core utilities (Logger, EventEmitter, Registry)
+├── config/            # User configuration and backend options
+│   ├── user-config.ts          # Load/save knowledge-base.config.json
+│   └── backend-options.ts      # Backend-specific storage options
 ├── storage/           # Storage backends
 │   ├── LibSQLStorage.ts        # Default backend
 │   ├── SQLiteVectorliteStorage.ts
 │   ├── PGliteStorage.ts
 │   ├── LanceDBStorage.ts
 │   ├── StorageFactory.ts       # Backend selection logic
+│   ├── metadata.ts             # Database metadata (db-config.json)
 │   └── types.ts                # StorageAdapter interface
 ├── supervisor/        # Process restart management
 │   ├── SearchSystemSupervisor.ts
@@ -209,79 +264,84 @@ packages/search/src/
 ├── ocr/               # OCR providers (Tesseract, Scribe)
 ├── discovery/         # File discovery
 ├── sync/              # Startup sync
-└── config.ts          # Configuration and defaults
+└── config.ts          # Configuration types and defaults
 ```
 
 ---
 
 ## Core Components
 
-### Configuration (`src/config.ts`)
+### Configuration (`src/config.ts`, `src/config/`)
 
-The system uses a hierarchical configuration with sensible defaults:
+The system uses a hierarchical configuration with sensible defaults. Users can
+override defaults via `.auditaria/knowledge-base.config.json` (see
+[User Configuration](#user-configuration) section above).
 
 ```typescript
 interface SearchSystemConfig {
   database: {
-    backend: 'libsql' | 'sqlite' | 'pglite' | 'lancedb'; // Default: 'libsql'
-    path: string; // Default: '.auditaria/knowledge-base.db'
-    inMemory: boolean; // Default: false
-    backupEnabled: boolean; // Default: true
+    backend: 'libsql' | 'sqlite' | 'pglite' | 'lancedb';
+    path: string;
+    inMemory: boolean;
+    backupEnabled: boolean;
   };
 
   indexing: {
     ignorePaths: string[]; // Patterns to skip (node_modules, .git, etc.)
     fileTypes: string[]; // Extensions to index
-    maxFileSize: number; // Default: 50MB
+    maxFileSize: number;
     respectGitignore: boolean;
-    prepareWorkers: number; // Parallel parsing workers (default: 1)
-    useChildProcess: boolean; // Default: false
-    childProcessBatchSize: number; // Default: 500
-    childProcessMemoryThresholdMb: number; // Default: 3000
+    prepareWorkers: number; // Parallel parsing workers
+    useChildProcess: boolean;
+    childProcessBatchSize: number;
+    childProcessMemoryThresholdMb: number;
     // Supervisor options
-    supervisorStrategy: 'in-process' | 'child-process' | 'none'; // Default: 'in-process'
-    supervisorRestartThreshold: number; // Default: 0 (disabled)
-    supervisorMemoryThresholdMb: number; // Default: 4000
+    supervisorStrategy: 'in-process' | 'child-process' | 'none';
+    supervisorRestartThreshold: number; // 0 = disabled
+    supervisorMemoryThresholdMb: number;
   };
 
   chunking: {
     strategy: 'recursive' | 'fixed';
-    maxChunkSize: number; // Default: 1000 chars
-    chunkOverlap: number; // Default: 200 chars
+    maxChunkSize: number;
+    chunkOverlap: number;
   };
 
   embeddings: {
-    model: string; // Default: 'Xenova/multilingual-e5-large'
-    device: 'auto' | 'cpu' | 'dml' | 'cuda'; // Default: 'cpu'
-    quantization: 'q8' | 'fp16' | 'fp32' | 'q4'; // Default: 'q8'
-    preferPythonEmbedder: boolean; // Default: false
-    useWorkerThread: boolean; // Default: true
-    batchSize: number; // Default: 8
-    workerHeapSizeMb: number; // Default: 4096 (4GB)
-    cacheDir: string; // Default: '~/.auditaria/models'
+    model: string; // E5 multilingual models recommended
+    device: 'auto' | 'cpu' | 'dml' | 'cuda';
+    quantization: 'q8' | 'fp16' | 'fp32' | 'q4';
+    preferPythonEmbedder: boolean;
+    useWorkerThread: boolean;
+    batchSize: number;
+    workerHeapSizeMb: number;
+    cacheDir: string;
   };
 
   search: {
-    defaultStrategy: 'hybrid' | 'semantic' | 'keyword'; // Default: 'hybrid'
-    semanticWeight: number; // Default: 0.5
-    keywordWeight: number; // Default: 0.5
-    hybridImplementation: 'application' | 'database'; // Default: 'application'
+    defaultStrategy: 'hybrid' | 'semantic' | 'keyword';
+    semanticWeight: number;
+    keywordWeight: number;
+    hybridImplementation: 'application' | 'database';
   };
 
   vectorIndex: {
-    type: 'hnsw' | 'flat' | 'ivf'; // Default: 'hnsw'
-    useHalfPrecision: boolean; // Default: true (50% storage reduction)
-    deferIndexCreation: boolean; // Default: false
+    type: 'hnsw' | 'ivfflat' | 'none';
+    useHalfVec: boolean; // 50% storage reduction
+    deferIndexCreation: boolean;
+    createIndex: boolean;
   };
 
   ocr: {
-    enabled: boolean; // Default: true
-    autoDetectLanguage: boolean; // Default: true
+    enabled: boolean;
+    autoDetectLanguage: boolean;
     defaultLanguages: string[];
-    concurrency: number; // Default: 2
+    concurrency: number;
   };
 }
 ```
+
+See `src/config.ts` for current default values.
 
 ### Registry Pattern (`src/core/Registry.ts`)
 
@@ -365,11 +425,13 @@ preferPythonEmbedder=true?
 
 ### Supported Models
 
-| Model                          | Dimensions | Best For               |
-| ------------------------------ | ---------- | ---------------------- |
-| `Xenova/multilingual-e5-small` | 384        | Faster, lower memory   |
-| `Xenova/multilingual-e5-base`  | 768        | Balanced               |
-| `Xenova/multilingual-e5-large` | 1024       | Best quality (default) |
+| Model                          | Dimensions | Best For             |
+| ------------------------------ | ---------- | -------------------- |
+| `Xenova/multilingual-e5-small` | 384        | Faster, lower memory |
+| `Xenova/multilingual-e5-base`  | 768        | Balanced             |
+| `Xenova/multilingual-e5-large` | 1024       | Best quality         |
+
+See `src/config.ts` for the current default model.
 
 ### Streaming Embeddings
 
@@ -953,6 +1015,11 @@ A singleton service that wraps `SearchSystem` (optionally via
 for the CLI. It manages the search system lifecycle and coordinates background
 queue processing.
 
+**Note:** The service does not pass configuration overrides to `SearchSystem`.
+Instead, it lets `SearchSystem.initialize()` load user configuration from
+`.auditaria/knowledge-base.config.json` with the proper priority order (see
+[User Configuration](#user-configuration)).
+
 ### Features
 
 - **Singleton pattern**: Single shared instance across the application
@@ -1045,7 +1112,8 @@ interface IndexingProgress {
 
 ### How It Works
 
-1. **Service starts** → Loads or initializes SearchSystem
+1. **Service starts** → Initializes SearchSystem (which loads user config from
+   `knowledge-base.config.json`)
 2. **If `startIndexing: true` or `autoIndex` config** → Starts queue processor
 3. **Queue processor** → Polls every 5 seconds for pending items
 4. **`triggerSync()`** → Discovers files, queues them, processes via
