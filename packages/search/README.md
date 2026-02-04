@@ -676,8 +676,38 @@ await searchSystem.search({
 });
 ```
 
-- Uses PostgreSQL's built-in FTS with GIN index
-- Falls back to ILIKE pattern matching if FTS fails
+**Backend Implementations:**
+
+- **PGlite**: Uses PostgreSQL's `websearch_to_tsquery()` with GIN index
+- **LibSQL/SQLite**: Uses FTS5 with a custom Google-style query parser that
+  converts web search syntax to FTS5 format (matching PostgreSQL behavior)
+- All backends fall back to LIKE/ILIKE pattern matching if FTS fails
+
+**Web Search Parser (LibSQL/SQLite):**
+
+The `convertToFTS5Query()` function converts Google-style queries to FTS5
+syntax:
+
+```typescript
+import { convertToFTS5Query } from '@thacio/auditaria-cli-search';
+
+// Simple terms → AND
+convertToFTS5Query('hello world'); // → 'hello AND world'
+
+// Quoted phrases preserved
+convertToFTS5Query('"exact phrase"'); // → '"exact phrase"'
+
+// OR operator preserved
+convertToFTS5Query('cat OR dog'); // → 'cat OR dog'
+
+// Negation converted
+convertToFTS5Query('hello -world'); // → 'hello AND NOT world'
+convertToFTS5Query('-"bad phrase"'); // → 'NOT "bad phrase"'
+
+// Complex query
+convertToFTS5Query('signal -"segmentation fault"');
+// → 'signal AND NOT "segmentation fault"'
+```
 
 #### 2. Semantic Search (Vector Search)
 
@@ -759,13 +789,16 @@ detects existing databases to prevent backend switching corruption.
 
 - SQLite fork from Turso with native vector support
 - Vectors stored directly in the database file (crash-safe)
-- FTS5 for full-text search
+- FTS5 for full-text search with Google-style web search syntax
+- Query parser converts Google-style queries to FTS5 format (matching
+  PostgreSQL's `websearch_to_tsquery` behavior)
 
 ### SQLiteVectorliteStorage
 
 - Native SQLite via `better-sqlite3`
 - Optional `vectorlite` extension for vector operations
 - Cross-platform, excellent performance
+- Same Google-style web search parser as LibSQLStorage
 
 ### PGliteStorage (Legacy)
 

@@ -222,6 +222,15 @@ export type {
   HybridSearchWeights,
 } from './storage/types.js';
 
+// Web Search Query Parser for FTS5 (Google-style to FTS5 conversion)
+export {
+  convertToFTS5Query,
+  tokenize as tokenizeWebSearchQuery,
+  validateFTS5Query,
+} from './storage/web-search-parser.js';
+
+export type { Token as WebSearchToken, TokenType as WebSearchTokenType } from './storage/web-search-parser.js';
+
 // ============================================================================
 // Parsers (Direct Access)
 // ============================================================================

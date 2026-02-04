@@ -61,6 +61,7 @@ import {
 import { createModuleLogger } from '../core/Logger.js';
 import type { LibSQLBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_LIBSQL_OPTIONS } from '../config/backend-options.js';
+import { convertToFTS5Query } from './web-search-parser.js';
 
 const log = createModuleLogger('LibSQLStorage');
 
@@ -1032,11 +1033,17 @@ export class LibSQLStorage implements StorageAdapter {
 
     log.debug('searchKeyword:start', { queryLength: query.length, limit });
 
-    // Convert query to FTS5 format
-    const ftsQuery = this.convertToFTS5Query(
+    // Convert query to FTS5 format using Google-style web search parser
+    const ftsQuery = convertToFTS5Query(
       query,
-      options?.useWebSearchSyntax,
+      options?.useWebSearchSyntax ?? false,
     );
+
+    log.debug('searchKeyword:ftsQuery', {
+      originalQuery: query,
+      ftsQuery,
+      useWebSearchSyntax: options?.useWebSearchSyntax ?? false,
+    });
 
     const { where: filterWhere, params: filterParams } =
       this.buildSearchFilters(filters);
@@ -1129,21 +1136,8 @@ export class LibSQLStorage implements StorageAdapter {
     return this.rowsToSearchResults(rows);
   }
 
-  private convertToFTS5Query(
-    query: string,
-    useWebSearchSyntax?: boolean,
-  ): string {
-    if (!useWebSearchSyntax) {
-      // Simple mode: AND all terms
-      const terms = query.split(/\s+/).filter((t) => t.length > 0);
-      return terms.join(' AND ');
-    }
-
-    // Web search syntax mode
-    let result = query;
-    result = result.replace(/-(\w+)/g, 'NOT $1');
-    return result;
-  }
+  // Query conversion is now handled by the imported convertToFTS5Query from web-search-parser.ts
+  // which provides proper Google-style web search syntax support matching PostgreSQL's websearch_to_tsquery
 
   async searchSemantic(
     embedding: number[],

@@ -62,6 +62,7 @@ import {
 import { createModuleLogger } from '../core/Logger.js';
 import type { SQLiteBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_SQLITE_OPTIONS } from '../config/backend-options.js';
+import { convertToFTS5Query } from './web-search-parser.js';
 import * as _fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -1154,11 +1155,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     log.debug('searchKeyword:start', { queryLength: query.length, limit });
 
-    // Convert query to FTS5 format
-    // FTS5 uses different syntax than PostgreSQL tsquery
-    const ftsQuery = this.convertToFTS5Query(
+    // Convert query to FTS5 format using Google-style web search parser
+    const ftsQuery = convertToFTS5Query(
       query,
-      options?.useWebSearchSyntax,
+      options?.useWebSearchSyntax ?? false,
     );
 
     const { where: filterWhere, params: filterParams } =
@@ -1252,34 +1252,8 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     return this.rowsToSearchResults(rows);
   }
 
-  private convertToFTS5Query(
-    query: string,
-    useWebSearchSyntax?: boolean,
-  ): string {
-    if (!useWebSearchSyntax) {
-      // Simple mode: AND all terms
-      const terms = query.split(/\s+/).filter((t) => t.length > 0);
-      return terms.join(' AND ');
-    }
-
-    // Web search syntax mode
-    // Convert Google-style syntax to FTS5:
-    // - "quoted phrase" stays as-is
-    // - OR stays as OR
-    // - -term becomes NOT term
-    // - plain terms become AND'ed
-
-    let result = query;
-
-    // Handle -term (exclusion) -> NOT term
-    result = result.replace(/-(\w+)/g, 'NOT $1');
-
-    // Ensure multiple terms without operators are AND'ed
-    // This is more complex - for now, just return the result
-    // FTS5 defaults to AND, so this should work for most cases
-
-    return result;
-  }
+  // Query conversion is now handled by the imported convertToFTS5Query from web-search-parser.ts
+  // which provides proper Google-style web search syntax support matching PostgreSQL's websearch_to_tsquery
 
   async searchSemantic(
     embedding: number[],
@@ -1592,9 +1566,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     try {
       const vectorBlob = vectorToBlob(embedding);
-      const ftsQuery = this.convertToFTS5Query(
+      const ftsQuery = convertToFTS5Query(
         query,
-        options?.useWebSearchSyntax,
+        options?.useWebSearchSyntax ?? false,
       );
       const { where: filterWhere, params: filterParams } =
         this.buildSearchFilters(filters);
