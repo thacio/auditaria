@@ -56,10 +56,63 @@ body {
   z-index: 10;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-controls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+}
+
+/* Header Toggle Buttons (Files, Editor) */
+.header-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-toggle-button:hover {
+  background: var(--border);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.header-toggle-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.header-toggle-button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.header-toggle-button.active:hover {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+}
+
+.header-toggle-button svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.header-toggle-button.active svg {
+  opacity: 1;
 }
 
 .header h1 {
@@ -764,27 +817,57 @@ body {
 @media (max-width: 768px) {
   .header {
     padding: 12px 16px;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 8px;
   }
-  
+
+  .header-left {
+    gap: 8px;
+  }
+
   .header h1 {
     font-size: 16px;
   }
-  
+
+  .header-controls {
+    gap: 4px;
+  }
+
+  /* Hide text labels on header buttons on mobile */
+  .header-toggle-button span,
+  .autoscroll-button span,
+  .print-button span,
+  .slash-commands-button span,
+  .mcp-servers-button span,
+  .debug-logs-button span,
+  #knowledge-base-button span {
+    display: none;
+  }
+
+  .header-toggle-button,
+  .autoscroll-button,
+  .print-button,
+  .slash-commands-button,
+  .mcp-servers-button,
+  .debug-logs-button,
+  #knowledge-base-button {
+    padding: 6px 8px;
+  }
+
   .messages-container {
     padding: 16px;
     gap: 12px;
   }
-  
+
   .message {
     max-width: 95%;
   }
-  
+
   .message-bubble {
     padding: 10px 12px;
   }
-  
+
   .input-section {
     padding: 12px 16px;
   }
@@ -1451,7 +1534,8 @@ body {
 .autoscroll-button,
 .slash-commands-button,
 .mcp-servers-button,
-.debug-logs-button {
+.debug-logs-button,
+#knowledge-base-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1470,7 +1554,8 @@ body {
 .autoscroll-button:hover:not(:disabled),
 .slash-commands-button:hover:not(:disabled),
 .mcp-servers-button:hover:not(:disabled),
-.debug-logs-button:hover:not(:disabled) {
+.debug-logs-button:hover:not(:disabled),
+#knowledge-base-button:hover:not(:disabled) {
   background: var(--border);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
@@ -1480,7 +1565,8 @@ body {
 .autoscroll-button:active:not(:disabled),
 .slash-commands-button:active:not(:disabled),
 .mcp-servers-button:active:not(:disabled),
-.debug-logs-button:active:not(:disabled) {
+.debug-logs-button:active:not(:disabled),
+#knowledge-base-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
@@ -1489,7 +1575,8 @@ body {
 .autoscroll-button:disabled,
 .slash-commands-button:disabled,
 .mcp-servers-button:disabled,
-.debug-logs-button:disabled {
+.debug-logs-button:disabled,
+#knowledge-base-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1498,7 +1585,8 @@ body {
 .autoscroll-button svg,
 .slash-commands-button svg,
 .mcp-servers-button svg,
-.debug-logs-button svg {
+.debug-logs-button svg,
+#knowledge-base-button svg {
   flex-shrink: 0;
 }
 

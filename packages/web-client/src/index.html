@@ -43,7 +43,25 @@
 <body>
     <div id="app">
         <header class="header">
-            <h1>❖ Auditaria</h1>
+            <!-- Left group: Logo + Panel toggles -->
+            <div class="header-left">
+                <h1>❖ Auditaria</h1>
+                <button id="toggle-files-button" class="header-toggle-button active" title="Toggle File Explorer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>File Explorer</span>
+                </button>
+                <button id="toggle-editor-button" class="header-toggle-button" title="Toggle Editor Panel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                        <path d="m15 5 4 4"></path>
+                    </svg>
+                    <span>Editor</span>
+                </button>
+            </div>
+
+            <!-- Right group: Action buttons + Editor toggle + Status -->
             <div class="header-controls">
                 <button id="autoscroll-button" class="autoscroll-button active" title="Auto-scroll: On" disabled>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

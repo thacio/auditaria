@@ -375,9 +375,9 @@
 .codicon-paintcan::before { content: '\eb3a'; }
 .codicon-symbol-class::before { content: '\eb5b'; }
 .codicon-tools::before { content: '\eb5c'; }
-.codicon-chevron-left::before { content: '\eab4'; }
-.codicon-chevron-down::before { content: '\eab2'; }
-.codicon-chevron-right::before { content: '\eab5'; transform: rotate(90deg); }
+.codicon-chevron-left::before { content: '\eab5'; }
+.codicon-chevron-down::before { content: '\eab4'; }
+.codicon-chevron-right::before { content: '\eab6'; }
 .codicon-refresh::before { content: '\eb04'; }
 
 /* Responsive Design */

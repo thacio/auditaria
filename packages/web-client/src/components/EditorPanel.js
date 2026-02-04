@@ -1301,6 +1301,7 @@ export class EditorPanel extends EventEmitter {
           this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-left';
           this.collapseButton.title = 'Show editor';
         }
+        this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
       }
     } else {
       // Medium and large screens: If collapsed due to auto-collapse, restore to expanded
@@ -1312,6 +1313,7 @@ export class EditorPanel extends EventEmitter {
           this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
           this.collapseButton.title = 'Hide editor';
         }
+        this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
       }
     }
   }

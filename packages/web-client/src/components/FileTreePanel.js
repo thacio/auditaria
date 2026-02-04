@@ -574,6 +574,7 @@ export class FileTreePanel extends EventEmitter {
         this.panel.style.width = '';
         this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
         this.collapseButton.title = 'Show file tree';
+        this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
       }
     } else if (!this.isCollapsed) {
       // On larger screens, ensure panel width doesn't exceed max

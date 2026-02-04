@@ -933,6 +933,7 @@ class AuditariaWebClient {
 
             // Set up event handlers
             this.setupFileBrowserHandlers();
+            this.setupHeaderPanelToggles();
 
             // File tree will be requested after WebSocket connects (see 'connected' event handler)
 
@@ -958,6 +959,63 @@ class AuditariaWebClient {
             console.log('File saved:', path);
             // Could show a toast notification here
         });
+    }
+
+    /**
+     * Set up header toggle buttons for panels
+     */
+    setupHeaderPanelToggles() {
+        const toggleFilesButton = document.getElementById('toggle-files-button');
+        const toggleEditorButton = document.getElementById('toggle-editor-button');
+
+        // Files toggle button
+        if (toggleFilesButton) {
+            toggleFilesButton.addEventListener('click', () => {
+                this.fileTreePanel.toggleCollapse();
+            });
+
+            // Listen to panel collapse events to update button state
+            this.fileTreePanel.on('collapse-changed', ({ isCollapsed }) => {
+                toggleFilesButton.classList.toggle('active', !isCollapsed);
+                toggleFilesButton.title = isCollapsed ? 'Show File Explorer' : 'Hide File Explorer';
+            });
+
+            // Set initial state
+            toggleFilesButton.classList.toggle('active', !this.fileTreePanel.isCollapsed);
+        }
+
+        // Editor toggle button
+        if (toggleEditorButton) {
+            toggleEditorButton.addEventListener('click', () => {
+                if (this.editorPanel.isVisible) {
+                    // If visible, toggle between collapsed and expanded
+                    if (this.editorPanel.isCollapsed) {
+                        this.editorPanel.show();
+                    } else {
+                        this.editorPanel.hide();
+                    }
+                } else {
+                    // If not visible, show the panel
+                    this.editorPanel.show();
+                }
+            });
+
+            // Listen to panel visibility and collapse events
+            this.editorPanel.on('visibility-changed', ({ isVisible }) => {
+                const isActive = isVisible && !this.editorPanel.isCollapsed;
+                toggleEditorButton.classList.toggle('active', isActive);
+                toggleEditorButton.title = isActive ? 'Hide Editor Panel' : 'Show Editor Panel';
+            });
+
+            this.editorPanel.on('collapse-changed', ({ isCollapsed }) => {
+                const isActive = this.editorPanel.isVisible && !isCollapsed;
+                toggleEditorButton.classList.toggle('active', isActive);
+                toggleEditorButton.title = isActive ? 'Hide Editor Panel' : 'Show Editor Panel';
+            });
+
+            // Set initial state (editor starts hidden)
+            toggleEditorButton.classList.toggle('active', false);
+        }
     }
 
     /**
