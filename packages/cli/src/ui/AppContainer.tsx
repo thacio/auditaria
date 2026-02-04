@@ -156,6 +156,7 @@ import {
 import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialog.js';
 import { NewAgentsChoice } from './components/NewAgentsNotification.js';
 import { isSlashCommand } from './utils/commandUtils.js';
+import { useTerminalTheme } from './hooks/useTerminalTheme.js';
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -619,6 +620,9 @@ export const AppContainer = (props: AppContainerProps) => {
     initializationResult.themeError,
   );
 
+  // Poll for terminal background color changes to auto-switch theme
+  useTerminalTheme(handleThemeSelect, config);
+
   const {
     authState,
     setAuthState,
@@ -768,7 +772,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       settings.merged.security.auth.enforcedType &&
       settings.merged.security.auth.selectedType &&
       settings.merged.security.auth.enforcedType !==
-      settings.merged.security.auth.selectedType
+        settings.merged.security.auth.selectedType
     ) {
       onAuthError(
         `Authentication is enforced to be ${settings.merged.security.auth.enforcedType}, but you are currently using ${settings.merged.security.auth.selectedType}.`,
@@ -942,10 +946,11 @@ Logging in with Google... Restarting Gemini CLI to continue.
       historyManager.addItem(
         {
           type: MessageType.INFO,
-          text: `Memory refreshed successfully. ${memoryContent.length > 0
+          text: `Memory refreshed successfully. ${
+            memoryContent.length > 0
               ? `Loaded ${memoryContent.length} characters from ${fileCount} file(s).`
               : 'No memory content found.'
-            }`,
+          }`,
         },
         Date.now(),
       );
@@ -1214,10 +1219,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
   const availableTerminalHeight = Math.max(
     0,
     terminalHeight -
-    controlsHeight -
-    staticExtraHeight -
-    2 -
-    backgroundShellHeight,
+      controlsHeight -
+      staticExtraHeight -
+      2 -
+      backgroundShellHeight,
   );
 
   config.setShellExecutionConfig({
@@ -1322,9 +1327,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, []);
   const shouldShowIdePrompt = Boolean(
     currentIDE &&
-    !config.getIdeMode() &&
-    !settings.merged.ide.hasSeenNudge &&
-    !idePromptAnswered,
+      !config.getIdeMode() &&
+      !settings.merged.ide.hasSeenNudge &&
+      !idePromptAnswered,
   );
 
   const [showErrorDetails, setShowErrorDetails] = useState<boolean>(false);
@@ -1799,7 +1804,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const nightly = props.version.includes('nightly');
 
-  const hasToolConfirmation = (toolConfirmationContext?.pendingConfirmations?.length ?? 0) > 0; // AUDITARIA: Tool confirmations trigger terminal capture for web interface
+  const hasToolConfirmation =
+    (toolConfirmationContext?.pendingConfirmations?.length ?? 0) > 0; // AUDITARIA: Tool confirmations trigger terminal capture for web interface
 
   const dialogsVisible =
     hasToolConfirmation || // AUDITARIA: Enables terminal capture for tool confirmations
@@ -2213,6 +2219,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       webInterface.service.broadcastToolConfirmation(pendingConfirmation);
     }
   }, [
+    DISABLE_WEB_TOOL_CONFIRMATION,
     toolConfirmationContext?.pendingConfirmations,
     webInterface?.service,
     webInterface?.isRunning,
@@ -2239,6 +2246,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       });
     }
   }, [
+    DISABLE_WEB_TOOL_CONFIRMATION,
     toolConfirmationContext?.pendingConfirmations,
     webInterface?.service,
     webInterface?.isRunning,
