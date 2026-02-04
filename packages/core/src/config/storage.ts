@@ -19,6 +19,7 @@ export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 export const OAUTH_FILE = 'oauth_creds.json';
 const TMP_DIR_NAME = 'tmp';
 const BIN_DIR_NAME = 'bin';
+const AGENTS_DIR_NAME = '.agents';
 
 export class Storage {
   private readonly targetDir: string;
@@ -44,6 +45,14 @@ export class Storage {
     }
     return getConfigDirFallbacks().map((dir) => path.join(homeDir, dir));
     // AUDITARIA_MODIFY_END
+  }
+
+  static getGlobalAgentsDir(): string {
+    const homeDir = homedir();
+    if (!homeDir) {
+      return '';
+    }
+    return path.join(homeDir, AGENTS_DIR_NAME);
   }
 
   static getMcpOAuthTokensPath(): string {
@@ -82,6 +91,10 @@ export class Storage {
 
   static getUserSkillsDir(): string {
     return path.join(Storage.getGlobalGeminiDir(), 'skills');
+  }
+
+  static getUserAgentSkillsDir(): string {
+    return path.join(Storage.getGlobalAgentsDir(), 'skills');
   }
 
   static getGlobalMemoryFilePath(): string {
@@ -160,6 +173,10 @@ export class Storage {
   }
   // AUDITARIA_MODIFY_END
 
+  getAgentsDir(): string {
+    return path.join(this.targetDir, AGENTS_DIR_NAME);
+  }
+
   getProjectTempDir(): string {
     const hash = this.getFilePathHash(this.getProjectRoot());
     const tempDir = Storage.getGlobalTempDir();
@@ -212,6 +229,10 @@ export class Storage {
 
   getProjectSkillsDir(): string {
     return path.join(this.getGeminiDir(), 'skills');
+  }
+
+  getProjectAgentSkillsDir(): string {
+    return path.join(this.getAgentsDir(), 'skills');
   }
 
   getProjectAgentsDir(): string {
