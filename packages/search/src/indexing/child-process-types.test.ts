@@ -46,7 +46,7 @@ describe('child-process-types', () => {
         type: 'start_indexing',
         id: 'test-id-123',
         rootPath: '/test/path',
-        databasePath: '/test/path/.auditaria/search.db',
+        databasePath: '/test/path/.auditaria/knowledge-base.db',
         config: {
           embeddings: { model: 'test-model' },
         },

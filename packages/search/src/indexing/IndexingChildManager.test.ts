@@ -63,7 +63,7 @@ async function cleanupTestDirectory(dir: string): Promise<void> {
 function createTestConfig(): DeepPartial<SearchSystemConfig> {
   return {
     database: {
-      path: '.auditaria/search.db',
+      path: '.auditaria/knowledge-base.db',
       inMemory: true,
       backupEnabled: false,
     },
@@ -113,7 +113,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -134,7 +134,7 @@ describe('IndexingChildManager', () => {
 
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
         customConfig,
       );
@@ -147,7 +147,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
         { batchSize: 200 }, // Only override batchSize
       );
@@ -162,7 +162,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -181,7 +181,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -195,7 +195,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -225,7 +225,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -248,7 +248,7 @@ describe('IndexingChildManager', () => {
       const config = createTestConfig();
       manager = new IndexingChildManager(
         testDir,
-        join(testDir, '.auditaria/search.db'),
+        join(testDir, '.auditaria/knowledge-base.db'),
         config,
       );
 
@@ -303,7 +303,7 @@ describe('IndexingChildManager integration', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 60000 },
     );
@@ -321,7 +321,7 @@ describe('IndexingChildManager integration', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 60000 },
     );
@@ -360,7 +360,7 @@ describe('IndexingChildManager integration', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 60000 },
     );
@@ -391,7 +391,7 @@ describe('IndexingChildManager integration', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 60000 },
     );
@@ -446,7 +446,7 @@ describe('IndexingChildManager with files', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 120000 },
     );
@@ -474,7 +474,7 @@ describe('IndexingChildManager with files', () => {
 
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 120000 },
     );
@@ -487,7 +487,7 @@ describe('IndexingChildManager with files', () => {
     await manager.stop();
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 120000 },
     );
@@ -500,7 +500,7 @@ describe('IndexingChildManager with files', () => {
     await manager.stop();
     manager = new IndexingChildManager(
       testDir,
-      join(testDir, '.auditaria/search.db'),
+      join(testDir, '.auditaria/knowledge-base.db'),
       config,
       { batchSize: 10, startupTimeoutMs: 120000 },
     );

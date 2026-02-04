@@ -22,7 +22,7 @@ vi.mock('@thacio/auditaria-cli-search', () => {
     getState: vi.fn().mockReturnValue({
       initialized: true,
       rootPath: '/test',
-      databasePath: '/test/.auditaria/search.db',
+      databasePath: '/test/.auditaria/knowledge-base.db',
       indexingInProgress: false,
       ocrEnabled: false,
       ocrAvailable: false,

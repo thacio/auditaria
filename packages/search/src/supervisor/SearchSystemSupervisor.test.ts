@@ -44,7 +44,7 @@ function createTestConfig(
   return {
     database: {
       backend: 'sqlite',
-      path: '.auditaria/search.db',
+      path: '.auditaria/knowledge-base.db',
       inMemory: true,
       backupEnabled: false,
     },

@@ -214,7 +214,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private closing: boolean = false;
   /** Child process manager for memory-safe indexing */
   private childManager: IndexingChildManager | null = null;
-  /** User backend options from knowledge-base.json (passed to createStorage) */
+  /** User backend options from knowledge-base.config.json (passed to createStorage) */
   private userBackendOptions: BackendOptionsMap | null = null;
 
   private constructor(
@@ -243,7 +243,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    * Configuration is loaded from multiple sources with priority:
    * 1. Database metadata (db-config.json) - for schema-defining fields (existing databases)
    * 2. options.config (programmatic overrides) - for runtime preferences
-   * 3. .auditaria/knowledge-base.json (user preferences)
+   * 3. .auditaria/knowledge-base.config.json (user preferences)
    * 4. Code defaults
    *
    * Schema-defining fields (backend, embeddings model/dimensions, vectorIndex) from an
@@ -262,7 +262,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     const dbPath = join(rootPath, prelimConfig.database.path);
 
     // Load merged config with proper priority:
-    // database metadata (schema fields) > user config (knowledge-base.json) > code defaults
+    // database metadata (schema fields) > user config (knowledge-base.config.json) > code defaults
     const merged = loadMergedConfig(auditariaDir, dbPath);
 
     // Apply programmatic overrides on top (for non-schema runtime preferences)
@@ -298,7 +298,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    * Configuration priority:
    * 1. Database metadata (db-config.json) - for schema-defining fields (ALWAYS wins)
    * 2. options.config (programmatic overrides) - for runtime preferences
-   * 3. .auditaria/knowledge-base.json (user preferences)
+   * 3. .auditaria/knowledge-base.config.json (user preferences)
    * 4. Code defaults
    */
   static async load(
@@ -319,7 +319,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     }
 
     // Load merged config with proper priority:
-    // database metadata (schema fields) > user config (knowledge-base.json) > code defaults
+    // database metadata (schema fields) > user config (knowledge-base.config.json) > code defaults
     const merged = loadMergedConfig(auditariaDir, dbPath);
 
     // Apply programmatic overrides on top (for non-schema runtime preferences)
@@ -348,7 +348,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
    */
   static exists(rootPath?: string, dbPath?: string): boolean {
     const resolvedRoot = resolve(rootPath ?? process.cwd());
-    const path = dbPath ?? join(resolvedRoot, '.auditaria/search.db');
+    const path = dbPath ?? join(resolvedRoot, '.auditaria/knowledge-base.db');
     return existsSync(path);
   }
 
@@ -382,7 +382,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
     // Initialize storage using factory - it handles backend selection and metadata
     // createStorage is async to support dynamic imports of optional backends
-    // Priority for backend options: existing db-config.json > user knowledge-base.json > defaults
+    // Priority for backend options: existing db-config.json > user knowledge-base.config.json > defaults
     this.storage = await createStorage(
       dbConfig,
       this.config.vectorIndex,

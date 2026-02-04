@@ -52,7 +52,7 @@ describe('user-config', () => {
 
   describe('constants', () => {
     it('should export correct filename', () => {
-      expect(USER_CONFIG_FILENAME).toBe('knowledge-base.json');
+      expect(USER_CONFIG_FILENAME).toBe('knowledge-base.config.json');
     });
 
     it('should export version', () => {
@@ -67,7 +67,7 @@ describe('user-config', () => {
   describe('getUserConfigPath', () => {
     it('should return correct path', () => {
       const result = getUserConfigPath('/test/.auditaria');
-      expect(result).toBe(path.join('/test/.auditaria', 'knowledge-base.json'));
+      expect(result).toBe(path.join('/test/.auditaria', 'knowledge-base.config.json'));
     });
   });
 
@@ -156,7 +156,7 @@ describe('user-config', () => {
 
     it('should strip _docs and other metadata keys from config', () => {
       const configPath = getUserConfigPath(auditariaDir);
-      // Config with _docs fields (like in knowledge-base.json template)
+      // Config with _docs fields (like in knowledge-base.config.json template)
       const configWithDocs = {
         $schema: 'https://example.com/schema.json',
         $version: '1.0.0',

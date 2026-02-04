@@ -15,7 +15,6 @@
     "database": {
       "_docs": "Database storage configuration",
       "backend": "libsql",
-      "path": ".auditaria/search.db",
       "inMemory": false,
       "backupEnabled": true
     },
@@ -64,8 +63,7 @@
       "quantization": "q8",
       "preferGpuForIndexing": false,
       "workerHeapSizeMb": 4096,
-      "preferPythonEmbedder": false,
-      "cacheDir": "~/.auditaria/models"
+      "preferPythonEmbedder": false
     },
 
     "search": {

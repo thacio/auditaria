@@ -98,7 +98,7 @@ export interface DatabaseConfig {
    * - 'pglite': PostgreSQL-compatible with pgvector (legacy)
    */
   backend: StorageBackend;
-  /** Path to the database file. Default: .auditaria/search.db */
+  /** Path to the database file. Default: .auditaria/knowledge-base.db */
   path: string;
   /** Whether to use in-memory database (for testing). Default: false */
   inMemory: boolean;

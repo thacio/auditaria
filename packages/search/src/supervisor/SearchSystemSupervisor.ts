@@ -109,7 +109,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     options: SupervisorInitOptions,
   ): Promise<SearchSystemSupervisor> {
     // Store the original partial config - this will be passed to SearchSystem
-    // so it can properly merge with user config (knowledge-base.json).
+    // so it can properly merge with user config (knowledge-base.config.json).
     // Priority: database metadata > user config > programmatic options > defaults
     const partialConfig = options.config ?? {};
 
@@ -152,7 +152,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
 
     // Initialize the strategy with PARTIAL config
     // The strategy passes this to SearchSystem.initialize() which merges it properly
-    // with user config (knowledge-base.json) using the correct priority order.
+    // with user config (knowledge-base.config.json) using the correct priority order.
     await this.strategy.initialize(
       this.rootPath,
       this.databasePath,

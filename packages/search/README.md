@@ -224,7 +224,7 @@ The system uses a hierarchical configuration with sensible defaults:
 interface SearchSystemConfig {
   database: {
     backend: 'libsql' | 'sqlite' | 'pglite' | 'lancedb'; // Default: 'libsql'
-    path: string; // Default: '.auditaria/search.db'
+    path: string; // Default: '.auditaria/knowledge-base.db'
     inMemory: boolean; // Default: false
     backupEnabled: boolean; // Default: true
   };
@@ -749,7 +749,7 @@ Default → 'libsql'
 The storage layer provides automatic backup and crash recovery. See
 `src/storage/PGliteStorage.ts` for implementation.
 
-**Backup** (`.auditaria/search.db.backup/`):
+**Backup** (`.auditaria/knowledge-base.db.backup/`):
 
 - Auto-created on `close()` when `backupEnabled: true` (default)
 - Only if: database modified (dirty flag), not empty, size < 300MB, passes

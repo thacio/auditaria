@@ -144,8 +144,8 @@ export const DATABASE_FILENAMES: Record<StorageBackend, string> = {
 
 /**
  * Get the metadata file path for a database.
- * @param dbPath - Path to the database directory (e.g., '.auditaria/search.db')
- * @returns Path to the metadata file inside the db folder (e.g., '.auditaria/search.db/db-config.json')
+ * @param dbPath - Path to the database directory (e.g., '.auditaria/knowledge-base.db')
+ * @returns Path to the metadata file inside the db folder (e.g., '.auditaria/knowledge-base.db/db-config.json')
  */
 export function getMetadataPath(dbPath: string): string {
   // Put metadata inside the database folder for portability
@@ -156,9 +156,9 @@ export function getMetadataPath(dbPath: string): string {
  * Get the actual database file path for a backend.
  * All backends use directory-based storage. This returns the path to the database file inside the directory.
  *
- * @param dbPath - Path to the database directory (e.g., '.auditaria/search.db')
+ * @param dbPath - Path to the database directory (e.g., '.auditaria/knowledge-base.db')
  * @param backend - Storage backend type
- * @returns Path to the database file (e.g., '.auditaria/search.db/data.sqlite')
+ * @returns Path to the database file (e.g., '.auditaria/knowledge-base.db/data.sqlite')
  *          For PGlite and LanceDB, returns the directory path itself.
  */
 export function getDatabaseFilePath(

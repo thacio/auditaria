@@ -175,7 +175,7 @@ export class SearchServiceManager {
       const dbExists = searchDatabaseExists(rootPath);
 
       // IMPORTANT: Do NOT call createConfig() here and pass it to the supervisor!
-      // SearchSystem.initialize() will load user config from knowledge-base.json
+      // SearchSystem.initialize() will load user config from knowledge-base.config.json
       // and merge it properly with defaults. If we pass a full config here,
       // it will override the user's preferences.
       // We only need createConfig() for logging the supervisor strategy.
@@ -204,7 +204,7 @@ export class SearchServiceManager {
       this.searchSystem = await createSearchSystemSupervisor({
         rootPath,
         // config is intentionally omitted - SearchSystem.initialize() will load
-        // user config from .auditaria/knowledge-base.json with proper priority
+        // user config from .auditaria/knowledge-base.config.json with proper priority
         logging: loggingOptions,
       });
 

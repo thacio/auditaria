@@ -37,7 +37,7 @@ function createTestConfig(): DeepPartial<SearchSystemConfig> {
   return {
     database: {
       backend: 'sqlite',
-      path: '.auditaria/search.db',
+      path: '.auditaria/knowledge-base.db',
       inMemory: true,
       backupEnabled: false,
     },
@@ -96,7 +96,7 @@ describe('ChildProcessStrategy', () => {
   describe('initialize()', () => {
     it('should initialize and spawn child process', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -109,7 +109,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should report memory usage after initialization', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -131,7 +131,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should call SearchSystem methods via IPC', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -145,7 +145,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should throw for unknown methods', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -170,7 +170,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should forward events from child process', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       const events: string[] = [];
       strategy.onEvent('indexing:completed', () => {
@@ -190,7 +190,7 @@ describe('ChildProcessStrategy', () => {
   describe('restart()', () => {
     it('should restart by killing and respawning child', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -218,7 +218,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should dispose and kill child process', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -236,7 +236,7 @@ describe('ChildProcessStrategy', () => {
 
     it('should be safe to call dispose multiple times', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, {
         ...DEFAULT_SUPERVISOR_CONFIG,
@@ -269,7 +269,7 @@ describe('ChildProcessStrategy error handling', () => {
 
   it('should reject pending calls on dispose', async () => {
     const config = createTestConfig();
-    const databasePath = join(testDir, '.auditaria/search.db');
+    const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
     await strategy.initialize(testDir, databasePath, config, {
       ...DEFAULT_SUPERVISOR_CONFIG,

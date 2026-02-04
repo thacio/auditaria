@@ -27,7 +27,7 @@ describe('Configuration', () => {
     });
 
     it('should have valid default database config', () => {
-      expect(DEFAULT_DATABASE_CONFIG.path).toBe('.auditaria/search.db');
+      expect(DEFAULT_DATABASE_CONFIG.path).toBe('.auditaria/knowledge-base.db');
       expect(DEFAULT_DATABASE_CONFIG.inMemory).toBe(false);
     });
 

@@ -205,7 +205,7 @@ All behavior is configurable:
 interface SearchSystemConfig {
   // Database
   database: {
-    path: string; // Default: .auditaria/search.db
+    path: string; // Default: .auditaria/knowledge-base.db
     maxConnections: number;
   };
 
@@ -1152,7 +1152,7 @@ interface SearchInitOptions {
 
 async function searchInitCommand(options: SearchInitOptions): Promise<void> {
   // 1. Check if database already exists
-  const dbPath = path.join(process.cwd(), '.auditaria', 'search.db');
+  const dbPath = path.join(process.cwd(), '.auditaria', 'knowledge-base.db');
   const exists = await fs.pathExists(dbPath);
 
   if (exists && !options.force) {
@@ -1801,7 +1801,7 @@ The following must be handled in `esbuild.config.js` and
    `xhr-sync-worker.js` (affects HTML files only)
 2. **Main thread blocking** - Indexing runs in main thread; could be moved to
    worker thread for better UX
-3. **Database location** - Index stored at `<project>/.auditaria/search.db`
+3. **Database location** - Index stored at `<project>/.auditaria/knowledge-base.db`
 
 **Success Criteria:** ✅ All met
 
@@ -2496,7 +2496,7 @@ const searchStatusSchema = {
 // .auditaria/search.config.json
 {
   "database": {
-    "path": ".auditaria/search.db"
+    "path": ".auditaria/knowledge-base.db"
   },
   "indexing": {
     "ignorePaths": ["node_modules", ".git", "dist", "build", "*.log"],

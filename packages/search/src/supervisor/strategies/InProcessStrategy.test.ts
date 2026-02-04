@@ -37,7 +37,7 @@ function createTestConfig(): DeepPartial<SearchSystemConfig> {
   return {
     database: {
       backend: 'sqlite',
-      path: '.auditaria/search.db',
+      path: '.auditaria/knowledge-base.db',
       inMemory: true,
       backupEnabled: false,
     },
@@ -96,7 +96,7 @@ describe('InProcessStrategy', () => {
   describe('initialize()', () => {
     it('should initialize successfully', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -105,7 +105,7 @@ describe('InProcessStrategy', () => {
 
     it('should report memory usage after initialization', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -123,7 +123,7 @@ describe('InProcessStrategy', () => {
 
     it('should call SearchSystem methods after initialization', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -133,7 +133,7 @@ describe('InProcessStrategy', () => {
 
     it('should throw for unknown methods', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -146,7 +146,7 @@ describe('InProcessStrategy', () => {
   describe('onEvent()', () => {
     it('should allow subscribing to events', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -161,7 +161,7 @@ describe('InProcessStrategy', () => {
 
     it('should allow unsubscribing from events', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -187,7 +187,7 @@ describe('InProcessStrategy', () => {
 
     it('should restart successfully', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -204,7 +204,7 @@ describe('InProcessStrategy', () => {
 
     it('should preserve event subscriptions across restart', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 
@@ -227,7 +227,7 @@ describe('InProcessStrategy', () => {
 
     it('should dispose successfully after initialization', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
       expect(strategy.isReady()).toBe(true);
@@ -239,7 +239,7 @@ describe('InProcessStrategy', () => {
 
     it('should be safe to call dispose multiple times', async () => {
       const config = createTestConfig();
-      const databasePath = join(testDir, '.auditaria/search.db');
+      const databasePath = join(testDir, '.auditaria/knowledge-base.db');
 
       await strategy.initialize(testDir, databasePath, config, DEFAULT_SUPERVISOR_CONFIG);
 

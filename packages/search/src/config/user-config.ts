@@ -39,7 +39,7 @@ import { readMetadata, type DatabaseMetadata } from '../storage/metadata.js';
 // ============================================================================
 
 /** Name of the user configuration file */
-export const USER_CONFIG_FILENAME = 'knowledge-base.json';
+export const USER_CONFIG_FILENAME = 'knowledge-base.config.json';
 
 /** Current version of the config file format */
 export const USER_CONFIG_VERSION = '1.0.0';
@@ -130,7 +130,7 @@ function stripMetadataKeys<T>(obj: T): T {
 }
 
 /**
- * Load user configuration from .auditaria/knowledge-base.json.
+ * Load user configuration from .auditaria/knowledge-base.config.json.
  *
  * @param auditariaDir - Path to the .auditaria directory
  * @returns Parsed config file, or null if file doesn't exist or is invalid
@@ -395,7 +395,7 @@ export function createSampleUserConfig(): UserConfigFile {
     config: {
       database: {
         // backend: 'libsql',  // 'libsql', 'pglite', 'sqlite', 'lancedb'
-        // path: '.auditaria/search.db',
+        // path: '.auditaria/knowledge-base.db',
         // backupEnabled: true,
       },
       indexing: {
