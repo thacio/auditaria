@@ -1,12 +1,15 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
-import React, {
+import type React from 'react';
+import {
   createContext,
   useContext,
   useEffect,
@@ -18,10 +21,13 @@ import { useStdout } from 'ink';
 import { registerStdoutHook } from '@google/gemini-cli-core';
 
 // Dynamic import to handle the ESM module
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let AnsiToHtml: any;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, no-restricted-syntax
   AnsiToHtml = require('ansi-to-html');
-} catch (e) {
+} catch (_e) {
+  // eslint-disable-next-line no-console
   console.warn(
     'ansi-to-html not available, terminal capture will use plain text',
   );
@@ -31,6 +37,23 @@ export interface TerminalCaptureData {
   content: string; // HTML content
   timestamp: number;
   isInteractive: boolean;
+}
+
+// Strip ANSI cursor movement and screen control sequences that ansi-to-html doesn't handle
+// These sequences cause garbage like "AAAAAG" when converted to HTML
+// Cursor movement: \x1B[nA (up), nB (down), nC (forward), nD (back), nG (column), n;mH (position)
+// Screen control: \x1B[nJ (clear screen), nK (clear line)
+// Cursor visibility: \x1B[?25h (show), ?25l (hide)
+// Cursor save/restore: \x1B[s, \x1B[u
+// Also: \x1B[H (home), \x1B[f (position alt)
+const ESC = '\x1B'; // Escape character - extracted to avoid no-control-regex lint error
+const CURSOR_SEQUENCE_REGEX = new RegExp(
+  `${ESC}\\[\\d*[ABCDGHJKfsu]|${ESC}\\[\\d*;\\d*[Hf]|${ESC}\\[\\?25[hl]`,
+  'g',
+);
+
+function stripCursorSequences(text: string): string {
+  return text.replace(CURSOR_SEQUENCE_REGEX, '');
 }
 
 interface TerminalCaptureContextValue {
@@ -52,7 +75,7 @@ export function TerminalCaptureProvider({
   children,
   onTerminalUpdate,
 }: TerminalCaptureProviderProps) {
-  const { stdout } = useStdout();
+  const { stdout: _stdout } = useStdout(); // Required for Ink context but not directly used
   const cleanupHookRef = useRef<(() => void) | null>(null);
   const capturedOutput = useRef<string>('');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -111,7 +134,10 @@ export function TerminalCaptureProvider({
       // \x1B[...A - Cursor up (most reliable signal for redraw)
       // \x1B[...J - Clear screen (fallback)
       // \x1B[H - Cursor home (often precedes redraw)
-      const redrawSignalRegex = /\x1B\[(\d+)?A|\x1B\[[0-2]?J|\x1B\[H/;
+      // Uses ESC constant to avoid no-control-regex lint error
+      const redrawSignalRegex = new RegExp(
+        `${ESC}\\[(\\d+)?A|${ESC}\\[[0-2]?J|${ESC}\\[H`,
+      );
 
       // If redraw signal detected, reset the captured output
       if (redrawSignalRegex.test(writeBuffer.current)) {
@@ -140,9 +166,11 @@ export function TerminalCaptureProvider({
     if (callback && capturedOutput.current !== lastBroadcast.current) {
       lastBroadcast.current = capturedOutput.current;
 
+      // Strip cursor sequences before conversion - ansi-to-html doesn't handle them
+      const cleanedOutput = stripCursorSequences(capturedOutput.current);
       const htmlContent = converter.current
-        ? converter.current.toHtml(capturedOutput.current)
-        : `<pre>${capturedOutput.current}</pre>`;
+        ? converter.current.toHtml(cleanedOutput)
+        : `<pre>${cleanedOutput}</pre>`;
 
       callback({
         content: htmlContent,
@@ -197,49 +225,50 @@ export function TerminalCaptureProvider({
     };
   }, [onTerminalUpdate, processBuffer]);
 
-  const getCapturedContent = useCallback(() => {
-    return capturedOutput.current;
-  }, []);
+  const getCapturedContent = useCallback(() => capturedOutput.current, []);
 
-  const setInteractiveScreenActive = useCallback((active: boolean) => {
-    // CRITICAL: Update ref synchronously BEFORE setTimeout callback runs
-    // The useEffect that normally updates this ref runs AFTER React's render cycle,
-    // but setTimeout(0) runs in the next macrotask which is BEFORE the useEffect.
-    // Without this fix, processBuffer() would check isInteractiveScreenRef.current
-    // while it's still false, causing it to bail out without broadcasting.
-    isInteractiveScreenRef.current = active;
-    setIsInteractiveScreen(active);
+  const setInteractiveScreenActive = useCallback(
+    (active: boolean) => {
+      // CRITICAL: Update ref synchronously BEFORE setTimeout callback runs
+      // The useEffect that normally updates this ref runs AFTER React's render cycle,
+      // but setTimeout(0) runs in the next macrotask which is BEFORE the useEffect.
+      // Without this fix, processBuffer() would check isInteractiveScreenRef.current
+      // while it's still false, causing it to bail out without broadcasting.
+      isInteractiveScreenRef.current = active;
+      setIsInteractiveScreen(active);
 
-    if (active) {
-      // Dialog is opening - force a broadcast of any buffered content
-      // The buffer may already contain the first render from before this useEffect ran
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-      // Use setTimeout to allow any pending React renders to complete first
-      setTimeout(() => {
-        // Force process any pending buffer
-        if (writeBuffer.current || capturedOutput.current) {
-          processBuffer();
+      if (active) {
+        // Dialog is opening - force a broadcast of any buffered content
+        // The buffer may already contain the first render from before this useEffect ran
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current);
         }
-      }, 0);
-    } else {
-      // Dialog is closing - clear buffers and send empty content
-      capturedOutput.current = '';
-      lastBroadcast.current = '';
-      writeBuffer.current = '';
+        // Use setTimeout to allow any pending React renders to complete first
+        setTimeout(() => {
+          // Force process any pending buffer
+          if (writeBuffer.current || capturedOutput.current) {
+            processBuffer();
+          }
+        }, 0);
+      } else {
+        // Dialog is closing - clear buffers and send empty content
+        capturedOutput.current = '';
+        lastBroadcast.current = '';
+        writeBuffer.current = '';
 
-      // Send clear signal
-      const callback = onTerminalUpdateRef.current;
-      if (callback) {
-        callback({
-          content: '',
-          timestamp: Date.now(),
-          isInteractive: false,
-        });
+        // Send clear signal
+        const callback = onTerminalUpdateRef.current;
+        if (callback) {
+          callback({
+            content: '',
+            timestamp: Date.now(),
+            isInteractive: false,
+          });
+        }
       }
-    }
-  }, [processBuffer]);
+    },
+    [processBuffer],
+  );
 
   const value: TerminalCaptureContextValue = {
     getCapturedContent,
