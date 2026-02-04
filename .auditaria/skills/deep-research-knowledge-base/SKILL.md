@@ -352,7 +352,18 @@ web_fetch({ url: "https://official-source.com/standard", prompt: "Extract the de
 
 **Write the iteration report to a file** (not inline). This forces detailed documentation and saves context space.
 
-**File:** `reports/{topic-slug}-iteration-reports.md` (append each iteration)
+**File:** `reports/{topic-slug}-iteration-reports.md`
+
+⚠️ **CRITICAL: APPEND, DO NOT OVERWRITE**
+
+Each iteration's report must be ADDED to the file, preserving ALL previous iterations. The file should grow with each iteration, containing the complete research history.
+
+**How to append correctly:**
+1. **Read the existing file first** (if it exists)
+2. **Add the new iteration report at the end** (after a separator `---`)
+3. **Write the combined content** (all previous iterations + new iteration)
+
+If you overwrite and lose previous iterations, the research history is destroyed.
 
 **Append the following structure to the file:**
 
@@ -592,17 +603,27 @@ Context management is **mandatory** to prevent context explosion during research
 1. After iteration 4 (and every 2 iterations after):
    context_management({ action: "inspect" })
 
-2. Identify raw search results from Phase B of OLD iterations (not last 2)
+2. Identify ONLY Phase B raw search results from OLD iterations (not last 2)
 
-3. Forget with summary:
+   ⚠️ CRITICAL DISTINCTION:
+   - ✅ FORGET: knowledge_search with `query` parameter (Phase B search results)
+   - ❌ KEEP: knowledge_search with `document_id` parameter (Phase C document reads)
+
+   Look for tool calls like:
+   - FORGET: knowledge_search({ query: "...", strategy: "..." }) → These are Phase B
+   - KEEP: knowledge_search({ document_id: "doc_xxx" }) → These are Phase C reads
+
+3. Forget ONLY Phase B search results with summary:
    context_management({
      action: "forget",
-     ids: [raw_search_result_ids],
+     ids: [phase_b_search_result_ids_only],
      summary: "Phase B search results from iterations 1-2. Key docs and excerpts preserved in iteration report file."
    })
 ```
 
 **Keep the last 2 iterations' raw results** for continuity.
+
+**NEVER forget Phase C document reads** - these contain the actual excerpts and evidence you need for the report.
 
 ---
 
@@ -1011,6 +1032,14 @@ Based on findings [1, 2, 3]...
 17. **Skip the Iteration Report (Phase F)**
     - BAD: Doing analysis mentally and moving on without documenting
     - GOOD: Write the full iteration report with searches, docs, excerpts, and analysis
+
+18. **Overwrite iteration reports instead of appending**
+    - BAD: Using Write tool directly, replacing all previous iterations with just the current one
+    - GOOD: Read the existing file first, then write ALL iterations (previous + current) together
+
+19. **Forget Phase C document reads along with Phase B search results**
+    - BAD: Forgetting all `knowledge_search` results including document reads
+    - GOOD: ONLY forget `knowledge_search` with `query` (Phase B). KEEP `knowledge_search` with `document_id` (Phase C reads)
 
 ---
 
