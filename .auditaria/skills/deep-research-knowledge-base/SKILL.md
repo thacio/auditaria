@@ -359,11 +359,17 @@ web_fetch({ url: "https://official-source.com/standard", prompt: "Extract the de
 Each iteration's report must be ADDED to the file, preserving ALL previous iterations. The file should grow with each iteration, containing the complete research history.
 
 **How to append correctly:**
-1. **Read the existing file first** (if it exists)
-2. **Add the new iteration report at the end** (after a separator `---`)
-3. **Write the combined content** (all previous iterations + new iteration)
 
-If you overwrite and lose previous iterations, the research history is destroyed.
+- **Iteration 1** (file doesn't exist yet): Use `write_file` to create the file with the first report.
+- **Iteration 2+** (file already exists): Use the `replace` (edit) tool to append. Match the last `---` separator at the end of the file and replace it with that separator plus the new iteration report. This way the existing content is untouched.
+
+  Example using the edit tool:
+  ```
+  old_string: (the last few lines of the file, ending with the final ---)
+  new_string: (those same lines, plus the new iteration report appended after)
+  ```
+
+⛔ **NEVER use `write_file` on an existing iteration report file** — it overwrites the entire file, destroying all previous iterations.
 
 **Append the following structure to the file:**
 
@@ -1034,8 +1040,8 @@ Based on findings [1, 2, 3]...
     - GOOD: Write the full iteration report with searches, docs, excerpts, and analysis
 
 18. **Overwrite iteration reports instead of appending**
-    - BAD: Using Write tool directly, replacing all previous iterations with just the current one
-    - GOOD: Read the existing file first, then write ALL iterations (previous + current) together
+    - BAD: Using `write_file` on an existing report — it overwrites everything, destroying previous iterations
+    - GOOD: Use `replace` (edit) tool to append — match the end of the file and add the new iteration after it
 
 19. **Forget Phase C document reads along with Phase B search results**
     - BAD: Forgetting all `knowledge_search` results including document reads
