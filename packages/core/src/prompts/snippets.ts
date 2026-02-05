@@ -32,6 +32,7 @@ export interface SystemPromptOptions {
   agentSkills?: AgentSkillOptions[];
   hookContext?: boolean;
   primaryWorkflows?: PrimaryWorkflowsOptions;
+  planningWorkflow?: PlanningWorkflowOptions;
   operationalGuidelines?: OperationalGuidelinesOptions;
   sandbox?: SandboxMode;
   gitRepo?: GitRepoOptions;
@@ -72,7 +73,7 @@ export interface FinalReminderOptions {
   readFileToolName: string;
 }
 
-export interface ApprovalModePlanOptions {
+export interface PlanningWorkflowOptions {
   planModeToolsList: string;
   plansDir: string;
 }
@@ -100,7 +101,11 @@ ${renderAgentSkills(options.agentSkills)}
 
 ${renderHookContext(options.hookContext)}
 
-${renderPrimaryWorkflows(options.primaryWorkflows)}
+${
+  options.planningWorkflow
+    ? renderPlanningWorkflow(options.planningWorkflow)
+    : renderPrimaryWorkflows(options.primaryWorkflows)
+}
 
 ${renderOperationalGuidelines(options.operationalGuidelines)}
 
@@ -118,14 +123,11 @@ ${renderFinalReminder(options.finalReminder)}
 export function renderFinalShell(
   basePrompt: string,
   userMemory?: string,
-  planOptions?: ApprovalModePlanOptions,
 ): string {
   return `
 ${basePrompt.trim()}
 
 ${renderUserMemory(userMemory)}
-
-${renderApprovalModePlan(planOptions)}
 `.trim();
 }
 
@@ -314,8 +316,8 @@ export function renderUserMemory(memory?: string): string {
   return `\n---\n\n${memory.trim()}`;
 }
 
-export function renderApprovalModePlan(
-  options?: ApprovalModePlanOptions,
+export function renderPlanningWorkflow(
+  options?: PlanningWorkflowOptions,
 ): string {
   if (!options) return '';
   return `

@@ -58,18 +58,6 @@ export class PromptProvider {
     );
     const isGemini3 = isPreviewModel(desiredModel);
 
-    // --- Context Gathering ---
-    const planOptions: snippets.ApprovalModePlanOptions | undefined = isPlanMode
-      ? {
-          planModeToolsList: PLAN_MODE_TOOLS.filter((t) =>
-            new Set(toolNames).has(t),
-          )
-            .map((t) => `- \`${t}\``)
-            .join('\n'),
-          plansDir: config.storage.getProjectTempPlansDir(),
-        }
-      : undefined;
-
     let basePrompt: string;
 
     // --- Template File Override ---
@@ -126,6 +114,18 @@ export class PromptProvider {
           }),
           !isPlanMode,
         ),
+        planningWorkflow: this.withSection(
+          'planningWorkflow',
+          () => ({
+            planModeToolsList: PLAN_MODE_TOOLS.filter((t) =>
+              new Set(toolNames).has(t),
+            )
+              .map((t) => `- \`${t}\``)
+              .join('\n'),
+            plansDir: config.storage.getProjectTempPlansDir(),
+          }),
+          isPlanMode,
+        ),
         operationalGuidelines: this.withSection(
           'operationalGuidelines',
           () => ({
@@ -158,11 +158,7 @@ export class PromptProvider {
     // AUDITARIA_FEATURE_END: Custom skills section
 
     // --- Finalization (Shell) ---
-    const finalPrompt = snippets.renderFinalShell(
-      basePrompt,
-      userMemory,
-      planOptions,
-    );
+    const finalPrompt = snippets.renderFinalShell(basePrompt, userMemory);
 
     // Sanitize erratic newlines from composition
     const sanitizedPrompt = finalPrompt.replace(/\n{3,}/g, '\n\n');
