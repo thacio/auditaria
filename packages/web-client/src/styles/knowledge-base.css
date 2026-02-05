@@ -1131,6 +1131,43 @@
   word-wrap: break-word;
 }
 
+/* Read more / Read less button for truncated passage text */
+.kb-read-more-btn {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kb-read-more-btn:hover {
+  background: var(--primary);
+  color: var(--surface);
+}
+
+.kb-read-more-btn.expanded {
+  background: var(--surface-alt);
+  border-color: var(--border);
+  color: var(--text-subtle);
+}
+
+.kb-read-more-btn.expanded:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Passage truncation spans */
+.kb-passage-truncated,
+.kb-passage-full {
+  display: inline;
+}
+
 .kb-passage-also-in {
   margin-top: 10px;
   padding-top: 10px;

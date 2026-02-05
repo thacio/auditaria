@@ -38,6 +38,8 @@ export class KnowledgeBaseModal {
     this.selectedExtensions = []; // Track selected file extensions
     this.selectedFolders = []; // Track selected folder paths
     this.statusRefreshInterval = null; // Auto-refresh interval
+    this.passageIdCounter = 0; // Counter for unique passage IDs
+    this.expandedPassages = new Set(); // Track expanded passage states
 
     // Bind methods
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -564,6 +566,10 @@ export class KnowledgeBaseModal {
    * Render search results
    */
   renderResults(results, query, page, totalPages, total, limit = 25) {
+    // Reset passage counter and expanded states for fresh render
+    this.passageIdCounter = 0;
+    this.expandedPassages.clear();
+
     if (!results || results.length === 0) {
       return this.renderNoResultsState(query);
     }
@@ -694,8 +700,12 @@ export class KnowledgeBaseModal {
 
     const renderPassage = (p, pIndex) => {
       const content = p.content || p.text || '';
-      const truncated = this.smartTruncate(content, 400);
-      const safeHtml = this.escapeHtmlPreservingMarks(truncated);
+      const passageId = this.generatePassageId();
+
+      // Use simple linear truncation (new default) with "Read more" support
+      const truncation = this.simpleLinearTruncate(content, 400);
+      const truncatedHtml = this.escapeHtmlPreservingMarks(truncation.truncated);
+      const fullHtml = this.escapeHtmlPreservingMarks(truncation.full);
 
       // Score indicator - subtle colored bar on the left
       const score = p.score || 0;
@@ -704,6 +714,15 @@ export class KnowledgeBaseModal {
 
       // Per-passage "Also found in"
       const alsoInHtml = this.renderPassageAlsoFoundIn(p.additionalSources);
+
+      // Build passage text with expand/collapse support
+      const passageTextHtml = truncation.isTruncated
+        ? `<div class="kb-passage-text" data-passage-id="${passageId}">
+            <span class="kb-passage-truncated">${truncatedHtml}</span>
+            <span class="kb-passage-full" style="display: none;">${fullHtml}</span>
+          </div>
+          <button class="kb-read-more-btn" data-passage-id="${passageId}">Read more</button>`
+        : `<div class="kb-passage-text">${truncatedHtml}</div>`;
 
       return `
         <div class="kb-passage-item">
@@ -714,7 +733,7 @@ export class KnowledgeBaseModal {
               <span class="kb-passage-rank">Ranked #${p.rank}</span>
               ${showScore ? `<span class="kb-passage-score-badge ${scoreClass}">${scorePercent}%</span>` : ''}
             </div>
-            <div class="kb-passage-text">${safeHtml}</div>
+            ${passageTextHtml}
             ${alsoInHtml}
           </div>
         </div>
@@ -844,15 +863,28 @@ export class KnowledgeBaseModal {
     if (passages.length > 0) {
       passagesHtml = passages.slice(0, 2).map((p, pIndex) => {
         const content = p.content || p.text || '';
-        const truncated = this.smartTruncate(content, 400);
-        const safeHtml = this.escapeHtmlPreservingMarks(truncated);
+        const passageId = this.generatePassageId();
+
+        // Use simple linear truncation (new default) with "Read more" support
+        const truncation = this.simpleLinearTruncate(content, 400);
+        const truncatedHtml = this.escapeHtmlPreservingMarks(truncation.truncated);
+        const fullHtml = this.escapeHtmlPreservingMarks(truncation.full);
+
+        // Build passage text with expand/collapse support
+        const passageTextHtml = truncation.isTruncated
+          ? `<div class="kb-passage-text" data-passage-id="${passageId}">
+              <span class="kb-passage-truncated">${truncatedHtml}</span>
+              <span class="kb-passage-full" style="display: none;">${fullHtml}</span>
+            </div>
+            <button class="kb-read-more-btn" data-passage-id="${passageId}">Read more</button>`
+          : `<div class="kb-passage-text">${truncatedHtml}</div>`;
 
         return `
           <div class="kb-passage-item">
             <div class="kb-passage-bar"></div>
             <div class="kb-passage-body">
               ${showScore ? `<div class="kb-passage-meta"><span class="kb-passage-score-badge">${scorePercent}%</span></div>` : ''}
-              <div class="kb-passage-text">${safeHtml}</div>
+              ${passageTextHtml}
               ${this.renderPassageAlsoFoundIn(result.additionalSources)}
             </div>
           </div>
@@ -1210,6 +1242,115 @@ export class KnowledgeBaseModal {
   }
 
   /**
+   * Simple linear truncation with "Read more" support (NEW DEFAULT)
+   * Truncates from beginning or end based on where highlights are located.
+   * Preference: show beginning unless highlights are only at the end.
+   *
+   * @param {string} text - The text to truncate
+   * @param {number} maxLen - Maximum length before truncation (default 400)
+   * @returns {Object} { truncated: string, full: string, isTruncated: boolean, direction: 'start'|'end' }
+   */
+  simpleLinearTruncate(text, maxLen = 400) {
+    if (!text) {
+      return { truncated: '', full: '', isTruncated: false, direction: 'start' };
+    }
+
+    // Return full text if short enough
+    if (text.length <= maxLen) {
+      return { truncated: text, full: text, isTruncated: false, direction: 'start' };
+    }
+
+    // Find all <mark> positions
+    const marks = this.findMarkPositions(text);
+
+    // Determine truncation direction based on mark positions
+    // Preference: show beginning, unless marks are only at the end
+    let direction = 'start'; // default: truncate from end, show start
+
+    if (marks.length > 0) {
+      const textMidpoint = text.length / 2;
+      const firstMarkStart = marks[0].start;
+      const lastMarkEnd = marks[marks.length - 1].end;
+
+      // Check if any marks are in the first half
+      const hasMarkInFirstHalf = marks.some(m => m.start < textMidpoint);
+      // Check if any marks are in the second half
+      const hasMarkInSecondHalf = marks.some(m => m.end > textMidpoint);
+
+      // Only switch to 'end' direction if:
+      // - No marks in the first portion that would be shown, AND
+      // - There are marks in the latter portion
+      if (!hasMarkInFirstHalf && hasMarkInSecondHalf) {
+        // Further check: would the truncated start portion (maxLen chars) contain any mark?
+        const hasMarkInTruncatedStart = marks.some(m => m.start < maxLen - 50); // 50 char buffer for ellipsis
+        if (!hasMarkInTruncatedStart) {
+          direction = 'end'; // truncate from start, show end
+        }
+      }
+    }
+
+    let truncated;
+    if (direction === 'start') {
+      // Show beginning, truncate end
+      // Find a good break point (word boundary) near maxLen
+      let breakPoint = maxLen;
+      const searchStart = Math.max(0, maxLen - 50);
+      for (let i = maxLen; i >= searchStart; i--) {
+        if (text[i] === ' ' || text[i] === '\n') {
+          breakPoint = i;
+          break;
+        }
+      }
+      truncated = text.substring(0, breakPoint).trimEnd() + '...';
+    } else {
+      // Show end, truncate beginning
+      const startPoint = text.length - maxLen;
+      // Find a good break point (word boundary) near startPoint
+      let breakPoint = startPoint;
+      const searchEnd = Math.min(text.length, startPoint + 50);
+      for (let i = startPoint; i <= searchEnd; i++) {
+        if (text[i] === ' ' || text[i] === '\n') {
+          breakPoint = i + 1;
+          break;
+        }
+      }
+      truncated = '...' + text.substring(breakPoint).trimStart();
+    }
+
+    return {
+      truncated,
+      full: text,
+      isTruncated: true,
+      direction
+    };
+  }
+
+  /**
+   * Generate a unique passage ID for expand/collapse functionality
+   */
+  generatePassageId() {
+    return `passage-${++this.passageIdCounter}`;
+  }
+
+  /**
+   * Toggle passage expansion state
+   */
+  togglePassageExpansion(passageId) {
+    if (this.expandedPassages.has(passageId)) {
+      this.expandedPassages.delete(passageId);
+    } else {
+      this.expandedPassages.add(passageId);
+    }
+  }
+
+  /**
+   * Check if a passage is expanded
+   */
+  isPassageExpanded(passageId) {
+    return this.expandedPassages.has(passageId);
+  }
+
+  /**
    * Escape HTML but preserve <mark> tags for highlighting
    */
   escapeHtmlPreservingMarks(text) {
@@ -1466,6 +1607,24 @@ export class KnowledgeBaseModal {
           expandBtn.innerHTML = isExpanded
             ? `${ICONS.chevronDown} Show more passages`
             : `${ICONS.chevronDown} Hide passages`;
+        }
+      }
+
+      // "Read more" / "Read less" toggle for passage text truncation
+      const readMoreBtn = e.target.closest('.kb-read-more-btn');
+      if (readMoreBtn) {
+        const passageId = readMoreBtn.dataset.passageId;
+        const passageText = this.container.querySelector(`.kb-passage-text[data-passage-id="${passageId}"]`);
+        if (passageText) {
+          const truncatedSpan = passageText.querySelector('.kb-passage-truncated');
+          const fullSpan = passageText.querySelector('.kb-passage-full');
+          if (truncatedSpan && fullSpan) {
+            const isExpanded = fullSpan.style.display !== 'none';
+            truncatedSpan.style.display = isExpanded ? 'inline' : 'none';
+            fullSpan.style.display = isExpanded ? 'none' : 'inline';
+            readMoreBtn.textContent = isExpanded ? 'Read more' : 'Read less';
+            readMoreBtn.classList.toggle('expanded', !isExpanded);
+          }
         }
       }
 
