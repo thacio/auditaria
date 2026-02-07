@@ -205,6 +205,17 @@ export * from './utils/stdio.js';
 export * from './utils/terminal.js';
 
 // AUDITARIA_CLAUDE_PROVIDER_START
-export type { ProviderConfig, ProviderDriver, ProviderEvent } from './providers/types.js';
+export type {
+  ProviderConfig,
+  ProviderDriver,
+  ProviderEvent,
+} from './providers/types.js';
 export { ProviderManager } from './providers/providerManager.js';
+export {
+  getAuditContext,
+  getAuditPreamble,
+  getAuditMandates,
+  getAuditWorkflows,
+  getExternalProviderLanguageInstructions,
+} from './prompts/snippets.js';
 // AUDITARIA_CLAUDE_PROVIDER_END
