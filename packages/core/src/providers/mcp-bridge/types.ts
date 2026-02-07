@@ -15,4 +15,5 @@ export interface ToolExecuteRequest {
 export interface ToolExecuteResponse {
   content: string;
   isError: boolean;
+  returnDisplay?: string; // AUDITARIA: Rich display data from tool execution (e.g., browser step JSON)
 }

@@ -6,16 +6,34 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import type { ToolRegistry } from '../../tools/tool-registry.js';
 import type { AnyDeclarativeTool } from '../../tools/tools.js';
 import { partToString } from '../../utils/partUtils.js';
+import type { AnsiOutput } from '../../utils/terminalSerializer.js'; // AUDITARIA: For updateOutput callback type
 import type { BridgeableToolSchema, ToolExecuteRequest, ToolExecuteResponse } from './types.js';
 
 const BASE_PORT = 19751;
 const MAX_PORT_ATTEMPTS = 20;
 
+// AUDITARIA: Callback type for routing live tool output to the UI layer
+type ToolOutputCallback = (toolName: string, output: string) => void;
+
 export class ToolExecutorServer {
   private server: Server | null = null;
   private port: number | null = null;
+  private toolOutputHandler?: ToolOutputCallback; // AUDITARIA: Live tool output routing
+  private lastReturnDisplays = new Map<string, string>(); // AUDITARIA: Store returnDisplay per tool
 
   constructor(private readonly registry: ToolRegistry) {}
+
+  // AUDITARIA: Set callback for live tool output updates (browser agent steps, etc.)
+  setToolOutputHandler(handler: ToolOutputCallback | undefined): void {
+    this.toolOutputHandler = handler;
+  }
+
+  // AUDITARIA: Consume stored returnDisplay for a tool (returns and deletes)
+  consumeReturnDisplay(toolName: string): string | undefined {
+    const display = this.lastReturnDisplays.get(toolName);
+    if (display) this.lastReturnDisplays.delete(toolName);
+    return display;
+  }
 
   getPort(): number | null {
     return this.port;
@@ -125,12 +143,33 @@ export class ToolExecutorServer {
   ): Promise<ToolExecuteResponse> {
     try {
       const ac = new AbortController();
-      const result = await tool.buildAndExecute(params, ac.signal);
+      const toolName = tool.name;
+
+      // AUDITARIA: Create updateOutput callback for live updates (browser agent steps, etc.)
+      const updateOutput = (tool.canUpdateOutput && this.toolOutputHandler)
+        ? (output: string | AnsiOutput) => {
+            if (typeof output === 'string') {
+              this.toolOutputHandler!(toolName, output);
+            }
+          }
+        : undefined;
+
+      const result = await tool.buildAndExecute(params, ac.signal, updateOutput);
 
       const content = partToString(result.llmContent, { verbose: true });
+
+      // AUDITARIA: Store returnDisplay for providerManager to consume
+      const returnDisplayStr = typeof result.returnDisplay === 'string'
+        ? result.returnDisplay
+        : result.returnDisplay?.toString();
+      if (returnDisplayStr) {
+        this.lastReturnDisplays.set(toolName, returnDisplayStr);
+      }
+
       return {
-        content: content || result.returnDisplay?.toString() || 'Tool completed with no output',
+        content: content || returnDisplayStr || 'Tool completed with no output',
         isError: !!result.error,
+        returnDisplay: returnDisplayStr,
       };
     } catch (e: unknown) {
       return {

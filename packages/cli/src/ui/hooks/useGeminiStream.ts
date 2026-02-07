@@ -228,6 +228,19 @@ export const useGeminiStream = (
   }, [pendingHistoryItemRef, webInterface]);
 
   // WEB_INTERFACE_END
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Track whether tool output handler is wired to providerManager
+  const toolOutputHandlerWiredRef = useRef(false);
+  // Cleanup handler on unmount
+  useEffect(() => {
+    return () => {
+      const pm = config.getProviderManager();
+      pm?.setToolOutputHandler(undefined);
+      toolOutputHandlerWiredRef.current = false;
+    };
+  }, [config]);
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   const gitService = useMemo(() => {
     if (!config.getProjectRoot()) {
       return;
@@ -487,6 +500,19 @@ export const useGeminiStream = (
       }
     }
   }, [pendingToolGroupItems, webInterface]);
+  // WEB_INTERFACE_END
+
+  // WEB_INTERFACE_START: Broadcast external provider pending tools to web client
+  useEffect(() => {
+    if (!webInterface) return;
+    if (externalPendingToolGroup && externalPendingToolGroup.tools.length > 0) {
+      const pendingItemWithId: HistoryItem = {
+        ...externalPendingToolGroup,
+        id: -3, // Unique temp ID for external provider pending tools
+      } as HistoryItem;
+      webInterface.broadcastPendingItem(pendingItemWithId);
+    }
+  }, [externalPendingToolGroup, webInterface]);
   // WEB_INTERFACE_END
 
   const lastQueryRef = useRef<PartListUnion | null>(null);
@@ -1263,6 +1289,24 @@ export const useGeminiStream = (
             toolCallRequests.push(event.value);
             // AUDITARIA_CLAUDE_PROVIDER_START: Show external provider tools in Executing state immediately
             if (config.isExternalProviderActive()) {
+              // AUDITARIA: Wire tool output handler on first external tool call (can't use useEffect — providerManager may not exist at mount)
+              if (!toolOutputHandlerWiredRef.current) {
+                const pm = config.getProviderManager();
+                if (pm) {
+                  pm.setToolOutputHandler((callId, _toolName, output) => {
+                    setExternalPendingToolGroup(prev => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        tools: prev.tools.map(t =>
+                          t.callId === callId ? { ...t, resultDisplay: output } : t
+                        ),
+                      };
+                    });
+                  });
+                  toolOutputHandlerWiredRef.current = true;
+                }
+              }
               // Flush pending text so tool shows in correct order
               if (pendingHistoryItemRef.current) {
                 addItem(

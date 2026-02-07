@@ -34,6 +34,10 @@ export class ProviderManager {
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
   private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
   private contextModified = false; // AUDITARIA_CLAUDE_PROVIDER: Set by context_forget, triggers session reset on next call
+  // AUDITARIA: Callback for routing live tool output to CLI layer (browser agent steps, etc.)
+  private toolOutputHandler?: (callId: string, toolName: string, output: string) => void;
+  // AUDITARIA: Track toolName → callId for live output routing during MCP bridge execution
+  private pendingToolCalls = new Map<string, string>();
 
   constructor(
     private config: ProviderConfig,
@@ -52,6 +56,37 @@ export class ProviderManager {
   // AUDITARIA_CLAUDE_PROVIDER: Set tool registry after async initialization
   setToolRegistry(registry: ToolRegistry): void {
     this.toolRegistry = registry;
+  }
+
+  // AUDITARIA: Register callback for live tool output (browser agent steps, etc.)
+  setToolOutputHandler(handler: ((callId: string, toolName: string, output: string) => void) | undefined): void {
+    this.toolOutputHandler = handler;
+    this.wireToolOutputHandler();
+  }
+
+  // AUDITARIA: Wire the toolOutputHandler to the toolExecutorServer
+  private wireToolOutputHandler(): void {
+    if (!this.toolExecutorServer) return;
+    if (!this.toolOutputHandler) {
+      this.toolExecutorServer.setToolOutputHandler(undefined);
+      return;
+    }
+    const handler = this.toolOutputHandler;
+    this.toolExecutorServer.setToolOutputHandler((toolName: string, output: string) => {
+      // AUDITARIA: toolExecutorServer uses original names (e.g. "browser_agent"),
+      // but pendingToolCalls uses MCP-prefixed names (e.g. "mcp__auditaria-tools__browser_agent").
+      // Match by checking if the key ends with __toolName.
+      let callId: string | undefined;
+      for (const [name, id] of this.pendingToolCalls) {
+        if (name === toolName || name.endsWith('__' + toolName)) {
+          callId = id;
+          break;
+        }
+      }
+      if (callId) {
+        handler(callId, toolName, output);
+      }
+    });
   }
 
   isExternalProviderActive(): boolean {
@@ -141,6 +176,8 @@ export class ProviderManager {
         // renders them with proper tool call display (status icons, collapsible results)
         if (event.type === ProviderEventType.ToolUse) {
           dbg(`event #${eventCount} tool_use: ${event.toolName}`);
+          // AUDITARIA: Track callId for live output routing from toolExecutorServer
+          this.pendingToolCalls.set(event.toolName, event.toolId);
           // Mirror: store tool name mapping and add functionCall to model buffer
           toolIdToName.set(event.toolId, event.toolName);
           if (accumulatedText) {
@@ -184,12 +221,18 @@ export class ProviderManager {
             ],
           });
 
+          // AUDITARIA: Use stored returnDisplay from bridgeable tool execution (e.g., browser step JSON)
+          // toolExecutorServer stores under original names, but toolName here is MCP-prefixed
+          const originalToolName = toolName.includes('__') ? toolName.split('__').pop()! : toolName;
+          const storedDisplay = this.toolExecutorServer?.consumeReturnDisplay(originalToolName);
+          this.pendingToolCalls.delete(toolName);
+
           yield {
             type: GeminiEventType.ToolCallResponse,
             value: {
               callId: event.toolId,
               responseParts: [],
-              resultDisplay: event.output,
+              resultDisplay: storedDisplay || event.output,
               error: event.isError ? new Error(event.output) : undefined,
               errorType: undefined,
             },
@@ -321,6 +364,8 @@ export class ProviderManager {
     try {
       const port = await server.start();
       this.toolExecutorServer = server;
+      // AUDITARIA: Wire output handler if already registered
+      this.wireToolOutputHandler();
       dbg('tool executor server started', {
         port,
         tools: server.getBridgeableTools().map((t) => t.name),
