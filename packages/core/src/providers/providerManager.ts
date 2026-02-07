@@ -46,9 +46,10 @@ export class ProviderManager {
     return this.config.type !== 'gemini';
   }
 
-  // AUDITARIA_CLAUDE_PROVIDER: Called by context_forget when history is modified.
+  // AUDITARIA_CLAUDE_PROVIDER: Called by context_forget when history is modified,
+  // or when switching from Gemini to Claude with existing conversation history.
   // Schedules a session reset on the next sendMessage() call so Claude gets
-  // a fresh session with the modified (forgotten) conversation history.
+  // a fresh session with the modified/existing conversation history.
   onHistoryModified(): void {
     this.contextModified = true;
     dbg('onHistoryModified: contextModified flag set, will reset session on next call');
@@ -348,10 +349,90 @@ export function buildConversationSummary(history: Content[]): string {
           : (outputText.length > 2000 ? outputText.slice(0, 2000) + '\n... (truncated)' : outputText);
         lines.push(`[Tool Result (${name})]: ${truncatedOutput}`);
       }
-      // Skip thinking, inlineData, fileData parts — not relevant for context
+      // Describe attachments as text (Claude can't see binary data)
+      if ('inlineData' in part && part.inlineData) {
+        const mime = part.inlineData.mimeType || 'unknown';
+        const sizeKB = part.inlineData.data
+          ? Math.round((part.inlineData.data.length * 3) / 4 / 1024)
+          : 0;
+        lines.push(`[${role}]: [Attachment: ${mime}, ~${sizeKB}KB]`);
+      } else if ('fileData' in part && part.fileData) {
+        const uri = part.fileData.fileUri || 'unknown';
+        const mime = part.fileData.mimeType || '';
+        lines.push(`[${role}]: [File: ${uri}${mime ? ` (${mime})` : ''}]`);
+      }
+      // Skip thinking parts — not relevant for context
     }
   }
 
   lines.push('</auditaria_conversation_history>');
   return lines.join('\n');
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Convert all non-text parts in history to text descriptions.
+// Used when switching providers to avoid incompatible functionCall/functionResponse/attachment
+// parts that the new provider wouldn't understand.
+export function sanitizeHistoryForProviderSwitch(history: Content[]): Content[] {
+  return history.map(content => {
+    if (!content.parts || content.parts.length === 0) return content;
+
+    const newParts: Part[] = [];
+    for (const part of content.parts) {
+      if (!part || typeof part !== 'object') continue;
+
+      // Keep text parts as-is
+      if ('text' in part && part.text) {
+        newParts.push(part);
+        continue;
+      }
+
+      // Convert functionCall to text description
+      if ('functionCall' in part && part.functionCall) {
+        const args = part.functionCall.args
+          ? JSON.stringify(part.functionCall.args)
+          : '{}';
+        const truncatedArgs = args.length > 300 ? args.slice(0, 300) + '...' : args;
+        newParts.push({ text: `[Tool Call: ${part.functionCall.name}(${truncatedArgs})]` });
+        continue;
+      }
+
+      // Convert functionResponse to text description
+      if ('functionResponse' in part && part.functionResponse) {
+        const name = part.functionResponse.name || 'unknown';
+        const output = part.functionResponse.response?.output || '';
+        const outputText = typeof output === 'string' ? output : JSON.stringify(output);
+        // Keep forgotten placeholders in full, truncate large outputs
+        const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
+        const truncatedOutput = isForgotten
+          ? outputText
+          : (outputText.length > 2000 ? outputText.slice(0, 2000) + '\n... (truncated)' : outputText);
+        newParts.push({ text: `[Tool Result (${name})]: ${truncatedOutput}` });
+        continue;
+      }
+
+      // Convert inlineData (base64 attachments) to text description
+      if ('inlineData' in part && part.inlineData) {
+        const mime = part.inlineData.mimeType || 'unknown';
+        const sizeKB = part.inlineData.data
+          ? Math.round((part.inlineData.data.length * 3) / 4 / 1024)
+          : 0;
+        newParts.push({ text: `[Attachment: ${mime}, ~${sizeKB}KB]` });
+        continue;
+      }
+
+      // Convert fileData to text description
+      if ('fileData' in part && part.fileData) {
+        const uri = part.fileData.fileUri || 'unknown';
+        const mime = part.fileData.mimeType || '';
+        newParts.push({ text: `[File: ${uri}${mime ? ` (${mime})` : ''}]` });
+        continue;
+      }
+
+      // Skip thinking/thoughtSignature parts — not useful as history text
+    }
+
+    // Only return content if it has parts
+    if (newParts.length === 0) return null;
+    return { ...content, parts: newParts };
+  }).filter((c): c is Content => c !== null);
 }

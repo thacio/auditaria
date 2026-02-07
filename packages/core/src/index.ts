@@ -211,7 +211,7 @@ export type {
   ProviderEvent,
   ExternalMCPServerConfig,
 } from './providers/types.js';
-export { ProviderManager } from './providers/providerManager.js';
+export { ProviderManager, sanitizeHistoryForProviderSwitch } from './providers/providerManager.js';
 export {
   getAuditContext,
   getAuditPreamble,

@@ -2,7 +2,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Content, Part } from '@google/genai';
-import { buildConversationSummary, ProviderManager } from './providerManager.js';
+import { buildConversationSummary, sanitizeHistoryForProviderSwitch, ProviderManager } from './providerManager.js';
 import type { ProviderDriver, ProviderEvent } from './types.js';
 import { ProviderEventType } from './types.js';
 import { GeminiEventType } from '../core/turn.js';
@@ -354,5 +354,175 @@ describe('ProviderManager session reset on context modification', () => {
     expect(sessionResetCalled).toBe(false);
     // Context should be unchanged (passed through as-is)
     expect(receivedContext).toBe('system context');
+  });
+});
+
+// ─── sanitizeHistoryForProviderSwitch ─────────────────────────────────────────
+
+describe('sanitizeHistoryForProviderSwitch', () => {
+  it('should keep text parts unchanged', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{ text: 'Hello' }] },
+      { role: 'model', parts: [{ text: 'Hi there' }] },
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result).toHaveLength(2);
+    expect(result[0]!.parts![0]).toEqual({ text: 'Hello' });
+    expect(result[1]!.parts![0]).toEqual({ text: 'Hi there' });
+  });
+
+  it('should convert functionCall to text description', () => {
+    const history: Content[] = [
+      { role: 'model', parts: [
+        { text: 'Let me check.' },
+        { functionCall: { name: 'Read', args: { file_path: '/tmp/test.txt' } } },
+      ]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.parts).toHaveLength(2);
+    expect((result[0]!.parts![0] as { text: string }).text).toBe('Let me check.');
+    expect((result[0]!.parts![1] as { text: string }).text).toContain('[Tool Call: Read(');
+    expect((result[0]!.parts![1] as { text: string }).text).toContain('file_path');
+  });
+
+  it('should convert functionResponse to text description', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        functionResponse: {
+          id: 'tool_1',
+          name: 'Bash',
+          response: { output: 'command output here' },
+        },
+      }]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result).toHaveLength(1);
+    const text = (result[0]!.parts![0] as { text: string }).text;
+    expect(text).toContain('[Tool Result (Bash)]');
+    expect(text).toContain('command output here');
+  });
+
+  it('should convert inlineData attachment to text description', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        inlineData: {
+          mimeType: 'image/png',
+          data: 'iVBORw0KGgo=', // small base64
+        },
+      }]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result).toHaveLength(1);
+    const text = (result[0]!.parts![0] as { text: string }).text;
+    expect(text).toContain('[Attachment: image/png');
+  });
+
+  it('should convert fileData to text description', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        fileData: {
+          mimeType: 'application/pdf',
+          fileUri: 'gs://bucket/report.pdf',
+        },
+      }]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result).toHaveLength(1);
+    const text = (result[0]!.parts![0] as { text: string }).text;
+    expect(text).toContain('[File: gs://bucket/report.pdf');
+    expect(text).toContain('application/pdf');
+  });
+
+  it('should preserve forgotten placeholders in full', () => {
+    const placeholder = '[CONTENT FORGOTTEN - YOU HAVE AMNESIA ABOUT THIS]\nID: tool_1\nLarge content was here';
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        functionResponse: {
+          id: 'tool_1',
+          name: 'browser_agent',
+          response: { output: placeholder },
+        },
+      }]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    const text = (result[0]!.parts![0] as { text: string }).text;
+    expect(text).toContain('[CONTENT FORGOTTEN');
+    expect(text).toContain('ID: tool_1');
+  });
+
+  it('should truncate large functionResponse outputs', () => {
+    const largeOutput = 'x'.repeat(3000);
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        functionResponse: {
+          id: 'tool_1',
+          name: 'knowledge_search',
+          response: { output: largeOutput },
+        },
+      }]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    const text = (result[0]!.parts![0] as { text: string }).text;
+    expect(text).toContain('... (truncated)');
+    expect(text.length).toBeLessThan(largeOutput.length);
+  });
+
+  it('should filter out empty content entries', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{ text: 'Hello' }] },
+      { role: 'model', parts: [] }, // empty
+      { role: 'model', parts: [{ text: 'Response' }] },
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    // Empty content should be kept since parts is empty → original content returned
+    expect(result.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('should handle mixed part types in a single message', () => {
+    const history: Content[] = [
+      { role: 'model', parts: [
+        { text: 'Here is what I found:' },
+        { functionCall: { name: 'Read', args: { file_path: '/test' } } },
+      ]},
+    ];
+    const result = sanitizeHistoryForProviderSwitch(history);
+    expect(result[0]!.parts).toHaveLength(2);
+    // First part: text preserved
+    expect((result[0]!.parts![0] as { text: string }).text).toBe('Here is what I found:');
+    // Second part: converted to text
+    expect((result[0]!.parts![1] as { text: string }).text).toContain('[Tool Call: Read(');
+  });
+});
+
+// ─── buildConversationSummary with attachments ────────────────────────────────
+
+describe('buildConversationSummary attachment handling', () => {
+  it('should describe inlineData attachments', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: 'A'.repeat(1000), // ~750 bytes
+        },
+      }]},
+    ];
+    const summary = buildConversationSummary(history);
+    expect(summary).toContain('[User]: [Attachment: image/jpeg');
+    expect(summary).toContain('KB]');
+  });
+
+  it('should describe fileData attachments', () => {
+    const history: Content[] = [
+      { role: 'user', parts: [{
+        fileData: {
+          mimeType: 'application/pdf',
+          fileUri: 'gs://my-bucket/document.pdf',
+        },
+      }]},
+    ];
+    const summary = buildConversationSummary(history);
+    expect(summary).toContain('[User]: [File: gs://my-bucket/document.pdf');
+    expect(summary).toContain('application/pdf');
   });
 });

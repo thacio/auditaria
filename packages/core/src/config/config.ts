@@ -14,7 +14,7 @@ import type {
   ContentGeneratorConfig,
 } from '../core/contentGenerator.js';
 import type { ProviderConfig } from '../providers/types.js'; // AUDITARIA_CLAUDE_PROVIDER
-import { ProviderManager } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { ProviderManager, sanitizeHistoryForProviderSwitch } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   AuthType,
@@ -1617,9 +1617,27 @@ export class Config {
         this.providerManager.setToolRegistry(this.toolRegistry);
       }
     }
+    // AUDITARIA_CLAUDE_PROVIDER: If switching to Claude and there's existing Gemini
+    // conversation history, signal the provider to inject it as context on next call.
+    if (config.type !== 'gemini') {
+      const history = this.geminiClient.getHistory();
+      if (history.length > 0) {
+        this.providerManager.onHistoryModified();
+      }
+    }
   }
 
   clearProviderConfig(): void {
+    // AUDITARIA_CLAUDE_PROVIDER: When switching back to Gemini, sanitize history
+    // to convert Claude-specific functionCall/functionResponse/attachment parts
+    // into text descriptions that won't confuse the Gemini API.
+    if (this.providerManager?.isExternalProviderActive()) {
+      const history = this.geminiClient.getHistory();
+      if (history.length > 0) {
+        const sanitized = sanitizeHistoryForProviderSwitch(history);
+        this.geminiClient.setHistory(sanitized);
+      }
+    }
     this.providerManager?.dispose();
     this.providerManager = undefined;
   }
