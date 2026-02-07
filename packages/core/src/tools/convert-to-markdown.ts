@@ -60,7 +60,13 @@ const SUPPORTED_EXTENSIONS = new Set([
 /**
  * Extensions that should use OfficeParserAdapter instead of MarkitdownParser
  */
-const OFFICE_PARSER_EXTENSIONS = new Set(['.pptx', '.odt', '.odp', '.ods']);
+const OFFICE_PARSER_EXTENSIONS = new Set([
+  '.pptx',
+  '.xlsx',
+  '.odt',
+  '.odp',
+  '.ods',
+]);
 
 /**
  * Parameters for the ConvertToMarkdown tool
