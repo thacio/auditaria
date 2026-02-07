@@ -14,7 +14,10 @@ import type {
   ContentGeneratorConfig,
 } from '../core/contentGenerator.js';
 import type { ProviderConfig } from '../providers/types.js'; // AUDITARIA_CLAUDE_PROVIDER
-import { ProviderManager, sanitizeHistoryForProviderSwitch } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
+import {
+  ProviderManager,
+  sanitizeHistoryForProviderSwitch,
+} from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   AuthType,
@@ -841,7 +844,11 @@ export class Config {
     this.geminiClient = new GeminiClient(this);
     // AUDITARIA_CLAUDE_PROVIDER_START
     if (params.providerConfig) {
-      this.providerManager = new ProviderManager(params.providerConfig, this.cwd, this.mcpServers);
+      this.providerManager = new ProviderManager(
+        params.providerConfig,
+        this.cwd,
+        this.mcpServers,
+      );
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
     this.modelRouterService = new ModelRouterService(this);
@@ -1611,7 +1618,11 @@ export class Config {
     if (this.providerManager) {
       this.providerManager.setConfig(config);
     } else {
-      this.providerManager = new ProviderManager(config, this.cwd, this.mcpServers);
+      this.providerManager = new ProviderManager(
+        config,
+        this.cwd,
+        this.mcpServers,
+      );
       // AUDITARIA_CLAUDE_PROVIDER: Pass registry if already initialized
       if (this.toolRegistry) {
         this.providerManager.setToolRegistry(this.toolRegistry);
@@ -1629,12 +1640,15 @@ export class Config {
 
   clearProviderConfig(): void {
     // AUDITARIA_CLAUDE_PROVIDER: When switching back to Gemini, sanitize history
-    // to convert Claude-specific functionCall/functionResponse/attachment parts
-    // into text descriptions that won't confuse the Gemini API.
+    // to convert Claude-specific functionCall/functionResponse parts into text
+    // descriptions. Preserves inlineData, fileData, and known Auditaria tool calls.
     if (this.providerManager?.isExternalProviderActive()) {
       const history = this.geminiClient.getHistory();
       if (history.length > 0) {
-        const sanitized = sanitizeHistoryForProviderSwitch(history);
+        const knownTools = this.toolRegistry
+          ? new Set(this.toolRegistry.getAllTools().map((t) => t.name))
+          : undefined;
+        const sanitized = sanitizeHistoryForProviderSwitch(history, knownTools);
         this.geminiClient.setHistory(sanitized);
       }
     }
@@ -1655,9 +1669,9 @@ export class Config {
     if (skills) {
       sections.push(
         `## Auditaria Skills (External)\n\n` +
-        `The following skills are from the Auditaria host application, NOT from your built-in skill system. ` +
-        `Do NOT use your Skill tool to activate them. Instead, use your Read tool to read the skill files at the paths below when relevant to the task.\n\n` +
-        skills,
+          `The following skills are from the Auditaria host application, NOT from your built-in skill system. ` +
+          `Do NOT use your Skill tool to activate them. Instead, use your Read tool to read the skill files at the paths below when relevant to the task.\n\n` +
+          skills,
       );
     }
     return sections.filter(Boolean).join('\n\n---\n\n');

@@ -1,4 +1,8 @@
-// AUDITARIA_CLAUDE_PROVIDER: Factory/orchestrator for external LLM providers
+/**
+ * @license
+ * Copyright 2026 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
@@ -7,8 +11,11 @@ import {
   Turn,
 } from '../core/turn.js';
 import type { GeminiChat } from '../core/geminiChat.js';
-import { partToString } from '../utils/partUtils.js';
-import type { ProviderConfig, ProviderDriver, ExternalMCPServerConfig } from './types.js';
+import type {
+  ProviderConfig,
+  ProviderDriver,
+  ExternalMCPServerConfig,
+} from './types.js';
 import { ProviderEventType } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
@@ -16,7 +23,7 @@ import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 
 const DEBUG = true; // TODO: remove after integration is stable
 function dbg(...args: unknown[]) {
-  if (DEBUG) console.log('[PROVIDER_MGR]', ...args);
+  if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }
 
 export class ProviderManager {
@@ -34,7 +41,12 @@ export class ProviderManager {
     mcpServers?: Record<string, ExternalMCPServerConfig>, // AUDITARIA_CLAUDE_PROVIDER
   ) {
     this.mcpServers = mcpServers;
-    dbg('constructor', { type: config.type, model: config.model, cwd, mcpServerCount: mcpServers ? Object.keys(mcpServers).length : 0 });
+    dbg('constructor', {
+      type: config.type,
+      model: config.model,
+      cwd,
+      mcpServerCount: mcpServers ? Object.keys(mcpServers).length : 0,
+    });
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Set tool registry after async initialization
@@ -52,7 +64,9 @@ export class ProviderManager {
   // a fresh session with the modified/existing conversation history.
   onHistoryModified(): void {
     this.contextModified = true;
-    dbg('onHistoryModified: contextModified flag set, will reset session on next call');
+    dbg(
+      'onHistoryModified: contextModified flag set, will reset session on next call',
+    );
   }
 
   async *handleSendMessage(
@@ -64,7 +78,7 @@ export class ProviderManager {
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     this.callCount++;
     const callNum = this.callCount;
-    const prompt = partToString(request, { verbose: true });
+    const prompt = buildExternalProviderPrompt(request);
     const sessionId = this.driver?.getSessionId?.();
     dbg(`=== CALL #${callNum} ===`, {
       hasDriver: !!this.driver,
@@ -85,13 +99,17 @@ export class ProviderManager {
       }
       this.driver?.resetSession?.();
       this.contextModified = false;
-      dbg(`call #${callNum}: context modified — session reset, injecting conversation summary`);
+      dbg(
+        `call #${callNum}: context modified — session reset, injecting conversation summary`,
+      );
     }
 
     let driver: ProviderDriver;
     try {
       driver = await this.getOrCreateDriver();
-      dbg(`call #${callNum}: driver ready, sessionId=${driver.getSessionId?.() || '(none)'}`);
+      dbg(
+        `call #${callNum}: driver ready, sessionId=${driver.getSessionId?.() || '(none)'}`,
+      );
     } catch (e) {
       dbg('driver creation FAILED', e);
       throw e;
@@ -106,7 +124,11 @@ export class ProviderManager {
 
     let eventCount = 0;
     try {
-      for await (const event of driver.sendMessage(prompt, signal, effectiveContext)) {
+      for await (const event of driver.sendMessage(
+        prompt,
+        signal,
+        effectiveContext,
+      )) {
         eventCount++;
         if (signal.aborted) {
           // Flush any accumulated model parts before returning
@@ -125,7 +147,9 @@ export class ProviderManager {
             modelParts.push({ text: accumulatedText });
             accumulatedText = '';
           }
-          modelParts.push({ functionCall: { name: event.toolName, args: event.input } });
+          modelParts.push({
+            functionCall: { name: event.toolName, args: event.input },
+          });
 
           yield {
             type: GeminiEventType.ToolCallRequest,
@@ -149,13 +173,15 @@ export class ProviderManager {
           const toolName = toolIdToName.get(event.toolId) || 'unknown';
           chat.addHistory({
             role: 'user',
-            parts: [{
-              functionResponse: {
-                id: event.toolId,
-                name: toolName,
-                response: { output: event.output },
+            parts: [
+              {
+                functionResponse: {
+                  id: event.toolId,
+                  name: toolName,
+                  response: { output: event.output },
+                },
               },
-            }],
+            ],
           });
 
           yield {
@@ -185,7 +211,9 @@ export class ProviderManager {
 
       // Flush any remaining model parts at end of stream
       flushModelParts(chat, modelParts, accumulatedText);
-      dbg(`handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}`);
+      dbg(
+        `handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}`,
+      );
     } catch (e) {
       // Flush on error too, so partial history is preserved
       flushModelParts(chat, modelParts, accumulatedText);
@@ -197,7 +225,10 @@ export class ProviderManager {
   }
 
   setConfig(config: ProviderConfig): void {
-    if (this.driver && (config.type !== this.config.type || config.model !== this.config.model)) {
+    if (
+      this.driver &&
+      (config.type !== this.config.type || config.model !== this.config.model)
+    ) {
       this.driver.dispose();
       this.driver = null;
     }
@@ -205,7 +236,9 @@ export class ProviderManager {
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Allow updating MCP servers at runtime
-  setMcpServers(mcpServers: Record<string, ExternalMCPServerConfig> | undefined): void {
+  setMcpServers(
+    mcpServers: Record<string, ExternalMCPServerConfig> | undefined,
+  ): void {
     this.mcpServers = mcpServers;
     // Force driver recreation on next call so it picks up new MCP config
     if (this.driver) {
@@ -247,23 +280,17 @@ export class ProviderManager {
 
     switch (this.config.type) {
       case 'claude-sdk': {
-        const { ClaudeSDKDriver } = await import(
-          './claude/claudeSDKDriver.js'
-        );
+        const { ClaudeSDKDriver } = await import('./claude/claudeSDKDriver.js');
         this.driver = new ClaudeSDKDriver(driverConfig);
         break;
       }
       case 'claude-cli': {
-        const { ClaudeCLIDriver } = await import(
-          './claude/claudeCLIDriver.js'
-        );
+        const { ClaudeCLIDriver } = await import('./claude/claudeCLIDriver.js');
         this.driver = new ClaudeCLIDriver(driverConfig);
         break;
       }
       default:
-        throw new Error(
-          `Unknown provider type: ${this.config.type}`,
-        );
+        throw new Error(`Unknown provider type: ${this.config.type}`);
     }
 
     return this.driver;
@@ -280,8 +307,8 @@ export class ProviderManager {
     // Resolve bridge script path relative to the running bundle
     if (!this.bridgeScriptPath) {
       try {
-        const { fileURLToPath } = await import('url');
-        const { dirname, join } = await import('path');
+        const { fileURLToPath } = await import('node:url');
+        const { dirname, join } = await import('node:path');
         const bundleDir = dirname(fileURLToPath(import.meta.url));
         this.bridgeScriptPath = join(bundleDir, 'mcp-bridge.js');
       } catch {
@@ -294,7 +321,10 @@ export class ProviderManager {
     try {
       const port = await server.start();
       this.toolExecutorServer = server;
-      dbg('tool executor server started', { port, tools: server.getBridgeableTools().map(t => t.name) });
+      dbg('tool executor server started', {
+        port,
+        tools: server.getBridgeableTools().map((t) => t.name),
+      });
     } catch (e) {
       dbg('failed to start tool executor server', e);
       // Non-fatal: Claude will just not have Auditaria's custom tools
@@ -304,7 +334,11 @@ export class ProviderManager {
 
 // AUDITARIA_CLAUDE_PROVIDER: Flush accumulated model parts into GeminiChat history.
 // Called when a ToolResult arrives (model parts before the result) and at end of stream.
-function flushModelParts(chat: GeminiChat, modelParts: Part[], accumulatedText: string): void {
+function flushModelParts(
+  chat: GeminiChat,
+  modelParts: Part[],
+  accumulatedText: string,
+): void {
   if (accumulatedText) {
     modelParts.push({ text: accumulatedText });
   }
@@ -314,13 +348,60 @@ function flushModelParts(chat: GeminiChat, modelParts: Part[], accumulatedText: 
   }
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Build prompt string from PartListUnion for external providers.
+// Unlike partToString(), gives honest descriptions for binary data that the provider can't see.
+function buildExternalProviderPrompt(request: PartListUnion): string {
+  if (!request) return '';
+  if (typeof request === 'string') return request;
+
+  const parts: PartListUnion[] = Array.isArray(request) ? request : [request];
+  const segments: string[] = [];
+
+  for (const part of parts) {
+    if (!part || typeof part === 'string') {
+      segments.push(part || '');
+      continue;
+    }
+    const p = part as Part;
+    if (p.text) {
+      segments.push(p.text);
+    } else if (p.inlineData) {
+      const mime = p.inlineData.mimeType || 'unknown';
+      const sizeKB = p.inlineData.data
+        ? Math.round((p.inlineData.data.length * 3) / 4 / 1024)
+        : 0;
+      segments.push(
+        `[Attached file: ${mime}, ~${sizeKB}KB — this binary content was provided inline to the host application and is not available in this conversation. ` +
+          `You cannot see the literal content of this attachment. Do not pretend to know what it contains.]`,
+      );
+    } else if (p.fileData) {
+      const uri = p.fileData.fileUri || 'unknown';
+      const mime = p.fileData.mimeType || '';
+      segments.push(
+        `[File reference: ${uri}${mime ? ` (${mime})` : ''} — this file reference was provided to the host application and is not available in this conversation. ` +
+          `You cannot see the literal content of this reference. Do not pretend to know what it contains.]`,
+      );
+    } else if (p.functionCall) {
+      segments.push(`[Tool Call: ${p.functionCall.name}]`);
+    } else if (p.functionResponse) {
+      segments.push(`[Tool Response: ${p.functionResponse.name}]`);
+    }
+  }
+
+  return segments.join('');
+}
+
 // AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
 // for injecting into a fresh Claude session after context_forget.
 export function buildConversationSummary(history: Content[]): string {
   const lines: string[] = [];
   lines.push('<auditaria_conversation_history>');
-  lines.push('The following is the conversation history from the current session.');
-  lines.push('Some content may have been removed by the user (marked as FORGOTTEN).');
+  lines.push(
+    'The following is the conversation history from the current session.',
+  );
+  lines.push(
+    'Some content may have been removed by the user (marked as FORGOTTEN).',
+  );
   lines.push('Continue the conversation naturally.\n');
 
   for (const content of history) {
@@ -337,30 +418,45 @@ export function buildConversationSummary(history: Content[]): string {
           ? JSON.stringify(part.functionCall.args)
           : '{}';
         // Truncate large args for readability
-        const truncatedArgs = args.length > 500 ? args.slice(0, 500) + '...' : args;
+        const truncatedArgs =
+          args.length > 500 ? args.slice(0, 500) + '...' : args;
         lines.push(`[Tool Call]: ${part.functionCall.name}(${truncatedArgs})`);
       } else if ('functionResponse' in part && part.functionResponse) {
         const name = part.functionResponse.name || 'unknown';
         const output = part.functionResponse.response?.output || '';
-        const outputText = typeof output === 'string' ? output : JSON.stringify(output);
-        // Keep forgotten placeholders in full, truncate large outputs
-        const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
-        const truncatedOutput = isForgotten
-          ? outputText
-          : (outputText.length > 2000 ? outputText.slice(0, 2000) + '\n... (truncated)' : outputText);
-        lines.push(`[Tool Result (${name})]: ${truncatedOutput}`);
+        const outputText =
+          typeof output === 'string' ? output : JSON.stringify(output);
+        // Replace Gemini's generic binary placeholder with an honest description
+        if (outputText.startsWith('Binary content provided')) {
+          lines.push(
+            `[Tool Result (${name})]: The tool returned binary content (e.g. PDF, image) that was provided inline to a previous model. You cannot see the literal content of this tool result. Do not pretend to know what it contains.`,
+          );
+        } else {
+          // Keep forgotten placeholders in full, truncate large outputs
+          const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
+          const truncatedOutput = isForgotten
+            ? outputText
+            : outputText.length > 2000
+              ? outputText.slice(0, 2000) + '\n... (truncated)'
+              : outputText;
+          lines.push(`[Tool Result (${name})]: ${truncatedOutput}`);
+        }
       }
-      // Describe attachments as text (Claude can't see binary data)
+      // Describe attachments honestly — Claude cannot see this binary data
       if ('inlineData' in part && part.inlineData) {
         const mime = part.inlineData.mimeType || 'unknown';
         const sizeKB = part.inlineData.data
           ? Math.round((part.inlineData.data.length * 3) / 4 / 1024)
           : 0;
-        lines.push(`[${role}]: [Attachment: ${mime}, ~${sizeKB}KB]`);
+        lines.push(
+          `[${role}]: [Binary attachment: ${mime}, ~${sizeKB}KB — this was provided inline to a previous model. You cannot see the literal content of this attachment. Do not pretend to know what it contains.]`,
+        );
       } else if ('fileData' in part && part.fileData) {
         const uri = part.fileData.fileUri || 'unknown';
         const mime = part.fileData.mimeType || '';
-        lines.push(`[${role}]: [File: ${uri}${mime ? ` (${mime})` : ''}]`);
+        lines.push(
+          `[${role}]: [File reference: ${uri}${mime ? ` (${mime})` : ''} — this was provided to a previous model. You cannot see the literal content of this reference. Do not pretend to know what it contains.]`,
+        );
       }
       // Skip thinking parts — not relevant for context
     }
@@ -370,70 +466,85 @@ export function buildConversationSummary(history: Content[]): string {
   return lines.join('\n');
 }
 
-// AUDITARIA_CLAUDE_PROVIDER: Convert all non-text parts in history to text descriptions.
-// Used when switching providers to avoid incompatible functionCall/functionResponse/attachment
-// parts that the new provider wouldn't understand.
-export function sanitizeHistoryForProviderSwitch(history: Content[]): Content[] {
-  return history.map(content => {
-    if (!content.parts || content.parts.length === 0) return content;
+// AUDITARIA_CLAUDE_PROVIDER: Convert Claude-specific tool call parts in history to text descriptions.
+// Preserves inlineData, fileData, and tool calls for known Auditaria/Gemini tools.
+// Only converts functionCall/functionResponse for tools NOT in knownToolNames (Claude built-ins).
+export function sanitizeHistoryForProviderSwitch(
+  history: Content[],
+  knownToolNames?: Set<string>,
+): Content[] {
+  return history
+    .map((content) => {
+      if (!content.parts || content.parts.length === 0) return content;
 
-    const newParts: Part[] = [];
-    for (const part of content.parts) {
-      if (!part || typeof part !== 'object') continue;
+      const newParts: Part[] = [];
+      for (const part of content.parts) {
+        if (!part || typeof part !== 'object') continue;
 
-      // Keep text parts as-is
-      if ('text' in part && part.text) {
-        newParts.push(part);
-        continue;
+        // Keep text parts as-is
+        if ('text' in part && part.text) {
+          newParts.push(part);
+          continue;
+        }
+
+        // Keep inlineData (images, PDFs, etc.) — Gemini created them, Gemini supports them
+        if ('inlineData' in part && part.inlineData) {
+          newParts.push(part);
+          continue;
+        }
+
+        // Keep fileData — same reason
+        if ('fileData' in part && part.fileData) {
+          newParts.push(part);
+          continue;
+        }
+
+        // functionCall: keep if known Auditaria tool, convert if Claude built-in
+        if ('functionCall' in part && part.functionCall) {
+          const toolName = part.functionCall.name || '';
+          if (knownToolNames?.has(toolName)) {
+            newParts.push(part);
+          } else {
+            const args = part.functionCall.args
+              ? JSON.stringify(part.functionCall.args)
+              : '{}';
+            const truncatedArgs =
+              args.length > 300 ? args.slice(0, 300) + '...' : args;
+            newParts.push({
+              text: `[Tool Call: ${toolName}(${truncatedArgs})]`,
+            });
+          }
+          continue;
+        }
+
+        // functionResponse: keep if known Auditaria tool, convert if Claude built-in
+        if ('functionResponse' in part && part.functionResponse) {
+          const toolName = part.functionResponse.name || 'unknown';
+          if (knownToolNames?.has(toolName)) {
+            newParts.push(part);
+          } else {
+            const output = part.functionResponse.response?.output || '';
+            const outputText =
+              typeof output === 'string' ? output : JSON.stringify(output);
+            const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
+            const truncatedOutput = isForgotten
+              ? outputText
+              : outputText.length > 2000
+                ? outputText.slice(0, 2000) + '\n... (truncated)'
+                : outputText;
+            newParts.push({
+              text: `[Tool Result (${toolName})]: ${truncatedOutput}`,
+            });
+          }
+          continue;
+        }
+
+        // Skip thinking/thoughtSignature parts — not useful as history text
       }
 
-      // Convert functionCall to text description
-      if ('functionCall' in part && part.functionCall) {
-        const args = part.functionCall.args
-          ? JSON.stringify(part.functionCall.args)
-          : '{}';
-        const truncatedArgs = args.length > 300 ? args.slice(0, 300) + '...' : args;
-        newParts.push({ text: `[Tool Call: ${part.functionCall.name}(${truncatedArgs})]` });
-        continue;
-      }
-
-      // Convert functionResponse to text description
-      if ('functionResponse' in part && part.functionResponse) {
-        const name = part.functionResponse.name || 'unknown';
-        const output = part.functionResponse.response?.output || '';
-        const outputText = typeof output === 'string' ? output : JSON.stringify(output);
-        // Keep forgotten placeholders in full, truncate large outputs
-        const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
-        const truncatedOutput = isForgotten
-          ? outputText
-          : (outputText.length > 2000 ? outputText.slice(0, 2000) + '\n... (truncated)' : outputText);
-        newParts.push({ text: `[Tool Result (${name})]: ${truncatedOutput}` });
-        continue;
-      }
-
-      // Convert inlineData (base64 attachments) to text description
-      if ('inlineData' in part && part.inlineData) {
-        const mime = part.inlineData.mimeType || 'unknown';
-        const sizeKB = part.inlineData.data
-          ? Math.round((part.inlineData.data.length * 3) / 4 / 1024)
-          : 0;
-        newParts.push({ text: `[Attachment: ${mime}, ~${sizeKB}KB]` });
-        continue;
-      }
-
-      // Convert fileData to text description
-      if ('fileData' in part && part.fileData) {
-        const uri = part.fileData.fileUri || 'unknown';
-        const mime = part.fileData.mimeType || '';
-        newParts.push({ text: `[File: ${uri}${mime ? ` (${mime})` : ''}]` });
-        continue;
-      }
-
-      // Skip thinking/thoughtSignature parts — not useful as history text
-    }
-
-    // Only return content if it has parts
-    if (newParts.length === 0) return null;
-    return { ...content, parts: newParts };
-  }).filter((c): c is Content => c !== null);
+      // Only return content if it has parts
+      if (newParts.length === 0) return null;
+      return { ...content, parts: newParts };
+    })
+    .filter((c): c is Content => c !== null);
 }
