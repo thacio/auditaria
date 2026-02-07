@@ -203,3 +203,8 @@ export * from './agents/types.js';
 // Export stdio utils
 export * from './utils/stdio.js';
 export * from './utils/terminal.js';
+
+// AUDITARIA_CLAUDE_PROVIDER_START
+export type { ProviderConfig, ProviderDriver, ProviderEvent } from './providers/types.js';
+export { ProviderManager } from './providers/providerManager.js';
+// AUDITARIA_CLAUDE_PROVIDER_END

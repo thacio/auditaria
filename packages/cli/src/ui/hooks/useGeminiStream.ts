@@ -1285,9 +1285,49 @@ export const useGeminiStream = (
             handleChatCompressionEvent(event.value, userMessageTimestamp);
             break;
           case ServerGeminiEventType.ToolCallConfirmation:
-          case ServerGeminiEventType.ToolCallResponse:
             // do nothing
             break;
+          case ServerGeminiEventType.ToolCallResponse: {
+            // AUDITARIA_CLAUDE_PROVIDER_START - Display pre-completed tool calls inline during streaming
+            const resp = event.value;
+            const reqIdx = toolCallRequests.findIndex(
+              (r) => r.callId === resp.callId,
+            );
+            if (reqIdx >= 0) {
+              const req = toolCallRequests[reqIdx]!;
+              toolCallRequests.splice(reqIdx, 1);
+              // Flush pending text so tool shows in correct order
+              if (pendingHistoryItemRef.current) {
+                addItem(
+                  pendingHistoryItemRef.current,
+                  userMessageTimestamp,
+                );
+                setPendingHistoryItem(null);
+              }
+              const toolGroup: HistoryItemToolGroup = {
+                type: 'tool_group',
+                tools: [
+                  {
+                    callId: req.callId,
+                    name: req.name,
+                    description: Object.entries(req.args)
+                      .map(([k, v]) =>
+                        `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
+                      )
+                      .join('\n'),
+                    status: resp.error
+                      ? ToolCallStatus.Error
+                      : ToolCallStatus.Success,
+                    resultDisplay: resp.resultDisplay,
+                    confirmationDetails: undefined,
+                  } as IndividualToolCallDisplay,
+                ],
+              };
+              addItem(toolGroup, userMessageTimestamp);
+            }
+            // AUDITARIA_CLAUDE_PROVIDER_END
+            break;
+          }
           case ServerGeminiEventType.MaxSessionTurns:
             handleMaxSessionTurnsEvent();
             break;
@@ -1323,6 +1363,7 @@ export const useGeminiStream = (
         }
       }
       if (toolCallRequests.length > 0) {
+        // Only unmatched requests remain (matched ones were spliced during streaming)
         if (pendingHistoryItemRef.current) {
           addItem(pendingHistoryItemRef.current, userMessageTimestamp);
           setPendingHistoryItem(null);

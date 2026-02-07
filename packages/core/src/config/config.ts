@@ -13,6 +13,8 @@ import type {
   ContentGenerator,
   ContentGeneratorConfig,
 } from '../core/contentGenerator.js';
+import type { ProviderConfig } from '../providers/types.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { ProviderManager } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   AuthType,
   createContentGenerator,
@@ -475,6 +477,7 @@ export interface ConfigParameters {
     adminSkillsEnabled?: boolean;
     agents?: AgentSettings;
   }>;
+  providerConfig?: ProviderConfig; // AUDITARIA_CLAUDE_PROVIDER
 }
 
 export class Config {
@@ -521,6 +524,7 @@ export class Config {
   private readonly telemetrySettings: TelemetrySettings;
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
+  private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
   private baseLlmClient!: BaseLlmClient;
   private modelRouterService: ModelRouterService;
   private readonly modelAvailabilityService: ModelAvailabilityService;
@@ -834,6 +838,11 @@ export class Config {
       }
     }
     this.geminiClient = new GeminiClient(this);
+    // AUDITARIA_CLAUDE_PROVIDER_START
+    if (params.providerConfig) {
+      this.providerManager = new ProviderManager(params.providerConfig, this.cwd);
+    }
+    // AUDITARIA_CLAUDE_PROVIDER_END
     this.modelRouterService = new ModelRouterService(this);
 
     // HACK: The settings loading logic doesn't currently merge the default
@@ -1590,6 +1599,29 @@ export class Config {
   getGeminiClient(): GeminiClient {
     return this.geminiClient;
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START
+  getProviderManager(): ProviderManager | undefined {
+    return this.providerManager;
+  }
+
+  setProviderConfig(config: ProviderConfig): void {
+    if (this.providerManager) {
+      this.providerManager.setConfig(config);
+    } else {
+      this.providerManager = new ProviderManager(config, this.cwd);
+    }
+  }
+
+  clearProviderConfig(): void {
+    this.providerManager?.dispose();
+    this.providerManager = undefined;
+  }
+
+  isExternalProviderActive(): boolean {
+    return this.providerManager?.isExternalProviderActive() ?? false;
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   /**
    * Updates the system instruction with the latest user memory.

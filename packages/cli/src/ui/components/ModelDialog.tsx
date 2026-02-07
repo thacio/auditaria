@@ -18,6 +18,7 @@ import {
   ModelSlashCommandEvent,
   logModelSlashCommand,
   getDisplayString,
+  type ProviderConfig, // AUDITARIA_CLAUDE_PROVIDER
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -31,7 +32,7 @@ interface ModelDialogProps {
 
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
-  const [view, setView] = useState<'main' | 'manual'>('main');
+  const [view, setView] = useState<'main' | 'manual' | 'claude'>('main'); // AUDITARIA_CLAUDE_PROVIDER: add 'claude' view
   const [persistMode, setPersistMode] = useState(false);
 
   // Determine the Preferred Model (read once when the dialog opens).
@@ -54,10 +55,15 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     return '';
   }, [preferredModel]);
 
+  // AUDITARIA_CLAUDE_PROVIDER_START
+  const CLAUDE_PREFIX = 'claude:';
+  const isClaudeActive = config?.isExternalProviderActive() ?? false;
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        if (view === 'manual') {
+        if (view === 'manual' || view === 'claude') { // AUDITARIA_CLAUDE_PROVIDER: handle 'claude' view
           setView('main');
         } else {
           onClose();
@@ -101,8 +107,17 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         key: PREVIEW_GEMINI_MODEL_AUTO,
       });
     }
+
+    // AUDITARIA_CLAUDE_PROVIDER: Single entry that opens the Claude submenu
+    list.push({
+      value: 'Claude',
+      title: isClaudeActive ? 'Claude Code (active)' : 'Claude Code',
+      description: 'Use Claude Code as the LLM backend',
+      key: 'Claude',
+    });
+
     return list;
-  }, [shouldShowPreviewModels, manualModelSelected]);
+  }, [shouldShowPreviewModels, manualModelSelected, isClaudeActive]); // AUDITARIA_CLAUDE_PROVIDER: add isClaudeActive dep
 
   const manualOptions = useMemo(() => {
     const list = [
@@ -140,10 +155,55 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     return list;
   }, [shouldShowPreviewModels]);
 
-  const options = view === 'main' ? mainOptions : manualOptions;
+  // AUDITARIA_CLAUDE_PROVIDER_START: Claude submenu options
+  const claudeOptions = useMemo(
+    () => [
+      {
+        value: `${CLAUDE_PREFIX}auto`,
+        title: 'Auto',
+        description: "Uses Claude Code's default model",
+        key: 'claude-auto',
+      },
+      {
+        value: `${CLAUDE_PREFIX}opus`,
+        title: 'Opus',
+        description: 'Most capable model',
+        key: 'claude-opus',
+      },
+      {
+        value: `${CLAUDE_PREFIX}sonnet`,
+        title: 'Sonnet',
+        description: 'Best balance of speed and capability',
+        key: 'claude-sonnet',
+      },
+      {
+        value: `${CLAUDE_PREFIX}haiku`,
+        title: 'Haiku',
+        description: 'Fastest and most compact',
+        key: 'claude-haiku',
+      },
+    ],
+    [],
+  );
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: add 'claude' view to options selection
+  const options =
+    view === 'claude'
+      ? claudeOptions
+      : view === 'manual'
+        ? manualOptions
+        : mainOptions;
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // Calculate the initial index based on the preferred model.
   const initialIndex = useMemo(() => {
+    // AUDITARIA_CLAUDE_PROVIDER_START: If Claude is active, highlight its entry
+    if (isClaudeActive && view === 'main') {
+      const claudeIdx = options.findIndex((o) => o.value === 'Claude');
+      if (claudeIdx !== -1) return claudeIdx;
+    }
+    // AUDITARIA_CLAUDE_PROVIDER_END
     const idx = options.findIndex((option) => option.value === preferredModel);
     if (idx !== -1) {
       return idx;
@@ -153,7 +213,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       return manualIdx !== -1 ? manualIdx : 0;
     }
     return 0;
-  }, [preferredModel, options, view]);
+  }, [preferredModel, options, view, isClaudeActive]); // AUDITARIA_CLAUDE_PROVIDER: add isClaudeActive
 
   // Handle selection internally (Autonomous Dialog).
   const handleSelect = useCallback(
@@ -163,7 +223,32 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         return;
       }
 
+      // AUDITARIA_CLAUDE_PROVIDER_START
+      if (model === 'Claude') {
+        setView('claude');
+        return;
+      }
+
+      if (model.startsWith(CLAUDE_PREFIX)) {
+        if (config) {
+          const claudeModel = model.slice(CLAUDE_PREFIX.length);
+          const providerConfig: ProviderConfig = {
+            type: 'claude-cli',
+            model: claudeModel === 'auto' ? undefined : claudeModel,
+            cwd: config.getWorkingDir(),
+          };
+          config.setProviderConfig(providerConfig);
+          const event = new ModelSlashCommandEvent(`claude-code-${claudeModel}`);
+          logModelSlashCommand(config, event);
+        }
+        onClose();
+        return;
+      }
+      // AUDITARIA_CLAUDE_PROVIDER_END
+
       if (config) {
+        config.clearProviderConfig(); // AUDITARIA_CLAUDE_PROVIDER: clear any active Claude provider
+
         config.setModel(model, persistMode ? false : true);
         const event = new ModelSlashCommandEvent(model);
         logModelSlashCommand(config, event);
@@ -199,18 +284,30 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       padding={1}
       width="100%"
     >
-      <Text bold>Select Model</Text>
+      {/* AUDITARIA_CLAUDE_PROVIDER: conditional title for claude view */}
+      <Text bold>
+        {view === 'claude' ? 'Select Claude Code Model' : 'Select Model'}
+      </Text>
 
       <Box flexDirection="column">
-        {header && (
+        {header && view !== 'claude' && ( /* AUDITARIA_CLAUDE_PROVIDER: hide header in claude view */
           <Box marginTop={1}>
             <ThemedGradient>
               <Text>{header}</Text>
             </ThemedGradient>
           </Box>
         )}
-        {subheader && <Text>{subheader}</Text>}
+        {subheader && view !== 'claude' && <Text>{subheader}</Text>} {/* AUDITARIA_CLAUDE_PROVIDER: hide subheader in claude view */}
       </Box>
+      {/* AUDITARIA_CLAUDE_PROVIDER_START */}
+      {view === 'claude' && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.status.warning}>
+            Runs with bypassPermissions — tools execute without confirmation.
+          </Text>
+        </Box>
+      )}
+      {/* AUDITARIA_CLAUDE_PROVIDER_END */}
       <Box marginTop={1}>
         <DescriptiveRadioButtonSelect
           items={options}
@@ -230,14 +327,18 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         </Box>
         <Text color={theme.text.secondary}>(Press Tab to toggle)</Text>
       </Box>
+      {/* AUDITARIA_CLAUDE_PROVIDER_START: hide Gemini hint in claude view, dynamic Esc text */}
+      {view !== 'claude' && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.text.secondary}>
+            {'> To use a specific Gemini model on startup, use the --model flag.'}
+          </Text>
+        </Box>
+      )}
       <Box marginTop={1} flexDirection="column">
-        <Text color={theme.text.secondary}>
-          {'> To use a specific Gemini model on startup, use the --model flag.'}
-        </Text>
+        <Text color={theme.text.secondary}>(Press Esc to {view === 'main' ? 'close' : 'go back'})</Text>
       </Box>
-      <Box marginTop={1} flexDirection="column">
-        <Text color={theme.text.secondary}>(Press Esc to close)</Text>
-      </Box>
+      {/* AUDITARIA_CLAUDE_PROVIDER_END */}
     </Box>
   );
 }

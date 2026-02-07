@@ -80,6 +80,8 @@ const external = [
   '@thacio/auditaria-cli-search',
   // keytar is a native module that cannot be bundled
   'keytar',
+  // AUDITARIA_CLAUDE_PROVIDER: Claude Agent SDK must be external (dynamic import at runtime)
+  '@anthropic-ai/claude-agent-sdk',
 ];
 
 const baseConfig = {

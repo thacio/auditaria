@@ -779,6 +779,13 @@ export class GeminiClient {
     isInvalidStreamRetry: boolean = false,
     displayContent?: PartListUnion,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
+    // AUDITARIA_CLAUDE_PROVIDER_START - Delegate to external provider if active
+    const providerManager = this.config.getProviderManager();
+    if (providerManager?.isExternalProviderActive()) {
+      return yield* providerManager.handleSendMessage(request, signal, prompt_id, this.getChat());
+    }
+    // AUDITARIA_CLAUDE_PROVIDER_END
+
     if (!isInvalidStreamRetry) {
       this.config.resetTurn();
     }
