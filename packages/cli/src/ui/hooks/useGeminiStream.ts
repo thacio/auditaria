@@ -205,6 +205,9 @@ export const useGeminiStream = (
   const [_isFirstToolInGroup, isFirstToolInGroupRef, setIsFirstToolInGroup] =
     useStateAndRef<boolean>(true);
   const processedMemoryToolsRef = useRef<Set<string>>(new Set());
+  // AUDITARIA_CLAUDE_PROVIDER: Track external provider tools in Executing state for live display
+  const [externalPendingToolGroup, setExternalPendingToolGroup] =
+    useState<HistoryItemToolGroup | null>(null);
   const { startNewPrompt, getPromptCount } = useSessionStats();
   const storage = config.storage;
   const logger = useLogger(storage);
@@ -1258,6 +1261,37 @@ export const useGeminiStream = (
             break;
           case ServerGeminiEventType.ToolCallRequest:
             toolCallRequests.push(event.value);
+            // AUDITARIA_CLAUDE_PROVIDER_START: Show external provider tools in Executing state immediately
+            if (config.isExternalProviderActive()) {
+              // Flush pending text so tool shows in correct order
+              if (pendingHistoryItemRef.current) {
+                addItem(
+                  pendingHistoryItemRef.current,
+                  userMessageTimestamp,
+                );
+                setPendingHistoryItem(null);
+              }
+              setExternalPendingToolGroup((prev) => ({
+                type: 'tool_group' as const,
+                tools: [
+                  ...(prev?.tools || []),
+                  {
+                    callId: event.value.callId,
+                    name: event.value.name,
+                    description: Object.entries(event.value.args)
+                      .map(
+                        ([k, v]) =>
+                          `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
+                      )
+                      .join('\n'),
+                    status: ToolCallStatus.Executing,
+                    resultDisplay: undefined,
+                    confirmationDetails: undefined,
+                  } as IndividualToolCallDisplay,
+                ],
+              }));
+            }
+            // AUDITARIA_CLAUDE_PROVIDER_END
             break;
           case ServerGeminiEventType.UserCancelled:
             handleUserCancelledEvent(userMessageTimestamp);
@@ -1296,6 +1330,16 @@ export const useGeminiStream = (
             if (reqIdx >= 0) {
               const req = toolCallRequests[reqIdx]!;
               toolCallRequests.splice(reqIdx, 1);
+              // AUDITARIA_CLAUDE_PROVIDER: Remove from pending external tools display
+              setExternalPendingToolGroup((prev) => {
+                if (!prev) return null;
+                const remaining = prev.tools.filter(
+                  (t) => t.callId !== resp.callId,
+                );
+                return remaining.length > 0
+                  ? { ...prev, tools: remaining }
+                  : null;
+              });
               // Flush pending text so tool shows in correct order
               if (pendingHistoryItemRef.current) {
                 addItem(
@@ -1370,6 +1414,8 @@ export const useGeminiStream = (
         }
         await scheduleToolCalls(toolCallRequests, signal);
       }
+      // AUDITARIA_CLAUDE_PROVIDER: Clear any orphaned external pending tools (e.g. on abort)
+      setExternalPendingToolGroup(null);
       return StreamProcessingStatus.Completed;
     },
     [
@@ -1388,6 +1434,8 @@ export const useGeminiStream = (
       addItem,
       pendingHistoryItemRef,
       setPendingHistoryItem,
+      config, // AUDITARIA_CLAUDE_PROVIDER
+      setExternalPendingToolGroup, // AUDITARIA_CLAUDE_PROVIDER
     ],
   );
   const submitQuery = useCallback(
@@ -1784,10 +1832,11 @@ export const useGeminiStream = (
 
   const pendingHistoryItems = useMemo(
     () =>
-      [pendingHistoryItem, ...pendingToolGroupItems].filter(
+      // AUDITARIA_CLAUDE_PROVIDER: Include external provider pending tools in live display
+      [pendingHistoryItem, externalPendingToolGroup, ...pendingToolGroupItems].filter(
         (i): i is HistoryItemWithoutId => i !== undefined && i !== null,
       ),
-    [pendingHistoryItem, pendingToolGroupItems],
+    [pendingHistoryItem, externalPendingToolGroup, pendingToolGroupItems],
   );
 
   useEffect(() => {
