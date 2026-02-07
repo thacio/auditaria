@@ -26,6 +26,7 @@ export class ClaudeSDKDriver implements ProviderDriver {
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
+    systemContext?: string,
   ): AsyncGenerator<ProviderEvent> {
     const queryFn = await this.loadSDK();
 
@@ -35,6 +36,11 @@ export class ClaudeSDKDriver implements ProviderDriver {
       permissionMode: this.config.permissionMode || 'bypassPermissions',
       systemPrompt: { type: 'preset', preset: 'claude_code' },
     };
+
+    // AUDITARIA_CLAUDE_PROVIDER: Inject audit context, memory, skills
+    if (systemContext) {
+      sdkOptions.appendSystemPrompt = systemContext;
+    }
 
     if (this.config.allowedTools) {
       sdkOptions.allowedTools = this.config.allowedTools;

@@ -37,6 +37,7 @@ export class ProviderManager {
     signal: AbortSignal,
     promptId: string,
     chat: GeminiChat,
+    systemContext?: string,
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     this.callCount++;
     const callNum = this.callCount;
@@ -60,7 +61,7 @@ export class ProviderManager {
 
     let eventCount = 0;
     try {
-      for await (const event of driver.sendMessage(prompt, signal)) {
+      for await (const event of driver.sendMessage(prompt, signal, systemContext)) {
         eventCount++;
         if (signal.aborted) {
           dbg('signal aborted, returning');

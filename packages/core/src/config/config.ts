@@ -15,6 +15,7 @@ import type {
 } from '../core/contentGenerator.js';
 import type { ProviderConfig } from '../providers/types.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { ProviderManager } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   AuthType,
   createContentGenerator,
@@ -1620,6 +1621,23 @@ export class Config {
 
   isExternalProviderActive(): boolean {
     return this.providerManager?.isExternalProviderActive() ?? false;
+  }
+
+  buildExternalProviderContext(): string {
+    const sections: string[] = [];
+    sections.push(getAuditContext());
+    const memory = this.getUserMemory();
+    if (memory) sections.push(memory);
+    const skills = this.getSkillsPromptSection();
+    if (skills) {
+      sections.push(
+        `## Auditaria Skills (External)\n\n` +
+        `The following skills are from the Auditaria host application, NOT from your built-in skill system. ` +
+        `Do NOT use your Skill tool to activate them. Instead, use your Read tool to read the skill files at the paths below when relevant to the task.\n\n` +
+        skills,
+      );
+    }
+    return sections.filter(Boolean).join('\n\n---\n\n');
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 

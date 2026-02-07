@@ -68,6 +68,7 @@ export interface ProviderDriver {
   sendMessage(
     prompt: string,
     signal: AbortSignal,
+    systemContext?: string,
   ): AsyncGenerator<ProviderEvent>;
   interrupt(): Promise<void>;
   getSessionId(): string | undefined;

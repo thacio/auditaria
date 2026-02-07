@@ -297,7 +297,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             </ThemedGradient>
           </Box>
         )}
-        {subheader && view !== 'claude' && <Text>{subheader}</Text>} {/* AUDITARIA_CLAUDE_PROVIDER: hide subheader in claude view */}
+        {/* AUDITARIA_CLAUDE_PROVIDER: hide subheader in claude view */}
+        {subheader && view !== 'claude' && <Text>{subheader}</Text>}
       </Box>
       {/* AUDITARIA_CLAUDE_PROVIDER_START */}
       {view === 'claude' && (

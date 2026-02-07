@@ -29,9 +29,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
+    systemContext?: string,
   ): AsyncGenerator<ProviderEvent> {
+    const isFirstCall = !this.sessionManager.getSessionId();
     const args = this.buildArgs();
-    dbg('sendMessage', { args, promptLen: prompt.length });
+    dbg('sendMessage', { args, promptLen: prompt.length, hasSystemContext: !!systemContext, isFirstCall });
 
     const proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -41,9 +43,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
 
-    // Pipe prompt through stdin instead of -p flag to avoid Windows
-    // cmd.exe argument quoting issues that mangle the prompt text.
-    proc.stdin?.write(prompt);
+    // Pipe prompt through stdin to avoid Windows cmd.exe argument
+    // quoting issues. System context is prepended on first call only
+    // (resumed sessions already have it). We use --append-system-prompt
+    // style approach but via stdin to bypass cmd.exe string mangling.
+    if (isFirstCall && systemContext) {
+      proc.stdin?.write(`<auditaria_system_context>\n${systemContext}\n</auditaria_system_context>\n\n${prompt}`);
+    } else {
+      proc.stdin?.write(prompt);
+    }
     proc.stdin?.end();
 
     proc.on('error', (err) => {
