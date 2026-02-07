@@ -109,6 +109,11 @@ export class ClaudeSDKDriver implements ProviderDriver {
     return this.sessionManager.getSessionId();
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget session reset)
+  resetSession(): void {
+    this.sessionManager.clearSession();
+  }
+
   dispose(): void {
     this.activeInstance?.interrupt();
     this.activeInstance = null;

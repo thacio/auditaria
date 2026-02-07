@@ -891,6 +891,13 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
     try {
       const geminiClient = this.config.getGeminiClient();
       geminiClient.setHistory(history);
+      // AUDITARIA_CLAUDE_PROVIDER_START: Notify external provider that context was modified
+      // so it can reset its session and inject the modified history on the next call.
+      const providerManager = this.config.getProviderManager();
+      if (providerManager?.isExternalProviderActive()) {
+        providerManager.onHistoryModified();
+      }
+      // AUDITARIA_CLAUDE_PROVIDER_END
     } catch (_error) {
       (
         global as unknown as Record<string, Content[]>

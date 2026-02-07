@@ -1,6 +1,6 @@
 // AUDITARIA_CLAUDE_PROVIDER: Factory/orchestrator for external LLM providers
 
-import type { PartListUnion } from '@google/genai';
+import type { Content, Part, PartListUnion } from '@google/genai';
 import {
   GeminiEventType,
   type ServerGeminiStreamEvent,
@@ -26,6 +26,7 @@ export class ProviderManager {
   private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
   private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
+  private contextModified = false; // AUDITARIA_CLAUDE_PROVIDER: Set by context_forget, triggers session reset on next call
 
   constructor(
     private config: ProviderConfig,
@@ -43,6 +44,14 @@ export class ProviderManager {
 
   isExternalProviderActive(): boolean {
     return this.config.type !== 'gemini';
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Called by context_forget when history is modified.
+  // Schedules a session reset on the next sendMessage() call so Claude gets
+  // a fresh session with the modified (forgotten) conversation history.
+  onHistoryModified(): void {
+    this.contextModified = true;
+    dbg('onHistoryModified: contextModified flag set, will reset session on next call');
   }
 
   async *handleSendMessage(
@@ -63,6 +72,20 @@ export class ProviderManager {
       prompt: prompt.slice(0, 200),
     });
 
+    // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
+    // reset the session and inject the modified conversation history as context.
+    let effectiveContext = systemContext;
+    if (this.contextModified && this.driver) {
+      const history = chat.getHistory();
+      if (history.length > 0) {
+        const summary = buildConversationSummary(history);
+        effectiveContext = (systemContext || '') + '\n\n' + summary;
+      }
+      this.driver.resetSession?.();
+      this.contextModified = false;
+      dbg(`call #${callNum}: context modified — session reset, injecting conversation summary`);
+    }
+
     let driver: ProviderDriver;
     try {
       driver = await this.getOrCreateDriver();
@@ -72,11 +95,20 @@ export class ProviderManager {
       throw e;
     }
 
+    // AUDITARIA_CLAUDE_PROVIDER: Mirror events to GeminiChat.history
+    // so context management tools can inspect/forget/restore content.
+    chat.addHistory({ role: 'user', parts: [{ text: prompt }] });
+    const modelParts: Part[] = [];
+    const toolIdToName = new Map<string, string>();
+    let accumulatedText = '';
+
     let eventCount = 0;
     try {
-      for await (const event of driver.sendMessage(prompt, signal, systemContext)) {
+      for await (const event of driver.sendMessage(prompt, signal, effectiveContext)) {
         eventCount++;
         if (signal.aborted) {
+          // Flush any accumulated model parts before returning
+          flushModelParts(chat, modelParts, accumulatedText);
           dbg('signal aborted, returning');
           return new Turn(chat, promptId);
         }
@@ -85,6 +117,14 @@ export class ProviderManager {
         // renders them with proper tool call display (status icons, collapsible results)
         if (event.type === ProviderEventType.ToolUse) {
           dbg(`event #${eventCount} tool_use: ${event.toolName}`);
+          // Mirror: store tool name mapping and add functionCall to model buffer
+          toolIdToName.set(event.toolId, event.toolName);
+          if (accumulatedText) {
+            modelParts.push({ text: accumulatedText });
+            accumulatedText = '';
+          }
+          modelParts.push({ functionCall: { name: event.toolName, args: event.input } });
+
           yield {
             type: GeminiEventType.ToolCallRequest,
             value: {
@@ -100,6 +140,22 @@ export class ProviderManager {
 
         if (event.type === ProviderEventType.ToolResult) {
           dbg(`event #${eventCount} tool_result: ${event.toolId}`);
+          // Mirror: flush model buffer, then add functionResponse as user Content
+          flushModelParts(chat, modelParts, accumulatedText);
+          accumulatedText = '';
+
+          const toolName = toolIdToName.get(event.toolId) || 'unknown';
+          chat.addHistory({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                id: event.toolId,
+                name: toolName,
+                response: { output: event.output },
+              },
+            }],
+          });
+
           yield {
             type: GeminiEventType.ToolCallResponse,
             value: {
@@ -113,14 +169,24 @@ export class ProviderManager {
           continue;
         }
 
+        // Mirror: accumulate text content
+        if (event.type === ProviderEventType.Content) {
+          accumulatedText += event.text;
+        }
+
         const adapted = adaptProviderEvent(event);
         if (adapted) {
           dbg(`event #${eventCount} ${adapted.type}`);
           yield adapted;
         }
       }
-      dbg(`handleSendMessage DONE, total events: ${eventCount}`);
+
+      // Flush any remaining model parts at end of stream
+      flushModelParts(chat, modelParts, accumulatedText);
+      dbg(`handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}`);
     } catch (e) {
+      // Flush on error too, so partial history is preserved
+      flushModelParts(chat, modelParts, accumulatedText);
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
     }
@@ -232,4 +298,60 @@ export class ProviderManager {
       // Non-fatal: Claude will just not have Auditaria's custom tools
     }
   }
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Flush accumulated model parts into GeminiChat history.
+// Called when a ToolResult arrives (model parts before the result) and at end of stream.
+function flushModelParts(chat: GeminiChat, modelParts: Part[], accumulatedText: string): void {
+  if (accumulatedText) {
+    modelParts.push({ text: accumulatedText });
+  }
+  if (modelParts.length > 0) {
+    chat.addHistory({ role: 'model', parts: [...modelParts] });
+    modelParts.length = 0; // Clear in-place
+  }
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
+// for injecting into a fresh Claude session after context_forget.
+export function buildConversationSummary(history: Content[]): string {
+  const lines: string[] = [];
+  lines.push('<auditaria_conversation_history>');
+  lines.push('The following is the conversation history from the current session.');
+  lines.push('Some content may have been removed by the user (marked as FORGOTTEN).');
+  lines.push('Continue the conversation naturally.\n');
+
+  for (const content of history) {
+    const role = content.role === 'user' ? 'User' : 'Assistant';
+    if (!content.parts || content.parts.length === 0) continue;
+
+    for (const part of content.parts) {
+      if (!part || typeof part !== 'object') continue;
+
+      if ('text' in part && part.text) {
+        lines.push(`[${role}]: ${part.text}`);
+      } else if ('functionCall' in part && part.functionCall) {
+        const args = part.functionCall.args
+          ? JSON.stringify(part.functionCall.args)
+          : '{}';
+        // Truncate large args for readability
+        const truncatedArgs = args.length > 500 ? args.slice(0, 500) + '...' : args;
+        lines.push(`[Tool Call]: ${part.functionCall.name}(${truncatedArgs})`);
+      } else if ('functionResponse' in part && part.functionResponse) {
+        const name = part.functionResponse.name || 'unknown';
+        const output = part.functionResponse.response?.output || '';
+        const outputText = typeof output === 'string' ? output : JSON.stringify(output);
+        // Keep forgotten placeholders in full, truncate large outputs
+        const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
+        const truncatedOutput = isForgotten
+          ? outputText
+          : (outputText.length > 2000 ? outputText.slice(0, 2000) + '\n... (truncated)' : outputText);
+        lines.push(`[Tool Result (${name})]: ${truncatedOutput}`);
+      }
+      // Skip thinking, inlineData, fileData parts — not relevant for context
+    }
+  }
+
+  lines.push('</auditaria_conversation_history>');
+  return lines.join('\n');
 }

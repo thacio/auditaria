@@ -72,6 +72,7 @@ export interface ProviderDriver {
   ): AsyncGenerator<ProviderEvent>;
   interrupt(): Promise<void>;
   getSessionId(): string | undefined;
+  resetSession?(): void; // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget)
   dispose(): void;
 }
 
