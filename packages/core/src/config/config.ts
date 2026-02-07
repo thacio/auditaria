@@ -841,7 +841,7 @@ export class Config {
     this.geminiClient = new GeminiClient(this);
     // AUDITARIA_CLAUDE_PROVIDER_START
     if (params.providerConfig) {
-      this.providerManager = new ProviderManager(params.providerConfig, this.cwd);
+      this.providerManager = new ProviderManager(params.providerConfig, this.cwd, this.mcpServers);
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
     this.modelRouterService = new ModelRouterService(this);
@@ -1610,7 +1610,7 @@ export class Config {
     if (this.providerManager) {
       this.providerManager.setConfig(config);
     } else {
-      this.providerManager = new ProviderManager(config, this.cwd);
+      this.providerManager = new ProviderManager(config, this.cwd, this.mcpServers);
     }
   }
 

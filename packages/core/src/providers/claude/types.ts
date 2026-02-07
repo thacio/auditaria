@@ -99,4 +99,5 @@ export interface ClaudeDriverConfig {
   permissionMode?: string;
   allowedTools?: string[];
   resumeSessionId?: string;
+  mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
 }

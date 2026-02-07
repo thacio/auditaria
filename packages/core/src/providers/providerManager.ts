@@ -8,7 +8,7 @@ import {
 } from '../core/turn.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import { partToString } from '../utils/partUtils.js';
-import type { ProviderConfig, ProviderDriver } from './types.js';
+import type { ProviderConfig, ProviderDriver, ExternalMCPServerConfig } from './types.js';
 import { ProviderEventType } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
 
@@ -20,12 +20,15 @@ function dbg(...args: unknown[]) {
 export class ProviderManager {
   private driver: ProviderDriver | null = null;
   private callCount = 0;
+  private mcpServers?: Record<string, ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
 
   constructor(
     private config: ProviderConfig,
     private readonly cwd: string,
+    mcpServers?: Record<string, ExternalMCPServerConfig>, // AUDITARIA_CLAUDE_PROVIDER
   ) {
-    dbg('constructor', { type: config.type, model: config.model, cwd });
+    this.mcpServers = mcpServers;
+    dbg('constructor', { type: config.type, model: config.model, cwd, mcpServerCount: mcpServers ? Object.keys(mcpServers).length : 0 });
   }
 
   isExternalProviderActive(): boolean {
@@ -123,6 +126,16 @@ export class ProviderManager {
     this.config = config;
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER: Allow updating MCP servers at runtime
+  setMcpServers(mcpServers: Record<string, ExternalMCPServerConfig> | undefined): void {
+    this.mcpServers = mcpServers;
+    // Force driver recreation on next call so it picks up new MCP config
+    if (this.driver) {
+      this.driver.dispose();
+      this.driver = null;
+    }
+  }
+
   async interrupt(): Promise<void> {
     await this.driver?.interrupt();
   }
@@ -142,6 +155,7 @@ export class ProviderManager {
       model: this.config.model || 'sonnet',
       cwd: this.cwd,
       permissionMode: 'bypassPermissions',
+      mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
     };
     dbg('creating new driver', { type: this.config.type, driverConfig });
 

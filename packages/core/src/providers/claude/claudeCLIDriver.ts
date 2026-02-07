@@ -2,6 +2,9 @@
 
 import { spawn, type ChildProcess } from 'child_process';
 import { createInterface } from 'readline';
+import { writeFileSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
@@ -21,9 +24,10 @@ function dbg(...args: unknown[]) {
 export class ClaudeCLIDriver implements ProviderDriver {
   private sessionManager = new ClaudeSessionManager();
   private activeProcess: ChildProcess | null = null;
+  private mcpConfigPath: string | null = null; // AUDITARIA_CLAUDE_PROVIDER: temp MCP config file
 
   constructor(private readonly config: ClaudeDriverConfig) {
-    dbg('constructor', { model: config.model, cwd: config.cwd });
+    dbg('constructor', { model: config.model, cwd: config.cwd, mcpServerCount: config.mcpServers ? Object.keys(config.mcpServers).length : 0 });
   }
 
   async *sendMessage(
@@ -94,6 +98,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       this.activeProcess.kill('SIGTERM');
     }
     this.activeProcess = null;
+    this.cleanupMcpConfig(); // AUDITARIA_CLAUDE_PROVIDER
   }
 
   private buildArgs(): string[] {
@@ -121,8 +126,68 @@ export class ClaudeCLIDriver implements ProviderDriver {
       args.push('--permission-mode', this.config.permissionMode);
     }
 
+    // AUDITARIA_CLAUDE_PROVIDER_START: MCP server passthrough
+    const mcpPath = this.getOrWriteMcpConfig();
+    if (mcpPath) {
+      args.push('--mcp-config', mcpPath);
+    }
+    // AUDITARIA_CLAUDE_PROVIDER_END
+
     return args;
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: MCP config file management
+  private getOrWriteMcpConfig(): string | null {
+    if (this.mcpConfigPath) return this.mcpConfigPath;
+
+    const servers = this.config.mcpServers;
+    if (!servers || Object.keys(servers).length === 0) return null;
+
+    // Convert to Claude CLI's expected format
+    const claudeMcpServers: Record<string, Record<string, unknown>> = {};
+    for (const [name, server] of Object.entries(servers)) {
+      if (server.command) {
+        // stdio transport
+        claudeMcpServers[name] = {
+          type: 'stdio',
+          command: server.command,
+          args: server.args || [],
+          ...(server.env && { env: server.env }),
+          ...(server.cwd && { cwd: server.cwd }),
+        };
+      } else if (server.url || server.httpUrl) {
+        // http/sse transport
+        const url = server.url || server.httpUrl;
+        const transportType = server.type || (server.httpUrl ? 'http' : 'sse');
+        claudeMcpServers[name] = {
+          type: transportType,
+          url,
+          ...(server.headers && { headers: server.headers }),
+        };
+      }
+    }
+
+    if (Object.keys(claudeMcpServers).length === 0) return null;
+
+    const configObj = { mcpServers: claudeMcpServers };
+    this.mcpConfigPath = join(tmpdir(), `auditaria-mcp-${process.pid}-${Date.now()}.json`);
+    writeFileSync(this.mcpConfigPath, JSON.stringify(configObj, null, 2));
+    dbg('wrote MCP config', { path: this.mcpConfigPath, serverCount: Object.keys(claudeMcpServers).length });
+    return this.mcpConfigPath;
+  }
+
+  private cleanupMcpConfig(): void {
+    if (this.mcpConfigPath) {
+      try {
+        unlinkSync(this.mcpConfigPath);
+        dbg('cleaned up MCP config', this.mcpConfigPath);
+      } catch {
+        // File may already be gone
+      }
+      this.mcpConfigPath = null;
+    }
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   private async *readStream(
     proc: ChildProcess,

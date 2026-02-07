@@ -81,3 +81,18 @@ export interface ProviderConfig {
   cwd?: string;
   options?: Record<string, unknown>;
 }
+
+// AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
+// Avoids importing MCPServerConfig from config.ts (circular dependency).
+export interface ExternalMCPServerConfig {
+  // stdio transport
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+  // http/sse transport
+  url?: string;
+  httpUrl?: string;
+  headers?: Record<string, string>;
+  type?: string;
+}

@@ -209,6 +209,7 @@ export type {
   ProviderConfig,
   ProviderDriver,
   ProviderEvent,
+  ExternalMCPServerConfig,
 } from './providers/types.js';
 export { ProviderManager } from './providers/providerManager.js';
 export {
