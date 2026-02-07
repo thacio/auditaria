@@ -74,15 +74,16 @@ export class ProviderManager {
     });
 
     // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
-    // reset the session and inject the modified conversation history as context.
+    // or when switching from Gemini to Claude with existing conversation history,
+    // inject the conversation history as context. Reset session if driver exists.
     let effectiveContext = systemContext;
-    if (this.contextModified && this.driver) {
+    if (this.contextModified) {
       const history = chat.getHistory();
       if (history.length > 0) {
         const summary = buildConversationSummary(history);
         effectiveContext = (systemContext || '') + '\n\n' + summary;
       }
-      this.driver.resetSession?.();
+      this.driver?.resetSession?.();
       this.contextModified = false;
       dbg(`call #${callNum}: context modified — session reset, injecting conversation summary`);
     }
