@@ -21,7 +21,7 @@ import { adaptProviderEvent } from './eventAdapter.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 
-const DEBUG = true; // TODO: remove after integration is stable
+const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }

@@ -16,7 +16,7 @@ import type {
   ClaudeDriverConfig,
 } from './types.js';
 
-const DEBUG = true; // TODO: remove after integration is stable
+const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[CLI_DRIVER]', ...args);
 }
