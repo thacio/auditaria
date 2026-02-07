@@ -487,6 +487,48 @@ class CollaborativeWritingService {
     }
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER: Returns pending change notifications as strings
+  // for external providers that can't use GeminiChat.addHistory().
+  // Same detection + state update logic as checkAndInjectFileUpdates, but
+  // returns formatted text instead of injecting into chat history.
+  async checkAndGetPendingNotifications(signal: AbortSignal): Promise<string | null> {
+    if (signal.aborted) return null;
+
+    const trackedFiles = this.registry.getAllTrackedFiles();
+    if (trackedFiles.length === 0) return null;
+
+    const changes: FileChangeInfo[] = [];
+    for (const tracked of trackedFiles) {
+      try {
+        const change = await detectFileChange(tracked);
+        if (change) changes.push(change);
+      } catch (error) {
+        debugLogger.error(`[COLLAB-WRITE] Error checking file ${tracked.filePath} for changes:`, error);
+      }
+    }
+
+    if (changes.length === 0) return null;
+
+    const notifications: string[] = [];
+    for (const change of changes) {
+      notifications.push(formatChangeNotification(change));
+
+      // Update registry state (same as checkAndInjectFileUpdates)
+      if (change.type === 'modified') {
+        this.registry.updateFileState(change.filePath, change.currentContent!, change.currentHash!, change.currentMtime!, 'external');
+        const tracked = this.registry.getTrackedFile(change.filePath);
+        if (tracked) tracked.pendingNotification = undefined;
+      } else if (change.type === 'deleted') {
+        this.registry.stopTracking(change.filePath);
+      } else if (change.type === 'permission_denied') {
+        const tracked = this.registry.getTrackedFile(change.filePath);
+        if (tracked) tracked.pendingNotification = undefined;
+      }
+    }
+
+    return notifications.join('\n\n');
+  }
+
   async updateAfterAIEdit(filePath: string): Promise<void> {
     const absolutePath = path.resolve(filePath);
 

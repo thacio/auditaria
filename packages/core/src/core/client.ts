@@ -782,8 +782,14 @@ export class GeminiClient {
     // AUDITARIA_CLAUDE_PROVIDER_START - Delegate to external provider if active
     const providerManager = this.config.getProviderManager();
     if (providerManager?.isExternalProviderActive()) {
+      // AUDITARIA_COLLABORATIVE_WRITING: Check for external file changes before sending to provider
+      const collabNotifications = await collaborativeWritingService.checkAndGetPendingNotifications(signal);
+      let effectiveRequest: PartListUnion = request;
+      if (collabNotifications) {
+        effectiveRequest = collabNotifications + '\n\n' + partToString(request, { verbose: true });
+      }
       const systemContext = this.config.buildExternalProviderContext();
-      return yield* providerManager.handleSendMessage(request, signal, prompt_id, this.getChat(), systemContext);
+      return yield* providerManager.handleSendMessage(effectiveRequest, signal, prompt_id, this.getChat(), systemContext);
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
 
