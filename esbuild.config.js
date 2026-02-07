@@ -114,6 +114,16 @@ const cliConfig = {
   metafile: true,
 };
 
+// AUDITARIA_CLAUDE_PROVIDER: MCP bridge script (spawned by Claude CLI as stdio MCP server)
+const mcpBridgeConfig = {
+  ...baseConfig,
+  banner: {
+    js: `const require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
+  },
+  entryPoints: ['packages/core/src/providers/mcp-bridge/mcpBridgeServer.ts'],
+  outfile: 'bundle/mcp-bridge.js',
+};
+
 const a2aServerConfig = {
   ...baseConfig,
   banner: {
@@ -138,8 +148,9 @@ Promise.allSettled([
     }
   }),
   esbuild.build(a2aServerConfig),
+  esbuild.build(mcpBridgeConfig), // AUDITARIA_CLAUDE_PROVIDER
 ]).then((results) => {
-  const [cliResult, a2aResult] = results;
+  const [cliResult, a2aResult, mcpBridgeResult] = results;
   if (cliResult.status === 'rejected') {
     console.error('gemini.js build failed:', cliResult.reason);
     process.exit(1);
@@ -147,5 +158,9 @@ Promise.allSettled([
   // error in a2a-server bundling will not stop gemini.js bundling process
   if (a2aResult.status === 'rejected') {
     console.warn('a2a-server build failed:', a2aResult.reason);
+  }
+  // AUDITARIA_CLAUDE_PROVIDER: MCP bridge build failure is non-fatal
+  if (mcpBridgeResult.status === 'rejected') {
+    console.warn('mcp-bridge build failed:', mcpBridgeResult.reason);
   }
 });

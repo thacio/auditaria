@@ -910,6 +910,7 @@ export class Config {
     coreEvents.on(CoreEvent.AgentsRefreshed, this.onAgentsRefreshed);
 
     this.toolRegistry = await this.createToolRegistry();
+    this.providerManager?.setToolRegistry(this.toolRegistry); // AUDITARIA_CLAUDE_PROVIDER: enable tool bridging
     discoverToolsHandle?.end();
     this.mcpClientManager = new McpClientManager(
       this.clientVersion,
@@ -1611,6 +1612,10 @@ export class Config {
       this.providerManager.setConfig(config);
     } else {
       this.providerManager = new ProviderManager(config, this.cwd, this.mcpServers);
+      // AUDITARIA_CLAUDE_PROVIDER: Pass registry if already initialized
+      if (this.toolRegistry) {
+        this.providerManager.setToolRegistry(this.toolRegistry);
+      }
     }
   }
 

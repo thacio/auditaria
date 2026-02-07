@@ -809,6 +809,7 @@ export class CollaborativeWritingTool extends BaseDeclarativeTool<
   ToolResult
 > {
   static readonly Name = COLLABORATIVE_WRITING_TOOL_NAME;
+  static readonly Bridgeable = true; // AUDITARIA_CLAUDE_PROVIDER: auto-bridge to external providers via MCP
 
   constructor(
     private readonly config: Config,

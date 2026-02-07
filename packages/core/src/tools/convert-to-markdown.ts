@@ -214,6 +214,7 @@ export class ConvertToMarkdownTool extends BaseDeclarativeTool<
   ToolResult
 > {
   static readonly Name = CONVERT_TO_MARKDOWN_TOOL_NAME;
+  static readonly Bridgeable = true; // AUDITARIA_CLAUDE_PROVIDER: auto-bridge to external providers via MCP
 
   constructor(
     private readonly config: Config,

@@ -100,4 +100,6 @@ export interface ClaudeDriverConfig {
   allowedTools?: string[];
   resumeSessionId?: string;
   mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
+  toolBridgePort?: number; // AUDITARIA_CLAUDE_PROVIDER: Port of the tool executor HTTP server
+  toolBridgeScript?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to the MCP bridge script
 }

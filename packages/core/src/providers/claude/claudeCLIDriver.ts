@@ -140,12 +140,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private getOrWriteMcpConfig(): string | null {
     if (this.mcpConfigPath) return this.mcpConfigPath;
 
-    const servers = this.config.mcpServers;
-    if (!servers || Object.keys(servers).length === 0) return null;
-
-    // Convert to Claude CLI's expected format
+    // Convert user-configured MCP servers to Claude CLI's expected format
     const claudeMcpServers: Record<string, Record<string, unknown>> = {};
-    for (const [name, server] of Object.entries(servers)) {
+    const servers = this.config.mcpServers;
+    for (const [name, server] of Object.entries(servers || {})) {
       if (server.command) {
         // stdio transport
         claudeMcpServers[name] = {
@@ -165,6 +163,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
           ...(server.headers && { headers: server.headers }),
         };
       }
+    }
+
+    // AUDITARIA_CLAUDE_PROVIDER: Inject Auditaria tool bridge as an MCP server
+    if (this.config.toolBridgePort && this.config.toolBridgeScript) {
+      claudeMcpServers['auditaria-tools'] = {
+        type: 'stdio',
+        command: process.execPath, // Use exact Node binary running Auditaria
+        args: [this.config.toolBridgeScript, '--port', String(this.config.toolBridgePort)],
+      };
     }
 
     if (Object.keys(claudeMcpServers).length === 0) return null;

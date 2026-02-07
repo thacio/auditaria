@@ -650,6 +650,7 @@ export class BrowserAgentTool extends BaseDeclarativeTool<
   ToolResult
 > {
   static readonly Name = BROWSER_AGENT_TOOL_NAME;
+  static readonly Bridgeable = true; // AUDITARIA_CLAUDE_PROVIDER: auto-bridge to external providers via MCP
   private readonly config: Config;
 
   constructor(config: Config, messageBus: MessageBus) {

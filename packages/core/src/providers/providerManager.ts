@@ -11,6 +11,8 @@ import { partToString } from '../utils/partUtils.js';
 import type { ProviderConfig, ProviderDriver, ExternalMCPServerConfig } from './types.js';
 import { ProviderEventType } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
+import type { ToolRegistry } from '../tools/tool-registry.js';
+import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 
 const DEBUG = true; // TODO: remove after integration is stable
 function dbg(...args: unknown[]) {
@@ -21,6 +23,9 @@ export class ProviderManager {
   private driver: ProviderDriver | null = null;
   private callCount = 0;
   private mcpServers?: Record<string, ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
+  private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
+  private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
+  private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
 
   constructor(
     private config: ProviderConfig,
@@ -29,6 +34,11 @@ export class ProviderManager {
   ) {
     this.mcpServers = mcpServers;
     dbg('constructor', { type: config.type, model: config.model, cwd, mcpServerCount: mcpServers ? Object.keys(mcpServers).length : 0 });
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Set tool registry after async initialization
+  setToolRegistry(registry: ToolRegistry): void {
+    this.toolRegistry = registry;
   }
 
   isExternalProviderActive(): boolean {
@@ -143,6 +153,9 @@ export class ProviderManager {
   dispose(): void {
     this.driver?.dispose();
     this.driver = null;
+    // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server
+    this.toolExecutorServer?.stop();
+    this.toolExecutorServer = undefined;
   }
 
   private async getOrCreateDriver(): Promise<ProviderDriver> {
@@ -151,11 +164,16 @@ export class ProviderManager {
       return this.driver;
     }
 
+    // AUDITARIA_CLAUDE_PROVIDER: Start tool executor server for MCP bridging
+    await this.ensureToolExecutorServer();
+
     const driverConfig = {
       model: this.config.model || 'sonnet',
       cwd: this.cwd,
       permissionMode: 'bypassPermissions',
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
+      toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined, // AUDITARIA_CLAUDE_PROVIDER
+      toolBridgeScript: this.bridgeScriptPath, // AUDITARIA_CLAUDE_PROVIDER
     };
     dbg('creating new driver', { type: this.config.type, driverConfig });
 
@@ -181,5 +199,37 @@ export class ProviderManager {
     }
 
     return this.driver;
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Lazily start tool executor HTTP server for MCP bridging
+  private async ensureToolExecutorServer(): Promise<void> {
+    if (this.toolExecutorServer) return; // Already running
+    if (!this.toolRegistry) {
+      dbg('no tool registry set, skipping tool bridge');
+      return;
+    }
+
+    // Resolve bridge script path relative to the running bundle
+    if (!this.bridgeScriptPath) {
+      try {
+        const { fileURLToPath } = await import('url');
+        const { dirname, join } = await import('path');
+        const bundleDir = dirname(fileURLToPath(import.meta.url));
+        this.bridgeScriptPath = join(bundleDir, 'mcp-bridge.js');
+      } catch {
+        dbg('could not resolve bridge script path');
+        return;
+      }
+    }
+
+    const server = new ToolExecutorServer(this.toolRegistry);
+    try {
+      const port = await server.start();
+      this.toolExecutorServer = server;
+      dbg('tool executor server started', { port, tools: server.getBridgeableTools().map(t => t.name) });
+    } catch (e) {
+      dbg('failed to start tool executor server', e);
+      // Non-fatal: Claude will just not have Auditaria's custom tools
+    }
   }
 }
