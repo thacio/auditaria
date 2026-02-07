@@ -70,6 +70,7 @@ type CollaborativeWritingAction =
 class CollaborativeWritingRegistry {
   private static instance: CollaborativeWritingRegistry;
   private trackedFiles = new Map<string, TrackedFile>();
+  private changeListeners: (() => void)[] = [];
 
   static getInstance(): CollaborativeWritingRegistry {
     if (!CollaborativeWritingRegistry.instance) {
@@ -77,6 +78,24 @@ class CollaborativeWritingRegistry {
         new CollaborativeWritingRegistry();
     }
     return CollaborativeWritingRegistry.instance;
+  }
+
+  /**
+   * Register a listener that fires whenever tracking state changes
+   * (file added, removed, or all cleared). Returns an unsubscribe function.
+   */
+  onChange(listener: () => void): () => void {
+    this.changeListeners.push(listener);
+    return () => {
+      const idx = this.changeListeners.indexOf(listener);
+      if (idx >= 0) this.changeListeners.splice(idx, 1);
+    };
+  }
+
+  private notifyChange(): void {
+    for (const listener of this.changeListeners) {
+      try { listener(); } catch (_) { /* ignore */ }
+    }
   }
 
   /**
@@ -137,6 +156,7 @@ class CollaborativeWritingRegistry {
     }
 
     this.trackedFiles.set(filePath, tracked);
+    this.notifyChange();
   }
 
   /**
@@ -147,7 +167,9 @@ class CollaborativeWritingRegistry {
     if (tracked) {
       this.closeWatcher(tracked);
     }
-    return this.trackedFiles.delete(filePath);
+    const removed = this.trackedFiles.delete(filePath);
+    if (removed) this.notifyChange();
+    return removed;
   }
 
   private closeWatcher(tracked: TrackedFile): void {
@@ -199,10 +221,12 @@ class CollaborativeWritingRegistry {
   }
 
   clear(): void {
+    const hadFiles = this.trackedFiles.size > 0;
     for (const tracked of this.trackedFiles.values()) {
       this.closeWatcher(tracked);
     }
     this.trackedFiles.clear();
+    if (hadFiles) this.notifyChange();
   }
 
   private computeHash(content: string): string {

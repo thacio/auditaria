@@ -782,6 +782,12 @@ export class WebInterfaceService extends EventEmitter {
       });
       // console.log('Browser streaming manager initialized');
 
+      // AUDITARIA: Subscribe to collaborative writing registry changes so the
+      // web toggle stays in sync when the AI tool starts/stops tracking.
+      collaborativeWritingService.getRegistry().onChange(() => {
+        this.handleCollaborativeWritingStatusRequest();
+      });
+
       this.isRunning = true;
       return this.port;
     } catch (error) {
@@ -2454,8 +2460,7 @@ export class WebInterfaceService extends EventEmitter {
         }
       }
 
-      // Broadcast updated status to all clients
-      this.handleCollaborativeWritingStatusRequest();
+      // Status broadcast is handled automatically by registry onChange listener
     } catch (error: any) {
       const errorMsg = error.message || String(error);
       this.broadcastWithSequence('collaborative_writing_toggle_result', {
