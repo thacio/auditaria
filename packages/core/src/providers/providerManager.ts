@@ -644,8 +644,6 @@ export function sanitizeHistoryForProviderSwitch(
   history: Content[],
   knownToolNames?: Set<string>,
 ): Content[] {
-  const originalPartCount = history.reduce((sum, c) => sum + (c.parts?.length || 0), 0);
-
   const sanitized = history
     .map((content) => {
       if (!content.parts || content.parts.length === 0) return content;
@@ -717,10 +715,6 @@ export function sanitizeHistoryForProviderSwitch(
       return { ...content, parts: newParts };
     })
     .filter((c): c is Content => c !== null);
-
-  const sanitizedPartCount = sanitized.reduce((sum, c) => sum + (c.parts?.length || 0), 0);
-  // eslint-disable-next-line no-console
-  console.log(`[AUDITARIA_SANITIZE] history sanitized: ${history.length} items, ${originalPartCount} parts → ${sanitized.length} items, ${sanitizedPartCount} parts`);
 
   return sanitized;
 }

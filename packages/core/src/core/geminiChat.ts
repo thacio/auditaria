@@ -720,10 +720,6 @@ export class GeminiChat {
     this.history = history;
     // AUDITARIA_FIX: Estimate including system instruction + tools (remove if upstream fixes this)
     this.lastPromptTokenCount = this.estimateFullPromptTokens();
-
-    // AUDITARIA_CLAUDE_PROVIDER: Log token reestimation for debugging provider switches
-    // eslint-disable-next-line no-console
-    console.log(`[AUDITARIA_TOKEN_HISTORY] setHistory() called with ${this.history.length} content items, estimated ${this.lastPromptTokenCount}T`);
   }
 
   stripThoughtsFromHistory(): void {

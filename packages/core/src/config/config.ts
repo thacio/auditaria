@@ -1657,13 +1657,6 @@ export class Config {
         const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
         const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
 
-        // eslint-disable-next-line no-console
-        console.log('[AUDITARIA_TOKEN_ESTIMATION] Switching to external provider with existing history');
-        // eslint-disable-next-line no-console
-        console.log(
-          `[AUDITARIA_TOKEN_ESTIMATION] history: ${historyTokens}T + context: ${contextTokens}T + overhead: ${overhead}T × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`,
-        );
-
         this.geminiClient.getChat().setLastPromptTokenCount(estimated);
         uiTelemetryService.setLastPromptTokenCount(estimated);
       }
@@ -1691,9 +1684,6 @@ export class Config {
         // history. Update telemetry immediately so footer reflects the actual conversation size.
         const reestimatedTokens = this.geminiClient.getChat().getLastPromptTokenCount();
         uiTelemetryService.setLastPromptTokenCount(reestimatedTokens);
-
-        // eslint-disable-next-line no-console
-        console.log(`[AUDITARIA_TOKEN_ESTIMATION] Switched to Gemini, re-estimated tokens: ${reestimatedTokens}T`);
       }
     }
     this.providerManager?.dispose();

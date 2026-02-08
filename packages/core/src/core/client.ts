@@ -213,9 +213,6 @@ export class GeminiClient {
       // ); // GEMINI CLI UPSTREAM ORIGINAL commnted out
 
       const tokenCount = this.chat.getLastPromptTokenCount(); // AUDITARIA_CLAUDE_PROVIDER
-      const isExternal = this.config.isExternalProviderActive(); // AUDITARIA_CLAUDE_PROVIDER
-      // eslint-disable-next-line no-console
-      console.log(`[AUDITARIA_TOKEN_TELEMETRY] Updated token count: ${tokenCount}T (provider: ${isExternal ? 'external' : 'gemini'})`); // AUDITARIA_CLAUDE_PROVIDER
       uiTelemetryService.setLastPromptTokenCount(tokenCount); // AUDITARIA_CLAUDE_PROVIDER
     }
   }
