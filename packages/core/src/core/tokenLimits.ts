@@ -17,7 +17,21 @@ type TokenCount = number;
 
 export const DEFAULT_TOKEN_LIMIT = 1_048_576;
 
+export const CLAUDE_TOKEN_LIMIT = 200_000; // AUDITARIA_CLAUDE_PROVIDER
+
+// AUDITARIA_FIX: Include system prompt + tools in token estimation heuristic.
+// When true, initial token count includes systemInstruction and tool definitions (Gemini)
+// or base overhead like CLAUDE.md + system prompt (Claude), matching API-reported counts.
+// Set to false to revert to upstream behavior (history-only estimation).
+// Remove this flag entirely if upstream adds proper initial token estimation.
+export const SYSTEM_PROMPT_ESTIMATION_FIX = true;
+
 export function tokenLimit(model: Model): TokenCount {
+  // AUDITARIA_CLAUDE_PROVIDER: Claude models
+  if (model.startsWith('claude-code:')) {
+    return CLAUDE_TOKEN_LIMIT;
+  }
+
   // Add other models as they become relevant or if specified by config
   // Pulled from https://ai.google.dev/gemini-api/docs/models
   switch (model) {

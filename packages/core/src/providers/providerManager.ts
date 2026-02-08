@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
   GeminiEventType,
@@ -20,10 +22,74 @@ import { ProviderEventType } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
+import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
+import { getEnvironmentContext } from '../utils/environmentContext.js';
+import type { Config } from '../config/config.js';
 
 const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
+}
+
+// Heuristic underestimation correction factor (15%).
+// estimateTokenCountSync uses character-based heuristics that consistently undercount
+// due to tokenizer overhead, special tokens, and formatting not captured by char ratios.
+export const ESTIMATION_CORRECTION_FACTOR = 1.15;
+
+// When true, Claude's token estimation includes base overhead (system prompt + CLAUDE.md)
+// in the used context calculation. This makes the context percentage reflect total usage
+// including fixed costs. When false, only conversation content is counted.
+export const CLAUDE_INCLUDE_OVERHEAD = true;
+
+// Filter out the initial environment context from history parts for token estimation.
+// The env context (from getEnvironmentContext()) is already injected separately to external
+// providers, so we skip it to avoid double-counting tokens.
+// envContextPrefix: first 30 chars of the env context text, used to identify the message.
+export function getHistoryPartsForEstimation(history: Content[], envContextPrefix?: string): Part[] {
+  if (!envContextPrefix) {
+    // No prefix to match — return all parts (Gemini path, or prefix not yet computed)
+    return history.flatMap(c => c.parts || []);
+  }
+  const parts: Part[] = [];
+  let skippedEnvContext = false;
+  for (const content of history) {
+    if (!skippedEnvContext && content.role === 'user' && content.parts?.length) {
+      const firstPart = content.parts[0];
+      if (firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
+          && firstPart.text.startsWith(envContextPrefix)) {
+        skippedEnvContext = true;
+        // Skip only the env context part, keep any other parts in this message
+        const remaining = content.parts.slice(1);
+        if (remaining.length > 0) parts.push(...remaining);
+        continue;
+      }
+    }
+    if (content.parts) parts.push(...content.parts);
+  }
+  return parts;
+}
+
+// Estimate Claude's base overhead: system prompt (~6K) + system tools (~17K) + CLAUDE.md (variable)
+// This accounts for tokens that Claude uses before any conversation history
+export function estimateClaudeBaseOverhead(cwd: string): number {
+  const SYSTEM_PROMPT_AND_TOOLS = 23000; // system prompt ~6K + system tools ~17K
+  let claudeMdTokens = 0;
+
+  // Read CLAUDE.md from working directory if it exists
+  const claudeMdPath = path.join(cwd, 'CLAUDE.md');
+  try {
+    if (fs.existsSync(claudeMdPath)) {
+      const content = fs.readFileSync(claudeMdPath, 'utf-8');
+      claudeMdTokens = estimateTokenCountSync([{ text: content }]);
+      dbg(`[OVERHEAD] CLAUDE.md found: ${content.length} chars → ${claudeMdTokens} tokens`);
+    }
+  } catch {
+    dbg('[OVERHEAD] Failed to read CLAUDE.md, using 0 for its tokens');
+  }
+
+  const total = SYSTEM_PROMPT_AND_TOOLS + claudeMdTokens;
+  dbg(`[OVERHEAD] system: ${SYSTEM_PROMPT_AND_TOOLS}T + CLAUDE.md: ${claudeMdTokens}T = ${total}T`);
+  return total;
 }
 
 export class ProviderManager {
@@ -34,6 +100,8 @@ export class ProviderManager {
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
   private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
   private contextModified = false; // AUDITARIA_CLAUDE_PROVIDER: Set by context_forget, triggers session reset on next call
+  private appConfig?: Config; // AUDITARIA_CLAUDE_PROVIDER: For computing env context prefix
+  private envContextPrefix?: string; // Cached first 30 chars of getEnvironmentContext() output
   // AUDITARIA: Callback for routing live tool output to CLI layer (browser agent steps, etc.)
   private toolOutputHandler?: (callId: string, toolName: string, output: string) => void;
   // AUDITARIA: Track toolName → callId for live output routing during MCP bridge execution
@@ -56,6 +124,11 @@ export class ProviderManager {
   // AUDITARIA_CLAUDE_PROVIDER: Set tool registry after async initialization
   setToolRegistry(registry: ToolRegistry): void {
     this.toolRegistry = registry;
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Set app config for computing env context prefix
+  setAppConfig(config: Config): void {
+    this.appConfig = config;
   }
 
   // AUDITARIA: Register callback for live tool output (browser agent steps, etc.)
@@ -91,6 +164,23 @@ export class ProviderManager {
 
   isExternalProviderActive(): boolean {
     return this.config.type !== 'gemini';
+  }
+
+  // Lazily compute and cache the env context prefix from getEnvironmentContext().
+  // Used to identify and skip the initial env context message in history token estimation.
+  private async ensureEnvContextPrefix(): Promise<string | undefined> {
+    if (this.envContextPrefix) return this.envContextPrefix;
+    if (!this.appConfig) return undefined;
+    try {
+      const parts = await getEnvironmentContext(this.appConfig);
+      const text = parts[0]?.text || '';
+      this.envContextPrefix = text.substring(0, 30);
+      dbg(`[ENV_PREFIX] computed: "${this.envContextPrefix}"`);
+      return this.envContextPrefix;
+    } catch {
+      dbg('[ENV_PREFIX] failed to compute, skipping env context stripping');
+      return undefined;
+    }
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Called by context_forget when history is modified,
@@ -129,7 +219,8 @@ export class ProviderManager {
     if (this.contextModified) {
       const history = chat.getHistory();
       if (history.length > 0) {
-        const summary = buildConversationSummary(history);
+        const envPrefix = await this.ensureEnvContextPrefix();
+        const summary = buildConversationSummary(history, envPrefix);
         effectiveContext = (systemContext || '') + '\n\n' + summary;
       }
       this.driver?.resetSession?.();
@@ -254,8 +345,25 @@ export class ProviderManager {
 
       // Flush any remaining model parts at end of stream
       flushModelParts(chat, modelParts, accumulatedText);
+
+      // AUDITARIA_CLAUDE_PROVIDER: Estimate token count for external providers.
+      // Strips the initial env context message (already injected separately to Claude).
+      // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
+      const envPrefix = await this.ensureEnvContextPrefix();
+      const historyParts = getHistoryPartsForEstimation(chat.getHistory(), envPrefix);
+      const historyTokens = estimateTokenCountSync(historyParts);
+      const contextLength = systemContext?.length || 0;
+      const contextTokens = Math.ceil(contextLength / 4);
+      const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
+      const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
+
+      dbg(`[TOKEN_ESTIMATION] history: ${historyTokens}T, context: ${contextTokens}T, overhead: ${overhead}T`);
+      dbg(`[TOKEN_ESTIMATION] × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`);
+
+      chat.setLastPromptTokenCount(estimated);
+
       dbg(
-        `handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}`,
+        `handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}, estimated tokens: ${estimated}`,
       );
     } catch (e) {
       // Flush on error too, so partial history is preserved
@@ -300,6 +408,16 @@ export class ProviderManager {
     // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server
     this.toolExecutorServer?.stop();
     this.toolExecutorServer = undefined;
+  }
+
+  // Expose model for token limit calculation and footer display
+  // Returns prefixed model name (e.g., 'claude-code:haiku') so tokenLimit() and getDisplayString() work
+  getModel(): string {
+    const model = this.config.model || 'unknown';
+    if (this.config.type === 'claude-cli' || this.config.type === 'claude-sdk') {
+      return `claude-code:${model}`;
+    }
+    return model;
   }
 
   private async getOrCreateDriver(): Promise<ProviderDriver> {
@@ -438,7 +556,8 @@ function buildExternalProviderPrompt(request: PartListUnion): string {
 
 // AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
 // for injecting into a fresh Claude session after context_forget.
-export function buildConversationSummary(history: Content[]): string {
+// envContextPrefix: if provided, skips the initial env context message (already injected separately).
+export function buildConversationSummary(history: Content[], envContextPrefix?: string): string {
   const lines: string[] = [];
   lines.push('<auditaria_conversation_history>');
   lines.push(
@@ -449,9 +568,21 @@ export function buildConversationSummary(history: Content[]): string {
   );
   lines.push('Continue the conversation naturally.\n');
 
+  let skippedEnvContext = false;
   for (const content of history) {
     const role = content.role === 'user' ? 'User' : 'Assistant';
     if (!content.parts || content.parts.length === 0) continue;
+
+    // Skip the initial environment context message — it's already injected
+    // separately to external providers via buildExternalProviderContext().
+    if (!skippedEnvContext && envContextPrefix && content.role === 'user') {
+      const firstPart = content.parts[0];
+      if (firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
+          && firstPart.text.startsWith(envContextPrefix)) {
+        skippedEnvContext = true;
+        continue;
+      }
+    }
 
     for (const part of content.parts) {
       if (!part || typeof part !== 'object') continue;
@@ -477,14 +608,9 @@ export function buildConversationSummary(history: Content[]): string {
             `[Tool Result (${name})]: The tool returned binary content (e.g. PDF, image) that was provided inline to a previous model. You cannot see the literal content of this tool result. Do not pretend to know what it contains.`,
           );
         } else {
-          // Keep forgotten placeholders in full, truncate large outputs
-          const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
-          const truncatedOutput = isForgotten
-            ? outputText
-            : outputText.length > 2000
-              ? outputText.slice(0, 2000) + '\n... (truncated)'
-              : outputText;
-          lines.push(`[Tool Result (${name})]: ${truncatedOutput}`);
+          // Keep full output — no truncation. Accurate context for the provider.
+          // Context management (CONTENT FORGOTTEN) is preserved as-is.
+          lines.push(`[Tool Result (${name})]: ${outputText}`);
         }
       }
       // Describe attachments honestly — Claude cannot see this binary data
@@ -518,7 +644,9 @@ export function sanitizeHistoryForProviderSwitch(
   history: Content[],
   knownToolNames?: Set<string>,
 ): Content[] {
-  return history
+  const originalPartCount = history.reduce((sum, c) => sum + (c.parts?.length || 0), 0);
+
+  const sanitized = history
     .map((content) => {
       if (!content.parts || content.parts.length === 0) return content;
 
@@ -571,14 +699,11 @@ export function sanitizeHistoryForProviderSwitch(
             const output = part.functionResponse.response?.output || '';
             const outputText =
               typeof output === 'string' ? output : JSON.stringify(output);
-            const isForgotten = outputText.includes('[CONTENT FORGOTTEN');
-            const truncatedOutput = isForgotten
-              ? outputText
-              : outputText.length > 2000
-                ? outputText.slice(0, 2000) + '\n... (truncated)'
-                : outputText;
+            // Keep full output — no truncation. The history is what goes to the SDK,
+            // and accurate token estimation requires the full content.
+            // Context management (CONTENT FORGOTTEN) is preserved as-is.
             newParts.push({
-              text: `[Tool Result (${toolName})]: ${truncatedOutput}`,
+              text: `[Tool Result (${toolName})]: ${outputText}`,
             });
           }
           continue;
@@ -592,4 +717,10 @@ export function sanitizeHistoryForProviderSwitch(
       return { ...content, parts: newParts };
     })
     .filter((c): c is Content => c !== null);
+
+  const sanitizedPartCount = sanitized.reduce((sum, c) => sum + (c.parts?.length || 0), 0);
+  // eslint-disable-next-line no-console
+  console.log(`[AUDITARIA_SANITIZE] history sanitized: ${history.length} items, ${originalPartCount} parts → ${sanitized.length} items, ${sanitizedPartCount} parts`);
+
+  return sanitized;
 }

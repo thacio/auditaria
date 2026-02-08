@@ -332,7 +332,7 @@ export const AppContainer = (props: AppContainerProps) => {
     [],
   );
 
-  const [currentModel, setCurrentModel] = useState(config.getModel());
+  const [currentModel, setCurrentModel] = useState(config.getDisplayModel()); // AUDITARIA_CLAUDE_PROVIDER
 
   const [userTier, setUserTier] = useState<UserTierId | undefined>(undefined);
 
@@ -436,7 +436,8 @@ export const AppContainer = (props: AppContainerProps) => {
   // Subscribe to fallback mode and model changes from core
   useEffect(() => {
     const handleModelChanged = () => {
-      setCurrentModel(config.getModel());
+      // AUDITARIA_CLAUDE_PROVIDER: Use getDisplayModel() to show Claude/Gemini correctly
+      setCurrentModel(config.getDisplayModel());
     };
 
     coreEvents.on(CoreEvent.ModelChanged, handleModelChanged);

@@ -50,6 +50,7 @@ import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { partListUnionToString } from './geminiRequest.js';
 import type { ModelConfigKey } from '../services/modelConfigService.js';
 import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
+import { SYSTEM_PROMPT_ESTIMATION_FIX } from './tokenLimits.js'; // AUDITARIA_FIX
 import {
   applyModelSelection,
   createAvailabilityContextProvider,
@@ -251,9 +252,24 @@ export class GeminiChat {
     validateHistory(history);
     this.chatRecordingService = new ChatRecordingService(config);
     this.chatRecordingService.initialize(resumedSessionData);
-    this.lastPromptTokenCount = estimateTokenCountSync(
+    // AUDITARIA_FIX: Estimate tokens including system instruction and tools, not just history.
+  // Upstream only estimates history parts, so the initial count is always lower than
+  // Gemini's API promptTokenCount (which includes system instruction + tool definitions).
+  // Remove this method if upstream adds proper initial token estimation.
+    this.lastPromptTokenCount = this.estimateFullPromptTokens();
+  }
+  private estimateFullPromptTokens(): number {
+    const historyTokens = estimateTokenCountSync(
       this.history.flatMap((c) => c.parts || []),
     );
+    if (!SYSTEM_PROMPT_ESTIMATION_FIX) return historyTokens;
+    const sysTokens = this.systemInstruction
+      ? estimateTokenCountSync([{ text: this.systemInstruction }])
+      : 0;
+    const toolsTokens = this.tools.length > 0
+      ? Math.floor(JSON.stringify(this.tools).length / 4)
+      : 0;
+    return historyTokens + sysTokens + toolsTokens;
   }
 
   setSystemInstruction(sysInstr: string) {
@@ -702,10 +718,12 @@ export class GeminiChat {
 
   setHistory(history: Content[]): void {
     this.history = history;
-    // AUDITARIA: Also used by context-management.ts tool to recalculate tokens after context changes
-    this.lastPromptTokenCount = estimateTokenCountSync(
-      this.history.flatMap((c) => c.parts || []),
-    );
+    // AUDITARIA_FIX: Estimate including system instruction + tools (remove if upstream fixes this)
+    this.lastPromptTokenCount = this.estimateFullPromptTokens();
+
+    // AUDITARIA_CLAUDE_PROVIDER: Log token reestimation for debugging provider switches
+    // eslint-disable-next-line no-console
+    console.log(`[AUDITARIA_TOKEN_HISTORY] setHistory() called with ${this.history.length} content items, estimated ${this.lastPromptTokenCount}T`);
   }
 
   stripThoughtsFromHistory(): void {
@@ -939,6 +957,11 @@ export class GeminiChat {
 
   getLastPromptTokenCount(): number {
     return this.lastPromptTokenCount;
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Setter for external providers to inject estimated tokens
+  setLastPromptTokenCount(count: number): void {
+    this.lastPromptTokenCount = count;
   }
 
   /**

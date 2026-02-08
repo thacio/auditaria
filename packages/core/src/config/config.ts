@@ -17,6 +17,10 @@ import type { ProviderConfig } from '../providers/types.js'; // AUDITARIA_CLAUDE
 import {
   ProviderManager,
   sanitizeHistoryForProviderSwitch,
+  ESTIMATION_CORRECTION_FACTOR,
+  getHistoryPartsForEstimation,
+  estimateClaudeBaseOverhead,
+  CLAUDE_INCLUDE_OVERHEAD,
 } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
@@ -56,6 +60,7 @@ import {
 } from '../telemetry/index.js';
 import { coreEvents, CoreEvent } from '../utils/events.js';
 import { tokenLimit } from '../core/tokenLimits.js';
+import { estimateTokenCountSync } from '../utils/tokenCalculation.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -849,6 +854,7 @@ export class Config {
         this.cwd,
         this.mcpServers,
       );
+      this.providerManager.setAppConfig(this); // AUDITARIA_CLAUDE_PROVIDER
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
     this.modelRouterService = new ModelRouterService(this);
@@ -1614,7 +1620,7 @@ export class Config {
     return this.providerManager;
   }
 
-  setProviderConfig(config: ProviderConfig): void {
+  setProviderConfig(config: ProviderConfig): void { // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {
       this.providerManager.setConfig(config);
     } else {
@@ -1623,10 +1629,11 @@ export class Config {
         this.cwd,
         this.mcpServers,
       );
-      // AUDITARIA_CLAUDE_PROVIDER: Pass registry if already initialized
+      // AUDITARIA_CLAUDE_PROVIDER: Pass registry and app config if already initialized
       if (this.toolRegistry) {
         this.providerManager.setToolRegistry(this.toolRegistry);
       }
+      this.providerManager.setAppConfig(this);
     }
     // AUDITARIA_CLAUDE_PROVIDER: If switching to Claude and there's existing Gemini
     // conversation history, signal the provider to inject it as context on next call.
@@ -1634,7 +1641,35 @@ export class Config {
       const history = this.geminiClient.getHistory();
       if (history.length > 0) {
         this.providerManager.onHistoryModified();
+
+        // AUDITARIA_CLAUDE_PROVIDER: Estimate token usage for footer display.
+        // Derive env context prefix from first user message in history (sync — same source as getEnvironmentContext output).
+        // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
+        const firstUser = history.find(c => c.role === 'user');
+        const firstPart = firstUser?.parts?.[0];
+        const envPrefix = firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
+          ? firstPart.text.substring(0, 30) : undefined;
+        const historyParts = getHistoryPartsForEstimation(history, envPrefix);
+        const historyTokens = estimateTokenCountSync(historyParts);
+        const context = this.buildExternalProviderContext();
+        const contextLength = context.length;
+        const contextTokens = Math.ceil(contextLength / 4);
+        const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
+        const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
+
+        // eslint-disable-next-line no-console
+        console.log('[AUDITARIA_TOKEN_ESTIMATION] Switching to external provider with existing history');
+        // eslint-disable-next-line no-console
+        console.log(
+          `[AUDITARIA_TOKEN_ESTIMATION] history: ${historyTokens}T + context: ${contextTokens}T + overhead: ${overhead}T × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`,
+        );
+
+        this.geminiClient.getChat().setLastPromptTokenCount(estimated);
+        uiTelemetryService.setLastPromptTokenCount(estimated);
       }
+
+      // AUDITARIA_CLAUDE_PROVIDER: Emit model changed event to update footer
+      coreEvents.emitModelChanged(this.providerManager!.getModel());
     }
   }
 
@@ -1642,6 +1677,7 @@ export class Config {
     // AUDITARIA_CLAUDE_PROVIDER: When switching back to Gemini, sanitize history
     // to convert Claude-specific functionCall/functionResponse parts into text
     // descriptions. Preserves inlineData, fileData, and known Auditaria tool calls.
+    // Full content is preserved (no truncation) for accurate token estimation.
     if (this.providerManager?.isExternalProviderActive()) {
       const history = this.geminiClient.getHistory();
       if (history.length > 0) {
@@ -1650,17 +1686,36 @@ export class Config {
           : undefined;
         const sanitized = sanitizeHistoryForProviderSwitch(history, knownTools);
         this.geminiClient.setHistory(sanitized);
+
+        // AUDITARIA_CLAUDE_PROVIDER: setHistory() recalculates tokens from full (non-truncated)
+        // history. Update telemetry immediately so footer reflects the actual conversation size.
+        const reestimatedTokens = this.geminiClient.getChat().getLastPromptTokenCount();
+        uiTelemetryService.setLastPromptTokenCount(reestimatedTokens);
+
+        // eslint-disable-next-line no-console
+        console.log(`[AUDITARIA_TOKEN_ESTIMATION] Switched to Gemini, re-estimated tokens: ${reestimatedTokens}T`);
       }
     }
     this.providerManager?.dispose();
     this.providerManager = undefined;
+
+    // AUDITARIA_CLAUDE_PROVIDER: Emit model changed event to update footer when switching back to Gemini
+    coreEvents.emitModelChanged(this.getModel());
   }
 
-  isExternalProviderActive(): boolean {
+  isExternalProviderActive(): boolean { // AUDITARIA_CLAUDE_PROVIDER:
     return this.providerManager?.isExternalProviderActive() ?? false;
   }
 
-  buildExternalProviderContext(): string {
+  // AUDITARIA_CLAUDE_PROVIDER: Get display model (external provider or Gemini)
+  getDisplayModel(): string {
+    if (this.providerManager?.isExternalProviderActive()) {
+      return this.providerManager.getModel();
+    }
+    return this.getModel();
+  }
+
+  buildExternalProviderContext(): string {  // AUDITARIA_CLAUDE_PROVIDER:
     const sections: string[] = [];
     sections.push(getAuditContext());
     const memory = this.getUserMemory();

@@ -105,6 +105,13 @@ export function getDisplayString(
   model: string,
   previewFeaturesEnabled: boolean = false,
 ) {
+  // AUDITARIA_CLAUDE_PROVIDER: Format Claude model display
+  if (model.startsWith('claude-code:')) {
+    const variant = model.split(':')[1] || 'unknown';
+    const capitalizedVariant = variant.charAt(0).toUpperCase() + variant.slice(1);
+    return `Claude (${capitalizedVariant})`;
+  }
+
   switch (model) {
     case PREVIEW_GEMINI_MODEL_AUTO:
       return 'Auto (Gemini 3)';

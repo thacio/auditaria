@@ -70,13 +70,13 @@ const MAX_TURNS = 100;
 
 type BeforeAgentHookReturn =
   | {
-      type: GeminiEventType.AgentExecutionStopped;
-      value: { reason: string; systemMessage?: string };
-    }
+    type: GeminiEventType.AgentExecutionStopped;
+    value: { reason: string; systemMessage?: string };
+  }
   | {
-      type: GeminiEventType.AgentExecutionBlocked;
-      value: { reason: string; systemMessage?: string };
-    }
+    type: GeminiEventType.AgentExecutionBlocked;
+    value: { reason: string; systemMessage?: string };
+  }
   | { additionalContext: string | undefined }
   | undefined;
 
@@ -208,9 +208,15 @@ export class GeminiClient {
 
   private updateTelemetryTokenCount() {
     if (this.chat) {
-      uiTelemetryService.setLastPromptTokenCount(
-        this.chat.getLastPromptTokenCount(),
-      );
+      // uiTelemetryService.setLastPromptTokenCount(
+      //   this.chat.getLastPromptTokenCount(),
+      // ); // GEMINI CLI UPSTREAM ORIGINAL commnted out
+
+      const tokenCount = this.chat.getLastPromptTokenCount(); // AUDITARIA_CLAUDE_PROVIDER
+      const isExternal = this.config.isExternalProviderActive(); // AUDITARIA_CLAUDE_PROVIDER
+      // eslint-disable-next-line no-console
+      console.log(`[AUDITARIA_TOKEN_TELEMETRY] Updated token count: ${tokenCount}T (provider: ${isExternal ? 'external' : 'gemini'})`); // AUDITARIA_CLAUDE_PROVIDER
+      uiTelemetryService.setLastPromptTokenCount(tokenCount); // AUDITARIA_CLAUDE_PROVIDER
     }
   }
 
@@ -379,9 +385,9 @@ export class GeminiClient {
           path: activeFile.path,
           cursor: activeFile.cursor
             ? {
-                line: activeFile.cursor.line,
-                character: activeFile.cursor.character,
-              }
+              line: activeFile.cursor.line,
+              character: activeFile.cursor.character,
+            }
             : undefined,
           selectedText: activeFile.selectedText || undefined,
         };
@@ -460,9 +466,9 @@ export class GeminiClient {
             path: currentActiveFile.path,
             cursor: currentActiveFile.cursor
               ? {
-                  line: currentActiveFile.cursor.line,
-                  character: currentActiveFile.cursor.character,
-                }
+                line: currentActiveFile.cursor.line,
+                character: currentActiveFile.cursor.character,
+              }
               : undefined,
             selectedText: currentActiveFile.selectedText || undefined,
           };
@@ -789,7 +795,12 @@ export class GeminiClient {
         effectiveRequest = collabNotifications + '\n\n' + partToString(request, { verbose: true });
       }
       const systemContext = this.config.buildExternalProviderContext();
-      return yield* providerManager.handleSendMessage(effectiveRequest, signal, prompt_id, this.getChat(), systemContext);
+      const turn = yield* providerManager.handleSendMessage(effectiveRequest, signal, prompt_id, this.getChat(), systemContext);
+
+      // AUDITARIA_CLAUDE_PROVIDER: Update telemetry token count after external provider stream completes
+      this.updateTelemetryTokenCount();
+
+      return turn;
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
 
