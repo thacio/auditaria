@@ -13,6 +13,7 @@ import type {
   ClaudeAssistantMessage,
   ClaudeUserMessage,
   ClaudeResultMessage,
+  ClaudeCompactBoundaryMessage,
   ClaudeDriverConfig,
 } from './types.js';
 
@@ -25,6 +26,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private sessionManager = new ClaudeSessionManager();
   private activeProcess: ChildProcess | null = null;
   private mcpConfigPath: string | null = null; // AUDITARIA_CLAUDE_PROVIDER: temp MCP config file
+  private expectingCompactionSummary = false; // AUDITARIA_CLAUDE_PROVIDER: Set after compact_boundary, capture next user text as summary
 
   constructor(private readonly config: ClaudeDriverConfig) {
     dbg('constructor', { model: config.model, cwd: config.cwd, mcpServerCount: config.mcpServers ? Object.keys(config.mcpServers).length : 0 });
@@ -96,6 +98,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget session reset)
   resetSession(): void {
     this.sessionManager.clearSession();
+    this.expectingCompactionSummary = false;
   }
 
   dispose(): void {
@@ -103,6 +106,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       this.activeProcess.kill('SIGTERM');
     }
     this.activeProcess = null;
+    this.expectingCompactionSummary = false;
     this.cleanupMcpConfig(); // AUDITARIA_CLAUDE_PROVIDER
   }
 
@@ -303,6 +307,17 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
 
     if (message.type === 'system') {
+      // AUDITARIA_CLAUDE_PROVIDER: Detect context compaction boundary from Claude subprocess
+      if ('subtype' in message && message.subtype === 'compact_boundary') {
+        const metadata = (message as ClaudeCompactBoundaryMessage).compact_metadata;
+        dbg('compact_boundary detected', { trigger: metadata?.trigger, preTokens: metadata?.pre_tokens });
+        yield {
+          type: ProviderEventType.Compacted,
+          preTokens: metadata?.pre_tokens ?? 0,
+          trigger: metadata?.trigger ?? 'auto',
+        };
+        this.expectingCompactionSummary = true;
+      }
       dbg('system message, session_id:', message.session_id);
       return;
     }
@@ -398,6 +413,21 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
 
     dbg('user message, blocks:', content.length);
+
+    // AUDITARIA_CLAUDE_PROVIDER: Capture compaction summary from post-compact user message
+    if (this.expectingCompactionSummary) {
+      for (const block of content) {
+        if (block.type === 'text' && block.text) {
+          this.expectingCompactionSummary = false;
+          dbg('captured compaction summary', { length: block.text.length });
+          yield {
+            type: ProviderEventType.CompactionSummary,
+            summary: block.text,
+          };
+          break; // Only capture the first text block as summary
+        }
+      }
+    }
 
     for (const block of content) {
       if (block.type === 'tool_result') {

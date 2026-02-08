@@ -239,6 +239,122 @@ describe('ClaudeCLIDriver', () => {
     expect((content as { text: string }).text).toBe('ok');
   });
 
+  it('should emit Compacted and CompactionSummary events from compact_boundary + summary', async () => {
+    const systemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'sess-1',
+    });
+    const compactMsg = JSON.stringify({
+      type: 'system',
+      subtype: 'compact_boundary',
+      session_id: 'sess-1',
+      compact_metadata: {
+        trigger: 'auto',
+        pre_tokens: 150000,
+      },
+    });
+    const summaryMsg = JSON.stringify({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Summary of conversation: we discussed auditing frameworks and INTOSAI standards.' },
+        ],
+      },
+    });
+    const newSystemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'sess-2',
+    });
+
+    mockSpawn.mockReturnValue(createMockProcess([systemMsg, compactMsg, summaryMsg, newSystemMsg]));
+
+    const driver = new ClaudeCLIDriver(driverConfig);
+    const events = [];
+    const controller = new AbortController();
+
+    for await (const event of driver.sendMessage('test', controller.signal)) {
+      events.push(event);
+    }
+
+    const compacted = events.find(e => e.type === ProviderEventType.Compacted);
+    expect(compacted).toBeDefined();
+    expect((compacted as { preTokens: number }).preTokens).toBe(150000);
+    expect((compacted as { trigger: string }).trigger).toBe('auto');
+
+    const summary = events.find(e => e.type === ProviderEventType.CompactionSummary);
+    expect(summary).toBeDefined();
+    expect((summary as { summary: string }).summary).toContain('auditing frameworks');
+  });
+
+  it('should emit Compacted without CompactionSummary when no summary follows', async () => {
+    const systemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'sess-1',
+    });
+    const compactMsg = JSON.stringify({
+      type: 'system',
+      subtype: 'compact_boundary',
+      session_id: 'sess-1',
+      compact_metadata: {
+        trigger: 'auto',
+        pre_tokens: 150000,
+      },
+    });
+    const newSystemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'sess-2',
+    });
+
+    mockSpawn.mockReturnValue(createMockProcess([systemMsg, compactMsg, newSystemMsg]));
+
+    const driver = new ClaudeCLIDriver(driverConfig);
+    const events = [];
+    const controller = new AbortController();
+
+    for await (const event of driver.sendMessage('test', controller.signal)) {
+      events.push(event);
+    }
+
+    const compacted = events.find(e => e.type === ProviderEventType.Compacted);
+    expect(compacted).toBeDefined();
+    // No CompactionSummary should be emitted
+    const summary = events.find(e => e.type === ProviderEventType.CompactionSummary);
+    expect(summary).toBeUndefined();
+  });
+
+  it('should capture new session_id after compact_boundary', async () => {
+    const systemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'old-session',
+    });
+    const assistantMsg = JSON.stringify({
+      type: 'assistant',
+      message: { type: 'message', content: [{ type: 'text', text: 'hello' }] },
+    });
+    const compactMsg = JSON.stringify({
+      type: 'system',
+      subtype: 'compact_boundary',
+      session_id: 'old-session',
+      compact_metadata: { trigger: 'auto', pre_tokens: 100000 },
+    });
+    const newSystemMsg = JSON.stringify({
+      type: 'system',
+      session_id: 'new-session-after-compact',
+    });
+
+    mockSpawn.mockReturnValue(createMockProcess([systemMsg, assistantMsg, compactMsg, newSystemMsg]));
+
+    const driver = new ClaudeCLIDriver(driverConfig);
+    const controller = new AbortController();
+
+    for await (const _ of driver.sendMessage('test', controller.signal)) {
+      // consume
+    }
+
+    expect(driver.getSessionId()).toBe('new-session-after-compact');
+  });
+
   it('should pass correct args to spawn and pipe prompt via stdin', async () => {
     const mockProc = createMockProcess([]);
     mockSpawn.mockReturnValue(mockProc);

@@ -9,17 +9,19 @@ import type { Content } from '@google/genai';
 import {
   buildConversationSummary,
   sanitizeHistoryForProviderSwitch,
+  compactMirroredHistory,
   ProviderManager,
 } from './providerManager.js';
 import type { ProviderDriver, ProviderEvent } from './types.js';
 import { ProviderEventType } from './types.js';
-import { GeminiEventType } from '../core/turn.js';
+import { GeminiEventType, CompressionStatus } from '../core/turn.js';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 /** Minimal GeminiChat mock that stores history in an array */
 function createMockChat() {
   const history: Content[] = [];
+  let lastPromptTokenCount = 0;
   return {
     addHistory(content: Content) {
       history.push(content);
@@ -30,6 +32,12 @@ function createMockChat() {
     setHistory(h: Content[]) {
       history.length = 0;
       history.push(...h);
+    },
+    setLastPromptTokenCount(count: number) {
+      lastPromptTokenCount = count;
+    },
+    getLastPromptTokenCount() {
+      return lastPromptTokenCount;
     },
     _raw: history, // direct reference for assertions
   };
@@ -837,5 +845,273 @@ describe('buildConversationSummary attachment handling', () => {
     expect(summary).toContain('application/pdf');
     expect(summary).toContain('cannot see the literal content');
     expect(summary).toContain('Do not pretend');
+  });
+});
+
+// ─── compactMirroredHistory ───────────────────────────────────────────────────
+
+describe('compactMirroredHistory', () => {
+  it('should use state_snapshot tags when summary is provided', () => {
+    const mockChat = createMockChat();
+    for (let i = 0; i < 20; i++) {
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `User message ${i}: ${'x'.repeat(100)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `Model response ${i}: ${'y'.repeat(100)}` }],
+      });
+    }
+    const originalLength = mockChat._raw.length;
+    expect(originalLength).toBe(40);
+
+    compactMirroredHistory(mockChat as never, 'Summary of the conversation about auditing.');
+
+    const history = mockChat._raw;
+    expect(history.length).toBeLessThan(originalLength);
+    // First entry should contain state_snapshot with the summary
+    expect(history[0].role).toBe('user');
+    expect((history[0].parts![0] as { text: string }).text).toContain('<state_snapshot>');
+    expect((history[0].parts![0] as { text: string }).text).toContain('Summary of the conversation about auditing.');
+    expect((history[0].parts![0] as { text: string }).text).toContain('</state_snapshot>');
+    // Model ack should match Gemini's format
+    expect(history[1].role).toBe('model');
+    expect((history[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+    // Remaining entries come from original history's tail
+    expect(history[2].role).toBe('user');
+  });
+
+  it('should use context_compacted fallback when no summary provided', () => {
+    const mockChat = createMockChat();
+    for (let i = 0; i < 20; i++) {
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `User message ${i}: ${'x'.repeat(100)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `Model response ${i}: ${'y'.repeat(100)}` }],
+      });
+    }
+
+    compactMirroredHistory(mockChat as never); // No summary
+
+    const history = mockChat._raw;
+    expect(history[0].role).toBe('user');
+    expect((history[0].parts![0] as { text: string }).text).toContain('<context_compacted>');
+    expect((history[0].parts![0] as { text: string }).text).not.toContain('<state_snapshot>');
+    // Model ack still matches Gemini's format
+    expect((history[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+  });
+
+  it('should not trim history with <= 4 entries', () => {
+    const mockChat = createMockChat();
+    mockChat.addHistory({ role: 'user', parts: [{ text: 'Hello' }] });
+    mockChat.addHistory({ role: 'model', parts: [{ text: 'Hi' }] });
+    mockChat.addHistory({ role: 'user', parts: [{ text: 'How?' }] });
+
+    compactMirroredHistory(mockChat as never);
+
+    expect(mockChat._raw).toHaveLength(3);
+    expect((mockChat._raw[0].parts![0] as { text: string }).text).toBe('Hello');
+  });
+
+  it('should produce valid history structure after trim (user/model alternation)', () => {
+    const mockChat = createMockChat();
+    for (let i = 0; i < 10; i++) {
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `User ${i}: ${'x'.repeat(200)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `Model ${i}: ${'y'.repeat(200)}` }],
+      });
+    }
+
+    compactMirroredHistory(mockChat as never);
+
+    const history = mockChat._raw;
+    // First two entries: user (compacted marker) → model (ack)
+    expect(history[0].role).toBe('user');
+    expect(history[1].role).toBe('model');
+    // Rest should alternate user/model
+    for (let i = 2; i < history.length; i++) {
+      const expectedRole = i % 2 === 0 ? 'user' : 'model';
+      expect(history[i].role).toBe(expectedRole);
+    }
+  });
+});
+
+// ─── Compacted event handling in handleSendMessage ────────────────────────────
+
+describe('ProviderManager compaction handling', () => {
+  let manager: ProviderManager;
+  let mockChat: ReturnType<typeof createMockChat>;
+
+  beforeEach(() => {
+    manager = new ProviderManager(
+      { type: 'claude-cli', model: 'sonnet' },
+      '/tmp/test',
+    );
+    mockChat = createMockChat();
+  });
+
+  async function runWithEvents(events: ProviderEvent[]) {
+    const mockDriver = createMockDriver(events);
+    (manager as unknown as Record<string, unknown>)['driver'] = mockDriver;
+
+    const yielded: unknown[] = [];
+    const gen = manager.handleSendMessage(
+      'test prompt',
+      new AbortController().signal,
+      'prompt-1',
+      mockChat as never,
+    );
+    let result = await gen.next();
+    while (!result.done) {
+      yielded.push(result.value);
+      result = await gen.next();
+    }
+    return yielded;
+  }
+
+  it('should emit ChatCompressed with state_snapshot when Compacted + CompactionSummary received', async () => {
+    // Pre-fill history so there's something to compact
+    for (let i = 0; i < 10; i++) {
+      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
+      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+    }
+    const preHistoryLength = mockChat._raw.length;
+
+    const yielded = await runWithEvents([
+      { type: ProviderEventType.Content, text: 'Before compaction' },
+      { type: ProviderEventType.Compacted, preTokens: 150000, trigger: 'auto' as const },
+      { type: ProviderEventType.CompactionSummary, summary: 'Summary of auditing discussion with key findings.' },
+      { type: ProviderEventType.Content, text: 'After compaction' },
+      { type: ProviderEventType.Finished },
+    ]);
+
+    // Should have emitted ChatCompressed event
+    const compressed = (yielded as Array<{ type: string }>).find(
+      e => e.type === GeminiEventType.ChatCompressed,
+    );
+    expect(compressed).toBeDefined();
+    const info = (compressed as unknown as { value: { originalTokenCount: number; compressionStatus: string } }).value;
+    expect(info.originalTokenCount).toBe(150000);
+    expect(info.compressionStatus).toBe(CompressionStatus.COMPRESSED);
+
+    // History should contain state_snapshot with summary (not context_compacted)
+    const firstEntry = mockChat._raw[0];
+    expect((firstEntry.parts![0] as { text: string }).text).toContain('<state_snapshot>');
+    expect((firstEntry.parts![0] as { text: string }).text).toContain('Summary of auditing discussion');
+    expect((firstEntry.parts![0] as { text: string }).text).toContain('</state_snapshot>');
+    // Model ack matches Gemini's format
+    expect((mockChat._raw[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+    // History should be shorter (trimmed)
+    expect(mockChat._raw.length).toBeLessThan(preHistoryLength + 4);
+  });
+
+  it('should use fallback context_compacted when Compacted received without CompactionSummary', async () => {
+    // Pre-fill enough history for compaction to actually trim
+    for (let i = 0; i < 10; i++) {
+      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
+      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+    }
+
+    const yielded = await runWithEvents([
+      { type: ProviderEventType.Content, text: 'Before compaction' },
+      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
+      // No CompactionSummary event follows — fallback triggers at end of stream
+      { type: ProviderEventType.Content, text: 'After compaction' },
+      { type: ProviderEventType.Finished },
+    ]);
+
+    // Should still emit ChatCompressed
+    const compressed = (yielded as Array<{ type: string }>).find(
+      e => e.type === GeminiEventType.ChatCompressed,
+    );
+    expect(compressed).toBeDefined();
+
+    // History should use fallback context_compacted marker
+    const firstEntry = mockChat._raw[0];
+    expect((firstEntry.parts![0] as { text: string }).text).toContain('<context_compacted>');
+    expect((firstEntry.parts![0] as { text: string }).text).not.toContain('<state_snapshot>');
+  });
+
+  it('should flush accumulated text before trimming on Compacted', async () => {
+    // Pre-fill enough history for compaction to actually trim
+    for (let i = 0; i < 10; i++) {
+      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
+      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+    }
+
+    await runWithEvents([
+      { type: ProviderEventType.Content, text: 'hello ' },
+      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
+      { type: ProviderEventType.CompactionSummary, summary: 'Conversation summary here.' },
+      { type: ProviderEventType.Content, text: 'world' },
+      { type: ProviderEventType.Finished },
+    ]);
+
+    // The "hello " text should have been flushed to history before trim.
+    // After trim, the state_snapshot marker is at start, then recent entries remain.
+    // The "world" text is flushed at end of stream.
+    // Verify that "world" is in the last model entry
+    const lastEntry = mockChat._raw[mockChat._raw.length - 1];
+    expect(lastEntry.role).toBe('model');
+    expect((lastEntry.parts![0] as { text: string }).text).toContain('world');
+  });
+
+  it('should NOT set contextModified after compaction', async () => {
+    // Pre-fill enough history
+    for (let i = 0; i < 10; i++) {
+      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
+      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+    }
+
+    // First call with compaction (with summary)
+    await runWithEvents([
+      { type: ProviderEventType.Content, text: 'Compacted response' },
+      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
+      { type: ProviderEventType.CompactionSummary, summary: 'Summary of conversation.' },
+      { type: ProviderEventType.Finished },
+    ]);
+
+    // Second call — should NOT have conversation summary injected
+    let receivedContext: string | undefined;
+    const trackingDriver: ProviderDriver = {
+      async *sendMessage(
+        _prompt: string,
+        _signal: AbortSignal,
+        systemContext?: string,
+      ) {
+        receivedContext = systemContext;
+        yield { type: ProviderEventType.Finished } as ProviderEvent;
+      },
+      async interrupt() {},
+      getSessionId() { return 'session-after-compact'; },
+      resetSession() {},
+      dispose() {},
+    };
+
+    (manager as unknown as Record<string, unknown>)['driver'] = trackingDriver;
+
+    const gen = manager.handleSendMessage(
+      'follow up',
+      new AbortController().signal,
+      'prompt-2',
+      mockChat as never,
+      'base context',
+    );
+    let result = await gen.next();
+    while (!result.done) {
+      result = await gen.next();
+    }
+
+    // Context should be the base context only, no conversation summary
+    expect(receivedContext).toBe('base context');
+    expect(receivedContext).not.toContain('<auditaria_conversation_history>');
   });
 });

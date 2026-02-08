@@ -8,6 +8,8 @@ export enum ProviderEventType {
   ModelInfo = 'model_info',
   Finished = 'finished',
   Error = 'error',
+  Compacted = 'compacted', // AUDITARIA_CLAUDE_PROVIDER: Claude context compaction boundary
+  CompactionSummary = 'compaction_summary', // AUDITARIA_CLAUDE_PROVIDER: Summary captured after compaction
 }
 
 export interface ProviderContentEvent {
@@ -55,6 +57,19 @@ export interface ProviderErrorEvent {
   status?: number;
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Emitted when Claude auto-compacts its context window
+export interface ProviderCompactedEvent {
+  type: ProviderEventType.Compacted;
+  preTokens: number;
+  trigger: 'manual' | 'auto';
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Emitted with Claude's compaction summary text (post-compact user message)
+export interface ProviderCompactionSummaryEvent {
+  type: ProviderEventType.CompactionSummary;
+  summary: string;
+}
+
 export type ProviderEvent =
   | ProviderContentEvent
   | ProviderThinkingEvent
@@ -62,7 +77,9 @@ export type ProviderEvent =
   | ProviderToolResultEvent
   | ProviderModelInfoEvent
   | ProviderFinishedEvent
-  | ProviderErrorEvent;
+  | ProviderErrorEvent
+  | ProviderCompactedEvent
+  | ProviderCompactionSummaryEvent;
 
 export interface ProviderDriver {
   sendMessage(

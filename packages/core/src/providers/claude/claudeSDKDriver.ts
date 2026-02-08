@@ -8,6 +8,7 @@ import type {
   ClaudeAssistantMessage,
   ClaudeUserMessage,
   ClaudeResultMessage,
+  ClaudeCompactBoundaryMessage,
   ClaudeDriverConfig,
 } from './types.js';
 
@@ -64,11 +65,22 @@ export class ClaudeSDKDriver implements ProviderDriver {
       for await (const message of instance) {
         if (signal.aborted) return;
 
-        // Capture session ID from first system message
-        if (message.type === 'system' && message.session_id) {
-          this.sessionManager.setSessionId(
-            message.session_id as string,
-          );
+        // Capture session ID from system messages
+        if (message.type === 'system') {
+          if (message.session_id) {
+            this.sessionManager.setSessionId(
+              message.session_id as string,
+            );
+          }
+          // AUDITARIA_CLAUDE_PROVIDER: Detect context compaction boundary
+          if ('subtype' in message && message.subtype === 'compact_boundary') {
+            const metadata = (message as ClaudeCompactBoundaryMessage).compact_metadata;
+            yield {
+              type: ProviderEventType.Compacted,
+              preTokens: metadata?.pre_tokens ?? 0,
+              trigger: metadata?.trigger ?? 'auto',
+            };
+          }
           continue;
         }
 

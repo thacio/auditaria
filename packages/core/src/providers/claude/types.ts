@@ -85,11 +85,23 @@ export interface ClaudeResultMessage {
   [key: string]: unknown;
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Emitted when Claude auto-compacts its context window
+export interface ClaudeCompactBoundaryMessage {
+  type: 'system';
+  subtype: 'compact_boundary';
+  session_id?: string;
+  compact_metadata: {
+    trigger: 'manual' | 'auto';
+    pre_tokens: number;
+  };
+}
+
 export type ClaudeStreamMessage =
   | ClaudeSystemMessage
   | ClaudeAssistantMessage
   | ClaudeUserMessage
   | ClaudeResultMessage
+  | ClaudeCompactBoundaryMessage
   | { type: string; [key: string]: unknown };
 
 /** Driver configuration for Claude providers */

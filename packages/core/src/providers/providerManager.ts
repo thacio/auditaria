@@ -9,9 +9,11 @@ import * as path from 'node:path';
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
   GeminiEventType,
+  CompressionStatus,
   type ServerGeminiStreamEvent,
   Turn,
 } from '../core/turn.js';
+import { findCompressSplitPoint } from '../services/chatCompressionService.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import type {
   ProviderConfig,
@@ -248,6 +250,10 @@ export class ProviderManager {
     const toolIdToName = new Map<string, string>();
     let accumulatedText = '';
 
+    // AUDITARIA_CLAUDE_PROVIDER: Two-phase compaction tracking
+    let compactionPreTokens = 0;
+    let awaitingCompactionSummary = false;
+
     let eventCount = 0;
     try {
       for await (const event of driver.sendMessage(
@@ -331,6 +337,37 @@ export class ProviderManager {
           continue;
         }
 
+        // AUDITARIA_CLAUDE_PROVIDER_START: Two-phase context compaction handling
+        // Phase 1: compact_boundary detected — flush and record, wait for summary
+        if (event.type === ProviderEventType.Compacted) {
+          dbg(`event #${eventCount} compacted: trigger=${event.trigger}, preTokens=${event.preTokens}`);
+          flushModelParts(chat, modelParts, accumulatedText);
+          accumulatedText = '';
+          compactionPreTokens = event.preTokens;
+          awaitingCompactionSummary = true;
+          continue;
+        }
+
+        // Phase 2: summary captured from post-compact user message
+        if (event.type === ProviderEventType.CompactionSummary && awaitingCompactionSummary) {
+          dbg(`event #${eventCount} compaction summary captured (${event.summary.length} chars)`);
+          compactMirroredHistory(chat, event.summary);
+          const newTokens = estimateTokenCountSync(
+            chat.getHistory().flatMap(c => c.parts || [])
+          );
+          yield {
+            type: GeminiEventType.ChatCompressed,
+            value: {
+              originalTokenCount: compactionPreTokens,
+              newTokenCount: newTokens,
+              compressionStatus: CompressionStatus.COMPRESSED,
+            },
+          };
+          awaitingCompactionSummary = false;
+          continue;
+        }
+        // AUDITARIA_CLAUDE_PROVIDER_END
+
         // Mirror: accumulate text content
         if (event.type === ProviderEventType.Content) {
           accumulatedText += event.text;
@@ -345,6 +382,23 @@ export class ProviderManager {
 
       // Flush any remaining model parts at end of stream
       flushModelParts(chat, modelParts, accumulatedText);
+
+      // AUDITARIA_CLAUDE_PROVIDER: Fallback — compact_boundary received but no summary followed
+      if (awaitingCompactionSummary) {
+        compactMirroredHistory(chat); // No summary — uses fallback marker
+        const newTokens = estimateTokenCountSync(
+          chat.getHistory().flatMap(c => c.parts || [])
+        );
+        yield {
+          type: GeminiEventType.ChatCompressed,
+          value: {
+            originalTokenCount: compactionPreTokens,
+            newTokenCount: newTokens,
+            compressionStatus: CompressionStatus.COMPRESSED,
+          },
+        };
+        awaitingCompactionSummary = false;
+      }
 
       // AUDITARIA_CLAUDE_PROVIDER: Estimate token count for external providers.
       // Strips the initial env context message (already injected separately to Claude).
@@ -368,6 +422,30 @@ export class ProviderManager {
     } catch (e) {
       // Flush on error too, so partial history is preserved
       flushModelParts(chat, modelParts, accumulatedText);
+
+      // AUDITARIA_CLAUDE_PROVIDER: If the error happened mid-tool-call, the last model entry
+      // may have a functionCall without a matching functionResponse. This breaks Gemini's
+      // /compress (requires matched functionCall/functionResponse pairs). Add a placeholder.
+      const history = chat.getHistory();
+      const lastEntry = history[history.length - 1];
+      if (lastEntry?.role === 'model' && lastEntry.parts?.some(p => 'functionCall' in p && p.functionCall)) {
+        const danglingCalls = lastEntry.parts.filter(p => 'functionCall' in p && p.functionCall);
+        for (const part of danglingCalls) {
+          const fc = (part as { functionCall: { name: string } }).functionCall;
+          chat.addHistory({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                id: `error-${fc.name}`,
+                name: fc.name,
+                response: { output: `[Error: provider stream terminated before tool result was returned]` },
+              },
+            }],
+          });
+        }
+        dbg(`added ${danglingCalls.length} placeholder functionResponse(s) for dangling tool calls`);
+      }
+
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
     }
@@ -718,3 +796,47 @@ export function sanitizeHistoryForProviderSwitch(
 
   return sanitized;
 }
+
+// AUDITARIA_CLAUDE_PROVIDER_START: Trim mirrored history after external provider compaction
+// Fraction of history to keep when trimming (matches Gemini's COMPRESSION_PRESERVE_THRESHOLD).
+const COMPACTION_PRESERVE_FRACTION = 0.3;
+
+export function compactMirroredHistory(chat: GeminiChat, summary?: string): void {
+  const history = chat.getHistory();
+  if (history.length <= 4) return; // Too small to trim
+
+  // Compress the first 70%, keep last 30% (by character count).
+  // findCompressSplitPoint handles user message boundaries so we don't split mid-tool-sequence.
+  const splitPoint = findCompressSplitPoint(history, 1 - COMPACTION_PRESERVE_FRACTION);
+  if (splitPoint <= 0) return; // Nothing to compress
+
+  const historyToKeep = history.slice(splitPoint);
+
+  // If we have Claude's compaction summary, wrap it in <state_snapshot> tags
+  // to match Gemini's compression format. This enables:
+  // 1. hasPreviousSnapshot detection in chatCompressionService.ts (line 323)
+  // 2. Gemini's summarizer integrating this into future compressions
+  // 3. High-quality context when switching providers
+  const snapshotText = summary
+    ? `<state_snapshot>\n${summary}\n</state_snapshot>`
+    : '<context_compacted>\n'
+      + 'The external provider has compacted its context window. '
+      + 'Older conversation history was summarized internally by the provider. '
+      + 'Only recent messages are preserved below.\n'
+      + '</context_compacted>';
+
+  const compactedHistory: Content[] = [
+    {
+      role: 'user',
+      parts: [{ text: snapshotText }],
+    },
+    {
+      role: 'model',
+      parts: [{ text: 'Got it. Thanks for the additional context!' }],
+    },
+    ...historyToKeep,
+  ];
+
+  chat.setHistory(compactedHistory);
+}
+// AUDITARIA_CLAUDE_PROVIDER_END

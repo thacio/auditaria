@@ -1093,6 +1093,15 @@ export class GeminiClient {
         this.chat = await this.startChat(newHistory, resumedData);
         this.updateTelemetryTokenCount();
         this.forceFullIdeContext = true;
+
+        // AUDITARIA_CLAUDE_PROVIDER: After compression, notify external provider so it
+        // resets its session and injects the compressed history on next call.
+        // startChat() creates a new GeminiChat (doesn't call setHistory()), so
+        // context-management's notification path is not triggered.
+        const providerManager = this.config.getProviderManager();
+        if (providerManager?.isExternalProviderActive()) {
+          providerManager.onHistoryModified();
+        }
       }
     }
 

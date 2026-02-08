@@ -1657,6 +1657,21 @@ export class Config {
         const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
         const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
 
+        // AUDITARIA_CLAUDE_PROVIDER: Refuse if history exceeds Claude's context limit
+        const claudeModel = this.providerManager!.getModel();
+        const claudeLimit = tokenLimit(claudeModel);
+        if (claudeLimit > 0 && estimated > claudeLimit * 0.95) {
+          // Don't switch — keep on Gemini
+          this.providerManager?.dispose();
+          this.providerManager = undefined;
+          coreEvents.emitModelChanged(this.getModel()); // Revert footer to Gemini
+          throw new Error(
+            `Conversation history (~${Math.round(estimated / 1000)}K tokens) exceeds ` +
+            `${claudeModel} context limit (~${Math.round(claudeLimit / 1000)}K tokens). ` +
+            `Run /compress to compress the history before switching providers.`
+          );
+        }
+
         this.geminiClient.getChat().setLastPromptTokenCount(estimated);
         uiTelemetryService.setLastPromptTokenCount(estimated);
       }
