@@ -926,6 +926,8 @@ export class Config {
     }
     this.initialized = true;
 
+    await this.storage.initialize();
+
     // Add pending directories to workspace context
     for (const dir of this.pendingIncludeDirectories) {
       this.workspaceContext.addDirectory(dir);
@@ -1690,7 +1692,8 @@ export class Config {
     return this.providerManager;
   }
 
-  setProviderConfig(config: ProviderConfig): void { // AUDITARIA_CLAUDE_PROVIDER:
+  setProviderConfig(config: ProviderConfig): void {
+    // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {
       this.providerManager.setConfig(config);
     } else {
@@ -1715,20 +1718,27 @@ export class Config {
         // AUDITARIA_CLAUDE_PROVIDER: Estimate token usage for footer display.
         // Derive env context prefix from first user message in history (sync — same source as getEnvironmentContext output).
         // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
-        const firstUser = history.find(c => c.role === 'user');
+        const firstUser = history.find((c) => c.role === 'user');
         const firstPart = firstUser?.parts?.[0];
-        const envPrefix = firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
-          ? firstPart.text.substring(0, 30) : undefined;
+        const envPrefix =
+          firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
+            ? firstPart.text.substring(0, 30)
+            : undefined;
         const historyParts = getHistoryPartsForEstimation(history, envPrefix);
         const historyTokens = estimateTokenCountSync(historyParts);
         const context = this.buildExternalProviderContext();
         const contextLength = context.length;
         const contextTokens = Math.ceil(contextLength / 4);
-        const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
-        const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
+        const overhead = CLAUDE_INCLUDE_OVERHEAD
+          ? estimateClaudeBaseOverhead(this.cwd)
+          : 0;
+        const estimated = Math.ceil(
+          (historyTokens + contextTokens + overhead) *
+            ESTIMATION_CORRECTION_FACTOR,
+        );
 
         // AUDITARIA_CLAUDE_PROVIDER: Refuse if history exceeds Claude's context limit
-        const claudeModel = this.providerManager!.getModel();
+        const claudeModel = this.providerManager.getModel();
         const claudeLimit = tokenLimit(claudeModel);
         if (claudeLimit > 0 && estimated > claudeLimit * 0.95) {
           // Don't switch — keep on Gemini
@@ -1737,8 +1747,8 @@ export class Config {
           coreEvents.emitModelChanged(this.getModel()); // Revert footer to Gemini
           throw new Error(
             `Conversation history (~${Math.round(estimated / 1000)}K tokens) exceeds ` +
-            `${claudeModel} context limit (~${Math.round(claudeLimit / 1000)}K tokens). ` +
-            `Run /compress to compress the history before switching providers.`
+              `${claudeModel} context limit (~${Math.round(claudeLimit / 1000)}K tokens). ` +
+              `Run /compress to compress the history before switching providers.`,
           );
         }
 
@@ -1747,7 +1757,7 @@ export class Config {
       }
 
       // AUDITARIA_CLAUDE_PROVIDER: Emit model changed event to update footer
-      coreEvents.emitModelChanged(this.providerManager!.getModel());
+      coreEvents.emitModelChanged(this.providerManager.getModel());
     }
   }
 
@@ -1767,7 +1777,9 @@ export class Config {
 
         // AUDITARIA_CLAUDE_PROVIDER: setHistory() recalculates tokens from full (non-truncated)
         // history. Update telemetry immediately so footer reflects the actual conversation size.
-        const reestimatedTokens = this.geminiClient.getChat().getLastPromptTokenCount();
+        const reestimatedTokens = this.geminiClient
+          .getChat()
+          .getLastPromptTokenCount();
         uiTelemetryService.setLastPromptTokenCount(reestimatedTokens);
       }
     }
@@ -1778,7 +1790,8 @@ export class Config {
     coreEvents.emitModelChanged(this.getModel());
   }
 
-  isExternalProviderActive(): boolean { // AUDITARIA_CLAUDE_PROVIDER:
+  isExternalProviderActive(): boolean {
+    // AUDITARIA_CLAUDE_PROVIDER:
     return this.providerManager?.isExternalProviderActive() ?? false;
   }
 
@@ -1790,7 +1803,8 @@ export class Config {
     return this.getModel();
   }
 
-  buildExternalProviderContext(): string {  // AUDITARIA_CLAUDE_PROVIDER:
+  buildExternalProviderContext(): string {
+    // AUDITARIA_CLAUDE_PROVIDER:
     const sections: string[] = [];
     sections.push(getAuditContext());
     const memory = this.getUserMemory();
