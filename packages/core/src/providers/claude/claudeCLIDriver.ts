@@ -2,7 +2,7 @@
 
 import { spawn, type ChildProcess } from 'child_process';
 import { createInterface } from 'readline';
-import { writeFileSync, unlinkSync } from 'fs';
+import { writeFileSync, unlinkSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
@@ -39,7 +39,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
   ): AsyncGenerator<ProviderEvent> {
     const isFirstCall = !this.sessionManager.getSessionId();
     const args = this.buildArgs();
-    dbg('sendMessage', { args, promptLen: prompt.length, hasSystemContext: !!systemContext, isFirstCall });
+
+    // AUDITARIA_CLAUDE_PROVIDER: Pass system context via file on every call.
+    // --append-system-prompt-file does NOT persist across --resume sessions.
+    if (systemContext) {
+      const filePath = this.writeSystemPromptFile(systemContext);
+      args.push('--append-system-prompt-file', filePath);
+    }
+
+    dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext, isFirstCall });
 
     const proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -49,15 +57,8 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
 
-    // Pipe prompt through stdin to avoid Windows cmd.exe argument
-    // quoting issues. System context is prepended on first call only
-    // (resumed sessions already have it). We use --append-system-prompt
-    // style approach but via stdin to bypass cmd.exe string mangling.
-    if (isFirstCall && systemContext) {
-      proc.stdin?.write(`<auditaria_system_context>\n${systemContext}\n</auditaria_system_context>\n\n${prompt}`);
-    } else {
-      proc.stdin?.write(prompt);
-    }
+    // Pipe prompt through stdin to avoid Windows cmd.exe argument quoting issues.
+    proc.stdin?.write(prompt);
     proc.stdin?.end();
 
     proc.on('error', (err) => {
@@ -190,6 +191,17 @@ export class ClaudeCLIDriver implements ProviderDriver {
     writeFileSync(this.mcpConfigPath, JSON.stringify(configObj, null, 2));
     dbg('wrote MCP config', { path: this.mcpConfigPath, serverCount: Object.keys(claudeMcpServers).length });
     return this.mcpConfigPath;
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Write system context to .auditaria/.system-prompt file.
+  // Uses a file instead of inline --append-system-prompt to avoid Windows cmd.exe escaping issues.
+  private writeSystemPromptFile(content: string): string {
+    const dir = join(this.config.cwd, '.auditaria');
+    mkdirSync(dir, { recursive: true });
+    const filePath = join(dir, '.system-prompt');
+    writeFileSync(filePath, content, 'utf-8');
+    dbg('wrote system prompt file', { path: filePath, length: content.length });
+    return filePath;
   }
 
   private cleanupMcpConfig(): void {

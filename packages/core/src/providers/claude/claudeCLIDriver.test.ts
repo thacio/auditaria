@@ -10,8 +10,21 @@ vi.mock('child_process', () => ({
   spawn: vi.fn(),
 }));
 
+// Mock fs for system prompt file and MCP config writes
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>();
+  return {
+    ...actual,
+    writeFileSync: vi.fn(),
+    unlinkSync: vi.fn(),
+    mkdirSync: vi.fn(),
+  };
+});
+
 import { spawn } from 'child_process';
+import { writeFileSync } from 'fs';
 const mockSpawn = vi.mocked(spawn);
+const mockWriteFileSync = vi.mocked(writeFileSync);
 
 function createMockProcess(stdoutLines: string[]): ChildProcess {
   const stdout = new Readable({
@@ -380,5 +393,34 @@ describe('ClaudeCLIDriver', () => {
     // Prompt written to stdin
     expect(mockProc.stdin!.write).toHaveBeenCalledWith('hello');
     expect(mockProc.stdin!.end).toHaveBeenCalled();
+  });
+
+  it('should write system context to file and pass --append-system-prompt-file on every call', async () => {
+    const mockProc = createMockProcess([]);
+    mockSpawn.mockReturnValue(mockProc);
+
+    const driver = new ClaudeCLIDriver(driverConfig);
+    const controller = new AbortController();
+
+    for await (const _ of driver.sendMessage('hello', controller.signal, 'audit system context')) {
+      // consume
+    }
+
+    // System context written to .auditaria/.system-prompt file
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      expect.stringContaining('.system-prompt'),
+      'audit system context',
+      'utf-8',
+    );
+
+    // --append-system-prompt-file should be in the args (does NOT persist across --resume)
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'claude',
+      expect.arrayContaining(['--append-system-prompt-file', expect.stringContaining('.system-prompt')]),
+      expect.objectContaining({ shell: true }),
+    );
+
+    // Prompt goes via stdin (not mixed with system context)
+    expect(mockProc.stdin!.write).toHaveBeenCalledWith('hello');
   });
 });

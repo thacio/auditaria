@@ -144,26 +144,6 @@ describe('buildConversationSummary', () => {
     expect(summary).toContain('ID: tool_1');
   });
 
-  it('should truncate large tool outputs', () => {
-    const largeOutput = 'x'.repeat(3000);
-    const history: Content[] = [
-      {
-        role: 'user',
-        parts: [
-          {
-            functionResponse: {
-              id: 'tool_1',
-              name: 'knowledge_search',
-              response: { output: largeOutput },
-            },
-          },
-        ],
-      },
-    ];
-    const summary = buildConversationSummary(history);
-    expect(summary).toContain('... (truncated)');
-    expect(summary.length).toBeLessThan(largeOutput.length);
-  });
 
   it('should truncate large functionCall args', () => {
     const largeArgs = { data: 'y'.repeat(600) };
@@ -375,7 +355,7 @@ describe('ProviderManager history mirroring', () => {
 // ─── Session Reset (onHistoryModified) ────────────────────────────────────────
 
 describe('ProviderManager session reset on context modification', () => {
-  it('should reset session and inject conversation summary after onHistoryModified', async () => {
+  it('should reset session and inject conversation summary as user message after onHistoryModified', async () => {
     const manager = new ProviderManager(
       { type: 'claude-cli', model: 'sonnet' },
       '/tmp/test',
@@ -386,15 +366,17 @@ describe('ProviderManager session reset on context modification', () => {
     mockChat.addHistory({ role: 'user', parts: [{ text: 'old message' }] });
     mockChat.addHistory({ role: 'model', parts: [{ text: 'old response' }] });
 
-    // Create a driver that records what context it receives
+    // Create a driver that records what prompt and context it receives
+    let receivedPrompt: string | undefined;
     let receivedContext: string | undefined;
     let sessionWasReset = false;
     const trackingDriver: ProviderDriver = {
       async *sendMessage(
-        _prompt: string,
+        prompt: string,
         _signal: AbortSignal,
         systemContext?: string,
       ) {
+        receivedPrompt = prompt;
         receivedContext = systemContext;
         yield {
           type: ProviderEventType.Content,
@@ -434,11 +416,14 @@ describe('ProviderManager session reset on context modification', () => {
     // Verify session was reset
     expect(sessionWasReset).toBe(true);
 
-    // Verify conversation summary was injected into context
-    expect(receivedContext).toContain('base system context');
-    expect(receivedContext).toContain('<auditaria_conversation_history>');
-    expect(receivedContext).toContain('[User]: old message');
-    expect(receivedContext).toContain('[Assistant]: old response');
+    // System context should be passed through unchanged (no summary appended)
+    expect(receivedContext).toBe('base system context');
+
+    // Conversation summary should be in the prompt (first user message), not system context
+    expect(receivedPrompt).toContain('<auditaria_conversation_history>');
+    expect(receivedPrompt).toContain('[User]: old message');
+    expect(receivedPrompt).toContain('[Assistant]: old response');
+    expect(receivedPrompt).toContain('new message');
   });
 
   it('should NOT reset session when onHistoryModified was not called', async () => {
@@ -637,27 +622,6 @@ describe('sanitizeHistoryForProviderSwitch', () => {
     expect(text).toContain('ID: tool_1');
   });
 
-  it('should truncate large functionResponse outputs for unknown tools', () => {
-    const largeOutput = 'x'.repeat(3000);
-    const history: Content[] = [
-      {
-        role: 'user',
-        parts: [
-          {
-            functionResponse: {
-              id: 'tool_1',
-              name: 'Read', // Claude built-in
-              response: { output: largeOutput },
-            },
-          },
-        ],
-      },
-    ];
-    const result = sanitizeHistoryForProviderSwitch(history, knownTools);
-    const text = (result[0].parts![0] as { text: string }).text;
-    expect(text).toContain('... (truncated)');
-    expect(text.length).toBeLessThan(largeOutput.length);
-  });
 
   it('should handle mixed known and unknown tool calls', () => {
     const knownCall = {

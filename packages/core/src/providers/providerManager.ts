@@ -216,19 +216,21 @@ export class ProviderManager {
 
     // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
     // or when switching from Gemini to Claude with existing conversation history,
-    // inject the conversation history as context. Reset session if driver exists.
+    // inject the conversation summary as the first user message (not in system context).
+    // System context (audit/memory/skills) stays separate as persistent instructions.
     let effectiveContext = systemContext;
+    let effectivePrompt = prompt;
     if (this.contextModified) {
       const history = chat.getHistory();
       if (history.length > 0) {
         const envPrefix = await this.ensureEnvContextPrefix();
         const summary = buildConversationSummary(history, envPrefix);
-        effectiveContext = (systemContext || '') + '\n\n' + summary;
+        effectivePrompt = summary + '\n\n' + prompt;
       }
       this.driver?.resetSession?.();
       this.contextModified = false;
       dbg(
-        `call #${callNum}: context modified — session reset, injecting conversation summary`,
+        `call #${callNum}: context modified — session reset, injecting conversation summary as user message`,
       );
     }
 
@@ -243,8 +245,8 @@ export class ProviderManager {
       throw e;
     }
 
-    // AUDITARIA_CLAUDE_PROVIDER: Mirror events to GeminiChat.history
-    // so context management tools can inspect/forget/restore content.
+    // AUDITARIA_CLAUDE_PROVIDER: Mirror only the original prompt to GeminiChat.history
+    // (not the conversation summary prefix — that's context injection, not conversation).
     chat.addHistory({ role: 'user', parts: [{ text: prompt }] });
     const modelParts: Part[] = [];
     const toolIdToName = new Map<string, string>();
@@ -257,7 +259,7 @@ export class ProviderManager {
     let eventCount = 0;
     try {
       for await (const event of driver.sendMessage(
-        prompt,
+        effectivePrompt,
         signal,
         effectiveContext,
       )) {
