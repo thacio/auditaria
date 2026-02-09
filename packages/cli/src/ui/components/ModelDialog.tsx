@@ -24,7 +24,6 @@ import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
-import { ThemedGradient } from './ThemedGradient.js';
 
 interface ModelDialogProps {
   onClose: () => void;
@@ -38,8 +37,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   // Determine the Preferred Model (read once when the dialog opens).
   const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
 
-  const shouldShowPreviewModels =
-    config?.getPreviewFeatures() && config.getHasAccessToPreviewModel();
+  const shouldShowPreviewModels = config?.getHasAccessToPreviewModel();
 
   const manualModelSelected = useMemo(() => {
     const manualModels = [
@@ -63,7 +61,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        if (view === 'manual' || view === 'claude') { // AUDITARIA_CLAUDE_PROVIDER: handle 'claude' view
+        if (view === 'manual' || view === 'claude') {
+          // AUDITARIA_CLAUDE_PROVIDER: handle 'claude' view
           setView('main');
         } else {
           onClose();
@@ -238,7 +237,9 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             cwd: config.getWorkingDir(),
           };
           config.setProviderConfig(providerConfig);
-          const event = new ModelSlashCommandEvent(`claude-code-${claudeModel}`);
+          const event = new ModelSlashCommandEvent(
+            `claude-code-${claudeModel}`,
+          );
           logModelSlashCommand(config, event);
         }
         onClose();
@@ -258,24 +259,6 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     [config, onClose, persistMode],
   );
 
-  let header;
-  let subheader;
-
-  // Do not show any header or subheader since it's already showing preview model
-  // options
-  if (shouldShowPreviewModels) {
-    header = undefined;
-    subheader = undefined;
-    // When a user has the access but has not enabled the preview features.
-  } else if (config?.getHasAccessToPreviewModel()) {
-    header = 'Gemini 3 is now available.';
-    subheader =
-      'Enable "Preview features" in /settings.\nLearn more at https://goo.gle/enable-preview-features';
-  } else {
-    header = 'Gemini 3 is coming soon.';
-    subheader = undefined;
-  }
-
   return (
     <Box
       borderStyle="round"
@@ -289,17 +272,6 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         {view === 'claude' ? 'Select Claude Code Model' : 'Select Model'}
       </Text>
 
-      <Box flexDirection="column">
-        {header && view !== 'claude' && ( /* AUDITARIA_CLAUDE_PROVIDER: hide header in claude view */
-          <Box marginTop={1}>
-            <ThemedGradient>
-              <Text>{header}</Text>
-            </ThemedGradient>
-          </Box>
-        )}
-        {/* AUDITARIA_CLAUDE_PROVIDER: hide subheader in claude view */}
-        {subheader && view !== 'claude' && <Text>{subheader}</Text>}
-      </Box>
       {/* AUDITARIA_CLAUDE_PROVIDER_START */}
       {view === 'claude' && (
         <Box marginTop={1} flexDirection="column">
@@ -332,12 +304,16 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       {view !== 'claude' && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.text.secondary}>
-            {'> To use a specific Gemini model on startup, use the --model flag.'}
+            {
+              '> To use a specific Gemini model on startup, use the --model flag.'
+            }
           </Text>
         </Box>
       )}
       <Box marginTop={1} flexDirection="column">
-        <Text color={theme.text.secondary}>(Press Esc to {view === 'main' ? 'close' : 'go back'})</Text>
+        <Text color={theme.text.secondary}>
+          (Press Esc to {view === 'main' ? 'close' : 'go back'})
+        </Text>
       </Box>
       {/* AUDITARIA_CLAUDE_PROVIDER_END */}
     </Box>

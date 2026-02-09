@@ -253,9 +253,9 @@ export class GeminiChat {
     this.chatRecordingService = new ChatRecordingService(config);
     this.chatRecordingService.initialize(resumedSessionData);
     // AUDITARIA_FIX: Estimate tokens including system instruction and tools, not just history.
-  // Upstream only estimates history parts, so the initial count is always lower than
-  // Gemini's API promptTokenCount (which includes system instruction + tool definitions).
-  // Remove this method if upstream adds proper initial token estimation.
+    // Upstream only estimates history parts, so the initial count is always lower than
+    // Gemini's API promptTokenCount (which includes system instruction + tool definitions).
+    // Remove this method if upstream adds proper initial token estimation.
     this.lastPromptTokenCount = this.estimateFullPromptTokens();
   }
   private estimateFullPromptTokens(): number {
@@ -266,9 +266,10 @@ export class GeminiChat {
     const sysTokens = this.systemInstruction
       ? estimateTokenCountSync([{ text: this.systemInstruction }])
       : 0;
-    const toolsTokens = this.tools.length > 0
-      ? Math.floor(JSON.stringify(this.tools).length / 4)
-      : 0;
+    const toolsTokens =
+      this.tools.length > 0
+        ? Math.floor(JSON.stringify(this.tools).length / 4)
+        : 0;
     return historyTokens + sysTokens + toolsTokens;
   }
 
@@ -508,18 +509,12 @@ export class GeminiChat {
 
     const apiCall = async () => {
       // Default to the last used model (which respects arguments/availability selection)
-      let modelToUse = resolveModel(
-        lastModelToUse,
-        this.config.getPreviewFeatures(),
-      );
+      let modelToUse = resolveModel(lastModelToUse);
 
       // If the active model has changed (e.g. due to a fallback updating the config),
       // we switch to the new active model.
       if (this.config.getActiveModel() !== initialActiveModel) {
-        modelToUse = resolveModel(
-          this.config.getActiveModel(),
-          this.config.getPreviewFeatures(),
-        );
+        modelToUse = resolveModel(this.config.getActiveModel());
       }
 
       if (modelToUse !== lastModelToUse) {
