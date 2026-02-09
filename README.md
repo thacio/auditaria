@@ -59,6 +59,12 @@ software** intactas.
   - Controle de execução (pausar/continuar/parar)
   - Modo takeover: assuma controle manual do navegador durante a execução
   - Capturas de telas
+- **🔄 Provedores de LLM Alternativos**: Troque entre diferentes backends de IA
+  em tempo de execução usando o menu `/model`. Todas as ferramentas do Auditaria
+  funcionam independente do provedor — gerenciamento de contexto, escrita
+  colaborativa, busca de conhecimento, agente de navegação e habilidades.
+  - **Claude Code**: Use Claude (Opus, Sonnet, Haiku) como backend alternativo
+    com o mesmo contexto, memória e ferramentas customizadas
 - **🎯 Gerenciamento de Contexto**: Ferramentas integradas para inspecionar,
   esquecer e restaurar conteúdo da conversa para otimizar uso de tokens
   - `context_inspect` - Inspecionar histórico e estatísticas de tokens
@@ -455,6 +461,12 @@ all original software engineering capabilities** intact.
   - Execution control (pause/resume/stop)
   - Takeover mode: take manual control of the browser during execution
   - Take Screenshots
+- **🔄 Alternative LLM Providers**: Switch between different AI backends at
+  runtime using the `/model` menu. All Auditaria tools work regardless of
+  provider — context management, collaborative writing, knowledge search,
+  browser agent, and skills.
+  - **Claude Code**: Use Claude (Opus, Sonnet, Haiku) as an alternative backend
+    with the same context, memory, and custom tools
 - **🎯 Context Management**: Built-in tools to inspect, forget, and restore
   conversation content to optimize token usage
   - `context_inspect` - Inspect history and token statistics
