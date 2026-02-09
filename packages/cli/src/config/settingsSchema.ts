@@ -1548,7 +1548,7 @@ const SETTINGS_SCHEMA = {
         label: 'Extension Configuration',
         category: 'Experimental',
         requiresRestart: true,
-        default: false,
+        default: true,
         description: 'Enable requesting and fetching of extension settings.',
         showInDialog: false,
       },
