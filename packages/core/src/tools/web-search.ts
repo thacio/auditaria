@@ -189,6 +189,7 @@ export class WebSearchTool extends BaseDeclarativeTool<
   WebSearchToolResult
 > {
   static readonly Name = WEB_SEARCH_TOOL_NAME;
+  static readonly Bridgeable = true; // AUDITARIA_PROVIDER: auto-bridge to external providers via MCP
 
   constructor(
     private readonly config: Config,

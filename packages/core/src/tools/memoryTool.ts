@@ -328,6 +328,7 @@ export class MemoryTool
   implements ModifiableDeclarativeTool<SaveMemoryParams>
 {
   static readonly Name = MEMORY_TOOL_NAME;
+  static readonly Bridgeable = true; // AUDITARIA_PROVIDER: auto-bridge to external providers via MCP
 
   constructor(messageBus: MessageBus) {
     super(

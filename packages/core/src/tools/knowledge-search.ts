@@ -479,7 +479,7 @@ export class KnowledgeSearchTool extends BaseDeclarativeTool<
   ToolResult
 > {
   static readonly Name = KNOWLEDGE_SEARCH_TOOL_NAME;
-  static readonly Bridgeable = true; // AUDITARIA_CLAUDE_PROVIDER: auto-bridge to external providers via MCP
+  static readonly Bridgeable = true; // AUDITARIA_PROVIDER: auto-bridge to external providers via MCP
 
   constructor(
     private readonly config: Config,
