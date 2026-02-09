@@ -544,12 +544,22 @@ export const AppContainer = (props: AppContainerProps) => {
     refreshStatic();
   }, [refreshStatic, isAlternateBuffer, app, config]);
 
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const {
+    isEditorDialogOpen,
+    openEditorDialog,
+    handleEditorSelect,
+    exitEditorDialog,
+  } = useEditorSettings(settings, setEditorError, historyManager.addItem);
+
   useEffect(() => {
     coreEvents.on(CoreEvent.ExternalEditorClosed, handleEditorClose);
+    coreEvents.on(CoreEvent.RequestEditorSelection, openEditorDialog);
     return () => {
       coreEvents.off(CoreEvent.ExternalEditorClosed, handleEditorClose);
+      coreEvents.off(CoreEvent.RequestEditorSelection, openEditorDialog);
     };
-  }, [handleEditorClose]);
+  }, [handleEditorClose, openEditorDialog]);
 
   useEffect(() => {
     if (
@@ -562,6 +572,9 @@ export const AppContainer = (props: AppContainerProps) => {
       refreshStatic();
     }
   }, [bannerVisible, bannerText, settings, config, refreshStatic]);
+
+  const { isSettingsDialogOpen, openSettingsDialog, closeSettingsDialog } =
+    useSettingsCommand();
 
   const {
     isThemeDialogOpen,
@@ -758,14 +771,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
     onAuthError,
   ]);
 
-  const [editorError, setEditorError] = useState<string | null>(null);
-  const {
-    isEditorDialogOpen,
-    openEditorDialog,
-    handleEditorSelect,
-    exitEditorDialog,
-  } = useEditorSettings(settings, setEditorError, historyManager.addItem);
-
   const [languageError, setLanguageError] = useState<string | null>(null);
   const { isLanguageDialogOpen, openLanguageDialog, handleLanguageSelect } =
     useLanguageCommand(
@@ -774,10 +779,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
       historyManager.addItem,
       refreshStatic,
     );
-
-  const { isSettingsDialogOpen, openSettingsDialog, closeSettingsDialog } =
-    useSettingsCommand();
-
   const { isModelDialogOpen, openModelDialog, closeModelDialog } =
     useModelCommand();
 
