@@ -715,6 +715,7 @@ export class GeminiChat {
     this.history = history;
     // AUDITARIA_FIX: Estimate including system instruction + tools (remove if upstream fixes this)
     this.lastPromptTokenCount = this.estimateFullPromptTokens();
+    this.chatRecordingService.updateMessagesFromHistory(history);
   }
 
   stripThoughtsFromHistory(): void {
