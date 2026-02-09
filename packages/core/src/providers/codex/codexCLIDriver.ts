@@ -8,6 +8,7 @@ import { homedir } from 'os';
 import { Readable } from 'stream';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
+import { killProcessGroup } from '../../utils/process-utils.js';
 import type {
   CodexStreamMessage,
   CodexItemEvent,
@@ -88,11 +89,11 @@ export class CodexCLIDriver implements ProviderDriver {
       dbg('proc error event', err);
     });
 
-    // Handle abort
+    // Handle abort — use killProcessGroup for proper Windows process tree termination
     const abortHandler = () => {
       dbg('abort handler triggered');
       if (proc.pid) {
-        proc.kill('SIGTERM');
+        killProcessGroup({ pid: proc.pid, escalate: true });
       }
     };
     signal.addEventListener('abort', abortHandler, { once: true });
@@ -112,7 +113,7 @@ export class CodexCLIDriver implements ProviderDriver {
 
   async interrupt(): Promise<void> {
     if (this.activeProcess?.pid) {
-      this.activeProcess.kill('SIGTERM');
+      await killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
   }
 
@@ -127,7 +128,7 @@ export class CodexCLIDriver implements ProviderDriver {
 
   dispose(): void {
     if (this.activeProcess?.pid) {
-      this.activeProcess.kill('SIGTERM');
+      killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
     this.activeProcess = null;
     this.expectingCompactionSummary = false;

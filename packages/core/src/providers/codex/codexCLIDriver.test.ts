@@ -10,6 +10,11 @@ vi.mock('child_process', () => ({
   spawn: vi.fn(),
 }));
 
+// Mock killProcessGroup so tests don't call taskkill/process.kill
+vi.mock('../../utils/process-utils.js', () => ({
+  killProcessGroup: vi.fn(),
+}));
+
 // Mock fs for instructions file and MCP config writes
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();

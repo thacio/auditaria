@@ -10,6 +10,11 @@ vi.mock('child_process', () => ({
   spawn: vi.fn(),
 }));
 
+// Mock killProcessGroup so tests don't call taskkill/process.kill
+vi.mock('../../utils/process-utils.js', () => ({
+  killProcessGroup: vi.fn(),
+}));
+
 // Mock fs for system prompt file and MCP config writes
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>();
@@ -383,7 +388,7 @@ describe('ClaudeCLIDriver', () => {
     // Prompt is piped via stdin, not passed as -p arg (avoids Windows cmd.exe quoting issues)
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
-      ['--output-format', 'stream-json', '--model', 'sonnet', '--permission-mode', 'bypassPermissions'],
+      ['--output-format', 'stream-json', '--verbose', '--model', 'sonnet', '--permission-mode', 'bypassPermissions'],
       expect.objectContaining({
         cwd: '/tmp/test',
         shell: true,

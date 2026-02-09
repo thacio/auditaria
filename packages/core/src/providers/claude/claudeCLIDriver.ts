@@ -7,6 +7,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
+import { killProcessGroup } from '../../utils/process-utils.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type {
   ClaudeStreamMessage,
@@ -65,11 +66,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
       dbg('proc error event', err);
     });
 
-    // Handle abort
+    // Handle abort — use killProcessGroup for proper Windows process tree termination
     const abortHandler = () => {
       dbg('abort handler triggered');
       if (proc.pid) {
-        proc.kill('SIGTERM');
+        killProcessGroup({ pid: proc.pid, escalate: true });
       }
     };
     signal.addEventListener('abort', abortHandler, { once: true });
@@ -88,7 +89,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   async interrupt(): Promise<void> {
     if (this.activeProcess?.pid) {
-      this.activeProcess.kill('SIGTERM');
+      await killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
   }
 
@@ -104,7 +105,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   dispose(): void {
     if (this.activeProcess?.pid) {
-      this.activeProcess.kill('SIGTERM');
+      killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
     this.activeProcess = null;
     this.expectingCompactionSummary = false;
