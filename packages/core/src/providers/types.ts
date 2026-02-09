@@ -94,7 +94,7 @@ export interface ProviderDriver {
 }
 
 export interface ProviderConfig {
-  type: 'gemini' | 'claude-sdk' | 'claude-cli';
+  type: 'gemini' | 'claude-cli';
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;

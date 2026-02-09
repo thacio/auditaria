@@ -494,7 +494,7 @@ export class ProviderManager {
   // Returns prefixed model name (e.g., 'claude-code:haiku') so tokenLimit() and getDisplayString() work
   getModel(): string {
     const model = this.config.model || 'unknown';
-    if (this.config.type === 'claude-cli' || this.config.type === 'claude-sdk') {
+    if (this.config.type === 'claude-cli') {
       return `claude-code:${model}`;
     }
     return model;
@@ -520,11 +520,6 @@ export class ProviderManager {
     dbg('creating new driver', { type: this.config.type, driverConfig });
 
     switch (this.config.type) {
-      case 'claude-sdk': {
-        const { ClaudeSDKDriver } = await import('./claude/claudeSDKDriver.js');
-        this.driver = new ClaudeSDKDriver(driverConfig);
-        break;
-      }
       case 'claude-cli': {
         const { ClaudeCLIDriver } = await import('./claude/claudeCLIDriver.js');
         this.driver = new ClaudeCLIDriver(driverConfig);
