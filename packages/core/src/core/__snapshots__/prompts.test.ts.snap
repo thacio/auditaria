@@ -563,7 +563,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -696,7 +695,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -812,7 +810,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -1841,7 +1838,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -1958,7 +1954,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -2173,7 +2168,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
@@ -2290,7 +2284,6 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 
 ## Interaction Details
 - **Help Command:** The user can use '/help' to display help information.
-- **Feedback:** To report a bug or provide feedback, please use the /bug command.
 
 # Outside of Sandbox
 You are running outside of a sandbox container, directly on the user's system. For critical commands that are particularly likely to modify the user's system outside of the project directory or system temp directory, as you explain the command to the user (per the Explain Critical Commands rule above), also remind the user to consider enabling sandboxing.
