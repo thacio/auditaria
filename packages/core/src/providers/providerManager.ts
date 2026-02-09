@@ -43,6 +43,13 @@ export const ESTIMATION_CORRECTION_FACTOR = 1.15;
 // including fixed costs. When false, only conversation content is counted.
 export const CLAUDE_INCLUDE_OVERHEAD = true;
 
+// AUDITARIA_CODEX_PROVIDER: Codex truncates tool outputs to this many tokens internally.
+// Codex models default to 10K tokens, but apply a 1.2x serialization budget (history.rs line 289),
+// so the effective limit is 12K tokens (~48KB). We match this for accurate token estimation.
+export const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 10_000;
+const CODEX_SERIALIZATION_FACTOR = 1.2;
+export const CODEX_TOOL_OUTPUT_MAX_BYTES = Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIMIT * CODEX_SERIALIZATION_FACTOR) * 4;
+
 // Filter out the initial environment context from history parts for token estimation.
 // The env context (from getEnvironmentContext()) is already injected separately to external
 // providers, so we skip it to avoid double-counting tokens.
@@ -69,6 +76,27 @@ export function getHistoryPartsForEstimation(history: Content[], envContextPrefi
     if (content.parts) parts.push(...content.parts);
   }
   return parts;
+}
+
+// AUDITARIA_CODEX_PROVIDER: Cap tool output sizes in parts for token estimation.
+// Codex truncates tool results to CODEX_TOOL_OUTPUT_TOKEN_LIMIT tokens internally,
+// but our mirrored history stores the full output. This creates shallow copies with
+// capped functionResponse outputs so estimation matches Codex's actual context usage.
+export function capToolOutputsForEstimation(parts: Part[], maxBytes: number): Part[] {
+  return parts.map(part => {
+    if ('functionResponse' in part && part.functionResponse?.response) {
+      const output = part.functionResponse.response.output;
+      if (typeof output === 'string' && output.length > maxBytes) {
+        return {
+          functionResponse: {
+            ...part.functionResponse,
+            response: { output: output.slice(0, maxBytes) },
+          },
+        } as Part;
+      }
+    }
+    return part;
+  });
 }
 
 // Estimate Claude's base overhead: system prompt (~6K) + system tools (~17K) + CLAUDE.md (variable)
@@ -257,6 +285,7 @@ export class ProviderManager {
     let awaitingCompactionSummary = false;
 
     let eventCount = 0;
+    let codexActualTokens: number | undefined; // AUDITARIA_CODEX_PROVIDER: actual context from session JSONL
     try {
       for await (const event of driver.sendMessage(
         effectivePrompt,
@@ -370,6 +399,11 @@ export class ProviderManager {
         }
         // AUDITARIA_CLAUDE_PROVIDER_END
 
+        // AUDITARIA_CODEX_PROVIDER: Capture actual context usage from session JSONL (Codex only)
+        if (event.type === ProviderEventType.Finished && event.contextTokensUsed !== undefined) {
+          codexActualTokens = event.contextTokensUsed;
+        }
+
         // Mirror: accumulate text content
         if (event.type === ProviderEventType.Content) {
           accumulatedText += event.text;
@@ -402,24 +436,35 @@ export class ProviderManager {
         awaitingCompactionSummary = false;
       }
 
-      // AUDITARIA_CLAUDE_PROVIDER: Estimate token count for external providers.
-      // Strips the initial env context message (already injected separately to Claude).
-      // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
-      const envPrefix = await this.ensureEnvContextPrefix();
-      const historyParts = getHistoryPartsForEstimation(chat.getHistory(), envPrefix);
-      const historyTokens = estimateTokenCountSync(historyParts);
-      const contextLength = systemContext?.length || 0;
-      const contextTokens = Math.ceil(contextLength / 4);
-      const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
-      const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
+      // AUDITARIA_CODEX_PROVIDER: Use actual token count from session JSONL when available.
+      // This is the most accurate source: last_token_usage.input + output - reasoning.
+      // Falls back to heuristic estimation for Claude or when session data is unavailable.
+      if (this.config.type === 'codex-cli' && codexActualTokens !== undefined) {
+        dbg(`[TOKEN_ESTIMATION] Codex actual from session JSONL: ${codexActualTokens}T`);
+        chat.setLastPromptTokenCount(codexActualTokens);
+      } else {
+        // AUDITARIA_CLAUDE_PROVIDER: Heuristic estimation for Claude (or Codex fallback).
+        // Strips the initial env context message (already injected separately).
+        // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
+        const envPrefix = await this.ensureEnvContextPrefix();
+        let historyParts = getHistoryPartsForEstimation(chat.getHistory(), envPrefix);
+        if (this.config.type === 'codex-cli') {
+          historyParts = capToolOutputsForEstimation(historyParts, CODEX_TOOL_OUTPUT_MAX_BYTES);
+        }
+        const historyTokens = estimateTokenCountSync(historyParts);
+        const contextLength = systemContext?.length || 0;
+        const contextTokens = Math.ceil(contextLength / 4);
+        const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
+        const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
 
-      dbg(`[TOKEN_ESTIMATION] history: ${historyTokens}T, context: ${contextTokens}T, overhead: ${overhead}T`);
-      dbg(`[TOKEN_ESTIMATION] × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`);
+        dbg(`[TOKEN_ESTIMATION] history: ${historyTokens}T, context: ${contextTokens}T, overhead: ${overhead}T`);
+        dbg(`[TOKEN_ESTIMATION] × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`);
 
-      chat.setLastPromptTokenCount(estimated);
+        chat.setLastPromptTokenCount(estimated);
+      }
 
       dbg(
-        `handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}, estimated tokens: ${estimated}`,
+        `handleSendMessage DONE, total events: ${eventCount}, history length: ${chat.getHistory().length}`,
       );
     } catch (e) {
       // Flush on error too, so partial history is preserved
@@ -497,6 +542,10 @@ export class ProviderManager {
     if (this.config.type === 'claude-cli') {
       return `claude-code:${model}`;
     }
+    // AUDITARIA_CODEX_PROVIDER
+    if (this.config.type === 'codex-cli') {
+      return `codex-code:${model}`;
+    }
     return model;
   }
 
@@ -525,6 +574,13 @@ export class ProviderManager {
         this.driver = new ClaudeCLIDriver(driverConfig);
         break;
       }
+      // AUDITARIA_CODEX_PROVIDER_START
+      case 'codex-cli': {
+        const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
+        this.driver = new CodexCLIDriver(driverConfig);
+        break;
+      }
+      // AUDITARIA_CODEX_PROVIDER_END
       default:
         throw new Error(`Unknown provider type: ${this.config.type}`);
     }

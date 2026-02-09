@@ -21,6 +21,8 @@ import {
   getHistoryPartsForEstimation,
   estimateClaudeBaseOverhead,
   CLAUDE_INCLUDE_OVERHEAD,
+  capToolOutputsForEstimation,
+  CODEX_TOOL_OUTPUT_MAX_BYTES,
 } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
@@ -1708,7 +1710,11 @@ export class Config {
           firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
             ? firstPart.text.substring(0, 30)
             : undefined;
-        const historyParts = getHistoryPartsForEstimation(history, envPrefix);
+        let historyParts = getHistoryPartsForEstimation(history, envPrefix);
+        // AUDITARIA_CODEX_PROVIDER: Cap tool outputs for Codex estimation (matches Codex's internal truncation)
+        if (config.type === 'codex-cli') {
+          historyParts = capToolOutputsForEstimation(historyParts, CODEX_TOOL_OUTPUT_MAX_BYTES);
+        }
         const historyTokens = estimateTokenCountSync(historyParts);
         const context = this.buildExternalProviderContext();
         const contextLength = context.length;
@@ -1720,21 +1726,6 @@ export class Config {
           (historyTokens + contextTokens + overhead) *
             ESTIMATION_CORRECTION_FACTOR,
         );
-
-        // AUDITARIA_CLAUDE_PROVIDER: Refuse if history exceeds Claude's context limit
-        const claudeModel = this.providerManager.getModel();
-        const claudeLimit = tokenLimit(claudeModel);
-        if (claudeLimit > 0 && estimated > claudeLimit * 0.95) {
-          // Don't switch — keep on Gemini
-          this.providerManager?.dispose();
-          this.providerManager = undefined;
-          coreEvents.emitModelChanged(this.getModel()); // Revert footer to Gemini
-          throw new Error(
-            `Conversation history (~${Math.round(estimated / 1000)}K tokens) exceeds ` +
-              `${claudeModel} context limit (~${Math.round(claudeLimit / 1000)}K tokens). ` +
-              `Run /compress to compress the history before switching providers.`,
-          );
-        }
 
         this.geminiClient.getChat().setLastPromptTokenCount(estimated);
         uiTelemetryService.setLastPromptTokenCount(estimated);

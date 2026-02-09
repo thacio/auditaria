@@ -49,6 +49,10 @@ export interface ProviderFinishedEvent {
     cacheReadTokens?: number;
     cacheCreationTokens?: number;
   };
+  // AUDITARIA_CODEX_PROVIDER: Actual per-turn context usage from session JSONL.
+  // When present, providerManager uses this instead of heuristic estimation.
+  // Value is last_token_usage.input_tokens + output_tokens (output becomes next turn's input).
+  contextTokensUsed?: number;
 }
 
 export interface ProviderErrorEvent {
@@ -94,7 +98,7 @@ export interface ProviderDriver {
 }
 
 export interface ProviderConfig {
-  type: 'gemini' | 'claude-cli';
+  type: 'gemini' | 'claude-cli' | 'codex-cli'; // AUDITARIA_CODEX_PROVIDER: added codex-cli
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;

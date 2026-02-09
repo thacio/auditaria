@@ -117,6 +117,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     const args = [
       '--output-format',
       'stream-json',
+      '--verbose',
     ];
 
     if (this.config.model) {

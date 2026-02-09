@@ -1,0 +1,3 @@
+[mcp_servers.auditaria-tools]
+command = "C:/Program Files/nodejs/node.exe"
+args = ["C:/projects/auditaria/bundle/mcp-bridge.js", "--port", "19751"]

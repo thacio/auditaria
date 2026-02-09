@@ -31,7 +31,7 @@ interface ModelDialogProps {
 
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
-  const [view, setView] = useState<'main' | 'manual' | 'claude'>('main'); // AUDITARIA_CLAUDE_PROVIDER: add 'claude' view
+  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>('main'); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
   const [persistMode, setPersistMode] = useState(false);
 
   // Determine the Preferred Model (read once when the dialog opens).
@@ -53,16 +53,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     return '';
   }, [preferredModel]);
 
-  // AUDITARIA_CLAUDE_PROVIDER_START
+  // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER
   const CLAUDE_PREFIX = 'claude:';
-  const isClaudeActive = config?.isExternalProviderActive() ?? false;
-  // AUDITARIA_CLAUDE_PROVIDER_END
+  const CODEX_PREFIX = 'codex:';
+  const displayModel = config?.getDisplayModel() ?? '';
+  const isClaudeActive = displayModel.startsWith('claude-code:');
+  const isCodexActive = displayModel.startsWith('codex-code:');
+  // AUDITARIA_CODEX_PROVIDER_END
 
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        if (view === 'manual' || view === 'claude') {
-          // AUDITARIA_CLAUDE_PROVIDER: handle 'claude' view
+        if (view === 'manual' || view === 'claude' || view === 'codex') {
+          // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER: handle submenu views
           setView('main');
         } else {
           onClose();
@@ -115,8 +118,16 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       key: 'Claude',
     });
 
+    // AUDITARIA_CODEX_PROVIDER: Single entry that opens the Codex submenu
+    list.push({
+      value: 'Codex',
+      title: isCodexActive ? 'OpenAI Codex (active)' : 'OpenAI Codex',
+      description: 'Use OpenAI Codex as the LLM backend',
+      key: 'Codex',
+    });
+
     return list;
-  }, [shouldShowPreviewModels, manualModelSelected, isClaudeActive]); // AUDITARIA_CLAUDE_PROVIDER: add isClaudeActive dep
+  }, [shouldShowPreviewModels, manualModelSelected, isClaudeActive, isCodexActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
 
   const manualOptions = useMemo(() => {
     const list = [
@@ -186,14 +197,48 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   );
   // AUDITARIA_CLAUDE_PROVIDER_END
 
-  // AUDITARIA_CLAUDE_PROVIDER_START: add 'claude' view to options selection
+  // AUDITARIA_CODEX_PROVIDER_START: Codex submenu options
+  const codexOptions = useMemo(
+    () => [
+      {
+        value: `${CODEX_PREFIX}auto`,
+        title: 'Auto',
+        description: "Uses Codex's default model",
+        key: 'codex-auto',
+      },
+      {
+        value: `${CODEX_PREFIX}gpt-5.3-codex`,
+        title: 'GPT-5.3 Codex',
+        description: 'Most capable, 258K context',
+        key: 'codex-gpt53',
+      },
+      {
+        value: `${CODEX_PREFIX}gpt-5.2-codex`,
+        title: 'GPT-5.2 Codex',
+        description: 'Advanced, 258K context',
+        key: 'codex-gpt52',
+      },
+      {
+        value: `${CODEX_PREFIX}gpt-5.1-codex-mini`,
+        title: 'GPT-5.1 Codex Mini',
+        description: 'Fast and compact, 258K context',
+        key: 'codex-gpt51mini',
+      },
+    ],
+    [],
+  );
+  // AUDITARIA_CODEX_PROVIDER_END
+
+  // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: add submenu views to options selection
   const options =
-    view === 'claude'
-      ? claudeOptions
-      : view === 'manual'
-        ? manualOptions
-        : mainOptions;
-  // AUDITARIA_CLAUDE_PROVIDER_END
+    view === 'codex'
+      ? codexOptions
+      : view === 'claude'
+        ? claudeOptions
+        : view === 'manual'
+          ? manualOptions
+          : mainOptions;
+  // AUDITARIA_CODEX_PROVIDER_END
 
   // Calculate the initial index based on the preferred model.
   const initialIndex = useMemo(() => {
@@ -203,6 +248,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       if (claudeIdx !== -1) return claudeIdx;
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
+    // AUDITARIA_CODEX_PROVIDER: If Codex is active, highlight its entry
+    if (isCodexActive && view === 'main') {
+      const codexIdx = options.findIndex((o) => o.value === 'Codex');
+      if (codexIdx !== -1) return codexIdx;
+    }
     const idx = options.findIndex((option) => option.value === preferredModel);
     if (idx !== -1) {
       return idx;
@@ -212,7 +262,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       return manualIdx !== -1 ? manualIdx : 0;
     }
     return 0;
-  }, [preferredModel, options, view, isClaudeActive]); // AUDITARIA_CLAUDE_PROVIDER: add isClaudeActive
+  }, [preferredModel, options, view, isClaudeActive, isCodexActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
 
   // Handle selection internally (Autonomous Dialog).
   const handleSelect = useCallback(
@@ -247,8 +297,33 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       // AUDITARIA_CLAUDE_PROVIDER_END
 
+      // AUDITARIA_CODEX_PROVIDER_START
+      if (model === 'Codex') {
+        setView('codex');
+        return;
+      }
+
+      if (model.startsWith(CODEX_PREFIX)) {
+        if (config) {
+          const codexModel = model.slice(CODEX_PREFIX.length);
+          const providerConfig: ProviderConfig = {
+            type: 'codex-cli',
+            model: codexModel === 'auto' ? undefined : codexModel,
+            cwd: config.getWorkingDir(),
+          };
+          config.setProviderConfig(providerConfig);
+          const event = new ModelSlashCommandEvent(
+            `codex-code-${codexModel}`,
+          );
+          logModelSlashCommand(config, event);
+        }
+        onClose();
+        return;
+      }
+      // AUDITARIA_CODEX_PROVIDER_END
+
       if (config) {
-        config.clearProviderConfig(); // AUDITARIA_CLAUDE_PROVIDER: clear any active Claude provider
+        config.clearProviderConfig(); // AUDITARIA_CLAUDE_PROVIDER: clear any active external provider
 
         config.setModel(model, persistMode ? false : true);
         const event = new ModelSlashCommandEvent(model);
@@ -267,20 +342,24 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       padding={1}
       width="100%"
     >
-      {/* AUDITARIA_CLAUDE_PROVIDER: conditional title for claude view */}
+      {/* AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER: conditional title for submenu views */}
       <Text bold>
-        {view === 'claude' ? 'Select Claude Code Model' : 'Select Model'}
+        {view === 'claude'
+          ? 'Select Claude Code Model'
+          : view === 'codex'
+            ? 'Select OpenAI Codex Model'
+            : 'Select Model'}
       </Text>
 
-      {/* AUDITARIA_CLAUDE_PROVIDER_START */}
-      {view === 'claude' && (
+      {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER */}
+      {(view === 'claude' || view === 'codex') && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.status.warning}>
             Runs with bypassPermissions — tools execute without confirmation.
           </Text>
         </Box>
       )}
-      {/* AUDITARIA_CLAUDE_PROVIDER_END */}
+      {/* AUDITARIA_CODEX_PROVIDER_END */}
       <Box marginTop={1}>
         <DescriptiveRadioButtonSelect
           items={options}
@@ -300,8 +379,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         </Box>
         <Text color={theme.text.secondary}>(Press Tab to toggle)</Text>
       </Box>
-      {/* AUDITARIA_CLAUDE_PROVIDER_START: hide Gemini hint in claude view, dynamic Esc text */}
-      {view !== 'claude' && (
+      {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: hide Gemini hint in submenu views, dynamic Esc text */}
+      {view !== 'claude' && view !== 'codex' && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.text.secondary}>
             {
