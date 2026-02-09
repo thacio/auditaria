@@ -161,6 +161,7 @@ export class PromptProvider {
             interactive: interactiveMode,
             isGemini3,
             enableShellEfficiency: config.getEnableShellOutputEfficiency(),
+            interactiveShellEnabled: config.isInteractiveShellEnabled(),
             // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
           }),
