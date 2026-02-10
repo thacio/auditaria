@@ -10,6 +10,129 @@ import { EventEmitter } from '../utils/EventEmitter.js';
 import { detectLanguage, getDefaultTabSize } from '../utils/languageDetection.js';
 import { themeManager } from '../utils/theme-manager.js';
 
+const MONACO_THEMES = [
+  {
+    name: 'auditaria-calm-dark',
+    data: {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '74829b' },
+        { token: 'keyword', foreground: '4f7cff' },
+        { token: 'number', foreground: 'f59e0b' },
+        { token: 'string', foreground: '22c55e' },
+        { token: 'type', foreground: '22d3ee' },
+        { token: 'function', foreground: '93c5fd' },
+        { token: 'variable', foreground: 'e6ebf5' },
+      ],
+      colors: {
+        'editor.background': '#0e131b',
+        'editor.foreground': '#e6ebf5',
+        'editorLineNumber.foreground': '#5b6b86',
+        'editorLineNumber.activeForeground': '#cbd5e1',
+        'editor.selectionBackground': '#24314a',
+        'editor.inactiveSelectionBackground': '#1b2230',
+        'editorCursor.foreground': '#6a90ff',
+        'editorWhitespace.foreground': '#27324a',
+        'editorIndentGuide.background': '#253148',
+        'editorIndentGuide.activeBackground': '#32435d',
+        'editorLineHighlightBackground': '#141a24',
+        'editorGutter.background': '#0e131b',
+      },
+    },
+  },
+  {
+    name: 'auditaria-calm-light',
+    data: {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '7c8aa0' },
+        { token: 'keyword', foreground: '1d4ed8' },
+        { token: 'number', foreground: 'd97706' },
+        { token: 'string', foreground: '16a34a' },
+        { token: 'type', foreground: '0ea5e9' },
+        { token: 'function', foreground: '2563eb' },
+        { token: 'variable', foreground: '101828' },
+      ],
+      colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#101828',
+        'editorLineNumber.foreground': '#98a2b3',
+        'editorLineNumber.activeForeground': '#475467',
+        'editor.selectionBackground': '#dbe7ff',
+        'editor.inactiveSelectionBackground': '#eef2f6',
+        'editorCursor.foreground': '#2563eb',
+        'editorWhitespace.foreground': '#d0d5dd',
+        'editorIndentGuide.background': '#d0d5dd',
+        'editorIndentGuide.activeBackground': '#b9c0cc',
+        'editorLineHighlightBackground': '#f5f7fb',
+        'editorGutter.background': '#ffffff',
+      },
+    },
+  },
+  {
+    name: 'auditaria-studio-dark',
+    data: {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: 'a99c8f' },
+        { token: 'keyword', foreground: 'f59e0b' },
+        { token: 'number', foreground: 'f97316' },
+        { token: 'string', foreground: '22c55e' },
+        { token: 'type', foreground: 'fbbf24' },
+        { token: 'function', foreground: 'fde68a' },
+        { token: 'variable', foreground: 'f2ece6' },
+      ],
+      colors: {
+        'editor.background': '#14100c',
+        'editor.foreground': '#f2ece6',
+        'editorLineNumber.foreground': '#8f8274',
+        'editorLineNumber.activeForeground': '#e7dccf',
+        'editor.selectionBackground': '#3a3026',
+        'editor.inactiveSelectionBackground': '#221d18',
+        'editorCursor.foreground': '#fbbf24',
+        'editorWhitespace.foreground': '#2f2820',
+        'editorIndentGuide.background': '#2f2820',
+        'editorIndentGuide.activeBackground': '#403528',
+        'editorLineHighlightBackground': '#1a1713',
+        'editorGutter.background': '#14100c',
+      },
+    },
+  },
+  {
+    name: 'auditaria-studio-light',
+    data: {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '8c7b6d' },
+        { token: 'keyword', foreground: 'c2410c' },
+        { token: 'number', foreground: 'ea580c' },
+        { token: 'string', foreground: '16a34a' },
+        { token: 'type', foreground: '0ea5e9' },
+        { token: 'function', foreground: '9a3412' },
+        { token: 'variable', foreground: '1b1410' },
+      ],
+      colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#1b1410',
+        'editorLineNumber.foreground': '#b1a293',
+        'editorLineNumber.activeForeground': '#5b4a3c',
+        'editor.selectionBackground': '#fde2c4',
+        'editor.inactiveSelectionBackground': '#f3ede4',
+        'editorCursor.foreground': '#ea580c',
+        'editorWhitespace.foreground': '#dfd4c4',
+        'editorIndentGuide.background': '#dfd4c4',
+        'editorIndentGuide.activeBackground': '#cdbfae',
+        'editorLineHighlightBackground': '#fbf7f1',
+        'editorGutter.background': '#ffffff',
+      },
+    },
+  },
+];
+
 /**
  * Monaco Editor Manager
  *
@@ -209,6 +332,7 @@ export class EditorManager extends EventEmitter {
         // Load Monaco
         window.require(['vs/editor/editor.main'], () => {
           this.monaco = window.monaco;
+          this.registerMonacoThemes();
           this.isMonacoLoaded = true;
           this.isMonacoLoading = false;
           console.log('Monaco Editor loaded successfully');
@@ -222,6 +346,16 @@ export class EditorManager extends EventEmitter {
       };
 
       document.head.appendChild(loaderScript);
+    });
+  }
+
+  /**
+   * Register Auditaria Monaco themes
+   */
+  registerMonacoThemes() {
+    if (!this.monaco || !this.monaco.editor) return;
+    MONACO_THEMES.forEach((theme) => {
+      this.monaco.editor.defineTheme(theme.name, theme.data);
     });
   }
 

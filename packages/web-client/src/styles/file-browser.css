@@ -281,8 +281,10 @@
   --vscode-tree-item-height: 22px;
 
   /* Official vscode-tree CSS variables (from documentation) */
-  --vscode-list-hoverBackground: var(--surface-hover);
+  --vscode-list-hoverBackground: var(--panel-item-hover);
+  --vscode-list-hoverForeground: var(--text);
   --vscode-list-activeSelectionBackground: var(--panel-item-selected);
+  --vscode-list-activeSelectionForeground: var(--text);
   --vscode-focusBorder: var(--primary);
   --vscode-tree-indentGuidesStroke: var(--border);
 
@@ -320,6 +322,21 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.file-tree-component vscode-tree-item::part(row) {
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.file-tree-component vscode-tree-item:hover::part(row) {
+  color: var(--text);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.file-tree-component vscode-tree-item[selected]::part(row),
+.file-tree-component vscode-tree-item[active]::part(row) {
+  color: var(--text);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* All icons (both folder and file) should have consistent spacing */

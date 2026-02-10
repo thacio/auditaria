@@ -91,8 +91,8 @@ class AuditariaWebClient {
         this.autoscrollButton = document.getElementById('autoscroll-button');
         this.inputStatus = document.getElementById('input-status');
 
-        // Wire theme toggle
-        themeManager.bindToggle(document.getElementById('theme-toggle'));
+        // Wire theme picker
+        themeManager.mountPicker(document.getElementById('theme-picker'));
         
         // Attachment elements
         this.attachButton = document.getElementById('attach-button');

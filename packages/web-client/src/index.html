@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="calm-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +14,26 @@
     
     <!-- FOUC prevention: set theme before any CSS paints -->
     <script>
-      (function(){try{var t=localStorage.getItem('auditaria-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t)}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme:light)').matches){document.documentElement.setAttribute('data-theme','light')}}catch(e){}})();
+      (function(){
+        try {
+          var t = localStorage.getItem('auditaria-theme');
+          var allowed = {
+            'calm-dark': true,
+            'calm-light': true,
+            'studio-dark': true,
+            'studio-light': true
+          };
+          if (t === 'dark') t = 'calm-dark';
+          if (t === 'light') t = 'calm-light';
+          if (t && allowed[t]) {
+            document.documentElement.setAttribute('data-theme', t);
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            document.documentElement.setAttribute('data-theme', 'calm-light');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'calm-dark');
+          }
+        } catch (e) {}
+      })();
     </script>
 
     <!-- Theme variables — MUST load before style.css -->
@@ -22,7 +41,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- WEB_INTERFACE_START: Codicon font for VS Code icons -->
     <!-- Required id for vscode-elements to use codicons -->
@@ -47,6 +66,7 @@
 
     <!-- Knowledge Base Search & Management -->
     <link rel="stylesheet" href="styles/knowledge-base.css">
+    <link rel="stylesheet" href="styles/overhaul.css">
 
     <!-- Syntax Highlighting (highlight.js with VS2015 dark theme) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/vs2015.min.css">
@@ -57,7 +77,7 @@
         <header class="header">
             <!-- Left group: Logo + Panel toggles -->
             <div class="header-left">
-                <h1>❖ Auditaria</h1>
+                <h1>Auditaria</h1>
                 <button id="toggle-files-button" class="header-toggle-button active" title="Toggle File Explorer">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -130,11 +150,7 @@
                     </svg>
                     <span>Search Knowledge Base</span>
                 </button>
-                <button id="theme-toggle" class="header-toggle-button" title="Switch theme" aria-label="Switch to light theme">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
-                </button>
+                <div id="theme-picker" class="theme-picker"></div>
                 <div class="status" id="status">
                     <span id="connection-status" class="status-disconnected">Disconnected</span>
                     <span id="message-count">0 messages</span>
