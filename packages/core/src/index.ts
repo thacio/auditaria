@@ -60,6 +60,7 @@ export * from './utils/fetch.js';
 export { homedir, tmpdir } from './utils/paths.js';
 export * from './utils/paths.js';
 export * from './utils/checks.js';
+export * from './utils/headless.js';
 export * from './utils/schemaValidator.js';
 export * from './utils/errors.js';
 export * from './utils/exitCodes.js';
@@ -213,7 +214,10 @@ export type {
   ProviderEvent,
   ExternalMCPServerConfig,
 } from './providers/types.js';
-export { ProviderManager, sanitizeHistoryForProviderSwitch } from './providers/providerManager.js';
+export {
+  ProviderManager,
+  sanitizeHistoryForProviderSwitch,
+} from './providers/providerManager.js';
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
 export {
   getAuditContext,
