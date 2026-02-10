@@ -172,7 +172,13 @@ export interface SearchResponse {
 // Queue Types
 // ============================================================================
 
-export type QueuePriority = 'text' | 'markup' | 'pdf' | 'image' | 'ocr';
+export type QueuePriority =
+  | 'text'
+  | 'markup'
+  | 'pdf'
+  | 'image'
+  | 'ocr'
+  | 'deferred';
 export type QueueItemStatus =
   | 'pending'
   | 'processing'

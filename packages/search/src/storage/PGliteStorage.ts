@@ -2568,6 +2568,7 @@ export class PGliteStorage implements StorageAdapter {
              WHEN 'pdf' THEN 3
              WHEN 'image' THEN 4
              WHEN 'ocr' THEN 5
+             WHEN 'deferred' THEN 6
            END,
            file_size ASC,
            created_at ASC
@@ -2594,6 +2595,11 @@ export class PGliteStorage implements StorageAdapter {
     if (updates.status !== undefined) {
       sets.push(`status = $${paramIndex}`);
       params.push(updates.status);
+      paramIndex++;
+    }
+    if (updates.priority !== undefined) {
+      sets.push(`priority = $${paramIndex}`);
+      params.push(updates.priority);
       paramIndex++;
     }
     if (updates.attempts !== undefined) {
@@ -2681,6 +2687,7 @@ export class PGliteStorage implements StorageAdapter {
       pdf: 0,
       image: 0,
       ocr: 0,
+      deferred: 0,
     };
     for (const row of priorityResult.rows) {
       priorityCounts[row.priority as QueuePriority] = parseInt(row.count, 10);

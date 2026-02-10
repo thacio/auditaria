@@ -88,6 +88,7 @@ export interface CreateQueueItemInput {
 
 export interface UpdateQueueItemInput {
   status?: QueueItemStatus;
+  priority?: QueuePriority;
   attempts?: number;
   lastError?: string | null;
   startedAt?: Date | null;

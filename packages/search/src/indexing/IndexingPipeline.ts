@@ -46,6 +46,46 @@ class FileNotFoundError extends Error {
 }
 
 /**
+ * Error thrown when a file is detected as binary/garbage content.
+ * Fails immediately without retries.
+ */
+class GarbageFileError extends Error {
+  constructor(filePath: string, phase: 'pre-parse' | 'post-parse') {
+    super(`Binary/garbage content detected (${phase}): ${filePath}`);
+    this.name = 'GarbageFileError';
+  }
+}
+
+/**
+ * Error thrown when parsed text exceeds the maximum allowed size.
+ * Fails immediately without retries — file is too large to index.
+ */
+class FileTooLargeError extends Error {
+  constructor(filePath: string, textSize: number, maxSize: number) {
+    super(
+      `Parsed text too large to index: ${filePath} ` +
+        `(${(textSize / 1024 / 1024).toFixed(1)}MB > ${(maxSize / 1024 / 1024).toFixed(1)}MB limit)`,
+    );
+    this.name = 'FileTooLargeError';
+  }
+}
+
+/**
+ * Error thrown when parsed text is large enough to warrant deferral.
+ * NOT a failure — the queue item should be demoted to 'deferred' priority
+ * and re-processed after all higher-priority items are done.
+ */
+class FileDeferredError extends Error {
+  constructor(filePath: string, textSize: number) {
+    super(
+      `Parsed text deferred: ${filePath} ` +
+        `(${(textSize / 1024 / 1024).toFixed(1)}MB — will process after smaller files)`,
+    );
+    this.name = 'FileDeferredError';
+  }
+}
+
+/**
  * Normalize path separators to forward slashes for cross-platform DB compatibility.
  * Windows uses backslashes, but we store forward slashes so databases can be shared
  * across Windows, Linux, and Mac without causing duplicate entries.
@@ -90,6 +130,8 @@ const DEFAULT_PREPARED_BUFFER_SIZE = 1;
 const DEFAULT_EMBEDDING_BATCH_SIZE = 8;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
+const DEFAULT_MAX_PARSED_TEXT_SIZE = 5 * 1024 * 1024; // 5MB — skip entirely
+const DEFAULT_DEFER_PARSED_TEXT_SIZE = 2 * 1024 * 1024; // 2MB — deprioritize
 
 // ============================================================================
 // Utility: Event Loop Yielding
@@ -146,6 +188,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       | 'parserOptions'
       | 'chunkerOptions'
       | 'pdfSizeThreshold'
+      | 'maxRawTextFileSize'
+      | 'maxRawMarkupFileSize'
     >
   > &
     Pick<
@@ -154,6 +198,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       | 'parserOptions'
       | 'chunkerOptions'
       | 'pdfSizeThreshold'
+      | 'maxRawTextFileSize'
+      | 'maxRawMarkupFileSize'
     >;
 
   private state: PipelineState = 'idle';
@@ -197,13 +243,22 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       autoStart: options.autoStart ?? true,
       maxRetries: options.maxRetries ?? DEFAULT_MAX_RETRIES,
       retryDelay: options.retryDelay ?? DEFAULT_RETRY_DELAY,
+      maxParsedTextSize:
+        options.maxParsedTextSize ?? DEFAULT_MAX_PARSED_TEXT_SIZE,
+      deferParsedTextSize:
+        options.deferParsedTextSize ?? DEFAULT_DEFER_PARSED_TEXT_SIZE,
+      enableGarbageDetection: options.enableGarbageDetection ?? true,
       parserOptions: options.parserOptions,
       chunkerOptions: options.chunkerOptions,
       discoveryOptions: options.discoveryOptions,
       pdfSizeThreshold: options.pdfSizeThreshold,
+      maxRawTextFileSize: options.maxRawTextFileSize,
+      maxRawMarkupFileSize: options.maxRawMarkupFileSize,
     };
     this.classifier = createFilePriorityClassifier({
       pdfSizeThreshold: options.pdfSizeThreshold,
+      maxRawTextFileSize: options.maxRawTextFileSize,
+      maxRawMarkupFileSize: options.maxRawMarkupFileSize,
     });
   }
 
@@ -371,7 +426,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       console.log(
         `[IndexingPipeline] Queuing ${toQueuePaths.length} files with smart priority:`,
         `text=${summary.text}, markup=${summary.markup}, pdf=${summary.pdf},`,
-        `image=${summary.image}, ocr=${summary.ocr}`,
+        `image=${summary.image}, ocr=${summary.ocr}, deferred=${summary.deferred}`,
       );
 
       // Enqueue with classified priorities (or override if specified)
@@ -892,6 +947,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     queueItemId: string,
     queueItemAttempts: number,
     filePath: string,
+    queuePriority: QueuePriority,
   ): Promise<PreparedFile> {
     const startTime = Date.now();
     const timerId = ++this.timerCounter;
@@ -910,6 +966,27 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       await access(absolutePath);
     } catch {
       throw new FileNotFoundError(relativePath);
+    }
+
+    // AUDITARIA: Pre-parse garbage detection — only for text-priority files
+    // Markup (.docx, .xlsx), PDFs, and images are binary by design — their parsers extract text.
+    // Only plain text files (.txt, .md, .json, .csv) should be checked for binary content.
+    if (this.options.enableGarbageDetection && queuePriority === 'text') {
+      try {
+        const { isBinaryFile } = await import('isbinaryfile');
+        const isBinary = await isBinaryFile(absolutePath);
+        if (isBinary) {
+          throw new GarbageFileError(relativePath, 'pre-parse');
+        }
+      } catch (error) {
+        if (error instanceof GarbageFileError) throw error;
+        // isBinaryFile failed (e.g., permission error) — continue with parsing
+        log.warn('prepareFile:binaryCheckFailed', {
+          filePath: relativePath,
+          error:
+            error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     // Get or create document (using relative path for DB)
@@ -952,6 +1029,44 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       textLength: parsed.text.length,
       requiresOcr: parsed.requiresOcr,
     });
+
+    // AUDITARIA: Post-parse content quality and size gates
+    const textLength = parsed.text.length;
+
+    // Post-parse garbage detection: check if extracted text is binary/garbage
+    if (this.options.enableGarbageDetection && textLength > 0) {
+      try {
+        const { isBinaryFile } = await import('isbinaryfile');
+        const textSample = Buffer.from(parsed.text.slice(0, 8192));
+        const isGarbage = await isBinaryFile(textSample);
+        if (isGarbage) {
+          throw new GarbageFileError(relativePath, 'post-parse');
+        }
+      } catch (error) {
+        if (error instanceof GarbageFileError) throw error;
+        // Check failed — continue (non-fatal)
+      }
+    }
+
+    // Post-parse size gate: skip files with text > maxParsedTextSize
+    if (textLength > this.options.maxParsedTextSize) {
+      throw new FileTooLargeError(
+        relativePath,
+        textLength,
+        this.options.maxParsedTextSize,
+      );
+    }
+
+    // Post-parse size gate: defer files with text > deferParsedTextSize
+    // Only defer if not already in 'deferred' priority (avoid infinite demotion loop)
+    if (
+      textLength > this.options.deferParsedTextSize &&
+      queuePriority !== 'deferred'
+    ) {
+      // Reset document status back to pending before deferring
+      await this.storage.updateDocument(documentId, { status: 'pending' });
+      throw new FileDeferredError(relativePath, textLength);
+    }
 
     // Update document with parsed metadata
     await this.storage.updateDocument(documentId, {
@@ -1132,6 +1247,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
             item.id,
             item.attempts,
             item.filePath,
+            item.priority,
           );
 
           // Push to buffer for embedding
@@ -1284,6 +1400,24 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
 
     // AUDITARIA: Handle file-not-found errors specially - fail immediately without retries
     // Retrying a deleted file is wasteful since it will never succeed
+    // AUDITARIA: Handle garbage/too-large — skip quietly, no user-facing error
+    if (err instanceof GarbageFileError || err instanceof FileTooLargeError) {
+      log.debug('prepareLoop:skipped', {
+        filePath,
+        reason: err.name,
+        message: err.message,
+      });
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'failed',
+        attempts: newAttempts,
+        lastError: err.message,
+        completedAt: new Date(),
+      });
+      this.failedCount++;
+      return;
+    }
+
+    // AUDITARIA: Handle file-not-found — fail immediately without retries
     if (err instanceof FileNotFoundError) {
       log.warn('prepareLoop:fileNotFound', {
         filePath,
@@ -1301,6 +1435,22 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         filePath,
         error: err,
         attempts: newAttempts,
+      });
+      return;
+    }
+
+    // AUDITARIA: Handle deferred files — demote to 'deferred' priority, NOT a failure
+    if (err instanceof FileDeferredError) {
+      log.debug('prepareLoop:fileDeferred', {
+        filePath,
+        message: err.message,
+      });
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'pending',
+        priority: 'deferred',
+        attempts: 0,
+        lastError: null,
+        startedAt: null,
       });
       return;
     }

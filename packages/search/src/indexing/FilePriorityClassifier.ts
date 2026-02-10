@@ -18,11 +18,17 @@ export interface FilePriorityClassifierConfig {
   pdfTextThreshold?: number;
   /** Maximum pages to scan for PDF text detection. Default: 3 */
   pdfMaxScanPages?: number;
+  /** Maximum raw file size for text files before deferring (bytes). Default: 10MB */
+  maxRawTextFileSize?: number;
+  /** Maximum raw file size for markup files before deferring (bytes). Default: 20MB */
+  maxRawMarkupFileSize?: number;
 }
 
 const DEFAULT_PDF_SIZE_THRESHOLD = 1 * 1024 * 1024; // 1MB
 const DEFAULT_PDF_TEXT_THRESHOLD = 50; // chars per page
 const DEFAULT_PDF_MAX_SCAN_PAGES = 3;
+const DEFAULT_MAX_RAW_TEXT_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const DEFAULT_MAX_RAW_MARKUP_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
 // ============================================================================
 // File Extension Categories
@@ -112,6 +118,7 @@ export interface ClassificationSummary {
   pdf: number;
   image: number;
   ocr: number;
+  deferred: number;
   total: number;
 }
 
@@ -123,6 +130,8 @@ export class FilePriorityClassifier {
   private readonly pdfSizeThreshold: number;
   private readonly pdfTextThreshold: number;
   private readonly pdfMaxScanPages: number;
+  private readonly maxRawTextFileSize: number;
+  private readonly maxRawMarkupFileSize: number;
 
   constructor(config: FilePriorityClassifierConfig = {}) {
     this.pdfSizeThreshold =
@@ -130,6 +139,10 @@ export class FilePriorityClassifier {
     this.pdfTextThreshold =
       config.pdfTextThreshold ?? DEFAULT_PDF_TEXT_THRESHOLD;
     this.pdfMaxScanPages = config.pdfMaxScanPages ?? DEFAULT_PDF_MAX_SCAN_PAGES;
+    this.maxRawTextFileSize =
+      config.maxRawTextFileSize ?? DEFAULT_MAX_RAW_TEXT_FILE_SIZE;
+    this.maxRawMarkupFileSize =
+      config.maxRawMarkupFileSize ?? DEFAULT_MAX_RAW_MARKUP_FILE_SIZE;
   }
 
   /**
@@ -139,22 +152,23 @@ export class FilePriorityClassifier {
   async classify(file: DiscoveredFile): Promise<ClassifiedFile> {
     const ext = file.extension.toLowerCase();
 
-    // Pure text files - highest priority
+    // Pure text files - highest priority (defer if oversized)
     if (TEXT_EXTENSIONS.has(ext)) {
       return {
         filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
-        priority: 'text',
+        priority: file.size > this.maxRawTextFileSize ? 'deferred' : 'text',
         category: 'text',
       };
     }
 
-    // MarkitDown-supported files
+    // MarkitDown-supported files (defer if oversized)
     if (MARKUP_EXTENSIONS.has(ext)) {
       return {
         filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
-        priority: 'markup',
+        priority:
+          file.size > this.maxRawMarkupFileSize ? 'deferred' : 'markup',
         category: 'markup',
       };
     }
@@ -267,6 +281,7 @@ export class FilePriorityClassifier {
       pdf: 0,
       image: 0,
       ocr: 0,
+      deferred: 0,
       total: classified.length,
     };
 
@@ -307,6 +322,7 @@ export class FilePriorityClassifier {
       pdf: 'PDF',
       image: 'Image (OCR)',
       ocr: 'OCR (slowest)',
+      deferred: 'Deferred (oversized)',
     };
     return names[priority] || priority;
   }
@@ -321,6 +337,7 @@ export class FilePriorityClassifier {
       pdf: 3,
       image: 4,
       ocr: 5,
+      deferred: 6,
     };
     return order[priority] || 99;
   }

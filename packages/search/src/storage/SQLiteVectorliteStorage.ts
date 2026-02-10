@@ -1812,6 +1812,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
           WHEN 'pdf' THEN 3
           WHEN 'image' THEN 4
           WHEN 'ocr' THEN 5
+          WHEN 'deferred' THEN 6
         END,
         file_size ASC,
         created_at ASC
@@ -1851,6 +1852,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     if (updates.status !== undefined) {
       sets.push('status = ?');
       params.push(updates.status);
+    }
+    if (updates.priority !== undefined) {
+      sets.push('priority = ?');
+      params.push(updates.priority);
     }
     if (updates.attempts !== undefined) {
       sets.push('attempts = ?');
@@ -1931,6 +1936,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       pdf: 0,
       image: 0,
       ocr: 0,
+      deferred: 0,
     };
     for (const row of priorityRows) {
       priorityCounts[row.priority as QueuePriority] = row.count;

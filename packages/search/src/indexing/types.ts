@@ -41,6 +41,16 @@ export interface IndexingPipelineOptions {
   retryDelay?: number;
   /** PDF size threshold for OCR priority classification (bytes). Default: 1MB */
   pdfSizeThreshold?: number;
+  /** Maximum parsed text size (bytes) before skipping file entirely. Default: 5MB */
+  maxParsedTextSize?: number;
+  /** Parsed text size threshold (bytes) for deferring to low-priority queue. Default: 2MB */
+  deferParsedTextSize?: number;
+  /** Maximum raw file size (bytes) for text-category files before deferring. Default: 10MB */
+  maxRawTextFileSize?: number;
+  /** Maximum raw file size (bytes) for markup-category files before deferring. Default: 20MB */
+  maxRawMarkupFileSize?: number;
+  /** Enable binary/garbage file detection via isbinaryfile. Default: true */
+  enableGarbageDetection?: boolean;
 }
 
 // ============================================================================

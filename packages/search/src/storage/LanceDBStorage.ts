@@ -1758,7 +1758,7 @@ export class LanceDBStorage implements StorageAdapter {
     try {
       // Query pending items by priority order (most important first)
       // We query each priority level until we find items, avoiding full table scans
-      const priorities = ['text', 'markup', 'pdf', 'image', 'ocr'];
+      const priorities = ['text', 'markup', 'pdf', 'image', 'ocr', 'deferred'];
 
       let item: QueueRow | null = null;
 
@@ -1821,6 +1821,7 @@ export class LanceDBStorage implements StorageAdapter {
     const values: Record<string, unknown> = {};
 
     if (updates.status !== undefined) values.status = updates.status;
+    if (updates.priority !== undefined) values.priority = updates.priority;
     if (updates.attempts !== undefined) values.attempts = updates.attempts;
     if (updates.lastError !== undefined)
       values.last_error = updates.lastError ?? '';
@@ -1901,6 +1902,7 @@ export class LanceDBStorage implements StorageAdapter {
       pdf: 0,
       image: 0,
       ocr: 0,
+      deferred: 0,
     };
 
     if (this.queueTable) {

@@ -109,8 +109,11 @@ export class OfficeParserAdapter implements DocumentParser {
     await this.ensureInitialized();
 
     try {
-      // officeparser.parseOfficeAsync returns a Promise<string>
-      const text = await this.parseOfficeAsync!(filePath);
+      // Read file as buffer to avoid officeparser's case-sensitive extension check
+      // (e.g., .DOCX is rejected while .docx works)
+      const { readFile } = await import('fs/promises');
+      const buffer = await readFile(filePath);
+      const text = await this.parseOfficeAsync!(buffer);
 
       // Extract metadata from text
       const metadata = this.extractMetadata(text, options);

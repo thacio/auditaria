@@ -30,7 +30,8 @@
     "xxhash-wasm": "^1.1.0",
     "tesseract.js": "^5.1.1",
     "scribe.js-ocr": "^0.9.3",
-    "chokidar": "^4.0.3"
+    "chokidar": "^4.0.3",
+    "isbinaryfile": "^5.0.4"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
