@@ -261,9 +261,20 @@ export class GeminiClient {
     this.forceFullIdeContext = true;
   }
 
-  async setTools(): Promise<void> {
+  private lastUsedModelId?: string;
+
+  async setTools(modelId?: string): Promise<void> {
+    if (!this.chat) {
+      return;
+    }
+
+    if (modelId && modelId === this.lastUsedModelId) {
+      return;
+    }
+    this.lastUsedModelId = modelId;
+
     const toolRegistry = this.config.getToolRegistry();
-    const toolDeclarations = toolRegistry.getFunctionDeclarations();
+    const toolDeclarations = toolRegistry.getFunctionDeclarations(modelId);
     const tools: Tool[] = [{ functionDeclarations: toolDeclarations }];
     this.getChat().setTools(tools);
   }
@@ -326,6 +337,7 @@ export class GeminiClient {
   ): Promise<GeminiChat> {
     this.forceFullIdeContext = true;
     this.hasFailedCompressionAttempt = false;
+    this.lastUsedModelId = undefined;
 
     const toolRegistry = this.config.getToolRegistry();
     const toolDeclarations = toolRegistry.getFunctionDeclarations();
@@ -349,6 +361,13 @@ export class GeminiClient {
         tools,
         history,
         resumedSessionData,
+        async (modelId: string) => {
+          this.lastUsedModelId = modelId;
+          const toolRegistry = this.config.getToolRegistry();
+          const toolDeclarations =
+            toolRegistry.getFunctionDeclarations(modelId);
+          return [{ functionDeclarations: toolDeclarations }];
+        },
       );
     } catch (error) {
       await reportError(
@@ -671,6 +690,10 @@ export class GeminiClient {
       yield { type: GeminiEventType.ModelInfo, value: modelToUse };
     }
     this.currentSequenceModel = modelToUse;
+
+    // Update tools with the final modelId to ensure model-dependent descriptions are used.
+    await this.setTools(modelToUse);
+
     const resultStream = turn.run(
       modelConfigKey,
       request,
