@@ -42,6 +42,7 @@ export class EditorPanel extends EventEmitter {
     this.collaborativeWritingButton = null; // AUDITARIA: AI Collaborative Writing toggle
     this.closeButton = null;
     this.collapseButton = null;
+    this.edgeToggleButton = null;
     this.expandTab = null;
     this.resizeHandle = null;
     this.splitResizeHandle = null;
@@ -68,13 +69,14 @@ export class EditorPanel extends EventEmitter {
 
     // Resize state
     this.isResizing = false;
-    this.panelWidth = 50; // Default 50% width
-    this.minWidth = 400; // Minimum 400px
-    this.maxWidth = 80; // Maximum 80% of viewport
+    this.panelWidth = 420; // Default width in pixels
+    this.minWidth = 360; // Minimum 360px
+    this.maxWidth = 65; // Maximum width as % of viewport
 
     // Split view resize state
     this.isSplitResizing = false;
     this.splitRatio = 50; // Default 50/50 split (percentage for code editor)
+    this.hasCustomWidth = false;
 
     this.initialize();
   }
@@ -128,6 +130,7 @@ export class EditorPanel extends EventEmitter {
     this.collaborativeWritingButton = document.getElementById('editor-collab-writing-button'); // AUDITARIA
     this.closeButton = document.getElementById('editor-close-button');
     this.collapseButton = document.getElementById('editor-collapse-button');
+    this.edgeToggleButton = document.getElementById('editor-edge-toggle');
     this.expandTab = document.getElementById('editor-expand-tab');
     this.resizeHandle = document.getElementById('editor-resize-handle');
     this.splitResizeHandle = document.getElementById('split-resize-handle');
@@ -176,10 +179,34 @@ export class EditorPanel extends EventEmitter {
 
     panel.innerHTML = `
       <div class="editor-resize-handle" id="editor-resize-handle"></div>
+      <button class="editor-edge-toggle" id="editor-edge-toggle" title="Hide editor" aria-label="Hide editor">
+        <span class="codicon codicon-chevron-right"></span>
+      </button>
       <button class="editor-expand-tab" id="editor-expand-tab" title="Show editor" aria-label="Show editor">
         <span class="codicon codicon-chevron-left"></span>
       </button>
       <div class="editor-header">
+        <div class="editor-header-row">
+          <div class="editor-header-title">Editor</div>
+          <div class="editor-header-actions">
+            <button
+              id="editor-collapse-button"
+              class="editor-header-button"
+              title="Hide editor"
+              aria-label="Hide editor"
+            >
+              <span class="codicon codicon-chevron-right"></span>
+            </button>
+            <button
+              id="editor-close-button"
+              class="editor-header-button editor-close-button"
+              title="Close editor"
+              aria-label="Close editor"
+            >
+              <span class="codicon codicon-close"></span>
+            </button>
+          </div>
+        </div>
         <div id="editor-toolbar" class="editor-toolbar">
           <button
             id="editor-save-button"
@@ -266,26 +293,6 @@ export class EditorPanel extends EventEmitter {
             <span class="codicon codicon-sync-ignored"></span>
             <span class="editor-toolbar-button-text">AI Collab</span>
           </button>
-
-          <div class="editor-toolbar-spacer"></div>
-
-          <button
-            id="editor-collapse-button"
-            class="editor-toolbar-button"
-            title="Hide editor"
-            aria-label="Hide editor"
-          >
-            <span class="codicon codicon-chevron-right"></span>
-          </button>
-
-          <button
-            id="editor-close-button"
-            class="editor-toolbar-button editor-close-button"
-            title="Close editor"
-            aria-label="Close editor"
-          >
-            <span class="codicon codicon-close"></span>
-          </button>
         </div>
       </div>
 
@@ -304,13 +311,14 @@ export class EditorPanel extends EventEmitter {
    * Insert panel into DOM
    */
   insertPanelIntoDOM() {
-    // Find main content area
+    // Prefer workbench body (new layout)
+    const workbenchBody = document.getElementById('workbench-body');
     const appContainer = document.querySelector('.app-container') ||
                         document.querySelector('.main') ||
                         document.body;
 
     // Append panel
-    appContainer.appendChild(this.panel);
+    (workbenchBody || appContainer).appendChild(this.panel);
   }
 
   /**
@@ -332,6 +340,18 @@ export class EditorPanel extends EventEmitter {
         window.monaco.editor.setTheme(themeManager.monacoTheme);
       }
       // Note: Main editor theme is handled by EditorManager
+    });
+
+    // Layout change handler - refresh default width when not user-resized
+    document.addEventListener('layoutchange', () => {
+      if (this.hasCustomWidth) return;
+      const defaultWidth = this.getDefaultPanelWidth();
+      if (defaultWidth) {
+        this.panelWidth = defaultWidth;
+        if (this.isVisible && !this.isCollapsed) {
+          this.applyPanelWidth();
+        }
+      }
     });
 
     // Save button
@@ -406,6 +426,13 @@ export class EditorPanel extends EventEmitter {
     // Collapse button
     if (this.collapseButton) {
       this.collapseButton.addEventListener('click', () => {
+        this.toggleCollapse();
+      });
+    }
+
+    // Edge toggle button (always visible when expanded)
+    if (this.edgeToggleButton) {
+      this.edgeToggleButton.addEventListener('click', () => {
         this.toggleCollapse();
       });
     }
@@ -1252,15 +1279,9 @@ export class EditorPanel extends EventEmitter {
 
     // Apply saved width (if exists) when showing the panel
     // This applies the user's preferred width from localStorage
-    if (this.panelWidth) {
-      this.panel.style.width = `${this.panelWidth}%`;
-    }
+    this.applyPanelWidth();
 
-    // Update collapse button icon
-    if (this.collapseButton) {
-      this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
-      this.collapseButton.title = 'Hide editor';
-    }
+    this.updateCollapseControls();
 
     this.emit('visibility-changed', { isVisible: true });
     this.saveState();
@@ -1280,6 +1301,7 @@ export class EditorPanel extends EventEmitter {
     // Clear inline width so CSS can fully control visibility
     this.panel.style.width = '';
 
+    this.updateCollapseControls();
     this.emit('visibility-changed', { isVisible: false });
     this.saveState();
   }
@@ -1307,10 +1329,7 @@ export class EditorPanel extends EventEmitter {
         this.isCollapsed = true;
         this.panel.classList.remove('visible');
         this.panel.classList.add('collapsed');
-        if (this.collapseButton) {
-          this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-left';
-          this.collapseButton.title = 'Show editor';
-        }
+        this.updateCollapseControls();
         this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
       }
     } else {
@@ -1319,11 +1338,17 @@ export class EditorPanel extends EventEmitter {
         this.isCollapsed = false;
         this.panel.classList.add('visible');
         this.panel.classList.remove('collapsed');
-        if (this.collapseButton) {
-          this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
-          this.collapseButton.title = 'Hide editor';
-        }
+        this.updateCollapseControls();
         this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
+      }
+
+      // Clamp width to max when viewport changes
+      if (this.isVisible && !this.isCollapsed) {
+        const maxWidthPx = (this.maxWidth / 100) * width;
+        if (this.panelWidth > maxWidthPx) {
+          this.panelWidth = maxWidthPx;
+        }
+        this.applyPanelWidth();
       }
     }
   }
@@ -1340,22 +1365,34 @@ export class EditorPanel extends EventEmitter {
       this.panel.classList.add('collapsed');
       // Clear inline width so CSS can control the collapse
       this.panel.style.width = '';
-      this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-left';
-      this.collapseButton.title = 'Show editor';
     } else {
       // When expanding, add .visible and remove .collapsed
       this.panel.classList.add('visible');
       this.panel.classList.remove('collapsed');
       // Restore the saved width when expanding
-      if (this.panelWidth) {
-        this.panel.style.width = `${this.panelWidth}%`;
-      }
-      this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-right';
-      this.collapseButton.title = 'Hide editor';
+      this.applyPanelWidth();
     }
 
+    this.updateCollapseControls();
     this.saveState();
     this.emit('collapse-changed', { isCollapsed: this.isCollapsed });
+  }
+
+  /**
+   * Update collapse/expand controls (header + edge toggle)
+   */
+  updateCollapseControls() {
+    const iconClass = this.isCollapsed ? 'codicon codicon-chevron-left' : 'codicon codicon-chevron-right';
+    const title = this.isCollapsed ? 'Show editor' : 'Hide editor';
+    [this.collapseButton, this.edgeToggleButton].forEach((button) => {
+      if (!button) return;
+      const icon = button.querySelector('.codicon');
+      if (icon) {
+        icon.className = iconClass;
+      }
+      button.title = title;
+      button.setAttribute('aria-label', title);
+    });
   }
 
   /**
@@ -1402,19 +1439,20 @@ export class EditorPanel extends EventEmitter {
     if (!this.isResizing) return;
 
     const viewportWidth = window.innerWidth;
+    if (viewportWidth < 768) return;
     const mouseX = e.clientX;
 
     // Calculate new width as percentage from the right edge
     const distanceFromRight = viewportWidth - mouseX;
-    let newWidthPercent = (distanceFromRight / viewportWidth) * 100;
+    let newWidth = distanceFromRight;
 
     // Apply constraints
-    const minWidthPercent = (this.minWidth / viewportWidth) * 100;
-    newWidthPercent = Math.max(minWidthPercent, Math.min(this.maxWidth, newWidthPercent));
+    const maxWidthPx = (this.maxWidth / 100) * viewportWidth;
+    newWidth = Math.max(this.minWidth, Math.min(maxWidthPx, newWidth));
 
     // Update panel width
-    this.panelWidth = newWidthPercent;
-    this.panel.style.width = `${newWidthPercent}%`;
+    this.panelWidth = newWidth;
+    this.panel.style.width = `${newWidth}px`;
 
     // Trigger Monaco editor layout update
     if (this.editorManager.editor) {
@@ -1439,7 +1477,22 @@ export class EditorPanel extends EventEmitter {
     document.removeEventListener('mouseup', this.boundStopResize);
 
     // Save width to localStorage
+    this.hasCustomWidth = true;
     this.saveState();
+  }
+
+  /**
+   * Apply panel width (respects small-screen overlay rules)
+   */
+  applyPanelWidth() {
+    if (!this.panel) return;
+    if (window.innerWidth < 768) {
+      this.panel.style.width = '';
+      return;
+    }
+    if (this.panelWidth) {
+      this.panel.style.width = `${this.panelWidth}px`;
+    }
   }
 
   /**
@@ -1532,6 +1585,10 @@ export class EditorPanel extends EventEmitter {
    */
   loadState() {
     try {
+      const defaultWidth = this.getDefaultPanelWidth();
+      if (defaultWidth) {
+        this.panelWidth = defaultWidth;
+      }
       const saved = localStorage.getItem('auditaria_editor_panel_state');
       if (saved) {
         const state = JSON.parse(saved);
@@ -1542,8 +1599,15 @@ export class EditorPanel extends EventEmitter {
         // The inline style would override CSS and make panel visible
         // Width will be applied when panel is shown via show() method
         if (state.panelWidth) {
-          this.panelWidth = state.panelWidth;
-          // DON'T set: this.panel.style.width = `${this.panelWidth}%`;
+          let restoredWidth = state.panelWidth;
+          // Legacy values stored as percentages (<= 100)
+          if (restoredWidth > 0 && restoredWidth <= 100) {
+            restoredWidth = (restoredWidth / 100) * window.innerWidth;
+          }
+          const maxWidthPx = (this.maxWidth / 100) * window.innerWidth;
+          this.panelWidth = Math.max(this.minWidth, Math.min(maxWidthPx, restoredWidth));
+          this.hasCustomWidth = true;
+          // DON'T set: this.panel.style.width = `${this.panelWidth}px`;
         }
 
         // Restore split ratio
@@ -1572,6 +1636,17 @@ export class EditorPanel extends EventEmitter {
     } catch (error) {
       console.error('Failed to load editor panel state:', error);
     }
+  }
+
+  /**
+   * Get the default panel width from CSS (layout-aware)
+   * @returns {number|null}
+   */
+  getDefaultPanelWidth() {
+    if (!window.getComputedStyle) return null;
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--dock-right-width').trim();
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   /**
@@ -1656,5 +1731,6 @@ export class EditorPanel extends EventEmitter {
     this.panel = null;
     this.editorContainer = null;
     this.diffContainer = null;
+    this.edgeToggleButton = null;
   }
 }

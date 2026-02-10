@@ -39,9 +39,10 @@ export class FileTreePanel extends EventEmitter {
 
     // Resize state
     this.isResizing = false;
-    this.panelWidth = 250;  // Default width in pixels
+    this.panelWidth = 280;  // Default width in pixels
     this.minWidth = 150;    // Minimum width in pixels
     this.maxWidthPercent = 40;  // Maximum width as % of viewport
+    this.hasCustomWidth = false;
 
     // State
     this.isCollapsed = true;  // Start collapsed
@@ -177,16 +178,19 @@ export class FileTreePanel extends EventEmitter {
    * Insert panel into DOM
    */
   insertPanelIntoDOM() {
-    // Find the main content area
+    // Prefer workbench body (new layout)
+    const workbenchBody = document.getElementById('workbench-body');
     const appContainer = document.querySelector('.app-container') ||
                         document.querySelector('.main') ||
                         document.body;
 
+    const target = workbenchBody || appContainer;
+
     // Insert at the beginning
-    if (appContainer.firstChild) {
-      appContainer.insertBefore(this.panel, appContainer.firstChild);
+    if (target.firstChild) {
+      target.insertBefore(this.panel, target.firstChild);
     } else {
-      appContainer.appendChild(this.panel);
+      target.appendChild(this.panel);
     }
   }
 
@@ -201,6 +205,18 @@ export class FileTreePanel extends EventEmitter {
 
     // Initial resize check
     this.handleResize();
+
+    // Layout change handler - refresh default width when not user-resized
+    document.addEventListener('layoutchange', () => {
+      if (this.hasCustomWidth) return;
+      const defaultWidth = this.getDefaultPanelWidth();
+      if (defaultWidth) {
+        this.panelWidth = defaultWidth;
+        if (!this.isCollapsed) {
+          this.applyPanelWidth();
+        }
+      }
+    });
 
     // Tree selection event
     if (this.tree) {
@@ -614,8 +630,8 @@ export class FileTreePanel extends EventEmitter {
       const maxWidth = (this.maxWidthPercent / 100) * viewportWidth;
       if (this.panelWidth > maxWidth) {
         this.panelWidth = maxWidth;
-        this.panel.style.width = `${this.panelWidth}px`;
       }
+      this.applyPanelWidth();
     }
   }
 
@@ -634,9 +650,7 @@ export class FileTreePanel extends EventEmitter {
     } else {
       this.panel.classList.remove('collapsed');
       // Apply saved width when expanding
-      if (this.panelWidth) {
-        this.panel.style.width = `${this.panelWidth}px`;
-      }
+      this.applyPanelWidth();
       this.collapseButton.querySelector('.codicon').className = 'codicon codicon-chevron-left';
       this.collapseButton.title = 'Hide file tree';
 
@@ -677,6 +691,7 @@ export class FileTreePanel extends EventEmitter {
     if (!this.isResizing) return;
 
     const viewportWidth = window.innerWidth;
+    if (viewportWidth < 768) return;
     const mouseX = e.clientX;
 
     // Calculate new width (panel is on left, so width = mouseX)
@@ -709,7 +724,22 @@ export class FileTreePanel extends EventEmitter {
     document.removeEventListener('mouseup', this.boundStopResize);
 
     // Save width to localStorage
+    this.hasCustomWidth = true;
     this.saveState();
+  }
+
+  /**
+   * Apply panel width (respects small-screen overlay rules)
+   */
+  applyPanelWidth() {
+    if (!this.panel) return;
+    if (window.innerWidth < 768) {
+      this.panel.style.width = '';
+      return;
+    }
+    if (this.panelWidth) {
+      this.panel.style.width = `${this.panelWidth}px`;
+    }
   }
 
   /**
@@ -1358,17 +1388,33 @@ export class FileTreePanel extends EventEmitter {
     // File browser collapse state is not persisted - always starts expanded
     // But we do persist the panel width
     try {
+      const defaultWidth = this.getDefaultPanelWidth();
+      if (defaultWidth) {
+        this.panelWidth = defaultWidth;
+      }
       const saved = localStorage.getItem('auditaria_file_tree_state');
       if (saved) {
         const state = JSON.parse(saved);
         if (state.panelWidth && typeof state.panelWidth === 'number') {
           this.panelWidth = state.panelWidth;
+          this.hasCustomWidth = true;
           // Don't apply width when collapsed - will be applied when panel expands
         }
       }
     } catch (error) {
       console.error('Failed to load file tree state:', error);
     }
+  }
+
+  /**
+   * Get the default panel width from CSS (layout-aware)
+   * @returns {number|null}
+   */
+  getDefaultPanelWidth() {
+    if (!window.getComputedStyle) return null;
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--dock-left-width').trim();
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   /**

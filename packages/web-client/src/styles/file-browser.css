@@ -8,19 +8,18 @@
 
 /* File Tree Panel Container */
 .file-tree-panel {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 250px;
+  position: relative;
+  width: var(--dock-left-width);
+  height: 100%;
+  flex: 0 0 auto;
   background-color: var(--surface-alt);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
+  transition: width var(--transition-med) ease;
   overflow: hidden;
-  z-index: 1000;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 4;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.12);
 }
 
 .file-tree-panel.collapsed {
@@ -73,7 +72,7 @@
 /* Expand Tab - visible when collapsed */
 .file-tree-expand-tab {
   position: absolute;
-  left: 100%;
+  left: calc(100% + 6px);
   top: 50%;
   transform: translateY(-50%);
   width: 30px;
@@ -404,15 +403,20 @@
 @media (max-width: 1024px) and (min-width: 769px) {
   /* Medium screens: Slightly wider panel */
   .file-tree-panel {
-    width: 280px;
+    width: min(var(--dock-left-width), 280px);
   }
 }
 
 @media (max-width: 768px) {
   /* Small screens: Full-width overlay when open */
   .file-tree-panel {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
     width: 90%;
-    max-width: 350px;
+    max-width: 360px;
+    z-index: 30;
   }
 }
 

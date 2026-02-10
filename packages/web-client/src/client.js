@@ -18,6 +18,7 @@ import { ttsManager } from './providers/tts/TTSManager.js';
 import { ConfirmationQueue } from './confirmation-queue.js';
 import { SlashAutocompleteManager } from './managers/SlashAutocompleteManager.js';
 import { themeManager } from './utils/theme-manager.js';
+import { layoutManager } from './utils/layout-manager.js';
 
 // WEB_INTERFACE_START: File browser and editor imports
 import { FileTreeManager } from './managers/FileTreeManager.js';
@@ -93,6 +94,8 @@ class AuditariaWebClient {
 
         // Wire theme picker
         themeManager.mountPicker(document.getElementById('theme-picker'));
+        // Wire layout picker
+        layoutManager.mountPicker(document.getElementById('layout-picker'));
         
         // Attachment elements
         this.attachButton = document.getElementById('attach-button');
