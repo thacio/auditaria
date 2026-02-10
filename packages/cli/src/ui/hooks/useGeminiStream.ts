@@ -1307,22 +1307,26 @@ export const useGeminiStream = (
                 );
                 setPendingHistoryItem(null);
               }
+              // AUDITARIA: Look up display metadata for bridgeable tools (nice name + description)
+              const toolDisplayInfo = config.getProviderManager()?.getToolDisplayInfo(
+                event.value.name, event.value.args,
+              );
+              const toolDisplayName = toolDisplayInfo?.displayName ?? event.value.name;
+              const toolDescription = toolDisplayInfo?.description ?? Object.entries(event.value.args)
+                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+                .join('\n');
               setExternalPendingToolGroup((prev) => ({
                 type: 'tool_group' as const,
                 tools: [
                   ...(prev?.tools || []),
                   {
                     callId: event.value.callId,
-                    name: event.value.name,
-                    description: Object.entries(event.value.args)
-                      .map(
-                        ([k, v]) =>
-                          `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
-                      )
-                      .join('\n'),
+                    name: toolDisplayName,
+                    description: toolDescription,
                     status: ToolCallStatus.Executing,
                     resultDisplay: undefined,
                     confirmationDetails: undefined,
+                    renderOutputAsMarkdown: toolDisplayInfo?.isOutputMarkdown,
                   } as IndividualToolCallDisplay,
                 ],
               }));
@@ -1384,22 +1388,27 @@ export const useGeminiStream = (
                 );
                 setPendingHistoryItem(null);
               }
+              // AUDITARIA: Look up display metadata for bridgeable tools (nice name + description)
+              const respToolInfo = config.getProviderManager()?.getToolDisplayInfo(
+                req.name, req.args,
+              );
+              const respToolName = respToolInfo?.displayName ?? req.name;
+              const respToolDesc = respToolInfo?.description ?? Object.entries(req.args)
+                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+                .join('\n');
               const toolGroup: HistoryItemToolGroup = {
                 type: 'tool_group',
                 tools: [
                   {
                     callId: req.callId,
-                    name: req.name,
-                    description: Object.entries(req.args)
-                      .map(([k, v]) =>
-                        `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
-                      )
-                      .join('\n'),
+                    name: respToolName,
+                    description: respToolDesc,
                     status: resp.error
                       ? ToolCallStatus.Error
                       : ToolCallStatus.Success,
                     resultDisplay: resp.resultDisplay,
                     confirmationDetails: undefined,
+                    renderOutputAsMarkdown: respToolInfo?.isOutputMarkdown,
                   } as IndividualToolCallDisplay,
                 ],
               };

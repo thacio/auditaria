@@ -15,6 +15,13 @@ const MAX_PORT_ATTEMPTS = 20;
 // AUDITARIA: Callback type for routing live tool output to the UI layer
 type ToolOutputCallback = (toolName: string, output: string) => void;
 
+// AUDITARIA: Display metadata for bridgeable tools (used by UI to show nice names/descriptions)
+export interface ToolDisplayInfo {
+  displayName: string;
+  description: string;
+  isOutputMarkdown: boolean;
+}
+
 export class ToolExecutorServer {
   private server: Server | null = null;
   private port: number | null = null;
@@ -65,6 +72,32 @@ export class ToolExecutorServer {
         description: tool.schema.description ?? '',
         inputSchema: tool.schema.parametersJsonSchema,
       }));
+  }
+
+  // AUDITARIA: Get display metadata for a bridgeable tool (displayName, description, isOutputMarkdown).
+  // Builds the tool invocation to get a rich description from getDescription() instead of raw args JSON.
+  getToolDisplayInfo(toolName: string, args: Record<string, unknown>): ToolDisplayInfo | undefined {
+    const tool = this.registry.getAllTools()
+      .find(t => t.name === toolName &&
+        (t.constructor as unknown as Record<string, unknown>).Bridgeable === true);
+    if (!tool) return undefined;
+
+    let description: string;
+    try {
+      const invocation = tool.build(args as never);
+      description = invocation.getDescription();
+    } catch {
+      // Validation failed — fall back to a simple key:value summary
+      description = Object.entries(args)
+        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+        .join(', ');
+    }
+
+    return {
+      displayName: tool.displayName,
+      description,
+      isOutputMarkdown: tool.isOutputMarkdown,
+    };
   }
 
   private async findAvailablePort(server: Server): Promise<number> {

@@ -100,6 +100,13 @@ export function getDisplayString(model: string) {
     return `Claude (${capitalizedVariant})`;
   }
 
+  // AUDITARIA_CODEX_PROVIDER: Format Codex model display
+  if (model.startsWith('codex-code:')) {
+    const variant = model.split(':')[1] || 'unknown';
+    if (variant === 'auto') return 'Codex (Auto)';
+    return `Codex (${variant})`;
+  }
+
   switch (model) {
     case PREVIEW_GEMINI_MODEL_AUTO:
       return 'Auto (Gemini 3)';

@@ -630,6 +630,43 @@ body {
   overflow-y: auto;
 }
 
+/* AUDITARIA: Markdown rendering for tool output (bridgeable tools with isOutputMarkdown) */
+.tool-output-markdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tool-output-markdown pre {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+.tool-output-markdown code {
+  background: var(--surface-alt);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.tool-output-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.tool-output-markdown p:first-child { margin-top: 0; }
+.tool-output-markdown p:last-child { margin-bottom: 0; }
+
 .tool-output-diff {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

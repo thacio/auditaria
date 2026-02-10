@@ -141,23 +141,20 @@ export class CodexCLIDriver implements ProviderDriver {
 
     if (this.threadId) {
       // Resume: `codex exec resume [OPTIONS] <SESSION_ID>`
-      // Must pass -m to avoid model mismatch warning (Codex defaults to config.toml model otherwise).
       // Prompt is piped via stdin (Codex reads from stdin when no PROMPT arg given).
-      args.push(
-        'exec', 'resume', '--json',
-        '-m', this.config.model || 'gpt-5.3-codex',
-        '--full-auto', '--skip-git-repo-check',
-        this.threadId,
-      );
+      args.push('exec', 'resume', '--json');
+      if (this.config.model) {
+        args.push('-m', this.config.model);
+      }
+      args.push('--full-auto', '--skip-git-repo-check', this.threadId);
     } else {
       // New session: --full-auto = workspace-write sandbox + auto-approve
       // Prompt is piped via stdin (Codex reads from stdin when no PROMPT arg given).
-      args.push(
-        'exec', '--json',
-        '-m', this.config.model || 'gpt-5.3-codex',
-        '--full-auto',
-        '--skip-git-repo-check',
-      );
+      args.push('exec', '--json');
+      if (this.config.model) {
+        args.push('-m', this.config.model);
+      }
+      args.push('--full-auto', '--skip-git-repo-check');
     }
 
     return args;

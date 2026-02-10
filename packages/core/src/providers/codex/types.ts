@@ -112,7 +112,7 @@ export type CodexStreamMessage =
 
 /** Driver configuration for Codex providers */
 export interface CodexDriverConfig {
-  model: string;
+  model?: string;
   cwd: string;
   mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>;
   toolBridgePort?: number;

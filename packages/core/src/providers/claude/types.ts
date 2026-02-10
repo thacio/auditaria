@@ -106,7 +106,7 @@ export type ClaudeStreamMessage =
 
 /** Driver configuration for Claude providers */
 export interface ClaudeDriverConfig {
-  model: string;
+  model?: string;
   cwd: string;
   permissionMode?: string;
   allowedTools?: string[];

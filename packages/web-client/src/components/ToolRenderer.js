@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml, getToolStatusIndicator, getTodoStatusIcon } from '../utils/formatters.js';
+import { processMarkdown } from '../utils/markdown.js'; // AUDITARIA: For rendering tool output as markdown
 import { createEmbeddedStreamViewer, destroyEmbeddedStreamViewer, freezeEmbeddedStreamViewer } from './BrowserStreamViewer.js';
 import { createAgentControls } from './agentControlsFactory.js';
 
@@ -176,6 +177,12 @@ function createToolOutput(tool) {
                 outputPreEl.textContent = outputContent;
                 toolOutputEl.appendChild(outputPreEl);
             }
+        } else if (tool.renderOutputAsMarkdown && processMarkdown) {
+            // AUDITARIA: Render as markdown for tools that flag their output as markdown
+            const markdownEl = document.createElement('div');
+            markdownEl.className = 'tool-output-markdown';
+            markdownEl.innerHTML = processMarkdown(outputContent);
+            toolOutputEl.appendChild(markdownEl);
         } else {
             // Regular text output - preserve formatting
             const outputPreEl = document.createElement('pre');

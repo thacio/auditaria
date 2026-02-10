@@ -214,6 +214,7 @@ export type {
   ExternalMCPServerConfig,
 } from './providers/types.js';
 export { ProviderManager, sanitizeHistoryForProviderSwitch } from './providers/providerManager.js';
+export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
 export {
   getAuditContext,
   getAuditPreamble,

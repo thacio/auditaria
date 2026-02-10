@@ -196,6 +196,14 @@ export class ProviderManager {
     return this.config.type !== 'gemini';
   }
 
+  // AUDITARIA: Get display metadata for a bridgeable tool (strips MCP prefix, delegates to toolExecutorServer).
+  // Returns undefined for non-bridgeable tools (Claude/Codex built-in tools).
+  getToolDisplayInfo(rawToolName: string, args: Record<string, unknown>): import('./mcp-bridge/toolExecutorServer.js').ToolDisplayInfo | undefined {
+    if (!this.toolExecutorServer) return undefined;
+    const originalName = rawToolName.includes('__') ? rawToolName.split('__').pop()! : rawToolName;
+    return this.toolExecutorServer.getToolDisplayInfo(originalName, args);
+  }
+
   // Lazily compute and cache the env context prefix from getEnvironmentContext().
   // Used to identify and skip the initial env context message in history token estimation.
   private async ensureEnvContextPrefix(): Promise<string | undefined> {
@@ -538,15 +546,14 @@ export class ProviderManager {
   // Expose model for token limit calculation and footer display
   // Returns prefixed model name (e.g., 'claude-code:haiku') so tokenLimit() and getDisplayString() work
   getModel(): string {
-    const model = this.config.model || 'unknown';
     if (this.config.type === 'claude-cli') {
-      return `claude-code:${model}`;
+      return `claude-code:${this.config.model || 'auto'}`;
     }
     // AUDITARIA_CODEX_PROVIDER
     if (this.config.type === 'codex-cli') {
-      return `codex-code:${model}`;
+      return `codex-code:${this.config.model || 'auto'}`;
     }
-    return model;
+    return this.config.model || 'unknown';
   }
 
   private async getOrCreateDriver(): Promise<ProviderDriver> {
@@ -558,8 +565,11 @@ export class ProviderManager {
     // AUDITARIA_CLAUDE_PROVIDER: Start tool executor server for MCP bridging
     await this.ensureToolExecutorServer();
 
+    // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER: Pass model as-is.
+    // When "Auto" is selected, model is undefined — each driver omits the model flag
+    // so the CLI uses its own default.
     const driverConfig = {
-      model: this.config.model || 'sonnet',
+      model: this.config.model,
       cwd: this.cwd,
       permissionMode: 'bypassPermissions',
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
