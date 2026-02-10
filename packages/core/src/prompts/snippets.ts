@@ -58,7 +58,6 @@ export interface PrimaryWorkflowsOptions {
 export interface OperationalGuidelinesOptions {
   interactive: boolean;
   isGemini3: boolean;
-  enableShellEfficiency: boolean;
   interactiveShellEnabled: boolean;
   // AUDITARIA_FEATURE: Add language option for i18n support
   language?: SupportedLanguage;
@@ -105,10 +104,11 @@ ${renderAgentSkills(options.agentSkills)}
 
 ${renderHookContext(options.hookContext)}
 
-${options.planningWorkflow
-      ? renderPlanningWorkflow(options.planningWorkflow)
-      : renderPrimaryWorkflows(options.primaryWorkflows)
-    }
+${
+  options.planningWorkflow
+    ? renderPlanningWorkflow(options.planningWorkflow)
+    : renderPrimaryWorkflows(options.primaryWorkflows)
+}
 
 ${renderOperationalGuidelines(options.operationalGuidelines)}
 
@@ -298,8 +298,6 @@ export function renderOperationalGuidelines(
   if (!options) return '';
   return `
 # Operational Guidelines
-
-${shellEfficiencyGuidelines(options.enableShellEfficiency)}
 
 ## Tone and Style
 
@@ -556,15 +554,6 @@ function planningPhaseSuggestion(options: PrimaryWorkflowsOptions): string {
     return ` For complex tasks, consider using the '${ENTER_PLAN_MODE_TOOL_NAME}' tool to enter a dedicated planning phase before starting implementation.`;
   }
   return '';
-}
-
-function shellEfficiencyGuidelines(enabled: boolean): string {
-  if (!enabled) return '';
-  return `
-## Shell Tool Efficiency
-
-- **Quiet Flags:** Always prefer silent or quiet flags (e.g., \`npm install --silent\`, \`git --no-pager\`) to reduce output volume while still capturing necessary information.
-- **Pagination:** Always disable terminal pagination to ensure commands terminate (e.g., use \`git --no-pager\`, \`systemctl --no-pager\`, or set \`PAGER=cat\`).`;
 }
 
 function _toneAndStyleNoChitchat(isGemini3: boolean): string {
