@@ -14,6 +14,7 @@ import type {
   HistoryItemWithoutId,
   StreamingState,
   ActiveHook,
+  PermissionConfirmationRequest,
 } from '../types.js';
 import type { CommandContext, SlashCommand } from '../commands/types.js';
 import type { TextBuffer } from '../components/shared/text-buffer.js';
@@ -87,6 +88,7 @@ export interface UIState {
   authConsentRequest: ConfirmationRequest | null;
   confirmUpdateExtensionRequests: ConfirmationRequest[];
   loopDetectionConfirmationRequest: LoopDetectionConfirmationRequest | null;
+  permissionConfirmationRequest: PermissionConfirmationRequest | null;
   geminiMdFileCount: number;
   streamingState: StreamingState;
   initError: string | null;
