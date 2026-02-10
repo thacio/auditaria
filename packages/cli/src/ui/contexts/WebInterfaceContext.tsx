@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { WebInterfaceConfig } from '../../services/WebInterfaceService.js';
 import { WebInterfaceService } from '../../services/WebInterfaceService.js';
-import type { HistoryItem } from '../types.js';
+import type { HistoryItem, ResponseBlock } from '../types.js';
 import { useSubmitQuery } from './SubmitQueryContext.js';
 import { openBrowserWithDelay } from '../../utils/browserUtils.js';
 
@@ -22,7 +22,7 @@ interface WebInterfaceContextValue {
   start: (config?: WebInterfaceConfig) => Promise<number>;
   stop: () => Promise<void>;
   broadcastMessage: (historyItem: HistoryItem) => void;
-  broadcastPendingItem: (pendingItem: HistoryItem | null) => void;
+  broadcastResponseState: (blocks: ResponseBlock[] | null) => void;
   setCurrentHistory: (history: HistoryItem[]) => void;
 }
 
@@ -73,9 +73,9 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
     }
   }, [service, isRunning]);
 
-  const broadcastPendingItem = useCallback((pendingItem: HistoryItem | null): void => {
+  const broadcastResponseState = useCallback((blocks: ResponseBlock[] | null): void => {
     if (isRunning) {
-      service.broadcastPendingItem(pendingItem);
+      service.broadcastResponseState(blocks);
     }
   }, [service, isRunning]);
 
@@ -134,9 +134,9 @@ export function WebInterfaceProvider({ children, enabled = false, openBrowser = 
     start,
     stop,
     broadcastMessage,
-    broadcastPendingItem,
+    broadcastResponseState,
     setCurrentHistory,
-  }), [service, isRunning, port, clientCount, defaultPort, start, stop, broadcastMessage, broadcastPendingItem, setCurrentHistory]);
+  }), [service, isRunning, port, clientCount, defaultPort, start, stop, broadcastMessage, broadcastResponseState, setCurrentHistory]);
 
   return (
     <WebInterfaceContext.Provider value={contextValue}>

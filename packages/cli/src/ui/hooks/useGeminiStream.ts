@@ -56,6 +56,7 @@ import type {
   IndividualToolCallDisplay,
   SlashCommandProcessorResult,
   HistoryItemModel,
+  ResponseBlock, // AUDITARIA_WEB_INTERFACE
 } from '../types.js';
 import { StreamingState, MessageType, ToolCallStatus } from '../types.js';
 import { isAtCommand, isSlashCommand } from '../utils/commandUtils.js';
@@ -212,22 +213,7 @@ export const useGeminiStream = (
   const storage = config.storage;
   const logger = useLogger(storage);
 
-  // WEB_INTERFACE_START
-  const webInterface = useWebInterface();
-  // Broadcast pending items to web interface when they change
-  useEffect(() => {
-    if (webInterface && pendingHistoryItemRef.current) {
-      // Create a proper HistoryItem with an ID for broadcasting
-      const pendingItemWithId: HistoryItem = {
-        ...pendingHistoryItemRef.current,
-        id: -1, // Temporary ID for pending items
-      } as HistoryItem;
-
-      webInterface.broadcastPendingItem(pendingItemWithId);
-    }
-  }, [pendingHistoryItemRef, webInterface]);
-
-  // WEB_INTERFACE_END
+  const webInterface = useWebInterface(); // AUDITARIA_WEB_INTERFACE
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Track whether tool output handler is wired to providerManager
   const toolOutputHandlerWiredRef = useRef(false);
@@ -465,52 +451,33 @@ export const useGeminiStream = (
     return (executingShellTool as TrackedExecutingToolCall | undefined)?.pid;
   }, [toolCalls]);
 
-  // WEB_INTERFACE_START
-  // Broadcast pending tool calls to web interface when they change
+  // WEB_INTERFACE_START: Single unified response_state broadcast
   useEffect(() => {
-    // Find the first tool_group item with actual tools from pendingToolGroupItems
-    const pendingToolGroup = pendingToolGroupItems.find(
+    if (!webInterface) return;
+    const blocks: ResponseBlock[] = [];
+
+    // Tools first (text is always flushed when tools start, so tools precede any remaining text)
+    const nativeToolGroup = pendingToolGroupItems.find(
       (item): item is HistoryItemToolGroup =>
         item.type === 'tool_group' && 'tools' in item && item.tools.length > 0,
     );
-
-    if (webInterface && pendingToolGroup) {
-      // Only broadcast tools that are actually still pending/executing (not completed)
-      const activePendingTools = pendingToolGroup.tools.filter(
-        (tool) =>
-          tool.status === 'Pending' ||
-          tool.status === 'Executing' ||
-          tool.status === 'Confirming',
-      );
-
-      // Only broadcast if there are actually pending tools
-      if (activePendingTools.length > 0) {
-        const pendingToolItemWithId: HistoryItem = {
-          ...pendingToolGroup,
-          tools: activePendingTools,
-          id: -2, // Temporary ID for pending tool calls (different from text responses)
-        } as HistoryItem;
-
-        webInterface.broadcastPendingItem(pendingToolItemWithId);
-      } else {
-        // If no pending tools, broadcast null to clear any existing pending display
-        webInterface.broadcastPendingItem(null);
-      }
+    if (nativeToolGroup?.tools?.length) {
+      blocks.push({ type: 'tool_group', tools: nativeToolGroup.tools });
     }
-  }, [pendingToolGroupItems, webInterface]);
-  // WEB_INTERFACE_END
-
-  // WEB_INTERFACE_START: Broadcast external provider pending tools to web client
-  useEffect(() => {
-    if (!webInterface) return;
-    if (externalPendingToolGroup && externalPendingToolGroup.tools.length > 0) {
-      const pendingItemWithId: HistoryItem = {
-        ...externalPendingToolGroup,
-        id: -3, // Unique temp ID for external provider pending tools
-      } as HistoryItem;
-      webInterface.broadcastPendingItem(pendingItemWithId);
+    if (externalPendingToolGroup?.tools?.length) {
+      blocks.push({ type: 'tool_group', tools: externalPendingToolGroup.tools });
     }
-  }, [externalPendingToolGroup, webInterface]);
+
+    // Text last
+    if (
+      pendingHistoryItem &&
+      (pendingHistoryItem.type === 'gemini' || pendingHistoryItem.type === 'gemini_content')
+    ) {
+      blocks.push({ type: 'text', text: (pendingHistoryItem as { text?: string }).text || '' });
+    }
+
+    webInterface.broadcastResponseState(blocks.length > 0 ? blocks : null);
+  }, [pendingHistoryItem, pendingToolGroupItems, externalPendingToolGroup, webInterface]);
   // WEB_INTERFACE_END
 
   const lastQueryRef = useRef<PartListUnion | null>(null);

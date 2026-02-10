@@ -87,6 +87,11 @@ export interface IndividualToolCallDisplay {
   correlationId?: string;
 }
 
+// WEB_INTERFACE: ResponseBlock for unified web streaming state
+export type ResponseBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_group'; tools: IndividualToolCallDisplay[] };
+
 export interface CompressionProps {
   isPending: boolean;
   originalTokenCount: number | null;

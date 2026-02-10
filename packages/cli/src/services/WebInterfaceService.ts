@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 // WEB_INTERFACE_START: Import HTML parser for link rewriting
 import { parse } from 'node-html-parser';
 // WEB_INTERFACE_END
-import type { HistoryItem, ConsoleMessageItem } from '../ui/types.js';
+import type { HistoryItem, ConsoleMessageItem, ResponseBlock } from '../ui/types.js';
 import { ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
@@ -74,6 +74,7 @@ const LATEST_ONLY_MESSAGE_TYPES = new Set([
   'file_tree_response',    // Full tree snapshot (5MB+) - only latest matters
   'mcp_servers',           // Full server list - only latest matters
   'slash_commands',        // Full command list - only latest matters
+  'response_state',        // WEB_INTERFACE: Only latest response state matters
   // NOTE: console_messages intentionally NOT included - user needs to see live logs
 ]);
 
@@ -223,7 +224,7 @@ export class WebInterfaceService extends EventEmitter {
   private currentCliActionState: { active: boolean; reason: string; title: string; message: string } | null = null;
   private currentTerminalCapture: TerminalCaptureData | null = null;
   // WEB_INTERFACE_START: Track ephemeral states for reconnection
-  private currentPendingItem: HistoryItem | null = null;
+  private currentResponseBlocks: ResponseBlock[] | null = null;
   private currentLoadingState: LoadingStateData | null = null;
   private currentFooterData: FooterData | null = null;
   private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
@@ -870,9 +871,9 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast a message to all connected web clients
    */
   broadcastMessage(historyItem: HistoryItem): void {
-    // Clear pending item when it becomes final (AI message or tool group)
+    // Clear response state when content becomes final (AI message or tool group)
     if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content' || historyItem.type === 'tool_group') {
-      this.currentPendingItem = null;
+      this.currentResponseBlocks = null;
     }
     
     if (!this.isRunning || this.clients.size === 0) {
@@ -996,43 +997,36 @@ export class WebInterfaceService extends EventEmitter {
   }
 
   /**
-   * Broadcast pending history item (streaming content) to all connected web clients
+   * Broadcast unified response state (ordered blocks of streaming content) to all connected web clients
    */
-  broadcastPendingItem(pendingItem: HistoryItem | null): void {
-    // Store current pending item for new clients
-    this.currentPendingItem = pendingItem;
-    
+  broadcastResponseState(blocks: ResponseBlock[] | null): void {
+    this.currentResponseBlocks = blocks;
+
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
 
-    // WEB_INTERFACE_START: Add sequence number with ephemeral flag
     const sequence = this.getNextSequence();
     const message = JSON.stringify({
-      type: 'pending_item',
-      data: pendingItem,
+      type: 'response_state',
+      data: blocks,
       sequence,
-      ephemeral: true,  // Mark as ephemeral - not saved in history
+      ephemeral: true,
       timestamp: Date.now(),
     });
-    // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
-          // WEB_INTERFACE_START: Store in client's buffer with ephemeral flag
           const state = this.clientStates.get(client);
           if (state) {
             state.messageBuffer.add({ sequence, message, timestamp: Date.now(), ephemeral: true });
           }
-          // WEB_INTERFACE_END
         } catch (error) {
-          // Remove failed client
           this.clients.delete(client);
         }
       } else {
-        // Remove disconnected client
         this.clients.delete(client);
       }
     });
@@ -1163,7 +1157,7 @@ export class WebInterfaceService extends EventEmitter {
   broadcastClear(): void {
     // Clear internal history and ephemeral states
     this.currentHistory = [];
-    this.currentPendingItem = null;
+    this.currentResponseBlocks = null;
     this.currentLoadingState = null;
     this.activeToolConfirmations.clear();
     
@@ -2112,9 +2106,9 @@ export class WebInterfaceService extends EventEmitter {
       sendAndStore('footer_data', this.currentFooterData);
     }
 
-    // Send current pending item if exists
-    if (this.currentPendingItem) {
-      sendAndStore('pending_item', this.currentPendingItem);
+    // Send current response state if exists
+    if (this.currentResponseBlocks) {
+      sendAndStore('response_state', this.currentResponseBlocks);
     }
     
     // Send all active tool confirmations

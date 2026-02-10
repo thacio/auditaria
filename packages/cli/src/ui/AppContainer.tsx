@@ -2228,18 +2228,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       webInterface.service.setCurrentHistory(historyManager.history);
     }
   }, [historyManager.history, webInterface?.service]);
-
-  // Broadcast pending items
-  const pendingItem =
-    pendingHistoryItems.length > 0
-      ? (pendingHistoryItems[0] as HistoryItem)
-      : null;
-  useEffect(() => {
-    if (webInterface?.service) {
-      webInterface.service.broadcastPendingItem(pendingItem);
-    }
-  }, [pendingItem, webInterface?.service]);
   // WEB_INTERFACE_END
+  // WEB_INTERFACE: Pending item broadcast removed — unified in useGeminiStream response_state
 
   // Upstream: allToolCalls for ToolActionsProvider
   const allToolCalls = useMemo(

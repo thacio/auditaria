@@ -173,8 +173,9 @@ class AuditariaWebClient {
             this.messageManager.addHistoryItem(e.detail);
         });
         
-        this.wsManager.addEventListener('pending_item', (e) => {
-            this.messageManager.updatePendingItem(e.detail);
+        // WEB_INTERFACE: Unified response state replaces fragmented pending_item
+        this.wsManager.addEventListener('response_state', (e) => {
+            this.messageManager.renderResponseState(e.detail);
         });
         
         this.wsManager.addEventListener('footer_data', (e) => {
