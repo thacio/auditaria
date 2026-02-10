@@ -182,12 +182,18 @@ export class PromptProvider {
           () => ({ interactive: interactiveMode }),
           isGitRepository(process.cwd()) ? true : false,
         ),
-        finalReminder: this.withSection('finalReminder', () => ({
-          readFileToolName: READ_FILE_TOOL_NAME,
-        })),
-      };
+        finalReminder: isGemini3
+          ? undefined
+          : this.withSection('finalReminder', () => ({
+              readFileToolName: READ_FILE_TOOL_NAME,
+            })),
+      } as snippets.SystemPromptOptions;
 
-      basePrompt = activeSnippets.getCoreSystemPrompt(options);
+      basePrompt = (
+        activeSnippets.getCoreSystemPrompt as (
+          options: snippets.SystemPromptOptions,
+        ) => string
+      )(options);
     }
 
     // AUDITARIA_FEATURE_START: Custom skills section
