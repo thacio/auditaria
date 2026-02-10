@@ -80,6 +80,7 @@ const external = [
   '@thacio/auditaria-cli-search',
   // keytar is a native module that cannot be bundled
   'keytar',
+  'gemini-cli-devtools',
 ];
 
 const baseConfig = {
