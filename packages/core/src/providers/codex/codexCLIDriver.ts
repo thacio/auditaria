@@ -40,6 +40,11 @@ function toStr(val: unknown): string {
 const MCP_MARKER_START = '# AUDITARIA_MCP_START';
 const MCP_MARKER_END = '# AUDITARIA_MCP_END';
 
+// AUDITARIA_CODEX_PROVIDER: Quote paths for shell:true on Windows (cmd.exe splits unquoted spaces)
+function shellQuote(p: string): string {
+  return p.includes(' ') ? `"${p}"` : p;
+}
+
 export class CodexCLIDriver implements ProviderDriver {
   private threadId: string | undefined;
   private activeProcess: ChildProcess | null = null;
@@ -68,7 +73,7 @@ export class CodexCLIDriver implements ProviderDriver {
     // AUDITARIA_CODEX_PROVIDER: Write system context to instructions file, pass via -c flag
     if (systemContext) {
       const filePath = this.writeInstructionsFile(systemContext);
-      args.push('-c', `model_instructions_file=${filePath}`);
+      args.push('-c', `model_instructions_file=${shellQuote(filePath)}`);
     }
 
     dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext });
@@ -160,7 +165,8 @@ export class CodexCLIDriver implements ProviderDriver {
     return args;
   }
 
-  // AUDITARIA_CODEX_PROVIDER: Write system context to .auditaria/.codex-instructions file
+  // AUDITARIA_CODEX_PROVIDER: Write system context to .auditaria/.codex-instructions file.
+  // Path is shellQuote'd when passed as arg to avoid cmd.exe splitting on spaces.
   private writeInstructionsFile(content: string): string {
     const dir = join(this.config.cwd, '.auditaria');
     mkdirSync(dir, { recursive: true });

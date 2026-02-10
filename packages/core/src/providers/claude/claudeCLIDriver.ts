@@ -23,6 +23,11 @@ function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[CLI_DRIVER]', ...args);
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Quote paths for shell:true on Windows (cmd.exe splits unquoted spaces)
+function shellQuote(p: string): string {
+  return p.includes(' ') ? `"${p}"` : p;
+}
+
 export class ClaudeCLIDriver implements ProviderDriver {
   private sessionManager = new ClaudeSessionManager();
   private activeProcess: ChildProcess | null = null;
@@ -45,7 +50,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // --append-system-prompt-file does NOT persist across --resume sessions.
     if (systemContext) {
       const filePath = this.writeSystemPromptFile(systemContext);
-      args.push('--append-system-prompt-file', filePath);
+      args.push('--append-system-prompt-file', shellQuote(filePath));
     }
 
     dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext, isFirstCall });
@@ -141,7 +146,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // AUDITARIA_CLAUDE_PROVIDER_START: MCP server passthrough
     const mcpPath = this.getOrWriteMcpConfig();
     if (mcpPath) {
-      args.push('--mcp-config', mcpPath);
+      args.push('--mcp-config', shellQuote(mcpPath));
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
 
@@ -196,7 +201,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Write system context to .auditaria/.system-prompt file.
-  // Uses a file instead of inline --append-system-prompt to avoid Windows cmd.exe escaping issues.
+  // Path is shellQuote'd when passed as arg to avoid cmd.exe splitting on spaces.
   private writeSystemPromptFile(content: string): string {
     const dir = join(this.config.cwd, '.auditaria');
     mkdirSync(dir, { recursive: true });
