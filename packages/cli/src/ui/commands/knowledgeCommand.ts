@@ -29,7 +29,9 @@ import {
 // Lazy load the search module to avoid loading it on startup
 let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
 
-async function getSearchModule(): Promise<typeof import('@thacio/auditaria-cli-search')> {
+async function getSearchModule(): Promise<
+  typeof import('@thacio/auditaria-cli-search')
+> {
   if (!searchModule) {
     searchModule = await import('@thacio/auditaria-cli-search');
   }
@@ -106,6 +108,7 @@ const initSubCommand: SlashCommand = {
 
         // Trigger sync in background (don't block UI)
         searchService.triggerSync({ force }).catch((err) => {
+          // eslint-disable-next-line no-console
           console.warn('[KB Init] Sync failed:', err.message);
         });
 
@@ -293,7 +296,6 @@ const searchSubCommand: SlashCommand = {
 
       // Build search options
       // Use web search syntax for user-facing searches (supports "quoted phrases", OR, -exclusion)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- useWebSearchSyntax is new, types will be updated on rebuild
       const response = await system.search({
         query,
         strategy,
@@ -301,6 +303,7 @@ const searchSubCommand: SlashCommand = {
         filters: fileType ? { fileTypes: [`.${fileType}`] } : undefined,
         highlight: true,
         useWebSearchSyntax: true, // Google-style: "exact phrase", OR, -exclude
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- useWebSearchSyntax is new, types will be updated on rebuild
       } as any);
 
       // Only close if we created a temporary system
@@ -379,16 +382,17 @@ const statusSubCommand: SlashCommand = {
   autoExecute: true,
   action: async (context) => {
     const rootPath = getProjectRoot(context);
+    const STATUS_TIMEOUT_MS = 15_000;
 
-    try {
+    const statusPromise = async () => {
       const search = await getSearchModule();
       const searchService = getSearchService();
 
       // Check if index exists
       if (!search.searchDatabaseExists(rootPath)) {
         return {
-          type: 'message',
-          messageType: 'info',
+          type: 'message' as const,
+          messageType: 'info' as const,
           content:
             'Knowledge base not initialized. Run /knowledge-base init to create one.',
         };
@@ -406,8 +410,8 @@ const statusSubCommand: SlashCommand = {
 
       if (!system) {
         return {
-          type: 'message',
-          messageType: 'error',
+          type: 'message' as const,
+          messageType: 'error' as const,
           content: 'Failed to load knowledge base',
         };
       }
@@ -456,10 +460,23 @@ const statusSubCommand: SlashCommand = {
       ];
 
       return {
-        type: 'message',
-        messageType: 'info',
+        type: 'message' as const,
+        messageType: 'info' as const,
         content: lines.join('\n'),
       };
+    };
+
+    try {
+      const result = await Promise.race([
+        statusPromise(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Status check timed out after 15s')),
+            STATUS_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+      return result;
     } catch (error) {
       return {
         type: 'message',
