@@ -444,6 +444,9 @@ export class FileTreePanel extends EventEmitter {
 
     try {
       const style = document.createElement('style');
+      // NOTE: These rules must use theme variables (not hardcoded colors) because
+      // the tree lives in a shadow DOM and its default hover styles can destroy
+      // contrast in dark themes. Keep hover/selected states readable across themes.
       style.textContent = `
         /* Ensure cursor is pointer for all items */
         li > div:first-child {
@@ -453,17 +456,35 @@ export class FileTreePanel extends EventEmitter {
         /* CRITICAL: Selected items with our custom class */
         /* Must use higher specificity and !important to override hover */
         li.auditaria-selected > div:first-child {
-          background-color: #cce8ff !important;
+          background-color: var(--panel-item-selected) !important;
+          color: var(--text) !important;
         }
 
-        /* Selected + Hover: Slightly darker blue to show it's still selected */
+        li.auditaria-selected > div:first-child span,
+        li.auditaria-selected > div:first-child [part="text-content"] {
+          color: var(--text) !important;
+        }
+
+        /* Selected + Hover: keep selection color for clarity */
         li.auditaria-selected:hover > div:first-child {
-          background-color: #b8deff !important;
+          background-color: var(--panel-item-selected) !important;
+          color: var(--text) !important;
+        }
+
+        li.auditaria-selected:hover > div:first-child span,
+        li.auditaria-selected:hover > div:first-child [part="text-content"] {
+          color: var(--text) !important;
         }
 
         /* Regular hover (non-selected items only) */
         li:not(.auditaria-selected):hover > div:first-child {
-          background-color: #e8e8e8 !important;
+          background-color: var(--panel-item-hover) !important;
+          color: var(--text) !important;
+        }
+
+        li:not(.auditaria-selected):hover > div:first-child span,
+        li:not(.auditaria-selected):hover > div:first-child [part="text-content"] {
+          color: var(--text) !important;
         }
 
         /* Prevent hover from parent when hovering nested children */
@@ -473,12 +494,24 @@ export class FileTreePanel extends EventEmitter {
 
         /* But allow the direct child being hovered to have hover style */
         li:has(li:hover) li:hover > div:first-child {
-          background-color: #e8e8e8 !important;
+          background-color: var(--panel-item-hover) !important;
+          color: var(--text) !important;
+        }
+
+        li:has(li:hover) li:hover > div:first-child span,
+        li:has(li:hover) li:hover > div:first-child [part="text-content"] {
+          color: var(--text) !important;
         }
 
         /* And if the nested hovered item is selected, show selected+hover */
         li:has(li.auditaria-selected:hover) li.auditaria-selected:hover > div:first-child {
-          background-color: #b8deff !important;
+          background-color: var(--panel-item-selected) !important;
+          color: var(--text) !important;
+        }
+
+        li:has(li.auditaria-selected:hover) li.auditaria-selected:hover > div:first-child span,
+        li:has(li.auditaria-selected:hover) li.auditaria-selected:hover > div:first-child [part="text-content"] {
+          color: var(--text) !important;
         }
       `;
 

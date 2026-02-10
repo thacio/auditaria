@@ -50,6 +50,7 @@
   --panel-bg: #121822;
   --panel-header-bg: #161e2a;
   --panel-border: #253148;
+  /* Used for file-tree hover/selection inside shadow DOM (contrast-critical). */
   --panel-item-hover: #2f3b54;
   --panel-item-selected: #1f2a3b;
 

@@ -326,15 +326,18 @@
 
 .file-tree-component vscode-tree-item::part(row) {
   transition: background-color 0.12s ease, color 0.12s ease;
+  background-color: transparent;
 }
 
 .file-tree-component vscode-tree-item:hover::part(row) {
+  background-color: var(--panel-item-hover) !important;
   color: var(--text);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .file-tree-component vscode-tree-item[selected]::part(row),
 .file-tree-component vscode-tree-item[active]::part(row) {
+  background-color: var(--panel-item-selected) !important;
   color: var(--text);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
