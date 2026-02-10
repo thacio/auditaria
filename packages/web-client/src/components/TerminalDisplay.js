@@ -150,8 +150,8 @@ export class TerminalDisplay {
         this.contentElement.style.whiteSpace = 'pre';
         this.contentElement.style.overflow = 'auto';
         this.contentElement.style.padding = '10px';
-        this.contentElement.style.backgroundColor = '#0d1117';
-        this.contentElement.style.color = '#c9d1d9';
+        this.contentElement.style.backgroundColor = 'var(--surface)';
+        this.contentElement.style.color = 'var(--text)';
         this.contentElement.style.borderRadius = '6px';
         this.contentElement.style.minHeight = '400px';
         this.contentElement.style.maxHeight = '70vh';

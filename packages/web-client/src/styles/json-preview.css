@@ -11,7 +11,7 @@
   font-family: 'Roboto Mono', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 /* JSON content wrapper */
@@ -23,8 +23,8 @@
 .json-preview-pre {
   margin: 0;
   padding: 16px;
-  background: #f8f8f8;
-  border: 1px solid #e0e0e0;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
   border-radius: 4px;
   overflow: auto;
 }
@@ -38,25 +38,25 @@
 
 /* Syntax highlighting */
 .json-key {
-  color: #0066cc;
+  color: var(--primary);
   font-weight: 500;
 }
 
 .json-string {
-  color: #008000;
+  color: var(--success);
 }
 
 .json-number {
-  color: #d73a49;
+  color: var(--error);
 }
 
 .json-boolean {
-  color: #d73a49;
+  color: var(--error);
   font-weight: 600;
 }
 
 .json-null {
-  color: #999999;
+  color: var(--text-muted);
   font-style: italic;
 }
 

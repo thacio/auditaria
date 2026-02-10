@@ -13,8 +13,8 @@
   top: 0;
   bottom: 0;
   width: 250px;
-  background-color: #f3f3f3;
-  border-right: 1px solid #e5e5e5;
+  background-color: var(--surface-alt);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
@@ -43,7 +43,7 @@
 }
 
 .file-tree-resize-handle:hover {
-  background-color: #007acc;
+  background-color: var(--primary);
 }
 
 .file-tree-resize-handle::before {
@@ -54,7 +54,7 @@
   transform: translateY(-50%);
   width: 2px;
   height: 40px;
-  background-color: #c5c5c5;
+  background-color: var(--scrollbar-thumb);
   border-radius: 1px;
 }
 
@@ -78,8 +78,8 @@
   transform: translateY(-50%);
   width: 30px;
   height: 60px;
-  background-color: #e8e8e8;
-  border: 1px solid #d4d4d4;
+  background-color: var(--surface-hover);
+  border: 1px solid var(--border);
   border-left: none;
   border-radius: 0 4px 4px 0;
   display: none;
@@ -96,11 +96,11 @@
 }
 
 .file-tree-expand-tab:hover {
-  background-color: #d4d4d4;
+  background-color: var(--border);
 }
 
 .file-tree-expand-tab .codicon {
-  color: #383838;
+  color: var(--text);
   font-size: 16px;
 }
 
@@ -110,8 +110,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background-color: #e8e8e8;
-  border-bottom: 1px solid #d4d4d4;
+  background-color: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -119,14 +119,14 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #383838;
+  color: var(--text);
   text-transform: uppercase;
 }
 
 .file-tree-collapse-button {
   background: none;
   border: none;
-  color: #383838;
+  color: var(--text);
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -137,11 +137,11 @@
 }
 
 .file-tree-collapse-button:hover {
-  background-color: #d4d4d4;
+  background-color: var(--border);
 }
 
 .file-tree-collapse-button:active {
-  background-color: #c5c5c5;
+  background-color: var(--scrollbar-thumb);
 }
 
 .file-tree-collapse-button .codicon {
@@ -151,17 +151,17 @@
 /* Search Box */
 .file-tree-search {
   padding: 8px 12px;
-  background-color: #f3f3f3;
-  border-bottom: 1px solid #d4d4d4;
+  background-color: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .file-tree-search-input {
   width: 100%;
   padding: 6px 8px;
-  background-color: #ffffff;
-  border: 1px solid #d4d4d4;
-  color: #383838;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
   font-size: 13px;
   border-radius: 4px;
   outline: none;
@@ -169,28 +169,28 @@
 }
 
 .file-tree-search-input:focus {
-  border-color: #007acc;
-  background-color: #ffffff;
+  border-color: var(--primary);
+  background-color: var(--surface);
 }
 
 .file-tree-search-input::placeholder {
-  color: #767676;
+  color: var(--text-subtle);
 }
 
 /* Refresh Button Container */
 .file-tree-refresh-container {
   padding: 6px 12px;
-  background-color: #f3f3f3;
-  border-bottom: 1px solid #d4d4d4;
+  background-color: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .file-tree-refresh-button {
   width: 100%;
   padding: 6px 12px;
-  background-color: #e8e8e8;
-  border: 1px solid #d4d4d4;
-  color: #383838;
+  background-color: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
   font-size: 13px;
   border-radius: 4px;
   cursor: pointer;
@@ -203,13 +203,13 @@
 }
 
 .file-tree-refresh-button:hover:not(:disabled) {
-  background-color: #d4d4d4;
-  border-color: #c5c5c5;
+  background-color: var(--border);
+  border-color: var(--scrollbar-thumb);
 }
 
 .file-tree-refresh-button:active:not(:disabled) {
-  background-color: #c5c5c5;
-  border-color: #b5b5b5;
+  background-color: var(--scrollbar-thumb);
+  border-color: var(--scrollbar-hover);
 }
 
 .file-tree-refresh-button:disabled {
@@ -228,7 +228,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #767676;
+  color: var(--text-subtle);
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -236,8 +236,8 @@
 .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #d4d4d4;
-  border-top-color: #007acc;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -263,16 +263,16 @@
 }
 
 .file-tree-container::-webkit-scrollbar-track {
-  background: #f3f3f3;
+  background: var(--surface-alt);
 }
 
 .file-tree-container::-webkit-scrollbar-thumb {
-  background: #c5c5c5;
+  background: var(--scrollbar-thumb);
   border-radius: 5px;
 }
 
 .file-tree-container::-webkit-scrollbar-thumb:hover {
-  background: #b5b5b5;
+  background: var(--scrollbar-hover);
 }
 
 /* VSCode Tree Styling */
@@ -281,12 +281,12 @@
   --vscode-tree-item-height: 22px;
 
   /* Official vscode-tree CSS variables (from documentation) */
-  --vscode-list-hoverBackground: #e8e8e8;
-  --vscode-list-activeSelectionBackground: #cce8ff;
-  --vscode-focusBorder: #007acc;
-  --vscode-tree-indentGuidesStroke: #d4d4d4;
+  --vscode-list-hoverBackground: var(--surface-hover);
+  --vscode-list-activeSelectionBackground: var(--panel-item-selected);
+  --vscode-focusBorder: var(--primary);
+  --vscode-tree-indentGuidesStroke: var(--border);
 
-  color: #383838;
+  color: var(--text);
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
@@ -408,7 +408,7 @@
 
 /* Accessibility */
 .file-tree-panel:focus-within .file-tree-component vscode-tree-item:focus {
-  outline: 1px solid #007acc;
+  outline: 1px solid var(--primary);
   outline-offset: -1px;
 }
 
@@ -419,7 +419,7 @@
   }
 
   .file-tree-search-input:focus {
-    outline: 2px solid #007acc;
+    outline: 2px solid var(--primary);
     outline-offset: 1px;
   }
 }

@@ -8,6 +8,7 @@
 
 import { EventEmitter } from '../utils/EventEmitter.js';
 import { detectLanguage, getDefaultTabSize } from '../utils/languageDetection.js';
+import { themeManager } from '../utils/theme-manager.js';
 
 /**
  * Monaco Editor Manager
@@ -414,7 +415,7 @@ export class EditorManager extends EventEmitter {
 
     this.editor = this.monaco.editor.create(this.editorContainer, {
       model: model,
-      theme: 'vs',
+      theme: themeManager.monacoTheme,
       automaticLayout: true,
       minimap: { enabled: true },
       fontSize: 14,
@@ -448,6 +449,13 @@ export class EditorManager extends EventEmitter {
       ],
       run: () => {
         this.saveActiveFile();
+      }
+    });
+
+    // Listen for theme changes to update Monaco theme
+    document.addEventListener('themechange', () => {
+      if (this.editor && this.monaco) {
+        this.monaco.editor.setTheme(themeManager.monacoTheme);
       }
     });
 

@@ -2,6 +2,8 @@
  * Markdown processing utilities
  */
 
+import { processCodeBlocks } from './code-blocks.js';
+
 /**
  * Clean HTML specifically for list spacing issues
  */
@@ -48,20 +50,32 @@ export function processMarkdown(text) {
     if (!window.marked || !text) {
         return text;
     }
-    
+
     try {
         // Convert markdown to HTML using marked.js
         let html = marked.parse(text);
-        
+
         // Apply cleaning functions
         html = cleanListHTML(html);
         html = cleanMultipleLineBreaks(html);
-        
+
         return html;
     } catch (error) {
         console.error('Error processing markdown:', error);
         return text;
     }
+}
+
+/**
+ * Process markdown and apply code block enhancements to a container
+ * Use this when you have a DOM element to populate with markdown
+ * @param {string} text - Markdown text
+ * @param {HTMLElement} container - Container element
+ */
+export function processMarkdownWithCodeBlocks(text, container) {
+    const html = processMarkdown(text);
+    container.innerHTML = html;
+    processCodeBlocks(container);
 }
 
 /**

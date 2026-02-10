@@ -69,7 +69,7 @@ export class MarkdownPreview extends EventEmitter {
     if (!markdown || markdown.trim() === '') {
       container.innerHTML = `
         <div class="markdown-preview-empty">
-          <p style="color: #848484; font-style: italic;">No content to preview</p>
+          <p style="color: var(--text-subtle); font-style: italic;">No content to preview</p>
         </div>
       `;
       return;
@@ -158,8 +158,8 @@ export class MarkdownPreview extends EventEmitter {
             position: absolute;
             top: 4px;
             right: 8px;
-            background: #007acc;
-            color: #ffffff;
+            background: var(--primary);
+            color: var(--text-inverse);
             padding: 2px 8px;
             border-radius: 3px;
             font-size: 11px;
@@ -197,6 +197,7 @@ export class MarkdownPreview extends EventEmitter {
     let highlighted = this.escapeHtml(code);
 
     // Highlight keywords (very basic)
+    // Note: These are VS Code token colors for dark code blocks - kept consistent
     keywords.forEach(keyword => {
       const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
       highlighted = highlighted.replace(regex, '<span style="color: #569cd6;">$1</span>');

@@ -11,6 +11,7 @@ import { EditorTabs } from './EditorTabs.js';
 import { MenuBar } from './MenuBar.js';
 import { ExternalChangeWarning } from './ExternalChangeWarning.js';
 import { DiffModal } from './DiffModal.js';
+import { themeManager } from '../utils/theme-manager.js';
 
 /**
  * Editor Panel Component
@@ -323,6 +324,15 @@ export class EditorPanel extends EventEmitter {
 
     // Initial resize check
     this.handleResize();
+
+    // Theme change handler - update Monaco theme
+    document.addEventListener('themechange', () => {
+      // Update diff editor theme if it exists
+      if (this.diffEditor && window.monaco) {
+        window.monaco.editor.setTheme(themeManager.monacoTheme);
+      }
+      // Note: Main editor theme is handled by EditorManager
+    });
 
     // Save button
     if (this.saveButton) {
@@ -933,7 +943,7 @@ export class EditorPanel extends EventEmitter {
         automaticLayout: true,
         readOnly: false,  // Allow editing the modified (right) side
         renderSideBySide: true,
-        theme: 'vs',
+        theme: themeManager.monacoTheme,
         originalEditable: false  // Keep original (left) side read-only
       });
     }

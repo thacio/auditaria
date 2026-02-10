@@ -17,6 +17,7 @@ import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 import { ttsManager } from './providers/tts/TTSManager.js';
 import { ConfirmationQueue } from './confirmation-queue.js';
 import { SlashAutocompleteManager } from './managers/SlashAutocompleteManager.js';
+import { themeManager } from './utils/theme-manager.js';
 
 // WEB_INTERFACE_START: File browser and editor imports
 import { FileTreeManager } from './managers/FileTreeManager.js';
@@ -89,6 +90,9 @@ class AuditariaWebClient {
         this.printButton = document.getElementById('print-button');
         this.autoscrollButton = document.getElementById('autoscroll-button');
         this.inputStatus = document.getElementById('input-status');
+
+        // Wire theme toggle
+        themeManager.bindToggle(document.getElementById('theme-toggle'));
         
         // Attachment elements
         this.attachButton = document.getElementById('attach-button');

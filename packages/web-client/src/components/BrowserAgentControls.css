@@ -48,47 +48,47 @@
 }
 
 .status-running {
-  background: #e3f2fd;
-  color: #1976d2;
-  border: 1px solid #1976d2;
+  background: var(--primary-10);
+  color: var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .status-paused {
-  background: #fff3e0;
-  color: #f57c00;
-  border: 1px solid #f57c00;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .status-stopping {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #c62828;
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1px solid var(--error);
 }
 
 .status-unknown {
-  background: #f5f5f5;
-  color: #757575;
-  border: 1px solid #bdbdbd;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
 
 /* AUDITARIA_FEATURE: Status badge colors for new takeover states */
 .status-taking_over {
-  background-color: #fbbf24;
-  color: #78350f;
-  border: 1px solid #f59e0b;
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .status-taken_over {
-  background-color: #a78bfa;
-  color: #4c1d95;
-  border: 1px solid #8b5cf6;
+  background-color: var(--tool-executing-bg);
+  color: var(--tool-executing);
+  border: 1px solid var(--tool-executing);
   animation: pulse 2s ease-in-out infinite;
 }
 
 .status-ending_takeover {
-  background-color: #fbbf24;
-  color: #78350f;
-  border: 1px solid #f59e0b;
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning);
 }
 
 .control-buttons {
@@ -125,58 +125,58 @@
 .control-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: var(--surface-alt);
 }
 
 .pause-btn {
-  color: #f57c00;
-  border-color: #f57c00;
+  color: var(--warning);
+  border-color: var(--warning);
 }
 
 .pause-btn:hover:not(:disabled) {
-  background: #fff3e0;
+  background: var(--warning-bg);
 }
 
 .resume-btn {
-  color: #388e3c;
-  border-color: #388e3c;
+  color: var(--success);
+  border-color: var(--success);
 }
 
 .resume-btn:hover:not(:disabled) {
-  background: #e8f5e9;
+  background: var(--success-bg);
 }
 
 .stop-btn {
-  color: #d32f2f;
-  border-color: #d32f2f;
+  color: var(--error);
+  border-color: var(--error);
 }
 
 .stop-btn:hover:not(:disabled) {
-  background: #ffebee;
+  background: var(--error-bg);
 }
 
 /* AUDITARIA_FEATURE: Takeover button styles */
 .takeover-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--tool-executing) 0%, var(--primary) 100%);
   color: white;
-  border-color: #667eea;
+  border-color: var(--tool-executing);
 }
 
 .takeover-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #5568d3 0%, #63408a 100%);
-  border-color: #5568d3;
+  background: linear-gradient(135deg, var(--tool-executing) 0%, var(--primary-hover) 100%);
+  border-color: var(--tool-executing);
 }
 
 /* AUDITARIA_FEATURE: End Takeover button styles */
 .end-takeover-btn {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, var(--tool-executing) 0%, var(--error) 100%);
   color: white;
-  border-color: #f093fb;
+  border-color: var(--tool-executing);
 }
 
 .end-takeover-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #d97edb 0%, #d34455 100%);
-  border-color: #d97edb;
+  background: linear-gradient(135deg, var(--tool-executing) 0%, var(--error) 100%);
+  border-color: var(--tool-executing);
 }
 
 .btn-icon {
@@ -191,7 +191,7 @@
 .control-hint {
   padding: 8px 12px;
   background: rgba(0, 0, 0, 0.05);
-  border-left: 3px solid #f57c00;
+  border-left: 3px solid var(--warning);
   border-radius: 4px;
   font-size: 13px;
   color: rgba(0, 0, 0, 0.85);
@@ -201,9 +201,9 @@
 
 /* AUDITARIA_FEATURE: Progress message styling */
 .control-progress {
-  background-color: #fef3c7;
-  border-left: 4px solid #fbbf24;
-  color: #78350f;
+  background-color: var(--warning-bg);
+  border-left: 4px solid var(--warning);
+  color: var(--warning);
   padding: 12px;
   margin-top: 0;
   border-radius: 4px;
@@ -213,9 +213,9 @@
 
 /* AUDITARIA_FEATURE: Info message styling (for taken_over state) */
 .control-info {
-  background-color: #ede9fe;
-  border-left: 4px solid #a78bfa;
-  color: #4c1d95;
+  background-color: var(--tool-executing-bg);
+  border-left: 4px solid var(--tool-executing);
+  color: var(--tool-executing);
   padding: 12px;
   margin-top: 0;
   border-radius: 4px;

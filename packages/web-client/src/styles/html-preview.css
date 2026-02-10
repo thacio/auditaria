@@ -20,7 +20,7 @@
   padding: 0;
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  background: var(--surface);
   position: relative;
   overflow: hidden;
 }
@@ -34,7 +34,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: #ffffff;
+  background: var(--surface);
 }
 
 /* HTML preview iframe - fills wrapper */
@@ -42,7 +42,7 @@
   width: 100%;
   height: 100%;
   border: none;
-  background: #ffffff;
+  background: var(--surface);
   display: block;
 }
 

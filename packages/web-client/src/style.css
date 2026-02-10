@@ -1,24 +1,71 @@
 /* Professional Chat Interface for Auditaria CLI */
-:root {
-  --bg: #F9FAFB;
-  --surface: #FFFFFF;
-  --surface-alt: #F3F4F6;
-  --text: #111827;
-  --text-subtle: #4B5563;
-  --primary: #2563EB;   /* professional blue */
-  --primary-10: #D1FAE5;
-  --accent: #0891B2;
-  --border: #E5E7EB;
-  --success: #15803D;
-  --warning: #CA8A04;
-  --error: #DC2626;
-  --tool-executing: #8B5CF6; /* Purple */
+/* Variables defined in styles/themes.css via [data-theme] selectors */
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --radius: 8px;
-  --radius-sm: 4px;
+/* Smooth theme transitions (only on user-initiated toggle) */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 0.2s ease, color 0.15s ease, border-color 0.2s ease !important;
+}
+
+/* Code block wrapper styles */
+.code-block-wrapper {
+  margin: 12px 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--code-border);
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--surface-alt);
+  font-size: 12px;
+}
+
+.code-block-lang {
+  color: var(--text-subtle);
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.code-block-copy {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  color: var(--text-subtle);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.code-block-copy:hover {
+  background: var(--border-strong);
+  color: var(--text);
+}
+
+.code-block-copy.copied {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--text-inverse);
+}
+
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: var(--code-bg) !important;
+  padding: 12px 16px;
+}
+
+.code-block-wrapper code {
+  background: none !important;
+  padding: 0 !important;
+  color: var(--code-text);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 * {
@@ -97,13 +144,13 @@ body {
 
 .header-toggle-button.active {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
   border-color: var(--primary);
 }
 
 .header-toggle-button.active:hover {
-  background: #1D4ED8;
-  border-color: #1D4ED8;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .header-toggle-button svg {
@@ -254,7 +301,7 @@ body {
 
 .message-user .message-bubble {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
   border-bottom-right-radius: 4px;
 }
 
@@ -319,7 +366,7 @@ body {
 
 /* Error Messages */
 .message-error .message-bubble {
-  background: rgba(220, 38, 38, 0.05);
+  background: var(--error-bg);
   border: 1px solid var(--error);
   border-left: 4px solid var(--error);
 }
@@ -404,7 +451,7 @@ body {
 /* Markdown Tables in AI Messages */
 .message-content table {
   border-collapse: collapse;
-  border: 1px solid #000000;
+  border: 1px solid var(--border);
   margin: 12px 0;
   width: 100%;
   background: var(--surface);
@@ -414,7 +461,7 @@ body {
 
 .message-content table th,
 .message-content table td {
-  border: 1px solid #000000;
+  border: 1px solid var(--border);
   padding: 8px 12px;
   text-align: left;
   vertical-align: top;
@@ -556,7 +603,7 @@ body {
 }
 
 .tool-header-clickable:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: var(--surface-hover);
 }
 
 .tool-expand-indicator {
@@ -615,28 +662,28 @@ body {
 }
 
 .tool-status-error {
-  background: rgba(220, 38, 38, 0.1);
+  background: var(--error-bg);
   color: var(--error);
 }
 
 .tool-status-pending {
-  background: rgba(202, 138, 4, 0.1);
+  background: var(--warning-bg);
   color: var(--warning);
 }
 
 .tool-status-executing {
-  background: rgba(139, 92, 246, 0.1);
+  background: var(--tool-executing-bg);
   color: var(--tool-executing);
 }
 
 .tool-status-confirming {
-  background: rgba(202, 138, 4, 0.1);
+  background: var(--warning-bg);
   color: var(--warning);
 }
 
 .tool-status-canceled {
-  background: #E5E7EB;
-  color: var(--text-subtle);
+  background: var(--surface-alt);
+  color: var(--text-muted);
 }
 
 .tool-description {
@@ -738,12 +785,12 @@ body {
 }
 
 .diff-line-add {
-  background-color: rgba(34, 197, 94, 0.15);
+  background-color: var(--diff-add-bg);
   color: var(--success);
 }
 
 .diff-line-remove {
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: var(--diff-remove-bg);
   color: var(--error);
 }
 
@@ -820,7 +867,7 @@ body {
 #message-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2);
+  box-shadow: 0 0 0 2px var(--primary-10);
 }
 
 #message-input:disabled {
@@ -834,7 +881,7 @@ body {
 
 #send-button {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--radius);
   padding: 12px 20px;
@@ -846,7 +893,7 @@ body {
 }
 
 #send-button:hover:not(:disabled) {
-  background: #0E6862;
+  background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
@@ -1008,16 +1055,16 @@ body {
 }
 
 .loading-header:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--surface-hover);
 }
 
 .loading-header:active {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--surface-hover);
 }
 
 .loading-header:focus {
   outline: none;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--surface-hover);
 }
 
 .loading-indicator.hidden {
@@ -1071,19 +1118,19 @@ body {
   color: var(--primary);
   font-size: 16px;
   animation: modernSpin 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.3));
+  filter: drop-shadow(0 0 6px var(--primary-10));
   position: relative;
   z-index: 1;
 }
 
 @keyframes modernSpin {
-  from { 
+  from {
     transform: rotate(0deg);
-    filter: drop-shadow(0 0 6px rgba(15, 118, 110, 0.3));
+    filter: drop-shadow(0 0 6px var(--primary-10));
   }
-  to { 
+  to {
     transform: rotate(360deg);
-    filter: drop-shadow(0 0 8px rgba(15, 118, 110, 0.4));
+    filter: drop-shadow(0 0 8px var(--primary-10));
   }
 }
 
@@ -1146,7 +1193,7 @@ body {
   color: var(--text);
   font-size: 13px;
   line-height: 1.5;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-alt);
   white-space: pre-wrap;
   word-break: break-word;
   transition: opacity 0.3s ease;
@@ -1398,11 +1445,11 @@ body {
 
 .confirmation-button.primary {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .confirmation-button.primary:hover {
-  background: #1D4ED8;
+  background: var(--primary-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
@@ -1421,7 +1468,7 @@ body {
 
 .confirmation-button.cancel {
   background: var(--error);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .confirmation-button.cancel:hover {
@@ -1556,7 +1603,7 @@ body {
 
 .clear-confirmation-confirm {
   background: var(--error);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .clear-confirmation-confirm:hover {
@@ -1665,13 +1712,13 @@ body {
 /* Auto-scroll Button Active State */
 .autoscroll-button.active {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
   border-color: var(--primary);
 }
 
 .autoscroll-button.active:hover:not(:disabled) {
-  background: #1D4ED8;
-  border-color: #1D4ED8;
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
@@ -1980,7 +2027,7 @@ body {
 /* Copy button feedback states */
 .copy-button.copy-success {
   background: var(--success) !important;
-  color: white !important;
+  color: var(--text-inverse) !important;
   border-color: var(--success) !important;
 }
 
@@ -1990,7 +2037,7 @@ body {
 
 .copy-button.copy-error {
   background: var(--error) !important;
-  color: white !important;
+  color: var(--text-inverse) !important;
   border-color: var(--error) !important;
 }
 
@@ -2483,19 +2530,19 @@ body {
 
 /* Status colors for MCP servers */
 .mcp-server-status.connected {
-  color: #22c55e; /* Green */
+  color: var(--success);
 }
 
 .mcp-server-status.connecting {
-  color: #f59e0b; /* Yellow/Orange */
+  color: var(--warning);
 }
 
 .mcp-server-status.disconnected {
-  color: #ef4444; /* Red */
+  color: var(--error);
 }
 
 .mcp-server-status.blocked {
-  color: #6b7280; /* Gray */
+  color: var(--text-muted);
 }
 
 /* Responsive MCP modal */
@@ -2737,35 +2784,35 @@ body {
 }
 
 .terminal-modal-content {
-  background-color: #161b22;
+  background-color: var(--panel-bg);
   border-radius: 8px;
   width: 90%;
   max-width: 900px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  border: 1px solid #30363d;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--panel-border);
 }
 
 .terminal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--panel-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #0d1117;
+  background-color: var(--surface);
 }
 
 .terminal-header h3 {
   margin: 0;
-  color: #c9d1d9;
+  color: var(--text);
   font-size: 16px;
   font-weight: 600;
 }
 
 .terminal-help {
-  color: #8b949e;
+  color: var(--text-subtle);
   font-size: 12px;
   font-family: monospace;
 }
@@ -2781,12 +2828,12 @@ body {
 
 .terminal-footer {
   padding: 12px 20px;
-  border-top: 1px solid #30363d;
-  background-color: #0d1117;
+  border-top: 1px solid var(--panel-border);
+  background-color: var(--surface);
 }
 
 .terminal-status {
-  color: #8b949e;
+  color: var(--text-subtle);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -2953,7 +3000,7 @@ body {
   top: 4px;
   right: 4px;
   background: rgba(218, 54, 51, 0.9);
-  color: white;
+  color: var(--text-inverse);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -3082,7 +3129,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(31, 111, 235, 0.1);
+  background: var(--primary-10);
   border: 3px dashed var(--accent);
   z-index: 9999;
   pointer-events: none;
@@ -3897,7 +3944,7 @@ body {
 
 .autocomplete-item.selected {
   background: var(--primary);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .autocomplete-item.selected .autocomplete-description {
@@ -4190,30 +4237,30 @@ body {
 }
 
 .stream-status.connecting {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-bg);
+  color: var(--warning);
 }
 
 .stream-status.connected,
 .stream-status.streaming {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .stream-status.disconnected,
 .stream-status.stopped {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .stream-status.error {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--error-bg);
+  color: var(--error);
 }
 
 .stream-status.completed {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: var(--primary-10);
+  color: var(--primary);
 }
 
 .stream-fps {
@@ -4239,7 +4286,7 @@ body {
 /* Canvas container */
 .browser-stream-canvas-container {
   position: relative;
-  background: #1a1a1a;
+  background: var(--bg);
   aspect-ratio: 16 / 10;
 }
 
@@ -4324,9 +4371,9 @@ body {
 }
 
 .stream-close-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
+  background: var(--error-bg);
+  color: var(--error);
+  border-color: var(--error);
 }
 
 .browser-stream-wrapper.fullscreen .stream-close-btn {
@@ -4400,7 +4447,7 @@ body.stream-fullscreen-active {
 .browser-stream-wrapper.fullscreen .browser-stream-canvas-container {
   flex: 1;
   aspect-ratio: auto;
-  background: #000;
+  background: var(--bg);
   cursor: default;
   overflow: hidden;
 }

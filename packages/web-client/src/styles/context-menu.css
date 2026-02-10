@@ -9,8 +9,8 @@
 /* Context Menu Container */
 .context-menu {
   position: fixed;
-  background-color: #ffffff;
-  border: 1px solid #d4d4d4;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   padding: 4px 0;
@@ -30,15 +30,15 @@
   padding: 6px 12px;
   cursor: pointer;
   transition: background-color 0.1s;
-  color: #383838;
+  color: var(--text);
   white-space: nowrap;
   outline: none;
 }
 
 .context-menu-item:hover:not(.disabled),
 .context-menu-item.selected:not(.disabled) {
-  background-color: #cce8ff;
-  color: #000000;
+  background-color: var(--panel-item-selected);
+  color: var(--text);
 }
 
 .context-menu-item.disabled {
@@ -70,20 +70,20 @@
 /* Context Menu Shortcut */
 .context-menu-shortcut {
   margin-left: 24px;
-  color: #767676;
+  color: var(--text-subtle);
   font-size: 12px;
   flex-shrink: 0;
 }
 
 .context-menu-item:hover:not(.disabled) .context-menu-shortcut,
 .context-menu-item.selected:not(.disabled) .context-menu-shortcut {
-  color: #383838;
+  color: var(--text);
 }
 
 /* Context Menu Separator */
 .context-menu-separator {
   height: 1px;
-  background-color: #d4d4d4;
+  background-color: var(--border);
   margin: 4px 0;
 }
 
@@ -109,8 +109,8 @@
   min-width: 280px;
   max-width: 400px;
   padding: 12px 16px;
-  background-color: #383838;
-  color: #ffffff;
+  background-color: var(--text);
+  color: var(--surface);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   font-size: 13px;
@@ -133,18 +133,18 @@
 
 /* Toast Types */
 .toast-notification.toast-success {
-  background-color: #107c10;
-  color: #ffffff;
+  background-color: var(--success);
+  color: var(--surface);
 }
 
 .toast-notification.toast-error {
-  background-color: #d13438;
-  color: #ffffff;
+  background-color: var(--error);
+  color: var(--surface);
 }
 
 .toast-notification.toast-info {
-  background-color: #383838;
-  color: #ffffff;
+  background-color: var(--text);
+  color: var(--surface);
 }
 
 /* Toast Icon */
@@ -156,15 +156,15 @@
 }
 
 .toast-success .toast-icon {
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .toast-error .toast-icon {
-  color: #ffffff;
+  color: var(--surface);
 }
 
 .toast-info .toast-icon {
-  color: #007acc;
+  color: var(--primary);
 }
 
 /* Toast Message */
@@ -240,12 +240,12 @@
 
   .context-menu-item:hover:not(.disabled),
   .context-menu-item.selected:not(.disabled) {
-    outline: 2px solid #007acc;
+    outline: 2px solid var(--primary);
     outline-offset: -2px;
   }
 
   .toast-notification {
-    border: 2px solid #ffffff;
+    border: 2px solid var(--surface);
   }
 }
 
@@ -271,7 +271,7 @@
 
 /* Accessibility - Focus Visible */
 .context-menu-item:focus-visible {
-  outline: 2px solid #007acc;
+  outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
 
