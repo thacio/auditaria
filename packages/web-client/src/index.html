@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="calm-dark" data-layout="workbench">
+<html lang="en" data-theme="studio-dark" data-layout="workbench">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,14 +23,14 @@
             'studio-dark': true,
             'studio-light': true
           };
-          if (t === 'dark') t = 'calm-dark';
-          if (t === 'light') t = 'calm-light';
+          if (t === 'dark') t = 'studio-dark';
+          if (t === 'light') t = 'studio-light';
           if (t && allowed[t]) {
             document.documentElement.setAttribute('data-theme', t);
           } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-            document.documentElement.setAttribute('data-theme', 'calm-light');
+            document.documentElement.setAttribute('data-theme', 'studio-light');
           } else {
-            document.documentElement.setAttribute('data-theme', 'calm-dark');
+            document.documentElement.setAttribute('data-theme', 'studio-dark');
           }
         } catch (e) {}
 

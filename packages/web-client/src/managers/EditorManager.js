@@ -475,7 +475,10 @@ export class EditorManager extends EventEmitter {
       path,
       hasExternalChange: false,        // File changed on disk
       externalContent: null,           // Content from disk (for diff)
-      showWarning: false               // Show warning bar
+      showWarning: false,              // Show warning bar
+      isVirtual: false,
+      readOnly: false,
+      isUnsupported: false
     });
 
     // Add to tab order
@@ -492,6 +495,71 @@ export class EditorManager extends EventEmitter {
     this.requestFileWatch(path, content);
 
     // Save state
+    this.saveState();
+  }
+
+  /**
+   * Open a virtual, read-only file in the editor (no file system watch)
+   * @param {string} path - File path for tab display
+   * @param {string} content - Virtual content to show
+   * @param {string} language - Monaco language ID
+   * @param {Object} [options]
+   * @param {boolean} [options.readOnly=true]
+   * @param {boolean} [options.isUnsupported=false]
+   */
+  openVirtualFile(path, content, language = 'plaintext', options = {}) {
+    if (!this.monaco || !this.editorContainer) {
+      console.error('Monaco editor not initialized');
+      return;
+    }
+
+    const { readOnly = true, isUnsupported = false } = options;
+
+    // Check if already open
+    if (this.openFiles.has(path)) {
+      const existing = this.openFiles.get(path);
+      if (existing) {
+        existing.readOnly = readOnly;
+        existing.isVirtual = true;
+        existing.isUnsupported = isUnsupported;
+        if (existing.model && existing.model.getValue() !== content) {
+          existing.model.setValue(content);
+          existing.savedContent = content;
+        }
+      }
+      this.switchToFile(path);
+      return;
+    }
+
+    // Use an in-memory URI so we don't collide with real file models
+    const uri = this.monaco.Uri.parse(`inmemory://auditaria-virtual/${encodeURIComponent(path)}`);
+    let model = this.monaco.editor.getModel(uri);
+
+    if (!model) {
+      model = this.monaco.editor.createModel(content, language, uri);
+    }
+
+    this.openFiles.set(path, {
+      content,
+      savedContent: content,
+      language,
+      isDirty: false,
+      model,
+      path,
+      hasExternalChange: false,
+      externalContent: null,
+      showWarning: false,
+      isVirtual: true,
+      readOnly,
+      isUnsupported
+    });
+
+    this.tabOrder.push(path);
+    this.switchToFile(path);
+
+    this.emit('file-opened', { path, language, isVirtual: true, isUnsupported });
+    this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+
     this.saveState();
   }
 
@@ -518,6 +586,10 @@ export class EditorManager extends EventEmitter {
     } else {
       // Switch model
       this.editor.setModel(fileInfo.model);
+    }
+
+    if (this.editor) {
+      this.editor.updateOptions({ readOnly: !!fileInfo.readOnly });
     }
 
     // Restore view state
@@ -608,6 +680,11 @@ export class EditorManager extends EventEmitter {
       return;
     }
 
+    const fileInfo = this.openFiles.get(this.activeFile);
+    if (fileInfo && (fileInfo.readOnly || fileInfo.isVirtual)) {
+      return;
+    }
+
     await this.saveFile(this.activeFile);
   }
 
@@ -619,6 +696,10 @@ export class EditorManager extends EventEmitter {
     const fileInfo = this.openFiles.get(path);
     if (!fileInfo) {
       console.warn(`File not open: ${path}`);
+      return;
+    }
+
+    if (fileInfo.readOnly || fileInfo.isVirtual) {
       return;
     }
 
@@ -668,8 +749,10 @@ export class EditorManager extends EventEmitter {
     this.viewStates.delete(path);
     this.tabOrder = this.tabOrder.filter(p => p !== path);
 
-    // Request server to stop watching this file
-    this.requestFileUnwatch(path);
+    // Request server to stop watching this file (skip for virtual files)
+    if (!fileInfo.isVirtual) {
+      this.requestFileUnwatch(path);
+    }
 
     // If this was active file, switch to another
     if (this.activeFile === path) {
@@ -710,6 +793,9 @@ export class EditorManager extends EventEmitter {
    */
   markFileDirty(path) {
     const fileInfo = this.openFiles.get(path);
+    if (fileInfo && (fileInfo.readOnly || fileInfo.isVirtual)) {
+      return;
+    }
     if (fileInfo && !fileInfo.isDirty) {
       const currentContent = fileInfo.model.getValue();
       const isDirty = currentContent !== fileInfo.savedContent;
@@ -753,7 +839,10 @@ export class EditorManager extends EventEmitter {
         isActive: tabId === this.activeFile,
         language: fileInfo ? fileInfo.language : 'plaintext',
         hasExternalChange: fileInfo ? fileInfo.hasExternalChange : false,
-        showWarning: fileInfo ? fileInfo.showWarning : false
+        showWarning: fileInfo ? fileInfo.showWarning : false,
+        isVirtual: fileInfo ? fileInfo.isVirtual : false,
+        isUnsupported: fileInfo ? fileInfo.isUnsupported : false,
+        readOnly: fileInfo ? fileInfo.readOnly : false
       };
     });
   }

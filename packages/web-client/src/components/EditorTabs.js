@@ -147,6 +147,7 @@ export class EditorTabs extends EventEmitter {
     this.tabsContainer.innerHTML = this.tabs.map(tab => {
       const activeClass = tab.isActive ? 'active' : '';
       const warningClass = tab.hasExternalChange ? 'external-change-tab' : '';
+      const iconClass = tab.isUnsupported ? 'codicon codicon-file-binary' : 'codicon codicon-file-code';
       const dirtyIndicator = tab.isDirty ? '<span class="editor-tab-dirty" title="Unsaved changes">●</span>' : '';
 
       return `
@@ -157,7 +158,7 @@ export class EditorTabs extends EventEmitter {
           aria-selected="${tab.isActive}"
           title="${this.escapeHtml(tab.path)}"
         >
-          <span class="editor-tab-icon codicon codicon-file-code"></span>
+          <span class="editor-tab-icon ${iconClass}"></span>
           <span class="editor-tab-label">${this.escapeHtml(tab.filename)}</span>
           ${dirtyIndicator}
           <button

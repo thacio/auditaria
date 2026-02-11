@@ -40,6 +40,19 @@ export class KnowledgeBaseModal {
     this.statusRefreshInterval = null; // Auto-refresh interval
     this.passageIdCounter = 0; // Counter for unique passage IDs
     this.expandedPassages = new Set(); // Track expanded passage states
+    this.isResizing = false;
+    this.panelWidth = 620;
+    this.minWidth = 360;
+    this.maxWidthPercent = 65;
+    this.hasCustomWidth = false;
+    this.dockSide = 'right';
+    this.resizeHandle = null;
+    this.content = null;
+    this.boundDoResize = null;
+    this.boundStopResize = null;
+    this.boundHandleResize = this.handleWindowResize.bind(this);
+
+    this.loadPanelState();
 
     // Bind methods
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -52,6 +65,11 @@ export class KnowledgeBaseModal {
     if (this.container) {
       this.container.classList.add('show');
       document.addEventListener('keydown', this.handleKeyDown);
+      this.content = this.container.querySelector('.kb-modal-content');
+      this.resizeHandle = this.container.querySelector('.kb-resize-handle');
+      this.updateDockSide();
+      this.applyPanelWidth();
+      window.addEventListener('resize', this.boundHandleResize);
       // Focus search input
       setTimeout(() => {
         const searchInput = this.container.querySelector('.kb-search-input');
@@ -69,6 +87,11 @@ export class KnowledgeBaseModal {
 
     // Setup event listeners
     this.setupEventListeners();
+    this.content = this.container.querySelector('.kb-modal-content');
+    this.resizeHandle = this.container.querySelector('.kb-resize-handle');
+    this.updateDockSide();
+    this.applyPanelWidth();
+    window.addEventListener('resize', this.boundHandleResize);
 
     // Render initial filter tags
     this.renderFolderTags();
@@ -96,6 +119,10 @@ export class KnowledgeBaseModal {
 
     this.container.classList.remove('show');
     document.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('resize', this.boundHandleResize);
+    if (this.isResizing) {
+      this.stopResize();
+    }
 
     // Stop auto-refresh
     this.stopStatusRefresh();
@@ -105,6 +132,8 @@ export class KnowledgeBaseModal {
       if (this.container && !this.container.classList.contains('show')) {
         this.container.remove();
         this.container = null;
+        this.content = null;
+        this.resizeHandle = null;
       }
     }, 200);
   }
@@ -123,12 +152,142 @@ export class KnowledgeBaseModal {
   }
 
   /**
+   * Load panel sizing state from localStorage
+   */
+  loadPanelState() {
+    try {
+      const saved = localStorage.getItem('auditaria_kb_panel_state');
+      if (!saved) return;
+      const state = JSON.parse(saved);
+      if (state.panelWidth && typeof state.panelWidth === 'number') {
+        this.panelWidth = state.panelWidth;
+        this.hasCustomWidth = true;
+      }
+    } catch (error) {
+      console.error('Failed to load knowledge base panel state:', error);
+    }
+  }
+
+  /**
+   * Save panel sizing state to localStorage
+   */
+  savePanelState() {
+    try {
+      const state = {
+        panelWidth: this.panelWidth
+      };
+      localStorage.setItem('auditaria_kb_panel_state', JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to save knowledge base panel state:', error);
+    }
+  }
+
+  /**
+   * Apply panel width (respects small-screen overlay rules)
+   */
+  applyPanelWidth() {
+    if (!this.content) return;
+    if (window.innerWidth < 768) {
+      this.content.style.width = '';
+      return;
+    }
+    if (this.panelWidth) {
+      this.content.style.width = `${this.panelWidth}px`;
+    }
+  }
+
+  /**
+   * Update dock side based on computed layout
+   */
+  updateDockSide() {
+    if (!this.container) return;
+    const style = window.getComputedStyle(this.container);
+    const justify = (style.justifyContent || '').toLowerCase();
+    this.dockSide = justify.includes('end') ? 'right' : 'left';
+    this.container.setAttribute('data-dock', this.dockSide);
+  }
+
+  /**
+   * Handle window resize for responsive behavior
+   */
+  handleWindowResize() {
+    if (!this.hasCustomWidth) return;
+    this.applyPanelWidth();
+  }
+
+  /**
+   * Start resizing the panel
+   * @param {MouseEvent} e
+   */
+  startResize(e) {
+    e.preventDefault();
+    this.isResizing = true;
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+
+    this.updateDockSide();
+
+    if (this.content) {
+      this.content.style.transition = 'none';
+    }
+
+    this.boundDoResize = this.doResize.bind(this);
+    this.boundStopResize = this.stopResize.bind(this);
+
+    document.addEventListener('mousemove', this.boundDoResize);
+    document.addEventListener('mouseup', this.boundStopResize);
+  }
+
+  /**
+   * Handle panel resizing
+   * @param {MouseEvent} e
+   */
+  doResize(e) {
+    if (!this.isResizing || !this.content) return;
+
+    const viewportWidth = window.innerWidth;
+    if (viewportWidth < 768) return;
+
+    let newWidth = this.dockSide === 'right'
+      ? viewportWidth - e.clientX
+      : e.clientX;
+
+    const maxWidth = (this.maxWidthPercent / 100) * viewportWidth;
+    newWidth = Math.max(this.minWidth, Math.min(maxWidth, newWidth));
+
+    this.panelWidth = newWidth;
+    this.content.style.width = `${newWidth}px`;
+  }
+
+  /**
+   * Stop resizing the panel
+   */
+  stopResize() {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+
+    if (this.content) {
+      this.content.style.transition = '';
+    }
+
+    document.removeEventListener('mousemove', this.boundDoResize);
+    document.removeEventListener('mouseup', this.boundStopResize);
+
+    this.hasCustomWidth = true;
+    this.savePanelState();
+  }
+
+  /**
    * Render the main modal structure
    */
   renderModal() {
     return `
       <div class="kb-modal-backdrop"></div>
       <div class="kb-modal-content" role="dialog" aria-labelledby="kb-modal-title">
+        <div class="kb-resize-handle" title="Resize panel" aria-hidden="true"></div>
         <div class="kb-modal-header">
           <h2 class="kb-modal-title" id="kb-modal-title">
             <span class="kb-modal-title-icon">${ICONS.book}</span>
@@ -1436,6 +1595,11 @@ export class KnowledgeBaseModal {
     // Close button and backdrop
     this.container.querySelector('.kb-modal-close').addEventListener('click', () => this.hide());
     this.container.querySelector('.kb-modal-backdrop').addEventListener('click', () => this.hide());
+
+    const resizeHandle = this.container.querySelector('.kb-resize-handle');
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', (event) => this.startResize(event));
+    }
 
     // Tabs
     this.container.querySelectorAll('.kb-tab').forEach(tab => {

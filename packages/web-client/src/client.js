@@ -940,6 +940,12 @@ class AuditariaWebClient {
             this.fileTreePanel = new FileTreePanel(this.fileTreeManager);
             this.editorPanel = new EditorPanel(this.editorManager, this.previewManager);
 
+            this.editorPanel.on('open-with-system', ({ path }) => {
+                if (this.fileTreeManager) {
+                    this.fileTreeManager.openWithSystemDefault(path);
+                }
+            });
+
             // Set up event handlers
             this.setupFileBrowserHandlers();
             this.setupHeaderPanelToggles();
@@ -1043,7 +1049,7 @@ class AuditariaWebClient {
                 this.openBinaryFileInPreview(path, language, filename);
             } else {
                 // No preview available for this binary file
-                this.showBinaryFileError(filename);
+                this.showBinaryFileError(path, filename);
             }
         } else {
             // Text file - normal flow via WebSocket
@@ -1066,7 +1072,11 @@ class AuditariaWebClient {
      * Show error message for binary files that can't be previewed
      * @param {string} filename - Filename
      */
-    showBinaryFileError(filename) {
+    showBinaryFileError(path, filename) {
+        if (this.editorPanel) {
+            this.editorPanel.openUnsupportedFile(path, filename);
+            return;
+        }
         showErrorToast(`Cannot open "${filename}". This file type cannot be previewed.`);
     }
 

@@ -481,6 +481,91 @@
   background-color: var(--surface);
 }
 
+/* Unsupported File Overlay */
+.editor-unsupported-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 6;
+}
+
+.editor-unsupported-card {
+  width: min(440px, 100%);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-unsupported-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+  color: var(--text-subtle);
+  font-size: 20px;
+}
+
+.editor-unsupported-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.editor-unsupported-filename {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.editor-unsupported-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
+  word-break: break-all;
+}
+
+.editor-unsupported-description {
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+
+.editor-unsupported-action {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.editor-unsupported-action:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.editor-unsupported-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Monaco Editor Container */
 .monaco-editor-container {
   width: 100%;

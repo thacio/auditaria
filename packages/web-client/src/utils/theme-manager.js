@@ -211,8 +211,8 @@ class ThemeManager {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        if (stored === 'dark') return 'calm-dark';
-        if (stored === 'light') return 'calm-light';
+        if (stored === 'dark') return 'studio-dark';
+        if (stored === 'light') return 'studio-light';
         if (this._themes.some((t) => t.id === stored)) {
           return stored;
         }

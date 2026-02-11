@@ -57,6 +57,53 @@
   animation: kb-modal-enter 0.2s ease-out;
 }
 
+.kb-modal[data-dock="left"] .kb-modal-content {
+  border-left: none;
+  border-right: 1px solid var(--border);
+}
+
+.kb-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background-color: transparent;
+  z-index: 5;
+  transition: background-color 0.2s;
+}
+
+.kb-modal[data-dock="right"] .kb-resize-handle {
+  left: 0;
+}
+
+.kb-modal[data-dock="left"] .kb-resize-handle {
+  right: 0;
+}
+
+.kb-resize-handle:hover {
+  background-color: var(--primary);
+}
+
+.kb-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 40px;
+  background-color: var(--scrollbar-thumb);
+  border-radius: 1px;
+}
+
+.kb-modal[data-dock="right"] .kb-resize-handle::before {
+  left: 2px;
+}
+
+.kb-modal[data-dock="left"] .kb-resize-handle::before {
+  right: 2px;
+}
+
 @keyframes kb-modal-enter {
   from {
     opacity: 0;

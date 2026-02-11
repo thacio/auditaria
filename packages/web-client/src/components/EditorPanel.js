@@ -48,6 +48,11 @@ export class EditorPanel extends EventEmitter {
     this.resizeHandle = null;
     this.splitResizeHandle = null;
     this.diffContainer = null;
+    this.unsupportedOverlay = null;
+    this.unsupportedFilename = null;
+    this.unsupportedPath = null;
+    this.unsupportedDescription = null;
+    this.unsupportedAction = null;
 
     // Components
     this.menuBar = null;
@@ -64,9 +69,12 @@ export class EditorPanel extends EventEmitter {
     this.trackChangesEnabled = true; // Default: show diff when files change externally
     this.isBinaryPreviewMode = false; // Binary files can only be previewed, not edited
     this.activeBinaryFile = null; // Store binary file info { path, language, filename }
+    this.isUnsupportedPreviewMode = false; // Unsupported files show a custom overlay
+    this.activeUnsupportedFile = null; // Store unsupported file info { path, filename }
     this.previewUpdateListener = null;
     this.diffUpdateListener = null;
     this.diffEditor = null;
+    this.pendingLayoutFrame = null;
 
     // Resize state
     this.isResizing = false;
@@ -136,6 +144,14 @@ export class EditorPanel extends EventEmitter {
     this.resizeHandle = document.getElementById('editor-resize-handle');
     this.splitResizeHandle = document.getElementById('split-resize-handle');
     this.diffContainer = document.getElementById('monaco-diff-container');
+    this.unsupportedOverlay = document.getElementById('editor-unsupported-overlay');
+    this.unsupportedFilename = document.getElementById('editor-unsupported-filename');
+    this.unsupportedPath = document.getElementById('editor-unsupported-path');
+    this.unsupportedDescription = document.getElementById('editor-unsupported-description');
+    this.unsupportedAction = document.getElementById('editor-unsupported-open');
+    if (this.unsupportedAction) {
+      this.unsupportedAction.disabled = true;
+    }
 
     // Create menu bar component
     this.menuBar = new MenuBar(this.editorManager);
@@ -302,6 +318,22 @@ export class EditorPanel extends EventEmitter {
         <div id="monaco-diff-container" class="monaco-diff-container" style="display: none;"></div>
         <div id="split-resize-handle" class="split-resize-handle" style="display: none;"></div>
         <div id="markdown-preview-container" class="markdown-preview-container" style="display: none;"></div>
+        <div id="editor-unsupported-overlay" class="editor-unsupported-overlay" style="display: none;">
+          <div class="editor-unsupported-card">
+            <div class="editor-unsupported-icon">
+              <span class="codicon codicon-file-binary"></span>
+            </div>
+            <div class="editor-unsupported-title">This file can't be previewed here</div>
+            <div class="editor-unsupported-filename" id="editor-unsupported-filename"></div>
+            <div class="editor-unsupported-path" id="editor-unsupported-path"></div>
+            <div class="editor-unsupported-description" id="editor-unsupported-description">
+              Use your system's default application to open this file.
+            </div>
+            <button class="editor-unsupported-action" id="editor-unsupported-open">
+              Open with System Default
+            </button>
+          </div>
+        </div>
       </div>
     `;
 
@@ -459,6 +491,15 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
+    // Unsupported file action
+    if (this.unsupportedAction) {
+      this.unsupportedAction.addEventListener('click', () => {
+        if (this.activeUnsupportedFile) {
+          this.emit('open-with-system', { path: this.activeUnsupportedFile.path });
+        }
+      });
+    }
+
     // EditorManager events
     this.editorManager.on('file-opened', ({ path, language }) => {
       // Clear binary preview mode when opening text files via EditorManager
@@ -484,6 +525,7 @@ export class EditorPanel extends EventEmitter {
       }
 
       this.updateToolbar(language, filename);
+      this.syncUnsupportedOverlay(path);
 
       // AUDITARIA: Update collaborative writing button state for new file
       this.updateCollaborativeWritingButton();
@@ -515,6 +557,7 @@ export class EditorPanel extends EventEmitter {
         }
 
         this.updateToolbar(fileInfo.language, filename);
+        this.syncUnsupportedOverlay(path);
 
         // AUDITARIA: Update collaborative writing button state for new file
         this.updateCollaborativeWritingButton();
@@ -530,6 +573,7 @@ export class EditorPanel extends EventEmitter {
 
     this.editorManager.on('file-closed', () => {
       if (this.editorManager.getOpenFilesCount() === 0) {
+        this.clearUnsupportedOverlay();
         this.hide();
       }
     });
@@ -703,6 +747,9 @@ export class EditorPanel extends EventEmitter {
    * @param {string} filename - Filename
    */
   openBinaryPreview(path, language, filename) {
+    // Clear unsupported overlay when showing binary previews
+    this.clearUnsupportedOverlay();
+
     // Set binary preview mode
     this.isBinaryPreviewMode = true;
     this.activeBinaryFile = { path, language, filename };
@@ -769,16 +816,135 @@ export class EditorPanel extends EventEmitter {
   }
 
   /**
+   * Open an unsupported file in a read-only virtual view
+   * @param {string} path - File path
+   * @param {string} filename - Filename
+   */
+  openUnsupportedFile(path, filename) {
+    this.isBinaryPreviewMode = false;
+    this.activeBinaryFile = null;
+
+    const content = '';
+
+    this.editorManager.openVirtualFile(path, content, 'plaintext', {
+      readOnly: true,
+      isUnsupported: true
+    });
+  }
+
+  /**
+   * Sync unsupported overlay with the active file
+   * @param {string} path - Active file path
+   */
+  syncUnsupportedOverlay(path) {
+    const fileInfo = path ? this.editorManager.openFiles.get(path) : null;
+    if (fileInfo && fileInfo.isUnsupported) {
+      this.showUnsupportedOverlay(path);
+    } else {
+      this.clearUnsupportedOverlay();
+    }
+  }
+
+  /**
+   * Show unsupported overlay state
+   * @param {string} path - File path
+   */
+  showUnsupportedOverlay(path) {
+    const filename = path.split('/').pop() || path;
+    const extension = this.getFileExtension(filename);
+
+    this.isUnsupportedPreviewMode = true;
+    this.activeUnsupportedFile = { path, filename };
+
+    if (this.unsupportedFilename) {
+      this.unsupportedFilename.textContent = filename;
+    }
+    if (this.unsupportedPath) {
+      this.unsupportedPath.textContent = path;
+    }
+    if (this.unsupportedDescription) {
+      this.unsupportedDescription.textContent = `Auditaria can't display ${extension} files yet.`;
+    }
+    if (this.unsupportedAction) {
+      this.unsupportedAction.disabled = false;
+    }
+    if (this.unsupportedOverlay) {
+      this.unsupportedOverlay.style.display = 'flex';
+    }
+
+    this.applyUnsupportedVisibility();
+  }
+
+  /**
+   * Clear unsupported overlay state
+   */
+  clearUnsupportedOverlay() {
+    this.isUnsupportedPreviewMode = false;
+    this.activeUnsupportedFile = null;
+    if (this.unsupportedOverlay) {
+      this.unsupportedOverlay.style.display = 'none';
+    }
+    if (this.unsupportedAction) {
+      this.unsupportedAction.disabled = true;
+    }
+  }
+
+  /**
+   * Extract a friendly file extension label
+   * @param {string} filename
+   * @returns {string}
+   */
+  getFileExtension(filename) {
+    const parts = filename.split('.');
+    if (parts.length <= 1) {
+      return 'UNKNOWN';
+    }
+    return parts[parts.length - 1].toUpperCase();
+  }
+
+  /**
+   * Ensure only the unsupported overlay is visible
+   */
+  applyUnsupportedVisibility() {
+    const editorContainer = document.getElementById('monaco-editor-container');
+    const previewContainer = document.getElementById('markdown-preview-container');
+
+    if (editorContainer) {
+      editorContainer.classList.remove('split-view');
+      editorContainer.style.display = 'none';
+      editorContainer.style.width = '';
+    }
+
+    if (previewContainer) {
+      previewContainer.classList.remove('split-view');
+      previewContainer.style.display = 'none';
+      previewContainer.style.width = '';
+      previewContainer.style.left = '';
+    }
+
+    if (this.diffContainer) {
+      this.diffContainer.style.display = 'none';
+    }
+
+    if (this.splitResizeHandle) {
+      this.splitResizeHandle.style.display = 'none';
+    }
+  }
+
+  /**
    * Show code editor
    */
   showEditor() {
     const editorContainer = document.getElementById('monaco-editor-container');
     const previewContainer = document.getElementById('markdown-preview-container');
+    const activeFile = this.editorManager.getActiveFile();
+    const fileInfo = activeFile ? this.editorManager.openFiles.get(activeFile) : null;
+    const isUnsupported = !!(fileInfo && fileInfo.isUnsupported);
 
     // Remove split mode classes
     if (editorContainer) {
       editorContainer.classList.remove('split-view');
-      editorContainer.style.display = 'block';
+      editorContainer.style.display = isUnsupported ? 'none' : 'block';
       editorContainer.style.width = '';
     }
 
@@ -804,9 +970,7 @@ export class EditorPanel extends EventEmitter {
     this.removeDiffListener();
 
     // Restore warning bar if active file has external changes
-    const activeFile = this.editorManager.getActiveFile();
     if (activeFile) {
-      const fileInfo = this.editorManager.openFiles.get(activeFile);
       if (fileInfo && fileInfo.showWarning && this.externalChangeWarning) {
         this.externalChangeWarning.show(activeFile);
       }
@@ -830,6 +994,13 @@ export class EditorPanel extends EventEmitter {
     if (this.diffButton) {
       this.diffButton.classList.remove('active');
     }
+
+    if (isUnsupported) {
+      this.showUnsupportedOverlay(activeFile || '');
+      return;
+    }
+
+    this.clearUnsupportedOverlay();
 
     // Focus editor
     if (this.editorManager.editor) {
@@ -1170,6 +1341,7 @@ export class EditorPanel extends EventEmitter {
     const activeFile = this.editorManager.getActiveFile();
     const fileInfo = activeFile ? this.editorManager.openFiles.get(activeFile) : null;
     const isDirty = fileInfo && fileInfo.isDirty;
+    const isUnsupported = fileInfo && fileInfo.isUnsupported;
 
     // Extract filename from path if not provided
     if (!filename && activeFile) {
@@ -1179,6 +1351,29 @@ export class EditorPanel extends EventEmitter {
     // If in binary preview mode, use activeBinaryFile for filename
     if (this.isBinaryPreviewMode && this.activeBinaryFile) {
       filename = this.activeBinaryFile.filename;
+    }
+
+    if (isUnsupported) {
+      if (this.previewButton) {
+        this.previewButton.style.display = 'none';
+      }
+      if (this.codeButton) {
+        this.codeButton.style.display = 'none';
+      }
+      if (this.splitButton) {
+        this.splitButton.style.display = 'none';
+      }
+      if (this.parseButton) {
+        this.parseButton.style.display = 'none';
+      }
+      if (this.diffButton) {
+        this.diffButton.style.display = 'none';
+      }
+      if (this.collaborativeWritingButton) {
+        this.collaborativeWritingButton.style.display = 'none';
+      }
+      this.updateSaveButton();
+      return;
     }
 
     // Check if preview is available for this file type
@@ -1264,7 +1459,11 @@ export class EditorPanel extends EventEmitter {
     }
 
     const fileInfo = this.editorManager.openFiles.get(activeFile);
-    this.saveButton.disabled = !fileInfo || !fileInfo.isDirty;
+    if (!fileInfo || fileInfo.readOnly || fileInfo.isUnsupported) {
+      this.saveButton.disabled = true;
+      return;
+    }
+    this.saveButton.disabled = !fileInfo.isDirty;
   }
 
   /**
@@ -1425,6 +1624,10 @@ export class EditorPanel extends EventEmitter {
     document.body.style.cursor = 'ew-resize';
     document.body.style.userSelect = 'none';
 
+    if (this.panel) {
+      this.panel.style.transition = 'none';
+    }
+
     // Bind resize handlers
     this.boundDoResize = this.doResize.bind(this);
     this.boundStopResize = this.stopResize.bind(this);
@@ -1457,11 +1660,7 @@ export class EditorPanel extends EventEmitter {
     this.panel.style.width = `${newWidth}px`;
 
     // Trigger Monaco editor layout update
-    if (this.editorManager.editor) {
-      setTimeout(() => {
-        this.editorManager.editor.layout();
-      }, 0);
-    }
+    this.scheduleEditorLayout();
   }
 
   /**
@@ -1473,6 +1672,10 @@ export class EditorPanel extends EventEmitter {
     this.isResizing = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
+
+    if (this.panel) {
+      this.panel.style.transition = '';
+    }
 
     // Remove event listeners
     document.removeEventListener('mousemove', this.boundDoResize);
@@ -1495,6 +1698,22 @@ export class EditorPanel extends EventEmitter {
     if (this.panelWidth) {
       this.panel.style.width = `${this.panelWidth}px`;
     }
+  }
+
+  /**
+   * Schedule a Monaco layout update (one per animation frame)
+   */
+  scheduleEditorLayout() {
+    if (!this.editorManager.editor) return;
+    if (this.pendingLayoutFrame) {
+      cancelAnimationFrame(this.pendingLayoutFrame);
+    }
+    this.pendingLayoutFrame = requestAnimationFrame(() => {
+      this.pendingLayoutFrame = null;
+      if (this.editorManager.editor) {
+        this.editorManager.editor.layout();
+      }
+    });
   }
 
   /**
@@ -1557,11 +1776,7 @@ export class EditorPanel extends EventEmitter {
     }
 
     // Trigger Monaco editor layout update
-    if (this.editorManager.editor) {
-      setTimeout(() => {
-        this.editorManager.editor.layout();
-      }, 0);
-    }
+    this.scheduleEditorLayout();
   }
 
   /**
@@ -1695,6 +1910,11 @@ export class EditorPanel extends EventEmitter {
    */
   destroy() {
     this.removeAllListeners();
+
+    if (this.pendingLayoutFrame) {
+      cancelAnimationFrame(this.pendingLayoutFrame);
+      this.pendingLayoutFrame = null;
+    }
 
     // Dispose diff editor if it exists
     if (this.diffEditor) {
