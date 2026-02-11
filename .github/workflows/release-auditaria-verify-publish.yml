@@ -1,0 +1,182 @@
+name: Release Auditaria (Verify + Optional Publish)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or SHA to build from"
+        required: true
+        default: "main"
+        type: string
+      release_version:
+        description: "Optional version override (example: 0.30.0 or v0.30.0)"
+        required: false
+        type: string
+      npm_tag:
+        description: "npm dist-tag"
+        required: true
+        default: "latest"
+        type: choice
+        options:
+          - latest
+          - preview
+          - nightly
+          - dev
+      run_tests:
+        description: "Run test suite before packaging"
+        required: true
+        default: true
+        type: boolean
+      enable_publish:
+        description: "Enable npm publish step"
+        required: true
+        default: false
+        type: boolean
+      dry_run_publish:
+        description: "If publish is enabled, keep npm publish in dry-run mode"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build_bundle_pack:
+    runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.prepare_package.outputs.package_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        if: ${{ github.event.inputs.run_tests == 'true' }}
+        run: npm run test:ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle
+        run: npm run bundle
+
+      - name: Prepare publish package.json
+        id: prepare_package
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const packageJsonPath = 'package.json';
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+          const versionInput = (process.env.RELEASE_VERSION || '').trim();
+
+          packageJson.private = false;
+          if (versionInput) {
+            packageJson.version = versionInput.startsWith('v')
+              ? versionInput.slice(1)
+              : versionInput;
+          }
+
+          fs.writeFileSync(
+            packageJsonPath,
+            `${JSON.stringify(packageJson, null, 2)}\n`,
+          );
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `package_version=${packageJson.version}\n`,
+          );
+
+          console.log(
+            `Prepared ${packageJson.name}@${packageJson.version} (private=${packageJson.private})`,
+          );
+          NODE
+
+      - name: Pack publish artifact
+        run: |
+          PACK_JSON="$(npm pack --json)"
+          echo "$PACK_JSON"
+          PACK_FILE="$(node -e 'let input="";process.stdin.on("data",(d)=>input+=d);process.stdin.on("end",()=>{const parsed=JSON.parse(input);process.stdout.write(parsed[0].filename);});' <<<"$PACK_JSON")"
+          mv "$PACK_FILE" auditaria-package.tgz
+          ls -lah auditaria-package.tgz
+
+      - name: Verify packaged artifact
+        run: |
+          tar -tf auditaria-package.tgz > tar-contents.txt
+          grep -q '^package/package.json$' tar-contents.txt
+          grep -q '^package/bundle/gemini.js$' tar-contents.txt
+          node <<'NODE'
+          const { execSync } = require('node:child_process');
+
+          const packedPackageJson = execSync(
+            'tar -xOf auditaria-package.tgz package/package.json',
+            { encoding: 'utf8' },
+          );
+          const packageJson = JSON.parse(packedPackageJson);
+
+          if (packageJson.private !== false) {
+            throw new Error('Publish artifact still has private=true.');
+          }
+          if (packageJson.name !== '@thacio/auditaria') {
+            throw new Error(`Unexpected package name: ${packageJson.name}`);
+          }
+          if (!packageJson.bin || packageJson.bin.auditaria !== 'bundle/gemini.js') {
+            throw new Error('bin.auditaria must point to bundle/gemini.js');
+          }
+
+          console.log(
+            `Artifact validated for ${packageJson.name}@${packageJson.version}`,
+          );
+          NODE
+
+      - name: Verify npm publish (dry-run)
+        run: npm publish --dry-run --access public ./auditaria-package.tgz
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-auditaria
+          path: auditaria-package.tgz
+
+  publish_npm:
+    needs: [build_bundle_pack]
+    if: ${{ github.event.inputs.enable_publish == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package-auditaria
+
+      - name: Setup Node.js for npm publish
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish package to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ github.event.inputs.npm_tag }}
+          DRY_RUN: ${{ github.event.inputs.dry_run_publish }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            npm publish --dry-run --access public --tag "$NPM_TAG" ./auditaria-package.tgz
+          else
+            npm publish --access public --tag "$NPM_TAG" ./auditaria-package.tgz
+          fi
+
+      - name: Verify published version
+        if: ${{ github.event.inputs.dry_run_publish != 'true' }}
+        run: |
+          npm view @thacio/auditaria@${{ needs.build_bundle_pack.outputs.package_version }} version
