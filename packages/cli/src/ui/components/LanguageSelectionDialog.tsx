@@ -12,6 +12,7 @@ import { Box, Text } from 'ink';
 import { Colors } from '../colors.js';
 import { RadioButtonSelect } from './shared/RadioButtonSelect.js';
 import type { LoadedSettings } from '../../config/settings.js';
+import { getPreferredUiLanguage } from '../../config/settings.js';
 import { useKeypress } from '../hooks/useKeypress.js';
 
 interface LanguageSelectionDialogProps {
@@ -41,7 +42,7 @@ export function LanguageSelectionDialog({
 
   // Determine which language should be initially selected
   // Priority: settings > English > first available
-  const currentLanguage = settings.merged.ui?.language;
+  const currentLanguage = getPreferredUiLanguage(settings);
   const initialLanguageIndex = languageItems.findIndex((item) => {
     if (currentLanguage) {
       return item.value === currentLanguage;

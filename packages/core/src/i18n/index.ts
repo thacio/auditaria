@@ -5,8 +5,6 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
 import type {
   SupportedLanguage,
   TranslationData,
@@ -14,7 +12,7 @@ import type {
 } from './types.js';
 import { isLanguageSupported } from './types.js';
 import { translationLoader } from './loader.js';
-import { GEMINI_DIR } from '../utils/paths.js';
+import { Storage } from '../config/storage.js';
 
 /**
  * Try to read language from user settings file synchronously
@@ -22,11 +20,8 @@ import { GEMINI_DIR } from '../utils/paths.js';
  */
 function readLanguageFromSettings(): SupportedLanguage | undefined {
   try {
-    // Build settings path: ~/.gemini/settings.json (same as Storage.getGlobalSettingsPath())
-    const homeDir = os.homedir();
-    if (!homeDir) return undefined;
-
-    const settingsPath = path.join(homeDir, GEMINI_DIR, 'settings.json');
+    // Use the same settings path resolution as CLI settings loader
+    const settingsPath = Storage.getGlobalSettingsPath();
 
     // Check if file exists
     if (!fs.existsSync(settingsPath)) return undefined;

@@ -73,9 +73,9 @@ export const useLanguageCommand = (
       }
 
       try {
-        // Save the language setting to System scope
+        // Save the language setting to User scope so it persists across sessions.
         loadedSettings.setValue(
-          SettingScope.System,
+          SettingScope.User,
           'ui.language',
           languageCode,
         );

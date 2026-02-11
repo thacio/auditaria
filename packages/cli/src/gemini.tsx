@@ -20,7 +20,11 @@ import {
   loadTrustedFolders,
   type TrustedFoldersError,
 } from './config/trustedFolders.js';
-import { loadSettings, SettingScope } from './config/settings.js';
+import {
+  loadSettings,
+  SettingScope,
+  getPreferredUiLanguage, // AUDITARIA_FEATURE_I18N
+} from './config/settings.js';
 import { getStartupWarnings } from './utils/startupWarnings.js';
 import { getUserStartupWarnings } from './utils/userStartupWarnings.js';
 import { ConsolePatcher } from './ui/utils/ConsolePatcher.js';
@@ -390,7 +394,7 @@ export async function main() {
 
   // AUDITARIA_FEATURE_START: i18n initialization
   // Initialize i18n system with settings-based language or fallback to detection
-  const settingsLanguage = settings.merged.ui?.language;
+  const settingsLanguage = getPreferredUiLanguage(settings);
   const language: SupportedLanguage =
     settingsLanguage && isLanguageSupported(settingsLanguage)
       ? settingsLanguage

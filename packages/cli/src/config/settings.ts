@@ -994,6 +994,31 @@ export function saveModelChange(
     );
   }
 }
+// AUDITARIA_FEATURE_I18N_START: Get preferred UI language from settings
+function getScopedUiLanguage(settings: Settings | undefined): string | undefined {
+  const language = settings?.ui?.language;
+  if (typeof language === 'string' && language.length > 0) {
+    return language;
+  }
+  return undefined;
+}
+
+/**
+ * Returns the preferred UI language for runtime i18n.
+ *
+ * Language is a user preference, so we prioritize user scope explicitly,
+ * then trusted workspace scope, then the merged value as fallback.
+ */
+export function getPreferredUiLanguage(
+  loadedSettings: LoadedSettings,
+): string | undefined {
+  return (
+    getScopedUiLanguage(loadedSettings.user.settings) ??
+    getScopedUiLanguage(loadedSettings.workspace.settings) ??
+    getScopedUiLanguage(loadedSettings.merged)
+  );
+}
+// AUDITARIA_FEATURE_I18N_END
 
 function migrateExperimentalSettings(
   settings: Settings,
