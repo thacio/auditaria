@@ -30,6 +30,7 @@ import type {
   QueueItem,
   QueuePriority,
   QueueStatus,
+  QueueDetailedStatus,
 } from '../types.js';
 import {
   SQLITE_BASE_SCHEMA_SQL,
@@ -63,6 +64,11 @@ import { createModuleLogger } from '../core/Logger.js';
 import type { SQLiteBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_SQLITE_OPTIONS } from '../config/backend-options.js';
 import { convertToFTS5Query } from './web-search-parser.js';
+import {
+  emptyDeferReasonCounts,
+  encodeDeferReasonInLastError,
+  parseDeferReasonFromLastError,
+} from './defer-reasons.js';
 import * as _fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -1708,17 +1714,22 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
 
     const id = generateId();
     const now = new Date().toISOString();
+    const deferReason =
+      input.priority === 'deferred'
+        ? (input.deferReason ?? 'unknown')
+        : null;
+    const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     this.db!.prepare(
       `
-      INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
-      VALUES (?, ?, ?, ?, 'pending', 0, ?)
+      INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, last_error, created_at)
+      VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)
       ON CONFLICT (file_path) DO UPDATE SET
         file_size = excluded.file_size,
         priority = excluded.priority,
         status = 'pending',
         attempts = 0,
-        last_error = NULL,
+        last_error = excluded.last_error,
         started_at = NULL,
         completed_at = NULL
     `,
@@ -1727,6 +1738,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       input.filePath,
       input.fileSize ?? 0,
       input.priority ?? 'markup',
+      deferredReasonError,
       now,
     );
 
@@ -1748,14 +1760,14 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     const now = new Date().toISOString();
     const nowDate = new Date(now);
     const insertStmt = this.db!.prepare(`
-      INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
-      VALUES (?, ?, ?, ?, 'pending', 0, ?)
+      INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, last_error, created_at)
+      VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)
       ON CONFLICT (file_path) DO UPDATE SET
         file_size = excluded.file_size,
         priority = excluded.priority,
         status = 'pending',
         attempts = 0,
-        last_error = NULL,
+        last_error = excluded.last_error,
         started_at = NULL,
         completed_at = NULL
     `);
@@ -1773,6 +1785,11 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
           input.filePath,
           input.fileSize ?? 0,
           input.priority ?? 'markup',
+          encodeDeferReasonInLastError(
+            input.priority === 'deferred'
+              ? (input.deferReason ?? 'unknown')
+              : null,
+          ),
           now,
         );
       }
@@ -1790,6 +1807,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
+      deferReason:
+        input.priority === 'deferred'
+          ? (input.deferReason ?? 'unknown')
+          : null,
       createdAt: nowDate,
       startedAt: null,
       completedAt: null,
@@ -1864,6 +1885,9 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
     if (updates.lastError !== undefined) {
       sets.push('last_error = ?');
       params.push(updates.lastError);
+    } else if (updates.deferReason !== undefined) {
+      sets.push('last_error = ?');
+      params.push(encodeDeferReasonInLastError(updates.deferReason));
     }
     if (updates.startedAt !== undefined) {
       sets.push('started_at = ?');
@@ -1951,6 +1975,34 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       completed: statusCounts['completed'] ?? 0,
       failed: statusCounts['failed'] ?? 0,
       byPriority: priorityCounts,
+    };
+  }
+
+  async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
+    this.ensureReady();
+
+    const base = await this.getQueueStatus();
+    const deferredByReason = emptyDeferReasonCounts();
+
+    const rows = this.db!.prepare(
+      `
+      SELECT last_error, COUNT(*) as count
+      FROM index_queue
+      WHERE status = 'pending' AND priority = 'deferred'
+      GROUP BY last_error
+    `,
+    ).all() as Array<{ last_error: string | null; count: number }>;
+
+    for (const row of rows) {
+      const parsedReason = parseDeferReasonFromLastError(row.last_error);
+      const reason = parsedReason ?? 'unknown';
+      deferredByReason[reason] += row.count;
+    }
+
+    return {
+      ...base,
+      precision: 'exact',
+      deferredByReason,
     };
   }
 
@@ -2231,6 +2283,10 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
   }
 
   private rowToQueueItem(row: QueueItemRow): QueueItem {
+    const parsedReason = parseDeferReasonFromLastError(row.last_error);
+    const deferReason =
+      row.priority === 'deferred' ? (parsedReason ?? 'unknown') : null;
+
     return {
       id: row.id,
       filePath: row.file_path,
@@ -2239,6 +2295,7 @@ export class SQLiteVectorliteStorage implements StorageAdapter {
       status: row.status as QueueItem['status'],
       attempts: row.attempts,
       lastError: row.last_error,
+      deferReason,
       createdAt: toDate(row.created_at)!,
       startedAt: toDate(row.started_at),
       completedAt: toDate(row.completed_at),

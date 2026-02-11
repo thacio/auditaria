@@ -233,6 +233,34 @@ describe('LanceDBStorage', () => {
       expect(status.total).toBe(2);
       expect(status.pending).toBe(2);
     });
+
+    it('should get detailed queue status with deferred reason counts', async () => {
+      await storage.enqueueItem({
+        filePath: '/deferred-raw-text.txt',
+        priority: 'deferred',
+        deferReason: 'raw_text_oversize',
+      });
+      await storage.enqueueItem({
+        filePath: '/deferred-raw-markup.docx',
+        priority: 'deferred',
+        deferReason: 'raw_markup_oversize',
+      });
+      const parsedDeferred = await storage.enqueueItem({
+        filePath: '/deferred-parsed.md',
+      });
+      await storage.updateQueueItem(parsedDeferred.id, {
+        priority: 'deferred',
+        deferReason: 'parsed_text_oversize',
+      });
+
+      const detailedStatus = await storage.getQueueDetailedStatus();
+      expect(detailedStatus.precision).toBe('exact');
+      expect(detailedStatus.byPriority.deferred).toBe(3);
+      expect(detailedStatus.deferredByReason.raw_text_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.raw_markup_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.parsed_text_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.unknown).toBe(0);
+    });
   });
 
   describe('Config', () => {

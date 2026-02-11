@@ -26,6 +26,7 @@ import type {
   SearchResult,
   SearchStats,
   QueueStatus,
+  QueueDetailedStatus,
   DiscoveredFile,
   SearchFilters,
   QueuePriority,
@@ -346,6 +347,13 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
    */
   async getQueueStatus(): Promise<QueueStatus> {
     return this.call<QueueStatus>('getQueueStatus', []);
+  }
+
+  /**
+   * Get queue status with precision metadata and deferred reason breakdown.
+   */
+  async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
+    return this.call<QueueDetailedStatus>('getQueueDetailedStatus', []);
   }
 
   /**

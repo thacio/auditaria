@@ -389,6 +389,35 @@ describe('PGliteStorage', () => {
       expect(status.byPriority.markup).toBe(1);
     });
 
+    it('should get detailed queue status with deferred reason counts', async () => {
+      await storage.enqueueItem({
+        filePath: '/deferred-raw-text.txt',
+        priority: 'deferred',
+        deferReason: 'raw_text_oversize',
+      });
+      await storage.enqueueItem({
+        filePath: '/deferred-raw-markup.docx',
+        priority: 'deferred',
+        deferReason: 'raw_markup_oversize',
+      });
+      const parsedDeferred = await storage.enqueueItem({
+        filePath: '/deferred-parsed.md',
+      });
+      await storage.updateQueueItem(parsedDeferred.id, {
+        priority: 'deferred',
+        deferReason: 'parsed_text_oversize',
+      });
+
+      const detailedStatus = await storage.getQueueDetailedStatus();
+
+      expect(detailedStatus.precision).toBe('exact');
+      expect(detailedStatus.byPriority.deferred).toBe(3);
+      expect(detailedStatus.deferredByReason.raw_text_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.raw_markup_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.parsed_text_oversize).toBe(1);
+      expect(detailedStatus.deferredByReason.unknown).toBe(0);
+    });
+
     it('should clear completed items', async () => {
       const item1 = await storage.enqueueItem({ filePath: '/completed.txt' });
       await storage.enqueueItem({ filePath: '/pending.txt' });

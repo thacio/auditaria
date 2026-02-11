@@ -5,7 +5,11 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import type { QueuePriority, DiscoveredFile } from '../types.js';
+import type {
+  QueuePriority,
+  QueueDeferReason,
+  DiscoveredFile,
+} from '../types.js';
 
 // ============================================================================
 // Configuration
@@ -110,6 +114,7 @@ export interface ClassifiedFile {
   fileSize: number;
   priority: QueuePriority;
   category: FileCategory;
+  deferReason?: QueueDeferReason | null;
 }
 
 export interface ClassificationSummary {
@@ -154,22 +159,27 @@ export class FilePriorityClassifier {
 
     // Pure text files - highest priority (defer if oversized)
     if (TEXT_EXTENSIONS.has(ext)) {
+      const deferReason =
+        file.size > this.maxRawTextFileSize ? 'raw_text_oversize' : null;
       return {
         filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
-        priority: file.size > this.maxRawTextFileSize ? 'deferred' : 'text',
+        priority: deferReason ? 'deferred' : 'text',
         category: 'text',
+        ...(deferReason ? { deferReason } : {}),
       };
     }
 
     // MarkitDown-supported files (defer if oversized)
     if (MARKUP_EXTENSIONS.has(ext)) {
+      const deferReason =
+        file.size > this.maxRawMarkupFileSize ? 'raw_markup_oversize' : null;
       return {
         filePath: file.relativePath, // Use relative path for DB storage
         fileSize: file.size,
-        priority:
-          file.size > this.maxRawMarkupFileSize ? 'deferred' : 'markup',
+        priority: deferReason ? 'deferred' : 'markup',
         category: 'markup',
+        ...(deferReason ? { deferReason } : {}),
       };
     }
 

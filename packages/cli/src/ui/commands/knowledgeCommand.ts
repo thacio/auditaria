@@ -417,7 +417,10 @@ const statusSubCommand: SlashCommand = {
       }
 
       const stats = await system.getStats();
+      const queue = await system.getQueueDetailedStatus();
       const state = system.getState();
+      const config = system.getConfig();
+      const ocrQueue = system.getOcrQueueStatus();
       const serviceState = searchService.getState();
 
       // Get autoIndex config
@@ -444,19 +447,41 @@ const statusSubCommand: SlashCommand = {
       const lines = [
         'Knowledge Base Status:',
         '',
+        `  Backend: ${config.database.backend}`,
         `  Database: ${state.databasePath}`,
         `  Size: ${formatBytes(stats.databaseSize)}`,
         `  Service: ${serviceState.status}`,
         `  Auto-index on startup: ${autoIndexEnabled ? 'ON' : 'OFF'}`,
         '',
-        'Documents:',
-        `  Total: ${stats.totalDocuments}`,
-        `  Indexed: ${stats.indexedDocuments}`,
-        `  Pending: ${stats.pendingDocuments}`,
+        'Documents (tracked files):',
+        `  Tracked total: ${stats.totalDocuments}`,
+        `  Fully indexed: ${stats.indexedDocuments}`,
+        `  Pending (documents.status='pending'): ${stats.pendingDocuments}`,
         `  Failed: ${stats.failedDocuments}`,
-        `  OCR Pending: ${stats.ocrPending}`,
+        `  OCR pending: ${stats.ocrPending}`,
+        '',
+        'Queue (index work units):',
+        `  Queue total: ${queue.total}`,
+        `  Pending: ${queue.pending}`,
+        `  Processing: ${queue.processing}`,
+        `  Completed: ${queue.completed}`,
+        `  Failed: ${queue.failed}`,
+        `  Precision: ${queue.precision.toUpperCase()}`,
+        `  Pending by priority: text=${queue.byPriority.text}, markup=${queue.byPriority.markup}, pdf=${queue.byPriority.pdf}, image=${queue.byPriority.image}, ocr=${queue.byPriority.ocr}, deferred=${queue.byPriority.deferred}`,
+        `  Deferred by reason: raw_text_oversize=${queue.deferredByReason.raw_text_oversize}, raw_markup_oversize=${queue.deferredByReason.raw_markup_oversize}, parsed_text_oversize=${queue.deferredByReason.parsed_text_oversize}, unknown=${queue.deferredByReason.unknown}`,
+        '',
+        'OCR Queue:',
+        `  Pending jobs: ${ocrQueue?.pendingJobs ?? 0}`,
+        `  Processing jobs: ${ocrQueue?.processingJobs ?? 0}`,
+        `  Completed jobs: ${ocrQueue?.completedJobs ?? 0}`,
+        `  Failed jobs: ${ocrQueue?.failedJobs ?? 0}`,
         '',
         `Total Chunks: ${stats.totalChunks}`,
+        '',
+        'Definitions:',
+        "  Fully indexed = documents with status 'indexed' (already searchable).",
+        "  Queue pending = queued work not started yet.",
+        "  Deferred = pending low-priority work intentionally postponed.",
       ];
 
       return {

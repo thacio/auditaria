@@ -43,8 +43,11 @@ export type {
   // Queue types
   QueueItem,
   QueuePriority,
+  QueueDeferReason,
   QueueItemStatus,
   QueueStatus,
+  QueueStatusPrecision,
+  QueueDetailedStatus,
   // Stats types
   SearchStats,
   TagCount,

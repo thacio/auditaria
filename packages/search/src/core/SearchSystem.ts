@@ -46,6 +46,7 @@ import type {
   SearchFilters,
   TagCount,
   QueueStatus,
+  QueueDetailedStatus,
   QueuePriority,
   DiscoveredFile,
 } from '../types.js';
@@ -1532,6 +1533,29 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   async getQueueStatus(): Promise<QueueStatus> {
     this.ensureInitialized();
     return this.storage!.getQueueStatus();
+  }
+
+  /**
+   * Get queue status with precision metadata and deferred reason breakdown.
+   */
+  async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
+    this.ensureInitialized();
+
+    if (this.storage!.getQueueDetailedStatus) {
+      return this.storage!.getQueueDetailedStatus();
+    }
+
+    const base = await this.storage!.getQueueStatus();
+    return {
+      ...base,
+      precision: 'approximate',
+      deferredByReason: {
+        raw_text_oversize: 0,
+        raw_markup_oversize: 0,
+        parsed_text_oversize: 0,
+        unknown: base.byPriority.deferred,
+      },
+    };
   }
 
   /**

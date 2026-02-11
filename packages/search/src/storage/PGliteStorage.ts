@@ -35,6 +35,7 @@ import type {
   QueueItem,
   QueuePriority,
   QueueStatus,
+  QueueDetailedStatus,
 } from '../types.js';
 import {
   BASE_SCHEMA_SQL,
@@ -60,6 +61,11 @@ import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
 import { createModuleLogger } from '../core/Logger.js';
 import type { PGLiteBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_PGLITE_OPTIONS } from '../config/backend-options.js';
+import {
+  emptyDeferReasonCounts,
+  encodeDeferReasonInLastError,
+  parseDeferReasonFromLastError,
+} from './defer-reasons.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -2449,16 +2455,21 @@ export class PGliteStorage implements StorageAdapter {
 
     const id = generateId();
     const now = new Date().toISOString();
+    const deferReason =
+      input.priority === 'deferred'
+        ? (input.deferReason ?? 'unknown')
+        : null;
+    const deferredReasonError = encodeDeferReasonInLastError(deferReason);
 
     await this.db!.query(
-      `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
-       VALUES ($1, $2, $3, $4, 'pending', 0, $5)
+      `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, last_error, created_at)
+       VALUES ($1, $2, $3, $4, 'pending', 0, $5, $6)
        ON CONFLICT (file_path) DO UPDATE SET
          file_size = EXCLUDED.file_size,
          priority = EXCLUDED.priority,
          status = 'pending',
          attempts = 0,
-         last_error = NULL,
+         last_error = EXCLUDED.last_error,
          started_at = NULL,
          completed_at = NULL`,
       [
@@ -2466,6 +2477,7 @@ export class PGliteStorage implements StorageAdapter {
         input.filePath,
         input.fileSize ?? 0,
         input.priority ?? 'markup',
+        deferredReasonError,
         now,
       ],
     );
@@ -2504,28 +2516,33 @@ export class PGliteStorage implements StorageAdapter {
       const placeholders: string[] = [];
 
       chunk.forEach(({ id, input }, idx) => {
-        const offset = idx * 5;
+        const offset = idx * 6;
         placeholders.push(
-          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, 'pending', 0, $${offset + 5})`,
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, 'pending', 0, $${offset + 5}, $${offset + 6})`,
         );
         values.push(
           id,
           input.filePath,
           input.fileSize ?? 0,
           input.priority ?? 'markup',
+          encodeDeferReasonInLastError(
+            input.priority === 'deferred'
+              ? (input.deferReason ?? 'unknown')
+              : null,
+          ),
           now,
         );
       });
 
       await this.db!.query(
-        `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, created_at)
+        `INSERT INTO index_queue (id, file_path, file_size, priority, status, attempts, last_error, created_at)
          VALUES ${placeholders.join(', ')}
          ON CONFLICT (file_path) DO UPDATE SET
            file_size = EXCLUDED.file_size,
            priority = EXCLUDED.priority,
            status = 'pending',
            attempts = 0,
-           last_error = NULL,
+           last_error = EXCLUDED.last_error,
            started_at = NULL,
            completed_at = NULL`,
         values,
@@ -2543,6 +2560,10 @@ export class PGliteStorage implements StorageAdapter {
       status: 'pending' as const,
       attempts: 0,
       lastError: null,
+      deferReason:
+        input.priority === 'deferred'
+          ? (input.deferReason ?? 'unknown')
+          : null,
       createdAt: nowDate,
       startedAt: null,
       completedAt: null,
@@ -2610,6 +2631,10 @@ export class PGliteStorage implements StorageAdapter {
     if (updates.lastError !== undefined) {
       sets.push(`last_error = $${paramIndex}`);
       params.push(updates.lastError);
+      paramIndex++;
+    } else if (updates.deferReason !== undefined) {
+      sets.push(`last_error = $${paramIndex}`);
+      params.push(encodeDeferReasonInLastError(updates.deferReason));
       paramIndex++;
     }
     if (updates.startedAt !== undefined) {
@@ -2702,6 +2727,35 @@ export class PGliteStorage implements StorageAdapter {
       completed: statusCounts['completed'] ?? 0,
       failed: statusCounts['failed'] ?? 0,
       byPriority: priorityCounts,
+    };
+  }
+
+  async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
+    await this.waitForReady();
+
+    const base = await this.getQueueStatus();
+    const deferredByReason = emptyDeferReasonCounts();
+
+    const reasonResult = await this.db!.query<{
+      last_error: string | null;
+      count: string;
+    }>(
+      `SELECT last_error, COUNT(*) as count
+       FROM index_queue
+       WHERE status = 'pending' AND priority = 'deferred'
+       GROUP BY last_error`,
+    );
+
+    for (const row of reasonResult.rows) {
+      const parsedReason = parseDeferReasonFromLastError(row.last_error);
+      const reason = parsedReason ?? 'unknown';
+      deferredByReason[reason] += parseInt(row.count, 10);
+    }
+
+    return {
+      ...base,
+      precision: 'exact',
+      deferredByReason,
     };
   }
 
@@ -3018,6 +3072,10 @@ export class PGliteStorage implements StorageAdapter {
   }
 
   private rowToQueueItem(row: QueueItemRow): QueueItem {
+    const parsedReason = parseDeferReasonFromLastError(row.last_error);
+    const deferReason =
+      row.priority === 'deferred' ? (parsedReason ?? 'unknown') : null;
+
     return {
       id: row.id,
       filePath: row.file_path,
@@ -3029,6 +3087,7 @@ export class PGliteStorage implements StorageAdapter {
       status: row.status as QueueItem['status'],
       attempts: row.attempts,
       lastError: row.last_error,
+      deferReason,
       createdAt: toDate(row.created_at)!,
       startedAt: toDate(row.started_at),
       completedAt: toDate(row.completed_at),

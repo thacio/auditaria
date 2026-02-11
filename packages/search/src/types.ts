@@ -179,6 +179,13 @@ export type QueuePriority =
   | 'image'
   | 'ocr'
   | 'deferred';
+
+export type QueueDeferReason =
+  | 'raw_text_oversize'
+  | 'raw_markup_oversize'
+  | 'parsed_text_oversize'
+  | 'unknown';
+
 export type QueueItemStatus =
   | 'pending'
   | 'processing'
@@ -194,6 +201,7 @@ export interface QueueItem {
   status: QueueItemStatus;
   attempts: number;
   lastError: string | null;
+  deferReason?: QueueDeferReason | null;
   createdAt: Date;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -243,6 +251,13 @@ export interface QueueStatus {
   completed: number;
   failed: number;
   byPriority: Record<QueuePriority, number>;
+}
+
+export type QueueStatusPrecision = 'exact' | 'approximate';
+
+export interface QueueDetailedStatus extends QueueStatus {
+  precision: QueueStatusPrecision;
+  deferredByReason: Record<QueueDeferReason, number>;
 }
 
 // ============================================================================

@@ -435,6 +435,7 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
           filePath: c.filePath,
           fileSize: c.fileSize,
           priority: options?.priority ?? c.priority,
+          deferReason: options?.priority ? null : (c.deferReason ?? null),
         })),
       );
     }
@@ -1448,8 +1449,8 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
       await this.storage.updateQueueItem(queueItemId, {
         status: 'pending',
         priority: 'deferred',
+        deferReason: 'parsed_text_oversize',
         attempts: 0,
-        lastError: null,
         startedAt: null,
       });
       return;

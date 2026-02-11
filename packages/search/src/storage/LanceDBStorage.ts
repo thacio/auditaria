@@ -29,6 +29,7 @@ import type {
   QueueItem,
   QueuePriority,
   QueueStatus,
+  QueueDetailedStatus,
 } from '../types.js';
 import type { DatabaseConfig, VectorIndexConfig } from '../config.js';
 import { DEFAULT_VECTOR_INDEX_CONFIG } from '../config.js';
@@ -43,6 +44,11 @@ import {
 import { createModuleLogger } from '../core/Logger.js';
 import type { LanceDBBackendOptions } from '../config/backend-options.js';
 import { DEFAULT_LANCEDB_OPTIONS } from '../config/backend-options.js';
+import {
+  emptyDeferReasonCounts,
+  encodeDeferReasonInLastError,
+  parseDeferReasonFromLastError,
+} from './defer-reasons.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -1673,6 +1679,12 @@ export class LanceDBStorage implements StorageAdapter {
       throw new Error('Queue table not initialized');
     }
 
+    const deferReason =
+      input.priority === 'deferred'
+        ? (input.deferReason ?? 'unknown')
+        : null;
+    const deferredReasonError = encodeDeferReasonInLastError(deferReason);
+
     const id = generateId();
     const now = Date.now();
 
@@ -1683,7 +1695,8 @@ export class LanceDBStorage implements StorageAdapter {
       return this.updateQueueItem(existing.id, {
         status: 'pending',
         attempts: 0,
-        lastError: null,
+        lastError: deferredReasonError,
+        deferReason,
         startedAt: null,
         completedAt: null,
       });
@@ -1696,7 +1709,7 @@ export class LanceDBStorage implements StorageAdapter {
       priority: input.priority ?? 'markup',
       status: 'pending',
       attempts: 0,
-      last_error: '', // Empty string represents null
+      last_error: deferredReasonError ?? '', // Empty string represents null
       created_at: now,
       started_at: 0, // 0 represents null
       completed_at: 0, // 0 represents null
@@ -1732,7 +1745,12 @@ export class LanceDBStorage implements StorageAdapter {
       priority: input.priority ?? 'markup',
       status: 'pending',
       attempts: 0,
-      last_error: '',
+      last_error:
+        encodeDeferReasonInLastError(
+          input.priority === 'deferred'
+            ? (input.deferReason ?? 'unknown')
+            : null,
+        ) ?? '',
       created_at: now,
       started_at: 0,
       completed_at: 0,
@@ -1825,6 +1843,9 @@ export class LanceDBStorage implements StorageAdapter {
     if (updates.attempts !== undefined) values.attempts = updates.attempts;
     if (updates.lastError !== undefined)
       values.last_error = updates.lastError ?? '';
+    else if (updates.deferReason !== undefined) {
+      values.last_error = encodeDeferReasonInLastError(updates.deferReason) ?? '';
+    }
     if (updates.startedAt !== undefined) {
       values.started_at = updates.startedAt?.getTime() ?? 0;
     }
@@ -1849,7 +1870,10 @@ export class LanceDBStorage implements StorageAdapter {
       priority: 'text' as QueuePriority,
       status: (updates.status ?? 'pending'),
       attempts: updates.attempts ?? 0,
-      lastError: updates.lastError ?? null,
+      lastError:
+        updates.lastError ??
+        encodeDeferReasonInLastError(updates.deferReason ?? null),
+      deferReason: updates.deferReason ?? null,
       createdAt: new Date(now),
       startedAt: updates.startedAt ?? null,
       completedAt: updates.completedAt ?? null,
@@ -1970,6 +1994,87 @@ export class LanceDBStorage implements StorageAdapter {
       completed: statusCounts.completed,
       failed: statusCounts.failed,
       byPriority: priorityCounts,
+    };
+  }
+
+  async getQueueDetailedStatus(): Promise<QueueDetailedStatus> {
+    await this.waitForReady();
+
+    const emptyStatus: QueueDetailedStatus = {
+      total: 0,
+      pending: 0,
+      processing: 0,
+      completed: 0,
+      failed: 0,
+      byPriority: {
+        text: 0,
+        markup: 0,
+        pdf: 0,
+        image: 0,
+        ocr: 0,
+        deferred: 0,
+      },
+      precision: 'exact',
+      deferredByReason: emptyDeferReasonCounts(),
+    };
+
+    if (!this.queueTable) {
+      return emptyStatus;
+    }
+
+    const totalCount = await this.queueTable.countRows();
+    if (totalCount === 0) {
+      return emptyStatus;
+    }
+
+    const rows = await this.queueTable.query().limit(QUERY_ALL_LIMIT).toArray();
+    const precision = rows.length < totalCount ? 'approximate' : 'exact';
+
+    const statusCounts: Record<string, number> = {
+      pending: 0,
+      processing: 0,
+      completed: 0,
+      failed: 0,
+    };
+    const priorityCounts: Record<QueuePriority, number> = {
+      text: 0,
+      markup: 0,
+      pdf: 0,
+      image: 0,
+      ocr: 0,
+      deferred: 0,
+    };
+    const deferredByReason = emptyDeferReasonCounts();
+
+    for (const rawRow of rows as QueueRow[]) {
+      const status = rawRow.status;
+      if (status in statusCounts) {
+        statusCounts[status]++;
+      }
+
+      if (status === 'pending') {
+        const priority = rawRow.priority as QueuePriority;
+        if (priority in priorityCounts) {
+          priorityCounts[priority]++;
+        }
+
+        if (priority === 'deferred') {
+          const parsedReason = parseDeferReasonFromLastError(rawRow.last_error);
+          const reason = parsedReason ?? 'unknown';
+          deferredByReason[reason]++;
+        }
+      }
+    }
+
+    return {
+      total: rows.length,
+      pending: statusCounts.pending,
+      processing: statusCounts.processing,
+      completed: statusCounts.completed,
+      failed: statusCounts.failed,
+      byPriority: priorityCounts,
+      precision,
+      deferredByReason,
     };
   }
 
@@ -2378,6 +2483,10 @@ export class LanceDBStorage implements StorageAdapter {
   }
 
   private rowToQueueItem(row: QueueRow): QueueItem {
+    const parsedReason = parseDeferReasonFromLastError(row.last_error);
+    const deferReason =
+      row.priority === 'deferred' ? (parsedReason ?? 'unknown') : null;
+
     return {
       id: row.id,
       filePath: row.file_path,
@@ -2386,6 +2495,7 @@ export class LanceDBStorage implements StorageAdapter {
       status: row.status as QueueItem['status'],
       attempts: row.attempts,
       lastError: row.last_error || null, // Empty string -> null
+      deferReason,
       createdAt: new Date(row.created_at),
       startedAt: row.started_at ? new Date(row.started_at) : null, // 0 -> null
       completedAt: row.completed_at ? new Date(row.completed_at) : null, // 0 -> null

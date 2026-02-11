@@ -15,8 +15,10 @@ import type {
   TagCount,
   QueueItem,
   QueuePriority,
+  QueueDeferReason,
   QueueItemStatus,
   QueueStatus,
+  QueueDetailedStatus,
 } from '../types.js';
 
 // ============================================================================
@@ -84,6 +86,7 @@ export interface CreateQueueItemInput {
   filePath: string;
   fileSize?: number;
   priority?: QueuePriority;
+  deferReason?: QueueDeferReason | null;
 }
 
 export interface UpdateQueueItemInput {
@@ -91,6 +94,7 @@ export interface UpdateQueueItemInput {
   priority?: QueuePriority;
   attempts?: number;
   lastError?: string | null;
+  deferReason?: QueueDeferReason | null;
   startedAt?: Date | null;
   completedAt?: Date | null;
 }
@@ -377,6 +381,12 @@ export interface StorageAdapter {
    * Get queue status.
    */
   getQueueStatus(): Promise<QueueStatus>;
+
+  /**
+   * Get queue status with precision metadata and deferred reason breakdown.
+   * Optional because some backends may only support basic queue status.
+   */
+  getQueueDetailedStatus?(): Promise<QueueDetailedStatus>;
 
   /**
    * Clear completed queue items.
