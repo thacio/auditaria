@@ -527,7 +527,7 @@ describe('CodexCLIDriver', () => {
 
     expect(mockSpawn).toHaveBeenLastCalledWith(
       'codex',
-      ['exec', 'resume', '--json', '-m', 'gpt-5.3-codex', '--skip-git-repo-check', 'thread-xyz'],
+      ['exec', '--json', '-m', 'gpt-5.3-codex', '-s', 'danger-full-access', 'resume', '--skip-git-repo-check', 'thread-xyz'],
       expect.objectContaining({ cwd: '/tmp/test' }),
     );
   });
