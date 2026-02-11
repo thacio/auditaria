@@ -147,9 +147,8 @@ export class CodexCLIDriver implements ProviderDriver {
     if (this.threadId) {
       // Resume: `codex exec resume [OPTIONS] <SESSION_ID>`
       // Prompt is piped via stdin (Codex reads from stdin when no PROMPT arg given).
-      // AUDITARIA_CODEX_PROVIDER: Use danger-full-access instead of --full-auto because
-      // workspace-write mode refuses file operations. Since Auditaria's purpose is to
-      // assist with code editing, users expect full file access.
+      // AUDITARIA_CODEX_PROVIDER: Do not pass --sandbox/-s to resume. Some Codex builds
+      // reject sandbox flags on `exec resume` even though they work on `exec`.
       args.push('exec', 'resume', '--json');
       if (this.config.model) {
         args.push('-m', this.config.model);
@@ -160,7 +159,7 @@ export class CodexCLIDriver implements ProviderDriver {
           `model_reasoning_effort=${this.config.reasoningEffort}`,
         );
       }
-      args.push('-s', 'danger-full-access', '--skip-git-repo-check', this.threadId);
+      args.push('--skip-git-repo-check', this.threadId);
     } else {
       // New session: Use danger-full-access for file operations
       // AUDITARIA_CODEX_PROVIDER: workspace-write (used by --full-auto) refuses file writes.
