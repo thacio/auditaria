@@ -56,6 +56,23 @@ async function cleanupTestDirectory(dir: string): Promise<void> {
 }
 
 /**
+ * Plain text parser that intentionally delays parsing.
+ * Used to test deferred parse timeout behavior.
+ */
+class SlowPlainTextParser extends PlainTextParser {
+  constructor(private readonly delayMs: number) {
+    super();
+  }
+
+  override async parse(
+    ...args: Parameters<PlainTextParser['parse']>
+  ): ReturnType<PlainTextParser['parse']> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return super.parse(...args);
+  }
+}
+
+/**
  * Create test pipeline with dependencies.
  */
 async function createTestPipeline(
@@ -400,6 +417,80 @@ describe('IndexingPipeline Producer-Consumer Pattern', () => {
         expect(completedEvents).toHaveLength(1);
       } finally {
         await cleanup();
+      }
+    });
+
+    it('should fail deferred items when deferred parse retry exceeds timeout', async () => {
+      testDir = await createTestDirectory(1);
+
+      const storage = new PGliteStorage({
+        backend: 'pglite',
+        path: '',
+        inMemory: true,
+        backupEnabled: false,
+      });
+      await storage.initialize();
+
+      const parserRegistry = new ParserRegistry();
+      parserRegistry.register(new SlowPlainTextParser(200));
+
+      const chunkerRegistry = new ChunkerRegistry();
+      chunkerRegistry.register(new RecursiveChunker());
+
+      const embedder = new MockEmbedder(384);
+      await embedder.initialize();
+
+      const pipeline = new IndexingPipeline(
+        storage,
+        parserRegistry,
+        chunkerRegistry,
+        embedder,
+        {
+          rootPath: testDir,
+          autoStart: false,
+          prepareWorkers: 1,
+          deferredRetryParseTimeoutMs: 50,
+        },
+      );
+
+      try {
+        const failedEvents = collectEvents(pipeline, 'document:failed');
+
+        await storage.enqueueItem({
+          filePath: 'file0.txt',
+          priority: 'deferred',
+          deferReason: 'parsed_text_oversize',
+        });
+
+        pipeline.start();
+        await waitForIdle(pipeline, 10000);
+
+        const queueItem = await storage.getQueueItemByPath('file0.txt');
+        expect(queueItem).not.toBeNull();
+        expect(queueItem?.status).toBe('failed');
+        expect(queueItem?.lastError).toContain('Deferred parse retry timed out');
+
+        const doc = await storage.getDocumentByPath('file0.txt');
+        expect(doc).not.toBeNull();
+        expect(doc?.status).toBe('failed');
+        expect(
+          (doc?.metadata as { lastError?: string }).lastError,
+        ).toContain('Deferred parse retry timed out');
+
+        expect(failedEvents).toHaveLength(1);
+        expect(failedEvents[0].filePath).toBe('file0.txt');
+        expect(failedEvents[0].error.message).toContain(
+          'Deferred parse retry timed out',
+        );
+
+        const queueStatus = await storage.getQueueStatus();
+        expect(queueStatus.pending).toBe(0);
+        expect(queueStatus.processing).toBe(0);
+        expect(queueStatus.failed).toBe(1);
+      } finally {
+        await pipeline.stop();
+        await embedder.dispose();
+        await storage.close();
       }
     });
   });

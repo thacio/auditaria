@@ -86,6 +86,20 @@ class FileDeferredError extends Error {
 }
 
 /**
+ * Error thrown when parsing a deferred item exceeds the allowed timeout.
+ * This is treated as a terminal failure to avoid infinite deferred retries.
+ */
+class DeferredRetryParseTimeoutError extends Error {
+  constructor(filePath: string, timeoutMs: number) {
+    super(
+      `Deferred parse retry timed out after ${Math.round(timeoutMs / 60000)} minutes: ${filePath}. ` +
+        'Marking as failed and disabling future retries.',
+    );
+    this.name = 'DeferredRetryParseTimeoutError';
+  }
+}
+
+/**
  * Normalize path separators to forward slashes for cross-platform DB compatibility.
  * Windows uses backslashes, but we store forward slashes so databases can be shared
  * across Windows, Linux, and Mac without causing duplicate entries.
@@ -130,6 +144,7 @@ const DEFAULT_PREPARED_BUFFER_SIZE = 1;
 const DEFAULT_EMBEDDING_BATCH_SIZE = 8;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000;
+const DEFAULT_DEFERRED_RETRY_PARSE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_MAX_PARSED_TEXT_SIZE = 5 * 1024 * 1024; // 5MB — skip entirely
 const DEFAULT_DEFER_PARSED_TEXT_SIZE = 2 * 1024 * 1024; // 2MB — deprioritize
 
@@ -140,6 +155,32 @@ const DEFAULT_DEFER_PARSED_TEXT_SIZE = 2 * 1024 * 1024; // 2MB — deprioritize
 /** Yield to the event loop to prevent blocking */
 const yieldToEventLoop = (): Promise<void> =>
   new Promise((resolve) => setImmediate(resolve));
+
+/**
+ * Wrap a promise with a timeout.
+ * The underlying operation is not cancelled; we only stop waiting for it.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutErrorFactory: () => Error,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(timeoutErrorFactory());
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
 
 // ============================================================================
 // Types
@@ -247,6 +288,9 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         options.maxParsedTextSize ?? DEFAULT_MAX_PARSED_TEXT_SIZE,
       deferParsedTextSize:
         options.deferParsedTextSize ?? DEFAULT_DEFER_PARSED_TEXT_SIZE,
+      deferredRetryParseTimeoutMs:
+        options.deferredRetryParseTimeoutMs ??
+        DEFAULT_DEFERRED_RETRY_PARSE_TIMEOUT_MS,
       enableGarbageDetection: options.enableGarbageDetection ?? true,
       parserOptions: options.parserOptions,
       chunkerOptions: options.chunkerOptions,
@@ -1019,11 +1063,37 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
     await this.storage.updateDocument(documentId, { status: 'parsing' });
     void this.emit('document:parsing', { documentId, filePath: relativePath });
 
-    // Parse the document (using absolute path for file I/O)
-    const parsed = await this.parserRegistry.parse(
-      absolutePath,
-      this.options.parserOptions,
-    );
+    // Parse the document (using absolute path for file I/O).
+    // Deferred items get a hard timeout to avoid infinite reprocessing loops.
+    let parsed: Awaited<ReturnType<ParserRegistry['parse']>>;
+    try {
+      parsed =
+        queuePriority === 'deferred'
+          ? await withTimeout(
+              this.parserRegistry.parse(
+                absolutePath,
+                this.options.parserOptions,
+              ),
+              this.options.deferredRetryParseTimeoutMs,
+              () =>
+                new DeferredRetryParseTimeoutError(
+                  relativePath,
+                  this.options.deferredRetryParseTimeoutMs,
+                ),
+            )
+          : await this.parserRegistry.parse(
+              absolutePath,
+              this.options.parserOptions,
+            );
+    } catch (error) {
+      if (error instanceof DeferredRetryParseTimeoutError) {
+        await this.storage.updateDocument(documentId, {
+          status: 'failed',
+          metadata: { lastError: error.message },
+        });
+      }
+      throw error;
+    }
 
     log.debug('prepareFile:parsed', {
       filePath: relativePath,
@@ -1452,6 +1522,29 @@ export class IndexingPipeline extends EventEmitter<PipelineEvents> {
         deferReason: 'parsed_text_oversize',
         attempts: 0,
         startedAt: null,
+      });
+      return;
+    }
+
+    // Deferred retry parse timeout is terminal: do not retry.
+    if (err instanceof DeferredRetryParseTimeoutError) {
+      log.warn('prepareLoop:deferredParseTimeout', {
+        filePath,
+        attempts: newAttempts,
+        message: err.message,
+      });
+      await this.storage.updateQueueItem(queueItemId, {
+        status: 'failed',
+        attempts: newAttempts,
+        lastError: err.message,
+        completedAt: new Date(),
+      });
+      this.failedCount++;
+      void this.emit('document:failed', {
+        documentId: '',
+        filePath,
+        error: err,
+        attempts: newAttempts,
       });
       return;
     }
