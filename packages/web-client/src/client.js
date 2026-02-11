@@ -823,63 +823,164 @@ class AuditariaWebClient {
     }
     
     updateInputStatus(message) {
+        this.inputStatus.classList.remove('has-footer-data');
         this.inputStatus.textContent = message;
+    }
+
+    formatModelFooterText(rawModel, displayModel) {
+      const raw = String(rawModel || '').trim();
+      const display = String(displayModel || '').trim();
+      const rawLower = raw.toLowerCase();
+      const displayLower = display.toLowerCase();
+      const toTitleCase = (value) =>
+        String(value || '')
+          .split(/[-_\s]+/)
+          .filter(Boolean)
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+
+      if (rawLower.startsWith('claude-code:')) {
+        const variant = raw.slice('claude-code:'.length);
+        const label = variant.toLowerCase() === 'auto'
+          ? 'Auto'
+          : toTitleCase(variant);
+        return `Claude (${label})`;
+      }
+
+      if (rawLower.startsWith('codex-code:')) {
+        const variant = raw.slice('codex-code:'.length);
+        if (variant.toLowerCase() === 'auto') {
+          return 'Codex (Auto)';
+        }
+        const codexTitleMap = {
+          'gpt-5.3-codex': 'GPT-5.3 Codex',
+                'gpt-5.2-codex': 'GPT-5.2 Codex',
+                'gpt-5.1-codex-mini': 'GPT-5.1 Codex Mini',
+            };
+            const mapped = codexTitleMap[variant.toLowerCase()];
+            return `Codex (${mapped || variant})`;
+        }
+
+        if (
+            rawLower === 'auto' ||
+            rawLower === 'auto-gemini-2.5' ||
+            rawLower === 'auto-gemini-3' ||
+            displayLower.startsWith('auto (gemini')
+        ) {
+            return 'Gemini (Auto)';
+        }
+
+        if (rawLower.startsWith('gemini-')) {
+            return `Gemini (${raw})`;
+        }
+
+        if (rawLower === 'pro' || rawLower === 'flash' || rawLower === 'flash-lite') {
+            return `Gemini (${toTitleCase(raw)})`;
+        }
+
+        if (displayLower.startsWith('claude (') || displayLower.startsWith('codex (')) {
+            return display;
+        }
+
+        if (displayLower.includes('gemini')) {
+            return `Gemini (${raw || display})`;
+        }
+
+        return raw || display || 'Model';
+    }
+
+    createFooterPill({ text, tone = 'neutral', extraClass = '', title = '' }) {
+        const pill = document.createElement('div');
+        pill.className = `web-footer-pill web-footer-pill-${tone}${extraClass ? ` ${extraClass}` : ''}`;
+        if (title) {
+            pill.title = title;
+        }
+
+        const valueNode = document.createElement('span');
+        valueNode.className = 'web-footer-pill-text';
+        valueNode.textContent = text;
+
+        pill.append(valueNode);
+        return pill;
     }
     
     updateFooter(footerData) {
         this.hasFooterData = true;
-        
-        const parts = [];
-        
-        // Directory and branch
-        const shortPath = shortenPath(footerData.targetDir, 40);
-        const dirAndBranch = footerData.branchName 
+
+        const workingDirectory = footerData.workingDirectory || footerData.targetDir || '';
+        const shortPath = shortenPath(workingDirectory, 52);
+        const workingDirectoryText = footerData.branchName
             ? `${shortPath} (${footerData.branchName}*)`
             : shortPath;
-        parts.push(dirAndBranch);
-        
-        // Add debug mode info
-        if (footerData.debugMode) {
-            const debugText = footerData.debugMessage || '--debug';
-            parts[0] += ` ${debugText}`;
-        }
-        
-        // Sandbox status
-        if (footerData.sandboxStatus !== 'no sandbox') {
-            parts.push(footerData.sandboxStatus);
-        } else {
-            parts.push('no sandbox (see /docs)');
-        }
-        
-        // Model and context
-        const contextText = `${footerData.contextPercentage.toFixed(0)}% context left`;
-        parts.push(`${footerData.model} (${contextText})`);
-        
-        // Add corgi mode if enabled
-        if (footerData.corgiMode) {
-            parts.push('▼(´ᴥ`)▼');
-        }
-        
-        // Add error count if any
-        if (!footerData.showErrorDetails && footerData.errorCount > 0) {
-            parts.push(`✖ ${footerData.errorCount} error${footerData.errorCount !== 1 ? 's' : ''} (ctrl+o for details)`);
-        }
-        
-        // Add memory usage indicator if enabled
-        if (footerData.showMemoryUsage) {
-            parts.push('📊 Memory');
-        }
-        
-        // Update the input status with footer information
-        const footerText = parts.join(' | ');
-        
+
+        const sandboxStatus = footerData.sandboxStatus || 'no sandbox';
+        const isSandboxed = Boolean(footerData.isSandboxed);
+        const isUntrusted = sandboxStatus === 'untrusted';
+        const sandboxValue = isUntrusted
+            ? 'Untrusted Workspace'
+            : isSandboxed
+                ? 'Sandboxed'
+                : 'No Sandbox';
+        const sandboxTone = isUntrusted ? 'warning' : isSandboxed ? 'good' : 'danger';
+
+        const contextPercentage = Number(footerData.contextPercentage);
+        const contextPercentageSafe = Number.isFinite(contextPercentage)
+            ? contextPercentage
+            : 0;
+        const contextDisplay = `${contextPercentageSafe.toFixed(0)}% context left`;
+
+        const modelDisplay = footerData.modelDisplayName || footerData.model || 'unknown';
+        const modelText = this.formatModelFooterText(footerData.model, modelDisplay);
+
+        const footerNode = document.createElement('div');
+        footerNode.className = 'web-footer';
         if (footerData.nightly) {
-            this.inputStatus.innerHTML = `<span class="footer-info footer-nightly">${footerText}</span>`;
-        } else {
-            this.inputStatus.innerHTML = `<span class="footer-info">${footerText}</span>`;
+            footerNode.classList.add('web-footer-nightly');
         }
+
+        footerNode.append(
+            this.createFooterPill({
+                text: modelText,
+                extraClass: 'web-footer-pill-model',
+                title: modelDisplay,
+            }),
+            this.createFooterPill({
+                text: contextDisplay,
+                extraClass: 'web-footer-pill-context',
+                title: `${contextPercentageSafe.toFixed(2)}% context left`,
+            }),
+            this.createFooterPill({
+                text: sandboxValue,
+                tone: sandboxTone,
+                extraClass: 'web-footer-pill-sandbox',
+                title: sandboxStatus,
+            }),
+            this.createFooterPill({
+                text: workingDirectoryText,
+                tone: 'subtle',
+                extraClass: 'web-footer-pill-path',
+                title: workingDirectory,
+            }),
+        );
+
+        if (footerData.debugMode) {
+            footerNode.append(this.createFooterPill({
+                text: footerData.debugMessage || 'Debug Mode',
+                tone: 'warning',
+            }));
+        }
+
+        if (!footerData.showErrorDetails && footerData.errorCount > 0) {
+            footerNode.append(this.createFooterPill({
+                text: `${footerData.errorCount} error${footerData.errorCount !== 1 ? 's' : ''}`,
+                tone: 'danger',
+            }));
+        }
+
+        this.inputStatus.classList.add('has-footer-data');
+        this.inputStatus.replaceChildren(footerNode);
     }
-    
+
     autoResizeTextarea() {
         this.messageInput.style.height = 'auto';
         this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';

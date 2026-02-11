@@ -10,10 +10,16 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 
 export interface FooterData {
   targetDir: string;
+  workingDirectory: string;
   branchName?: string;
   model: string;
+  modelDisplayName: string;
   contextPercentage: number;
+  contextUsedTokens: number;
+  contextMaxTokens: number;
+  contextLeftTokens: number;
   sandboxStatus: string;
+  isSandboxed: boolean;
   errorCount: number;
   debugMode: boolean;
   debugMessage?: string;

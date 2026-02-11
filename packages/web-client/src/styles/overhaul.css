@@ -770,6 +770,115 @@ pre {
 
 .input-status {
   color: var(--text-subtle);
+  min-height: 28px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.input-status.has-footer-data {
+  display: block;
+}
+
+.web-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: center;
+  align-items: center;
+}
+
+.web-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  background: var(--surface-alt);
+  min-height: 26px;
+  max-width: 100%;
+  transition: background var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.web-footer-pill-text {
+  font-family: "Segoe UI Variable Text", "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.05px;
+  font-weight: 500;
+}
+
+.web-footer-pill-model {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary-10) 72%, var(--surface-alt)),
+    color-mix(in srgb, var(--surface-alt) 82%, var(--bg-elevated))
+  );
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--primary) 24%, transparent),
+    0 8px 18px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.web-footer-pill-model .web-footer-pill-text {
+  color: var(--text);
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.web-footer-pill-context .web-footer-pill-text {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.web-footer-pill-path {
+  max-width: min(520px, 100%);
+  opacity: 0.92;
+}
+
+.web-footer-pill-path .web-footer-pill-text {
+  max-width: min(390px, 72vw);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.web-footer-pill-good {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  background: color-mix(in srgb, var(--success-bg) 55%, var(--surface-alt));
+}
+
+.web-footer-pill-good .web-footer-pill-text {
+  color: var(--success);
+}
+
+.web-footer-pill-warning {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: color-mix(in srgb, var(--warning-bg) 55%, var(--surface-alt));
+}
+
+.web-footer-pill-warning .web-footer-pill-text {
+  color: var(--warning);
+}
+
+.web-footer-pill-danger {
+  border-color: color-mix(in srgb, var(--error) 35%, var(--border));
+  background: color-mix(in srgb, var(--error-bg) 55%, var(--surface-alt));
+}
+
+.web-footer-pill-danger .web-footer-pill-text {
+  color: var(--error);
+}
+
+.web-footer-pill-subtle {
+  background: transparent;
+  border-color: var(--border-subtle);
+}
+
+.web-footer-nightly .web-footer-pill {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
 }
 
 /* Attachment preview */
@@ -1019,5 +1128,22 @@ textarea:focus-visible {
 
   .input-section {
     border-radius: var(--radius-lg);
+  }
+
+  .web-footer {
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .web-footer-pill {
+    max-width: 100%;
+  }
+
+  .web-footer-pill-path {
+    width: 100%;
+  }
+
+  .web-footer-pill-path .web-footer-pill-text {
+    max-width: 100%;
   }
 }

@@ -88,6 +88,7 @@ export const Footer: React.FC = () => {
 
     // Determine sandbox status
     let sandboxStatus = 'no sandbox';
+    let isSandboxed = false;
     if (isTrustedFolder === false) {
       sandboxStatus = 'untrusted';
     } else if (
@@ -95,20 +96,31 @@ export const Footer: React.FC = () => {
       process.env['SANDBOX'] !== 'sandbox-exec'
     ) {
       sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+      isSandboxed = true;
     } else if (process.env['SANDBOX'] === 'sandbox-exec') {
       sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
+      isSandboxed = true;
     }
 
     // Calculate context percentage LEFT (matching ContextUsageDisplay logic)
-    const percentage = promptTokenCount / tokenLimit(model);
+    const contextMaxTokens = tokenLimit(model);
+    const contextUsedTokens = promptTokenCount;
+    const contextLeftTokens = contextMaxTokens - contextUsedTokens;
+    const percentage = contextUsedTokens / Math.max(1, contextMaxTokens);
     const percentageLeft = (1 - percentage) * 100;
 
     const newData: FooterData = {
       targetDir,
+      workingDirectory: targetDir,
       branchName,
       model,
+      modelDisplayName: getDisplayString(model),
       contextPercentage: percentageLeft,
+      contextUsedTokens,
+      contextMaxTokens,
+      contextLeftTokens,
       sandboxStatus,
+      isSandboxed,
       errorCount,
       debugMode,
       debugMessage,
