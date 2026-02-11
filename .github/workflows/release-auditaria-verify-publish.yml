@@ -80,12 +80,26 @@ jobs:
           const packageJsonPath = 'package.json';
           const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
           const versionInput = (process.env.RELEASE_VERSION || '').trim();
+          const semverRegex =
+            /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
           packageJson.private = false;
           if (versionInput) {
-            packageJson.version = versionInput.startsWith('v')
+            const normalizedVersion = versionInput.startsWith('v')
               ? versionInput.slice(1)
               : versionInput;
+
+            if (!semverRegex.test(normalizedVersion)) {
+              throw new Error(
+                `Invalid release_version "${versionInput}". Use semver like "0.28.0" or "v0.28.0".`,
+              );
+            }
+
+            packageJson.version = normalizedVersion;
+          } else if (!semverRegex.test(packageJson.version)) {
+            throw new Error(
+              `Current package.json version "${packageJson.version}" is not valid semver.`,
+            );
           }
 
           fs.writeFileSync(
