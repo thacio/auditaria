@@ -393,6 +393,9 @@ describe('ClaudeCLIDriver', () => {
       expect.objectContaining({
         cwd: '/tmp/test',
         shell: expectedShellOption,
+        env: expect.objectContaining({
+          NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        }),
       }),
     );
 
@@ -423,7 +426,12 @@ describe('ClaudeCLIDriver', () => {
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
       expect.arrayContaining(['--append-system-prompt-file', expect.stringContaining('.system-prompt')]),
-      expect.objectContaining({ shell: expectedShellOption }),
+      expect.objectContaining({
+        shell: expectedShellOption,
+        env: expect.objectContaining({
+          NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        }),
+      }),
     );
 
     // Prompt goes via stdin (not mixed with system context)

@@ -63,6 +63,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
       shell: getShellOption(),
+      env: {
+        ...process.env,
+        NODE_TLS_REJECT_UNAUTHORIZED: '0',
+      },
     });
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
