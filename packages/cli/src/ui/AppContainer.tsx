@@ -73,6 +73,9 @@ import {
   type ConsentRequestPayload,
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
+  type CodexReasoningEffort, // AUDITARIA_PROVIDER and WEB
+  getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
+  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
 } from '@google/gemini-cli-core';
 import { validateAuthMethod } from '../config/auth.js';
 import process from 'node:process';
@@ -118,6 +121,16 @@ import { RELAUNCH_EXIT_CODE } from '../utils/processUtils.js';
 import type { SessionInfo } from '../utils/sessionUtils.js';
 import { useMessageQueue } from './hooks/useMessageQueue.js';
 import { useMcpStatus } from './hooks/useMcpStatus.js';
+import {
+  CLAUDE_PREFIX,
+  CODEX_PREFIX,
+  CLAUDE_SUBMENU_OPTIONS,
+  CODEX_SUBMENU_OPTIONS,
+  DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_REASONING_OPTIONS,
+  getGeminiWebOptions,
+  isCodexReasoningEffort,
+} from './modelCatalog.js';
 import { useApprovalModeIndicator } from './hooks/useApprovalModeIndicator.js';
 import { useSessionStats } from './contexts/SessionContext.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
@@ -333,7 +346,8 @@ export const AppContainer = (props: AppContainerProps) => {
     [],
   );
 
-  const [currentModel, setCurrentModel] = useState(config.getDisplayModel()); // AUDITARIA_CLAUDE_PROVIDER
+  const [currentModel, setCurrentModel] = useState(config.getDisplayModel()); // AUDITARIA_PROVIDER
+  const [modelChangeNonce, setModelChangeNonce] = useState(0); // AUDITARIA_ WEB_INTERFACE: force footer model menu refresh on provider option changes
 
   const [userTier, setUserTier] = useState<UserTierId | undefined>(undefined);
 
@@ -439,6 +453,7 @@ export const AppContainer = (props: AppContainerProps) => {
     const handleModelChanged = () => {
       // AUDITARIA_CLAUDE_PROVIDER: Use getDisplayModel() to show Claude/Gemini correctly
       setCurrentModel(config.getDisplayModel());
+      setModelChangeNonce((prev) => prev + 1); // AUDITARIA_ WEB_INTERFACE
     };
 
     coreEvents.on(CoreEvent.ModelChanged, handleModelChanged);
@@ -1811,6 +1826,185 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   // WEB_INTERFACE_START: Web interface integration - submitQuery registration and abort handler
   const webInterface = useWebInterface();
+
+  // WEB_INTERFACE_START: Web model selector data + handler
+  const webModelMenuData = useMemo(() => {
+    const hasPreviewModels = config.getHasAccessToPreviewModel();
+    const selectedDisplayModel = config.getDisplayModel();
+    const selectedGeminiModel = config.getModel();
+
+    const providerConfig = config.getProviderConfig();
+    const rawCodexEffort =
+      providerConfig?.type === 'codex-cli'
+        ? providerConfig.options?.['reasoningEffort']
+        : undefined;
+    const baseCodexEffort = isCodexReasoningEffort(rawCodexEffort)
+      ? rawCodexEffort
+      : DEFAULT_CODEX_REASONING_EFFORT;
+
+    const groups = [
+      {
+        id: 'gemini',
+        label: 'Gemini',
+        options: getGeminiWebOptions(hasPreviewModels),
+      },
+      {
+        id: 'claude',
+        label: 'Claude',
+        options: CLAUDE_SUBMENU_OPTIONS.map((option) => ({
+          selection: option.value,
+          label: `Claude (${option.title})`,
+          description: option.description,
+        })),
+      },
+      {
+        id: 'codex',
+        label: 'Codex',
+        options: CODEX_SUBMENU_OPTIONS.map((option) => ({
+          selection: option.value,
+          label: `Codex (${option.title})`,
+          description: option.description,
+          supportedReasoningEfforts: getSupportedCodexReasoningEfforts(
+            option.model,
+          ),
+        })),
+      },
+    ];
+
+    let activeSelection =
+      selectedGeminiModel === 'auto'
+        ? 'gemini:auto-gemini-2.5'
+        : `gemini:${selectedGeminiModel}`;
+    if (selectedDisplayModel.startsWith('claude-code:')) {
+      const variant = selectedDisplayModel.split(':')[1] || 'auto';
+      activeSelection = `${CLAUDE_PREFIX}${variant}`;
+    } else if (selectedDisplayModel.startsWith('codex-code:')) {
+      const variant = selectedDisplayModel.split(':')[1] || 'auto';
+      activeSelection = `${CODEX_PREFIX}${variant}`;
+    }
+
+    const availableSelections = new Set(
+      groups.flatMap((group) =>
+        (group.options ?? []).map((option) => option.selection),
+      ),
+    );
+    if (!availableSelections.has(activeSelection)) {
+      if (selectedDisplayModel.startsWith('claude-code:')) {
+        activeSelection = `${CLAUDE_PREFIX}auto`;
+      } else if (selectedDisplayModel.startsWith('codex-code:')) {
+        activeSelection = `${CODEX_PREFIX}auto`;
+      } else {
+        activeSelection = 'gemini:auto-gemini-2.5';
+      }
+    }
+
+    const activeCodexSelection = activeSelection.startsWith(CODEX_PREFIX)
+      ? activeSelection
+      : `${CODEX_PREFIX}auto`;
+    const activeCodexModel = activeCodexSelection.slice(CODEX_PREFIX.length);
+    const codexReasoningEffort = clampCodexReasoningEffortForModel(
+      activeCodexModel === 'auto' ? undefined : activeCodexModel,
+      baseCodexEffort,
+    );
+
+    return {
+      groups,
+      activeSelection,
+      codexReasoning: {
+        activeSelection: activeCodexSelection,
+        currentEffort: codexReasoningEffort,
+        options: CODEX_REASONING_OPTIONS,
+      },
+    };
+  }, [config, currentModel, modelChangeNonce]);
+
+  const webModelSelections = useMemo(
+    () =>
+      new Set(
+        webModelMenuData.groups.flatMap((group) =>
+          (group.options ?? []).map((option) => option.selection),
+        ),
+      ),
+    [webModelMenuData],
+  );
+
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastModelMenuData(webModelMenuData);
+    }
+  }, [
+    webInterface?.service,
+    webInterface?.isRunning,
+    webModelMenuData,
+  ]);
+
+  useEffect(() => {
+    if (!webInterface?.service) return;
+
+    const handleModelChangeRequest = (payload: {
+      selection?: string;
+      reasoningEffort?: string;
+    }) => {
+      const selection = payload?.selection;
+      if (!selection || typeof selection !== 'string') return;
+      if (!webModelSelections.has(selection)) return;
+
+      if (selection.startsWith('gemini:')) {
+        const geminiModel = selection.slice('gemini:'.length);
+        if (!geminiModel) return;
+        config.clearProviderConfig();
+        config.setModel(geminiModel, true);
+        return;
+      }
+
+      if (selection.startsWith(CLAUDE_PREFIX)) {
+        const claudeModel = selection.slice(CLAUDE_PREFIX.length);
+        config.setProviderConfig({
+          type: 'claude-cli',
+          model: claudeModel === 'auto' ? undefined : claudeModel,
+          cwd: config.getWorkingDir(),
+        });
+        return;
+      }
+
+      if (selection.startsWith(CODEX_PREFIX)) {
+        const codexModel = selection.slice(CODEX_PREFIX.length);
+        const existingProviderConfig = config.getProviderConfig();
+        const payloadReasoningEffort = payload?.reasoningEffort;
+        const existingReasoningEffort = existingProviderConfig?.options?.[
+          'reasoningEffort'
+        ];
+        const baseReasoningEffort: CodexReasoningEffort =
+          isCodexReasoningEffort(payloadReasoningEffort)
+            ? payloadReasoningEffort
+            : isCodexReasoningEffort(existingReasoningEffort)
+              ? existingReasoningEffort
+              : DEFAULT_CODEX_REASONING_EFFORT;
+        const clampedReasoningEffort = clampCodexReasoningEffortForModel(
+          codexModel === 'auto' ? undefined : codexModel,
+          baseReasoningEffort,
+        );
+
+        config.setProviderConfig({
+          type: 'codex-cli',
+          model: codexModel === 'auto' ? undefined : codexModel,
+          cwd: config.getWorkingDir(),
+          options: {
+            reasoningEffort: clampedReasoningEffort,
+          },
+        });
+      }
+    };
+
+    webInterface.service.on('model_change_request', handleModelChangeRequest);
+    return () => {
+      webInterface?.service?.off(
+        'model_change_request',
+        handleModelChangeRequest,
+      );
+    };
+  }, [webInterface?.service, config, webModelSelections]);
+  // WEB_INTERFACE_END
 
   // Store current submitQuery in ref for web interface
   const submitQueryRef = useRef(submitQuery);

@@ -204,6 +204,18 @@ export class WebSocketManager extends EventTarget {
             timestamp: Date.now()
         });
     }
+
+    /**
+     * Send model selection request from web footer
+     */
+    sendModelSelection(selection, extra = {}) {
+        return this.send({
+            type: 'set_model_request',
+            selection: selection,
+            ...extra,
+            timestamp: Date.now()
+        });
+    }
     
     /**
      * Handle disconnection

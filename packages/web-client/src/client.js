@@ -62,6 +62,15 @@ class AuditariaWebClient {
 
         // State properties
         this.hasFooterData = false;
+        this.latestFooterData = null;
+        this.modelMenuData = null;
+        this.modelMenuElement = null;
+        this.modelMenuAnchor = null;
+        this.modelMenuScrollTop = 0;
+        this.codexMenuEfforts = new Map();
+        this.handleModelMenuOutsideClick = this.handleModelMenuOutsideClick.bind(this);
+        this.handleModelMenuEscape = this.handleModelMenuEscape.bind(this);
+        this.handleModelMenuViewportChange = this.handleModelMenuViewportChange.bind(this);
         this.attachments = []; // Store current attachments
         this.audioRecorder = null; // Audio recorder instance
         
@@ -188,6 +197,10 @@ class AuditariaWebClient {
         
         this.wsManager.addEventListener('footer_data', (e) => {
             this.updateFooter(e.detail);
+        });
+
+        this.wsManager.addEventListener('model_menu_data', (e) => {
+            this.updateModelMenuData(e.detail);
         });
         
         this.wsManager.addEventListener('slash_commands', (e) => {
@@ -823,37 +836,38 @@ class AuditariaWebClient {
     }
     
     updateInputStatus(message) {
+        this.closeModelMenu();
         this.inputStatus.classList.remove('has-footer-data');
         this.inputStatus.textContent = message;
     }
 
     formatModelFooterText(rawModel, displayModel) {
-      const raw = String(rawModel || '').trim();
-      const display = String(displayModel || '').trim();
-      const rawLower = raw.toLowerCase();
-      const displayLower = display.toLowerCase();
-      const toTitleCase = (value) =>
-        String(value || '')
-          .split(/[-_\s]+/)
-          .filter(Boolean)
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(' ');
+        const raw = String(rawModel || '').trim();
+        const display = String(displayModel || '').trim();
+        const rawLower = raw.toLowerCase();
+        const displayLower = display.toLowerCase();
+        const toTitleCase = (value) =>
+            String(value || '')
+                .split(/[-_\s]+/)
+                .filter(Boolean)
+                .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
 
-      if (rawLower.startsWith('claude-code:')) {
-        const variant = raw.slice('claude-code:'.length);
-        const label = variant.toLowerCase() === 'auto'
-          ? 'Auto'
-          : toTitleCase(variant);
-        return `Claude (${label})`;
-      }
-
-      if (rawLower.startsWith('codex-code:')) {
-        const variant = raw.slice('codex-code:'.length);
-        if (variant.toLowerCase() === 'auto') {
-          return 'Codex (Auto)';
+        if (rawLower.startsWith('claude-code:')) {
+            const variant = raw.slice('claude-code:'.length);
+            const label = variant.toLowerCase() === 'auto'
+                ? 'Auto'
+                : toTitleCase(variant);
+            return `Claude (${label})`;
         }
-        const codexTitleMap = {
-          'gpt-5.3-codex': 'GPT-5.3 Codex',
+
+        if (rawLower.startsWith('codex-code:')) {
+            const variant = raw.slice('codex-code:'.length);
+            if (variant.toLowerCase() === 'auto') {
+                return 'Codex (Auto)';
+            }
+            const codexTitleMap = {
+                'gpt-5.3-codex': 'GPT-5.3 Codex',
                 'gpt-5.2-codex': 'GPT-5.2 Codex',
                 'gpt-5.1-codex-mini': 'GPT-5.1 Codex Mini',
             };
@@ -874,16 +888,28 @@ class AuditariaWebClient {
             return `Gemini (${raw})`;
         }
 
-        if (rawLower === 'pro' || rawLower === 'flash' || rawLower === 'flash-lite') {
+        if (
+            rawLower === 'pro' ||
+            rawLower === 'flash' ||
+            rawLower === 'flash-lite'
+        ) {
             return `Gemini (${toTitleCase(raw)})`;
         }
 
-        if (displayLower.startsWith('claude (') || displayLower.startsWith('codex (')) {
+        if (
+            displayLower.startsWith('claude (') ||
+            displayLower.startsWith('codex (')
+        ) {
             return display;
         }
 
         if (displayLower.includes('gemini')) {
             return `Gemini (${raw || display})`;
+        }
+
+        if (displayLower.startsWith('auditaria (')) {
+            const label = display.replace(/^auditaria\s*\(/i, '').replace(/\)$/, '');
+            return `Gemini (${label})`;
         }
 
         return raw || display || 'Model';
@@ -903,9 +929,448 @@ class AuditariaWebClient {
         pill.append(valueNode);
         return pill;
     }
+
+    normalizeModelMenuLabel(value, fallback = 'Model') {
+        const text = String(value || '').trim();
+        if (!text) return fallback;
+        if (/^auditaria\s*\(/i.test(text)) {
+            const inner = text.replace(/^auditaria\s*\(/i, '').replace(/\)\s*$/, '').trim();
+            return `Gemini (${inner || 'Auto'})`;
+        }
+        if (/^auditaria$/i.test(text)) {
+            return 'Gemini';
+        }
+        return text;
+    }
+
+    normalizeModelMenuData(modelMenuData) {
+        if (!modelMenuData || typeof modelMenuData !== 'object') {
+            return null;
+        }
+
+        const groups = Array.isArray(modelMenuData.groups)
+            ? modelMenuData.groups.map((group) => ({
+                ...group,
+                label: this.normalizeModelMenuLabel(group?.label, 'Group'),
+                options: Array.isArray(group?.options)
+                    ? group.options.map((option) => ({
+                        ...option,
+                        label: this.normalizeModelMenuLabel(
+                            option?.label,
+                            option?.selection || 'Model',
+                        ),
+                    }))
+                    : [],
+            }))
+            : [];
+
+        return {
+            ...modelMenuData,
+            groups,
+        };
+    }
+
+    updateModelMenuData(modelMenuData) {
+        const wasOpen = Boolean(this.modelMenuElement);
+        if (this.modelMenuElement) {
+            this.modelMenuScrollTop = this.modelMenuElement.scrollTop;
+        }
+        this.modelMenuData = this.normalizeModelMenuData(modelMenuData);
+        const codexOptions =
+            this.modelMenuData?.groups?.find((group) => group.id === 'codex')?.options || [];
+        const codexSelections = new Set(codexOptions.map((option) => option.selection));
+        for (const selection of this.codexMenuEfforts.keys()) {
+            if (!codexSelections.has(selection)) {
+                this.codexMenuEfforts.delete(selection);
+            }
+        }
+        if (this.latestFooterData) {
+            this.updateFooter(this.latestFooterData);
+        }
+        if (wasOpen && this.modelMenuAnchor) {
+            this.openModelMenu(this.modelMenuAnchor);
+        }
+    }
+
+    getActiveModelMenuOption() {
+        if (!this.modelMenuData?.groups || !this.modelMenuData?.activeSelection) {
+            return null;
+        }
+        for (const group of this.modelMenuData.groups) {
+            for (const option of group.options || []) {
+                if (option.selection === this.modelMenuData.activeSelection) {
+                    return option;
+                }
+            }
+        }
+        return null;
+    }
+
+    hasModelMenuOptions() {
+        return this.modelMenuData?.groups?.some(
+            (group) => Array.isArray(group.options) && group.options.length > 0,
+        ) || false;
+    }
+
+    setModelMenuExpanded(expanded) {
+        if (this.modelMenuAnchor) {
+            this.modelMenuAnchor.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+    }
+
+    getCodexReasoningMetadataForSelection(selection) {
+        if (!selection?.startsWith('codex:')) return null;
+        const codexReasoning = this.modelMenuData?.codexReasoning;
+        if (!codexReasoning?.options?.length) return null;
+
+        const codexGroup = this.modelMenuData?.groups?.find((group) => group.id === 'codex');
+        const activeOption = codexGroup?.options?.find((option) => option.selection === selection);
+        const supportedEfforts = Array.isArray(activeOption?.supportedReasoningEfforts)
+            ? activeOption.supportedReasoningEfforts
+            : [];
+        if (!supportedEfforts.length) return null;
+
+        return {
+            currentEffort: codexReasoning.currentEffort,
+            options: codexReasoning.options,
+            supportedEfforts,
+        };
+    }
+
+    getCodexEffortStateForSelection(selection) {
+        const codexReasoning = this.getCodexReasoningMetadataForSelection(selection);
+        if (!codexReasoning) return null;
+
+        const effortOrder = codexReasoning.options.map((option) => option.value);
+        const supportedEfforts = codexReasoning.supportedEfforts.filter((value) =>
+            effortOrder.includes(value),
+        );
+        if (!supportedEfforts.length) return null;
+
+        const effortLabelMap = new Map(
+            codexReasoning.options.map((option) => [option.value, option.label]),
+        );
+
+        const overriddenEffort = this.codexMenuEfforts.get(selection);
+        let currentEffort = overriddenEffort || codexReasoning.currentEffort;
+        if (!supportedEfforts.includes(currentEffort)) {
+            const fallback =
+                [...supportedEfforts]
+                    .reverse()
+                    .find((value) => effortOrder.indexOf(value) <= effortOrder.indexOf(codexReasoning.currentEffort)) ||
+                supportedEfforts[0];
+            currentEffort = fallback;
+        }
+
+        const currentIndex = supportedEfforts.indexOf(currentEffort);
+        const previousEffort =
+            supportedEfforts[Math.max(0, currentIndex - 1)] || currentEffort;
+        const nextEffort =
+            supportedEfforts[Math.min(supportedEfforts.length - 1, currentIndex + 1)] ||
+            currentEffort;
+        const canDecrease = currentIndex > 0;
+        const canIncrease = currentIndex < supportedEfforts.length - 1;
+
+        const maxEffort = supportedEfforts[supportedEfforts.length - 1];
+        const filledBars = Math.max(1, effortOrder.indexOf(currentEffort) + 1);
+        const maxBars = Math.max(filledBars, effortOrder.indexOf(maxEffort) + 1);
+
+        return {
+            currentEffort,
+            currentLabel: effortLabelMap.get(currentEffort) || 'Medium',
+            previousEffort,
+            previousLabel: effortLabelMap.get(previousEffort) || 'Medium',
+            nextEffort,
+            nextLabel: effortLabelMap.get(nextEffort) || 'Medium',
+            canDecrease,
+            canIncrease,
+            filledBars,
+            maxBars,
+        };
+    }
+
+    buildModelMenuElement() {
+        if (!this.modelMenuData?.groups?.length) {
+            return null;
+        }
+
+        const menu = document.createElement('div');
+        menu.className = 'web-footer-model-menu';
+
+        const menuHeader = document.createElement('div');
+        menuHeader.className = 'web-footer-model-menu-header';
+        menuHeader.textContent = 'Model selection';
+        menu.append(menuHeader);
+
+        for (const group of this.modelMenuData.groups) {
+            const section = document.createElement('div');
+            section.className = 'web-footer-model-menu-section';
+            const isCodexGroup = group.id === 'codex';
+
+            const title = document.createElement('div');
+            title.className = 'web-footer-model-menu-title';
+            title.textContent = group.label;
+            section.append(title);
+
+            for (const option of group.options || []) {
+                const item = document.createElement('div');
+                item.className = 'web-footer-model-menu-item';
+                item.setAttribute('role', 'button');
+                item.setAttribute('tabindex', '0');
+                if (option.selection === this.modelMenuData.activeSelection) {
+                    item.classList.add('is-active');
+                }
+                item.title = option.description || option.label;
+                if (isCodexGroup) {
+                    item.classList.add('web-footer-model-menu-item-codex');
+                }
+
+                const main = document.createElement('div');
+                main.className = 'web-footer-model-menu-item-main';
+
+                const label = document.createElement('span');
+                label.className = 'web-footer-model-menu-item-label';
+                label.textContent = option.label;
+                main.append(label);
+
+                if (option.description) {
+                    const description = document.createElement('span');
+                    description.className = 'web-footer-model-menu-item-description';
+                    description.textContent = option.description;
+                    main.append(description);
+                }
+                item.append(main);
+
+                if (isCodexGroup) {
+                    const effortState = this.getCodexEffortStateForSelection(
+                        option.selection,
+                    );
+                    if (effortState) {
+                        const effortControl = document.createElement('div');
+                        effortControl.className = 'web-footer-codex-effort-control';
+
+                        const effortTitle = document.createElement('span');
+                        effortTitle.className = 'web-footer-codex-effort-title';
+                        effortTitle.textContent = 'Thinking';
+                        effortControl.append(effortTitle);
+
+                        const leftArrow = document.createElement('button');
+                        leftArrow.type = 'button';
+                        leftArrow.className = 'web-footer-codex-effort-arrow';
+                        leftArrow.textContent = '\u2039';
+                        effortControl.append(leftArrow);
+
+                        const effortBars = document.createElement('span');
+                        effortBars.className = 'web-footer-codex-effort-bars';
+                        effortControl.append(effortBars);
+
+                        const rightArrow = document.createElement('button');
+                        rightArrow.type = 'button';
+                        rightArrow.className = 'web-footer-codex-effort-arrow';
+                        rightArrow.textContent = '\u203A';
+                        effortControl.append(rightArrow);
+
+                        const renderBars = (state) => {
+                            effortBars.replaceChildren();
+
+                            const filledBars = document.createElement('span');
+                            filledBars.className = 'is-filled';
+                            filledBars.textContent = '|'.repeat(state.filledBars);
+                            effortBars.append(filledBars);
+
+                            const emptyBarCount = Math.max(
+                                0,
+                                state.maxBars - state.filledBars,
+                            );
+                            if (emptyBarCount > 0) {
+                                const emptyBars = document.createElement('span');
+                                emptyBars.className = 'is-empty';
+                                emptyBars.textContent = '|'.repeat(emptyBarCount);
+                                effortBars.append(emptyBars);
+                            }
+                        };
+
+                        const renderState = () => {
+                            const state = this.getCodexEffortStateForSelection(option.selection);
+                            if (!state) return;
+
+                            const decreaseTarget = state.canDecrease
+                                ? state.previousLabel
+                                : state.currentLabel;
+                            const increaseTarget = state.canIncrease
+                                ? state.nextLabel
+                                : state.currentLabel;
+                            effortControl.title = `Thinking: ${state.currentLabel}`;
+                            leftArrow.title = `Decrease thinking to ${decreaseTarget}`;
+                            rightArrow.title = `Increase thinking to ${increaseTarget}`;
+                            leftArrow.disabled = !state.canDecrease;
+                            rightArrow.disabled = !state.canIncrease;
+                            renderBars(state);
+                        };
+                        renderState();
+
+                        leftArrow.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const state = this.getCodexEffortStateForSelection(option.selection);
+                            if (!state || !state.canDecrease) return;
+                            this.codexMenuEfforts.set(option.selection, state.previousEffort);
+                            renderState();
+                        });
+                        rightArrow.addEventListener('click', (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const state = this.getCodexEffortStateForSelection(option.selection);
+                            if (!state || !state.canIncrease) return;
+                            this.codexMenuEfforts.set(option.selection, state.nextEffort);
+                            renderState();
+                        });
+
+                        item.append(effortControl);
+                    }
+                }
+
+                item.addEventListener('click', () => {
+                    if (isCodexGroup) {
+                        const state = this.getCodexEffortStateForSelection(option.selection);
+                        this.wsManager.sendModelSelection(
+                            option.selection,
+                            state?.currentEffort
+                                ? { reasoningEffort: state.currentEffort }
+                                : {},
+                        );
+                    } else {
+                        this.wsManager.sendModelSelection(option.selection);
+                    }
+                    this.closeModelMenu();
+                });
+                item.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        item.click();
+                    }
+                });
+                section.append(item);
+            }
+
+            menu.append(section);
+        }
+
+        return menu;
+    }
+
+    positionModelMenu() {
+        if (!this.modelMenuElement || !this.modelMenuAnchor) return;
+
+        const anchorRect = this.modelMenuAnchor.getBoundingClientRect();
+        const menuRect = this.modelMenuElement.getBoundingClientRect();
+
+        const viewportPadding = 12;
+        const menuGap = 10;
+        let left = anchorRect.left + (anchorRect.width / 2) - (menuRect.width / 2);
+        const maxLeft = Math.max(viewportPadding, window.innerWidth - menuRect.width - viewportPadding);
+        left = Math.max(viewportPadding, Math.min(left, maxLeft));
+
+        const availableAbove = anchorRect.top - viewportPadding - menuGap;
+        const availableBelow =
+            window.innerHeight - anchorRect.bottom - viewportPadding - menuGap;
+        const canFitAbove = menuRect.height <= availableAbove;
+        const canFitBelow = menuRect.height <= availableBelow;
+
+        let top;
+        if (canFitAbove || (!canFitBelow && availableAbove >= availableBelow)) {
+            top = anchorRect.top - menuRect.height - menuGap;
+        } else {
+            top = anchorRect.bottom + menuGap;
+        }
+
+        const minTop = viewportPadding;
+        const maxTop = Math.max(viewportPadding, window.innerHeight - menuRect.height - viewportPadding);
+        top = Math.max(minTop, Math.min(top, maxTop));
+
+        this.modelMenuElement.style.left = `${Math.round(left)}px`;
+        this.modelMenuElement.style.top = `${Math.round(top)}px`;
+    }
+
+    openModelMenu(anchorElement) {
+        this.closeModelMenu();
+        this.modelMenuAnchor = anchorElement;
+
+        const menu = this.buildModelMenuElement();
+        if (!menu) return;
+
+        this.modelMenuElement = menu;
+        this.setModelMenuExpanded(true);
+        document.body.append(menu);
+        this.modelMenuElement.scrollTop = this.modelMenuScrollTop;
+        this.modelMenuElement.addEventListener('scroll', () => {
+            if (this.modelMenuElement) {
+                this.modelMenuScrollTop = this.modelMenuElement.scrollTop;
+            }
+        });
+        this.positionModelMenu();
+
+        requestAnimationFrame(() => {
+            if (this.modelMenuElement) {
+                this.modelMenuElement.classList.add('is-open');
+            }
+        });
+
+        document.addEventListener('click', this.handleModelMenuOutsideClick);
+        document.addEventListener('keydown', this.handleModelMenuEscape);
+        window.addEventListener('resize', this.handleModelMenuViewportChange);
+        window.addEventListener('scroll', this.handleModelMenuViewportChange, true);
+    }
+
+    closeModelMenu() {
+        document.removeEventListener('click', this.handleModelMenuOutsideClick);
+        document.removeEventListener('keydown', this.handleModelMenuEscape);
+        window.removeEventListener('resize', this.handleModelMenuViewportChange);
+        window.removeEventListener('scroll', this.handleModelMenuViewportChange, true);
+        this.setModelMenuExpanded(false);
+
+        if (this.modelMenuElement) {
+            this.modelMenuScrollTop = this.modelMenuElement.scrollTop;
+            this.modelMenuElement.remove();
+        }
+        this.modelMenuElement = null;
+        this.modelMenuAnchor = null;
+    }
+
+    toggleModelMenu(anchorElement) {
+        if (this.modelMenuElement) {
+            this.closeModelMenu();
+        } else {
+            this.openModelMenu(anchorElement);
+        }
+    }
+
+    handleModelMenuOutsideClick(event) {
+        if (!this.modelMenuElement) return;
+        const target = event.target;
+        if (this.modelMenuElement.contains(target) || this.modelMenuAnchor?.contains(target)) {
+            return;
+        }
+        this.closeModelMenu();
+    }
+
+    handleModelMenuEscape(event) {
+        if (event.key === 'Escape') {
+            this.closeModelMenu();
+        }
+    }
+
+    handleModelMenuViewportChange() {
+        this.positionModelMenu();
+    }
     
     updateFooter(footerData) {
         this.hasFooterData = true;
+        this.latestFooterData = footerData;
+        const shouldPreserveModelMenu = Boolean(this.modelMenuElement);
+        if (this.modelMenuElement) {
+            this.modelMenuScrollTop = this.modelMenuElement.scrollTop;
+        }
 
         const workingDirectory = footerData.workingDirectory || footerData.targetDir || '';
         const shortPath = shortenPath(workingDirectory, 52);
@@ -930,7 +1395,11 @@ class AuditariaWebClient {
         const contextDisplay = `${contextPercentageSafe.toFixed(0)}% context left`;
 
         const modelDisplay = footerData.modelDisplayName || footerData.model || 'unknown';
-        const modelText = this.formatModelFooterText(footerData.model, modelDisplay);
+        const activeModelOption = this.getActiveModelMenuOption();
+        const modelText =
+            activeModelOption?.label ||
+            this.formatModelFooterText(footerData.model, modelDisplay);
+        const canSelectModel = this.hasModelMenuOptions();
 
         const footerNode = document.createElement('div');
         footerNode.className = 'web-footer';
@@ -938,22 +1407,52 @@ class AuditariaWebClient {
             footerNode.classList.add('web-footer-nightly');
         }
 
+        const modelPill = this.createFooterPill({
+            text: modelText,
+            extraClass: `web-footer-pill-model${canSelectModel ? ' web-footer-pill-action' : ''}`,
+            title: canSelectModel ? `${modelDisplay} (click to change)` : modelDisplay,
+        });
+        if (canSelectModel) {
+            modelPill.setAttribute('role', 'button');
+            modelPill.setAttribute('tabindex', '0');
+            modelPill.setAttribute('aria-haspopup', 'menu');
+            modelPill.setAttribute(
+                'aria-expanded',
+                shouldPreserveModelMenu ? 'true' : 'false',
+            );
+
+            const modelCaret = document.createElement('span');
+            modelCaret.className = 'web-footer-pill-caret';
+            modelCaret.textContent = '\u25BE';
+            modelPill.append(modelCaret);
+
+            modelPill.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.toggleModelMenu(modelPill);
+            });
+            modelPill.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.toggleModelMenu(modelPill);
+                } else if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    this.openModelMenu(modelPill);
+                }
+            });
+        }
+
         footerNode.append(
-            this.createFooterPill({
-                text: modelText,
-                extraClass: 'web-footer-pill-model',
-                title: modelDisplay,
-            }),
-            this.createFooterPill({
-                text: contextDisplay,
-                extraClass: 'web-footer-pill-context',
-                title: `${contextPercentageSafe.toFixed(2)}% context left`,
-            }),
+            modelPill,
             this.createFooterPill({
                 text: sandboxValue,
                 tone: sandboxTone,
                 extraClass: 'web-footer-pill-sandbox',
                 title: sandboxStatus,
+            }),
+            this.createFooterPill({
+                text: contextDisplay,
+                extraClass: 'web-footer-pill-context',
+                title: `${contextPercentageSafe.toFixed(2)}% context left`,
             }),
             this.createFooterPill({
                 text: workingDirectoryText,
@@ -979,6 +1478,14 @@ class AuditariaWebClient {
 
         this.inputStatus.classList.add('has-footer-data');
         this.inputStatus.replaceChildren(footerNode);
+
+        if (shouldPreserveModelMenu && canSelectModel) {
+            this.modelMenuAnchor = modelPill;
+            this.setModelMenuExpanded(true);
+            this.positionModelMenu();
+        } else if (!canSelectModel) {
+            this.closeModelMenu();
+        }
     }
 
     autoResizeTextarea() {

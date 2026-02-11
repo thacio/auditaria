@@ -74,6 +74,7 @@ const LATEST_ONLY_MESSAGE_TYPES = new Set([
   'file_tree_response',    // Full tree snapshot (5MB+) - only latest matters
   'mcp_servers',           // Full server list - only latest matters
   'slash_commands',        // Full command list - only latest matters
+  'model_menu_data',       // WEB_INTERFACE: model menu snapshot - only latest matters
   'response_state',        // WEB_INTERFACE: Only latest response state matters
   // NOTE: console_messages intentionally NOT included - user needs to see live logs
 ]);
@@ -219,6 +220,7 @@ export class WebInterfaceService extends EventEmitter {
   private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
   private currentHistory: HistoryItem[] = [];
   private currentSlashCommands: readonly SlashCommand[] = [];
+  private currentModelMenuData: any = null; // WEB_INTERFACE: model selector menu data
   private currentMCPServers: { servers: any[]; blockedServers: any[] } = { servers: [], blockedServers: [] };
   private currentConsoleMessages: ConsoleMessageItem[] = [];
   private currentCliActionState: { active: boolean; reason: string; title: string; message: string } | null = null;
@@ -1178,6 +1180,13 @@ export class WebInterfaceService extends EventEmitter {
     // WEB_INTERFACE_END
   }
 
+  // WEB_INTERFACE_START: Broadcast model menu data to all connected web clients
+  broadcastModelMenuData(modelMenuData: any): void {
+    this.currentModelMenuData = modelMenuData;
+    this.broadcastWithSequence('model_menu_data', modelMenuData);
+  }
+  // WEB_INTERFACE_END
+
   /**
    * Broadcast MCP servers data to all connected web clients
    */
@@ -1323,7 +1332,7 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support and file operations
-  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string }): void {
+  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string; selection?: string; reasoningEffort?: string }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
       
@@ -1408,6 +1417,14 @@ export class WebInterfaceService extends EventEmitter {
       this.emit('terminal_input', message.key);
       // WEB_INTERFACE_END
     }
+    // WEB_INTERFACE_START: Model selection request from web footer
+    else if (message.type === 'set_model_request' && message.selection) {
+      this.emit('model_change_request', {
+        selection: message.selection,
+        reasoningEffort: message.reasoningEffort,
+      });
+    }
+    // WEB_INTERFACE_END
     // WEB_INTERFACE_START: File operation handlers
     else if (message.type === 'file_tree_request') {
       this.handleFileTreeRequest(message.relativePath);
@@ -2078,6 +2095,12 @@ export class WebInterfaceService extends EventEmitter {
     if (this.currentSlashCommands.length > 0) {
       sendAndStore('slash_commands', { commands: this.currentSlashCommands });
     }
+
+    // WEB_INTERFACE_START: Send current model menu data to new client
+    if (this.currentModelMenuData) {
+      sendAndStore('model_menu_data', this.currentModelMenuData);
+    }
+    // WEB_INTERFACE_END
     
     // Send current MCP servers to new client (always send, even if empty)
     sendAndStore('mcp_servers', this.currentMCPServers);

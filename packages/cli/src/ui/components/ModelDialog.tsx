@@ -18,8 +18,6 @@ import {
   ModelSlashCommandEvent,
   logModelSlashCommand,
   getDisplayString,
-  type ProviderConfig, // AUDITARIA_CLAUDE_PROVIDER
-  type CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -31,18 +29,24 @@ interface ModelDialogProps {
 }
 
 // AUDITARIA_CODEX_PROVIDER_START: Define Codex reasoning effort options and utilities
-const CLAUDE_PREFIX = 'claude:';
-const CODEX_PREFIX = 'codex:';
-const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = 'medium';
-const CODEX_REASONING_OPTIONS: ReadonlyArray<{
-  value: CodexReasoningEffort;
-  label: string;
-}> = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'xhigh', label: 'Extra High' },
-];
+import {
+  getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER
+  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER
+  type ProviderConfig, // AUDITARIA_CLAUDE_PROVIDER
+  type CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
+} from '@google/gemini-cli-core';
+
+import {
+  CLAUDE_PREFIX,
+  CODEX_PREFIX,
+  DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_REASONING_OPTIONS,
+  CLAUDE_SUBMENU_OPTIONS,
+  CODEX_SUBMENU_OPTIONS,
+  isCodexReasoningEffort,
+  getCodexReasoningLabel,
+} from '../modelCatalog.js'; // AUDITARIA_PROVIDER and WEB
+
 
 const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
   low: 1,
@@ -50,55 +54,6 @@ const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
   high: 3,
   xhigh: 4,
 };
-const CODEX_REASONING_BAR_COUNT = 4;
-
-const CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL: Readonly<
-  Partial<Record<string, readonly CodexReasoningEffort[]>>
-> = {
-  'gpt-5.3-codex': ['low', 'medium', 'high', 'xhigh'],
-  'gpt-5.2-codex': ['low', 'medium', 'high', 'xhigh'],
-  'gpt-5.1-codex-mini': ['low', 'medium', 'high'],
-};
-
-function isCodexReasoningEffort(
-  value: unknown,
-): value is CodexReasoningEffort {
-  return CODEX_REASONING_OPTIONS.some((option) => option.value === value);
-}
-
-function getSupportedCodexReasoningEfforts(
-  model?: string,
-): readonly CodexReasoningEffort[] {
-  if (!model) return CODEX_REASONING_OPTIONS.map((option) => option.value);
-  return (
-    CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL[model] ??
-    CODEX_REASONING_OPTIONS.map((option) => option.value)
-  );
-}
-
-function clampCodexReasoningEffortForModel(
-  model: string | undefined,
-  effort: CodexReasoningEffort,
-): CodexReasoningEffort {
-  const supported = getSupportedCodexReasoningEfforts(model);
-  if (supported.includes(effort)) return effort;
-
-  const reasoningOrder = CODEX_REASONING_OPTIONS.map((option) => option.value);
-  const requestedIndex = reasoningOrder.findIndex((value) => value === effort);
-  if (requestedIndex === -1) return supported[0] ?? DEFAULT_CODEX_REASONING_EFFORT;
-
-  for (let index = requestedIndex; index >= 0; index--) {
-    const candidate = reasoningOrder[index];
-    if (supported.includes(candidate)) return candidate;
-  }
-
-  for (let index = requestedIndex + 1; index < reasoningOrder.length; index++) {
-    const candidate = reasoningOrder[index];
-    if (supported.includes(candidate)) return candidate;
-  }
-
-  return supported[0] ?? DEFAULT_CODEX_REASONING_EFFORT;
-}
 
 function rotateCodexReasoningEffort(
   current: CodexReasoningEffort,
@@ -112,13 +67,6 @@ function rotateCodexReasoningEffort(
     (safeIndex + direction + supportedEfforts.length) %
     supportedEfforts.length;
   return supportedEfforts[next];
-}
-
-function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
-  return (
-    CODEX_REASONING_OPTIONS.find((option) => option.value === effort)?.label ??
-    CODEX_REASONING_OPTIONS[0].label
-  );
 }
 
 function CodexReasoningMeter({
@@ -333,32 +281,13 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Claude submenu options
   const claudeOptions = useMemo(
-    () => [
-      {
-        value: `${CLAUDE_PREFIX}auto`,
-        title: 'Auto',
-        description: "Uses Claude Code's default model",
-        key: 'claude-auto',
-      },
-      {
-        value: `${CLAUDE_PREFIX}opus`,
-        title: 'Opus',
-        description: 'Most capable model',
-        key: 'claude-opus',
-      },
-      {
-        value: `${CLAUDE_PREFIX}sonnet`,
-        title: 'Sonnet',
-        description: 'Best balance of speed and capability',
-        key: 'claude-sonnet',
-      },
-      {
-        value: `${CLAUDE_PREFIX}haiku`,
-        title: 'Haiku',
-        description: 'Fastest and most compact',
-        key: 'claude-haiku',
-      },
-    ],
+    () =>
+      CLAUDE_SUBMENU_OPTIONS.map((option) => ({
+        value: option.value,
+        title: option.title,
+        description: option.description,
+        key: option.key,
+      })),
     [],
   );
   // AUDITARIA_CLAUDE_PROVIDER_END
@@ -373,56 +302,18 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         return supported[supported.length - 1] ?? 'xhigh';
       };
 
-      return [
-        {
-          value: `${CODEX_PREFIX}auto`,
-          title: 'Auto',
-          description: "Uses Codex's default model",
-          rightElement: (
-            <CodexReasoningMeter
-              effort={effortForModel()}
-              maxEffort={maxEffortForModel()}
-            />
-          ),
-          key: 'codex-auto',
-        },
-        {
-          value: `${CODEX_PREFIX}gpt-5.3-codex`,
-          title: 'GPT-5.3 Codex',
-          description: 'Most capable, 258K context',
-          rightElement: (
-            <CodexReasoningMeter
-              effort={effortForModel('gpt-5.3-codex')}
-              maxEffort={maxEffortForModel('gpt-5.3-codex')}
-            />
-          ),
-          key: 'codex-gpt53',
-        },
-        {
-          value: `${CODEX_PREFIX}gpt-5.2-codex`,
-          title: 'GPT-5.2 Codex',
-          description: 'Advanced, 258K context',
-          rightElement: (
-            <CodexReasoningMeter
-              effort={effortForModel('gpt-5.2-codex')}
-              maxEffort={maxEffortForModel('gpt-5.2-codex')}
-            />
-          ),
-          key: 'codex-gpt52',
-        },
-        {
-          value: `${CODEX_PREFIX}gpt-5.1-codex-mini`,
-          title: 'GPT-5.1 Codex Mini',
-          description: 'Fast and compact, 258K context',
-          rightElement: (
-            <CodexReasoningMeter
-              effort={effortForModel('gpt-5.1-codex-mini')}
-              maxEffort={maxEffortForModel('gpt-5.1-codex-mini')}
-            />
-          ),
-          key: 'codex-gpt51mini',
-        },
-      ];
+      return CODEX_SUBMENU_OPTIONS.map((option) => ({
+        value: option.value,
+        title: option.title,
+        description: option.description,
+        rightElement: (
+          <CodexReasoningMeter
+            effort={effortForModel(option.model)}
+            maxEffort={maxEffortForModel(option.model)}
+          />
+        ),
+        key: option.key,
+      }));
     },
     [codexReasoningEffort],
   );
