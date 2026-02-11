@@ -84,6 +84,10 @@ jobs:
             /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
           packageJson.private = false;
+          if (packageJson.scripts?.prepare) {
+            // Build/bundle already ran in this workflow; skip lifecycle re-entry during pack.
+            delete packageJson.scripts.prepare;
+          }
           if (versionInput) {
             const normalizedVersion = versionInput.startsWith('v')
               ? versionInput.slice(1)
@@ -118,10 +122,11 @@ jobs:
 
       - name: Pack publish artifact
         run: |
-          npm pack --json --ignore-scripts > pack-output.json
-          cat pack-output.json
-          PACK_FILE="$(node -e 'const fs=require("node:fs");const parsed=JSON.parse(fs.readFileSync("pack-output.json","utf8"));process.stdout.write(parsed[0].filename);')"
-          mv "$PACK_FILE" auditaria-package.tgz
+          rm -rf pack-artifacts
+          mkdir -p pack-artifacts
+          npm pack --ignore-scripts --pack-destination ./pack-artifacts
+          PACK_FILE="$(ls -1 ./pack-artifacts/*.tgz | head -n1)"
+          mv "$PACK_FILE" ./auditaria-package.tgz
           ls -lah auditaria-package.tgz
 
       - name: Verify packaged artifact
