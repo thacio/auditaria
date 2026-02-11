@@ -27,13 +27,13 @@ import {
 // ============================================================================
 
 // Lazy load the search module to avoid loading it on startup
-let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
+let searchModule: typeof import('@thacio/auditaria-search') | null = null;
 
 async function getSearchModule(): Promise<
-  typeof import('@thacio/auditaria-cli-search')
+  typeof import('@thacio/auditaria-search')
 > {
   if (!searchModule) {
-    searchModule = await import('@thacio/auditaria-cli-search');
+    searchModule = await import('@thacio/auditaria-search');
   }
   return searchModule;
 }

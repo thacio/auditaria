@@ -293,7 +293,7 @@ class KnowledgeIndexToolInvocation extends BaseToolInvocation<
 
     // Service not running - check if database exists
     try {
-      const { searchDatabaseExists } = await import('@thacio/auditaria-cli-search');
+      const { searchDatabaseExists } = await import('@thacio/auditaria-search');
 
       if (!searchDatabaseExists(rootPath)) {
         return {

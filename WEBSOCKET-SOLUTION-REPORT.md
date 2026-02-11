@@ -6,7 +6,7 @@ Successfully resolved the WebSocket "Disconnected" issue in the Bun-compiled sta
 ## The Problem
 
 ### Root Cause
-When compiling the Auditaria CLI into a standalone Windows executable using Bun, the web interface (`-w` flag) would show "Disconnected" instead of maintaining a WebSocket connection. This occurred because:
+When compiling the Auditaria into a standalone Windows executable using Bun, the web interface (`-w` flag) would show "Disconnected" instead of maintaining a WebSocket connection. This occurred because:
 
 1. **Module Incompatibility**: The `ws` npm module depends on Node.js internals not available in Bun runtime
 2. **Multiple Usage Points**: Both `packages/cli/src/services/WebInterfaceService.ts` and `packages/web-server/src/websocket/websocketHandler.js` use the `ws` module
@@ -154,7 +154,7 @@ auditaria-standalone.exe -w no-browser
 # Open browser to http://localhost:8629
 
 # Verify WebSocket connection
-# Check browser console - should show "Connected to Auditaria CLI"
+# Check browser console - should show "Connected to Auditaria"
 ```
 
 ## GitHub Actions Integration

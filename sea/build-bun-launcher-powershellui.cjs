@@ -79,7 +79,7 @@ try {
   // and esbuild needs to resolve that naturally to the actual package
   const aliases = `--alias:onnxruntime-node=${onnxNodeShimPath} --alias:sharp=${sharpShimPath} --alias:scribe.js-ocr=${scribeBundledPath}`;
 
-  // For Bun, we need to bundle @huggingface/transformers and @thacio/auditaria-cli-search
+  // For Bun, we need to bundle @huggingface/transformers and @thacio/auditaria-search
   // (they're external in main esbuild.config.js but needed inline for Bun executable)
   // Note: We keep the same externals as main build EXCEPT for search-related packages
   execSync(`npx esbuild packages/cli/index.ts --bundle --platform=node --format=esm \
@@ -1379,7 +1379,7 @@ const conditionalUnifiedBunServer = `
               // Send initial connection message
               ws.send(JSON.stringify({
                 type: 'connection',
-                data: { message: 'Connected to Auditaria CLI' },
+                data: { message: 'Connected to Auditaria' },
                 timestamp: Date.now()
               }));
 

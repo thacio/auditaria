@@ -21,7 +21,7 @@ vi.mock('@google/gemini-cli-core', () => ({
   },
 }));
 
-vi.mock('@thacio/auditaria-cli-search', () => ({
+vi.mock('@thacio/auditaria-search', () => ({
   searchDatabaseExists: mockSearchDatabaseExists,
   loadSearchSystem: mockLoadSearchSystem,
 }));

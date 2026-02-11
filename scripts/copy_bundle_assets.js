@@ -97,7 +97,7 @@ for (const file of localeFiles) {
 const searchPackageSrc = join(root, 'packages/search');
 const searchPackageDest = join(
   bundleDir,
-  'node_modules/@thacio/auditaria-cli-search',
+  'node_modules/@thacio/auditaria-search',
 );
 
 if (existsSync(join(searchPackageSrc, 'dist'))) {
@@ -126,7 +126,7 @@ if (existsSync(join(searchPackageSrc, 'dist'))) {
   }
 
   console.log(
-    'Search package copied to bundle/node_modules/@thacio/auditaria-cli-search/',
+    'Search package copied to bundle/node_modules/@thacio/auditaria-search/',
   );
 }
 

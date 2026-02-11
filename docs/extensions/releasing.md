@@ -66,7 +66,7 @@ should generally be avoided.
 
 ## Releasing through GitHub releases
 
-Auditaria CLI extensions can be distributed through
+Auditaria extensions can be distributed through
 [GitHub Releases](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 This provides a faster and more reliable initial installation experience for
 users, as it avoids the need to clone the repository.
@@ -101,7 +101,7 @@ containing the extension).
 
 #### Platform specific archives
 
-To ensure Auditaria CLI can automatically find the correct release asset for
+To ensure Auditaria can automatically find the correct release asset for
 each platform, you must follow this naming convention. The CLI will search for
 assets in the following order:
 
@@ -140,7 +140,7 @@ The rest of the layout should look exactly the same as a typical extension, see
 #### Example GitHub Actions workflow
 
 Here is an example of a GitHub Actions workflow that builds and releases an
-Auditaria CLI extension for multiple platforms:
+Auditaria extension for multiple platforms:
 
 ```yaml
 name: Release Extension

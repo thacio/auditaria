@@ -38,11 +38,11 @@ Remove-Item -Path (Join-Path $env:LocalAppData "npm-cache\_npx") -Recurse -Force
 ## Method 2: Using npm (global install)
 
 If you installed the CLI globally (e.g.,
-`npm install -g @thacio/auditaria-cli`), use the `npm uninstall` command with
+`npm install -g @thacio/auditaria`), use the `npm uninstall` command with
 the `-g` flag to remove it.
 
 ```bash
-npm uninstall -g @thacio/auditaria-cli
+npm uninstall -g @thacio/auditaria
 ```
 
 This command completely removes the package from your system.

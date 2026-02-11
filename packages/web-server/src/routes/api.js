@@ -76,7 +76,7 @@ export function setupApiRoutes(app, geminiService) {
         res.json({
             name: 'Auditaria Web Server',
             version: '0.1.13',
-            description: 'Local web interface for Auditaria CLI',
+            description: 'Local web interface for Auditaria',
             websocket: {
                 endpoint: '/ws',
                 description: 'Connect for real-time chat streaming'

@@ -179,12 +179,12 @@ export async function activate(context: vscode.ExtensionContext) {
       ideServer.syncEnvVars();
     })),
     vscode.commands.registerCommand(
-      'auditaria-cli.runAuditariaCLI',
+      'auditaria.runAuditariaCLI',
       async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
           void vscode.window.showInformationMessage(
-            'No folder open. Please open a folder to run Auditaria CLI.',
+            'No folder open. Please open a folder to run Auditaria.',
           );
           return;
         }
@@ -194,14 +194,14 @@ export async function activate(context: vscode.ExtensionContext) {
           selectedFolder = workspaceFolders[0];
         } else {
           selectedFolder = await vscode.window.showWorkspaceFolderPick({
-            placeHolder: 'Select a folder to run Auditaria CLI in',
+            placeHolder: 'Select a folder to run Auditaria in',
           });
         }
 
         if (selectedFolder) {
           const auditariaCmd = 'auditaria';
           const terminal = vscode.window.createTerminal({
-            name: `Auditaria CLI (${selectedFolder.name})`,
+            name: `Auditaria (${selectedFolder.name})`,
             cwd: selectedFolder.uri.fsPath,
           });
           terminal.show();
@@ -209,7 +209,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
       },
     ),
-    vscode.commands.registerCommand('auditaria-cli.showNotices', async () => {
+    vscode.commands.registerCommand('auditaria.showNotices', async () => {
       const noticePath = vscode.Uri.joinPath(
         context.extensionUri,
         'NOTICES.txt',

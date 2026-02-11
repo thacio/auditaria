@@ -155,8 +155,8 @@ const AUDIT_VERIFY_STANDARDS =
 export function renderPreamble(options?: PreambleOptions): string {
   if (!options) return '';
   return options.interactive
-    ? `You are Auditaria CLI, an interactive CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`
-    : `You are Auditaria CLI, an autonomous CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`;
+    ? `You are Auditaria, an interactive CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`
+    : `You are Auditaria, an autonomous CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`;
 }
 
 // AUDITARIA_FEATURE: Audit standards are ADDED to upstream's core mandates, not replacing them.

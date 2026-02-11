@@ -1,8 +1,8 @@
-# Auditaria CLI Web Interface - Implementation Plan & Documentation
+# Auditaria Web Interface - Implementation Plan & Documentation
 
 ## 🎯 Project Overview
 
-Successfully implemented a professional web interface for Auditaria CLI that
+Successfully implemented a professional web interface for Auditaria that
 displays real-time messages in a chat-like interface, CLI footer information,
 and loading states while maintaining minimal code invasion and requiring no
 additional user setup.
@@ -969,7 +969,7 @@ the advanced features of the web interface and skills system.
 
 ### **Problem Summary**
 
-The Auditaria CLI web interface was causing severe infinite re-render loops that
+The Auditaria web interface was causing severe infinite re-render loops that
 made the application unusable. Users reported thousands of debug log lines
 flooding the console and "Maximum update depth exceeded" errors when the web
 interface was enabled. This issue was so critical that it prompted concerns from
@@ -1648,7 +1648,7 @@ Web /clear → Confirmation dialog → User confirms → Send to CLI → Normal 
 - **Visual Hierarchy**: Red destructive action button, gray cancel button
 - **Keyboard Accessibility**: Auto-focus and keyboard navigation support
 
-**The Auditaria CLI Web Interface with complete Tool Confirmation, Tool
+**The Auditaria Web Interface with complete Tool Confirmation, Tool
 Execution, ESC Key Interruption, /clear Command Synchronization, and Real-time
 State Broadcasting achieves full feature parity with the CLI and is
 production-ready with professional polish. Users can now seamlessly interact

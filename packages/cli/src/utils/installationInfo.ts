@@ -110,7 +110,7 @@ export function getInstallationInfo(
       realPath.includes('/.pnpm/global') ||
       realPath.includes('/.local/share/pnpm')
     ) {
-      const updateCommand = 'pnpm add -g @thacio/auditaria-cli@latest';
+      const updateCommand = 'pnpm add -g @thacio/auditaria@latest';
       return {
         packageManager: PackageManager.PNPM,
         isGlobal: true,
@@ -123,7 +123,7 @@ export function getInstallationInfo(
 
     // Check for yarn
     if (realPath.includes('/.yarn/global')) {
-      const updateCommand = 'yarn global add @thacio/auditaria-cli@latest';
+      const updateCommand = 'yarn global add @thacio/auditaria@latest';
       return {
         packageManager: PackageManager.YARN,
         isGlobal: true,
@@ -143,7 +143,7 @@ export function getInstallationInfo(
       };
     }
     if (realPath.includes('/.bun/install/global')) {
-      const updateCommand = 'bun add -g @thacio/auditaria-cli@latest';
+      const updateCommand = 'bun add -g @thacio/auditaria@latest';
       return {
         packageManager: PackageManager.BUN,
         isGlobal: true,
@@ -176,7 +176,7 @@ export function getInstallationInfo(
     }
 
     // Assume global npm
-    const updateCommand = 'npm install -g @thacio/auditaria-cli@latest';
+    const updateCommand = 'npm install -g @thacio/auditaria@latest';
     return {
       packageManager: PackageManager.NPM,
       isGlobal: true,

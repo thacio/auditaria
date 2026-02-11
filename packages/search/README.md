@@ -155,7 +155,7 @@ it for large indexing jobs where memory bloat is a concern.
 ## Quick Start
 
 ```typescript
-import { SearchSystem } from '@thacio/auditaria-cli-search';
+import { SearchSystem } from '@thacio/auditaria-search';
 
 // Initialize the search system
 // Configuration is loaded automatically from .auditaria/knowledge-base.config.json
@@ -689,7 +689,7 @@ The `convertToFTS5Query()` function converts Google-style queries to FTS5
 syntax:
 
 ```typescript
-import { convertToFTS5Query } from '@thacio/auditaria-cli-search';
+import { convertToFTS5Query } from '@thacio/auditaria-search';
 
 // Simple terms → AND
 convertToFTS5Query('hello world'); // → 'hello AND world'
@@ -1244,4 +1244,4 @@ interface SearchResult {
 
 ## License
 
-Part of the Auditaria CLI project.
+Part of the Auditaria project.

@@ -8,7 +8,7 @@ prerequisites, quickstart, and configuration.
 Before using sandboxing, you need to install and set up the Gemini CLI:
 
 ```bash
-npm install -g @thacio/auditaria-cli
+npm install -g @thacio/auditaria
 ```
 
 To verify the installation:

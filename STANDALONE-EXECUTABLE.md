@@ -6,7 +6,7 @@ Successfully created a **truly standalone Windows executable** that:
 - **Does NOT require Node.js or npm installed**
 - Runs as a single .exe file
 - Supports ESM modules with top-level await
-- Contains the full Auditaria CLI functionality
+- Contains the full Auditaria functionality
 
 ## The Solution: Bun Compiler
 
@@ -51,7 +51,7 @@ The executable works completely standalone:
 
 # Run interactively
 ./auditaria-standalone.exe
-# Launches the full Auditaria CLI
+# Launches the full Auditaria
 ```
 
 ## File Details
@@ -86,7 +86,7 @@ The executable works completely standalone:
 
 ### The Core Issue
 
-The Auditaria CLI bundle uses:
+The Auditaria bundle uses:
 - ES Modules (ESM) format
 - Top-level await for async initialization
 - Modern JavaScript features (optional chaining, nullish coalescing)

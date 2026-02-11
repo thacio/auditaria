@@ -59,7 +59,7 @@ export async function getEnvironmentContext(config: Config): Promise<Part[]> {
 
   const context = `
 <session_context>
-This is the Auditaria CLI. We are setting up the context for our chat.
+This is the Auditaria. We are setting up the context for our chat.
 Today's date is ${today} (formatted according to the user's locale).
 My operating system is: ${platform}
 The project's temporary directory is: ${tempDir}

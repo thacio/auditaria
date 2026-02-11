@@ -140,7 +140,7 @@ class ConvertToMarkdownToolInvocation extends BaseToolInvocation<
 
     try {
       // Dynamic import to avoid loading search package if not needed
-      const searchPackage = await import('@thacio/auditaria-cli-search');
+      const searchPackage = await import('@thacio/auditaria-search');
 
       let result: { text: string; title?: string | null };
 

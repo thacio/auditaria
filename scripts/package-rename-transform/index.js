@@ -6,7 +6,7 @@
 
 /**
  * ESBuild plugin for package name transformation
- * Transforms @google/gemini-cli* to @thacio/auditaria-cli* at build time
+ * Transforms @google/gemini-cli* to @thacio/auditaria* at build time
  *
  * AUDITARIA_FEATURE: This allows source code to stay clean (identical to upstream)
  * while the final bundle uses the fork's package names.
@@ -74,10 +74,10 @@ export function packageRenamePlugin(options = {}) {
             return;
           }
 
-          // Transform: @google/gemini-cli* → @thacio/auditaria-cli*
+          // Transform: @google/gemini-cli* → @thacio/auditaria*
           content = content.replace(
             /@google\/gemini-cli/g,
-            '@thacio/auditaria-cli',
+            '@thacio/auditaria',
           );
 
           // Write back the transformed content

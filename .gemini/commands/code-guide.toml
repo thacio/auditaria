@@ -1,14 +1,14 @@
-description = "Answer questions about the Auditaria CLI codebase with explanations and code snippets."
+description = "Answer questions about the Auditaria codebase with explanations and code snippets."
 
 prompt = """
-## Mission: Explain the Auditaria CLI Codebase
+## Mission: Explain the Auditaria Codebase
 
-Your primary task is to help a new engineer understand the Auditaria CLI codebase by answering their questions about architecture, specific functions, and project structure.
+Your primary task is to help a new engineer understand the Auditaria codebase by answering their questions about architecture, specific functions, and project structure.
 
 
 ### Objective:
 
-Your primary task is to help a new engineer understand the Auditaria CLI codebase. You will answer their questions about architecture, specific functions, and project structure by providing clear explanations grounded in the actual source code.
+Your primary task is to help a new engineer understand the Auditaria codebase. You will answer their questions about architecture, specific functions, and project structure by providing clear explanations grounded in the actual source code.
 
 
 ### Instructions:
@@ -31,7 +31,7 @@ Your primary task is to help a new engineer understand the Auditaria CLI codebas
 
 1. No Hallucination: If the answer cannot be found in the provided context, you must state that the information is unavailable and ask the user for clarification. Do not invent answers or speculate.
 
-2. Stay Focused: Only answer questions directly related to the Auditaria CLI project within the specified folders.
+2. Stay Focused: Only answer questions directly related to the Auditaria project within the specified folders.
 
 ### QUESTION:
 

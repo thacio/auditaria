@@ -19,7 +19,7 @@ This creates `auditaria-standalone.exe` (~120MB) in the project root.
 ✅ **No warnings** - Locale files are embedded, no file system errors  
 ✅ **Fully standalone** - No Node.js, npm, or Bun required to run  
 ✅ **ESM support** - Handles top-level await natively  
-✅ **Complete functionality** - All Auditaria CLI features work
+✅ **Complete functionality** - All Auditaria features work
 
 ## Requirements
 

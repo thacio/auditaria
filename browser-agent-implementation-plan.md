@@ -18,7 +18,7 @@ Stagehand. Users can:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Auditaria CLI/Web                        │
+│                        Auditaria/Web                        │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
 │  │   AI (Gemini)   │  │   Web Interface │  │    Terminal     │  │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  │
@@ -2219,7 +2219,7 @@ cp dist/index.js ../../node_modules/@browserbasehq/stagehand/dist/index.js
 
 # Build and install Auditaria
 cd ../..
-npm run build && npm run bundle && npm uninstall @thacio/auditaria-cli && npm install -g .
+npm run build && npm run bundle && npm uninstall @thacio/auditaria && npm install -g .
 ```
 
 **Notes**:

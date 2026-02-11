@@ -99,9 +99,9 @@ export function getSystemSettingsPath(): string {
   if (platform() === 'darwin') {
     return '/Library/Application Support/AuditariaCli/settings.json';
   } else if (platform() === 'win32') {
-    return 'C:\\ProgramData\\auditaria-cli\\settings.json';
+    return 'C:\\ProgramData\\auditaria\\settings.json';
   } else {
-    return '/etc/auditaria-cli/settings.json';
+    return '/etc/auditaria/settings.json';
   }
 }
 

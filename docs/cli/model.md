@@ -1,7 +1,7 @@
-# Auditaria CLI model selection (`/model` command)
+# Auditaria model selection (`/model` command)
 
-Select your Auditaria CLI model. The `/model` command lets you configure the
-model used by Auditaria CLI, giving you more control over your results. Use
+Select your Auditaria model. The `/model` command lets you configure the
+model used by Auditaria, giving you more control over your results. Use
 **Pro** models for complex tasks and reasoning, **Flash** models for high speed
 results, or the (recommended) **Auto** setting to choose the best model for your
 tasks.
@@ -12,7 +12,7 @@ tasks.
 
 ## How to use the `/model` command
 
-Use the following command in Auditaria CLI:
+Use the following command in Auditaria:
 
 ```
 /model
@@ -43,7 +43,7 @@ startup. For more details, refer to the
 [configuration documentation](../get-started/configuration.md).
 
 Changes to these settings will be applied to all subsequent interactions with
-Auditaria CLI.
+Auditaria.
 
 ## Best practices for model selection
 

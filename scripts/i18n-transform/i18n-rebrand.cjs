@@ -192,7 +192,7 @@ if (require.main === module) {
     const tests = [
       // Basic replacements
       ['Welcome to Gemini', 'Welcome to Auditaria'],
-      ['Gemini CLI', 'Auditaria CLI'],
+      ['Gemini CLI', 'Auditaria'],
       ['Gemini.', 'Auditaria.'],
       ['Gemini, the AI', 'Auditaria, the AI'],
       ['Use Gemini for help', 'Use Auditaria for help'],

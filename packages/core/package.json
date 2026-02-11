@@ -39,7 +39,7 @@
     "@opentelemetry/instrumentation-http": "^0.203.0",
     "@opentelemetry/resource-detector-gcp": "^0.40.0",
     "@opentelemetry/sdk-node": "^0.203.0",
-    "@thacio/auditaria-cli-search": "file:../search",
+    "@thacio/auditaria-search": "file:../search",
     "@thacio/browser-agent": "file:../browser-agent",
     "@types/glob": "^8.1.0",
     "@types/html-to-text": "^9.0.4",

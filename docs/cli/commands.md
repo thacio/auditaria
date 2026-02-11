@@ -504,7 +504,7 @@ your `prompt` and injecting their output. This is ideal for gathering context
 from your local environment, like reading file content or checking the status of
 Git.
 
-When a custom command attempts to execute a shell command, Auditaria CLI will
+When a custom command attempts to execute a shell command, Auditaria will
 now prompt you for confirmation before proceeding. This is a security measure to
 ensure that only intended commands can be run.
 

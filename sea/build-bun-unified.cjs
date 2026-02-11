@@ -17,7 +17,7 @@ const BUN_BUNDLE_PATH = path.join(__dirname, '..', 'bundle', 'gemini-bun-prebund
 const OUTPUT_PATH = path.join(__dirname, '..', 'auditaria-standalone.exe');
 const WEB_CLIENT_PATH = path.join(__dirname, '..', 'packages', 'web-client', 'src');
 
-console.log('🔧 Building Auditaria CLI with unified Bun server...\n');
+console.log('🔧 Building Auditaria with unified Bun server...\n');
 
 if (!fs.existsSync(BUNDLE_PATH)) {
   console.error('❌ Bundle not found. Run "npm run bundle" first.');
@@ -1382,7 +1382,7 @@ const conditionalUnifiedBunServer = `
               // Send initial connection message
               ws.send(JSON.stringify({
                 type: 'connection',
-                data: { message: 'Connected to Auditaria CLI' },
+                data: { message: 'Connected to Auditaria' },
                 timestamp: Date.now()
               }));
 

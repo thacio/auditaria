@@ -49,10 +49,10 @@ import { DocxParserService } from './DocxParserService.js';
 import { SearchServiceManager, getSearchService, collaborativeWritingService } from '@google/gemini-cli-core';
 
 // AUDITARIA: Lazy load search module to check database existence
-let searchModule: typeof import('@thacio/auditaria-cli-search') | null = null;
-async function getSearchModule(): Promise<typeof import('@thacio/auditaria-cli-search')> {
+let searchModule: typeof import('@thacio/auditaria-search') | null = null;
+async function getSearchModule(): Promise<typeof import('@thacio/auditaria-search')> {
   if (!searchModule) {
-    searchModule = await import('@thacio/auditaria-cli-search');
+    searchModule = await import('@thacio/auditaria-search');
   }
   return searchModule;
 }
@@ -280,7 +280,7 @@ export class WebInterfaceService extends EventEmitter {
         // 1. Package-relative resolution (best for global npm installations)
         (() => {
           try {
-            const packageDir = path.dirname(require.resolve('@thacio/auditaria-cli/package.json'));
+            const packageDir = path.dirname(require.resolve('@thacio/auditaria/package.json'));
             return path.join(packageDir, 'web-client');
           } catch {
             return null;
@@ -2082,7 +2082,7 @@ export class WebInterfaceService extends EventEmitter {
     
     // Send welcome message with starting sequence
     sendAndStore('connection', {
-      message: 'Connected to Auditaria CLI',
+      message: 'Connected to Auditaria',
       startingSequence: this.sequenceNumber
     });
     

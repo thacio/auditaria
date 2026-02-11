@@ -1,7 +1,7 @@
 {
-  "name": "@thacio/auditaria-cli-search",
+  "name": "@thacio/auditaria-search",
   "version": "0.1.0",
-  "description": "Local document search with hybrid search capabilities for Auditaria CLI",
+  "description": "Local document search with hybrid search capabilities for Auditaria",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thacio/auditaria.git"

@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 import { wasmLoader } from 'esbuild-plugin-wasm';
 import i18nTransformPlugin from './scripts/i18n-transform/index.js'; // AUDITARIA_I18N custom feature
-import packageRenamePlugin from './scripts/package-rename-transform/index.js'; // AUDITARIA: Transform @google/gemini-cli to @thacio/auditaria-cli
+import packageRenamePlugin from './scripts/package-rename-transform/index.js'; // AUDITARIA: Transform @google/gemini-cli to @thacio/auditaria
 
 let esbuild;
 try {
@@ -77,7 +77,7 @@ const external = [
   // AUDITARIA_SEARCH: tesseract.js must be external due to worker thread spawning
   'tesseract.js',
   // AUDITARIA_LOCAL_SEARCH: search package has complex dependencies (pglite, transformers.js)
-  '@thacio/auditaria-cli-search',
+  '@thacio/auditaria-search',
   // keytar is a native module that cannot be bundled
   'keytar',
   'gemini-cli-devtools',

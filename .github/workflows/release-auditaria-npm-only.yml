@@ -50,7 +50,7 @@ jobs:
         run: |
           npm pack
           # Create generic filename for consistent downloads
-          cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
+          cp thacio-auditaria-*.tgz auditaria-latest.tgz
           # List files to debug
           ls -la *.tgz
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-package
-          path: auditaria-cli-latest.tgz
+          path: auditaria-latest.tgz
 
   create-release:
     needs: [build-npm-package]
@@ -80,7 +80,7 @@ jobs:
           tag_name: ${{ github.event.inputs.tag_name }}
           name: ${{ github.event.inputs.release_name || github.event.inputs.tag_name }}
           files: |
-            auditaria-cli-latest.tgz
+            auditaria-latest.tgz
           generate_release_notes: true
           draft: ${{ github.event.inputs.draft == 'true' }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
@@ -88,16 +88,16 @@ jobs:
             ## Auditaria Release (NPM Package Only)
 
             ### 📦 Package Distribution
-            - **npm package**: `auditaria-cli-latest.tgz`
+            - **npm package**: `auditaria-latest.tgz`
 
             ### Installation
 
             ```bash
             # Install from release tarball
-            npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
+            npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz
 
             # Or download and install locally
-            npm install -g ./auditaria-cli-latest.tgz
+            npm install -g ./auditaria-latest.tgz
             ```
 
             ### System Requirements

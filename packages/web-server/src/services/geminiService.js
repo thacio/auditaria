@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { initI18n, t } from '@google/gemini-cli-core';
-import { loadCliConfig, loadSettings } from '@thacio/auditaria-cli';
+import { loadCliConfig, loadSettings } from '@thacio/auditaria';
 import { v4 as uuidv4 } from 'uuid';
 /**
  * Web service that wraps the existing CLI functionality for web use

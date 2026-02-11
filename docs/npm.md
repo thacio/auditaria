@@ -1,9 +1,9 @@
 # Package overview
 
-This monorepo contains two main packages: `@thacio/auditaria-cli` and
+This monorepo contains two main packages: `@thacio/auditaria` and
 `@google/gemini-cli-core`.
 
-## `@thacio/auditaria-cli`
+## `@thacio/auditaria`
 
 This is the main package for the Gemini CLI. It is responsible for the user
 interface, command parsing, and all other user-facing functionality.
@@ -11,8 +11,8 @@ interface, command parsing, and all other user-facing functionality.
 When this package is published, it is bundled into a single executable file.
 This bundle includes all of the package's dependencies, including
 `@google/gemini-cli-core`. This means that whether a user installs the package
-with `npm install -g @thacio/auditaria-cli` or runs it directly with
-`npx @thacio/auditaria-cli`, they are using this single, self-contained
+with `npm install -g @thacio/auditaria` or runs it directly with
+`npx @thacio/auditaria`, they are using this single, self-contained
 executable.
 
 ## `@google/gemini-cli-core`
@@ -80,7 +80,7 @@ will contain a link to the failed workflow run for easy debugging.
 To install the latest nightly build, use the `@nightly` tag:
 
 ```bash
-npm install -g @thacio/auditaria-cli@nightly
+npm install -g @thacio/auditaria@nightly
 ```
 
 We also run a Google cloud build called
@@ -110,12 +110,12 @@ packages are working as expected. This can be done by installing the packages
 locally and running a set of tests to ensure that they are functioning
 correctly.
 
-- `npx -y @thacio/auditaria-cli@latest --version` to validate the push worked as
+- `npx -y @thacio/auditaria@latest --version` to validate the push worked as
   expected if you were not doing a rc or dev tag
-- `npx -y @thacio/auditaria-cli@<release tag> --version` to validate the tag
+- `npx -y @thacio/auditaria@<release tag> --version` to validate the tag
   pushed appropriately
 - _This is destructive locally_
-  `npm uninstall @thacio/auditaria-cli && npm uninstall -g @thacio/auditaria-cli && npm cache clean --force &&  npm install @thacio/auditaria-cli@<version>`
+  `npm uninstall @thacio/auditaria && npm uninstall -g @thacio/auditaria && npm cache clean --force &&  npm install @thacio/auditaria@<version>`
 - Smoke testing a basic run through of exercising a few llm commands and tools
   is recommended to ensure that the packages are working as expected. We'll
   codify this more in the future.
@@ -373,4 +373,4 @@ package that should be managed as part of the workspace.
 - **Simplified script execution**: You can run scripts in any package from the
   root of the project using the `--workspace` flag. For example, to run the
   `build` script in the `cli` package, you can run
-  `npm run build --workspace @thacio/auditaria-cli`.
+  `npm run build --workspace @thacio/auditaria`.

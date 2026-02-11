@@ -34,7 +34,7 @@ jobs:
         run: |
           npm pack
           # Create generic filename for consistent downloads
-          cp thacio-auditaria-cli-*.tgz auditaria-cli-latest.tgz
+          cp thacio-auditaria-*.tgz auditaria-latest.tgz
           # List files to debug
           ls -la *.tgz
       
@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-package
-          path: auditaria-cli-latest.tgz
+          path: auditaria-latest.tgz
 
   build-windows-executables:
     runs-on: windows-latest
@@ -151,7 +151,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            auditaria-cli-latest.tgz
+            auditaria-latest.tgz
             auditaria-windows.exe
             auditaria-launcher.exe
           generate_release_notes: true
@@ -160,7 +160,7 @@ jobs:
             ## Auditaria Release
             
             ### 📦 Package Distribution
-            - **npm package**: `auditaria-cli-latest.tgz` - Install with `npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz`
+            - **npm package**: `auditaria-latest.tgz` - Install with `npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz`
             
             ### 🪟 Windows Executables
             - **CLI executable**: `auditaria-windows.exe` - Standalone command-line interface
@@ -169,7 +169,7 @@ jobs:
             ### Features
             
             #### CLI Executable (`auditaria-windows.exe`)
-            - Full Auditaria CLI functionality
+            - Full Auditaria functionality
             - No Node.js or npm required
             - WebSocket-enabled web interface using `--web` flag)
             

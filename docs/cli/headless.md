@@ -1,6 +1,6 @@
 # Headless mode
 
-Headless mode allows you to run Auditaria CLI programmatically from command line
+Headless mode allows you to run Auditaria programmatically from command line
 scripts and automation tools without any interactive UI. This is ideal for
 scripting, automation, CI/CD pipelines, and building AI-powered tools.
 
@@ -37,7 +37,7 @@ scripting, automation, CI/CD pipelines, and building AI-powered tools.
 
 ## Overview
 
-The headless mode provides a headless interface to Auditaria CLI that:
+The headless mode provides a headless interface to Auditaria that:
 
 - Accepts prompts via command line arguments or stdin
 - Returns structured output (text or JSON)
@@ -57,7 +57,7 @@ auditaria --prompt "What is machine learning?"
 
 ### Stdin input
 
-Pipe input to Auditaria CLI from your terminal:
+Pipe input to Auditaria from your terminal:
 
 ```bash
 echo "Explain this code" | auditaria

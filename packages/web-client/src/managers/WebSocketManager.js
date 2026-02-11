@@ -41,7 +41,7 @@ export class WebSocketManager extends EventTarget {
      */
     setupSocketHandlers() {
         this.socket.onopen = () => {
-            console.log('Connected to Auditaria CLI');
+            console.log('Connected to Auditaria');
             this.isConnected = true;
             this.reconnectAttempts = 0;
             // Reset sequence tracking on new connection
@@ -61,7 +61,7 @@ export class WebSocketManager extends EventTarget {
         };
         
         this.socket.onclose = () => {
-            console.log('Disconnected from Auditaria CLI');
+            console.log('Disconnected from Auditaria');
             this.isConnected = false;
             this.dispatchEvent(new CustomEvent('disconnected'));
             this.attemptReconnect();

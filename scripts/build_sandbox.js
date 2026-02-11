@@ -90,11 +90,11 @@ if (!argv.s) {
   execSync('npm run build --workspaces', { stdio: 'inherit' });
 }
 
-console.log('packing @thacio/auditaria-cli ...');
+console.log('packing @thacio/auditaria ...');
 const cliPackageDir = join('packages', 'cli');
 rmSync(join(cliPackageDir, 'dist', 'google-gemini-cli-*.tgz'), { force: true });
 execSync(
-  `npm pack -w @thacio/auditaria-cli --pack-destination ./packages/cli/dist`,
+  `npm pack -w @thacio/auditaria --pack-destination ./packages/cli/dist`,
   {
     stdio: 'ignore',
   },

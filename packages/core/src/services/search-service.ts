@@ -18,7 +18,7 @@ import type {
   SearchSystem,
   SearchSystemSupervisor,
   SupervisorState,
-} from '@thacio/auditaria-cli-search';
+} from '@thacio/auditaria-search';
 
 // ============================================================================
 // Types
@@ -170,7 +170,7 @@ export class SearchServiceManager {
         createSearchSystemSupervisor,
         createConfig,
         searchDatabaseExists,
-      } = await import('@thacio/auditaria-cli-search');
+      } = await import('@thacio/auditaria-search');
 
       const dbExists = searchDatabaseExists(rootPath);
 

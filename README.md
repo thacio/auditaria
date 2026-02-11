@@ -1,4 +1,4 @@
-# Auditaria CLI
+# Auditaria
 
 [![Version](https://img.shields.io/github/v/release/thacio/auditaria)](https://github.com/thacio/auditaria/releases)
 [![License](https://img.shields.io/github/license/thacio/auditaria)](https://github.com/thacio/auditaria/blob/main/LICENSE)
@@ -9,9 +9,9 @@
 ---
 
 <a id="português"></a>
-![Captura de Tela do Auditaria CLI](./docs/assets/auditaria-web-screenshot.png)
+![Captura de Tela do Auditaria](./docs/assets/auditaria-web-screenshot.png)
 
-O Auditaria CLI é um fork especializado do
+O Auditaria é um fork especializado do
 [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) projetado
 especificamente para fluxos de trabalho de **auditorias**, **engenharia de
 software** e **análise de dados**. Este fork aprimora a ferramenta original com
@@ -19,7 +19,7 @@ recursos focados em auditoria, suporte multi-idioma e capacidades de fluxo de
 trabalho melhoradas, mantendo **todas as capacidades originais de engenharia de
 software** intactas.
 
-## 🚀 Por que Auditaria CLI?
+## 🚀 Por que Auditaria?
 
 - **🌐 Interface Web**: Interface web integrada para interação baseada em
   navegador
@@ -149,7 +149,7 @@ npx https://github.com/thacio/auditaria
 
 ```bash
 # Via release
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz
 
 # Ou clonar e construir
 git clone https://github.com/thacio/auditaria
@@ -176,8 +176,8 @@ controla a infraestrutura.**
 #### Configuração do NPM para Instalação
 
 ```bash
-# Instalar o Auditaria CLI com verificação SSL desabilitada
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz --strict-ssl=false
+# Instalar o Auditaria com verificação SSL desabilitada
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz --strict-ssl=false
 ```
 
 #### Configuração de Execução
@@ -286,7 +286,7 @@ auditaria -p "Explique a arquitetura desta base de código"
 
 ### Interface Web
 
-A interface web fornece uma maneira alternativa de interagir com o Auditaria CLI
+A interface web fornece uma maneira alternativa de interagir com o Auditaria
 através do seu navegador:
 
 - **Interface web habilitada por padrão**: `auditaria` (abre automaticamente o
@@ -318,7 +318,7 @@ auditaria
 
 ## 🔗 Integração com GitHub
 
-Integre o Auditaria CLI diretamente em seus fluxos de trabalho do GitHub com a
+Integre o Auditaria diretamente em seus fluxos de trabalho do GitHub com a
 [**Gemini CLI GitHub Action**](https://github.com/google-github-actions/run-gemini-cli):
 
 - **Revisões de Pull Request**: Revise automaticamente pull requests quando
@@ -385,7 +385,7 @@ Integre o Auditaria CLI diretamente em seus fluxos de trabalho do GitHub com a
 
 ## 🤝 Contribuindo
 
-Damos as boas-vindas a contribuições! O Auditaria CLI é totalmente open source
+Damos as boas-vindas a contribuições! O Auditaria é totalmente open source
 (Apache 2.0), e encorajamos a comunidade a:
 
 - Relatar bugs e sugerir recursos
@@ -419,18 +419,18 @@ Veja o [Guia de Desinstalação](docs/Uninstall.md) para instruções de remoç�
 
 <a id="english"></a>
 
-# Auditaria CLI
+# Auditaria
 
-![Auditaria CLI Screenshot](./docs/assets/auditaria-web-screenshot.png)
+![Auditaria Screenshot](./docs/assets/auditaria-web-screenshot.png)
 
-Auditaria CLI is a specialized fork of the
+Auditaria is a specialized fork of the
 [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) designed
 specifically for **audits**, **software engineering**, and **data analysis**
 workflows. This fork enhances the original tool with audit-focused features,
 multi-language support, and improved workflow capabilities while **maintaining
 all original software engineering capabilities** intact.
 
-## 🚀 Why Auditaria CLI?
+## 🚀 Why Auditaria?
 
 - **🌐 Web Interface**: Built-in web interface for browser-based interaction
 - **📝 Advanced Editor**: Edit files directly in the browser with an integrated
@@ -543,14 +543,14 @@ may need to:
 
 ```bash
 # Using npx (no installation required)
-npx @thacio/auditaria-cli
+npx @thacio/auditaria
 ```
 
 #### Install globally with npm
 
 ```bash
 # Via release
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz
 
 # Or clone and build
 git clone https://github.com/thacio/auditaria
@@ -592,7 +592,7 @@ releases will not have been fully vetted and may contain regressions or other
 outstanding issues. Please help us test and install with `preview` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@preview
+npm install -g @thacio/auditaria@preview
 ```
 
 ### Stable
@@ -602,7 +602,7 @@ npm install -g @thacio/auditaria-cli@preview
   and validations. Use `latest` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@latest
+npm install -g @thacio/auditaria@latest
 ```
 
 ### Nightly
@@ -612,7 +612,7 @@ npm install -g @thacio/auditaria-cli@latest
   there are pending validations and issues. Use `nightly` tag.
 
 ```bash
-npm install -g @thacio/auditaria-cli@nightly
+npm install -g @thacio/auditaria@nightly
 ```
 
 ### Corporate Firewall (MITM) Setup
@@ -627,8 +627,8 @@ corporate networks where IT controls the infrastructure.**
 #### NPM Configuration for Installation
 
 ```bash
-# Install Auditaria CLI with SSL verification disabled
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-cli-latest.tgz --strict-ssl=false
+# Install Auditaria with SSL verification disabled
+npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz --strict-ssl=false
 ```
 
 #### Runtime Configuration
@@ -674,7 +674,7 @@ for details._
 - **No API key management** - just sign in with your Google account
 - **Automatic updates** to our latest models
 
-#### Start Auditaria CLI, then choose _Login with Google_ and follow the browser authentication flow when prompted
+#### Start Auditaria, then choose _Login with Google_ and follow the browser authentication flow when prompted
 
 ```bash
 auditaria
@@ -767,7 +767,7 @@ auditaria -p "Run tests and deploy" --output-format stream-json
 
 ### Web Interface
 
-The web interface provides an alternative way to interact with Auditaria CLI
+The web interface provides an alternative way to interact with Auditaria
 through your browser:
 
 - **Web interface enabled by default**: `auditaria` (automatically opens
@@ -829,9 +829,9 @@ auditaria
 
 ### Advanced Topics
 
-- [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Auditaria CLI in
+- [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Auditaria in
   automated workflows.
-- [**Architecture Overview**](./docs/architecture.md) - How Auditaria CLI works.
+- [**Architecture Overview**](./docs/architecture.md) - How Auditaria works.
 - [**IDE Integration**](./docs/ide-integration/index.md) - VS Code companion.
 - [**Sandboxing & Security**](./docs/cli/sandbox.md) - Safe execution
   environments.
@@ -854,7 +854,7 @@ auditaria
 
 ### Using MCP Servers
 
-Configure MCP servers in `~/.gemini/settings.json` to extend Auditaria CLI with
+Configure MCP servers in `~/.gemini/settings.json` to extend Auditaria with
 custom tools:
 
 ```text
@@ -868,7 +868,7 @@ instructions.
 
 ## 🤝 Contributing
 
-We welcome contributions! Auditaria CLI is fully open source (Apache 2.0), and
+We welcome contributions! Auditaria is fully open source (Apache 2.0), and
 we encourage the community to:
 
 - Report bugs and suggest features
@@ -883,7 +883,7 @@ standards, and how to submit pull requests.
 
 - **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
 - **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
-- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria-cli)** -
+- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria)** -
   Package registry.
 - **[GitHub Repository](https://github.com/thacio/auditaria)** - Source code.
 - **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs

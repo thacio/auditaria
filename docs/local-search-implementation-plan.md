@@ -1767,7 +1767,7 @@ parsers.
   sessions
 - **SearchSystem** is the main entry point, providing a clean high-level API
 - Commands are registered in `BuiltinCommandLoader.ts`
-- Search package exported as `@thacio/auditaria-cli-search` dependency in CLI
+- Search package exported as `@thacio/auditaria-search` dependency in CLI
 - **Embedder**: Uses `TransformersJsEmbedder` directly (not via registry) for
   simplicity
 - **Model download**: First run downloads `Xenova/multilingual-e5-small`

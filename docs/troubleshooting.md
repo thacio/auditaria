@@ -64,7 +64,7 @@ topics on:
 
 - **Q: How do I update Gemini CLI to the latest version?**
   - A: If you installed it globally via `npm`, update it using the command
-    `npm install -g @thacio/auditaria-cli@latest`. If you compiled it from
+    `npm install -g @thacio/auditaria@latest`. If you compiled it from
     source, pull the latest changes from the repository, and then rebuild using
     the command `npm run build`.
 
@@ -93,17 +93,17 @@ topics on:
   - **Solution:** Either stop the other process that is using the port or
     configure the MCP server to use a different port.
 
-- **Error: Command not found (when attempting to run Auditaria CLI with
+- **Error: Command not found (when attempting to run Auditaria with
   `auditaria`).**
   - **Cause:** Gemini CLI is not correctly installed or it is not in your
     system's `PATH`.
   - **Solution:** The update depends on how you installed Gemini CLI:
     - If you installed `auditaria` globally, check that your `npm` global binary
-      directory is in your `PATH`. You can update Auditaria CLI using the
-      command `npm install -g @thacio/auditaria-cli@latest`.
+      directory is in your `PATH`. You can update Auditaria using the
+      command `npm install -g @thacio/auditaria@latest`.
     - If you are running `auditaria` from source, ensure you are using the
       correct command to invoke it (e.g.,
-      `node packages/cli/dist/index.js ...`). To update Auditaria CLI, pull the
+      `node packages/cli/dist/index.js ...`). To update Auditaria, pull the
       latest changes from the repository, and then rebuild using the command
       `npm run build`.
 

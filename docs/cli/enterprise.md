@@ -1,13 +1,13 @@
-# Auditaria CLI for the enterprise
+# Auditaria for the enterprise
 
 This document outlines configuration patterns and best practices for deploying
-and managing Auditaria CLI in an enterprise environment. By leveraging
+and managing Auditaria in an enterprise environment. By leveraging
 system-level settings, administrators can enforce security policies, manage tool
 access, and ensure a consistent experience for all users.
 
 > **A note on security:** The patterns described in this document are intended
 > to help administrators create a more controlled and secure environment for
-> using Auditaria CLI. However, they should not be considered a foolproof
+> using Auditaria. However, they should not be considered a foolproof
 > security boundary. A determined user with sufficient privileges on their local
 > machine may still be able to circumvent these configurations. These measures
 > are designed to prevent accidental misuse and enforce corporate policy in a
@@ -45,7 +45,7 @@ Here is how settings from different levels are combined.
       "theme": "default-corporate-theme"
     },
     "context": {
-      "includeDirectories": ["/etc/auditaria-cli/common-context"]
+      "includeDirectories": ["/etc/auditaria/common-context"]
     }
   }
   ```
@@ -101,7 +101,7 @@ Here is how settings from different levels are combined.
       }
     },
     "context": {
-      "includeDirectories": ["/etc/auditaria-cli/global-context"]
+      "includeDirectories": ["/etc/auditaria/global-context"]
     }
   }
   ```
@@ -127,10 +127,10 @@ This results in the following merged configuration:
     },
     "context": {
       "includeDirectories": [
-        "/etc/auditaria-cli/common-context",
+        "/etc/auditaria/common-context",
         "~/gemini-context",
         "./project-context",
-        "/etc/auditaria-cli/global-context"
+        "/etc/auditaria/global-context"
       ]
     }
   }
@@ -147,8 +147,8 @@ This results in the following merged configuration:
   Defaults, User, Workspace, and then System Overrides.
 
 - **Location**:
-  - **Linux**: `/etc/auditaria-cli/settings.json`
-  - **Windows**: `C:\ProgramData\auditaria-cli\settings.json`
+  - **Linux**: `/etc/auditaria/settings.json`
+  - **Windows**: `C:\ProgramData\auditaria\settings.json`
   - **macOS**: `/Library/Application Support/AuditariaCli/settings.json`
   - The path can be overridden using the `GEMINI_CLI_SYSTEM_SETTINGS_PATH`
     environment variable.
@@ -292,7 +292,7 @@ effectively.
 
 ### How MCP server configurations are merged
 
-Auditaria CLI loads `settings.json` files from three levels: System, Workspace,
+Auditaria loads `settings.json` files from three levels: System, Workspace,
 and User. When it comes to the `mcpServers` object, these configurations are
 **merged**:
 
@@ -431,7 +431,7 @@ a custom `sandbox.Dockerfile` as described in the
 ## Controlling network access via proxy
 
 In corporate environments with strict network policies, you can configure
-Auditaria CLI to route all outbound traffic through a corporate proxy. This can
+Auditaria to route all outbound traffic through a corporate proxy. This can
 be set via an environment variable, but it can also be enforced for custom tools
 via the `mcpServers` configuration.
 
@@ -454,7 +454,7 @@ via the `mcpServers` configuration.
 
 ## Telemetry and auditing
 
-For auditing and monitoring purposes, you can configure Auditaria CLI to send
+For auditing and monitoring purposes, you can configure Auditaria to send
 telemetry data to a central location. This allows you to track tool usage and
 other events. For more information, see the
 [telemetry documentation](../telemetry.md).
@@ -531,7 +531,7 @@ logins from accounts belonging to the specified domains.
 
 Here is an example of a system `settings.json` file that combines several of the
 patterns discussed above to create a secure, controlled environment for
-Auditaria CLI.
+Auditaria.
 
 ```json
 {

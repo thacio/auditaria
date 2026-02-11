@@ -51,7 +51,7 @@ export async function transformCode(source, filePath, options = {}) {
         const source = path.node.source.value;
         if (
           source === '@google/gemini-cli-core' ||
-          source === '@thacio/auditaria-cli-core'
+          source === '@thacio/auditaria-core'
         ) {
           for (const spec of path.node.specifiers) {
             if (spec.imported && spec.imported.name === 't') {

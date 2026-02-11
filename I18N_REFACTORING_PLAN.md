@@ -3,7 +3,7 @@
 ## Executive Summary
 
 This document outlines the plan to refactor the internationalization (i18n)
-system in the Auditaria CLI fork to eliminate merge conflicts when syncing with
+system in the Auditaria fork to eliminate merge conflicts when syncing with
 upstream. The solution implements a build-time transformation that automatically
 adds translations without modifying source code.
 

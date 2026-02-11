@@ -1,5 +1,5 @@
 name: 'Publish Release'
-description: 'Builds, prepares, and publishes the auditaria-cli packages to npm and creates a GitHub release.'
+description: 'Builds, prepares, and publishes the auditaria packages to npm and creates a GitHub release.'
 
 inputs:
   release-version:

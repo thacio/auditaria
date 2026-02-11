@@ -43,7 +43,7 @@ pip install onnxruntime transformers numpy huggingface_hub
 In your search system configuration, set `preferPythonEmbedder: true`:
 
 ```typescript
-import { SearchSystem } from '@thacio/auditaria-cli/search';
+import { SearchSystem } from '@thacio/auditaria/search';
 
 const searchSystem = await SearchSystem.initialize({
   config: {

@@ -2234,7 +2234,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
       if (shouldShowIdePrompt) {
         message =
-          'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria CLI in the terminal.';
+          'IDE integration prompt is displayed. Please respond to connect your editor to Auditaria in the terminal.';
         reason = 'ide_integration';
       } else if (isAuthenticating || isAuthDialogOpen) {
         const authMessage = isAuthenticating
@@ -2333,7 +2333,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         );
         filesDescription = parts.join(', ');
       }
-      const startupMessage = `Auditaria CLI is ready. Loaded ${filesDescription}.`;
+      const startupMessage = `Auditaria is ready. Loaded ${filesDescription}.`;
       // Use a generic broadcast since there's no specific setStartupMessage method
       webInterface.service.broadcastMessage({
         id: Date.now(),

@@ -18,7 +18,7 @@ inputs:
     description: 'The npm token for the wombat @google/gemini-cli-core'
     required: true
   wombat-token-cli:
-    description: 'The npm token for wombat @thacio/auditaria-cli'
+    description: 'The npm token for wombat @thacio/auditaria'
     required: true
   wombat-token-a2a-server:
     description: 'The npm token for the @google/gemini-cli-a2a-server package.'

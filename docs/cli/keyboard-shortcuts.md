@@ -1,6 +1,6 @@
-# Auditaria CLI keyboard shortcuts
+# Auditaria keyboard shortcuts
 
-Auditaria CLI ships with a set of default keyboard shortcuts for editing input,
+Auditaria ships with a set of default keyboard shortcuts for editing input,
 navigating history, and controlling the UI. Use this reference to learn the
 available combinations.
 

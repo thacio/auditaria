@@ -270,5 +270,5 @@ and will use one of the following authentication methods if available:
 If none of these environment variables are set in a non-interactive session, the
 CLI will exit with an error.
 
-For comprehensive guidance on using Auditaria CLI programmatically and in
+For comprehensive guidance on using Auditaria programmatically and in
 automation workflows, see the [Headless Mode Guide](../headless.md).

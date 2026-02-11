@@ -131,13 +131,13 @@ export class Storage {
       if (fs.existsSync(geminiPath)) return geminiPath;
       return auditariaPath; // Default to auditaria for new installations
     } else if (os.platform() === 'win32') {
-      const auditariaPath = 'C:\\ProgramData\\auditaria-cli';
+      const auditariaPath = 'C:\\ProgramData\\auditaria';
       const geminiPath = 'C:\\ProgramData\\gemini-cli';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;
       return auditariaPath; // Default to auditaria for new installations
     } else {
-      const auditariaPath = '/etc/auditaria-cli';
+      const auditariaPath = '/etc/auditaria';
       const geminiPath = '/etc/gemini-cli';
       if (fs.existsSync(auditariaPath)) return auditariaPath;
       if (fs.existsSync(geminiPath)) return geminiPath;

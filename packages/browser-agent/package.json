@@ -1,7 +1,7 @@
 {
   "name": "@thacio/browser-agent",
   "version": "0.1.0",
-  "description": "Browser automation agent for Auditaria CLI using Stagehand",
+  "description": "Browser automation agent for Auditaria using Stagehand",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thacio/auditaria.git"

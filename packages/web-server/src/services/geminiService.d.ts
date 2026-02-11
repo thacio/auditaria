@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { Config, GeminiClient } from '@google/gemini-cli-core';
-import { HistoryItem, HistoryItemWithoutId } from '@thacio/auditaria-cli';
+import { HistoryItem, HistoryItemWithoutId } from '@thacio/auditaria';
 export interface WebSession {
     id: string;
     config: Config;

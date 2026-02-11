@@ -239,7 +239,7 @@ class KnowledgeSearchToolInvocation extends BaseToolInvocation<
       const rootPath = this.config.getTargetDir();
       try {
         const { searchDatabaseExists } = await import(
-          '@thacio/auditaria-cli-search'
+          '@thacio/auditaria-search'
         );
 
         if (!searchDatabaseExists(rootPath)) {

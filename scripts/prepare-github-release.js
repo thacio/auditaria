@@ -36,9 +36,9 @@ const coreNpmrcPath = path.resolve(rootDir, 'packages/core/.npmrc');
 fs.writeFileSync(coreNpmrcPath, '@thacio:registry=https://npm.pkg.github.com/');
 console.log('Wrote .npmrc for @thacio scope to packages/core/');
 
-// Update @thacio/auditaria-cli
+// Update @thacio/auditaria
 updatePackageJson('packages/cli/package.json', (pkg) => {
-  pkg.name = '@thacio/auditaria-cli';
+  pkg.name = '@thacio/auditaria';
   pkg.files = ['bundle/'];
   pkg.bin = {
     auditaria: 'bundle/auditaria.js',
@@ -52,9 +52,9 @@ updatePackageJson('packages/cli/package.json', (pkg) => {
   delete pkg.config; // Deletes the sandboxImageUri
 });
 
-// Update @thacio/auditaria-cli-a2a-server
+// Update @thacio/auditaria-a2a-server
 updatePackageJson('packages/a2a-server/package.json', (pkg) => {
-  pkg.name = '@thacio/auditaria-cli-a2a-server';
+  pkg.name = '@thacio/auditaria-a2a-server';
 });
 
 // Update @google/gemini-cli-core

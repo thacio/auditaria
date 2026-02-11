@@ -1,9 +1,9 @@
-# Auditaria CLI companion plugin: Interface specification
+# Auditaria companion plugin: Interface specification
 
 > Last Updated: September 15, 2025
 
 This document defines the contract for building a companion plugin to enable
-Auditaria CLI's IDE mode. For VS Code, these features (native diffing, context
+Auditaria's IDE mode. For VS Code, these features (native diffing, context
 awareness) are provided by the official extension
 ([marketplace](https://marketplace.visualstudio.com/items?itemName=Google.gemini-cli-vscode-ide-companion)).
 This specification is for contributors who wish to bring similar functionality
@@ -11,7 +11,7 @@ to other editors like JetBrains IDEs, Sublime Text, etc.
 
 ## I. The communication interface
 
-Auditaria CLI and the IDE plugin communicate through a local communication
+Auditaria and the IDE plugin communicate through a local communication
 channel.
 
 ### 1. Transport layer: MCP over HTTP

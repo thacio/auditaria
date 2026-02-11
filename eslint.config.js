@@ -226,9 +226,9 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          name: '@thacio/auditaria-cli',
+          name: '@thacio/auditaria',
           message:
-            'Please use relative imports within the @thacio/auditaria-cli package.',
+            'Please use relative imports within the @thacio/auditaria package.',
         },
       ],
     },

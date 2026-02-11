@@ -23,7 +23,7 @@ import { registerCleanup } from '../utils/cleanup.js';
 async function autoStartSearchService(config: Config): Promise<void> {
   try {
     const { searchDatabaseExists } = await import(
-      '@thacio/auditaria-cli-search'
+      '@thacio/auditaria-search'
     );
     const { getSearchService } = await import('@google/gemini-cli-core');
 

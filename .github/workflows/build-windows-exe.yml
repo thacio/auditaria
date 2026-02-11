@@ -83,7 +83,7 @@ jobs:
           body: |
             ## Windows Standalone Executable
             
-            This release contains a standalone Windows executable for Auditaria CLI.
+            This release contains a standalone Windows executable for Auditaria.
             
             ### Features
             - No Node.js or npm required
