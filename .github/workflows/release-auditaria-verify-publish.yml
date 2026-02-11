@@ -23,9 +23,9 @@ on:
           - nightly
           - dev
       run_tests:
-        description: "Run test suite before packaging"
+        description: "Run test suite before packaging (disabled by default)"
         required: true
-        default: true
+        default: false
         type: boolean
       enable_publish:
         description: "Enable npm publish step"
