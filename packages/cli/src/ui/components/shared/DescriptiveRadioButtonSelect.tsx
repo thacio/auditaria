@@ -13,6 +13,7 @@ import type { SelectionListItem } from '../../hooks/useSelectionList.js';
 export interface DescriptiveRadioSelectItem<T> extends SelectionListItem<T> {
   title: string;
   description?: string;
+  rightElement?: React.ReactNode;
 }
 
 export interface DescriptiveRadioButtonSelectProps<T> {
@@ -61,7 +62,14 @@ export function DescriptiveRadioButtonSelect<T>({
       maxItemsToShow={maxItemsToShow}
       renderItem={(item, { titleColor }) => (
         <Box flexDirection="column" key={item.key}>
-          <Text color={titleColor}>{item.title}</Text>
+          {item.rightElement ? (
+            <Box alignItems="center">
+              <Text color={titleColor}>{item.title}</Text>
+              <Box marginLeft={1}>{item.rightElement}</Box>
+            </Box>
+          ) : (
+            <Text color={titleColor}>{item.title}</Text>
+          )}
           {item.description && (
             <Text color={theme.text.secondary}>{item.description}</Text>
           )}

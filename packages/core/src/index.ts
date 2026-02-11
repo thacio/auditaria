@@ -210,9 +210,16 @@ export * from './utils/terminal.js';
 // AUDITARIA_CLAUDE_PROVIDER_START
 export type {
   ProviderConfig,
+  CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
   ProviderDriver,
   ProviderEvent,
   ExternalMCPServerConfig,
+} from './providers/types.js';
+export {
+  CODEX_REASONING_EFFORTS,
+  CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL,
+  getSupportedCodexReasoningEfforts,
+  clampCodexReasoningEffortForModel,
 } from './providers/types.js';
 export {
   ProviderManager,

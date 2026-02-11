@@ -475,6 +475,30 @@ describe('CodexCLIDriver', () => {
     expect(mockProc.stdin!.end).toHaveBeenCalled();
   });
 
+  it('should pass model_reasoning_effort override when configured', async () => {
+    const mockProc = createMockProcess([]);
+    mockSpawn.mockReturnValue(mockProc);
+
+    const driver = new CodexCLIDriver({
+      ...driverConfig,
+      reasoningEffort: 'xhigh',
+    });
+    const controller = new AbortController();
+
+    for await (const _ of driver.sendMessage('hello', controller.signal)) {
+      // consume
+    }
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'codex',
+      expect.arrayContaining(['-c', 'model_reasoning_effort=xhigh']),
+      expect.objectContaining({
+        cwd: '/tmp/test',
+        shell: true,
+      }),
+    );
+  });
+
   it('should use resume args when thread_id is captured', async () => {
     const threadMsg = JSON.stringify({
       type: 'thread.started',

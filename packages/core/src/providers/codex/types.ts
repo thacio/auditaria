@@ -1,5 +1,10 @@
 // AUDITARIA_CODEX_PROVIDER: Codex-specific JSONL event types (codex exec --json)
 
+import type {
+  CodexReasoningEffort,
+  ExternalMCPServerConfig,
+} from '../types.js';
+
 /** Item payload types emitted by Codex CLI */
 
 export interface CodexAgentMessageItem {
@@ -114,7 +119,8 @@ export type CodexStreamMessage =
 export interface CodexDriverConfig {
   model?: string;
   cwd: string;
-  mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>;
+  mcpServers?: Record<string, ExternalMCPServerConfig>;
   toolBridgePort?: number;
   toolBridgeScript?: string;
+  reasoningEffort?: CodexReasoningEffort;
 }

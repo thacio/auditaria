@@ -15,17 +15,48 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_FLASH_LITE_MODEL,
 } from '@google/gemini-cli-core';
-import type { Config, ModelSlashCommandEvent } from '@google/gemini-cli-core';
+import type {
+  Config,
+  ModelSlashCommandEvent,
+  ProviderConfig,
+} from '@google/gemini-cli-core';
 
-// Mock dependencies
-const mockGetDisplayString = vi.fn();
-const mockLogModelSlashCommand = vi.fn();
-const mockModelSlashCommandEvent = vi.fn();
+const {
+  mockGetDisplayString,
+  mockLogModelSlashCommand,
+  mockModelSlashCommandEvent,
+} = vi.hoisted(() => ({
+  mockGetDisplayString: vi.fn(),
+  mockLogModelSlashCommand: vi.fn(),
+  mockModelSlashCommandEvent: vi.fn(),
+}));
 
-vi.mock('@google/gemini-cli-core', async () => {
-  const actual = await vi.importActual('@google/gemini-cli-core');
+vi.mock('@google/gemini-cli-core', () => {
+  const allEfforts = ['low', 'medium', 'high', 'xhigh'] as const;
+  const miniEfforts = ['low', 'medium', 'high'] as const;
+  const getSupportedCodexReasoningEfforts = (
+    model?: string,
+  ): readonly (typeof allEfforts)[number][] =>
+    model === 'gpt-5.1-codex-mini' ? miniEfforts : allEfforts;
+  const clampCodexReasoningEffortForModel = (
+    model: string | undefined,
+    effort: (typeof allEfforts)[number],
+  ) => {
+    const supported = getSupportedCodexReasoningEfforts(model);
+    if (supported.includes(effort)) return effort;
+    return supported[supported.length - 1];
+  };
+
   return {
-    ...actual,
+    PREVIEW_GEMINI_MODEL: 'gemini-3-pro',
+    PREVIEW_GEMINI_FLASH_MODEL: 'gemini-3-flash',
+    PREVIEW_GEMINI_MODEL_AUTO: 'auto-gemini-3',
+    DEFAULT_GEMINI_MODEL: 'gemini-2.5-pro',
+    DEFAULT_GEMINI_FLASH_MODEL: 'gemini-2.5-flash',
+    DEFAULT_GEMINI_FLASH_LITE_MODEL: 'gemini-2.5-flash-lite',
+    DEFAULT_GEMINI_MODEL_AUTO: 'auto-gemini-2.5',
+    getSupportedCodexReasoningEfforts,
+    clampCodexReasoningEffortForModel,
     getDisplayString: (val: string) => mockGetDisplayString(val),
     logModelSlashCommand: (config: Config, event: ModelSlashCommandEvent) =>
       mockLogModelSlashCommand(config, event),
@@ -42,23 +73,41 @@ describe('<ModelDialog />', () => {
   const mockGetModel = vi.fn();
   const mockOnClose = vi.fn();
   const mockGetHasAccessToPreviewModel = vi.fn();
+  const mockSetProviderConfig = vi.fn();
+  const mockClearProviderConfig = vi.fn();
+  const mockGetDisplayModel = vi.fn();
+  const mockGetProviderConfig = vi.fn();
+  const mockGetWorkingDir = vi.fn();
 
   interface MockConfig extends Partial<Config> {
     setModel: (model: string, isTemporary?: boolean) => void;
     getModel: () => string;
     getHasAccessToPreviewModel: () => boolean;
+    setProviderConfig: (providerConfig: ProviderConfig) => void;
+    clearProviderConfig: () => void;
+    getDisplayModel: () => string;
+    getProviderConfig: () => ProviderConfig | undefined;
+    getWorkingDir: () => string;
   }
 
   const mockConfig: MockConfig = {
     setModel: mockSetModel,
     getModel: mockGetModel,
     getHasAccessToPreviewModel: mockGetHasAccessToPreviewModel,
+    setProviderConfig: mockSetProviderConfig,
+    clearProviderConfig: mockClearProviderConfig,
+    getDisplayModel: mockGetDisplayModel,
+    getProviderConfig: mockGetProviderConfig,
+    getWorkingDir: mockGetWorkingDir,
   };
 
   beforeEach(() => {
     vi.resetAllMocks();
     mockGetModel.mockReturnValue(DEFAULT_GEMINI_MODEL_AUTO);
     mockGetHasAccessToPreviewModel.mockReturnValue(false);
+    mockGetDisplayModel.mockReturnValue('gemini-2.5-pro');
+    mockGetProviderConfig.mockReturnValue(undefined);
+    mockGetWorkingDir.mockReturnValue('C:/projects/auditaria');
 
     // Default implementation for getDisplayString
     mockGetDisplayString.mockImplementation((val: string) => {
@@ -79,6 +128,21 @@ describe('<ModelDialog />', () => {
 
   const waitForUpdate = () =>
     new Promise((resolve) => setTimeout(resolve, 150));
+  const downArrow = '\u001B[B';
+  const rightArrow = '\u001B[C';
+
+  const openCodexView = async (
+    stdin: ReturnType<typeof renderComponent>['stdin'],
+  ) => {
+    stdin.write(downArrow);
+    await waitForUpdate();
+    stdin.write(downArrow);
+    await waitForUpdate();
+    stdin.write(downArrow);
+    await waitForUpdate();
+    stdin.write('\r');
+    await waitForUpdate();
+  };
 
   it('renders the initial "main" view correctly', () => {
     const { lastFrame } = renderComponent();
@@ -93,7 +157,7 @@ describe('<ModelDialog />', () => {
 
     // Select "Manual" (index 1)
     // Press down arrow to move to "Manual"
-    stdin.write('\u001B[B'); // Arrow Down
+    stdin.write(downArrow); // Arrow Down
     await waitForUpdate();
 
     // Press enter to select
@@ -124,7 +188,7 @@ describe('<ModelDialog />', () => {
     const { stdin } = renderComponent();
 
     // Navigate to Manual (index 1) and select
-    stdin.write('\u001B[B');
+    stdin.write(downArrow);
     await waitForUpdate();
     stdin.write('\r');
     await waitForUpdate();
@@ -172,7 +236,7 @@ describe('<ModelDialog />', () => {
     const { lastFrame, stdin } = renderComponent();
 
     // Go to manual view
-    stdin.write('\u001B[B');
+    stdin.write(downArrow);
     await waitForUpdate();
     stdin.write('\r');
     await waitForUpdate();
@@ -186,5 +250,77 @@ describe('<ModelDialog />', () => {
     expect(mockOnClose).not.toHaveBeenCalled();
     // Should be back to main view (Manual option visible)
     expect(lastFrame()).toContain('Manual');
+  });
+
+  it('shows Codex thinking bars inline and updates intensity with arrows', async () => {
+    const { lastFrame, stdin } = renderComponent();
+
+    await openCodexView(stdin);
+
+    expect(lastFrame()).toContain('Select OpenAI Codex Model');
+    expect(lastFrame()).toContain('||||');
+    expect(lastFrame()).toContain('Thinking intensity: Medium');
+
+    stdin.write(rightArrow);
+    await waitForUpdate();
+
+    expect(lastFrame()).toContain('Thinking intensity: High');
+  });
+
+  it('clamps Codex thinking to model-supported max for gpt-5.1-codex-mini', async () => {
+    const { lastFrame, stdin } = renderComponent();
+
+    await openCodexView(stdin);
+
+    stdin.write(rightArrow); // Medium -> High
+    await waitForUpdate();
+    stdin.write(rightArrow); // High -> Extra High
+    await waitForUpdate();
+    expect(lastFrame()).toContain('Thinking intensity: Extra High');
+
+    // Move highlight to GPT-5.1 Codex Mini (index 4 in codex submenu).
+    stdin.write(downArrow);
+    await waitForUpdate();
+    stdin.write(downArrow);
+    await waitForUpdate();
+    stdin.write(downArrow);
+    await waitForUpdate();
+
+    expect(lastFrame()).toContain('Thinking intensity: High');
+    expect(lastFrame()).toContain('Supported range: Low - High');
+
+    stdin.write('\r');
+    await waitForUpdate();
+
+    expect(mockSetProviderConfig).toHaveBeenCalledWith({
+      type: 'codex-cli',
+      model: 'gpt-5.1-codex-mini',
+      cwd: 'C:/projects/auditaria',
+      options: {
+        reasoningEffort: 'high',
+      },
+    });
+  });
+
+  it('applies selected Codex thinking intensity to provider config', async () => {
+    const { stdin } = renderComponent();
+
+    await openCodexView(stdin);
+
+    stdin.write(rightArrow); // Medium -> High
+    await waitForUpdate();
+
+    stdin.write('\r'); // Select "Auto"
+    await waitForUpdate();
+
+    expect(mockSetProviderConfig).toHaveBeenCalledWith({
+      type: 'codex-cli',
+      model: undefined,
+      cwd: 'C:/projects/auditaria',
+      options: {
+        reasoningEffort: 'high',
+      },
+    });
+    expect(mockOnClose).toHaveBeenCalled();
   });
 });

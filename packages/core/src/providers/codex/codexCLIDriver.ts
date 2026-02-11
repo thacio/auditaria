@@ -151,6 +151,12 @@ export class CodexCLIDriver implements ProviderDriver {
       if (this.config.model) {
         args.push('-m', this.config.model);
       }
+      if (this.config.reasoningEffort) {
+        args.push(
+          '-c',
+          `model_reasoning_effort=${this.config.reasoningEffort}`,
+        );
+      }
       args.push('--full-auto', '--skip-git-repo-check', this.threadId);
     } else {
       // New session: --full-auto = workspace-write sandbox + auto-approve
@@ -158,6 +164,12 @@ export class CodexCLIDriver implements ProviderDriver {
       args.push('exec', '--json');
       if (this.config.model) {
         args.push('-m', this.config.model);
+      }
+      if (this.config.reasoningEffort) {
+        args.push(
+          '-c',
+          `model_reasoning_effort=${this.config.reasoningEffort}`,
+        );
       }
       args.push('--full-auto', '--skip-git-repo-check');
     }

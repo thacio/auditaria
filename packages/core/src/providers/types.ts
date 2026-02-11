@@ -97,6 +97,74 @@ export interface ProviderDriver {
   dispose(): void;
 }
 
+// AUDITARIA_CODEX_PROVIDER: Supported Codex reasoning effort values for model thinking intensity.
+export const CODEX_REASONING_EFFORTS = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+] as const;
+
+export type CodexReasoningEffort =
+  (typeof CODEX_REASONING_EFFORTS)[number];
+
+// AUDITARIA_CODEX_PROVIDER: Per-model reasoning support in Codex CLI.
+// Keep this in sync with Codex model capabilities to avoid unsupported API calls.
+export const CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL: Readonly<
+  Partial<Record<string, readonly CodexReasoningEffort[]>>
+> = {
+  'gpt-5.3-codex': CODEX_REASONING_EFFORTS,
+  'gpt-5.2-codex': CODEX_REASONING_EFFORTS,
+  // API currently supports low/medium/high for mini (xhigh is rejected).
+  'gpt-5.1-codex-mini': ['low', 'medium', 'high'] as const,
+};
+
+export function getSupportedCodexReasoningEfforts(
+  model?: string,
+): readonly CodexReasoningEffort[] {
+  if (!model) return CODEX_REASONING_EFFORTS;
+  return (
+    CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL[model] ?? CODEX_REASONING_EFFORTS
+  );
+}
+
+export function clampCodexReasoningEffortForModel(
+  model: string | undefined,
+  effort: CodexReasoningEffort,
+): CodexReasoningEffort {
+  const supported = getSupportedCodexReasoningEfforts(model);
+  if (supported.includes(effort)) return effort;
+
+  const requestedIndex = CODEX_REASONING_EFFORTS.indexOf(effort);
+  if (requestedIndex === -1) return supported[0] ?? 'medium';
+
+  const supportedIndices = supported
+    .map((value) => CODEX_REASONING_EFFORTS.indexOf(value))
+    .filter((index) => index !== -1);
+  if (supportedIndices.length === 0) return 'medium';
+
+  const minIndex = Math.min(...supportedIndices);
+  const maxIndex = Math.max(...supportedIndices);
+  const clampedIndex = Math.max(minIndex, Math.min(maxIndex, requestedIndex));
+  const clampedEffort = CODEX_REASONING_EFFORTS[clampedIndex];
+
+  if (supported.includes(clampedEffort)) return clampedEffort;
+
+  // Fallback for non-contiguous support sets.
+  let best = supported[0] ?? 'medium';
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of supported) {
+    const candidateIndex = CODEX_REASONING_EFFORTS.indexOf(candidate);
+    if (candidateIndex === -1) continue;
+    const distance = Math.abs(candidateIndex - requestedIndex);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 export interface ProviderConfig {
   type: 'gemini' | 'claude-cli' | 'codex-cli'; // AUDITARIA_CODEX_PROVIDER: added codex-cli
   model?: string;

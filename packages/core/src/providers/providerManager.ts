@@ -19,8 +19,13 @@ import type {
   ProviderConfig,
   ProviderDriver,
   ExternalMCPServerConfig,
+  CodexReasoningEffort,
 } from './types.js';
-import { ProviderEventType } from './types.js';
+import {
+  CODEX_REASONING_EFFORTS,
+  clampCodexReasoningEffortForModel,
+  ProviderEventType,
+} from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
@@ -49,6 +54,28 @@ export const CLAUDE_INCLUDE_OVERHEAD = true;
 export const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 10_000;
 const CODEX_SERIALIZATION_FACTOR = 1.2;
 export const CODEX_TOOL_OUTPUT_MAX_BYTES = Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIMIT * CODEX_SERIALIZATION_FACTOR) * 4;
+
+const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
+
+function getCodexReasoningEffort(
+  config: ProviderConfig,
+): CodexReasoningEffort | undefined {
+  if (config.type !== 'codex-cli') return undefined;
+  const effort = config.options?.['reasoningEffort'];
+  if (typeof effort !== 'string') return undefined;
+  if (!CODEX_REASONING_EFFORT_SET.has(effort)) return undefined;
+  return clampCodexReasoningEffortForModel(
+    config.model,
+    effort as CodexReasoningEffort,
+  );
+}
+
+function areProviderOptionsEqual(
+  a?: Record<string, unknown>,
+  b?: Record<string, unknown>,
+): boolean {
+  return JSON.stringify(a ?? {}) === JSON.stringify(b ?? {});
+}
 
 // Filter out the initial environment context from history parts for token estimation.
 // The env context (from getEnvironmentContext()) is already injected separately to external
@@ -509,9 +536,15 @@ export class ProviderManager {
   }
 
   setConfig(config: ProviderConfig): void {
+    const optionsChanged = !areProviderOptionsEqual(
+      config.options,
+      this.config.options,
+    );
     if (
       this.driver &&
-      (config.type !== this.config.type || config.model !== this.config.model)
+      (config.type !== this.config.type ||
+        config.model !== this.config.model ||
+        optionsChanged)
     ) {
       this.driver.dispose();
       this.driver = null;
@@ -556,6 +589,13 @@ export class ProviderManager {
     return this.config.model || 'unknown';
   }
 
+  getConfig(): ProviderConfig {
+    return {
+      ...this.config,
+      options: this.config.options ? { ...this.config.options } : undefined,
+    };
+  }
+
   private async getOrCreateDriver(): Promise<ProviderDriver> {
     if (this.driver) {
       dbg('reusing existing driver');
@@ -575,6 +615,7 @@ export class ProviderManager {
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined, // AUDITARIA_CLAUDE_PROVIDER
       toolBridgeScript: this.bridgeScriptPath, // AUDITARIA_CLAUDE_PROVIDER
+      reasoningEffort: getCodexReasoningEffort(this.config),
     };
     dbg('creating new driver', { type: this.config.type, driverConfig });
 

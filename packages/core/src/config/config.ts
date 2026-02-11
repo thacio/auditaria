@@ -1678,6 +1678,10 @@ export class Config {
     return this.providerManager;
   }
 
+  getProviderConfig(): ProviderConfig | undefined {
+    return this.providerManager?.getConfig();
+  } // AUDITARIA_CODEX_PROVIDER
+
   setProviderConfig(config: ProviderConfig): void {
     // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {

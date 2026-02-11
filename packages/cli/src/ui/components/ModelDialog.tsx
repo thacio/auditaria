@@ -19,6 +19,7 @@ import {
   logModelSlashCommand,
   getDisplayString,
   type ProviderConfig, // AUDITARIA_CLAUDE_PROVIDER
+  type CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -29,10 +30,147 @@ interface ModelDialogProps {
   onClose: () => void;
 }
 
+// AUDITARIA_CODEX_PROVIDER_START: Define Codex reasoning effort options and utilities
+const CLAUDE_PREFIX = 'claude:';
+const CODEX_PREFIX = 'codex:';
+const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = 'medium';
+const CODEX_REASONING_OPTIONS: ReadonlyArray<{
+  value: CodexReasoningEffort;
+  label: string;
+}> = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'Extra High' },
+];
+
+const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+};
+const CODEX_REASONING_BAR_COUNT = 4;
+
+const CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL: Readonly<
+  Partial<Record<string, readonly CodexReasoningEffort[]>>
+> = {
+  'gpt-5.3-codex': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.2-codex': ['low', 'medium', 'high', 'xhigh'],
+  'gpt-5.1-codex-mini': ['low', 'medium', 'high'],
+};
+
+function isCodexReasoningEffort(
+  value: unknown,
+): value is CodexReasoningEffort {
+  return CODEX_REASONING_OPTIONS.some((option) => option.value === value);
+}
+
+function getSupportedCodexReasoningEfforts(
+  model?: string,
+): readonly CodexReasoningEffort[] {
+  if (!model) return CODEX_REASONING_OPTIONS.map((option) => option.value);
+  return (
+    CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL[model] ??
+    CODEX_REASONING_OPTIONS.map((option) => option.value)
+  );
+}
+
+function clampCodexReasoningEffortForModel(
+  model: string | undefined,
+  effort: CodexReasoningEffort,
+): CodexReasoningEffort {
+  const supported = getSupportedCodexReasoningEfforts(model);
+  if (supported.includes(effort)) return effort;
+
+  const reasoningOrder = CODEX_REASONING_OPTIONS.map((option) => option.value);
+  const requestedIndex = reasoningOrder.findIndex((value) => value === effort);
+  if (requestedIndex === -1) return supported[0] ?? DEFAULT_CODEX_REASONING_EFFORT;
+
+  for (let index = requestedIndex; index >= 0; index--) {
+    const candidate = reasoningOrder[index];
+    if (supported.includes(candidate)) return candidate;
+  }
+
+  for (let index = requestedIndex + 1; index < reasoningOrder.length; index++) {
+    const candidate = reasoningOrder[index];
+    if (supported.includes(candidate)) return candidate;
+  }
+
+  return supported[0] ?? DEFAULT_CODEX_REASONING_EFFORT;
+}
+
+function rotateCodexReasoningEffort(
+  current: CodexReasoningEffort,
+  direction: -1 | 1,
+  supportedEfforts: readonly CodexReasoningEffort[],
+): CodexReasoningEffort {
+  if (supportedEfforts.length === 0) return current;
+  const index = supportedEfforts.findIndex((effort) => effort === current);
+  const safeIndex = index === -1 ? 0 : index;
+  const next =
+    (safeIndex + direction + supportedEfforts.length) %
+    supportedEfforts.length;
+  return supportedEfforts[next];
+}
+
+function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
+  return (
+    CODEX_REASONING_OPTIONS.find((option) => option.value === effort)?.label ??
+    CODEX_REASONING_OPTIONS[0].label
+  );
+}
+
+function CodexReasoningMeter({
+  effort,
+  maxEffort = 'xhigh',
+}: {
+  effort: CodexReasoningEffort;
+  maxEffort?: CodexReasoningEffort;
+}): React.JSX.Element {
+  const filledBars = CODEX_REASONING_BAR_LEVELS[effort];
+  const maxBars = CODEX_REASONING_BAR_LEVELS[maxEffort];
+  return (
+    <Text>
+      <Text color={theme.status.success}>
+        {'|'.repeat(Math.min(filledBars, maxBars))}
+      </Text>
+      <Text color={theme.text.secondary}>
+        {'|'.repeat(Math.max(0, maxBars - filledBars))}
+      </Text>
+    </Text>
+  );
+}
+
+function getCodexModelFromSelection(value: string): string | undefined {
+  if (!value.startsWith(CODEX_PREFIX)) return undefined;
+  const codexModel = value.slice(CODEX_PREFIX.length);
+  return codexModel === 'auto' ? undefined : codexModel;
+}
+// AUDITARIA_CODEX_PROVIDER_END
+
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
   const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>('main'); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
   const [persistMode, setPersistMode] = useState(false);
+  const [codexHighlightedModel, setCodexHighlightedModel] = useState<
+    string | undefined
+  >(() => {
+    const providerConfig = config?.getProviderConfig();
+    if (providerConfig?.type !== 'codex-cli') return undefined;
+    return providerConfig.model;
+  });
+  const [codexReasoningEffort, setCodexReasoningEffort] =
+    useState<CodexReasoningEffort>(() => {
+      const providerConfig = config?.getProviderConfig();
+      const effort = providerConfig?.options?.['reasoningEffort'];
+      const initialEffort = isCodexReasoningEffort(effort)
+        ? effort
+        : DEFAULT_CODEX_REASONING_EFFORT;
+      const codexModel =
+        providerConfig?.type === 'codex-cli' ? providerConfig.model : undefined;
+      return clampCodexReasoningEffortForModel(codexModel, initialEffort);
+    });
 
   // Determine the Preferred Model (read once when the dialog opens).
   const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
@@ -54,11 +192,21 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   }, [preferredModel]);
 
   // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER
-  const CLAUDE_PREFIX = 'claude:';
-  const CODEX_PREFIX = 'codex:';
   const displayModel = config?.getDisplayModel() ?? '';
   const isClaudeActive = displayModel.startsWith('claude-code:');
   const isCodexActive = displayModel.startsWith('codex-code:');
+  const codexDisplayEffort = clampCodexReasoningEffortForModel(
+    codexHighlightedModel,
+    codexReasoningEffort,
+  );
+  const codexSupportedEfforts = getSupportedCodexReasoningEfforts(
+    codexHighlightedModel,
+  );
+  const codexMinSupportedEffort = codexSupportedEfforts[0] ?? codexDisplayEffort;
+  const codexMaxSupportedEffort =
+    codexSupportedEfforts[codexSupportedEfforts.length - 1] ??
+    codexDisplayEffort;
+  const codexDisplayMeterMaxEffort = codexMaxSupportedEffort;
   // AUDITARIA_CODEX_PROVIDER_END
 
   useKeypress(
@@ -76,6 +224,24 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         setPersistMode((prev) => !prev);
         return true;
       }
+      // AUDITARIA_CODEX_PROVIDER_START
+      if (
+        view === 'codex' &&
+        (key.name === 'left' || key.name === 'right')
+      ) {
+        const supportedEfforts = getSupportedCodexReasoningEfforts(
+          codexHighlightedModel,
+        );
+        setCodexReasoningEffort((prev) =>
+          rotateCodexReasoningEffort(
+            clampCodexReasoningEffortForModel(codexHighlightedModel, prev),
+            key.name === 'right' ? 1 : -1,
+            supportedEfforts,
+          ),
+        );
+        return true;
+      }
+      // AUDITARIA_CODEX_PROVIDER_END
       return false;
     },
     { isActive: true },
@@ -199,33 +365,66 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
 
   // AUDITARIA_CODEX_PROVIDER_START: Codex submenu options
   const codexOptions = useMemo(
-    () => [
-      {
-        value: `${CODEX_PREFIX}auto`,
-        title: 'Auto',
-        description: "Uses Codex's default model",
-        key: 'codex-auto',
-      },
-      {
-        value: `${CODEX_PREFIX}gpt-5.3-codex`,
-        title: 'GPT-5.3 Codex',
-        description: 'Most capable, 258K context',
-        key: 'codex-gpt53',
-      },
-      {
-        value: `${CODEX_PREFIX}gpt-5.2-codex`,
-        title: 'GPT-5.2 Codex',
-        description: 'Advanced, 258K context',
-        key: 'codex-gpt52',
-      },
-      {
-        value: `${CODEX_PREFIX}gpt-5.1-codex-mini`,
-        title: 'GPT-5.1 Codex Mini',
-        description: 'Fast and compact, 258K context',
-        key: 'codex-gpt51mini',
-      },
-    ],
-    [],
+    () => {
+      const effortForModel = (model?: string) =>
+        clampCodexReasoningEffortForModel(model, codexReasoningEffort);
+      const maxEffortForModel = (model?: string) => {
+        const supported = getSupportedCodexReasoningEfforts(model);
+        return supported[supported.length - 1] ?? 'xhigh';
+      };
+
+      return [
+        {
+          value: `${CODEX_PREFIX}auto`,
+          title: 'Auto',
+          description: "Uses Codex's default model",
+          rightElement: (
+            <CodexReasoningMeter
+              effort={effortForModel()}
+              maxEffort={maxEffortForModel()}
+            />
+          ),
+          key: 'codex-auto',
+        },
+        {
+          value: `${CODEX_PREFIX}gpt-5.3-codex`,
+          title: 'GPT-5.3 Codex',
+          description: 'Most capable, 258K context',
+          rightElement: (
+            <CodexReasoningMeter
+              effort={effortForModel('gpt-5.3-codex')}
+              maxEffort={maxEffortForModel('gpt-5.3-codex')}
+            />
+          ),
+          key: 'codex-gpt53',
+        },
+        {
+          value: `${CODEX_PREFIX}gpt-5.2-codex`,
+          title: 'GPT-5.2 Codex',
+          description: 'Advanced, 258K context',
+          rightElement: (
+            <CodexReasoningMeter
+              effort={effortForModel('gpt-5.2-codex')}
+              maxEffort={maxEffortForModel('gpt-5.2-codex')}
+            />
+          ),
+          key: 'codex-gpt52',
+        },
+        {
+          value: `${CODEX_PREFIX}gpt-5.1-codex-mini`,
+          title: 'GPT-5.1 Codex Mini',
+          description: 'Fast and compact, 258K context',
+          rightElement: (
+            <CodexReasoningMeter
+              effort={effortForModel('gpt-5.1-codex-mini')}
+              maxEffort={maxEffortForModel('gpt-5.1-codex-mini')}
+            />
+          ),
+          key: 'codex-gpt51mini',
+        },
+      ];
+    },
+    [codexReasoningEffort],
   );
   // AUDITARIA_CODEX_PROVIDER_END
 
@@ -305,15 +504,21 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
 
       if (model.startsWith(CODEX_PREFIX)) {
         if (config) {
-          const codexModel = model.slice(CODEX_PREFIX.length);
+          const codexModel = getCodexModelFromSelection(model);
           const providerConfig: ProviderConfig = {
             type: 'codex-cli',
-            model: codexModel === 'auto' ? undefined : codexModel,
+            model: codexModel,
             cwd: config.getWorkingDir(),
+            options: {
+              reasoningEffort: clampCodexReasoningEffortForModel(
+                codexModel,
+                codexReasoningEffort,
+              ),
+            }, // AUDITARIA_CODEX_PROVIDER
           };
           config.setProviderConfig(providerConfig);
           const event = new ModelSlashCommandEvent(
-            `codex-code-${codexModel}`,
+            `codex-code-${codexModel || 'auto'}`,
           );
           logModelSlashCommand(config, event);
         }
@@ -331,7 +536,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       onClose();
     },
-    [config, onClose, persistMode],
+    [config, codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */, onClose, persistMode], 
   );
 
   return (
@@ -364,10 +569,41 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         <DescriptiveRadioButtonSelect
           items={options}
           onSelect={handleSelect}
+          onHighlight={(value) => {
+            if (
+              view === 'codex' &&
+              typeof value === 'string' &&
+              value.startsWith(CODEX_PREFIX)
+            ) {
+              setCodexHighlightedModel(getCodexModelFromSelection(value));
+            }
+          }}
           initialIndex={initialIndex}
           showNumbers={true}
         />
       </Box>
+      {/* AUDITARIA_CODEX_PROVIDER_START: show compact Codex thinking controls when in Codex view */}
+      {view === 'codex' && (
+        <Box marginTop={1} flexDirection="column">
+          <Box alignItems="center">
+            <Text color={theme.text.primary}>
+              Thinking intensity: {getCodexReasoningLabel(codexDisplayEffort)}
+            </Text>
+            <Box marginLeft={1}>
+              <CodexReasoningMeter
+                effort={codexDisplayEffort}
+                maxEffort={codexDisplayMeterMaxEffort}
+              />
+            </Box>
+          </Box>
+          <Text color={theme.text.secondary}>
+            Supported range: {getCodexReasoningLabel(codexMinSupportedEffort)} -{' '}
+            {getCodexReasoningLabel(codexMaxSupportedEffort)}
+          </Text>
+          <Text color={theme.text.secondary}>(Use Left/Right arrows)</Text>
+        </Box>
+      )}
+      {/* AUDITARIA_CODEX_PROVIDER_END */}
       <Box marginTop={1} flexDirection="column">
         <Box>
           <Text color={theme.text.primary}>
