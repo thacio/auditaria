@@ -104,9 +104,9 @@ jobs:
 
       - name: Pack publish artifact
         run: |
-          PACK_JSON="$(npm pack --json)"
-          echo "$PACK_JSON"
-          PACK_FILE="$(node -e 'let input="";process.stdin.on("data",(d)=>input+=d);process.stdin.on("end",()=>{const parsed=JSON.parse(input);process.stdout.write(parsed[0].filename);});' <<<"$PACK_JSON")"
+          npm pack --json --ignore-scripts > pack-output.json
+          cat pack-output.json
+          PACK_FILE="$(node -e 'const fs=require("node:fs");const parsed=JSON.parse(fs.readFileSync("pack-output.json","utf8"));process.stdout.write(parsed[0].filename);')"
           mv "$PACK_FILE" auditaria-package.tgz
           ls -lah auditaria-package.tgz
 
