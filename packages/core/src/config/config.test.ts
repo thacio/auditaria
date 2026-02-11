@@ -108,6 +108,7 @@ vi.mock('../core/client.js', () => ({
     isInitialized: vi.fn().mockReturnValue(false),
     setTools: vi.fn().mockResolvedValue(undefined),
     updateSystemInstruction: vi.fn(),
+    getHistory: vi.fn().mockReturnValue([]),
   })),
 }));
 
@@ -1748,6 +1749,87 @@ describe('Config getHooks', () => {
       config.setModel(DEFAULT_GEMINI_MODEL, true);
 
       expect(onModelChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('provider preference persistence', () => {
+    it('should persist Claude provider selection when requested', () => {
+      const onModelChange = vi.fn();
+      const config = new Config({
+        ...baseParams,
+        onModelChange,
+      });
+
+      config.setProviderConfig(
+        {
+          type: 'claude-cli',
+          model: 'sonnet',
+          cwd: '/tmp',
+        },
+        false,
+      );
+
+      expect(onModelChange).toHaveBeenCalledWith('claude-code:sonnet');
+    });
+
+    it('should persist Codex provider selection and reasoning when requested', () => {
+      const onModelChange = vi.fn();
+      const config = new Config({
+        ...baseParams,
+        onModelChange,
+      });
+
+      config.setProviderConfig(
+        {
+          type: 'codex-cli',
+          model: 'gpt-5.2-codex',
+          cwd: '/tmp',
+          options: {
+            reasoningEffort: 'xhigh',
+          },
+        },
+        false,
+      );
+
+      expect(onModelChange).toHaveBeenCalledWith(
+        'codex-code:gpt-5.2-codex|xhigh',
+      );
+    });
+
+    it('should not persist provider selection when temporary', () => {
+      const onModelChange = vi.fn();
+      const config = new Config({
+        ...baseParams,
+        onModelChange,
+      });
+
+      config.setProviderConfig(
+        {
+          type: 'claude-cli',
+          model: 'haiku',
+          cwd: '/tmp',
+        },
+        true,
+      );
+
+      expect(onModelChange).not.toHaveBeenCalled();
+    });
+
+    it('should persist active Gemini model when clearing provider and requested', () => {
+      const onModelChange = vi.fn();
+      const config = new Config({
+        ...baseParams,
+        onModelChange,
+      });
+
+      config.setProviderConfig({
+        type: 'claude-cli',
+        model: 'sonnet',
+        cwd: '/tmp',
+      });
+      config.clearProviderConfig(false);
+
+      expect(onModelChange).toHaveBeenCalledWith('gemini-pro');
     });
   });
 });

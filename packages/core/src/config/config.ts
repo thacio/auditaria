@@ -1682,7 +1682,26 @@ export class Config {
     return this.providerManager?.getConfig();
   } // AUDITARIA_CODEX_PROVIDER
 
-  setProviderConfig(config: ProviderConfig): void {
+  // AUDITARIA_PROVIDER_PERSISTENCE_START: Serialize external provider preference into model setting storage.
+  private getPersistedModelPreferenceForProvider(
+    config: ProviderConfig,
+  ): string | undefined {
+    if (config.type === 'claude-cli') {
+      return `claude-code:${config.model || 'auto'}`;
+    }
+    if (config.type === 'codex-cli') {
+      const model = config.model || 'auto';
+      const effort = config.options?.['reasoningEffort'];
+      if (typeof effort === 'string' && effort.length > 0) {
+        return `codex-code:${model}|${effort}`;
+      }
+      return `codex-code:${model}`;
+    }
+    return undefined;
+  }
+  // AUDITARIA_PROVIDER_PERSISTENCE_END
+
+  setProviderConfig(config: ProviderConfig, isTemporary: boolean = true /*   Temporary - AUDITARIA_PROVIDER_PERSISTENCE */): void {
     // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {
       this.providerManager.setConfig(config);
@@ -1698,6 +1717,15 @@ export class Config {
       }
       this.providerManager.setAppConfig(this);
     }
+    // AUDITARIA_PROVIDER_PERSISTENCE_START: Persist external provider preference when requested.
+    if (this.onModelChange && !isTemporary) {
+      const persistedPreference =
+        this.getPersistedModelPreferenceForProvider(config);
+      if (persistedPreference) {
+        this.onModelChange(persistedPreference);
+      }
+    }
+    // AUDITARIA_PROVIDER_PERSISTENCE_END
     // AUDITARIA_CLAUDE_PROVIDER: If switching to Claude and there's existing Gemini
     // conversation history, signal the provider to inject it as context on next call.
     if (config.type !== 'gemini') {
@@ -1743,7 +1771,7 @@ export class Config {
     }
   }
 
-  clearProviderConfig(): void {
+  clearProviderConfig(isTemporary: boolean = true): void {
     // AUDITARIA_CLAUDE_PROVIDER: When switching back to Gemini, sanitize history
     // to convert Claude-specific functionCall/functionResponse parts into text
     // descriptions. Preserves inlineData, fileData, and known Auditaria tool calls.
@@ -1770,6 +1798,11 @@ export class Config {
 
     // AUDITARIA_CLAUDE_PROVIDER: Emit model changed event to update footer when switching back to Gemini
     coreEvents.emitModelChanged(this.getModel());
+    // AUDITARIA_PROVIDER_PERSISTENCE_START: Persist fallback to the current Gemini model when requested.
+    if (this.onModelChange && !isTemporary) {
+      this.onModelChange(this.getModel());
+    }
+    // AUDITARIA_PROVIDER_PERSISTENCE_END
   }
 
   isExternalProviderActive(): boolean {

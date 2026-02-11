@@ -39,11 +39,15 @@ import {
   Config,
   applyAdminAllowlist,
   getAdminBlockedMcpServersMessage,
+  CODEX_REASONING_EFFORTS, // AUDITARIA_PROVIDER_PERSISTENCE
+  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER_PERSISTENCE
 } from '@google/gemini-cli-core';
 import type {
   HookDefinition,
   HookEventName,
   OutputFormat,
+  ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
+  CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
 } from '@google/gemini-cli-core';
 import {
   type Settings,
@@ -436,6 +440,69 @@ export function isDebugMode(argv: CliArgs): boolean {
   );
 }
 
+// AUDITARIA_PROVIDER_PERSISTENCE_START: Rehydrate persisted external providers from model.name.
+const CLAUDE_PERSISTED_MODEL_PREFIX = 'claude-code:';
+const CODEX_PERSISTED_MODEL_PREFIX = 'codex-code:';
+
+function parsePersistedProviderConfig(
+  modelPreference: string | undefined,
+  cwd: string,
+): ProviderConfig | undefined {
+  if (!modelPreference) return undefined;
+
+  if (modelPreference.startsWith(CLAUDE_PERSISTED_MODEL_PREFIX)) {
+    const claudeModel = modelPreference
+      .slice(CLAUDE_PERSISTED_MODEL_PREFIX.length)
+      .trim();
+    return {
+      type: 'claude-cli',
+      model: !claudeModel || claudeModel === 'auto' ? undefined : claudeModel,
+      cwd,
+    };
+  }
+
+  if (modelPreference.startsWith(CODEX_PERSISTED_MODEL_PREFIX)) {
+    const codexPayload = modelPreference
+      .slice(CODEX_PERSISTED_MODEL_PREFIX.length)
+      .trim();
+    const separatorIndex = codexPayload.indexOf('|');
+    const modelPart =
+      separatorIndex >= 0
+        ? codexPayload.slice(0, separatorIndex).trim()
+        : codexPayload;
+    const reasoningPart =
+      separatorIndex >= 0
+        ? codexPayload.slice(separatorIndex + 1).trim()
+        : undefined;
+
+    const codexModel = !modelPart || modelPart === 'auto' ? undefined : modelPart;
+    let clampedReasoningEffort: CodexReasoningEffort | undefined;
+    if (
+      reasoningPart &&
+      CODEX_REASONING_EFFORTS.includes(
+        reasoningPart as CodexReasoningEffort,
+      )
+    ) {
+      clampedReasoningEffort = clampCodexReasoningEffortForModel(
+        codexModel,
+        reasoningPart as CodexReasoningEffort,
+      );
+    }
+
+    return {
+      type: 'codex-cli',
+      model: codexModel,
+      cwd,
+      options: clampedReasoningEffort
+        ? { reasoningEffort: clampedReasoningEffort }
+        : undefined,
+    };
+  }
+
+  return undefined;
+}
+// AUDITARIA_PROVIDER_PERSISTENCE_END
+
 export interface LoadCliConfigOptions {
   cwd?: string;
   projectHooks?: { [K in HookEventName]?: HookDefinition[] } & {
@@ -697,11 +764,19 @@ export async function loadCliConfig(
   const defaultModel = PREVIEW_GEMINI_MODEL_AUTO;
   const specifiedModel =
     argv.model || process.env['GEMINI_MODEL'] || settings.model?.name;
+  // AUDITARIA_PROVIDER_PERSISTENCE_START: Parse provider preferences persisted through model.name.
+  const persistedProviderConfig = parsePersistedProviderConfig(
+    specifiedModel,
+    cwd,
+  );
+  // AUDITARIA_PROVIDER_PERSISTENCE_END
 
   const resolvedModel =
-    specifiedModel === GEMINI_MODEL_ALIAS_AUTO
+    persistedProviderConfig
       ? defaultModel
-      : specifiedModel || defaultModel;
+      : specifiedModel === GEMINI_MODEL_ALIAS_AUTO
+        ? defaultModel
+        : specifiedModel || defaultModel;
   const sandboxConfig = await loadSandboxConfig(settings, argv);
   const screenReader =
     argv.screenReader !== undefined
@@ -799,6 +874,7 @@ export async function loadCliConfig(
     fileDiscoveryService: fileService,
     bugCommand: settings.advanced?.bugCommand,
     model: resolvedModel,
+    providerConfig: persistedProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
     maxSessionTurns: settings.model?.maxSessionTurns,
     experimentalZedIntegration: argv.experimentalAcp || false,
     listExtensions: argv.listExtensions || false,

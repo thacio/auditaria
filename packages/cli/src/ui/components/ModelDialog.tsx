@@ -376,7 +376,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             model: claudeModel === 'auto' ? undefined : claudeModel,
             cwd: config.getWorkingDir(),
           };
-          config.setProviderConfig(providerConfig);
+          config.setProviderConfig(providerConfig, !persistMode); // AUDITARIA_PROVIDER_PERSISTENCE
           const event = new ModelSlashCommandEvent(
             `claude-code-${claudeModel}`,
           );
@@ -407,7 +407,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
               ),
             }, // AUDITARIA_CODEX_PROVIDER
           };
-          config.setProviderConfig(providerConfig);
+          config.setProviderConfig(providerConfig, !persistMode); // AUDITARIA_PROVIDER_PERSISTENCE
           const event = new ModelSlashCommandEvent(
             `codex-code-${codexModel || 'auto'}`,
           );
@@ -419,7 +419,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       // AUDITARIA_CODEX_PROVIDER_END
 
       if (config) {
-        config.clearProviderConfig(); // AUDITARIA_CLAUDE_PROVIDER: clear any active external provider
+        config.clearProviderConfig(!persistMode); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_PROVIDER_PERSISTENCE
 
         config.setModel(model, persistMode ? false : true);
         const event = new ModelSlashCommandEvent(model);

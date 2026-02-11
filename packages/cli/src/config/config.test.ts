@@ -92,6 +92,10 @@ vi.mock('read-package-up', () => ({
   ),
 }));
 
+vi.mock('@thacio/browser-agent', () => ({
+  BrowserAgentTool: class MockBrowserAgentTool {},
+}));
+
 vi.mock('@google/gemini-cli-core', async () => {
   const actualServer = await vi.importActual<typeof ServerConfig>(
     '@google/gemini-cli-core',
@@ -1782,6 +1786,97 @@ describe('loadCliConfig model selection', () => {
     );
 
     expect(config.getModel()).toBe('auto-gemini-3');
+  });
+
+  it('rehydrates persisted Claude provider preference from model.name', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'claude-code:sonnet',
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.isExternalProviderActive()).toBe(true);
+    expect(config.getDisplayModel()).toBe('claude-code:sonnet');
+    expect(config.getProviderConfig()).toEqual(
+      expect.objectContaining({
+        type: 'claude-cli',
+        model: 'sonnet',
+      }),
+    );
+    expect(config.getModel()).toBe('auto-gemini-3');
+  });
+
+  it('rehydrates persisted Codex provider preference with reasoning', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'codex-code:gpt-5.2-codex|xhigh',
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.isExternalProviderActive()).toBe(true);
+    expect(config.getDisplayModel()).toBe('codex-code:gpt-5.2-codex');
+    expect(config.getProviderConfig()).toEqual(
+      expect.objectContaining({
+        type: 'codex-cli',
+        model: 'gpt-5.2-codex',
+        options: {
+          reasoningEffort: 'xhigh',
+        },
+      }),
+    );
+  });
+
+  it('clamps persisted Codex reasoning to model-supported max', async () => {
+    process.argv = ['node', 'script.js'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'codex-code:gpt-5.1-codex-mini|xhigh',
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.getProviderConfig()).toEqual(
+      expect.objectContaining({
+        type: 'codex-cli',
+        model: 'gpt-5.1-codex-mini',
+        options: {
+          reasoningEffort: 'high',
+        },
+      }),
+    );
+  });
+
+  it('uses explicit argv model over persisted provider preference', async () => {
+    process.argv = ['node', 'script.js', '--model', 'gemini-2.5-flash-preview'];
+    const argv = await parseArguments(createTestMergedSettings());
+    const config = await loadCliConfig(
+      createTestMergedSettings({
+        model: {
+          name: 'codex-code:gpt-5.2-codex|xhigh',
+        },
+      }),
+      'test-session',
+      argv,
+    );
+
+    expect(config.isExternalProviderActive()).toBe(false);
+    expect(config.getModel()).toBe('gemini-2.5-flash-preview');
   });
 });
 

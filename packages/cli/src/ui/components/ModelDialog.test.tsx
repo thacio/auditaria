@@ -55,6 +55,7 @@ vi.mock('@google/gemini-cli-core', () => {
     DEFAULT_GEMINI_FLASH_MODEL: 'gemini-2.5-flash',
     DEFAULT_GEMINI_FLASH_LITE_MODEL: 'gemini-2.5-flash-lite',
     DEFAULT_GEMINI_MODEL_AUTO: 'auto-gemini-2.5',
+    CODEX_REASONING_EFFORTS: allEfforts,
     getSupportedCodexReasoningEfforts,
     clampCodexReasoningEffortForModel,
     getDisplayString: (val: string) => mockGetDisplayString(val),
@@ -83,8 +84,11 @@ describe('<ModelDialog />', () => {
     setModel: (model: string, isTemporary?: boolean) => void;
     getModel: () => string;
     getHasAccessToPreviewModel: () => boolean;
-    setProviderConfig: (providerConfig: ProviderConfig) => void;
-    clearProviderConfig: () => void;
+    setProviderConfig: (
+      providerConfig: ProviderConfig,
+      isTemporary?: boolean,
+    ) => void;
+    clearProviderConfig: (isTemporary?: boolean) => void;
     getDisplayModel: () => string;
     getProviderConfig: () => ProviderConfig | undefined;
     getWorkingDir: () => string;
@@ -220,6 +224,7 @@ describe('<ModelDialog />', () => {
       DEFAULT_GEMINI_MODEL_AUTO,
       false, // Persist enabled
     );
+    expect(mockClearProviderConfig).toHaveBeenCalledWith(false);
     expect(mockOnClose).toHaveBeenCalled();
   });
 
@@ -259,23 +264,18 @@ describe('<ModelDialog />', () => {
 
     expect(lastFrame()).toContain('Select OpenAI Codex Model');
     expect(lastFrame()).toContain('||||');
-    expect(lastFrame()).toContain('Thinking intensity: Medium');
+    expect(lastFrame()).toContain('Thinking intensity: Extra High');
 
     stdin.write(rightArrow);
     await waitForUpdate();
 
-    expect(lastFrame()).toContain('Thinking intensity: High');
+    expect(lastFrame()).toContain('Thinking intensity: Low');
   });
 
   it('clamps Codex thinking to model-supported max for gpt-5.1-codex-mini', async () => {
     const { lastFrame, stdin } = renderComponent();
 
     await openCodexView(stdin);
-
-    stdin.write(rightArrow); // Medium -> High
-    await waitForUpdate();
-    stdin.write(rightArrow); // High -> Extra High
-    await waitForUpdate();
     expect(lastFrame()).toContain('Thinking intensity: Extra High');
 
     // Move highlight to GPT-5.1 Codex Mini (index 4 in codex submenu).
@@ -299,7 +299,7 @@ describe('<ModelDialog />', () => {
       options: {
         reasoningEffort: 'high',
       },
-    });
+    }, true);
   });
 
   it('applies selected Codex thinking intensity to provider config', async () => {
@@ -318,9 +318,32 @@ describe('<ModelDialog />', () => {
       model: undefined,
       cwd: 'C:/projects/auditaria',
       options: {
-        reasoningEffort: 'high',
+        reasoningEffort: 'low',
       },
-    });
+    }, true);
+    expect(mockOnClose).toHaveBeenCalled();
+  });
+
+  it('persists Codex provider selection when persist mode is enabled', async () => {
+    const { stdin } = renderComponent();
+
+    await openCodexView(stdin);
+    stdin.write('\t'); // Enable persist mode
+    await waitForUpdate();
+    stdin.write('\r'); // Select "Auto"
+    await waitForUpdate();
+
+    expect(mockSetProviderConfig).toHaveBeenCalledWith(
+      {
+        type: 'codex-cli',
+        model: undefined,
+        cwd: 'C:/projects/auditaria',
+        options: {
+          reasoningEffort: 'xhigh',
+        },
+      },
+      false,
+    );
     expect(mockOnClose).toHaveBeenCalled();
   });
 });
