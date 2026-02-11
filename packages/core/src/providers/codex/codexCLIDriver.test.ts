@@ -42,6 +42,7 @@ const mockSpawn = vi.mocked(spawn);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockExistsSync = vi.mocked(existsSync);
+const expectedShellOption = process.platform === 'win32' ? 'powershell.exe' : true;
 
 function createMockProcess(stdoutLines: string[]): ChildProcess {
   const stdout = new Readable({
@@ -467,7 +468,7 @@ describe('CodexCLIDriver', () => {
       ['exec', '--json', '-m', 'gpt-5.3-codex', '-s', 'danger-full-access', '--skip-git-repo-check'],
       expect.objectContaining({
         cwd: '/tmp/test',
-        shell: true,
+        shell: expectedShellOption,
       }),
     );
 
@@ -494,7 +495,7 @@ describe('CodexCLIDriver', () => {
       expect.arrayContaining(['-c', 'model_reasoning_effort=xhigh']),
       expect.objectContaining({
         cwd: '/tmp/test',
-        shell: true,
+        shell: expectedShellOption,
       }),
     );
   });
@@ -553,7 +554,7 @@ describe('CodexCLIDriver', () => {
     expect(mockSpawn).toHaveBeenCalledWith(
       'codex',
       expect.arrayContaining(['-c', expect.stringContaining('model_instructions_file=')]),
-      expect.objectContaining({ shell: true }),
+      expect.objectContaining({ shell: expectedShellOption }),
     );
   });
 

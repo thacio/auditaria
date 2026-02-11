@@ -23,9 +23,13 @@ function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[CLI_DRIVER]', ...args);
 }
 
-// AUDITARIA_CLAUDE_PROVIDER: Quote paths for shell:true on Windows (cmd.exe splits unquoted spaces)
+// AUDITARIA_CLAUDE_PROVIDER: Quote paths for shell invocation on Windows (unquoted spaces split args)
 function shellQuote(p: string): string {
   return p.includes(' ') ? `"${p}"` : p;
+}
+
+function getShellOption(): boolean | string {
+  return process.platform === 'win32' ? 'powershell.exe' : true;
 }
 
 export class ClaudeCLIDriver implements ProviderDriver {
@@ -58,12 +62,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
     const proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
-      shell: true,
+      shell: getShellOption(),
     });
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
 
-    // Pipe prompt through stdin to avoid Windows cmd.exe argument quoting issues.
+    // Pipe prompt through stdin to avoid shell argument quoting issues.
     proc.stdin?.write(prompt);
     proc.stdin?.end();
 
@@ -119,7 +123,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   private buildArgs(): string[] {
     // Prompt is piped through stdin, not passed as -p argument,
-    // to avoid Windows cmd.exe shell quoting issues.
+    // to avoid shell quoting issues.
     const args = [
       '--output-format',
       'stream-json',

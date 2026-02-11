@@ -30,6 +30,7 @@ import { spawn } from 'child_process';
 import { writeFileSync } from 'fs';
 const mockSpawn = vi.mocked(spawn);
 const mockWriteFileSync = vi.mocked(writeFileSync);
+const expectedShellOption = process.platform === 'win32' ? 'powershell.exe' : true;
 
 function createMockProcess(stdoutLines: string[]): ChildProcess {
   const stdout = new Readable({
@@ -391,7 +392,7 @@ describe('ClaudeCLIDriver', () => {
       ['--output-format', 'stream-json', '--verbose', '--model', 'sonnet', '--permission-mode', 'bypassPermissions'],
       expect.objectContaining({
         cwd: '/tmp/test',
-        shell: true,
+        shell: expectedShellOption,
       }),
     );
 
@@ -422,7 +423,7 @@ describe('ClaudeCLIDriver', () => {
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
       expect.arrayContaining(['--append-system-prompt-file', expect.stringContaining('.system-prompt')]),
-      expect.objectContaining({ shell: true }),
+      expect.objectContaining({ shell: expectedShellOption }),
     );
 
     // Prompt goes via stdin (not mixed with system context)

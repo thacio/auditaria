@@ -40,9 +40,13 @@ function toStr(val: unknown): string {
 const MCP_MARKER_START = '# AUDITARIA_MCP_START';
 const MCP_MARKER_END = '# AUDITARIA_MCP_END';
 
-// AUDITARIA_CODEX_PROVIDER: Quote paths for shell:true on Windows (cmd.exe splits unquoted spaces)
+// AUDITARIA_CODEX_PROVIDER: Quote paths for shell invocation on Windows (unquoted spaces split args)
 function shellQuote(p: string): string {
   return p.includes(' ') ? `"${p}"` : p;
+}
+
+function getShellOption(): boolean | string {
+  return process.platform === 'win32' ? 'powershell.exe' : true;
 }
 
 export class CodexCLIDriver implements ProviderDriver {
@@ -64,7 +68,7 @@ export class CodexCLIDriver implements ProviderDriver {
     systemContext?: string,
   ): AsyncGenerator<ProviderEvent> {
     // AUDITARIA_CODEX_PROVIDER: Inject MCP servers into ~/.codex/config.toml before spawning.
-    // cmd.exe mangles -c flag values with TOML arrays (strips double quotes),
+    // Windows shell invocation can mangle -c flag values with TOML arrays (strips double quotes),
     // so we write to the config file directly where TOML syntax is preserved.
     this.injectMcpConfig();
 
@@ -81,7 +85,7 @@ export class CodexCLIDriver implements ProviderDriver {
     const proc = spawn('codex', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
-      shell: true,
+      shell: getShellOption(),
     });
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
@@ -193,8 +197,8 @@ export class CodexCLIDriver implements ProviderDriver {
   }
 
   // AUDITARIA_CODEX_PROVIDER: Inject MCP server config into ~/.codex/config.toml.
-  // We write directly to the config file because cmd.exe (shell:true on Windows)
-  // mangles double quotes in -c flag values, breaking TOML array syntax.
+  // We write directly to the config file because shell invocation on Windows
+  // can mangle double quotes in -c flag values, breaking TOML array syntax.
   // Uses markers so we can cleanly remove our block on dispose().
   private injectMcpConfig(): void {
     if (this.mcpConfigInjected) return; // Already injected
