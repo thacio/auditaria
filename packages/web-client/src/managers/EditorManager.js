@@ -9,6 +9,7 @@
 import { EventEmitter } from '../utils/EventEmitter.js';
 import { detectLanguage, getDefaultTabSize } from '../utils/languageDetection.js';
 import { themeManager } from '../utils/theme-manager.js';
+import { showErrorToast, showSuccessToast } from '../components/Toast.js';
 
 const MONACO_THEMES = [
   {
@@ -274,12 +275,13 @@ export class EditorManager extends EventEmitter {
     // Handle parse responses
     this.wsManager.addEventListener('parse_response', (event) => {
       const { outputPath } = event.detail;
-      alert(`✓ Successfully parsed to DOCX!\n\nOutput: ${outputPath}\n\nFile opened in default application.`);
+      const filename = outputPath ? outputPath.split(/[\\/]/).pop() : 'document.docx';
+      showSuccessToast(`Parsed to DOCX: ${filename}`);
     });
 
     // Handle parse errors
     this.wsManager.addEventListener('parse_error', (event) => {
-      alert(`✗ Parse failed:\n\n${event.detail.error}`);
+      showErrorToast(`Parse failed: ${event.detail.error}`);
     });
 
     // AUDITARIA: Handle collaborative writing status updates

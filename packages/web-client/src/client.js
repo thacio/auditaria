@@ -19,6 +19,7 @@ import { ConfirmationQueue } from './confirmation-queue.js';
 import { SlashAutocompleteManager } from './managers/SlashAutocompleteManager.js';
 import { themeManager } from './utils/theme-manager.js';
 import { layoutManager } from './utils/layout-manager.js';
+import { showErrorToast, showInfoToast } from './components/Toast.js';
 
 // WEB_INTERFACE_START: File browser and editor imports
 import { FileTreeManager } from './managers/FileTreeManager.js';
@@ -409,7 +410,7 @@ class AuditariaWebClient {
         const remainingSlots = maxAttachments - this.attachments.length;
         
         if (remainingSlots <= 0) {
-            alert(`Maximum ${maxAttachments} attachments allowed`);
+            showErrorToast(`Maximum ${maxAttachments} attachments allowed`);
             return;
         }
         
@@ -426,7 +427,7 @@ class AuditariaWebClient {
         });
         
         if (uniqueFiles.length === 0 && duplicateFiles.length > 0) {
-            alert(`File(s) already attached: ${duplicateFiles.join(', ')}`);
+            showInfoToast(`Already attached: ${duplicateFiles.join(', ')}`);
             return;
         }
         
@@ -434,7 +435,7 @@ class AuditariaWebClient {
         const filesToProcess = uniqueFiles.slice(0, remainingSlots);
         
         if (uniqueFiles.length > filesToProcess.length) {
-            alert(`Only ${filesToProcess.length} of ${uniqueFiles.length} files added (max ${maxAttachments} attachments)`);
+            showInfoToast(`Added ${filesToProcess.length} of ${uniqueFiles.length} files (max ${maxAttachments})`);
         }
         
         let addedCount = 0;
@@ -463,7 +464,7 @@ class AuditariaWebClient {
         
         // Show error alert if there were any errors
         if (errors.length > 0) {
-            alert(`Failed to attach files:\n\n${errors.join('\n')}`);
+            showErrorToast(`Failed to attach files: ${errors.join('; ')}`);
         }
         
         // Show summary if we had partial success
@@ -754,7 +755,7 @@ class AuditariaWebClient {
     
     printChat() {
         if (this.messageManager.getMessageCount() === 0) {
-            alert('No messages to print. Start a conversation first.');
+            showInfoToast('No messages to print yet.');
             return;
         }
         
@@ -774,7 +775,7 @@ class AuditariaWebClient {
             
         } catch (error) {
             console.error('Error printing chat:', error);
-            alert('An error occurred while preparing the chat for printing. Please try again.');
+            showErrorToast('Failed to prepare the chat for printing.');
         }
     }
     
@@ -1066,11 +1067,7 @@ class AuditariaWebClient {
      * @param {string} filename - Filename
      */
     showBinaryFileError(filename) {
-        alert(
-            `Cannot open "${filename}"\n\n` +
-            `This is a binary file that cannot be edited or previewed in the web interface.\n\n` +
-            `Supported preview formats: Images (PNG, JPG, SVG), HTML, JSON, and more.`
-        );
+        showErrorToast(`Cannot open "${filename}". This file type cannot be previewed.`);
     }
 
     /**

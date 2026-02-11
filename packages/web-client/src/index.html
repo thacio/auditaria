@@ -113,13 +113,13 @@
             <div class="workbench">
                 <nav class="app-rail" aria-label="Primary">
                     <div class="rail-group">
-                        <button id="toggle-files-button" class="rail-button" title="Toggle File Explorer">
+                        <button id="toggle-files-button" class="rail-button" data-tooltip="File Explorer" aria-label="Toggle File Explorer">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                             </svg>
                             <span class="rail-label">Files</span>
                         </button>
-                        <button id="toggle-editor-button" class="rail-button" title="Toggle Editor Panel">
+                        <button id="toggle-editor-button" class="rail-button" data-tooltip="Editor" aria-label="Toggle Editor Panel">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
                                 <path d="m15 5 4 4"></path>
@@ -129,7 +129,7 @@
                     </div>
                     <div class="rail-divider"></div>
                     <div class="rail-group">
-                        <button id="knowledge-base-button" class="rail-button" title="Search Knowledge Base" disabled>
+                        <button id="knowledge-base-button" class="rail-button" data-tooltip="Knowledge Base" aria-label="Search Knowledge Base" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
                                 <circle cx="10" cy="10" r="3"></circle>
@@ -137,7 +137,7 @@
                             </svg>
                             <span class="rail-label">Knowledge</span>
                         </button>
-                        <button id="slash-commands-button" class="rail-button slash-commands-button" title="Show Slash Commands" disabled>
+                        <button id="slash-commands-button" class="rail-button slash-commands-button" data-tooltip="Commands" aria-label="Show Slash Commands" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M10 9l3 3-3 3"></path>
                                 <path d="M4 6h3"></path>
@@ -149,7 +149,7 @@
                             </svg>
                             <span class="rail-label">Commands</span>
                         </button>
-                        <button id="mcp-servers-button" class="rail-button mcp-servers-button" title="Show Available MCP Servers" disabled>
+                        <button id="mcp-servers-button" class="rail-button mcp-servers-button" data-tooltip="MCP Servers" aria-label="Show Available MCP Servers" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                                 <polyline points="7.5,4.21 12,6.81 16.5,4.21"></polyline>
@@ -158,7 +158,7 @@
                             </svg>
                             <span class="rail-label">MCPs</span>
                         </button>
-                        <button id="debug-logs-button" class="rail-button debug-logs-button" title="Show Debug Console Logs" disabled>
+                        <button id="debug-logs-button" class="rail-button debug-logs-button" data-tooltip="Debug Logs" aria-label="Show Debug Console Logs" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                                 <path d="M7,15 L10,12 L7,9"></path>
@@ -169,7 +169,7 @@
                     </div>
                     <div class="rail-spacer"></div>
                     <div class="rail-group rail-group-bottom">
-                        <button id="autoscroll-button" class="rail-button autoscroll-button active" title="Auto-scroll: On" disabled>
+                        <button id="autoscroll-button" class="rail-button autoscroll-button active" data-tooltip="Auto-scroll" aria-label="Auto-scroll" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M8 3v3"></path>
                                 <path d="M16 3v3"></path>
@@ -179,7 +179,7 @@
                             </svg>
                             <span class="rail-label">Auto</span>
                         </button>
-                        <button id="print-button" class="rail-button print-button" title="Print Chat as PDF" disabled>
+                        <button id="print-button" class="rail-button print-button" data-tooltip="Print Chat" aria-label="Print Chat as PDF" disabled>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="6,9 6,2 18,2 18,9"></polyline>
                                 <path d="M6,18H4a2,2,0,0,1-2-2V11a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2v5a2,2,0,0,1-2,2H18"></path>

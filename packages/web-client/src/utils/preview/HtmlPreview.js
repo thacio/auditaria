@@ -7,6 +7,7 @@
 // WEB_INTERFACE_FEATURE: HTML preview with sandboxed iframe
 
 import { BasePreview } from './BasePreview.js';
+import { showErrorToast } from '../../components/Toast.js';
 
 /**
  * HTML Preview
@@ -280,11 +281,11 @@ export class HtmlPreview extends BasePreview {
         // Popup blocked or failed
         console.warn('Failed to open window - popup may be blocked');
         URL.revokeObjectURL(url);
-        alert('Failed to open in browser. Please check if popups are blocked.');
+        showErrorToast('Failed to open in browser. Please check popup settings.');
       }
     } catch (error) {
       console.error('Error opening in browser:', error);
-      alert(`Error opening in browser: ${error.message}`);
+      showErrorToast(`Error opening in browser: ${error.message}`);
     }
   }
 

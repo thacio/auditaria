@@ -12,6 +12,7 @@ import { MenuBar } from './MenuBar.js';
 import { ExternalChangeWarning } from './ExternalChangeWarning.js';
 import { DiffModal } from './DiffModal.js';
 import { themeManager } from '../utils/theme-manager.js';
+import { showErrorToast } from './Toast.js';
 
 /**
  * Editor Panel Component
@@ -56,7 +57,7 @@ export class EditorPanel extends EventEmitter {
 
     // State
     this.isVisible = false;
-    this.isCollapsed = false;
+    this.isCollapsed = true;
     this.isPreviewMode = false;
     this.isSplitMode = false;
     this.isDiffMode = false;
@@ -175,7 +176,7 @@ export class EditorPanel extends EventEmitter {
   createPanelElement() {
     const panel = document.createElement('div');
     panel.id = 'editor-panel';
-    panel.className = 'editor-panel';
+    panel.className = 'editor-panel collapsed';
 
     panel.innerHTML = `
       <div class="editor-resize-handle" id="editor-resize-handle"></div>
@@ -1294,9 +1295,9 @@ export class EditorPanel extends EventEmitter {
     // Always hide, even if state says it's already hidden
     // This fixes issues where CSS classes and state flags are out of sync
     this.panel.classList.remove('visible');
-    this.panel.classList.remove('collapsed');
+    this.panel.classList.add('collapsed');
     this.isVisible = false;
-    this.isCollapsed = false;
+    this.isCollapsed = true;
 
     // Clear inline width so CSS can fully control visibility
     this.panel.style.width = '';
@@ -1358,6 +1359,7 @@ export class EditorPanel extends EventEmitter {
    */
   toggleCollapse() {
     this.isCollapsed = !this.isCollapsed;
+    this.isVisible = !this.isCollapsed;
 
     if (this.isCollapsed) {
       // When collapsing, remove .visible and add .collapsed
@@ -1410,7 +1412,7 @@ export class EditorPanel extends EventEmitter {
    */
   showError(message) {
     console.error('Editor error:', message);
-    alert(`Error: ${message}`);
+    showErrorToast(message);
   }
 
   /**

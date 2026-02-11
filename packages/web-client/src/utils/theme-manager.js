@@ -218,13 +218,13 @@ class ThemeManager {
         }
       }
     } catch {}
-    return this._mediaQuery.matches ? 'calm-dark' : 'calm-light';
+    return this._mediaQuery.matches ? 'studio-dark' : 'studio-light';
   }
 
   _onSystemChange(e) {
     // Only follow system when user hasn't stored a preference
     try { if (localStorage.getItem(STORAGE_KEY)) return; } catch {}
-    this.set(e.matches ? 'calm-dark' : 'calm-light');
+    this.set(e.matches ? 'studio-dark' : 'studio-light');
   }
 
   _syncColorScheme() {

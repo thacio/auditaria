@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { showErrorToast } from './Toast.js';
 import './BrowserAgentControls.css';
 
 /**
@@ -63,7 +64,7 @@ export function BrowserAgentControls({ sessionId = 'default' }) {
           setTimeout(() => setTakeoverMessage(''), 5000); // Clear after 5s
         } else if (message.type === 'error') {
           console.error('[AgentControls] Server error:', message.message);
-          alert('Error: ' + message.message);
+          showErrorToast(message.message || 'Browser agent error');
         }
       } catch (error) {
         console.error('[AgentControls] Error parsing message:', error);
