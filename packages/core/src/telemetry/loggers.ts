@@ -81,6 +81,7 @@ import { bufferTelemetryEvent } from './sdk.js';
 import type { UiEvent } from './uiTelemetry.js';
 import { uiTelemetryService } from './uiTelemetry.js';
 import { ClearcutLogger } from './clearcut-logger/clearcut-logger.js';
+import { debugLogger } from '../utils/debugLogger.js';
 
 export function logCliConfiguration(
   config: Config,
@@ -92,12 +93,19 @@ export function logCliConfiguration(
   // EXTERNAL TELEMETRY DISABLED: Skip OpenTelemetry external logging but keep local metrics
   // OpenTelemetry logger.emit() would send configuration data externally
   // bufferTelemetryEvent(() => {
-  //   const logger = logs.getLogger(SERVICE_NAME);
-  //   const logRecord: LogRecord = {
-  //     body: event.toLogBody(),
-  //     attributes: event.toOpenTelemetryAttributes(config),
-  //   };
-  //   logger.emit(logRecord);
+  //   void config
+  //     .getExperimentsAsync()
+  //     .then(() => {
+  //       const logger = logs.getLogger(SERVICE_NAME);
+  //       const logRecord: LogRecord = {
+  //         body: event.toLogBody(),
+  //         attributes: event.toOpenTelemetryAttributes(config),
+  //       };
+  //       logger.emit(logRecord);
+  //     })
+  //     .catch((e: unknown) => {
+  //       debugLogger.error('Failed to log telemetry event', e);
+  //     });
   // });
 }
 
@@ -813,11 +821,19 @@ export function logStartupStats(
   event: StartupStatsEvent,
 ): void {
   bufferTelemetryEvent(() => {
-    const logger = logs.getLogger(SERVICE_NAME);
-    const logRecord: LogRecord = {
-      body: event.toLogBody(),
-      attributes: event.toOpenTelemetryAttributes(config),
-    };
-    logger.emit(logRecord);
+    // Wait for experiments to load before emitting so we capture experimentIds
+    void config
+      .getExperimentsAsync()
+      .then(() => {
+        const logger = logs.getLogger(SERVICE_NAME);
+        const logRecord: LogRecord = {
+          body: event.toLogBody(),
+          attributes: event.toOpenTelemetryAttributes(config),
+        };
+        logger.emit(logRecord);
+      })
+      .catch((e: unknown) => {
+        debugLogger.error('Failed to log telemetry event', e);
+      });
   });
 }
