@@ -71,13 +71,13 @@ const MAX_TURNS = 100;
 
 type BeforeAgentHookReturn =
   | {
-    type: GeminiEventType.AgentExecutionStopped;
-    value: { reason: string; systemMessage?: string };
-  }
+      type: GeminiEventType.AgentExecutionStopped;
+      value: { reason: string; systemMessage?: string };
+    }
   | {
-    type: GeminiEventType.AgentExecutionBlocked;
-    value: { reason: string; systemMessage?: string };
-  }
+      type: GeminiEventType.AgentExecutionBlocked;
+      value: { reason: string; systemMessage?: string };
+    }
   | { additionalContext: string | undefined }
   | undefined;
 
@@ -324,9 +324,7 @@ export class GeminiClient {
       return;
     }
 
-    const systemMemory = this.config.isJitContextEnabled()
-      ? this.config.getGlobalMemory()
-      : this.config.getUserMemory();
+    const systemMemory = this.config.getUserMemory();
     const systemInstruction = getCoreSystemPrompt(this.config, systemMemory);
     this.getChat().setSystemInstruction(systemInstruction);
   }
@@ -346,9 +344,7 @@ export class GeminiClient {
     const history = await getInitialChatHistory(this.config, extraHistory);
 
     try {
-      const systemMemory = this.config.isJitContextEnabled()
-        ? this.config.getGlobalMemory()
-        : this.config.getUserMemory();
+      const systemMemory = this.config.getUserMemory();
       const currentLanguage = getCurrentLanguage(); // AUDITARIA_LANGUAGE - Auditaria Custom Feature
       const systemInstruction = getCoreSystemPrompt(
         this.config,
@@ -404,9 +400,9 @@ export class GeminiClient {
           path: activeFile.path,
           cursor: activeFile.cursor
             ? {
-              line: activeFile.cursor.line,
-              character: activeFile.cursor.character,
-            }
+                line: activeFile.cursor.line,
+                character: activeFile.cursor.character,
+              }
             : undefined,
           selectedText: activeFile.selectedText || undefined,
         };
@@ -485,9 +481,9 @@ export class GeminiClient {
             path: currentActiveFile.path,
             cursor: currentActiveFile.cursor
               ? {
-                line: currentActiveFile.cursor.line,
-                character: currentActiveFile.cursor.character,
-              }
+                  line: currentActiveFile.cursor.line,
+                  character: currentActiveFile.cursor.character,
+                }
               : undefined,
             selectedText: currentActiveFile.selectedText || undefined,
           };
@@ -814,13 +810,25 @@ export class GeminiClient {
     const providerManager = this.config.getProviderManager();
     if (providerManager?.isExternalProviderActive()) {
       // AUDITARIA_COLLABORATIVE_WRITING: Check for external file changes before sending to provider
-      const collabNotifications = await collaborativeWritingService.checkAndGetPendingNotifications(signal);
+      const collabNotifications =
+        await collaborativeWritingService.checkAndGetPendingNotifications(
+          signal,
+        );
       let effectiveRequest: PartListUnion = request;
       if (collabNotifications) {
-        effectiveRequest = collabNotifications + '\n\n' + partToString(request, { verbose: true });
+        effectiveRequest =
+          collabNotifications +
+          '\n\n' +
+          partToString(request, { verbose: true });
       }
       const systemContext = this.config.buildExternalProviderContext();
-      const turn = yield* providerManager.handleSendMessage(effectiveRequest, signal, prompt_id, this.getChat(), systemContext);
+      const turn = yield* providerManager.handleSendMessage(
+        effectiveRequest,
+        signal,
+        prompt_id,
+        this.getChat(),
+        systemContext,
+      );
 
       // AUDITARIA_CLAUDE_PROVIDER: Update telemetry token count after external provider stream completes
       this.updateTelemetryTokenCount();

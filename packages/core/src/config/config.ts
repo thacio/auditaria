@@ -120,6 +120,7 @@ import { HookSystem } from '../hooks/index.js';
 import type { UserTierId } from '../code_assist/types.js';
 import type { RetrieveUserQuotaResponse } from '../code_assist/types.js';
 import type { AdminControlsSettings } from '../code_assist/types.js';
+import type { HierarchicalMemory } from './memory.js';
 import { getCodeAssistServer } from '../code_assist/codeAssist.js';
 import type { Experiments } from '../code_assist/experiments/experiments.js';
 import { AgentRegistry } from '../agents/registry.js';
@@ -403,7 +404,7 @@ export interface ConfigParameters {
   mcpServerCommand?: string;
   mcpServers?: Record<string, MCPServerConfig>;
   mcpEnablementCallbacks?: McpEnablementCallbacks;
-  userMemory?: string;
+  userMemory?: string | HierarchicalMemory;
   geminiMdFileCount?: number;
   geminiMdFilePaths?: string[];
   approvalMode?: ApprovalMode;
@@ -539,7 +540,7 @@ export class Config {
   private readonly extensionsEnabled: boolean;
   private mcpServers: Record<string, MCPServerConfig> | undefined;
   private readonly mcpEnablementCallbacks?: McpEnablementCallbacks;
-  private userMemory: string;
+  private userMemory: string | HierarchicalMemory;
   private geminiMdFileCount: number;
   private geminiMdFilePaths: string[];
   private readonly showMemoryUsage: boolean;
@@ -548,7 +549,10 @@ export class Config {
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
-  private providerAvailability: { claude: boolean; codex: boolean } = { claude: false, codex: false }; // AUDITARIA_PROVIDER_AVAILABILITY
+  private providerAvailability: { claude: boolean; codex: boolean } = {
+    claude: false,
+    codex: false,
+  }; // AUDITARIA_PROVIDER_AVAILABILITY
   private baseLlmClient!: BaseLlmClient;
   private modelRouterService: ModelRouterService;
   private readonly modelAvailabilityService: ModelAvailabilityService;
@@ -1419,14 +1423,13 @@ export class Config {
     this.mcpServers = mcpServers;
   }
 
-  getUserMemory(): string {
+  getUserMemory(): string | HierarchicalMemory {
     if (this.experimentalJitContext && this.contextManager) {
-      return [
-        this.contextManager.getGlobalMemory(),
-        this.contextManager.getEnvironmentMemory(),
-      ]
-        .filter(Boolean)
-        .join('\n\n');
+      return {
+        global: this.contextManager.getGlobalMemory(),
+        extension: this.contextManager.getExtensionMemory(),
+        project: this.contextManager.getEnvironmentMemory(),
+      };
     }
     return this.userMemory;
   }
@@ -1449,7 +1452,7 @@ export class Config {
     }
   }
 
-  setUserMemory(newUserMemory: string): void {
+  setUserMemory(newUserMemory: string | HierarchicalMemory): void {
     this.userMemory = newUserMemory;
   }
 
@@ -1688,7 +1691,10 @@ export class Config {
     return { ...this.providerAvailability };
   }
 
-  setProviderAvailability(availability: { claude: boolean; codex: boolean }): void {
+  setProviderAvailability(availability: {
+    claude: boolean;
+    codex: boolean;
+  }): void {
     this.providerAvailability = { ...availability };
   }
   // AUDITARIA_PROVIDER_AVAILABILITY_END
@@ -1712,7 +1718,10 @@ export class Config {
   }
   // AUDITARIA_PROVIDER_PERSISTENCE_END
 
-  setProviderConfig(config: ProviderConfig, isTemporary: boolean = true /*   Temporary - AUDITARIA_PROVIDER_PERSISTENCE */): void {
+  setProviderConfig(
+    config: ProviderConfig,
+    isTemporary: boolean = true /*   Temporary - AUDITARIA_PROVIDER_PERSISTENCE */,
+  ): void {
     // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {
       this.providerManager.setConfig(config);

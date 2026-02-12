@@ -5,6 +5,7 @@
  */
 
 import type { Config } from '../config/config.js';
+import type { HierarchicalMemory } from '../config/memory.js';
 import { PromptProvider } from '../prompts/promptProvider.js';
 import { resolvePathFromEnv as resolvePathFromEnvImpl } from '../prompts/utils.js';
 // AUDITARIA_FEATURE: Import SupportedLanguage type for i18n support
@@ -24,7 +25,7 @@ export function resolvePathFromEnv(envVar?: string) {
  */
 export function getCoreSystemPrompt(
   config: Config,
-  userMemory?: string,
+  userMemory?: string | HierarchicalMemory,
   language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
   interactiveOverride?: boolean,
 ): string {

@@ -32,6 +32,7 @@ import {
   ASK_USER_TOOL_NAME,
   getVersion,
   PREVIEW_GEMINI_MODEL_AUTO,
+  type HierarchicalMemory,
   coreEvents,
   GEMINI_MODEL_ALIAS_AUTO,
   getAdminErrorMessage,
@@ -41,13 +42,11 @@ import {
   getAdminBlockedMcpServersMessage,
   CODEX_REASONING_EFFORTS, // AUDITARIA_PROVIDER_PERSISTENCE
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER_PERSISTENCE
-} from '@google/gemini-cli-core';
-import type {
-  HookDefinition,
-  HookEventName,
-  OutputFormat,
-  ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
-  CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
+  type HookDefinition,
+  type HookEventName,
+  type OutputFormat,
+  type ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
+  type CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
 } from '@google/gemini-cli-core';
 import {
   type Settings,
@@ -582,7 +581,7 @@ export async function loadCliConfig(
 
   const experimentalJitContext = settings.experimental?.jitContext ?? false;
 
-  let memoryContent = '';
+  let memoryContent: string | HierarchicalMemory = '';
   let fileCount = 0;
   let filePaths: string[] = [];
 

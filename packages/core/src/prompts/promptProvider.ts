@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import type { Config } from '../config/config.js';
+import type { HierarchicalMemory } from '../config/memory.js';
 import { GEMINI_DIR } from '../utils/paths.js';
 import { ApprovalMode } from '../policy/types.js';
 import * as snippets from './snippets.js';
@@ -42,7 +43,7 @@ export class PromptProvider {
    */
   getCoreSystemPrompt(
     config: Config,
-    userMemory?: string,
+    userMemory?: string | HierarchicalMemory,
     language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
     interactiveOverride?: boolean,
   ): string {
@@ -112,6 +113,13 @@ export class PromptProvider {
       );
     } else {
       // --- Standard Composition ---
+      const hasHierarchicalMemory =
+        typeof userMemory === 'object' &&
+        userMemory !== null &&
+        (!!userMemory.global?.trim() ||
+          !!userMemory.extension?.trim() ||
+          !!userMemory.project?.trim());
+
       const options: snippets.SystemPromptOptions = {
         preamble: this.withSection('preamble', () => ({
           interactive: interactiveMode,
@@ -120,6 +128,7 @@ export class PromptProvider {
           interactive: interactiveMode,
           isGemini3,
           hasSkills: skills.length > 0,
+          hasHierarchicalMemory,
           contextFilenames,
         })),
         subAgents: this.withSection('agentContexts', () =>
