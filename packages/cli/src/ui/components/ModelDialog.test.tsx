@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { render } from 'ink-testing-library';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act } from 'react';
 import { ModelDialog } from './ModelDialog.js';
-import { ConfigContext } from '../contexts/ConfigContext.js';
-import { KeypressProvider } from '../contexts/KeypressContext.js';
+import { renderWithProviders } from '../../test-utils/render.js';
+import { waitFor } from '../../test-utils/async.js';
 import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
@@ -36,7 +36,7 @@ vi.mock('@google/gemini-cli-core', () => {
   const miniEfforts = ['low', 'medium', 'high'] as const;
   const getSupportedCodexReasoningEfforts = (
     model?: string,
-  ): readonly (typeof allEfforts)[number][] =>
+  ): ReadonlyArray<(typeof allEfforts)[number]> =>
     model === 'gpt-5.1-codex-mini' ? miniEfforts : allEfforts;
   const clampCodexReasoningEffortForModel = (
     model: string | undefined,
@@ -92,6 +92,7 @@ describe('<ModelDialog />', () => {
     getDisplayModel: () => string;
     getProviderConfig: () => ProviderConfig | undefined;
     getWorkingDir: () => string;
+    getIdeMode: () => boolean;
   }
 
   const mockConfig: MockConfig = {
@@ -103,6 +104,7 @@ describe('<ModelDialog />', () => {
     getDisplayModel: mockGetDisplayModel,
     getProviderConfig: mockGetProviderConfig,
     getWorkingDir: mockGetWorkingDir,
+    getIdeMode: () => false,
   };
 
   beforeEach(() => {
@@ -121,14 +123,10 @@ describe('<ModelDialog />', () => {
     });
   });
 
-  const renderComponent = (contextValue = mockConfig as Config) =>
-    render(
-      <KeypressProvider>
-        <ConfigContext.Provider value={contextValue}>
-          <ModelDialog onClose={mockOnClose} />
-        </ConfigContext.Provider>
-      </KeypressProvider>,
-    );
+  const renderComponent = (configValue = mockConfig as Config) =>
+    renderWithProviders(<ModelDialog onClose={mockOnClose} />, {
+      config: configValue,
+    });
 
   const waitForUpdate = () =>
     new Promise((resolve) => setTimeout(resolve, 150));
@@ -161,48 +159,60 @@ describe('<ModelDialog />', () => {
 
     // Select "Manual" (index 1)
     // Press down arrow to move to "Manual"
-    stdin.write(downArrow); // Arrow Down
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\u001B[B'); // Arrow Down
+    });
 
     // Press enter to select
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\r');
+    });
 
     // Should now show manual options
-    expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
-    expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_MODEL);
-    expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_LITE_MODEL);
+    await waitFor(() => {
+      expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
+      expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_MODEL);
+      expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_LITE_MODEL);
+    });
   });
 
   it('sets model and closes when a model is selected in "main" view', async () => {
     const { stdin } = renderComponent();
 
     // Select "Auto" (index 0)
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\r');
+    });
 
-    expect(mockSetModel).toHaveBeenCalledWith(
-      DEFAULT_GEMINI_MODEL_AUTO,
-      true, // Session only by default
-    );
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockSetModel).toHaveBeenCalledWith(
+        DEFAULT_GEMINI_MODEL_AUTO,
+        true, // Session only by default
+      );
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('sets model and closes when a model is selected in "manual" view', async () => {
     const { stdin } = renderComponent();
 
     // Navigate to Manual (index 1) and select
-    stdin.write(downArrow);
-    await waitForUpdate();
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\u001B[B');
+    });
+    await act(async () => {
+      stdin.write('\r');
+    });
 
     // Now in manual view. Default selection is first item (DEFAULT_GEMINI_MODEL)
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\r');
+    });
 
-    expect(mockSetModel).toHaveBeenCalledWith(DEFAULT_GEMINI_MODEL, true);
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockSetModel).toHaveBeenCalledWith(DEFAULT_GEMINI_MODEL, true);
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('toggles persist mode with Tab key', async () => {
@@ -211,50 +221,68 @@ describe('<ModelDialog />', () => {
     expect(lastFrame()).toContain('Remember model for future sessions: true');
 
     // Press Tab to toggle persist mode
-    stdin.write('\t');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\t');
+    });
 
-    expect(lastFrame()).toContain('Remember model for future sessions: false');
+    await waitFor(() => {
+      expect(lastFrame()).toContain(
+        'Remember model for future sessions: false',
+      );
+    });
 
     // Select "Auto" (index 0)
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\r');
+    });
 
-    expect(mockSetModel).toHaveBeenCalledWith(
-      DEFAULT_GEMINI_MODEL_AUTO,
-      false, // Persist enabled
-    );
-    expect(mockClearProviderConfig).toHaveBeenCalledWith(false);
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockSetModel).toHaveBeenCalledWith(
+        DEFAULT_GEMINI_MODEL_AUTO,
+        false, // Persist enabled
+      );
+      expect(mockClearProviderConfig).toHaveBeenCalledWith(false);
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('closes dialog on escape in "main" view', async () => {
     const { stdin } = renderComponent();
 
-    stdin.write('\u001B'); // Escape
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\u001B'); // Escape
+    });
 
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('goes back to "main" view on escape in "manual" view', async () => {
     const { lastFrame, stdin } = renderComponent();
 
     // Go to manual view
-    stdin.write(downArrow);
-    await waitForUpdate();
-    stdin.write('\r');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\u001B[B');
+    });
+    await act(async () => {
+      stdin.write('\r');
+    });
 
-    expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
+    await waitFor(() => {
+      expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
+    });
 
     // Press Escape
-    stdin.write('\u001B');
-    await waitForUpdate();
+    await act(async () => {
+      stdin.write('\u001B');
+    });
 
-    expect(mockOnClose).not.toHaveBeenCalled();
-    // Should be back to main view (Manual option visible)
-    expect(lastFrame()).toContain('Manual');
+    await waitFor(() => {
+      expect(mockOnClose).not.toHaveBeenCalled();
+      // Should be back to main view (Manual option visible)
+      expect(lastFrame()).toContain('Manual');
+    });
   });
 
   it('shows Codex thinking bars inline and updates intensity with arrows', async () => {
@@ -292,14 +320,17 @@ describe('<ModelDialog />', () => {
     stdin.write('\r');
     await waitForUpdate();
 
-    expect(mockSetProviderConfig).toHaveBeenCalledWith({
-      type: 'codex-cli',
-      model: 'gpt-5.1-codex-mini',
-      cwd: 'C:/projects/auditaria',
-      options: {
-        reasoningEffort: 'high',
+    expect(mockSetProviderConfig).toHaveBeenCalledWith(
+      {
+        type: 'codex-cli',
+        model: 'gpt-5.1-codex-mini',
+        cwd: 'C:/projects/auditaria',
+        options: {
+          reasoningEffort: 'high',
+        },
       },
-    }, true);
+      true,
+    );
   });
 
   it('applies selected Codex thinking intensity to provider config', async () => {
@@ -313,14 +344,17 @@ describe('<ModelDialog />', () => {
     stdin.write('\r'); // Select "Auto"
     await waitForUpdate();
 
-    expect(mockSetProviderConfig).toHaveBeenCalledWith({
-      type: 'codex-cli',
-      model: undefined,
-      cwd: 'C:/projects/auditaria',
-      options: {
-        reasoningEffort: 'low',
+    expect(mockSetProviderConfig).toHaveBeenCalledWith(
+      {
+        type: 'codex-cli',
+        model: undefined,
+        cwd: 'C:/projects/auditaria',
+        options: {
+          reasoningEffort: 'low',
+        },
       },
-    }, true);
+      true,
+    );
     expect(mockOnClose).toHaveBeenCalled();
   });
 
