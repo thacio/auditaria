@@ -56,6 +56,7 @@ import {
   safeJsonStringify,
   safeJsonStringifyBooleanValuesOnly,
 } from '../../utils/safeJsonStringify.js';
+import { ASK_USER_TOOL_NAME } from '../../tools/tool-names.js';
 import { FixedDeque } from 'mnemonist';
 
 // eslint-disable-next-line import/no-internal-modules
@@ -711,6 +712,29 @@ export class ClearcutLogger {
         user_added_chars: EventMetadataKey.GEMINI_CLI_USER_ADDED_CHARS,
         user_removed_chars: EventMetadataKey.GEMINI_CLI_USER_REMOVED_CHARS,
       };
+
+      if (
+        event.function_name === ASK_USER_TOOL_NAME &&
+        event.metadata['ask_user']
+      ) {
+        const askUser = event.metadata['ask_user'];
+        const askUserMapping: { [key: string]: EventMetadataKey } = {
+          question_types: EventMetadataKey.GEMINI_CLI_ASK_USER_QUESTION_TYPES,
+          dismissed: EventMetadataKey.GEMINI_CLI_ASK_USER_DISMISSED,
+          empty_submission:
+            EventMetadataKey.GEMINI_CLI_ASK_USER_EMPTY_SUBMISSION,
+          answer_count: EventMetadataKey.GEMINI_CLI_ASK_USER_ANSWER_COUNT,
+        };
+
+        for (const [key, gemini_cli_key] of Object.entries(askUserMapping)) {
+          if (askUser[key] !== undefined) {
+            data.push({
+              gemini_cli_key,
+              value: JSON.stringify(askUser[key]),
+            });
+          }
+        }
+      }
 
       for (const [key, gemini_cli_key] of Object.entries(metadataMapping)) {
         if (event.metadata[key] !== undefined) {
@@ -1632,6 +1656,14 @@ export class ClearcutLogger {
       {
         gemini_cli_key: EventMetadataKey.GEMINI_CLI_INTERACTIVE,
         value: this.config?.isInteractive().toString() ?? 'false',
+      },
+      {
+        gemini_cli_key: EventMetadataKey.GEMINI_CLI_ACTIVE_APPROVAL_MODE,
+        value:
+          typeof this.config?.getPolicyEngine === 'function' &&
+          typeof this.config.getPolicyEngine()?.getApprovalMode === 'function'
+            ? this.config.getPolicyEngine().getApprovalMode()
+            : '',
       },
     ];
     if (this.config?.getExperiments()) {
