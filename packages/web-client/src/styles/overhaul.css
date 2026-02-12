@@ -1063,6 +1063,36 @@ pre {
   font-weight: 670;
 }
 
+/* AUDITARIA_PROVIDER_AVAILABILITY: Styles for disabled/unavailable providers */
+.web-footer-model-menu-item.is-disabled {
+  opacity: 0.5;
+  background: transparent;
+}
+
+.web-footer-model-menu-item.is-disabled:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+}
+
+.web-footer-model-menu-item.is-disabled .web-footer-model-menu-item-label,
+.web-footer-model-menu-item.is-disabled .web-footer-model-menu-item-description {
+  color: var(--text-subtle);
+}
+
+.web-footer-model-menu-install-message {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--warning);
+  font-weight: 500;
+  padding: 4px 10px 6px;
+  background: color-mix(in srgb, var(--warning-bg) 35%, transparent);
+  border-radius: 6px;
+  margin: 0 0 4px 0;
+}
+/* AUDITARIA_PROVIDER_AVAILABILITY_END */
+
 .web-footer-codex-effort-control {
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: 999px;

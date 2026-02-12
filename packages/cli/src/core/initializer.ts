@@ -13,6 +13,7 @@ import {
   StartSessionEvent,
   logCliConfiguration,
   startupProfiler,
+  checkProviderAvailability, // AUDITARIA_PROVIDER_AVAILABILITY
 } from '@google/gemini-cli-core';
 import { type LoadedSettings } from '../config/settings.js';
 import { performInitialAuth } from './auth.js';
@@ -86,6 +87,22 @@ export async function initializeApp(
   );
   authHandle?.end();
   const themeError = validateTheme(settings);
+
+  // AUDITARIA_PROVIDER_AVAILABILITY_START: Check external provider availability
+  const providerHandle = startupProfiler.start('checkProviderAvailability');
+  try {
+    const availability = await checkProviderAvailability();
+    config.setProviderAvailability(availability);
+  } catch (error) {
+    // Non-fatal - just log and continue with unavailable providers
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[ProviderAvailability] Check failed:',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+  providerHandle?.end();
+  // AUDITARIA_PROVIDER_AVAILABILITY_END
 
   const shouldOpenAuthDialog =
     settings.merged.security.auth.selectedType === undefined || !!authError;

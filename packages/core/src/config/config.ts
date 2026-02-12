@@ -548,6 +548,7 @@ export class Config {
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
+  private providerAvailability: { claude: boolean; codex: boolean } = { claude: false, codex: false }; // AUDITARIA_PROVIDER_AVAILABILITY
   private baseLlmClient!: BaseLlmClient;
   private modelRouterService: ModelRouterService;
   private readonly modelAvailabilityService: ModelAvailabilityService;
@@ -1681,6 +1682,16 @@ export class Config {
   getProviderConfig(): ProviderConfig | undefined {
     return this.providerManager?.getConfig();
   } // AUDITARIA_CODEX_PROVIDER
+
+  // AUDITARIA_PROVIDER_AVAILABILITY_START
+  getProviderAvailability(): { claude: boolean; codex: boolean } {
+    return { ...this.providerAvailability };
+  }
+
+  setProviderAvailability(availability: { claude: boolean; codex: boolean }): void {
+    this.providerAvailability = { ...availability };
+  }
+  // AUDITARIA_PROVIDER_AVAILABILITY_END
 
   // AUDITARIA_PROVIDER_PERSISTENCE_START: Serialize external provider preference into model setting storage.
   private getPersistedModelPreferenceForProvider(

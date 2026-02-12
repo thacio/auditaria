@@ -1106,21 +1106,39 @@ class AuditariaWebClient {
             const section = document.createElement('div');
             section.className = 'web-footer-model-menu-section';
             const isCodexGroup = group.id === 'codex';
+            const isAvailable = group.available !== false; // AUDITARIA_PROVIDER_AVAILABILITY: Default to true for backwards compatibility
 
             const title = document.createElement('div');
             title.className = 'web-footer-model-menu-title';
             title.textContent = group.label;
             section.append(title);
 
+            // AUDITARIA_PROVIDER_AVAILABILITY: Show install message for unavailable providers
+            if (!isAvailable && group.installMessage) {
+                const installMsg = document.createElement('div');
+                installMsg.className = 'web-footer-model-menu-install-message';
+                installMsg.textContent = group.installMessage;
+                section.append(installMsg);
+            }
+
             for (const option of group.options || []) {
                 const item = document.createElement('div');
                 item.className = 'web-footer-model-menu-item';
-                item.setAttribute('role', 'button');
-                item.setAttribute('tabindex', '0');
+
+                // AUDITARIA_PROVIDER_AVAILABILITY: Disable unavailable providers
+                if (!isAvailable) {
+                    item.classList.add('is-disabled');
+                    item.setAttribute('aria-disabled', 'true');
+                    item.title = `${option.label} (not available - install required)`;
+                } else {
+                    item.setAttribute('role', 'button');
+                    item.setAttribute('tabindex', '0');
+                    item.title = option.description || option.label;
+                }
+
                 if (option.selection === this.modelMenuData.activeSelection) {
                     item.classList.add('is-active');
                 }
-                item.title = option.description || option.label;
                 if (isCodexGroup) {
                     item.classList.add('web-footer-model-menu-item-codex');
                 }
@@ -1231,6 +1249,11 @@ class AuditariaWebClient {
                 }
 
                 item.addEventListener('click', () => {
+                    // AUDITARIA_PROVIDER_AVAILABILITY: Prevent selection of unavailable providers
+                    if (!isAvailable) {
+                        return;
+                    }
+
                     if (isCodexGroup) {
                         const state = this.getCodexEffortStateForSelection(option.selection);
                         this.wsManager.sendModelSelection(

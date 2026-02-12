@@ -1849,15 +1849,21 @@ Logging in with Google... Restarting Gemini CLI to continue.
       ? rawCodexEffort
       : DEFAULT_CODEX_REASONING_EFFORT;
 
+    
+    const availability = config.getProviderAvailability(); // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
+
     const groups = [
       {
         id: 'gemini',
         label: 'Gemini',
+        available: true, // AUDITARIA_PROVIDER_AVAILABILITY: Gemini is always available
         options: getGeminiWebOptions(hasPreviewModels),
       },
       {
         id: 'claude',
         label: 'Claude',
+        available: availability.claude, // AUDITARIA_PROVIDER_AVAILABILITY
+        installMessage: availability.claude ? undefined : 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
         options: CLAUDE_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Claude (${option.title})`,
@@ -1867,6 +1873,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       {
         id: 'codex',
         label: 'Codex',
+        available: availability.codex, // AUDITARIA_PROVIDER_AVAILABILITY
+        installMessage: availability.codex ? undefined : 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
         options: CODEX_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Codex (${option.title})`,

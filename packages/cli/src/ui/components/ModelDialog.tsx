@@ -100,6 +100,8 @@ function getCodexModelFromSelection(value: string): string | undefined {
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
   const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>('main'); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+
+  const availability = config?.getProviderAvailability() ?? { claude: false, codex: false }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
   const [persistMode, setPersistMode] = useState(false);
   const [codexHighlightedModel, setCodexHighlightedModel] = useState<
     string | undefined
@@ -224,19 +226,37 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       });
     }
 
-    // AUDITARIA_CLAUDE_PROVIDER: Single entry that opens the Claude submenu
+    // AUDITARIA_PROVIDER: Single entry that opens the Claude submenu
+    // AUDITARIA_PROVIDER_AVAILABILITY: Add availability indicator
+    const claudeTitle = isClaudeActive
+      ? 'Claude Code (active)'
+      : availability.claude
+        ? 'Claude Code'
+        : 'Claude Code (not installed)';
+    const claudeDescription = availability.claude
+      ? 'Use Claude Code as the LLM backend'
+      : 'Install Claude Code CLI to use this provider';
     list.push({
       value: 'Claude',
-      title: isClaudeActive ? 'Claude Code (active)' : 'Claude Code',
-      description: 'Use Claude Code as the LLM backend',
+      title: claudeTitle,
+      description: claudeDescription,
       key: 'Claude',
     });
 
     // AUDITARIA_CODEX_PROVIDER: Single entry that opens the Codex submenu
+    // AUDITARIA_PROVIDER_AVAILABILITY: Add availability indicator
+    const codexTitle = isCodexActive
+      ? 'OpenAI Codex (active)'
+      : availability.codex
+        ? 'OpenAI Codex'
+        : 'OpenAI Codex (not installed)';
+    const codexDescription = availability.codex
+      ? 'Use OpenAI Codex as the LLM backend'
+      : 'Install OpenAI Codex CLI to use this provider';
     list.push({
       value: 'Codex',
-      title: isCodexActive ? 'OpenAI Codex (active)' : 'OpenAI Codex',
-      description: 'Use OpenAI Codex as the LLM backend',
+      title: codexTitle,
+      description: codexDescription,
       key: 'Codex',
     });
 
@@ -427,7 +447,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       onClose();
     },
-    [config, codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */, onClose, persistMode], 
+    [config, codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */, onClose, persistMode],
   );
 
   return (
@@ -448,6 +468,26 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       </Text>
 
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER */}
+      {view === 'claude' && !availability.claude && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.status.warning}>
+            Note: Claude Code is not installed.
+          </Text>
+          <Text color={theme.text.secondary}>
+            Install from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.
+          </Text>
+        </Box>
+      )}
+      {view === 'codex' && !availability.codex && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.status.warning}>
+            Note: OpenAI Codex is not installed.
+          </Text>
+          <Text color={theme.text.secondary}>
+            Install from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.
+          </Text>
+        </Box>
+      )}
       {(view === 'claude' || view === 'codex') && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.status.warning}>
