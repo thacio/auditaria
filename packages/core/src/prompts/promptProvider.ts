@@ -54,6 +54,7 @@ export class PromptProvider {
     const interactiveMode = interactiveOverride ?? config.isInteractive();
     const approvalMode = config.getApprovalMode?.() ?? ApprovalMode.DEFAULT;
     const isPlanMode = approvalMode === ApprovalMode.PLAN;
+    const isYoloMode = approvalMode === ApprovalMode.YOLO;
     const skills = config.getSkillManager().getSkills();
     const toolNames = config.getToolRegistry().getAllToolNames();
     const enabledToolNames = new Set(toolNames);
@@ -189,6 +190,11 @@ export class PromptProvider {
           }),
         ),
         sandbox: this.withSection('sandbox', () => getSandboxMode()),
+        interactiveYoloMode: this.withSection(
+          'interactiveYoloMode',
+          () => true,
+          isYoloMode && interactiveMode,
+        ),
         gitRepo: this.withSection(
           'git',
           () => ({ interactive: interactiveMode }),
