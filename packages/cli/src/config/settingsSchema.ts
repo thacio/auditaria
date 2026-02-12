@@ -1423,7 +1423,7 @@ const SETTINGS_SCHEMA = {
         requiresRestart: true,
         default: true, // AUDITARIA_MEMORY: Enable for knowledge indexing which needs more heap for PGlite WASM
         description: 'Automatically configure Node.js memory limits',
-        showInDialog: false,
+        showInDialog: true,
       },
       dnsResolutionOrder: {
         type: 'string',
