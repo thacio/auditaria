@@ -109,7 +109,7 @@ import { type LoadableSettingScope, SettingScope } from '../config/settings.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
-import { KeypressPriority } from './contexts/KeypressContext.js';
+import { KeypressPriority , useKeypressContext } from './contexts/KeypressContext.js';
 import { keyMatchers, Command } from './keyMatchers.js';
 import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
 import { useShellInactivityStatus } from './hooks/useShellInactivityStatus.js';
@@ -145,7 +145,6 @@ import { useFooter } from './contexts/FooterContext.js';
 import { useLoadingState } from './contexts/LoadingStateContext.js';
 import { useToolConfirmation } from './contexts/ToolConfirmationContext.js';
 import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
-import { useKeypressContext } from './contexts/KeypressContext.js';
 // WEB_INTERFACE_END
 import {
   useConfirmUpdateRequests,
@@ -175,6 +174,7 @@ import { isSlashCommand } from './utils/commandUtils.js';
 import { useTerminalTheme } from './hooks/useTerminalTheme.js';
 import { useTimedMessage } from './hooks/useTimedMessage.js';
 import { isITerm2 } from './utils/terminalUtils.js';
+import { shouldDismissShortcutsHelpOnHotkey } from './utils/shortcutsHelp.js';
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -1561,6 +1561,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
         debugLogger.log('[DEBUG] Keystroke:', JSON.stringify(key));
       }
 
+      if (shortcutsHelpVisible && shouldDismissShortcutsHelpOnHotkey(key)) {
+        setShortcutsHelpVisible(false);
+      }
+
       if (isAlternateBuffer && keyMatchers[Command.TOGGLE_COPY_MODE](key)) {
         setCopyModeEnabled(true);
         disableMouseEvents();
@@ -1724,6 +1728,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       refreshStatic,
       setCopyModeEnabled,
       isAlternateBuffer,
+      shortcutsHelpVisible,
       backgroundCurrentShell,
       toggleBackgroundShell,
       backgroundShells,
@@ -2534,7 +2539,35 @@ Logging in with Google... Restarting Gemini CLI to continue.
   // WEB_INTERFACE_END
   // WEB_INTERFACE: Pending item broadcast removed — unified in useGeminiStream response_state
 
-  // Upstream: allToolCalls for ToolActionsProvider
+  const hasPendingToolConfirmation = useMemo(
+    () => isToolAwaitingConfirmation(pendingHistoryItems),
+    [pendingHistoryItems],
+  );
+
+  const hasPendingActionRequired =
+    hasPendingToolConfirmation ||
+    !!commandConfirmationRequest ||
+    !!authConsentRequest ||
+    confirmUpdateExtensionRequests.length > 0 ||
+    !!loopDetectionConfirmationRequest ||
+    !!proQuotaRequest ||
+    !!validationRequest ||
+    !!customDialog;
+
+  const isPassiveShortcutsHelpState =
+    isInputActive &&
+    streamingState === StreamingState.Idle &&
+    !hasPendingActionRequired;
+
+  useEffect(() => {
+    if (shortcutsHelpVisible && !isPassiveShortcutsHelpState) {
+      setShortcutsHelpVisible(false);
+    }
+  }, [
+    shortcutsHelpVisible,
+    isPassiveShortcutsHelpState,
+    setShortcutsHelpVisible,
+  ]);
   const allToolCalls = useMemo(
     () =>
       pendingHistoryItems
