@@ -126,7 +126,6 @@ export const Footer: React.FC = () => {
       debugMessage,
       corgiMode,
       showMemoryUsage,
-      nightly,
       showErrorDetails,
     };
 
@@ -148,7 +147,6 @@ export const Footer: React.FC = () => {
     debugMessage,
     corgiMode,
     showMemoryUsage,
-    nightly,
     showErrorDetails,
   ]);
   // WEB_INTERFACE_END

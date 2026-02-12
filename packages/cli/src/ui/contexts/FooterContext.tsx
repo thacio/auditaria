@@ -1,12 +1,21 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import type React from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 
 export interface FooterData {
   targetDir: string;
@@ -25,7 +34,6 @@ export interface FooterData {
   debugMessage?: string;
   corgiMode: boolean;
   showMemoryUsage: boolean;
-  nightly: boolean;
   showErrorDetails: boolean;
 }
 
@@ -49,10 +57,13 @@ export function FooterProvider({ children }: FooterProviderProps) {
 
   // NOTE: Web interface broadcasting moved to App.tsx to avoid circular dependencies
 
-  const contextValue: FooterContextValue = useMemo(() => ({
-    footerData,
-    updateFooterData,
-  }), [footerData, updateFooterData]);
+  const contextValue: FooterContextValue = useMemo(
+    () => ({
+      footerData,
+      updateFooterData,
+    }),
+    [footerData, updateFooterData],
+  );
 
   return (
     <FooterContext.Provider value={contextValue}>

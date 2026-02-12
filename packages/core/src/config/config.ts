@@ -24,7 +24,7 @@ import {
   capToolOutputsForEstimation,
   CODEX_TOOL_OUTPUT_MAX_BYTES,
 } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
-import { getAuditContext } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { getAuditContext, renderUserMemory } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import {
   AuthType,
   createContentGenerator,
@@ -2021,7 +2021,11 @@ export class Config {
     const sections: string[] = [];
     sections.push(getAuditContext());
     const memory = this.getUserMemory();
-    if (memory) sections.push(memory);
+    if (memory) {
+      const memoryStr =
+        typeof memory === 'string' ? memory : renderUserMemory(memory);
+      if (memoryStr) sections.push(memoryStr);
+    }
     const skills = this.getSkillsPromptSection();
     if (skills) {
       sections.push(
@@ -2660,19 +2664,45 @@ export class Config {
     }
 
     // Register context management tool --- Custom Auditaria Feature: context.management.ts tool
-    registerCoreTool(ContextManagementTool, this);
+    maybeRegister(ContextManagementTool, () =>
+      registry.registerTool(new ContextManagementTool(this, this.messageBus)),
+    );
 
     // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
-    registerCoreTool(CollaborativeWritingTool, this);
+    maybeRegister(CollaborativeWritingTool, () =>
+      registry.registerTool(
+        new CollaborativeWritingTool(this, this.messageBus),
+      ),
+    );
 
-    registerCoreTool(BrowserAgentTool, this); // AUDITARIA_BROWSER_AGENT - Pass 'this' (Config) to enable CredentialBridge - browser-agent uses same auth as Auditaria
+    // AUDITARIA_BROWSER_AGENT - Pass 'this' (Config) to enable CredentialBridge
+    // Cross-package boundary: BrowserAgentTool is in @thacio/browser-agent, direct cast avoided
+    {
+      const tool = new BrowserAgentTool(
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore -- cross-package dist/src type mismatch
+        this,
+        this.messageBus,
+      );
+      maybeRegister(BrowserAgentTool, () =>
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore -- cross-package dist/src type mismatch
+        registry.registerTool(tool),
+      );
+    }
 
     // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
-    registerCoreTool(KnowledgeSearchTool, this);
-    registerCoreTool(KnowledgeIndexTool, this);
+    maybeRegister(KnowledgeSearchTool, () =>
+      registry.registerTool(new KnowledgeSearchTool(this, this.messageBus)),
+    );
+    maybeRegister(KnowledgeIndexTool, () =>
+      registry.registerTool(new KnowledgeIndexTool(this, this.messageBus)),
+    );
 
     // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
-    registerCoreTool(ConvertToMarkdownTool, this);
+    maybeRegister(ConvertToMarkdownTool, () =>
+      registry.registerTool(new ConvertToMarkdownTool(this, this.messageBus)),
+    );
 
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);
