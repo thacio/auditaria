@@ -17,6 +17,7 @@ import { attachmentCacheManager } from './managers/AttachmentCacheManager.js';
 import { ttsManager } from './providers/tts/TTSManager.js';
 import { ConfirmationQueue } from './confirmation-queue.js';
 import { SlashAutocompleteManager } from './managers/SlashAutocompleteManager.js';
+import { InputHistoryManager } from './managers/InputHistoryManager.js';
 import { themeManager } from './utils/theme-manager.js';
 import { layoutManager } from './utils/layout-manager.js';
 import { showErrorToast, showInfoToast } from './components/Toast.js';
@@ -59,6 +60,9 @@ class AuditariaWebClient {
 
         // Initialize slash command autocomplete (after UI init)
         this.slashAutocomplete = null; // Will be initialized after UI elements are ready
+
+        // Initialize input history (ArrowUp/Down navigation)
+        this.inputHistory = new InputHistoryManager();
 
         // State properties
         this.hasFooterData = false;
@@ -188,6 +192,10 @@ class AuditariaWebClient {
         
         this.wsManager.addEventListener('history_item', (e) => {
             this.messageManager.addHistoryItem(e.detail);
+            // Track user messages for input history (captures CLI-side inputs too)
+            if (e.detail.type === 'user' && e.detail.text) {
+                this.inputHistory.addInput(e.detail.text);
+            }
         });
         
         // WEB_INTERFACE: Unified response state replaces fragmented pending_item
@@ -236,6 +244,20 @@ class AuditariaWebClient {
         
         this.wsManager.addEventListener('history_sync', (e) => {
             this.messageManager.loadHistoryItems(e.detail.history);
+            // Fallback: populate input history from conversation history
+            // (overridden by input_history_sync if the CLI sends it)
+            if (this.inputHistory.length === 0) {
+                const userMessages = (e.detail.history || [])
+                    .filter(item => item.type === 'user' && item.text)
+                    .map(item => item.text.trim())
+                    .filter(Boolean);
+                this.inputHistory.loadHistory(userMessages);
+            }
+        });
+
+        // Input history sync from CLI (includes past sessions — shared with CLI's ArrowUp/Down)
+        this.wsManager.addEventListener('input_history_sync', (e) => {
+            this.inputHistory.loadHistory(e.detail.history || []);
         });
         
         this.wsManager.addEventListener('loading_state', (e) => {
@@ -309,6 +331,32 @@ class AuditariaWebClient {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 this.sendMessage();
+                return;
+            }
+
+            // ArrowUp/Down — input history navigation
+            if (event.key === 'ArrowUp' && this._cursorOnFirstLine()) {
+                const text = this.inputHistory.navigateUp(this.messageInput.value);
+                if (text !== null) {
+                    event.preventDefault();
+                    this.messageInput.value = text;
+                    this.autoResizeTextarea();
+                    // Place cursor at end
+                    this.messageInput.setSelectionRange(text.length, text.length);
+                }
+                return;
+            }
+
+            if (event.key === 'ArrowDown' && this._cursorOnLastLine()) {
+                const text = this.inputHistory.navigateDown();
+                if (text !== null) {
+                    event.preventDefault();
+                    this.messageInput.value = text;
+                    this.autoResizeTextarea();
+                    // Place cursor at end
+                    this.messageInput.setSelectionRange(text.length, text.length);
+                }
+                return;
             }
         });
 
@@ -405,6 +453,8 @@ class AuditariaWebClient {
         
         // Send message with attachments (but not for slash commands)
         if (this.wsManager.sendUserMessage(message, isSlashCommand ? [] : this.attachments)) {
+            // Track input for ArrowUp/Down history
+            this.inputHistory.addInput(message);
             this.messageInput.value = '';
             // Only clear attachments if we're not sending a slash command
             if (!isSlashCommand) {
@@ -1514,6 +1564,26 @@ class AuditariaWebClient {
     autoResizeTextarea() {
         this.messageInput.style.height = 'auto';
         this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+    }
+
+    /**
+     * Returns true when the caret is on the first line of the textarea
+     * (or the textarea is empty), so ArrowUp should navigate history.
+     */
+    _cursorOnFirstLine() {
+        const { value, selectionStart } = this.messageInput;
+        // On first line if no newline before the cursor
+        return value.substring(0, selectionStart).indexOf('\n') === -1;
+    }
+
+    /**
+     * Returns true when the caret is on the last line of the textarea
+     * (or the textarea is empty), so ArrowDown should navigate history.
+     */
+    _cursorOnLastLine() {
+        const { value, selectionStart } = this.messageInput;
+        // On last line if no newline after the cursor
+        return value.substring(selectionStart).indexOf('\n') === -1;
     }
     
     handleConfirmationResponse(callId, outcome, payload) {

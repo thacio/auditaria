@@ -76,6 +76,7 @@ const LATEST_ONLY_MESSAGE_TYPES = new Set([
   'slash_commands',        // Full command list - only latest matters
   'model_menu_data',       // WEB_INTERFACE: model menu snapshot - only latest matters
   'response_state',        // WEB_INTERFACE: Only latest response state matters
+  'input_history_sync',    // AUDITARIA: input history snapshot - only latest matters
   // NOTE: console_messages intentionally NOT included - user needs to see live logs
 ]);
 
@@ -229,6 +230,7 @@ export class WebInterfaceService extends EventEmitter {
   private currentResponseBlocks: ResponseBlock[] | null = null;
   private currentLoadingState: LoadingStateData | null = null;
   private currentFooterData: FooterData | null = null;
+  private currentInputHistory: string[] = []; // AUDITARIA: input history for ArrowUp/Down on web
   private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
   // WEB_INTERFACE_END
   // WEB_INTERFACE_START: File system service for file browser
@@ -950,6 +952,39 @@ export class WebInterfaceService extends EventEmitter {
         }
       } else {
         // Remove disconnected client
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  // AUDITARIA: Broadcast input history (ArrowUp/Down) to web clients
+  broadcastInputHistory(history: string[]): void {
+    this.currentInputHistory = history;
+
+    if (!this.isRunning || this.clients.size === 0) {
+      return;
+    }
+
+    const sequence = this.getNextSequence();
+    const message = JSON.stringify({
+      type: 'input_history_sync',
+      data: { history },
+      sequence,
+      timestamp: Date.now(),
+    });
+
+    this.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(message);
+          const state = this.clientStates.get(client);
+          if (state) {
+            state.messageBuffer.add({ sequence, message, timestamp: Date.now() }, 'input_history_sync');
+          }
+        } catch (error) {
+          this.clients.delete(client);
+        }
+      } else {
         this.clients.delete(client);
       }
     });
@@ -2127,6 +2162,11 @@ export class WebInterfaceService extends EventEmitter {
     // Send current footer data to new client
     if (this.currentFooterData) {
       sendAndStore('footer_data', this.currentFooterData);
+    }
+
+    // AUDITARIA: Send input history for ArrowUp/Down navigation
+    if (this.currentInputHistory.length > 0) {
+      sendAndStore('input_history_sync', { history: this.currentInputHistory });
     }
 
     // Send current response state if exists

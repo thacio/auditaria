@@ -2194,6 +2194,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
     }
   }, [slashCommands, webInterface?.service, webInterface?.isRunning]);
 
+  // AUDITARIA: Broadcast input history for web ArrowUp/Down navigation
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastInputHistory(inputHistory);
+    }
+  }, [inputHistory, webInterface?.service, webInterface?.isRunning]);
+
   useEffect(() => {
     if (webInterface?.service && webInterface.isRunning) {
       const mcpClientManager = config.getMcpClientManager();
