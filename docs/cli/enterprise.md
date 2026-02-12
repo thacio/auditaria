@@ -1,16 +1,16 @@
 # Auditaria for the enterprise
 
 This document outlines configuration patterns and best practices for deploying
-and managing Auditaria in an enterprise environment. By leveraging
-system-level settings, administrators can enforce security policies, manage tool
-access, and ensure a consistent experience for all users.
+and managing Auditaria in an enterprise environment. By leveraging system-level
+settings, administrators can enforce security policies, manage tool access, and
+ensure a consistent experience for all users.
 
 > **A note on security:** The patterns described in this document are intended
 > to help administrators create a more controlled and secure environment for
-> using Auditaria. However, they should not be considered a foolproof
-> security boundary. A determined user with sufficient privileges on their local
-> machine may still be able to circumvent these configurations. These measures
-> are designed to prevent accidental misuse and enforce corporate policy in a
+> using Auditaria. However, they should not be considered a foolproof security
+> boundary. A determined user with sufficient privileges on their local machine
+> may still be able to circumvent these configurations. These measures are
+> designed to prevent accidental misuse and enforce corporate policy in a
 > managed environment, not to defend against a malicious actor with local
 > administrative rights.
 
@@ -223,9 +223,9 @@ gemini
 ## Restricting tool access
 
 You can significantly enhance security by controlling which tools the Auditaria
-model can use. This is achieved through the `tools.core` and `tools.exclude`
-settings. For a list of available tools, see the
-[Tools documentation](../tools/index.md).
+model can use. This is achieved through the `tools.core` setting and the
+[Policy Engine](../core/policy-engine.md). For a list of available tools, see
+the [Tools documentation](../tools/index.md).
 
 ### Allowlisting with `coreTools`
 
@@ -243,7 +243,10 @@ on the approved list.
 }
 ```
 
-### Blocklisting with `excludeTools`
+### Blocklisting with `excludeTools` (Deprecated)
+
+> **Deprecated:** Use the [Policy Engine](../core/policy-engine.md) for more
+> robust control.
 
 Alternatively, you can add specific tools that are considered dangerous in your
 environment to a blocklist.
@@ -292,8 +295,8 @@ effectively.
 
 ### How MCP server configurations are merged
 
-Auditaria loads `settings.json` files from three levels: System, Workspace,
-and User. When it comes to the `mcpServers` object, these configurations are
+Auditaria loads `settings.json` files from three levels: System, Workspace, and
+User. When it comes to the `mcpServers` object, these configurations are
 **merged**:
 
 1.  **Merging:** The lists of servers from all three levels are combined into a
@@ -431,8 +434,8 @@ a custom `sandbox.Dockerfile` as described in the
 ## Controlling network access via proxy
 
 In corporate environments with strict network policies, you can configure
-Auditaria to route all outbound traffic through a corporate proxy. This can
-be set via an environment variable, but it can also be enforced for custom tools
+Auditaria to route all outbound traffic through a corporate proxy. This can be
+set via an environment variable, but it can also be enforced for custom tools
 via the `mcpServers` configuration.
 
 **Example (for an MCP server):**

@@ -135,8 +135,8 @@ user input, such as text editors (`vim`, `nano`), terminal-based UIs (`htop`),
 and interactive version control operations (`git rebase -i`).
 
 When an interactive command is running, you can send input to it from the
-Auditaria. To focus on the interactive shell, press `Tab`. The terminal
-output, including complex TUIs, will be rendered correctly.
+Auditaria. To focus on the interactive shell, press `Tab`. The terminal output,
+including complex TUIs, will be rendered correctly.
 
 ## Important notes
 
@@ -167,10 +167,11 @@ configuration file.
   `"tools": {"core": ["run_shell_command(git)"]}` will only allow `git`
   commands. Including the generic `run_shell_command` acts as a wildcard,
   allowing any command not explicitly blocked.
-- `tools.exclude`: To block specific commands, add entries to the `exclude` list
-  under the `tools` category in the format `run_shell_command(<command>)`. For
-  example, `"tools": {"exclude": ["run_shell_command(rm)"]}` will block `rm`
-  commands.
+- `tools.exclude` [DEPRECATED]: To block specific commands, use the
+  [Policy Engine](../core/policy-engine.md). Historically, this setting allowed
+  adding entries to the `exclude` list under the `tools` category in the format
+  `run_shell_command(<command>)`. For example,
+  `"tools": {"exclude": ["run_shell_command(rm)"]}` will block `rm` commands.
 
 The validation logic is designed to be secure and flexible:
 
