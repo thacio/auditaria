@@ -680,20 +680,18 @@ export async function main() {
       }
 
       // Handle SIGTERM/SIGINT to ensure graceful cleanup (database backup, etc.)
-      process.on('SIGTERM', () => {
+      // Use off/on pattern to prevent listener leaks on re-entry
+      const handleSignalCleanup = () => {
         process.stdin.setRawMode(wasRaw);
         // Run cleanup asynchronously before exit
         void runExitCleanup().finally(() => {
           process.exit(0);
         });
-      });
-      process.on('SIGINT', () => {
-        process.stdin.setRawMode(wasRaw);
-        // Run cleanup asynchronously before exit
-        void runExitCleanup().finally(() => {
-          process.exit(0);
-        });
-      });
+      };
+      process.off('SIGTERM', handleSignalCleanup);
+      process.on('SIGTERM', handleSignalCleanup);
+      process.off('SIGINT', handleSignalCleanup);
+      process.on('SIGINT', handleSignalCleanup);
     }
 
     await setupTerminalAndTheme(config, settings);
