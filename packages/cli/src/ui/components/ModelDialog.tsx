@@ -102,7 +102,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>('main'); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
 
   const availability = config?.getProviderAvailability() ?? { claude: false, codex: false }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
-  const [persistMode, setPersistMode] = useState(false);
+  const [persistMode, setPersistMode] = useState(true);
   const [codexHighlightedModel, setCodexHighlightedModel] = useState<
     string | undefined
   >(() => {
