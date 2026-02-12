@@ -19,7 +19,6 @@ import { DEFAULT_DIFF_OPTIONS } from './diffOptions.js';
 import { tildeifyPath } from '../utils/paths.js';
 import {
   AUDITARIA_CONTEXT_FILENAME,
-  GEMINI_CONTEXT_FILENAME,
   getContextFilenameFallbacks,
 } from '../utils/paths.js'; // AUDITARIA_FEATURE
 import type {
@@ -114,6 +113,7 @@ async function readMemoryFileContent(): Promise<string> {
   try {
     return await fs.readFile(getGlobalMemoryFilePath(), 'utf-8');
   } catch (err) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const error = err as Error & { code?: string };
     if (!(error instanceof Error) || error.code !== 'ENOENT') throw err;
     return '';

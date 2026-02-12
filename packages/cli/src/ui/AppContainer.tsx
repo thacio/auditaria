@@ -285,6 +285,7 @@ export const AppContainer = (props: AppContainerProps) => {
 
   const { bannerText } = useBanner(bannerData);
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const extensionManager = config.getExtensionLoader() as ExtensionManager;
   // We are in the interactive CLI, update how we request consent and settings.
   extensionManager.setRequestConsent((description) =>
@@ -509,6 +510,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const staticAreaMaxItemHeight = Math.max(terminalHeight * 4, 100);
 
   const getPreferredEditor = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     () => settings.merged.general.preferredEditor as EditorType,
     [settings.merged.general.preferredEditor],
   );
@@ -1849,7 +1851,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
       ? rawCodexEffort
       : DEFAULT_CODEX_REASONING_EFFORT;
 
-    
     const availability = config.getProviderAvailability(); // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
 
     const groups = [
@@ -1863,7 +1864,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
         id: 'claude',
         label: 'Claude',
         available: availability.claude, // AUDITARIA_PROVIDER_AVAILABILITY
-        installMessage: availability.claude ? undefined : 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
+        installMessage: availability.claude
+          ? undefined
+          : 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
         options: CLAUDE_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Claude (${option.title})`,
@@ -1874,7 +1877,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
         id: 'codex',
         label: 'Codex',
         available: availability.codex, // AUDITARIA_PROVIDER_AVAILABILITY
-        installMessage: availability.codex ? undefined : 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
+        installMessage: availability.codex
+          ? undefined
+          : 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
         options: CODEX_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Codex (${option.title})`,
@@ -1931,6 +1936,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         options: CODEX_REASONING_OPTIONS,
       },
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentModel and modelChangeNonce are intentional trigger deps
   }, [config, currentModel, modelChangeNonce]);
 
   const webModelSelections = useMemo(
@@ -1947,11 +1953,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     if (webInterface?.service && webInterface.isRunning) {
       webInterface.service.broadcastModelMenuData(webModelMenuData);
     }
-  }, [
-    webInterface?.service,
-    webInterface?.isRunning,
-    webModelMenuData,
-  ]);
+  }, [webInterface?.service, webInterface?.isRunning, webModelMenuData]);
 
   useEffect(() => {
     if (!webInterface?.service) return;
@@ -1974,11 +1976,14 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
       if (selection.startsWith(CLAUDE_PREFIX)) {
         const claudeModel = selection.slice(CLAUDE_PREFIX.length);
-        config.setProviderConfig({
-          type: 'claude-cli',
-          model: claudeModel === 'auto' ? undefined : claudeModel,
-          cwd: config.getWorkingDir(),
-        }, false); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
+        config.setProviderConfig(
+          {
+            type: 'claude-cli',
+            model: claudeModel === 'auto' ? undefined : claudeModel,
+            cwd: config.getWorkingDir(),
+          },
+          false,
+        ); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
         return;
       }
 
@@ -1986,9 +1991,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
         const codexModel = selection.slice(CODEX_PREFIX.length);
         const existingProviderConfig = config.getProviderConfig();
         const payloadReasoningEffort = payload?.reasoningEffort;
-        const existingReasoningEffort = existingProviderConfig?.options?.[
-          'reasoningEffort'
-        ];
+        const existingReasoningEffort =
+          existingProviderConfig?.options?.['reasoningEffort'];
         const baseReasoningEffort: CodexReasoningEffort =
           isCodexReasoningEffort(payloadReasoningEffort)
             ? payloadReasoningEffort
@@ -2000,14 +2004,17 @@ Logging in with Google... Restarting Gemini CLI to continue.
           baseReasoningEffort,
         );
 
-        config.setProviderConfig({
-          type: 'codex-cli',
-          model: codexModel === 'auto' ? undefined : codexModel,
-          cwd: config.getWorkingDir(),
-          options: {
-            reasoningEffort: clampedReasoningEffort,
+        config.setProviderConfig(
+          {
+            type: 'codex-cli',
+            model: codexModel === 'auto' ? undefined : codexModel,
+            cwd: config.getWorkingDir(),
+            options: {
+              reasoningEffort: clampedReasoningEffort,
+            },
           },
-        }, false); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
+          false,
+        ); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
       }
     };
 
@@ -2141,12 +2148,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       Date.now(),
     );
     webAvailabilityMessageShownRef.current = true;
-  }, [
-    webEnabled,
-    webInterface?.isRunning,
-    webInterface?.port,
-    historyManager,
-  ]);
+  }, [webEnabled, webInterface?.isRunning, webInterface?.port, historyManager]);
 
   const footerContext = useFooter();
   useEffect(() => {
@@ -2449,7 +2451,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       const activeConfirmations =
         toolConfirmationContext?.pendingConfirmations || [];
       const trackedConfirmations = [
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion
         ...((webInterface.service as any).activeToolConfirmations?.keys() ||
           []),
       ];

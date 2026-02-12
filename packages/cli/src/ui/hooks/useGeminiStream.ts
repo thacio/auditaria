@@ -46,7 +46,6 @@ import type {
   ToolCallResponseInfo,
   GeminiErrorEventValue,
   RetryAttemptPayload,
-  ToolCallConfirmationDetails,
 } from '@google/gemini-cli-core';
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
@@ -218,13 +217,14 @@ export const useGeminiStream = (
   // AUDITARIA_CLAUDE_PROVIDER_START: Track whether tool output handler is wired to providerManager
   const toolOutputHandlerWiredRef = useRef(false);
   // Cleanup handler on unmount
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       const pm = config.getProviderManager();
       pm?.setToolOutputHandler(undefined);
       toolOutputHandlerWiredRef.current = false;
-    };
-  }, [config]);
+    },
+    [config],
+  );
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   const gitService = useMemo(() => {
@@ -448,6 +448,7 @@ export const useGeminiStream = (
       (tc) =>
         tc.status === 'executing' && tc.request.name === 'run_shell_command',
     );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     return (executingShellTool as TrackedExecutingToolCall | undefined)?.pid;
   }, [toolCalls]);
 
@@ -465,19 +466,31 @@ export const useGeminiStream = (
       blocks.push({ type: 'tool_group', tools: nativeToolGroup.tools });
     }
     if (externalPendingToolGroup?.tools?.length) {
-      blocks.push({ type: 'tool_group', tools: externalPendingToolGroup.tools });
+      blocks.push({
+        type: 'tool_group',
+        tools: externalPendingToolGroup.tools,
+      });
     }
 
     // Text last
     if (
       pendingHistoryItem &&
-      (pendingHistoryItem.type === 'gemini' || pendingHistoryItem.type === 'gemini_content')
+      (pendingHistoryItem.type === 'gemini' ||
+        pendingHistoryItem.type === 'gemini_content')
     ) {
-      blocks.push({ type: 'text', text: (pendingHistoryItem as { text?: string }).text || '' });
+      blocks.push({
+        type: 'text',
+        text: (pendingHistoryItem as { text?: string }).text || '',
+      });
     }
 
     webInterface.broadcastResponseState(blocks.length > 0 ? blocks : null);
-  }, [pendingHistoryItem, pendingToolGroupItems, externalPendingToolGroup, webInterface]);
+  }, [
+    pendingHistoryItem,
+    pendingToolGroupItems,
+    externalPendingToolGroup,
+    webInterface,
+  ]);
   // WEB_INTERFACE_END
 
   const lastQueryRef = useRef<PartListUnion | null>(null);
@@ -601,6 +614,7 @@ export const useGeminiStream = (
       // If it is a shell command, we update the status to Canceled and clear the output
       // to avoid artifacts, then add it to history immediately.
       if (isShellCommand) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         const toolGroup = pendingHistoryItemRef.current as HistoryItemToolGroup;
         const updatedTools = toolGroup.tools.map((tool) => {
           if (tool.name === SHELL_COMMAND_NAME) {
@@ -931,6 +945,7 @@ export const useGeminiStream = (
       if (splitPoint === newGeminiMessageBuffer.length) {
         // Update the existing message with accumulated content
         setPendingHistoryItem((item) => ({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
           type: item?.type as 'gemini' | 'gemini_content',
           text: newGeminiMessageBuffer,
         }));
@@ -947,6 +962,7 @@ export const useGeminiStream = (
         const afterText = newGeminiMessageBuffer.substring(splitPoint);
         addItem(
           {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             type: pendingHistoryItemRef.current?.type as
               | 'gemini'
               | 'gemini_content',
@@ -1253,12 +1269,14 @@ export const useGeminiStream = (
                 const pm = config.getProviderManager();
                 if (pm) {
                   pm.setToolOutputHandler((callId, _toolName, output) => {
-                    setExternalPendingToolGroup(prev => {
+                    setExternalPendingToolGroup((prev) => {
                       if (!prev) return prev;
                       return {
                         ...prev,
-                        tools: prev.tools.map(t =>
-                          t.callId === callId ? { ...t, resultDisplay: output } : t
+                        tools: prev.tools.map((t) =>
+                          t.callId === callId
+                            ? { ...t, resultDisplay: output }
+                            : t,
                         ),
                       };
                     });
@@ -1268,20 +1286,23 @@ export const useGeminiStream = (
               }
               // Flush pending text so tool shows in correct order
               if (pendingHistoryItemRef.current) {
-                addItem(
-                  pendingHistoryItemRef.current,
-                  userMessageTimestamp,
-                );
+                addItem(pendingHistoryItemRef.current, userMessageTimestamp);
                 setPendingHistoryItem(null);
               }
               // AUDITARIA: Look up display metadata for bridgeable tools (nice name + description)
-              const toolDisplayInfo = config.getProviderManager()?.getToolDisplayInfo(
-                event.value.name, event.value.args,
-              );
-              const toolDisplayName = toolDisplayInfo?.displayName ?? event.value.name;
-              const toolDescription = toolDisplayInfo?.description ?? Object.entries(event.value.args)
-                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-                .join('\n');
+              const toolDisplayInfo = config
+                .getProviderManager()
+                ?.getToolDisplayInfo(event.value.name, event.value.args);
+              const toolDisplayName =
+                toolDisplayInfo?.displayName ?? event.value.name;
+              const toolDescription =
+                toolDisplayInfo?.description ??
+                Object.entries(event.value.args)
+                  .map(
+                    ([k, v]) =>
+                      `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
+                  )
+                  .join('\n');
               setExternalPendingToolGroup((prev) => ({
                 type: 'tool_group' as const,
                 tools: [
@@ -1335,7 +1356,7 @@ export const useGeminiStream = (
               (r) => r.callId === resp.callId,
             );
             if (reqIdx >= 0) {
-              const req = toolCallRequests[reqIdx]!;
+              const req = toolCallRequests[reqIdx];
               toolCallRequests.splice(reqIdx, 1);
               // AUDITARIA_CLAUDE_PROVIDER: Remove from pending external tools display
               setExternalPendingToolGroup((prev) => {
@@ -1349,20 +1370,22 @@ export const useGeminiStream = (
               });
               // Flush pending text so tool shows in correct order
               if (pendingHistoryItemRef.current) {
-                addItem(
-                  pendingHistoryItemRef.current,
-                  userMessageTimestamp,
-                );
+                addItem(pendingHistoryItemRef.current, userMessageTimestamp);
                 setPendingHistoryItem(null);
               }
               // AUDITARIA: Look up display metadata for bridgeable tools (nice name + description)
-              const respToolInfo = config.getProviderManager()?.getToolDisplayInfo(
-                req.name, req.args,
-              );
+              const respToolInfo = config
+                .getProviderManager()
+                ?.getToolDisplayInfo(req.name, req.args);
               const respToolName = respToolInfo?.displayName ?? req.name;
-              const respToolDesc = respToolInfo?.description ?? Object.entries(req.args)
-                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
-                .join('\n');
+              const respToolDesc =
+                respToolInfo?.description ??
+                Object.entries(req.args)
+                  .map(
+                    ([k, v]) =>
+                      `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
+                  )
+                  .join('\n');
               const toolGroup: HistoryItemToolGroup = {
                 type: 'tool_group',
                 tools: [
@@ -1653,13 +1676,10 @@ export const useGeminiStream = (
 
         // Process pending tool calls sequentially to reduce UI chaos
         for (const call of awaitingApprovalCalls) {
-          if (
-            (call.confirmationDetails as ToolCallConfirmationDetails)?.onConfirm
-          ) {
+          const details = call.confirmationDetails;
+          if (details && 'onConfirm' in details) {
             try {
-              await (
-                call.confirmationDetails as ToolCallConfirmationDetails
-              ).onConfirm(ToolConfirmationOutcome.ProceedOnce);
+              await details.onConfirm(ToolConfirmationOutcome.ProceedOnce);
             } catch (error) {
               debugLogger.warn(
                 `Failed to auto-approve tool call ${call.request.callId}:`,
@@ -1725,7 +1745,9 @@ export const useGeminiStream = (
         const pid = data?.pid;
 
         if (isShell && pid) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
           const command = (data?.['command'] as string) ?? 'shell';
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
           const initialOutput = (data?.['initialOutput'] as string) ?? '';
 
           registerBackgroundShell(pid, command, initialOutput);
@@ -1845,9 +1867,11 @@ export const useGeminiStream = (
   const pendingHistoryItems = useMemo(
     () =>
       // AUDITARIA_CLAUDE_PROVIDER: Include external provider pending tools in live display
-      [pendingHistoryItem, externalPendingToolGroup, ...pendingToolGroupItems].filter(
-        (i): i is HistoryItemWithoutId => i !== undefined && i !== null,
-      ),
+      [
+        pendingHistoryItem,
+        externalPendingToolGroup,
+        ...pendingToolGroupItems,
+      ].filter((i): i is HistoryItemWithoutId => i !== undefined && i !== null),
     [pendingHistoryItem, externalPendingToolGroup, pendingToolGroupItems],
   );
 

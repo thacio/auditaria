@@ -213,6 +213,7 @@ function setNestedProperty(
     }
     const next = current[key];
     if (typeof next === 'object' && next !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       current = next as Record<string, unknown>;
     } else {
       // This path is invalid, so we stop.
@@ -254,6 +255,7 @@ export function mergeSettings(
   // 3. User Settings
   // 4. Workspace Settings
   // 5. System Settings (as overrides)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   return customDeepMerge(
     getMergeStrategyForPath,
     schemaDefaults,
@@ -274,6 +276,7 @@ export function mergeSettings(
 export function createTestMergedSettings(
   overrides: Partial<Settings> = {},
 ): MergedSettings {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   return customDeepMerge(
     getMergeStrategyForPath,
     getDefaultsFromSchema(),
@@ -355,6 +358,7 @@ export class LoadedSettings {
 
       // The final admin settings are the defaults overridden by remote settings.
       // Any admin settings from files are ignored.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       merged.admin = customDeepMerge(
         (path: string[]) => getMergeStrategyForPath(['admin', ...path]),
         adminDefaults,
@@ -628,6 +632,7 @@ export function loadSettings(
           return { settings: {} };
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         const settingsObject = rawSettings as Record<string, unknown>;
 
         // Validate settings structure with Zod
@@ -861,6 +866,7 @@ export function migrateDeprecatedSettings(
     const uiSettings = settings.ui as Record<string, unknown> | undefined;
     if (uiSettings) {
       const newUi = { ...uiSettings };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       const accessibilitySettings = newUi['accessibility'] as
         | Record<string, unknown>
         | undefined;
@@ -891,6 +897,7 @@ export function migrateDeprecatedSettings(
       | undefined;
     if (contextSettings) {
       const newContext = { ...contextSettings };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       const fileFilteringSettings = newContext['fileFiltering'] as
         | Record<string, unknown>
         | undefined;
@@ -995,7 +1002,9 @@ export function saveModelChange(
   }
 }
 // AUDITARIA_FEATURE_I18N_START: Get preferred UI language from settings
-function getScopedUiLanguage(settings: Settings | undefined): string | undefined {
+function getScopedUiLanguage(
+  settings: Settings | undefined,
+): string | undefined {
   const language = settings?.ui?.language;
   if (typeof language === 'string' && language.length > 0) {
     return language;
@@ -1036,6 +1045,7 @@ function migrateExperimentalSettings(
       ...(settings.agents as Record<string, unknown> | undefined),
     };
     const agentsOverrides = {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
       ...((agentsSettings['overrides'] as Record<string, unknown>) || {}),
     };
     let modified = false;
@@ -1047,6 +1057,7 @@ function migrateExperimentalSettings(
       const old = experimentalSettings[oldKey];
       if (old) {
         foundDeprecated?.push(`experimental.${oldKey}`);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         migrateFn(old as Record<string, unknown>);
         modified = true;
       }
@@ -1055,6 +1066,7 @@ function migrateExperimentalSettings(
     // Migrate codebaseInvestigatorSettings -> agents.overrides.codebase_investigator
     migrateExperimental('codebaseInvestigatorSettings', (old) => {
       const override = {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         ...(agentsOverrides['codebase_investigator'] as
           | Record<string, unknown>
           | undefined),
@@ -1063,6 +1075,7 @@ function migrateExperimentalSettings(
       if (old['enabled'] !== undefined) override['enabled'] = old['enabled'];
 
       const runConfig = {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         ...(override['runConfig'] as Record<string, unknown> | undefined),
       };
       if (old['maxNumTurns'] !== undefined)
@@ -1073,16 +1086,19 @@ function migrateExperimentalSettings(
 
       if (old['model'] !== undefined || old['thinkingBudget'] !== undefined) {
         const modelConfig = {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
           ...(override['modelConfig'] as Record<string, unknown> | undefined),
         };
         if (old['model'] !== undefined) modelConfig['model'] = old['model'];
         if (old['thinkingBudget'] !== undefined) {
           const generateContentConfig = {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             ...(modelConfig['generateContentConfig'] as
               | Record<string, unknown>
               | undefined),
           };
           const thinkingConfig = {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
             ...(generateContentConfig['thinkingConfig'] as
               | Record<string, unknown>
               | undefined),
@@ -1100,6 +1116,7 @@ function migrateExperimentalSettings(
     // Migrate cliHelpAgentSettings -> agents.overrides.cli_help
     migrateExperimental('cliHelpAgentSettings', (old) => {
       const override = {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
         ...(agentsOverrides['cli_help'] as Record<string, unknown> | undefined),
       };
       if (old['enabled'] !== undefined) override['enabled'] = old['enabled'];

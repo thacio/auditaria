@@ -119,6 +119,7 @@ export function logUserPrompt(config: Config, event: UserPromptEvent): void {
 
 export function logToolCall(config: Config, event: ToolCallEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
     ...event,
     'event.name': EVENT_TOOL_CALL,
@@ -262,6 +263,7 @@ export function logRipgrepFallback(
 
 export function logApiError(config: Config, event: ApiErrorEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
     ...event,
     'event.name': EVENT_API_ERROR,
@@ -300,6 +302,7 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
 
 export function logApiResponse(config: Config, event: ApiResponseEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
     ...event,
     'event.name': EVENT_API_RESPONSE,
@@ -405,6 +408,7 @@ export function logSlashCommand(
 }
 
 export function logRewind(config: Config, event: RewindEvent): void {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
     ...event,
     'event.name': EVENT_REWIND,

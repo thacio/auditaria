@@ -917,6 +917,7 @@ function setupAdminControlsListener() {
   let config: Config | undefined;
 
   const messageHandler = (msg: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
     const message = msg as {
       type?: string;
       settings?: AdminControlsSettings;
