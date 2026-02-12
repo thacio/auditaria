@@ -50,6 +50,7 @@ import type {
 import { type Part, type PartListUnion, FinishReason } from '@google/genai';
 import type {
   HistoryItem,
+  HistoryItemThinking,
   HistoryItemWithoutId,
   HistoryItemToolGroup,
   IndividualToolCallDisplay,
@@ -62,6 +63,7 @@ import { isAtCommand, isSlashCommand } from '../utils/commandUtils.js';
 import { useShellCommandProcessor } from './shellCommandProcessor.js';
 import { handleAtCommand } from './atCommandProcessor.js';
 import { findLastSafeSplitPoint } from '../utils/markdownUtilities.js';
+import { getInlineThinkingMode } from '../utils/inlineThinkingMode.js';
 import { useStateAndRef } from './useStateAndRef.js';
 import type { UseHistoryManagerReturn } from './useHistoryManager.js';
 import { useLogger } from './useLogger.js';
@@ -195,9 +197,11 @@ export const useGeminiStream = (
   const turnCancelledRef = useRef(false);
   const activeQueryIdRef = useRef<string | null>(null);
   const [isResponding, setIsResponding] = useState<boolean>(false);
-  const [thought, setThought] = useState<ThoughtSummary | null>(null);
+  const [thought, thoughtRef, setThought] =
+    useStateAndRef<ThoughtSummary | null>(null);
   const [pendingHistoryItem, pendingHistoryItemRef, setPendingHistoryItem] =
     useStateAndRef<HistoryItemWithoutId | null>(null);
+
   const [lastGeminiActivityTime, setLastGeminiActivityTime] =
     useState<number>(0);
   const [pushedToolCallIds, pushedToolCallIdsRef, setPushedToolCallIds] =
@@ -933,6 +937,7 @@ export const useGeminiStream = (
         pendingHistoryItemRef.current?.type !== 'gemini' &&
         pendingHistoryItemRef.current?.type !== 'gemini_content'
       ) {
+        // Flush any pending item before starting gemini content
         if (pendingHistoryItemRef.current) {
           addItem(pendingHistoryItemRef.current, userMessageTimestamp);
         }
@@ -976,6 +981,23 @@ export const useGeminiStream = (
       return newGeminiMessageBuffer;
     },
     [addItem, pendingHistoryItemRef, setPendingHistoryItem],
+  );
+
+  const handleThoughtEvent = useCallback(
+    (eventValue: ThoughtSummary, userMessageTimestamp: number) => {
+      setThought(eventValue);
+
+      if (getInlineThinkingMode(settings) === 'full') {
+        addItem(
+          {
+            type: 'thinking',
+            thought: eventValue,
+          } as HistoryItemThinking,
+          userMessageTimestamp,
+        );
+      }
+    },
+    [addItem, settings, setThought],
   );
 
   const handleUserCancelledEvent = useCallback(
@@ -1247,10 +1269,17 @@ export const useGeminiStream = (
       let geminiMessageBuffer = '';
       const toolCallRequests: ToolCallRequestInfo[] = [];
       for await (const event of stream) {
+        if (
+          event.type !== ServerGeminiEventType.Thought &&
+          thoughtRef.current !== null
+        ) {
+          setThought(null);
+        }
+
         switch (event.type) {
           case ServerGeminiEventType.Thought:
             setLastGeminiActivityTime(Date.now());
-            setThought(event.value);
+            handleThoughtEvent(event.value, userMessageTimestamp);
             break;
           case ServerGeminiEventType.Content:
             setLastGeminiActivityTime(Date.now());
@@ -1455,6 +1484,8 @@ export const useGeminiStream = (
     },
     [
       handleContentEvent,
+      handleThoughtEvent,
+      thoughtRef,
       handleUserCancelledEvent,
       handleErrorEvent,
       scheduleToolCalls,
@@ -1471,6 +1502,7 @@ export const useGeminiStream = (
       setPendingHistoryItem,
       config, // AUDITARIA_CLAUDE_PROVIDER
       setExternalPendingToolGroup, // AUDITARIA_CLAUDE_PROVIDER
+      setThought,
     ],
   );
   const submitQuery = useCallback(
@@ -1652,6 +1684,7 @@ export const useGeminiStream = (
       config,
       startNewPrompt,
       getPromptCount,
+      setThought,
     ],
   );
 

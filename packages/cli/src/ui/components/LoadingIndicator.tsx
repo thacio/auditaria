@@ -19,6 +19,7 @@ import { useLoadingState } from '../contexts/LoadingStateContext.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { isNarrowWidth } from '../utils/isNarrowWidth.js';
 import { INTERACTIVE_SHELL_WAITING_PHRASE } from '../hooks/usePhraseCycler.js';
+import { shouldUseEmoji } from '../utils/terminalUtils.js';
 
 interface LoadingIndicatorProps {
   currentLoadingPhrase?: string;
@@ -26,6 +27,7 @@ interface LoadingIndicatorProps {
   inline?: boolean;
   rightContent?: React.ReactNode;
   thought?: ThoughtSummary | null;
+  thoughtLabel?: string;
   showCancelAndTimer?: boolean;
 }
 
@@ -35,12 +37,13 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   inline = false,
   rightContent,
   thought,
+  thoughtLabel,
   showCancelAndTimer = true,
 }) => {
   const streamingState = useStreamingContext();
   const { columns: terminalWidth } = useTerminalSize();
   const isNarrow = isNarrowWidth(terminalWidth);
-  
+
   // WEB_INTERFACE_START: Loading state context for broadcasting to web interface
   const loadingStateContext = useLoadingState();
 
@@ -58,6 +61,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
       loadingStateContext.updateLoadingState(loadingStateData);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadingStateContext is stable from context
   }, [streamingState, currentLoadingPhrase, elapsedTime, thought]);
   // WEB_INTERFACE_END
 
@@ -74,7 +78,15 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   const primaryText =
     currentLoadingPhrase === INTERACTIVE_SHELL_WAITING_PHRASE
       ? currentLoadingPhrase
-      : thought?.subject || currentLoadingPhrase;
+      : thought?.subject
+        ? (thoughtLabel ?? thought.subject)
+        : currentLoadingPhrase;
+  const hasThoughtIndicator =
+    currentLoadingPhrase !== INTERACTIVE_SHELL_WAITING_PHRASE &&
+    Boolean(thought?.subject?.trim());
+  const thinkingIndicator = hasThoughtIndicator
+    ? `${shouldUseEmoji() ? '💬' : 'o'} `
+    : '';
 
   const cancelAndTimerContent =
     showCancelAndTimer &&
@@ -96,6 +108,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
         </Box>
         {primaryText && (
           <Text color={theme.text.accent} wrap="truncate-end">
+            {thinkingIndicator}
             {primaryText}
           </Text>
         )}
@@ -129,6 +142,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
           </Box>
           {primaryText && (
             <Text color={theme.text.accent} wrap="truncate-end">
+              {thinkingIndicator}
               {primaryText}
             </Text>
           )}

@@ -11,9 +11,9 @@
 > For details on the previous format, please see the
 > [v1 Configuration documentation](./configuration-v1.md).
 
-Auditaria offers several ways to configure its behavior, including
-environment variables, command-line arguments, and settings files. This document
-outlines the different configuration methods and available settings.
+Auditaria offers several ways to configure its behavior, including environment
+variables, command-line arguments, and settings files. This document outlines
+the different configuration methods and available settings.
 
 ## Configuration layers
 
@@ -33,8 +33,8 @@ overridden by higher numbers):
 
 ## Settings files
 
-Auditaria uses JSON settings files for persistent configuration. There are
-four locations for these files:
+Auditaria uses JSON settings files for persistent configuration. There are four
+locations for these files:
 
 > **Tip:** JSON-aware editors can use autocomplete and validation by pointing to
 > the generated schema at `schemas/settings.schema.json` in this repository.
@@ -56,18 +56,18 @@ four locations for these files:
     settings override system defaults.
 - **Project settings file:**
   - **Location:** `.gemini/settings.json` within your project's root directory.
-  - **Scope:** Applies only when running Auditaria from that specific
-    project. Project settings override user settings and system defaults.
+  - **Scope:** Applies only when running Auditaria from that specific project.
+    Project settings override user settings and system defaults.
 - **System settings file:**
   - **Location:** `/etc/gemini-cli/settings.json` (Linux),
     `C:\ProgramData\gemini-cli\settings.json` (Windows) or
     `/Library/Application Support/GeminiCli/settings.json` (macOS). The path can
     be overridden using the `GEMINI_CLI_SYSTEM_SETTINGS_PATH` environment
     variable.
-  - **Scope:** Applies to all Auditaria sessions on the system, for all
-    users. System settings act as overrides, taking precedence over all other
-    settings files. May be useful for system administrators at enterprises to
-    have controls over users' Auditaria setups.
+  - **Scope:** Applies to all Auditaria sessions on the system, for all users.
+    System settings act as overrides, taking precedence over all other settings
+    files. May be useful for system administrators at enterprises to have
+    controls over users' Auditaria setups.
 
 **Note on environment variables in settings:** String values within your
 `settings.json` and `gemini-extension.json` files can reference environment
@@ -84,8 +84,7 @@ this: `"apiKey": "$MY_API_TOKEN"`. Additionally, each extension can have its own
 ### The `.gemini` directory in your project
 
 In addition to a project settings file, a project's `.gemini` directory can
-contain other project-specific files related to Auditaria's operation, such
-as:
+contain other project-specific files related to Auditaria's operation, such as:
 
 - [Custom sandbox profiles](#sandboxing) (e.g.,
   `.gemini/sandbox-macos-custom.sb`, `.gemini/sandbox.Dockerfile`).
@@ -189,9 +188,14 @@ their corresponding top-level category object in your `settings.json` file.
   - **Default:** `false`
   - **Requires restart:** Yes
 
+- **`ui.inlineThinkingMode`** (enum):
+  - **Description:** Display model thinking inline: off or full.
+  - **Default:** `"off"`
+  - **Values:** `"off"`, `"full"`
+
 - **`ui.showStatusInTitle`** (boolean):
-  - **Description:** Show Auditaria model thoughts in the terminal window
-    title during the working phase
+  - **Description:** Show Auditaria model thoughts in the terminal window title
+    during the working phase
   - **Default:** `false`
 
 - **`ui.dynamicWindowTitle`** (boolean):
@@ -1035,8 +1039,8 @@ specified, the order of precedence is `httpUrl`, then `url`, then `command`.
 
 #### `telemetry`
 
-Configures logging and metrics collection for Auditaria. For more
-information, see [Telemetry](../cli/telemetry.md).
+Configures logging and metrics collection for Auditaria. For more information,
+see [Telemetry](../cli/telemetry.md).
 
 - **Properties:**
   - **`enabled`** (boolean): Whether or not telemetry is enabled.
@@ -1323,8 +1327,8 @@ for that specific session.
   - Specifies the Gemini model to use for this session.
   - Example: `npm start -- --model gemini-3-pro-preview`
 - **`--prompt <your_prompt>`** (**`-p <your_prompt>`**):
-  - Used to pass a prompt directly to the command. This invokes Auditaria in
-    a non-interactive mode.
+  - Used to pass a prompt directly to the command. This invokes Auditaria in a
+    non-interactive mode.
   - For scripting examples, use the `--output-format json` flag to get
     structured output.
 - **`--prompt-interactive <your_prompt>`** (**`-i <your_prompt>`**):
@@ -1519,8 +1523,8 @@ the Auditaria's responses to your specific needs and projects.
 
 ## Sandboxing
 
-The Auditaria can execute potentially unsafe operations (like shell commands
-and file modifications) within a sandboxed environment to protect your system.
+The Auditaria can execute potentially unsafe operations (like shell commands and
+file modifications) within a sandboxed environment to protect your system.
 
 Sandboxing is disabled by default, but you can enable it in a few ways:
 
@@ -1544,8 +1548,8 @@ FROM gemini-cli-sandbox
 ```
 
 When `.gemini/sandbox.Dockerfile` exists, you can use `BUILD_SANDBOX`
-environment variable when running Auditaria to automatically build the
-custom sandbox image:
+environment variable when running Auditaria to automatically build the custom
+sandbox image:
 
 ```bash
 BUILD_SANDBOX=1 auditaria -s
@@ -1553,8 +1557,8 @@ BUILD_SANDBOX=1 auditaria -s
 
 ## Usage statistics
 
-To help us improve the Auditaria, we collect anonymized usage statistics.
-This data helps us understand how the CLI is used, identify common issues, and
+To help us improve the Auditaria, we collect anonymized usage statistics. This
+data helps us understand how the CLI is used, identify common issues, and
 prioritize new features.
 
 **What we collect:**
