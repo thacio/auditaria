@@ -25,11 +25,13 @@ const AGENTS_DIR_NAME = '.agents';
 
 export class Storage {
   private readonly targetDir: string;
+  private readonly sessionId: string | undefined;
   private projectIdentifier: string | undefined;
   private initPromise: Promise<void> | undefined;
 
-  constructor(targetDir: string) {
+  constructor(targetDir: string, sessionId?: string) {
     this.targetDir = targetDir;
+    this.sessionId = sessionId;
   }
 
   // AUDITARIA_MODIFY_START: Use fallback resolution for global config directory
@@ -309,7 +311,17 @@ export class Storage {
   }
 
   getProjectTempPlansDir(): string {
+    if (this.sessionId) {
+      return path.join(this.getProjectTempDir(), this.sessionId, 'plans');
+    }
     return path.join(this.getProjectTempDir(), 'plans');
+  }
+
+  getProjectTempTasksDir(): string {
+    if (this.sessionId) {
+      return path.join(this.getProjectTempDir(), this.sessionId, 'tasks');
+    }
+    return path.join(this.getProjectTempDir(), 'tasks');
   }
 
   getExtensionsDir(): string {
