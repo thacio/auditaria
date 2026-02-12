@@ -298,6 +298,7 @@ export async function startInteractiveUI(
                                   version={version}
                                   resumedSessionData={resumedSessionData}
                                   initializationResult={initializationResult}
+                                  webEnabled={webEnabled}
                                 />
                               </TerminalCaptureWrapper>
                             </ToolConfirmationProvider>

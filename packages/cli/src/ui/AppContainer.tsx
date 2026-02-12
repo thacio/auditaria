@@ -199,6 +199,7 @@ interface AppContainerProps {
   version: string;
   initializationResult: InitializationResult;
   resumedSessionData?: ResumedSessionData;
+  webEnabled?: boolean;
 }
 
 /**
@@ -214,7 +215,12 @@ const SHELL_WIDTH_FRACTION = 0.89;
 const SHELL_HEIGHT_PADDING = 10;
 
 export const AppContainer = (props: AppContainerProps) => {
-  const { config, initializationResult, resumedSessionData } = props;
+  const {
+    config,
+    initializationResult,
+    resumedSessionData,
+    webEnabled = false,
+  } = props;
   const settings = useSettings();
 
   const historyManager = useHistory({
@@ -243,6 +249,7 @@ export const AppContainer = (props: AppContainerProps) => {
   const toggleBackgroundShellRef = useRef<() => void>(() => {});
   const isBackgroundShellVisibleRef = useRef<boolean>(false);
   const backgroundShellsRef = useRef<Map<number, BackgroundShell>>(new Map());
+  const webAvailabilityMessageShownRef = useRef(false);
 
   const [adminSettingsChanged, setAdminSettingsChanged] = useState(false);
 
@@ -2103,6 +2110,36 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, [webInterface?.service, dialogsVisible]);
 
   // Web interface broadcasting - footer, loading state, commands, MCP servers, console messages, CLI action required, startup message, and tool confirmations
+  useEffect(() => {
+    if (!webEnabled) {
+      webAvailabilityMessageShownRef.current = false;
+      return;
+    }
+
+    if (!webInterface?.isRunning || webInterface.port == null) {
+      webAvailabilityMessageShownRef.current = false;
+      return;
+    }
+
+    if (webAvailabilityMessageShownRef.current) {
+      return;
+    }
+
+    historyManager.addItem(
+      {
+        type: MessageType.INFO,
+        text: `Web interface available at http://localhost:${webInterface.port.toString()}`,
+      },
+      Date.now(),
+    );
+    webAvailabilityMessageShownRef.current = true;
+  }, [
+    webEnabled,
+    webInterface?.isRunning,
+    webInterface?.port,
+    historyManager,
+  ]);
+
   const footerContext = useFooter();
   useEffect(() => {
     if (
