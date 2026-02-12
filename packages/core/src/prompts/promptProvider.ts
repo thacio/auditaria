@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 Google LLC
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,6 +30,7 @@ import { resolveModel, isPreviewModel } from '../config/models.js';
 // AUDITARIA_FEATURE: Import SupportedLanguage type for i18n support
 import type { SupportedLanguage } from '../i18n/index.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
+import { getAllGeminiMdFilenames } from '../tools/memoryTool.js';
 
 /**
  * Orchestrates prompt generation by gathering context and building options.
@@ -60,6 +61,7 @@ export class PromptProvider {
     const desiredModel = resolveModel(config.getActiveModel());
     const isGemini3 = isPreviewModel(desiredModel);
     const activeSnippets = isGemini3 ? snippets : legacySnippets;
+    const contextFilenames = getAllGeminiMdFilenames();
 
     // --- Context Gathering ---
     let planModeToolsList = PLAN_MODE_TOOLS.filter((t) =>
@@ -118,6 +120,7 @@ export class PromptProvider {
           interactive: interactiveMode,
           isGemini3,
           hasSkills: skills.length > 0,
+          contextFilenames,
         })),
         subAgents: this.withSection('agentContexts', () =>
           config
@@ -204,7 +207,11 @@ export class PromptProvider {
     // AUDITARIA_FEATURE_END: Custom skills section
 
     // --- Finalization (Shell) ---
-    const finalPrompt = activeSnippets.renderFinalShell(basePrompt, userMemory);
+    const finalPrompt = activeSnippets.renderFinalShell(
+      basePrompt,
+      userMemory,
+      contextFilenames,
+    );
 
     // Sanitize erratic newlines from composition
     const sanitizedPrompt = finalPrompt.replace(/\n{3,}/g, '\n\n');
