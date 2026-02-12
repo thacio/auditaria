@@ -5,13 +5,21 @@
  */
 
 import { EventEmitter } from '../utils/EventEmitter.js';
+import { DiffContextMenu } from './DiffContextMenu.js';
 
 /**
  * Diff Modal Component
  *
- * Shows Monaco diff editor in a modal overlay
- * - Side-by-side comparison
- * - Actions: Use Disk Version, Keep My Version, Cancel
+ * Shows Monaco diff editor in a modal overlay with side-by-side comparison.
+ *
+ * Layout:
+ *   - Left panel:  "Your Changes (Unsaved)" — read-only, with "Use This Version" button
+ *   - Right panel: "Disk Version" — editable (user can revert hunks or edit), with "Use This Version" button
+ *   - Cancel button at the bottom
+ *
+ * "Use This Version" on left  → keeps the editor content as-is, dismisses the warning
+ * "Use This Version" on right → applies the right panel content (possibly edited) to the editor
+ * Cancel → closes without any changes
  */
 export class DiffModal extends EventEmitter {
   constructor(editorManager) {
@@ -22,8 +30,8 @@ export class DiffModal extends EventEmitter {
     this.modal = null;
     this.overlay = null;
     this.diffContainer = null;
-    this.useDiskBtn = null;
-    this.keepMineBtn = null;
+    this.useLeftBtn = null;
+    this.useRightBtn = null;
     this.cancelBtn = null;
     this.closeBtn = null;
 
@@ -31,6 +39,7 @@ export class DiffModal extends EventEmitter {
     this.isVisible = false;
     this.currentPath = null;
     this.diffEditor = null;
+    this.diffContextMenu = null;
     this.contentUpdateListener = null;
 
     this.initialize();
@@ -54,31 +63,37 @@ export class DiffModal extends EventEmitter {
     this.modal.innerHTML = `
       <div class="diff-modal-header">
         <h3 class="diff-modal-title">View Changes</h3>
-        <button class="diff-modal-close" title="Close" aria-label="Close">✕</button>
+        <button class="diff-modal-close" title="Close" aria-label="Close">\u2715</button>
       </div>
       <div class="diff-modal-body">
         <div class="diff-modal-legend">
-          <span class="diff-legend-item">
+          <div class="diff-legend-side left">
             <span class="diff-legend-label left">Your Changes (Unsaved)</span>
-          </span>
-          <span class="diff-legend-item">
-            <span class="diff-legend-label right">Changes on Disk</span>
-          </span>
+          </div>
+          <div class="diff-legend-side right">
+            <span class="diff-legend-label right">Disk Version</span>
+          </div>
         </div>
         <div class="diff-modal-editor" id="diff-modal-editor"></div>
       </div>
       <div class="diff-modal-footer">
-        <button class="diff-modal-action diff-action-use-disk">
-          <span class="codicon codicon-cloud-download"></span>
-          Use Disk Version
-        </button>
-        <button class="diff-modal-action diff-action-keep-mine">
-          <span class="codicon codicon-save"></span>
-          Keep My Version
-        </button>
-        <button class="diff-modal-action diff-action-cancel">
-          Cancel
-        </button>
+        <div class="diff-footer-zone left">
+          <button class="diff-modal-action diff-action-use-left" title="Keep your current editor content">
+            <span class="codicon codicon-check"></span>
+            Use This Version
+          </button>
+        </div>
+        <div class="diff-footer-zone center">
+          <button class="diff-modal-action diff-action-cancel">
+            Cancel
+          </button>
+        </div>
+        <div class="diff-footer-zone right">
+          <button class="diff-modal-action diff-action-use-right" title="Apply this content (including any edits you made here)">
+            <span class="codicon codicon-check"></span>
+            Use This Version
+          </button>
+        </div>
       </div>
     `;
 
@@ -87,8 +102,8 @@ export class DiffModal extends EventEmitter {
 
     // Get references
     this.diffContainer = this.modal.querySelector('#diff-modal-editor');
-    this.useDiskBtn = this.modal.querySelector('.diff-action-use-disk');
-    this.keepMineBtn = this.modal.querySelector('.diff-action-keep-mine');
+    this.useLeftBtn = this.modal.querySelector('.diff-action-use-left');
+    this.useRightBtn = this.modal.querySelector('.diff-action-use-right');
     this.cancelBtn = this.modal.querySelector('.diff-action-cancel');
     this.closeBtn = this.modal.querySelector('.diff-modal-close');
   }
@@ -108,21 +123,25 @@ export class DiffModal extends EventEmitter {
       this.closeBtn.addEventListener('click', () => this.hide());
     }
 
-    // Use Disk Version
-    if (this.useDiskBtn) {
-      this.useDiskBtn.addEventListener('click', () => {
+    // Use Left (keep editor content as-is)
+    if (this.useLeftBtn) {
+      this.useLeftBtn.addEventListener('click', () => {
         if (this.currentPath) {
-          this.editorManager.useDiskVersion(this.currentPath);
+          this.editorManager.keepMyVersion(this.currentPath);
           this.hide();
         }
       });
     }
 
-    // Keep My Version
-    if (this.keepMineBtn) {
-      this.keepMineBtn.addEventListener('click', () => {
-        if (this.currentPath) {
-          this.editorManager.keepMyVersion(this.currentPath);
+    // Use Right (apply the right panel content, possibly edited)
+    if (this.useRightBtn) {
+      this.useRightBtn.addEventListener('click', () => {
+        if (this.currentPath && this.diffEditor) {
+          const modifiedModel = this.diffEditor.getModifiedEditor().getModel();
+          if (modifiedModel) {
+            const mergedContent = modifiedModel.getValue();
+            this.editorManager.useMergedVersion(this.currentPath, mergedContent);
+          }
           this.hide();
         }
       });
@@ -163,10 +182,15 @@ export class DiffModal extends EventEmitter {
         enableSplitViewResizing: true,
         hideUnchangedRegions: { enabled: true },
         automaticLayout: true,
-        readOnly: true,
+        readOnly: false,  // Allow editing modified side for selective revert (Ctrl+Z works)
         scrollBeyondLastLine: false,
-        minimap: { enabled: false }
+        minimap: { enabled: false },
+        wordWrap: 'on',
+        diffWordWrap: 'on'
       });
+
+      // Attach right-click "Revert This Change" context menu
+      this.diffContextMenu = new DiffContextMenu(this.diffEditor, this.editorManager.monaco);
     }
 
     if (this.diffEditor && this.editorManager.monaco) {
@@ -214,11 +238,11 @@ export class DiffModal extends EventEmitter {
     // Remove existing listener if any
     this.removeContentListener();
 
-    // Listen to editor content changes (when user types)
+    // Listen to editor content changes (when user types in the main editor)
     if (this.editorManager.editor) {
       this.contentUpdateListener = this.editorManager.editor.onDidChangeModelContent(() => {
         if (this.isVisible && this.currentPath) {
-          this.updateDiffContent();
+          this.updateLeftSideContent();
         }
       });
     }
@@ -242,7 +266,26 @@ export class DiffModal extends EventEmitter {
   }
 
   /**
-   * Update diff content with latest changes
+   * Update only the left (original) side when the main editor content changes.
+   * Preserves the right side (which the user may have edited).
+   */
+  updateLeftSideContent() {
+    if (!this.currentPath) return;
+
+    const fileInfo = this.editorManager.openFiles.get(this.currentPath);
+    if (!fileInfo) return;
+
+    if (this.diffEditor && this.editorManager.monaco) {
+      const model = this.diffEditor.getModel();
+      if (model && model.original) {
+        // Update only the original (left) model with the latest editor content
+        model.original.setValue(fileInfo.model.getValue());
+      }
+    }
+  }
+
+  /**
+   * Update both sides of the diff (e.g. when external file changes while modal is open)
    */
   updateDiffContent() {
     if (!this.currentPath) return;
@@ -312,6 +355,10 @@ export class DiffModal extends EventEmitter {
     this.removeAllListeners();
     this.removeContentListener();
 
+    if (this.diffContextMenu) {
+      this.diffContextMenu.dispose();
+      this.diffContextMenu = null;
+    }
     if (this.diffEditor) {
       this.diffEditor.dispose();
       this.diffEditor = null;

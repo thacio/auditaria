@@ -1167,6 +1167,38 @@ export class EditorManager extends EventEmitter {
   }
 
   /**
+   * Action from Diff Modal: Apply merged content (right panel, possibly edited)
+   * Sets the editor model to the provided content and clears external change state.
+   * @param {string} path - File path
+   * @param {string} content - The merged content to apply
+   */
+  useMergedVersion(path, content) {
+    const fileInfo = this.openFiles.get(path);
+    if (!fileInfo) {
+      console.warn(`File not open: ${path}`);
+      return;
+    }
+
+    console.log(`Applying merged content for: ${path}`);
+
+    // Apply the merged content to the editor model
+    fileInfo.model.setValue(content);
+    fileInfo.savedContent = fileInfo.externalContent || fileInfo.savedContent;
+    fileInfo.isDirty = true;
+    fileInfo.hasExternalChange = false;
+    fileInfo.externalContent = null;
+    fileInfo.showWarning = false;
+
+    // Emit events
+    this.emit('external-warning-dismissed', { path });
+    this.emit('dirty-changed', { path, isDirty: true });
+    this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+    this.showToast('✓ Applied merged version', 'success');
+
+    this.emit('close-diff-modal');
+  }
+
+  /**
    * Destroy editor and clean up
    */
   destroy() {

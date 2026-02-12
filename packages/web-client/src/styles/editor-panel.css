@@ -1071,17 +1071,21 @@
 
 .diff-modal-legend {
   display: flex;
-  justify-content: space-around;
-  padding: 8px 20px;
-  background: var(--surface);
   border-bottom: 1px solid var(--border);
+  background: var(--surface);
   font-size: 12px;
 }
 
-.diff-legend-item {
+.diff-legend-side {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  padding: 6px 16px;
+}
+
+.diff-legend-side.left {
+  border-right: 1px solid var(--border);
 }
 
 .diff-legend-label {
@@ -1090,13 +1094,13 @@
 }
 
 .diff-legend-label.left::before {
-  content: '←';
+  content: '\2190';
   margin-right: 4px;
   color: var(--primary);
 }
 
 .diff-legend-label.right::before {
-  content: '→';
+  content: '\2192';
   margin-right: 4px;
   color: var(--success);
 }
@@ -1109,47 +1113,51 @@
 .diff-modal-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 20px;
+  padding: 10px 0;
   border-top: 1px solid var(--border);
   background: var(--surface);
   border-radius: 0 0 6px 6px;
+}
+
+.diff-footer-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .diff-modal-action {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 6px 14px;
   border: 1px solid transparent;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.diff-action-use-disk {
-  background: var(--success);
-  color: var(--surface);
-  border-color: var(--success);
-}
-
-.diff-action-use-disk:hover {
-  background: var(--success);
-  border-color: var(--success);
-}
-
-.diff-action-keep-mine {
+.diff-action-use-left {
   background: var(--primary);
   color: var(--surface);
   border-color: var(--primary);
 }
 
-.diff-action-keep-mine:hover {
+.diff-action-use-left:hover {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
+}
+
+.diff-action-use-right {
+  background: var(--success);
+  color: var(--surface);
+  border-color: var(--success);
+}
+
+.diff-action-use-right:hover {
+  filter: brightness(1.1);
 }
 
 .diff-action-cancel {

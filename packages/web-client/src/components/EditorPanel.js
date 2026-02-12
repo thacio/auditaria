@@ -11,6 +11,7 @@ import { EditorTabs } from './EditorTabs.js';
 import { MenuBar } from './MenuBar.js';
 import { ExternalChangeWarning } from './ExternalChangeWarning.js';
 import { DiffModal } from './DiffModal.js';
+import { DiffContextMenu } from './DiffContextMenu.js';
 import { themeManager } from '../utils/theme-manager.js';
 import { showErrorToast } from './Toast.js';
 
@@ -1143,8 +1144,13 @@ export class EditorPanel extends EventEmitter {
         readOnly: false,  // Allow editing the modified (right) side
         renderSideBySide: true,
         theme: themeManager.monacoTheme,
-        originalEditable: false  // Keep original (left) side read-only
+        originalEditable: false,  // Keep original (left) side read-only
+        wordWrap: 'on',
+        diffWordWrap: 'on'
       });
+
+      // Attach right-click "Revert This Change" context menu
+      this.diffContextMenu = new DiffContextMenu(this.diffEditor, monaco);
     }
 
     // Use externalContent if available (external changes), otherwise use savedContent
@@ -1916,7 +1922,11 @@ export class EditorPanel extends EventEmitter {
       this.pendingLayoutFrame = null;
     }
 
-    // Dispose diff editor if it exists
+    // Dispose diff context menu and diff editor if they exist
+    if (this.diffContextMenu) {
+      this.diffContextMenu.dispose();
+      this.diffContextMenu = null;
+    }
     if (this.diffEditor) {
       this.diffEditor.dispose();
       this.diffEditor = null;
