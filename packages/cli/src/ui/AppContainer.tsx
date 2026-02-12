@@ -1967,8 +1967,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       if (selection.startsWith('gemini:')) {
         const geminiModel = selection.slice('gemini:'.length);
         if (!geminiModel) return;
-        config.clearProviderConfig();
-        config.setModel(geminiModel, true);
+        config.clearProviderConfig(false); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
+        config.setModel(geminiModel, false);
         return;
       }
 
@@ -1978,7 +1978,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
           type: 'claude-cli',
           model: claudeModel === 'auto' ? undefined : claudeModel,
           cwd: config.getWorkingDir(),
-        });
+        }, false); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
         return;
       }
 
@@ -2007,7 +2007,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
           options: {
             reasoningEffort: clampedReasoningEffort,
           },
-        });
+        }, false); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
       }
     };
 

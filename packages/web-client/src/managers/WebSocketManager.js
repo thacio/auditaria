@@ -10,6 +10,9 @@ export class WebSocketManager extends EventTarget {
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 2000;
         
+        this.reconnectScheduled = false;
+        this.reconnectFailed = false;
+
         // Message resilience system
         this.lastReceivedSequence = 0;
         this.lastPersistentSequence = 0; // Track last non-ephemeral message
@@ -44,6 +47,8 @@ export class WebSocketManager extends EventTarget {
             console.log('Connected to Auditaria');
             this.isConnected = true;
             this.reconnectAttempts = 0;
+            this.reconnectScheduled = false;
+            this.reconnectFailed = false;
             // Reset sequence tracking on new connection
             this.lastReceivedSequence = 0;
             this.lastPersistentSequence = 0;
@@ -231,15 +236,25 @@ export class WebSocketManager extends EventTarget {
      */
     attemptReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.log('Max reconnection attempts reached');
-            this.dispatchEvent(new CustomEvent('reconnect_failed'));
+            if (!this.reconnectFailed) {
+                this.reconnectFailed = true;
+                console.log('Max reconnection attempts reached');
+                this.dispatchEvent(new CustomEvent('reconnect_failed'));
+            }
             return;
         }
-        
+
+        // Prevent overlapping reconnect timers
+        if (this.reconnectScheduled) {
+            return;
+        }
+
         this.reconnectAttempts++;
+        this.reconnectScheduled = true;
         console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-        
+
         setTimeout(() => {
+            this.reconnectScheduled = false;
             this.connect();
         }, this.reconnectDelay);
     }
