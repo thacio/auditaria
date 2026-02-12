@@ -941,6 +941,10 @@ export class Config {
     );
   }
 
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
   /**
    * Must only be called once, throws if called again.
    */
