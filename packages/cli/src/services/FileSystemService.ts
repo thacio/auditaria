@@ -157,9 +157,11 @@ export class FileSystemService {
             });
           }
           // Skip symlinks, sockets, etc.
-        } catch (error) {
-          // Skip entries we can't access
-          console.error(`Failed to process ${entry.name}:`, error);
+        } catch (error: any) {
+          // Silently skip ENOENT — file disappeared between readdir and stat (race condition with temp files)
+          if (error.code !== 'ENOENT') {
+            console.error(`Failed to process ${entry.name}:`, error);
+          }
           continue;
         }
       }
