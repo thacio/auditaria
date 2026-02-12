@@ -18,7 +18,7 @@ test-html/
 !.gemini/skills/
 !.gemini/settings.json
 .auditaria/
-
+AUDITARIA.md
 # Note: .gemini-clipboard/ is NOT in gitignore so Gemini can access pasted images
 
 # Dependency directory
