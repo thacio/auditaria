@@ -201,7 +201,6 @@ handleLanguageSelect: vi.fn(),
   setActiveBackgroundShellPid: vi.fn(),
   setIsBackgroundShellListOpen: vi.fn(),
   setAuthContext: vi.fn(),
-  handleWarning: vi.fn(),
   handleRestart: vi.fn(),
   handleNewAgentsSelect: vi.fn(),
 };
