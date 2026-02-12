@@ -1481,7 +1481,7 @@ const SETTINGS_SCHEMA = {
         label: 'Tool Output Masking',
         category: 'Experimental',
         requiresRestart: true,
-        ignoreInDocs: true,
+        ignoreInDocs: false,
         default: {},
         description:
           'Advanced settings for tool output masking to manage context window efficiency.',
@@ -1492,9 +1492,9 @@ const SETTINGS_SCHEMA = {
             label: 'Enable Tool Output Masking',
             category: 'Experimental',
             requiresRestart: true,
-            default: false,
+            default: true,
             description: 'Enables tool output masking to save tokens.',
-            showInDialog: false,
+            showInDialog: true,
           },
           toolProtectionThreshold: {
             type: 'number',

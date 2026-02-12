@@ -784,7 +784,7 @@ export class Config {
     this.modelAvailabilityService = new ModelAvailabilityService();
     this.experimentalJitContext = params.experimentalJitContext ?? false;
     this.toolOutputMasking = {
-      enabled: params.toolOutputMasking?.enabled ?? false,
+      enabled: params.toolOutputMasking?.enabled ?? true,
       toolProtectionThreshold:
         params.toolOutputMasking?.toolProtectionThreshold ??
         DEFAULT_TOOL_PROTECTION_THRESHOLD,
