@@ -527,7 +527,63 @@ describe('CodexCLIDriver', () => {
 
     expect(mockSpawn).toHaveBeenLastCalledWith(
       'codex',
-      ['exec', '--json', '-m', 'gpt-5.3-codex', '-s', 'danger-full-access', 'resume', '--skip-git-repo-check', 'thread-xyz'],
+      [
+        'exec',
+        '--json',
+        '-s',
+        'danger-full-access',
+        'resume',
+        '--skip-git-repo-check',
+        '-m',
+        'gpt-5.3-codex',
+        'thread-xyz',
+      ],
+      expect.objectContaining({ cwd: '/tmp/test' }),
+    );
+  });
+
+  it('should clamp unsupported reasoning for mini model and pass it to resume command', async () => {
+    const threadMsg = JSON.stringify({
+      type: 'thread.started',
+      thread_id: 'thread-mini',
+    });
+
+    const mockProc1 = createMockProcess([threadMsg]);
+    const mockProc2 = createMockProcess([]);
+    mockSpawn.mockReturnValueOnce(mockProc1).mockReturnValueOnce(mockProc2);
+
+    const driver = new CodexCLIDriver({
+      ...driverConfig,
+      model: 'gpt-5.1-codex-mini',
+      reasoningEffort: 'xhigh',
+    });
+    const controller = new AbortController();
+
+    // First call captures thread_id
+    for await (const _ of driver.sendMessage('first', controller.signal)) {
+      // consume
+    }
+
+    // Second call should resume using clamped effort for mini
+    for await (const _ of driver.sendMessage('second', controller.signal)) {
+      // consume
+    }
+
+    expect(mockSpawn).toHaveBeenLastCalledWith(
+      'codex',
+      [
+        'exec',
+        '--json',
+        '-s',
+        'danger-full-access',
+        'resume',
+        '--skip-git-repo-check',
+        '-m',
+        'gpt-5.1-codex-mini',
+        '-c',
+        'model_reasoning_effort=high',
+        'thread-mini',
+      ],
       expect.objectContaining({ cwd: '/tmp/test' }),
     );
   });

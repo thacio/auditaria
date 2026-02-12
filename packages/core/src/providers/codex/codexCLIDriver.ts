@@ -7,7 +7,10 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { Readable } from 'stream';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
-import { ProviderEventType } from '../types.js';
+import {
+  ProviderEventType,
+  clampCodexReasoningEffortForModel,
+} from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
 import type {
   CodexStreamMessage,
@@ -147,6 +150,12 @@ export class CodexCLIDriver implements ProviderDriver {
 
   private buildArgs(): string[] {
     const args: string[] = [];
+    const effectiveReasoningEffort = this.config.reasoningEffort
+      ? clampCodexReasoningEffortForModel(
+          this.config.model,
+          this.config.reasoningEffort,
+        )
+      : undefined;
 
     if (this.threadId) {
       // Resume: `codex exec [OPTIONS] resume [OPTIONS] <SESSION_ID>`
@@ -155,16 +164,16 @@ export class CodexCLIDriver implements ProviderDriver {
       // so it applies to resumed turns on Codex CLI versions where `resume` itself
       // rejects `-s/--sandbox`.
       args.push('exec', '--json');
+      args.push('-s', 'danger-full-access', 'resume', '--skip-git-repo-check');
+      // AUDITARIA_CODEX_PROVIDER: Resume accepts its own -m/-c options.
+      // Put these AFTER `resume` so they override ~/.codex/config.toml for resumed turns.
       if (this.config.model) {
         args.push('-m', this.config.model);
       }
-      if (this.config.reasoningEffort) {
-        args.push(
-          '-c',
-          `model_reasoning_effort=${this.config.reasoningEffort}`,
-        );
+      if (effectiveReasoningEffort) {
+        args.push('-c', `model_reasoning_effort=${effectiveReasoningEffort}`);
       }
-      args.push('-s', 'danger-full-access', 'resume', '--skip-git-repo-check', this.threadId);
+      args.push(this.threadId);
     } else {
       // New session: Use danger-full-access for file operations
       // AUDITARIA_CODEX_PROVIDER: workspace-write (used by --full-auto) refuses file writes.
@@ -174,10 +183,10 @@ export class CodexCLIDriver implements ProviderDriver {
       if (this.config.model) {
         args.push('-m', this.config.model);
       }
-      if (this.config.reasoningEffort) {
+      if (effectiveReasoningEffort) {
         args.push(
           '-c',
-          `model_reasoning_effort=${this.config.reasoningEffort}`,
+          `model_reasoning_effort=${effectiveReasoningEffort}`,
         );
       }
       args.push('-s', 'danger-full-access', '--skip-git-repo-check');
