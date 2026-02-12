@@ -1,19 +1,28 @@
-name: Release Auditaria (Verify + Optional Publish)
+name: Release NPMJS Auditaria (Verify + Optional Publish)
 
 on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch, tag, or SHA to build from"
+        description: "Branch, tag, or commit SHA to build"
         required: true
         default: "main"
         type: string
       release_version:
-        description: "Optional version override (example: 0.30.0 or v0.30.0)"
+        description: "Manual version override (examples: 0.30.0 or v0.30.0). Leave empty for automatic versioning."
         required: false
         type: string
+      version_bump:
+        description: "Automatic version bump when release_version is empty"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       npm_tag:
-        description: "npm dist-tag"
+        description: "Tag to publish on npm"
         required: true
         default: "latest"
         type: choice
@@ -23,17 +32,17 @@ on:
           - nightly
           - dev
       run_tests:
-        description: "Run test suite before packaging (disabled by default)"
+        description: "Run tests before build (npm run test:ci)"
         required: true
         default: false
         type: boolean
       enable_publish:
-        description: "Enable npm publish step"
+        description: "Run the publish job. If false, workflow only builds and verifies the package."
         required: true
         default: false
         type: boolean
       dry_run_publish:
-        description: "If publish is enabled, keep npm publish in dry-run mode"
+        description: "Publish simulation mode. True = run npm publish --dry-run (no upload). False = real npm publish."
         required: true
         default: true
         type: boolean
@@ -59,20 +68,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        if: ${{ github.event.inputs.run_tests == 'true' }}
-        run: npm run test:ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Bundle
-        run: npm run bundle
-
       - name: Prepare publish package.json
         id: prepare_package
         env:
           RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+          VERSION_BUMP: ${{ github.event.inputs.version_bump }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -80,14 +80,34 @@ jobs:
           const packageJsonPath = 'package.json';
           const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
           const versionInput = (process.env.RELEASE_VERSION || '').trim();
+          const versionBump = (process.env.VERSION_BUMP || 'patch').trim();
           const semverRegex =
             /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+          const coreSemverRegex = /^(\d+)\.(\d+)\.(\d+)/;
+
+          function parseCoreSemver(value) {
+            const normalized = String(value).trim().replace(/^v/, '');
+            const match = normalized.match(coreSemverRegex);
+            if (!match) {
+              throw new Error(
+                `Cannot auto-version from "${value}". Expected a version starting with X.Y.Z.`,
+              );
+            }
+            return {
+              major: Number(match[1]),
+              minor: Number(match[2]),
+              patch: Number(match[3]),
+            };
+          }
+
+          let versionSource = 'manual';
 
           packageJson.private = false;
           if (packageJson.scripts?.prepare) {
-            // Build/bundle already ran in this workflow; skip lifecycle re-entry during pack.
+            // prepare is not needed in CI here; we run build/bundle explicitly below.
             delete packageJson.scripts.prepare;
           }
+
           if (versionInput) {
             const normalizedVersion = versionInput.startsWith('v')
               ? versionInput.slice(1)
@@ -100,10 +120,24 @@ jobs:
             }
 
             packageJson.version = normalizedVersion;
-          } else if (!semverRegex.test(packageJson.version)) {
-            throw new Error(
-              `Current package.json version "${packageJson.version}" is not valid semver.`,
-            );
+          } else {
+            const current = parseCoreSemver(packageJson.version);
+            let next = { ...current };
+
+            if (versionBump === 'major') {
+              next = { major: current.major + 1, minor: 0, patch: 0 };
+            } else if (versionBump === 'minor') {
+              next = { major: current.major, minor: current.minor + 1, patch: 0 };
+            } else {
+              next = {
+                major: current.major,
+                minor: current.minor,
+                patch: current.patch + 1,
+              };
+            }
+
+            packageJson.version = `${next.major}.${next.minor}.${next.patch}`;
+            versionSource = `auto-${versionBump}`;
           }
 
           fs.writeFileSync(
@@ -114,11 +148,25 @@ jobs:
             process.env.GITHUB_OUTPUT,
             `package_version=${packageJson.version}\n`,
           );
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `version_source=${versionSource}\n`,
+          );
 
           console.log(
-            `Prepared ${packageJson.name}@${packageJson.version} (private=${packageJson.private})`,
+            `Prepared ${packageJson.name}@${packageJson.version} (source=${versionSource}, private=${packageJson.private})`,
           );
           NODE
+
+      - name: Run tests
+        if: ${{ github.event.inputs.run_tests == 'true' }}
+        run: npm run test:ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle
+        run: npm run bundle
 
       - name: Pack publish artifact
         run: |
