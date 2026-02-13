@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'node-html-parser';
 // WEB_INTERFACE_END
 import type { HistoryItem, ConsoleMessageItem, ResponseBlock } from '../ui/types.js';
-import { ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool } from '@google/gemini-cli-core';
+import { ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool, ensureRgPath } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
@@ -758,6 +758,8 @@ export class WebInterfaceService extends EventEmitter {
       // WEB_INTERFACE_START: Initialize file system service
       // Use current working directory as workspace root
       this.fileSystemService = new FileSystemService(process.cwd());
+      // Enable ripgrep-backed file search if available (DRY: reuses rg binary from grep tool)
+      this.initRipgrepForSearch();
       // WEB_INTERFACE_END
 
       // WEB_INTERFACE_START: Initialize file watcher service
@@ -1863,6 +1865,21 @@ export class WebInterfaceService extends EventEmitter {
     });
   }
   // AUDITARIA_END
+
+  /**
+   * Resolve ripgrep binary path and enable rg-backed file search.
+   * Non-blocking: if rg isn't available, search falls back to BFS.
+   */
+  private initRipgrepForSearch(): void {
+    ensureRgPath().then((rgPath) => {
+      if (this.fileSystemService) {
+        this.fileSystemService.setRgPath(rgPath);
+        console.log('Ripgrep enabled for file search:', rgPath);
+      }
+    }).catch(() => {
+      // Ripgrep not available — file search will use BFS fallback
+    });
+  }
 
   // WEB_INTERFACE_START: File operation handler methods
   /**

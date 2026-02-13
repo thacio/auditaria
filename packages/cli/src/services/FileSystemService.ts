@@ -8,6 +8,7 @@
 
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { spawn } from 'node:child_process';
 
 /**
  * Tree node representing a file or folder
@@ -54,6 +55,7 @@ export class FileSystemService {
   private workspaceRoot: string;
   private maxFileSize: number;
   private ignoredPatterns: string[];
+  private rgPath: string | null = null;
 
   /**
    * Create a new FileSystemService
@@ -95,6 +97,15 @@ export class FileSystemService {
       'tmp',
       'temp'
     ];
+  }
+
+  /**
+   * Set ripgrep binary path for fast file search.
+   * When set, searchFiles() uses ripgrep with BFS fallback.
+   * @param rgPath - Absolute path to rg binary
+   */
+  setRgPath(rgPath: string): void {
+    this.rgPath = rgPath;
   }
 
   /**
@@ -267,19 +278,146 @@ export class FileSystemService {
   }
 
   /**
-   * Search files by name using BFS through directories.
-   * Returns flat array of matching TreeNode items.
+   * Search files by name. Uses ripgrep when available for speed and regex support,
+   * falls back to Node.js BFS traversal otherwise.
    *
-   * @param query - Search string (case-insensitive substring match on file name)
+   * The query is treated as a regex pattern. If the regex is invalid, it falls
+   * back to case-insensitive substring matching.
+   *
+   * @param query - Search string (regex or plain substring)
    * @param maxResults - Maximum results to return
    * @returns Flat array of matching TreeNode items
    */
   async searchFiles(query: string, maxResults: number = FileSystemService.TREE_DEFAULTS.searchMaxResults): Promise<TreeNode[]> {
-    const lowerQuery = query.toLowerCase();
+    if (this.rgPath) {
+      try {
+        return await this.searchFilesWithRg(query, maxResults);
+      } catch (error) {
+        console.error('Ripgrep search failed, falling back to BFS:', error);
+      }
+    }
+    return this.searchFilesBFS(query, maxResults);
+  }
+
+  /**
+   * Build a name matcher from a query string.
+   * Tries regex first; falls back to case-insensitive substring.
+   */
+  private buildNameMatcher(query: string): (name: string) => boolean {
+    try {
+      const regex = new RegExp(query, 'i');
+      return (name) => regex.test(name);
+    } catch {
+      const lower = query.toLowerCase();
+      return (name) => name.toLowerCase().includes(lower);
+    }
+  }
+
+  /**
+   * Search files using ripgrep (fast, multi-threaded, respects .gitignore).
+   * Spawns `rg --files` and filters output by name.
+   *
+   * Note: rg --files only lists files, not directories. This is acceptable
+   * since users typically search for files. Directories matching the query
+   * are found via BFS fallback when rg is unavailable.
+   */
+  private searchFilesWithRg(query: string, maxResults: number): Promise<TreeNode[]> {
+    const matcher = this.buildNameMatcher(query);
+
+    const args = [
+      '--files',        // List files only (no content search)
+      '--hidden',       // Include hidden files (we exclude specific ones below)
+      '--threads', '4', // Multi-threaded for large directories
+    ];
+
+    // Add our custom ignore patterns as glob excludes
+    for (const pattern of this.ignoredPatterns) {
+      args.push('--glob', `!${pattern}`);
+    }
+
+    args.push(this.workspaceRoot);
+
+    return new Promise<TreeNode[]>((resolve, reject) => {
+      const results: TreeNode[] = [];
+      const rg = spawn(this.rgPath!, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+      let buffer = '';
+      let done = false;
+
+      const finish = () => {
+        if (done) return;
+        done = true;
+        // Process remaining buffer
+        const lastLine = buffer.trim();
+        if (lastLine && results.length < maxResults) {
+          const basename = path.basename(lastLine);
+          if (matcher(basename)) {
+            results.push({
+              label: basename,
+              path: path.relative(this.workspaceRoot, lastLine),
+              type: 'file',
+            });
+          }
+        }
+        resolve(results);
+      };
+
+      rg.stdout!.on('data', (chunk: Buffer) => {
+        if (done) return;
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop()!; // Keep last incomplete line
+
+        for (const line of lines) {
+          const filePath = line.trim();
+          if (!filePath) continue;
+
+          const basename = path.basename(filePath);
+          if (matcher(basename)) {
+            results.push({
+              label: basename,
+              path: path.relative(this.workspaceRoot, filePath),
+              type: 'file',
+            });
+
+            if (results.length >= maxResults) {
+              done = true;
+              rg.kill();
+              resolve(results);
+              return;
+            }
+          }
+        }
+      });
+
+      rg.on('close', finish);
+      rg.on('error', (err) => {
+        if (!done) {
+          done = true;
+          reject(err);
+        }
+      });
+
+      // Timeout: resolve with partial results after 10 seconds
+      setTimeout(() => {
+        if (!done) {
+          done = true;
+          rg.kill();
+          resolve(results);
+        }
+      }, 10000);
+    });
+  }
+
+  /**
+   * Search files by name using BFS through directories (fallback when rg is unavailable).
+   * Supports regex patterns — falls back to substring match on invalid regex.
+   */
+  private async searchFilesBFS(query: string, maxResults: number): Promise<TreeNode[]> {
+    const matcher = this.buildNameMatcher(query);
     const results: TreeNode[] = [];
-    const queue: string[] = ['.']; // BFS queue of relative paths
+    const queue: string[] = ['.'];
     const maxDirs = FileSystemService.TREE_DEFAULTS.searchMaxDirsVisited;
-    let queueIdx = 0; // Use index instead of shift() — O(1) vs O(n)
+    let queueIdx = 0;
 
     while (queueIdx < queue.length && results.length < maxResults && queueIdx < maxDirs) {
       const currentRelPath = queue[queueIdx++];
@@ -289,7 +427,7 @@ export class FileSystemService {
       try {
         entries = await fs.readdir(absolutePath, { withFileTypes: true });
       } catch {
-        continue; // Permission denied or deleted — skip
+        continue;
       }
 
       for (const entry of entries) {
@@ -297,25 +435,14 @@ export class FileSystemService {
         if (results.length >= maxResults) break;
 
         const entryRelPath = path.join(currentRelPath, entry.name);
-        const nameMatches = entry.name.toLowerCase().includes(lowerQuery);
 
         if (entry.isDirectory()) {
           queue.push(entryRelPath);
-          if (nameMatches) {
-            results.push({
-              label: entry.name,
-              path: entryRelPath,
-              type: 'folder',
-            });
+          if (matcher(entry.name)) {
+            results.push({ label: entry.name, path: entryRelPath, type: 'folder' });
           }
-        } else if (entry.isFile() && nameMatches) {
-          // No fs.stat() — search results only need name/path/type for display.
-          // Size and modified are fetched on demand when the file is opened.
-          results.push({
-            label: entry.name,
-            path: entryRelPath,
-            type: 'file',
-          });
+        } else if (entry.isFile() && matcher(entry.name)) {
+          results.push({ label: entry.name, path: entryRelPath, type: 'file' });
         }
       }
     }
