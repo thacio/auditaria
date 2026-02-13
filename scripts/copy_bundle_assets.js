@@ -160,6 +160,32 @@ if (existsSync(pgliteDir)) {
 }
 // AUDITARIA_SEARCH_END
 
+// AUDITARIA_BROWSER_AGENT_START: Copy stagehand package.json for module resolution
+// Stagehand's dist/index.js is re-bundled by esbuild (see esbuild.config.js) with all
+// dependencies inlined. We only need to copy the package.json for Node's require() resolution.
+const stagehandSrc = join(
+  root,
+  'node_modules/@browserbasehq/stagehand',
+);
+const stagehandDest = join(
+  bundleDir,
+  'node_modules/@browserbasehq/stagehand',
+);
+
+if (existsSync(join(stagehandSrc, 'package.json'))) {
+  mkdirSync(stagehandDest, { recursive: true });
+
+  copyFileSync(
+    join(stagehandSrc, 'package.json'),
+    join(stagehandDest, 'package.json'),
+  );
+
+  console.log(
+    'Stagehand package.json copied to bundle/node_modules/@browserbasehq/stagehand/',
+  );
+}
+// AUDITARIA_BROWSER_AGENT_END
+
 // WEB_INTERFACE_START: Copy web client files
 // Copy web client files to bundle directory
 const webClientSrc = join(root, 'packages/web-client/src');

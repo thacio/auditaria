@@ -216,14 +216,18 @@ export class StagehandAdapter {
     }
 
     this.resolutionPaths = [
-      // 1. Try from bundle location (global install - node_modules is sibling to bundle/)
+      // 1. Try from bundle directory (self-contained stagehand in bundle/node_modules/)
       // __dirname is set by esbuild banner to the bundle directory
+      typeof __dirname !== 'undefined'
+        ? `file://${__dirname}/package.json`
+        : null,
+      // 2. Try from package root (global install - npm-installed deps in node_modules/)
       typeof __dirname !== 'undefined'
         ? `file://${__dirname}/../package.json`
         : null,
-      // 2. Try from CLI package (when running from project root)
+      // 3. Try from CLI package (when running from project root)
       `file://${process.cwd()}/packages/cli/package.json`,
-      // 3. Try from browser-agent package (local dev fallback)
+      // 4. Try from browser-agent package (local dev fallback)
       `file://${process.cwd()}/packages/browser-agent/package.json`,
     ].filter(Boolean) as string[];
 

@@ -140,6 +140,22 @@ const a2aServerConfig = {
   ],
 };
 
+// AUDITARIA_BROWSER_AGENT: Re-bundle stagehand with all deps inlined for self-contained distribution.
+// The installed stagehand dist has external requires (zod, openai, anthropic, etc.) that won't be
+// available when users install auditaria from npm tarball. This re-bundles everything except
+// playwright (needs native browser binaries) into a single CJS file for bundle/node_modules/.
+const stagehandBundleConfig = {
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  // Only playwright/playwright-core need to remain external (native browser resolution)
+  external: ['playwright', 'playwright-core', 'patchright-core'],
+  entryPoints: ['node_modules/@browserbasehq/stagehand/dist/index.js'],
+  outfile: 'bundle/node_modules/@browserbasehq/stagehand/dist/index.js',
+  logLevel: 'warning',
+  write: true,
+};
+
 Promise.allSettled([
   esbuild.build(cliConfig).then(({ metafile }) => {
     if (process.env.DEV === 'true') {
@@ -148,8 +164,9 @@ Promise.allSettled([
   }),
   esbuild.build(a2aServerConfig),
   esbuild.build(mcpBridgeConfig), // AUDITARIA_CLAUDE_PROVIDER
+  esbuild.build(stagehandBundleConfig), // AUDITARIA_BROWSER_AGENT
 ]).then((results) => {
-  const [cliResult, a2aResult, mcpBridgeResult] = results;
+  const [cliResult, a2aResult, mcpBridgeResult, stagehandResult] = results;
   if (cliResult.status === 'rejected') {
     console.error('gemini.js build failed:', cliResult.reason);
     process.exit(1);
@@ -161,5 +178,9 @@ Promise.allSettled([
   // AUDITARIA_CLAUDE_PROVIDER: MCP bridge build failure is non-fatal
   if (mcpBridgeResult.status === 'rejected') {
     console.warn('mcp-bridge build failed:', mcpBridgeResult.reason);
+  }
+  // AUDITARIA_BROWSER_AGENT: Stagehand re-bundle failure is non-fatal
+  if (stagehandResult.status === 'rejected') {
+    console.warn('stagehand bundle failed:', stagehandResult.reason);
   }
 });
