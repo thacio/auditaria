@@ -54,6 +54,10 @@ export class FileTreePanel extends EventEmitter {
     // Track currently selected item
     this.currentSelectedPath = null;
 
+    // Pending tree update (debounced via requestAnimationFrame)
+    this._pendingTreeData = null;
+    this._updateRAF = null;
+
     // MANUAL REFRESH: Pull-to-refresh state (commented out - automatic updates enabled)
     // this.pullStartY = 0;
     // this.pullCurrentY = 0;
@@ -219,22 +223,21 @@ export class FileTreePanel extends EventEmitter {
     });
 
     // Tree selection event
+    // Note: @vscode-elements/elements@1.6.1 (loaded via CDN import map) fires
+    // vsc-tree-select on item click, NOT vsc-tree-item-toggle (which doesn't exist).
+    // The tree handles visual expansion internally; we sync expandedPaths state
+    // and trigger lazy loading from the select handler.
     if (this.tree) {
       // Remove any existing listeners first to prevent duplicates
-      this.tree.removeEventListener('vsc-select', this.boundHandleTreeSelect);
-      this.tree.removeEventListener('vsc-tree-item-toggle', this.boundHandleTreeToggle);
+      this.tree.removeEventListener('vsc-tree-select', this.boundHandleTreeSelect);
 
-      // Create bound handlers if they don't exist
+      // Create bound handler if it doesn't exist
       if (!this.boundHandleTreeSelect) {
         this.boundHandleTreeSelect = (event) => this.handleTreeSelect(event);
       }
-      if (!this.boundHandleTreeToggle) {
-        this.boundHandleTreeToggle = (event) => this.handleTreeToggle(event);
-      }
 
-      // Add event listeners
-      this.tree.addEventListener('vsc-select', this.boundHandleTreeSelect);
-      this.tree.addEventListener('vsc-tree-item-toggle', this.boundHandleTreeToggle);
+      // Add event listener — vsc-tree-select provides { label, value, open, itemType, path }
+      this.tree.addEventListener('vsc-tree-select', this.boundHandleTreeSelect);
     }
 
     // Search input
@@ -313,6 +316,10 @@ export class FileTreePanel extends EventEmitter {
       this.showError(error);
     });
 
+    // Handle lazy-load path changes (tree-updated is already emitted by the
+    // manager; this hook is for any additional UI feedback in the future)
+    this.fileTreeManager.on('loading-path-changed', () => {});
+
     // Handle request to capture current expansion state
     this.fileTreeManager.on('request-expansion-state', () => {
       this.captureAndSendExpansionState();
@@ -359,7 +366,12 @@ export class FileTreePanel extends EventEmitter {
   }
 
   /**
-   * Handle tree item selection
+   * Handle tree item selection (vsc-tree-select event)
+   *
+   * In @vscode-elements/elements@1.6.1, selecting a branch item automatically
+   * toggles its open state. The event detail includes { label, value, open, itemType }.
+   * We use `open` to sync our expandedPaths state and trigger lazy loading.
+   *
    * @param {CustomEvent} event
    */
   handleTreeSelect(event) {
@@ -372,42 +384,30 @@ export class FileTreePanel extends EventEmitter {
     const path = detail.value;
     const label = detail.label || '';
 
-    console.log('=== handleTreeSelect called ===', { path, label });
+    // Ignore clicks on placeholder/loading/truncated items
+    if (path.endsWith('__loading__') || path.endsWith('__placeholder__') || path.endsWith('__truncated__')) {
+      return;
+    }
 
     // Track the currently selected item FIRST, before any tree updates
     this.currentSelectedPath = path;
-    console.log('Set currentSelectedPath to:', path);
 
     // Check if this path is a folder (tracked during formatTreeData)
     const isFolder = this.folderPaths.has(path);
-    console.log('Is folder?', isFolder);
 
-    if (!isFolder) {
+    if (isFolder) {
+      // The vscode-tree component already toggled the visual open state.
+      // detail.open reflects the NEW state after the toggle.
+      // Sync our state and trigger lazy loading if needed.
+      const isOpen = detail.open !== undefined ? detail.open : !this.fileTreeManager.isFolderExpanded(path);
+      this.fileTreeManager.setFolderExpanded(path, isOpen);
+    } else {
       // It's a file - emit file-selected event
-      // Don't update tree data here, let formatTreeData handle it on next update
       this.emit('file-selected', { path, label });
     }
 
     // Manually apply selection styling since vscode-tree doesn't do it automatically
     this.applySelectionStyling(path);
-  }
-
-  /**
-   * Handle tree item toggle (expand/collapse)
-   * @param {CustomEvent} event
-   */
-  handleTreeToggle(event) {
-    const detail = event.detail;
-    if (!detail || !detail.value) return;
-
-    const path = detail.value;
-    const isOpen = detail.open;
-
-    console.log('=== handleTreeToggle called ===', { path, isOpen, currentSelectedPath: this.currentSelectedPath });
-
-    // Update expanded state in manager
-    // This might trigger a tree refresh from the manager
-    this.fileTreeManager.setFolderExpanded(path, isOpen);
   }
 
   /**
@@ -429,25 +429,35 @@ export class FileTreePanel extends EventEmitter {
       return;
     }
 
-    console.log('=== updateTree called ===', {
-      currentSelectedPath: this.currentSelectedPath,
-      dataLength: Array.isArray(treeData) ? treeData.length : 'not array'
+    // Debounce tree.data updates via requestAnimationFrame.
+    // Setting tree.data synchronously inside vsc-tree-item-toggle handlers
+    // can confuse the vscode-tree component (re-render mid-event).
+    // RAF defers the update until after the event handler completes and
+    // naturally deduplicates rapid successive tree-updated events.
+    this._pendingTreeData = treeData;
+
+    if (this._updateRAF) return; // Already scheduled
+
+    this._updateRAF = requestAnimationFrame(() => {
+      this._updateRAF = null;
+
+      const data = this._pendingTreeData;
+      this._pendingTreeData = null;
+
+      if (!data || !this.tree) return;
+
+      // Inject styles into shadow DOM on first update
+      this.injectShadowDOMStyles();
+
+      // Clear folder paths before reformatting tree
+      this.folderPaths.clear();
+
+      // Convert server tree format to VSCode Elements format
+      const formattedData = this.formatTreeData(data);
+
+      // Update tree
+      this.tree.data = formattedData;
     });
-
-    // Inject styles into shadow DOM on first update
-    this.injectShadowDOMStyles();
-
-    // Clear folder paths before reformatting tree
-    this.folderPaths.clear();
-
-    // Convert server tree format to VSCode Elements format
-    // formatTreeData will check currentSelectedPath and set selected: true appropriately
-    const formattedData = this.formatTreeData(treeData);
-
-    console.log('Tree formatted, updating tree.data. Current selection should be preserved:', this.currentSelectedPath);
-
-    // Update tree
-    this.tree.data = formattedData;
   }
 
   /**
@@ -541,6 +551,10 @@ export class FileTreePanel extends EventEmitter {
 
   /**
    * Format tree data for VSCode Elements
+   * Handles lazy loading states:
+   * - hasChildren && !loaded: show placeholder subItem so expand arrow appears
+   * - loadingPaths.has(path): show "Loading..." placeholder
+   * - truncated: show "... and X more items" indicator
    * @param {Array|Object} nodes - Tree nodes
    * @param {string} parentPath - Parent path
    * @returns {Array}
@@ -556,6 +570,17 @@ export class FileTreePanel extends EventEmitter {
 
     const node = nodes;
     const currentPath = node.path || (parentPath ? `${parentPath}/${node.label}` : node.label);
+
+    // Handle truncation indicator node from server
+    if (node.truncated) {
+      return {
+        label: node.label,
+        value: currentPath,
+        tooltip: `Showing first items of ${node.totalChildren || '?'} total`,
+        decorations: [{ appearance: 'counter-badge', content: '...' }]
+      };
+    }
+
     const isFolder = node.type === 'folder';
 
     // Track folder paths for click handling
@@ -597,10 +622,31 @@ export class FileTreePanel extends EventEmitter {
       };
     }
 
-    if (isFolder && node.children && Array.isArray(node.children)) {
-      formatted.subItems = node.children
-        .map(child => this.formatTreeData(child, currentPath))
-        .filter(Boolean);
+    if (isFolder) {
+      const isLoading = this.fileTreeManager.isFolderLoading(currentPath);
+      const isLoaded = this.fileTreeManager.isFolderLoaded(currentPath);
+
+      if (node.children && Array.isArray(node.children)) {
+        // Children are available — format them normally
+        formatted.subItems = node.children
+          .map(child => this.formatTreeData(child, currentPath))
+          .filter(Boolean);
+      } else if (isLoading) {
+        // Currently loading — show spinner placeholder
+        formatted.subItems = [{
+          label: 'Loading...',
+          value: currentPath + '/__loading__',
+          tooltip: 'Loading folder contents...',
+        }];
+      } else if (node.hasChildren && !isLoaded) {
+        // Has children but not yet loaded — show placeholder so expand arrow appears
+        formatted.subItems = [{
+          label: 'Loading...',
+          value: currentPath + '/__placeholder__',
+          tooltip: 'Expand to load contents',
+        }];
+      }
+      // else: empty folder or loaded with no children — no subItems (no arrow)
 
       // Set open state based on manager
       formatted.open = isExpanded;
@@ -1062,6 +1108,11 @@ export class FileTreePanel extends EventEmitter {
       return;
     }
 
+    // Skip context menu for placeholder/loading/truncated items
+    if (filePath.endsWith('__loading__') || filePath.endsWith('__placeholder__') || filePath.endsWith('__truncated__')) {
+      return;
+    }
+
     const isFolder = this.folderPaths.has(filePath);
 
     console.log('Building context menu for:', { path: filePath, label, isFolder });
@@ -1438,6 +1489,12 @@ export class FileTreePanel extends EventEmitter {
    */
   destroy() {
     this.removeAllListeners();
+
+    // Cancel pending tree update
+    if (this._updateRAF) {
+      cancelAnimationFrame(this._updateRAF);
+      this._updateRAF = null;
+    }
 
     // Destroy context menu
     if (this.contextMenu) {

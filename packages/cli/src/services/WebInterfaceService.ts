@@ -72,6 +72,7 @@ interface SequencedMessage {
 // For these types, we replace the previous message instead of accumulating
 const LATEST_ONLY_MESSAGE_TYPES = new Set([
   'file_tree_response',    // Full tree snapshot (5MB+) - only latest matters
+  'file_tree_search_response', // Search results snapshot - only latest matters
   'mcp_servers',           // Full server list - only latest matters
   'slash_commands',        // Full command list - only latest matters
   'model_menu_data',       // WEB_INTERFACE: model menu snapshot - only latest matters
@@ -1367,7 +1368,7 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support and file operations
-  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string; selection?: string; reasoningEffort?: string }): void {
+  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string; selection?: string; reasoningEffort?: string; query?: string }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
       
@@ -1463,6 +1464,10 @@ export class WebInterfaceService extends EventEmitter {
     // WEB_INTERFACE_START: File operation handlers
     else if (message.type === 'file_tree_request') {
       this.handleFileTreeRequest(message.relativePath);
+    } else if (message.type === 'file_tree_children_request' && message.path) {
+      this.handleFileTreeChildrenRequest(message.path);
+    } else if (message.type === 'file_tree_search_request' && message.query) {
+      this.handleFileTreeSearchRequest(message.query);
     } else if (message.type === 'file_read_request' && message.path) {
       this.handleFileReadRequest(message.path);
     } else if (message.type === 'file_write_request' && message.path && message.content !== undefined) {
@@ -1870,7 +1875,8 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     try {
-      const tree = await this.fileSystemService.getFileTree(relativePath || '.');
+      const { maxDepth, maxChildren } = FileSystemService.TREE_DEFAULTS;
+      const tree = await this.fileSystemService.getFileTree(relativePath || '.', { maxDepth, maxChildren });
 
       this.broadcastWithSequence('file_tree_response', {
         tree,
@@ -1881,6 +1887,60 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_operation_error', {
         operation: 'tree',
         path: relativePath || '.',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle request to load children of a specific folder (lazy expand)
+   */
+  private async handleFileTreeChildrenRequest(relativePath: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      const { maxDepth, maxChildren } = FileSystemService.TREE_DEFAULTS;
+      const children = await this.fileSystemService.getFileTree(relativePath, { maxDepth, maxChildren });
+
+      this.broadcastWithSequence('file_tree_children_response', {
+        path: relativePath,
+        children,
+        workspaceRoot: this.fileSystemService.getWorkspaceRoot()
+      });
+    } catch (error: any) {
+      console.error('Error reading folder children:', error);
+      this.broadcastWithSequence('file_tree_children_response', {
+        path: relativePath,
+        children: [],
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Handle server-side file search request
+   */
+  private async handleFileTreeSearchRequest(query: string): Promise<void> {
+    if (!this.fileSystemService) {
+      console.error('FileSystemService not initialized');
+      return;
+    }
+
+    try {
+      const results = await this.fileSystemService.searchFiles(query);
+
+      this.broadcastWithSequence('file_tree_search_response', {
+        query,
+        results
+      });
+    } catch (error: any) {
+      console.error('Error searching files:', error);
+      this.broadcastWithSequence('file_tree_search_response', {
+        query,
+        results: [],
         error: error.message
       });
     }
@@ -1961,8 +2021,11 @@ export class WebInterfaceService extends EventEmitter {
         message: 'File created successfully'
       });
 
-      // Refresh file tree
-      this.handleFileTreeRequest();
+      // Notify clients about the affected parent folder (lazy tree will re-request only that folder)
+      const parentDir = path.includes('/') || path.includes('\\')
+        ? path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')))
+        : '.';
+      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
     } catch (error: any) {
       console.error('Error creating file:', error);
       this.broadcastWithSequence('file_operation_error', {
@@ -1991,8 +2054,11 @@ export class WebInterfaceService extends EventEmitter {
         message: 'File deleted successfully'
       });
 
-      // Refresh file tree
-      this.handleFileTreeRequest();
+      // Notify clients about the affected parent folder
+      const parentDir = path.includes('/') || path.includes('\\')
+        ? path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')))
+        : '.';
+      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
     } catch (error: any) {
       console.error('Error deleting file:', error);
       this.broadcastWithSequence('file_operation_error', {
@@ -2022,8 +2088,17 @@ export class WebInterfaceService extends EventEmitter {
         message: 'File renamed successfully'
       });
 
-      // Refresh file tree
-      this.handleFileTreeRequest();
+      // Notify clients about affected parent folders (source and destination may differ)
+      const getParent = (p: string) => {
+        const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+        return idx > 0 ? p.substring(0, idx) : '.';
+      };
+      const oldParent = getParent(oldPath);
+      const newParent = getParent(newPath);
+      this.broadcastWithSequence('directory_change_notification', { path: oldParent });
+      if (newParent !== oldParent) {
+        this.broadcastWithSequence('directory_change_notification', { path: newParent });
+      }
     } catch (error: any) {
       console.error('Error renaming file:', error);
       this.broadcastWithSequence('file_operation_error', {
@@ -2371,9 +2446,16 @@ export class WebInterfaceService extends EventEmitter {
       return;
     }
 
-    // Handle directory changes - refresh file tree for all clients
-    this.directoryWatcherService.on('directory-change', (_event: any) => {
-      this.handleFileTreeRequest();
+    // Handle directory changes - send lightweight notification instead of full tree refresh
+    this.directoryWatcherService.on('directory-change', (event: any) => {
+      // Extract the affected path from the event and notify clients
+      // The client will re-request only the affected folder if it's been loaded
+      const changedPath = event?.path || event?.relativePath || '.';
+      // Normalize to parent directory (the watcher fires for the changed file, not folder)
+      const parentDir = changedPath.includes('/') || changedPath.includes('\\')
+        ? changedPath.substring(0, Math.max(changedPath.lastIndexOf('/'), changedPath.lastIndexOf('\\')))
+        : '.';
+      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
     });
 
     // Handle watcher errors

@@ -19,6 +19,9 @@ export interface TreeNode {
   size?: number;           // File size in bytes
   modified?: number;       // Last modified timestamp (ms)
   children?: TreeNode[];   // Child nodes for folders
+  hasChildren?: boolean;   // For lazy loading: folder has children but not loaded yet
+  totalChildren?: number;  // Total count when truncated
+  truncated?: boolean;     // Children list was capped at maxChildren
 }
 
 /**
@@ -111,22 +114,46 @@ export class FileSystemService {
   }
 
   /**
+   * Options for lazy tree loading
+   */
+  static readonly TREE_DEFAULTS = {
+    maxDepth: 1,
+    maxChildren: 500,
+    searchMaxResults: 200,
+  };
+
+  /**
    * Get directory tree structure
    *
    * @param relativePath - Optional subdirectory path (relative to workspace root)
+   * @param options - Lazy loading options (maxDepth, maxChildren, currentDepth)
    * @returns Array of tree nodes representing files and folders
    * @throws Error if path is invalid or outside workspace
    */
-  async getFileTree(relativePath: string = '.'): Promise<TreeNode[]> {
+  async getFileTree(
+    relativePath: string = '.',
+    options: { maxDepth?: number; maxChildren?: number; currentDepth?: number } = {}
+  ): Promise<TreeNode[]> {
+    const maxDepth = options.maxDepth ?? Infinity;
+    const maxChildren = options.maxChildren ?? Infinity;
+    const currentDepth = options.currentDepth ?? 0;
     const absolutePath = this.validatePath(relativePath);
 
     try {
       const entries = await fs.readdir(absolutePath, { withFileTypes: true });
       const nodes: TreeNode[] = [];
+      let totalValid = 0;
 
       for (const entry of entries) {
         // Skip ignored patterns
         if (this.shouldIgnore(entry.name)) {
+          continue;
+        }
+
+        totalValid++;
+
+        // If we've hit the cap, just keep counting for totalChildren
+        if (nodes.length >= maxChildren) {
           continue;
         }
 
@@ -135,15 +162,31 @@ export class FileSystemService {
 
         try {
           if (entry.isDirectory()) {
-            // Directory node - recursively get children
-            const children = await this.getFileTree(entryRelativePath);
+            if (currentDepth < maxDepth) {
+              // Within depth limit — recurse
+              const children = await this.getFileTree(entryRelativePath, {
+                maxDepth,
+                maxChildren,
+                currentDepth: currentDepth + 1,
+              });
 
-            nodes.push({
-              label: entry.name,
-              path: entryRelativePath,
-              type: 'folder',
-              children
-            });
+              nodes.push({
+                label: entry.name,
+                path: entryRelativePath,
+                type: 'folder',
+                children,
+              });
+            } else {
+              // At depth limit — don't recurse, just peek for children
+              const hasChildren = await this.folderHasChildren(absoluteEntryPath);
+
+              nodes.push({
+                label: entry.name,
+                path: entryRelativePath,
+                type: 'folder',
+                hasChildren,
+              });
+            }
           } else if (entry.isFile()) {
             // File node - get stats
             const stats = await fs.stat(absoluteEntryPath);
@@ -153,7 +196,7 @@ export class FileSystemService {
               path: entryRelativePath,
               type: 'file',
               size: stats.size,
-              modified: stats.mtimeMs
+              modified: stats.mtimeMs,
             });
           }
           // Skip symlinks, sockets, etc.
@@ -166,8 +209,25 @@ export class FileSystemService {
         }
       }
 
-      // Sort: folders first, then alphabetically
+      // Mark truncation if we capped the children list
+      if (totalValid > maxChildren && nodes.length > 0) {
+        // Tag the last node so the client can show "... and X more"
+        const lastNode = nodes[nodes.length - 1]!;
+        // We add truncation info as a synthetic node at the end instead
+        nodes.push({
+          label: `... and ${totalValid - maxChildren} more items`,
+          path: path.join(relativePath, '__truncated__'),
+          type: 'file',
+          truncated: true,
+          totalChildren: totalValid,
+        });
+      }
+
+      // Sort: folders first, then alphabetically (but keep truncation indicator at end)
       nodes.sort((a, b) => {
+        // Truncation indicator always goes last
+        if (a.truncated) return 1;
+        if (b.truncated) return -1;
         if (a.type !== b.type) {
           return a.type === 'folder' ? -1 : 1;
         }
@@ -185,6 +245,84 @@ export class FileSystemService {
       }
       throw new Error(`Failed to read directory: ${error.message}`);
     }
+  }
+
+  /**
+   * Lightweight check: does a folder contain any non-ignored children?
+   * Used at depth limit to decide if the expand arrow should show.
+   */
+  private async folderHasChildren(absoluteFolderPath: string): Promise<boolean> {
+    try {
+      const entries = await fs.readdir(absoluteFolderPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!this.shouldIgnore(entry.name) && (entry.isFile() || entry.isDirectory())) {
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Search files by name using BFS through directories.
+   * Returns flat array of matching TreeNode items.
+   *
+   * @param query - Search string (case-insensitive substring match on file name)
+   * @param maxResults - Maximum results to return
+   * @returns Flat array of matching TreeNode items
+   */
+  async searchFiles(query: string, maxResults: number = FileSystemService.TREE_DEFAULTS.searchMaxResults): Promise<TreeNode[]> {
+    const lowerQuery = query.toLowerCase();
+    const results: TreeNode[] = [];
+    const queue: string[] = ['.']; // BFS queue of relative paths
+
+    while (queue.length > 0 && results.length < maxResults) {
+      const currentRelPath = queue.shift()!;
+      const absolutePath = this.validatePath(currentRelPath);
+
+      let entries;
+      try {
+        entries = await fs.readdir(absolutePath, { withFileTypes: true });
+      } catch {
+        continue; // Permission denied or deleted — skip
+      }
+
+      for (const entry of entries) {
+        if (this.shouldIgnore(entry.name)) continue;
+        if (results.length >= maxResults) break;
+
+        const entryRelPath = path.join(currentRelPath, entry.name);
+        const nameMatches = entry.name.toLowerCase().includes(lowerQuery);
+
+        if (entry.isDirectory()) {
+          queue.push(entryRelPath);
+          if (nameMatches) {
+            results.push({
+              label: entry.name,
+              path: entryRelPath,
+              type: 'folder',
+            });
+          }
+        } else if (entry.isFile() && nameMatches) {
+          try {
+            const stats = await fs.stat(path.join(absolutePath, entry.name));
+            results.push({
+              label: entry.name,
+              path: entryRelPath,
+              type: 'file',
+              size: stats.size,
+              modified: stats.mtimeMs,
+            });
+          } catch {
+            // File may have disappeared — skip
+          }
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
