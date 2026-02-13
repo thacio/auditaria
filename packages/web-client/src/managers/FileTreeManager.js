@@ -39,6 +39,7 @@ export class FileTreeManager extends EventEmitter {
 
     // Search state
     this.isSearchMode = false;
+    this.isSearching = false; // true while waiting for server response
     /** @type {Array|null} Flat search results from server */
     this.searchResults = null;
     this.searchDebounceTimer = null;
@@ -387,7 +388,9 @@ export class FileTreeManager extends EventEmitter {
     // Restore snapshot when EXITING search mode (search cleared)
     if (wasSearching && !isSearching) {
       this.isSearchMode = false;
+      this.isSearching = false;
       this.searchResults = null;
+      this.emit('searching-changed', { isSearching: false });
 
       if (this.preSearchExpandedPaths !== null) {
         this.expandedPaths = new Set(this.preSearchExpandedPaths);
@@ -406,9 +409,12 @@ export class FileTreeManager extends EventEmitter {
 
     if (isSearching) {
       this.isSearchMode = true;
+      this.isSearching = true;
+      this.emit('searching-changed', { isSearching: true });
 
       // Debounce the server request
       this.searchDebounceTimer = setTimeout(() => {
+        console.log('[Search] Sending file_tree_search_request, query:', JSON.stringify(trimmedQuery));
         this.wsManager.send({
           type: 'file_tree_search_request',
           query: trimmedQuery
@@ -426,17 +432,28 @@ export class FileTreeManager extends EventEmitter {
    * @param {Object} data - { query, results, error? }
    */
   handleSearchResponse(data) {
+    console.log('[Search] handleSearchResponse received:', {
+      query: data.query,
+      currentQuery: this.searchQuery,
+      resultCount: data.results?.length,
+      error: data.error
+    });
+
     // Only apply if the response matches current query (discard stale results)
     if (data.query !== this.searchQuery) {
+      console.log('[Search] Stale response discarded (query mismatch)');
       return;
     }
 
     this.searchResults = data.results || [];
+    this.isSearching = false;
+    this.emit('searching-changed', { isSearching: false });
 
     if (data.error) {
       console.error('Search error:', data.error);
     }
 
+    console.log('[Search] Emitting tree-updated with', this.searchResults.length, 'search results');
     this.emit('tree-updated', this.getDisplayTree());
   }
 

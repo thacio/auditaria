@@ -120,6 +120,7 @@ export class FileSystemService {
     maxDepth: 1,
     maxChildren: 500,
     searchMaxResults: 200,
+    searchMaxDirsVisited: 5000,
   };
 
   /**
@@ -277,9 +278,11 @@ export class FileSystemService {
     const lowerQuery = query.toLowerCase();
     const results: TreeNode[] = [];
     const queue: string[] = ['.']; // BFS queue of relative paths
+    const maxDirs = FileSystemService.TREE_DEFAULTS.searchMaxDirsVisited;
+    let queueIdx = 0; // Use index instead of shift() — O(1) vs O(n)
 
-    while (queue.length > 0 && results.length < maxResults) {
-      const currentRelPath = queue.shift()!;
+    while (queueIdx < queue.length && results.length < maxResults && queueIdx < maxDirs) {
+      const currentRelPath = queue[queueIdx++];
       const absolutePath = this.validatePath(currentRelPath);
 
       let entries;
@@ -306,18 +309,13 @@ export class FileSystemService {
             });
           }
         } else if (entry.isFile() && nameMatches) {
-          try {
-            const stats = await fs.stat(path.join(absolutePath, entry.name));
-            results.push({
-              label: entry.name,
-              path: entryRelPath,
-              type: 'file',
-              size: stats.size,
-              modified: stats.mtimeMs,
-            });
-          } catch {
-            // File may have disappeared — skip
-          }
+          // No fs.stat() — search results only need name/path/type for display.
+          // Size and modified are fetched on demand when the file is opened.
+          results.push({
+            label: entry.name,
+            path: entryRelPath,
+            type: 'file',
+          });
         }
       }
     }

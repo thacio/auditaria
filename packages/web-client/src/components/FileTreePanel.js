@@ -114,11 +114,13 @@ export class FileTreePanel extends EventEmitter {
     // Get references to child elements
     this.tree = document.getElementById('file-tree');
     this.searchInput = document.getElementById('file-tree-search-input');
+    this.searchSpinner = document.getElementById('file-tree-search-spinner');
     // MANUAL REFRESH: Commented out
     // this.refreshButton = document.getElementById('file-tree-refresh');
     this.collapseButton = document.getElementById('file-tree-collapse');
     this.expandTab = document.getElementById('file-tree-expand-tab');
     this.loadingIndicator = document.getElementById('file-tree-loading');
+    this.searchEmptyIndicator = document.getElementById('file-tree-search-empty');
     this.treeContainer = document.querySelector('.file-tree-container');
     this.resizeHandle = document.getElementById('file-tree-resize-handle');
   }
@@ -141,13 +143,18 @@ export class FileTreePanel extends EventEmitter {
         </button>
       </div>
       <div class="file-tree-search">
-        <input
-          type="text"
-          id="file-tree-search-input"
-          class="file-tree-search-input"
-          placeholder="Search files..."
-          aria-label="Search files"
-        />
+        <div class="file-tree-search-wrapper">
+          <input
+            type="text"
+            id="file-tree-search-input"
+            class="file-tree-search-input"
+            placeholder="Search files..."
+            aria-label="Search files"
+          />
+          <span class="file-tree-search-spinner" id="file-tree-search-spinner" style="display: none;">
+            <span class="loading-spinner"></span>
+          </span>
+        </div>
       </div>
       <!-- MANUAL REFRESH: Refresh button commented out (automatic updates enabled) -->
       <!--
@@ -161,6 +168,10 @@ export class FileTreePanel extends EventEmitter {
       <div class="file-tree-loading" id="file-tree-loading" style="display: none;">
         <span class="loading-spinner"></span>
         <span>Loading...</span>
+      </div>
+      <div class="file-tree-search-empty" id="file-tree-search-empty" style="display: none;">
+        <span class="codicon codicon-search"></span>
+        <span>No results found</span>
       </div>
       <div class="file-tree-container">
         <vscode-tree
@@ -320,6 +331,11 @@ export class FileTreePanel extends EventEmitter {
     // manager; this hook is for any additional UI feedback in the future)
     this.fileTreeManager.on('loading-path-changed', () => {});
 
+    // Show/hide search spinner while server processes search request
+    this.fileTreeManager.on('searching-changed', ({ isSearching }) => {
+      this.setSearchLoading(isSearching);
+    });
+
     // Handle request to capture current expansion state
     this.fileTreeManager.on('request-expansion-state', () => {
       this.captureAndSendExpansionState();
@@ -416,6 +432,7 @@ export class FileTreePanel extends EventEmitter {
    */
   handleSearchInput(event) {
     const query = event.target.value;
+    console.log('[Search] handleSearchInput fired, query:', JSON.stringify(query));
     this.fileTreeManager.setSearchQuery(query);
   }
 
@@ -454,6 +471,14 @@ export class FileTreePanel extends EventEmitter {
 
       // Convert server tree format to VSCode Elements format
       const formattedData = this.formatTreeData(data);
+
+      console.log('[Search] updateTree: isSearchMode=', this.fileTreeManager.isSearchMode,
+        'items=', formattedData?.length, 'first=', formattedData?.[0]?.label);
+
+      // Handle empty search results — show "No results found" message
+      const isSearchWithResults = this.fileTreeManager.isSearchMode
+        && this.fileTreeManager.searchResults !== null;
+      this.showSearchEmpty(isSearchWithResults && formattedData.length === 0);
 
       // Update tree
       this.tree.data = formattedData;
@@ -803,6 +828,30 @@ export class FileTreePanel extends EventEmitter {
     // if (this.refreshButton) {
     //   this.refreshButton.disabled = isLoading;
     // }
+  }
+
+  /**
+   * Set search loading state (spinner inside search input)
+   * @param {boolean} isSearching
+   */
+  setSearchLoading(isSearching) {
+    if (this.searchSpinner) {
+      this.searchSpinner.style.display = isSearching ? 'flex' : 'none';
+    }
+    // Hide empty state when starting a new search
+    if (isSearching) {
+      this.showSearchEmpty(false);
+    }
+  }
+
+  /**
+   * Show/hide "No results found" message
+   * @param {boolean} show
+   */
+  showSearchEmpty(show) {
+    if (this.searchEmptyIndicator) {
+      this.searchEmptyIndicator.style.display = show ? 'flex' : 'none';
+    }
   }
 
   /**
