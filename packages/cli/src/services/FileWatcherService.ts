@@ -135,7 +135,7 @@ export class FileWatcherService extends EventEmitter {
       // Add client to watch entry
       watchEntry.clients.add(client);
 
-      console.log(`Started watching file: ${filePath} (${watchEntry.clients.size} clients)`);
+      // Silently start watching (no log noise)
     } catch (error: any) {
       console.error(`Error watching file ${filePath}:`, error);
       this.emit('watch-error', {
@@ -378,7 +378,7 @@ export class FileWatcherService extends EventEmitter {
     // Remove from map
     this.watches.delete(filePath);
 
-    console.log(`Stopped watching file: ${filePath}`);
+    // Silently stop watching (no log noise)
   }
 
   /**
