@@ -502,10 +502,26 @@ export class EditorPanel extends EventEmitter {
     }
 
     // EditorManager events
-    this.editorManager.on('file-opened', ({ path, language }) => {
-      // Clear binary preview mode when opening text files via EditorManager
+    this.editorManager.on('file-opened', ({ path, language, isBinary, filename: binaryFilename }) => {
+      // Binary files — route to preview view, skip editor setup
+      if (isBinary) {
+        const fname = binaryFilename || path.split('/').pop() || path;
+        this.showBinaryPreviewView(path, language, fname);
+        return;
+      }
+
+      // Clear binary preview mode when opening text files
+      const wasBinary = this.isBinaryPreviewMode;
       this.isBinaryPreviewMode = false;
       this.activeBinaryFile = null;
+
+      // Restore editor visibility if coming from binary preview
+      if (wasBinary) {
+        const editorContainer = document.getElementById('monaco-editor-container');
+        if (editorContainer) {
+          editorContainer.style.display = '';
+        }
+      }
 
       this.show();
 
@@ -516,12 +532,14 @@ export class EditorPanel extends EventEmitter {
       const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
 
       // Refresh current view mode with new file content
-      if (this.isPreviewMode && canPreview) {
+      if (wasBinary || !(this.isPreviewMode || this.isSplitMode)) {
+        // Coming from binary or in code view — show editor
+        this.showEditor();
+      } else if (this.isPreviewMode && canPreview) {
         this.showPreview();
       } else if (this.isSplitMode && canPreview) {
         this.updatePreview();
       } else if ((this.isPreviewMode || this.isSplitMode) && !canPreview) {
-        // New file can't be previewed, switch to code view
         this.showEditor();
       }
 
@@ -532,12 +550,26 @@ export class EditorPanel extends EventEmitter {
       this.updateCollaborativeWritingButton();
     });
 
-    this.editorManager.on('file-switched', ({ path }) => {
+    this.editorManager.on('file-switched', ({ path, isBinary }) => {
       const fileInfo = this.editorManager.openFiles.get(path);
       if (fileInfo) {
-        // Clear binary preview mode when switching to text files via EditorManager
+        // Binary files — route to preview view
+        if (isBinary || fileInfo.isBinary) {
+          const filename = fileInfo.filename || path.split('/').pop() || path;
+          this.showBinaryPreviewView(path, fileInfo.language, filename);
+          return;
+        }
+
+        // Clear binary preview mode when switching to text files
+        const wasBinary = this.isBinaryPreviewMode;
         this.isBinaryPreviewMode = false;
         this.activeBinaryFile = null;
+
+        // Restore editor visibility when switching from binary to text
+        const editorContainer = document.getElementById('monaco-editor-container');
+        if (editorContainer) {
+          editorContainer.style.display = '';
+        }
 
         this.show();
 
@@ -547,8 +579,10 @@ export class EditorPanel extends EventEmitter {
         // Check if preview is available for the new file
         const canPreview = this.previewManager && this.previewManager.canPreview(fileInfo.language, filename);
 
-        // Refresh current view mode with new file content
-        if (this.isPreviewMode && canPreview) {
+        // Coming from binary preview — reset to editor view
+        if (wasBinary) {
+          this.showEditor();
+        } else if (this.isPreviewMode && canPreview) {
           this.showPreview();
         } else if (this.isSplitMode && canPreview) {
           this.updatePreview();
@@ -748,6 +782,21 @@ export class EditorPanel extends EventEmitter {
    * @param {string} filename - Filename
    */
   openBinaryPreview(path, language, filename) {
+    // Register binary file in EditorManager's tab system
+    this.editorManager.openBinaryFile(path, language, filename);
+
+    // Activate the binary preview view
+    this.showBinaryPreviewView(path, language, filename);
+  }
+
+  /**
+   * Show binary preview view (hide editor, show preview)
+   * Called when switching to a binary file tab.
+   * @param {string} path - File path
+   * @param {string} language - Monaco language ID
+   * @param {string} filename - Filename
+   */
+  showBinaryPreviewView(path, language, filename) {
     // Clear unsupported overlay when showing binary previews
     this.clearUnsupportedOverlay();
 
@@ -757,9 +806,6 @@ export class EditorPanel extends EventEmitter {
 
     // Show panel
     this.show();
-
-    // Notify tabs that we have a binary file open (for display purposes)
-    this.emit('tabs-changed', { tabs: this.getBinaryTabInfo() });
 
     // Update toolbar for binary file (hide Code/Split buttons)
     this.updateToolbar(language, filename);
@@ -811,9 +857,6 @@ export class EditorPanel extends EventEmitter {
     if (this.diffButton) {
       this.diffButton.classList.remove('active');
     }
-
-    // Emit event
-    this.emit('binary-file-opened', { path, language, filename });
   }
 
   /**
@@ -1887,28 +1930,6 @@ export class EditorPanel extends EventEmitter {
     } catch (error) {
       console.error('Failed to save editor panel state:', error);
     }
-  }
-
-  /**
-   * Get tab info for binary file preview
-   * Returns array with single tab for the active binary file
-   * @returns {Array} Tab info array
-   */
-  getBinaryTabInfo() {
-    if (!this.isBinaryPreviewMode || !this.activeBinaryFile) {
-      return [];
-    }
-
-    return [{
-      path: this.activeBinaryFile.path,
-      filename: this.activeBinaryFile.filename,
-      isDirty: false,
-      isActive: true,
-      language: this.activeBinaryFile.language,
-      hasExternalChange: false,
-      showWarning: false,
-      isBinary: true  // Flag to indicate this is a binary preview
-    }];
   }
 
   /**

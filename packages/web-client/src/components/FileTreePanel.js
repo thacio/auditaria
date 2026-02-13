@@ -148,7 +148,7 @@ export class FileTreePanel extends EventEmitter {
             type="text"
             id="file-tree-search-input"
             class="file-tree-search-input"
-            placeholder="Search files... (regex: \\.ts$)"
+            placeholder="Search files..."
             aria-label="Search files"
           />
           <span class="file-tree-search-spinner" id="file-tree-search-spinner" style="display: none;">

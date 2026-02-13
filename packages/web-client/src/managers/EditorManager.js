@@ -564,6 +564,46 @@ export class EditorManager extends EventEmitter {
   }
 
   /**
+   * Open a binary file as a tab (no editor model, preview-only)
+   * Binary files participate in the tab system but are rendered by preview.
+   * @param {string} path - File path
+   * @param {string} language - Monaco language ID (e.g. 'pdf', 'image')
+   * @param {string} filename - Display filename
+   */
+  openBinaryFile(path, language, filename) {
+    // Check if already open
+    if (this.openFiles.has(path)) {
+      this.switchToFile(path);
+      return;
+    }
+
+    this.openFiles.set(path, {
+      content: null,
+      savedContent: null,
+      language,
+      isDirty: false,
+      model: null,
+      path,
+      hasExternalChange: false,
+      externalContent: null,
+      showWarning: false,
+      isVirtual: false,
+      readOnly: true,
+      isUnsupported: false,
+      isBinary: true,
+      filename
+    });
+
+    this.tabOrder.push(path);
+    this.activeFile = path;
+
+    this.emit('file-opened', { path, language, isBinary: true, filename });
+    this.emit('tabs-changed', { tabs: this.getTabsInfo() });
+
+    this.saveState();
+  }
+
+  /**
    * Switch to a different file
    * @param {string} path - File path
    */
@@ -575,36 +615,41 @@ export class EditorManager extends EventEmitter {
 
     const fileInfo = this.openFiles.get(path);
 
-    // Save current view state
-    if (this.activeFile && this.editor) {
-      this.viewStates.set(this.activeFile, this.editor.saveViewState());
-    }
+    // Binary files have no editor model — skip editor setup
+    if (!fileInfo.isBinary) {
+      // Save current view state
+      if (this.activeFile && this.editor) {
+        this.viewStates.set(this.activeFile, this.editor.saveViewState());
+      }
 
-    // Create editor if needed
-    if (!this.editor) {
-      this.createEditor(fileInfo.model);
-    } else {
-      // Switch model
-      this.editor.setModel(fileInfo.model);
-    }
+      // Create editor if needed
+      if (!this.editor) {
+        this.createEditor(fileInfo.model);
+      } else {
+        // Switch model
+        this.editor.setModel(fileInfo.model);
+      }
 
-    if (this.editor) {
-      this.editor.updateOptions({ readOnly: !!fileInfo.readOnly });
-    }
+      if (this.editor) {
+        this.editor.updateOptions({ readOnly: !!fileInfo.readOnly });
+      }
 
-    // Restore view state
-    const viewState = this.viewStates.get(path);
-    if (viewState) {
-      this.editor.restoreViewState(viewState);
+      // Restore view state
+      const viewState = this.viewStates.get(path);
+      if (viewState) {
+        this.editor.restoreViewState(viewState);
+      }
     }
 
     this.activeFile = path;
 
-    // Focus editor
-    this.editor.focus();
+    // Focus editor (only for non-binary files)
+    if (!fileInfo.isBinary && this.editor) {
+      this.editor.focus();
+    }
 
     // Emit events
-    this.emit('file-switched', { path });
+    this.emit('file-switched', { path, isBinary: !!fileInfo.isBinary });
     this.emit('tabs-changed', { tabs: this.getTabsInfo() });
 
     // Save state
@@ -749,8 +794,8 @@ export class EditorManager extends EventEmitter {
     this.viewStates.delete(path);
     this.tabOrder = this.tabOrder.filter(p => p !== path);
 
-    // Request server to stop watching this file (skip for virtual files)
-    if (!fileInfo.isVirtual) {
+    // Request server to stop watching this file (skip for virtual and binary files)
+    if (!fileInfo.isVirtual && !fileInfo.isBinary) {
       this.requestFileUnwatch(path);
     }
 
@@ -842,7 +887,8 @@ export class EditorManager extends EventEmitter {
         showWarning: fileInfo ? fileInfo.showWarning : false,
         isVirtual: fileInfo ? fileInfo.isVirtual : false,
         isUnsupported: fileInfo ? fileInfo.isUnsupported : false,
-        readOnly: fileInfo ? fileInfo.readOnly : false
+        readOnly: fileInfo ? fileInfo.readOnly : false,
+        isBinary: fileInfo ? !!fileInfo.isBinary : false
       };
     });
   }
