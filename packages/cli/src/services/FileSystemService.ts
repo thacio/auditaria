@@ -327,6 +327,7 @@ export class FileSystemService {
     const args = [
       '--files',        // List files only (no content search)
       '--hidden',       // Include hidden files (we exclude specific ones below)
+      '--no-ignore',    // Don't respect .gitignore/.ignore — use our custom excludes only
       '--threads', '4', // Multi-threaded for large directories
     ];
 

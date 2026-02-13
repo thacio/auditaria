@@ -1874,7 +1874,6 @@ export class WebInterfaceService extends EventEmitter {
     ensureRgPath().then((rgPath) => {
       if (this.fileSystemService) {
         this.fileSystemService.setRgPath(rgPath);
-        console.log('Ripgrep enabled for file search:', rgPath);
       }
     }).catch(() => {
       // Ripgrep not available — file search will use BFS fallback

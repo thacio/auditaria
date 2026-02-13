@@ -380,9 +380,11 @@ export class FileTreeManager extends EventEmitter {
     const wasSearching = this.searchQuery.length > 0;
     const isSearching = trimmedQuery.length > 0;
 
-    // Save snapshot when ENTERING search mode (first character typed)
+    // Save snapshot when ENTERING search mode (first character typed).
+    // Directly copy expandedPaths — it's always up-to-date since folder
+    // toggles go through setFolderExpanded().
     if (!wasSearching && isSearching) {
-      this.captureCurrentExpansionState();
+      this.preSearchExpandedPaths = new Set(this.expandedPaths);
     }
 
     // Restore snapshot when EXITING search mode (search cleared)
