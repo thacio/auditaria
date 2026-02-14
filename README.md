@@ -62,8 +62,8 @@ software** intactas.
 - **🔄 Provedores de LLM Alternativos**: Troque entre diferentes backends de IA
   em tempo de execução usando o menu `/model`. Todas as ferramentas do Auditaria
   funcionam independente do provedor — gerenciamento de contexto, escrita
-  colaborativa, busca de conhecimento, agente de navegação e habilidades.
-  Requer que as CLIs externas estejam instaladas e configuradas separadamente.
+  colaborativa, busca de conhecimento, agente de navegação e habilidades. Requer
+  que as CLIs externas estejam instaladas e configuradas separadamente.
   - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: Use
     Claude (Opus, Sonnet, Haiku) como backend alternativo com o mesmo contexto,
     memória e ferramentas customizadas
@@ -469,8 +469,8 @@ all original software engineering capabilities** intact.
 - **🔄 Alternative LLM Providers**: Switch between different AI backends at
   runtime using the `/model` menu. All Auditaria tools work regardless of
   provider — context management, collaborative writing, knowledge search,
-  browser agent, and skills. Requires the external CLIs to be installed and configured
-  separately.
+  browser agent, and skills. Requires the external CLIs to be installed and
+  configured separately.
   - **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: Use
     Claude (Opus, Sonnet, Haiku) as an alternative backend with the same
     context, memory, and custom tools
@@ -517,6 +517,10 @@ all original software engineering capabilities** intact.
   - Custom context files (GEMINI.md) to tailor behavior for your projects
 
 ## 📦 Installation
+
+See
+[Auditaria CLI installation, execution, and releases](./docs/get-started/installation.md)
+for recommended system specifications and a detailed installation guide.
 
 ### Windows Standalone Executables (No Node.js Required)
 
@@ -767,8 +771,8 @@ auditaria -p "Run tests and deploy" --output-format stream-json
 
 ### Web Interface
 
-The web interface provides an alternative way to interact with Auditaria
-through your browser:
+The web interface provides an alternative way to interact with Auditaria through
+your browser:
 
 - **Web interface enabled by default**: `auditaria` (automatically opens
   browser)
@@ -868,8 +872,8 @@ instructions.
 
 ## 🤝 Contributing
 
-We welcome contributions! Auditaria is fully open source (Apache 2.0), and
-we encourage the community to:
+We welcome contributions! Auditaria is fully open source (Apache 2.0), and we
+encourage the community to:
 
 - Report bugs and suggest features
 - Improve documentation
@@ -883,8 +887,8 @@ standards, and how to submit pull requests.
 
 - **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
 - **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
-- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria)** -
-  Package registry.
+- **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria)** - Package
+  registry.
 - **[GitHub Repository](https://github.com/thacio/auditaria)** - Source code.
 - **[GitHub Issues](https://github.com/thacio/auditaria/issues)** - Report bugs
   or request features.
