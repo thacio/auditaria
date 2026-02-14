@@ -30,7 +30,6 @@ import {
 import { ConfigContext } from './contexts/ConfigContext.js';
 import {
   type HistoryItem,
-  ToolCallStatus,
   type HistoryItemWithoutId,
   type HistoryItemToolGroup,
   AuthState,
@@ -83,6 +82,7 @@ import {
   type ConsentRequestPayload,
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
+  CoreToolCallStatus,
   type CodexReasoningEffort, // AUDITARIA_PROVIDER and WEB
   getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
@@ -116,7 +116,10 @@ import { type LoadableSettingScope, SettingScope } from '../config/settings.js';
 import { type InitializationResult } from '../core/initializer.js';
 import { useFocus } from './hooks/useFocus.js';
 import { useKeypress, type Key } from './hooks/useKeypress.js';
-import { KeypressPriority , useKeypressContext } from './contexts/KeypressContext.js';
+import {
+  KeypressPriority,
+  useKeypressContext,
+} from './contexts/KeypressContext.js';
 import { keyMatchers, Command } from './keyMatchers.js';
 import { useLoadingIndicator } from './hooks/useLoadingIndicator.js';
 import { useShellInactivityStatus } from './hooks/useShellInactivityStatus.js';
@@ -188,7 +191,7 @@ function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
     if (item && item.type === 'tool_group') {
       return item.tools.some(
-        (tool) => ToolCallStatus.Executing === tool.status,
+        (tool) => CoreToolCallStatus.Executing === tool.status,
       );
     }
     return false;
@@ -201,7 +204,9 @@ function isToolAwaitingConfirmation(
   return pendingHistoryItems
     .filter((item): item is HistoryItemToolGroup => item.type === 'tool_group')
     .some((item) =>
-      item.tools.some((tool) => ToolCallStatus.Confirming === tool.status),
+      item.tools.some(
+        (tool) => CoreToolCallStatus.AwaitingApproval === tool.status,
+      ),
     );
 }
 
