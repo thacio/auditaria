@@ -28,15 +28,8 @@ import type {
 import { ToolErrorType } from './tool-error.js';
 import { MEMORY_TOOL_NAME } from './tool-names.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
-
-const memoryToolDescription = `
-Saves concise global user context (preferences, facts) for use across ALL workspaces.
-
-### CRITICAL: GLOBAL CONTEXT ONLY
-NEVER save workspace-specific context, local paths, or commands (e.g. "The entry point is src/index.js", "The test command is npm test"). These are local to the current workspace and must NOT be saved globally. EXCLUSIVELY for context relevant across ALL workspaces.
-
-- Use for "Remember X" or clear personal facts.
-- Do NOT use for session context.`;
+import { MEMORY_DEFINITION } from './definitions/coreTools.js';
+import { resolveToolDeclaration } from './definitions/resolver.js';
 
 // AUDITARIA_FEATURE_START: Primary context filename (AUDITARIA.md), with fallback to legacy GEMINI.md
 export const DEFAULT_CONTEXT_FILENAME = AUDITARIA_CONTEXT_FILENAME;
@@ -306,21 +299,9 @@ export class MemoryTool
     super(
       MemoryTool.Name,
       'SaveMemory',
-      memoryToolDescription +
-        ' Examples: "Always lint after building", "Never run sudo commands", "Remember my address".',
+      MEMORY_DEFINITION.base.description!,
       Kind.Think,
-      {
-        type: 'object',
-        properties: {
-          fact: {
-            type: 'string',
-            description:
-              'The specific fact or piece of information to remember. Should be a clear, self-contained statement.',
-          },
-        },
-        required: ['fact'],
-        additionalProperties: false,
-      },
+      MEMORY_DEFINITION.base.parametersJsonSchema,
       messageBus,
       true,
       false,
@@ -349,6 +330,10 @@ export class MemoryTool
       toolName ?? this.name,
       displayName ?? this.displayName,
     );
+  }
+
+  override getSchema(modelId?: string) {
+    return resolveToolDeclaration(MEMORY_DEFINITION, modelId);
   }
 
   getModifyContext(_abortSignal: AbortSignal): ModifyContext<SaveMemoryParams> {
