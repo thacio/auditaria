@@ -1691,6 +1691,14 @@ Logging in with Google... Restarting Gemini CLI to continue.
         return true;
       } else if (keyMatchers[Command.SUSPEND_APP](key)) {
         handleSuspend();
+      } else if (
+        keyMatchers[Command.TOGGLE_COPY_MODE](key) &&
+        !isAlternateBuffer
+      ) {
+        showTransientMessage({
+          text: 'Use Ctrl+O to expand and collapse blocks of content.',
+          type: TransientMessageType.Warning,
+        });
         return true;
       }
 
