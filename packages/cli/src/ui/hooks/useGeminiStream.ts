@@ -1346,7 +1346,7 @@ export const useGeminiStream = (
                     callId: event.value.callId,
                     name: toolDisplayName,
                     description: toolDescription,
-                    status: ToolCallStatus.Executing,
+                    status: CoreToolCallStatus.Executing,
                     resultDisplay: undefined,
                     confirmationDetails: undefined,
                     renderOutputAsMarkdown: toolDisplayInfo?.isOutputMarkdown,
@@ -1429,8 +1429,8 @@ export const useGeminiStream = (
                     name: respToolName,
                     description: respToolDesc,
                     status: resp.error
-                      ? ToolCallStatus.Error
-                      : ToolCallStatus.Success,
+                      ? CoreToolCallStatus.Error
+                      : CoreToolCallStatus.Success,
                     resultDisplay: resp.resultDisplay,
                     confirmationDetails: undefined,
                     renderOutputAsMarkdown: respToolInfo?.isOutputMarkdown,
