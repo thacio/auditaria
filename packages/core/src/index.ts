@@ -163,6 +163,7 @@ export * from './tools/read-many-files.js';
 export * from './tools/mcp-client.js';
 export * from './tools/mcp-tool.js';
 export * from './tools/write-todos.js';
+export * from './tools/ask-user.js';
 export * from './tools/context-management.js'; // Custom Auditaria Feature: context.management.ts tool
 export * from './tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
 export * from './tools/knowledge-search.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
