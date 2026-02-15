@@ -568,6 +568,14 @@ export class ProviderManager {
     await this.driver?.interrupt();
   }
 
+  // AUDITARIA_AGENT_SESSION: Expose tool bridge info for sharing with AgentSessionManager
+  getToolBridgeInfo(): { server: ToolExecutorServer; scriptPath: string } | null {
+    if (this.toolExecutorServer && this.bridgeScriptPath) {
+      return { server: this.toolExecutorServer, scriptPath: this.bridgeScriptPath };
+    }
+    return null;
+  }
+
   dispose(): void {
     this.driver?.dispose();
     this.driver = null;

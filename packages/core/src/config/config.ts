@@ -85,6 +85,8 @@ import { BrowserAgentTool } from '@thacio/browser-agent'; // AUDITARIA_BROWSER_A
 import { KnowledgeSearchTool } from '../tools/knowledge-search.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 import { KnowledgeIndexTool } from '../tools/knowledge-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 import { ConvertToMarkdownTool } from '../tools/convert-to-markdown.js'; // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
+import { ExternalAgentSessionTool } from '../tools/agent-session.js'; // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
+import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
 import { logRipgrepFallback, logFlashFallback } from '../telemetry/loggers.js';
@@ -558,6 +560,7 @@ export class Config {
   private readonly usageStatisticsEnabled: boolean;
   private geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
+  private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
   private providerAvailability: { claude: boolean; codex: boolean } = {
     claude: false,
     codex: false,
@@ -2024,6 +2027,28 @@ export class Config {
     return this.providerManager?.isExternalProviderActive() ?? false;
   }
 
+  // AUDITARIA_AGENT_SESSION_START: Lazy-init agent session manager
+  getAgentSessionManager(): AgentSessionManager {
+    if (!this.agentSessionManager_) {
+      this.agentSessionManager_ = new AgentSessionManager(
+        this.cwd,
+        () => this.getProviderConfig()?.type ?? 'gemini',
+        () => this.getProviderAvailability(),
+        this.toolRegistry,
+        () => this.buildExternalProviderContext(),
+      );
+      // If ProviderManager already has a ToolExecutorServer running, share it
+      if (this.providerManager) {
+        const bridgeInfo = this.providerManager.getToolBridgeInfo();
+        if (bridgeInfo) {
+          this.agentSessionManager_.setToolBridgeInfo(bridgeInfo.server, bridgeInfo.scriptPath);
+        }
+      }
+    }
+    return this.agentSessionManager_;
+  }
+  // AUDITARIA_AGENT_SESSION_END
+
   // AUDITARIA_CLAUDE_PROVIDER: Get display model (external provider or Gemini)
   getDisplayModel(): string {
     if (this.providerManager?.isExternalProviderActive()) {
@@ -2720,6 +2745,11 @@ export class Config {
       registry.registerTool(new ConvertToMarkdownTool(this, this.messageBus)),
     );
 
+    // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
+    maybeRegister(ExternalAgentSessionTool, () =>
+      registry.registerTool(new ExternalAgentSessionTool(this, this.messageBus)),
+    );
+
     // Register Subagents as Tools
     this.registerSubAgentTools(registry);
 
@@ -2871,6 +2901,7 @@ export class Config {
     this.logCurrentModeDuration(this.getApprovalMode());
     coreEvents.off(CoreEvent.AgentsRefreshed, this.onAgentsRefreshed);
     this.agentRegistry?.dispose();
+    this.agentSessionManager_?.disposeAll(); // AUDITARIA_AGENT_SESSION: Kill all sub-agent sessions
     this.geminiClient?.dispose();
     if (this.mcpClientManager) {
       await this.mcpClientManager.stop();

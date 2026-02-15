@@ -122,5 +122,8 @@ export interface CodexDriverConfig {
   mcpServers?: Record<string, ExternalMCPServerConfig>;
   toolBridgePort?: number;
   toolBridgeScript?: string;
+  toolBridgeExclude?: string[]; // AUDITARIA_AGENT_SESSION: Tools to exclude from MCP bridge
   reasoningEffort?: CodexReasoningEffort;
+  codexConfigHome?: string; // AUDITARIA_AGENT_SESSION: Custom config directory (isolates concurrent instances)
+  sandboxMode?: string; // AUDITARIA_AGENT_SESSION: 'danger-full-access' (default) | 'workspace-read-only' (consult)
 }

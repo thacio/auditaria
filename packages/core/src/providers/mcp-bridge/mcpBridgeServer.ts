@@ -14,17 +14,29 @@ import type { BridgeableToolSchema, ToolExecuteResponse } from './types.js';
 // Parse --port from CLI arguments
 const portIdx = process.argv.indexOf('--port');
 if (portIdx === -1 || !process.argv[portIdx + 1]) {
-  process.stderr.write('Usage: mcp-bridge --port <PORT>\n');
+  process.stderr.write('Usage: mcp-bridge --port <PORT> [--exclude <tool_name>]...\n');
   process.exit(1);
 }
 const PORT = process.argv[portIdx + 1];
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+// AUDITARIA_AGENT_SESSION: Parse --exclude args (can appear multiple times)
+const excludeSet = new Set<string>();
+for (let i = 0; i < process.argv.length; i++) {
+  if (process.argv[i] === '--exclude' && process.argv[i + 1]) {
+    excludeSet.add(process.argv[++i]);
+  }
+}
+
 // Fetch tool definitions from Auditaria's tool executor
 async function fetchTools(): Promise<BridgeableToolSchema[]> {
   const res = await fetch(`${BASE_URL}/tools`);
   if (!res.ok) throw new Error(`Failed to fetch tools: ${res.status} ${res.statusText}`);
-  return res.json() as Promise<BridgeableToolSchema[]>;
+  const allTools = await res.json() as BridgeableToolSchema[];
+  // AUDITARIA_AGENT_SESSION: Filter out excluded tools
+  return excludeSet.size > 0
+    ? allTools.filter(t => !excludeSet.has(t.name))
+    : allTools;
 }
 
 // Execute a tool via Auditaria's tool executor

@@ -192,10 +192,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     // AUDITARIA_CLAUDE_PROVIDER: Inject Auditaria tool bridge as an MCP server
     if (this.config.toolBridgePort && this.config.toolBridgeScript) {
+      const bridgeArgs = [this.config.toolBridgeScript, '--port', String(this.config.toolBridgePort)];
+      // AUDITARIA_AGENT_SESSION: Append --exclude flags for tool filtering
+      for (const name of this.config.toolBridgeExclude ?? []) {
+        bridgeArgs.push('--exclude', name);
+      }
       claudeMcpServers['auditaria-tools'] = {
         type: 'stdio',
         command: process.execPath, // Use exact Node binary running Auditaria
-        args: [this.config.toolBridgeScript, '--port', String(this.config.toolBridgePort)],
+        args: bridgeArgs,
       };
     }
 

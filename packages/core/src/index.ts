@@ -228,6 +228,8 @@ export {
   CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL,
   getSupportedCodexReasoningEfforts,
   clampCodexReasoningEffortForModel,
+  CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
+  CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
 } from './providers/types.js';
 export {
   ProviderManager,

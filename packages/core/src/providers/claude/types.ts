@@ -114,4 +114,5 @@ export interface ClaudeDriverConfig {
   mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
   toolBridgePort?: number; // AUDITARIA_CLAUDE_PROVIDER: Port of the tool executor HTTP server
   toolBridgeScript?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to the MCP bridge script
+  toolBridgeExclude?: string[]; // AUDITARIA_AGENT_SESSION: Tools to exclude from MCP bridge
 }

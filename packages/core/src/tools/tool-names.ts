@@ -64,6 +64,9 @@ export const KNOWLEDGE_INDEX_TOOL_NAME = 'knowledge_index';
 // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
 export const CONVERT_TO_MARKDOWN_TOOL_NAME = 'convert_to_markdown';
 
+// AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
+export const EXTERNAL_AGENT_SESSION_TOOL_NAME = 'external_agent_session';
+
 // Tool Display Names
 export const WRITE_FILE_DISPLAY_NAME = 'WriteFile';
 export const EDIT_DISPLAY_NAME = 'Edit';

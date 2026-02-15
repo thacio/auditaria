@@ -172,6 +172,14 @@ export interface ProviderConfig {
   options?: Record<string, unknown>;
 }
 
+// AUDITARIA_AGENT_SESSION: Canonical model ID lists for external providers (DRY source of truth).
+// Used by tool schemas and UI model catalogs.
+export const CLAUDE_MODEL_IDS = ['auto', 'opus', 'sonnet', 'haiku'] as const;
+export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
+
+export const CODEX_MODEL_IDS = ['auto', 'gpt-5.3-codex', 'gpt-5.2-codex', 'gpt-5.1-codex-mini'] as const;
+export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
+
 // AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
 // Avoids importing MCPServerConfig from config.ts (circular dependency).
 export interface ExternalMCPServerConfig {

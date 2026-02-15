@@ -89,6 +89,10 @@ export class CodexCLIDriver implements ProviderDriver {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
       shell: getShellOption(),
+      // AUDITARIA_AGENT_SESSION: Custom CODEX_HOME env for concurrent session isolation
+      ...(this.config.codexConfigHome && {
+        env: { ...process.env, CODEX_HOME: this.config.codexConfigHome },
+      }),
     });
     this.activeProcess = proc;
     dbg('spawned', { pid: proc.pid });
@@ -163,8 +167,10 @@ export class CodexCLIDriver implements ProviderDriver {
       // AUDITARIA_CODEX_PROVIDER: Pass sandbox as an `exec` option before `resume`,
       // so it applies to resumed turns on Codex CLI versions where `resume` itself
       // rejects `-s/--sandbox`.
+      // AUDITARIA_AGENT_SESSION: Configurable sandbox mode (default: danger-full-access)
+      const sandbox = this.config.sandboxMode || 'danger-full-access';
       args.push('exec', '--json');
-      args.push('-s', 'danger-full-access', 'resume', '--skip-git-repo-check');
+      args.push('-s', sandbox, 'resume', '--skip-git-repo-check');
       // AUDITARIA_CODEX_PROVIDER: Resume accepts its own -m/-c options.
       // Put these AFTER `resume` so they override ~/.codex/config.toml for resumed turns.
       if (this.config.model) {
@@ -189,7 +195,9 @@ export class CodexCLIDriver implements ProviderDriver {
           `model_reasoning_effort=${effectiveReasoningEffort}`,
         );
       }
-      args.push('-s', 'danger-full-access', '--skip-git-repo-check');
+      // AUDITARIA_AGENT_SESSION: Configurable sandbox mode (default: danger-full-access)
+      const sandboxNew = this.config.sandboxMode || 'danger-full-access';
+      args.push('-s', sandboxNew, '--skip-git-repo-check');
     }
 
     return args;
@@ -249,9 +257,14 @@ export class CodexCLIDriver implements ProviderDriver {
     if (hasBridge) {
       const nodePath = process.execPath.replace(/\\/g, '/');
       const bridgePath = this.config.toolBridgeScript!.replace(/\\/g, '/');
+      // AUDITARIA_AGENT_SESSION: Build args with optional --exclude flags
+      const bridgeArgs = [`"${bridgePath}"`, `"--port"`, `"${this.config.toolBridgePort}"`];
+      for (const name of this.config.toolBridgeExclude ?? []) {
+        bridgeArgs.push(`"--exclude"`, `"${name}"`);
+      }
       mcpLines.push('[mcp_servers.auditaria-tools]');
       mcpLines.push(`command = "${nodePath}"`);
-      mcpLines.push(`args = ["${bridgePath}", "--port", "${this.config.toolBridgePort}"]`);
+      mcpLines.push(`args = [${bridgeArgs.join(', ')}]`);
     }
 
     const servers = this.config.mcpServers;
@@ -268,8 +281,8 @@ export class CodexCLIDriver implements ProviderDriver {
 
     mcpLines.push(MCP_MARKER_END);
 
-    // Ensure ~/.codex/ directory exists
-    const configDir = join(homedir(), '.codex');
+    // AUDITARIA_AGENT_SESSION: Ensure config directory exists (custom or default ~/.codex/)
+    const configDir = this.config.codexConfigHome || join(homedir(), '.codex');
     mkdirSync(configDir, { recursive: true });
 
     // Prepend top-level keys, then user's config, then MCP sections at the end
@@ -300,6 +313,10 @@ export class CodexCLIDriver implements ProviderDriver {
   }
 
   private getCodexConfigPath(): string {
+    // AUDITARIA_AGENT_SESSION: Support custom config home for concurrent session isolation
+    if (this.config.codexConfigHome) {
+      return join(this.config.codexConfigHome, 'config.toml');
+    }
     return join(homedir(), '.codex', 'config.toml');
   }
 
