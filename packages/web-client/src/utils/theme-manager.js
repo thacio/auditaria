@@ -40,6 +40,38 @@ const THEMES = [
     swatch: ['#fbf7f1', '#ea580c'],
     monaco: 'auditaria-studio-light',
   },
+  {
+    id: 'neon-dark',
+    label: 'Neon Dark',
+    kind: 'dark',
+    description: 'Vibrant, electric',
+    swatch: ['#0a0a14', '#a855f7'],
+    monaco: 'auditaria-neon-dark',
+  },
+  {
+    id: 'neon-light',
+    label: 'Neon Light',
+    kind: 'light',
+    description: 'Vibrant, airy',
+    swatch: ['#f8f5ff', '#7c3aed'],
+    monaco: 'auditaria-neon-light',
+  },
+  {
+    id: 'forest-dark',
+    label: 'Forest Dark',
+    kind: 'dark',
+    description: 'Earthy, natural',
+    swatch: ['#0b100d', '#10b981'],
+    monaco: 'auditaria-forest-dark',
+  },
+  {
+    id: 'forest-light',
+    label: 'Forest Light',
+    kind: 'light',
+    description: 'Fresh, natural',
+    swatch: ['#f3f8f4', '#059669'],
+    monaco: 'auditaria-forest-light',
+  },
 ];
 
 class ThemeManager {
@@ -94,7 +126,7 @@ class ThemeManager {
   toggle() {
     const current = this.themeMeta;
     const nextKind = current.kind === 'dark' ? 'light' : 'dark';
-    const family = current.id.includes('studio') ? 'studio' : 'calm';
+    const family = current.id.replace(/-(?:dark|light)$/, '');
     const nextId = `${family}-${nextKind}`;
     this.set(nextId);
     return nextId;

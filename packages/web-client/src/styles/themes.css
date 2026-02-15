@@ -409,3 +409,379 @@
   --hljs-comment: #8c7b6d;
   --hljs-title: #1b1410;
 }
+
+/* ============================================================================
+   Neon Dark - vibrant, electric
+   ============================================================================ */
+[data-theme="neon-dark"] {
+  color-scheme: dark;
+
+  --bg: #0a0a14;
+  --bg-elevated: #0e0e1c;
+  --surface: #131320;
+  --surface-alt: #1a1a2e;
+  --surface-hover: #22223a;
+  --surface-glass: rgba(19, 19, 32, 0.78);
+  --surface-strong: #1e1e36;
+
+  --panel-bg: #0e0e1a;
+  --panel-header-bg: #141428;
+  --panel-border: #2a2a4a;
+  --panel-item-hover: #302e52;
+  --panel-item-selected: #1e1e36;
+
+  --text: #eae8f5;
+  --text-subtle: #b0adc2;
+  --text-secondary: #b0adc2;
+  --text-muted: #807da0;
+  --text-inverse: #ffffff;
+
+  --primary: #a855f7;
+  --primary-hover: #c084fc;
+  --primary-10: rgba(168, 85, 247, 0.18);
+  --accent: #ec4899;
+  --accent-hover: #f472b6;
+  --accent-2: #06b6d4;
+  --accent-gradient: linear-gradient(135deg, #a855f7, #ec4899);
+
+  --border: #2a2a4a;
+  --border-strong: #3b3b62;
+  --border-hover: #3b3b62;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --focus-border: #c084fc;
+
+  --shadow-sm: 0 1px 2px rgba(5, 5, 12, 0.45);
+  --shadow: 0 10px 30px rgba(5, 5, 12, 0.6);
+  --shadow-lg: 0 20px 60px rgba(5, 5, 12, 0.7);
+
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.14);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.16);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.14);
+  --tool-executing: #a855f7;
+  --tool-executing-bg: rgba(168, 85, 247, 0.16);
+
+  --code-bg: #0c0c18;
+  --code-text: #eae8f5;
+  --code-border: #2a2a4a;
+  --code-inline-bg: #1a1a2e;
+  --code-inline-text: #d8b4fe;
+
+  --input-bg: #131320;
+  --input-border: #322e54;
+  --input-text: #eae8f5;
+  --input-placeholder: #807da0;
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(176, 173, 194, 0.35);
+  --scrollbar-hover: rgba(176, 173, 194, 0.55);
+
+  --diff-add-bg: rgba(34, 197, 94, 0.18);
+  --diff-add-text: #22c55e;
+  --diff-remove-bg: rgba(239, 68, 68, 0.18);
+  --diff-remove-text: #ef4444;
+
+  --msg-user-bg: rgba(168, 85, 247, 0.1);
+  --msg-user-border: rgba(168, 85, 247, 0.3);
+  --msg-ai-bg: rgba(19, 19, 32, 0.7);
+  --msg-ai-border: rgba(59, 59, 98, 0.85);
+  --msg-system-bg: rgba(236, 72, 153, 0.08);
+  --msg-separator: #1a1a2e;
+
+  --highlight-bg: rgba(236, 72, 153, 0.3);
+  --highlight-text: #f9a8d4;
+
+  --glow-accent: 0 0 26px rgba(168, 85, 247, 0.4);
+
+  --hljs-keyword: #a855f7;
+  --hljs-string: #22c55e;
+  --hljs-number: #ec4899;
+  --hljs-type: #06b6d4;
+  --hljs-built-in: #c084fc;
+  --hljs-comment: #6b6890;
+  --hljs-title: #d8b4fe;
+}
+
+/* ============================================================================
+   Neon Light - vibrant, airy
+   ============================================================================ */
+[data-theme="neon-light"] {
+  color-scheme: light;
+
+  --bg: #f8f5ff;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f0ecfa;
+  --surface-hover: #e8e2f6;
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-strong: #ece6f8;
+
+  --panel-bg: #f4f0fc;
+  --panel-header-bg: #eee8f8;
+  --panel-border: #d6cee8;
+  --panel-item-hover: #e4dcf2;
+  --panel-item-selected: #e8d8ff;
+
+  --text: #14101e;
+  --text-subtle: #4a3f66;
+  --text-secondary: #4a3f66;
+  --text-muted: #8a80a8;
+  --text-inverse: #ffffff;
+
+  --primary: #7c3aed;
+  --primary-hover: #8b5cf6;
+  --primary-10: rgba(124, 58, 237, 0.12);
+  --accent: #db2777;
+  --accent-hover: #ec4899;
+  --accent-2: #0d9488;
+  --accent-gradient: linear-gradient(135deg, #7c3aed, #db2777);
+
+  --border: #d6cee8;
+  --border-strong: #c2b8d8;
+  --border-hover: #c2b8d8;
+  --border-subtle: rgba(20, 16, 30, 0.06);
+  --focus-border: #7c3aed;
+
+  --shadow-sm: 0 1px 2px rgba(20, 16, 30, 0.08);
+  --shadow: 0 10px 30px rgba(20, 16, 30, 0.12);
+  --shadow-lg: 0 20px 60px rgba(20, 16, 30, 0.16);
+
+  --success: #16a34a;
+  --success-bg: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-bg: rgba(217, 119, 6, 0.14);
+  --error: #dc2626;
+  --error-bg: rgba(220, 38, 38, 0.12);
+  --tool-executing: #7c3aed;
+  --tool-executing-bg: rgba(124, 58, 237, 0.12);
+
+  --code-bg: #1a1028;
+  --code-text: #eae2f8;
+  --code-border: #e2daee;
+  --code-inline-bg: #ece6f8;
+  --code-inline-text: #6d28d9;
+
+  --input-bg: #ffffff;
+  --input-border: #d6cee8;
+  --input-text: #14101e;
+  --input-placeholder: #8a80a8;
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #ccc4de;
+  --scrollbar-hover: #b4aac8;
+
+  --diff-add-bg: rgba(34, 197, 94, 0.18);
+  --diff-add-text: #16a34a;
+  --diff-remove-bg: rgba(239, 68, 68, 0.18);
+  --diff-remove-text: #dc2626;
+
+  --msg-user-bg: rgba(124, 58, 237, 0.08);
+  --msg-user-border: rgba(124, 58, 237, 0.2);
+  --msg-ai-bg: rgba(255, 255, 255, 0.92);
+  --msg-ai-border: rgba(214, 206, 232, 0.9);
+  --msg-system-bg: rgba(219, 39, 119, 0.06);
+  --msg-separator: #e8e2f6;
+
+  --highlight-bg: #fce7f3;
+  --highlight-text: #9d174d;
+
+  --glow-accent: 0 0 24px rgba(124, 58, 237, 0.25);
+
+  --hljs-keyword: #7c3aed;
+  --hljs-string: #16a34a;
+  --hljs-number: #db2777;
+  --hljs-type: #0d9488;
+  --hljs-built-in: #6d28d9;
+  --hljs-comment: #8a80a8;
+  --hljs-title: #14101e;
+}
+
+/* ============================================================================
+   Forest Dark - earthy, natural
+   ============================================================================ */
+[data-theme="forest-dark"] {
+  color-scheme: dark;
+
+  --bg: #0b100d;
+  --bg-elevated: #0f1610;
+  --surface: #141c16;
+  --surface-alt: #1b261e;
+  --surface-hover: #233026;
+  --surface-glass: rgba(20, 28, 22, 0.78);
+  --surface-strong: #1f2e22;
+
+  --panel-bg: #101812;
+  --panel-header-bg: #162018;
+  --panel-border: #243828;
+  --panel-item-hover: #2f4834;
+  --panel-item-selected: #1f2e22;
+
+  --text: #e6f0ea;
+  --text-subtle: #a7bfad;
+  --text-secondary: #a7bfad;
+  --text-muted: #7a9682;
+  --text-inverse: #ffffff;
+
+  --primary: #10b981;
+  --primary-hover: #34d399;
+  --primary-10: rgba(16, 185, 129, 0.18);
+  --accent: #84cc16;
+  --accent-hover: #a3e635;
+  --accent-2: #38bdf8;
+  --accent-gradient: linear-gradient(135deg, #10b981, #84cc16);
+
+  --border: #243828;
+  --border-strong: #335a3a;
+  --border-hover: #335a3a;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --focus-border: #34d399;
+
+  --shadow-sm: 0 1px 2px rgba(5, 10, 6, 0.45);
+  --shadow: 0 10px 30px rgba(5, 10, 6, 0.6);
+  --shadow-lg: 0 20px 60px rgba(5, 10, 6, 0.7);
+
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.14);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.16);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.14);
+  --tool-executing: #10b981;
+  --tool-executing-bg: rgba(16, 185, 129, 0.16);
+
+  --code-bg: #0c120e;
+  --code-text: #e6f0ea;
+  --code-border: #243828;
+  --code-inline-bg: #1b261e;
+  --code-inline-text: #6ee7b7;
+
+  --input-bg: #141c16;
+  --input-border: #2c4630;
+  --input-text: #e6f0ea;
+  --input-placeholder: #7a9682;
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(167, 191, 173, 0.35);
+  --scrollbar-hover: rgba(167, 191, 173, 0.55);
+
+  --diff-add-bg: rgba(34, 197, 94, 0.18);
+  --diff-add-text: #22c55e;
+  --diff-remove-bg: rgba(239, 68, 68, 0.18);
+  --diff-remove-text: #ef4444;
+
+  --msg-user-bg: rgba(16, 185, 129, 0.1);
+  --msg-user-border: rgba(16, 185, 129, 0.3);
+  --msg-ai-bg: rgba(20, 28, 22, 0.7);
+  --msg-ai-border: rgba(51, 90, 58, 0.85);
+  --msg-system-bg: rgba(132, 204, 22, 0.08);
+  --msg-separator: #1b261e;
+
+  --highlight-bg: rgba(132, 204, 22, 0.3);
+  --highlight-text: #bef264;
+
+  --glow-accent: 0 0 26px rgba(16, 185, 129, 0.4);
+
+  --hljs-keyword: #10b981;
+  --hljs-string: #84cc16;
+  --hljs-number: #f59e0b;
+  --hljs-type: #38bdf8;
+  --hljs-built-in: #34d399;
+  --hljs-comment: #6b8a72;
+  --hljs-title: #6ee7b7;
+}
+
+/* ============================================================================
+   Forest Light - fresh, natural
+   ============================================================================ */
+[data-theme="forest-light"] {
+  color-scheme: light;
+
+  --bg: #f3f8f4;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #e8f2ea;
+  --surface-hover: #dceade;
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --surface-strong: #e2efe4;
+
+  --panel-bg: #eef5ef;
+  --panel-header-bg: #e6f0e8;
+  --panel-border: #c4d8c8;
+  --panel-item-hover: #d4e6d7;
+  --panel-item-selected: #c6ecd0;
+
+  --text: #0f1a12;
+  --text-subtle: #3a5542;
+  --text-secondary: #3a5542;
+  --text-muted: #7a9682;
+  --text-inverse: #ffffff;
+
+  --primary: #059669;
+  --primary-hover: #10b981;
+  --primary-10: rgba(5, 150, 105, 0.12);
+  --accent: #65a30d;
+  --accent-hover: #84cc16;
+  --accent-2: #0ea5e9;
+  --accent-gradient: linear-gradient(135deg, #059669, #65a30d);
+
+  --border: #c4d8c8;
+  --border-strong: #a8c4ae;
+  --border-hover: #a8c4ae;
+  --border-subtle: rgba(15, 26, 18, 0.06);
+  --focus-border: #059669;
+
+  --shadow-sm: 0 1px 2px rgba(15, 26, 18, 0.08);
+  --shadow: 0 10px 30px rgba(15, 26, 18, 0.12);
+  --shadow-lg: 0 20px 60px rgba(15, 26, 18, 0.16);
+
+  --success: #16a34a;
+  --success-bg: rgba(22, 163, 74, 0.12);
+  --warning: #d97706;
+  --warning-bg: rgba(217, 119, 6, 0.14);
+  --error: #dc2626;
+  --error-bg: rgba(220, 38, 38, 0.12);
+  --tool-executing: #059669;
+  --tool-executing-bg: rgba(5, 150, 105, 0.12);
+
+  --code-bg: #0e1a12;
+  --code-text: #e6f0ea;
+  --code-border: #d0e0d4;
+  --code-inline-bg: #e2efe4;
+  --code-inline-text: #047857;
+
+  --input-bg: #ffffff;
+  --input-border: #c4d8c8;
+  --input-text: #0f1a12;
+  --input-placeholder: #7a9682;
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: #b8d0bc;
+  --scrollbar-hover: #9cbca2;
+
+  --diff-add-bg: rgba(34, 197, 94, 0.18);
+  --diff-add-text: #16a34a;
+  --diff-remove-bg: rgba(239, 68, 68, 0.18);
+  --diff-remove-text: #dc2626;
+
+  --msg-user-bg: rgba(5, 150, 105, 0.08);
+  --msg-user-border: rgba(5, 150, 105, 0.2);
+  --msg-ai-bg: rgba(255, 255, 255, 0.92);
+  --msg-ai-border: rgba(196, 216, 200, 0.9);
+  --msg-system-bg: rgba(101, 163, 13, 0.06);
+  --msg-separator: #dceade;
+
+  --highlight-bg: #ecfccb;
+  --highlight-text: #3f6212;
+
+  --glow-accent: 0 0 24px rgba(5, 150, 105, 0.25);
+
+  --hljs-keyword: #059669;
+  --hljs-string: #16a34a;
+  --hljs-number: #d97706;
+  --hljs-type: #0ea5e9;
+  --hljs-built-in: #047857;
+  --hljs-comment: #7a9682;
+  --hljs-title: #0f1a12;
+}
