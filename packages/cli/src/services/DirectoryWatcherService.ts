@@ -39,23 +39,12 @@ export class DirectoryWatcherService extends EventEmitter {
   constructor(workspaceRoot: string, ignoredPatterns?: string[]) {
     super();
     this.workspaceRoot = path.resolve(workspaceRoot);
+    // Only skip always-hidden items — ignored files are now visible in the tree
+    // and need change events to trigger tree refreshes
     this.ignoredPatterns = ignoredPatterns || [
       '.git',
-      'node_modules',
       '.DS_Store',
       'Thumbs.db',
-      '.idea',
-      '.vscode',
-      '__pycache__',
-      'dist',
-      'build',
-      '.cache',
-      '.next',
-      '.nuxt',
-      'coverage',
-      '.nyc_output',
-      '.auditaria',
-      '.gemini',
     ];
   }
 

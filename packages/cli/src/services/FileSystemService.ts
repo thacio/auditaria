@@ -7,8 +7,9 @@
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
 
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
+import { promises as fs, existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { GitIgnoreParser } from '@google/gemini-cli-core';
 
 /**
  * Tree node representing a file or folder
@@ -23,6 +24,7 @@ export interface TreeNode {
   hasChildren?: boolean;   // For lazy loading: folder has children but not loaded yet
   totalChildren?: number;  // Total count when truncated
   truncated?: boolean;     // Children list was capped at maxChildren
+  ignored?: boolean;       // True if git-ignored or pattern-ignored (shown greyed out)
 }
 
 /**
@@ -54,8 +56,20 @@ export interface FileContent {
 export class FileSystemService {
   private workspaceRoot: string;
   private maxFileSize: number;
-  private ignoredPatterns: string[];
   private rgPath: string | null = null;
+
+  // Files/folders that are NEVER shown in the tree (OS artifacts, git internals)
+  private static readonly ALWAYS_HIDDEN = ['.git', '.DS_Store', 'Thumbs.db'];
+
+  // Fallback patterns for non-git repos — shown greyed out instead of hidden
+  private static readonly FALLBACK_IGNORED = [
+    'node_modules', '.idea', '.vscode', '__pycache__', '*.pyc',
+    'dist', 'build', '.cache', '.next', '.nuxt', 'coverage',
+    '.nyc_output', '.auditaria', '.gemini', 'tmp', 'temp',
+  ];
+
+  // Lazy-initialized gitignore parser (null = not yet checked, undefined = not a git repo)
+  private gitIgnoreParser: GitIgnoreParser | null | undefined = null;
 
   /**
    * Create a new FileSystemService
@@ -66,7 +80,6 @@ export class FileSystemService {
     workspaceRoot: string,
     options: {
       maxFileSize?: number;
-      ignoredPatterns?: string[];
     } = {}
   ) {
     // Resolve workspace root to absolute path
@@ -74,29 +87,6 @@ export class FileSystemService {
 
     // Default max file size: 10MB
     this.maxFileSize = options.maxFileSize ?? (10 * 1024 * 1024);
-
-    // Default ignored patterns
-    this.ignoredPatterns = options.ignoredPatterns ?? [
-      '.git',
-      'node_modules',
-      '.DS_Store',
-      'Thumbs.db',
-      '.idea',
-      '.vscode',
-      '__pycache__',
-      '*.pyc',
-      'dist',
-      'build',
-      '.cache',
-      '.next',
-      '.nuxt',
-      'coverage',
-      '.nyc_output',
-      '.auditaria', // Config directory - contains knowledge-base.db with rapidly changing WAL files
-      '.gemini', // Upstream config directory
-      'tmp',
-      'temp'
-    ];
   }
 
   /**
@@ -116,12 +106,62 @@ export class FileSystemService {
   }
 
   /**
-   * Get ignored patterns
-   * Used by DirectoryWatcherService to match ignore rules
-   * @returns Copy of ignored patterns array
+   * Get always-hidden patterns (for DirectoryWatcherService)
+   * Only returns patterns that should never appear in the tree at all.
    */
-  getIgnoredPatterns(): string[] {
-    return [...this.ignoredPatterns];
+  getAlwaysHiddenPatterns(): string[] {
+    return [...FileSystemService.ALWAYS_HIDDEN];
+  }
+
+  /**
+   * Get or create the GitIgnoreParser for this workspace.
+   * Returns null if not a git repo.
+   */
+  private getGitIgnoreParser(): GitIgnoreParser | null {
+    if (this.gitIgnoreParser === null) {
+      // First call — check if this is a git repo
+      const gitDir = path.join(this.workspaceRoot, '.git');
+      if (existsSync(gitDir)) {
+        this.gitIgnoreParser = new GitIgnoreParser(this.workspaceRoot);
+      } else {
+        this.gitIgnoreParser = undefined; // Not a git repo
+      }
+    }
+    return this.gitIgnoreParser ?? null;
+  }
+
+  /**
+   * Check if a file/folder should be completely hidden from the tree.
+   * Only OS artifacts and .git internals are hidden.
+   */
+  private isAlwaysHidden(name: string): boolean {
+    return FileSystemService.ALWAYS_HIDDEN.includes(name);
+  }
+
+  /**
+   * Check if a file/folder is git-ignored (or matches fallback patterns).
+   * These items are shown in the tree but greyed out.
+   */
+  private isFileIgnored(relativePath: string, name: string): boolean {
+    const parser = this.getGitIgnoreParser();
+    if (parser) {
+      return parser.isIgnored(relativePath);
+    }
+    // Fallback for non-git repos: use hardcoded patterns
+    return this.matchesFallbackPattern(name);
+  }
+
+  /**
+   * Check if a name matches any fallback ignored pattern (glob support).
+   */
+  private matchesFallbackPattern(name: string): boolean {
+    return FileSystemService.FALLBACK_IGNORED.some(pattern => {
+      if (pattern.includes('*')) {
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+        return regex.test(name);
+      }
+      return name === pattern;
+    });
   }
 
   /**
@@ -144,11 +184,12 @@ export class FileSystemService {
    */
   async getFileTree(
     relativePath: string = '.',
-    options: { maxDepth?: number; maxChildren?: number; currentDepth?: number } = {}
+    options: { maxDepth?: number; maxChildren?: number; currentDepth?: number; parentIgnored?: boolean } = {}
   ): Promise<TreeNode[]> {
     const maxDepth = options.maxDepth ?? Infinity;
     const maxChildren = options.maxChildren ?? Infinity;
     const currentDepth = options.currentDepth ?? 0;
+    const parentIgnored = options.parentIgnored ?? false;
     const absolutePath = this.validatePath(relativePath);
 
     try {
@@ -157,8 +198,8 @@ export class FileSystemService {
       let totalValid = 0;
 
       for (const entry of entries) {
-        // Skip ignored patterns
-        if (this.shouldIgnore(entry.name)) {
+        // Always-hidden items are completely excluded
+        if (this.isAlwaysHidden(entry.name)) {
           continue;
         }
 
@@ -172,6 +213,9 @@ export class FileSystemService {
         const entryRelativePath = path.join(relativePath, entry.name);
         const absoluteEntryPath = path.join(absolutePath, entry.name);
 
+        // Determine if this entry is ignored (inherits from parent or own match)
+        const isIgnored = parentIgnored || this.isFileIgnored(entryRelativePath, entry.name);
+
         try {
           if (entry.isDirectory()) {
             if (currentDepth < maxDepth) {
@@ -180,36 +224,43 @@ export class FileSystemService {
                 maxDepth,
                 maxChildren,
                 currentDepth: currentDepth + 1,
+                parentIgnored: isIgnored,
               });
 
-              nodes.push({
+              const node: TreeNode = {
                 label: entry.name,
                 path: entryRelativePath,
                 type: 'folder',
                 children,
-              });
+              };
+              if (isIgnored) node.ignored = true;
+              nodes.push(node);
             } else {
               // At depth limit — don't recurse, just peek for children
               const hasChildren = await this.folderHasChildren(absoluteEntryPath);
 
-              nodes.push({
+              const node: TreeNode = {
                 label: entry.name,
                 path: entryRelativePath,
                 type: 'folder',
                 hasChildren,
-              });
+              };
+              if (isIgnored) node.ignored = true;
+              nodes.push(node);
             }
           } else if (entry.isFile()) {
             // File node - get stats
             const stats = await fs.stat(absoluteEntryPath);
 
-            nodes.push({
+            const node: TreeNode = {
               label: entry.name,
               path: entryRelativePath,
               type: 'file',
               size: stats.size,
               modified: stats.mtimeMs,
-            });
+            };
+            if (isIgnored) node.ignored = true;
+            nodes.push(node);
           }
           // Skip symlinks, sockets, etc.
         } catch (error: any) {
@@ -223,8 +274,6 @@ export class FileSystemService {
 
       // Mark truncation if we capped the children list
       if (totalValid > maxChildren && nodes.length > 0) {
-        // Tag the last node so the client can show "... and X more"
-        const lastNode = nodes[nodes.length - 1]!;
         // We add truncation info as a synthetic node at the end instead
         nodes.push({
           label: `... and ${totalValid - maxChildren} more items`,
@@ -235,11 +284,12 @@ export class FileSystemService {
         });
       }
 
-      // Sort: folders first, then alphabetically (but keep truncation indicator at end)
+      // Sort: folders first, non-ignored before ignored, then alphabetically
       nodes.sort((a, b) => {
         // Truncation indicator always goes last
         if (a.truncated) return 1;
         if (b.truncated) return -1;
+        // Folders before files
         if (a.type !== b.type) {
           return a.type === 'folder' ? -1 : 1;
         }
@@ -260,14 +310,15 @@ export class FileSystemService {
   }
 
   /**
-   * Lightweight check: does a folder contain any non-ignored children?
+   * Lightweight check: does a folder contain any non-hidden children?
    * Used at depth limit to decide if the expand arrow should show.
+   * Only skips always-hidden items (ignored items are visible, so they count).
    */
   private async folderHasChildren(absoluteFolderPath: string): Promise<boolean> {
     try {
       const entries = await fs.readdir(absoluteFolderPath, { withFileTypes: true });
       for (const entry of entries) {
-        if (!this.shouldIgnore(entry.name) && (entry.isFile() || entry.isDirectory())) {
+        if (!this.isAlwaysHidden(entry.name) && (entry.isFile() || entry.isDirectory())) {
           return true;
         }
       }
@@ -327,12 +378,12 @@ export class FileSystemService {
     const args = [
       '--files',        // List files only (no content search)
       '--hidden',       // Include hidden files (we exclude specific ones below)
-      '--no-ignore',    // Don't respect .gitignore/.ignore — use our custom excludes only
+      '--no-ignore',    // Don't respect .gitignore/.ignore — we handle ignore status client-side
       '--threads', '4', // Multi-threaded for large directories
     ];
 
-    // Add our custom ignore patterns as glob excludes
-    for (const pattern of this.ignoredPatterns) {
+    // Only exclude always-hidden items from search (ignored items are searchable)
+    for (const pattern of FileSystemService.ALWAYS_HIDDEN) {
       args.push('--glob', `!${pattern}`);
     }
 
@@ -432,7 +483,8 @@ export class FileSystemService {
       }
 
       for (const entry of entries) {
-        if (this.shouldIgnore(entry.name)) continue;
+        // Only skip always-hidden items — ignored items are searchable
+        if (this.isAlwaysHidden(entry.name)) continue;
         if (results.length >= maxResults) break;
 
         const entryRelPath = path.join(currentRelPath, entry.name);
@@ -715,24 +767,6 @@ export class FileSystemService {
     return false;
   }
 
-  /**
-   * Check if file/folder should be ignored
-   * Matches against ignore patterns (supports wildcards)
-   *
-   * @param name - File or folder name
-   * @returns true if should be ignored
-   */
-  private shouldIgnore(name: string): boolean {
-    return this.ignoredPatterns.some(pattern => {
-      if (pattern.includes('*')) {
-        // Convert glob pattern to regex
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
-        return regex.test(name);
-      }
-      // Exact match
-      return name === pattern;
-    });
-  }
 
   /**
    * Check if file exists

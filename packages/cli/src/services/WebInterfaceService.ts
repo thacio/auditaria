@@ -770,7 +770,7 @@ export class WebInterfaceService extends EventEmitter {
       // WEB_INTERFACE_START: Initialize directory watcher service for automatic tree updates
       this.directoryWatcherService = new DirectoryWatcherService(
         process.cwd(),
-        this.fileSystemService?.getIgnoredPatterns()
+        this.fileSystemService?.getAlwaysHiddenPatterns()
       );
       this.setupDirectoryWatcherHandlers();
       await this.directoryWatcherService.start();

@@ -482,6 +482,9 @@ export class FileTreePanel extends EventEmitter {
 
       // Update tree
       this.tree.data = formattedData;
+
+      // Apply greyed-out styling to git-ignored items
+      this.applyIgnoredStyling();
     });
   }
 
@@ -564,6 +567,34 @@ export class FileTreePanel extends EventEmitter {
         li:has(li.auditaria-selected:hover) li.auditaria-selected:hover > div:first-child [part="text-content"] {
           color: var(--text) !important;
         }
+
+        /* Git-ignored items: semi-transparent, greyed out */
+        li.auditaria-ignored > div:first-child {
+          opacity: 0.5;
+        }
+
+        li.auditaria-ignored > div:first-child span,
+        li.auditaria-ignored > div:first-child [part="text-content"] {
+          color: var(--text-muted) !important;
+          font-style: italic;
+        }
+
+        /* Ignored + hover: slightly more visible */
+        li.auditaria-ignored:not(.auditaria-selected):hover > div:first-child {
+          opacity: 0.7;
+        }
+
+        /* Ignored + selected: keep selection bg but muted text */
+        li.auditaria-ignored.auditaria-selected > div:first-child {
+          opacity: 0.7;
+          background-color: var(--panel-item-selected) !important;
+        }
+
+        li.auditaria-ignored.auditaria-selected > div:first-child span,
+        li.auditaria-ignored.auditaria-selected > div:first-child [part="text-content"] {
+          color: var(--text-subtle) !important;
+          font-style: italic;
+        }
       `;
 
       this.tree.shadowRoot.appendChild(style);
@@ -619,7 +650,8 @@ export class FileTreePanel extends EventEmitter {
     const formatted = {
       label: node.label,
       value: currentPath,
-      tooltip: currentPath  // Show full path on hover
+      tooltip: node.ignored ? `${currentPath} (git-ignored)` : currentPath,
+      _ignored: node.ignored || false,
     };
 
     // Mark as selected if this is the current selection
@@ -1309,6 +1341,49 @@ export class FileTreePanel extends EventEmitter {
       } else {
         console.warn('Could not find LI element with data-path:', dataPath);
       }
+    }, 50);
+  }
+
+  /**
+   * Apply CSS class to git-ignored items in the shadow DOM.
+   * Walks the formatted tree data to build a set of data-path indices
+   * for ignored items, then applies 'auditaria-ignored' class.
+   */
+  applyIgnoredStyling() {
+    if (!this.tree || !this.tree.shadowRoot || !this.tree.data) {
+      return;
+    }
+
+    // Build set of data-path indices for ignored items
+    const ignoredPaths = new Set();
+
+    const walkData = (items, prefix) => {
+      if (!Array.isArray(items)) return;
+      items.forEach((item, idx) => {
+        const dataPath = prefix ? `${prefix}/${idx}` : `${idx}`;
+        if (item._ignored) {
+          ignoredPaths.add(dataPath);
+        }
+        if (item.subItems) {
+          walkData(item.subItems, dataPath);
+        }
+      });
+    };
+
+    walkData(this.tree.data, '');
+
+    // Apply to shadow DOM after render (same delay as applySelectionStyling)
+    setTimeout(() => {
+      if (!this.tree || !this.tree.shadowRoot) return;
+      const allLis = this.tree.shadowRoot.querySelectorAll('li[data-path]');
+      allLis.forEach(li => {
+        const dp = li.getAttribute('data-path');
+        if (dp && ignoredPaths.has(dp)) {
+          li.classList.add('auditaria-ignored');
+        } else {
+          li.classList.remove('auditaria-ignored');
+        }
+      });
     }, 50);
   }
 
