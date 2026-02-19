@@ -1348,6 +1348,36 @@ describe('Approval mode tool exclusion logic', () => {
       'Invalid approval mode: invalid_mode. Valid values are: yolo, auto_edit, plan, default',
     );
   });
+
+  it('should fall back to default approval mode if plan mode is requested but not enabled', async () => {
+    process.argv = ['node', 'script.js'];
+    const settings = createTestMergedSettings({
+      general: {
+        defaultApprovalMode: 'plan',
+      },
+      experimental: {
+        plan: false,
+      },
+    });
+    const argv = await parseArguments(settings);
+    const config = await loadCliConfig(settings, 'test-session', argv);
+    expect(config.getApprovalMode()).toBe(ApprovalMode.DEFAULT);
+  });
+
+  it('should allow plan approval mode if experimental plan is enabled', async () => {
+    process.argv = ['node', 'script.js'];
+    const settings = createTestMergedSettings({
+      general: {
+        defaultApprovalMode: 'plan',
+      },
+      experimental: {
+        plan: true,
+      },
+    });
+    const argv = await parseArguments(settings);
+    const config = await loadCliConfig(settings, 'test-session', argv);
+    expect(config.getApprovalMode()).toBe(ApprovalMode.PLAN);
+  });
 });
 
 describe('loadCliConfig with allowed-mcp-server-names', () => {
@@ -2651,9 +2681,8 @@ describe('loadCliConfig approval mode', () => {
       },
     });
 
-    await expect(loadCliConfig(settings, 'test-session', argv)).rejects.toThrow(
-      'Approval mode "plan" is only available when experimental.plan is enabled.',
-    );
+    const config = await loadCliConfig(settings, 'test-session', argv);
+    expect(config.getApprovalMode()).toBe(ApprovalMode.DEFAULT);
   });
 
   it('should throw error when --approval-mode=plan is used but experimental.plan setting is missing', async () => {
@@ -2661,9 +2690,8 @@ describe('loadCliConfig approval mode', () => {
     const argv = await parseArguments(createTestMergedSettings());
     const settings = createTestMergedSettings({});
 
-    await expect(loadCliConfig(settings, 'test-session', argv)).rejects.toThrow(
-      'Approval mode "plan" is only available when experimental.plan is enabled.',
-    );
+    const config = await loadCliConfig(settings, 'test-session', argv);
+    expect(config.getApprovalMode()).toBe(ApprovalMode.DEFAULT);
   });
 
   // --- Untrusted Folder Scenarios ---
@@ -2773,11 +2801,8 @@ describe('loadCliConfig approval mode', () => {
         experimental: { plan: false },
       });
       const argv = await parseArguments(settings);
-      await expect(
-        loadCliConfig(settings, 'test-session', argv),
-      ).rejects.toThrow(
-        'Approval mode "plan" is only available when experimental.plan is enabled.',
-      );
+      const config = await loadCliConfig(settings, 'test-session', argv);
+      expect(config.getApprovalMode()).toBe(ApprovalMode.DEFAULT);
     });
   });
 });
