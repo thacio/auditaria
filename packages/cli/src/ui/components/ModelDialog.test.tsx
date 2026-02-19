@@ -137,7 +137,7 @@ describe('<ModelDialog />', () => {
   const rightArrow = '\u001B[C';
 
   const openCodexView = async (
-    stdin: ReturnType<typeof renderComponent>['stdin'],
+    stdin: Awaited<ReturnType<typeof renderComponent>>['stdin'],
   ) => {
     stdin.write(downArrow);
     await waitForUpdate();
@@ -317,7 +317,7 @@ describe('<ModelDialog />', () => {
   });
 
   it('shows Codex thinking bars inline and updates intensity with arrows', async () => {
-    const { lastFrame, stdin } = renderComponent();
+    const { lastFrame, stdin } = await renderComponent();
 
     await openCodexView(stdin);
 
@@ -332,7 +332,7 @@ describe('<ModelDialog />', () => {
   });
 
   it('clamps Codex thinking to model-supported max for gpt-5.1-codex-mini', async () => {
-    const { lastFrame, stdin } = renderComponent();
+    const { lastFrame, stdin } = await renderComponent();
 
     await openCodexView(stdin);
     expect(lastFrame()).toContain('Thinking intensity: Extra High');
@@ -365,7 +365,7 @@ describe('<ModelDialog />', () => {
   });
 
   it('applies selected Codex thinking intensity to provider config', async () => {
-    const { stdin } = renderComponent();
+    const { stdin } = await renderComponent();
 
     await openCodexView(stdin);
 
@@ -390,7 +390,7 @@ describe('<ModelDialog />', () => {
   });
 
   it('persists Codex provider selection when persist mode is enabled', async () => {
-    const { stdin } = renderComponent();
+    const { stdin } = await renderComponent();
 
     await openCodexView(stdin);
     stdin.write('\t'); // Enable persist mode
