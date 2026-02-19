@@ -92,6 +92,10 @@ const baseConfig = {
   write: true,
 };
 
+const commonAliases = {
+  punycode: 'punycode/',
+};
+
 const cliConfig = {
   ...baseConfig,
   banner: {
@@ -109,6 +113,7 @@ const cliConfig = {
   ],
   alias: {
     'is-in-ci': path.resolve(__dirname, 'packages/cli/src/patches/is-in-ci.ts'),
+    ...commonAliases,
   },
   metafile: true,
 };
@@ -138,6 +143,7 @@ const a2aServerConfig = {
     i18nTransformPlugin(), // AUDITARIA_I18N custom feature
     packageRenamePlugin(), // AUDITARIA: Transform package names
   ],
+  alias: commonAliases,
 };
 
 // AUDITARIA_BROWSER_AGENT: Re-bundle stagehand with all deps inlined for self-contained distribution.

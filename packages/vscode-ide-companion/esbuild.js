@@ -60,6 +60,9 @@ async function main() {
     define: {
       'import.meta.url': 'import_meta.url',
     },
+    alias: {
+      punycode: 'punycode/',
+    },
     plugins: [
       /* add to the end of plugins array */
       esbuildProblemMatcherPlugin,
