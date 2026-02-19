@@ -79,6 +79,8 @@ import {
   type TrackedWaitingToolCall,
   type TrackedExecutingToolCall,
 } from './useToolScheduler.js';
+import { theme } from '../semantic-colors.js';
+import { getToolGroupBorderAppearance } from '../utils/borderStyles.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { useSessionStats } from '../contexts/SessionContext.js';
@@ -272,6 +274,8 @@ export const useGeminiStream = (
             mapTrackedToolCallsToDisplay(toolsToPush as TrackedToolCall[], {
               borderTop: isFirstToolInGroupRef.current,
               borderBottom: true,
+              borderColor: theme.border.default,
+              borderDimColor: false,
             }),
           );
         }
@@ -310,6 +314,45 @@ export const useGeminiStream = (
     },
     config,
     getPreferredEditor,
+  );
+
+  const activeToolPtyId = useMemo(() => {
+    const executingShellTool = toolCalls.find(
+      (tc) =>
+        tc.status === 'executing' && tc.request.name === 'run_shell_command',
+    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    return (executingShellTool as TrackedExecutingToolCall | undefined)?.pid;
+  }, [toolCalls]);
+
+  const onExec = useCallback(async (done: Promise<void>) => {
+    setIsResponding(true);
+    await done;
+    setIsResponding(false);
+  }, []);
+
+  const {
+    handleShellCommand,
+    activeShellPtyId,
+    lastShellOutputTime,
+    backgroundShellCount,
+    isBackgroundShellVisible,
+    toggleBackgroundShell,
+    backgroundCurrentShell,
+    registerBackgroundShell,
+    dismissBackgroundShell,
+    backgroundShells,
+  } = useShellCommandProcessor(
+    addItem,
+    setPendingHistoryItem,
+    onExec,
+    onDebugMessage,
+    config,
+    geminiClient,
+    setShellInputFocused,
+    terminalWidth,
+    terminalHeight,
+    activeToolPtyId,
   );
 
   const streamingState = useMemo(
@@ -369,6 +412,13 @@ export const useGeminiStream = (
         const historyItem = mapTrackedToolCallsToDisplay(tc, {
           borderTop: isFirst,
           borderBottom: isLastInBatch,
+          ...getToolGroupBorderAppearance(
+            { type: 'tool_group', tools: toolCalls },
+            activeShellPtyId,
+            !!isShellFocused,
+            [],
+            backgroundShells,
+          ),
         });
         addItem(historyItem);
         isFirst = false;
@@ -384,6 +434,9 @@ export const useGeminiStream = (
     setPushedToolCallIds,
     setIsFirstToolInGroup,
     addItem,
+    activeShellPtyId,
+    isShellFocused,
+    backgroundShells,
   ]);
 
   const pendingToolGroupItems = useMemo((): HistoryItemWithoutId[] => {
@@ -393,11 +446,20 @@ export const useGeminiStream = (
 
     const items: HistoryItemWithoutId[] = [];
 
+    const appearance = getToolGroupBorderAppearance(
+      { type: 'tool_group', tools: toolCalls },
+      activeShellPtyId,
+      !!isShellFocused,
+      [],
+      backgroundShells,
+    );
+
     if (remainingTools.length > 0) {
       items.push(
         mapTrackedToolCallsToDisplay(remainingTools, {
           borderTop: pushedToolCallIds.size === 0,
           borderBottom: false, // Stay open to connect with the slice below
+          ...appearance,
         }),
       );
     }
@@ -445,20 +507,18 @@ export const useGeminiStream = (
         tools: [] as IndividualToolCallDisplay[],
         borderTop: false,
         borderBottom: true,
+        ...appearance,
       });
     }
 
     return items;
-  }, [toolCalls, pushedToolCallIds]);
-
-  const activeToolPtyId = useMemo(() => {
-    const executingShellTool = toolCalls.find(
-      (tc) =>
-        tc.status === 'executing' && tc.request.name === 'run_shell_command',
-    );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    return (executingShellTool as TrackedExecutingToolCall | undefined)?.pid;
-  }, [toolCalls]);
+  }, [
+    toolCalls,
+    pushedToolCallIds,
+    activeShellPtyId,
+    isShellFocused,
+    backgroundShells,
+  ]);
 
   // WEB_INTERFACE_START: Single unified response_state broadcast
   useEffect(() => {
@@ -510,36 +570,6 @@ export const useGeminiStream = (
   ] = useState<{
     onComplete: (result: { userSelection: 'disable' | 'keep' }) => void;
   } | null>(null);
-
-  const onExec = useCallback(async (done: Promise<void>) => {
-    setIsResponding(true);
-    await done;
-    setIsResponding(false);
-  }, []);
-
-  const {
-    handleShellCommand,
-    activeShellPtyId,
-    lastShellOutputTime,
-    backgroundShellCount,
-    isBackgroundShellVisible,
-    toggleBackgroundShell,
-    backgroundCurrentShell,
-    registerBackgroundShell,
-    dismissBackgroundShell,
-    backgroundShells,
-  } = useShellCommandProcessor(
-    addItem,
-    setPendingHistoryItem,
-    onExec,
-    onDebugMessage,
-    config,
-    geminiClient,
-    setShellInputFocused,
-    terminalWidth,
-    terminalHeight,
-    activeToolPtyId,
-  );
 
   const activePtyId = activeShellPtyId || activeToolPtyId;
 
