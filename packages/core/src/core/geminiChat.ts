@@ -56,6 +56,7 @@ import {
   createAvailabilityContextProvider,
 } from '../availability/policyHelpers.js';
 import { coreEvents } from '../utils/events.js';
+import type { LlmRole } from '../telemetry/types.js';
 
 export enum StreamEventType {
   /** A regular content chunk from the API. */
@@ -309,6 +310,7 @@ export class GeminiChat {
     message: PartListUnion,
     prompt_id: string,
     signal: AbortSignal,
+    role: LlmRole,
     displayContent?: PartListUnion,
   ): Promise<AsyncGenerator<StreamEvent>> {
     await this.sendPromise;
@@ -379,6 +381,7 @@ export class GeminiChat {
               requestContents,
               prompt_id,
               signal,
+              role,
             );
             isConnectionPhase = false;
             for await (const chunk of stream) {
@@ -484,6 +487,7 @@ export class GeminiChat {
     requestContents: Content[],
     prompt_id: string,
     abortSignal: AbortSignal,
+    role: LlmRole,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
     const contentsForPreviewModel =
       this.ensureActiveLoopHasThoughtSignatures(requestContents);
@@ -616,6 +620,7 @@ export class GeminiChat {
           config,
         },
         prompt_id,
+        role,
       );
     };
 
