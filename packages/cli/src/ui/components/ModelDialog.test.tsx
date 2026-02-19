@@ -123,10 +123,13 @@ describe('<ModelDialog />', () => {
     });
   });
 
-  const renderComponent = (configValue = mockConfig as Config) =>
-    renderWithProviders(<ModelDialog onClose={mockOnClose} />, {
+  const renderComponent = async (configValue = mockConfig as Config) => {
+    const result = renderWithProviders(<ModelDialog onClose={mockOnClose} />, {
       config: configValue,
     });
+    await result.waitUntilReady();
+    return result;
+  };
 
   const waitForUpdate = () =>
     new Promise((resolve) => setTimeout(resolve, 150));
@@ -146,43 +149,50 @@ describe('<ModelDialog />', () => {
     await waitForUpdate();
   };
 
-  it('renders the initial "main" view correctly', () => {
-    const { lastFrame } = renderComponent();
+  it('renders the initial "main" view correctly', async () => {
+    const { lastFrame, unmount } = await renderComponent();
     expect(lastFrame()).toContain('Select Model');
     expect(lastFrame()).toContain('Remember model for future sessions: true');
     expect(lastFrame()).toContain('Auto');
     expect(lastFrame()).toContain('Manual');
+    unmount();
   });
 
   it('switches to "manual" view when "Manual" is selected', async () => {
-    const { lastFrame, stdin } = renderComponent();
+    const { lastFrame, stdin, waitUntilReady, unmount } =
+      await renderComponent();
 
     // Select "Manual" (index 1)
     // Press down arrow to move to "Manual"
     await act(async () => {
       stdin.write('\u001B[B'); // Arrow Down
     });
+    await waitUntilReady();
 
     // Press enter to select
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     // Should now show manual options
     await waitFor(() => {
-      expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
-      expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_MODEL);
-      expect(lastFrame()).toContain(DEFAULT_GEMINI_FLASH_LITE_MODEL);
+      const output = lastFrame();
+      expect(output).toContain(DEFAULT_GEMINI_MODEL);
+      expect(output).toContain(DEFAULT_GEMINI_FLASH_MODEL);
+      expect(output).toContain(DEFAULT_GEMINI_FLASH_LITE_MODEL);
     });
+    unmount();
   });
 
   it('sets model and closes when a model is selected in "main" view', async () => {
-    const { stdin } = renderComponent();
+    const { stdin, waitUntilReady, unmount } = await renderComponent();
 
     // Select "Auto" (index 0)
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     await waitFor(() => {
       expect(mockSetModel).toHaveBeenCalledWith(
@@ -191,32 +201,38 @@ describe('<ModelDialog />', () => {
       );
       expect(mockOnClose).toHaveBeenCalled();
     });
+    unmount();
   });
 
   it('sets model and closes when a model is selected in "manual" view', async () => {
-    const { stdin } = renderComponent();
+    const { stdin, waitUntilReady, unmount } = await renderComponent();
 
     // Navigate to Manual (index 1) and select
     await act(async () => {
       stdin.write('\u001B[B');
     });
+    await waitUntilReady();
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     // Now in manual view. Default selection is first item (DEFAULT_GEMINI_MODEL)
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     await waitFor(() => {
       expect(mockSetModel).toHaveBeenCalledWith(DEFAULT_GEMINI_MODEL, true);
       expect(mockOnClose).toHaveBeenCalled();
     });
+    unmount();
   });
 
   it('toggles persist mode with Tab key', async () => {
-    const { lastFrame, stdin } = renderComponent();
+    const { lastFrame, stdin, waitUntilReady, unmount } =
+      await renderComponent();
 
     expect(lastFrame()).toContain('Remember model for future sessions: true');
 
@@ -224,6 +240,7 @@ describe('<ModelDialog />', () => {
     await act(async () => {
       stdin.write('\t');
     });
+    await waitUntilReady();
 
     await waitFor(() => {
       expect(lastFrame()).toContain(
@@ -235,6 +252,7 @@ describe('<ModelDialog />', () => {
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     await waitFor(() => {
       expect(mockSetModel).toHaveBeenCalledWith(
@@ -244,30 +262,39 @@ describe('<ModelDialog />', () => {
       expect(mockClearProviderConfig).toHaveBeenCalledWith(false);
       expect(mockOnClose).toHaveBeenCalled();
     });
+    unmount();
   });
 
   it('closes dialog on escape in "main" view', async () => {
-    const { stdin } = renderComponent();
+    const { stdin, waitUntilReady, unmount } = await renderComponent();
 
     await act(async () => {
       stdin.write('\u001B'); // Escape
+    });
+    // Escape key has a 50ms timeout in KeypressContext, so we need to wrap waitUntilReady in act
+    await act(async () => {
+      await waitUntilReady();
     });
 
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();
     });
+    unmount();
   });
 
   it('goes back to "main" view on escape in "manual" view', async () => {
-    const { lastFrame, stdin } = renderComponent();
+    const { lastFrame, stdin, waitUntilReady, unmount } =
+      await renderComponent();
 
     // Go to manual view
     await act(async () => {
       stdin.write('\u001B[B');
     });
+    await waitUntilReady();
     await act(async () => {
       stdin.write('\r');
     });
+    await waitUntilReady();
 
     await waitFor(() => {
       expect(lastFrame()).toContain(DEFAULT_GEMINI_MODEL);
@@ -277,12 +304,16 @@ describe('<ModelDialog />', () => {
     await act(async () => {
       stdin.write('\u001B');
     });
+    await act(async () => {
+      await waitUntilReady();
+    });
 
     await waitFor(() => {
       expect(mockOnClose).not.toHaveBeenCalled();
       // Should be back to main view (Manual option visible)
       expect(lastFrame()).toContain('Manual');
     });
+    unmount();
   });
 
   it('shows Codex thinking bars inline and updates intensity with arrows', async () => {
