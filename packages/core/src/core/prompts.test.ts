@@ -218,6 +218,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).not.toContain('No sub-agents are currently available.');
     expect(prompt).toContain('# Core Mandates');
     expect(prompt).toContain('- **Conventions:**');
+    expect(prompt).toContain('- **User Hints:**');
     expect(prompt).toContain('# Outside of Sandbox');
     expect(prompt).toContain('# Final Reminder');
     expect(prompt).toMatchSnapshot();
@@ -227,6 +228,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     vi.mocked(mockConfig.getActiveModel).mockReturnValue(PREVIEW_GEMINI_MODEL);
     const prompt = getCoreSystemPrompt(mockConfig);
     expect(prompt).toContain('You are Auditaria, an interactive CLI agent'); // Check for core content
+    expect(prompt).toContain('- **User Hints:**');
     expect(prompt).toContain('No Chitchat:');
     expect(prompt).toMatchSnapshot();
   });
@@ -272,9 +274,9 @@ describe('Core System Prompt (prompts.ts)', () => {
     const memory = 'This is custom user memory.\nBe extra polite.';
     const prompt = getCoreSystemPrompt(mockConfig, memory);
 
-    // AUDITARIA: Our fork uses "GEMINI.md / AUDITARIA.md" in the contextual instructions header
+    // AUDITARIA: Our fork uses "AUDITARIA.md, GEMINI.md / AUDITARIA.md" in the contextual instructions header
     expect(prompt).toContain(
-      '# Contextual Instructions (GEMINI.md / AUDITARIA.md)',
+      '# Contextual Instructions (AUDITARIA.md, GEMINI.md / AUDITARIA.md)',
     );
     expect(prompt).toContain('<loaded_context>');
     expect(prompt).toContain(memory);
@@ -317,7 +319,7 @@ describe('Core System Prompt (prompts.ts)', () => {
     ['sandbox-exec', '# macOS Seatbelt', ['# Sandbox', '# Outside of Sandbox']],
     [
       undefined,
-      'You are Gemini CLI, an interactive CLI agent',
+      'You are Auditaria, an interactive CLI agent',
       ['# Sandbox', '# macOS Seatbelt'],
     ],
   ])(

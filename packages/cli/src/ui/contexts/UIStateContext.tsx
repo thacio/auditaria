@@ -179,6 +179,8 @@ export interface UIState {
   isBackgroundShellListOpen: boolean;
   adminSettingsChanged: boolean;
   newAgents: AgentDefinition[] | null;
+  hintMode: boolean;
+  hintBuffer: string;
   transientMessage: {
     text: string;
     type: TransientMessageType;

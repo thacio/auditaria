@@ -146,6 +146,7 @@ import {
 } from '../telemetry/loggers.js';
 import { fetchAdminControls } from '../code_assist/admin/admin_controls.js';
 import { isSubpath } from '../utils/paths.js';
+import { UserHintService } from './userHintService.js';
 
 export interface AccessibilitySettings {
   enableLoadingPhrases?: boolean;
@@ -502,6 +503,7 @@ export interface ConfigParameters {
   toolOutputMasking?: Partial<ToolOutputMaskingConfig>;
   disableLLMCorrection?: boolean;
   plan?: boolean;
+  modelSteering?: boolean;
   onModelChange?: (model: string) => void;
   mcpEnabled?: boolean;
   extensionsEnabled?: boolean;
@@ -699,11 +701,13 @@ export class Config {
   private readonly experimentalJitContext: boolean;
   private readonly disableLLMCorrection: boolean;
   private readonly planEnabled: boolean;
+  private readonly modelSteering: boolean;
   private contextManager?: ContextManager;
   private terminalBackground: string | undefined = undefined;
   private remoteAdminSettings: AdminControlsSettings | undefined;
   private latestApiRequest: GenerateContentParameters | undefined;
   private lastModeSwitchTime: number = Date.now();
+  readonly userHintService: UserHintService;
   private approvedPlanPath: string | undefined;
 
   constructor(params: ConfigParameters) {
@@ -792,6 +796,10 @@ export class Config {
     this.adminSkillsEnabled = params.adminSkillsEnabled ?? true;
     this.modelAvailabilityService = new ModelAvailabilityService();
     this.experimentalJitContext = params.experimentalJitContext ?? false;
+    this.modelSteering = params.modelSteering ?? false;
+    this.userHintService = new UserHintService(() =>
+      this.isModelSteeringEnabled(),
+    );
     this.toolOutputMasking = {
       enabled: params.toolOutputMasking?.enabled ?? true,
       toolProtectionThreshold:
@@ -1683,6 +1691,10 @@ export class Config {
     return this.experimentalJitContext;
   }
 
+  isModelSteeringEnabled(): boolean {
+    return this.modelSteering;
+  }
+
   getToolOutputMaskingEnabled(): boolean {
     return this.toolOutputMasking.enabled;
   }
@@ -2055,7 +2067,10 @@ export class Config {
       if (this.providerManager) {
         const bridgeInfo = this.providerManager.getToolBridgeInfo();
         if (bridgeInfo) {
-          this.agentSessionManager_.setToolBridgeInfo(bridgeInfo.server, bridgeInfo.scriptPath);
+          this.agentSessionManager_.setToolBridgeInfo(
+            bridgeInfo.server,
+            bridgeInfo.scriptPath,
+          );
         }
       }
     }
@@ -2761,7 +2776,9 @@ export class Config {
 
     // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
     maybeRegister(ExternalAgentSessionTool, () =>
-      registry.registerTool(new ExternalAgentSessionTool(this, this.messageBus)),
+      registry.registerTool(
+        new ExternalAgentSessionTool(this, this.messageBus),
+      ),
     );
 
     // Register Subagents as Tools
