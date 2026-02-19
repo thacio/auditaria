@@ -186,6 +186,8 @@ import { useTerminalTheme } from './hooks/useTerminalTheme.js';
 import { useTimedMessage } from './hooks/useTimedMessage.js';
 import { shouldDismissShortcutsHelpOnHotkey } from './utils/shortcutsHelp.js';
 import { useSuspend } from './hooks/useSuspend.js';
+import { useRunEventNotifications } from './hooks/useRunEventNotifications.js';
+import { isNotificationsEnabled } from '../utils/terminalNotifications.js';
 
 function isToolExecuting(pendingHistoryItems: HistoryItemWithoutId[]) {
   return pendingHistoryItems.some((item) => {
@@ -245,6 +247,7 @@ export const AppContainer = (props: AppContainerProps) => {
     webEnabled = false,
   } = props;
   const settings = useSettings();
+  const notificationsEnabled = isNotificationsEnabled(settings);
 
   const historyManager = useHistory({
     chatRecordingService: config.getGeminiClient()?.getChatRecordingService(),
@@ -1300,7 +1303,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     sanitizationConfig: config.sanitizationConfig,
   });
 
-  const isFocused = useFocus();
+  const { isFocused, hasReceivedFocusEvent } = useFocus();
 
   const contextFileNames = useMemo(() => {
     // AUDITARIA_FEATURE_START: Context file names computation - use actual loaded file paths
@@ -2604,12 +2607,17 @@ Logging in with Google... Restarting Gemini CLI to continue.
     [pendingHistoryItems],
   );
 
+  const hasConfirmUpdateExtensionRequests =
+    confirmUpdateExtensionRequests.length > 0;
+  const hasLoopDetectionConfirmationRequest =
+    !!loopDetectionConfirmationRequest;
+
   const hasPendingActionRequired =
     hasPendingToolConfirmation ||
     !!commandConfirmationRequest ||
     !!authConsentRequest ||
-    confirmUpdateExtensionRequests.length > 0 ||
-    !!loopDetectionConfirmationRequest ||
+    hasConfirmUpdateExtensionRequests ||
+    hasLoopDetectionConfirmationRequest ||
     !!proQuotaRequest ||
     !!validationRequest ||
     !!customDialog;
@@ -2625,6 +2633,20 @@ Logging in with Google... Restarting Gemini CLI to continue.
     onApprovalModeChange: handleApprovalModeChangeWithUiReveal,
     isActive: !embeddedShellFocused,
     allowPlanMode,
+  });
+
+  useRunEventNotifications({
+    notificationsEnabled,
+    isFocused,
+    hasReceivedFocusEvent,
+    streamingState,
+    hasPendingActionRequired,
+    pendingHistoryItems,
+    commandConfirmationRequest,
+    authConsentRequest,
+    permissionConfirmationRequest,
+    hasConfirmUpdateExtensionRequests,
+    hasLoopDetectionConfirmationRequest,
   });
 
   const isPassiveShortcutsHelpState =
