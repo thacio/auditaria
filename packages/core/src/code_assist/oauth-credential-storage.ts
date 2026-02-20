@@ -158,8 +158,7 @@ export class OAuthCredentialStorage {
       } // AUDITARIA ADDITION
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    const credentials = JSON.parse(credsJson) as Credentials;
+    const credentials: Credentials = JSON.parse(credsJson);
 
     // Save to new storage
     await this.saveCredentials(credentials);
