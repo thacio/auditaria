@@ -1,7 +1,9 @@
 /**
  * @license
- * Copyright 2025 Thacio
+ * Copyright 2026 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * @license
  */
 
 /**
@@ -14,13 +16,13 @@
 import { OAuth2Client, type Credentials } from 'google-auth-library';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import {
   loadApiKey,
   AuthType,
   setupUser,
   OAUTH_CLIENT_ID,
   OAUTH_CLIENT_SECRET,
+  homedir as getHomedir,
   type UserData,
   type Config,
 } from '@google/gemini-cli-core';
@@ -53,7 +55,7 @@ export interface StagehandCredentials {
 export class CredentialBridgeError extends Error {
   constructor(
     message: string,
-    public readonly authType?: AuthType,
+    readonly authType?: AuthType,
   ) {
     super(message);
     this.name = 'CredentialBridgeError';
@@ -102,9 +104,7 @@ export class CredentialBridge {
   ): Promise<StagehandCredentials> {
     // Priority: config > stored key > env var
     const apiKey =
-      cgConfig.apiKey ||
-      (await loadApiKey()) ||
-      process.env.GEMINI_API_KEY;
+      cgConfig.apiKey || (await loadApiKey()) || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
       throw new CredentialBridgeError(
@@ -124,8 +124,7 @@ export class CredentialBridge {
     cgConfig: any,
   ): Promise<StagehandCredentials> {
     const project =
-      process.env.GOOGLE_CLOUD_PROJECT ||
-      process.env.GOOGLE_CLOUD_PROJECT_ID;
+      process.env.GOOGLE_CLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT_ID;
     const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
     if (!project) {
@@ -178,7 +177,11 @@ export class CredentialBridge {
     // STANDARD tier (user's project from env var)
     let userData: UserData;
     try {
-      userData = await setupUser(client);
+      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- OAuth2Client satisfies AuthClient, diff package versions */
+      userData = await setupUser(
+        client as unknown as Parameters<typeof setupUser>[0],
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new CredentialBridgeError(
@@ -220,7 +223,8 @@ export class CredentialBridge {
       }
 
       // Parse the stored OAuthCredentials format
-      const storedCreds = JSON.parse(data) as {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- JSON.parse
+      const storedCreds = JSON.parse(data) as unknown as {
         token: {
           accessToken: string;
           refreshToken?: string;
@@ -260,7 +264,7 @@ export class CredentialBridge {
    * credentials in ~/.auditaria/oauth_creds.json or ~/.gemini/oauth_creds.json.
    */
   private static async loadCredentialsFromFile(): Promise<Credentials | null> {
-    const homedir = os.homedir();
+    const homedir = getHomedir();
     const pathsToTry = [
       path.join(homedir, AUDITARIA_DIR, OAUTH_FILE),
       path.join(homedir, GEMINI_DIR, OAUTH_FILE),
@@ -269,7 +273,8 @@ export class CredentialBridge {
     for (const filePath of pathsToTry) {
       try {
         const content = await fs.readFile(filePath, 'utf-8');
-        const credentials = JSON.parse(content) as Credentials;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- JSON.parse
+        const credentials = JSON.parse(content) as unknown as Credentials;
         return credentials;
       } catch {
         // File doesn't exist or can't be read, try next path
