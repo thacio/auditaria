@@ -38,6 +38,8 @@ import { appEvents, AppEvent } from './utils/events.js';
 import {
   type Config,
   type ResumedSessionData,
+  type StartupWarning,
+  WarningPriority,
   debugLogger,
   coreEvents,
   AuthType,
@@ -1196,7 +1198,9 @@ describe('startInteractiveUI', () => {
       },
     },
   } as LoadedSettings;
-  const mockStartupWarnings = ['warning1'];
+  const mockStartupWarnings: StartupWarning[] = [
+    { id: 'w1', message: 'warning1', priority: WarningPriority.High },
+  ];
   const mockWorkspaceRoot = '/root';
   const mockInitializationResult = {
     authError: null,
@@ -1229,7 +1233,7 @@ describe('startInteractiveUI', () => {
   async function startTestInteractiveUI(
     config: Config,
     settings: LoadedSettings,
-    startupWarnings: string[],
+    startupWarnings: StartupWarning[],
     workspaceRoot: string,
     resumedSessionData: ResumedSessionData | undefined,
     initializationResult: InitializationResult,
