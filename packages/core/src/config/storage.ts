@@ -130,6 +130,10 @@ export class Storage {
     );
   }
 
+  static getPolicyIntegrityStoragePath(): string {
+    return path.join(Storage.getGlobalGeminiDir(), 'policy_integrity.json');
+  }
+
   // AUDITARIA_MODIFY_START: Updated system settings paths with fallback to legacy gemini-cli paths
   private static getSystemConfigDir(): string {
     // Check auditaria paths first, then fall back to gemini-cli
@@ -194,6 +198,10 @@ export class Storage {
     const identifier = this.getProjectIdentifier();
     const tempDir = Storage.getGlobalTempDir();
     return path.join(tempDir, identifier);
+  }
+
+  getWorkspacePoliciesDir(): string {
+    return path.join(this.getGeminiDir(), 'policies');
   }
 
   ensureProjectTempDirExists(): void {
