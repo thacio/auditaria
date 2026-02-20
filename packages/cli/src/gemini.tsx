@@ -748,6 +748,10 @@ export async function main() {
     }
 
     let input = config.getQuestion();
+    const useAlternateBuffer = shouldEnterAlternateScreen(
+      isAlternateBufferEnabled(settings),
+      config.getScreenReader(),
+    );
     const rawStartupWarnings = await getStartupWarnings();
     const startupWarnings: StartupWarning[] = [
       ...rawStartupWarnings.map((message) => ({
@@ -755,7 +759,9 @@ export async function main() {
         message,
         priority: WarningPriority.High,
       })),
-      ...(await getUserStartupWarnings(settings.merged)),
+      ...(await getUserStartupWarnings(settings.merged, undefined, {
+        isAlternateBuffer: useAlternateBuffer,
+      })),
     ];
 
     // Handle --resume flag
