@@ -12,12 +12,12 @@ import {
   AUDITARIA_DIR, // AUDITARIA_FEATURE
   resolveConfigDir, // AUDITARIA_FEATURE
   getConfigDirFallbacks, // AUDITARIA_FEATURE
-  homedir, // Added from upstream for test isolation
+  homedir,
+  GOOGLE_ACCOUNTS_FILENAME,
 } from '../utils/paths.js';
 import { ProjectRegistry } from './projectRegistry.js';
 import { StorageMigration } from './storageMigration.js';
 
-export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
 export const OAUTH_FILE = 'oauth_creds.json';
 const TMP_DIR_NAME = 'tmp';
 const BIN_DIR_NAME = 'bin';
