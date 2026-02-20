@@ -27,6 +27,7 @@ import type {
   FallbackIntent,
   ValidationIntent,
   AgentDefinition,
+  FolderDiscoveryResults,
   PolicyUpdateConfirmationRequest,
 } from '@google/gemini-cli-core';
 import { type TransientMessageType } from '../../utils/events.js';
@@ -115,6 +116,7 @@ export interface UIState {
   isResuming: boolean;
   shouldShowIdePrompt: boolean;
   isFolderTrustDialogOpen: boolean;
+  folderDiscoveryResults: FolderDiscoveryResults | null;
   isPolicyUpdateDialogOpen: boolean;
   policyUpdateConfirmationRequest: PolicyUpdateConfirmationRequest | undefined;
   isTrustedFolder: boolean | undefined;

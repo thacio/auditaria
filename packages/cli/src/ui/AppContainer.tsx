@@ -1497,15 +1497,18 @@ Logging in with Google... Restarting Gemini CLI to continue.
     type: TransientMessageType;
   }>(WARNING_PROMPT_DURATION_MS);
 
-  const { isFolderTrustDialogOpen, handleFolderTrustSelect, isRestarting } =
-    useFolderTrust(settings, setIsTrustedFolder, historyManager.addItem);
+  const {
+    isFolderTrustDialogOpen,
+    discoveryResults: folderDiscoveryResults,
+    handleFolderTrustSelect,
+    isRestarting,
+  } = useFolderTrust(settings, setIsTrustedFolder, historyManager.addItem);
 
   const policyUpdateConfirmationRequest =
     config.getPolicyUpdateConfirmationRequest();
   const [isPolicyUpdateDialogOpen, setIsPolicyUpdateDialogOpen] = useState(
     !!policyUpdateConfirmationRequest,
   );
-
   const {
     needsRestart: ideNeedsRestart,
     restartReason: ideTrustRestartReason,
@@ -2872,6 +2875,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isResuming,
       shouldShowIdePrompt,
       isFolderTrustDialogOpen: isFolderTrustDialogOpen ?? false,
+      folderDiscoveryResults,
       isPolicyUpdateDialogOpen,
       policyUpdateConfirmationRequest,
       isTrustedFolder,
@@ -2998,6 +3002,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isResuming,
       shouldShowIdePrompt,
       isFolderTrustDialogOpen,
+      folderDiscoveryResults,
       isPolicyUpdateDialogOpen,
       policyUpdateConfirmationRequest,
       isTrustedFolder,
