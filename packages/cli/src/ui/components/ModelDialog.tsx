@@ -9,6 +9,7 @@ import { useCallback, useContext, useMemo, useState } from 'react';
 import { Box, Text } from 'ink';
 import {
   PREVIEW_GEMINI_MODEL,
+  PREVIEW_GEMINI_3_1_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_MODEL,
@@ -18,11 +19,14 @@ import {
   ModelSlashCommandEvent,
   logModelSlashCommand,
   getDisplayString,
+  AuthType,
+  PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
 import { DescriptiveRadioButtonSelect } from './shared/DescriptiveRadioButtonSelect.js';
 import { ConfigContext } from '../contexts/ConfigContext.js';
+import { useSettings } from '../contexts/SettingsContext.js';
 
 interface ModelDialogProps {
   onClose: () => void;
@@ -40,13 +44,11 @@ import {
   CLAUDE_PREFIX,
   CODEX_PREFIX,
   DEFAULT_CODEX_REASONING_EFFORT,
-  CODEX_REASONING_OPTIONS,
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
   isCodexReasoningEffort,
   getCodexReasoningLabel,
 } from '../modelCatalog.js'; // AUDITARIA_PROVIDER and WEB
-
 
 const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
   low: 1,
@@ -64,8 +66,7 @@ function rotateCodexReasoningEffort(
   const index = supportedEfforts.findIndex((effort) => effort === current);
   const safeIndex = index === -1 ? 0 : index;
   const next =
-    (safeIndex + direction + supportedEfforts.length) %
-    supportedEfforts.length;
+    (safeIndex + direction + supportedEfforts.length) % supportedEfforts.length;
   return supportedEfforts[next];
 }
 
@@ -99,10 +100,16 @@ function getCodexModelFromSelection(value: string): string | undefined {
 
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
-  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>('main'); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+  const settings = useSettings();
+  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>(
+    'main',
+  ); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
 
-  const availability = config?.getProviderAvailability() ?? { claude: false, codex: false }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
-  const [persistMode, setPersistMode] = useState(true);
+  const availability = config?.getProviderAvailability() ?? {
+    claude: false,
+    codex: false,
+  }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
+  const [persistMode, setPersistMode] = useState(false);
   const [codexHighlightedModel, setCodexHighlightedModel] = useState<
     string | undefined
   >(() => {
@@ -126,6 +133,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
 
   const shouldShowPreviewModels = config?.getHasAccessToPreviewModel();
+  const useGemini31 = config?.getGemini31LaunchedSync?.() ?? false;
+  const selectedAuthType = settings.merged.security.auth.selectedType;
+  const useCustomToolModel =
+    useGemini31 && selectedAuthType === AuthType.USE_GEMINI;
 
   const manualModelSelected = useMemo(() => {
     const manualModels = [
@@ -133,6 +144,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       DEFAULT_GEMINI_FLASH_MODEL,
       DEFAULT_GEMINI_FLASH_LITE_MODEL,
       PREVIEW_GEMINI_MODEL,
+      PREVIEW_GEMINI_3_1_MODEL,
+      PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL,
       PREVIEW_GEMINI_FLASH_MODEL,
     ];
     if (manualModels.includes(preferredModel)) {
@@ -152,7 +165,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const codexSupportedEfforts = getSupportedCodexReasoningEfforts(
     codexHighlightedModel,
   );
-  const codexMinSupportedEffort = codexSupportedEfforts[0] ?? codexDisplayEffort;
+  const codexMinSupportedEffort =
+    codexSupportedEfforts[0] ?? codexDisplayEffort;
   const codexMaxSupportedEffort =
     codexSupportedEfforts[codexSupportedEfforts.length - 1] ??
     codexDisplayEffort;
@@ -175,10 +189,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         return true;
       }
       // AUDITARIA_CODEX_PROVIDER_START
-      if (
-        view === 'codex' &&
-        (key.name === 'left' || key.name === 'right')
-      ) {
+      if (view === 'codex' && (key.name === 'left' || key.name === 'right')) {
         const supportedEfforts = getSupportedCodexReasoningEfforts(
           codexHighlightedModel,
         );
@@ -220,8 +231,9 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       list.unshift({
         value: PREVIEW_GEMINI_MODEL_AUTO,
         title: getDisplayString(PREVIEW_GEMINI_MODEL_AUTO),
-        description:
-          'Let Gemini CLI decide the best model for the task: gemini-3-pro, gemini-3-flash',
+        description: useGemini31
+          ? 'Let Gemini CLI decide the best model for the task: gemini-3.1-pro, gemini-3-flash'
+          : 'Let Gemini CLI decide the best model for the task: gemini-3-pro, gemini-3-flash',
         key: PREVIEW_GEMINI_MODEL_AUTO,
       });
     }
@@ -261,7 +273,15 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     });
 
     return list;
-  }, [shouldShowPreviewModels, manualModelSelected, isClaudeActive, isCodexActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+  }, [
+    shouldShowPreviewModels,
+    manualModelSelected,
+    useGemini31,
+    isClaudeActive,
+    isCodexActive,
+    availability.claude,
+    availability.codex,
+  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
 
   const manualOptions = useMemo(() => {
     const list = [
@@ -283,11 +303,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     ];
 
     if (shouldShowPreviewModels) {
+      const previewProModel = useGemini31
+        ? PREVIEW_GEMINI_3_1_MODEL
+        : PREVIEW_GEMINI_MODEL;
+
+      const previewProValue = useCustomToolModel
+        ? PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL
+        : previewProModel;
+
       list.unshift(
         {
-          value: PREVIEW_GEMINI_MODEL,
-          title: PREVIEW_GEMINI_MODEL,
-          key: PREVIEW_GEMINI_MODEL,
+          value: previewProValue,
+          title: previewProModel,
+          key: previewProModel,
         },
         {
           value: PREVIEW_GEMINI_FLASH_MODEL,
@@ -297,7 +325,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       );
     }
     return list;
-  }, [shouldShowPreviewModels]);
+  }, [shouldShowPreviewModels, useGemini31, useCustomToolModel]);
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Claude submenu options
   const claudeOptions = useMemo(
@@ -313,30 +341,27 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_CODEX_PROVIDER_START: Codex submenu options
-  const codexOptions = useMemo(
-    () => {
-      const effortForModel = (model?: string) =>
-        clampCodexReasoningEffortForModel(model, codexReasoningEffort);
-      const maxEffortForModel = (model?: string) => {
-        const supported = getSupportedCodexReasoningEfforts(model);
-        return supported[supported.length - 1] ?? 'xhigh';
-      };
+  const codexOptions = useMemo(() => {
+    const effortForModel = (model?: string) =>
+      clampCodexReasoningEffortForModel(model, codexReasoningEffort);
+    const maxEffortForModel = (model?: string) => {
+      const supported = getSupportedCodexReasoningEfforts(model);
+      return supported[supported.length - 1] ?? 'xhigh';
+    };
 
-      return CODEX_SUBMENU_OPTIONS.map((option) => ({
-        value: option.value,
-        title: option.title,
-        description: option.description,
-        rightElement: (
-          <CodexReasoningMeter
-            effort={effortForModel(option.model)}
-            maxEffort={maxEffortForModel(option.model)}
-          />
-        ),
-        key: option.key,
-      }));
-    },
-    [codexReasoningEffort],
-  );
+    return CODEX_SUBMENU_OPTIONS.map((option) => ({
+      value: option.value,
+      title: option.title,
+      description: option.description,
+      rightElement: (
+        <CodexReasoningMeter
+          effort={effortForModel(option.model)}
+          maxEffort={maxEffortForModel(option.model)}
+        />
+      ),
+      key: option.key,
+    }));
+  }, [codexReasoningEffort]);
   // AUDITARIA_CODEX_PROVIDER_END
 
   // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: add submenu views to options selection
@@ -447,7 +472,12 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       onClose();
     },
-    [config, codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */, onClose, persistMode],
+    [
+      config,
+      codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */,
+      onClose,
+      persistMode,
+    ],
   );
 
   return (
@@ -474,7 +504,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             Note: Claude Code is not installed.
           </Text>
           <Text color={theme.text.secondary}>
-            Install from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.
+            Install from https://docs.anthropic.com/en/docs/claude-code, then
+            run `claude` to authenticate.
           </Text>
         </Box>
       )}
@@ -484,7 +515,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             Note: OpenAI Codex is not installed.
           </Text>
           <Text color={theme.text.secondary}>
-            Install from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.
+            Install from https://www.npmjs.com/package/@openai/codex, then run
+            `codex` to authenticate.
           </Text>
         </Box>
       )}

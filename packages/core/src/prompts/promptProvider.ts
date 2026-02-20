@@ -62,7 +62,10 @@ export class PromptProvider {
     const enabledToolNames = new Set(toolNames);
     const approvedPlanPath = config.getApprovedPlanPath();
 
-    const desiredModel = resolveModel(config.getActiveModel());
+    const desiredModel = resolveModel(
+      config.getActiveModel(),
+      config.getGemini31LaunchedSync?.() ?? false,
+    );
     const isModernModel = supportsModernFeatures(desiredModel);
     const activeSnippets = isModernModel ? snippets : legacySnippets;
     const contextFilenames = getAllGeminiMdFilenames();
@@ -244,7 +247,10 @@ export class PromptProvider {
   }
 
   getCompressionPrompt(config: Config): string {
-    const desiredModel = resolveModel(config.getActiveModel());
+    const desiredModel = resolveModel(
+      config.getActiveModel(),
+      config.getGemini31LaunchedSync?.() ?? false,
+    );
     const isModernModel = supportsModernFeatures(desiredModel);
     const activeSnippets = isModernModel ? snippets : legacySnippets;
     return activeSnippets.getCompressionPrompt();
