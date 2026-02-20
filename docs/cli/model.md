@@ -1,10 +1,9 @@
 # Auditaria model selection (`/model` command)
 
-Select your Auditaria model. The `/model` command lets you configure the
-model used by Auditaria, giving you more control over your results. Use
-**Pro** models for complex tasks and reasoning, **Flash** models for high speed
-results, or the (recommended) **Auto** setting to choose the best model for your
-tasks.
+Select your Auditaria model. The `/model` command lets you configure the model
+used by Auditaria, giving you more control over your results. Use **Pro** models
+for complex tasks and reasoning, **Flash** models for high speed results, or the
+(recommended) **Auto** setting to choose the best model for your tasks.
 
 > **Note:** The `/model` command (and the `--model` flag) does not override the
 > model used by sub-agents. Consequently, even when using the `/model` flag you
@@ -40,7 +39,7 @@ To enable Gemini 3 Pro and Gemini 3 Flash (if available), enable
 
 You can also use the `--model` flag to specify a particular Gemini model on
 startup. For more details, refer to the
-[configuration documentation](../get-started/configuration.md).
+[configuration documentation](../reference/configuration.md).
 
 Changes to these settings will be applied to all subsequent interactions with
 Auditaria.

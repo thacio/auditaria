@@ -37,9 +37,8 @@ Remove-Item -Path (Join-Path $env:LocalAppData "npm-cache\_npx") -Recurse -Force
 
 ## Method 2: Using npm (global install)
 
-If you installed the CLI globally (e.g.,
-`npm install -g @thacio/auditaria`), use the `npm uninstall` command with
-the `-g` flag to remove it.
+If you installed the CLI globally (e.g., `npm install -g @thacio/auditaria`),
+use the `npm uninstall` command with the `-g` flag to remove it.
 
 ```bash
 npm uninstall -g @thacio/auditaria

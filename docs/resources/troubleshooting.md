@@ -64,9 +64,9 @@ topics on:
 
 - **Q: How do I update Gemini CLI to the latest version?**
   - A: If you installed it globally via `npm`, update it using the command
-    `npm install -g @thacio/auditaria@latest`. If you compiled it from
-    source, pull the latest changes from the repository, and then rebuild using
-    the command `npm run build`.
+    `npm install -g @thacio/auditaria@latest`. If you compiled it from source,
+    pull the latest changes from the repository, and then rebuild using the
+    command `npm run build`.
 
 - **Q: Where are the Gemini CLI configuration or settings files stored?**
   - A: The Gemini CLI configuration is stored in two `settings.json` files:
@@ -99,8 +99,8 @@ topics on:
     system's `PATH`.
   - **Solution:** The update depends on how you installed Gemini CLI:
     - If you installed `auditaria` globally, check that your `npm` global binary
-      directory is in your `PATH`. You can update Auditaria using the
-      command `npm install -g @thacio/auditaria@latest`.
+      directory is in your `PATH`. You can update Auditaria using the command
+      `npm install -g @thacio/auditaria@latest`.
     - If you are running `auditaria` from source, ensure you are using the
       correct command to invoke it (e.g.,
       `node packages/cli/dist/index.js ...`). To update Auditaria, pull the
@@ -119,9 +119,9 @@ topics on:
   - **Cause:** When sandboxing is enabled, Gemini CLI may attempt operations
     that are restricted by your sandbox configuration, such as writing outside
     the project directory or system temp directory.
-  - **Solution:** Refer to the
-    [Configuration: Sandboxing](./cli/configuration.md#sandboxing) documentation
-    for more information, including how to customize your sandbox configuration.
+  - **Solution:** Refer to the [Configuration: Sandboxing](../cli/sandbox.md)
+    documentation for more information, including how to customize your sandbox
+    configuration.
 
 - **Gemini CLI is not running in interactive mode in "CI" environments**
   - **Issue:** The Gemini CLI does not enter interactive mode (no prompt
