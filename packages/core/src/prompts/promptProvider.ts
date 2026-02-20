@@ -176,7 +176,7 @@ export class PromptProvider {
           'planningWorkflow',
           () => ({
             planModeToolsList,
-            plansDir: config.storage.getProjectTempPlansDir(),
+            plansDir: config.storage.getPlansDir(),
             approvedPlanPath: config.getApprovedPlanPath(),
           }),
           isPlanMode,
