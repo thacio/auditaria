@@ -7,4 +7,5 @@ export interface AuditariaCLIDriverConfig {
   cwd: string;
   /** Approval mode: 'yolo' for work (all tools), 'default' for consult (blocks destructive tools). */
   approvalMode: 'yolo' | 'default';
+  promptFileId?: string; // AUDITARIA_AGENT_SESSION: Unique ID for isolated system prompt file (sub-agents only)
 }

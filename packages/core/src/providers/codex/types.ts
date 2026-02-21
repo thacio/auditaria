@@ -126,4 +126,5 @@ export interface CodexDriverConfig {
   reasoningEffort?: CodexReasoningEffort;
   codexConfigHome?: string; // AUDITARIA_AGENT_SESSION: Custom config directory (isolates concurrent instances)
   sandboxMode?: string; // AUDITARIA_AGENT_SESSION: 'danger-full-access' (default) | 'workspace-read-only' (consult)
+  promptFileId?: string; // AUDITARIA_AGENT_SESSION: Unique ID for isolated system prompt file (sub-agents only)
 }

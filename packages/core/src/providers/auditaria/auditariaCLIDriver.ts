@@ -3,7 +3,7 @@
 
 import { spawn, type ChildProcess } from 'child_process';
 import { createInterface } from 'readline';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
@@ -28,6 +28,7 @@ function getShellOption(): boolean | string {
 export class AuditariaCLIDriver implements ProviderDriver {
   private sessionId: string | undefined;
   private activeProcess: ChildProcess | null = null;
+  private currentPromptFilePath: string | null = null; // AUDITARIA_AGENT_SESSION: tracks prompt file for rename/cleanup
 
   constructor(private readonly config: AuditariaCLIDriverConfig) {
     dbg('constructor', { model: config.model, cwd: config.cwd, approvalMode: config.approvalMode });
@@ -109,6 +110,11 @@ export class AuditariaCLIDriver implements ProviderDriver {
       killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
     this.activeProcess = null;
+    // AUDITARIA_AGENT_SESSION: Clean up isolated prompt file for sub-agents
+    if (this.currentPromptFilePath) {
+      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      this.currentPromptFilePath = null;
+    }
   }
 
   private buildArgs(): string[] {
@@ -132,11 +138,35 @@ export class AuditariaCLIDriver implements ProviderDriver {
     return args;
   }
 
+  // AUDITARIA_AGENT_SESSION: Write system context to file.
+  // When promptFileId is set (sub-agents), writes to .auditaria/prompts/{id}.prompt for isolation.
+  // Once a real session ID is available, switches the filename to it (globally unique).
+  // When not set, writes to .auditaria/.auditaria-subagent-prompt (unchanged behavior).
   private writeSystemPromptFile(content: string): string {
-    const dir = join(this.config.cwd, '.auditaria');
+    if (!this.config.promptFileId) {
+      // Fallback — unchanged behavior
+      const dir = join(this.config.cwd, '.auditaria');
+      mkdirSync(dir, { recursive: true });
+      const filePath = join(dir, '.auditaria-subagent-prompt');
+      writeFileSync(filePath, content, 'utf-8');
+      dbg('wrote system prompt file', { path: filePath, length: content.length });
+      return filePath;
+    }
+
+    // Sub-agent — use real session ID if available, otherwise short promptFileId
+    const dir = join(this.config.cwd, '.auditaria', 'prompts');
     mkdirSync(dir, { recursive: true });
-    const filePath = join(dir, '.auditaria-subagent-prompt');
+    const filename = `${this.sessionId ?? this.config.promptFileId}.prompt`;
+    const filePath = join(dir, filename);
+
+    // If session ID just became available, clean up old file with short ID
+    if (this.sessionId && this.currentPromptFilePath && this.currentPromptFilePath !== filePath) {
+      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      dbg('renamed prompt file', { from: this.currentPromptFilePath, to: filePath });
+    }
+
     writeFileSync(filePath, content, 'utf-8');
+    this.currentPromptFilePath = filePath;
     dbg('wrote system prompt file', { path: filePath, length: content.length });
     return filePath;
   }

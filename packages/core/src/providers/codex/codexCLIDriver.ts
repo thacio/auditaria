@@ -2,7 +2,7 @@
 
 import { spawn, type ChildProcess } from 'child_process';
 import { createInterface } from 'readline';
-import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Readable } from 'stream';
@@ -58,6 +58,7 @@ export class CodexCLIDriver implements ProviderDriver {
   private expectingCompactionSummary = false;
   /** Track accumulated text length per item ID for delta computation */
   private lastEmittedLength = new Map<string, number>();
+  private currentPromptFilePath: string | null = null; // AUDITARIA_AGENT_SESSION: tracks prompt file for rename/cleanup
   /** Whether we've injected MCP config into ~/.codex/config.toml */
   private mcpConfigInjected = false;
 
@@ -150,6 +151,11 @@ export class CodexCLIDriver implements ProviderDriver {
     this.expectingCompactionSummary = false;
     this.lastEmittedLength.clear();
     this.removeMcpConfig(); // AUDITARIA_CODEX_PROVIDER: Clean up injected MCP config
+    // AUDITARIA_AGENT_SESSION: Clean up isolated prompt file for sub-agents
+    if (this.currentPromptFilePath) {
+      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      this.currentPromptFilePath = null;
+    }
   }
 
   private buildArgs(): string[] {
@@ -203,13 +209,35 @@ export class CodexCLIDriver implements ProviderDriver {
     return args;
   }
 
-  // AUDITARIA_CODEX_PROVIDER: Write system context to .auditaria/.codex-instructions file.
-  // Path is shellQuote'd when passed as arg to avoid cmd.exe splitting on spaces.
+  // AUDITARIA_CODEX_PROVIDER: Write system context to file.
+  // When promptFileId is set (sub-agents), writes to .auditaria/prompts/{id}.prompt for isolation.
+  // Once a real thread ID is available, switches the filename to it (globally unique).
+  // When not set (main provider), writes to .auditaria/.codex-instructions (unchanged behavior).
   private writeInstructionsFile(content: string): string {
-    const dir = join(this.config.cwd, '.auditaria');
+    if (!this.config.promptFileId) {
+      // Main provider — unchanged behavior
+      const dir = join(this.config.cwd, '.auditaria');
+      mkdirSync(dir, { recursive: true });
+      const filePath = join(dir, '.codex-instructions');
+      writeFileSync(filePath, content, 'utf-8');
+      dbg('wrote instructions file', { path: filePath, length: content.length });
+      return filePath;
+    }
+
+    // Sub-agent — use real thread ID if available, otherwise short promptFileId
+    const dir = join(this.config.cwd, '.auditaria', 'prompts');
     mkdirSync(dir, { recursive: true });
-    const filePath = join(dir, '.codex-instructions');
+    const filename = `${this.threadId ?? this.config.promptFileId}.prompt`;
+    const filePath = join(dir, filename);
+
+    // If thread ID just became available, clean up old file with short ID
+    if (this.threadId && this.currentPromptFilePath && this.currentPromptFilePath !== filePath) {
+      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      dbg('renamed prompt file', { from: this.currentPromptFilePath, to: filePath });
+    }
+
     writeFileSync(filePath, content, 'utf-8');
+    this.currentPromptFilePath = filePath;
     dbg('wrote instructions file', { path: filePath, length: content.length });
     return filePath;
   }

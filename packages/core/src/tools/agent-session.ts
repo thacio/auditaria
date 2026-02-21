@@ -78,6 +78,12 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
   static readonly Name = EXTERNAL_AGENT_SESSION_TOOL_NAME;
   static readonly Bridgeable = true; // auto-bridge to external providers via MCP
 
+  // All actions are parallel-safe — sessions are isolated
+  // CLI subprocesses, same-session sends guarded by busy flag, creates use unique IDs.
+  override get isReadOnly(): boolean {
+    return true;
+  }
+
   constructor(
     private readonly config: Config,
     messageBus: MessageBus,

@@ -9,6 +9,7 @@
 // Composes ProviderDrivers directly (NOT ProviderManager — no mirroring needed).
 
 import { join } from 'path';
+import { readdirSync, statSync, unlinkSync } from 'fs';
 import type { ProviderDriver } from './types.js';
 import { ProviderEventType } from './types.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
@@ -75,6 +76,28 @@ const CONSULT_EXCLUDED_TOOLS = [
 ];
 
 // -------------------------------------------------------------------
+// Stale prompt file cleanup
+// -------------------------------------------------------------------
+
+/** Delete sub-agent prompt files older than maxAgeDays from .auditaria/prompts/. */
+function cleanupStalePromptFiles(cwd: string, maxAgeDays = 7): void {
+  const dir = join(cwd, '.auditaria', 'prompts');
+  try {
+    const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.prompt')) continue;
+      const filePath = join(dir, file);
+      try {
+        if (statSync(filePath).mtime.getTime() < cutoff) {
+          unlinkSync(filePath);
+          dbg('cleaned up stale prompt file', filePath);
+        }
+      } catch { /* stat/unlink error — skip */ }
+    }
+  } catch { /* directory may not exist yet */ }
+}
+
+// -------------------------------------------------------------------
 // AgentSessionManager
 // -------------------------------------------------------------------
 
@@ -94,6 +117,7 @@ export class AgentSessionManager {
     private readonly buildExternalProviderContext?: () => string,
   ) {
     dbg('constructor', { cwd });
+    cleanupStalePromptFiles(cwd);
   }
 
   // Allow external injection of an already-running ToolExecutorServer
@@ -169,6 +193,7 @@ export class AgentSessionManager {
           toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
           toolBridgeScript: this.bridgeScriptPath,
           toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
+          promptFileId: sessionId,
         });
         break;
       }
@@ -184,6 +209,7 @@ export class AgentSessionManager {
           toolBridgeScript: this.bridgeScriptPath,
           toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
           sandboxMode: mode === 'consult' ? 'workspace-read-only' : 'danger-full-access',
+          promptFileId: sessionId,
         });
         break;
       }
@@ -194,6 +220,7 @@ export class AgentSessionManager {
           model: model || 'gemini-2.5-pro',
           cwd: this.cwd,
           approvalMode: mode === 'consult' ? 'default' : 'yolo',
+          promptFileId: sessionId,
         });
         break;
       }
@@ -249,14 +276,9 @@ export class AgentSessionManager {
 
     session.busy = true;
     try {
-      // Extract stored system context (only for first message)
-      const storedCtx = (session as AgentSession & { _systemContext?: string })._systemContext;
-      const systemContext = storedCtx;
-      if (storedCtx) {
-        // Clear after first use — subsequent messages don't need it
-        // (the driver handles session continuity via --resume / thread resume)
-        delete (session as AgentSession & { _systemContext?: string })._systemContext;
-      }
+      // Pass system context on every call — some drivers (auditaria, claude) don't
+      // persist --append-system-prompt-file across --resume sessions.
+      const systemContext = (session as AgentSession & { _systemContext?: string })._systemContext;
 
       const responseText: string[] = [];
       const toolsUsed = new Map<string, number>();

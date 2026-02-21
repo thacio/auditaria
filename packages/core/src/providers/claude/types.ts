@@ -115,4 +115,5 @@ export interface ClaudeDriverConfig {
   toolBridgePort?: number; // AUDITARIA_CLAUDE_PROVIDER: Port of the tool executor HTTP server
   toolBridgeScript?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to the MCP bridge script
   toolBridgeExclude?: string[]; // AUDITARIA_AGENT_SESSION: Tools to exclude from MCP bridge
+  promptFileId?: string; // AUDITARIA_AGENT_SESSION: Unique ID for isolated system prompt file (sub-agents only)
 }
