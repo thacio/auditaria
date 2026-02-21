@@ -87,4 +87,91 @@ describe('PromptProvider', () => {
       `# Contextual Instructions (${DEFAULT_CONTEXT_FILENAME}, CUSTOM.md)`,
     );
   });
+
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+  describe('appendSystemPrompt', () => {
+    it('should append system prompt content when provided', () => {
+      vi.mocked(getAllGeminiMdFilenames).mockReturnValue([
+        DEFAULT_CONTEXT_FILENAME,
+      ]);
+
+      const configWithAppend = {
+        ...mockConfig,
+        getAppendSystemPrompt: vi
+          .fn()
+          .mockReturnValue(
+            'You are a code auditor. Focus on security vulnerabilities.',
+          ),
+      } as unknown as Config;
+
+      const provider = new PromptProvider();
+      const prompt = provider.getCoreSystemPrompt(configWithAppend);
+
+      expect(prompt).toContain(
+        'You are a code auditor. Focus on security vulnerabilities.',
+      );
+    });
+
+    it('should not modify prompt when appendSystemPrompt is undefined', () => {
+      vi.mocked(getAllGeminiMdFilenames).mockReturnValue([
+        DEFAULT_CONTEXT_FILENAME,
+      ]);
+
+      const configWithoutAppend = {
+        ...mockConfig,
+        getAppendSystemPrompt: vi.fn().mockReturnValue(undefined),
+      } as unknown as Config;
+
+      const provider = new PromptProvider();
+      const promptWithout = provider.getCoreSystemPrompt(configWithoutAppend);
+
+      // Also generate without the getter at all (backward compat)
+      const promptNoGetter = provider.getCoreSystemPrompt(mockConfig);
+
+      // Both should produce the same result
+      expect(promptWithout).toEqual(promptNoGetter);
+    });
+
+    it('should not modify prompt when appendSystemPrompt is empty string', () => {
+      vi.mocked(getAllGeminiMdFilenames).mockReturnValue([
+        DEFAULT_CONTEXT_FILENAME,
+      ]);
+
+      const configEmpty = {
+        ...mockConfig,
+        getAppendSystemPrompt: vi.fn().mockReturnValue(''),
+      } as unknown as Config;
+
+      const provider = new PromptProvider();
+      const promptEmpty = provider.getCoreSystemPrompt(configEmpty);
+      const promptNoGetter = provider.getCoreSystemPrompt(mockConfig);
+
+      expect(promptEmpty).toEqual(promptNoGetter);
+    });
+
+    it('should place appended content after skills section', () => {
+      vi.mocked(getAllGeminiMdFilenames).mockReturnValue([
+        DEFAULT_CONTEXT_FILENAME,
+      ]);
+
+      const configWithSkillsAndAppend = {
+        ...mockConfig,
+        getSkillsPromptSection: vi
+          .fn()
+          .mockReturnValue('\n## Custom Skills\nSome skill info'),
+        getAppendSystemPrompt: vi.fn().mockReturnValue('APPENDED_MARKER'),
+      } as unknown as Config;
+
+      const provider = new PromptProvider();
+      const prompt = provider.getCoreSystemPrompt(configWithSkillsAndAppend);
+
+      const skillsIndex = prompt.indexOf('Custom Skills');
+      const appendIndex = prompt.indexOf('APPENDED_MARKER');
+
+      expect(skillsIndex).toBeGreaterThan(-1);
+      expect(appendIndex).toBeGreaterThan(-1);
+      expect(appendIndex).toBeGreaterThan(skillsIndex);
+    });
+  });
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_END
 });

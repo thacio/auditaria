@@ -501,6 +501,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       rawOutput: undefined,
       acceptRawOutputRisk: undefined,
       isCommand: undefined,
+      appendSystemPrompt: undefined, // AUDITARIA_APPEND_SYSTEM_PROMPT
+      appendSystemPromptFile: undefined, // AUDITARIA_APPEND_SYSTEM_PROMPT
     });
 
     await act(async () => {

@@ -6,6 +6,8 @@
 
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
+import fs from 'node:fs'; // AUDITARIA_APPEND_SYSTEM_PROMPT
+import path from 'node:path'; // AUDITARIA_APPEND_SYSTEM_PROMPT
 import process from 'node:process';
 import { mcpCommand } from '../commands/mcp.js';
 import { extensionsCommand } from '../commands/extensions.js';
@@ -106,6 +108,10 @@ export interface CliArgs {
   rawOutput: boolean | undefined;
   acceptRawOutputRisk: boolean | undefined;
   isCommand: boolean | undefined;
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+  appendSystemPrompt: string | undefined;
+  appendSystemPromptFile: string | undefined;
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_END
 }
 
 export async function parseArguments(
@@ -292,6 +298,19 @@ export async function parseArguments(
           type: 'boolean',
           description: 'Enable screen reader mode for accessibility.',
         })
+        // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+        .option('append-system-prompt', {
+          type: 'string',
+          nargs: 1,
+          description: 'Append additional instructions to the system prompt.',
+          hidden: true,
+        })
+        .option('append-system-prompt-file', {
+          type: 'string',
+          nargs: 1,
+          description: 'Append contents of a file to the system prompt.',
+        })
+        // AUDITARIA_APPEND_SYSTEM_PROMPT_END
         .option('output-format', {
           alias: 'o',
           type: 'string',
@@ -853,6 +872,16 @@ export async function loadCliConfig(
     }
   }
 
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+  let appendSystemPrompt = argv.appendSystemPrompt;
+  if (!appendSystemPrompt && argv.appendSystemPromptFile) {
+    const filePath = path.resolve(argv.appendSystemPromptFile);
+    if (fs.existsSync(filePath)) {
+      appendSystemPrompt = fs.readFileSync(filePath, 'utf8');
+    }
+  }
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_END
+
   return new Config({
     sessionId,
     clientVersion: await getVersion(),
@@ -917,6 +946,7 @@ export async function loadCliConfig(
     bugCommand: settings.advanced?.bugCommand,
     model: resolvedModel,
     providerConfig: persistedProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
+    appendSystemPrompt, // AUDITARIA_APPEND_SYSTEM_PROMPT
     maxSessionTurns: settings.model?.maxSessionTurns,
     experimentalZedIntegration: argv.experimentalAcp || false,
     listExtensions: argv.listExtensions || false,

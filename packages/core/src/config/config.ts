@@ -89,7 +89,9 @@ import { ExternalAgentSessionTool } from '../tools/agent-session.js'; // AUDITAR
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
 import type { FileSystemService } from '../services/fileSystemService.js';
 import { StandardFileSystemService } from '../services/fileSystemService.js';
-import { logRipgrepFallback, logFlashFallback ,
+import {
+  logRipgrepFallback,
+  logFlashFallback,
   logApprovalModeSwitch,
   logApprovalModeDuration,
 } from '../telemetry/loggers.js';
@@ -127,7 +129,11 @@ import type { EventEmitter } from 'node:events';
 import { PolicyEngine } from '../policy/policy-engine.js';
 import { ApprovalMode, type PolicyEngineConfig } from '../policy/types.js';
 import { HookSystem } from '../hooks/index.js';
-import type { UserTierId , RetrieveUserQuotaResponse , AdminControlsSettings } from '../code_assist/types.js';
+import type {
+  UserTierId,
+  RetrieveUserQuotaResponse,
+  AdminControlsSettings,
+} from '../code_assist/types.js';
 import type { HierarchicalMemory } from './memory.js';
 import { getCodeAssistServer } from '../code_assist/codeAssist.js';
 import type { Experiments } from '../code_assist/experiments/experiments.js';
@@ -527,6 +533,7 @@ export interface ConfigParameters {
     agents?: AgentSettings;
   }>;
   providerConfig?: ProviderConfig; // AUDITARIA_CLAUDE_PROVIDER
+  appendSystemPrompt?: string; // AUDITARIA_APPEND_SYSTEM_PROMPT
 }
 
 export class Config {
@@ -554,6 +561,7 @@ export class Config {
   private workspaceContext: WorkspaceContext;
   private readonly debugMode: boolean;
   private readonly question: string | undefined;
+  private readonly appendSystemPrompt: string | undefined; // AUDITARIA_APPEND_SYSTEM_PROMPT
 
   private readonly coreTools: string[] | undefined;
   /** @deprecated Use Policy Engine instead */
@@ -740,6 +748,7 @@ export class Config {
     this.pendingIncludeDirectories = params.includeDirectories ?? [];
     this.debugMode = params.debugMode;
     this.question = params.question;
+    this.appendSystemPrompt = params.appendSystemPrompt; // AUDITARIA_APPEND_SYSTEM_PROMPT
 
     this.coreTools = params.coreTools;
     this.allowedTools = params.allowedTools;
@@ -1492,6 +1501,11 @@ export class Config {
   getQuestion(): string | undefined {
     return this.question;
   }
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+  getAppendSystemPrompt(): string | undefined {
+    return this.appendSystemPrompt;
+  }
+  // AUDITARIA_APPEND_SYSTEM_PROMPT_END
 
   getHasAccessToPreviewModel(): boolean {
     return this.hasAccessToPreviewModel;

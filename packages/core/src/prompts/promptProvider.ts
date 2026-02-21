@@ -226,6 +226,13 @@ export class PromptProvider {
     }
     // AUDITARIA_FEATURE_END: Custom skills section
 
+    // AUDITARIA_APPEND_SYSTEM_PROMPT_START
+    const appendedPrompt = config.getAppendSystemPrompt?.();
+    if (appendedPrompt) {
+      basePrompt += '\n\n' + appendedPrompt;
+    }
+    // AUDITARIA_APPEND_SYSTEM_PROMPT_END
+
     // --- Finalization (Shell) ---
     const finalPrompt = activeSnippets.renderFinalShell(
       basePrompt,
