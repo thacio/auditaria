@@ -14,7 +14,7 @@ import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
-import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS } from '../providers/types.js';
+import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS, AUDITARIA_MODEL_IDS } from '../providers/types.js';
 
 // -------------------------------------------------------------------
 // Types
@@ -27,6 +27,7 @@ type Action = (typeof ACTIONS)[number];
 const ALL_MODEL_IDS = [
   ...CLAUDE_MODEL_IDS.filter(id => id !== 'auto'),
   ...CODEX_MODEL_IDS.filter(id => id !== 'auto'),
+  ...AUDITARIA_MODEL_IDS.filter(id => id !== 'auto'), // AUDITARIA_AGENT_SESSION
 ] as const;
 
 interface ExternalAgentSessionParams {
@@ -46,10 +47,12 @@ interface ExternalAgentSessionParams {
 
 const DESCRIPTION = `Manage sessions with alternative LLM providers as external sub-agents. Each sub-agent runs in its own session with its own conversation context and access to Auditaria's tools (file ops, search, browser, etc.).
 
-You CANNOT spawn a sub-agent of your own provider type:
-- Gemini main → can spawn Claude or Codex sub-agents
-- Claude main → can spawn Codex sub-agents
-- Codex main → can spawn Claude sub-agents
+Available providers:
+- "claude" — Claude Code CLI (opus, sonnet, haiku)
+- "codex" — OpenAI Codex CLI (gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini)
+- "auditaria" — Auditaria/Gemini CLI (gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite)
+
+You can spawn any provider, including the same one you are running on.
 
 Actions:
 - create: Start a new sub-agent session. Returns the session ID.
@@ -94,8 +97,8 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
           },
           provider: {
             type: 'string',
-            description: 'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI).',
-            enum: ['claude', 'codex'],
+            description: 'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "auditaria" (Auditaria/Gemini CLI).',
+            enum: ['claude', 'codex', 'auditaria'],
           },
           session_id: {
             type: 'string',
@@ -110,7 +113,8 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
             description:
               'Model for the sub-agent. Omit for auto (recommended). ' +
               'Claude models: opus, sonnet, haiku. ' +
-              'Codex models: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini.',
+              'Codex models: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini. ' +
+              'Gemini models: gemini-2.5-pro (default), gemini-2.5-flash, gemini-2.5-flash-lite.',
             enum: [...ALL_MODEL_IDS],
           },
           mode: {
@@ -142,7 +146,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
     }
 
     if (params.action === 'create' && !params.provider) {
-      return 'provider is required for "create" action. Options: "claude", "codex"';
+      return 'provider is required for "create" action. Options: "claude", "codex", "auditaria"';
     }
 
     if (params.action === 'send') {
@@ -162,15 +166,31 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
     if (params.action === 'create' && params.model && params.provider) {
       const claudeModels = new Set<string>(CLAUDE_MODEL_IDS.filter(id => id !== 'auto'));
       const codexModels = new Set<string>(CODEX_MODEL_IDS.filter(id => id !== 'auto'));
+      const auditariaModels = new Set<string>(AUDITARIA_MODEL_IDS.filter(id => id !== 'auto')); // AUDITARIA_AGENT_SESSION
 
       if (params.provider === 'claude' && !claudeModels.has(params.model)) {
         if (codexModels.has(params.model)) {
           return `Model "${params.model}" is a Codex model, but provider is "claude". Claude models: ${[...claudeModels].join(', ')}`;
         }
+        if (auditariaModels.has(params.model)) {
+          return `Model "${params.model}" is a Gemini model, but provider is "claude". Claude models: ${[...claudeModels].join(', ')}`;
+        }
       }
       if (params.provider === 'codex' && !codexModels.has(params.model)) {
         if (claudeModels.has(params.model)) {
           return `Model "${params.model}" is a Claude model, but provider is "codex". Codex models: ${[...codexModels].join(', ')}`;
+        }
+        if (auditariaModels.has(params.model)) {
+          return `Model "${params.model}" is a Gemini model, but provider is "codex". Codex models: ${[...codexModels].join(', ')}`;
+        }
+      }
+      // AUDITARIA_AGENT_SESSION: Validate auditaria model
+      if (params.provider === 'auditaria' && !auditariaModels.has(params.model)) {
+        if (claudeModels.has(params.model)) {
+          return `Model "${params.model}" is a Claude model, but provider is "auditaria". Gemini models: ${[...auditariaModels].join(', ')}`;
+        }
+        if (codexModels.has(params.model)) {
+          return `Model "${params.model}" is a Codex model, but provider is "auditaria". Gemini models: ${[...auditariaModels].join(', ')}`;
         }
       }
     }
@@ -262,15 +282,16 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
 
   private async executeCreate(manager: import('../providers/agent-session-manager.js').AgentSessionManager): Promise<ToolResult> {
     // Map short names to driver types
-    const providerMap: Record<string, 'claude-cli' | 'codex-cli'> = {
+    const providerMap: Record<string, 'claude-cli' | 'codex-cli' | 'auditaria-cli'> = {
       claude: 'claude-cli',
       codex: 'codex-cli',
+      auditaria: 'auditaria-cli', // AUDITARIA_AGENT_SESSION
     };
 
     const provider = providerMap[this.params.provider!];
     if (!provider) {
       return {
-        llmContent: `Unknown provider "${this.params.provider}". Options: claude, codex`,
+        llmContent: `Unknown provider "${this.params.provider}". Options: claude, codex, auditaria`,
         returnDisplay: `Unknown provider: ${this.params.provider}`,
         error: { message: `Unknown provider: ${this.params.provider}`, type: ToolErrorType.INVALID_TOOL_PARAMS },
       };

@@ -585,9 +585,10 @@ export class Config {
   private geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
   private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
-  private providerAvailability: { claude: boolean; codex: boolean } = {
+  private providerAvailability: { claude: boolean; codex: boolean; auditaria: boolean } = {
     claude: false,
     codex: false,
+    auditaria: true, 
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private baseLlmClient!: BaseLlmClient;
   private modelRouterService: ModelRouterService;
@@ -2002,13 +2003,14 @@ export class Config {
   } // AUDITARIA_CODEX_PROVIDER
 
   // AUDITARIA_PROVIDER_AVAILABILITY_START
-  getProviderAvailability(): { claude: boolean; codex: boolean } {
+  getProviderAvailability(): { claude: boolean; codex: boolean; auditaria: boolean } {
     return { ...this.providerAvailability };
   }
 
   setProviderAvailability(availability: {
     claude: boolean;
     codex: boolean;
+    auditaria: boolean;
   }): void {
     this.providerAvailability = { ...availability };
   }

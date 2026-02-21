@@ -24,7 +24,7 @@ function dbg(..._args: unknown[]) {
 // -------------------------------------------------------------------
 
 export type SessionMode = 'work' | 'consult';
-export type SessionProviderType = 'claude-cli' | 'codex-cli';
+export type SessionProviderType = 'claude-cli' | 'codex-cli' | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli
 
 export interface AgentSession {
   id: string;
@@ -89,7 +89,7 @@ export class AgentSessionManager {
   constructor(
     private readonly cwd: string,
     private readonly getMainProviderType: () => string,
-    private readonly getProviderAvailability: () => { claude: boolean; codex: boolean },
+    private readonly getProviderAvailability: () => { claude: boolean; codex: boolean; auditaria: boolean },
     private readonly toolRegistry?: ToolRegistry,
     private readonly buildExternalProviderContext?: () => string,
   ) {
@@ -110,36 +110,32 @@ export class AgentSessionManager {
     const { provider, model, systemContext } = opts;
     const mode = opts.mode ?? 'work';
     const allowSubAgents = opts.allowSubAgents ?? false;
-
-    // Validate: can't spawn same provider as main
     const mainType = this.getMainProviderType();
-    if (provider === mainType) {
-      throw new Error(
-        `Cannot spawn a sub-agent of the same provider type as the main agent (${mainType}). ` +
-        `Choose a different provider.`,
-      );
-    }
 
     // Validate: provider is available
     const availability = this.getProviderAvailability();
-    const providerKey = provider === 'claude-cli' ? 'claude' : 'codex';
+    // AUDITARIA_AGENT_SESSION: Map provider type to availability key
+    const providerKey = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
     if (!availability[providerKey]) {
-      const cliName = provider === 'claude-cli' ? 'claude' : 'codex';
+      const cliName = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
       throw new Error(
         `Provider "${provider}" is not available. Make sure the "${cliName}" CLI is installed and on your PATH.`,
       );
     }
 
     // Generate session ID
-    const prefix = provider === 'claude-cli' ? 'claude' : 'codex';
+    // AUDITARIA_AGENT_SESSION: Map provider type to prefix
+    const prefix = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
     const sessionId = opts.sessionId ?? this.generateId(prefix);
 
     if (this.sessions.has(sessionId)) {
       throw new Error(`Session "${sessionId}" already exists. Use a different ID or kill the existing session.`);
     }
 
-    // Ensure tool bridge is available
-    await this.ensureToolExecutorServer();
+    // Ensure tool bridge is available (not needed for auditaria â€” tools are built-in)
+    if (provider !== 'auditaria-cli') {
+      await this.ensureToolExecutorServer();
+    }
 
     // Build exclude list for MCP bridge
     const excludeTools: string[] = [...ALWAYS_EXCLUDED_TOOLS];
@@ -155,6 +151,9 @@ export class AgentSessionManager {
       mode,
       allowSubAgents,
       customSystemContext: systemContext,
+      // AUDITARIA_AGENT_SESSION: Auditaria sub-agents have built-in tools (no MCP filtering),
+      // so we pass tool restrictions via the system prompt.
+      toolRestrictions: provider === 'auditaria-cli' ? excludeTools : undefined,
     });
 
     // Create driver
@@ -188,6 +187,17 @@ export class AgentSessionManager {
         });
         break;
       }
+      // AUDITARIA_AGENT_SESSION_START: Auditaria (Gemini) sub-agent driver
+      case 'auditaria-cli': {
+        const { AuditariaCLIDriver } = await import('./auditaria/auditariaCLIDriver.js');
+        driver = new AuditariaCLIDriver({
+          model: model || 'gemini-2.5-pro',
+          cwd: this.cwd,
+          approvalMode: mode === 'consult' ? 'default' : 'yolo',
+        });
+        break;
+      }
+      // AUDITARIA_AGENT_SESSION_END
       default:
         throw new Error(`Unknown provider type: ${provider}`);
     }
@@ -413,8 +423,9 @@ function buildSubAgentSystemPrompt(opts: {
   mode: SessionMode;
   allowSubAgents: boolean;
   customSystemContext?: string;
+  toolRestrictions?: string[]; // AUDITARIA_AGENT_SESSION: Tool names to restrict (for providers with built-in tools)
 }): string {
-  const { baseContext, sessionId, mainProviderName, mode, allowSubAgents, customSystemContext } = opts;
+  const { baseContext, sessionId, mainProviderName, mode, allowSubAgents, customSystemContext, toolRestrictions } = opts;
 
   const sections: string[] = [];
 
@@ -454,6 +465,12 @@ Adapt fully to whatever role or task is given to you. Be thorough but concise â€
 ${permissionSection}
 
 ${subAgentSection}`;
+
+  // AUDITARIA_AGENT_SESSION: For providers with built-in tools (e.g., auditaria-cli),
+  // tool exclusion can't be done via MCP filtering. Instead, list restricted tools in the prompt.
+  if (toolRestrictions && toolRestrictions.length > 0) {
+    subAgentPrompt += `\n\n### Tool Restrictions\nYou MUST NOT use the following tools: ${toolRestrictions.join(', ')}. If asked to perform an action that requires one of these tools, explain that you cannot use it in this session.`;
+  }
 
   if (customSystemContext) {
     subAgentPrompt += `\n\n### Additional Instructions\n${customSystemContext}`;

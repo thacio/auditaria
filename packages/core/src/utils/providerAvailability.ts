@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 export interface ProviderAvailability {
   claude: boolean;
   codex: boolean;
+  auditaria: boolean;
 }
 
 /**
@@ -58,7 +59,8 @@ export async function checkProviderAvailability(): Promise<ProviderAvailability>
     isCommandAvailable('codex'),
   ]);
 
-  return { claude, codex };
+  //Auditaria is always available (we ARE auditaria).
+  return { claude, codex, auditaria: true };
 }
 
 /**

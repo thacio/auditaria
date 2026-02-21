@@ -166,7 +166,7 @@ export function clampCodexReasoningEffortForModel(
 }
 
 export interface ProviderConfig {
-  type: 'gemini' | 'claude-cli' | 'codex-cli'; // AUDITARIA_CODEX_PROVIDER: added codex-cli
+  type: 'gemini' | 'claude-cli' | 'codex-cli' | 'auditaria-cli'; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;
@@ -179,6 +179,10 @@ export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
 
 export const CODEX_MODEL_IDS = ['auto', 'gpt-5.3-codex', 'gpt-5.2-codex', 'gpt-5.1-codex-mini'] as const;
 export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
+
+// AUDITARIA_AGENT_SESSION: Canonical model ID list for Auditaria (Gemini) sub-agents.
+export const AUDITARIA_MODEL_IDS = ['auto', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'] as const;
+export type AuditariaModelId = (typeof AUDITARIA_MODEL_IDS)[number];
 
 // AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
 // Avoids importing MCPServerConfig from config.ts (circular dependency).
