@@ -12,6 +12,7 @@ import {
   clampCodexReasoningEffortForModel,
 } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
+import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
 import type {
   CodexStreamMessage,
   CodexItemEvent,
@@ -96,7 +97,9 @@ export class CodexCLIDriver implements ProviderDriver {
       }),
     });
     this.activeProcess = proc;
-    dbg('spawned', { pid: proc.pid });
+    const spawnedPid = proc.pid;
+    if (spawnedPid) trackChildProcess(spawnedPid);
+    dbg('spawned', { pid: spawnedPid });
 
     // Pipe prompt through stdin (same Windows safety as Claude driver)
     proc.stdin?.write(prompt);
@@ -123,6 +126,7 @@ export class CodexCLIDriver implements ProviderDriver {
     } finally {
       signal.removeEventListener('abort', abortHandler);
       this.activeProcess = null;
+      if (spawnedPid) untrackChildProcess(spawnedPid);
       this.lastEmittedLength.clear();
       dbg('sendMessage FINALLY');
     }

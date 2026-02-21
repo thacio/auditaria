@@ -8,6 +8,7 @@ import { tmpdir } from 'os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
+import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type {
   ClaudeStreamMessage,
@@ -70,7 +71,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
       },
     });
     this.activeProcess = proc;
-    dbg('spawned', { pid: proc.pid });
+    const spawnedPid = proc.pid;
+    if (spawnedPid) trackChildProcess(spawnedPid);
+    dbg('spawned', { pid: spawnedPid });
 
     // Pipe prompt through stdin to avoid shell argument quoting issues.
     proc.stdin?.write(prompt);
@@ -97,6 +100,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     } finally {
       signal.removeEventListener('abort', abortHandler);
       this.activeProcess = null;
+      if (spawnedPid) untrackChildProcess(spawnedPid);
       dbg('sendMessage FINALLY');
     }
   }

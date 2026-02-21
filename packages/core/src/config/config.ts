@@ -3057,6 +3057,7 @@ export class Config {
     coreEvents.off(CoreEvent.AgentsRefreshed, this.onAgentsRefreshed);
     this.agentRegistry?.dispose();
     this.agentSessionManager_?.disposeAll(); // AUDITARIA_AGENT_SESSION: Kill all sub-agent sessions
+    this.providerManager?.dispose(); // AUDITARIA: Kill main provider's active subprocess
     this.geminiClient?.dispose();
     if (this.mcpClientManager) {
       await this.mcpClientManager.stop();
