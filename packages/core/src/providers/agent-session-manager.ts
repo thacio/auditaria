@@ -465,7 +465,7 @@ You have full access. You may read, write, and modify files, run shell commands,
 
   const subAgentSection = allowSubAgents
     ? `### Sub-Agent Spawning: ENABLED
-You may spawn your own sub-agent sessions using the external_agent_session tool if you need to delegate work to another provider.`
+You may spawn your own sub-agent sessions using the external_agent_session tool to delegate work.`
     : `### Sub-Agent Spawning: DISABLED
 You cannot spawn your own sub-agents. Work with the tools available to you directly.`;
 
