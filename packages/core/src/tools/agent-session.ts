@@ -72,7 +72,15 @@ Sub-agent spawning:
 - By default, sub-agents cannot spawn their own sub-agents.
 - Set allow_sub_agents=true to enable recursive sub-agent chains.
 
-Sessions persist for multi-turn conversations. Use system_context on create to give the sub-agent specific instructions about its role or task.`;
+Sessions persist for multi-turn conversations. Use system_context on create to give the sub-agent specific instructions about its role or task.
+
+IMPORTANT — Non-blocking usage pattern (recommended):
+Calling "send" directly blocks the main thread and prevents parallel work.
+Instead:
+If are *Claude*:
+1. create/list/get/kill — Call directly (they are instant).
+2. send — Wrap inside a background Task tool call (run_in_background=true). Each background Task internally calls external_agent_session(action: "send"). This way multiple sub-agents run truly in parallel without blocking.
+3. Use "get" to check progress on busy sessions at any time.`;
 
 // -------------------------------------------------------------------
 // Tool class
