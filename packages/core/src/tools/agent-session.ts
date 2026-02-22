@@ -59,9 +59,9 @@ You can spawn any provider, including the same one you are running on.
 
 Actions:
 - create: Start a new sub-agent session. Returns the session ID.
-- send: Send a message to an existing session. Returns the sub-agent's response.
-- list: Show all active sessions with their role/context summary.
-- get: Inspect a session's full details — custom system context, initial prompt, and paginated output (supports checking a busy agent's partial output without waiting for completion). Uses tail mode by default (last N lines); set output_offset to read from a specific position.
+- send: Send a message to an existing session. Returns the sub-agent's full response (blocks until done).
+- list: Quick overview of all active sessions. Shows: id, provider, model, mode, busy status, message count, age, plus truncated role/context and initial prompt for each session. Use this to recall what sessions exist and what they're for.
+- get: Deep inspect a single session. Shows: full custom system context, full initial prompt, and paginated output with line numbers. Works on busy sessions too — shows live streaming output so you can check progress without waiting. Output uses tail mode by default (last 50 lines); use output_offset/output_limit to navigate. Use output_offset=0 to read from the start.
 - kill: Terminate a session and free its resources.
 
 Permission modes (set on create):
@@ -112,7 +112,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
           },
           session_id: {
             type: 'string',
-            description: 'Session ID. Auto-generated on create, required for send/kill.',
+            description: 'Session ID. Auto-generated on create, required for send/get/kill.',
           },
           message: {
             type: 'string',
@@ -143,11 +143,11 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
           // AUDITARIA_AGENT_SESSION: Pagination params for 'get' action
           output_offset: {
             type: 'number',
-            description: 'Line offset for output pagination (0-based). When omitted, shows the last output_limit lines (tail mode). When specified, shows lines starting from this offset.',
+            description: 'For "get" action only. Line offset (0-based) to start reading output from. When omitted, uses tail mode (shows last output_limit lines). When set, shows output_limit lines starting from this position.',
           },
           output_limit: {
             type: 'number',
-            description: 'Number of output lines to show. Default: 50.',
+            description: 'For "get" action only. Number of output lines to return. Default: 50.',
           },
         },
         required: ['action'],
