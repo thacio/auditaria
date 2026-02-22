@@ -117,6 +117,7 @@ import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.j
 import { ScrollProvider } from './ui/contexts/ScrollProvider.js';
 import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
 import { TerminalProvider } from './ui/contexts/TerminalContext.js';
+import { OverflowProvider } from './ui/contexts/OverflowContext.js';
 
 import { setupTerminalAndTheme } from './utils/terminalTheme.js';
 import { profiler } from './ui/components/DebugProfiler.js';
@@ -286,36 +287,38 @@ export async function startInteractiveUI(
           >
             <TerminalProvider>
               <ScrollProvider>
-                <SessionStatsProvider>
-                  <VimModeProvider settings={settings}>
-                    {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
-                    <SubmitQueryProvider>
-                      <WebInterfaceProvider
-                        enabled={webEnabled}
-                        openBrowser={webOpenBrowser}
-                        port={webPort}
-                      >
-                        <FooterProvider>
-                          <LoadingStateProvider>
-                            <ToolConfirmationProvider>
-                              <TerminalCaptureWrapper>
-                                <AppContainer
-                                  config={config}
-                                  startupWarnings={startupWarnings}
-                                  version={version}
-                                  resumedSessionData={resumedSessionData}
-                                  initializationResult={initializationResult}
-                                  webEnabled={webEnabled}
-                                />
-                              </TerminalCaptureWrapper>
-                            </ToolConfirmationProvider>
-                          </LoadingStateProvider>
-                        </FooterProvider>
-                      </WebInterfaceProvider>
-                    </SubmitQueryProvider>
-                    {/* WEB_INTERFACE_END */}
-                  </VimModeProvider>
-                </SessionStatsProvider>
+                <OverflowProvider>
+                  <SessionStatsProvider>
+                    <VimModeProvider settings={settings}>
+                      {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
+                      <SubmitQueryProvider>
+                        <WebInterfaceProvider
+                          enabled={webEnabled}
+                          openBrowser={webOpenBrowser}
+                          port={webPort}
+                        >
+                          <FooterProvider>
+                            <LoadingStateProvider>
+                              <ToolConfirmationProvider>
+                                <TerminalCaptureWrapper>
+                                  <AppContainer
+                                    config={config}
+                                    startupWarnings={startupWarnings}
+                                    version={version}
+                                    resumedSessionData={resumedSessionData}
+                                    initializationResult={initializationResult}
+                                    webEnabled={webEnabled}
+                                  />
+                                </TerminalCaptureWrapper>
+                              </ToolConfirmationProvider>
+                            </LoadingStateProvider>
+                          </FooterProvider>
+                        </WebInterfaceProvider>
+                      </SubmitQueryProvider>
+                      {/* WEB_INTERFACE_END */}
+                    </VimModeProvider>
+                  </SessionStatsProvider>
+                </OverflowProvider>
               </ScrollProvider>
             </TerminalProvider>
           </MouseProvider>

@@ -184,6 +184,7 @@ export interface UIState {
   isBackgroundShellListOpen: boolean;
   adminSettingsChanged: boolean;
   newAgents: AgentDefinition[] | null;
+  showIsExpandableHint: boolean;
   hintMode: boolean;
   hintBuffer: string;
   transientMessage: {

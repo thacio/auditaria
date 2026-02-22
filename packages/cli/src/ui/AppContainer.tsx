@@ -103,6 +103,10 @@ import { useLanguageCommand } from './hooks/useLanguageCommand.js';
 import { useModelCommand } from './hooks/useModelCommand.js';
 import { useSlashCommandProcessor } from './hooks/slashCommandProcessor.js';
 import { useVimMode } from './contexts/VimModeContext.js';
+import {
+  useOverflowActions,
+  useOverflowState,
+} from './contexts/OverflowContext.js';
 import { useConsoleMessages } from './hooks/useConsoleMessages.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { calculatePromptWidths } from './components/InputPrompt.js';
@@ -181,6 +185,7 @@ import { useBackgroundShellManager } from './hooks/useBackgroundShellManager.js'
 import {
   WARNING_PROMPT_DURATION_MS,
   QUEUE_ERROR_DISPLAY_DURATION_MS,
+  EXPAND_HINT_DURATION_MS,
 } from './constants.js';
 import { LoginWithGoogleRestartDialog } from './auth/LoginWithGoogleRestartDialog.js';
 import { NewAgentsChoice } from './components/NewAgentsNotification.js';
@@ -250,6 +255,7 @@ export const AppContainer = (props: AppContainerProps) => {
     webEnabled = false,
   } = props;
   const settings = useSettings();
+  const { reset } = useOverflowActions()!;
   const notificationsEnabled = isNotificationsEnabled(settings);
 
   const historyManager = useHistory({
@@ -300,6 +306,54 @@ export const AppContainer = (props: AppContainerProps) => {
   );
 
   const [newAgents, setNewAgents] = useState<AgentDefinition[] | null>(null);
+  const [constrainHeight, setConstrainHeight] = useState<boolean>(true);
+  const [showIsExpandableHint, setShowIsExpandableHint] = useState(false);
+  const expandHintTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const overflowState = useOverflowState();
+  const overflowingIdsSize = overflowState?.overflowingIds.size ?? 0;
+  const hasOverflowState = overflowingIdsSize > 0 || !constrainHeight;
+
+  /**
+   * Manages the visibility and x-second timer for the expansion hint.
+   *
+   * This effect triggers the timer countdown whenever an overflow is detected
+   * or the user manually toggles the expansion state with Ctrl+O. We use a stable
+   * boolean dependency (hasOverflowState) to ensure the timer only resets on
+   * genuine state transitions, preventing it from infinitely resetting during
+   * active text streaming.
+   */
+  useEffect(() => {
+    if (isAlternateBuffer) {
+      setShowIsExpandableHint(false);
+      if (expandHintTimerRef.current) {
+        clearTimeout(expandHintTimerRef.current);
+      }
+      return;
+    }
+
+    if (hasOverflowState) {
+      setShowIsExpandableHint(true);
+      if (expandHintTimerRef.current) {
+        clearTimeout(expandHintTimerRef.current);
+      }
+      expandHintTimerRef.current = setTimeout(() => {
+        setShowIsExpandableHint(false);
+      }, EXPAND_HINT_DURATION_MS);
+    }
+  }, [hasOverflowState, isAlternateBuffer, constrainHeight]);
+
+  /**
+   * Safe cleanup to ensure the expansion hint timer is cancelled when the
+   * component unmounts, preventing memory leaks.
+   */
+  useEffect(
+    () => () => {
+      if (expandHintTimerRef.current) {
+        clearTimeout(expandHintTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const [defaultBannerText, setDefaultBannerText] = useState('');
   const [warningBannerText, setWarningBannerText] = useState('');
@@ -1242,6 +1296,19 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
   const handleFinalSubmit = useCallback(
     async (submittedValue: string) => {
+      reset();
+      // Explicitly hide the expansion hint and clear its x-second timer when a new turn begins.
+      setShowIsExpandableHint(false);
+      if (expandHintTimerRef.current) {
+        clearTimeout(expandHintTimerRef.current);
+      }
+      if (!constrainHeight) {
+        setConstrainHeight(true);
+        if (!isAlternateBuffer) {
+          refreshStatic();
+        }
+      }
+
       const isSlash = isSlashCommand(submittedValue.trim());
       const isIdle = streamingState === StreamingState.Idle;
       const isAgentRunning =
@@ -1300,15 +1367,32 @@ Logging in with Google... Restarting Gemini CLI to continue.
       pendingSlashCommandHistoryItems,
       pendingGeminiHistoryItems,
       config,
+      constrainHeight,
+      setConstrainHeight,
+      isAlternateBuffer,
+      refreshStatic,
+      reset,
       handleHintSubmit,
     ],
   );
 
   const handleClearScreen = useCallback(() => {
+    reset();
+    // Explicitly hide the expansion hint and clear its x-second timer when clearing the screen.
+    setShowIsExpandableHint(false);
+    if (expandHintTimerRef.current) {
+      clearTimeout(expandHintTimerRef.current);
+    }
     historyManager.clearItems();
     clearConsoleMessagesState();
     refreshStatic();
-  }, [historyManager, clearConsoleMessagesState, refreshStatic]);
+  }, [
+    historyManager,
+    clearConsoleMessagesState,
+    refreshStatic,
+    reset,
+    setShowIsExpandableHint,
+  ]);
 
   const { handleInput: vimHandleInput } = useVim(buffer, handleFinalSubmit);
 
@@ -1486,7 +1570,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       windowMs: WARNING_PROMPT_DURATION_MS,
       onRepeat: handleExitRepeat,
     });
-  const [constrainHeight, setConstrainHeight] = useState<boolean>(true);
+
   const [ideContextState, setIdeContextState] = useState<
     IdeContext | undefined
   >();
@@ -1729,6 +1813,19 @@ Logging in with Google... Restarting Gemini CLI to continue.
       if (!constrainHeight) {
         enteringConstrainHeightMode = true;
         setConstrainHeight(true);
+        if (keyMatchers[Command.SHOW_MORE_LINES](key)) {
+          // If the user manually collapses the view, show the hint and reset the x-second timer.
+          setShowIsExpandableHint(true);
+          if (expandHintTimerRef.current) {
+            clearTimeout(expandHintTimerRef.current);
+          }
+          expandHintTimerRef.current = setTimeout(() => {
+            setShowIsExpandableHint(false);
+          }, EXPAND_HINT_DURATION_MS);
+        }
+        if (!isAlternateBuffer) {
+          refreshStatic();
+        }
       }
 
       if (keyMatchers[Command.SHOW_ERROR_DETAILS](key)) {
@@ -1772,6 +1869,17 @@ Logging in with Google... Restarting Gemini CLI to continue.
         !enteringConstrainHeightMode
       ) {
         setConstrainHeight(false);
+        // If the user manually expands the view, show the hint and reset the x-second timer.
+        setShowIsExpandableHint(true);
+        if (expandHintTimerRef.current) {
+          clearTimeout(expandHintTimerRef.current);
+        }
+        expandHintTimerRef.current = setTimeout(() => {
+          setShowIsExpandableHint(false);
+        }, EXPAND_HINT_DURATION_MS);
+        if (!isAlternateBuffer) {
+          refreshStatic();
+        }
         return true;
       } else if (
         (keyMatchers[Command.FOCUS_SHELL_INPUT](key) ||
@@ -2647,7 +2755,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       const activeConfirmations =
         toolConfirmationContext?.pendingConfirmations || [];
       const trackedConfirmations = [
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-unsafe-assignment
         ...((webInterface.service as any).activeToolConfirmations?.keys() ||
           []),
       ];
@@ -2945,6 +3053,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       isBackgroundShellListOpen,
       adminSettingsChanged,
       newAgents,
+      showIsExpandableHint,
       hintMode:
         config.isModelSteeringEnabled() &&
         isToolExecuting([
@@ -3073,6 +3182,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       backgroundShells,
       adminSettingsChanged,
       newAgents,
+      showIsExpandableHint,
     ],
   );
 
