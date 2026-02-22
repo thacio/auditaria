@@ -142,19 +142,20 @@ bloquear a execução. Você pode precisar:
 
 ```bash
 # Usando npx (sem instalação necessária)
-npx https://github.com/thacio/auditaria
+npx @thacio/auditaria
 ```
 
 #### Instalar globalmente com npm
 
 ```bash
-# Via release
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz
+# Via npm
+npm install -g @thacio/auditaria
 
 # Ou clonar e construir
 git clone https://github.com/thacio/auditaria
 cd ./auditaria
 npm run build
+npm run bundle
 npm install -g .
 ```
 
@@ -177,7 +178,7 @@ controla a infraestrutura.**
 
 ```bash
 # Instalar o Auditaria com verificação SSL desabilitada
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz --strict-ssl=false
+npm install -g @thacio/auditaria --strict-ssl=false
 ```
 
 #### Configuração de Execução
@@ -553,13 +554,14 @@ npx @thacio/auditaria
 #### Install globally with npm
 
 ```bash
-# Via release
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz
+# Via npm
+npm install -g @thacio/auditaria
 
 # Or clone and build
 git clone https://github.com/thacio/auditaria
 cd ./auditaria
 npm run build
+npm run bundle
 npm install -g .
 ```
 
@@ -632,7 +634,7 @@ corporate networks where IT controls the infrastructure.**
 
 ```bash
 # Install Auditaria with SSL verification disabled
-npm install -g https://github.com/thacio/auditaria/releases/latest/download/auditaria-latest.tgz --strict-ssl=false
+npm install -g @thacio/auditaria --strict-ssl=false
 ```
 
 #### Runtime Configuration
