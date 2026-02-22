@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import 'vitest';
 import {
   vi,
   describe,
@@ -37,6 +36,7 @@ import {
   HookCallEvent,
 } from '../types.js';
 import { AgentTerminateMode } from '../../agents/types.js';
+// eslint-disable-next-line import/no-internal-modules
 import { GIT_COMMIT_INFO, CLI_VERSION } from '../../generated/git-commit.js';
 import { UserAccountManager } from '../../utils/userAccountManager.js';
 import { InstallationManager } from '../../utils/installationManager.js';
