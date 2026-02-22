@@ -59,7 +59,7 @@ You can spawn any provider, including the same one you are running on.
 
 Actions:
 - create: Start a new sub-agent session. Returns the session ID.
-- send: Send a message to an existing session. Returns the sub-agent's full response (blocks until done).
+- send: Send a message to an existing session. Returns the sub-agent's full response. IMPORTANT: This blocks until the sub-agent finishes, which can take minutes. Prefer running send calls as background tasks so you can continue working. Use "get" to check on a busy session's progress without blocking.
 - list: Quick overview of all active sessions. Shows: id, provider, model, mode, busy status, message count, age, plus truncated role/context and initial prompt for each session. Use this to recall what sessions exist and what they're for.
 - get: Deep inspect a single session. Shows: full custom system context, full initial prompt, and paginated output with line numbers. Works on busy sessions too — shows live streaming output so you can check progress without waiting. Output uses tail mode by default (last 50 lines); use output_offset/output_limit to navigate. Use output_offset=0 to read from the start.
 - kill: Terminate a session and free its resources.
