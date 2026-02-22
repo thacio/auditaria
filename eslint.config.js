@@ -202,6 +202,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unsafe-type-assertion': 'error',
       '@typescript-eslint/no-unsafe-assignment': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
     },
   },
   {

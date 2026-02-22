@@ -121,8 +121,10 @@ export function createWorkingStdio() {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const value = Reflect.get(target, prop, receiver);
       if (typeof value === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return value.bind(target);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return value;
     },
   });
@@ -135,8 +137,10 @@ export function createWorkingStdio() {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const value = Reflect.get(target, prop, receiver);
       if (typeof value === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return value.bind(target);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return value;
     },
   });
