@@ -38,6 +38,11 @@ export interface AgentSession {
   messageCount: number;
   createdAt: number;
   lastMessageAt: number;
+  // AUDITARIA_AGENT_SESSION: Inspection fields — survive context compaction
+  customSystemContext?: string;  // Raw user-provided system_context from create
+  initialMessage?: string;       // First message sent via send action (raw LLM prompt)
+  lastResponse?: string;         // Last complete response from send
+  partialOutput?: string;        // Current accumulated text while busy (streaming)
 }
 
 export interface SessionInfo {
@@ -49,6 +54,18 @@ export interface SessionInfo {
   messageCount: number;
   createdAt: number;
   lastMessageAt: number;
+  // AUDITARIA_AGENT_SESSION: Inspection fields for list/get
+  customSystemContext?: string;
+  initialMessage?: string;
+  hasOutput: boolean;
+}
+
+// AUDITARIA_AGENT_SESSION: Full session detail for the 'get' action
+export interface SessionDetail {
+  info: SessionInfo;
+  output: string;
+  outputSource: 'lastResponse' | 'partialOutput' | 'none';
+  totalLines: number;
 }
 
 export interface CreateSessionOpts {
@@ -240,6 +257,7 @@ export class AgentSessionManager {
       messageCount: 0,
       createdAt: Date.now(),
       lastMessageAt: Date.now(),
+      customSystemContext: opts.systemContext, // Raw user-provided context (not the full auditaria prompt)
     };
 
     this.sessions.set(sessionId, session);
@@ -275,6 +293,11 @@ export class AgentSessionManager {
     }
 
     session.busy = true;
+    // AUDITARIA_AGENT_SESSION: Track initial message (raw LLM prompt, not driver-modified)
+    if (session.messageCount === 0) {
+      session.initialMessage = message;
+    }
+    session.partialOutput = ''; // Reset streaming buffer
     try {
       // Pass system context on every call — some drivers (auditaria, claude) don't
       // persist --append-system-prompt-file across --resume sessions.
@@ -291,6 +314,8 @@ export class AgentSessionManager {
         switch (event.type) {
           case ProviderEventType.Content: {
             responseText.push(event.text);
+            // AUDITARIA_AGENT_SESSION: Update streaming buffer for get action inspection
+            session.partialOutput = responseText.join('');
             // Throttle updateOutput to every 200ms
             const now = Date.now();
             if (updateOutput && now - lastUpdateTime > 200) {
@@ -298,7 +323,7 @@ export class AgentSessionManager {
               updateOutput(JSON.stringify({
                 type: 'agent_session_streaming',
                 sessionId,
-                partialText: responseText.join(''),
+                partialText: session.partialOutput,
               }));
             }
             break;
@@ -317,6 +342,7 @@ export class AgentSessionManager {
           }
           case ProviderEventType.Error: {
             responseText.push(`\n\n[Error: ${event.message}]`);
+            session.partialOutput = responseText.join('');
             break;
           }
           // Thinking, ToolResult, Finished — we don't need to expose these
@@ -339,6 +365,10 @@ export class AgentSessionManager {
         response += `\n\n---\nTools used: ${toolSummary}`;
       }
 
+      // AUDITARIA_AGENT_SESSION: Store last response and clear streaming buffer
+      session.lastResponse = response;
+      session.partialOutput = undefined;
+
       return response;
     } finally {
       session.busy = false;
@@ -351,6 +381,26 @@ export class AgentSessionManager {
 
   listSessions(): SessionInfo[] {
     return Array.from(this.sessions.values()).map(s => this.toSessionInfo(s));
+  }
+
+  // AUDITARIA_AGENT_SESSION: Full session detail for the 'get' action
+  getSessionDetail(sessionId: string): SessionDetail | null {
+    const session = this.sessions.get(sessionId);
+    if (!session) return null;
+
+    const output = session.busy
+      ? (session.partialOutput ?? '')
+      : (session.lastResponse ?? '');
+    const outputSource: SessionDetail['outputSource'] = session.busy
+      ? (session.partialOutput ? 'partialOutput' : 'none')
+      : (session.lastResponse ? 'lastResponse' : 'none');
+
+    return {
+      info: this.toSessionInfo(session),
+      output,
+      outputSource,
+      totalLines: output ? output.split('\n').length : 0,
+    };
   }
 
   killSession(sessionId: string): void {
@@ -430,6 +480,9 @@ export class AgentSessionManager {
       messageCount: session.messageCount,
       createdAt: session.createdAt,
       lastMessageAt: session.lastMessageAt,
+      customSystemContext: session.customSystemContext,
+      initialMessage: session.initialMessage,
+      hasOutput: !!(session.lastResponse || session.partialOutput),
     };
   }
 }

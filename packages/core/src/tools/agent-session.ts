@@ -20,7 +20,7 @@ import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS, AUDITARIA_MODEL_IDS } from '../provi
 // Types
 // -------------------------------------------------------------------
 
-const ACTIONS = ['create', 'send', 'list', 'kill'] as const;
+const ACTIONS = ['create', 'send', 'list', 'get', 'kill'] as const;
 type Action = (typeof ACTIONS)[number];
 
 // All valid model values the LLM can choose from
@@ -39,6 +39,9 @@ interface ExternalAgentSessionParams {
   mode?: string;
   allow_sub_agents?: boolean;
   system_context?: string;
+  // AUDITARIA_AGENT_SESSION: Pagination for 'get' action output
+  output_offset?: number;
+  output_limit?: number;
 }
 
 // -------------------------------------------------------------------
@@ -57,7 +60,8 @@ You can spawn any provider, including the same one you are running on.
 Actions:
 - create: Start a new sub-agent session. Returns the session ID.
 - send: Send a message to an existing session. Returns the sub-agent's response.
-- list: Show all active sessions and their status.
+- list: Show all active sessions with their role/context summary.
+- get: Inspect a session's full details — custom system context, initial prompt, and paginated output (supports checking a busy agent's partial output without waiting for completion). Uses tail mode by default (last N lines); set output_offset to read from a specific position.
 - kill: Terminate a session and free its resources.
 
 Permission modes (set on create):
@@ -136,6 +140,15 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
             type: 'string',
             description: 'Custom system context/instructions for the sub-agent session.',
           },
+          // AUDITARIA_AGENT_SESSION: Pagination params for 'get' action
+          output_offset: {
+            type: 'number',
+            description: 'Line offset for output pagination (0-based). When omitted, shows the last output_limit lines (tail mode). When specified, shows lines starting from this offset.',
+          },
+          output_limit: {
+            type: 'number',
+            description: 'Number of output lines to show. Default: 50.',
+          },
         },
         required: ['action'],
         additionalProperties: false,
@@ -158,6 +171,12 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
     if (params.action === 'send') {
       if (!params.session_id) return 'session_id is required for "send" action';
       if (!params.message) return 'message is required for "send" action';
+    }
+
+    if (params.action === 'get') {
+      if (!params.session_id) return 'session_id is required for "get" action';
+      if (params.output_offset !== undefined && params.output_offset < 0) return 'output_offset must be >= 0';
+      if (params.output_limit !== undefined && params.output_limit < 1) return 'output_limit must be >= 1';
     }
 
     if (params.action === 'kill' && !params.session_id) {
@@ -244,6 +263,8 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
         return `Send message to session ${session_id}`;
       case 'list':
         return 'List active external agent sessions';
+      case 'get':
+        return `Inspect session ${session_id}`;
       case 'kill':
         return `Kill session ${session_id}`;
       default:
@@ -265,6 +286,8 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
           return await this.executeSend(manager, signal, updateOutput);
         case 'list':
           return this.executeList(manager);
+        case 'get':
+          return this.executeGet(manager);
         case 'kill':
           return this.executeKill(manager);
         default:
@@ -361,13 +384,99 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
 
     const lines = sessions.map(s => {
       const age = Math.round((Date.now() - s.createdAt) / 1000);
-      return `- ${s.id}: provider=${s.provider}, model=${s.model || 'auto'}, mode=${s.mode}, busy=${s.busy}, messages=${s.messageCount}, age=${age}s`;
+      let line = `- ${s.id}: provider=${s.provider}, model=${s.model || 'auto'}, mode=${s.mode}, busy=${s.busy}, messages=${s.messageCount}, age=${age}s`;
+      // AUDITARIA_AGENT_SESSION: Include truncated context/prompt so LLM can recall session purpose after compression
+      if (s.customSystemContext) {
+        const truncated = s.customSystemContext.length > 150
+          ? s.customSystemContext.slice(0, 150) + '...'
+          : s.customSystemContext;
+        line += `\n  Role: ${truncated}`;
+      }
+      if (s.initialMessage) {
+        const truncated = s.initialMessage.length > 150
+          ? s.initialMessage.slice(0, 150) + '...'
+          : s.initialMessage;
+        line += `\n  Initial prompt: ${truncated}`;
+      }
+      if (s.hasOutput) {
+        line += `\n  Has output: yes (use "get" action to inspect)`;
+      }
+      return line;
     });
 
     const result = `Active external agent sessions (${sessions.length}):\n${lines.join('\n')}`;
     return {
       llmContent: result,
       returnDisplay: `${sessions.length} active session(s)`,
+    };
+  }
+
+  // AUDITARIA_AGENT_SESSION: Inspect session details with paginated output
+  private executeGet(manager: import('../providers/agent-session-manager.js').AgentSessionManager): ToolResult {
+    const detail = manager.getSessionDetail(this.params.session_id!);
+    if (!detail) {
+      return {
+        llmContent: `Session "${this.params.session_id}" not found.`,
+        returnDisplay: `Session not found: ${this.params.session_id}`,
+        error: { message: `Session not found: ${this.params.session_id}`, type: ToolErrorType.EXECUTION_FAILED },
+      };
+    }
+
+    const { info, output, outputSource, totalLines } = detail;
+    const age = Math.round((Date.now() - info.createdAt) / 1000);
+    const sections: string[] = [];
+
+    // Session metadata
+    sections.push(`Session: ${info.id}`);
+    sections.push(`Provider: ${info.provider}, Model: ${info.model || 'auto'}, Mode: ${info.mode}`);
+    sections.push(`Status: ${info.busy ? 'BUSY (processing)' : 'idle'}, Messages: ${info.messageCount}, Age: ${age}s`);
+
+    // Custom system context (the user-settable part only)
+    if (info.customSystemContext) {
+      sections.push(`\nCustom System Context:\n${info.customSystemContext}`);
+    }
+
+    // Initial message (raw LLM prompt)
+    if (info.initialMessage) {
+      sections.push(`\nInitial Message:\n${info.initialMessage}`);
+    }
+
+    // Paginated output
+    if (outputSource === 'none') {
+      sections.push('\nOutput: (none yet)');
+    } else {
+      const lines = output.split('\n');
+      const limit = this.params.output_limit ?? 50;
+
+      let startLine: number;
+      if (this.params.output_offset !== undefined) {
+        // Explicit offset mode: start from given line
+        startLine = Math.min(this.params.output_offset, Math.max(0, totalLines - 1));
+      } else {
+        // Tail mode (default): show last N lines
+        startLine = Math.max(0, totalLines - limit);
+      }
+      const endLine = Math.min(startLine + limit, totalLines);
+      const slice = lines.slice(startLine, endLine);
+
+      const sourceLabel = outputSource === 'partialOutput' ? ' (streaming — agent is still working)' : '';
+      sections.push(`\nOutput${sourceLabel} [lines ${startLine}-${endLine - 1} of ${totalLines} total]:`);
+      // Number lines like Read tool for easy reference
+      slice.forEach((line, i) => {
+        sections.push(`${String(startLine + i).padStart(5)}  ${line}`);
+      });
+
+      if (endLine < totalLines) {
+        sections.push(`\n... ${totalLines - endLine} more lines below. Use output_offset=${endLine} to continue.`);
+      }
+      if (startLine > 0 && this.params.output_offset !== undefined) {
+        sections.push(`... ${startLine} lines above. Use output_offset=0 to see from beginning.`);
+      }
+    }
+
+    return {
+      llmContent: sections.join('\n'),
+      returnDisplay: `Session ${info.id}: ${outputSource === 'partialOutput' ? 'streaming' : outputSource === 'lastResponse' ? `${totalLines} lines` : 'no output'}`,
     };
   }
 
