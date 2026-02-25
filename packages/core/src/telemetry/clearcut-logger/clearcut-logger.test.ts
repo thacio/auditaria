@@ -35,6 +35,7 @@ import {
   WebFetchFallbackAttemptEvent,
   HookCallEvent,
 } from '../types.js';
+import { HookType } from '../../hooks/types.js';
 import { AgentTerminateMode } from '../../agents/types.js';
 // eslint-disable-next-line import/no-internal-modules
 import { GIT_COMMIT_INFO, CLI_VERSION } from '../../generated/git-commit.js';
@@ -1402,7 +1403,7 @@ describe('ClearcutLogger', () => {
 
       const event = new HookCallEvent(
         'before-tool',
-        'command',
+        HookType.Command,
         hookName,
         {}, // input
         150, // duration
