@@ -6,13 +6,12 @@
 // WEB_INTERFACE_FEATURE: Shared model catalog for ModelDialog and web footer model selector.
 
 import {
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_GEMINI_FLASH_LITE_MODEL,
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_MODEL_AUTO,
-  PREVIEW_GEMINI_FLASH_MODEL,
-  PREVIEW_GEMINI_MODEL,
+  VALID_GEMINI_MODELS,
   PREVIEW_GEMINI_MODEL_AUTO,
+  DEFAULT_GEMINI_MODEL_AUTO,
+  isActiveModel,
+  isPreviewModel,
+  getDisplayString,
   CODEX_REASONING_EFFORTS,
   type CodexReasoningEffort,
 } from '@google/gemini-cli-core';
@@ -91,56 +90,59 @@ export interface GeminiWebOption {
   selection: string;
   label: string;
   description: string;
-  requiresPreview?: boolean;
 }
 
-const ALL_GEMINI_WEB_OPTIONS: readonly GeminiWebOption[] = [
-  {
-    selection: `gemini:${PREVIEW_GEMINI_MODEL_AUTO}`,
-    label: 'Gemini (Auto 3)',
-    description: 'Automatically routes between Gemini 3 Pro and Gemini 3 Flash',
-    requiresPreview: true,
-  },
-  {
-    selection: `gemini:${DEFAULT_GEMINI_MODEL_AUTO}`,
-    label: 'Gemini (Auto 2.5)',
-    description: 'Automatically routes between Gemini 2.5 Pro and Gemini 2.5 Flash',
-  },
-  {
-    selection: `gemini:${PREVIEW_GEMINI_MODEL}`,
-    label: `Gemini (${PREVIEW_GEMINI_MODEL})`,
-    description: 'Highest quality Gemini 3 preview model',
-    requiresPreview: true,
-  },
-  {
-    selection: `gemini:${PREVIEW_GEMINI_FLASH_MODEL}`,
-    label: `Gemini (${PREVIEW_GEMINI_FLASH_MODEL})`,
-    description: 'Fast Gemini 3 preview model',
-    requiresPreview: true,
-  },
-  {
-    selection: `gemini:${DEFAULT_GEMINI_MODEL}`,
-    label: `Gemini (${DEFAULT_GEMINI_MODEL})`,
-    description: 'Most capable stable Gemini model',
-  },
-  {
-    selection: `gemini:${DEFAULT_GEMINI_FLASH_MODEL}`,
-    label: `Gemini (${DEFAULT_GEMINI_FLASH_MODEL})`,
-    description: 'Balanced speed and quality',
-  },
-  {
-    selection: `gemini:${DEFAULT_GEMINI_FLASH_LITE_MODEL}`,
-    label: `Gemini (${DEFAULT_GEMINI_FLASH_LITE_MODEL})`,
-    description: 'Lowest latency for quick iterations',
-  },
-];
-
+/**
+ * Derives the Gemini model options for the web menu from the upstream source of truth
+ * (VALID_GEMINI_MODELS, isActiveModel, isPreviewModel, getDisplayString).
+ *
+ * This auto-discovers models — when upstream adds new models to VALID_GEMINI_MODELS
+ * and updates isActiveModel(), the web menu picks them up with zero changes here.
+ */
 export function getGeminiWebOptions(
   hasPreviewModels: boolean,
+  useGemini31 = false,
+  useCustomToolModel = false,
 ): GeminiWebOption[] {
-  return ALL_GEMINI_WEB_OPTIONS.filter(
-    (option) => !option.requiresPreview || hasPreviewModels,
-  );
+  const options: GeminiWebOption[] = [];
+
+  // Auto models first (not in VALID_GEMINI_MODELS, handled separately)
+  if (hasPreviewModels) {
+    options.push({
+      selection: `gemini:${PREVIEW_GEMINI_MODEL_AUTO}`,
+      label: `Gemini (${getDisplayString(PREVIEW_GEMINI_MODEL_AUTO)})`,
+      description: 'Auto-routes between preview Pro and Flash models',
+    });
+  }
+  options.push({
+    selection: `gemini:${DEFAULT_GEMINI_MODEL_AUTO}`,
+    label: `Gemini (${getDisplayString(DEFAULT_GEMINI_MODEL_AUTO)})`,
+    description: 'Auto-routes between stable Pro and Flash models',
+  });
+
+  // Manual models — iterate VALID_GEMINI_MODELS (insertion order: preview first, then stable)
+  for (const model of VALID_GEMINI_MODELS) {
+    if (!isActiveModel(model, useGemini31, useCustomToolModel)) continue;
+    if (isPreviewModel(model) && !hasPreviewModels) continue;
+
+    options.push({
+      selection: `gemini:${model}`,
+      label: `Gemini (${getDisplayString(model)})`,
+      description: deriveModelDescription(model),
+    });
+  }
+
+  return options;
+}
+
+/** Pattern-based description — covers current and future models automatically. */
+function deriveModelDescription(model: string): string {
+  const preview = isPreviewModel(model);
+  const tier = preview ? 'preview' : 'stable';
+  if (model.includes('flash-lite')) return `Lowest latency ${tier} model`;
+  if (model.includes('flash')) return `Fast ${tier} model`;
+  if (model.includes('pro')) return `Highest quality ${tier} model`;
+  return model;
 }
 
 export const CODEX_REASONING_LABELS: Readonly<

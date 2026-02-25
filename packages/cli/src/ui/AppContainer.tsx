@@ -2150,6 +2150,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
   // WEB_INTERFACE_START: Web model selector data + handler
   const webModelMenuData = useMemo(() => {
     const hasPreviewModels = config.getHasAccessToPreviewModel();
+    const useGemini31 = config.getGemini31LaunchedSync?.() ?? false;
+    const selectedAuthType = settings.merged.security.auth.selectedType;
+    const useCustomToolModel =
+      useGemini31 && selectedAuthType === AuthType.USE_GEMINI;
     const selectedDisplayModel = config.getDisplayModel();
     const selectedGeminiModel = config.getModel();
 
@@ -2169,7 +2173,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         id: 'gemini',
         label: 'Gemini',
         available: true, // AUDITARIA_PROVIDER_AVAILABILITY: Gemini is always available
-        options: getGeminiWebOptions(hasPreviewModels),
+        options: getGeminiWebOptions(hasPreviewModels, useGemini31, useCustomToolModel),
       },
       {
         id: 'claude',
@@ -2220,12 +2224,20 @@ Logging in with Google... Restarting Gemini CLI to continue.
       ),
     );
     if (!availableSelections.has(activeSelection)) {
+      // Dynamically add the unknown model so the web always reflects the CLI's actual selection
       if (selectedDisplayModel.startsWith('claude-code:')) {
         activeSelection = `${CLAUDE_PREFIX}auto`;
       } else if (selectedDisplayModel.startsWith('codex-code:')) {
         activeSelection = `${CODEX_PREFIX}auto`;
       } else {
-        activeSelection = 'gemini:auto-gemini-2.5';
+        const geminiGroup = groups.find((g) => g.id === 'gemini');
+        if (geminiGroup) {
+          geminiGroup.options.push({
+            selection: activeSelection,
+            label: `Gemini (${selectedGeminiModel})`,
+            description: 'Currently selected model',
+          });
+        }
       }
     }
 
@@ -2247,8 +2259,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
         options: CODEX_REASONING_OPTIONS,
       },
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentModel and modelChangeNonce are intentional trigger deps
-  }, [config, currentModel, modelChangeNonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- currentModel, modelChangeNonce, settingsNonce are intentional trigger deps
+  }, [config, currentModel, modelChangeNonce, settings, settingsNonce]);
 
   const webModelSelections = useMemo(
     () =>
