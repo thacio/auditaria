@@ -189,8 +189,10 @@ export class ToolExecutorServer {
 
       const result = await tool.buildAndExecute(params, ac.signal, updateOutput);
 
-      const content = partToString(result.llmContent, { verbose: true });
-
+      // Return the raw response parts directly if it's an array or complex object, 
+      // so providerManager can extract the rich structure for the RAW viewer.
+      // Otherwise fallback to stringified content.
+      
       // AUDITARIA: Store returnDisplay for providerManager to consume
       const returnDisplayStr = typeof result.returnDisplay === 'string'
         ? result.returnDisplay
@@ -199,8 +201,17 @@ export class ToolExecutorServer {
         this.lastReturnDisplays.set(toolName, returnDisplayStr);
       }
 
+      let contentToReturn = '';
+      if (Array.isArray(result.llmContent)) {
+        contentToReturn = JSON.stringify(result.llmContent);
+      } else if (typeof result.llmContent === 'object' && result.llmContent !== null) {
+        contentToReturn = JSON.stringify([result.llmContent]);
+      } else {
+        contentToReturn = partToString(result.llmContent, { verbose: true }) || returnDisplayStr || 'Tool completed with no output';
+      }
+
       return {
-        content: content || returnDisplayStr || 'Tool completed with no output',
+        content: contentToReturn,
         isError: !!result.error,
         returnDisplay: returnDisplayStr,
       };

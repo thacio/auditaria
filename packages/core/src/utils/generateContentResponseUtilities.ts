@@ -59,6 +59,7 @@ export function convertToFunctionResponse(
   const textParts: string[] = [];
   const inlineDataParts: Part[] = [];
   const fileDataParts: Part[] = [];
+  let complexOutput: any = undefined;
 
   for (const part of parts) {
     if (part.text !== undefined) {
@@ -83,8 +84,12 @@ export function convertToFunctionResponse(
           },
         },
       ];
+    } else {
+      // If we don't know what it is, it might be a JSON object being passed through
+      if (complexOutput === undefined) {
+        complexOutput = part;
+      }
     }
-    // Ignore other part types
   }
 
   // Build the primary response part
@@ -92,7 +97,7 @@ export function convertToFunctionResponse(
     functionResponse: {
       id: callId,
       name: toolName,
-      response: textParts.length > 0 ? { output: textParts.join('\n') } : {},
+      response: textParts.length > 0 ? { output: textParts.length === 1 && typeof llmContent !== 'string' && !Array.isArray(llmContent) ? textParts[0] : textParts.join('\n') } : (complexOutput ? { output: complexOutput } : {}),
     },
   };
 

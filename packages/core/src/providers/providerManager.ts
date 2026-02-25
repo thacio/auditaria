@@ -390,13 +390,42 @@ export class ProviderManager {
           const storedDisplay = this.toolExecutorServer?.consumeReturnDisplay(originalToolName);
           this.pendingToolCalls.delete(toolName);
 
+          // AUDITARIA: Extract nice text from Claude's JSON array output for resultDisplay
+          let parsedText = '';
+          let responsePartsArray: any[] = [];
+          
+          try {
+            if (typeof event.output === 'string') {
+              if (event.output.trim().startsWith('[')) {
+                const parsed = JSON.parse(event.output);
+                if (Array.isArray(parsed)) {
+                  parsedText = parsed.map(p => p.text || '').filter(Boolean).join('\n\n');
+                  responsePartsArray = parsed;
+                }
+              } else {
+                responsePartsArray = [{ text: event.output }];
+              }
+            } else if (Array.isArray(event.output)) {
+              const outputArray = event.output as any[];
+              parsedText = outputArray.map((p: any) => p.text || JSON.stringify(p)).filter(Boolean).join('\n\n');
+              responsePartsArray = outputArray;
+            } else if (event.output) {
+              responsePartsArray = [{ text: JSON.stringify(event.output) }];
+            }
+          } catch (e) {
+            // Ignore parse errors, fallback to raw output
+            responsePartsArray = event.output ? [{ text: event.output }] : [];
+          }
+
+          const finalDisplay = storedDisplay || (parsedText ? parsedText : (typeof event.output === 'string' ? event.output : JSON.stringify(event.output)));
+
           yield {
             type: GeminiEventType.ToolCallResponse,
             value: {
               callId: event.toolId,
-              responseParts: [],
-              resultDisplay: storedDisplay || event.output,
-              error: event.isError ? new Error(event.output) : undefined,
+              responseParts: responsePartsArray,
+              resultDisplay: finalDisplay,
+              error: event.isError ? new Error(typeof event.output === 'string' ? event.output : JSON.stringify(event.output)) : undefined,
               errorType: undefined,
             },
           };

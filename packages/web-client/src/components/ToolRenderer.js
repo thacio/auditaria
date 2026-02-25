@@ -10,6 +10,50 @@ import { createAgentControls } from './agentControlsFactory.js';
 // AUDITARIA: Track active stream viewers for cleanup
 const activeStreamViewers = new Map();
 
+/**
+ * Format raw LLM output, extracting text from Gemini and Claude structures
+ * @param {any} llmOutput 
+ * @returns {string} The extracted text
+ */
+function extractLlmText(llmOutput) {
+    if (!llmOutput) return '';
+    if (typeof llmOutput === 'string') return llmOutput;
+    
+    if (Array.isArray(llmOutput)) {
+        let extracted = [];
+        for (const part of llmOutput) {
+            // Gemini functionResponse
+            if (part.functionResponse?.response?.output) {
+                const out = part.functionResponse.response.output;
+                extracted.push(typeof out === 'string' ? out : JSON.stringify(out, null, 2));
+            }
+            // Claude text parts or standard genai text parts
+            else if (part.text) {
+                extracted.push(part.text);
+            }
+            // Claude array format with type
+            else if (part.type === 'text' && part.text) {
+                extracted.push(part.text);
+            }
+        }
+        if (extracted.length > 0) return extracted.join('\n\n');
+    }
+    
+    // Fallback if we can't parse the expected structure
+    return JSON.stringify(llmOutput, null, 2);
+}
+
+/**
+ * Heuristic to detect if a string likely contains Markdown formatting
+ * @param {string} text 
+ * @returns {boolean}
+ */
+function seemsLikeMarkdown(text) {
+    if (typeof text !== 'string') return false;
+    // Look for code blocks, headers, links, or bold text
+    return /```|^#{1,6}\s|\[.+?\]\(.+?\)|\*\*.*?\*\*/m.test(text);
+}
+
 // AUDITARIA: Browser step status icons and colors
 const BROWSER_STEP_STATUS = {
     pending: { icon: '○', colorClass: 'browser-step-pending' },
@@ -151,11 +195,20 @@ function createToolHeader(tool) {
                     // Show LLM output
                     outputEl.dataset.showingLlm = 'true';
                     outputEl.innerHTML = '';
-                    const pre = document.createElement('pre');
-                    pre.className = 'tool-output-object';
-                    pre.style.whiteSpace = 'pre-wrap'; // Ensure long JSON wraps
-                    pre.textContent = typeof tool.llmOutput === 'string' ? tool.llmOutput : JSON.stringify(tool.llmOutput, null, 2);
-                    outputEl.appendChild(pre);
+                    
+                    const extractedText = extractLlmText(tool.llmOutput);
+                    if (processMarkdown && seemsLikeMarkdown(extractedText)) {
+                        const markdownEl = document.createElement('div');
+                        markdownEl.className = 'tool-output-markdown';
+                        markdownEl.innerHTML = processMarkdown(extractedText);
+                        outputEl.appendChild(markdownEl);
+                    } else {
+                        const pre = document.createElement('pre');
+                        pre.className = 'tool-output-object';
+                        pre.style.whiteSpace = 'pre-wrap'; // Ensure long JSON/text wraps
+                        pre.textContent = extractedText;
+                        outputEl.appendChild(pre);
+                    }
                     toggleLlmBtn.classList.add('active');
 
                     // Ensure the tool item is expanded to see the output
