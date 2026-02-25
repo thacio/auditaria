@@ -163,14 +163,8 @@ if (existsSync(pgliteDir)) {
 // AUDITARIA_BROWSER_AGENT_START: Copy stagehand package.json for module resolution
 // Stagehand's dist/index.js is re-bundled by esbuild (see esbuild.config.js) with all
 // dependencies inlined. We only need to copy the package.json for Node's require() resolution.
-const stagehandSrc = join(
-  root,
-  'node_modules/@browserbasehq/stagehand',
-);
-const stagehandDest = join(
-  bundleDir,
-  'node_modules/@browserbasehq/stagehand',
-);
+const stagehandSrc = join(root, 'node_modules/@browserbasehq/stagehand');
+const stagehandDest = join(bundleDir, 'node_modules/@browserbasehq/stagehand');
 
 if (existsSync(join(stagehandSrc, 'package.json'))) {
   mkdirSync(stagehandDest, { recursive: true });
@@ -217,5 +211,27 @@ if (existsSync(webClientSrc)) {
   console.log('Web client files copied to bundle/web-client/');
 }
 // WEB_INTERFACE_END
+
+// 5. Copy DevTools package so the external dynamic import resolves at runtime
+const devtoolsSrc = join(root, 'packages/devtools');
+const devtoolsDest = join(
+  bundleDir,
+  'node_modules',
+  '@google',
+  'gemini-cli-devtools',
+);
+const devtoolsDistSrc = join(devtoolsSrc, 'dist');
+if (existsSync(devtoolsDistSrc)) {
+  mkdirSync(devtoolsDest, { recursive: true });
+  cpSync(devtoolsDistSrc, join(devtoolsDest, 'dist'), {
+    recursive: true,
+    dereference: true,
+  });
+  copyFileSync(
+    join(devtoolsSrc, 'package.json'),
+    join(devtoolsDest, 'package.json'),
+  );
+  console.log('Copied devtools package to bundle/node_modules/');
+}
 
 console.log('Assets and locale files copied to bundle/');
