@@ -109,6 +109,7 @@ export * from './utils/apiConversionUtils.js';
 export * from './utils/channel.js';
 export * from './utils/constants.js';
 export * from './utils/providerAvailability.js'; // AUDITARIA_PROVIDER_AVAILABILITY
+export * from './utils/sessionUtils.js';
 
 // Export services
 export * from './services/fileDiscoveryService.js';
