@@ -109,8 +109,9 @@ export interface IndividualToolCallDisplay {
   correlationId?: string;
   approvalMode?: ApprovalMode;
   progressMessage?: string;
-  progressPercent?: number;
   originalRequestName?: string;
+  progress?: number;
+  progressTotal?: number;
 }
 
 // WEB_INTERFACE: ResponseBlock for unified web streaming state
