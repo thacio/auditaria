@@ -16,6 +16,7 @@ import {
   GOOGLE_ACCOUNTS_FILENAME,
   isSubpath,
   resolveToRealPath,
+  normalizePath,
 } from '../utils/paths.js';
 import { ProjectRegistry } from './projectRegistry.js';
 import { StorageMigration } from './storageMigration.js';
@@ -191,6 +192,17 @@ export class Storage {
     return getConfigDirFallbacks().map((dir) => path.join(this.targetDir, dir));
   }
   // AUDITARIA_MODIFY_END
+
+  /**
+   * Checks if the current workspace storage location is the same as the global/user storage location.
+   * This handles symlinks and platform-specific path normalization.
+   */
+  isWorkspaceHomeDir(): boolean {
+    return (
+      normalizePath(resolveToRealPath(this.targetDir)) ===
+      normalizePath(resolveToRealPath(homedir()))
+    );
+  }
 
   getAgentsDir(): string {
     return path.join(this.targetDir, AGENTS_DIR_NAME);
