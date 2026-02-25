@@ -1796,20 +1796,16 @@ class AuditariaWebClient {
 document.addEventListener('DOMContentLoaded', () => {
     const client = new AuditariaWebClient();
 
-    // AUDITARIA: Handle toggle all RAW button
+    // AUDITARIA: Handle toggle all RAW button (on left rail)
     const toggleAllRawBtn = document.getElementById('toggle-all-raw-btn');
     if (toggleAllRawBtn) {
-        toggleAllRawBtn.addEventListener('click', (e) => {
-            const isShowingRaw = e.target.classList.contains('active');
+        toggleAllRawBtn.addEventListener('click', () => {
+            const isShowingRaw = toggleAllRawBtn.classList.contains('active');
             if (isShowingRaw) {
-                e.target.classList.remove('active');
-                e.target.textContent = 'Toggle All RAW';
-                // Hide all raw
+                toggleAllRawBtn.classList.remove('active');
                 document.querySelectorAll('.tool-toggle-llm-btn.active').forEach(btn => btn.click());
             } else {
-                e.target.classList.add('active');
-                e.target.textContent = 'Hide All RAW';
-                // Show all raw
+                toggleAllRawBtn.classList.add('active');
                 document.querySelectorAll('.tool-toggle-llm-btn:not(.active)').forEach(btn => btn.click());
             }
         });

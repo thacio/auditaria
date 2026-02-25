@@ -363,6 +363,10 @@ pre {
   align-items: center;
   padding: var(--space-3) 0;
   gap: var(--space-2);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .rail-group {
