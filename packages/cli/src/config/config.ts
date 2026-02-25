@@ -1009,6 +1009,7 @@ export async function loadCliConfig(
         agents: refreshedSettings.merged.agents,
       };
     },
+    enableConseca: settings.security?.enableConseca,
   });
 }
 
