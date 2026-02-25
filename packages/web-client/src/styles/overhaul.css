@@ -662,6 +662,30 @@ pre {
   background: var(--surface-hover);
 }
 
+.tool-toggle-llm-btn {
+  margin-left: auto; /* Push to the right */
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-subtle);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tool-toggle-llm-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.tool-toggle-llm-btn.active {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: var(--primary);
+}
+
 .tool-output-text,
 .tool-output-markdown,
 .tool-output-object {

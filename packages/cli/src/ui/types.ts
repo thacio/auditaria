@@ -112,6 +112,7 @@ export interface IndividualToolCallDisplay {
   originalRequestName?: string;
   progress?: number;
   progressTotal?: number;
+  llmOutput?: any; // AUDITARIA: raw LLM Output for web UI
 }
 
 // WEB_INTERFACE: ResponseBlock for unified web streaming state

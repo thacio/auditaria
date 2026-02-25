@@ -1478,6 +1478,7 @@ export const useGeminiStream = (
                     resultDisplay: resp.resultDisplay,
                     confirmationDetails: undefined,
                     renderOutputAsMarkdown: respToolInfo?.isOutputMarkdown,
+                    llmOutput: resp.responseParts,
                   } as IndividualToolCallDisplay,
                 ],
               };

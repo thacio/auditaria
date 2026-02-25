@@ -1795,10 +1795,28 @@ class AuditariaWebClient {
 // Initialize the client when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     const client = new AuditariaWebClient();
-    
+
+    // AUDITARIA: Handle toggle all RAW button
+    const toggleAllRawBtn = document.getElementById('toggle-all-raw-btn');
+    if (toggleAllRawBtn) {
+        toggleAllRawBtn.addEventListener('click', (e) => {
+            const isShowingRaw = e.target.classList.contains('active');
+            if (isShowingRaw) {
+                e.target.classList.remove('active');
+                e.target.textContent = 'Toggle All RAW';
+                // Hide all raw
+                document.querySelectorAll('.tool-toggle-llm-btn.active').forEach(btn => btn.click());
+            } else {
+                e.target.classList.add('active');
+                e.target.textContent = 'Hide All RAW';
+                // Show all raw
+                document.querySelectorAll('.tool-toggle-llm-btn:not(.active)').forEach(btn => btn.click());
+            }
+        });
+    }
+
     // Clean up audio recorder, TTS, and autocomplete on page unload
-    window.addEventListener('beforeunload', () => {
-        if (client.audioRecorder) {
+    window.addEventListener('beforeunload', () => {        if (client.audioRecorder) {
             client.audioRecorder.cleanup();
         }
         // Stop any ongoing TTS

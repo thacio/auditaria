@@ -106,7 +106,68 @@ function createToolHeader(tool) {
     toolHeaderEl.appendChild(toolStatusIndicatorEl);
     toolHeaderEl.appendChild(toolNameEl);
     toolHeaderEl.appendChild(toolStatusEl);
-    
+
+    // AUDITARIA: Add toggle button for LLM Output
+    if (tool.llmOutput) {
+        const toggleLlmBtn = document.createElement('button');
+        toggleLlmBtn.className = 'tool-toggle-llm-btn';
+        toggleLlmBtn.textContent = 'RAW';
+        toggleLlmBtn.title = 'Toggle raw LLM output';
+
+        // Prevent expanding/collapsing when clicking the button
+        toggleLlmBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // Find the collapsible content container and then the tool-output element
+            const parentItem = toolHeaderEl.parentElement;
+            let outputEl = parentItem.querySelector('.tool-output');
+            const collapsibleContainer = parentItem.querySelector('.tool-collapsible-content');
+
+            // If no outputEl exists, maybe it wasn't rendered originally (e.g., empty resultDisplay)
+            // We should create it and append it to the collapsible container
+            if (!outputEl && collapsibleContainer) {
+                outputEl = document.createElement('div');
+                outputEl.className = 'tool-output';
+                collapsibleContainer.appendChild(outputEl);
+            }
+
+            if (outputEl) {
+                if (outputEl.dataset.showingLlm === 'true') {
+                    // Switch back to regular display
+                    outputEl.dataset.showingLlm = 'false';
+                    outputEl.innerHTML = '';
+
+                    const originalOutput = createToolOutput(tool);
+                    if (originalOutput) {
+                        while (originalOutput.firstChild) {
+                            outputEl.appendChild(originalOutput.firstChild);
+                        }
+                    } else if (outputEl.parentElement === collapsibleContainer) {
+                        // If there is no original output, remove the tool-output div entirely
+                        collapsibleContainer.removeChild(outputEl);
+                    }
+                    toggleLlmBtn.classList.remove('active');
+                } else {
+                    // Show LLM output
+                    outputEl.dataset.showingLlm = 'true';
+                    outputEl.innerHTML = '';
+                    const pre = document.createElement('pre');
+                    pre.className = 'tool-output-object';
+                    pre.style.whiteSpace = 'pre-wrap'; // Ensure long JSON wraps
+                    pre.textContent = typeof tool.llmOutput === 'string' ? tool.llmOutput : JSON.stringify(tool.llmOutput, null, 2);
+                    outputEl.appendChild(pre);
+                    toggleLlmBtn.classList.add('active');
+
+                    // Ensure the tool item is expanded to see the output
+                    parentItem.classList.add('tool-item-expanded');
+                    parentItem.classList.remove('tool-item-collapsed');
+                }
+            }
+        });
+
+        toolHeaderEl.appendChild(toggleLlmBtn);
+    }
+
     return toolHeaderEl;
 }
 
