@@ -18,14 +18,19 @@ const activeStreamViewers = new Map();
 function extractLlmText(llmOutput) {
     if (!llmOutput) return '';
     if (typeof llmOutput === 'string') return llmOutput;
-    
+
     if (Array.isArray(llmOutput)) {
         let extracted = [];
+        let binaryCount = 0;
         for (const part of llmOutput) {
             // Gemini functionResponse
             if (part.functionResponse?.response?.output) {
                 const out = part.functionResponse.response.output;
                 extracted.push(typeof out === 'string' ? out : JSON.stringify(out, null, 2));
+            }
+            // Binary content (Gemini or Claude format) — skip, just count
+            else if (part.inlineData || part.fileData || (part.type === 'image' && part.source?.type === 'base64')) {
+                binaryCount++;
             }
             // Claude text parts or standard genai text parts
             else if (part.text) {
@@ -36,9 +41,17 @@ function extractLlmText(llmOutput) {
                 extracted.push(part.text);
             }
         }
+        if (binaryCount > 0) {
+            extracted.push(`Binary content provided (${binaryCount} item(s)).`);
+        }
         if (extracted.length > 0) return extracted.join('\n\n');
     }
-    
+
+    // Single non-array object with binary data (Gemini or Claude format)
+    if (llmOutput.inlineData || llmOutput.fileData || (llmOutput.type === 'image' && llmOutput.source?.type === 'base64')) {
+        return 'Binary content provided (1 item(s)).';
+    }
+
     // Fallback if we can't parse the expected structure
     return JSON.stringify(llmOutput, null, 2);
 }

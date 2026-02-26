@@ -60,6 +60,27 @@ async function getSearchModule(): Promise<typeof import('@thacio/auditaria-searc
 // AUDITARIA: Import browser streaming components
 import { StreamManager, SessionManager, type StreamFrame, type StagehandPage } from '@thacio/browser-agent';
 
+// AUDITARIA: JSON.stringify replacer that strips binary blobs from history items
+// before sending over WebSocket. Handles both Gemini format (inlineData/fileData)
+// and Claude format ({ type: "image", source: { type: "base64", data } }).
+function webSafeReplacer(key: string, value: any): any {
+  if (value && typeof value === 'object') {
+    // Gemini format: { inlineData: { data, mimeType } }
+    if ('inlineData' in value && !('text' in value)) {
+      return { text: 'Binary content provided.' };
+    }
+    // Gemini format: { fileData: { ... } }
+    if ('fileData' in value && !('text' in value)) {
+      return { text: 'Binary content provided.' };
+    }
+    // Claude format: { type: "image", source: { type: "base64", data: "..." } }
+    if (value.type === 'image' && value.source?.type === 'base64') {
+      return { type: 'text', text: 'Binary content provided.' };
+    }
+  }
+  return value;
+}
+
 // WEB_INTERFACE_START: Message resilience system
 interface SequencedMessage {
   sequence: number;
@@ -894,7 +915,7 @@ export class WebInterfaceService extends EventEmitter {
       data: historyItem,
       sequence,
       timestamp: Date.now(),
-    });
+    }, webSafeReplacer);
     // WEB_INTERFACE_END
 
     this.clients.forEach(client => {
@@ -1053,7 +1074,7 @@ export class WebInterfaceService extends EventEmitter {
       sequence,
       ephemeral: true,
       timestamp: Date.now(),
-    });
+    }, webSafeReplacer);
 
     this.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
@@ -2194,7 +2215,7 @@ export class WebInterfaceService extends EventEmitter {
         data,
         sequence,
         timestamp: Date.now(),
-      });
+      }, webSafeReplacer);
       
       if (ws.readyState === WebSocket.OPEN) {
         try {
