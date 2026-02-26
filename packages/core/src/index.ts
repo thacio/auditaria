@@ -244,7 +244,7 @@ export {
   sanitizeHistoryForProviderSwitch,
 } from './providers/providerManager.js';
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
-export { getCopilotModelUsage } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+export { getCopilotModelUsage, getCachedCopilotModels } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
 export {
   getAuditContext,
   getAuditPreamble,

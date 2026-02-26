@@ -14,7 +14,6 @@ import {
   getDisplayString,
   CODEX_REASONING_EFFORTS,
   type CodexReasoningEffort,
-  getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
 } from '@google/gemini-cli-core';
 
 export const CLAUDE_PREFIX = 'claude:';
@@ -174,8 +173,9 @@ export function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
 // AUDITARIA_COPILOT_PROVIDER_START: Copilot model catalog with dynamic discovery support
 
 import { execSync } from 'child_process';
+import { getCachedCopilotModels, getCopilotModelUsage } from '@google/gemini-cli-core'; // AUDITARIA_COPILOT_PROVIDER
 
-/** Fallback options when `copilot --help` parsing fails. */
+/** Fallback options when copilot is not installed. */
 export const COPILOT_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${COPILOT_PREFIX}auto`,
@@ -186,35 +186,49 @@ export const COPILOT_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
   },
 ];
 
-/** Cached model IDs from `copilot --help` (not full options — usage enrichment is dynamic). */
-let cachedCopilotModelIds: string[] | null = null;
+/** Cached model IDs from `copilot --help` (only used when copilot-models.json doesn't exist). */
+let helpModelIds: string[] | null = null;
 
 /**
- * Parse available Copilot models from `copilot --help` output.
- * Extracts model IDs from the `--model <model>` choices list.
- * Model ID list is cached; descriptions are enriched dynamically
- * with usage multipliers from the ACP cache (populated after driver init).
+ * Get Copilot model options for the submenu.
+ * Priority: 1) copilot-models.json (rich ACP data) → 2) copilot --help (basic IDs) → 3) fallback
  */
 export function getCopilotModelOptions(): ProviderSubmenuOption[] {
-  // Get model IDs (cached after first parse)
-  if (cachedCopilotModelIds === null) {
+  // 1. Try cached models from ACP session/new (has names, descriptions, usage)
+  const cached = getCachedCopilotModels();
+  if (cached.length > 0) {
+    return cached.map((m) => {
+      const desc = m.copilotUsage
+        ? `${m.description || m.name} (${m.copilotUsage})`
+        : m.description || m.name;
+      return {
+        value: `${COPILOT_PREFIX}${m.value}`,
+        title: m.name,
+        description: desc,
+        key: `copilot-${m.value.replace(/[^a-z0-9-]/gi, '_')}`,
+        model: m.value === 'auto' ? undefined : m.value,
+      };
+    });
+  }
+
+  // 2. No ACP cache — fall back to copilot --help (first run, or copilot not used yet)
+  if (helpModelIds === null) {
     try {
       const helpText = execSync('copilot --help', {
         encoding: 'utf-8',
         timeout: 10_000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
-      cachedCopilotModelIds = parseCopilotModelsFromHelp(helpText);
+      helpModelIds = parseCopilotModelsFromHelp(helpText);
     } catch {
-      cachedCopilotModelIds = []; // copilot not installed or --help failed
+      helpModelIds = []; // copilot not installed or --help failed
     }
   }
 
-  if (cachedCopilotModelIds.length === 0) {
+  if (helpModelIds.length === 0) {
     return [...COPILOT_FALLBACK_OPTIONS];
   }
 
-  // Build options with dynamic usage enrichment
   return [
     {
       value: `${COPILOT_PREFIX}auto`,
@@ -223,7 +237,7 @@ export function getCopilotModelOptions(): ProviderSubmenuOption[] {
       key: 'copilot-auto',
       model: undefined,
     },
-    ...cachedCopilotModelIds.map((modelId) => {
+    ...helpModelIds.map((modelId) => {
       const usage = getCopilotModelUsage(modelId);
       return {
         value: `${COPILOT_PREFIX}${modelId}`,
@@ -241,12 +255,10 @@ export function getCopilotModelOptions(): ProviderSubmenuOption[] {
  * Looks for `--model <model>` then extracts all quoted strings until the next `--` option.
  */
 export function parseCopilotModelsFromHelp(helpText: string): string[] {
-  // Find the --model section and grab everything until the next -- option
   const modelSectionMatch = helpText.match(/--model\s+<[^>]+>\s+([\s\S]*?)(?=\n\s+--[a-z])/);
   if (!modelSectionMatch) return [];
 
   const section = modelSectionMatch[1];
-  // Extract all quoted model IDs
   const models: string[] = [];
   const quoteRegex = /"([^"]+)"/g;
   let match;
@@ -262,12 +274,12 @@ function formatCopilotModelName(modelId: string): string {
   return modelId
     .split('-')
     .map((part) => {
-      if (/^\d/.test(part)) return part; // keep version numbers as-is
+      if (/^\d/.test(part)) return part;
       if (UPPERCASE_WORDS.has(part.toLowerCase())) return part.toUpperCase();
       return part.charAt(0).toUpperCase() + part.slice(1);
     })
     .join(' ')
-    .replace(/\.\s/g, '.'); // fix "4.1" becoming "4. 1"
+    .replace(/\.\s/g, '.');
 }
 
 /**

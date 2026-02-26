@@ -28,40 +28,39 @@ function dbg(...args: unknown[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Persistent cache for Copilot usage multipliers (~/.auditaria/copilot-usage.json)
-// Loaded on first access, updated when ACP session/new returns fresh data.
+// Persistent cache for Copilot models (~/.auditaria/copilot-models.json)
+// Stores full model info (name, description, usage) from ACP session/new.
+// Loaded on first access so the UI can show models without spawning Copilot.
 // ---------------------------------------------------------------------------
 
-const USAGE_CACHE_FILE = join(homedir(), '.auditaria', 'copilot-usage.json');
-const copilotUsageCache = new Map<string, string>();
-let usageCacheLoaded = false;
+const MODELS_CACHE_FILE = join(homedir(), '.auditaria', 'copilot-models.json');
+let cachedModels: CopilotModelInfo[] | null = null; // null = not loaded yet
 
-/** Load cached usage data from disk (once). */
-function loadUsageCacheFromDisk(): void {
-  if (usageCacheLoaded) return;
-  usageCacheLoaded = true;
+/** Load cached model data from disk (once). */
+function loadModelsCacheFromDisk(): CopilotModelInfo[] {
+  if (cachedModels !== null) return cachedModels;
+  cachedModels = [];
   try {
-    if (existsSync(USAGE_CACHE_FILE)) {
-      const data = JSON.parse(readFileSync(USAGE_CACHE_FILE, 'utf-8')) as Record<string, string>;
-      for (const [k, v] of Object.entries(data)) {
-        if (typeof v === 'string') copilotUsageCache.set(k, v);
+    if (existsSync(MODELS_CACHE_FILE)) {
+      const data = JSON.parse(readFileSync(MODELS_CACHE_FILE, 'utf-8'));
+      if (Array.isArray(data)) {
+        cachedModels = data as CopilotModelInfo[];
+        dbg('loaded models cache from disk', cachedModels.length, 'entries');
       }
-      dbg('loaded usage cache from disk', copilotUsageCache.size, 'entries');
     }
   } catch {
     // Corrupt or missing file — start fresh
   }
+  return cachedModels;
 }
 
-/** Save current cache to disk (only if changed). */
-function saveUsageCacheToDisk(): void {
+/** Save current models cache to disk. */
+function saveModelsCacheToDisk(models: CopilotModelInfo[]): void {
   try {
     const dir = join(homedir(), '.auditaria');
     mkdirSync(dir, { recursive: true });
-    const obj: Record<string, string> = {};
-    for (const [k, v] of copilotUsageCache) obj[k] = v;
-    writeFileSync(USAGE_CACHE_FILE, JSON.stringify(obj, null, 2));
-    dbg('saved usage cache to disk', copilotUsageCache.size, 'entries');
+    writeFileSync(MODELS_CACHE_FILE, JSON.stringify(models, null, 2));
+    dbg('saved models cache to disk', models.length, 'entries');
   } catch {
     // Best-effort persist
   }
@@ -69,8 +68,13 @@ function saveUsageCacheToDisk(): void {
 
 /** Get the usage multiplier for a Copilot model (e.g., '1x', '3x', '0.33x'). */
 export function getCopilotModelUsage(modelId: string): string | undefined {
-  loadUsageCacheFromDisk();
-  return copilotUsageCache.get(modelId);
+  const models = loadModelsCacheFromDisk();
+  return models.find((m) => m.value === modelId)?.copilotUsage ?? undefined;
+}
+
+/** Get cached Copilot models (from last ACP session/new). Returns [] if no cache. */
+export function getCachedCopilotModels(): CopilotModelInfo[] {
+  return loadModelsCacheFromDisk();
 }
 
 function getShellOption(): boolean | string {
@@ -99,7 +103,6 @@ export class CopilotCLIDriver implements ProviderDriver {
   private availableModels: CopilotModelInfo[] = [];
   private initialized = false;
   private currentPromptFilePath: string | null = null;
-  private lastAgentsMdContent: string | null = null; // Track injected content for cleanup
 
   // Notification handler set during sendMessage to yield events
   private notificationHandler:
@@ -230,7 +233,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
   resetSession(): void {
     this.disposeSubprocess();
-    this.removeAgentsMdSection();
+    // this._removeAgentsMdSection(); // Not worth the extra write — inject handles stale content
     this.sessionId = undefined;
     this.availableModels = [];
     this.initialized = false;
@@ -238,7 +241,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
   dispose(): void {
     this.disposeSubprocess();
-    this.removeAgentsMdSection();
+    // this._removeAgentsMdSection(); // Not worth the extra write — inject handles stale content
     if (this.currentPromptFilePath) {
       try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
       this.currentPromptFilePath = null;
@@ -602,38 +605,10 @@ export class CopilotCLIDriver implements ProviderDriver {
   private parseModelsFromResult(models: AcpAvailableModel[], currentModelId?: string): void {
     const parsed: CopilotModelInfo[] = [];
 
-    // Load existing cache from disk first (so we can detect changes)
-    loadUsageCacheFromDisk();
-
-    // Build fresh usage map from ACP response
-    const freshUsage = new Map<string, string>();
-    for (const m of models) {
-      if (m._meta?.copilotUsage) {
-        freshUsage.set(m.modelId, m._meta.copilotUsage);
-      }
-    }
-
-    // Check if anything changed
-    let changed = freshUsage.size !== copilotUsageCache.size;
-    if (!changed) {
-      for (const [k, v] of freshUsage) {
-        if (copilotUsageCache.get(k) !== v) { changed = true; break; }
-      }
-    }
-
-    // Update in-memory cache
-    copilotUsageCache.clear();
-    for (const [k, v] of freshUsage) copilotUsageCache.set(k, v);
-
-    // Persist to disk and signal UI refresh if data changed
-    if (changed) {
-      saveUsageCacheToDisk();
-      // Emit model changed to trigger web model menu rebuild with fresh usage data
-      coreEvents.emitModelChanged(this.config.model || 'auto');
-    }
-
     // Auto option first
-    const defaultUsage = currentModelId ? copilotUsageCache.get(currentModelId) : undefined;
+    const defaultUsage = currentModelId
+      ? models.find((m) => m.modelId === currentModelId)?._meta?.copilotUsage
+      : undefined;
     parsed.push({
       value: 'auto',
       name: 'Auto',
@@ -650,6 +625,19 @@ export class CopilotCLIDriver implements ProviderDriver {
         description: m.description,
         copilotUsage: m._meta?.copilotUsage,
       });
+    }
+
+    // Check if anything changed vs cached data
+    const oldCache = loadModelsCacheFromDisk();
+    const changed = JSON.stringify(parsed) !== JSON.stringify(oldCache);
+
+    // Update in-memory cache
+    cachedModels = parsed;
+
+    // Persist to disk and signal UI refresh if data changed
+    if (changed) {
+      saveModelsCacheToDisk(parsed);
+      coreEvents.emitModelChanged(this.config.model || 'auto');
     }
 
     this.availableModels = parsed;
@@ -711,10 +699,8 @@ export class CopilotCLIDriver implements ProviderDriver {
    */
   private injectAgentsMd(systemContext: string): void {
     const filePath = this.getAgentsMdPath();
-    const section = `${CopilotCLIDriver.AGENTS_MD_START}\n${systemContext}\n${CopilotCLIDriver.AGENTS_MD_END}`;
-
-    // Skip write if content unchanged
-    if (this.lastAgentsMdContent === systemContext) return;
+    const startMarker = CopilotCLIDriver.AGENTS_MD_START;
+    const endMarker = CopilotCLIDriver.AGENTS_MD_END;
 
     try {
       let existing = '';
@@ -724,39 +710,37 @@ export class CopilotCLIDriver implements ProviderDriver {
         // File doesn't exist — will create
       }
 
-      const startIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_START);
-      const endIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_END);
+      const startIdx = existing.indexOf(startMarker);
+      const endIdx = existing.indexOf(endMarker);
 
-      let newContent: string;
+      // If markers exist, extract current content and compare
       if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        const currentContent = existing.slice(startIdx + startMarker.length + 1, endIdx - 1); // strip \n around content
+        if (currentContent === systemContext) return; // Already up to date
+
         // Replace existing section
         const before = existing.slice(0, startIdx);
-        const after = existing.slice(endIdx + CopilotCLIDriver.AGENTS_MD_END.length);
-        newContent = before + section + after;
+        const after = existing.slice(endIdx + endMarker.length);
+        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
+        writeFileSync(filePath, before + section + after, 'utf-8');
       } else if (existing.trim()) {
         // Append to existing file
-        newContent = existing.trimEnd() + '\n\n' + section + '\n';
+        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
+        writeFileSync(filePath, existing.trimEnd() + '\n\n' + section + '\n', 'utf-8');
       } else {
         // New file
-        newContent = section + '\n';
+        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
+        writeFileSync(filePath, section + '\n', 'utf-8');
       }
 
-      // Only write if the file content actually changed
-      if (newContent !== existing) {
-        writeFileSync(filePath, newContent, 'utf-8');
-        dbg('AGENTS.md updated');
-      }
-      this.lastAgentsMdContent = systemContext;
+      dbg('AGENTS.md updated');
     } catch (e) {
       dbg('AGENTS.md injection failed', e);
     }
   }
 
   /** Remove our marked section from AGENTS.md on dispose. */
-  private removeAgentsMdSection(): void {
-    if (this.lastAgentsMdContent === null) return; // Never injected
-    this.lastAgentsMdContent = null;
-
+  private _removeAgentsMdSection(): void {
     try {
       const filePath = this.getAgentsMdPath();
       const existing = readFileSync(filePath, 'utf-8');
@@ -777,7 +761,7 @@ export class CopilotCLIDriver implements ProviderDriver {
       }
       dbg('AGENTS.md cleaned up');
     } catch {
-      // Best-effort cleanup
+      // Best-effort cleanup (file may not exist)
     }
   }
 
