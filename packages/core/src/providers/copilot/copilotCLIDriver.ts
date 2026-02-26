@@ -9,6 +9,7 @@ import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
 import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
+import { coreEvents } from '../../utils/events.js'; // AUDITARIA_COPILOT_PROVIDER: signal UI refresh on usage update
 import type {
   JsonRpcResponse,
   JsonRpcNotification,
@@ -76,10 +77,6 @@ function getShellOption(): boolean | string {
   return process.platform === 'win32' ? 'powershell.exe' : true;
 }
 
-// Markers for MCP config injection in ~/.copilot/config (TOML format)
-const MCP_MARKER_START = '# AUDITARIA_MCP_START';
-const MCP_MARKER_END = '# AUDITARIA_MCP_END';
-
 // ---------------------------------------------------------------------------
 // Pending request tracker for JSON-RPC request/response matching
 // ---------------------------------------------------------------------------
@@ -102,7 +99,6 @@ export class CopilotCLIDriver implements ProviderDriver {
   private availableModels: CopilotModelInfo[] = [];
   private initialized = false;
   private currentPromptFilePath: string | null = null;
-  private mcpConfigInjected = false;
 
   // Notification handler set during sendMessage to yield events
   private notificationHandler:
@@ -251,7 +247,6 @@ export class CopilotCLIDriver implements ProviderDriver {
 
   dispose(): void {
     this.disposeSubprocess();
-    this.removeMcpConfig();
     if (this.currentPromptFilePath) {
       try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
       this.currentPromptFilePath = null;
@@ -273,11 +268,16 @@ export class CopilotCLIDriver implements ProviderDriver {
   private async ensureInitialized(): Promise<void> {
     if (this.initialized && this.proc) return;
 
-    // Inject MCP config before spawning
-    this.injectMcpConfig();
+    // Build spawn args: copilot --acp --stdio --allow-all [--additional-mcp-config @filepath]
+    // --allow-all bypasses permission prompts (like Claude's --dangerously-skip-permissions)
+    const args = ['--acp', '--stdio', '--allow-all'];
+    const mcpArg = this.buildMcpConfigArg();
+    if (mcpArg) {
+      args.push('--additional-mcp-config', mcpArg);
+    }
 
-    // Spawn copilot --acp --stdio
-    const proc = spawn('copilot', ['--acp', '--stdio'], {
+    // Spawn copilot subprocess
+    const proc = spawn('copilot', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: this.config.cwd,
       shell: getShellOption(),
@@ -633,8 +633,12 @@ export class CopilotCLIDriver implements ProviderDriver {
     copilotUsageCache.clear();
     for (const [k, v] of freshUsage) copilotUsageCache.set(k, v);
 
-    // Persist to disk only if data changed
-    if (changed) saveUsageCacheToDisk();
+    // Persist to disk and signal UI refresh if data changed
+    if (changed) {
+      saveUsageCacheToDisk();
+      // Emit model changed to trigger web model menu rebuild with fresh usage data
+      coreEvents.emitModelChanged(this.config.model || 'auto');
+    }
 
     // Auto option first
     const defaultUsage = currentModelId ? copilotUsageCache.get(currentModelId) : undefined;
@@ -711,75 +715,53 @@ export class CopilotCLIDriver implements ProviderDriver {
   }
 
   // ---------------------------------------------------------------------------
-  // MCP config injection
+  // MCP config via --additional-mcp-config @filepath
+  // Writes JSON to ~/.auditaria/copilot-mcp.json, passes @path to CLI.
+  // (PowerShell mangles raw JSON in args, so @filepath is required on Windows.)
   // ---------------------------------------------------------------------------
 
-  private injectMcpConfig(): void {
-    if (this.mcpConfigInjected) return;
-
+  private buildMcpConfigArg(): string | undefined {
     const hasBridge = this.config.toolBridgePort && this.config.toolBridgeScript;
-    if (!hasBridge) return;
+    if (!hasBridge) return undefined;
 
-    // Copilot CLI config is at ~/.copilot/config (TOML-like format)
-    const configDir = join(homedir(), '.copilot');
-    const configPath = join(configDir, 'config');
-    mkdirSync(configDir, { recursive: true });
-
-    let existing = '';
-    try {
-      if (existsSync(configPath)) {
-        existing = readFileSync(configPath, 'utf-8');
-      }
-    } catch { /* ignore */ }
-
-    // Strip any previous injection
-    const markerStartEscaped = MCP_MARKER_START.replace(/[#]/g, '\\#');
-    const markerEndEscaped = MCP_MARKER_END.replace(/[#]/g, '\\#');
-    const cleaned = existing.replace(
-      new RegExp(`\\n?${markerStartEscaped}[\\s\\S]*?${markerEndEscaped}\\n?`, 'g'),
-      '',
-    );
-
-    // Build MCP server section
-    const nodePath = process.execPath.replace(/\\/g, '/');
-    const scriptPath = this.config.toolBridgeScript!.replace(/\\/g, '/');
+    const nodePath = process.execPath;
+    const scriptPath = this.config.toolBridgeScript!;
     const port = this.config.toolBridgePort!;
 
-    const excludeArgs = this.config.toolBridgeExclude?.map((name) => `"--exclude", "${name}"`).join(', ') || '';
-    const bridgeArgs = excludeArgs
-      ? `"${scriptPath}", "--port", "${port}", ${excludeArgs}`
-      : `"${scriptPath}", "--port", "${port}"`;
-
-    const mcpBlock = [
-      MCP_MARKER_START,
-      `[mcp_servers.auditaria_tools]`,
-      `command = "${nodePath}"`,
-      `args = [${bridgeArgs}]`,
-      MCP_MARKER_END,
-    ].join('\n');
-
-    writeFileSync(configPath, cleaned.trimEnd() + '\n\n' + mcpBlock + '\n');
-    this.mcpConfigInjected = true;
-    dbg('MCP config injected', { configPath, port });
-  }
-
-  private removeMcpConfig(): void {
-    if (!this.mcpConfigInjected) return;
-
-    try {
-      const configPath = join(homedir(), '.copilot', 'config');
-      if (existsSync(configPath)) {
-        const content = readFileSync(configPath, 'utf-8');
-        const markerStartEscaped = MCP_MARKER_START.replace(/[#]/g, '\\#');
-        const markerEndEscaped = MCP_MARKER_END.replace(/[#]/g, '\\#');
-        const cleaned = content.replace(
-          new RegExp(`\\n?${markerStartEscaped}[\\s\\S]*?${markerEndEscaped}\\n?`, 'g'),
-          '',
-        );
-        writeFileSync(configPath, cleaned);
+    const bridgeArgs = [scriptPath, '--port', String(port)];
+    if (this.config.toolBridgeExclude?.length) {
+      for (const name of this.config.toolBridgeExclude) {
+        bridgeArgs.push('--exclude', name);
       }
-    } catch { /* ignore */ }
-    this.mcpConfigInjected = false;
+    }
+
+    const mcpConfig = {
+      mcpServers: {
+        auditaria_tools: {
+          command: nodePath,
+          args: bridgeArgs,
+        },
+      },
+    };
+
+    // Write to file only if content changed, return @filepath reference
+    const dir = join(homedir(), '.auditaria');
+    const filePath = join(dir, 'copilot-mcp.json');
+    const newContent = JSON.stringify(mcpConfig, null, 2);
+
+    let needsWrite = true;
+    try {
+      if (existsSync(filePath) && readFileSync(filePath, 'utf-8') === newContent) {
+        needsWrite = false;
+      }
+    } catch { /* missing or unreadable — write */ }
+
+    if (needsWrite) {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(filePath, newContent);
+      dbg('MCP config written', { filePath });
+    }
+    return `@${filePath}`;
   }
 
   // ---------------------------------------------------------------------------
