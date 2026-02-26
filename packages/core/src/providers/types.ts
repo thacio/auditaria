@@ -185,9 +185,6 @@ export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
 export const COPILOT_MODEL_IDS = ['auto'] as const;
 export type CopilotModelId = (typeof COPILOT_MODEL_IDS)[number];
 
-// AUDITARIA_AGENT_SESSION: Canonical model ID list for Auditaria (Gemini) sub-agents.
-export const AUDITARIA_MODEL_IDS = ['auto', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'] as const;
-export type AuditariaModelId = (typeof AUDITARIA_MODEL_IDS)[number];
 
 // AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
 // Avoids importing MCPServerConfig from config.ts (circular dependency).

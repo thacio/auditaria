@@ -14,7 +14,8 @@ import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
-import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS, AUDITARIA_MODEL_IDS } from '../providers/types.js';
+import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS } from '../providers/types.js';
+import { AUDITARIA_MODEL_IDS, VALID_GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '../config/models.js'; // AUDITARIA_AGENT_SESSION
 
 // -------------------------------------------------------------------
 // Types
@@ -53,7 +54,7 @@ const DESCRIPTION = `Manage sessions with alternative LLM providers as external 
 Available providers:
 - "claude" — Claude Code CLI (opus, sonnet, haiku)
 - "codex" — OpenAI Codex CLI (gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini)
-- "auditaria" — Auditaria/Gemini CLI (gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite)
+- "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter(id => id !== 'auto').join(', ')})
 
 You can spawn any provider, including the same one you are running on.
 
@@ -132,7 +133,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
               'Model for the sub-agent. Omit for auto (recommended). ' +
               'Claude models: opus, sonnet, haiku. ' +
               'Codex models: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini. ' +
-              'Gemini models: gemini-2.5-pro (default), gemini-2.5-flash, gemini-2.5-flash-lite.',
+              'Gemini models: ' + AUDITARIA_MODEL_IDS.filter(id => id !== 'auto').join(', ') + ' (default: ' + DEFAULT_GEMINI_MODEL + ').',
             enum: [...ALL_MODEL_IDS],
           },
           mode: {
@@ -199,7 +200,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
     if (params.action === 'create' && params.model && params.provider) {
       const claudeModels = new Set<string>(CLAUDE_MODEL_IDS.filter(id => id !== 'auto'));
       const codexModels = new Set<string>(CODEX_MODEL_IDS.filter(id => id !== 'auto'));
-      const auditariaModels = new Set<string>(AUDITARIA_MODEL_IDS.filter(id => id !== 'auto')); // AUDITARIA_AGENT_SESSION
+      const auditariaModels = VALID_GEMINI_MODELS; // AUDITARIA_AGENT_SESSION
 
       if (params.provider === 'claude' && !claudeModels.has(params.model)) {
         if (codexModels.has(params.model)) {

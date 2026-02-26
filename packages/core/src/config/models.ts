@@ -36,6 +36,17 @@ export const GEMINI_MODEL_ALIAS_FLASH_LITE = 'flash-lite';
 
 export const DEFAULT_GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001';
 
+// AUDITARIA_AGENT_SESSION: Curated model IDs for Auditaria sub-agent selection.
+// Use VALID_GEMINI_MODELS for broad validity checks; this list is for the agent schema enum.
+export const AUDITARIA_MODEL_IDS = [
+  'auto',
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
+  PREVIEW_GEMINI_MODEL,
+] as const;
+export type AuditariaModelId = (typeof AUDITARIA_MODEL_IDS)[number];
+
 // Cap the thinking at 8192 to prevent run-away thinking loops.
 export const DEFAULT_THINKING_MODE = 8192;
 
