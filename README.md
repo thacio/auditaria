@@ -70,6 +70,9 @@ software** intactas.
   - **[OpenAI Codex](https://github.com/openai/codex)**: Use modelos ChatGPT
     Codex como backend alternativo com as mesmas ferramentas e gerenciamento de
     contexto
+  - **[GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli)**:
+    Use modelos do Copilot (Claude, Gemini, GPT e mais) com sua assinatura do
+    GitHub Copilot
 - **🎯 Gerenciamento de Contexto**: Ferramentas integradas para inspecionar,
   esquecer e restaurar conteúdo da conversa para otimizar uso de tokens
   - `context_inspect` - Inspecionar histórico e estatísticas de tokens
@@ -477,6 +480,9 @@ all original software engineering capabilities** intact.
     context, memory, and custom tools
   - **[OpenAI Codex](https://github.com/openai/codex)**: Use ChatGPT Codex
     models as an alternative backend with the same tools and context management
+  - **[GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli)**:
+    Use Copilot models (Claude, Gemini, GPT, and more) with your GitHub Copilot
+    subscription
 - **🎯 Context Management**: Built-in tools to inspect, forget, and restore
   conversation content to optimize token usage
   - `context_inspect` - Inspect history and token statistics
