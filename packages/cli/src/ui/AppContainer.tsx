@@ -87,6 +87,7 @@ import {
   type CodexReasoningEffort, // AUDITARIA_PROVIDER and WEB
   getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
+  getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
   generateSteeringAckMessage,
   buildUserSteeringHintPrompt,
 } from '@google/gemini-cli-core';
@@ -144,8 +145,10 @@ import { useMcpStatus } from './hooks/useMcpStatus.js';
 import {
   CLAUDE_PREFIX,
   CODEX_PREFIX,
+  COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
+  getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   DEFAULT_CODEX_REASONING_EFFORT,
   CODEX_REASONING_OPTIONS,
   getGeminiWebOptions,
@@ -2204,6 +2207,24 @@ Logging in with Google... Restarting Gemini CLI to continue.
           ),
         })),
       },
+      // AUDITARIA_COPILOT_PROVIDER_START
+      {
+        id: 'copilot',
+        label: 'Copilot',
+        available: availability.copilot,
+        installMessage: availability.copilot
+          ? undefined
+          : 'To use GitHub Copilot, install it from https://www.npmjs.com/package/@github/copilot, then run `copilot` to authenticate.',
+        options: getCopilotModelOptions().map((option) => {
+          const usage = option.model ? getCopilotModelUsage(option.model) : undefined;
+          return {
+            selection: option.value,
+            label: usage ? `Copilot (${option.title}) ${usage}` : `Copilot (${option.title})`,
+            description: option.description,
+          };
+        }),
+      },
+      // AUDITARIA_COPILOT_PROVIDER_END
     ];
 
     let activeSelection =
@@ -2216,6 +2237,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
     } else if (selectedDisplayModel.startsWith('codex-code:')) {
       const variant = selectedDisplayModel.split(':')[1] || 'auto';
       activeSelection = `${CODEX_PREFIX}${variant}`;
+    } else if (selectedDisplayModel.startsWith('copilot-code:')) { // AUDITARIA_COPILOT_PROVIDER
+      const variant = selectedDisplayModel.split(':')[1] || 'auto';
+      activeSelection = `${COPILOT_PREFIX}${variant}`;
     }
 
     const availableSelections = new Set(
@@ -2229,6 +2253,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
         activeSelection = `${CLAUDE_PREFIX}auto`;
       } else if (selectedDisplayModel.startsWith('codex-code:')) {
         activeSelection = `${CODEX_PREFIX}auto`;
+      } else if (selectedDisplayModel.startsWith('copilot-code:')) { // AUDITARIA_COPILOT_PROVIDER
+        activeSelection = `${COPILOT_PREFIX}auto`;
       } else {
         const geminiGroup = groups.find((g) => g.id === 'gemini');
         if (geminiGroup) {
@@ -2338,7 +2364,22 @@ Logging in with Google... Restarting Gemini CLI to continue.
           },
           false,
         ); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
+        return;
       }
+
+      // AUDITARIA_COPILOT_PROVIDER_START
+      if (selection.startsWith(COPILOT_PREFIX)) {
+        const copilotModel = selection.slice(COPILOT_PREFIX.length);
+        config.setProviderConfig(
+          {
+            type: 'copilot-cli',
+            model: copilotModel === 'auto' ? undefined : copilotModel,
+            cwd: config.getWorkingDir(),
+          },
+          false,
+        );
+      }
+      // AUDITARIA_COPILOT_PROVIDER_END
     };
 
     webInterface.service.on('model_change_request', handleModelChangeRequest);

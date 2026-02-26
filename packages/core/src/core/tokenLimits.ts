@@ -25,6 +25,11 @@ export const CLAUDE_TOKEN_LIMIT = 200_000; // AUDITARIA_CLAUDE_PROVIDER
 // Source: codex-rs/core/src/models_manager/model_info.rs — CONTEXT_WINDOW_272K = 272_000, effective_context_window_percent = 95
 export const CODEX_TOKEN_LIMIT = 258_400;
 
+// AUDITARIA_COPILOT_PROVIDER: Conservative default for Copilot models.
+// Actual limit varies by underlying model (Claude=200K, GPT-5=200K+, Gemini=1M),
+// but we use 200K as a safe floor for token estimation display.
+export const COPILOT_TOKEN_LIMIT = 200_000;
+
 // AUDITARIA_FIX: Include system prompt + tools in token estimation heuristic.
 // When true, initial token count includes systemInstruction and tool definitions (Gemini)
 // or base overhead like CLAUDE.md + system prompt (Claude), matching API-reported counts.
@@ -41,6 +46,11 @@ export function tokenLimit(model: Model): TokenCount {
   // AUDITARIA_CODEX_PROVIDER: Codex models (all use same 258.4K effective context)
   if (model?.startsWith('codex-code:')) {
     return CODEX_TOKEN_LIMIT;
+  }
+
+  // AUDITARIA_COPILOT_PROVIDER: Copilot models (conservative default)
+  if (model?.startsWith('copilot-code:')) {
+    return COPILOT_TOKEN_LIMIT;
   }
 
   // Add other models as they become relevant or if specified by config

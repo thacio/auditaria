@@ -237,12 +237,14 @@ export {
   clampCodexReasoningEffortForModel,
   CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
+  COPILOT_MODEL_IDS, // AUDITARIA_COPILOT_PROVIDER
 } from './providers/types.js';
 export {
   ProviderManager,
   sanitizeHistoryForProviderSwitch,
 } from './providers/providerManager.js';
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
+export { getCopilotModelUsage } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
 export {
   getAuditContext,
   getAuditPreamble,

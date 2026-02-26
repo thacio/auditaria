@@ -14,10 +14,12 @@ import {
   getDisplayString,
   CODEX_REASONING_EFFORTS,
   type CodexReasoningEffort,
+  getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
 } from '@google/gemini-cli-core';
 
 export const CLAUDE_PREFIX = 'claude:';
 export const CODEX_PREFIX = 'codex:';
+export const COPILOT_PREFIX = 'copilot:'; // AUDITARIA_COPILOT_PROVIDER
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = 'xhigh';
 
 export interface ProviderSubmenuOption {
@@ -168,3 +170,124 @@ export function isCodexReasoningEffort(
 export function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
   return CODEX_REASONING_LABELS[effort] ?? CODEX_REASONING_LABELS.medium;
 }
+
+// AUDITARIA_COPILOT_PROVIDER_START: Copilot model catalog with dynamic discovery support
+
+import { execSync } from 'child_process';
+
+/** Fallback options when `copilot --help` parsing fails. */
+export const COPILOT_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
+  {
+    value: `${COPILOT_PREFIX}auto`,
+    title: 'Auto',
+    description: "Uses Copilot's default model",
+    key: 'copilot-auto',
+    model: undefined,
+  },
+];
+
+/** Cached model IDs from `copilot --help` (not full options — usage enrichment is dynamic). */
+let cachedCopilotModelIds: string[] | null = null;
+
+/**
+ * Parse available Copilot models from `copilot --help` output.
+ * Extracts model IDs from the `--model <model>` choices list.
+ * Model ID list is cached; descriptions are enriched dynamically
+ * with usage multipliers from the ACP cache (populated after driver init).
+ */
+export function getCopilotModelOptions(): ProviderSubmenuOption[] {
+  // Get model IDs (cached after first parse)
+  if (cachedCopilotModelIds === null) {
+    try {
+      const helpText = execSync('copilot --help', {
+        encoding: 'utf-8',
+        timeout: 10_000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      cachedCopilotModelIds = parseCopilotModelsFromHelp(helpText);
+    } catch {
+      cachedCopilotModelIds = []; // copilot not installed or --help failed
+    }
+  }
+
+  if (cachedCopilotModelIds.length === 0) {
+    return [...COPILOT_FALLBACK_OPTIONS];
+  }
+
+  // Build options with dynamic usage enrichment
+  return [
+    {
+      value: `${COPILOT_PREFIX}auto`,
+      title: 'Auto',
+      description: "Uses Copilot's default model",
+      key: 'copilot-auto',
+      model: undefined,
+    },
+    ...cachedCopilotModelIds.map((modelId) => {
+      const usage = getCopilotModelUsage(modelId);
+      return {
+        value: `${COPILOT_PREFIX}${modelId}`,
+        title: formatCopilotModelName(modelId),
+        description: usage ? `${modelId} (${usage})` : modelId,
+        key: `copilot-${modelId.replace(/[^a-z0-9-]/gi, '_')}`,
+        model: modelId,
+      };
+    }),
+  ];
+}
+
+/**
+ * Extract model IDs from copilot --help output.
+ * Looks for `--model <model>` then extracts all quoted strings until the next `--` option.
+ */
+export function parseCopilotModelsFromHelp(helpText: string): string[] {
+  // Find the --model section and grab everything until the next -- option
+  const modelSectionMatch = helpText.match(/--model\s+<[^>]+>\s+([\s\S]*?)(?=\n\s+--[a-z])/);
+  if (!modelSectionMatch) return [];
+
+  const section = modelSectionMatch[1];
+  // Extract all quoted model IDs
+  const models: string[] = [];
+  const quoteRegex = /"([^"]+)"/g;
+  let match;
+  while ((match = quoteRegex.exec(section)) !== null) {
+    models.push(match[1]);
+  }
+  return models;
+}
+
+/** Convert model ID to a display-friendly name (e.g., 'gpt-5.3-codex' → 'GPT-5.3 Codex'). */
+const UPPERCASE_WORDS = new Set(['gpt', 'ai']);
+function formatCopilotModelName(modelId: string): string {
+  return modelId
+    .split('-')
+    .map((part) => {
+      if (/^\d/.test(part)) return part; // keep version numbers as-is
+      if (UPPERCASE_WORDS.has(part.toLowerCase())) return part.toUpperCase();
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(' ')
+    .replace(/\.\s/g, '.'); // fix "4.1" becoming "4. 1"
+}
+
+/**
+ * Build Copilot submenu options from ACP session/new model list.
+ * Called after the driver's session/new returns models.availableModels.
+ * Includes copilotUsage multiplier in descriptions when available.
+ */
+export function buildCopilotOptionsFromModels(
+  models: ReadonlyArray<{ value: string; name: string; description?: string | null; copilotUsage?: string | null }>,
+): ProviderSubmenuOption[] {
+  return models.map((m) => {
+    const baseDesc = m.description || m.name;
+    const desc = m.copilotUsage ? `${baseDesc} (${m.copilotUsage})` : baseDesc;
+    return {
+      value: `${COPILOT_PREFIX}${m.value}`,
+      title: m.name,
+      description: desc,
+      key: `copilot-${m.value.replace(/[^a-z0-9-]/gi, '_')}`,
+      model: m.value === 'auto' ? undefined : m.value,
+    };
+  });
+}
+// AUDITARIA_COPILOT_PROVIDER_END

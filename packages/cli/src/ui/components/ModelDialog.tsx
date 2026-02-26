@@ -43,9 +43,11 @@ import {
 import {
   CLAUDE_PREFIX,
   CODEX_PREFIX,
+  COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
   DEFAULT_CODEX_REASONING_EFFORT,
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
+  getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   isCodexReasoningEffort,
   getCodexReasoningLabel,
 } from '../modelCatalog.js'; // AUDITARIA_PROVIDER and WEB
@@ -101,13 +103,14 @@ function getCodexModelFromSelection(value: string): string | undefined {
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
   const settings = useSettings();
-  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex'>(
+  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex' | 'copilot'>(
     'main',
-  ); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+  ); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const availability = config?.getProviderAvailability() ?? {
     claude: false,
     codex: false,
+    copilot: false, // AUDITARIA_COPILOT_PROVIDER
   }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
   const [persistMode, setPersistMode] = useState(false);
   const [codexHighlightedModel, setCodexHighlightedModel] = useState<
@@ -158,6 +161,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const displayModel = config?.getDisplayModel() ?? '';
   const isClaudeActive = displayModel.startsWith('claude-code:');
   const isCodexActive = displayModel.startsWith('codex-code:');
+  const isCopilotActive = displayModel.startsWith('copilot-code:'); // AUDITARIA_COPILOT_PROVIDER
   const codexDisplayEffort = clampCodexReasoningEffortForModel(
     codexHighlightedModel,
     codexReasoningEffort,
@@ -176,8 +180,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        if (view === 'manual' || view === 'claude' || view === 'codex') {
-          // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER: handle submenu views
+        if (view === 'manual' || view === 'claude' || view === 'codex' || view === 'copilot') {
+          // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: handle submenu views
           setView('main');
         } else {
           onClose();
@@ -272,6 +276,23 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       key: 'Codex',
     });
 
+    // AUDITARIA_COPILOT_PROVIDER_START: Single entry that opens the Copilot submenu
+    const copilotTitle = isCopilotActive
+      ? 'GitHub Copilot (active)'
+      : availability.copilot
+        ? 'GitHub Copilot'
+        : 'GitHub Copilot (not installed)';
+    const copilotDescription = availability.copilot
+      ? 'Use GitHub Copilot as the LLM backend'
+      : 'Install Copilot CLI to use this provider';
+    list.push({
+      value: 'Copilot',
+      title: copilotTitle,
+      description: copilotDescription,
+      key: 'Copilot',
+    });
+    // AUDITARIA_COPILOT_PROVIDER_END
+
     return list;
   }, [
     shouldShowPreviewModels,
@@ -279,9 +300,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     useGemini31,
     isClaudeActive,
     isCodexActive,
+    isCopilotActive, // AUDITARIA_COPILOT_PROVIDER
     availability.claude,
     availability.codex,
-  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+    availability.copilot, // AUDITARIA_COPILOT_PROVIDER
+  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const manualOptions = useMemo(() => {
     const list = [
@@ -364,16 +387,31 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   }, [codexReasoningEffort]);
   // AUDITARIA_CODEX_PROVIDER_END
 
-  // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: add submenu views to options selection
+  // AUDITARIA_COPILOT_PROVIDER_START: Copilot submenu options (parsed from `copilot --help`)
+  const copilotOptions = useMemo(
+    () =>
+      getCopilotModelOptions().map((option) => ({
+        value: option.value,
+        title: option.title,
+        description: option.description,
+        key: option.key,
+      })),
+    [],
+  );
+  // AUDITARIA_COPILOT_PROVIDER_END
+
+  // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: add submenu views to options selection
   const options =
-    view === 'codex'
-      ? codexOptions
-      : view === 'claude'
-        ? claudeOptions
-        : view === 'manual'
-          ? manualOptions
-          : mainOptions;
-  // AUDITARIA_CODEX_PROVIDER_END
+    view === 'copilot'
+      ? copilotOptions
+      : view === 'codex'
+        ? codexOptions
+        : view === 'claude'
+          ? claudeOptions
+          : view === 'manual'
+            ? manualOptions
+            : mainOptions;
+  // AUDITARIA_COPILOT_PROVIDER_END
 
   // Calculate the initial index based on the preferred model.
   const initialIndex = useMemo(() => {
@@ -388,6 +426,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       const codexIdx = options.findIndex((o) => o.value === 'Codex');
       if (codexIdx !== -1) return codexIdx;
     }
+    // AUDITARIA_COPILOT_PROVIDER: If Copilot is active, highlight its entry
+    if (isCopilotActive && view === 'main') {
+      const copilotIdx = options.findIndex((o) => o.value === 'Copilot');
+      if (copilotIdx !== -1) return copilotIdx;
+    }
     const idx = options.findIndex((option) => option.value === preferredModel);
     if (idx !== -1) {
       return idx;
@@ -397,7 +440,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       return manualIdx !== -1 ? manualIdx : 0;
     }
     return 0;
-  }, [preferredModel, options, view, isClaudeActive, isCodexActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER
+  }, [preferredModel, options, view, isClaudeActive, isCodexActive, isCopilotActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   // Handle selection internally (Autonomous Dialog).
   const handleSelect = useCallback(
@@ -463,6 +506,31 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       // AUDITARIA_CODEX_PROVIDER_END
 
+      // AUDITARIA_COPILOT_PROVIDER_START
+      if (model === 'Copilot') {
+        setView('copilot');
+        return;
+      }
+
+      if (model.startsWith(COPILOT_PREFIX)) {
+        if (config) {
+          const copilotModel = model.slice(COPILOT_PREFIX.length);
+          const providerConfig: ProviderConfig = {
+            type: 'copilot-cli',
+            model: copilotModel === 'auto' ? undefined : copilotModel,
+            cwd: config.getWorkingDir(),
+          };
+          config.setProviderConfig(providerConfig, !persistMode);
+          const event = new ModelSlashCommandEvent(
+            `copilot-code-${copilotModel}`,
+          );
+          logModelSlashCommand(config, event);
+        }
+        onClose();
+        return;
+      }
+      // AUDITARIA_COPILOT_PROVIDER_END
+
       if (config) {
         config.clearProviderConfig(!persistMode); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_PROVIDER_PERSISTENCE
 
@@ -494,7 +562,9 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           ? 'Select Claude Code Model'
           : view === 'codex'
             ? 'Select OpenAI Codex Model'
-            : 'Select Model'}
+            : view === 'copilot'
+              ? 'Select GitHub Copilot Model'
+              : 'Select Model'}
       </Text>
 
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER */}
@@ -520,7 +590,20 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           </Text>
         </Box>
       )}
-      {(view === 'claude' || view === 'codex') && (
+      {/* AUDITARIA_COPILOT_PROVIDER_START */}
+      {view === 'copilot' && !availability.copilot && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.status.warning}>
+            Note: GitHub Copilot CLI is not installed.
+          </Text>
+          <Text color={theme.text.secondary}>
+            Install from https://www.npmjs.com/package/@github/copilot, then run
+            `copilot` to authenticate.
+          </Text>
+        </Box>
+      )}
+      {/* AUDITARIA_COPILOT_PROVIDER_END */}
+      {(view === 'claude' || view === 'codex' || view === 'copilot') && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.status.warning}>
             Runs with bypassPermissions — tools execute without confirmation.
@@ -579,7 +662,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         <Text color={theme.text.secondary}>(Press Tab to toggle)</Text>
       </Box>
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: hide Gemini hint in submenu views, dynamic Esc text */}
-      {view !== 'claude' && view !== 'codex' && (
+      {view !== 'claude' && view !== 'codex' && view !== 'copilot' && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.text.secondary}>
             {

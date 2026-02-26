@@ -485,6 +485,7 @@ export function isDebugMode(argv: CliArgs): boolean {
 // AUDITARIA_PROVIDER_PERSISTENCE_START: Rehydrate persisted external providers from model.name.
 const CLAUDE_PERSISTED_MODEL_PREFIX = 'claude-code:';
 const CODEX_PERSISTED_MODEL_PREFIX = 'codex-code:';
+const COPILOT_PERSISTED_MODEL_PREFIX = 'copilot-code:'; // AUDITARIA_COPILOT_PROVIDER
 
 function parsePersistedProviderConfig(
   modelPreference: string | undefined,
@@ -539,6 +540,18 @@ function parsePersistedProviderConfig(
       options: clampedReasoningEffort
         ? { reasoningEffort: clampedReasoningEffort }
         : undefined,
+    };
+  }
+
+  // AUDITARIA_COPILOT_PROVIDER
+  if (modelPreference.startsWith(COPILOT_PERSISTED_MODEL_PREFIX)) {
+    const copilotModel = modelPreference
+      .slice(COPILOT_PERSISTED_MODEL_PREFIX.length)
+      .trim();
+    return {
+      type: 'copilot-cli',
+      model: !copilotModel || copilotModel === 'auto' ? undefined : copilotModel,
+      cwd,
     };
   }
 

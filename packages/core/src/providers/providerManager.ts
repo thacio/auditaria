@@ -623,6 +623,10 @@ export class ProviderManager {
     if (this.config.type === 'codex-cli') {
       return `codex-code:${this.config.model || 'auto'}`;
     }
+    // AUDITARIA_COPILOT_PROVIDER
+    if (this.config.type === 'copilot-cli') {
+      return `copilot-code:${this.config.model || 'auto'}`;
+    }
     return this.config.model || 'unknown';
   }
 
@@ -669,6 +673,13 @@ export class ProviderManager {
         break;
       }
       // AUDITARIA_CODEX_PROVIDER_END
+      // AUDITARIA_COPILOT_PROVIDER_START
+      case 'copilot-cli': {
+        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        this.driver = new CopilotCLIDriver(driverConfig);
+        break;
+      }
+      // AUDITARIA_COPILOT_PROVIDER_END
       default:
         throw new Error(`Unknown provider type: ${this.config.type}`);
     }

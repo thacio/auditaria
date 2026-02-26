@@ -925,6 +925,15 @@ class AuditariaWebClient {
             return `Codex (${mapped || variant})`;
         }
 
+        // AUDITARIA_COPILOT_PROVIDER: Use backend modelDisplayName which includes usage multiplier
+        if (rawLower.startsWith('copilot-code:')) {
+            if (display && displayLower.startsWith('copilot')) return display;
+            const variant = raw.slice('copilot-code:'.length);
+            return variant.toLowerCase() === 'auto'
+                ? 'Copilot (Auto)'
+                : `Copilot (${variant})`;
+        }
+
         if (
             rawLower === 'auto' ||
             rawLower === 'auto-gemini-2.5' ||
@@ -948,7 +957,8 @@ class AuditariaWebClient {
 
         if (
             displayLower.startsWith('claude (') ||
-            displayLower.startsWith('codex (')
+            displayLower.startsWith('codex (') ||
+            displayLower.startsWith('copilot (') // AUDITARIA_COPILOT_PROVIDER
         ) {
             return display;
         }

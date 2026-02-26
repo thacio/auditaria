@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process';
 export interface ProviderAvailability {
   claude: boolean;
   codex: boolean;
+  copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
   auditaria: boolean;
 }
 
@@ -54,13 +55,14 @@ async function isCommandAvailable(
  * @returns Promise that resolves to an object with availability status for each provider
  */
 export async function checkProviderAvailability(): Promise<ProviderAvailability> {
-  const [claude, codex] = await Promise.all([
+  const [claude, codex, copilot] = await Promise.all([
     isCommandAvailable('claude'),
     isCommandAvailable('codex'),
+    isCommandAvailable('copilot'), // AUDITARIA_COPILOT_PROVIDER
   ]);
 
   //Auditaria is always available (we ARE auditaria).
-  return { claude, codex, auditaria: true };
+  return { claude, codex, copilot, auditaria: true };
 }
 
 /**
@@ -68,12 +70,16 @@ export async function checkProviderAvailability(): Promise<ProviderAvailability>
  * @param provider Provider name ('claude' or 'codex')
  * @returns Install instruction message
  */
-export function getProviderInstallMessage(provider: 'claude' | 'codex'): string {
+export function getProviderInstallMessage(provider: 'claude' | 'codex' | 'copilot'): string {
   if (provider === 'claude') {
     return 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.';
   }
   if (provider === 'codex') {
     return 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.';
+  }
+  // AUDITARIA_COPILOT_PROVIDER
+  if (provider === 'copilot') {
+    return 'To use GitHub Copilot, install it from https://www.npmjs.com/package/@github/copilot, then run `copilot` to authenticate.';
   }
   return 'Provider not available. Please install and authenticate.';
 }

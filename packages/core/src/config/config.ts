@@ -627,10 +627,12 @@ export class Config {
   private providerAvailability: {
     claude: boolean;
     codex: boolean;
+    copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
     auditaria: boolean;
   } = {
     claude: false,
     codex: false,
+    copilot: false, // AUDITARIA_COPILOT_PROVIDER
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private baseLlmClient!: BaseLlmClient;
@@ -2090,6 +2092,7 @@ export class Config {
   getProviderAvailability(): {
     claude: boolean;
     codex: boolean;
+    copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
     auditaria: boolean;
   } {
     return { ...this.providerAvailability };
@@ -2098,6 +2101,7 @@ export class Config {
   setProviderAvailability(availability: {
     claude: boolean;
     codex: boolean;
+    copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
     auditaria: boolean;
   }): void {
     this.providerAvailability = { ...availability };
@@ -2118,6 +2122,10 @@ export class Config {
         return `codex-code:${model}|${effort}`;
       }
       return `codex-code:${model}`;
+    }
+    // AUDITARIA_COPILOT_PROVIDER
+    if (config.type === 'copilot-cli') {
+      return `copilot-code:${config.model || 'auto'}`;
     }
     return undefined;
   }

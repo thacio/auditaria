@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getCopilotModelUsage } from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+
 export const PREVIEW_GEMINI_MODEL = 'gemini-3-pro-preview';
 export const PREVIEW_GEMINI_3_1_MODEL = 'gemini-3.1-pro-preview';
 export const PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL =
@@ -121,6 +123,15 @@ export function getDisplayString(model: string) {
     const variant = model.split(':')[1] || 'unknown';
     if (variant === 'auto') return 'Codex (Auto)';
     return `Codex (${variant})`;
+  }
+
+  // AUDITARIA_COPILOT_PROVIDER: Format Copilot model display (with usage multiplier from ACP)
+  if (model.startsWith('copilot-code:')) {
+    const variant = model.split(':')[1] || 'unknown';
+    const usage = getCopilotModelUsage(variant);
+    const usageSuffix = usage ? ` ${usage}` : '';
+    if (variant === 'auto') return `Copilot (Auto)${usageSuffix}`;
+    return `Copilot (${variant})${usageSuffix}`;
   }
 
   switch (model) {

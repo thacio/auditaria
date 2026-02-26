@@ -25,7 +25,7 @@ function dbg(..._args: unknown[]) {
 // -------------------------------------------------------------------
 
 export type SessionMode = 'work' | 'consult';
-export type SessionProviderType = 'claude-cli' | 'codex-cli' | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli
+export type SessionProviderType = 'claude-cli' | 'codex-cli' | 'copilot-cli' | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli
 
 export interface AgentSession {
   id: string;
@@ -230,6 +230,20 @@ export class AgentSessionManager {
         });
         break;
       }
+      // AUDITARIA_COPILOT_PROVIDER_START: Copilot sub-agent driver
+      case 'copilot-cli': {
+        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        driver = new CopilotCLIDriver({
+          model,
+          cwd: this.cwd,
+          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
+          toolBridgeScript: this.bridgeScriptPath,
+          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
+          promptFileId: sessionId,
+        });
+        break;
+      }
+      // AUDITARIA_COPILOT_PROVIDER_END
       // AUDITARIA_AGENT_SESSION_START: Auditaria (Gemini) sub-agent driver
       case 'auditaria-cli': {
         const { AuditariaCLIDriver } = await import('./auditaria/auditariaCLIDriver.js');

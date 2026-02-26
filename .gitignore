@@ -1,3 +1,6 @@
+# Reference repos
+others/
+
 # API keys and secrets
 .env
 .env~
