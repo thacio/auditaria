@@ -417,7 +417,9 @@ export class ProviderManager {
             responsePartsArray = event.output ? [{ text: event.output }] : [];
           }
 
-          const finalDisplay = storedDisplay || (parsedText ? parsedText : (typeof event.output === 'string' ? event.output : JSON.stringify(event.output)));
+          // AUDITARIA: Use only the user-friendly returnDisplay from tool execution.
+          // Never fall back to raw LLM output — that's what llmOutput/RAW toggle is for.
+          const finalDisplay = storedDisplay || '';
 
           yield {
             type: GeminiEventType.ToolCallResponse,
