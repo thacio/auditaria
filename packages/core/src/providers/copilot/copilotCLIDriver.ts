@@ -99,6 +99,7 @@ export class CopilotCLIDriver implements ProviderDriver {
   private availableModels: CopilotModelInfo[] = [];
   private initialized = false;
   private currentPromptFilePath: string | null = null;
+  private lastAgentsMdContent: string | null = null; // Track injected content for cleanup
 
   // Notification handler set during sendMessage to yield events
   private notificationHandler:
@@ -126,26 +127,15 @@ export class CopilotCLIDriver implements ProviderDriver {
       await this.ensureInitialized();
     }
 
-    // Write system context to file for prompt attachment
-    let systemContextUri: string | undefined;
+    // Inject system context into AGENTS.md (Copilot's custom instructions file)
     if (systemContext) {
-      const filePath = this.writeSystemContextFile(systemContext);
-      // Use file:// URI — forward slashes on all platforms
-      systemContextUri = `file:///${filePath.replace(/\\/g, '/')}`;
+      this.injectAgentsMd(systemContext);
     }
 
     dbg('sendMessage', { promptLen: prompt.length, hasSystemContext: !!systemContext, sessionId: this.sessionId });
 
     // Build prompt content array (ACP format: {type:'text', text:...})
     const promptContent: Array<Record<string, unknown>> = [];
-    if (systemContextUri) {
-      // ACP uses 'resource_link' (not 'resource') for file references
-      promptContent.push({
-        type: 'resource_link',
-        name: 'auditaria-system-context',
-        uri: systemContextUri,
-      });
-    }
     promptContent.push({ type: 'text', text: prompt });
 
     // Set up event collection channel
@@ -240,6 +230,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
   resetSession(): void {
     this.disposeSubprocess();
+    this.removeAgentsMdSection();
     this.sessionId = undefined;
     this.availableModels = [];
     this.initialized = false;
@@ -247,6 +238,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
   dispose(): void {
     this.disposeSubprocess();
+    this.removeAgentsMdSection();
     if (this.currentPromptFilePath) {
       try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
       this.currentPromptFilePath = null;
@@ -699,24 +691,100 @@ export class CopilotCLIDriver implements ProviderDriver {
   }
 
   // ---------------------------------------------------------------------------
-  // System context file
+  // System context injection via AGENTS.md
+  // Copilot reads AGENTS.md as custom instructions. We inject/update a marked
+  // section with our system context (audit context, memory, skills).
   // ---------------------------------------------------------------------------
 
-  private writeSystemContextFile(content: string): string {
-    const dir = join(this.config.cwd, '.auditaria', 'prompts');
-    mkdirSync(dir, { recursive: true });
+  private static readonly AGENTS_MD_START = '##### AUDITARIA SYSTEM PROMPT CONTEXT';
+  private static readonly AGENTS_MD_END = '##### END OF AUDITARIA SYSTEM PROMPT CONTEXT';
 
-    const fileId = this.config.promptFileId || this.sessionId || 'copilot';
-    const filePath = join(dir, `${fileId}.copilot-ctx`);
+  private getAgentsMdPath(): string {
+    return join(this.config.cwd, 'AGENTS.md');
+  }
 
-    writeFileSync(filePath, content, 'utf-8');
-    this.currentPromptFilePath = filePath;
-    return filePath;
+  /**
+   * Inject or update our marked section in AGENTS.md.
+   * - If file doesn't exist → create with just our section
+   * - If markers exist → replace content between them (only if changed)
+   * - If no markers → append section at end
+   */
+  private injectAgentsMd(systemContext: string): void {
+    const filePath = this.getAgentsMdPath();
+    const section = `${CopilotCLIDriver.AGENTS_MD_START}\n${systemContext}\n${CopilotCLIDriver.AGENTS_MD_END}`;
+
+    // Skip write if content unchanged
+    if (this.lastAgentsMdContent === systemContext) return;
+
+    try {
+      let existing = '';
+      try {
+        existing = readFileSync(filePath, 'utf-8');
+      } catch {
+        // File doesn't exist — will create
+      }
+
+      const startIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_START);
+      const endIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_END);
+
+      let newContent: string;
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        // Replace existing section
+        const before = existing.slice(0, startIdx);
+        const after = existing.slice(endIdx + CopilotCLIDriver.AGENTS_MD_END.length);
+        newContent = before + section + after;
+      } else if (existing.trim()) {
+        // Append to existing file
+        newContent = existing.trimEnd() + '\n\n' + section + '\n';
+      } else {
+        // New file
+        newContent = section + '\n';
+      }
+
+      // Only write if the file content actually changed
+      if (newContent !== existing) {
+        writeFileSync(filePath, newContent, 'utf-8');
+        dbg('AGENTS.md updated');
+      }
+      this.lastAgentsMdContent = systemContext;
+    } catch (e) {
+      dbg('AGENTS.md injection failed', e);
+    }
+  }
+
+  /** Remove our marked section from AGENTS.md on dispose. */
+  private removeAgentsMdSection(): void {
+    if (this.lastAgentsMdContent === null) return; // Never injected
+    this.lastAgentsMdContent = null;
+
+    try {
+      const filePath = this.getAgentsMdPath();
+      const existing = readFileSync(filePath, 'utf-8');
+
+      const startIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_START);
+      const endIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_END);
+      if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return;
+
+      const before = existing.slice(0, startIdx);
+      const after = existing.slice(endIdx + CopilotCLIDriver.AGENTS_MD_END.length);
+      const cleaned = (before + after).replace(/\n{3,}/g, '\n\n').trim();
+
+      if (cleaned) {
+        writeFileSync(filePath, cleaned + '\n', 'utf-8');
+      } else {
+        // File was only our section — delete it
+        unlinkSync(filePath);
+      }
+      dbg('AGENTS.md cleaned up');
+    } catch {
+      // Best-effort cleanup
+    }
   }
 
   // ---------------------------------------------------------------------------
   // MCP config via --additional-mcp-config @filepath
-  // Writes JSON to ~/.auditaria/copilot-mcp.json, passes @path to CLI.
+  // Writes JSON to ~/.auditaria/copilot-mcp-{port}.json, passes @path to CLI.
+  // Port in filename prevents conflicts between parallel Auditaria instances.
   // (PowerShell mangles raw JSON in args, so @filepath is required on Windows.)
   // ---------------------------------------------------------------------------
 
@@ -744,9 +812,10 @@ export class CopilotCLIDriver implements ProviderDriver {
       },
     };
 
-    // Write to file only if content changed, return @filepath reference
+      // Write to file only if content changed, return @filepath reference
+    // Include port in filename so parallel Auditaria instances don't conflict
     const dir = join(homedir(), '.auditaria');
-    const filePath = join(dir, 'copilot-mcp.json');
+    const filePath = join(dir, `copilot-mcp-${port}.json`);
     const newContent = JSON.stringify(mcpConfig, null, 2);
 
     let needsWrite = true;

@@ -6,6 +6,7 @@ others/
 .env~
 .claude
 CLAUDE.md
+AGENTS.md
 
 test-html/
 
