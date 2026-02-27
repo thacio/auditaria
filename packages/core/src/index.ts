@@ -18,6 +18,7 @@ export * from './policy/policy-engine.js';
 export * from './policy/toml-loader.js';
 export * from './policy/config.js';
 export * from './policy/integrity.js';
+export * from './billing/index.js';
 export * from './confirmation-bus/types.js';
 export * from './confirmation-bus/message-bus.js';
 
@@ -77,6 +78,7 @@ export * from './utils/quotaErrorDetection.js';
 export * from './utils/userAccountManager.js';
 export * from './utils/authConsent.js';
 export * from './utils/googleQuotaErrors.js';
+export * from './utils/googleErrors.js';
 export * from './utils/fileUtils.js';
 export * from './utils/planUtils.js';
 export * from './utils/approvalModeUtils.js';
@@ -99,6 +101,7 @@ export * from './utils/ignorePatterns.js';
 export * from './utils/partUtils.js';
 export * from './utils/promptIdContext.js';
 export * from './utils/thoughtUtils.js';
+export * from './utils/secure-browser-launcher.js';
 export * from './utils/debugLogger.js';
 export * from './utils/events.js';
 export * from './utils/extensionLoader.js';
@@ -195,6 +198,8 @@ export { OAuthUtils } from './mcp/oauth-utils.js';
 
 // Export telemetry functions
 export * from './telemetry/index.js';
+export * from './telemetry/billingEvents.js';
+export { logBillingEvent } from './telemetry/loggers.js';
 export { sessionId, createSessionId } from './utils/session.js';
 export * from './utils/compatibility.js';
 export * from './utils/browser.js';
@@ -244,7 +249,10 @@ export {
   sanitizeHistoryForProviderSwitch,
 } from './providers/providerManager.js';
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
-export { getCopilotModelUsage, getCachedCopilotModels } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+export {
+  getCopilotModelUsage,
+  getCachedCopilotModels,
+} from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
 export {
   getAuditContext,
   getAuditPreamble,

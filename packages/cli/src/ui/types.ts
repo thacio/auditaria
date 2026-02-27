@@ -112,6 +112,7 @@ export interface IndividualToolCallDisplay {
   originalRequestName?: string;
   progress?: number;
   progressTotal?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   llmOutput?: any; // AUDITARIA: raw LLM Output for web UI
 }
 
@@ -219,6 +220,7 @@ export type HistoryItemStats = HistoryItemQuotaBase & {
   type: 'stats';
   duration: string;
   quotas?: RetrieveUserQuotaResponse;
+  creditBalance?: number;
 };
 
 export type HistoryItemModelStats = HistoryItemQuotaBase & {
