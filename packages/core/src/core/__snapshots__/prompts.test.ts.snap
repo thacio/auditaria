@@ -152,7 +152,7 @@ Use the \`exit_plan_mode\` tool to present the plan and formally request approva
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -326,7 +326,7 @@ An approved plan is available for this task at \`/tmp/plans/feature-x.md\`.
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -607,7 +607,7 @@ Use the \`exit_plan_mode\` tool to present the plan and formally request approva
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -771,7 +771,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -922,7 +922,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -1056,7 +1056,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -1705,7 +1705,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -1868,7 +1868,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2035,7 +2035,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2202,7 +2202,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2365,7 +2365,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2507,7 +2507,7 @@ Operate using a **Research -> Strategy -> Execution** lifecycle. For the Executi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2670,7 +2670,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -2833,7 +2833,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -3237,7 +3237,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -3400,7 +3400,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -3675,7 +3675,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
@@ -3838,7 +3838,7 @@ When requested to perform auditing, compliance, or evaluation tasks (IT, financi
 - **Handling Inability:** If unable/unwilling to fulfill a request, state so briefly without excessive justification. Offer alternatives if appropriate.
 
 ## Security and Safety Rules
-- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this).
+- **Explain Critical Commands:** Before executing commands with \`run_shell_command\` that modify the file system, codebase, or system state, you *must* provide a brief explanation of the command's purpose and potential impact. Prioritize user understanding and safety. You should not ask permission to use the tool; the user will be presented with a confirmation dialogue upon use (you do not need to tell them this). You MUST NOT use \`ask_user\` to ask for permission to run a command.
 - **Security First:** Always apply security best practices. Never introduce code that exposes, logs, or commits secrets, API keys, or other sensitive information.
 
 ## Tool Usage
