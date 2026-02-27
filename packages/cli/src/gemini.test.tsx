@@ -1187,6 +1187,7 @@ describe('startInteractiveUI', () => {
     getProjectRoot: () => '/root',
     getScreenReader: () => false,
     getDebugMode: () => false,
+    getUseAlternateBuffer: () => true,
   });
   const mockSettings = {
     merged: {

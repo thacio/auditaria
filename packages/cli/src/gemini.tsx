@@ -117,8 +117,8 @@ import { ToolConfirmationProvider } from './ui/contexts/ToolConfirmationContext.
 import { TerminalCaptureWrapper } from './ui/components/TerminalCaptureWrapper.js';
 // WEB_INTERFACE_END
 import { ScrollProvider } from './ui/contexts/ScrollProvider.js';
-import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
 import { TerminalProvider } from './ui/contexts/TerminalContext.js';
+import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
 import { OverflowProvider } from './ui/contexts/OverflowContext.js';
 
 import { setupTerminalAndTheme } from './utils/terminalTheme.js';
@@ -244,7 +244,7 @@ export async function startInteractiveUI(
   // and the Ink alternate buffer mode requires line wrapping harmful to
   // screen readers.
   const useAlternateBuffer = shouldEnterAlternateScreen(
-    isAlternateBufferEnabled(settings),
+    isAlternateBufferEnabled(config),
     config.getScreenReader(),
   );
   const mouseEventsEnabled = useAlternateBuffer;
@@ -755,7 +755,7 @@ export async function main() {
 
     let input = config.getQuestion();
     const useAlternateBuffer = shouldEnterAlternateScreen(
-      isAlternateBufferEnabled(settings),
+      isAlternateBufferEnabled(config),
       config.getScreenReader(),
     );
     const rawStartupWarnings = await getStartupWarnings();

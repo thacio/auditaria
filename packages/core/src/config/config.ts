@@ -540,6 +540,7 @@ export interface ConfigParameters {
   interactive?: boolean;
   trustedFolder?: boolean;
   useBackgroundColor?: boolean;
+  useAlternateBuffer?: boolean;
   useRipgrep?: boolean;
   enableInteractiveShell?: boolean;
   skipNextSpeakerCheck?: boolean;
@@ -739,6 +740,7 @@ export class Config {
   private readonly enableInteractiveShell: boolean;
   private readonly skipNextSpeakerCheck: boolean;
   private readonly useBackgroundColor: boolean;
+  private readonly useAlternateBuffer: boolean;
   private shellExecutionConfig: ShellExecutionConfig;
   private readonly extensionManagement: boolean = true;
   private readonly truncateToolOutputThreshold: number;
@@ -939,6 +941,7 @@ export class Config {
     this.directWebFetch = params.directWebFetch ?? false;
     this.useRipgrep = params.useRipgrep ?? true;
     this.useBackgroundColor = params.useBackgroundColor ?? true;
+    this.useAlternateBuffer = params.useAlternateBuffer ?? false;
     this.enableInteractiveShell = params.enableInteractiveShell ?? false;
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? true;
     this.shellExecutionConfig = {
@@ -2800,6 +2803,10 @@ export class Config {
 
   getUseBackgroundColor(): boolean {
     return this.useBackgroundColor;
+  }
+
+  getUseAlternateBuffer(): boolean {
+    return this.useAlternateBuffer;
   }
 
   getEnableInteractiveShell(): boolean {
