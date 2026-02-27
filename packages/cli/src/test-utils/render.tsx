@@ -616,6 +616,7 @@ handleLanguageSelect: vi.fn(),
   handleRestart: vi.fn(),
   handleNewAgentsSelect: vi.fn(),
   getPreferredEditor: vi.fn(),
+  clearAccountSuspension: vi.fn(),
 };
 
 let capturedOverflowState: OverflowState | undefined;
