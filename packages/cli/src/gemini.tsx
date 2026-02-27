@@ -36,6 +36,8 @@ import {
   registerSyncCleanup,
   runExitCleanup,
   registerTelemetryConfig,
+  setupSignalHandlers,
+  setupTtyCheck,
 } from './utils/cleanup.js';
 import {
   cleanupToolOutputFiles,
@@ -386,6 +388,8 @@ export async function startInteractiveUI(
     });
 
   registerCleanup(() => instance.unmount());
+
+  registerCleanup(setupTtyCheck());
 }
 
 export async function main() {
@@ -406,6 +410,8 @@ export async function main() {
   });
 
   setupUnhandledRejectionHandler();
+
+  setupSignalHandlers();
 
   const slashCommandConflictHandler = new SlashCommandConflictHandler();
   slashCommandConflictHandler.start();
@@ -723,10 +729,7 @@ export async function main() {
       process.stdin.setRawMode(true);
 
       // This cleanup isn't strictly needed but may help in certain situations.
-      process.on('SIGTERM', () => {
-        process.stdin.setRawMode(wasRaw);
-      });
-      process.on('SIGINT', () => {
+      registerSyncCleanup(() => {
         process.stdin.setRawMode(wasRaw);
       });
     }
