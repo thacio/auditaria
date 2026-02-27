@@ -1168,17 +1168,47 @@ class AuditariaWebClient {
             const isCodexGroup = group.id === 'codex';
             const isAvailable = group.available !== false; // AUDITARIA_PROVIDER_AVAILABILITY: Default to true for backwards compatibility
 
-            const title = document.createElement('div');
+            // Determine if this group contains the active selection
+            const hasActiveOption = (group.options || []).some(
+                (opt) => opt.selection === this.modelMenuData.activeSelection,
+            );
+
+            const title = document.createElement('button');
+            title.type = 'button';
             title.className = 'web-footer-model-menu-title';
-            title.textContent = group.label;
+
+            const titleLabel = document.createElement('span');
+            titleLabel.textContent = group.label;
+            title.append(titleLabel);
+
+            const chevron = document.createElement('span');
+            chevron.className = 'web-footer-model-menu-chevron';
+            chevron.textContent = '\u203A'; // ›
+            title.append(chevron);
+
             section.append(title);
+
+            // Collapsible content wrapper (grid row animation)
+            const content = document.createElement('div');
+            content.className = 'web-footer-model-menu-content';
+            const contentInner = document.createElement('div');
+            contentInner.className = 'web-footer-model-menu-content-inner';
+
+            // Expand group with active model, collapse others
+            if (hasActiveOption) {
+                section.classList.add('is-expanded');
+            }
+
+            title.addEventListener('click', () => {
+                section.classList.toggle('is-expanded');
+            });
 
             // AUDITARIA_PROVIDER_AVAILABILITY: Show install message for unavailable providers
             if (!isAvailable && group.installMessage) {
                 const installMsg = document.createElement('div');
                 installMsg.className = 'web-footer-model-menu-install-message';
                 installMsg.textContent = group.installMessage;
-                section.append(installMsg);
+                contentInner.append(installMsg);
             }
 
             for (const option of group.options || []) {
@@ -1333,9 +1363,11 @@ class AuditariaWebClient {
                         item.click();
                     }
                 });
-                section.append(item);
+                contentInner.append(item);
             }
 
+            content.append(contentInner);
+            section.append(content);
             menu.append(section);
         }
 
