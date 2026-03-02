@@ -125,13 +125,22 @@ function renderToolItem(tool) {
     }
     
     toolItemEl.appendChild(collapsibleContentEl);
-    
+
     // Add click handler for collapsing/expanding
     toolHeaderEl.addEventListener('click', () => {
         toolItemEl.classList.toggle('tool-item-expanded');
         toolItemEl.classList.toggle('tool-item-collapsed');
     });
-    
+
+    // If global RAW mode is active, auto-activate RAW on this new tool
+    const globalRawBtn = document.getElementById('toggle-all-raw-btn');
+    if (globalRawBtn && globalRawBtn.classList.contains('active')) {
+        const rawBtn = toolHeaderEl.querySelector('.tool-toggle-llm-btn');
+        if (rawBtn && !rawBtn.classList.contains('active')) {
+            rawBtn.click();
+        }
+    }
+
     return toolItemEl;
 }
 
