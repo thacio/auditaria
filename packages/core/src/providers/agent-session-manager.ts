@@ -225,7 +225,7 @@ export class AgentSessionManager {
           toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
           toolBridgeScript: this.bridgeScriptPath,
           toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
-          sandboxMode: mode === 'consult' ? 'workspace-read-only' : 'danger-full-access',
+          sandboxMode: mode === 'consult' ? 'read-only' : 'danger-full-access',
           promptFileId: sessionId,
         });
         break;
