@@ -821,25 +821,159 @@ class AuditariaWebClient {
             showInfoToast('No messages to print yet.');
             return;
         }
-        
+
         try {
-            const originalTitle = document.title;
+            const messagesContainer = document.getElementById('messages');
+            if (!messagesContainer) {
+                showErrorToast('No messages container found.');
+                return;
+            }
+
             const timestamp = new Date().toLocaleString();
-            document.title = `Auditaria Chat - ${this.messageManager.getMessageCount()} messages - ${timestamp}`;
-            
-            document.body.classList.add('printing');
-            
-            window.print();
-            
+            const count = this.messageManager.getMessageCount();
+
+            // Clone messages into a clean iframe to bypass layout clipping
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;border:none;visibility:hidden;';
+            document.body.appendChild(iframe);
+
+            const doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write(`<!DOCTYPE html>
+<html><head>
+<title>Auditaria Chat - ${count} messages - ${timestamp}</title>
+<style>${this._getPrintStyles()}</style>
+</head><body>
+<div class="print-header">
+  <h1>Auditaria Chat Export</h1>
+  <p>${count} message${count !== 1 ? 's' : ''} &mdash; ${timestamp}</p>
+</div>
+<div class="messages-container">${messagesContainer.innerHTML}</div>
+</body></html>`);
+            doc.close();
+
+            // Wait for content to render, then print and clean up
+            iframe.contentWindow.onafterprint = () => iframe.remove();
             setTimeout(() => {
-                document.title = originalTitle;
-                document.body.classList.remove('printing');
-            }, 100);
-            
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                // Fallback cleanup if onafterprint doesn't fire
+                setTimeout(() => { if (iframe.parentNode) iframe.remove(); }, 60000);
+            }, 300);
         } catch (error) {
             console.error('Error printing chat:', error);
             showErrorToast('Failed to prepare the chat for printing.');
         }
+    }
+
+    _getPrintStyles() {
+        return `
+            @page { margin: 0.75in; size: A4; }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0; padding: 0;
+                background: white; color: #111827;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 12pt; line-height: 1.4;
+            }
+            .print-header {
+                text-align: center; margin-bottom: 24pt;
+                padding-bottom: 12pt; border-bottom: 2px solid #E5E7EB;
+            }
+            .print-header h1 { margin: 0 0 4pt; font-size: 18pt; color: #111827; }
+            .print-header p { margin: 0; font-size: 10pt; color: #4B5563; }
+            .messages-container {
+                max-width: 100%; padding: 0; margin: 0;
+                height: auto; overflow: visible;
+            }
+            /* Messages */
+            .message {
+                page-break-inside: avoid; break-inside: avoid;
+                margin-bottom: 16pt;
+            }
+            .message-bubble {
+                border: 1px solid #D1D5DB; box-shadow: none;
+                padding: 8pt 12pt; background: white;
+                border-radius: 6pt;
+            }
+            .message-user .message-bubble {
+                background: #F3F4F6; border-color: #2563EB;
+                border-left: 4px solid #2563EB;
+            }
+            .message-gemini .message-bubble,
+            .message-gemini_content .message-bubble {
+                background: white; border-color: #059669;
+                border-left: 4px solid #059669;
+            }
+            .message-info .message-bubble {
+                background: #FFFBEB; border-color: #D97706;
+                border-left: 4px solid #D97706;
+            }
+            .message-tool-group .message-bubble {
+                background: #F5F3FF; border-color: #7C3AED;
+                border-left: 4px solid #7C3AED;
+            }
+            .message-error .message-bubble {
+                background: #FEF2F2; border-color: #DC2626;
+                border-left: 4px solid #DC2626;
+            }
+            .message-header {
+                font-size: 10pt; font-weight: 600;
+                color: #111827; margin-bottom: 4pt;
+            }
+            .message-content {
+                font-size: 11pt; line-height: 1.5; color: #111827;
+            }
+            .message-timestamp {
+                font-size: 9pt; color: #4B5563; margin-top: 4pt;
+            }
+            /* Code blocks */
+            pre, code {
+                font-family: 'Courier New', Consolas, monospace;
+                font-size: 9pt;
+            }
+            pre {
+                background: #F3F4F6; border: 1px solid #D1D5DB;
+                padding: 8pt; border-radius: 4pt;
+                white-space: pre-wrap; word-wrap: break-word;
+                page-break-inside: avoid;
+            }
+            code { background: #F3F4F6; padding: 1pt 3pt; border-radius: 2pt; }
+            pre code { background: none; padding: 0; }
+            /* Tables */
+            table {
+                border-collapse: collapse; border: 1px solid #D1D5DB;
+                margin: 8pt 0; width: 100%; font-size: 10pt;
+            }
+            th, td {
+                border: 1px solid #D1D5DB; padding: 4pt 6pt; text-align: left;
+            }
+            th { background: #F3F4F6; font-weight: 600; }
+            /* Lists */
+            ul, ol { margin: 6pt 0; padding-left: 18pt; }
+            li { margin: 2pt 0; }
+            /* Tools */
+            .tool-item {
+                background: white; border: 1px solid #D1D5DB;
+                margin-bottom: 6pt; padding: 6pt 8pt;
+                border-radius: 4pt; page-break-inside: avoid;
+            }
+            .tool-header { font-size: 10pt; font-weight: 600; margin-bottom: 4pt; }
+            .tool-output {
+                font-size: 9pt; font-family: 'Courier New', monospace;
+                white-space: pre-wrap; word-wrap: break-word;
+            }
+            /* Hide interactive elements */
+            .copy-buttons-container, .tts-button-container,
+            .confirmation-button, button, input, textarea,
+            .response-active, .welcome-message, .tool-item-toggle {
+                display: none !important;
+            }
+            /* Expand all collapsed tool items for print */
+            .tool-item-collapsed .tool-output { display: block !important; }
+            /* Orphans/widows */
+            p { orphans: 2; widows: 2; }
+        `;
     }
     
     updateConnectionStatus(isConnected) {
