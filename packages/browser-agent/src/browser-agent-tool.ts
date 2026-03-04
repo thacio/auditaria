@@ -87,7 +87,7 @@ You can run multiple browser sessions in parallel using the \`sessionId\` parame
 
 ## Usage Tips
 
-- **Fallback for web_fetch**: When \`web_fetch\` fails (blocked by CAPTCHA, requires JavaScript, login-protected, or returns incomplete content), use \`browser_agent\` to navigate to the page and extract content with the \`extract\` action
+- **Fallback for web_fetch**: When \`web_fetch\` fails (blocked by CAPTCHA, requires JavaScript, login-protected, or returns incomplete content), use \`stagehand_browser\` to navigate to the page and extract content with the \`extract\` action
 - **agent_task for well-defined goals**: Use \`agent_task\` when the objective is clear and fixed upfront (e.g., "login and extract something from the page", "fill form with these values"). The browser AI runs autonomously and reports results at the end. You can keep the session open for follow-up actions by setting \`closeAfter: false\`.
 - **observe/act/extract for dynamic exploration**: Use individual actions when you need step-by-step control—for exploratory tasks, when decisions depend on what's found on the page, or when you want to report progress incrementally to the user. Use \`observe\` to discover available actions, \`act\` to perform them, and \`extract\` to retrieve data.
 - **Keep sessions open for iteration**: Set \`closeAfter: false\` on \`agent_task\` if you need to perform follow-up actions after the autonomous task completes

@@ -80,7 +80,7 @@ export interface CreateSessionOpts {
 // Tools always excluded from sub-agent MCP bridge
 const ALWAYS_EXCLUDED_TOOLS = [
   'collaborative_writing',
-  'browser_agent',
+  'stagehand_browser',
   'context_management',
   'memory',
 ];

@@ -203,8 +203,8 @@ export class ProviderManager {
     }
     const handler = this.toolOutputHandler;
     this.toolExecutorServer.setToolOutputHandler((toolName: string, output: string) => {
-      // AUDITARIA: toolExecutorServer uses original names (e.g. "browser_agent"),
-      // but pendingToolCalls uses MCP-prefixed names (e.g. "mcp__auditaria-tools__browser_agent").
+      // AUDITARIA: toolExecutorServer uses original names (e.g. "stagehand_browser"),
+      // but pendingToolCalls uses MCP-prefixed names (e.g. "mcp__auditaria-tools__stagehand_browser").
       // Match by checking if the key ends with __toolName.
       let callId: string | undefined;
       for (const [name, id] of this.pendingToolCalls) {

@@ -161,7 +161,8 @@ export const CONTEXT_MANAGEMENT_TOOL_NAME = 'context_management';
 export const COLLABORATIVE_WRITING_TOOL_NAME = 'collaborative_writing';
 
 // AUDITARIA_BROWSER_AGENT - Auditaria Custom Feature
-export const BROWSER_AGENT_TOOL_NAME = 'browser_agent';
+// Renamed from 'browser_agent' to avoid collision with upstream's built-in browser_agent
+export const BROWSER_AGENT_TOOL_NAME = 'stagehand_browser';
 
 // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 export const KNOWLEDGE_SEARCH_TOOL_NAME = 'knowledge_search';

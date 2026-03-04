@@ -23,6 +23,7 @@
   ],
   "dependencies": {
     "@browserbasehq/stagehand": "https://github.com/thacio/stagehand/releases/latest/download/stagehand-core.tgz",
+    "google-auth-library": "^10.5.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

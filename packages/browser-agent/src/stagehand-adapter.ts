@@ -9,6 +9,7 @@
 // is incompatible with worker threads used by the CLI.
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type {
   StagehandConfig,
   BrowserAgentResult,
@@ -75,6 +76,14 @@ let zodModule: ZodModule | null = null;
  */
 async function loadZod(paths: string[]): Promise<ZodModule> {
   if (zodModule) return zodModule;
+
+  // Try ESM dynamic import first (avoids CJS/ESM interop issues)
+  try {
+    zodModule = await import('zod');
+    return zodModule;
+  } catch {
+    // Fallback to createRequire for bundled/global installs
+  }
 
   for (const basePath of paths) {
     try {
@@ -219,16 +228,16 @@ export class StagehandAdapter {
       // 1. Try from bundle directory (self-contained stagehand in bundle/node_modules/)
       // __dirname is set by esbuild banner to the bundle directory
       typeof __dirname !== 'undefined'
-        ? `file://${__dirname}/package.json`
+        ? pathToFileURL(path.join(__dirname, 'package.json')).href
         : null,
       // 2. Try from package root (global install - npm-installed deps in node_modules/)
       typeof __dirname !== 'undefined'
-        ? `file://${__dirname}/../package.json`
+        ? pathToFileURL(path.join(__dirname, '..', 'package.json')).href
         : null,
       // 3. Try from CLI package (when running from project root)
-      `file://${process.cwd()}/packages/cli/package.json`,
+      pathToFileURL(path.join(process.cwd(), 'packages', 'cli', 'package.json')).href,
       // 4. Try from browser-agent package (local dev fallback)
-      `file://${process.cwd()}/packages/browser-agent/package.json`,
+      pathToFileURL(path.join(process.cwd(), 'packages', 'browser-agent', 'package.json')).href,
     ].filter(Boolean) as string[];
 
     return this.resolutionPaths;
@@ -240,6 +249,15 @@ export class StagehandAdapter {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async loadStagehand(): Promise<{ Stagehand: any }> {
+    // Try ESM dynamic import first (avoids CJS/ESM interop issues with @google/genai → p-retry)
+    try {
+      const stagehand = await import('@browserbasehq/stagehand');
+      const resolved = this.resolveStagehandExport(stagehand);
+      if (resolved) return resolved;
+    } catch {
+      // Fallback to createRequire for bundled/global installs
+    }
+
     const paths = this.getResolutionPaths();
 
     for (const basePath of paths) {
@@ -247,7 +265,8 @@ export class StagehandAdapter {
         const require = createRequire(basePath);
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const stagehand = require('@browserbasehq/stagehand');
-        return stagehand;
+        const resolved = this.resolveStagehandExport(stagehand);
+        if (resolved) return resolved;
       } catch {
         // Try next path
         continue;
@@ -258,6 +277,21 @@ export class StagehandAdapter {
       'Could not load @browserbasehq/stagehand. ' +
         'Make sure it is installed: npm install @browserbasehq/stagehand',
     );
+  }
+
+  /**
+   * Resolve Stagehand class from module export, handling CJS/ESM interop.
+   * The class may be at module.Stagehand, module.V3, module.default.Stagehand, etc.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private resolveStagehandExport(mod: any): { Stagehand: any } | null {
+    if (mod?.Stagehand && typeof mod.Stagehand === 'function') return mod;
+    if (mod?.V3 && typeof mod.V3 === 'function') return { Stagehand: mod.V3 };
+    if (mod?.default?.Stagehand && typeof mod.default.Stagehand === 'function')
+      return { Stagehand: mod.default.Stagehand };
+    if (mod?.default && typeof mod.default === 'function')
+      return { Stagehand: mod.default };
+    return null;
   }
 
   /**
@@ -304,28 +338,39 @@ export class StagehandAdapter {
    */
   private async getChromiumExecutablePath(): Promise<string | undefined> {
     try {
-      // Dynamically import playwright to get its bundled Chromium path
-      const paths = this.getResolutionPaths();
-
-      for (const basePath of paths) {
-        try {
-          const require = createRequire(basePath);
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const playwright = require('playwright');
-          const execPath = playwright.chromium.executablePath();
-
-          // Verify the executable exists
-          const fs = await import('fs');
-          if (fs.existsSync(execPath)) {
-            logger.debug(`[StagehandAdapter] Using Playwright Chromium: ${execPath}`);
-            return execPath;
-          } else {
-            logger.warn(`[StagehandAdapter] Playwright Chromium not found at: ${execPath}`);
-            logger.warn('[StagehandAdapter] Run "npx playwright install chromium" to install it');
+      // Try ESM dynamic import first
+      try {
+        const playwright = await import('playwright');
+        const execPath = playwright.chromium.executablePath();
+        const fs = await import('fs');
+        if (fs.existsSync(execPath)) {
+          logger.debug(`[StagehandAdapter] Using Playwright Chromium: ${execPath}`);
+          return execPath;
+        } else {
+          logger.warn(`[StagehandAdapter] Playwright Chromium not found at: ${execPath}`);
+          logger.warn('[StagehandAdapter] Run "npx playwright install chromium" to install it');
+        }
+      } catch {
+        // Fallback to createRequire for bundled/global installs
+        const paths = this.getResolutionPaths();
+        for (const basePath of paths) {
+          try {
+            const require = createRequire(basePath);
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const playwright = require('playwright');
+            const execPath = playwright.chromium.executablePath();
+            const fs = await import('fs');
+            if (fs.existsSync(execPath)) {
+              logger.debug(`[StagehandAdapter] Using Playwright Chromium: ${execPath}`);
+              return execPath;
+            } else {
+              logger.warn(`[StagehandAdapter] Playwright Chromium not found at: ${execPath}`);
+              logger.warn('[StagehandAdapter] Run "npx playwright install chromium" to install it');
+            }
+            break;
+          } catch {
+            continue;
           }
-          break; // Found playwright module, don't try other paths
-        } catch {
-          continue; // Try next path
         }
       }
     } catch (error) {

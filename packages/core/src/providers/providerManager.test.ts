@@ -129,7 +129,7 @@ describe('buildConversationSummary', () => {
           {
             functionResponse: {
               id: 'tool_1',
-              name: 'browser_agent',
+              name: 'stagehand_browser',
               response: {
                 output:
                   '[CONTENT FORGOTTEN - YOU HAVE AMNESIA ABOUT THIS]\nID: tool_1\nSummary: large browser output',
@@ -289,7 +289,7 @@ describe('ProviderManager history mirroring', () => {
     await runWithEvents([
       {
         type: ProviderEventType.ToolUse,
-        toolName: 'browser_agent',
+        toolName: 'stagehand_browser',
         toolId: 'ba_1',
         input: { action: 'navigate', url: 'https://example.com' },
       },
@@ -300,7 +300,7 @@ describe('ProviderManager history mirroring', () => {
       },
       {
         type: ProviderEventType.ToolUse,
-        toolName: 'browser_agent',
+        toolName: 'stagehand_browser',
         toolId: 'ba_2',
         input: { action: 'extract' },
       },
@@ -321,13 +321,13 @@ describe('ProviderManager history mirroring', () => {
     const secondCall = history[3].parts![0] as {
       functionCall: { name: string };
     };
-    expect(secondCall.functionCall.name).toBe('browser_agent');
+    expect(secondCall.functionCall.name).toBe('stagehand_browser');
 
     const secondResult = history[4].parts![0] as {
       functionResponse: { id: string; name: string };
     };
     expect(secondResult.functionResponse.id).toBe('ba_2');
-    expect(secondResult.functionResponse.name).toBe('browser_agent');
+    expect(secondResult.functionResponse.name).toBe('stagehand_browser');
   });
 
   it('should yield proper GeminiEventType events alongside mirroring', async () => {
@@ -480,7 +480,7 @@ describe('ProviderManager session reset on context modification', () => {
 describe('sanitizeHistoryForProviderSwitch', () => {
   // Simulate Auditaria's tool registry: these tools should be preserved
   const knownTools = new Set([
-    'browser_agent',
+    'stagehand_browser',
     'knowledge_search',
     'knowledge_index',
     'context_inspect',
@@ -528,7 +528,7 @@ describe('sanitizeHistoryForProviderSwitch', () => {
   it('should keep functionCall for known Auditaria tools', () => {
     const fnCallPart = {
       functionCall: {
-        name: 'browser_agent',
+        name: 'stagehand_browser',
         args: { action: 'navigate', url: 'https://example.com' },
       },
     };
@@ -625,7 +625,7 @@ describe('sanitizeHistoryForProviderSwitch', () => {
 
   it('should handle mixed known and unknown tool calls', () => {
     const knownCall = {
-      functionCall: { name: 'browser_agent', args: { action: 'start' } },
+      functionCall: { name: 'stagehand_browser', args: { action: 'start' } },
     };
     const unknownCall = {
       functionCall: { name: 'Bash', args: { command: 'ls' } },
@@ -651,7 +651,7 @@ describe('sanitizeHistoryForProviderSwitch', () => {
     const history: Content[] = [
       {
         role: 'model',
-        parts: [{ functionCall: { name: 'browser_agent', args: {} } }],
+        parts: [{ functionCall: { name: 'stagehand_browser', args: {} } }],
       },
     ];
     // No knownToolNames → all tool calls converted (safe fallback)

@@ -177,6 +177,37 @@ if (existsSync(join(stagehandSrc, 'package.json'))) {
   console.log(
     'Stagehand package.json copied to bundle/node_modules/@browserbasehq/stagehand/',
   );
+
+  // Copy pino/thread-stream worker files needed by the bundled stagehand.
+  // The bundled index.js references these via __dirname-relative paths (pino uses
+  // worker threads for logging), so they must exist on disk next to the bundle.
+  const stagehandDistDir = join(stagehandDest, 'dist');
+  mkdirSync(join(stagehandDistDir, 'lib'), { recursive: true });
+
+  const workerFiles = [
+    // thread-stream worker: join(__dirname, "lib", "worker.js")
+    {
+      src: join(root, 'node_modules/thread-stream/lib/worker.js'),
+      dest: join(stagehandDistDir, 'lib', 'worker.js'),
+    },
+    // pino worker: join(__dirname, "worker.js")
+    {
+      src: join(root, 'node_modules/pino/lib/worker.js'),
+      dest: join(stagehandDistDir, 'worker.js'),
+    },
+    // pino file transport: join(__dirname, "..", "file.js")
+    {
+      src: join(root, 'node_modules/pino/file.js'),
+      dest: join(stagehandDest, 'file.js'),
+    },
+  ];
+
+  for (const { src, dest } of workerFiles) {
+    if (existsSync(src)) {
+      copyFileSync(src, dest);
+    }
+  }
+  console.log('Stagehand pino worker files copied to bundle/');
 }
 // AUDITARIA_BROWSER_AGENT_END
 
