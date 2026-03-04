@@ -1015,6 +1015,11 @@ their corresponding top-level category object in your `settings.json` file.
   - **Default:** `false`
   - **Requires restart:** Yes
 
+- **`experimental.taskTracker`** (boolean):
+  - **Description:** Enable task tracker tools.
+  - **Default:** `false`
+  - **Requires restart:** Yes
+
 - **`experimental.modelSteering`** (boolean):
   - **Description:** Enable model steering (user hints) to guide the model
     during tool execution.
