@@ -291,7 +291,7 @@ export async function startInteractiveUI(
               <ScrollProvider>
                 <OverflowProvider>
                   <SessionStatsProvider>
-                    <VimModeProvider settings={settings}>
+                    <VimModeProvider>
                       {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
                       <SubmitQueryProvider>
                         <WebInterfaceProvider
