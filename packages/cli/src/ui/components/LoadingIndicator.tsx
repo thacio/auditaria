@@ -104,10 +104,18 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
           />
         </Box>
         {primaryText && (
-          <Text color={theme.text.primary} italic wrap="truncate-end">
-            {thinkingIndicator}
-            {primaryText}
-          </Text>
+          <Box flexShrink={1}>
+            <Text color={theme.text.primary} italic wrap="truncate-end">
+              {thinkingIndicator}
+              {primaryText}
+            </Text>
+            {primaryText === INTERACTIVE_SHELL_WAITING_PHRASE && (
+              <Text color={theme.ui.active} italic>
+                {' '}
+                (press tab to focus)
+              </Text>
+            )}
+          </Box>
         )}
         {cancelAndTimerContent && (
           <>
@@ -138,10 +146,18 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
             />
           </Box>
           {primaryText && (
-            <Text color={theme.text.primary} italic wrap="truncate-end">
-              {thinkingIndicator}
-              {primaryText}
-            </Text>
+            <Box flexShrink={1}>
+              <Text color={theme.text.primary} italic wrap="truncate-end">
+                {thinkingIndicator}
+                {primaryText}
+              </Text>
+              {primaryText === INTERACTIVE_SHELL_WAITING_PHRASE && (
+                <Text color={theme.ui.active} italic>
+                  {' '}
+                  (press tab to focus)
+                </Text>
+              )}
+            </Box>
           )}
           {!isNarrow && cancelAndTimerContent && (
             <>
