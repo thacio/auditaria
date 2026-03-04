@@ -92,6 +92,17 @@ import { useSessionStats } from '../contexts/SessionContext.js';
 import { useKeypress } from './useKeypress.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import { attachmentMetadataMap } from '../../services/WebInterfaceService.js'; // WEB_INTERFACE AUDITARIA: Import WeakMap for attachment metadata
+
+// WEB_INTERFACE AUDITARIA: Type for attachment metadata stored in WeakMap
+interface AttachmentMeta {
+  type: string;
+  mimeType: string;
+  name: string;
+  size: number;
+  thumbnail?: string;
+  icon?: string;
+  displaySize?: string;
+}
 import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
 
 type ToolResponseWithParts = ToolCallResponseInfo & {
@@ -902,7 +913,9 @@ export const useGeminiStream = (
               } else if ('inlineData' in part && part.inlineData) {
                 // Extract attachment info from inline data
                 // Check if we have metadata in the WeakMap
-                const metadata = attachmentMetadataMap.get(part);
+                const metadata = attachmentMetadataMap.get(part) as
+                  | AttachmentMeta
+                  | undefined;
                 if (metadata) {
                   attachments.push({
                     type: metadata.type || 'file',
@@ -935,7 +948,9 @@ export const useGeminiStream = (
           if ('text' in query && query.text) {
             displayText = query.text;
           } else if ('inlineData' in query && query.inlineData) {
-            const metadata = attachmentMetadataMap.get(query);
+            const metadata = attachmentMetadataMap.get(query) as
+              | AttachmentMeta
+              | undefined;
             if (metadata) {
               attachments.push({
                 type: metadata.type || 'file',
@@ -1245,16 +1260,27 @@ export const useGeminiStream = (
         addItem(pendingHistoryItemRef.current, userMessageTimestamp);
         setPendingHistoryItem(null);
       }
-      return addItem({
-        type: 'info',
-        text:
-          `IMPORTANT: This conversation exceeded the compress threshold. ` +
-          `A compressed context will be sent for future messages (compressed from: ` +
-          `${eventValue?.originalTokenCount ?? 'unknown'} to ` +
-          `${eventValue?.newTokenCount ?? 'unknown'} tokens).`,
-      });
+
+      const limit = tokenLimit(config.getModel());
+      const originalPercentage = Math.round(
+        ((eventValue?.originalTokenCount ?? 0) / limit) * 100,
+      );
+      const newPercentage = Math.round(
+        ((eventValue?.newTokenCount ?? 0) / limit) * 100,
+      );
+
+      addItem(
+        {
+          type: MessageType.INFO,
+          text: `Context compressed from ${originalPercentage}% to ${newPercentage}%.`,
+          secondaryText: `Change threshold in /settings.`,
+          color: theme.status.warning,
+          marginBottom: 1,
+        } as HistoryItemInfo,
+        userMessageTimestamp,
+      );
     },
-    [addItem, pendingHistoryItemRef, setPendingHistoryItem],
+    [addItem, pendingHistoryItemRef, setPendingHistoryItem, config],
   );
 
   const handleMaxSessionTurnsEvent = useCallback(
@@ -1274,12 +1300,12 @@ export const useGeminiStream = (
 
       const limit = tokenLimit(config.getModel());
 
-      const isLessThan75Percent =
+      const isMoreThan25PercentUsed =
         limit > 0 && remainingTokenCount < limit * 0.75;
 
-      let text = `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the remaining context window limit (${remainingTokenCount} tokens).`;
+      let text = `Sending this message (${estimatedRequestTokenCount} tokens) might exceed the context window limit (${remainingTokenCount.toLocaleString()} tokens left).`;
 
-      if (isLessThan75Percent) {
+      if (isMoreThan25PercentUsed) {
         text +=
           ' Please try reducing the size of your message or use the `/compress` command to compress the chat history.';
       }

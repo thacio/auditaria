@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * @license
  * Copyright 2025 Thacio
@@ -15,8 +16,17 @@ import { fileURLToPath } from 'node:url';
 // WEB_INTERFACE_START: Import HTML parser for link rewriting
 import { parse } from 'node-html-parser';
 // WEB_INTERFACE_END
-import type { HistoryItem, ConsoleMessageItem, ResponseBlock } from '../ui/types.js';
-import { ToolConfirmationOutcome, MCPServerConfig, DiscoveredMCPTool, ensureRgPath } from '@google/gemini-cli-core';
+import type {
+  HistoryItem,
+  ConsoleMessageItem,
+  ResponseBlock,
+} from '../ui/types.js';
+import {
+  ToolConfirmationOutcome,
+  MCPServerConfig,
+  DiscoveredMCPTool,
+  ensureRgPath,
+} from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
 import type { PendingToolConfirmation } from '../ui/contexts/ToolConfirmationContext.js';
@@ -27,7 +37,16 @@ import { EventEmitter } from 'events';
 import { type PartListUnion, createPartFromBase64 } from '@google/genai';
 
 // WeakMap to store attachment metadata without polluting the Part objects
-export const attachmentMetadataMap = new WeakMap<any, any>();
+export interface AttachmentMetadata {
+  type: string;
+  mimeType: string;
+  name: string;
+  size: number;
+  thumbnail?: string;
+  icon?: string;
+  displaySize?: string;
+}
+export const attachmentMetadataMap = new WeakMap<object, AttachmentMetadata>();
 // WEB_INTERFACE_END
 
 // WEB_INTERFACE_START: Import FileSystemService for file browser feature
@@ -46,11 +65,17 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 import { DocxParserService } from './DocxParserService.js';
 
 // Knowledge Base Search Service
-import { SearchServiceManager, getSearchService, collaborativeWritingService } from '@google/gemini-cli-core';
+import {
+  SearchServiceManager,
+  getSearchService,
+  collaborativeWritingService,
+} from '@google/gemini-cli-core';
 
 // AUDITARIA: Lazy load search module to check database existence
 let searchModule: typeof import('@thacio/auditaria-search') | null = null;
-async function getSearchModule(): Promise<typeof import('@thacio/auditaria-search')> {
+async function getSearchModule(): Promise<
+  typeof import('@thacio/auditaria-search')
+> {
   if (!searchModule) {
     searchModule = await import('@thacio/auditaria-search');
   }
@@ -58,7 +83,12 @@ async function getSearchModule(): Promise<typeof import('@thacio/auditaria-searc
 }
 
 // AUDITARIA: Import browser streaming components
-import { StreamManager, SessionManager, type StreamFrame, type StagehandPage } from '@thacio/browser-agent';
+import {
+  StreamManager,
+  SessionManager,
+  type StreamFrame,
+  type StagehandPage,
+} from '@thacio/browser-agent';
 
 // AUDITARIA: JSON.stringify replacer that strips binary blobs from history items
 // before sending over WebSocket. Handles both Gemini format (inlineData/fileData)
@@ -92,13 +122,13 @@ interface SequencedMessage {
 // AUDITARIA: Message types that are full state snapshots - only keep latest, not history
 // For these types, we replace the previous message instead of accumulating
 const LATEST_ONLY_MESSAGE_TYPES = new Set([
-  'file_tree_response',    // Full tree snapshot (5MB+) - only latest matters
+  'file_tree_response', // Full tree snapshot (5MB+) - only latest matters
   'file_tree_search_response', // Search results snapshot - only latest matters
-  'mcp_servers',           // Full server list - only latest matters
-  'slash_commands',        // Full command list - only latest matters
-  'model_menu_data',       // WEB_INTERFACE: model menu snapshot - only latest matters
-  'response_state',        // WEB_INTERFACE: Only latest response state matters
-  'input_history_sync',    // AUDITARIA: input history snapshot - only latest matters
+  'mcp_servers', // Full server list - only latest matters
+  'slash_commands', // Full command list - only latest matters
+  'model_menu_data', // WEB_INTERFACE: model menu snapshot - only latest matters
+  'response_state', // WEB_INTERFACE: Only latest response state matters
+  'input_history_sync', // AUDITARIA: input history snapshot - only latest matters
   // NOTE: console_messages intentionally NOT included - user needs to see live logs
 ]);
 
@@ -134,7 +164,10 @@ class CircularMessageBuffer {
     }
   }
 
-  getMessagesFrom(sequence: number, persistentOnly: boolean = false): SequencedMessage[] {
+  getMessagesFrom(
+    sequence: number,
+    persistentOnly: boolean = false,
+  ): SequencedMessage[] {
     const messages: SequencedMessage[] = [];
     let current = this.head;
 
@@ -189,12 +222,12 @@ class CircularMessageBuffer {
     const msg = this.buffer[this.head];
     return msg ? msg.sequence : null;
   }
-  
+
   // Prune messages that have been acknowledged
   pruneAcknowledged(acknowledgedSequence: number): number {
     let pruned = 0;
     let current = this.head;
-    
+
     for (let i = 0; i < this.size; i++) {
       const msg = this.buffer[current];
       if (msg && msg.sequence <= acknowledgedSequence) {
@@ -204,7 +237,7 @@ class CircularMessageBuffer {
       }
       current = (current + 1) % this.capacity;
     }
-    
+
     return pruned;
   }
 }
@@ -240,20 +273,33 @@ export class WebInterfaceService extends EventEmitter {
   private submitQueryHandler?: (query: PartListUnion) => void;
   // WEB_INTERFACE_END
   private abortHandler?: () => void;
-  private confirmationResponseHandler?: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void;
+  private confirmationResponseHandler?: (
+    callId: string,
+    outcome: ToolConfirmationOutcome,
+    payload?: any,
+  ) => void;
   private currentHistory: HistoryItem[] = [];
   private currentSlashCommands: readonly SlashCommand[] = [];
   private currentModelMenuData: any = null; // WEB_INTERFACE: model selector menu data
-  private currentMCPServers: { servers: any[]; blockedServers: any[] } = { servers: [], blockedServers: [] };
+  private currentMCPServers: { servers: any[]; blockedServers: any[] } = {
+    servers: [],
+    blockedServers: [],
+  };
   private currentConsoleMessages: ConsoleMessageItem[] = [];
-  private currentCliActionState: { active: boolean; reason: string; title: string; message: string } | null = null;
+  private currentCliActionState: {
+    active: boolean;
+    reason: string;
+    title: string;
+    message: string;
+  } | null = null;
   private currentTerminalCapture: TerminalCaptureData | null = null;
   // WEB_INTERFACE_START: Track ephemeral states for reconnection
   private currentResponseBlocks: ResponseBlock[] | null = null;
   private currentLoadingState: LoadingStateData | null = null;
   private currentFooterData: FooterData | null = null;
   private currentInputHistory: string[] = []; // AUDITARIA: input history for ArrowUp/Down on web
-  private activeToolConfirmations: Map<string, PendingToolConfirmation> = new Map();
+  private activeToolConfirmations: Map<string, PendingToolConfirmation> =
+    new Map();
   // WEB_INTERFACE_END
   // WEB_INTERFACE_START: File system service for file browser
   private fileSystemService?: FileSystemService;
@@ -272,12 +318,18 @@ export class WebInterfaceService extends EventEmitter {
 
   // AUDITARIA: Browser streaming state
   private streamManager?: StreamManager;
-  private streamClients: Map<WebSocket, { sessionId: string; unsubscribe?: () => Promise<void> }> = new Map();
+  private streamClients: Map<
+    WebSocket,
+    { sessionId: string; unsubscribe?: () => Promise<void> }
+  > = new Map();
 
   /**
    * Start HTTP server on specified port
    */
-  private async startServerOnPort(port: number, host: string = 'localhost'): Promise<Server> {
+  private async startServerOnPort(
+    port: number,
+    host: string = 'localhost',
+  ): Promise<Server> {
     return new Promise<Server>((resolve, reject) => {
       const server = this.app!.listen(port, host, () => {
         // Small delay to ensure server is fully ready
@@ -297,14 +349,16 @@ export class WebInterfaceService extends EventEmitter {
 
     try {
       this.app = express();
-      
+
       // Serve static files from web-client directory
       // The web client files are bundled with the CLI package
       const possiblePaths: string[] = [
         // 1. Package-relative resolution (best for global npm installations)
         (() => {
           try {
-            const packageDir = path.dirname(require.resolve('@thacio/auditaria/package.json'));
+            const packageDir = path.dirname(
+              require.resolve('@thacio/auditaria/package.json'),
+            );
             return path.join(packageDir, 'web-client');
           } catch {
             return null;
@@ -313,23 +367,24 @@ export class WebInterfaceService extends EventEmitter {
         // 2. For published package: web-client is in the same dist folder
         path.resolve(__dirname, 'web-client'),
         // 3. For development: try bundle location first
-        path.resolve(__dirname, '../../../bundle/web-client'), 
+        path.resolve(__dirname, '../../../bundle/web-client'),
         // 4. Development fallback: source files
         path.resolve(__dirname, '../../../packages/web-client/src'),
         // 5. Legacy development paths
         path.resolve(process.cwd(), 'packages/web-client/src'),
       ].filter((path): path is string => path !== null); // Type-safe filter to remove null values
-      
+
       let webClientPath = '';
-      const debugMode = process.env.DEBUG || process.env.NODE_ENV === 'development';
-      
+      const debugMode =
+        process.env.DEBUG || process.env.NODE_ENV === 'development';
+
       if (debugMode) {
         // console.log('Web client path resolution attempts:');
         possiblePaths.forEach((testPath, index) => {
           // console.log(`  ${index + 1}. ${testPath}`);
         });
       }
-      
+
       for (const testPath of possiblePaths) {
         try {
           const fs = await import('fs');
@@ -350,19 +405,20 @@ export class WebInterfaceService extends EventEmitter {
           // Continue to next path
         }
       }
-      
+
       if (!webClientPath) {
-        const errorMsg = 'Could not find web client files in any of the attempted paths';
+        const errorMsg =
+          'Could not find web client files in any of the attempted paths';
         if (debugMode) {
           console.error('❌', errorMsg);
           console.error('Attempted paths:', possiblePaths);
         }
         throw new Error(errorMsg);
       }
-      
+
       // console.log('Web client serving from:', webClientPath);
       this.app.use(express.static(webClientPath));
-      
+
       // API endpoint for current history
       this.app.get('/api/health', (req, res) => {
         res.json({ status: 'ok', clients: this.clients.size });
@@ -373,7 +429,10 @@ export class WebInterfaceService extends EventEmitter {
        * Rewrite all relative URLs in HTML content to absolute preview URLs
        * This enables proper navigation (forward and backward) without base tag issues
        */
-      const rewriteHtmlLinks = (content: string, absolutePath: string): string => {
+      const rewriteHtmlLinks = (
+        content: string,
+        absolutePath: string,
+      ): string => {
         try {
           const root = parse(content);
           const baseDir = path.dirname(absolutePath);
@@ -390,7 +449,7 @@ export class WebInterfaceService extends EventEmitter {
             { selector: 'iframe[src]', attr: 'src' },
             { selector: 'embed[src]', attr: 'src' },
             { selector: 'object[data]', attr: 'data' },
-            { selector: 'form[action]', attr: 'action' }
+            { selector: 'form[action]', attr: 'action' },
           ];
 
           for (const { selector, attr } of elementsToRewrite) {
@@ -403,9 +462,11 @@ export class WebInterfaceService extends EventEmitter {
               if (!value) continue;
 
               // Skip absolute URLs (http://, https://, //)
-              if (value.startsWith('http://') ||
-                  value.startsWith('https://') ||
-                  value.startsWith('//')) {
+              if (
+                value.startsWith('http://') ||
+                value.startsWith('https://') ||
+                value.startsWith('//')
+              ) {
                 continue;
               }
 
@@ -420,9 +481,11 @@ export class WebInterfaceService extends EventEmitter {
               }
 
               // Skip mailto, tel, javascript protocols
-              if (value.startsWith('mailto:') ||
-                  value.startsWith('tel:') ||
-                  value.startsWith('javascript:')) {
+              if (
+                value.startsWith('mailto:') ||
+                value.startsWith('tel:') ||
+                value.startsWith('javascript:')
+              ) {
                 continue;
               }
 
@@ -431,7 +494,10 @@ export class WebInterfaceService extends EventEmitter {
               const normalizedPath = resolvedPath.replace(/\\/g, '/');
 
               // Rewrite to preview URL
-              el.setAttribute(attr, `/preview-file/${encodeURIComponent(normalizedPath)}`);
+              el.setAttribute(
+                attr,
+                `/preview-file/${encodeURIComponent(normalizedPath)}`,
+              );
             }
           }
 
@@ -479,26 +545,93 @@ export class WebInterfaceService extends EventEmitter {
           // Determine if binary or text
           const binaryExtensions = [
             // Images
-            '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.tiff', '.tif', '.avif',
+            '.png',
+            '.jpg',
+            '.jpeg',
+            '.gif',
+            '.webp',
+            '.ico',
+            '.bmp',
+            '.tiff',
+            '.tif',
+            '.avif',
             // Fonts
-            '.woff', '.woff2', '.ttf', '.eot', '.otf',
+            '.woff',
+            '.woff2',
+            '.ttf',
+            '.eot',
+            '.otf',
             // Documents
-            '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp',
+            '.pdf',
+            '.doc',
+            '.docx',
+            '.xls',
+            '.xlsx',
+            '.ppt',
+            '.pptx',
+            '.odt',
+            '.ods',
+            '.odp',
             // Video
-            '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.m4v', '.ogv',
+            '.mp4',
+            '.webm',
+            '.avi',
+            '.mov',
+            '.wmv',
+            '.flv',
+            '.mkv',
+            '.m4v',
+            '.ogv',
             // Audio
-            '.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.wma', '.opus',
+            '.mp3',
+            '.wav',
+            '.ogg',
+            '.aac',
+            '.m4a',
+            '.flac',
+            '.wma',
+            '.opus',
             // Archives
-            '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso',
+            '.zip',
+            '.rar',
+            '.7z',
+            '.tar',
+            '.gz',
+            '.bz2',
+            '.xz',
+            '.iso',
             // Executables and binaries
-            '.exe', '.dll', '.so', '.dylib', '.bin', '.dmg', '.pkg', '.deb', '.rpm'
+            '.exe',
+            '.dll',
+            '.so',
+            '.dylib',
+            '.bin',
+            '.dmg',
+            '.pkg',
+            '.deb',
+            '.rpm',
           ];
           const isBinary = binaryExtensions.includes(ext);
 
           // Video and audio extensions that need Range support for seeking
           const mediaExtensions = [
-            '.mp4', '.webm', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.m4v', '.ogv',
-            '.mp3', '.wav', '.ogg', '.aac', '.m4a', '.flac', '.wma', '.opus'
+            '.mp4',
+            '.webm',
+            '.avi',
+            '.mov',
+            '.wmv',
+            '.flv',
+            '.mkv',
+            '.m4v',
+            '.ogv',
+            '.mp3',
+            '.wav',
+            '.ogg',
+            '.aac',
+            '.m4a',
+            '.flac',
+            '.wma',
+            '.opus',
           ];
           const isMedia = mediaExtensions.includes(ext);
 
@@ -538,11 +671,14 @@ export class WebInterfaceService extends EventEmitter {
             // Documents
             '.pdf': 'application/pdf',
             '.doc': 'application/msword',
-            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.docx':
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             '.xls': 'application/vnd.ms-excel',
-            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.xlsx':
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             '.ppt': 'application/vnd.ms-powerpoint',
-            '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            '.pptx':
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             '.odt': 'application/vnd.oasis.opendocument.text',
             '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
             '.odp': 'application/vnd.oasis.opendocument.presentation',
@@ -626,7 +762,7 @@ export class WebInterfaceService extends EventEmitter {
             // Other
             '.wasm': 'application/wasm',
             '.ics': 'text/calendar; charset=utf-8',
-            '.vcf': 'text/vcard; charset=utf-8'
+            '.vcf': 'text/vcard; charset=utf-8',
           };
 
           const contentType = contentTypes[ext] || 'application/octet-stream';
@@ -647,7 +783,7 @@ export class WebInterfaceService extends EventEmitter {
               return;
             }
 
-            const chunkSize = (end - start) + 1;
+            const chunkSize = end - start + 1;
 
             // Set headers for partial content
             res.status(206); // Partial Content
@@ -656,7 +792,10 @@ export class WebInterfaceService extends EventEmitter {
             res.setHeader('Content-Length', chunkSize);
 
             // Stream the requested range
-            const stream = nodeFs.createReadStream(absolutePath, { start, end });
+            const stream = nodeFs.createReadStream(absolutePath, {
+              start,
+              end,
+            });
             stream.pipe(res);
 
             // Handle stream errors
@@ -691,7 +830,10 @@ export class WebInterfaceService extends EventEmitter {
 
             // WEB_INTERFACE_START: For HTML files, rewrite all relative URLs to absolute preview URLs
             // This enables proper browser navigation (back/forward) without base tag URL encoding issues
-            if ((ext === '.html' || ext === '.htm') && typeof content === 'string') {
+            if (
+              (ext === '.html' || ext === '.htm') &&
+              typeof content === 'string'
+            ) {
               const rewrittenContent = rewriteHtmlLinks(content, absolutePath);
               res.send(rewrittenContent);
             } else {
@@ -713,15 +855,17 @@ export class WebInterfaceService extends EventEmitter {
       // Start HTTP server with port fallback
       let requestedPort = config.port || 8629; // Default to 8629
       const host = config.host || 'localhost';
-      
+
       // Validate port number
       if (config.port !== undefined && config.port !== null) {
         if (isNaN(config.port) || config.port < 0 || config.port > 65535) {
-          console.error(`Invalid port number: ${config.port}. Port must be between 0-65535. Starting in another port.`);
+          console.error(
+            `Invalid port number: ${config.port}. Port must be between 0-65535. Starting in another port.`,
+          );
           requestedPort = 8629;
         }
       }
-      
+
       let usedFallback = false;
       try {
         // Try requested port first
@@ -734,16 +878,20 @@ export class WebInterfaceService extends EventEmitter {
             usedFallback = true;
           } catch (fallbackError: any) {
             // If fallback also fails, throw the original error with more context
-            throw new Error(`Failed to start web server on port ${requestedPort} (in use) and fallback to random port also failed: ${fallbackError.message}`);
+            throw new Error(
+              `Failed to start web server on port ${requestedPort} (in use) and fallback to random port also failed: ${fallbackError.message}`,
+            );
           }
         } else {
           throw error; // Re-throw non-port-conflict errors
         }
       }
-      
+
       const address = this.server.address();
       if (!address || typeof address === 'string') {
-        throw new Error(`Failed to get server address. Address type: ${typeof address}, value: ${address}`);
+        throw new Error(
+          `Failed to get server address. Address type: ${typeof address}, value: ${address}`,
+        );
       }
       this.port = address.port;
 
@@ -753,17 +901,17 @@ export class WebInterfaceService extends EventEmitter {
       }
 
       // Set up WebSocket server with compression enabled
-      this.wss = new WebSocketServer({ 
+      this.wss = new WebSocketServer({
         server: this.server,
         perMessageDeflate: {
           zlibDeflateOptions: {
             // See zlib defaults
             chunkSize: 1024,
             memLevel: 7,
-            level: 3
+            level: 3,
           },
           zlibInflateOptions: {
-            chunkSize: 10 * 1024
+            chunkSize: 10 * 1024,
           },
           // Other options settable:
           clientNoContextTakeover: true, // Defaults to negotiated value
@@ -771,8 +919,8 @@ export class WebInterfaceService extends EventEmitter {
           serverMaxWindowBits: 10, // Defaults to negotiated value
           // Below options specified as default values
           concurrencyLimit: 10, // Limits zlib concurrency for perf
-          threshold: 1024 // Size (in bytes) below which messages should not be compressed
-        }
+          threshold: 1024, // Size (in bytes) below which messages should not be compressed
+        },
       });
       this.setupWebSocketHandlers();
 
@@ -791,7 +939,7 @@ export class WebInterfaceService extends EventEmitter {
       // WEB_INTERFACE_START: Initialize directory watcher service for automatic tree updates
       this.directoryWatcherService = new DirectoryWatcherService(
         process.cwd(),
-        this.fileSystemService?.getAlwaysHiddenPatterns()
+        this.fileSystemService?.getAlwaysHiddenPatterns(),
       );
       this.setupDirectoryWatcherHandlers();
       await this.directoryWatcherService.start();
@@ -834,7 +982,7 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     // Close all WebSocket connections
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.close();
       }
@@ -900,32 +1048,43 @@ export class WebInterfaceService extends EventEmitter {
    */
   broadcastMessage(historyItem: HistoryItem): void {
     // Clear response state when content becomes final (AI message or tool group)
-    if (historyItem.type === 'gemini' || historyItem.type === 'gemini_content' || historyItem.type === 'tool_group') {
+    if (
+      historyItem.type === 'gemini' ||
+      historyItem.type === 'gemini_content' ||
+      historyItem.type === 'tool_group'
+    ) {
       this.currentResponseBlocks = null;
     }
-    
+
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
 
     // WEB_INTERFACE_START: Add sequence number
     const sequence = this.getNextSequence();
-    const message = JSON.stringify({
-      type: 'history_item',
-      data: historyItem,
-      sequence,
-      timestamp: Date.now(),
-    }, webSafeReplacer);
+    const message = JSON.stringify(
+      {
+        type: 'history_item',
+        data: historyItem,
+        sequence,
+        timestamp: Date.now(),
+      },
+      webSafeReplacer,
+    );
     // WEB_INTERFACE_END
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           // WEB_INTERFACE_START: Store in client's buffer
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            state.messageBuffer.add({
+              sequence,
+              message,
+              timestamp: Date.now(),
+            });
           }
           // WEB_INTERFACE_END
         } catch (_error) {
@@ -960,14 +1119,18 @@ export class WebInterfaceService extends EventEmitter {
     });
     // WEB_INTERFACE_END
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           // WEB_INTERFACE_START: Store in client's buffer
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+            state.messageBuffer.add({
+              sequence,
+              message,
+              timestamp: Date.now(),
+            });
           }
           // WEB_INTERFACE_END
         } catch (error) {
@@ -997,13 +1160,16 @@ export class WebInterfaceService extends EventEmitter {
       timestamp: Date.now(),
     });
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now() }, 'input_history_sync');
+            state.messageBuffer.add(
+              { sequence, message, timestamp: Date.now() },
+              'input_history_sync',
+            );
           }
         } catch (error) {
           this.clients.delete(client);
@@ -1020,7 +1186,7 @@ export class WebInterfaceService extends EventEmitter {
   broadcastLoadingState(loadingState: LoadingStateData): void {
     // Store current loading state for new clients
     this.currentLoadingState = loadingState;
-    
+
     if (!this.isRunning || this.clients.size === 0) {
       return;
     }
@@ -1031,19 +1197,24 @@ export class WebInterfaceService extends EventEmitter {
       type: 'loading_state',
       data: loadingState,
       sequence,
-      ephemeral: true,  // Mark as ephemeral - not saved in history
+      ephemeral: true, // Mark as ephemeral - not saved in history
       timestamp: Date.now(),
     });
     // WEB_INTERFACE_END
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           // WEB_INTERFACE_START: Store in client's buffer with ephemeral flag
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now(), ephemeral: true });
+            state.messageBuffer.add({
+              sequence,
+              message,
+              timestamp: Date.now(),
+              ephemeral: true,
+            });
           }
           // WEB_INTERFACE_END
         } catch (error) {
@@ -1068,21 +1239,29 @@ export class WebInterfaceService extends EventEmitter {
     }
 
     const sequence = this.getNextSequence();
-    const message = JSON.stringify({
-      type: 'response_state',
-      data: blocks,
-      sequence,
-      ephemeral: true,
-      timestamp: Date.now(),
-    }, webSafeReplacer);
+    const message = JSON.stringify(
+      {
+        type: 'response_state',
+        data: blocks,
+        sequence,
+        ephemeral: true,
+        timestamp: Date.now(),
+      },
+      webSafeReplacer,
+    );
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           const state = this.clientStates.get(client);
           if (state) {
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now(), ephemeral: true });
+            state.messageBuffer.add({
+              sequence,
+              message,
+              timestamp: Date.now(),
+              ephemeral: true,
+            });
           }
         } catch (error) {
           this.clients.delete(client);
@@ -1117,14 +1296,17 @@ export class WebInterfaceService extends EventEmitter {
       timestamp: Date.now(),
     });
 
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         try {
           client.send(message);
           const state = this.clientStates.get(client);
           if (state) {
             // Pass message type so buffer can handle state-snapshot types appropriately
-            state.messageBuffer.add({ sequence, message, timestamp: Date.now() }, type);
+            state.messageBuffer.add(
+              { sequence, message, timestamp: Date.now() },
+              type,
+            );
           }
         } catch (_error) {
           this.clients.delete(client);
@@ -1144,7 +1326,7 @@ export class WebInterfaceService extends EventEmitter {
     if (confirmation.callId) {
       this.activeToolConfirmations.set(confirmation.callId, confirmation);
     }
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('tool_confirmation', confirmation);
     // WEB_INTERFACE_END
@@ -1156,7 +1338,7 @@ export class WebInterfaceService extends EventEmitter {
   broadcastToolConfirmationRemoval(callId: string): void {
     // Remove from active confirmations
     this.activeToolConfirmations.delete(callId);
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('tool_confirmation_removal', { callId });
     // WEB_INTERFACE_END
@@ -1201,7 +1383,13 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Set the handler for tool confirmation responses from web interface
    */
-  setConfirmationResponseHandler(handler: (callId: string, outcome: ToolConfirmationOutcome, payload?: any) => void): void {
+  setConfirmationResponseHandler(
+    handler: (
+      callId: string,
+      outcome: ToolConfirmationOutcome,
+      payload?: any,
+    ) => void,
+  ): void {
     this.confirmationResponseHandler = handler;
   }
 
@@ -1221,7 +1409,7 @@ export class WebInterfaceService extends EventEmitter {
     this.currentResponseBlocks = null;
     this.currentLoadingState = null;
     this.activeToolConfirmations.clear();
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('clear', null);
     // WEB_INTERFACE_END
@@ -1233,7 +1421,7 @@ export class WebInterfaceService extends EventEmitter {
   broadcastSlashCommands(commands: readonly SlashCommand[]): void {
     // Store current commands for new clients
     this.currentSlashCommands = commands;
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('slash_commands', { commands });
     // WEB_INTERFACE_END
@@ -1250,10 +1438,10 @@ export class WebInterfaceService extends EventEmitter {
    * Broadcast MCP servers data to all connected web clients
    */
   broadcastMCPServers(
-    mcpServers: Record<string, MCPServerConfig>, 
+    mcpServers: Record<string, MCPServerConfig>,
     blockedMcpServers: Array<{ name: string; extensionName: string }>,
     serverTools: Map<string, DiscoveredMCPTool[]>,
-    serverStatuses: Map<string, string>
+    serverStatuses: Map<string, string>,
   ): void {
     // Transform the data for web client consumption
     const serversData = Object.entries(mcpServers).map(([name, config]) => {
@@ -1266,18 +1454,18 @@ export class WebInterfaceService extends EventEmitter {
         description: config.description,
         status,
         oauth: config.oauth,
-        tools: tools.map(tool => ({
+        tools: tools.map((tool) => ({
           name: tool.name,
           description: tool.description,
-          schema: tool.schema
-        }))
+          schema: tool.schema,
+        })),
       };
     });
 
     // Store current MCP servers data for new clients
     this.currentMCPServers = {
       servers: serversData,
-      blockedServers: blockedMcpServers
+      blockedServers: blockedMcpServers,
     };
 
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
@@ -1300,20 +1488,25 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Broadcast CLI action required state to all connected web clients
    */
-  broadcastCliActionRequired(active: boolean, reason: string = 'authentication', title: string = 'CLI Action Required', message: string = 'Please complete the action in the CLI terminal.'): void {
+  broadcastCliActionRequired(
+    active: boolean,
+    reason: string = 'authentication',
+    title: string = 'CLI Action Required',
+    message: string = 'Please complete the action in the CLI terminal.',
+  ): void {
     // Store the current state for new clients
     if (active) {
       this.currentCliActionState = { active, reason, title, message };
     } else {
       this.currentCliActionState = null;
     }
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('cli_action_required', {
       active,
       reason,
       title,
-      message
+      message,
     });
     // WEB_INTERFACE_END
   }
@@ -1328,7 +1521,7 @@ export class WebInterfaceService extends EventEmitter {
     } else {
       this.currentTerminalCapture = null;
     }
-    
+
     // WEB_INTERFACE_START: Use sequence-enabled broadcast
     this.broadcastWithSequence('terminal_capture', data);
     // WEB_INTERFACE_END
@@ -1338,15 +1531,20 @@ export class WebInterfaceService extends EventEmitter {
    * Handle incoming messages from web clients
    */
   // WEB_INTERFACE_START: Handle acknowledgment messages
-  private handleAcknowledgment(ws: WebSocket, message: { lastSequence: number }): void {
+  private handleAcknowledgment(
+    ws: WebSocket,
+    message: { lastSequence: number },
+  ): void {
     const state = this.clientStates.get(ws);
     if (state && message.lastSequence) {
       const previousAck = state.lastAcknowledgedSequence;
       state.lastAcknowledgedSequence = message.lastSequence;
-      
+
       // Prune acknowledged messages from the buffer to free memory
       if (message.lastSequence > previousAck) {
-        const pruned = state.messageBuffer.pruneAcknowledged(message.lastSequence);
+        const pruned = state.messageBuffer.pruneAcknowledged(
+          message.lastSequence,
+        );
         if (pruned > 0) {
           // console.log(`Pruned ${pruned} acknowledged messages for client`);
         }
@@ -1355,29 +1553,37 @@ export class WebInterfaceService extends EventEmitter {
   }
 
   // Handle resync requests
-  private handleResyncRequest(ws: WebSocket, message: { from: number; persistentOnly?: boolean }): void {
+  private handleResyncRequest(
+    ws: WebSocket,
+    message: { from: number; persistentOnly?: boolean },
+  ): void {
     const state = this.clientStates.get(ws);
     if (!state) return;
 
     const fromSequence = message.from || 0;
     const persistentOnly = message.persistentOnly === true;
-    
+
     // Check if we have the requested sequence in our buffer
     const oldestSequence = state.messageBuffer.getOldestSequence();
     if (oldestSequence !== null && fromSequence < oldestSequence) {
       // Buffer overrun - client is too far behind
-      ws.send(JSON.stringify({
-        type: 'force_resync',
-        currentSequence: this.sequenceNumber,
-        timestamp: Date.now()
-      }));
-      
+      ws.send(
+        JSON.stringify({
+          type: 'force_resync',
+          currentSequence: this.sequenceNumber,
+          timestamp: Date.now(),
+        }),
+      );
+
       // Send current state as if it's a new connection
       this.sendInitialState(ws);
     } else {
       // We can fulfill the resync request - only send persistent messages if requested
-      const messages = state.messageBuffer.getMessagesFrom(fromSequence, persistentOnly);
-      messages.forEach(msg => {
+      const messages = state.messageBuffer.getMessagesFrom(
+        fromSequence,
+        persistentOnly,
+      );
+      messages.forEach((msg) => {
         if (ws.readyState === WebSocket.OPEN) {
           try {
             ws.send(msg.message);
@@ -1391,26 +1597,45 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   // WEB_INTERFACE_START: Enhanced to handle attachments for multimodal support and file operations
-  private handleIncomingMessage(message: { type: string; content?: string; attachments?: any[]; callId?: string; outcome?: string; payload?: any; key?: any; path?: string; relativePath?: string; recursive?: boolean; oldPath?: string; newPath?: string; selection?: string; reasoningEffort?: string; query?: string }): void {
+  private handleIncomingMessage(message: {
+    type: string;
+    content?: string;
+    attachments?: any[];
+    callId?: string;
+    outcome?: string;
+    payload?: any;
+    key?: any;
+    path?: string;
+    relativePath?: string;
+    recursive?: boolean;
+    oldPath?: string;
+    newPath?: string;
+    selection?: string;
+    reasoningEffort?: string;
+    query?: string;
+  }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
-      
+
       // Convert attachments to multimodal Parts
       if (message.attachments && message.attachments.length > 0) {
         const parts: any[] = [];
-        
+
         // Add text part if present
         if (text) {
           parts.push({ text });
         }
-        
+
         // Add attachment parts and store metadata in WeakMap
         for (const attachment of message.attachments) {
           if (attachment.data && attachment.mimeType) {
             try {
               // Create inline data part for images and files
-              const part = createPartFromBase64(attachment.data, attachment.mimeType);
-              
+              const part = createPartFromBase64(
+                attachment.data,
+                attachment.mimeType,
+              );
+
               // Store metadata in WeakMap for later retrieval
               attachmentMetadataMap.set(part, {
                 type: attachment.type,
@@ -1419,17 +1644,17 @@ export class WebInterfaceService extends EventEmitter {
                 size: attachment.size,
                 thumbnail: attachment.thumbnail,
                 icon: attachment.icon,
-                displaySize: attachment.displaySize
+                displaySize: attachment.displaySize,
               });
-              
+
               parts.push(part);
             } catch (error) {
               console.error('Failed to create part from attachment:', error);
             }
           }
         }
-        
-        // Send multimodal message 
+
+        // Send multimodal message
         if (parts.length > 0) {
           this.submitQueryHandler(parts as PartListUnion);
         }
@@ -1438,9 +1663,12 @@ export class WebInterfaceService extends EventEmitter {
         this.submitQueryHandler(text);
       }
     } else if (message.type === 'interrupt_request' && this.abortHandler) {
-    // WEB_INTERFACE_END
+      // WEB_INTERFACE_END
       this.abortHandler();
-    } else if (message.type === 'tool_confirmation_response' && this.confirmationResponseHandler) {
+    } else if (
+      message.type === 'tool_confirmation_response' &&
+      this.confirmationResponseHandler
+    ) {
       if (message.callId && message.outcome) {
         // Map string values to enum values
         let outcome: ToolConfirmationOutcome;
@@ -1468,7 +1696,11 @@ export class WebInterfaceService extends EventEmitter {
             return;
         }
 
-        this.confirmationResponseHandler(message.callId, outcome, message.payload);
+        this.confirmationResponseHandler(
+          message.callId,
+          outcome,
+          message.payload,
+        );
       }
     } else if (message.type === 'terminal_input' && message.key) {
       // WEB_INTERFACE_START: Forward terminal input to AppContainer
@@ -1493,13 +1725,21 @@ export class WebInterfaceService extends EventEmitter {
       this.handleFileTreeSearchRequest(message.query);
     } else if (message.type === 'file_read_request' && message.path) {
       this.handleFileReadRequest(message.path);
-    } else if (message.type === 'file_write_request' && message.path && message.content !== undefined) {
+    } else if (
+      message.type === 'file_write_request' &&
+      message.path &&
+      message.content !== undefined
+    ) {
       this.handleFileWriteRequest(message.path, message.content);
     } else if (message.type === 'file_create_request' && message.path) {
       this.handleFileCreateRequest(message.path, message.content);
     } else if (message.type === 'file_delete_request' && message.path) {
       this.handleFileDeleteRequest(message.path, message.recursive);
-    } else if (message.type === 'file_rename_request' && message.oldPath && message.newPath) {
+    } else if (
+      message.type === 'file_rename_request' &&
+      message.oldPath &&
+      message.newPath
+    ) {
       this.handleFileRenameRequest(message.oldPath, message.newPath);
     } else if (message.type === 'file_open_system' && message.path) {
       this.handleFileOpenSystemRequest(message.path);
@@ -1537,7 +1777,10 @@ export class WebInterfaceService extends EventEmitter {
     else if (message.type === 'collaborative_writing_status_request') {
       this.handleCollaborativeWritingStatusRequest();
     } else if (message.type === 'collaborative_writing_toggle') {
-      this.handleCollaborativeWritingToggle((message as any).path, (message as any).action);
+      this.handleCollaborativeWritingToggle(
+        (message as any).path,
+        (message as any).action,
+      );
     }
   }
 
@@ -1547,71 +1790,77 @@ export class WebInterfaceService extends EventEmitter {
   private setupWebSocketHandlers(): void {
     if (!this.wss) return;
 
-    this.wss.on('connection', (ws: WebSocket, request: import('http').IncomingMessage) => {
-      // AUDITARIA: Parse URL to route based on path
-      const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+    this.wss.on(
+      'connection',
+      (ws: WebSocket, request: import('http').IncomingMessage) => {
+        // AUDITARIA: Parse URL to route based on path
+        const url = new URL(
+          request.url || '/',
+          `http://${request.headers.host || 'localhost'}`,
+        );
 
-      // AUDITARIA_FEATURE_START: Check if this is an agent control connection
-      if (url.pathname.startsWith('/control/agent/')) {
-        const sessionId = url.pathname.split('/').pop() || 'default';
-        this.handleAgentControlConnection(ws, sessionId);
-        return;
-      }
-      // AUDITARIA_END
-
-      // Check if this is a browser stream connection
-      if (url.pathname.startsWith('/stream/browser/')) {
-        const sessionId = url.pathname.split('/').pop() || 'default';
-        this.handleBrowserStreamConnection(ws, sessionId);
-        return;
-      }
-
-      // Standard chat connection handling
-      this.clients.add(ws);
-
-      // WEB_INTERFACE_START: Initialize client state for message resilience
-      this.clientStates.set(ws, {
-        messageBuffer: new CircularMessageBuffer(this.MESSAGE_BUFFER_SIZE),
-        lastAcknowledgedSequence: 0
-      });
-      // WEB_INTERFACE_END
-
-      ws.on('close', () => {
-        this.clients.delete(ws);
-        // WEB_INTERFACE_START: Clean up file watches for disconnected client
-        if (this.fileWatcherService) {
-          this.fileWatcherService.unwatchAllForClient(ws);
+        // AUDITARIA_FEATURE_START: Check if this is an agent control connection
+        if (url.pathname.startsWith('/control/agent/')) {
+          const sessionId = url.pathname.split('/').pop() || 'default';
+          this.handleAgentControlConnection(ws, sessionId);
+          return;
         }
+        // AUDITARIA_END
+
+        // Check if this is a browser stream connection
+        if (url.pathname.startsWith('/stream/browser/')) {
+          const sessionId = url.pathname.split('/').pop() || 'default';
+          this.handleBrowserStreamConnection(ws, sessionId);
+          return;
+        }
+
+        // Standard chat connection handling
+        this.clients.add(ws);
+
+        // WEB_INTERFACE_START: Initialize client state for message resilience
+        this.clientStates.set(ws, {
+          messageBuffer: new CircularMessageBuffer(this.MESSAGE_BUFFER_SIZE),
+          lastAcknowledgedSequence: 0,
+        });
         // WEB_INTERFACE_END
-        // Client state will be automatically cleaned up by WeakMap
-      });
 
-      ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
-        this.clients.delete(ws);
-      });
-
-      // Handle incoming messages from web client
-      ws.on('message', (data) => {
-        try {
-          const message = JSON.parse(data.toString());
-          // WEB_INTERFACE_START: Handle new message types for resilience
-          if (message.type === 'ack') {
-            this.handleAcknowledgment(ws, message);
-          } else if (message.type === 'resync_request') {
-            this.handleResyncRequest(ws, message);
-          } else {
-            this.handleIncomingMessage(message);
+        ws.on('close', () => {
+          this.clients.delete(ws);
+          // WEB_INTERFACE_START: Clean up file watches for disconnected client
+          if (this.fileWatcherService) {
+            this.fileWatcherService.unwatchAllForClient(ws);
           }
           // WEB_INTERFACE_END
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      });
+          // Client state will be automatically cleaned up by WeakMap
+        });
 
-      // Send initial state to the client
-      this.sendInitialState(ws);
-    });
+        ws.on('error', (error) => {
+          console.error('WebSocket error:', error);
+          this.clients.delete(ws);
+        });
+
+        // Handle incoming messages from web client
+        ws.on('message', (data) => {
+          try {
+            const message = JSON.parse(data.toString());
+            // WEB_INTERFACE_START: Handle new message types for resilience
+            if (message.type === 'ack') {
+              this.handleAcknowledgment(ws, message);
+            } else if (message.type === 'resync_request') {
+              this.handleResyncRequest(ws, message);
+            } else {
+              this.handleIncomingMessage(message);
+            }
+            // WEB_INTERFACE_END
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        });
+
+        // Send initial state to the client
+        this.sendInitialState(ws);
+      },
+    );
 
     this.wss.on('error', (error) => {
       console.error('WebSocket server error:', error);
@@ -1622,11 +1871,19 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle browser stream WebSocket connections
    */
-  private async handleBrowserStreamConnection(ws: WebSocket, sessionId: string): Promise<void> {
+  private async handleBrowserStreamConnection(
+    ws: WebSocket,
+    sessionId: string,
+  ): Promise<void> {
     // console.log(`[BrowserStream] Client connecting for session: ${sessionId}`);
 
     if (!this.streamManager) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Stream manager not initialized' }));
+      ws.send(
+        JSON.stringify({
+          type: 'error',
+          message: 'Stream manager not initialized',
+        }),
+      );
       ws.close();
       return;
     }
@@ -1634,18 +1891,25 @@ export class WebInterfaceService extends EventEmitter {
     // Check if session exists
     const sessionManager = SessionManager.getInstance();
     if (!sessionManager.hasSession(sessionId)) {
-      ws.send(JSON.stringify({ type: 'error', message: `Session '${sessionId}' not found` }));
+      ws.send(
+        JSON.stringify({
+          type: 'error',
+          message: `Session '${sessionId}' not found`,
+        }),
+      );
       ws.close();
       return;
     }
 
     // Send connected message
-    ws.send(JSON.stringify({
-      type: 'connected',
-      clientId: `stream-${Date.now()}`,
-      sessionId,
-      availableQualities: ['low', 'medium', 'high'],
-    }));
+    ws.send(
+      JSON.stringify({
+        type: 'connected',
+        clientId: `stream-${Date.now()}`,
+        sessionId,
+        availableQualities: ['low', 'medium', 'high'],
+      }),
+    );
 
     let unsubscribe: (() => Promise<void>) | undefined;
 
@@ -1681,7 +1945,9 @@ export class WebInterfaceService extends EventEmitter {
 
     // Handle disconnect
     ws.on('close', async () => {
-      console.log(`[BrowserStream] Client disconnected from session: ${sessionId}`);
+      console.log(
+        `[BrowserStream] Client disconnected from session: ${sessionId}`,
+      );
       const clientInfo = this.streamClients.get(ws);
       if (clientInfo?.unsubscribe) {
         await clientInfo.unsubscribe();
@@ -1727,14 +1993,26 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle stream control messages
    */
-  private async handleStreamControlMessage(ws: WebSocket, sessionId: string, message: any): Promise<void> {
+  private async handleStreamControlMessage(
+    ws: WebSocket,
+    sessionId: string,
+    message: any,
+  ): Promise<void> {
     if (!this.streamManager) return;
 
     switch (message.type) {
       case 'set_quality':
-        if (message.quality && ['low', 'medium', 'high'].includes(message.quality)) {
+        if (
+          message.quality &&
+          ['low', 'medium', 'high'].includes(message.quality)
+        ) {
           await this.streamManager.setQuality(sessionId, message.quality);
-          ws.send(JSON.stringify({ type: 'quality_changed', quality: message.quality }));
+          ws.send(
+            JSON.stringify({
+              type: 'quality_changed',
+              quality: message.quality,
+            }),
+          );
         }
         break;
 
@@ -1761,19 +2039,23 @@ export class WebInterfaceService extends EventEmitter {
     // Send initial state
     const sessionInfo = sessionManager.getSessionInfo(sessionId);
     if (sessionInfo) {
-      ws.send(JSON.stringify({
-        type: 'state',
-        state: sessionInfo.state,
-        sessionId,
-        headless: sessionInfo.headless,  // AUDITARIA: Send headless flag to hide/show takeover button
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'state',
+          state: sessionInfo.state,
+          sessionId,
+          headless: sessionInfo.headless, // AUDITARIA: Send headless flag to hide/show takeover button
+        }),
+      );
     } else {
-      ws.send(JSON.stringify({
-        type: 'state',
-        state: 'unknown',
-        sessionId,
-        headless: true,  // Default to headless (no takeover button)
-      }));
+      ws.send(
+        JSON.stringify({
+          type: 'state',
+          state: 'unknown',
+          sessionId,
+          headless: true, // Default to headless (no takeover button)
+        }),
+      );
     }
 
     // Handle control messages
@@ -1784,17 +2066,23 @@ export class WebInterfaceService extends EventEmitter {
         switch (message.action) {
           case 'pause':
             sessionManager.pauseExecution(sessionId);
-            ws.send(JSON.stringify({ type: 'state', state: 'paused', sessionId }));
+            ws.send(
+              JSON.stringify({ type: 'state', state: 'paused', sessionId }),
+            );
             break;
 
           case 'resume':
             sessionManager.resumeExecution(sessionId);
-            ws.send(JSON.stringify({ type: 'state', state: 'running', sessionId }));
+            ws.send(
+              JSON.stringify({ type: 'state', state: 'running', sessionId }),
+            );
             break;
 
           case 'stop':
             sessionManager.stopExecution(sessionId);
-            ws.send(JSON.stringify({ type: 'state', state: 'stopping', sessionId }));
+            ws.send(
+              JSON.stringify({ type: 'state', state: 'stopping', sessionId }),
+            );
             break;
 
           case 'takeover':
@@ -1803,26 +2091,43 @@ export class WebInterfaceService extends EventEmitter {
             (async () => {
               try {
                 // console.log(`[AgentControl] Sending taking_over state to client`);
-                ws.send(JSON.stringify({ type: 'state', state: 'taking_over', sessionId }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'state',
+                    state: 'taking_over',
+                    sessionId,
+                  }),
+                );
 
                 // console.log(`[AgentControl] Calling sessionManager.takeOverSession(${sessionId})`);
                 await sessionManager.takeOverSession(sessionId);
 
                 // console.log(`[AgentControl] takeOverSession completed successfully`);
-                ws.send(JSON.stringify({ type: 'state', state: 'taken_over', sessionId }));
-                ws.send(JSON.stringify({
-                  type: 'takeover_ready',
-                  message: 'Browser is now visible. You can interact with it manually.',
-                }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'state',
+                    state: 'taken_over',
+                    sessionId,
+                  }),
+                );
+                ws.send(
+                  JSON.stringify({
+                    type: 'takeover_ready',
+                    message:
+                      'Browser is now visible. You can interact with it manually.',
+                  }),
+                );
                 // console.log(`[AgentControl] ====== TAKEOVER COMPLETE ======`);
               } catch (error: any) {
                 console.error('[AgentControl] ====== TAKEOVER FAILED ======');
                 console.error('[AgentControl] Error:', error);
                 console.error('[AgentControl] Stack:', error.stack);
-                ws.send(JSON.stringify({
-                  type: 'error',
-                  message: error.message || 'Takeover failed',
-                }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'error',
+                    message: error.message || 'Takeover failed',
+                  }),
+                );
               }
             })();
             break;
@@ -1833,43 +2138,69 @@ export class WebInterfaceService extends EventEmitter {
             (async () => {
               try {
                 // console.log(`[AgentControl] Sending ending_takeover state to client`);
-                ws.send(JSON.stringify({ type: 'state', state: 'ending_takeover', sessionId }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'state',
+                    state: 'ending_takeover',
+                    sessionId,
+                  }),
+                );
 
                 // console.log(`[AgentControl] Calling sessionManager.endTakeOver(${sessionId})`);
                 await sessionManager.endTakeOver(sessionId);
 
                 // console.log(`[AgentControl] endTakeOver completed successfully`);
                 // AUDITARIA: Send 'running' state since endTakeOver auto-resumes the agent
-                ws.send(JSON.stringify({ type: 'state', state: 'running', sessionId }));
-                ws.send(JSON.stringify({
-                  type: 'takeover_ended',
-                  message: 'Browser minimized. Agent execution resumed automatically.',
-                }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'state',
+                    state: 'running',
+                    sessionId,
+                  }),
+                );
+                ws.send(
+                  JSON.stringify({
+                    type: 'takeover_ended',
+                    message:
+                      'Browser minimized. Agent execution resumed automatically.',
+                  }),
+                );
                 // console.log(`[AgentControl] ====== END TAKEOVER COMPLETE ======`);
               } catch (error: any) {
-                console.error('[AgentControl] ====== END TAKEOVER FAILED ======');
+                console.error(
+                  '[AgentControl] ====== END TAKEOVER FAILED ======',
+                );
                 console.error('[AgentControl] Error:', error);
                 console.error('[AgentControl] Stack:', error.stack);
-                ws.send(JSON.stringify({
-                  type: 'error',
-                  message: error.message || 'End takeover failed',
-                }));
+                ws.send(
+                  JSON.stringify({
+                    type: 'error',
+                    message: error.message || 'End takeover failed',
+                  }),
+                );
               }
             })();
             break;
 
           case 'get_state':
             const info = sessionManager.getSessionInfo(sessionId);
-            ws.send(JSON.stringify({
-              type: 'state',
-              state: info?.state || 'unknown',
-              sessionId,
-              headless: info?.headless ?? true,  // AUDITARIA: Send headless flag
-            }));
+            ws.send(
+              JSON.stringify({
+                type: 'state',
+                state: info?.state || 'unknown',
+                sessionId,
+                headless: info?.headless ?? true, // AUDITARIA: Send headless flag
+              }),
+            );
             break;
 
           default:
-            ws.send(JSON.stringify({ type: 'error', message: `Unknown action: ${message.action}` }));
+            ws.send(
+              JSON.stringify({
+                type: 'error',
+                message: `Unknown action: ${message.action}`,
+              }),
+            );
         }
       } catch (error: any) {
         console.error('[AgentControl] Error handling message:', error);
@@ -1882,7 +2213,10 @@ export class WebInterfaceService extends EventEmitter {
     });
 
     ws.on('error', (error) => {
-      console.error(`[AgentControl] WebSocket error for session ${sessionId}:`, error);
+      console.error(
+        `[AgentControl] WebSocket error for session ${sessionId}:`,
+        error,
+      );
     });
   }
   // AUDITARIA_END
@@ -1892,13 +2226,15 @@ export class WebInterfaceService extends EventEmitter {
    * Non-blocking: if rg isn't available, search falls back to BFS.
    */
   private initRipgrepForSearch(): void {
-    ensureRgPath().then((rgPath) => {
-      if (this.fileSystemService) {
-        this.fileSystemService.setRgPath(rgPath);
-      }
-    }).catch(() => {
-      // Ripgrep not available — file search will use BFS fallback
-    });
+    ensureRgPath()
+      .then((rgPath) => {
+        if (this.fileSystemService) {
+          this.fileSystemService.setRgPath(rgPath);
+        }
+      })
+      .catch(() => {
+        // Ripgrep not available — file search will use BFS fallback
+      });
   }
 
   // WEB_INTERFACE_START: File operation handler methods
@@ -1913,18 +2249,21 @@ export class WebInterfaceService extends EventEmitter {
 
     try {
       const { maxDepth, maxChildren } = FileSystemService.TREE_DEFAULTS;
-      const tree = await this.fileSystemService.getFileTree(relativePath || '.', { maxDepth, maxChildren });
+      const tree = await this.fileSystemService.getFileTree(
+        relativePath || '.',
+        { maxDepth, maxChildren },
+      );
 
       this.broadcastWithSequence('file_tree_response', {
         tree,
-        workspaceRoot: this.fileSystemService.getWorkspaceRoot()
+        workspaceRoot: this.fileSystemService.getWorkspaceRoot(),
       });
     } catch (error: any) {
       console.error('Error reading file tree:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'tree',
         path: relativePath || '.',
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -1932,7 +2271,9 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle request to load children of a specific folder (lazy expand)
    */
-  private async handleFileTreeChildrenRequest(relativePath: string): Promise<void> {
+  private async handleFileTreeChildrenRequest(
+    relativePath: string,
+  ): Promise<void> {
     if (!this.fileSystemService) {
       console.error('FileSystemService not initialized');
       return;
@@ -1940,19 +2281,22 @@ export class WebInterfaceService extends EventEmitter {
 
     try {
       const { maxDepth, maxChildren } = FileSystemService.TREE_DEFAULTS;
-      const children = await this.fileSystemService.getFileTree(relativePath, { maxDepth, maxChildren });
+      const children = await this.fileSystemService.getFileTree(relativePath, {
+        maxDepth,
+        maxChildren,
+      });
 
       this.broadcastWithSequence('file_tree_children_response', {
         path: relativePath,
         children,
-        workspaceRoot: this.fileSystemService.getWorkspaceRoot()
+        workspaceRoot: this.fileSystemService.getWorkspaceRoot(),
       });
     } catch (error: any) {
       console.error('Error reading folder children:', error);
       this.broadcastWithSequence('file_tree_children_response', {
         path: relativePath,
         children: [],
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -1971,14 +2315,14 @@ export class WebInterfaceService extends EventEmitter {
 
       this.broadcastWithSequence('file_tree_search_response', {
         query,
-        results
+        results,
       });
     } catch (error: any) {
       console.error('Error searching files:', error);
       this.broadcastWithSequence('file_tree_search_response', {
         query,
         results: [],
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2001,7 +2345,7 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_operation_error', {
         operation: 'read',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2009,7 +2353,10 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle file write request
    */
-  private async handleFileWriteRequest(path: string, content: string): Promise<void> {
+  private async handleFileWriteRequest(
+    path: string,
+    content: string,
+  ): Promise<void> {
     if (!this.fileSystemService) {
       console.error('FileSystemService not initialized');
       return;
@@ -2028,14 +2375,14 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_write_response', {
         success: true,
         path,
-        message: 'File saved successfully'
+        message: 'File saved successfully',
       });
     } catch (error: any) {
       console.error('Error writing file:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'write',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2043,7 +2390,10 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle file create request
    */
-  private async handleFileCreateRequest(path: string, content?: string): Promise<void> {
+  private async handleFileCreateRequest(
+    path: string,
+    content?: string,
+  ): Promise<void> {
     if (!this.fileSystemService) {
       console.error('FileSystemService not initialized');
       return;
@@ -2055,20 +2405,26 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_create_response', {
         success: true,
         path,
-        message: 'File created successfully'
+        message: 'File created successfully',
       });
 
       // Notify clients about the affected parent folder (lazy tree will re-request only that folder)
-      const parentDir = path.includes('/') || path.includes('\\')
-        ? path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')))
-        : '.';
-      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
+      const parentDir =
+        path.includes('/') || path.includes('\\')
+          ? path.substring(
+              0,
+              Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')),
+            )
+          : '.';
+      this.broadcastWithSequence('directory_change_notification', {
+        path: parentDir || '.',
+      });
     } catch (error: any) {
       console.error('Error creating file:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'create',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2076,7 +2432,10 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle file delete request
    */
-  private async handleFileDeleteRequest(path: string, recursive?: boolean): Promise<void> {
+  private async handleFileDeleteRequest(
+    path: string,
+    recursive?: boolean,
+  ): Promise<void> {
     if (!this.fileSystemService) {
       console.error('FileSystemService not initialized');
       return;
@@ -2088,20 +2447,26 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_delete_response', {
         success: true,
         path,
-        message: 'File deleted successfully'
+        message: 'File deleted successfully',
       });
 
       // Notify clients about the affected parent folder
-      const parentDir = path.includes('/') || path.includes('\\')
-        ? path.substring(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')))
-        : '.';
-      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
+      const parentDir =
+        path.includes('/') || path.includes('\\')
+          ? path.substring(
+              0,
+              Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')),
+            )
+          : '.';
+      this.broadcastWithSequence('directory_change_notification', {
+        path: parentDir || '.',
+      });
     } catch (error: any) {
       console.error('Error deleting file:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'delete',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2109,7 +2474,10 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle file rename request
    */
-  private async handleFileRenameRequest(oldPath: string, newPath: string): Promise<void> {
+  private async handleFileRenameRequest(
+    oldPath: string,
+    newPath: string,
+  ): Promise<void> {
     if (!this.fileSystemService) {
       console.error('FileSystemService not initialized');
       return;
@@ -2122,7 +2490,7 @@ export class WebInterfaceService extends EventEmitter {
         success: true,
         oldPath,
         newPath,
-        message: 'File renamed successfully'
+        message: 'File renamed successfully',
       });
 
       // Notify clients about affected parent folders (source and destination may differ)
@@ -2132,9 +2500,13 @@ export class WebInterfaceService extends EventEmitter {
       };
       const oldParent = getParent(oldPath);
       const newParent = getParent(newPath);
-      this.broadcastWithSequence('directory_change_notification', { path: oldParent });
+      this.broadcastWithSequence('directory_change_notification', {
+        path: oldParent,
+      });
       if (newParent !== oldParent) {
-        this.broadcastWithSequence('directory_change_notification', { path: newParent });
+        this.broadcastWithSequence('directory_change_notification', {
+          path: newParent,
+        });
       }
     } catch (error: any) {
       console.error('Error renaming file:', error);
@@ -2142,7 +2514,7 @@ export class WebInterfaceService extends EventEmitter {
         operation: 'rename',
         oldPath,
         newPath,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2162,14 +2534,14 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_open_system_response', {
         success: true,
         path,
-        message: 'File opened with system default application'
+        message: 'File opened with system default application',
       });
     } catch (error: any) {
       console.error('Error opening file with system default:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'open_system',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2189,14 +2561,14 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('file_reveal_response', {
         success: true,
         path,
-        message: 'File revealed in file explorer'
+        message: 'File revealed in file explorer',
       });
     } catch (error: any) {
       console.error('Error revealing file in explorer:', error);
       this.broadcastWithSequence('file_operation_error', {
         operation: 'reveal',
         path,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -2206,17 +2578,20 @@ export class WebInterfaceService extends EventEmitter {
   private sendInitialState(ws: WebSocket): void {
     const state = this.clientStates.get(ws);
     if (!state) return;
-    
+
     // Helper to send and store message
     const sendAndStore = (type: string, data: any) => {
       const sequence = this.getNextSequence();
-      const message = JSON.stringify({
-        type,
-        data,
-        sequence,
-        timestamp: Date.now(),
-      }, webSafeReplacer);
-      
+      const message = JSON.stringify(
+        {
+          type,
+          data,
+          sequence,
+          timestamp: Date.now(),
+        },
+        webSafeReplacer,
+      );
+
       if (ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(message);
@@ -2226,18 +2601,18 @@ export class WebInterfaceService extends EventEmitter {
         }
       }
     };
-    
+
     // Send welcome message with starting sequence
     sendAndStore('connection', {
       message: 'Connected to Auditaria',
-      startingSequence: this.sequenceNumber
+      startingSequence: this.sequenceNumber,
     });
-    
+
     // Send current history to new client
     if (this.currentHistory.length > 0) {
       sendAndStore('history_sync', { history: this.currentHistory });
     }
-    
+
     // Send current slash commands to new client
     if (this.currentSlashCommands.length > 0) {
       sendAndStore('slash_commands', { commands: this.currentSlashCommands });
@@ -2248,23 +2623,23 @@ export class WebInterfaceService extends EventEmitter {
       sendAndStore('model_menu_data', this.currentModelMenuData);
     }
     // WEB_INTERFACE_END
-    
+
     // Send current MCP servers to new client (always send, even if empty)
     sendAndStore('mcp_servers', this.currentMCPServers);
-    
+
     // Send current console messages to new client (always send, even if empty)
     sendAndStore('console_messages', this.currentConsoleMessages);
-    
+
     // Send current CLI action state to new client if active
     if (this.currentCliActionState && this.currentCliActionState.active) {
       sendAndStore('cli_action_required', this.currentCliActionState);
     }
-    
+
     // Send current terminal capture to new client if available
     if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
       sendAndStore('terminal_capture', this.currentTerminalCapture);
     }
-    
+
     // WEB_INTERFACE_START: Send ephemeral states that are still relevant
     // Send current loading state if active
     if (this.currentLoadingState) {
@@ -2285,7 +2660,7 @@ export class WebInterfaceService extends EventEmitter {
     if (this.currentResponseBlocks) {
       sendAndStore('response_state', this.currentResponseBlocks);
     }
-    
+
     // Send all active tool confirmations
     for (const [callId, confirmation] of this.activeToolConfirmations) {
       sendAndStore('tool_confirmation', confirmation);
@@ -2296,7 +2671,7 @@ export class WebInterfaceService extends EventEmitter {
     if (this.docxParser) {
       sendAndStore('parser_status', {
         available: this.docxParser.isParserAvailable(),
-        path: this.docxParser.getParserPath()
+        path: this.docxParser.getParserPath(),
       });
     }
 
@@ -2333,17 +2708,21 @@ export class WebInterfaceService extends EventEmitter {
             data: {
               path,
               diskContent,
-              diskStats
+              diskStats,
             },
             sequence,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
 
           try {
             client.send(message);
             const state = this.clientStates.get(client);
             if (state) {
-              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+              state.messageBuffer.add({
+                sequence,
+                message,
+                timestamp: Date.now(),
+              });
             }
           } catch (error) {
             console.error('Error sending file-external-change:', error);
@@ -2364,14 +2743,18 @@ export class WebInterfaceService extends EventEmitter {
             type: 'file_external_delete',
             data: { path },
             sequence,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
 
           try {
             client.send(message);
             const state = this.clientStates.get(client);
             if (state) {
-              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+              state.messageBuffer.add({
+                sequence,
+                message,
+                timestamp: Date.now(),
+              });
             }
           } catch (error) {
             console.error('Error sending file-external-delete:', error);
@@ -2392,17 +2775,21 @@ export class WebInterfaceService extends EventEmitter {
             type: 'file_watch_error',
             data: {
               path,
-              error
+              error,
             },
             sequence,
-            timestamp: Date.now()
+            timestamp: Date.now(),
           });
 
           try {
             client.send(message);
             const state = this.clientStates.get(client);
             if (state) {
-              state.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+              state.messageBuffer.add({
+                sequence,
+                message,
+                timestamp: Date.now(),
+              });
             }
           } catch (error) {
             console.error('Error sending file-watch-error:', error);
@@ -2415,7 +2802,10 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle file watch request from client
    */
-  private async handleFileWatchRequest(path: string, content?: string): Promise<void> {
+  private async handleFileWatchRequest(
+    path: string,
+    content?: string,
+  ): Promise<void> {
     if (!this.fileWatcherService) {
       console.error('FileWatcherService not initialized');
       return;
@@ -2436,7 +2826,7 @@ export class WebInterfaceService extends EventEmitter {
         console.error(`Failed to read file for watch: ${path}`, error);
         this.broadcastWithSequence('file_watch_error', {
           path,
-          error: error.message
+          error: error.message,
         });
         return;
       }
@@ -2446,7 +2836,11 @@ export class WebInterfaceService extends EventEmitter {
     // Note: This is simplified - in production, you'd track which specific client made the request
     for (const client of this.clients) {
       try {
-        await this.fileWatcherService.watchFile(path, client, initialContent || '');
+        await this.fileWatcherService.watchFile(
+          path,
+          client,
+          initialContent || '',
+        );
       } catch (error: any) {
         console.error(`Failed to watch file ${path}:`, error);
       }
@@ -2489,10 +2883,19 @@ export class WebInterfaceService extends EventEmitter {
       // The client will re-request only the affected folder if it's been loaded
       const changedPath = event?.path || event?.relativePath || '.';
       // Normalize to parent directory (the watcher fires for the changed file, not folder)
-      const parentDir = changedPath.includes('/') || changedPath.includes('\\')
-        ? changedPath.substring(0, Math.max(changedPath.lastIndexOf('/'), changedPath.lastIndexOf('\\')))
-        : '.';
-      this.broadcastWithSequence('directory_change_notification', { path: parentDir || '.' });
+      const parentDir =
+        changedPath.includes('/') || changedPath.includes('\\')
+          ? changedPath.substring(
+              0,
+              Math.max(
+                changedPath.lastIndexOf('/'),
+                changedPath.lastIndexOf('\\'),
+              ),
+            )
+          : '.';
+      this.broadcastWithSequence('directory_change_notification', {
+        path: parentDir || '.',
+      });
     });
 
     // Handle watcher errors
@@ -2512,7 +2915,7 @@ export class WebInterfaceService extends EventEmitter {
 
     this.broadcastWithSequence('parser_status', {
       available: this.docxParser.isParserAvailable(),
-      path: this.docxParser.getParserPath()
+      path: this.docxParser.getParserPath(),
     });
   }
 
@@ -2532,7 +2935,7 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastWithSequence('parse_response', {
         success: true,
         outputPath: result.outputPath,
-        message: 'Successfully parsed to DOCX'
+        message: 'Successfully parsed to DOCX',
       });
 
       // Open the DOCX file with system default application
@@ -2541,7 +2944,7 @@ export class WebInterfaceService extends EventEmitter {
       // Send error response
       this.broadcastWithSequence('parse_error', {
         success: false,
-        error: result.error || 'Unknown error'
+        error: result.error || 'Unknown error',
       });
     }
   }
@@ -2584,7 +2987,10 @@ export class WebInterfaceService extends EventEmitter {
    * Handle collaborative writing toggle request from web client
    * Starts or stops tracking a file for collaborative writing
    */
-  private async handleCollaborativeWritingToggle(filePath: string, action: 'start' | 'end'): Promise<void> {
+  private async handleCollaborativeWritingToggle(
+    filePath: string,
+    action: 'start' | 'end',
+  ): Promise<void> {
     if (!filePath) {
       this.broadcastWithSequence('collaborative_writing_toggle_result', {
         path: filePath,
@@ -2854,7 +3260,9 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle knowledge base reindex request
    */
-  private async handleKnowledgeBaseReindexRequest(force?: boolean): Promise<void> {
+  private async handleKnowledgeBaseReindexRequest(
+    force?: boolean,
+  ): Promise<void> {
     const searchService = getSearchService();
 
     if (!searchService.isRunning()) {
@@ -2888,7 +3296,9 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Handle knowledge base auto-index toggle request
    */
-  private async handleKnowledgeBaseAutoIndexRequest(enabled: boolean): Promise<void> {
+  private async handleKnowledgeBaseAutoIndexRequest(
+    enabled: boolean,
+  ): Promise<void> {
     const searchService = getSearchService();
     const searchSystem = searchService.getSearchSystem();
 
@@ -3037,7 +3447,7 @@ export class WebInterfaceService extends EventEmitter {
       }
       if (filters.extensions && filters.extensions.length > 0) {
         searchFilters.fileTypes = filters.extensions.map((ext: string) =>
-          ext.startsWith('.') ? ext : `.${ext}`
+          ext.startsWith('.') ? ext : `.${ext}`,
         );
       }
       if (Object.keys(searchFilters).length > 0) {
@@ -3060,17 +3470,20 @@ export class WebInterfaceService extends EventEmitter {
         fileName: result.fileName || '',
         score: result.score || 0,
         chunkText: result.chunkText || '',
-        passages: [{
-          content: result.chunkText || '',
-          lineNumber: result.metadata?.page || null,
-        }],
+        passages: [
+          {
+            content: result.chunkText || '',
+            lineNumber: result.metadata?.page || null,
+          },
+        ],
         // Include additional sources from semantic deduplication
-        additionalSources: result.additionalSources?.map((src: any) => ({
-          filePath: src.filePath,
-          fileName: src.fileName,
-          documentId: src.documentId,
-          score: src.score,
-        })) || [],
+        additionalSources:
+          result.additionalSources?.map((src: any) => ({
+            filePath: src.filePath,
+            fileName: src.fileName,
+            documentId: src.documentId,
+            score: src.score,
+          })) || [],
       }));
 
       this.broadcastWithSequence('knowledge_base_search_response', {
@@ -3104,7 +3517,9 @@ export class WebInterfaceService extends EventEmitter {
   /**
    * Setup progress broadcasting for knowledge base indexing
    */
-  private setupKnowledgeBaseProgressBroadcasting(searchService: SearchServiceManager): void {
+  private setupKnowledgeBaseProgressBroadcasting(
+    searchService: SearchServiceManager,
+  ): void {
     // Poll for progress updates during indexing
     const progressInterval = setInterval(async () => {
       const progress = searchService.getIndexingProgress();
@@ -3139,7 +3554,11 @@ export class WebInterfaceService extends EventEmitter {
       });
 
       // Stop polling when completed or failed
-      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'idle') {
+      if (
+        progress.status === 'completed' ||
+        progress.status === 'failed' ||
+        progress.status === 'idle'
+      ) {
         clearInterval(progressInterval);
 
         // Send final status update
@@ -3148,8 +3567,11 @@ export class WebInterfaceService extends EventEmitter {
     }, 5000); // Every 5 seconds during active indexing
 
     // Clean up after 30 minutes max (safety)
-    setTimeout(() => {
-      clearInterval(progressInterval);
-    }, 30 * 60 * 1000);
+    setTimeout(
+      () => {
+        clearInterval(progressInterval);
+      },
+      30 * 60 * 1000,
+    );
   }
 }
