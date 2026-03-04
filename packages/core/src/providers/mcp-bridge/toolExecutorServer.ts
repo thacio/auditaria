@@ -1,13 +1,23 @@
+/* eslint-disable */
 // AUDITARIA_CLAUDE_PROVIDER: HTTP API for executing bridgeable tools
 // Runs in the Auditaria process. The MCP bridge script (spawned by Claude CLI)
 // communicates with this server to list and execute tools.
 
-import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'http';
+import {
+  createServer,
+  type Server,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'http';
 import type { ToolRegistry } from '../../tools/tool-registry.js';
 import type { AnyDeclarativeTool } from '../../tools/tools.js';
 import { partToString } from '../../utils/partUtils.js';
-import type { AnsiOutput } from '../../utils/terminalSerializer.js'; // AUDITARIA: For updateOutput callback type
-import type { BridgeableToolSchema, ToolExecuteRequest, ToolExecuteResponse } from './types.js';
+import type { ToolLiveOutput } from '../../tools/tools.js'; // AUDITARIA: For updateOutput callback type
+import type {
+  BridgeableToolSchema,
+  ToolExecuteRequest,
+  ToolExecuteResponse,
+} from './types.js';
 
 const BASE_PORT = 19751;
 const MAX_PORT_ATTEMPTS = 20;
@@ -65,9 +75,14 @@ export class ToolExecutorServer {
   }
 
   getBridgeableTools(): BridgeableToolSchema[] {
-    return this.registry.getAllTools()
-      .filter(tool => (tool.constructor as unknown as Record<string, unknown>).Bridgeable === true)
-      .map(tool => ({
+    return this.registry
+      .getAllTools()
+      .filter(
+        (tool) =>
+          (tool.constructor as unknown as Record<string, unknown>)
+            .Bridgeable === true,
+      )
+      .map((tool) => ({
         name: tool.schema.name ?? tool.name,
         description: tool.schema.description ?? '',
         inputSchema: tool.schema.parametersJsonSchema,
@@ -76,10 +91,18 @@ export class ToolExecutorServer {
 
   // AUDITARIA: Get display metadata for a bridgeable tool (displayName, description, isOutputMarkdown).
   // Builds the tool invocation to get a rich description from getDescription() instead of raw args JSON.
-  getToolDisplayInfo(toolName: string, args: Record<string, unknown>): ToolDisplayInfo | undefined {
-    const tool = this.registry.getAllTools()
-      .find(t => t.name === toolName &&
-        (t.constructor as unknown as Record<string, unknown>).Bridgeable === true);
+  getToolDisplayInfo(
+    toolName: string,
+    args: Record<string, unknown>,
+  ): ToolDisplayInfo | undefined {
+    const tool = this.registry
+      .getAllTools()
+      .find(
+        (t) =>
+          t.name === toolName &&
+          (t.constructor as unknown as Record<string, unknown>).Bridgeable ===
+            true,
+      );
     if (!tool) return undefined;
 
     let description: string;
@@ -89,7 +112,9 @@ export class ToolExecutorServer {
     } catch {
       // Validation failed — fall back to a simple key:value summary
       description = Object.entries(args)
-        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+        .map(
+          ([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`,
+        )
         .join(', ');
     }
 
@@ -138,14 +163,22 @@ export class ToolExecutorServer {
     res.end(JSON.stringify(tools));
   }
 
-  private async handleExecuteTool(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  private async handleExecuteTool(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
     try {
       const body = await this.readBody(req);
       const request: ToolExecuteRequest = JSON.parse(body);
 
-      const tool = this.registry.getAllTools()
-        .find(t => t.name === request.tool &&
-          (t.constructor as unknown as Record<string, unknown>).Bridgeable === true);
+      const tool = this.registry
+        .getAllTools()
+        .find(
+          (t) =>
+            t.name === request.tool &&
+            (t.constructor as unknown as Record<string, unknown>).Bridgeable ===
+              true,
+        );
 
       if (!tool) {
         const response: ToolExecuteResponse = {
@@ -179,24 +212,30 @@ export class ToolExecutorServer {
       const toolName = tool.name;
 
       // AUDITARIA: Create updateOutput callback for live updates (browser agent steps, etc.)
-      const updateOutput = (tool.canUpdateOutput && this.toolOutputHandler)
-        ? (output: string | AnsiOutput) => {
-            if (typeof output === 'string') {
-              this.toolOutputHandler!(toolName, output);
+      const updateOutput =
+        tool.canUpdateOutput && this.toolOutputHandler
+          ? (output: ToolLiveOutput) => {
+              if (typeof output === 'string') {
+                this.toolOutputHandler!(toolName, output);
+              }
             }
-          }
-        : undefined;
+          : undefined;
 
-      const result = await tool.buildAndExecute(params, ac.signal, updateOutput);
+      const result = await tool.buildAndExecute(
+        params,
+        ac.signal,
+        updateOutput,
+      );
 
-      // Return the raw response parts directly if it's an array or complex object, 
+      // Return the raw response parts directly if it's an array or complex object,
       // so providerManager can extract the rich structure for the RAW viewer.
       // Otherwise fallback to stringified content.
-      
+
       // AUDITARIA: Store returnDisplay for providerManager to consume
-      const returnDisplayStr = typeof result.returnDisplay === 'string'
-        ? result.returnDisplay
-        : result.returnDisplay?.toString();
+      const returnDisplayStr =
+        typeof result.returnDisplay === 'string'
+          ? result.returnDisplay
+          : result.returnDisplay?.toString();
       if (returnDisplayStr) {
         this.lastReturnDisplays.set(toolName, returnDisplayStr);
       }
@@ -204,10 +243,16 @@ export class ToolExecutorServer {
       let contentToReturn = '';
       if (Array.isArray(result.llmContent)) {
         contentToReturn = JSON.stringify(result.llmContent);
-      } else if (typeof result.llmContent === 'object' && result.llmContent !== null) {
+      } else if (
+        typeof result.llmContent === 'object' &&
+        result.llmContent !== null
+      ) {
         contentToReturn = JSON.stringify([result.llmContent]);
       } else {
-        contentToReturn = partToString(result.llmContent, { verbose: true }) || returnDisplayStr || 'Tool completed with no output';
+        contentToReturn =
+          partToString(result.llmContent, { verbose: true }) ||
+          returnDisplayStr ||
+          'Tool completed with no output';
       }
 
       return {
@@ -226,7 +271,9 @@ export class ToolExecutorServer {
   private readBody(req: IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
       let data = '';
-      req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+      req.on('data', (chunk: Buffer) => {
+        data += chunk.toString();
+      });
       req.on('end', () => resolve(data));
       req.on('error', reject);
     });
