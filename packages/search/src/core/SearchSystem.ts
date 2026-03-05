@@ -36,7 +36,6 @@ import {
   loadUserConfig,
   loadMergedConfig,
   deepMerge,
-  DEFAULT_EMBEDDINGS_CONFIG,
   type BackendOptionsMap,
 } from '../config.js';
 import type {
@@ -464,6 +463,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       }
 
       // Initialize the external embedder (verifies connectivity)
+      // No fallback — if provider is "gemini", it must work or fail clearly.
       try {
         await this.externalEmbedder.initialize();
       } catch (initError) {
@@ -471,12 +471,11 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
 
         // Detect Vertex AI API not enabled — give user-friendly instructions
         if (msg.includes('aiplatform.googleapis.com') || msg.includes('Vertex AI API has not been used')) {
-          // Extract the enable URL from the error message if present
           const urlMatch = msg.match(/(https:\/\/console\.developers\.google\.com\/apis\/api\/aiplatform\.googleapis\.com\/overview\?project=\S+)/);
           const enableUrl = urlMatch?.[1] ?? 'https://console.cloud.google.com/apis/api/aiplatform.googleapis.com';
 
-          console.warn(
-            '\n' +
+          throw new Error(
+            '\n\n' +
             '╔══════════════════════════════════════════════════════════════════╗\n' +
             '║  Gemini Embeddings: Vertex AI API needs to be enabled          ║\n' +
             '╠══════════════════════════════════════════════════════════════════╣\n' +
@@ -486,77 +485,69 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
             '║                                                                ║\n' +
             '║  Steps:                                                        ║\n' +
             '║  1. Visit the link below                                       ║\n' +
-            '║  2. Click "Enable" (it\'s free for embedding models)            ║\n' +
+            '║  2. Click "Enable"                                             ║\n' +
             '║  3. Wait ~1 minute, then retry /knowledge-base init            ║\n' +
             '║                                                                ║\n' +
-            '║  Falling back to local embeddings for now.                     ║\n' +
+            '║  Or set provider to "local" in knowledge-base.config.json      ║\n' +
+            '║  to use free local embeddings instead.                         ║\n' +
             '╚══════════════════════════════════════════════════════════════════╝\n' +
             `\n  → ${enableUrl}\n`,
           );
-        } else {
-          console.warn(
-            `[SearchSystem] External embedder initialization failed: ${msg}\n` +
-            `  Falling back to local embeddings.`,
-          );
         }
 
-        // Fall back to local embeddings — reset provider so the else branch handles it
-        this.externalEmbedder = null;
-        this.config.embeddings.provider = 'local';
-        this.config.embeddings.model = DEFAULT_EMBEDDINGS_CONFIG.model;
+        throw new Error(
+          `Gemini embedder initialization failed: ${msg}\n` +
+          `  Either fix the issue above, or set provider to "local" in\n` +
+          `  .auditaria/knowledge-base.config.json to use free local embeddings.`,
+        );
       }
 
-      if (this.externalEmbedder) {
-        this.indexingEmbedder = this.externalEmbedder;
-        this.searchEmbedder = this.externalEmbedder;
-        this.resolvedEmbedderConfig = {
-          device: 'cpu', // Remote — no local device
-          quantization: 'fp32', // API returns full precision
-          gpuDetected: false,
-          gpuUsedForIndexing: false,
+      this.indexingEmbedder = this.externalEmbedder;
+      this.searchEmbedder = this.externalEmbedder;
+      this.resolvedEmbedderConfig = {
+        device: 'cpu', // Remote — no local device
+        quantization: 'fp32', // API returns full precision
+        gpuDetected: false,
+        gpuUsedForIndexing: false,
+      };
+
+      const actualDimensions = this.externalEmbedder.dimensions;
+
+      // Store config if this is a fresh database
+      if (!storedConfig) {
+        const newConfig: StoredEmbedderConfig = {
+          version: SEARCH_DB_VERSION,
+          model: this.externalEmbedder.modelId,
+          quantization: 'fp32',
+          dimensions: actualDimensions,
+          createdAt: new Date().toISOString(),
         };
-
-        const actualDimensions = this.externalEmbedder.dimensions;
-
-        // Store config if this is a fresh database
-        if (!storedConfig) {
-          const newConfig: StoredEmbedderConfig = {
-            version: SEARCH_DB_VERSION,
-            model: this.externalEmbedder.modelId,
-            quantization: 'fp32',
-            dimensions: actualDimensions,
-            createdAt: new Date().toISOString(),
-          };
-          await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
-          console.log(
-            `[SearchSystem] Stored embedder config: model=${newConfig.model}, ` +
-              `dimensions=${actualDimensions}`,
-          );
-        }
-
-        // Validate storage dimensions match
-        if (storageDimensions !== actualDimensions) {
-          console.error(
-            `[SearchSystem] DIMENSION MISMATCH: storage has ${storageDimensions} dimensions ` +
-              `but external embedder "${this.externalEmbedder.modelId}" produces ${actualDimensions}. ` +
-              `Re-index with force=true to rebuild the database.`,
-          );
-        }
+        await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
+        console.log(
+          `[SearchSystem] Stored embedder config: model=${newConfig.model}, ` +
+            `dimensions=${actualDimensions}`,
+        );
       }
 
-      // If external embedder failed and was nulled, fall through to local embedders
+      // Validate storage dimensions match
+      if (storageDimensions !== actualDimensions) {
+        console.error(
+          `[SearchSystem] DIMENSION MISMATCH: storage has ${storageDimensions} dimensions ` +
+            `but external embedder "${this.externalEmbedder.modelId}" produces ${actualDimensions}. ` +
+            `Re-index with force=true to rebuild the database.`,
+        );
+      }
     }
 
     if (!this.indexingEmbedder && !this.useMockEmbedder) {
-      // Guard: if provider is 'gemini' but no externalEmbedder was provided,
-      // the Gemini model name can't be used as a local HuggingFace model.
-      // Fall back to the default local model with a warning.
+      // If provider is 'gemini' but no externalEmbedder was provided (no Google auth),
+      // fail clearly instead of silently falling back to local with wrong dimensions.
       if (this.config.embeddings.provider === 'gemini') {
-        console.warn(
-          `[SearchSystem] Provider is "gemini" but no external embedder was provided ` +
-            `(Google auth may be unavailable). Falling back to local embeddings.`,
+        throw new Error(
+          `Provider is "gemini" but no Google authentication is available.\n` +
+          `  Either sign in with Google, or set provider to "local" in\n` +
+          `  .auditaria/knowledge-base.config.json to use free local embeddings.`,
         );
-        this.config.embeddings.model = DEFAULT_EMBEDDINGS_CONFIG.model;
       }
 
       // Check for stored embedder config (ensures consistency across machines/sessions)

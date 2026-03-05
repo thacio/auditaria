@@ -35,7 +35,7 @@ export type EmbedFunction = (
 export interface GeminiEmbedderConfig {
   /** The embedding function to delegate to */
   embedFunction: EmbedFunction;
-  /** Google embedding model ID. Default: 'text-embedding-004' */
+  /** Google embedding model ID. Default: 'gemini-embedding-001' */
   model?: string;
   /** Embedding dimensions. Auto-derived from model if known. */
   dimensions?: number;

@@ -31,32 +31,82 @@ async function autoStartSearchService(config: Config): Promise<void> {
 
     const service = getSearchService();
 
-    // AUDITARIA_GEMINI_EMBEDDINGS_START: Wire ContentGenerator for Gemini embeddings
-    // Always set on the singleton so any later start() (e.g. /knowledge-base init) sees it
+    // AUDITARIA_GEMINI_EMBEDDINGS_START: Wire Google AI Studio API key for Gemini embeddings
+    // Uses the stored API key (persists in keychain even when user switches to OAuth).
+    // Calls generativelanguage.googleapis.com directly — free tier, no Vertex AI needed.
+    // Free tier: 100 RPM, 1000 RPD. We throttle to stay well within limits.
     try {
-      const contentGenerator = config.getContentGenerator();
-      if (contentGenerator) {
+      const { loadApiKey } = await import('@google/gemini-cli-core');
+      const apiKey = process.env['GEMINI_API_KEY'] || (await loadApiKey());
+      if (apiKey) {
+        // Per-request rate limiter (shared across all calls on this singleton)
+        const requestTimestamps: number[] = [];
+        const MAX_RPM = 80; // Stay under 100 RPM free tier limit
+
         service.setEmbedFunction(
           async (texts: string[], model: string, outputDimensionality?: number) => {
-            const response = await contentGenerator.embedContent({
-              model,
-              contents: texts,
-              config: outputDimensionality ? { outputDimensionality } : undefined,
-            });
-            if (
-              !response.embeddings ||
-              response.embeddings.length !== texts.length
-            ) {
-              throw new Error(
-                `Embedding API returned ${response.embeddings?.length ?? 0} results for ${texts.length} texts`,
-              );
-            }
-            return response.embeddings.map((e) => {
-              if (!e.values || e.values.length === 0) {
-                throw new Error('Embedding API returned empty values');
+            const results: number[][] = [];
+            for (const text of texts) {
+              // Sliding window rate limiter — wait if approaching limit
+              const now = Date.now();
+              const windowStart = now - 60_000;
+              // Remove timestamps older than 1 minute
+              while (requestTimestamps.length > 0 && requestTimestamps[0] <= windowStart) {
+                requestTimestamps.shift();
               }
-              return e.values;
-            });
+              if (requestTimestamps.length >= MAX_RPM) {
+                const waitMs = requestTimestamps[0] - windowStart + 100;
+                await new Promise((r) => setTimeout(r, waitMs));
+              }
+              requestTimestamps.push(Date.now());
+
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`;
+              const body: Record<string, unknown> = {
+                content: { parts: [{ text }] },
+              };
+              if (outputDimensionality) {
+                body.outputDimensionality = outputDimensionality;
+              }
+              const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+              if (!res.ok) {
+                const errText = await res.text();
+                // Retry once on 429 (rate limit) after waiting
+                if (res.status === 429) {
+                  await new Promise((r) => setTimeout(r, 5000));
+                  const retry = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                  });
+                  if (retry.ok) {
+                    const retryData = (await retry.json()) as {
+                      embedding?: { values?: number[] };
+                    };
+                    if (retryData.embedding?.values?.length) {
+                      results.push(retryData.embedding.values);
+                      continue;
+                    }
+                  }
+                }
+                throw new Error(
+                  `Gemini embedding API error ${res.status}: ${errText.slice(0, 300)}`,
+                );
+              }
+              const data = (await res.json()) as {
+                embedding?: { values?: number[] };
+              };
+              if (!data.embedding?.values?.length) {
+                throw new Error(
+                  `Gemini embedding API returned no values for model=${model}`,
+                );
+              }
+              results.push(data.embedding.values);
+            }
+            return results;
           },
         );
       }
