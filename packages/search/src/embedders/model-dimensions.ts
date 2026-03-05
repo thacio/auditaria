@@ -14,6 +14,10 @@ export const MODEL_DIMENSIONS: Record<string, number> = {
   'Xenova/multilingual-e5-large': 1024,
   'Xenova/all-MiniLM-L6-v2': 384,
   'Xenova/all-mpnet-base-v2': 768,
+  // Google embedding models
+  'gemini-embedding-001': 768, // Default 3072, but we request 768 via outputDimensionality
+  'text-embedding-004': 768, // Deprecated Jan 2026, kept for existing databases
+  'embedding-001': 768,
 };
 
 /** Default model ID */

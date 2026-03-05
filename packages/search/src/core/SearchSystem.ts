@@ -36,6 +36,7 @@ import {
   loadUserConfig,
   loadMergedConfig,
   deepMerge,
+  DEFAULT_EMBEDDINGS_CONFIG,
   type BackendOptionsMap,
 } from '../config.js';
 import type {
@@ -147,6 +148,9 @@ export interface SearchSystemInitOptions {
   useMockEmbedder?: boolean;
   /** Logging configuration for debugging */
   logging?: LoggingOptions;
+  /** External embedder to use instead of local ONNX models. When provided,
+   *  skips createEmbedders() and uses this for both indexing and search. */
+  externalEmbedder?: TextEmbedder;
 }
 
 export interface SearchSystemState {
@@ -217,6 +221,8 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
   private childManager: IndexingChildManager | null = null;
   /** User backend options from knowledge-base.config.json (passed to createStorage) */
   private userBackendOptions: BackendOptionsMap | null = null;
+  /** External embedder (e.g., Gemini API) — bypasses local ONNX when set */
+  private externalEmbedder: TextEmbedder | null = null;
 
   private constructor(
     rootPath: string,
@@ -224,6 +230,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     useMockEmbedder: boolean = false,
     loggingOptions?: LoggingOptions,
     userBackendOptions?: BackendOptionsMap,
+    externalEmbedder?: TextEmbedder,
   ) {
     super();
     this.rootPath = resolve(rootPath);
@@ -231,6 +238,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     this.useMockEmbedder = useMockEmbedder;
     this.loggingOptions = loggingOptions;
     this.userBackendOptions = userBackendOptions ?? null;
+    this.externalEmbedder = externalEmbedder ?? null;
   }
 
   // -------------------------------------------------------------------------
@@ -286,6 +294,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       options.useMockEmbedder ?? false,
       options.logging,
       backendOptions,
+      options.externalEmbedder,
     );
 
     await system.setup();
@@ -338,6 +347,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       options.useMockEmbedder ?? false,
       options.logging,
       undefined, // createStorage() will use stored options from metadata
+      options.externalEmbedder,
     );
 
     await system.setup();
@@ -434,7 +444,121 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         gpuUsedForIndexing: false,
       };
       console.log('[SearchSystem] Using MockEmbedder');
-    } else {
+    } else if (this.externalEmbedder) {
+      console.log(
+        `[SearchSystem] Using external embedder: ${this.externalEmbedder.name} ` +
+          `(model=${this.externalEmbedder.modelId}, dimensions=${this.externalEmbedder.dimensions})`,
+      );
+
+      // Check stored config for model consistency with existing database
+      const storedConfig =
+        await this.storage.getConfigValue<StoredEmbedderConfig>(
+          EMBEDDER_CONFIG_KEY,
+        );
+      if (storedConfig && storedConfig.model !== this.externalEmbedder.modelId) {
+        console.warn(
+          `[SearchSystem] Model mismatch: database was indexed with "${storedConfig.model}" ` +
+            `but external embedder uses "${this.externalEmbedder.modelId}". ` +
+            `Re-index with force=true to rebuild with the new model.`,
+        );
+      }
+
+      // Initialize the external embedder (verifies connectivity)
+      try {
+        await this.externalEmbedder.initialize();
+      } catch (initError) {
+        const msg = initError instanceof Error ? initError.message : String(initError);
+
+        // Detect Vertex AI API not enabled — give user-friendly instructions
+        if (msg.includes('aiplatform.googleapis.com') || msg.includes('Vertex AI API has not been used')) {
+          // Extract the enable URL from the error message if present
+          const urlMatch = msg.match(/(https:\/\/console\.developers\.google\.com\/apis\/api\/aiplatform\.googleapis\.com\/overview\?project=\S+)/);
+          const enableUrl = urlMatch?.[1] ?? 'https://console.cloud.google.com/apis/api/aiplatform.googleapis.com';
+
+          console.warn(
+            '\n' +
+            '╔══════════════════════════════════════════════════════════════════╗\n' +
+            '║  Gemini Embeddings: Vertex AI API needs to be enabled          ║\n' +
+            '╠══════════════════════════════════════════════════════════════════╣\n' +
+            '║                                                                ║\n' +
+            '║  To use Gemini embeddings (provider: "gemini"), you need to    ║\n' +
+            '║  enable the Vertex AI API in your Google Cloud project.        ║\n' +
+            '║                                                                ║\n' +
+            '║  Steps:                                                        ║\n' +
+            '║  1. Visit the link below                                       ║\n' +
+            '║  2. Click "Enable" (it\'s free for embedding models)            ║\n' +
+            '║  3. Wait ~1 minute, then retry /knowledge-base init            ║\n' +
+            '║                                                                ║\n' +
+            '║  Falling back to local embeddings for now.                     ║\n' +
+            '╚══════════════════════════════════════════════════════════════════╝\n' +
+            `\n  → ${enableUrl}\n`,
+          );
+        } else {
+          console.warn(
+            `[SearchSystem] External embedder initialization failed: ${msg}\n` +
+            `  Falling back to local embeddings.`,
+          );
+        }
+
+        // Fall back to local embeddings — reset provider so the else branch handles it
+        this.externalEmbedder = null;
+        this.config.embeddings.provider = 'local';
+        this.config.embeddings.model = DEFAULT_EMBEDDINGS_CONFIG.model;
+      }
+
+      if (this.externalEmbedder) {
+        this.indexingEmbedder = this.externalEmbedder;
+        this.searchEmbedder = this.externalEmbedder;
+        this.resolvedEmbedderConfig = {
+          device: 'cpu', // Remote — no local device
+          quantization: 'fp32', // API returns full precision
+          gpuDetected: false,
+          gpuUsedForIndexing: false,
+        };
+
+        const actualDimensions = this.externalEmbedder.dimensions;
+
+        // Store config if this is a fresh database
+        if (!storedConfig) {
+          const newConfig: StoredEmbedderConfig = {
+            version: SEARCH_DB_VERSION,
+            model: this.externalEmbedder.modelId,
+            quantization: 'fp32',
+            dimensions: actualDimensions,
+            createdAt: new Date().toISOString(),
+          };
+          await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
+          console.log(
+            `[SearchSystem] Stored embedder config: model=${newConfig.model}, ` +
+              `dimensions=${actualDimensions}`,
+          );
+        }
+
+        // Validate storage dimensions match
+        if (storageDimensions !== actualDimensions) {
+          console.error(
+            `[SearchSystem] DIMENSION MISMATCH: storage has ${storageDimensions} dimensions ` +
+              `but external embedder "${this.externalEmbedder.modelId}" produces ${actualDimensions}. ` +
+              `Re-index with force=true to rebuild the database.`,
+          );
+        }
+      }
+
+      // If external embedder failed and was nulled, fall through to local embedders
+    }
+
+    if (!this.indexingEmbedder && !this.useMockEmbedder) {
+      // Guard: if provider is 'gemini' but no externalEmbedder was provided,
+      // the Gemini model name can't be used as a local HuggingFace model.
+      // Fall back to the default local model with a warning.
+      if (this.config.embeddings.provider === 'gemini') {
+        console.warn(
+          `[SearchSystem] Provider is "gemini" but no external embedder was provided ` +
+            `(Google auth may be unavailable). Falling back to local embeddings.`,
+        );
+        this.config.embeddings.model = DEFAULT_EMBEDDINGS_CONFIG.model;
+      }
+
       // Check for stored embedder config (ensures consistency across machines/sessions)
       const storedConfig =
         await this.storage.getConfigValue<StoredEmbedderConfig>(
@@ -590,7 +714,7 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     );
 
     // Initialize search engine (uses CPU embedder for search)
-    this.searchEngine = createSearchEngine(this.storage, this.searchEmbedder, {
+    this.searchEngine = createSearchEngine(this.storage, this.searchEmbedder!, {
       defaultLimit: this.config.search.defaultLimit,
       defaultStrategy: this.config.search.defaultStrategy,
       semanticWeight: this.config.search.semanticWeight,

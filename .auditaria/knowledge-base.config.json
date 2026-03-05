@@ -53,6 +53,7 @@
 
     "embeddings": {
       "_docs": "Embedding model configuration. Dimensions are auto-derived from the model name.",
+      "provider": "local",
       "model": "Xenova/multilingual-e5-small",
       "batchSize": 2,
       "queryPrefix": "query: ",
@@ -150,10 +151,16 @@
       "ivfflat": "Inverted File Flat - tunable recall via probes",
       "none": "No index - exact brute force search"
     },
+    "embeddingProviders": {
+      "local": "Local ONNX models (Python/Worker/TransformersJs) — no network needed",
+      "gemini": "Google Gemini embedding API — higher quality (768-dim), requires Google auth"
+    },
     "embeddingModels": {
       "Xenova/multilingual-e5-small": "384 dimensions, fastest, good for most use cases",
       "Xenova/multilingual-e5-base": "768 dimensions, balanced",
-      "Xenova/multilingual-e5-large": "1024 dimensions, best quality, slower"
+      "Xenova/multilingual-e5-large": "1024 dimensions, best quality, slower",
+      "gemini-embedding-001": "768 dimensions (default), Google Gemini API, best quality (requires provider=gemini)",
+      "text-embedding-004": "768 dimensions, Google Gemini API, deprecated Jan 2026 (requires provider=gemini)"
     },
     "quantization": {
       "fp32": "Full precision (slowest, most accurate)",

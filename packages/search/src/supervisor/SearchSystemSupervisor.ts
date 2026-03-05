@@ -85,11 +85,14 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
   // private static readonly MIN_RESTART_COOLDOWN_MS = 60000; // 1 minute
   // private static readonly MAX_CONSECUTIVE_MEMORY_RESTARTS = 3;
 
+  private externalEmbedder: import('../embedders/types.js').TextEmbedder | null = null;
+
   private constructor(
     rootPath: string,
     config: SearchSystemConfig,
     partialConfig: DeepPartial<SearchSystemConfig>,
     supervisorConfig: SupervisorConfig,
+    externalEmbedder?: import('../embedders/types.js').TextEmbedder,
   ) {
     super();
     this.rootPath = rootPath;
@@ -97,6 +100,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
     this.partialConfig = partialConfig;
     this.supervisorConfig = supervisorConfig;
     this.databasePath = join(rootPath, config.database.path);
+    this.externalEmbedder = externalEmbedder ?? null;
   }
 
   // -------------------------------------------------------------------------
@@ -127,6 +131,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       config,
       partialConfig,
       supervisorConfig,
+      options.externalEmbedder,
     );
 
     await supervisor.initialize();
@@ -159,6 +164,7 @@ export class SearchSystemSupervisor extends EventEmitter<SupervisorEvents> {
       this.databasePath,
       this.partialConfig,
       this.supervisorConfig,
+      this.externalEmbedder ?? undefined,
     );
 
     // Subscribe to strategy events and forward them

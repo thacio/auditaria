@@ -181,6 +181,12 @@ export interface ChunkingConfig {
 }
 
 export interface EmbeddingsConfig {
+  /**
+   * Embedding provider. Default: 'local'
+   * - 'local': Use local ONNX models (Python/Worker/TransformersJs)
+   * - 'gemini': Use Google's embedding API via ContentGenerator (requires Google auth)
+   */
+  provider: 'local' | 'gemini';
   /** Model identifier for Transformers.js. Default: 'Xenova/multilingual-e5-small' */
   model: string;
   /** Batch size for embedding generation. Default: 10 */
@@ -484,6 +490,7 @@ export const DEFAULT_CHUNKING_CONFIG: ChunkingConfig = {
 };
 
 export const DEFAULT_EMBEDDINGS_CONFIG: EmbeddingsConfig = {
+  provider: 'local', // 'local' (ONNX) or 'gemini' (Google API)
   model: 'Xenova/multilingual-e5-small', // 'Xenova/multilingual-e5-small', 'Xenova/multilingual-e5-base', 'Xenova/multilingual-e5-large'
   batchSize: 2, // Power of 2, conservative for memory
   dimensions: 384, // 384, 768, 1024

@@ -82,6 +82,15 @@ export {
 
 export type { SupervisorStrategy } from './src/config.js';
 
+// User configuration (loading/merging knowledge-base.config.json)
+export {
+  loadUserConfig,
+  loadMergedConfig,
+  userConfigExists,
+} from './src/config/index.js';
+
+export type { UserConfigFile, MergedConfigResult } from './src/config/index.js';
+
 // ============================================================================
 // SearchSystem Supervisor (Automatic Memory Management)
 // AUDITARIA_FEATURE: Provides automatic restart after N documents to prevent memory bloat
@@ -259,6 +268,7 @@ export {
   MockEmbedder,
   WorkerEmbedder,
   createWorkerEmbedder,
+  GeminiEmbedder,
   getModelDimensions,
   MODEL_DIMENSIONS,
 } from './src/embedders/index.js';
@@ -271,6 +281,8 @@ export type {
   TransformersJsEmbedderConfig,
   EmbedderEvents,
   WorkerEmbedderConfig,
+  GeminiEmbedderConfig,
+  EmbedFunction,
 } from './src/embedders/index.js';
 
 // ============================================================================

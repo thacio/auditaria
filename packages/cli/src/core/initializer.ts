@@ -29,10 +29,45 @@ async function autoStartSearchService(config: Config): Promise<void> {
 
     const rootPath = config.getTargetDir();
 
+    const service = getSearchService();
+
+    // AUDITARIA_GEMINI_EMBEDDINGS_START: Wire ContentGenerator for Gemini embeddings
+    // Always set on the singleton so any later start() (e.g. /knowledge-base init) sees it
+    try {
+      const contentGenerator = config.getContentGenerator();
+      if (contentGenerator) {
+        service.setEmbedFunction(
+          async (texts: string[], model: string, outputDimensionality?: number) => {
+            const response = await contentGenerator.embedContent({
+              model,
+              contents: texts,
+              config: outputDimensionality ? { outputDimensionality } : undefined,
+            });
+            if (
+              !response.embeddings ||
+              response.embeddings.length !== texts.length
+            ) {
+              throw new Error(
+                `Embedding API returned ${response.embeddings?.length ?? 0} results for ${texts.length} texts`,
+              );
+            }
+            return response.embeddings.map((e) => {
+              if (!e.values || e.values.length === 0) {
+                throw new Error('Embedding API returned empty values');
+              }
+              return e.values;
+            });
+          },
+        );
+      }
+    } catch {
+      // Non-fatal — Gemini embeddings unavailable, local will be used
+    }
+    // AUDITARIA_GEMINI_EMBEDDINGS_END
+
     if (searchDatabaseExists(rootPath)) {
       // eslint-disable-next-line no-console
       console.log('[SearchService] Database found, auto-starting service...');
-      const service = getSearchService();
 
       // Register cleanup BEFORE starting to ensure it runs even if start fails partway
       registerCleanup(async () => {

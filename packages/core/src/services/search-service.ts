@@ -95,6 +95,12 @@ export class SearchServiceManager {
   private eventUnsubscribers: Array<() => void> = [];
   private isProcessingQueue: boolean = false;
 
+  // AUDITARIA_GEMINI_EMBEDDINGS_START: External embedding function for Gemini API
+  private embedFunction:
+    | ((texts: string[], model: string, outputDimensionality?: number) => Promise<number[][]>)
+    | null = null;
+  // AUDITARIA_GEMINI_EMBEDDINGS_END
+
   // AUDITARIA: Set to true to silence SearchService info/debug console output
   private static SILENT_MODE = true;
 
@@ -138,6 +144,21 @@ export class SearchServiceManager {
         undefined as unknown as SearchServiceManager;
     }
   }
+
+  // AUDITARIA_GEMINI_EMBEDDINGS_START: External embedding function
+  /**
+   * Set the external embedding function for Gemini API embeddings.
+   * Must be called before start() to take effect.
+   * When set and config has provider='gemini', a GeminiEmbedder will be
+   * created and passed to the search system as an external embedder.
+   */
+  setEmbedFunction(
+    fn: (texts: string[], model: string, outputDimensionality?: number) => Promise<number[][]>,
+  ): void {
+    this.embedFunction = fn;
+    this.log('[SearchService] External embedding function set');
+  }
+  // AUDITARIA_GEMINI_EMBEDDINGS_END
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -201,11 +222,43 @@ export class SearchServiceManager {
       // to prevent memory bloat from WASM, embedder models, and other resources.
       // Note: Do NOT pass a full config here - let SearchSystem load user config properly.
       this.log('[SearchService] Initializing with supervisor...');
+
+      // AUDITARIA_GEMINI_EMBEDDINGS_START: Create GeminiEmbedder if provider is 'gemini'
+      let externalEmbedder:
+        | import('@thacio/auditaria-search').TextEmbedder
+        | undefined;
+      if (this.embedFunction) {
+        // Load user config to check provider preference
+        // (defaultConfig uses code defaults only, not user's knowledge-base.config.json)
+        const { loadUserConfig } = await import('@thacio/auditaria-search');
+        const { join } = await import('node:path');
+        const userConfig = loadUserConfig(join(rootPath, '.auditaria'));
+        const provider =
+          userConfig?.config?.embeddings?.provider ??
+          defaultConfig.embeddings.provider;
+
+        if (provider === 'gemini') {
+          const { GeminiEmbedder } = await import('@thacio/auditaria-search');
+          const embeddingModel =
+            (userConfig?.config?.embeddings?.model as string | undefined) ??
+            'gemini-embedding-001';
+          externalEmbedder = new GeminiEmbedder({
+            embedFunction: this.embedFunction,
+            model: embeddingModel,
+          });
+          this.log(
+            `[SearchService] Using Gemini embeddings (model=${embeddingModel})`,
+          );
+        }
+      }
+      // AUDITARIA_GEMINI_EMBEDDINGS_END
+
       this.searchSystem = await createSearchSystemSupervisor({
         rootPath,
         // config is intentionally omitted - SearchSystem.initialize() will load
         // user config from .auditaria/knowledge-base.config.json with proper priority
         logging: loggingOptions,
+        externalEmbedder,
       });
 
       // Reset any stuck queue items from previous crash
@@ -241,7 +294,8 @@ export class SearchServiceManager {
     } catch (error) {
       this.state.status = 'error';
       this.state.error = error instanceof Error ? error.message : String(error);
-      this.error('[SearchService] Failed to start:', this.state.error);
+      // Log full error with stack and cause chain for debugging
+      this.error('[SearchService] Failed to start:', error);
       throw error;
     }
   }

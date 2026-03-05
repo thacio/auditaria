@@ -98,6 +98,15 @@ export {
 
 export type { SupervisorStrategy } from './config.js';
 
+// User configuration (loading/merging knowledge-base.config.json)
+export {
+  loadUserConfig,
+  loadMergedConfig,
+  userConfigExists,
+} from './config/index.js';
+
+export type { UserConfigFile, MergedConfigResult } from './config/index.js';
+
 // ============================================================================
 // SearchSystem Supervisor (Automatic Memory Management)
 // ============================================================================
@@ -285,6 +294,7 @@ export {
   createWorkerEmbedder,
   createEmbedders,
   createSingleEmbedder,
+  GeminiEmbedder,
   resolveDevice,
   resolveQuantization,
   isGpuDevice,
@@ -306,6 +316,8 @@ export type {
   EmbedderFactoryResult,
   ResolvedEmbedderConfig,
   GpuDetectionResult,
+  GeminiEmbedderConfig,
+  EmbedFunction,
 } from './embedders/index.js';
 
 // ============================================================================

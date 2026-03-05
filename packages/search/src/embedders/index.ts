@@ -48,6 +48,10 @@ export type { PythonDetectionResult } from './python-detection.js';
 // Factory for creating embedders with GPU support
 export { createEmbedders, createSingleEmbedder } from './EmbedderFactory.js';
 
+// Gemini API embedder (remote, delegates to Google embedding API)
+export { GeminiEmbedder } from './GeminiEmbedder.js';
+export type { GeminiEmbedderConfig, EmbedFunction } from './GeminiEmbedder.js';
+
 export type {
   EmbedderFactoryConfig,
   EmbedderFactoryResult,

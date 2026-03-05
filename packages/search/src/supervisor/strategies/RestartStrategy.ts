@@ -39,6 +39,7 @@ export interface RestartStrategy {
     databasePath: string,
     config: DeepPartial<SearchSystemConfig>,
     supervisorConfig: SupervisorConfig,
+    externalEmbedder?: import('../../embedders/types.js').TextEmbedder,
   ): Promise<void>;
 
   /**

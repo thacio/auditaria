@@ -43,6 +43,7 @@ export class InProcessStrategy implements RestartStrategy {
   private eventHandlers: Map<string, Set<(data: unknown) => void>> = new Map();
   private eventUnsubscribers: Array<() => void> = [];
   private ready: boolean = false;
+  private externalEmbedder: import('../../embedders/types.js').TextEmbedder | null = null;
 
   // -------------------------------------------------------------------------
   // RestartStrategy Implementation
@@ -53,11 +54,13 @@ export class InProcessStrategy implements RestartStrategy {
     databasePath: string,
     config: DeepPartial<SearchSystemConfig>,
     supervisorConfig: SupervisorConfig,
+    externalEmbedder?: import('../../embedders/types.js').TextEmbedder,
   ): Promise<void> {
     this.rootPath = rootPath;
     this.databasePath = databasePath;
     this.config = config;
     this.supervisorConfig = supervisorConfig;
+    this.externalEmbedder = externalEmbedder ?? null;
 
     // Configure globalLogger to reduce console noise
     // Only show warnings and errors, suppress verbose debug/info logs
@@ -71,6 +74,7 @@ export class InProcessStrategy implements RestartStrategy {
     this.searchSystem = await SearchSystem.initialize({
       rootPath: this.rootPath,
       config: this.config,
+      externalEmbedder: this.externalEmbedder ?? undefined,
     });
 
     // Subscribe to all SearchSystem events and forward them
@@ -122,6 +126,7 @@ export class InProcessStrategy implements RestartStrategy {
     this.searchSystem = await SearchSystem.initialize({
       rootPath: this.rootPath,
       config: this.config,
+      externalEmbedder: this.externalEmbedder ?? undefined,
     });
 
     // 6. Resubscribe to events

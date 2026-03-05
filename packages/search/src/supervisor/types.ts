@@ -203,6 +203,9 @@ export interface SupervisorInitOptions {
     filePath?: string;
     includeMemory?: boolean;
   };
+  /** External embedder (e.g., Gemini API). Passed through to SearchSystem.
+   *  Only works with in-process strategy (functions can't be serialized to child process). */
+  externalEmbedder?: import('../embedders/types.js').TextEmbedder;
 }
 
 // ============================================================================

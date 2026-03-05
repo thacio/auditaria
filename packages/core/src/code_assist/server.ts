@@ -322,11 +322,75 @@ export class CodeAssistServer implements ContentGenerator {
     return fromCountTokenResponse(resp);
   }
 
+  // AUDITARIA_GEMINI_EMBEDDINGS_START
+  // Use the same CodeAssist endpoint (cloudcode-pa.googleapis.com) with the
+  // embedContent method — same pattern as countTokens/generateContent.
   async embedContent(
-    _req: EmbedContentParameters,
+    req: EmbedContentParameters,
   ): Promise<EmbedContentResponse> {
-    throw Error();
+    const model = req.model || 'gemini-embedding-001';
+    const contents = Array.isArray(req.contents) ? req.contents : [req.contents];
+
+    // Build content objects in the format the API expects
+    const contentObjects = contents.map((c) =>
+      typeof c === 'string' ? { parts: [{ text: c }] } : c,
+    );
+
+    // Pass outputDimensionality if specified (e.g. gemini-embedding-001 default is 3072, we want 768)
+    const outputDimensionality = req.config?.outputDimensionality;
+
+    // CodeAssist wraps requests in { request: { model, ... } } — same as countTokens
+    const res = await this.requestPost<{
+      embeddings?: Array<{ values?: number[] }>;
+    }>('embedContent', {
+      request: {
+        model: 'models/' + model,
+        content: contentObjects[0], // Single content per request
+        ...(outputDimensionality ? { outputDimensionality } : {}),
+      },
+    });
+
+    // If single-content worked, do the rest one-by-one for batches
+    const embeddings: Array<{ values: number[] }> = [];
+
+    if (res.embeddings?.[0]?.values) {
+      embeddings.push({ values: res.embeddings[0].values });
+    } else if ((res as Record<string, unknown>)['embedding']) {
+      // Alternative response shape: { embedding: { values: [...] } }
+      const single = (res as Record<string, unknown>)['embedding'] as { values?: number[] };
+      if (single?.values) {
+        embeddings.push({ values: single.values });
+      }
+    }
+
+    if (embeddings.length === 0) {
+      throw new Error(
+        `embedContent returned no embedding for model=${model}. ` +
+          `Response: ${JSON.stringify(res).slice(0, 500)}`,
+      );
+    }
+
+    // Process remaining contents
+    for (let i = 1; i < contentObjects.length; i++) {
+      const r = await this.requestPost<Record<string, unknown>>('embedContent', {
+        request: {
+          model: 'models/' + model,
+          content: contentObjects[i],
+          ...(outputDimensionality ? { outputDimensionality } : {}),
+        },
+      });
+      const vals =
+        (r['embeddings'] as Array<{ values?: number[] }>)?.[0]?.values ??
+        (r['embedding'] as { values?: number[] })?.values;
+      if (!vals) {
+        throw new Error(`embedContent returned no embedding at index ${i}`);
+      }
+      embeddings.push({ values: vals });
+    }
+
+    return { embeddings } as EmbedContentResponse;
   }
+  // AUDITARIA_GEMINI_EMBEDDINGS_END
 
   async listExperiments(
     metadata: ClientMetadata,
