@@ -259,6 +259,8 @@ export {
   MockEmbedder,
   WorkerEmbedder,
   createWorkerEmbedder,
+  getModelDimensions,
+  MODEL_DIMENSIONS,
 } from './src/embedders/index.js';
 
 export type {

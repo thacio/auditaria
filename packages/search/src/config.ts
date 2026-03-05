@@ -9,6 +9,7 @@
 // eslint-disable-next-line no-restricted-imports -- search package is independent of cli-core
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { getModelDimensions } from './embedders/model-dimensions.js';
 
 // ============================================================================
 // Configuration Types
@@ -583,7 +584,7 @@ export function createConfig(
     return { ...DEFAULT_CONFIG };
   }
 
-  return {
+  const config = {
     database: deepMerge(
       DEFAULT_DATABASE_CONFIG,
       (partial.database ?? {}) as Partial<DatabaseConfig>,
@@ -613,6 +614,22 @@ export function createConfig(
       (partial.vectorIndex ?? {}) as Partial<VectorIndexConfig>,
     ),
   };
+
+  // Auto-derive dimensions from model name for known models.
+  // This prevents silent mismatch between model and dimensions config.
+  const knownDims = getModelDimensions(config.embeddings.model);
+  if (knownDims !== undefined) {
+    if (config.embeddings.dimensions !== knownDims) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[SearchConfig] Configured dimensions (${config.embeddings.dimensions}) do not match ` +
+          `model "${config.embeddings.model}" (${knownDims}). Auto-correcting to ${knownDims}.`,
+      );
+      config.embeddings.dimensions = knownDims;
+    }
+  }
+
+  return config;
 }
 
 /**
@@ -681,6 +698,11 @@ export function validateConfig(config: SearchSystemConfig): void {
   }
   if (config.embeddings.dimensions <= 0) {
     throw new Error('dimensions must be positive');
+  }
+  // Auto-correct dimensions for known models (same logic as createConfig)
+  const knownDims = getModelDimensions(config.embeddings.model);
+  if (knownDims !== undefined && config.embeddings.dimensions !== knownDims) {
+    config.embeddings.dimensions = knownDims;
   }
 
   // Validate search config

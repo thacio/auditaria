@@ -411,7 +411,7 @@ export function createSampleUserConfig(): UserConfigFile {
       },
       embeddings: {
         // model: 'Xenova/multilingual-e5-large',
-        // dimensions: 1024,
+        // dimensions is auto-derived from the model name (384 for e5-small, 768 for e5-base, 1024 for e5-large)
         // device: 'cpu',  // 'auto', 'cpu', 'dml', 'cuda'
         // quantization: 'q8',  // 'auto', 'fp32', 'fp16', 'q8', 'q4'
       },

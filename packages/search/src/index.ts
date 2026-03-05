@@ -288,6 +288,8 @@ export {
   resolveDevice,
   resolveQuantization,
   isGpuDevice,
+  getModelDimensions,
+  MODEL_DIMENSIONS,
 } from './embedders/index.js';
 
 export type {

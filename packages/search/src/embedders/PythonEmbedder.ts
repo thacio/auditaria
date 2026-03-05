@@ -27,6 +27,7 @@ import type {
 import type { Embedder } from '../indexing/types.js';
 import { getPythonCommand } from './python-detection.js';
 import { debugLog } from './gpu-detection.js';
+import { MODEL_DIMENSIONS, DEFAULT_MODEL_ID } from './model-dimensions.js';
 
 // ============================================================================
 // Types
@@ -76,12 +77,7 @@ interface PythonResponse {
 // Constants
 // ============================================================================
 
-const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
-const MODEL_DIMENSIONS: Record<string, number> = {
-  'Xenova/multilingual-e5-small': 384,
-  'Xenova/multilingual-e5-base': 768,
-  'Xenova/multilingual-e5-large': 1024,
-};
+// MODEL_DIMENSIONS and DEFAULT_MODEL_ID imported from model-dimensions.ts
 
 import { existsSync } from 'node:fs';
 

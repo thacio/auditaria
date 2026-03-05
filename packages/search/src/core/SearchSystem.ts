@@ -60,7 +60,7 @@ import {
 } from '../discovery/FileDiscovery.js';
 import { createParserRegistry } from '../parsers/index.js';
 import { createChunkerRegistry } from '../chunkers/index.js';
-import { MockEmbedder, createEmbedders } from '../embedders/index.js';
+import { MockEmbedder, createEmbedders, getModelDimensions } from '../embedders/index.js';
 import type { TextEmbedder } from '../embedders/types.js';
 import type { ResolvedEmbedderConfig } from '../embedders/gpu-detection.js';
 import { IndexingPipeline } from '../indexing/index.js';
@@ -384,10 +384,14 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
     // Initialize storage using factory - it handles backend selection and metadata
     // createStorage is async to support dynamic imports of optional backends
     // Priority for backend options: existing db-config.json > user knowledge-base.config.json > defaults
+    // Derive dimensions from model name (prevents config mismatch bugs)
+    const storageDimensions =
+      getModelDimensions(this.config.embeddings.model) ??
+      this.config.embeddings.dimensions;
     this.storage = await createStorage(
       dbConfig,
       this.config.vectorIndex,
-      this.config.embeddings.dimensions,
+      storageDimensions,
       this.config.search.hybridStrategy,
       this.userBackendOptions ?? undefined,
     );
@@ -492,19 +496,23 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
       this.searchEmbedder = searchEmbedder;
       this.resolvedEmbedderConfig = resolvedConfig;
 
+      // Use the actual embedder dimensions (authoritative source of truth)
+      const actualDimensions = indexingEmbedder.dimensions;
+
       // Store config if this is a fresh database
       if (!storedConfig) {
         const newConfig: StoredEmbedderConfig = {
           version: SEARCH_DB_VERSION,
           model: effectiveModel,
           quantization: resolvedConfig.quantization,
-          dimensions: this.config.embeddings.dimensions,
+          dimensions: actualDimensions,
           createdAt: new Date().toISOString(),
         };
         await this.storage.setConfigValue(EMBEDDER_CONFIG_KEY, newConfig);
         console.log(
           `[SearchSystem] Stored embedder config: version=${newConfig.version}, ` +
-            `model=${newConfig.model}, quantization=${newConfig.quantization}`,
+            `model=${newConfig.model}, quantization=${newConfig.quantization}, ` +
+            `dimensions=${actualDimensions}`,
         );
       } else if (storedConfig.version !== SEARCH_DB_VERSION) {
         // Warn about version mismatch (database was created with different version)
@@ -514,12 +522,21 @@ export class SearchSystem extends EventEmitter<SearchSystemEvents> {
         );
       }
 
+      // Validate: storage dimensions must match actual embedder dimensions
+      if (storageDimensions !== actualDimensions) {
+        console.error(
+          `[SearchSystem] DIMENSION MISMATCH: storage column has ${storageDimensions} dimensions ` +
+            `but embedder "${effectiveModel}" produces ${actualDimensions}. ` +
+            `Embeddings will fail. Please recreate the database.`,
+        );
+      }
+
       // Update metadata file with embeddings config (for human visibility)
       const pgliteStorage = this.storage as PGliteStorage;
       if (pgliteStorage.updateMetadataEmbeddings) {
         pgliteStorage.updateMetadataEmbeddings({
           model: effectiveModel,
-          dimensions: this.config.embeddings.dimensions,
+          dimensions: actualDimensions,
           quantization: resolvedConfig.quantization,
         });
       }

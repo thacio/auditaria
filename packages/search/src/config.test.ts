@@ -263,7 +263,7 @@ describe('Configuration', () => {
 
     it('should throw for negative dimensions', () => {
       const config = createConfig({
-        embeddings: { dimensions: -1 },
+        embeddings: { model: 'custom/unknown-model', dimensions: -1 },
       });
 
       expect(() => validateConfig(config)).toThrow(
@@ -273,7 +273,7 @@ describe('Configuration', () => {
 
     it('should throw for zero dimensions', () => {
       const config = createConfig({
-        embeddings: { dimensions: 0 },
+        embeddings: { model: 'custom/unknown-model', dimensions: 0 },
       });
 
       expect(() => validateConfig(config)).toThrow(

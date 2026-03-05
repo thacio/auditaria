@@ -24,6 +24,7 @@ import type {
 } from './worker-types.js';
 import { debugLog } from './gpu-detection.js';
 import { createModuleLogger } from '../core/Logger.js';
+import { MODEL_DIMENSIONS, DEFAULT_MODEL_ID } from './model-dimensions.js';
 
 const log = createModuleLogger('WorkerEmbedder');
 
@@ -36,18 +37,6 @@ const INIT_TIMEOUT_MS = 600000; // 10 minutes
 
 /** Default timeout for embedding operations */
 const EMBED_TIMEOUT_MS = 300000; // 5 minutes
-
-/** Model dimensions by model ID */
-const MODEL_DIMENSIONS: Record<string, number> = {
-  'Xenova/multilingual-e5-small': 384,
-  'Xenova/multilingual-e5-base': 768,
-  'Xenova/multilingual-e5-large': 1024,
-  'Xenova/all-MiniLM-L6-v2': 384,
-  'Xenova/all-mpnet-base-v2': 768,
-};
-
-/** Default model */
-const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
 
 // ============================================================================
 // Types

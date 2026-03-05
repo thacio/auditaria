@@ -15,24 +15,9 @@ import type {
 import type { Embedder } from '../indexing/types.js';
 import { debugLog } from './gpu-detection.js';
 import { createModuleLogger } from '../core/Logger.js';
+import { MODEL_DIMENSIONS, DEFAULT_MODEL_ID } from './model-dimensions.js';
 
 const log = createModuleLogger('TransformersJsEmbedder');
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** Default model for multilingual embeddings */
-const DEFAULT_MODEL_ID = 'Xenova/multilingual-e5-small';
-
-/** Model dimensions by model ID */
-const MODEL_DIMENSIONS: Record<string, number> = {
-  'Xenova/multilingual-e5-small': 384,
-  'Xenova/multilingual-e5-base': 768,
-  'Xenova/multilingual-e5-large': 1024,
-  'Xenova/all-MiniLM-L6-v2': 384,
-  'Xenova/all-mpnet-base-v2': 768,
-};
 
 /** Default max tokens */
 const DEFAULT_MAX_TOKENS = 512;

@@ -78,3 +78,11 @@ export type { WorkerEmbedderConfig } from './WorkerEmbedder.js';
 
 // Worker communication types (for advanced use)
 export type { WorkerRequest, WorkerResponse } from './worker-types.js';
+
+// Shared model dimensions lookup
+export {
+  MODEL_DIMENSIONS,
+  DEFAULT_MODEL_ID,
+  DEFAULT_DIMENSIONS,
+  getModelDimensions,
+} from './model-dimensions.js';

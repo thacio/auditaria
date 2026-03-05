@@ -52,10 +52,9 @@
     },
 
     "embeddings": {
-      "_docs": "Embedding model configuration",
+      "_docs": "Embedding model configuration. Dimensions are auto-derived from the model name.",
       "model": "Xenova/multilingual-e5-small",
       "batchSize": 2,
-      "dimensions": 384,
       "queryPrefix": "query: ",
       "documentPrefix": "passage: ",
       "useWorkerThread": true,
