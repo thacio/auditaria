@@ -418,6 +418,9 @@ export class StagehandAdapter {
       clientOptions.authClient = this.config.authClient;
       clientOptions.project = this.config.project;
       clientOptions.location = this.config.location || 'us-central1';
+      // Session ID is critical for Code Assist API quota allocation — without it
+      // the API applies strict per-request rate limits causing 429 errors
+      clientOptions.sessionId = `browser-agent-${Date.now()}`;
     } else if (this.config.project && this.config.apiKey) {
       // Vertex AI mode with API key
       clientOptions.apiKey = this.config.apiKey;
@@ -827,6 +830,7 @@ export class StagehandAdapter {
         clientOptions.authClient = this.config.authClient;
         clientOptions.project = this.config.project;
         clientOptions.location = this.config.location || 'us-central1';
+        clientOptions.sessionId = `browser-agent-task-${Date.now()}`;
       } else if (this.config.project && this.config.apiKey) {
         // Vertex AI mode with API key
         clientOptions.apiKey = this.config.apiKey;

@@ -159,7 +159,7 @@ const stagehandBundleConfig = {
   format: 'cjs',
   // Only playwright/playwright-core need to remain external (native browser resolution)
   external: ['playwright', 'playwright-core', 'patchright-core'],
-  entryPoints: ['node_modules/@browserbasehq/stagehand/dist/index.js'],
+  entryPoints: ['node_modules/@browserbasehq/stagehand/dist/cjs/index.js'],
   outfile: 'bundle/node_modules/@browserbasehq/stagehand/dist/index.js',
   logLevel: 'warning',
   write: true,

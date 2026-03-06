@@ -97,12 +97,12 @@ export interface BrowserAgentParams {
  * to bypass AI SDK and use our patched GoogleClient which supports OAuth
  */
 export type BrowserAgentModel =
-  | 'google/gemini-2.0-flash'
   | 'google/gemini-2.5-flash'
   | 'google/gemini-2.5-pro'
-  | 'gemini-2.0-flash'
-  | 'gemini-2.5-flash-preview-04-17'
-  | 'gemini-2.5-pro-preview-03-25';
+  | 'google/gemini-2.0-flash'
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-pro'
+  | 'gemini-2.0-flash';
 
 /**
  * Result of a browser agent action

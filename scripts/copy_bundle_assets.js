@@ -17,7 +17,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { copyFileSync, existsSync, mkdirSync, cpSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { glob } from 'glob';
@@ -169,10 +169,15 @@ const stagehandDest = join(bundleDir, 'node_modules/@browserbasehq/stagehand');
 if (existsSync(join(stagehandSrc, 'package.json'))) {
   mkdirSync(stagehandDest, { recursive: true });
 
-  copyFileSync(
-    join(stagehandSrc, 'package.json'),
-    join(stagehandDest, 'package.json'),
-  );
+  // AUDITARIA: Copy package.json but override "type" to "commonjs" since esbuild
+  // re-bundles stagehand as CJS into dist/index.js
+  const stagehandPkg = JSON.parse(readFileSync(join(stagehandSrc, 'package.json'), 'utf8'));
+  stagehandPkg.type = 'commonjs';
+  stagehandPkg.main = './dist/index.js';
+  // Override exports to point to the single re-bundled CJS file
+  stagehandPkg.exports = { '.': './dist/index.js' };
+  delete stagehandPkg.module;
+  writeFileSync(join(stagehandDest, 'package.json'), JSON.stringify(stagehandPkg, null, 2) + '\n');
 
   console.log(
     'Stagehand package.json copied to bundle/node_modules/@browserbasehq/stagehand/',
