@@ -163,6 +163,7 @@ export class PromptProvider {
             approvedPlan: approvedPlanPath
               ? { path: approvedPlanPath }
               : undefined,
+            taskTracker: config.isTrackerEnabled(),
           }),
           !isPlanMode,
         ),
@@ -172,9 +173,11 @@ export class PromptProvider {
             planModeToolsList,
             plansDir: config.storage.getPlansDir(),
             approvedPlanPath: config.getApprovedPlanPath(),
+            taskTracker: config.isTrackerEnabled(),
           }),
           isPlanMode,
         ),
+        taskTracker: config.isTrackerEnabled(),
         operationalGuidelines: this.withSection(
           'operationalGuidelines',
           () => ({
