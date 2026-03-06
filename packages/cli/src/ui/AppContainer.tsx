@@ -90,7 +90,6 @@ import {
   getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
   getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
-  generateSteeringAckMessage,
   buildUserSteeringHintPrompt,
   logBillingEvent,
   ApiKeyUpdatedEvent,
@@ -2896,15 +2895,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
       return;
     }
 
-    void generateSteeringAckMessage(
-      config.getBaseLlmClient(),
-      pendingHint,
-    ).then((ackText) => {
-      historyManager.addItem({
-        type: 'info',
-        text: ackText,
-      });
-    });
     void submitQuery([{ text: buildUserSteeringHintPrompt(pendingHint) }]);
   }, [
     config,

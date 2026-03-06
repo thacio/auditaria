@@ -35,7 +35,6 @@ import {
   CoreEvent,
   CoreToolCallStatus,
   buildUserSteeringHintPrompt,
-  generateSteeringAckMessage,
   GeminiCliOperation,
   getPlanModeExitMessage,
 } from '@google/gemini-cli-core';
@@ -2078,18 +2077,6 @@ export const useGeminiStream = (
           responsesToSend.unshift({
             text: buildUserSteeringHintPrompt(hintText),
           });
-          void generateSteeringAckMessage(
-            config.getBaseLlmClient(),
-            hintText,
-          ).then((ackText) => {
-            addItem({
-              type: 'info',
-              icon: '· ',
-              color: theme.text.secondary,
-              marginBottom: 1,
-              text: ackText,
-            } as HistoryItemInfo);
-          });
         }
       }
 
@@ -2126,7 +2113,6 @@ export const useGeminiStream = (
       addItem,
       registerBackgroundShell,
       consumeUserHint,
-      config,
       isLowErrorVerbosity,
       maybeAddSuppressedToolErrorNote,
       maybeAddLowVerbosityFailureNote,
