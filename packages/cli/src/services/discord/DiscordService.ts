@@ -63,6 +63,8 @@ export class DiscordService {
   private stopped = false;
   /** Mutex: resolves when the current message finishes processing */
   private processingLock: Promise<void> = Promise.resolve();
+  /** True while processing a message (for busy detection) */
+  private processing = false;
   /** Last channel ID that sent a message -- used for CLI -> Discord forwarding */
   private lastActiveChannelId: string | undefined;
 
@@ -248,6 +250,14 @@ export class DiscordService {
       // If CLI input callback not registered, fall through to AI processing
     }
 
+    // AUDITARIA_ATTACHMENTS: Reject messages while AI is busy (don't queue silently)
+    if (this.processing) {
+      await ctx.reply(
+        'AI is currently processing another message. Please wait and try again.',
+      );
+      return;
+    }
+
     // Acknowledge receipt
     await ctx.react('\u{1F440}'); // eyes emoji
     await ctx.sendTyping();
@@ -263,6 +273,7 @@ export class DiscordService {
 
     // Acquire mutex -- blocks if CLI or another Discord message is processing
     const release = await this.acquireLock();
+    this.processing = true;
 
     // Mark as processing to prevent echo (CLI -> Discord -> CLI loop)
     setDiscordProcessing(true);
@@ -460,6 +471,7 @@ export class DiscordService {
       debugLogger.error('Discord: error processing message:', err);
       await ctx.reply(formatError(err));
     } finally {
+      this.processing = false;
       setDiscordProcessing(false);
       clearInterval(typingInterval);
       await ctx.unreact('\u{1F440}');

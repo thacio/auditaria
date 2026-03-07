@@ -64,6 +64,8 @@ export class TelegramService {
   private stopped = false;
   /** Mutex: resolves when the current message finishes processing */
   private processingLock: Promise<void> = Promise.resolve();
+  /** True while processing a message (for busy detection) */
+  private processing = false;
   /** Last chat ID that sent a message — used for CLI → Telegram forwarding */
   private lastActiveChatId: number | undefined;
 
@@ -252,6 +254,14 @@ export class TelegramService {
       // If CLI input callback not registered, fall through to AI processing
     }
 
+    // AUDITARIA_ATTACHMENTS: Reject messages while AI is busy (don't queue silently)
+    if (this.processing) {
+      await ctx.reply(
+        'AI is currently processing another message. Please wait and try again.',
+      );
+      return;
+    }
+
     // Acknowledge receipt
     await ctx.react('\u{1F440}'); // eyes emoji
     await ctx.sendTyping();
@@ -267,6 +277,7 @@ export class TelegramService {
 
     // Acquire mutex — blocks if CLI or another Telegram message is processing
     const release = await this.acquireLock();
+    this.processing = true;
 
     // Mark as processing to prevent echo (CLI → Telegram → CLI loop)
     setTelegramProcessing(true);
@@ -469,6 +480,7 @@ export class TelegramService {
       debugLogger.error('Telegram: error processing message:', err);
       await ctx.reply(formatError(err), 'HTML');
     } finally {
+      this.processing = false;
       setTelegramProcessing(false);
       clearInterval(typingInterval);
       await ctx.unreact('\u{1F440}');
