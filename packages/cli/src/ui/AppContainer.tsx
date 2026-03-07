@@ -2458,6 +2458,27 @@ Logging in with Google... Restarting Gemini CLI to continue.
         .catch(() => {});
     };
   }, [historyManager.addItem]);
+  // Wire Discord input injection (slash commands from Discord -> CLI command processor)
+  useEffect(() => {
+    let mounted = true;
+    import('../services/discord/DiscordBridge.js')
+      .then(({ registerCliInputCallback }) => {
+        if (mounted) {
+          registerCliInputCallback((input: string) => {
+            stableWebSubmitQuery(input);
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+      import('../services/discord/DiscordBridge.js')
+        .then(({ unregisterCliInputCallback }) => {
+          unregisterCliInputCallback();
+        })
+        .catch(() => {});
+    };
+  }, [stableWebSubmitQuery]);
   // AUDITARIA_DISCORD_END
 
   // Terminal capture for interactive screens

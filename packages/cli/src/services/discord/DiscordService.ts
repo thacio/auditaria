@@ -26,7 +26,11 @@ import {
   DISCORD_STREAM_EDIT_THROTTLE_MS,
   type DiscordConfig,
 } from './types.js';
-import { pushToCliDisplay, setDiscordProcessing } from './DiscordBridge.js';
+import {
+  pushToCliDisplay,
+  setDiscordProcessing,
+  injectCliInput,
+} from './DiscordBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
 
 /**
@@ -220,6 +224,24 @@ export class DiscordService {
 
     // Track last active channel for CLI -> Discord forwarding
     this.lastActiveChannelId = ctx.channelId;
+
+    // Detect Auditaria slash commands (e.g., /quit, /compress, /model)
+    // and inject them into the CLI command processor instead of sending to AI
+    if (text.startsWith('/')) {
+      const injected = injectCliInput(text);
+      if (injected) {
+        await ctx.react('\u{2705}'); // checkmark
+        const userLabel = ctx.username
+          ? `@${ctx.username}`
+          : ctx.displayName || ctx.userId;
+        pushToCliDisplay({
+          type: 'user',
+          text: `[Discord ${userLabel}] ${text}`,
+        });
+        return;
+      }
+      // If CLI input callback not registered, fall through to AI processing
+    }
 
     // Acknowledge receipt
     await ctx.react('\u{1F440}'); // eyes emoji
