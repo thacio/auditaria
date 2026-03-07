@@ -48,7 +48,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
-    _attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Reserved for future image support
+    attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Image support via --input-format stream-json
   ): AsyncGenerator<ProviderEvent> {
     const isFirstCall = !this.sessionManager.getSessionId();
     const args = this.buildArgs();
@@ -76,8 +76,33 @@ export class ClaudeCLIDriver implements ProviderDriver {
     if (spawnedPid) trackChildProcess(spawnedPid);
     dbg('spawned', { pid: spawnedPid });
 
-    // Pipe prompt through stdin to avoid shell argument quoting issues.
-    proc.stdin?.write(prompt);
+    // AUDITARIA_ATTACHMENTS: Build NDJSON user message for --input-format stream-json.
+    // This supports both text and image content blocks in a single message.
+    const contentBlocks: Array<Record<string, unknown>> = [];
+    if (prompt) {
+      contentBlocks.push({ type: 'text', text: prompt });
+    }
+    if (attachmentFiles?.length) {
+      for (const f of attachmentFiles) {
+        if (f.data) {
+          contentBlocks.push({
+            type: 'image',
+            source: { type: 'base64', media_type: f.mimeType, data: f.data },
+          });
+        }
+      }
+      dbg(`added ${attachmentFiles.length} image content blocks`);
+    }
+    const ndjsonMsg = JSON.stringify({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: contentBlocks.length === 1 && !attachmentFiles?.length
+          ? prompt  // Simple string for text-only (backwards compatible)
+          : contentBlocks,
+      },
+    });
+    proc.stdin?.write(ndjsonMsg + '\n');
     proc.stdin?.end();
 
     proc.on('error', (err) => {
@@ -137,9 +162,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
   }
 
   private buildArgs(): string[] {
-    // Prompt is piped through stdin, not passed as -p argument,
-    // to avoid shell quoting issues.
+    // Prompt is piped through stdin as NDJSON, not passed as -p argument,
+    // to avoid shell quoting issues and enable image content blocks.
+    // -p (print mode) is required for --input-format/--output-format flags.
     const args = [
+      '-p',
+      '--input-format',
+      'stream-json',
       '--output-format',
       'stream-json',
       '--verbose',

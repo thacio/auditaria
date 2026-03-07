@@ -262,9 +262,9 @@ export class ProviderManager {
   }
 
   // AUDITARIA_ATTACHMENTS: Check if the current provider supports image attachments.
-  // Codex: via -i temp files. Copilot: via ACP inline base64.
+  // Codex: via -i temp files. Claude: via --input-format stream-json. Copilot: via ACP inline base64.
   private get driverSupportsImages(): boolean {
-    return this.config?.type === 'codex-cli' || this.config?.type === 'copilot-cli';
+    return this.config?.type === 'codex-cli' || this.config?.type === 'claude-cli' || this.config?.type === 'copilot-cli';
   }
 
   // AUDITARIA_ATTACHMENTS: Only Codex needs temp files on disk (-i flag).
@@ -273,7 +273,7 @@ export class ProviderManager {
   }
 
   // AUDITARIA_ATTACHMENTS: Public check for services to warn users about image support.
-  // Returns true if the current provider can process images (Gemini natively, Codex via -i, Copilot via ACP).
+  // Returns true if the current provider can process images (Gemini natively, all external providers).
   supportsImages(): boolean {
     if (!this.config || this.config.type === 'gemini') return true;
     return this.driverSupportsImages;
