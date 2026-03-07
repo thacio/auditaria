@@ -85,10 +85,12 @@ export type ProviderEvent =
   | ProviderCompactedEvent
   | ProviderCompactionSummaryEvent;
 
-// AUDITARIA_ATTACHMENTS: Image attachment passed as temp file path for providers that support images
+// AUDITARIA_ATTACHMENTS: Image attachment for providers that support images.
+// Codex uses filePath (temp file + -i flag), Copilot uses data (inline base64 via ACP).
 export interface AttachmentFile {
   filePath: string;
   mimeType: string;
+  data?: string; // Base64-encoded image data (avoids re-reading temp files)
 }
 
 export interface ProviderDriver {

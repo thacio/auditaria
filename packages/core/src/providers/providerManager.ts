@@ -261,16 +261,22 @@ export class ProviderManager {
     );
   }
 
-  // AUDITARIA_ATTACHMENTS: Check if the current provider type supports image attachments via CLI flags.
-  private get driverSupportsImageFiles(): boolean {
+  // AUDITARIA_ATTACHMENTS: Check if the current provider supports image attachments.
+  // Codex: via -i temp files. Copilot: via ACP inline base64.
+  private get driverSupportsImages(): boolean {
+    return this.config?.type === 'codex-cli' || this.config?.type === 'copilot-cli';
+  }
+
+  // AUDITARIA_ATTACHMENTS: Only Codex needs temp files on disk (-i flag).
+  private get driverNeedsTempFiles(): boolean {
     return this.config?.type === 'codex-cli';
   }
 
   // AUDITARIA_ATTACHMENTS: Public check for services to warn users about image support.
-  // Returns true if the current provider can process images (Gemini natively, Codex via -i flag).
+  // Returns true if the current provider can process images (Gemini natively, Codex via -i, Copilot via ACP).
   supportsImages(): boolean {
     if (!this.config || this.config.type === 'gemini') return true;
-    return this.driverSupportsImageFiles;
+    return this.driverSupportsImages;
   }
 
   async *handleSendMessage(
@@ -283,9 +289,9 @@ export class ProviderManager {
     this.callCount++;
     const callNum = this.callCount;
 
-    // AUDITARIA_ATTACHMENTS: Extract inlineData for providers that support image files
+    // AUDITARIA_ATTACHMENTS: Extract inlineData for providers that support images
     const inlineDataParts = extractInlineDataParts(request);
-    const hasImages = inlineDataParts.length > 0 && this.driverSupportsImageFiles;
+    const hasImages = inlineDataParts.length > 0 && this.driverSupportsImages;
     const prompt = buildExternalProviderPrompt(request, hasImages);
 
     const sessionId = this.driver?.getSessionId?.();
@@ -295,7 +301,7 @@ export class ProviderManager {
       promptLen: prompt.length,
       prompt: prompt.slice(0, 200),
       imageAttachments: inlineDataParts.length,
-      driverSupportsImages: this.driverSupportsImageFiles,
+      driverSupportsImages: this.driverSupportsImages,
     });
 
     // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
@@ -343,10 +349,17 @@ export class ProviderManager {
     let eventCount = 0;
     let codexActualTokens: number | undefined; // AUDITARIA_CODEX_PROVIDER: actual context from session JSONL
 
-    // AUDITARIA_ATTACHMENTS: Write temp files for providers that support image attachments
-    const attachmentFiles = hasImages ? writeAttachmentTempFiles(inlineDataParts) : [];
-    if (attachmentFiles.length > 0) {
-      dbg(`call #${callNum}: wrote ${attachmentFiles.length} attachment temp files`);
+    // AUDITARIA_ATTACHMENTS: Prepare image attachments for the driver.
+    // Codex: write temp files (uses -i flag). Copilot: pass inline base64 (ACP protocol).
+    let attachmentFiles: AttachmentFile[] = [];
+    if (hasImages) {
+      if (this.driverNeedsTempFiles) {
+        attachmentFiles = writeAttachmentTempFiles(inlineDataParts);
+        dbg(`call #${callNum}: wrote ${attachmentFiles.length} attachment temp files`);
+      } else {
+        attachmentFiles = buildInlineAttachments(inlineDataParts);
+        dbg(`call #${callNum}: prepared ${attachmentFiles.length} inline image attachments`);
+      }
     }
 
     try {
@@ -591,10 +604,11 @@ export class ProviderManager {
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
     } finally {
-      // AUDITARIA_ATTACHMENTS: Clean up temp attachment files
-      if (attachmentFiles.length > 0) {
-        cleanupAttachmentFiles(attachmentFiles);
-        dbg(`cleaned up ${attachmentFiles.length} attachment temp files`);
+      // AUDITARIA_ATTACHMENTS: Clean up temp files (only for drivers that wrote them)
+      const tempFiles = attachmentFiles.filter(f => f.filePath);
+      if (tempFiles.length > 0) {
+        cleanupAttachmentFiles(tempFiles);
+        dbg(`cleaned up ${tempFiles.length} attachment temp files`);
       }
     }
 
@@ -802,7 +816,7 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/webp': '.webp',
 };
 
-// AUDITARIA_ATTACHMENTS: Write inlineData parts to temp files, return file paths.
+// AUDITARIA_ATTACHMENTS: Write inlineData parts to temp files (for Codex -i flag).
 function writeAttachmentTempFiles(inlineDataParts: Part[]): AttachmentFile[] {
   const files: AttachmentFile[] = [];
   for (const part of inlineDataParts) {
@@ -811,9 +825,20 @@ function writeAttachmentTempFiles(inlineDataParts: Part[]): AttachmentFile[] {
     const fileName = `auditaria-img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
     const filePath = path.join(os.tmpdir(), fileName);
     fs.writeFileSync(filePath, Buffer.from(part.inlineData.data, 'base64'));
-    files.push({ filePath, mimeType: part.inlineData.mimeType });
+    files.push({ filePath, mimeType: part.inlineData.mimeType, data: part.inlineData.data });
   }
   return files;
+}
+
+// AUDITARIA_ATTACHMENTS: Build inline attachments for drivers that accept base64 directly (Copilot ACP).
+function buildInlineAttachments(inlineDataParts: Part[]): AttachmentFile[] {
+  const result: AttachmentFile[] = [];
+  for (const p of inlineDataParts) {
+    if (p.inlineData?.data && p.inlineData?.mimeType) {
+      result.push({ filePath: '', mimeType: p.inlineData.mimeType, data: p.inlineData.data });
+    }
+  }
+  return result;
 }
 
 // AUDITARIA_ATTACHMENTS: Clean up temp attachment files.

@@ -124,7 +124,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
-    _attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Reserved for future image support
+    attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: ACP image support
   ): AsyncGenerator<ProviderEvent> {
     // Ensure subprocess is running and initialized
     if (!this.initialized) {
@@ -138,9 +138,19 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     dbg('sendMessage', { promptLen: prompt.length, hasSystemContext: !!systemContext, sessionId: this.sessionId });
 
-    // Build prompt content array (ACP format: {type:'text', text:...})
+    // Build prompt content array (ACP format: {type:'text', text:...}, {type:'image', data:..., mimeType:...})
     const promptContent: Array<Record<string, unknown>> = [];
     promptContent.push({ type: 'text', text: prompt });
+
+    // AUDITARIA_ATTACHMENTS: Add image content blocks for ACP protocol
+    if (attachmentFiles?.length) {
+      for (const f of attachmentFiles) {
+        if (f.data) {
+          promptContent.push({ type: 'image', data: f.data, mimeType: f.mimeType });
+        }
+      }
+      dbg(`added ${attachmentFiles.length} image content blocks to prompt`);
+    }
 
     // Set up event collection channel
     const eventQueue: Array<ProviderEvent | null> = []; // null = done
