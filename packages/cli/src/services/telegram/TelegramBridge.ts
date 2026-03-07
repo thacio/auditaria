@@ -62,3 +62,30 @@ export function forwardToTelegram(item: HistoryItem): void {
     telegramForwarder(item);
   }
 }
+
+// --- CLI Input Injection ---
+// Allows TelegramService to inject slash commands into the CLI's submitQuery pipeline
+
+type CliInputCallback = (input: string) => void;
+let cliInputCallback: CliInputCallback | undefined;
+
+export function registerCliInputCallback(cb: CliInputCallback): void {
+  cliInputCallback = cb;
+}
+
+export function unregisterCliInputCallback(): void {
+  cliInputCallback = undefined;
+}
+
+/**
+ * Injects input into the CLI as if the user typed it.
+ * Used for forwarding slash commands from Telegram to the CLI command processor.
+ * Returns true if the callback is registered (CLI is ready), false otherwise.
+ */
+export function injectCliInput(input: string): boolean {
+  if (cliInputCallback) {
+    cliInputCallback(input);
+    return true;
+  }
+  return false;
+}

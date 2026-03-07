@@ -2434,6 +2434,27 @@ Logging in with Google... Restarting Gemini CLI to continue.
         .catch(() => {});
     };
   }, [historyManager.addItem]);
+  // Wire Telegram input injection (slash commands from Telegram -> CLI command processor)
+  useEffect(() => {
+    let mounted = true;
+    import('../services/telegram/TelegramBridge.js')
+      .then(({ registerCliInputCallback }) => {
+        if (mounted) {
+          registerCliInputCallback((input: string) => {
+            stableWebSubmitQuery(input);
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+      import('../services/telegram/TelegramBridge.js')
+        .then(({ unregisterCliInputCallback }) => {
+          unregisterCliInputCallback();
+        })
+        .catch(() => {});
+    };
+  }, [stableWebSubmitQuery]);
   // AUDITARIA_TELEGRAM_END
 
   // AUDITARIA_DISCORD_START: Wire Discord display callback

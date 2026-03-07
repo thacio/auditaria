@@ -27,7 +27,11 @@ import {
   STREAM_EDIT_THROTTLE_MS,
   type TelegramConfig,
 } from './types.js';
-import { pushToCliDisplay, setTelegramProcessing } from './TelegramBridge.js';
+import {
+  pushToCliDisplay,
+  setTelegramProcessing,
+  injectCliInput,
+} from './TelegramBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
 
 /**
@@ -224,6 +228,24 @@ export class TelegramService {
 
     // Track last active chat for CLI → Telegram forwarding
     this.lastActiveChatId = ctx.chatId;
+
+    // Detect Auditaria slash commands (e.g., /quit, /compress, /model)
+    // and inject them into the CLI command processor instead of sending to AI
+    if (text.startsWith('/')) {
+      const injected = injectCliInput(text);
+      if (injected) {
+        await ctx.react('\u{2705}'); // checkmark
+        const userLabel = ctx.username
+          ? `@${ctx.username}`
+          : ctx.displayName || String(ctx.userId);
+        pushToCliDisplay({
+          type: 'user',
+          text: `[Telegram ${userLabel}] ${text}`,
+        });
+        return;
+      }
+      // If CLI input callback not registered, fall through to AI processing
+    }
 
     // Acknowledge receipt
     await ctx.react('\u{1F440}'); // eyes emoji
