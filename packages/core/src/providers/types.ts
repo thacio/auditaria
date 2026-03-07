@@ -85,11 +85,18 @@ export type ProviderEvent =
   | ProviderCompactedEvent
   | ProviderCompactionSummaryEvent;
 
+// AUDITARIA_ATTACHMENTS: Image attachment passed as temp file path for providers that support images
+export interface AttachmentFile {
+  filePath: string;
+  mimeType: string;
+}
+
 export interface ProviderDriver {
   sendMessage(
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
+    attachmentFiles?: AttachmentFile[], // AUDITARIA_ATTACHMENTS: Temp file paths for image attachments
   ): AsyncGenerator<ProviderEvent>;
   interrupt(): Promise<void>;
   getSessionId(): string | undefined;

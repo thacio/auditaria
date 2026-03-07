@@ -48,6 +48,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
+    _attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Reserved for future image support
   ): AsyncGenerator<ProviderEvent> {
     const isFirstCall = !this.sessionManager.getSessionId();
     const args = this.buildArgs();

@@ -5,6 +5,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
@@ -20,6 +21,7 @@ import type {
   ProviderDriver,
   ExternalMCPServerConfig,
   CodexReasoningEffort,
+  AttachmentFile,
 } from './types.js';
 import {
   CODEX_REASONING_EFFORTS,
@@ -259,6 +261,11 @@ export class ProviderManager {
     );
   }
 
+  // AUDITARIA_ATTACHMENTS: Check if the current provider type supports image attachments via CLI flags.
+  private get driverSupportsImageFiles(): boolean {
+    return this.config?.type === 'codex-cli';
+  }
+
   async *handleSendMessage(
     request: PartListUnion,
     signal: AbortSignal,
@@ -268,13 +275,20 @@ export class ProviderManager {
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     this.callCount++;
     const callNum = this.callCount;
-    const prompt = buildExternalProviderPrompt(request);
+
+    // AUDITARIA_ATTACHMENTS: Extract inlineData for providers that support image files
+    const inlineDataParts = extractInlineDataParts(request);
+    const hasImages = inlineDataParts.length > 0 && this.driverSupportsImageFiles;
+    const prompt = buildExternalProviderPrompt(request, hasImages);
+
     const sessionId = this.driver?.getSessionId?.();
     dbg(`=== CALL #${callNum} ===`, {
       hasDriver: !!this.driver,
       sessionId: sessionId || '(none)',
       promptLen: prompt.length,
       prompt: prompt.slice(0, 200),
+      imageAttachments: inlineDataParts.length,
+      driverSupportsImages: this.driverSupportsImageFiles,
     });
 
     // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
@@ -321,11 +335,19 @@ export class ProviderManager {
 
     let eventCount = 0;
     let codexActualTokens: number | undefined; // AUDITARIA_CODEX_PROVIDER: actual context from session JSONL
+
+    // AUDITARIA_ATTACHMENTS: Write temp files for providers that support image attachments
+    const attachmentFiles = hasImages ? writeAttachmentTempFiles(inlineDataParts) : [];
+    if (attachmentFiles.length > 0) {
+      dbg(`call #${callNum}: wrote ${attachmentFiles.length} attachment temp files`);
+    }
+
     try {
       for await (const event of driver.sendMessage(
         effectivePrompt,
         signal,
         effectiveContext,
+        attachmentFiles.length > 0 ? attachmentFiles : undefined,
       )) {
         eventCount++;
         if (signal.aborted) {
@@ -561,6 +583,12 @@ export class ProviderManager {
 
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
+    } finally {
+      // AUDITARIA_ATTACHMENTS: Clean up temp attachment files
+      if (attachmentFiles.length > 0) {
+        cleanupAttachmentFiles(attachmentFiles);
+        dbg(`cleaned up ${attachmentFiles.length} attachment temp files`);
+      }
     }
 
     return new Turn(chat, promptId);
@@ -743,9 +771,59 @@ function flushModelParts(
   }
 }
 
+// AUDITARIA_ATTACHMENTS: Extract inlineData parts from a request for temp file handling.
+function extractInlineDataParts(request: PartListUnion): Part[] {
+  if (!request || typeof request === 'string') return [];
+  const parts: PartListUnion[] = Array.isArray(request) ? request : [request];
+  const result: Part[] = [];
+  for (const part of parts) {
+    if (part && typeof part !== 'string') {
+      const p = part as Part;
+      if (p.inlineData?.data && p.inlineData?.mimeType) {
+        result.push(p);
+      }
+    }
+  }
+  return result;
+}
+
+// AUDITARIA_ATTACHMENTS: MIME type to file extension mapping for temp files.
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+};
+
+// AUDITARIA_ATTACHMENTS: Write inlineData parts to temp files, return file paths.
+function writeAttachmentTempFiles(inlineDataParts: Part[]): AttachmentFile[] {
+  const files: AttachmentFile[] = [];
+  for (const part of inlineDataParts) {
+    if (!part.inlineData?.data || !part.inlineData?.mimeType) continue;
+    const ext = MIME_TO_EXT[part.inlineData.mimeType] || '.bin';
+    const fileName = `auditaria-img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const filePath = path.join(os.tmpdir(), fileName);
+    fs.writeFileSync(filePath, Buffer.from(part.inlineData.data, 'base64'));
+    files.push({ filePath, mimeType: part.inlineData.mimeType });
+  }
+  return files;
+}
+
+// AUDITARIA_ATTACHMENTS: Clean up temp attachment files.
+function cleanupAttachmentFiles(files: AttachmentFile[]): void {
+  for (const f of files) {
+    try {
+      fs.unlinkSync(f.filePath);
+    } catch {
+      // Ignore cleanup errors — OS will eventually clean tmpdir
+    }
+  }
+}
+
 // AUDITARIA_CLAUDE_PROVIDER: Build prompt string from PartListUnion for external providers.
 // Unlike partToString(), gives honest descriptions for binary data that the provider can't see.
-function buildExternalProviderPrompt(request: PartListUnion): string {
+// When skipInlineData is true, inlineData parts are omitted (driver handles them via temp files).
+function buildExternalProviderPrompt(request: PartListUnion, skipInlineData = false): string {
   if (!request) return '';
   if (typeof request === 'string') return request;
 
@@ -761,14 +839,20 @@ function buildExternalProviderPrompt(request: PartListUnion): string {
     if (p.text) {
       segments.push(p.text);
     } else if (p.inlineData) {
-      const mime = p.inlineData.mimeType || 'unknown';
-      const sizeKB = p.inlineData.data
-        ? Math.round((p.inlineData.data.length * 3) / 4 / 1024)
-        : 0;
-      segments.push(
-        `[Attached file: ${mime}, ~${sizeKB}KB — this binary content was provided inline to the host application and is not available in this conversation. ` +
-          `You cannot see the literal content of this attachment. Do not pretend to know what it contains.]`,
-      );
+      if (skipInlineData) {
+        // Driver will handle the image via temp files — just note it
+        const mime = p.inlineData.mimeType || 'unknown';
+        segments.push(`[Image attached: ${mime}]`);
+      } else {
+        const mime = p.inlineData.mimeType || 'unknown';
+        const sizeKB = p.inlineData.data
+          ? Math.round((p.inlineData.data.length * 3) / 4 / 1024)
+          : 0;
+        segments.push(
+          `[Attached file: ${mime}, ~${sizeKB}KB — this binary content was provided inline to the host application and is not available in this conversation. ` +
+            `You cannot see the literal content of this attachment. Do not pretend to know what it contains.]`,
+        );
+      }
     } else if (p.fileData) {
       const uri = p.fileData.fileUri || 'unknown';
       const mime = p.fileData.mimeType || '';

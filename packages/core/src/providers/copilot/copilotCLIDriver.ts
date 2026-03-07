@@ -124,6 +124,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
+    _attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Reserved for future image support
   ): AsyncGenerator<ProviderEvent> {
     // Ensure subprocess is running and initialized
     if (!this.initialized) {

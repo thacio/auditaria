@@ -6,7 +6,7 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync, readdirSync, unlink
 import { join } from 'path';
 import { homedir } from 'os';
 import { Readable } from 'stream';
-import type { ProviderDriver, ProviderEvent } from '../types.js';
+import type { ProviderDriver, ProviderEvent, AttachmentFile } from '../types.js';
 import {
   ProviderEventType,
   clampCodexReasoningEffortForModel,
@@ -71,6 +71,7 @@ export class CodexCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
+    attachmentFiles?: AttachmentFile[], // AUDITARIA_ATTACHMENTS: Image temp files
   ): AsyncGenerator<ProviderEvent> {
     // AUDITARIA_CODEX_PROVIDER: Inject MCP servers into ~/.codex/config.toml before spawning.
     // Windows shell invocation can mangle -c flag values with TOML arrays (strips double quotes),
@@ -85,7 +86,14 @@ export class CodexCLIDriver implements ProviderDriver {
       args.push('-c', `model_instructions_file=${shellQuote(filePath)}`);
     }
 
-    dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext });
+    // AUDITARIA_ATTACHMENTS: Pass image attachments via -i flags
+    if (attachmentFiles?.length) {
+      for (const f of attachmentFiles) {
+        args.push('-i', f.filePath);
+      }
+    }
+
+    dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext, imageCount: attachmentFiles?.length || 0 });
 
     const proc = spawn('codex', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
