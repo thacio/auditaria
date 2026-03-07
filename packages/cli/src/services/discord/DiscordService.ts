@@ -303,6 +303,19 @@ export class DiscordService {
       ];
       // Fallback if only attachments with no text
       if (currentParts.length === 0) currentParts = [{ text: '' }];
+
+      // AUDITARIA_ATTACHMENTS: Warn user if images won't be seen by the model
+      if (ctx.attachments && ctx.attachments.length > 0) {
+        const pm = this.config.getProviderManager?.();
+        if (pm && !pm.supportsImages()) {
+          await ctx.reply(
+            '\u{26A0}\u{FE0F} The current model does not support image attachments. ' +
+              'Your image was sent but the AI cannot see it. ' +
+              'Switch to Gemini or Codex for image support.',
+          );
+        }
+      }
+
       let turnCount = 0;
 
       // Agent loop -- same pattern as nonInteractiveCli.ts

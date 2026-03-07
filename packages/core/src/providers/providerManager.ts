@@ -266,6 +266,13 @@ export class ProviderManager {
     return this.config?.type === 'codex-cli';
   }
 
+  // AUDITARIA_ATTACHMENTS: Public check for services to warn users about image support.
+  // Returns true if the current provider can process images (Gemini natively, Codex via -i flag).
+  supportsImages(): boolean {
+    if (!this.config || this.config.type === 'gemini') return true;
+    return this.driverSupportsImageFiles;
+  }
+
   async *handleSendMessage(
     request: PartListUnion,
     signal: AbortSignal,
