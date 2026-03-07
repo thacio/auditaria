@@ -69,6 +69,8 @@ const external = [
   '@browserbasehq/stagehand',
   'playwright',
   'playwright-core',
+  // AUDITARIA_TELEGRAM: grammY must be external (loaded at runtime when --telegram is used)
+  'grammy',
   // AUDITARIA_SEARCH: markitdown-ts optional dependencies (used dynamically)
   'youtube-transcript',
   'unzipper',

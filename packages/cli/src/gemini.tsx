@@ -793,6 +793,60 @@ export async function main() {
     }
 
     cliStartupHandle?.end();
+
+    // AUDITARIA_TELEGRAM_START: Start Telegram bot if enabled (via --telegram flag or autostart)
+    if (argv.telegram) {
+      // Explicit --telegram flag: start in standalone mode if non-interactive with no prompt
+      try {
+        await config.initialize();
+        const { startTelegramService } = await import(
+          './services/telegram/TelegramService.js'
+        );
+        const telegramService = await startTelegramService(config, {
+          botToken: argv.telegramToken || '',
+        });
+        const { stopTelegramIfRunning } = await import(
+          './ui/commands/telegramCommand.js'
+        );
+        registerCleanup(async () => {
+          await telegramService.stop();
+          await stopTelegramIfRunning();
+        });
+        debugLogger.debug('Telegram: bot service started successfully');
+
+        // If no prompt and not interactive, just keep running for Telegram
+        if (!config.isInteractive() && !input) {
+          debugLogger.log('Telegram bot running. Press Ctrl+C to stop.');
+          await new Promise<void>((resolve) => {
+            process.on('SIGINT', () => resolve());
+            process.on('SIGTERM', () => resolve());
+          });
+          await runExitCleanup();
+          process.exit(ExitCodes.SUCCESS);
+        }
+      } catch (err) {
+        debugLogger.error('Failed to start Telegram bot:', err);
+        coreEvents.emitFeedback(
+          'warning',
+          `Telegram bot failed to start: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } else if (config.isInteractive()) {
+      // Autostart: silently start bot in background if saved config exists
+      try {
+        const { autoStartTelegram, stopTelegramIfRunning } = await import(
+          './ui/commands/telegramCommand.js'
+        );
+        await autoStartTelegram(config);
+        registerCleanup(async () => {
+          await stopTelegramIfRunning();
+        });
+      } catch {
+        // Silent — autostart is best-effort
+      }
+    }
+    // AUDITARIA_TELEGRAM_END
+
     // Render UI, passing necessary config values. Check that there is no command line question.
     if (config.isInteractive()) {
       // WEB_INTERFACE_START: Extract web interface flags from argv

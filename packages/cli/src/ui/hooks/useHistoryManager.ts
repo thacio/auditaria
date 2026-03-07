@@ -9,6 +9,9 @@ import type { HistoryItem } from '../types.js';
 // WEB_INTERFACE_START: Web interface context import
 import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 // WEB_INTERFACE_END
+// AUDITARIA_TELEGRAM_START: Telegram display sync
+import { forwardToTelegram } from '../../services/telegram/TelegramBridge.js';
+// AUDITARIA_TELEGRAM_END
 import type { ChatRecordingService } from '@google/gemini-cli-core/src/services/chatRecordingService.js';
 
 // Type for the updater function passed to updateHistoryItem
@@ -134,6 +137,10 @@ export function useHistory({
       // Broadcast to web interface if available
       webInterface?.broadcastMessage(newItem);
       // WEB_INTERFACE_END
+
+      // AUDITARIA_TELEGRAM_START: Forward to Telegram if active and not from Telegram
+      forwardToTelegram(newItem);
+      // AUDITARIA_TELEGRAM_END
 
       return id; // Return the generated ID (even if not added, to keep signature)
     },

@@ -2412,6 +2412,30 @@ Logging in with Google... Restarting Gemini CLI to continue.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - only register once
 
+  // AUDITARIA_TELEGRAM_START: Wire Telegram display callback
+  // Allows TelegramService to push user messages and responses to CLI display
+  useEffect(() => {
+    let mounted = true;
+    import('../services/telegram/TelegramBridge.js')
+      .then(({ registerCliDisplayCallback }) => {
+        if (mounted) {
+          registerCliDisplayCallback(historyManager.addItem);
+        }
+      })
+      .catch(() => {
+        /* Telegram bridge not available */
+      });
+    return () => {
+      mounted = false;
+      import('../services/telegram/TelegramBridge.js')
+        .then(({ unregisterCliDisplayCallback }) => {
+          unregisterCliDisplayCallback();
+        })
+        .catch(() => {});
+    };
+  }, [historyManager.addItem]);
+  // AUDITARIA_TELEGRAM_END
+
   // Terminal capture for interactive screens
   // The capture hook is always running (registered in TerminalCaptureContext on mount)
   // We just need to tell it when dialogs are visible so it broadcasts the content

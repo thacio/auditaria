@@ -91,6 +91,10 @@ export interface CliArgs {
   webBrowser: boolean | undefined;
   port: number | undefined;
   // WEB_INTERFACE_END
+  // AUDITARIA_TELEGRAM_START
+  telegram: boolean | undefined;
+  telegramToken: string | undefined;
+  // AUDITARIA_TELEGRAM_END
   resume: string | typeof RESUME_LATEST | undefined;
   listSessions: boolean | undefined;
   deleteSession: string | undefined;
@@ -256,6 +260,17 @@ export async function parseArguments(
           description: 'Port number for the web interface (default: 8629)',
         })
         // WEB_INTERFACE_END
+        // AUDITARIA_TELEGRAM_START
+        .option('telegram', {
+          type: 'boolean',
+          description: 'Enable Telegram bot integration.',
+        })
+        .option('telegram-token', {
+          type: 'string',
+          description:
+            'Telegram bot token (or set TELEGRAM_BOT_TOKEN env var).',
+        })
+        // AUDITARIA_TELEGRAM_END
         .option('resume', {
           alias: 'r',
           type: 'string',
