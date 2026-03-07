@@ -847,6 +847,58 @@ export async function main() {
     }
     // AUDITARIA_TELEGRAM_END
 
+    // AUDITARIA_DISCORD_START: Start Discord bot if enabled (via --discord flag or autostart)
+    if (argv.discord) {
+      try {
+        await config.initialize();
+        const { startDiscordService } = await import(
+          './services/discord/DiscordService.js'
+        );
+        const discordService = await startDiscordService(config, {
+          botToken: argv.discordToken || '',
+        });
+        const { stopDiscordIfRunning } = await import(
+          './ui/commands/discordCommand.js'
+        );
+        registerCleanup(async () => {
+          await discordService.stop();
+          await stopDiscordIfRunning();
+        });
+        debugLogger.debug('Discord: bot service started successfully');
+
+        // If no prompt and not interactive, just keep running for Discord
+        if (!config.isInteractive() && !input) {
+          debugLogger.log('Discord bot running. Press Ctrl+C to stop.');
+          await new Promise<void>((resolve) => {
+            process.on('SIGINT', () => resolve());
+            process.on('SIGTERM', () => resolve());
+          });
+          await runExitCleanup();
+          process.exit(ExitCodes.SUCCESS);
+        }
+      } catch (err) {
+        debugLogger.error('Failed to start Discord bot:', err);
+        coreEvents.emitFeedback(
+          'warning',
+          `Discord bot failed to start: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } else if (config.isInteractive()) {
+      // Autostart: silently start bot in background if saved config exists
+      try {
+        const { autoStartDiscord, stopDiscordIfRunning } = await import(
+          './ui/commands/discordCommand.js'
+        );
+        await autoStartDiscord(config);
+        registerCleanup(async () => {
+          await stopDiscordIfRunning();
+        });
+      } catch {
+        // Silent — autostart is best-effort
+      }
+    }
+    // AUDITARIA_DISCORD_END
+
     // Render UI, passing necessary config values. Check that there is no command line question.
     if (config.isInteractive()) {
       // WEB_INTERFACE_START: Extract web interface flags from argv

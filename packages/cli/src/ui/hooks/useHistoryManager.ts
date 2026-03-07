@@ -12,6 +12,9 @@ import { useWebInterface } from '../contexts/WebInterfaceContext.js';
 // AUDITARIA_TELEGRAM_START: Telegram display sync
 import { forwardToTelegram } from '../../services/telegram/TelegramBridge.js';
 // AUDITARIA_TELEGRAM_END
+// AUDITARIA_DISCORD_START: Discord display sync
+import { forwardToDiscord } from '../../services/discord/DiscordBridge.js';
+// AUDITARIA_DISCORD_END
 import type { ChatRecordingService } from '@google/gemini-cli-core/src/services/chatRecordingService.js';
 
 // Type for the updater function passed to updateHistoryItem
@@ -141,6 +144,10 @@ export function useHistory({
       // AUDITARIA_TELEGRAM_START: Forward to Telegram if active and not from Telegram
       forwardToTelegram(newItem);
       // AUDITARIA_TELEGRAM_END
+
+      // AUDITARIA_DISCORD_START: Forward to Discord if active and not from Discord
+      forwardToDiscord(newItem);
+      // AUDITARIA_DISCORD_END
 
       return id; // Return the generated ID (even if not added, to keep signature)
     },

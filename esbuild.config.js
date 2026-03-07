@@ -71,6 +71,8 @@ const external = [
   'playwright-core',
   // AUDITARIA_TELEGRAM: grammY must be external (loaded at runtime when --telegram is used)
   'grammy',
+  // AUDITARIA_DISCORD: discord.js must be external (loaded at runtime when --discord is used)
+  'discord.js',
   // AUDITARIA_SEARCH: markitdown-ts optional dependencies (used dynamically)
   'youtube-transcript',
   'unzipper',

@@ -505,6 +505,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       appendSystemPromptFile: undefined, // AUDITARIA_APPEND_SYSTEM_PROMPT
       telegram: undefined, // AUDITARIA_TELEGRAM
       telegramToken: undefined, // AUDITARIA_TELEGRAM
+      discord: undefined, // AUDITARIA_DISCORD
+      discordToken: undefined, // AUDITARIA_DISCORD
     });
 
     await act(async () => {

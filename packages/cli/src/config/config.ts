@@ -95,6 +95,10 @@ export interface CliArgs {
   telegram: boolean | undefined;
   telegramToken: string | undefined;
   // AUDITARIA_TELEGRAM_END
+  // AUDITARIA_DISCORD_START
+  discord: boolean | undefined;
+  discordToken: string | undefined;
+  // AUDITARIA_DISCORD_END
   resume: string | typeof RESUME_LATEST | undefined;
   listSessions: boolean | undefined;
   deleteSession: string | undefined;
@@ -271,6 +275,16 @@ export async function parseArguments(
             'Telegram bot token (or set TELEGRAM_BOT_TOKEN env var).',
         })
         // AUDITARIA_TELEGRAM_END
+        // AUDITARIA_DISCORD_START
+        .option('discord', {
+          type: 'boolean',
+          description: 'Enable Discord bot integration.',
+        })
+        .option('discord-token', {
+          type: 'string',
+          description: 'Discord bot token (or set DISCORD_BOT_TOKEN env var).',
+        })
+        // AUDITARIA_DISCORD_END
         .option('resume', {
           alias: 'r',
           type: 'string',

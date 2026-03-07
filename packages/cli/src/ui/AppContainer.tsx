@@ -2436,6 +2436,30 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, [historyManager.addItem]);
   // AUDITARIA_TELEGRAM_END
 
+  // AUDITARIA_DISCORD_START: Wire Discord display callback
+  // Allows DiscordService to push user messages and responses to CLI display
+  useEffect(() => {
+    let mounted = true;
+    import('../services/discord/DiscordBridge.js')
+      .then(({ registerCliDisplayCallback }) => {
+        if (mounted) {
+          registerCliDisplayCallback(historyManager.addItem);
+        }
+      })
+      .catch(() => {
+        /* Discord bridge not available */
+      });
+    return () => {
+      mounted = false;
+      import('../services/discord/DiscordBridge.js')
+        .then(({ unregisterCliDisplayCallback }) => {
+          unregisterCliDisplayCallback();
+        })
+        .catch(() => {});
+    };
+  }, [historyManager.addItem]);
+  // AUDITARIA_DISCORD_END
+
   // Terminal capture for interactive screens
   // The capture hook is always running (registered in TerminalCaptureContext on mount)
   // We just need to tell it when dialogs are visible so it broadcasts the content
