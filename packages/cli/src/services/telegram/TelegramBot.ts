@@ -240,8 +240,15 @@ export class TelegramBotWrapper {
       if (!this.messageHandler || !ctx.chat || !ctx.from) return;
       if (!ctx.message.text) return;
 
-      // Skip if it's a command (already handled)
-      if (ctx.message.text.startsWith('/')) return;
+      // Skip if it's a registered Telegram bot command (already handled by grammY)
+      if (ctx.message.text.startsWith('/')) {
+        const cmdName = ctx.message.text
+          .slice(1)
+          .split(/[\s@]/)[0]
+          ?.toLowerCase();
+        if (cmdName && this.commandHandlers.has(cmdName)) return;
+        // Other /commands pass through to messageHandler (Auditaria slash commands)
+      }
 
       // Group mention check
       const isGroup =
