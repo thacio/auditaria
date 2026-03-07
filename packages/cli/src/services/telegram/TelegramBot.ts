@@ -9,6 +9,12 @@
 import { Bot, type Context } from 'grammy';
 import { debugLogger } from '@google/gemini-cli-core';
 import type { TelegramConfig } from './types.js';
+import {
+  ALLOWED_MIME_TYPES,
+  validateAttachment,
+  MAX_ATTACHMENT_SIZE,
+  type ValidatedAttachment,
+} from '../attachments.js';
 
 /**
  * Simple per-key sequential processing middleware.
@@ -54,6 +60,8 @@ export type MessageHandler = (ctx: {
   text: string;
   messageId: number;
   isGroup: boolean;
+  /** Validated image attachments (inline, never saved to disk) */
+  attachments?: ValidatedAttachment[];
   /** Reply to the message */
   reply: (text: string, parseMode?: 'HTML' | 'Markdown') => Promise<number>;
   /** Edit a sent message */
@@ -235,112 +243,252 @@ export class TelegramBotWrapper {
   }
 
   private setupMessageHandler(): void {
-    // Handle text messages
+    // Handle text messages (may have no attachments)
     this.bot.on('message:text', async (ctx) => {
-      if (!this.messageHandler || !ctx.chat || !ctx.from) return;
-      if (!ctx.message.text) return;
-
-      // Skip if it's a registered Telegram bot command (already handled by grammY)
-      if (ctx.message.text.startsWith('/')) {
-        const cmdName = ctx.message.text
-          .slice(1)
-          .split(/[\s@]/)[0]
-          ?.toLowerCase();
-        if (cmdName && this.commandHandlers.has(cmdName)) return;
-        // Other /commands pass through to messageHandler (Auditaria slash commands)
-      }
-
-      // Group mention check
-      const isGroup =
-        ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
-      if (isGroup && this.telegramConfig.groups?.requireMention) {
-        if (!this.isMentioned(ctx.message.text)) return;
-      }
-
-      // Strip bot mention from text
-      let text = ctx.message.text;
-      if (this.botUsername) {
-        text = text
-          .replace(new RegExp(`@${this.botUsername}\\b`, 'gi'), '')
-          .trim();
-      }
-
-      if (!text) return;
-
-      const displayName = [ctx.from.first_name, ctx.from.last_name]
-        .filter(Boolean)
-        .join(' ');
-
-      try {
-        await this.messageHandler({
-          chatId: ctx.chat.id,
-          userId: ctx.from.id,
-          username: ctx.from.username,
-          displayName,
-          text,
-          messageId: ctx.message.message_id,
-          isGroup,
-          reply: async (replyText, parseMode) => {
-            try {
-              const sent = await ctx.reply(replyText, {
-                parse_mode: parseMode || 'HTML',
-              });
-              return sent.message_id;
-            } catch {
-              // Fallback: send without parse mode if HTML fails
-              const sent = await ctx.reply(replyText);
-              return sent.message_id;
-            }
-          },
-          editMessage: async (messageId, newText, parseMode) => {
-            try {
-              await ctx.api.editMessageText(ctx.chat.id, messageId, newText, {
-                parse_mode: parseMode || 'HTML',
-              });
-            } catch {
-              // Ignore edit errors (message too old, unchanged, etc.)
-            }
-          },
-          sendTyping: async () => {
-            try {
-              await ctx.api.sendChatAction(ctx.chat.id, 'typing');
-            } catch {
-              // Ignore typing errors
-            }
-          },
-          react: async (emoji) => {
-            try {
-              await ctx.api.setMessageReaction(
-                ctx.chat.id,
-                ctx.message.message_id,
-                [
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion
-                  { type: 'emoji', emoji } as any,
-                ],
-              );
-            } catch {
-              // Reactions may not be supported in all chats
-            }
-          },
-          unreact: async (_emoji) => {
-            try {
-              await ctx.api.setMessageReaction(
-                ctx.chat.id,
-                ctx.message.message_id,
-                [],
-              );
-            } catch {
-              // Ignore
-            }
-          },
-        });
-      } catch (err) {
-        debugLogger.error('Telegram: error in message handler:', err);
-        await ctx.reply(
-          'An error occurred processing your message. Use /new to reset.',
-        );
-      }
+      await this.handleIncoming(ctx, ctx.message.text || '', []);
     });
+
+    // Handle photo messages (compressed images — Telegram sends as photo array)
+    this.bot.on('message:photo', async (ctx) => {
+      const caption = ctx.message.caption || '';
+      const attachments = await this.downloadPhoto(ctx);
+      await this.handleIncoming(ctx, caption, attachments);
+    });
+
+    // Handle document messages (images sent as files, uncompressed)
+    this.bot.on('message:document', async (ctx) => {
+      const doc = ctx.message.document;
+      if (!doc) return;
+      const mime = doc.mime_type || '';
+      if (!ALLOWED_MIME_TYPES.has(mime)) {
+        try {
+          await ctx.reply(
+            'Only image attachments (PNG, JPG, GIF, WEBP) are supported.',
+          );
+        } catch {
+          // Ignore
+        }
+        return;
+      }
+      const caption = ctx.message.caption || '';
+      const attachments = await this.downloadDocument(ctx, doc);
+      await this.handleIncoming(ctx, caption, attachments);
+    });
+  }
+
+  /**
+   * Common handler for text, photo, and document messages.
+   */
+  private async handleIncoming(
+    ctx: Context,
+    rawText: string,
+    attachments: ValidatedAttachment[],
+  ): Promise<void> {
+    if (!this.messageHandler || !ctx.chat || !ctx.from) return;
+    if (!ctx.message) return;
+
+    const chat = ctx.chat;
+    const from = ctx.from;
+    const message = ctx.message;
+    let text = rawText;
+
+    // Skip if it's a registered Telegram bot command (already handled by grammY)
+    if (text.startsWith('/')) {
+      const cmdName = text.slice(1).split(/[\s@]/)[0]?.toLowerCase();
+      if (cmdName && this.commandHandlers.has(cmdName)) return;
+      // Other /commands pass through to messageHandler (Auditaria slash commands)
+    }
+
+    // Need either text or attachments
+    if (!text && attachments.length === 0) return;
+
+    // Group mention check
+    const isGroup = chat.type === 'group' || chat.type === 'supergroup';
+    if (isGroup && this.telegramConfig.groups?.requireMention) {
+      if (!this.isMentioned(text)) return;
+    }
+
+    // Strip bot mention from text
+    if (this.botUsername) {
+      text = text
+        .replace(new RegExp(`@${this.botUsername}\\b`, 'gi'), '')
+        .trim();
+    }
+
+    if (!text && attachments.length === 0) return;
+
+    const displayName = [from.first_name, from.last_name]
+      .filter(Boolean)
+      .join(' ');
+
+    try {
+      await this.messageHandler({
+        chatId: chat.id,
+        userId: from.id,
+        username: from.username,
+        displayName,
+        text,
+        messageId: message.message_id,
+        isGroup,
+        attachments: attachments.length > 0 ? attachments : undefined,
+        reply: async (replyText, parseMode) => {
+          try {
+            const sent = await ctx.reply(replyText, {
+              parse_mode: parseMode || 'HTML',
+            });
+            return sent.message_id;
+          } catch {
+            // Fallback: send without parse mode if HTML fails
+            const sent = await ctx.reply(replyText);
+            return sent.message_id;
+          }
+        },
+        editMessage: async (msgId, newText, parseMode) => {
+          try {
+            await ctx.api.editMessageText(chat.id, msgId, newText, {
+              parse_mode: parseMode || 'HTML',
+            });
+          } catch {
+            // Ignore edit errors (message too old, unchanged, etc.)
+          }
+        },
+        sendTyping: async () => {
+          try {
+            await ctx.api.sendChatAction(chat.id, 'typing');
+          } catch {
+            // Ignore typing errors
+          }
+        },
+        react: async (emoji) => {
+          try {
+            await ctx.api.setMessageReaction(chat.id, message.message_id, [
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-type-assertion
+              { type: 'emoji', emoji } as any,
+            ]);
+          } catch {
+            // Reactions may not be supported in all chats
+          }
+        },
+        unreact: async (_emoji) => {
+          try {
+            await ctx.api.setMessageReaction(chat.id, message.message_id, []);
+          } catch {
+            // Ignore
+          }
+        },
+      });
+    } catch (err) {
+      debugLogger.error('Telegram: error in message handler:', err);
+      await ctx.reply(
+        'An error occurred processing your message. Use /new to reset.',
+      );
+    }
+  }
+
+  /**
+   * Downloads a photo from Telegram (picks the largest size).
+   * Returns validated attachment array (in-memory, never saved to disk).
+   */
+  private async downloadPhoto(ctx: Context): Promise<ValidatedAttachment[]> {
+    const photos = ctx.message?.photo;
+    if (!photos || photos.length === 0) return [];
+
+    // Telegram sends multiple sizes — pick the largest
+    const largest = photos[photos.length - 1];
+    if (!largest) return [];
+
+    try {
+      const file = await ctx.api.getFile(largest.file_id);
+      if (!file.file_path) return [];
+
+      const url = `https://api.telegram.org/file/bot${this.telegramConfig.botToken}/${file.file_path}`;
+      const response = await fetch(url);
+      if (!response.ok) return [];
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Telegram photos are always JPEG
+      const mimeType = 'image/jpeg';
+      const fileName = file.file_path.split('/').pop() || 'photo.jpg';
+      const error = validateAttachment(
+        buffer,
+        mimeType,
+        fileName,
+        buffer.length,
+      );
+      if (error) {
+        debugLogger.debug(`Telegram: photo validation failed: ${error}`);
+        try {
+          await ctx.reply(error);
+        } catch {
+          // Ignore
+        }
+        return [];
+      }
+
+      return [{ data: buffer, mimeType, fileName }];
+    } catch (err) {
+      debugLogger.error('Telegram: failed to download photo:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Downloads a document (file) from Telegram.
+   * Only called for documents with allowed MIME types.
+   */
+  private async downloadDocument(
+    ctx: Context,
+    doc: {
+      file_id: string;
+      file_name?: string;
+      mime_type?: string;
+      file_size?: number;
+    },
+  ): Promise<ValidatedAttachment[]> {
+    const mimeType = doc.mime_type || '';
+
+    // Size check before downloading
+    if (doc.file_size && doc.file_size > MAX_ATTACHMENT_SIZE) {
+      try {
+        await ctx.reply('File is too large. Max: 5 MB.');
+      } catch {
+        // Ignore
+      }
+      return [];
+    }
+
+    try {
+      const file = await ctx.api.getFile(doc.file_id);
+      if (!file.file_path) return [];
+
+      const url = `https://api.telegram.org/file/bot${this.telegramConfig.botToken}/${file.file_path}`;
+      const response = await fetch(url);
+      if (!response.ok) return [];
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const fileName =
+        doc.file_name || file.file_path.split('/').pop() || 'file';
+      const error = validateAttachment(
+        buffer,
+        mimeType,
+        fileName,
+        buffer.length,
+      );
+      if (error) {
+        try {
+          await ctx.reply(error);
+        } catch {
+          // Ignore
+        }
+        return [];
+      }
+
+      return [{ data: buffer, mimeType, fileName }];
+    } catch (err) {
+      debugLogger.error('Telegram: failed to download document:', err);
+      return [];
+    }
   }
 
   /**

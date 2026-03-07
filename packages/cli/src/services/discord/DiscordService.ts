@@ -32,6 +32,10 @@ import {
   injectCliInput,
 } from './DiscordBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
+import {
+  attachmentsToParts,
+  type ValidatedAttachment,
+} from '../attachments.js';
 
 /**
  * Main Discord service that bridges the discord.js bot with Auditaria's agent loop.
@@ -214,6 +218,7 @@ export class DiscordService {
     text: string;
     messageId: string;
     isGuild: boolean;
+    attachments?: ValidatedAttachment[];
     reply: (text: string) => Promise<string>;
     editMessage: (messageId: string, text: string) => Promise<void>;
     sendTyping: () => Promise<void>;
@@ -292,7 +297,12 @@ export class DiscordService {
         schedulerId: `discord-${ctx.channelId}`,
       });
 
-      let currentParts: Part[] = [{ text }];
+      let currentParts: Part[] = [
+        ...(text ? [{ text }] : []),
+        ...attachmentsToParts(ctx.attachments || []),
+      ];
+      // Fallback if only attachments with no text
+      if (currentParts.length === 0) currentParts = [{ text: '' }];
       let turnCount = 0;
 
       // Agent loop -- same pattern as nonInteractiveCli.ts

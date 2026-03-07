@@ -15,6 +15,13 @@ import {
 } from 'discord.js';
 import { debugLogger } from '@google/gemini-cli-core';
 import type { DiscordConfig } from './types.js';
+import {
+  ALLOWED_MIME_TYPES,
+  validateAttachment,
+  mimeFromExtension,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  type ValidatedAttachment,
+} from '../attachments.js';
 
 /** Callback for incoming text messages */
 export type MessageHandler = (ctx: {
@@ -25,6 +32,8 @@ export type MessageHandler = (ctx: {
   text: string;
   messageId: string;
   isGuild: boolean;
+  /** Validated image attachments (inline, never saved to disk) */
+  attachments?: ValidatedAttachment[];
   /** Reply to the message */
   reply: (text: string) => Promise<string>;
   /** Edit a sent message */
@@ -144,7 +153,6 @@ export class DiscordBotWrapper {
     try {
       const channel = await this.client.channels.fetch(channelId);
       if (channel && 'send' in channel && typeof channel.send === 'function') {
-         
         const sent = await (
           channel as { send: (t: string) => Promise<Message> }
         ).send(text);
@@ -201,7 +209,12 @@ export class DiscordBotWrapper {
       }
 
       const text = message.content.trim();
-      if (!text) return;
+
+      // Extract and validate image attachments
+      const validAttachments = await this.extractAttachments(message);
+
+      // Need either text or attachments
+      if (!text && validAttachments.length === 0) return;
 
       const isGuild = !!message.guild;
 
@@ -265,7 +278,7 @@ export class DiscordBotWrapper {
           .trim();
       }
 
-      if (!cleanText) return;
+      if (!cleanText && validAttachments.length === 0) return;
 
       if (!this.messageHandler) return;
 
@@ -281,6 +294,8 @@ export class DiscordBotWrapper {
           text: cleanText,
           messageId: message.id,
           isGuild,
+          attachments:
+            validAttachments.length > 0 ? validAttachments : undefined,
           reply: async (replyText) => {
             const sent = await message.reply(replyText);
             this.sentMessages.set(sent.id, sent);
@@ -332,6 +347,86 @@ export class DiscordBotWrapper {
         await message.reply('An error occurred processing your message.');
       }
     });
+  }
+
+  /**
+   * Extracts and validates image attachments from a Discord message.
+   * Downloads images in-memory (never saved to disk) and validates content.
+   */
+  private async extractAttachments(
+    message: Message,
+  ): Promise<ValidatedAttachment[]> {
+    if (!message.attachments || message.attachments.size === 0) return [];
+
+    const results: ValidatedAttachment[] = [];
+    const errors: string[] = [];
+    let count = 0;
+
+    for (const [, attachment] of message.attachments) {
+      if (count >= MAX_ATTACHMENTS_PER_MESSAGE) {
+        errors.push(
+          `Only ${MAX_ATTACHMENTS_PER_MESSAGE} attachments per message are allowed.`,
+        );
+        break;
+      }
+
+      const fileName = attachment.name || 'unknown';
+      const mimeType =
+        attachment.contentType || mimeFromExtension(fileName) || '';
+
+      // Quick check before downloading
+      if (!ALLOWED_MIME_TYPES.has(mimeType) && !mimeFromExtension(fileName)) {
+        errors.push(
+          `"${fileName}": only images (PNG, JPG, GIF, WEBP) are supported.`,
+        );
+        continue;
+      }
+
+      const resolvedMime = ALLOWED_MIME_TYPES.has(mimeType)
+        ? mimeType
+        : mimeFromExtension(fileName) || mimeType;
+
+      try {
+        const response = await fetch(attachment.url);
+        if (!response.ok) {
+          errors.push(`Failed to download "${fileName}".`);
+          continue;
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const error = validateAttachment(
+          buffer,
+          resolvedMime,
+          fileName,
+          attachment.size,
+        );
+
+        if (error) {
+          errors.push(error);
+          continue;
+        }
+
+        results.push({ data: buffer, mimeType: resolvedMime, fileName });
+        count++;
+      } catch (err) {
+        debugLogger.error(
+          `Discord: failed to download attachment "${fileName}":`,
+          err,
+        );
+        errors.push(`Failed to download "${fileName}".`);
+      }
+    }
+
+    // Notify user about rejected attachments
+    if (errors.length > 0) {
+      try {
+        await message.reply(errors.join('\n'));
+      } catch {
+        // Ignore reply errors
+      }
+    }
+
+    return results;
   }
 
   /**

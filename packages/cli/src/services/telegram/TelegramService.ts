@@ -33,6 +33,10 @@ import {
   injectCliInput,
 } from './TelegramBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
+import {
+  attachmentsToParts,
+  type ValidatedAttachment,
+} from '../attachments.js';
 
 /**
  * Main Telegram service that bridges the grammY bot with Auditaria's agent loop.
@@ -214,6 +218,7 @@ export class TelegramService {
     text: string;
     messageId: number;
     isGroup: boolean;
+    attachments?: ValidatedAttachment[];
     reply: (text: string, parseMode?: 'HTML' | 'Markdown') => Promise<number>;
     editMessage: (
       messageId: number,
@@ -296,7 +301,12 @@ export class TelegramService {
         schedulerId: `telegram-${ctx.chatId}`,
       });
 
-      let currentParts: Part[] = [{ text }];
+      let currentParts: Part[] = [
+        ...(text ? [{ text }] : []),
+        ...attachmentsToParts(ctx.attachments || []),
+      ];
+      // Fallback if only attachments with no text
+      if (currentParts.length === 0) currentParts = [{ text: '' }];
       let turnCount = 0;
 
       // Agent loop — same pattern as nonInteractiveCli.ts
