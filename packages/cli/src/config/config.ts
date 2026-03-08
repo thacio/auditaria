@@ -99,6 +99,10 @@ export interface CliArgs {
   discord: boolean | undefined;
   discordToken: string | undefined;
   // AUDITARIA_DISCORD_END
+  // AUDITARIA_TEAMS_START
+  teamsPort: number | undefined;
+  teamsSecret: string | undefined;
+  // AUDITARIA_TEAMS_END
   resume: string | typeof RESUME_LATEST | undefined;
   listSessions: boolean | undefined;
   deleteSession: string | undefined;
@@ -285,6 +289,16 @@ export async function parseArguments(
           description: 'Discord bot token (or set DISCORD_BOT_TOKEN env var).',
         })
         // AUDITARIA_DISCORD_END
+        // AUDITARIA_TEAMS_START
+        .option('teams-port', {
+          type: 'number',
+          description: 'Port for Teams webhook server (default: 3978).',
+        })
+        .option('teams-secret', {
+          type: 'string',
+          description: 'HMAC secret for Teams outgoing webhook (base64).',
+        })
+        // AUDITARIA_TEAMS_END
         .option('resume', {
           alias: 'r',
           type: 'string',

@@ -899,6 +899,22 @@ export async function main() {
     }
     // AUDITARIA_DISCORD_END
 
+    // AUDITARIA_TEAMS_START: Auto-start Teams webhook if saved config exists
+    if (config.isInteractive()) {
+      try {
+        const { autoStartTeams, stopTeamsIfRunning } = await import(
+          './ui/commands/teamsCommand.js'
+        );
+        await autoStartTeams(config);
+        registerCleanup(async () => {
+          await stopTeamsIfRunning();
+        });
+      } catch {
+        // Silent — autostart is best-effort
+      }
+    }
+    // AUDITARIA_TEAMS_END
+
     // Render UI, passing necessary config values. Check that there is no command line question.
     if (config.isInteractive()) {
       // WEB_INTERFACE_START: Extract web interface flags from argv

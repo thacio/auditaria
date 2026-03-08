@@ -67,6 +67,7 @@ import { setupSkillCommand } from '../ui/commands/setupSkillCommand.js';
 import { knowledgeBaseCommand } from '../ui/commands/knowledgeCommand.js'; // AUDITARIA_FEATURE: Local Knowledge Base System
 import { telegramCommand } from '../ui/commands/telegramCommand.js'; // AUDITARIA_TELEGRAM_FEATURE
 import { discordCommand } from '../ui/commands/discordCommand.js'; // AUDITARIA_DISCORD_FEATURE
+import { teamsCommand } from '../ui/commands/teamsCommand.js'; // AUDITARIA_TEAMS_FEATURE
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -203,6 +204,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       knowledgeBaseCommand, // AUDITARIA_FEATURE: Local Knowledge Base System
       telegramCommand, // AUDITARIA_TELEGRAM_FEATURE
       discordCommand, // AUDITARIA_DISCORD_FEATURE
+      teamsCommand, // AUDITARIA_TEAMS_FEATURE
     ];
     handle?.end();
     return allDefinitions.filter((cmd): cmd is SlashCommand => cmd !== null);

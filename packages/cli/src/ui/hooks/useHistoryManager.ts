@@ -15,6 +15,9 @@ import { forwardToTelegram } from '../../services/telegram/TelegramBridge.js';
 // AUDITARIA_DISCORD_START: Discord display sync
 import { forwardToDiscord } from '../../services/discord/DiscordBridge.js';
 // AUDITARIA_DISCORD_END
+// AUDITARIA_TEAMS_START: Teams display sync
+import { forwardToTeams } from '../../services/teams/TeamsBridge.js';
+// AUDITARIA_TEAMS_END
 import type { ChatRecordingService } from '@google/gemini-cli-core/src/services/chatRecordingService.js';
 
 // Type for the updater function passed to updateHistoryItem
@@ -148,6 +151,10 @@ export function useHistory({
       // AUDITARIA_DISCORD_START: Forward to Discord if active and not from Discord
       forwardToDiscord(newItem);
       // AUDITARIA_DISCORD_END
+
+      // AUDITARIA_TEAMS_START: Forward to Teams if active and not from Teams
+      forwardToTeams(newItem);
+      // AUDITARIA_TEAMS_END
 
       return id; // Return the generated ID (even if not added, to keep signature)
     },

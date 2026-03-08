@@ -507,6 +507,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       telegramToken: undefined, // AUDITARIA_TELEGRAM
       discord: undefined, // AUDITARIA_DISCORD
       discordToken: undefined, // AUDITARIA_DISCORD
+      teamsPort: undefined, // AUDITARIA_TEAMS
+      teamsSecret: undefined, // AUDITARIA_TEAMS
     });
 
     await act(async () => {
