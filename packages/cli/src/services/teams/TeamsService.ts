@@ -6,13 +6,18 @@
 
 // AUDITARIA_TEAMS_FEATURE: This entire file is part of the Teams integration
 
-import type { Config, ToolCallRequestInfo } from '@google/gemini-cli-core';
+import type {
+  Config,
+  ToolCallRequestInfo,
+  ProviderDriver,
+} from '@google/gemini-cli-core'; // AUDITARIA_SESSION_MANAGEMENT: added ProviderDriver
 import {
   GeminiEventType,
   Scheduler,
   debugLogger,
   ToolErrorType,
   recordToolCallInteractions,
+  ProviderEventType, // AUDITARIA_SESSION_MANAGEMENT
 } from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import type * as http from 'node:http';
@@ -74,6 +79,12 @@ export class TeamsService {
   /** Per-thread session manager — each thread gets its own GeminiClient */
   private sessionManager: TeamsSessionManager;
 
+  // AUDITARIA_SESSION_MANAGEMENT: Per-thread external provider drivers (Claude/Codex/Copilot)
+  private externalDrivers: Map<
+    string,
+    { driver: ProviderDriver; provider: string }
+  > = new Map();
+
   /** Stored results for pull mode */
   private pullResults: Map<string, PullResult> = new Map();
 
@@ -111,6 +122,12 @@ export class TeamsService {
   async stop(): Promise<void> {
     this.stopped = true;
     this.sessionManager.dispose();
+    // AUDITARIA_SESSION_MANAGEMENT_START: Dispose external provider drivers
+    for (const entry of this.externalDrivers.values()) {
+      entry.driver.dispose();
+    }
+    this.externalDrivers.clear();
+    // AUDITARIA_SESSION_MANAGEMENT_END
     this.stopTunnel();
     await this.server.stop();
     debugLogger.log('Teams: Service stopped');
@@ -573,6 +590,22 @@ export class TeamsService {
       text: `[Teams ${msg.userName}] ${msg.text}`,
     });
 
+    // AUDITARIA_SESSION_MANAGEMENT_START: External provider path (Claude/Codex/Copilot)
+    // When an external provider is active, bypass Gemini's scheduler loop entirely —
+    // the external CLI handles tools internally via MCP bridge.
+    if (this.config.isExternalProviderActive()) {
+      try {
+        const result = await this.runExternalProviderLoop(msg, timeoutMs);
+        return result;
+      } finally {
+        this.processing = false;
+        this.processingThreads.delete(msg.threadId);
+        setTeamsProcessing(false);
+        release();
+      }
+    }
+    // AUDITARIA_SESSION_MANAGEMENT_END
+
     const abortController = new AbortController();
     const promptId = `teams-${msg.threadId}-${Date.now()}`;
     let accumulatedText = '';
@@ -725,6 +758,127 @@ export class TeamsService {
       release();
     }
   }
+
+  // AUDITARIA_SESSION_MANAGEMENT_START: External provider agent loop
+  /**
+   * Runs a message through the active external provider (Claude/Codex/Copilot).
+   * The external CLI handles the full agentic loop including tool calls via MCP bridge.
+   * We just collect the text response and manage session resume.
+   */
+  private async runExternalProviderLoop(
+    msg: TeamsIncomingMessage,
+    timeoutMs?: number,
+  ): Promise<string | null> {
+    const providerManager = this.config.getProviderManager();
+    if (!providerManager) return 'No external provider configured.';
+
+    const providerConfig = this.config.getProviderConfig();
+    if (!providerConfig) return 'No external provider configured.';
+
+    const registry = this.config.getSessionRegistry();
+    const record = registry.lookup('teams-thread', msg.threadId);
+
+    // Get or create per-thread driver
+    const driver = await this.getOrCreateExternalDriver(msg.threadId);
+
+    // Resume existing session if same provider
+    if (
+      record &&
+      record.provider === providerConfig.type &&
+      driver.setSessionId
+    ) {
+      driver.setSessionId(record.nativeSessionId);
+      debugLogger.log(
+        `Teams: Resuming ${providerConfig.type} session ${record.nativeSessionId} for thread ${msg.threadId}`,
+      );
+    }
+
+    const systemContext = this.config.buildExternalProviderContext();
+    const abortController = new AbortController();
+    let accumulatedText = '';
+    let timedOut = false;
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+    if (timeoutMs) {
+      timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        abortController.abort();
+      }, timeoutMs);
+    }
+
+    try {
+      for await (const event of driver.sendMessage(
+        msg.text,
+        abortController.signal,
+        systemContext,
+      )) {
+        if (this.stopped || timedOut) break;
+        if (event.type === ProviderEventType.Content) {
+          accumulatedText += event.text;
+        }
+      }
+    } catch (err) {
+      if (!timedOut) {
+        debugLogger.error('Teams: External provider error:', err);
+        return formatError(err);
+      }
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+
+    if (timedOut) return null;
+
+    // Capture session ID and persist to registry
+    const nativeId = driver.getSessionId();
+    if (nativeId) {
+      registry.save({
+        contextType: 'teams-thread',
+        contextId: msg.threadId,
+        provider: providerConfig.type,
+        nativeSessionId: nativeId,
+        model: providerConfig.model,
+        state: 'active',
+        createdAt: record?.createdAt ?? Date.now(),
+        lastActiveAt: Date.now(),
+      });
+    }
+
+    if (accumulatedText.trim()) {
+      pushToCliDisplay({ type: 'gemini_content', text: accumulatedText });
+    }
+
+    debugLogger.log(
+      `Teams: External provider loop complete — ${accumulatedText.length} chars (thread: ${msg.threadId})`,
+    );
+
+    return accumulatedText.trim() || null;
+  }
+
+  /**
+   * Gets or creates a per-thread external provider driver.
+   * Each thread gets its own driver so session IDs don't clash.
+   */
+  private async getOrCreateExternalDriver(
+    threadId: string,
+  ): Promise<ProviderDriver> {
+    const providerConfig = this.config.getProviderConfig();
+    const currentProvider = providerConfig?.type ?? '';
+    const existing = this.externalDrivers.get(threadId);
+
+    // Reuse if same provider; dispose and recreate if provider changed
+    if (existing) {
+      if (existing.provider === currentProvider) return existing.driver;
+      existing.driver.dispose();
+      this.externalDrivers.delete(threadId);
+    }
+
+    // Create a new driver via ProviderManager — shares bridge, separate instance
+    const providerManager = this.config.getProviderManager()!;
+    const driver = await providerManager.createDriver();
+    this.externalDrivers.set(threadId, { driver, provider: currentProvider });
+    return driver;
+  }
+  // AUDITARIA_SESSION_MANAGEMENT_END
 
   // --- Incoming webhook (for async/labeled-async/hybrid responses) ---
 

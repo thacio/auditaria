@@ -60,6 +60,7 @@ function createMockDriver(events: ProviderEvent[]): ProviderDriver {
       sessionId = undefined;
     },
     dispose() {},
+    canResume: true,
   };
 }
 
@@ -392,6 +393,7 @@ describe('ProviderManager session reset on context modification', () => {
         sessionWasReset = true;
       },
       dispose() {},
+      canResume: true,
     };
 
     // Inject mock driver
@@ -452,6 +454,7 @@ describe('ProviderManager session reset on context modification', () => {
         sessionResetCalled = true;
       },
       dispose() {},
+      canResume: true,
     };
 
     (manager as unknown as Record<string, unknown>)['driver'] = trackingDriver;
@@ -1058,6 +1061,7 @@ describe('ProviderManager compaction handling', () => {
       getSessionId() { return 'session-after-compact'; },
       resetSession() {},
       dispose() {},
+      canResume: true,
     };
 
     (manager as unknown as Record<string, unknown>)['driver'] = trackingDriver;

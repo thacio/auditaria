@@ -141,6 +141,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
     return this.sessionManager.getSessionId();
   }
 
+  // AUDITARIA_SESSION_MANAGEMENT: Set native session ID for cross-context resume
+  setSessionId(id: string): void { this.sessionManager.setSessionId(id); }
+  readonly canResume = true;
+
   // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget session reset)
   resetSession(): void {
     this.sessionManager.clearSession();

@@ -31,7 +31,10 @@ export interface JsonRpcNotification {
   params?: unknown;
 }
 
-export type JsonRpcMessage = JsonRpcRequest | JsonRpcResponse | JsonRpcNotification;
+export type JsonRpcMessage =
+  | JsonRpcRequest
+  | JsonRpcResponse
+  | JsonRpcNotification;
 
 // ---------------------------------------------------------------------------
 // ACP initialize (requires protocolVersion in params)
@@ -45,7 +48,11 @@ export interface AcpInitializeParams {
 export interface AcpAgentCapabilities {
   loadSession?: boolean;
   mcpCapabilities?: { http?: boolean; sse?: boolean };
-  promptCapabilities?: { audio?: boolean; embeddedContext?: boolean; image?: boolean };
+  promptCapabilities?: {
+    audio?: boolean;
+    embeddedContext?: boolean;
+    image?: boolean;
+  };
   sessionCapabilities?: Record<string, unknown>;
 }
 
@@ -76,7 +83,7 @@ export interface AcpAvailableModel {
   name: string;
   description?: string | null;
   _meta?: {
-    copilotUsage?: string;    // e.g., "1x", "3x", "0.33x", "0x"
+    copilotUsage?: string; // e.g., "1x", "3x", "0.33x", "0x"
     copilotEnablement?: string; // e.g., "enabled"
   };
 }
@@ -97,6 +104,35 @@ export interface AcpNewSessionResult {
     availableModes?: AcpAvailableMode[];
     currentModeId?: string;
   } | null;
+}
+
+// ---------------------------------------------------------------------------
+// ACP session/load (resume existing session — replays history as notifications)
+// ---------------------------------------------------------------------------
+
+export interface AcpSessionLoadParams {
+  sessionId: string;
+  cwd: string;
+  mcpServers: unknown[];
+}
+
+export interface AcpSessionLoadResult {
+  sessionId: string;
+}
+
+// ---------------------------------------------------------------------------
+// ACP session/list (discover saved sessions)
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AcpSessionListParams {}
+
+export interface AcpSessionListResult {
+  sessions: Array<{
+    sessionId: string;
+    createdAt?: string;
+    lastActiveAt?: string;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,14 +167,21 @@ export interface AcpPromptContentImage {
   mimeType: string;
 }
 
-export type AcpPromptContent = AcpPromptContentText | AcpPromptContentResourceLink | AcpPromptContentImage;
+export type AcpPromptContent =
+  | AcpPromptContentText
+  | AcpPromptContentResourceLink
+  | AcpPromptContentImage;
 
 export interface AcpPromptParams {
   sessionId: string; // ACP uses camelCase, NOT snake_case
   prompt: AcpPromptContent[];
 }
 
-export type AcpStopReason = 'end_turn' | 'cancelled' | 'max_tokens' | 'tool_use';
+export type AcpStopReason =
+  | 'end_turn'
+  | 'cancelled'
+  | 'max_tokens'
+  | 'tool_use';
 
 export interface AcpPromptResult {
   stopReason: AcpStopReason; // camelCase
@@ -264,8 +307,8 @@ export interface CopilotDriverConfig {
 // ---------------------------------------------------------------------------
 
 export interface CopilotModelInfo {
-  value: string;   // The modelId to pass to session/set_model (e.g., 'claude-sonnet-4.5')
-  name: string;    // Human-readable name (e.g., 'Claude Sonnet 4.5')
+  value: string; // The modelId to pass to session/set_model (e.g., 'claude-sonnet-4.5')
+  name: string; // Human-readable name (e.g., 'Claude Sonnet 4.5')
   description?: string | null;
   copilotUsage?: string | null; // Usage multiplier from _meta.copilotUsage (e.g., '1x', '3x', '0.33x', '0x')
 }

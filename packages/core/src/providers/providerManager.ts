@@ -649,6 +649,39 @@ export class ProviderManager {
   }
 
   // AUDITARIA_AGENT_SESSION: Expose tool bridge info for sharing with AgentSessionManager
+  // AUDITARIA_SESSION_MANAGEMENT_START: Create a standalone driver (not cached by this manager).
+  // Used by TeamsService for per-thread drivers that share the same bridge.
+  async createDriver(): Promise<ProviderDriver> {
+    await this.ensureToolExecutorServer();
+    const driverConfig = {
+      model: this.config.model,
+      cwd: this.cwd,
+      permissionMode: 'bypassPermissions',
+      mcpServers: this.mcpServers,
+      toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
+      toolBridgeScript: this.bridgeScriptPath,
+      reasoningEffort: getCodexReasoningEffort(this.config),
+    };
+
+    switch (this.config.type) {
+      case 'claude-cli': {
+        const { ClaudeCLIDriver } = await import('./claude/claudeCLIDriver.js');
+        return new ClaudeCLIDriver(driverConfig);
+      }
+      case 'codex-cli': {
+        const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
+        return new CodexCLIDriver(driverConfig);
+      }
+      case 'copilot-cli': {
+        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        return new CopilotCLIDriver(driverConfig);
+      }
+      default:
+        throw new Error(`Unknown provider type: ${this.config.type}`);
+    }
+  }
+  // AUDITARIA_SESSION_MANAGEMENT_END
+
   getToolBridgeInfo(): { server: ToolExecutorServer; scriptPath: string } | null {
     if (this.toolExecutorServer && this.bridgeScriptPath) {
       return { server: this.toolExecutorServer, scriptPath: this.bridgeScriptPath };

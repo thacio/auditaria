@@ -104,6 +104,13 @@ export interface ProviderDriver {
   getSessionId(): string | undefined;
   resetSession?(): void; // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget)
   dispose(): void;
+
+  // AUDITARIA_SESSION_MANAGEMENT_START: Session resume support for multi-context providers
+  /** Set native session ID so next sendMessage resumes that session */
+  setSessionId?(nativeSessionId: string): void;
+  /** Whether this driver supports cross-restart resume */
+  readonly canResume: boolean;
+  // AUDITARIA_SESSION_MANAGEMENT_END
 }
 
 // AUDITARIA_CODEX_PROVIDER: Supported Codex reasoning effort values for model thinking intensity.

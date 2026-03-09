@@ -242,10 +242,18 @@ export class CopilotCLIDriver implements ProviderDriver {
     return this.sessionId;
   }
 
+  // AUDITARIA_SESSION_MANAGEMENT_START: Session resume via ACP session/load
+  private resumeSessionId?: string;
+
+  setSessionId(id: string): void { this.resumeSessionId = id; }
+  readonly canResume = true;
+  // AUDITARIA_SESSION_MANAGEMENT_END
+
   resetSession(): void {
     this.disposeSubprocess();
     // this._removeAgentsMdSection(); // Not worth the extra write — inject handles stale content
     this.sessionId = undefined;
+    this.resumeSessionId = undefined; // AUDITARIA_SESSION_MANAGEMENT
     this.availableModels = [];
     this.initialized = false;
   }
@@ -332,19 +340,33 @@ export class CopilotCLIDriver implements ProviderDriver {
     });
     dbg('initialize result', initResult);
 
-    // 2. Send session/new (requires cwd + mcpServers)
-    const newSessionResult = await this.sendRequestAsync<AcpNewSessionResult>('session/new', {
-      cwd: this.config.cwd,
-      mcpServers: [],
-    });
-    this.sessionId = newSessionResult.sessionId;
-    dbg('session/new result', { sessionId: this.sessionId });
+    // AUDITARIA_SESSION_MANAGEMENT_START: Resume existing session or create new
+    if (this.resumeSessionId) {
+      // Resume via session/load — replays history as notifications (consumed silently by handleLine)
+      await this.sendRequestAsync('session/load', {
+        sessionId: this.resumeSessionId,
+        cwd: this.config.cwd,
+        mcpServers: [],
+      });
+      this.sessionId = this.resumeSessionId;
+      this.resumeSessionId = undefined;
+      dbg('session/load result', { sessionId: this.sessionId });
+    } else {
+      // 2. Send session/new (requires cwd + mcpServers)
+      const newSessionResult = await this.sendRequestAsync<AcpNewSessionResult>('session/new', {
+        cwd: this.config.cwd,
+        mcpServers: [],
+      });
+      this.sessionId = newSessionResult.sessionId;
+      dbg('session/new result', { sessionId: this.sessionId });
 
-    // 3. Parse available models from models.availableModels
-    if (newSessionResult.models?.availableModels) {
-      this.parseModelsFromResult(newSessionResult.models.availableModels,
-        newSessionResult.models.currentModelId);
+      // 3. Parse available models from models.availableModels
+      if (newSessionResult.models?.availableModels) {
+        this.parseModelsFromResult(newSessionResult.models.availableModels,
+          newSessionResult.models.currentModelId);
+      }
     }
+    // AUDITARIA_SESSION_MANAGEMENT_END
 
     // 4. Set the requested model if specified
     if (this.config.model) {

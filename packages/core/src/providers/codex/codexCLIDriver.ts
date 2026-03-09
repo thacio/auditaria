@@ -150,6 +150,10 @@ export class CodexCLIDriver implements ProviderDriver {
     return this.threadId;
   }
 
+  // AUDITARIA_SESSION_MANAGEMENT: Set native session ID for cross-context resume
+  setSessionId(id: string): void { this.threadId = id; }
+  readonly canResume = true;
+
   resetSession(): void {
     this.threadId = undefined;
     this.expectingCompactionSummary = false;

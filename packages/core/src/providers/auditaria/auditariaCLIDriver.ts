@@ -105,6 +105,9 @@ export class AuditariaCLIDriver implements ProviderDriver {
     return this.sessionId;
   }
 
+  // AUDITARIA_SESSION_MANAGEMENT: Auditaria sub-agents don't support cross-restart resume
+  readonly canResume = false;
+
   resetSession(): void {
     this.sessionId = undefined;
   }

@@ -87,6 +87,7 @@ import { KnowledgeIndexTool } from '../tools/knowledge-index.js'; // AUDITARIA_L
 import { ConvertToMarkdownTool } from '../tools/convert-to-markdown.js'; // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
 import { ExternalAgentSessionTool } from '../tools/agent-session.js'; // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
+import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 import {
   StandardFileSystemService,
   type FileSystemService,
@@ -673,6 +674,7 @@ export class Config implements McpContext {
   private geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
   private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
+  private sessionRegistry_?: SessionRegistry; // AUDITARIA_SESSION_MANAGEMENT
   private providerAvailability: {
     claude: boolean;
     codex: boolean;
@@ -2382,6 +2384,16 @@ export class Config implements McpContext {
   }
   // AUDITARIA_AGENT_SESSION_END
 
+  // AUDITARIA_SESSION_MANAGEMENT_START: Lazy-init unified session registry
+  getSessionRegistry(): SessionRegistry {
+    if (!this.sessionRegistry_) {
+      this.sessionRegistry_ = new SessionRegistry();
+      this.sessionRegistry_.load();
+    }
+    return this.sessionRegistry_;
+  }
+  // AUDITARIA_SESSION_MANAGEMENT_END
+
   // AUDITARIA_CLAUDE_PROVIDER: Get display model (external provider or Gemini)
   getDisplayModel(): string {
     if (this.providerManager?.isExternalProviderActive()) {
@@ -3361,6 +3373,7 @@ export class Config implements McpContext {
     coreEvents.off(CoreEvent.AgentsRefreshed, this.onAgentsRefreshed);
     this.agentRegistry?.dispose();
     this.agentSessionManager_?.disposeAll(); // AUDITARIA_AGENT_SESSION: Kill all sub-agent sessions
+    this.sessionRegistry_?.dispose(); // AUDITARIA_SESSION_MANAGEMENT: Persist and clean up
     this.providerManager?.dispose(); // AUDITARIA: Kill main provider's active subprocess
     this.geminiClient?.dispose();
     if (this.mcpClientManager) {

@@ -243,6 +243,7 @@ export type {
   ProviderEvent,
   ExternalMCPServerConfig,
 } from './providers/types.js';
+export { ProviderEventType } from './providers/types.js'; // AUDITARIA_SESSION_MANAGEMENT
 export {
   CODEX_REASONING_EFFORTS,
   CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL,
@@ -256,6 +257,8 @@ export {
   ProviderManager,
   sanitizeHistoryForProviderSwitch,
 } from './providers/providerManager.js';
+export { SessionRegistry } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
+export type { SessionRecord } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
 export {
   getCopilotModelUsage,
