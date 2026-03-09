@@ -73,6 +73,9 @@ export function markdownToTeamsHtml(md: string): string {
   // Inline code (`...`)
   html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
 
+  // Horizontal rules (---, ***, ___) — must be before header/bold transforms
+  html = html.replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, '<hr>');
+
   // Headers (## ... ) — convert to bold (Teams renders <h> tags poorly in replies)
   html = html.replace(/^#{1,6}\s+(.+)$/gm, '<b>$1</b>');
 

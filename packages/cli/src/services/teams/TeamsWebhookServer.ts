@@ -188,8 +188,12 @@ export class TeamsWebhookServer {
         `Teams: Full payload:\n${JSON.stringify(payload, null, 2)}`,
       );
 
+      // Check for ?memoryless=true query param (group chat mode)
+      const urlParams = new URL(req.url ?? '/', 'http://localhost').searchParams;
+      const memoryless = urlParams.get('memoryless') === 'true';
+
       // Parse the message
-      const message = this.parsePayload(payload);
+      const message = this.parsePayload(payload, memoryless);
       if (!message) {
         debugLogger.error('Teams: Could not parse message from payload');
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -325,6 +329,7 @@ export class TeamsWebhookServer {
    */
   private parsePayload(
     payload: Record<string, unknown>,
+    memoryless = false,
   ): TeamsIncomingMessage | null {
     try {
       const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -391,7 +396,10 @@ export class TeamsWebhookServer {
 
       // --- Compute thread ID ---
       const replyToId = str(payload['replyToId']);
-      const threadId = replyToId || messageId;
+      // Memoryless mode: unique threadId per message (no session reuse)
+      const threadId = memoryless
+        ? `ephemeral-${messageId}-${Date.now()}`
+        : replyToId || messageId;
 
       // Strip HTML tags and trigger keyword from text
       const text = rawText
@@ -417,6 +425,7 @@ export class TeamsWebhookServer {
         threadId,
         serviceUrl,
         rawPayload: payload,
+        memoryless,
       };
     } catch (err) {
       debugLogger.error('Teams: Error parsing payload:', err);

@@ -155,6 +155,18 @@ export class TeamsSessionManager {
   }
 
   /**
+   * Disposes a single session immediately without saving (for memoryless/ephemeral mode).
+   */
+  disposeSession(threadId: string): void {
+    const session = this.sessions.get(threadId);
+    if (session) {
+      session.client.dispose();
+      this.sessions.delete(threadId);
+      debugLogger.debug(`Teams: disposed ephemeral session ${threadId}`);
+    }
+  }
+
+  /**
    * Saves all active sessions to disk.
    */
   saveAllSessions(): void {

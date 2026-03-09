@@ -44,6 +44,12 @@ import {
 import { TeamsSessionManager } from './TeamsSessions.js';
 import type { HistoryItem } from '../../ui/types.js';
 
+/** Context prepended to memoryless messages so the AI knows it's a one-shot interaction. */
+const MEMORYLESS_CONTEXT =
+  '[SYSTEM::CONTEXT: This is a single standalone message from a group chat. There is no conversation history. ' +
+  'Provide a complete, self-contained answer. Do not ask follow-up questions ' +
+  'or suggest continuing the conversation.]\n\n';
+
 /**
  * Stored result for pull mode — keyed by conversationId.
  */
@@ -386,6 +392,18 @@ export class TeamsService {
       }
     }
 
+    // Memoryless (group chat): reject immediately if ANY request is processing
+    if (msg.memoryless && this.processing) {
+      debugLogger.log(
+        `Teams: Busy (memoryless mode) — rejecting message from ${msg.userName}`,
+      );
+      this.server.sendJsonResponse(res, 200, {
+        type: 'message',
+        text: 'Auditaria está processando outra solicitação no momento. Por favor, aguarde alguns instantes e tente novamente.',
+      });
+      return;
+    }
+
     // Reject if this thread is already being processed
     if (this.processingThreads.has(msg.threadId)) {
       debugLogger.log(
@@ -649,7 +667,8 @@ export class TeamsService {
         schedulerId: `teams-${msg.threadId}`,
       });
 
-      let currentParts: Part[] = [{ text: msg.text }];
+      const promptText = msg.memoryless ? MEMORYLESS_CONTEXT + msg.text : msg.text;
+      let currentParts: Part[] = [{ text: promptText }];
       let turnCount = 0;
 
       // Agent loop — same pattern as TelegramService/DiscordService
@@ -759,8 +778,12 @@ export class TeamsService {
         `Teams: Agent loop complete — ${accumulatedText.length} chars, ${turnCount} turns (thread: ${msg.threadId})`,
       );
 
-      // Save session state for persistence
-      this.sessionManager.saveSession(msg.threadId);
+      // Memoryless: dispose session immediately; otherwise save for persistence
+      if (msg.memoryless) {
+        this.sessionManager.disposeSession(msg.threadId);
+      } else {
+        this.sessionManager.saveSession(msg.threadId);
+      }
 
       return accumulatedText.trim() || null;
     } catch (err) {
@@ -794,12 +817,14 @@ export class TeamsService {
     if (!providerConfig) return 'No external provider configured.';
 
     const registry = this.config.getSessionRegistry();
-    const record = registry.lookup('teams-thread', msg.threadId);
 
     // Get or create per-thread driver
     const driver = await this.getOrCreateExternalDriver(msg.threadId);
 
-    // Resume existing session if same provider
+    // Resume existing session if same provider (skip for memoryless — always fresh)
+    const record = msg.memoryless
+      ? undefined
+      : registry.lookup('teams-thread', msg.threadId);
     if (
       record &&
       record.provider === providerConfig.type &&
@@ -824,9 +849,10 @@ export class TeamsService {
       }, timeoutMs);
     }
 
+    const promptText = msg.memoryless ? MEMORYLESS_CONTEXT + msg.text : msg.text;
     try {
       for await (const event of driver.sendMessage(
-        msg.text,
+        promptText,
         abortController.signal,
         systemContext,
       )) {
@@ -846,28 +872,36 @@ export class TeamsService {
 
     if (timedOut) return null;
 
-    // Capture session ID and persist to registry
-    const nativeId = driver.getSessionId();
-    if (nativeId) {
-      registry.save({
-        contextType: 'teams-thread',
-        contextId: msg.threadId,
-        provider: providerConfig.type,
-        nativeSessionId: nativeId,
-        model: providerConfig.model,
-        state: 'active',
-        createdAt: record?.createdAt ?? Date.now(),
-        lastActiveAt: Date.now(),
-      });
+    // Memoryless: dispose driver immediately, skip registry persistence
+    if (msg.memoryless) {
+      driver.dispose();
+      this.externalDrivers.delete(msg.threadId);
+      debugLogger.log(
+        `Teams: External provider loop complete (memoryless) — ${accumulatedText.length} chars`,
+      );
+    } else {
+      // Capture session ID and persist to registry
+      const nativeId = driver.getSessionId();
+      if (nativeId) {
+        registry.save({
+          contextType: 'teams-thread',
+          contextId: msg.threadId,
+          provider: providerConfig.type,
+          nativeSessionId: nativeId,
+          model: providerConfig.model,
+          state: 'active',
+          createdAt: record?.createdAt ?? Date.now(),
+          lastActiveAt: Date.now(),
+        });
+      }
+      debugLogger.log(
+        `Teams: External provider loop complete — ${accumulatedText.length} chars (thread: ${msg.threadId})`,
+      );
     }
 
     if (accumulatedText.trim()) {
       pushToCliDisplay({ type: 'gemini_content', text: accumulatedText });
     }
-
-    debugLogger.log(
-      `Teams: External provider loop complete — ${accumulatedText.length} chars (thread: ${msg.threadId})`,
-    );
 
     return accumulatedText.trim() || null;
   }

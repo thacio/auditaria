@@ -94,4 +94,6 @@ export interface TeamsIncomingMessage {
   serviceUrl: string;
   /** Full raw payload (for debugging) */
   rawPayload: Record<string, unknown>;
+  /** When true, skip session persistence — fresh context per message (group chat mode) */
+  memoryless: boolean;
 }
