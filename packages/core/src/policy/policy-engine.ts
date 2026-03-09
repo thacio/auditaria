@@ -798,15 +798,20 @@ export class PolicyEngine {
     return excludedTools;
   }
 
-  // AUDITARIA_TOOL_RESTRICTION: Check if any rule is a global deny (no toolName = deny everything)
+  // AUDITARIA_TOOL_RESTRICTION_START: Check if any rule is an unconditional global deny (no toolName, no mode restriction)
   hasGlobalDenyRule(): boolean {
     return this.rules.some(
       (r) =>
         !r.toolName &&
         !r.toolAnnotations &&
-        r.decision === PolicyDecision.DENY,
+        r.decision === PolicyDecision.DENY &&
+        // A rule with modes (e.g., plan mode only) is not a true global deny —
+        // only match rules that apply unconditionally or to the current mode
+        (!r.modes ||
+          r.modes.length === 0 ||
+          r.modes.includes(this.approvalMode)),
     );
-  }
+  } // // AUDITARIA_TOOL_RESTRICTION_END
 
   private applyNonInteractiveMode(decision: PolicyDecision): PolicyDecision {
     // In non-interactive mode, ASK_USER becomes DENY
