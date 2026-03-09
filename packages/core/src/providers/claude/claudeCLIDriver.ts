@@ -195,6 +195,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
       args.push('--permission-mode', this.config.permissionMode);
     }
 
+    // AUDITARIA_TOOL_RESTRICTION_START: Block Claude native tools when policy restricts
+    if (this.config.disallowedTools?.length) {
+      args.push('--disallowedTools', this.config.disallowedTools.join(','));
+    }
+    // AUDITARIA_TOOL_RESTRICTION_END
+
     // AUDITARIA_CLAUDE_PROVIDER_START: MCP server passthrough
     const mcpPath = this.getOrWriteMcpConfig();
     if (mcpPath) {

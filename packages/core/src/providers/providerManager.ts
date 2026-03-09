@@ -59,6 +59,17 @@ export const CODEX_TOOL_OUTPUT_MAX_BYTES = Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIM
 
 const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
 
+// AUDITARIA_TOOL_RESTRICTION: All Claude Code built-in tools (for --disallowedTools flag)
+const CLAUDE_NATIVE_TOOLS = [
+  // Core tools (always loaded)
+  'Agent', 'Bash', 'Edit', 'Glob', 'Grep', 'LS', 'MultiEdit',
+  'NotebookEdit', 'NotebookRead', 'Read', 'Skill', 'ToolSearch',
+  'TodoRead', 'TodoWrite', 'WebFetch', 'WebSearch', 'Write',
+  // Deferred tools (loaded on demand)
+  'AskUserQuestion', 'EnterPlanMode', 'ExitPlanMode', 'EnterWorktree',
+  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate',
+];
+
 function getCodexReasoningEffort(
   config: ProviderConfig,
 ): CodexReasoningEffort | undefined {
@@ -653,14 +664,21 @@ export class ProviderManager {
   // Used by TeamsService for per-thread drivers that share the same bridge.
   async createDriver(): Promise<ProviderDriver> {
     await this.ensureToolExecutorServer();
+    // AUDITARIA_TOOL_RESTRICTION: Detect global deny policy for native tool restriction
+    const hasGlobalDeny = this.appConfig?.hasGlobalToolDeny() ?? false;
+
     const driverConfig = {
       model: this.config.model,
       cwd: this.cwd,
-      permissionMode: 'bypassPermissions',
+      permissionMode: (this.config.options?.permissionMode as string) ?? 'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
       mcpServers: this.mcpServers,
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
       toolBridgeScript: this.bridgeScriptPath,
       reasoningEffort: getCodexReasoningEffort(this.config),
+      // AUDITARIA_TOOL_RESTRICTION: Block Claude native tools when policy has global deny
+      ...(this.config.type === 'claude-cli' && hasGlobalDeny
+        ? { disallowedTools: CLAUDE_NATIVE_TOOLS }
+        : {}),
     };
 
     switch (this.config.type) {
@@ -682,9 +700,14 @@ export class ProviderManager {
   }
   // AUDITARIA_SESSION_MANAGEMENT_END
 
-  getToolBridgeInfo(): { server: ToolExecutorServer; scriptPath: string } | null {
+  getToolBridgeInfo(): { server: ToolExecutorServer; scriptPath: string; disallowedNativeTools?: string[] } | null {
     if (this.toolExecutorServer && this.bridgeScriptPath) {
-      return { server: this.toolExecutorServer, scriptPath: this.bridgeScriptPath };
+      return {
+        server: this.toolExecutorServer,
+        scriptPath: this.bridgeScriptPath,
+        // AUDITARIA_TOOL_RESTRICTION: Pass native tool restrictions for sub-agent drivers
+        disallowedNativeTools: this.appConfig?.hasGlobalToolDeny() ? CLAUDE_NATIVE_TOOLS : undefined,
+      };
     }
     return null;
   }
@@ -733,14 +756,21 @@ export class ProviderManager {
     // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER: Pass model as-is.
     // When "Auto" is selected, model is undefined — each driver omits the model flag
     // so the CLI uses its own default.
+    // AUDITARIA_TOOL_RESTRICTION: Detect global deny policy for native tool restriction
+    const hasGlobalDeny = this.appConfig?.hasGlobalToolDeny() ?? false;
+
     const driverConfig = {
       model: this.config.model,
       cwd: this.cwd,
-      permissionMode: 'bypassPermissions',
+      permissionMode: (this.config.options?.permissionMode as string) ?? 'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined, // AUDITARIA_CLAUDE_PROVIDER
       toolBridgeScript: this.bridgeScriptPath, // AUDITARIA_CLAUDE_PROVIDER
       reasoningEffort: getCodexReasoningEffort(this.config),
+      // AUDITARIA_TOOL_RESTRICTION: Block Claude native tools when policy has global deny
+      ...(this.config.type === 'claude-cli' && hasGlobalDeny
+        ? { disallowedTools: CLAUDE_NATIVE_TOOLS }
+        : {}),
     };
     dbg('creating new driver', { type: this.config.type, driverConfig });
 

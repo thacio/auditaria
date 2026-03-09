@@ -110,6 +110,7 @@ export interface ClaudeDriverConfig {
   cwd: string;
   permissionMode?: string;
   allowedTools?: string[];
+  disallowedTools?: string[]; // AUDITARIA_TOOL_RESTRICTION: Claude native tools to block via --disallowedTools flag
   resumeSessionId?: string;
   mcpServers?: Record<string, import('../types.js').ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
   toolBridgePort?: number; // AUDITARIA_CLAUDE_PROVIDER: Port of the tool executor HTTP server

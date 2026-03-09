@@ -879,7 +879,13 @@ export class GeminiClient {
           '\n\n' +
           partToString(request, { verbose: true });
       }
-      const systemContext = this.config.buildExternalProviderContext();
+      let systemContext = this.config.buildExternalProviderContext();
+      // AUDITARIA_APPEND_SYSTEM_PROMPT: Include user's --append-system-prompt for main agent only
+      // (external sub-agents get their own context via AgentSessionManager, not this path).
+      const appendedPrompt = this.config.getAppendSystemPrompt?.();
+      if (appendedPrompt) {
+        systemContext += '\n\n' + appendedPrompt;
+      }
       const turn = yield* providerManager.handleSendMessage(
         effectiveRequest,
         signal,

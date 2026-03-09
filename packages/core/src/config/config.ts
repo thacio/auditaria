@@ -1830,6 +1830,11 @@ export class Config implements McpContext {
     return excludeToolsSet;
   }
 
+  // AUDITARIA_TOOL_RESTRICTION: Check if the policy has a global deny rule (restricts all tools)
+  hasGlobalToolDeny(): boolean {
+    return this.policyEngine.hasGlobalDenyRule();
+  }
+
   getToolDiscoveryCommand(): string | undefined {
     return this.toolDiscoveryCommand;
   }
@@ -2421,6 +2426,18 @@ export class Config implements McpContext {
           skills,
       );
     }
+    // AUDITARIA_TOOL_RESTRICTION_START: Warn AI about restricted tool access
+    if (this.hasGlobalToolDeny()) {
+      sections.push(
+        '## Tool Restrictions\n' +
+          'This is a restricted session. You MUST NOT use your built-in file system, ' +
+          'shell, or web tools. Only use tools provided by the MCP server ' +
+          '"auditaria-tools". If a task requires tools you don\'t have, explain ' +
+          "what's needed and stop.",
+      );
+    }
+    // AUDITARIA_TOOL_RESTRICTION_END
+
     return sections.filter(Boolean).join('\n\n---\n\n');
   }
   // AUDITARIA_CLAUDE_PROVIDER_END

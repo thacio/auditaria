@@ -798,6 +798,16 @@ export class PolicyEngine {
     return excludedTools;
   }
 
+  // AUDITARIA_TOOL_RESTRICTION: Check if any rule is a global deny (no toolName = deny everything)
+  hasGlobalDenyRule(): boolean {
+    return this.rules.some(
+      (r) =>
+        !r.toolName &&
+        !r.toolAnnotations &&
+        r.decision === PolicyDecision.DENY,
+    );
+  }
+
   private applyNonInteractiveMode(decision: PolicyDecision): PolicyDecision {
     // In non-interactive mode, ASK_USER becomes DENY
     if (this.nonInteractive && decision === PolicyDecision.ASK_USER) {
