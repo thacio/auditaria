@@ -70,8 +70,10 @@ interface PullResult {
 export class TeamsService {
   private server: TeamsWebhookServer;
   private stopped = false;
-  private processingLock: Promise<void> = Promise.resolve();
   private processing = false;
+
+  /** Per-thread locks — serializes messages within the same thread, but different threads run in parallel */
+  private threadLocks: Map<string, Promise<void>> = new Map();
 
   /** Threads currently being processed — keyed by threadId */
   private processingThreads: Set<string> = new Set();
@@ -103,6 +105,11 @@ export class TeamsService {
   ) {
     this.server = new TeamsWebhookServer(teamsConfig);
     this.server.onMessage((msg, res) => this.handleMessage(msg, res));
+    this.server.onStatus(() => ({
+      ok: true,
+      busy: this.processing,
+      activeThreads: this.processingThreads.size,
+    }));
     this.sessionManager = new TeamsSessionManager(config);
   }
 
@@ -314,15 +321,26 @@ export class TeamsService {
     }
   }
 
-  // --- Mutex ---
+  // --- Per-thread mutex ---
+  // Different threads run in parallel; same thread is serialized (prevents double-processing).
 
-  private acquireLock(): Promise<() => void> {
+  private acquireThreadLock(threadId: string): Promise<() => void> {
     let release: () => void;
-    const prev = this.processingLock;
-    this.processingLock = new Promise<void>((resolve) => {
+    const prev = this.threadLocks.get(threadId) ?? Promise.resolve();
+    const next = new Promise<void>((resolve) => {
       release = resolve;
     });
-    return prev.then(() => release!);
+    this.threadLocks.set(threadId, next);
+    return prev.then(() => {
+      const releaseAndCleanup = () => {
+        // Clean up the map entry if this is the last waiter
+        if (this.threadLocks.get(threadId) === next) {
+          this.threadLocks.delete(threadId);
+        }
+        release!();
+      };
+      return releaseAndCleanup;
+    });
   }
 
   // --- Message handling with response strategy ---
@@ -565,10 +583,10 @@ export class TeamsService {
     msg: TeamsIncomingMessage,
     timeoutMs?: number,
   ): Promise<string | null> {
-    const release = await this.acquireLock();
-    this.processing = true;
+    const release = await this.acquireThreadLock(msg.threadId);
     this.processingThreads.add(msg.threadId);
-    setTeamsProcessing(true);
+    this.processing = this.processingThreads.size > 0;
+    setTeamsProcessing(this.processing);
 
     // Get or create per-thread session
     let session;
@@ -576,9 +594,9 @@ export class TeamsService {
       session = await this.sessionManager.getOrCreateSession(msg.threadId);
     } catch (err) {
       debugLogger.error('Teams: Failed to create session:', err);
-      this.processing = false;
       this.processingThreads.delete(msg.threadId);
-      setTeamsProcessing(false);
+      this.processing = this.processingThreads.size > 0;
+      setTeamsProcessing(this.processing);
       release();
       return 'Failed to initialize AI session. Please try again.';
     }
@@ -598,9 +616,9 @@ export class TeamsService {
         const result = await this.runExternalProviderLoop(msg, timeoutMs);
         return result;
       } finally {
-        this.processing = false;
         this.processingThreads.delete(msg.threadId);
-        setTeamsProcessing(false);
+        this.processing = this.processingThreads.size > 0;
+        setTeamsProcessing(this.processing);
         release();
       }
     }
@@ -752,9 +770,9 @@ export class TeamsService {
       debugLogger.error('Teams: Agent loop error:', err);
       return formatError(err);
     } finally {
-      this.processing = false;
       this.processingThreads.delete(msg.threadId);
-      setTeamsProcessing(false);
+      this.processing = this.processingThreads.size > 0;
+      setTeamsProcessing(this.processing);
       release();
     }
   }

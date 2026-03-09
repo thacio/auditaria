@@ -26,13 +26,29 @@ import type { TeamsConfig, TeamsIncomingMessage } from './types.js';
  * 3. We validate HMAC, parse payload, invoke the message handler
  * 4. We return a JSON response (sync mode) or ack (async modes)
  */
+/** Status info returned by the /status endpoint */
+export interface TeamsServerStatus {
+  ok: boolean;
+  busy: boolean;
+  /** Number of threads currently being processed */
+  activeThreads: number;
+}
+
 export class TeamsWebhookServer {
   private server: http.Server | null = null;
   private messageHandler:
     | ((msg: TeamsIncomingMessage, res: http.ServerResponse) => void)
     | undefined;
+  private statusProvider: (() => TeamsServerStatus) | undefined;
 
   constructor(private readonly config: TeamsConfig) {}
+
+  /**
+   * Registers a callback that provides current server status for the /status endpoint.
+   */
+  onStatus(provider: () => TeamsServerStatus): void {
+    this.statusProvider = provider;
+  }
 
   /**
    * Registers the handler called for each validated incoming message.
@@ -105,7 +121,16 @@ export class TeamsWebhookServer {
       `Teams: ${req.method} ${req.url} from ${req.socket.remoteAddress}`,
     );
 
-    // Only accept POST
+    // GET /status — lightweight health/busy check for Power Automate pre-flight
+    if (req.method === 'GET' && req.url === '/status') {
+      const status: TeamsServerStatus = this.statusProvider
+        ? this.statusProvider()
+        : { ok: true, busy: false, activeThreads: 0 };
+      this.sendJsonResponse(res, 200, status as unknown as Record<string, unknown>);
+      return;
+    }
+
+    // Only accept POST for message processing
     if (req.method !== 'POST') {
       debugLogger.debug('Teams: Rejected non-POST request');
       res.writeHead(405, { 'Content-Type': 'application/json' });

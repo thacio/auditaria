@@ -113,6 +113,31 @@ export function markdownToTeamsHtml(md: string): string {
     },
   );
 
+  // Tables ( | col | col | )
+  html = html.replace(
+    /(?:^|\n)((?:\|.+\|\s*\n)*\|.+\|\s*$)/gm,
+    (_match, block: string) => {
+      const rows = block.trim().split('\n').filter((r: string) => r.trim());
+      // Detect separator row (|---|---|) — every cell is only dashes/colons/spaces
+      const isSeparator = (row: string) =>
+        row.split('|').slice(1, -1).every((cell: string) => /^[\s:?-]+$/.test(cell));
+      const parseRow = (row: string) =>
+        row.split('|').slice(1, -1).map((c: string) => c.trim());
+
+      let tableHtml = '<table>';
+      const hasHeader = rows.length >= 2 && isSeparator(rows[1]!);
+
+      for (let i = 0; i < rows.length; i++) {
+        if (isSeparator(rows[i]!)) continue;
+        const cells = parseRow(rows[i]!);
+        const tag = hasHeader && i === 0 ? 'th' : 'td';
+        tableHtml += '<tr>' + cells.map((c) => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+      }
+      tableHtml += '</table>';
+      return '\n' + tableHtml + '\n';
+    },
+  );
+
   // Links [text](url)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 

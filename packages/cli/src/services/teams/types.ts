@@ -61,8 +61,8 @@ export const INCOMING_WEBHOOK_MAX_SIZE = 28000;
 /** Incoming webhook rate limit (messages per second) */
 export const INCOMING_WEBHOOK_RATE_LIMIT = 4;
 
-/** Sync response timeout (ms) — Power Automate HTTP action allows up to 120s */
-export const SYNC_TIMEOUT_MS = 110000;
+/** Sync response timeout (ms) — set Power Automate HTTP action timeout to match (Settings → Timeout → PT12M) */
+export const SYNC_TIMEOUT_MS = 720000;
 
 /** Hybrid mode timeout — try sync, fallback to async after this (ms) */
 export const HYBRID_TIMEOUT_MS = 3500;
