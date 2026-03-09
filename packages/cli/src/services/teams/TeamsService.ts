@@ -392,18 +392,6 @@ export class TeamsService {
       }
     }
 
-    // Memoryless (group chat): reject immediately if ANY request is processing
-    if (msg.memoryless && this.processing) {
-      debugLogger.log(
-        `Teams: Busy (memoryless mode) — rejecting message from ${msg.userName}`,
-      );
-      this.server.sendJsonResponse(res, 200, {
-        type: 'message',
-        text: 'Auditaria está processando outra solicitação no momento. Por favor, aguarde alguns instantes e tente novamente.',
-      });
-      return;
-    }
-
     // Reject if this thread is already being processed
     if (this.processingThreads.has(msg.threadId)) {
       debugLogger.log(
