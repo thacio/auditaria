@@ -66,8 +66,10 @@ const CLAUDE_NATIVE_TOOLS = [
   'NotebookEdit', 'NotebookRead', 'Read', 'Skill', 'ToolSearch',
   'TodoRead', 'TodoWrite', 'WebFetch', 'WebSearch', 'Write',
   // Deferred tools (loaded on demand)
-  'AskUserQuestion', 'EnterPlanMode', 'ExitPlanMode', 'EnterWorktree',
+  'AskUserQuestion', 'EnterPlanMode', 'ExitPlanMode',
+  'EnterWorktree', 'ExitWorktree',
   'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate',
+  'CronCreate', 'CronDelete', 'CronList',
 ];
 
 function getCodexReasoningEffort(
