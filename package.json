@@ -163,7 +163,9 @@
     "simple-git": "^3.28.0",
     "strip-ansi": "^7.1.0",
     "vscode-material-icons": "^0.1.1",
-    "xxhash-wasm": "^1.1.0"
+    "xxhash-wasm": "^1.1.0",
+    "grammy": "^1.41.1",
+    "discord.js": "^14.18.0"
   },
   "optionalDependencies": {
     "@lydell/node-pty": "1.1.0",
@@ -176,6 +178,7 @@
     "keytar": "^7.9.0",
     "node-pty": "^1.0.0",
     "playwright": "^1.52.0",
+    "playwright-core": "^1.52.0",
     "scribe.js-ocr": "^0.9.3",
     "tesseract.js": "^5.1.1"
   },
