@@ -63,17 +63,20 @@ export function mapToDisplay(
     let progressMessage: string | undefined = undefined;
     let progress: number | undefined = undefined;
     let progressTotal: number | undefined = undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let llmOutput: any = undefined;
 
     switch (call.status) {
       case CoreToolCallStatus.Success:
         resultDisplay = call.response.resultDisplay;
         outputFile = call.response.outputFile;
+         
         llmOutput = call.response.responseParts;
         break;
       case CoreToolCallStatus.Error:
       case CoreToolCallStatus.Cancelled:
         resultDisplay = call.response.resultDisplay;
+         
         llmOutput = call.response.responseParts;
         break;
       case CoreToolCallStatus.AwaitingApproval:
@@ -106,6 +109,7 @@ export function mapToDisplay(
       ...baseDisplayProperties,
       status: call.status,
       isClientInitiated: !!call.request.isClientInitiated,
+      kind: call.tool?.kind,
       resultDisplay,
       confirmationDetails,
       outputFile,
@@ -116,6 +120,7 @@ export function mapToDisplay(
       progressTotal,
       approvalMode: call.approvalMode,
       originalRequestName: call.request.originalRequestName,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       llmOutput,
     };
   });
