@@ -28,7 +28,7 @@ export interface LogEntry {
 }
 
 export interface Checkpoint {
-  history: Content[];
+  history: readonly Content[];
   authType?: AuthType;
 }
 
@@ -380,6 +380,7 @@ export class Logger {
       const contextPath = path.replace('.json', '.json.context');
       try {
         const contextContent = await fs.readFile(contextPath, 'utf-8');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const contextState = JSON.parse(contextContent);
         if (contextStorage.importState(contextState)) {
           debugLogger.debug(`Loaded context companion file: ${contextPath}`);
