@@ -668,7 +668,6 @@ export async function loadCliConfig(
       settings.context?.loadMemoryFromIncludeDirectories || false
         ? includeDirectories
         : [],
-      debugMode,
       fileService,
       extensionManager,
       trustedFolder,
