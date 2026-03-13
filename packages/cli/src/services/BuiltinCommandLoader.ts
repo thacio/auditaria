@@ -87,6 +87,41 @@ export class BuiltinCommandLoader implements ICommandLoader {
     const handle = startupProfiler.start('load_builtin_commands');
 
     const isNightlyBuild = await isNightly(process.cwd());
+    const addDebugToChatResumeSubCommands = (
+      subCommands: SlashCommand[] | undefined,
+    ): SlashCommand[] | undefined => {
+      if (!subCommands) {
+        return subCommands;
+      }
+
+      const withNestedCompatibility = subCommands.map((subCommand) => {
+        if (subCommand.name !== 'checkpoints') {
+          return subCommand;
+        }
+
+        return {
+          ...subCommand,
+          subCommands: addDebugToChatResumeSubCommands(subCommand.subCommands),
+        };
+      });
+
+      if (!isNightlyBuild) {
+        return withNestedCompatibility;
+      }
+
+      return withNestedCompatibility.some(
+        (cmd) => cmd.name === debugCommand.name,
+      )
+        ? withNestedCompatibility
+        : [
+            ...withNestedCompatibility,
+            { ...debugCommand, suggestionGroup: 'checkpoints' },
+          ];
+    };
+
+    const chatResumeSubCommands = addDebugToChatResumeSubCommands(
+      chatCommand.subCommands,
+    );
 
     const allDefinitions: Array<SlashCommand | null> = [
       aboutCommand,
@@ -95,9 +130,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       bugCommand,
       {
         ...chatCommand,
-        subCommands: isNightlyBuild
-          ? [...(chatCommand.subCommands || []), debugCommand]
-          : chatCommand.subCommands,
+        subCommands: chatResumeSubCommands,
       },
       clearCommand,
       commandsCommand,
@@ -164,7 +197,10 @@ export class BuiltinCommandLoader implements ICommandLoader {
       ...(isDevelopment ? [profileCommand] : []),
       quitCommand,
       restoreCommand(this.config),
-      resumeCommand,
+      {
+        ...resumeCommand,
+        subCommands: addDebugToChatResumeSubCommands(resumeCommand.subCommands),
+      },
       statsCommand,
       themeCommand,
       toolsCommand,
