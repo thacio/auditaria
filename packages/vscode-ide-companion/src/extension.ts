@@ -42,6 +42,7 @@ async function checkForUpdates(
     const currentVersion = context.extension.packageJSON.version;
 
     // Fetch extension details from the VSCode Marketplace.
+    // eslint-disable-next-line no-restricted-syntax -- TODO: Migrate to safeFetch for SSRF protection
     const response = await fetch(
       'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery',
       {
@@ -182,37 +183,34 @@ export async function activate(context: vscode.ExtensionContext) {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       ideServer.syncEnvVars();
     })),
-    vscode.commands.registerCommand(
-      'auditaria.runAuditariaCLI',
-      async () => {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders || workspaceFolders.length === 0) {
-          void vscode.window.showInformationMessage(
-            'No folder open. Please open a folder to run Auditaria.',
-          );
-          return;
-        }
+    vscode.commands.registerCommand('auditaria.runAuditariaCLI', async () => {
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      if (!workspaceFolders || workspaceFolders.length === 0) {
+        void vscode.window.showInformationMessage(
+          'No folder open. Please open a folder to run Auditaria.',
+        );
+        return;
+      }
 
-        let selectedFolder: vscode.WorkspaceFolder | undefined;
-        if (workspaceFolders.length === 1) {
-          selectedFolder = workspaceFolders[0];
-        } else {
-          selectedFolder = await vscode.window.showWorkspaceFolderPick({
-            placeHolder: 'Select a folder to run Auditaria in',
-          });
-        }
+      let selectedFolder: vscode.WorkspaceFolder | undefined;
+      if (workspaceFolders.length === 1) {
+        selectedFolder = workspaceFolders[0];
+      } else {
+        selectedFolder = await vscode.window.showWorkspaceFolderPick({
+          placeHolder: 'Select a folder to run Auditaria in',
+        });
+      }
 
-        if (selectedFolder) {
-          const auditariaCmd = 'auditaria';
-          const terminal = vscode.window.createTerminal({
-            name: `Auditaria (${selectedFolder.name})`,
-            cwd: selectedFolder.uri.fsPath,
-          });
-          terminal.show();
-          terminal.sendText(auditariaCmd);
-        }
-      },
-    ),
+      if (selectedFolder) {
+        const auditariaCmd = 'auditaria';
+        const terminal = vscode.window.createTerminal({
+          name: `Auditaria (${selectedFolder.name})`,
+          cwd: selectedFolder.uri.fsPath,
+        });
+        terminal.show();
+        terminal.sendText(auditariaCmd);
+      }
+    }),
     vscode.commands.registerCommand('auditaria.showNotices', async () => {
       const noticePath = vscode.Uri.joinPath(
         context.extensionUri,
