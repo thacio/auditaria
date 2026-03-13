@@ -31,6 +31,8 @@ software** intactas.
 - **🤖 Agente de Navegação**: Automação de navegador com IA - a IA pode navegar
   na web, extrair dados, preencher formulários e executar tarefas complexas
   autonomamente
+- **💬 Integrações de Mensagens**: Telegram, Discord e Microsoft Teams —
+  converse com a IA direto nas suas plataformas de comunicação
 - **🎯 Nível gratuito**: 60 solicitações/min e 1.000 solicitações/dia com conta
   pessoal do Google
 - **🧠 Poderoso Gemini 2.5 Pro**: Acesso a janela de contexto de 1M tokens
@@ -93,6 +95,16 @@ software** intactas.
   semântica (entende significado) ou híbrida (combina ambas para melhores
   resultados). Suporta PDFs, Office, imagens com OCR e mais. Use
   `/knowledge-base init` para iniciar.
+- **💬 Integrações com Plataformas de Mensagens**: Interaja com o Auditaria
+  através de plataformas de mensagens populares, mantendo sincronização
+  bidirecional com a CLI
+  - **Telegram**: Bot com streaming em tempo real, suporte a imagens e controle
+    de acesso por usuário (`/telegram start`)
+  - **Discord**: Bot com streaming em tempo real, suporte a imagens e comandos
+    integrados (`/discord start`)
+  - **Microsoft Teams**: Integração via Power Automate com sessões isoladas por
+    thread, modos de resposta plugáveis (sync/async/pull/hybrid) e tunelamento
+    ngrok (`/teams start`)
 - **🎯 Recursos Focados em Auditoria**: Prompts de sistema especializados e
   capacidades adaptadas para tarefas de auditoria
 - **📊 Ferramentas de Análise de Dados**: Capacidades aprimoradas para analisar
@@ -443,6 +455,8 @@ all original software engineering capabilities** intact.
   your changes as you make them, enabling true pair-programming and co-writing.
 - **🤖 Browser Agent**: AI-driven browser automation - the AI can browse the
   web, extract data, fill forms, and execute complex tasks autonomously
+- **💬 Messaging Integrations**: Telegram, Discord, and Microsoft Teams — chat
+  with the AI directly from your communication platforms
 - **🎯 Free tier**: 60 requests/min and 1,000 requests/day with personal Google
   account.
 - **🧠 Powerful Gemini 3 models**: Access to improved reasoning and 1M token
@@ -500,6 +514,15 @@ all original software engineering capabilities** intact.
   documents using keyword (exact match), semantic (understands meaning), or
   hybrid search (combines both for best results). Supports PDFs, Office files,
   images with OCR, and more. Use `/knowledge-base init` to get started.
+- **💬 Messaging Platform Integrations**: Interact with Auditaria through
+  popular messaging platforms with bidirectional CLI sync
+  - **Telegram**: Bot with real-time streaming, image support, and per-user
+    access control (`/telegram start`)
+  - **Discord**: Bot with real-time streaming, image support, and built-in
+    commands (`/discord start`)
+  - **Microsoft Teams**: Power Automate integration with per-thread isolated
+    sessions, pluggable response modes (sync/async/pull/hybrid), and ngrok
+    tunneling (`/teams start`)
 - **🎯 Audit-Focused Features**: Specialized system prompts and capabilities
   tailored for audit tasks
 - **📊 Data Analysis Tools**: Enhanced capabilities for analyzing and working
