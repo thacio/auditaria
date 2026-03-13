@@ -690,7 +690,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 auditaria
 
 Choose the authentication method that best fits your needs:
 
-### Option 1: Login with Google (OAuth login using your Google Account)
+### Option 1: Sign in with Google (OAuth login using your Google Account)
 
 **✨ Best for:**
 
@@ -709,7 +709,7 @@ for details._
 - **No API key management** - just sign in with your Google account
 - **Automatic updates** to our latest models
 
-#### Start Auditaria, then choose _Login with Google_ and follow the browser authentication flow when prompted
+#### Start Auditaria, then choose _Sign in with Google_ and follow the browser authentication flow when prompted
 
 ```bash
 auditaria
