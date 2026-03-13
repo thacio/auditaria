@@ -97,3 +97,4 @@ __pycache__/
 
 # PGlite extension files (copied during bundle)
 vector.tar.gz
+temp_agents/

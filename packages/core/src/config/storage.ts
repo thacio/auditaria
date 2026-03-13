@@ -75,6 +75,10 @@ export class Storage {
     return path.join(Storage.getGlobalGeminiDir(), 'mcp-oauth-tokens.json');
   }
 
+  static getA2AOAuthTokensPath(): string {
+    return path.join(Storage.getGlobalGeminiDir(), 'a2a-oauth-tokens.json');
+  }
+
   // AUDITARIA_MODIFY_START: Check for settings.json in both directories, file-level fallback
   static getGlobalSettingsPath(): string {
     const homeDir = os.homedir();
