@@ -24,6 +24,7 @@ import {
 } from './TelegramFormatter.js';
 import {
   TELEGRAM_DEFAULTS,
+  TELEGRAM_MAX_MESSAGE_LENGTH,
   STREAM_EDIT_THROTTLE_MS,
   type TelegramConfig,
 } from './types.js';
@@ -59,6 +60,25 @@ import {
  * 8. Format response as Telegram HTML, chunk if needed
  * 9. Send back via Telegram API + push response to CLI display, release mutex
  */
+
+/** Max markdown chars for streaming previews — leaves margin for HTML overhead + suffix */
+const STREAMING_PREVIEW_LIMIT = TELEGRAM_MAX_MESSAGE_LENGTH - 300;
+
+/**
+ * Truncates markdown text for streaming preview to fit Telegram's message limit.
+ * Shows the tail of the text (most recent content) with "..." prefix when truncated.
+ */
+function truncateForPreview(text: string): string {
+  if (text.length <= STREAMING_PREVIEW_LIMIT) return text;
+  let truncated = text.slice(-STREAMING_PREVIEW_LIMIT);
+  // Start at a clean line boundary
+  const firstBreak = truncated.indexOf('\n');
+  if (firstBreak > 0 && firstBreak < 500) {
+    truncated = truncated.slice(firstBreak + 1);
+  }
+  return '...\n' + truncated;
+}
+
 export class TelegramService {
   private bot: TelegramBotWrapper;
   private stopped = false;
@@ -364,8 +384,9 @@ export class TelegramService {
             if (isStreaming && accumulatedText.length > 0) {
               const now = Date.now();
               if (now - lastEditTime >= STREAM_EDIT_THROTTLE_MS) {
+                // Truncate preview to fit Telegram's message limit
                 const previewHtml = markdownToTelegramHtml(
-                  accumulatedText + ' ...',
+                  truncateForPreview(accumulatedText) + ' ...',
                 );
                 if (previewMessageId) {
                   await ctx.editMessage(previewMessageId, previewHtml, 'HTML');
@@ -381,7 +402,9 @@ export class TelegramService {
             // Notify user about tool execution
             const toolNotice = formatToolCall(event.value.name);
             if (isStreaming && previewMessageId) {
-              const currentHtml = markdownToTelegramHtml(accumulatedText);
+              const currentHtml = markdownToTelegramHtml(
+                truncateForPreview(accumulatedText),
+              );
               await ctx.editMessage(
                 previewMessageId,
                 currentHtml + '\n\n' + toolNotice,

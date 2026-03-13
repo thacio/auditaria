@@ -8,7 +8,8 @@
 
 import { Bot, type Context } from 'grammy';
 import { debugLogger } from '@google/gemini-cli-core';
-import type { TelegramConfig } from './types.js';
+import { TELEGRAM_MAX_MESSAGE_LENGTH, type TelegramConfig } from './types.js';
+import { chunkText } from './TelegramFormatter.js';
 import {
   ALLOWED_MIME_TYPES,
   validateAttachment,
@@ -49,6 +50,13 @@ function sequentialize(getKey: (ctx: Context) => string | undefined) {
       }
     }
   };
+}
+
+/**
+ * Detects Telegram API "message is too long" errors from grammY.
+ */
+function isMessageTooLong(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('message is too long');
 }
 
 /** Callback for incoming text messages */
@@ -167,11 +175,47 @@ export class TelegramBotWrapper {
         parse_mode: parseMode || 'HTML',
       });
       return sent.message_id;
-    } catch {
+    } catch (err) {
+      // Message too long — auto-chunk and send multiple messages
+      if (isMessageTooLong(err)) {
+        return this.sendChunked(chatId, text, parseMode);
+      }
       // Fallback: send without parse mode if HTML fails
-      const sent = await this.bot.api.sendMessage(chatId, text);
-      return sent.message_id;
+      try {
+        const sent = await this.bot.api.sendMessage(chatId, text);
+        return sent.message_id;
+      } catch (err2) {
+        if (isMessageTooLong(err2)) {
+          return this.sendChunked(chatId, text);
+        }
+        throw err2;
+      }
     }
+  }
+
+  /**
+   * Splits text into chunks and sends each one. Used as fallback when
+   * a single sendMessage exceeds Telegram's 4096-character limit.
+   */
+  private async sendChunked(
+    chatId: number,
+    text: string,
+    parseMode?: 'HTML' | 'Markdown',
+  ): Promise<number> {
+    const chunks = chunkText(text, TELEGRAM_MAX_MESSAGE_LENGTH - 100);
+    let lastMsgId = 0;
+    for (const chunk of chunks) {
+      try {
+        const sent = await this.bot.api.sendMessage(chatId, chunk, {
+          parse_mode: parseMode || 'HTML',
+        });
+        lastMsgId = sent.message_id;
+      } catch {
+        const sent = await this.bot.api.sendMessage(chatId, chunk);
+        lastMsgId = sent.message_id;
+      }
+    }
+    return lastMsgId;
   }
 
   // --- Private setup ---
@@ -332,15 +376,49 @@ export class TelegramBotWrapper {
         isGroup,
         attachments: attachments.length > 0 ? attachments : undefined,
         reply: async (replyText, parseMode) => {
+          const sendChunkedReplies = async (
+            mode?: 'HTML' | 'Markdown',
+          ): Promise<number> => {
+            const chunks = chunkText(
+              replyText,
+              TELEGRAM_MAX_MESSAGE_LENGTH - 100,
+            );
+            let lastMsgId = 0;
+            for (const chunk of chunks) {
+              try {
+                const sent = await ctx.reply(
+                  chunk,
+                  mode ? { parse_mode: mode } : undefined,
+                );
+                lastMsgId = sent.message_id;
+              } catch {
+                const sent = await ctx.reply(chunk);
+                lastMsgId = sent.message_id;
+              }
+            }
+            return lastMsgId;
+          };
+
           try {
             const sent = await ctx.reply(replyText, {
               parse_mode: parseMode || 'HTML',
             });
             return sent.message_id;
-          } catch {
+          } catch (err) {
+            // Message too long — auto-chunk and send multiple messages
+            if (isMessageTooLong(err)) {
+              return sendChunkedReplies(parseMode || 'HTML');
+            }
             // Fallback: send without parse mode if HTML fails
-            const sent = await ctx.reply(replyText);
-            return sent.message_id;
+            try {
+              const sent = await ctx.reply(replyText);
+              return sent.message_id;
+            } catch (err2) {
+              if (isMessageTooLong(err2)) {
+                return sendChunkedReplies();
+              }
+              throw err2;
+            }
           }
         },
         editMessage: async (msgId, newText, parseMode) => {
