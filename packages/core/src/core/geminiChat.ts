@@ -1028,6 +1028,8 @@ export class GeminiChat {
         status: call.status,
         timestamp: new Date().toISOString(),
         resultDisplay,
+        description:
+          'invocation' in call ? call.invocation?.getDescription() : undefined,
       };
     });
 
