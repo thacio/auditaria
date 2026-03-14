@@ -237,6 +237,9 @@ export * from './agents/types.js';
 export * from './utils/stdio.js';
 export * from './utils/terminal.js';
 
+// Export voice utilities
+export * from './voice/responseFormatter.js';
+
 // Export types from @google/genai
 export type { Content, Part, FunctionCall } from '@google/genai';
 
