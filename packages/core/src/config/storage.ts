@@ -366,6 +366,9 @@ export class Storage {
   }
 
   getProjectTempTrackerDir(): string {
+    if (this.sessionId) {
+      return path.join(this.getProjectTempDir(), this.sessionId, 'tracker');
+    }
     return path.join(this.getProjectTempDir(), 'tracker');
   }
 
