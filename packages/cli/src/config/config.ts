@@ -9,6 +9,7 @@ import { hideBin } from 'yargs/helpers';
 import fs from 'node:fs'; // AUDITARIA_APPEND_SYSTEM_PROMPT
 import path from 'node:path'; // AUDITARIA_APPEND_SYSTEM_PROMPT
 import process from 'node:process';
+import * as path from 'node:path';
 import { mcpCommand } from '../commands/mcp.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import { skillsCommand } from '../commands/skills.js';
@@ -35,6 +36,7 @@ import {
   getAdminErrorMessage,
   isHeadlessMode,
   Config,
+  resolveToRealPath,
   applyAdminAllowlist,
   getAdminBlockedMcpServersMessage,
   CODEX_REASONING_EFFORTS, // AUDITARIA_PROVIDER_PERSISTENCE
@@ -657,6 +659,15 @@ export async function loadCliConfig(
 
   const experimentalJitContext = settings.experimental?.jitContext ?? false;
 
+  let extensionRegistryURI: string | undefined = trustedFolder
+    ? settings.experimental?.extensionRegistryURI
+    : undefined;
+  if (extensionRegistryURI && !extensionRegistryURI.startsWith('http')) {
+    extensionRegistryURI = resolveToRealPath(
+      path.resolve(cwd, resolvePath(extensionRegistryURI)),
+    );
+  }
+
   let memoryContent: string | HierarchicalMemory = '';
   let fileCount = 0;
   let filePaths: string[] = [];
@@ -952,6 +963,7 @@ export async function loadCliConfig(
     deleteSession: argv.deleteSession,
     enabledExtensions: argv.extensions,
     extensionLoader: extensionManager,
+    extensionRegistryURI,
     enableExtensionReloading: settings.experimental?.extensionReloading,
     enableAgents: settings.experimental?.enableAgents,
     plan: settings.experimental?.plan,
