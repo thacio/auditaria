@@ -45,6 +45,7 @@ import {
   type OutputFormat,
   type ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
   type CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
+  detectIdeFromEnv,
 } from '@google/gemini-cli-core';
 import {
   type Settings,
@@ -895,8 +896,21 @@ export async function loadCliConfig(
   }
   // AUDITARIA_APPEND_SYSTEM_PROMPT_END
 
+  const isAcpMode = !!argv.acp || !!argv.experimentalAcp;
+  let clientName: string | undefined = undefined;
+  if (isAcpMode) {
+    const ide = detectIdeFromEnv();
+    if (
+      ide &&
+      (ide.name !== 'vscode' || process.env['TERM_PROGRAM'] === 'vscode')
+    ) {
+      clientName = `acp-${ide.name}`;
+    }
+  }
+
   return new Config({
-    acpMode: !!argv.acp || !!argv.experimentalAcp,
+    acpMode: isAcpMode,
+    clientName,
     sessionId,
     clientVersion: await getVersion(),
     embeddingModel: DEFAULT_GEMINI_EMBEDDING_MODEL,
