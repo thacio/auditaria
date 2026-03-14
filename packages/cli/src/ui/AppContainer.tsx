@@ -1276,8 +1276,15 @@ Logging in with Google... Restarting Gemini CLI to continue.
         return;
       }
 
+      // If cancelling (shouldRestorePrompt=false), never modify the buffer
+      // User is in control - preserve whatever text they typed, pasted, or restored
+      if (!shouldRestorePrompt) {
+        return;
+      }
+
+      // Restore the last message when shouldRestorePrompt=true
       const lastUserMessage = inputHistory.at(-1);
-      let textToSet = shouldRestorePrompt ? lastUserMessage || '' : '';
+      let textToSet = lastUserMessage || '';
 
       const queuedText = getQueuedMessagesText();
       if (queuedText) {
@@ -1285,7 +1292,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         clearQueue();
       }
 
-      if (textToSet || !shouldRestorePrompt) {
+      if (textToSet) {
         buffer.setText(textToSet);
       }
     },
