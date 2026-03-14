@@ -326,7 +326,7 @@ export class TelegramService {
 
     try {
       const scheduler = new Scheduler({
-        config: this.config,
+        context: this.config,
         messageBus: this.config.getMessageBus(),
         getPreferredEditor: () => undefined,
         schedulerId: `telegram-${ctx.chatId}`,

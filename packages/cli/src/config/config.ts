@@ -7,9 +7,8 @@
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import fs from 'node:fs'; // AUDITARIA_APPEND_SYSTEM_PROMPT
-import path from 'node:path'; // AUDITARIA_APPEND_SYSTEM_PROMPT
 import process from 'node:process';
-import * as path from 'node:path';
+import * as path from 'node:path'; // AUDITARIA_APPEND_SYSTEM_PROMPT (also used by upstream)
 import { mcpCommand } from '../commands/mcp.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import { skillsCommand } from '../commands/skills.js';

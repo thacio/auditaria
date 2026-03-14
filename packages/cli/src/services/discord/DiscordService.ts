@@ -302,7 +302,7 @@ export class DiscordService {
 
     try {
       const scheduler = new Scheduler({
-        config: this.config,
+        context: this.config,
         messageBus: this.config.getMessageBus(),
         getPreferredEditor: () => undefined,
         schedulerId: `discord-${ctx.channelId}`,
