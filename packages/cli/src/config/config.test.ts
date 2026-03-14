@@ -1777,7 +1777,7 @@ describe('loadCliConfig model selection', () => {
   });
 
   it('always prefers model from argv', async () => {
-    process.argv = ['node', 'script.js', '--model', 'gemini-2.5-flash'];
+    process.argv = ['node', 'script.js', '--model', 'gemini-2.5-flash-preview'];
     const argv = await parseArguments(createTestMergedSettings());
     const config = await loadCliConfig(
       createTestMergedSettings({
@@ -1789,11 +1789,11 @@ describe('loadCliConfig model selection', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('gemini-2.5-flash');
+    expect(config.getModel()).toBe('gemini-2.5-flash-preview');
   });
 
   it('selects the model from argv if provided', async () => {
-    process.argv = ['node', 'script.js', '--model', 'gemini-2.5-flash'];
+    process.argv = ['node', 'script.js', '--model', 'gemini-2.5-flash-preview'];
     const argv = await parseArguments(createTestMergedSettings());
     const config = await loadCliConfig(
       createTestMergedSettings({
@@ -1803,7 +1803,7 @@ describe('loadCliConfig model selection', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('gemini-2.5-flash');
+    expect(config.getModel()).toBe('gemini-2.5-flash-preview');
   });
 
   it('selects the default auto model if provided via auto alias', async () => {
