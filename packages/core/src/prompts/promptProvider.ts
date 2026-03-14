@@ -7,7 +7,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import type { Config } from '../config/config.js';
 import type { HierarchicalMemory } from '../config/memory.js';
 import { GEMINI_DIR } from '../utils/paths.js';
 import { ApprovalMode } from '../policy/types.js';
@@ -33,6 +32,7 @@ import { resolveModel, supportsModernFeatures } from '../config/models.js';
 import type { SupportedLanguage } from '../i18n/index.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
 import { getAllGeminiMdFilenames } from '../tools/memoryTool.js';
+import type { AgentLoopContext } from '../config/agent-loop-context.js';
 
 /**
  * Orchestrates prompt generation by gathering context and building options.
@@ -43,7 +43,7 @@ export class PromptProvider {
    * AUDITARIA_FEATURE: Added language parameter for i18n support
    */
   getCoreSystemPrompt(
-    config: Config,
+    context: AgentLoopContext,
     userMemory?: string | HierarchicalMemory,
     language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
     interactiveOverride?: boolean,
@@ -52,18 +52,20 @@ export class PromptProvider {
       process.env['GEMINI_SYSTEM_MD'],
     );
 
-    const interactiveMode = interactiveOverride ?? config.isInteractive();
-    const approvalMode = config.getApprovalMode?.() ?? ApprovalMode.DEFAULT;
+    const interactiveMode =
+      interactiveOverride ?? context.config.isInteractive();
+    const approvalMode =
+      context.config.getApprovalMode?.() ?? ApprovalMode.DEFAULT;
     const isPlanMode = approvalMode === ApprovalMode.PLAN;
     const isYoloMode = approvalMode === ApprovalMode.YOLO;
-    const skills = config.getSkillManager().getSkills();
-    const toolNames = config.getToolRegistry().getAllToolNames();
+    const skills = context.config.getSkillManager().getSkills();
+    const toolNames = context.toolRegistry.getAllToolNames();
     const enabledToolNames = new Set(toolNames);
-    const approvedPlanPath = config.getApprovedPlanPath();
+    const approvedPlanPath = context.config.getApprovedPlanPath();
 
     const desiredModel = resolveModel(
-      config.getActiveModel(),
-      config.getGemini31LaunchedSync?.() ?? false,
+      context.config.getActiveModel(),
+      context.config.getGemini31LaunchedSync?.() ?? false,
     );
     const isModernModel = supportsModernFeatures(desiredModel);
     const activeSnippets = isModernModel ? snippets : legacySnippets;
@@ -72,7 +74,7 @@ export class PromptProvider {
     // --- Context Gathering ---
     let planModeToolsList = '';
     if (isPlanMode) {
-      const allTools = config.getToolRegistry().getAllTools();
+      const allTools = context.toolRegistry.getAllTools();
       planModeToolsList = allTools
         .map((t) => {
           if (t instanceof DiscoveredMCPTool) {
@@ -104,7 +106,7 @@ export class PromptProvider {
       );
       basePrompt = applySubstitutions(
         basePrompt,
-        config,
+        context.config,
         skillsPrompt,
         isModernModel,
       );
@@ -128,7 +130,7 @@ export class PromptProvider {
           contextFilenames,
         })),
         subAgents: this.withSection('agentContexts', () =>
-          config
+          context.config
             .getAgentRegistry()
             .getAllDefinitions()
             .map((d) => ({
@@ -163,7 +165,7 @@ export class PromptProvider {
             approvedPlan: approvedPlanPath
               ? { path: approvedPlanPath }
               : undefined,
-            taskTracker: config.isTrackerEnabled(),
+            taskTracker: context.config.isTrackerEnabled(),
           }),
           !isPlanMode,
         ),
@@ -171,19 +173,20 @@ export class PromptProvider {
           'planningWorkflow',
           () => ({
             planModeToolsList,
-            plansDir: config.storage.getPlansDir(),
-            approvedPlanPath: config.getApprovedPlanPath(),
-            taskTracker: config.isTrackerEnabled(),
+            plansDir: context.config.storage.getPlansDir(),
+            approvedPlanPath: context.config.getApprovedPlanPath(),
+            taskTracker: context.config.isTrackerEnabled(),
           }),
           isPlanMode,
         ),
-        taskTracker: config.isTrackerEnabled(),
+        taskTracker: context.config.isTrackerEnabled(),
         operationalGuidelines: this.withSection(
           'operationalGuidelines',
           () => ({
             interactive: interactiveMode,
-            enableShellEfficiency: config.getEnableShellOutputEfficiency(),
-            interactiveShellEnabled: config.isInteractiveShellEnabled(),
+            enableShellEfficiency:
+              context.config.getEnableShellOutputEfficiency(),
+            interactiveShellEnabled: context.config.isInteractiveShellEnabled(),
             // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
           }),
@@ -214,14 +217,14 @@ export class PromptProvider {
     }
 
     // AUDITARIA_FEATURE_START: Custom skills section
-    const skillsSection = config.getSkillsPromptSection?.();
+    const skillsSection = context.config.getSkillsPromptSection();
     if (skillsSection) {
       basePrompt += skillsSection;
     }
     // AUDITARIA_FEATURE_END: Custom skills section
 
     // AUDITARIA_APPEND_SYSTEM_PROMPT_START
-    const appendedPrompt = config.getAppendSystemPrompt?.();
+    const appendedPrompt = context.config.getAppendSystemPrompt();
     if (appendedPrompt) {
       basePrompt += '\n\n' + appendedPrompt;
     }
@@ -247,14 +250,16 @@ export class PromptProvider {
     return sanitizedPrompt;
   }
 
-  getCompressionPrompt(config: Config): string {
+  getCompressionPrompt(context: AgentLoopContext): string {
     const desiredModel = resolveModel(
-      config.getActiveModel(),
-      config.getGemini31LaunchedSync?.() ?? false,
+      context.config.getActiveModel(),
+      context.config.getGemini31LaunchedSync?.() ?? false,
     );
     const isModernModel = supportsModernFeatures(desiredModel);
     const activeSnippets = isModernModel ? snippets : legacySnippets;
-    return activeSnippets.getCompressionPrompt(config.getApprovedPlanPath());
+    return activeSnippets.getCompressionPrompt(
+      context.config.getApprovedPlanPath(),
+    );
   }
 
   private withSection<T>(
