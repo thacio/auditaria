@@ -338,6 +338,8 @@ export interface BrowserAgentCustomConfig {
   profilePath?: string;
   /** Model override for the visual agent. */
   visualModel?: string;
+  /** Disable user input on the browser window during automation. Default: true in non-headless mode */
+  disableUserInput?: boolean;
 }
 
 /**
@@ -3198,8 +3200,21 @@ export class Config implements McpContext, AgentLoopContext {
         headless: customConfig.headless ?? false,
         profilePath: customConfig.profilePath,
         visualModel: customConfig.visualModel,
+        disableUserInput: customConfig.disableUserInput,
       },
     };
+  }
+
+  /**
+   * Determines if user input should be disabled during browser automation.
+   * Based on the `disableUserInput` setting and `headless` mode.
+   */
+  shouldDisableBrowserUserInput(): boolean {
+    const browserConfig = this.getBrowserAgentConfig();
+    return (
+      browserConfig.customConfig?.disableUserInput !== false &&
+      !browserConfig.customConfig?.headless
+    );
   }
 
   async createToolRegistry(): Promise<ToolRegistry> {
