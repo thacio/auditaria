@@ -911,8 +911,8 @@ export const useGeminiStream = (
             onDebugMessage,
             messageId: userMessageTimestamp,
             signal: abortSignal,
+            escapePastedAtSymbols: settings.merged.ui?.escapePastedAtSymbols,
           });
-
           if (atCommandResult.error) {
             onDebugMessage(atCommandResult.error);
             return { queryToSend: null, shouldProceed: false };
@@ -1069,6 +1069,7 @@ export const useGeminiStream = (
       logger,
       shellModeActive,
       scheduleToolCalls,
+      settings,
     ],
   );
 
