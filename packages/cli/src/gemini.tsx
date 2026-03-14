@@ -124,6 +124,7 @@ import { OverflowProvider } from './ui/contexts/OverflowContext.js';
 import { setupTerminalAndTheme } from './utils/terminalTheme.js';
 import { profiler } from './ui/components/DebugProfiler.js';
 import { runDeferredCommand } from './deferred.js';
+import { cleanupBackgroundLogs } from './utils/logCleanup.js';
 import { SlashCommandConflictHandler } from './services/SlashCommandConflictHandler.js';
 
 const SLOW_RENDER_MS = 200;
@@ -447,6 +448,7 @@ export async function main() {
   await Promise.all([
     cleanupCheckpoints(),
     cleanupToolOutputFiles(settings.merged),
+    cleanupBackgroundLogs(),
   ]);
 
   const parseArgsHandle = startupProfiler.start('parse_arguments');
