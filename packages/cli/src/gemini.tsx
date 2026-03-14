@@ -99,6 +99,8 @@ import { computeTerminalTitle } from './utils/windowTitle.js';
 
 import { SessionStatsProvider } from './ui/contexts/SessionContext.js';
 import { VimModeProvider } from './ui/contexts/VimModeContext.js';
+import { KeyMatchersProvider } from './ui/hooks/useKeyMatchers.js';
+import { loadKeyMatchers } from './ui/key/keyMatchers.js';
 import { KeypressProvider } from './ui/contexts/KeypressContext.js';
 import { useKittyKeyboardProtocol } from './ui/hooks/useKittyKeyboardProtocol.js';
 import {
@@ -256,6 +258,11 @@ export async function startInteractiveUI(
     });
   }
 
+  const { matchers, errors } = await loadKeyMatchers();
+  errors.forEach((error) => {
+    coreEvents.emitFeedback('warning', error);
+  });
+
   const version = await getVersion();
   setWindowTitle(basename(workspaceRoot), settings);
 
@@ -278,54 +285,60 @@ export async function startInteractiveUI(
 
     return (
       <SettingsContext.Provider value={settings}>
-        <KeypressProvider
-          config={config}
-          debugKeystrokeLogging={settings.merged.general.debugKeystrokeLogging}
-        >
-          <MouseProvider
-            mouseEventsEnabled={mouseEventsEnabled}
+        <KeyMatchersProvider value={matchers}>
+          <KeypressProvider
+            config={config}
             debugKeystrokeLogging={
               settings.merged.general.debugKeystrokeLogging
             }
           >
-            <TerminalProvider>
-              <ScrollProvider>
-                <OverflowProvider>
-                  <SessionStatsProvider>
-                    <VimModeProvider>
-                      {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
-                      <SubmitQueryProvider>
-                        <WebInterfaceProvider
-                          enabled={webEnabled}
-                          openBrowser={webOpenBrowser}
-                          port={webPort}
-                        >
-                          <FooterProvider>
-                            <LoadingStateProvider>
-                              <ToolConfirmationProvider>
-                                <TerminalCaptureWrapper>
-                                  <AppContainer
-                                    config={config}
-                                    startupWarnings={startupWarnings}
-                                    version={version}
-                                    resumedSessionData={resumedSessionData}
-                                    initializationResult={initializationResult}
-                                    webEnabled={webEnabled}
-                                  />
-                                </TerminalCaptureWrapper>
-                              </ToolConfirmationProvider>
-                            </LoadingStateProvider>
-                          </FooterProvider>
-                        </WebInterfaceProvider>
-                      </SubmitQueryProvider>
-                      {/* WEB_INTERFACE_END */}
-                    </VimModeProvider>
-                  </SessionStatsProvider>
-                </OverflowProvider>
-              </ScrollProvider>
-            </TerminalProvider>
-          </MouseProvider>
-        </KeypressProvider>
+            <MouseProvider
+              mouseEventsEnabled={mouseEventsEnabled}
+              debugKeystrokeLogging={
+                settings.merged.general.debugKeystrokeLogging
+              }
+            >
+              <TerminalProvider>
+                <ScrollProvider>
+                  <OverflowProvider>
+                    <SessionStatsProvider>
+                      <VimModeProvider>
+                        {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
+                        <SubmitQueryProvider>
+                          <WebInterfaceProvider
+                            enabled={webEnabled}
+                            openBrowser={webOpenBrowser}
+                            port={webPort}
+                          >
+                            <FooterProvider>
+                              <LoadingStateProvider>
+                                <ToolConfirmationProvider>
+                                  <TerminalCaptureWrapper>
+                                    <AppContainer
+                                      config={config}
+                                      startupWarnings={startupWarnings}
+                                      version={version}
+                                      resumedSessionData={resumedSessionData}
+                                      initializationResult={
+                                        initializationResult
+                                      }
+                                      webEnabled={webEnabled}
+                                    />
+                                  </TerminalCaptureWrapper>
+                                </ToolConfirmationProvider>
+                              </LoadingStateProvider>
+                            </FooterProvider>
+                          </WebInterfaceProvider>
+                        </SubmitQueryProvider>
+                        {/* WEB_INTERFACE_END */}
+                      </VimModeProvider>
+                    </SessionStatsProvider>
+                  </OverflowProvider>
+                </ScrollProvider>
+              </TerminalProvider>
+            </MouseProvider>
+          </KeypressProvider>
+        </KeyMatchersProvider>
       </SettingsContext.Provider>
     );
   };
