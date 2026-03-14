@@ -12,8 +12,7 @@ import {
   SessionStartSource,
   flushTelemetry,
 } from '@google/gemini-cli-core'; // AUDITARIA: context-management + collaborative-writing
-import type { SlashCommand } from './types.js';
-import { CommandKind } from './types.js';
+import { CommandKind, type SlashCommand } from './types.js';
 import { MessageType } from '../types.js';
 import { randomUUID } from 'node:crypto';
 
