@@ -57,7 +57,7 @@ const COMPRESSION_FUNCTION_RESPONSE_TOKEN_BUDGET = 50_000;
  * Exported for testing purposes.
  */
 export function findCompressSplitPoint(
-  contents: Content[],
+  contents: readonly Content[],
   fraction: number,
 ): number {
   if (fraction <= 0 || fraction >= 1) {

@@ -27,7 +27,7 @@ const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
  */
 interface TeamsSessionState {
   threadId: string;
-  history: Content[];
+  history: readonly Content[];
   createdAt: number;
   lastActiveAt: number;
 }
@@ -93,7 +93,7 @@ export class TeamsSessionManager {
     const savedState = this.loadSessionState(threadId);
     if (savedState && savedState.history.length > 0) {
       try {
-        await client.resumeChat(savedState.history);
+        await client.resumeChat([...savedState.history]);
         session.initialized = true;
         session.createdAt = savedState.createdAt;
         debugLogger.debug(

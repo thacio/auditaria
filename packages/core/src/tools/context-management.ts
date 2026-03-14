@@ -107,7 +107,7 @@ class ContextStorage {
    * @param history The current conversation history to backup.
    * @param isOriginal If true, this is the original untouched history.
    */
-  backupHistory(history: Content[], isOriginal = false): void {
+  backupHistory(history: readonly Content[], isOriginal = false): void {
     const backup = JSON.parse(JSON.stringify(history));
 
     if (isOriginal) {
@@ -475,7 +475,7 @@ function describeMessageBefore(content: Content): string {
   return `[${role}] (${partsCount} parts): ${partDescriptions.join(', ')}`;
 }
 
-function extractFunctionResponses(history: Content[]): ForgettableItem[] {
+function extractFunctionResponses(history: readonly Content[]): ForgettableItem[] {
   const items: ForgettableItem[] = [];
   let messageIndex = 0;
 
@@ -525,7 +525,7 @@ function extractFunctionResponses(history: Content[]): ForgettableItem[] {
 
 function shouldAutoForget(
   item: ForgettableItem,
-  history: Content[],
+  history: readonly Content[],
   storage: ContextStorage,
 ): boolean {
   if (storage.isForgotten(item.id)) {
@@ -589,7 +589,7 @@ function shouldAutoForget(
   return false;
 }
 
-function extractAttachments(history: Content[]): ForgettableItem[] {
+function extractAttachments(history: readonly Content[]): ForgettableItem[] {
   const items: ForgettableItem[] = [];
   let messageIndex = 0;
 
@@ -875,19 +875,19 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
     }
   }
 
-  private getHistory(): Content[] {
+  private getHistory(): readonly Content[] {
     try {
       const geminiClient = this.config.getGeminiClient();
       return geminiClient.getHistory();
     } catch (_error) {
       return (
-        (global as unknown as Record<string, Content[]>)
+        (global as unknown as Record<string, readonly Content[]>)
           .__contextManagementHistory || []
       );
     }
   }
 
-  private setHistory(history: Content[]): void {
+  private setHistory(history: readonly Content[]): void {
     try {
       const geminiClient = this.config.getGeminiClient();
       geminiClient.setHistory(history);
@@ -900,7 +900,7 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
       // AUDITARIA_CLAUDE_PROVIDER_END
     } catch (_error) {
       (
-        global as unknown as Record<string, Content[]>
+        global as unknown as Record<string, readonly Content[]>
       ).__contextManagementHistory = history;
     }
   }

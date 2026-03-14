@@ -95,7 +95,7 @@ export class TelegramSessionManager {
     const savedState = this.loadSessionState(sessionKey);
     if (savedState && savedState.history.length > 0) {
       try {
-        await client.resumeChat(savedState.history);
+        await client.resumeChat([...savedState.history]);
         session.initialized = true;
         session.createdAt = savedState.createdAt;
         debugLogger.debug(

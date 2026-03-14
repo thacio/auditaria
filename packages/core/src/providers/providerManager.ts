@@ -96,7 +96,7 @@ function areProviderOptionsEqual(
 // The env context (from getEnvironmentContext()) is already injected separately to external
 // providers, so we skip it to avoid double-counting tokens.
 // envContextPrefix: first 30 chars of the env context text, used to identify the message.
-export function getHistoryPartsForEstimation(history: Content[], envContextPrefix?: string): Part[] {
+export function getHistoryPartsForEstimation(history: readonly Content[], envContextPrefix?: string): Part[] {
   if (!envContextPrefix) {
     // No prefix to match — return all parts (Gemini path, or prefix not yet computed)
     return history.flatMap(c => c.parts || []);
@@ -970,7 +970,7 @@ function buildExternalProviderPrompt(request: PartListUnion, skipInlineData = fa
 // AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
 // for injecting into a fresh Claude session after context_forget.
 // envContextPrefix: if provided, skips the initial env context message (already injected separately).
-export function buildConversationSummary(history: Content[], envContextPrefix?: string): string {
+export function buildConversationSummary(history: readonly Content[], envContextPrefix?: string): string {
   const lines: string[] = [];
   lines.push('<auditaria_conversation_history>');
   lines.push(
@@ -1054,7 +1054,7 @@ export function buildConversationSummary(history: Content[], envContextPrefix?: 
 // Preserves inlineData, fileData, and tool calls for known Auditaria/Gemini tools.
 // Only converts functionCall/functionResponse for tools NOT in knownToolNames (Claude built-ins).
 export function sanitizeHistoryForProviderSwitch(
-  history: Content[],
+  history: readonly Content[],
   knownToolNames?: Set<string>,
 ): Content[] {
   const sanitized = history

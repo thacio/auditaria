@@ -41,7 +41,7 @@ export interface TelegramSessionState {
   userId: string;
   username?: string;
   displayName?: string;
-  history: Content[];
+  history: readonly Content[];
   createdAt: number;
   lastActiveAt: number;
 }
