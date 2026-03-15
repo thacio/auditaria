@@ -12,7 +12,7 @@ const FOCUS_UI_ENABLED_STATE_KEY = 'focusUiEnabled';
 
 export function useVisibilityToggle() {
   const [focusUiEnabledByDefault] = useState(
-    () => persistentState.get(FOCUS_UI_ENABLED_STATE_KEY) === true,
+    () => false, // AUDITARIA: always default to footer visible (model/context/workspace info)
   );
   const [cleanUiDetailsVisible, setCleanUiDetailsVisibleState] = useState(
     !focusUiEnabledByDefault,
