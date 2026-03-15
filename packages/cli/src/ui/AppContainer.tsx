@@ -90,6 +90,8 @@ import {
   getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
   getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
+  tokenLimit, // AUDITARIA_WEB_INTERFACE: direct footer data computation
+  getDisplayString, // AUDITARIA_WEB_INTERFACE: direct footer data computation
   buildUserSteeringHintPrompt,
   logBillingEvent,
   ApiKeyUpdatedEvent,
@@ -164,7 +166,7 @@ import { useGitBranchName } from './hooks/useGitBranchName.js';
 import { useWebInterface } from './contexts/WebInterfaceContext.js';
 import { type PartListUnion } from '@google/genai'; // For multimodal support
 import { useSubmitQueryRegistration } from './contexts/SubmitQueryContext.js';
-import { useFooter } from './contexts/FooterContext.js';
+import { useFooter, type FooterData } from './contexts/FooterContext.js';
 import { useLoadingState } from './contexts/LoadingStateContext.js';
 import { useToolConfirmation } from './contexts/ToolConfirmationContext.js';
 import { useTerminalCapture } from './contexts/TerminalCaptureContext.js';
@@ -2586,20 +2588,86 @@ Logging in with Google... Restarting Gemini CLI to continue.
     webAvailabilityMessageShownRef.current = true;
   }, [webEnabled, webInterface?.isRunning, webInterface?.port, historyManager]);
 
+  // WEB_INTERFACE_START: Broadcast footer data directly to web interface
+  // This must NOT depend on the Footer component being rendered (hideFooter setting).
+  // The web interface always needs footer data for the model button, context info, etc.
   const footerContext = useFooter();
+  const prevWebFooterDataRef = useRef<string>('');
   useEffect(() => {
-    if (
-      footerContext?.footerData &&
-      webInterface?.service &&
-      webInterface.isRunning
-    ) {
+    if (!webInterface?.service || !webInterface.isRunning) return;
+
+    // If Footer component is rendered, it pushes data through FooterContext — use that
+    if (footerContext?.footerData) {
       webInterface.service.broadcastFooterData(footerContext.footerData);
+      return;
+    }
+
+    // Footer component is NOT rendered (hideFooter=true) — compute data directly
+    let sandboxStatus = 'no sandbox';
+    let isSandboxed = false;
+    if (isTrustedFolder === false) {
+      sandboxStatus = 'untrusted';
+    } else if (
+      process.env['SANDBOX'] &&
+      process.env['SANDBOX'] !== 'sandbox-exec'
+    ) {
+      sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+      isSandboxed = true;
+    } else if (process.env['SANDBOX'] === 'sandbox-exec') {
+      sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
+      isSandboxed = true;
+    }
+
+    const targetDir = config.getTargetDir();
+    const debugMode = config.getDebugMode();
+    const promptTokenCount = sessionStats.lastPromptTokenCount;
+    const contextMaxTokens = tokenLimit(currentModel);
+    const contextUsedTokens = promptTokenCount;
+    const contextLeftTokens = contextMaxTokens - contextUsedTokens;
+    const percentage = contextUsedTokens / Math.max(1, contextMaxTokens);
+    const percentageLeft = (1 - percentage) * 100;
+
+    const footerData: FooterData = {
+      targetDir,
+      workingDirectory: targetDir,
+      branchName,
+      model: currentModel,
+      modelDisplayName: getDisplayString(currentModel),
+      contextPercentage: percentageLeft,
+      contextUsedTokens,
+      contextMaxTokens,
+      contextLeftTokens,
+      sandboxStatus,
+      isSandboxed,
+      errorCount,
+      debugMode,
+      debugMessage,
+      corgiMode,
+      showMemoryUsage: debugMode || (settings.merged.ui.showMemoryUsage ?? false),
+      showErrorDetails,
+    };
+
+    const dataStr = JSON.stringify(footerData);
+    if (dataStr !== prevWebFooterDataRef.current) {
+      prevWebFooterDataRef.current = dataStr;
+      webInterface.service.broadcastFooterData(footerData);
     }
   }, [
     footerContext?.footerData,
     webInterface?.service,
     webInterface?.isRunning,
+    config,
+    currentModel,
+    branchName,
+    sessionStats.lastPromptTokenCount,
+    isTrustedFolder,
+    errorCount,
+    debugMessage,
+    corgiMode,
+    showErrorDetails,
+    settings.merged.ui.showMemoryUsage,
   ]);
+  // WEB_INTERFACE_END
 
   useLoadingState(); // Required for loading state context initialization
   useEffect(() => {
