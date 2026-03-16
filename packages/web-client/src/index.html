@@ -363,11 +363,18 @@
         <div class="modal-backdrop" id="games-backdrop"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Arcade</h2>
+                <div class="games-header-left">
+                    <h2>Arcade</h2>
+                    <div class="games-tabs">
+                        <button id="games-tab-games" class="games-tab active">Games</button>
+                        <button id="games-tab-scores" class="games-tab">Scores</button>
+                    </div>
+                </div>
                 <button class="modal-close" id="games-close" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="games-lobby"></div>
+                <div class="games-scores" style="display: none;"></div>
                 <div class="games-play-area">
                     <div class="games-play-header">
                         <button id="games-back-btn" class="games-play-btn" aria-label="Back to lobby">

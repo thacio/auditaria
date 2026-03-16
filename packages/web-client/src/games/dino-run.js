@@ -17,7 +17,7 @@ export class DinoRunGame extends GameEngine {
 
     init() {
         this.score = 0;
-        this.speed = 5;
+        this.speed = 3;
         this.frameCount = 0;
 
         // Dino
@@ -33,7 +33,7 @@ export class DinoRunGame extends GameEngine {
 
         // Obstacles
         this.obstacles = [];
-        this.nextObstacle = 80;
+        this.nextObstacle = 120; // generous initial gap
 
         // Clouds (decorative)
         this.clouds = [];
@@ -68,30 +68,33 @@ export class DinoRunGame extends GameEngine {
 
     _spawnObstacle() {
         const type = Math.random();
-        if (type < 0.45) {
+        const score = this.score;
+
+        // Early game: only small cacti. Gradually introduce harder obstacles.
+        if (score < 30 || type < 0.5) {
             // Small cactus
             this.obstacles.push({
                 x: this.width + 10,
                 y: GROUND_Y,
                 w: 14,
-                h: 30 + Math.random() * 12,
+                h: 26 + Math.random() * 10,
                 type: 'cactus-sm',
             });
-        } else if (type < 0.8) {
-            // Tall cactus (sometimes double)
-            const count = Math.random() < 0.3 ? 2 : 1;
+        } else if (score < 80 || type < 0.8) {
+            // Tall cactus (double only after score 60)
+            const count = score > 60 && Math.random() < 0.25 ? 2 : 1;
             for (let i = 0; i < count; i++) {
                 this.obstacles.push({
                     x: this.width + 10 + i * 20,
                     y: GROUND_Y,
                     w: 16,
-                    h: 36 + Math.random() * 10,
+                    h: 32 + Math.random() * 10,
                     type: 'cactus-lg',
                 });
             }
         } else {
-            // Pterodactyl (flying obstacle)
-            const flyH = Math.random() < 0.5 ? GROUND_Y - 30 : GROUND_Y - 55;
+            // Pterodactyl (only after score 80)
+            const flyH = Math.random() < 0.5 ? GROUND_Y - 28 : GROUND_Y - 50;
             this.obstacles.push({
                 x: this.width + 10,
                 y: flyH,
@@ -105,9 +108,9 @@ export class DinoRunGame extends GameEngine {
     update() {
         this.frameCount++;
 
-        // Speed ramp
-        this.speed = 5 + Math.floor(this.frameCount / 300) * 0.5;
-        if (this.speed > 14) this.speed = 14;
+        // Speed ramp — gentle start, gradual increase
+        this.speed = 3 + Math.floor(this.frameCount / 500) * 0.4;
+        if (this.speed > 11) this.speed = 11;
 
         // Score
         if (this.frameCount % 4 === 0) this.score++;
@@ -150,7 +153,9 @@ export class DinoRunGame extends GameEngine {
         this.nextObstacle -= this.speed;
         if (this.nextObstacle <= 0) {
             this._spawnObstacle();
-            this.nextObstacle = 50 + Math.random() * 60;
+            // More space between obstacles at low speeds, tighter as speed grows
+            const baseGap = Math.max(60, 110 - this.speed * 5);
+            this.nextObstacle = baseGap + Math.random() * 70;
         }
 
         // Move obstacles
@@ -169,8 +174,8 @@ export class DinoRunGame extends GameEngine {
             const oy = obs.y - obs.h;
             const ow = obs.w;
             const oh = obs.h;
-            // Shrink hitbox a bit for fairness
-            const margin = 4;
+            // Shrink hitbox for fairness (generous)
+            const margin = 6;
             if (
                 dx + margin < ox + ow - margin &&
                 dx + dw - margin > ox + margin &&

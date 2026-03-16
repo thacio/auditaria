@@ -136,7 +136,20 @@ export class GameEngine {
     }
 
     _onKeyDown(e) {
-        if (!this.running || this.gameOver) return;
+        // Restart on any key after game over, or R during gameplay
+        if (this.gameOver) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.reset();
+            return;
+        }
+        if (!this.running) return;
+        if (e.key === 'r' || e.key === 'R') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.reset();
+            return;
+        }
         // Capture game-relevant keys
         const gameKeys = [
             'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
@@ -162,23 +175,52 @@ export class GameEngine {
 
     // ─── Score ────────────────────────────────────────────
 
-    getHighScore() {
-        try {
-            const data = JSON.parse(localStorage.getItem(SCORES_KEY) || '{}');
-            return data[this.gameId] || 0;
-        } catch { return 0; }
+    /** Get parsed entry for this game, migrating old plain-number format */
+    static _getEntry(data, gameId) {
+        const raw = data[gameId];
+        if (!raw) return { best: 0, date: null, plays: 0, history: [] };
+        if (typeof raw === 'number') return { best: raw, date: null, plays: 0, history: raw > 0 ? [{ score: raw, date: null }] : [] };
+        return { best: raw.best || 0, date: raw.date || null, plays: raw.plays || 0, history: raw.history || [] };
     }
 
-    _saveHighScore() {
+    static _getAllScores() {
+        try { return JSON.parse(localStorage.getItem(SCORES_KEY) || '{}'); }
+        catch { return {}; }
+    }
+
+    getHighScore() {
+        const data = GameEngine._getAllScores();
+        return GameEngine._getEntry(data, this.gameId).best;
+    }
+
+    _saveScore() {
         try {
-            const data = JSON.parse(localStorage.getItem(SCORES_KEY) || '{}');
-            if (this.score > (data[this.gameId] || 0)) {
-                data[this.gameId] = this.score;
-                localStorage.setItem(SCORES_KEY, JSON.stringify(data));
-                return true; // new high score
+            const data = GameEngine._getAllScores();
+            const entry = GameEngine._getEntry(data, this.gameId);
+            const now = new Date().toISOString();
+            let isNewBest = false;
+
+            // Update best
+            if (this.score > entry.best) {
+                entry.best = this.score;
+                entry.date = now;
+                isNewBest = true;
             }
-        } catch { /* ignore */ }
-        return false;
+
+            // Increment plays
+            entry.plays = (entry.plays || 0) + 1;
+
+            // Add to top-10 history (keep sorted desc, max 10)
+            if (this.score > 0) {
+                entry.history.push({ score: this.score, date: now });
+                entry.history.sort((a, b) => b.score - a.score);
+                if (entry.history.length > 10) entry.history.length = 10;
+            }
+
+            data[this.gameId] = entry;
+            localStorage.setItem(SCORES_KEY, JSON.stringify(data));
+            return isNewBest;
+        } catch { return false; }
     }
 
     /** Call from subclass when game is over */
@@ -189,7 +231,7 @@ export class GameEngine {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
         }
-        const isNew = this._saveHighScore();
+        const isNew = this._saveScore();
         this.onGameOver(this.score, isNew);
         this._drawGameOver(isNew);
     }
@@ -217,7 +259,7 @@ export class GameEngine {
 
         ctx.fillStyle = this.colors.textMuted;
         ctx.font = '13px "Space Grotesk", sans-serif';
-        ctx.fillText('Press any key or click Restart', this.width / 2, this.height / 2 + 70);
+        ctx.fillText('Press any key to restart (R anytime)', this.width / 2, this.height / 2 + 70);
     }
 
     // ─── Helpers ──────────────────────────────────────────
