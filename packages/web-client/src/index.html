@@ -370,7 +370,12 @@
                         <button id="games-tab-scores" class="games-tab">Scores</button>
                     </div>
                 </div>
-                <button class="modal-close" id="games-close" aria-label="Close">&times;</button>
+                <div class="games-header-actions">
+                    <button class="games-minimize" id="games-minimize-btn" aria-label="Minimize" style="display:none;" title="Minimize (pause game)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <button class="modal-close" id="games-close" aria-label="Close">&times;</button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="games-lobby"></div>
@@ -382,6 +387,12 @@
                             Back
                         </button>
                         <span class="games-play-title"></span>
+                        <div class="games-volume-control" style="display:none;">
+                            <button id="games-mute-btn" class="games-play-btn" aria-label="Toggle mute" title="Mute/Unmute">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                            </button>
+                            <input type="range" id="games-volume-slider" class="games-volume-slider" min="0" max="100" value="20" aria-label="Volume">
+                        </div>
                         <button id="games-restart-btn" class="games-play-btn" aria-label="Restart game">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                             Restart
@@ -389,6 +400,7 @@
                     </div>
                     <div class="games-canvas-wrap">
                         <canvas id="games-canvas"></canvas>
+                        <iframe id="games-iframe" style="display:none;" sandbox="allow-scripts allow-same-origin allow-popups" allowfullscreen></iframe>
                     </div>
                     <div class="games-play-controls"></div>
                 </div>

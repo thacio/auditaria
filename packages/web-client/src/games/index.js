@@ -19,7 +19,10 @@ import { DinoRunGame } from './dino-run.js';
  * @property {string} tagline
  * @property {string} controls  — short hint shown below the canvas
  * @property {string} icon      — inline SVG string (simple geometric art)
- * @property {(canvas: HTMLCanvasElement) => import('./GameEngine.js').GameEngine} create
+ * @property {'canvas'|'iframe'} [type='canvas']
+ * @property {string} [iframeSrc] — URL for iframe games (relative to web root)
+ * @property {{width: number, height: number}} [iframeSize]
+ * @property {(canvas: HTMLCanvasElement) => import('./GameEngine.js').GameEngine} [create]
  */
 
 /** @type {GameEntry[]} */
@@ -139,5 +142,92 @@ export const GAMES = [
             <path d="M33 28h-28" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
         </svg>`,
         create: (canvas) => new DinoRunGame(canvas),
+    },
+
+    // ─── External games (iframe-based) ────────────────────
+    {
+        id: '2048',
+        name: '2048',
+        tagline: 'Slide, merge, reach 2048.',
+        controls: 'Arrow keys to slide tiles',
+        type: 'iframe',
+        iframeSrc: '/arcade/2048/index.html',
+        iframeSize: { width: 520, height: 700 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <rect x="3" y="3" width="15" height="15" rx="3" opacity="0.4"/>
+            <rect x="22" y="3" width="15" height="15" rx="3" opacity="0.6"/>
+            <rect x="3" y="22" width="15" height="15" rx="3" opacity="0.8"/>
+            <rect x="22" y="22" width="15" height="15" rx="3" opacity="1"/>
+            <text x="10.5" y="14" font-size="8" font-weight="bold" text-anchor="middle" fill="currentColor" opacity="0.6">2</text>
+            <text x="29.5" y="14" font-size="7" font-weight="bold" text-anchor="middle" fill="currentColor" opacity="0.8">16</text>
+        </svg>`,
+    },
+    {
+        id: 'space-invaders',
+        name: 'Space Invaders',
+        tagline: 'Defend Earth from aliens.',
+        controls: 'Left/Right to move, Space to shoot',
+        type: 'iframe',
+        iframeSrc: '/arcade/space-invaders/index.html',
+        iframeSize: { width: 500, height: 480 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <rect x="10" y="8" width="4" height="4" rx="1"/>
+            <rect x="26" y="8" width="4" height="4" rx="1"/>
+            <rect x="6" y="12" width="28" height="12" rx="2"/>
+            <rect x="4" y="24" width="4" height="6" rx="1"/>
+            <rect x="32" y="24" width="4" height="6" rx="1"/>
+            <rect x="10" y="24" width="4" height="4" rx="1"/>
+            <rect x="26" y="24" width="4" height="4" rx="1"/>
+            <rect x="16" y="32" width="8" height="4" rx="1" opacity="0.5"/>
+        </svg>`,
+    },
+    {
+        id: 'racer',
+        name: 'Outrun Racer',
+        tagline: 'Pseudo-3D arcade racing.',
+        controls: 'Arrows to steer/accelerate/brake',
+        type: 'iframe',
+        iframeSrc: '/arcade/racer/index.html',
+        iframeSize: { width: 640, height: 500 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <path d="M10 32 L14 18 L26 18 L30 32 Z" opacity="0.8" rx="2"/>
+            <rect x="8" y="30" width="24" height="4" rx="2"/>
+            <circle cx="12" cy="34" r="3"/>
+            <circle cx="28" cy="34" r="3"/>
+            <rect x="16" y="20" width="8" height="4" rx="1" opacity="0.4"/>
+            <path d="M18 8 L20 4 L22 8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+        </svg>`,
+    },
+    {
+        id: 'pacman',
+        name: 'Pac-Man',
+        tagline: 'Eat dots, avoid ghosts.',
+        controls: 'Arrow keys to move',
+        type: 'iframe',
+        iframeSrc: '/arcade/pacman/index.html',
+        iframeSize: { width: 550, height: 660 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <path d="M20 4 A16 16 0 1 1 20 36 A16 16 0 1 1 20 4 Z" opacity="0.9"/>
+            <path d="M20 20 L36 10 L36 30 Z" fill="var(--bg, #1a1713)"/>
+            <circle cx="22" cy="13" r="2.5" fill="var(--bg, #1a1713)"/>
+            <circle cx="6" cy="20" r="2" opacity="0.4"/>
+            <circle cx="6" cy="28" r="2" opacity="0.4"/>
+        </svg>`,
+    },
+    {
+        id: 'chess',
+        name: 'Chess',
+        tagline: 'Challenge the AI.',
+        controls: 'Click/drag pieces to move',
+        type: 'iframe',
+        iframeSrc: '/arcade/chess/index.html',
+        iframeSize: { width: 620, height: 720 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <path d="M20 4 L20 8 M17 8 L23 8" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M14 12 L20 8 L26 12 L24 26 L16 26 Z" opacity="0.8"/>
+            <rect x="12" y="26" width="16" height="3" rx="1"/>
+            <rect x="10" y="29" width="20" height="4" rx="1.5" opacity="0.6"/>
+            <rect x="8" y="33" width="24" height="3" rx="1.5"/>
+        </svg>`,
     },
 ];

@@ -12,6 +12,33 @@
     gap: var(--space-5);
 }
 
+.games-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.games-minimize {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    color: var(--text-subtle);
+    cursor: pointer;
+    padding: 4px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast) ease;
+}
+
+.games-minimize:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--text);
+}
+
 .games-tabs {
     display: flex;
     gap: var(--space-1);
@@ -186,6 +213,45 @@
     height: 14px;
 }
 
+/* Volume control */
+.games-volume-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.games-volume-slider {
+    width: 70px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.games-volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
+.games-volume-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: 2px solid var(--surface);
+    box-shadow: var(--shadow-sm);
+}
+
 /* Canvas container */
 .games-canvas-wrap {
     border-radius: var(--radius-sm);
@@ -200,6 +266,14 @@
     display: block;
     max-width: 100%;
     height: auto;
+}
+
+.games-canvas-wrap iframe {
+    display: block;
+    max-width: 100%;
+    border: none;
+    /* Fit within modal: modal is 80vh, minus header ~60px, play-header ~40px, controls ~30px, padding */
+    max-height: calc(80vh - 170px);
 }
 
 .games-play-controls {

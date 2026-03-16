@@ -26,14 +26,22 @@ export class GamesPanel {
         this._scoresContainer = this.modal?.querySelector('.games-scores');
         this._gameContainer = this.modal?.querySelector('.games-play-area');
         this._gameCanvas = this.modal?.querySelector('#games-canvas');
+        this._gameIframe = this.modal?.querySelector('#games-iframe');
         this._gameTitle = this.modal?.querySelector('.games-play-title');
         this._gameControls = this.modal?.querySelector('.games-play-controls');
         this._backBtn = this.modal?.querySelector('#games-back-btn');
         this._restartBtn = this.modal?.querySelector('#games-restart-btn');
+        this._minimizeBtn = this.modal?.querySelector('#games-minimize-btn');
         this._tabGames = this.modal?.querySelector('#games-tab-games');
         this._tabScores = this.modal?.querySelector('#games-tab-scores');
 
         this._expandedGame = null; // which game's top-10 is expanded in Scores tab
+
+        // Volume state — start muted at low volume
+        const saved = this._loadVolumePref();
+        this._muted = saved.muted;
+        this._volume = saved.volume;
+        this._volumeInterval = null;
 
         this._setupHandlers();
         this._renderLobby();
@@ -52,27 +60,61 @@ export class GamesPanel {
 
     _setupHandlers() {
         this.button?.addEventListener('click', () => this.show());
-        this.closeBtn?.addEventListener('click', () => this.hide());
-        this.backdrop?.addEventListener('click', () => this.hide());
+        this.closeBtn?.addEventListener('click', () => this.close());
+        this.backdrop?.addEventListener('click', () => {
+            // If a game is active, minimize (preserves state). Otherwise close.
+            if (this.view === 'game' && this.currentGameId) {
+                this.minimize();
+            } else {
+                this.close();
+            }
+        });
         this._backBtn?.addEventListener('click', () => this._showLobby());
         this._restartBtn?.addEventListener('click', () => this._restartGame());
+        this._minimizeBtn?.addEventListener('click', () => this.minimize());
+
+        // Volume controls
+        const muteBtn = this.modal?.querySelector('#games-mute-btn');
+        const volSlider = this.modal?.querySelector('#games-volume-slider');
+        muteBtn?.addEventListener('click', () => {
+            this._muted = !this._muted;
+            this._saveVolumePref();
+            this._updateVolumeUI();
+            this._applyVolumeToIframe();
+        });
+        volSlider?.addEventListener('input', (e) => {
+            this._volume = parseInt(e.target.value, 10) / 100;
+            if (this._volume > 0) this._muted = false;
+            this._saveVolumePref();
+            this._updateVolumeUI();
+            this._applyVolumeToIframe();
+        });
 
         this._tabGames?.addEventListener('click', () => this._switchTab('games'));
         this._tabScores?.addEventListener('click', () => this._switchTab('scores'));
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.modal?.style.display !== 'none' && this.modal?.style.display) {
+            if (e.key === 'Escape' && this._isOpen()) {
                 if (this.view === 'game' && this.currentGame && this.currentGame.running && !this.currentGame.paused) {
+                    // Canvas game running → pause
                     this.currentGame.pause();
                     this._showPauseOverlay();
-                } else if (this.view === 'game') {
+                } else if (this.view === 'game' && this.currentGame && this.currentGame.paused) {
+                    // Canvas game paused → back to lobby
                     this._showLobby();
+                } else if (this.view === 'game') {
+                    // Iframe game → minimize (preserves iframe state)
+                    this.minimize();
                 } else {
-                    this.hide();
+                    this.close();
                 }
                 e.stopPropagation();
             }
         });
+    }
+
+    _isOpen() {
+        return this.modal && this.modal.style.display !== 'none' && this.modal.style.display !== '';
     }
 
     // ─── Modal ────────────────────────────────────────────
@@ -81,17 +123,45 @@ export class GamesPanel {
         if (!this.modal) return;
         this.modal.style.display = 'block';
         setTimeout(() => this.modal.classList.add('show'), 10);
+        this._updateMinimizeVisibility();
+        // Resume iframe if it was paused
+        this._resumeIframe();
         if (this.activeTab === 'games' && this.view === 'lobby') this._renderLobby();
         if (this.activeTab === 'scores') this._renderLeaderboards();
     }
 
-    hide() {
+    /** Close (×): destroy game, reset to lobby, dismiss modal */
+    close() {
         if (!this.modal) return;
+        this._destroyCurrentGame();
+        this.view = 'lobby';
+        if (this._lobbyContainer) this._lobbyContainer.style.display = '';
+        if (this._gameContainer) this._gameContainer.style.display = 'none';
+        this._hideModal();
+    }
+
+    /** Minimize (−): pause game, hide modal. Reopening resumes where you left off. */
+    minimize() {
+        if (!this.modal) return;
+        // Canvas game: pause via engine
         if (this.currentGame && this.currentGame.running && !this.currentGame.paused) {
             this.currentGame.pause();
+            this._showPauseOverlay();
         }
+        // Iframe game: freeze by intercepting requestAnimationFrame
+        this._pauseIframe();
+        this._hideModal();
+    }
+
+    _hideModal() {
         this.modal.classList.remove('show');
         setTimeout(() => { this.modal.style.display = 'none'; }, 300);
+    }
+
+    _updateMinimizeVisibility() {
+        if (!this._minimizeBtn) return;
+        // Show minimize when any game is active (canvas or iframe)
+        this._minimizeBtn.style.display = (this.view === 'game' && this.currentGameId) ? '' : 'none';
     }
 
     // ─── Tabs ─────────────────────────────────────────────
@@ -207,23 +277,37 @@ export class GamesPanel {
     }
 
     _showLobby() {
-        if (this.currentGame) {
-            this.currentGame.destroy();
-            this.currentGame = null;
-            this.currentGameId = null;
-        }
-        this._removePauseOverlay();
+        this._destroyCurrentGame();
         this.view = 'lobby';
         if (this._lobbyContainer) this._lobbyContainer.style.display = '';
         if (this._gameContainer) this._gameContainer.style.display = 'none';
+        this._updateMinimizeVisibility();
         this._renderLobby();
+    }
+
+    /** Clean up any running game (canvas or iframe) */
+    _destroyCurrentGame() {
+        if (this.currentGame) {
+            this.currentGame.destroy();
+            this.currentGame = null;
+        }
+        this._stopVolumePolling();
+        this._cleanupIframe();
+        this._removePauseOverlay();
+        this.currentGameId = null;
+        // Hide volume control
+        const volWrap = this.modal?.querySelector('.games-volume-control');
+        if (volWrap) volWrap.style.display = 'none';
     }
 
     // ─── Games Tab: Game View ─────────────────────────────
 
     _startGame(gameId) {
         const entry = GAMES.find(g => g.id === gameId);
-        if (!entry || !this._gameCanvas) return;
+        if (!entry) return;
+
+        // Destroy any previously running game first
+        this._destroyCurrentGame();
 
         this._switchTab('games');
         this.view = 'game';
@@ -234,8 +318,42 @@ export class GamesPanel {
         if (this._gameTitle) this._gameTitle.textContent = entry.name;
         if (this._gameControls) this._gameControls.textContent = entry.controls;
 
-        this.currentGame = entry.create(this._gameCanvas);
-        this.currentGame.start();
+        // Show volume control for iframe games, hide for canvas
+        const volWrap = this.modal?.querySelector('.games-volume-control');
+        if (volWrap) volWrap.style.display = entry.type === 'iframe' ? '' : 'none';
+        this._updateVolumeUI();
+
+        if (entry.type === 'iframe') {
+            // Iframe-based external game
+            if (this._gameCanvas) this._gameCanvas.style.display = 'none';
+            if (this._gameIframe) {
+                const size = entry.iframeSize || { width: 500, height: 600 };
+                this._gameIframe.style.display = 'block';
+                this._gameIframe.style.width = size.width + 'px';
+                this._gameIframe.style.height = size.height + 'px';
+                this._gameIframe.src = entry.iframeSrc;
+            }
+            this._startVolumePolling();
+            // Hide restart button for iframe games (they have their own UI)
+            if (this._restartBtn) this._restartBtn.style.display = 'none';
+        } else {
+            // Canvas-based game
+            this._cleanupIframe();
+            if (this._gameCanvas) this._gameCanvas.style.display = 'block';
+            if (this._restartBtn) this._restartBtn.style.display = '';
+            this.currentGame = entry.create(this._gameCanvas);
+            this.currentGame.start();
+        }
+        this._updateMinimizeVisibility();
+    }
+
+    _cleanupIframe() {
+        if (this._gameIframe) {
+            this._gameIframe.src = 'about:blank';
+            this._gameIframe.style.display = 'none';
+        }
+        if (this._gameCanvas) this._gameCanvas.style.display = 'block';
+        if (this._restartBtn) this._restartBtn.style.display = '';
     }
 
     _restartGame() {
@@ -363,5 +481,134 @@ export class GamesPanel {
             if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         } catch { return '&ndash;'; }
+    }
+
+    // ─── Volume Control ───────────────────────────────────
+
+    _loadVolumePref() {
+        try {
+            const data = JSON.parse(localStorage.getItem('auditaria-game-volume') || 'null');
+            if (data) return { muted: data.muted ?? true, volume: data.volume ?? 0.2 };
+        } catch {}
+        return { muted: true, volume: 0.2 };
+    }
+
+    _saveVolumePref() {
+        try {
+            localStorage.setItem('auditaria-game-volume', JSON.stringify({
+                muted: this._muted,
+                volume: this._volume,
+            }));
+        } catch {}
+    }
+
+    _updateVolumeUI() {
+        const muteBtn = this.modal?.querySelector('#games-mute-btn');
+        const volSlider = this.modal?.querySelector('#games-volume-slider');
+        if (muteBtn) {
+            muteBtn.innerHTML = this._muted || this._volume === 0
+                ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
+                : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>';
+        }
+        if (volSlider) {
+            volSlider.value = Math.round(this._volume * 100);
+        }
+    }
+
+    /** Apply volume/mute to all audio/video in the iframe (same-origin) */
+    _applyVolumeToIframe() {
+        try {
+            const doc = this._gameIframe?.contentWindow?.document;
+            if (!doc) return;
+            doc.querySelectorAll('audio, video').forEach(el => {
+                el.volume = this._volume;
+                el.muted = this._muted;
+            });
+        } catch { /* cross-origin or not loaded yet */ }
+    }
+
+    _startVolumePolling() {
+        this._stopVolumePolling();
+        // Apply immediately on iframe load, then poll for dynamically created audio
+        this._gameIframe?.addEventListener('load', () => this._applyVolumeToIframe());
+        this._volumeInterval = setInterval(() => this._applyVolumeToIframe(), 1500);
+    }
+
+    _stopVolumePolling() {
+        if (this._volumeInterval) {
+            clearInterval(this._volumeInterval);
+            this._volumeInterval = null;
+        }
+    }
+
+    // ─── Iframe Pause/Resume ──────────────────────────────
+
+    /**
+     * Freeze an iframe game by replacing requestAnimationFrame + setInterval
+     * with no-ops. Works because iframes are same-origin.
+     */
+    _pauseIframe() {
+        try {
+            const win = this._gameIframe?.contentWindow;
+            if (!win || win.__arcadePaused) return;
+            win.__arcadePaused = true;
+
+            // Intercept requestAnimationFrame — capture last callback
+            win.__origRAF = win.requestAnimationFrame;
+            win.requestAnimationFrame = function (cb) {
+                win.__arcadeLastRAFCb = cb;
+                return -1;
+            };
+
+            // Intercept setInterval — block new intervals
+            win.__origSetInterval = win.setInterval;
+            win.__arcadePausedIntervals = [];
+            const origClear = win.clearInterval.bind(win);
+            win.setInterval = function (cb, ms) {
+                const id = win.__origSetInterval.call(win, () => {}, ms); // dummy
+                win.__arcadePausedIntervals.push({ id, cb, ms });
+                return id;
+            };
+
+            // Pause existing audio
+            win.document?.querySelectorAll('audio, video').forEach(el => {
+                if (!el.paused) { el.pause(); el.__arcadeWasPlaying = true; }
+            });
+        } catch { /* cross-origin or not loaded */ }
+    }
+
+    /** Resume a previously paused iframe game. */
+    _resumeIframe() {
+        try {
+            const win = this._gameIframe?.contentWindow;
+            if (!win || !win.__arcadePaused) return;
+            win.__arcadePaused = false;
+
+            // Restore requestAnimationFrame and replay last callback
+            if (win.__origRAF) {
+                win.requestAnimationFrame = win.__origRAF;
+                if (win.__arcadeLastRAFCb) {
+                    win.requestAnimationFrame(win.__arcadeLastRAFCb);
+                    win.__arcadeLastRAFCb = null;
+                }
+            }
+
+            // Restore setInterval — re-create paused intervals with original callbacks
+            if (win.__origSetInterval) {
+                const paused = win.__arcadePausedIntervals || [];
+                const origClear = win.clearInterval.bind(win);
+                paused.forEach(p => { origClear(p.id); });
+                win.setInterval = win.__origSetInterval;
+                paused.forEach(p => { win.setInterval(p.cb, p.ms); });
+                win.__arcadePausedIntervals = [];
+            }
+
+            // Resume audio that was playing
+            if (!this._muted) {
+                win.document?.querySelectorAll('audio, video').forEach(el => {
+                    if (el.__arcadeWasPlaying) { el.play(); el.__arcadeWasPlaying = false; }
+                });
+            }
+        } catch { /* cross-origin or not loaded */ }
     }
 }
