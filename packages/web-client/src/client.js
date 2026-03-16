@@ -35,6 +35,9 @@ import { detectLanguage } from './utils/languageDetection.js';
 // Knowledge Base Search & Management
 import { KnowledgeBaseManager } from './knowledge-base/KnowledgeBaseManager.js';
 
+// Arcade Mini-Games
+import { GamesPanel } from './components/GamesPanel.js';
+
 class AuditariaWebClient {
     constructor() {
         // Initialize managers
@@ -57,6 +60,9 @@ class AuditariaWebClient {
 
         // Initialize Knowledge Base manager
         this.knowledgeBaseManager = new KnowledgeBaseManager(this.wsManager);
+
+        // Initialize Arcade mini-games
+        this.gamesPanel = new GamesPanel();
 
         // Initialize slash command autocomplete (after UI init)
         this.slashAutocomplete = null; // Will be initialized after UI elements are ready
