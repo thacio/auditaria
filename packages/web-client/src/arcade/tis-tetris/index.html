@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tis Tetris</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; height: 100%; }
+  </style>
+  <script>
+    // Audio hook: start muted, parent controls volume via __arcadeAudioInstances
+    (function(){
+      var O=window.Audio; window.__arcadeAudioInstances=[];
+      window.Audio=function(src){
+        var a=new O(src);
+        a.volume=0.2; a.muted=true;
+        window.__arcadeAudioInstances.push(a);
+        return a;
+      };
+      window.Audio.prototype=O.prototype;
+    })();
+  </script>
+</head>
+<body>
+  <script src="tis.min.js"></script>
+  <script>
+    // Tis requires the Konami code to activate — auto-trigger it
+    var seq = [38,38,40,40,37,39,37,39,66,65];
+    seq.forEach(function(code, i) {
+      setTimeout(function() {
+        document.dispatchEvent(new KeyboardEvent('keydown', { keyCode: code, which: code }));
+      }, i * 50);
+    });
+  </script>
+</body>
+</html>

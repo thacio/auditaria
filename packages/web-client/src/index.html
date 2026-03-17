@@ -173,15 +173,6 @@
                             </svg>
                             <span class="rail-label">Debug</span>
                         </button>
-                        <button id="games-button" class="rail-button" data-tooltip="Arcade" aria-label="Play Mini Games">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="2" y="6" width="20" height="12" rx="3"></rect>
-                                <circle cx="9" cy="12" r="2"></circle>
-                                <path d="M17 10v4"></path>
-                                <path d="M15 12h4"></path>
-                            </svg>
-                            <span class="rail-label">Arcade</span>
-                        </button>
                     </div>
                     <div class="rail-spacer"></div>
                     <div class="rail-group rail-group-bottom">
@@ -209,6 +200,15 @@
                                 <polyline points="6,14 18,14 18,18 6,18"></polyline>
                             </svg>
                             <span class="rail-label">Print</span>
+                        </button>
+                        <button id="games-button" class="rail-button" data-tooltip="Arcade" aria-label="Play Mini Games">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="6" width="20" height="12" rx="3"></rect>
+                                <circle cx="9" cy="12" r="2"></circle>
+                                <path d="M17 10v4"></path>
+                                <path d="M15 12h4"></path>
+                            </svg>
+                            <span class="rail-label">Arcade</span>
                         </button>
                     </div>
                 </nav>
@@ -400,7 +400,7 @@
                     </div>
                     <div class="games-canvas-wrap">
                         <canvas id="games-canvas"></canvas>
-                        <iframe id="games-iframe" style="display:none;" sandbox="allow-scripts allow-same-origin allow-popups" allowfullscreen></iframe>
+                        <iframe id="games-iframe" style="display:none;" allowfullscreen></iframe>
                     </div>
                     <div class="games-play-controls"></div>
                 </div>

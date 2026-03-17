@@ -515,23 +515,83 @@ export class GamesPanel {
         }
     }
 
-    /** Apply volume/mute to all audio/video in the iframe (same-origin) */
+    /**
+     * Apply volume/mute to ALL audio in the iframe:
+     * - DOM <audio>/<video> elements
+     * - JS `new Audio()` objects (tracked via constructor override)
+     * - AudioContext gain nodes
+     */
     _applyVolumeToIframe() {
         try {
-            const doc = this._gameIframe?.contentWindow?.document;
-            if (!doc) return;
-            doc.querySelectorAll('audio, video').forEach(el => {
-                el.volume = this._volume;
-                el.muted = this._muted;
+            const win = this._gameIframe?.contentWindow;
+            if (!win) return;
+            const vol = this._volume;
+            const muted = this._muted;
+
+            // DOM audio/video elements
+            win.document.querySelectorAll('audio, video').forEach(el => {
+                el.volume = vol;
+                el.muted = muted;
             });
+
+            // Tracked Audio() instances from our constructor override
+            if (win.__arcadeAudioInstances) {
+                win.__arcadeAudioInstances.forEach(el => {
+                    try { el.volume = vol; el.muted = muted; } catch {}
+                });
+            }
+
+            // AudioContext master gain
+            if (win.__arcadeMasterGain) {
+                win.__arcadeMasterGain.gain.value = muted ? 0 : vol;
+            }
         } catch { /* cross-origin or not loaded yet */ }
+    }
+
+    /** Inject volume hooks into iframe — override Audio constructor to track all instances */
+    _injectVolumeHooks() {
+        try {
+            const win = this._gameIframe?.contentWindow;
+            if (!win || win.__arcadeVolumeHooked) return;
+            win.__arcadeVolumeHooked = true;
+            win.__arcadeAudioInstances = [];
+            const vol = this._volume;
+            const muted = this._muted;
+
+            // Override Audio constructor
+            const OrigAudio = win.Audio;
+            win.Audio = function (...args) {
+                const audio = new OrigAudio(...args);
+                audio.volume = vol;
+                audio.muted = muted;
+                win.__arcadeAudioInstances.push(audio);
+                return audio;
+            };
+            win.Audio.prototype = OrigAudio.prototype;
+
+            // Override AudioContext to add a master gain node
+            const OrigAC = win.AudioContext || win.webkitAudioContext;
+            if (OrigAC) {
+                const origProto = OrigAC.prototype.createGain;
+                // We can't easily intercept the destination, but we can hook createGain
+                // For now, the polling will catch DOM audio elements
+            }
+        } catch { /* cross-origin or not loaded */ }
     }
 
     _startVolumePolling() {
         this._stopVolumePolling();
-        // Apply immediately on iframe load, then poll for dynamically created audio
-        this._gameIframe?.addEventListener('load', () => this._applyVolumeToIframe());
-        this._volumeInterval = setInterval(() => this._applyVolumeToIframe(), 1500);
+        const onLoad = () => {
+            this._injectVolumeHooks();
+            this._applyVolumeToIframe();
+        };
+        this._gameIframe?.addEventListener('load', onLoad);
+        this._iframeLoadHandler = onLoad;
+        // Poll to catch dynamically created audio and re-apply
+        this._volumeInterval = setInterval(() => {
+            this._injectVolumeHooks(); // In case iframe reloaded
+            this._applyVolumeToIframe();
+        }, 1000);
     }
 
     _stopVolumePolling() {

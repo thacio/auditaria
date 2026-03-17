@@ -163,25 +163,6 @@ export const GAMES = [
         </svg>`,
     },
     {
-        id: 'space-invaders',
-        name: 'Space Invaders',
-        tagline: 'Defend Earth from aliens.',
-        controls: 'Left/Right to move, Space to shoot',
-        type: 'iframe',
-        iframeSrc: '/arcade/space-invaders/index.html',
-        iframeSize: { width: 500, height: 480 },
-        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
-            <rect x="10" y="8" width="4" height="4" rx="1"/>
-            <rect x="26" y="8" width="4" height="4" rx="1"/>
-            <rect x="6" y="12" width="28" height="12" rx="2"/>
-            <rect x="4" y="24" width="4" height="6" rx="1"/>
-            <rect x="32" y="24" width="4" height="6" rx="1"/>
-            <rect x="10" y="24" width="4" height="4" rx="1"/>
-            <rect x="26" y="24" width="4" height="4" rx="1"/>
-            <rect x="16" y="32" width="8" height="4" rx="1" opacity="0.5"/>
-        </svg>`,
-    },
-    {
         id: 'racer',
         name: 'Outrun Racer',
         tagline: 'Pseudo-3D arcade racing.',
@@ -205,7 +186,7 @@ export const GAMES = [
         controls: 'Arrow keys to move',
         type: 'iframe',
         iframeSrc: '/arcade/pacman/index.html',
-        iframeSize: { width: 550, height: 660 },
+        iframeSize: { width: 560, height: 520 },
         icon: `<svg viewBox="0 0 40 40" fill="currentColor">
             <path d="M20 4 A16 16 0 1 1 20 36 A16 16 0 1 1 20 4 Z" opacity="0.9"/>
             <path d="M20 20 L36 10 L36 30 Z" fill="var(--bg, #1a1713)"/>
@@ -228,6 +209,62 @@ export const GAMES = [
             <rect x="12" y="26" width="16" height="3" rx="1"/>
             <rect x="10" y="29" width="20" height="4" rx="1.5" opacity="0.6"/>
             <rect x="8" y="33" width="24" height="3" rx="1.5"/>
+        </svg>`,
+    },
+    {
+        id: 'tower',
+        name: 'Tower Bloxx',
+        tagline: 'Stack blocks, build tall.',
+        controls: 'Click/tap to drop block',
+        type: 'iframe',
+        iframeSrc: '/arcade/tower/index.html',
+        iframeSize: { width: 400, height: 650 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <rect x="12" y="28" width="16" height="6" rx="1" opacity="0.9"/>
+            <rect x="13" y="22" width="14" height="6" rx="1" opacity="0.75"/>
+            <rect x="11" y="16" width="15" height="6" rx="1" opacity="0.6"/>
+            <rect x="14" y="10" width="13" height="6" rx="1" opacity="0.45"/>
+            <rect x="12" y="4" width="14" height="6" rx="1" opacity="0.3"/>
+        </svg>`,
+    },
+    {
+        id: 'minesweeper',
+        name: 'Minesweeper',
+        tagline: 'Find mines, don\'t explode.',
+        controls: 'Click to reveal, right-click to flag',
+        type: 'iframe',
+        iframeSrc: '/arcade/minesweeper/index.html',
+        iframeSize: { width: 500, height: 500 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <rect x="4" y="4" width="9" height="9" rx="1.5" opacity="0.3"/>
+            <rect x="15" y="4" width="9" height="9" rx="1.5" opacity="0.5"/>
+            <rect x="26" y="4" width="9" height="9" rx="1.5" opacity="0.3"/>
+            <rect x="4" y="15" width="9" height="9" rx="1.5" opacity="0.5"/>
+            <rect x="15" y="15" width="9" height="9" rx="1.5" opacity="0.9"/>
+            <rect x="26" y="15" width="9" height="9" rx="1.5" opacity="0.5"/>
+            <rect x="4" y="26" width="9" height="9" rx="1.5" opacity="0.3"/>
+            <rect x="15" y="26" width="9" height="9" rx="1.5" opacity="0.5"/>
+            <rect x="26" y="26" width="9" height="9" rx="1.5" opacity="0.3"/>
+            <circle cx="19.5" cy="19.5" r="3" fill="var(--error, #ef4444)"/>
+            <text x="8.5" y="13" font-size="7" font-weight="bold" text-anchor="middle" fill="currentColor">1</text>
+        </svg>`,
+    },
+    {
+        id: 'tis-tetris',
+        name: 'Tis Tetris',
+        tagline: 'Full Tetris in 4KB.',
+        controls: 'Arrows to move, Up to rotate, Space to drop',
+        type: 'iframe',
+        iframeSrc: '/arcade/tis-tetris/index.html',
+        iframeSize: { width: 400, height: 550 },
+        icon: `<svg viewBox="0 0 40 40" fill="currentColor">
+            <rect x="10" y="6" width="7" height="7" rx="1.5" opacity="0.9"/>
+            <rect x="17" y="6" width="7" height="7" rx="1.5" opacity="0.9"/>
+            <rect x="17" y="13" width="7" height="7" rx="1.5" opacity="0.9"/>
+            <rect x="24" y="13" width="7" height="7" rx="1.5" opacity="0.9"/>
+            <rect x="8" y="26" width="24" height="7" rx="1.5" opacity="0.3"/>
+            <rect x="8" y="33" width="24" height="3" rx="1" opacity="0.2"/>
+            <text x="20" y="32" font-size="6" font-weight="bold" text-anchor="middle" opacity="0.5">4KB</text>
         </svg>`,
     },
 ];
