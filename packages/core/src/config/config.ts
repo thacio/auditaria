@@ -427,6 +427,7 @@ import {
   SimpleExtensionLoader,
 } from '../utils/extensionLoader.js';
 import { McpClientManager } from '../tools/mcp-client-manager.js';
+import { A2AClientManager } from '../agents/a2a-client-manager.js';
 import { type McpContext } from '../tools/mcp-client.js';
 import type { EnvironmentSanitizationConfig } from '../services/environmentSanitization.js';
 import { getErrorMessage } from '../utils/errors.js';
@@ -677,6 +678,7 @@ export interface ConfigParameters {
 export class Config implements McpContext, AgentLoopContext {
   private _toolRegistry!: ToolRegistry;
   private mcpClientManager?: McpClientManager;
+  private readonly a2aClientManager?: A2AClientManager;
   private allowedMcpServers: string[];
   private blockedMcpServers: string[];
   private allowedEnvironmentVariables: string[];
@@ -1239,6 +1241,7 @@ export class Config implements McpContext, AgentLoopContext {
       params.toolSandboxing ?? false,
       this.targetDir,
     );
+    this.a2aClientManager = new A2AClientManager(this);
     this.shellExecutionConfig.sandboxManager = this._sandboxManager;
     this.modelRouterService = new ModelRouterService(this);
   }
@@ -2066,6 +2069,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   getMcpClientManager(): McpClientManager | undefined {
     return this.mcpClientManager;
+  }
+
+  getA2AClientManager(): A2AClientManager | undefined {
+    return this.a2aClientManager;
   }
 
   setUserInteractedWithMcp(): void {

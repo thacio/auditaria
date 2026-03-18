@@ -1524,7 +1524,7 @@ describe('Server Config (config.ts)', () => {
 
       const paramsWithProxy: ConfigParameters = {
         ...baseParams,
-        proxy: 'invalid-proxy',
+        proxy: 'http://invalid-proxy:8080',
       };
       new Config(paramsWithProxy);
 
