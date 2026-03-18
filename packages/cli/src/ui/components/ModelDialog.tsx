@@ -5,12 +5,13 @@
  */
 
 import type React from 'react';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import {
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_3_1_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
+  PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL,
   PREVIEW_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
@@ -21,6 +22,8 @@ import {
   getDisplayString,
   AuthType,
   PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL,
+  isProModel,
+  UserTierId,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -103,9 +106,12 @@ function getCodexModelFromSelection(value: string): string | undefined {
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
   const settings = useSettings();
-  const [view, setView] = useState<'main' | 'manual' | 'claude' | 'codex' | 'copilot'>(
-    'main',
-  ); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
+  const [hasAccessToProModel, setHasAccessToProModel] = useState<boolean>(
+    () => !(config?.getProModelNoAccessSync() ?? false),
+  );
+  const [view, setView] = useState<
+    'main' | 'manual' | 'claude' | 'codex' | 'copilot'
+  >(() => (config?.getProModelNoAccessSync() ? 'manual' : 'main')); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const availability = config?.getProviderAvailability() ?? {
     claude: false,
@@ -131,6 +137,18 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         providerConfig?.type === 'codex-cli' ? providerConfig.model : undefined;
       return clampCodexReasoningEffortForModel(codexModel, initialEffort);
     });
+
+  useEffect(() => {
+    async function checkAccess() {
+      if (!config) return;
+      const noAccess = await config.getProModelNoAccess();
+      setHasAccessToProModel(!noAccess);
+      if (noAccess) {
+        setView('manual');
+      }
+    }
+    void checkAccess();
+  }, [config]);
 
   // Determine the Preferred Model (read once when the dialog opens).
   const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
@@ -180,7 +198,12 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   useKeypress(
     (key) => {
       if (key.name === 'escape') {
-        if (view === 'manual' || view === 'claude' || view === 'codex' || view === 'copilot') {
+        if (
+          (view === 'manual' && hasAccessToProModel) ||
+          view === 'claude' ||
+          view === 'codex' ||
+          view === 'copilot'
+        ) {
           // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: handle submenu views
           setView('main');
         } else {
@@ -307,6 +330,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const manualOptions = useMemo(() => {
+    const isFreeTier = config?.getUserTier() === UserTierId.FREE;
     const list = [
       {
         value: DEFAULT_GEMINI_MODEL,
@@ -334,7 +358,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         ? PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL
         : previewProModel;
 
-      list.unshift(
+      const previewOptions = [
         {
           value: previewProValue,
           title: getDisplayString(previewProModel),
@@ -345,10 +369,32 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           title: getDisplayString(PREVIEW_GEMINI_FLASH_MODEL),
           key: PREVIEW_GEMINI_FLASH_MODEL,
         },
-      );
+      ];
+
+      if (isFreeTier) {
+        previewOptions.push({
+          value: PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL,
+          title: getDisplayString(PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL),
+          key: PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL,
+        });
+      }
+
+      list.unshift(...previewOptions);
     }
+
+    if (!hasAccessToProModel) {
+      // Filter out all Pro models for free tier
+      return list.filter((option) => !isProModel(option.value));
+    }
+
     return list;
-  }, [shouldShowPreviewModels, useGemini31, useCustomToolModel]);
+  }, [
+    shouldShowPreviewModels,
+    useGemini31,
+    useCustomToolModel,
+    hasAccessToProModel,
+    config,
+  ]);
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Claude submenu options
   const claudeOptions = useMemo(
@@ -440,7 +486,14 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       return manualIdx !== -1 ? manualIdx : 0;
     }
     return 0;
-  }, [preferredModel, options, view, isClaudeActive, isCodexActive, isCopilotActive]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
+  }, [
+    preferredModel,
+    options,
+    view,
+    isClaudeActive,
+    isCodexActive,
+    isCopilotActive,
+  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   // Handle selection internally (Autonomous Dialog).
   const handleSelect = useCallback(
