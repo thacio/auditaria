@@ -13,6 +13,7 @@ import type {
 import { getResponseText } from './partUtils.js';
 import { supportsMultimodalFunctionResponse } from '../config/models.js';
 import { debugLogger } from './debugLogger.js';
+import type { Config } from '../config/config.js';
 
 /**
  * Formats tool output for a Gemini FunctionResponse.
@@ -48,6 +49,7 @@ export function convertToFunctionResponse(
   callId: string,
   llmContent: PartListUnion,
   model: string,
+  config?: Config,
 ): Part[] {
   if (typeof llmContent === 'string') {
     return [createFunctionResponsePart(callId, toolName, llmContent)];
@@ -59,7 +61,7 @@ export function convertToFunctionResponse(
   const textParts: string[] = [];
   const inlineDataParts: Part[] = [];
   const fileDataParts: Part[] = [];
-  let complexOutput: any = undefined;
+  let complexOutput: Part | undefined = undefined;
 
   for (const part of parts) {
     if (part.text !== undefined) {
@@ -97,11 +99,26 @@ export function convertToFunctionResponse(
     functionResponse: {
       id: callId,
       name: toolName,
-      response: textParts.length > 0 ? { output: textParts.length === 1 && typeof llmContent !== 'string' && !Array.isArray(llmContent) ? textParts[0] : textParts.join('\n') } : (complexOutput ? { output: complexOutput } : {}),
+      response:
+        textParts.length > 0
+          ? {
+              output:
+                textParts.length === 1 &&
+                typeof llmContent !== 'string' &&
+                !Array.isArray(llmContent)
+                  ? textParts[0]
+                  : textParts.join('\n'),
+            }
+          : complexOutput
+            ? { output: complexOutput }
+            : {},
     },
   };
 
-  const isMultimodalFRSupported = supportsMultimodalFunctionResponse(model);
+  const isMultimodalFRSupported = supportsMultimodalFunctionResponse(
+    model,
+    config,
+  );
   const siblingParts: Part[] = [...fileDataParts];
 
   if (inlineDataParts.length > 0) {
