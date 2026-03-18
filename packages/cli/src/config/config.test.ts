@@ -818,7 +818,9 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
 
   it('should pass extension context file paths to loadServerHierarchicalMemory', async () => {
     process.argv = ['node', 'script.js'];
-    const settings = createTestMergedSettings();
+    const settings = createTestMergedSettings({
+      experimental: { jitContext: false },
+    });
     vi.spyOn(ExtensionManager.prototype, 'getExtensions').mockReturnValue([
       {
         path: '/path/to/ext1',
@@ -869,6 +871,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
     process.argv = ['node', 'script.js'];
     const includeDir = path.resolve(path.sep, 'path', 'to', 'include');
     const settings = createTestMergedSettings({
+      experimental: { jitContext: false },
       context: {
         includeDirectories: [includeDir],
         loadMemoryFromIncludeDirectories: true,
@@ -896,6 +899,7 @@ describe('Hierarchical Memory Loading (config.ts) - Placeholder Suite', () => {
   it('should NOT pass includeDirectories to loadServerHierarchicalMemory when loadMemoryFromIncludeDirectories is false', async () => {
     process.argv = ['node', 'script.js'];
     const settings = createTestMergedSettings({
+      experimental: { jitContext: false },
       context: {
         includeDirectories: ['/path/to/include'],
         loadMemoryFromIncludeDirectories: false,
