@@ -922,6 +922,8 @@ export async function loadCliConfig(
     includeDirectories,
     loadMemoryFromIncludeDirectories:
       settings.context?.loadMemoryFromIncludeDirectories || false,
+    discoveryMaxDirs: settings.context?.discoveryMaxDirs,
+    importFormat: settings.context?.importFormat,
     debugMode,
     question,
 
