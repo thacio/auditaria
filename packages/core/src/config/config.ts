@@ -1217,7 +1217,10 @@ export class Config implements McpContext, AgentLoopContext {
       this.providerManager.setAppConfig(this); // AUDITARIA_CLAUDE_PROVIDER
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
-    this._sandboxManager = createSandboxManager(params.toolSandboxing ?? false);
+    this._sandboxManager = createSandboxManager(
+      params.toolSandboxing ?? false,
+      this.targetDir,
+    );
     this.shellExecutionConfig.sandboxManager = this._sandboxManager;
     this.modelRouterService = new ModelRouterService(this);
   }
