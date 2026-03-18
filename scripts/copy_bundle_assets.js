@@ -17,7 +17,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { copyFileSync, existsSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  cpSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { glob } from 'glob';
@@ -171,13 +178,18 @@ if (existsSync(join(stagehandSrc, 'package.json'))) {
 
   // AUDITARIA: Copy package.json but override "type" to "commonjs" since esbuild
   // re-bundles stagehand as CJS into dist/index.js
-  const stagehandPkg = JSON.parse(readFileSync(join(stagehandSrc, 'package.json'), 'utf8'));
+  const stagehandPkg = JSON.parse(
+    readFileSync(join(stagehandSrc, 'package.json'), 'utf8'),
+  );
   stagehandPkg.type = 'commonjs';
   stagehandPkg.main = './dist/index.js';
   // Override exports to point to the single re-bundled CJS file
   stagehandPkg.exports = { '.': './dist/index.js' };
   delete stagehandPkg.module;
-  writeFileSync(join(stagehandDest, 'package.json'), JSON.stringify(stagehandPkg, null, 2) + '\n');
+  writeFileSync(
+    join(stagehandDest, 'package.json'),
+    JSON.stringify(stagehandPkg, null, 2) + '\n',
+  );
 
   console.log(
     'Stagehand package.json copied to bundle/node_modules/@browserbasehq/stagehand/',
@@ -268,6 +280,14 @@ if (existsSync(devtoolsDistSrc)) {
     join(devtoolsDest, 'package.json'),
   );
   console.log('Copied devtools package to bundle/node_modules/');
+}
+
+// 6. Copy bundled chrome-devtools-mcp
+const bundleMcpSrc = join(root, 'packages/core/dist/bundled');
+const bundleMcpDest = join(bundleDir, 'bundled');
+if (existsSync(bundleMcpSrc)) {
+  cpSync(bundleMcpSrc, bundleMcpDest, { recursive: true, dereference: true });
+  console.log('Copied bundled chrome-devtools-mcp to bundle/bundled/');
 }
 
 console.log('Assets and locale files copied to bundle/');
