@@ -78,6 +78,16 @@ export class FileTreePanel extends EventEmitter {
     this.createElements();
     this.setupEventHandlers();
     this.loadState();
+
+    // Re-request file tree after initialization is complete.
+    // The initial file_tree_response may have arrived before our event listener
+    // was registered (race condition: WebSocket is fast, loadVSCodeElements is async).
+    // This ensures we always have the current tree data.
+    if (this.fileTreeManager.treeData) {
+      this.updateTree(this.fileTreeManager.treeData);
+    } else {
+      this.fileTreeManager.requestFileTree();
+    }
   }
 
   /**

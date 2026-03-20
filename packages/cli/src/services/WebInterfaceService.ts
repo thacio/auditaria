@@ -866,28 +866,41 @@ export class WebInterfaceService extends EventEmitter {
         }
       }
 
+      // AUDITARIA: Try sequential ports before random fallback.
+      // Order: requested port → next 4 sequential ports → random.
+      // This keeps ports predictable for platform deployments (Docker publishes a range).
       let usedFallback = false;
-      try {
-        // Try requested port first
-        this.server = await this.startServerOnPort(requestedPort, host);
-      } catch (error: any) {
-        if (error.code === 'EADDRINUSE') {
-          try {
-            // Retry with random port (0 = random)
-            this.server = await this.startServerOnPort(0, host);
-            usedFallback = true;
-          } catch (fallbackError: any) {
-            // If fallback also fails, throw the original error with more context
-            throw new Error(
-              `Failed to start web server on port ${requestedPort} (in use) and fallback to random port also failed: ${fallbackError.message}`,
-            );
-          }
-        } else {
-          throw error; // Re-throw non-port-conflict errors
+      const portsToTry = [requestedPort];
+      for (let i = 1; i <= 4; i++) {
+        portsToTry.push(requestedPort + i);
+      }
+
+      let started = false;
+      for (const port of portsToTry) {
+        try {
+          this.server = await this.startServerOnPort(port, host);
+          usedFallback = port !== requestedPort;
+          started = true;
+          break;
+        } catch (error: any) {
+          if (error.code !== 'EADDRINUSE') throw error;
+          // Port in use — try next
         }
       }
 
-      const address = this.server.address();
+      if (!started) {
+        try {
+          // All sequential ports taken — fall back to random
+          this.server = await this.startServerOnPort(0, host);
+          usedFallback = true;
+        } catch (fallbackError: any) {
+          throw new Error(
+            `Failed to start web server on ports ${portsToTry.join(', ')} (all in use) and random fallback also failed: ${fallbackError.message}`,
+          );
+        }
+      }
+
+      const address = this.server!.address();
       if (!address || typeof address === 'string') {
         throw new Error(
           `Failed to get server address. Address type: ${typeof address}, value: ${address}`,
