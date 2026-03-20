@@ -854,7 +854,7 @@ export class WebInterfaceService extends EventEmitter {
 
       // Start HTTP server with port fallback
       let requestedPort = config.port || 8629; // Default to 8629
-      const host = config.host || 'localhost';
+      const host = config.host || process.env.AUDITARIA_WEB_HOST || 'localhost'; // AUDITARIA: allow env override for container deployments
 
       // Validate port number
       if (config.port !== undefined && config.port !== null) {
