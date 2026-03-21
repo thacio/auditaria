@@ -142,6 +142,7 @@ export function logToolCall(config: Config, event: ToolCallEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
+    // eslint-disable-next-line @typescript-eslint/no-misused-spread
     ...event,
     'event.name': EVENT_TOOL_CALL,
     'event.timestamp': new Date().toISOString(),
@@ -288,6 +289,7 @@ export function logApiError(config: Config, event: ApiErrorEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
+    // eslint-disable-next-line @typescript-eslint/no-misused-spread
     ...event,
     'event.name': EVENT_API_ERROR,
     'event.timestamp': new Date().toISOString(),
@@ -327,6 +329,7 @@ export function logApiResponse(config: Config, event: ApiResponseEvent): void {
   // KEEP LOCAL UI TELEMETRY: This stays local for UI display
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
+    // eslint-disable-next-line @typescript-eslint/no-misused-spread
     ...event,
     'event.name': EVENT_API_RESPONSE,
     'event.timestamp': new Date().toISOString(),
@@ -433,6 +436,7 @@ export function logSlashCommand(
 export function logRewind(config: Config, event: RewindEvent): void {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
   const uiEvent = {
+    // eslint-disable-next-line @typescript-eslint/no-misused-spread
     ...event,
     'event.name': EVENT_REWIND,
     'event.timestamp': new Date().toISOString(),

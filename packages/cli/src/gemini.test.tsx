@@ -126,6 +126,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
       clearInstance: vi.fn(),
     },
     coreEvents: {
+      // eslint-disable-next-line @typescript-eslint/no-misused-spread
       ...actual.coreEvents,
       emitFeedback: vi.fn(),
       emitConsoleLog: vi.fn(),
@@ -1519,6 +1520,7 @@ describe('startInteractiveUI', () => {
       .spyOn(process.stdout, 'write')
       .mockImplementation(() => true);
     const mockConfigWithScreenReader = {
+      // eslint-disable-next-line @typescript-eslint/no-misused-spread
       ...mockConfig,
       getScreenReader: () => screenReader,
     } as Config;
