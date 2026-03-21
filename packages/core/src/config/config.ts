@@ -651,6 +651,7 @@ export interface ConfigParameters {
   disabledSkills?: string[];
   adminSkillsEnabled?: boolean;
   experimentalJitContext?: boolean;
+  experimentalMemoryManager?: boolean;
   topicUpdateNarration?: boolean;
   toolOutputMasking?: Partial<ToolOutputMaskingConfig>;
   disableLLMCorrection?: boolean;
@@ -893,6 +894,7 @@ export class Config implements McpContext, AgentLoopContext {
 
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
   private readonly experimentalJitContext: boolean;
+  private readonly experimentalMemoryManager: boolean;
   private readonly topicUpdateNarration: boolean;
   private readonly disableLLMCorrection: boolean;
   private readonly planEnabled: boolean;
@@ -1054,6 +1056,7 @@ export class Config implements McpContext, AgentLoopContext {
     );
 
     this.experimentalJitContext = params.experimentalJitContext ?? true;
+    this.experimentalMemoryManager = params.experimentalMemoryManager ?? false;
     this.topicUpdateNarration = params.topicUpdateNarration ?? false;
     this.modelSteering = params.modelSteering ?? false;
     this.injectionService = new InjectionService(() =>
@@ -2223,6 +2226,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   isJitContextEnabled(): boolean {
     return this.experimentalJitContext;
+  }
+
+  isMemoryManagerEnabled(): boolean {
+    return this.experimentalMemoryManager;
   }
 
   isTopicUpdateNarrationEnabled(): boolean {
@@ -3494,9 +3501,11 @@ export class Config implements McpContext, AgentLoopContext {
     maybeRegister(ShellTool, () =>
       registry.registerTool(new ShellTool(this, this.messageBus)),
     );
-    maybeRegister(MemoryTool, () =>
-      registry.registerTool(new MemoryTool(this.messageBus)),
-    );
+    if (!this.isMemoryManagerEnabled()) {
+      maybeRegister(MemoryTool, () =>
+        registry.registerTool(new MemoryTool(this.messageBus)),
+      );
+    }
     maybeRegister(WebSearchTool, () =>
       registry.registerTool(new WebSearchTool(this, this.messageBus)),
     );

@@ -196,6 +196,7 @@ export class PromptProvider {
             interactiveShellEnabled: context.config.isInteractiveShellEnabled(),
             topicUpdateNarration:
               context.config.isTopicUpdateNarrationEnabled(),
+            memoryManagerEnabled: context.config.isMemoryManagerEnabled(),
             // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
           }),

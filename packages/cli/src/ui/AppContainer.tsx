@@ -1065,10 +1065,18 @@ Logging in with Google... Restarting Gemini CLI to continue.
       Date.now(),
     );
     try {
-      const { memoryContent, fileCount } =
-        await refreshServerHierarchicalMemory(config);
+      let flattenedMemory: string;
+      let fileCount: number;
 
-      const flattenedMemory = flattenMemory(memoryContent);
+      if (config.isJitContextEnabled()) {
+        await config.getContextManager()?.refresh();
+        flattenedMemory = flattenMemory(config.getUserMemory());
+        fileCount = config.getGeminiMdFileCount();
+      } else {
+        const result = await refreshServerHierarchicalMemory(config);
+        flattenedMemory = flattenMemory(result.memoryContent);
+        fileCount = result.fileCount;
+      }
 
       historyManager.addItem(
         {
@@ -2624,7 +2632,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       debugMode,
       debugMessage,
       corgiMode,
-      showMemoryUsage: debugMode || (settings.merged.ui.showMemoryUsage ?? false),
+      showMemoryUsage:
+        debugMode || (settings.merged.ui.showMemoryUsage ?? false),
       showErrorDetails,
     };
 
@@ -2753,16 +2762,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
     mcpClientUpdateCounter,
   ]);
 
-  // Broadcast console messages
-  useEffect(() => {
-    if (
-      filteredConsoleMessages &&
-      webInterface?.service &&
-      webInterface.isRunning
-    ) {
-      webInterface.service.broadcastConsoleMessages(filteredConsoleMessages);
-    }
-  }, [filteredConsoleMessages, webInterface?.service, webInterface?.isRunning]);
+  // WEB_INTERFACE: Console messages moved to useConsoleMessages() hook in DetailedMessagesDisplay
+  // TODO: Re-implement web broadcast using the new hook if needed
 
   // Broadcast CLI action required messages for different dialogs
   useEffect(() => {
