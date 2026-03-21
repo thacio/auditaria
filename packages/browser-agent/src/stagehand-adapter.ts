@@ -115,7 +115,10 @@ function createDefaultExtractionSchema(z: ZodModule): unknown {
 function isEmptySchema(schema: JsonSchema | undefined): boolean {
   if (!schema) return true;
   if (!schema.type) return true;
-  if (schema.type === 'object' && (!schema.properties || Object.keys(schema.properties).length === 0)) {
+  if (
+    schema.type === 'object' &&
+    (!schema.properties || Object.keys(schema.properties).length === 0)
+  ) {
     return true;
   }
   return false;
@@ -174,7 +177,9 @@ function jsonSchemaToZod(z: ZodModule, schema: JsonSchema): unknown {
         for (const [key, propSchema] of Object.entries(schema.properties)) {
           const zodType = jsonSchemaToZod(z, propSchema);
           // Make optional if not in required array
-          shape[key] = required.includes(key) ? zodType : (zodType as any).optional();
+          shape[key] = required.includes(key)
+            ? zodType
+            : (zodType as any).optional();
         }
 
         return z.object(shape);
@@ -235,9 +240,12 @@ export class StagehandAdapter {
         ? pathToFileURL(path.join(__dirname, '..', 'package.json')).href
         : null,
       // 3. Try from CLI package (when running from project root)
-      pathToFileURL(path.join(process.cwd(), 'packages', 'cli', 'package.json')).href,
+      pathToFileURL(path.join(process.cwd(), 'packages', 'cli', 'package.json'))
+        .href,
       // 4. Try from browser-agent package (local dev fallback)
-      pathToFileURL(path.join(process.cwd(), 'packages', 'browser-agent', 'package.json')).href,
+      pathToFileURL(
+        path.join(process.cwd(), 'packages', 'browser-agent', 'package.json'),
+      ).href,
     ].filter(Boolean) as string[];
 
     return this.resolutionPaths;
@@ -325,7 +333,9 @@ export class StagehandAdapter {
         return scaleFactor;
       }
     } catch {
-      logger.warn('[StagehandAdapter] Could not read Windows DPI from registry');
+      logger.warn(
+        '[StagehandAdapter] Could not read Windows DPI from registry',
+      );
     }
 
     return undefined;
@@ -344,11 +354,17 @@ export class StagehandAdapter {
         const execPath = playwright.chromium.executablePath();
         const fs = await import('fs');
         if (fs.existsSync(execPath)) {
-          logger.debug(`[StagehandAdapter] Using Playwright Chromium: ${execPath}`);
+          logger.debug(
+            `[StagehandAdapter] Using Playwright Chromium: ${execPath}`,
+          );
           return execPath;
         } else {
-          logger.warn(`[StagehandAdapter] Playwright Chromium not found at: ${execPath}`);
-          logger.warn('[StagehandAdapter] Run "npx playwright install chromium" to install it');
+          logger.warn(
+            `[StagehandAdapter] Playwright Chromium not found at: ${execPath}`,
+          );
+          logger.warn(
+            '[StagehandAdapter] Run "npx playwright install chromium" to install it',
+          );
         }
       } catch {
         // Fallback to createRequire for bundled/global installs
@@ -361,11 +377,17 @@ export class StagehandAdapter {
             const execPath = playwright.chromium.executablePath();
             const fs = await import('fs');
             if (fs.existsSync(execPath)) {
-              logger.debug(`[StagehandAdapter] Using Playwright Chromium: ${execPath}`);
+              logger.debug(
+                `[StagehandAdapter] Using Playwright Chromium: ${execPath}`,
+              );
               return execPath;
             } else {
-              logger.warn(`[StagehandAdapter] Playwright Chromium not found at: ${execPath}`);
-              logger.warn('[StagehandAdapter] Run "npx playwright install chromium" to install it');
+              logger.warn(
+                `[StagehandAdapter] Playwright Chromium not found at: ${execPath}`,
+              );
+              logger.warn(
+                '[StagehandAdapter] Run "npx playwright install chromium" to install it',
+              );
             }
             break;
           } catch {
@@ -374,7 +396,10 @@ export class StagehandAdapter {
         }
       }
     } catch (error) {
-      logger.debug('[StagehandAdapter] Could not get Playwright Chromium path:', error);
+      logger.debug(
+        '[StagehandAdapter] Could not get Playwright Chromium path:',
+        error,
+      );
     }
 
     // Fall back to chrome-launcher auto-detection (system Chrome)
@@ -454,22 +479,22 @@ export class StagehandAdapter {
       env: 'LOCAL',
       model: modelConfig,
       localBrowserLaunchOptions: {
-        headless: this.config.headless ?? (process.env.DISPLAY ? false : true),  // AUDITARIA: headless when no display (Docker)
+        headless: this.config.headless ?? (process.env.DISPLAY ? false : true), // AUDITARIA: headless when no display (Docker)
         // COMMENTED OUT: Let chrome-launcher auto-detect system Chrome
         // ...(chromiumPath && { executablePath: chromiumPath }),
-        ...(deviceScaleFactor !== undefined && { deviceScaleFactor }),  // Only set on Windows
+        ...(deviceScaleFactor !== undefined && { deviceScaleFactor }), // Only set on Windows
         args: [
-          '--start-minimized',                         // Start browser minimized to avoid flash
-          '--disable-backgrounding-occluded-windows',  // Keep rendering when window is covered
-          '--disable-renderer-backgrounding',          // Prevent renderer throttling
-          '--disable-background-timer-throttling',     // Prevent timer throttling
-          '--disable-ipc-flooding-protection',         // Allow high-frequency IPC for streaming
-          '--no-sandbox',                              // AUDITARIA: required in Docker containers (no setuid sandbox)
-          '--disable-setuid-sandbox',                  // AUDITARIA: fallback sandbox disable
+          '--start-minimized', // Start browser minimized to avoid flash
+          '--disable-backgrounding-occluded-windows', // Keep rendering when window is covered
+          '--disable-renderer-backgrounding', // Prevent renderer throttling
+          '--disable-background-timer-throttling', // Prevent timer throttling
+          '--disable-ipc-flooding-protection', // Allow high-frequency IPC for streaming
+          '--no-sandbox', // AUDITARIA: required in Docker containers (no setuid sandbox)
+          '--disable-setuid-sandbox', // AUDITARIA: fallback sandbox disable
         ],
       },
-      verbose: 0,           // Only show errors (0=errors, 1=info, 2=debug)
-      disablePino: true,    // Disable pino logger to reduce noise
+      verbose: 0, // Only show errors (0=errors, 1=info, 2=debug)
+      disablePino: true, // Disable pino logger to reduce noise
       enableCaching: false,
     } as any);
 
@@ -479,11 +504,16 @@ export class StagehandAdapter {
     // If browser is headed (not headless), minimize it immediately
     // This keeps the browser hidden during normal operation until user clicks "Take Over"
     if (!this.config.headless) {
-      logger.debug('[StagehandAdapter] Browser started in headed mode - minimizing window...');
+      logger.debug(
+        '[StagehandAdapter] Browser started in headed mode - minimizing window...',
+      );
       try {
         await this.minimizeWindow();
       } catch (error) {
-        logger.warn('[StagehandAdapter] Could not minimize window on startup:', error);
+        logger.warn(
+          '[StagehandAdapter] Could not minimize window on startup:',
+          error,
+        );
         // Don't fail initialization if minimization fails
       }
     }
@@ -516,7 +546,9 @@ export class StagehandAdapter {
    */
   async minimizeWindow(): Promise<void> {
     if (this.config.headless) {
-      logger.debug('[StagehandAdapter] Cannot minimize headless browser - skipping');
+      logger.debug(
+        '[StagehandAdapter] Cannot minimize headless browser - skipping',
+      );
       return;
     }
 
@@ -524,12 +556,14 @@ export class StagehandAdapter {
 
     try {
       // Get window ID via CDP
-      const { windowId } = await (page as any).sendCDP('Browser.getWindowForTarget');
+      const { windowId } = await (page as any).sendCDP(
+        'Browser.getWindowForTarget',
+      );
 
       // Minimize window
       await (page as any).sendCDP('Browser.setWindowBounds', {
         windowId,
-        bounds: { windowState: 'minimized' }
+        bounds: { windowState: 'minimized' },
       });
 
       logger.debug('[StagehandAdapter] Browser window minimized');
@@ -546,7 +580,9 @@ export class StagehandAdapter {
    */
   async showWindow(): Promise<void> {
     if (this.config.headless) {
-      logger.debug('[StagehandAdapter] Cannot show headless browser - skipping');
+      logger.debug(
+        '[StagehandAdapter] Cannot show headless browser - skipping',
+      );
       return;
     }
 
@@ -554,18 +590,22 @@ export class StagehandAdapter {
 
     try {
       // Get window ID via CDP
-      const { windowId } = await (page as any).sendCDP('Browser.getWindowForTarget');
+      const { windowId } = await (page as any).sendCDP(
+        'Browser.getWindowForTarget',
+      );
 
       // Show window (normal state)
       await (page as any).sendCDP('Browser.setWindowBounds', {
         windowId,
-        bounds: { windowState: 'normal' }
+        bounds: { windowState: 'normal' },
       });
 
       // Bring window to front (focus it) via CDP - more reliable than Playwright's bringToFront
       await (page as any).sendCDP('Page.bringToFront');
 
-      logger.debug('[StagehandAdapter] Browser window shown and brought to front');
+      logger.debug(
+        '[StagehandAdapter] Browser window shown and brought to front',
+      );
     } catch (error) {
       logger.error('[StagehandAdapter] Failed to show window:', error);
       throw error;
@@ -603,7 +643,10 @@ export class StagehandAdapter {
         action: instruction,
       };
     } catch (error) {
-      logger.error('[StagehandAdapter] Error in act():', error instanceof Error ? error.message : String(error));
+      logger.error(
+        '[StagehandAdapter] Error in act():',
+        error instanceof Error ? error.message : String(error),
+      );
       throw error; // Re-throw so it's caught by the main execute() error handler
     }
   }
@@ -730,7 +773,11 @@ export class StagehandAdapter {
         // Auto-generate filename in browser-session/screenshots directory
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const ext = imageType === 'jpeg' ? 'jpg' : 'png';
-        const screenshotDir = path.join(process.cwd(), 'browser-session', 'screenshots');
+        const screenshotDir = path.join(
+          process.cwd(),
+          'browser-session',
+          'screenshots',
+        );
         // Ensure directory exists
         const fs = await import('node:fs');
         if (!fs.existsSync(screenshotDir)) {
@@ -853,10 +900,13 @@ export class StagehandAdapter {
         const sessionManager = SessionManager.getInstance();
         const sessionState = sessionManager.getSessionState(sessionId);
         if (sessionState === SessionState.STOPPING) {
-          logger.debug('[StagehandAdapter] User cancelled execution via STOP button');
+          logger.debug(
+            '[StagehandAdapter] User cancelled execution via STOP button',
+          );
           return {
             success: true,
-            message: '[Operation Cancelled] Reason: User cancelled the operation.',
+            message:
+              '[Operation Cancelled] Reason: User cancelled the operation.',
             steps: [],
             completed: false,
           };
@@ -867,14 +917,22 @@ export class StagehandAdapter {
       return this.mapAgentResult(result);
     } catch (error) {
       logger.error('[StagehandAdapter] Error in executeAgentTask:', error);
-      logger.error('[StagehandAdapter] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      logger.error(
+        '[StagehandAdapter] Error stack:',
+        error instanceof Error ? error.stack : 'No stack trace',
+      );
 
       // Handle user-initiated stop as successful cancellation
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('stopped by user') || errorMessage.includes('Agent stopped')) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes('stopped by user') ||
+        errorMessage.includes('Agent stopped')
+      ) {
         return {
           success: true, // Treat stop as successful cancellation, not error
-          message: '[Operation Cancelled] Reason: User cancelled the operation.',
+          message:
+            '[Operation Cancelled] Reason: User cancelled the operation.',
           steps: [],
           completed: false,
         };
@@ -901,11 +959,16 @@ export class StagehandAdapter {
       result: this.formatActionResult(action),
     }));
 
+    // Stagehand only sets completed=true when the agent calls the 'done' tool.
+    // If the agent finishes naturally with a message, treat it as completed.
+    const hasMessage = !!result.message && result.message.length > 0;
+    const completed = result.completed || hasMessage;
+
     return {
-      success: result.success,
+      success: completed || result.success,
       message: result.message,
       steps,
-      completed: result.completed,
+      completed,
       usage: result.usage
         ? {
             input_tokens: result.usage.input_tokens || 0,
