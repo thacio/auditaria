@@ -234,10 +234,12 @@ This workflow will automatically:
 Review the automatically created pull request(s) to ensure the cherry-pick was
 successful and the changes are correct. Once approved, merge the pull request.
 
-**Security note:** The `release/*` branches are protected by branch protection
-rules. A pull request to one of these branches requires at least one review from
-a code owner before it can be merged. This ensures that no unauthorized code is
-released.
+<!-- prettier-ignore -->
+> [!WARNING]
+> The `release/*` branches are protected by branch protection
+> rules. A pull request to one of these branches requires at least one review from
+> a code owner before it can be merged. This ensures that no unauthorized code is
+> released.
 
 #### 2.5. Adding multiple commits to a hotfix (advanced)
 
@@ -376,8 +378,8 @@ correctly.
 
 - `npx -y @thacio/auditaria@latest --version` to validate the push worked as
   expected if you were not doing a rc or dev tag
-- `npx -y @thacio/auditaria@<release tag> --version` to validate the tag
-  pushed appropriately
+- `npx -y @thacio/auditaria@<release tag> --version` to validate the tag pushed
+  appropriately
 - _This is destructive locally_
   `npm uninstall @thacio/auditaria && npm uninstall -g @thacio/auditaria && npm cache clean --force &&  npm install @thacio/auditaria@<version>`
 - Smoke testing a basic run through of exercising a few llm commands and tools
@@ -459,9 +461,9 @@ Here are the key stages:
 - **What happens:** The `npm publish` command is run for the
   `@google/gemini-cli-core` and `@thacio/auditaria` packages.
 - **Why:** This publishes them as standard Node.js packages. Users installing
-  via `npm install -g @thacio/auditaria` will download these packages, and
-  `npm` will handle installing the `@google/gemini-cli-core` dependency
-  automatically. The code in these packages is not bundled into a single file.
+  via `npm install -g @thacio/auditaria` will download these packages, and `npm`
+  will handle installing the `@google/gemini-cli-core` dependency automatically.
+  The code in these packages is not bundled into a single file.
 
 **Stage 4: Assembling and creating the GitHub release asset**
 
@@ -523,9 +525,11 @@ Notifications use
 [GitHub for Google Chat](https://workspace.google.com/marketplace/app/github_for_google_chat/536184076190).
 To modify the notifications, use `/github-settings` within the chat space.
 
-> [!WARNING] The following instructions describe a fragile workaround that
-> depends on the internal structure of the chat application's UI. It is likely
-> to break with future updates.
+<!-- prettier-ignore -->
+> [!WARNING]
+> The following instructions describe a fragile workaround that depends on the
+> internal structure of the chat application's UI. It is likely to break with
+> future updates.
 
 The list of available labels is not currently populated correctly. If you want
 to add a label that does not appear alphabetically in the first 30 labels in the
