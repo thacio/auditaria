@@ -435,15 +435,9 @@ export class StagehandAdapter {
     // Note: headless must be in localBrowserLaunchOptions per Stagehand v3 docs
     // See: https://docs.stagehand.dev/v3/configuration/browser
 
-    // Determine the correct model name format
-    // For OAuth mode, use short model name (e.g., "gemini-2.0-flash") to bypass AI SDK
-    // and use our patched GoogleClient which supports OAuth via @google/genai
-    // The AI SDK path (@ai-sdk/google) only supports API keys, not OAuth
-    let modelName: string = this.config.model;
-    if (clientOptions.authClient && this.config.model.startsWith('google/')) {
-      // Convert "google/gemini-2.0-flash" to "gemini-2.0-flash" for OAuth mode
-      modelName = this.config.model.replace('google/', '');
-    }
+    // Strip google/ prefix — Stagehand's deprecated path handles OAuth correctly
+    // via CodeAssistClient when authClient is present in clientOptions
+    const modelName: string = this.config.model.replace('google/', '');
 
     // Build the model config properly
     // Stagehand's resolveModelConfiguration extracts modelName and puts everything else in clientOptions
@@ -458,7 +452,7 @@ export class StagehandAdapter {
       env: 'LOCAL',
       model: modelConfig,
       localBrowserLaunchOptions: {
-        headless: this.config.headless ?? false,  // Default to headed mode (with takeover support)
+        headless: this.config.headless ?? (process.env.DISPLAY ? false : true),  // AUDITARIA: headless when no display (Docker)
         // COMMENTED OUT: Let chrome-launcher auto-detect system Chrome
         // ...(chromiumPath && { executablePath: chromiumPath }),
         ...(deviceScaleFactor !== undefined && { deviceScaleFactor }),  // Only set on Windows
@@ -468,6 +462,8 @@ export class StagehandAdapter {
           '--disable-renderer-backgrounding',          // Prevent renderer throttling
           '--disable-background-timer-throttling',     // Prevent timer throttling
           '--disable-ipc-flooding-protection',         // Allow high-frequency IPC for streaming
+          '--no-sandbox',                              // AUDITARIA: required in Docker containers (no setuid sandbox)
+          '--disable-setuid-sandbox',                  // AUDITARIA: fallback sandbox disable
         ],
       },
       verbose: 0,           // Only show errors (0=errors, 1=info, 2=debug)
@@ -842,10 +838,7 @@ export class StagehandAdapter {
         clientOptions.apiKey = this.config.apiKey;
       }
 
-      let modelName: string = this.config.model;
-      if (clientOptions.authClient && this.config.model.startsWith('google/')) {
-        modelName = this.config.model.replace('google/', '');
-      }
+      const modelName: string = this.config.model.replace('google/', '');
 
       const modelConfig: any = {
         modelName: modelName,

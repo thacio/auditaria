@@ -93,16 +93,11 @@ export interface BrowserAgentParams {
 
 /**
  * Supported models for browser agent
- * Note: Short model names (without 'google/' prefix) are used for OAuth mode
- * to bypass AI SDK and use our patched GoogleClient which supports OAuth
+ * Uses provider/model format as required by Stagehand v3
  */
 export type BrowserAgentModel =
   | 'google/gemini-2.5-flash'
-  | 'google/gemini-2.5-pro'
-  | 'google/gemini-2.0-flash'
-  | 'gemini-2.5-flash'
-  | 'gemini-2.5-pro'
-  | 'gemini-2.0-flash';
+  | 'google/gemini-2.5-pro';
 
 /**
  * Result of a browser agent action

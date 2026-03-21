@@ -213,7 +213,6 @@ const BROWSER_AGENT_SCHEMA = {
       enum: [
         'google/gemini-2.5-flash',
         'google/gemini-2.5-pro',
-        'google/gemini-2.0-flash',
       ],
       description:
         'Model to use for browser agent (default: google/gemini-2.5-flash)',
@@ -311,7 +310,7 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
       // Build session config
       const sessionConfig = {
         sessionId: this.params.sessionId,
-        model: this.params.model || ('gemini-2.5-flash' as const),
+        model: this.params.model || ('google/gemini-2.5-flash' as const),
         headless: this.params.headless,
         verbose: false,
         // Spread credentials based on mode
