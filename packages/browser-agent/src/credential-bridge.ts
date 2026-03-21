@@ -6,6 +6,8 @@
  * @license
  */
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- credential bridging uses dynamic types from external auth modules */
+
 /**
  * Credential Bridge for Browser Agent
  *
@@ -180,6 +182,10 @@ export class CredentialBridge {
       /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- OAuth2Client satisfies AuthClient, diff package versions */
       userData = await setupUser(
         client as unknown as Parameters<typeof setupUser>[0],
+        // Stub config for browser-agent: validation already handled by main CLI
+        { getValidationHandler: () => undefined } as unknown as Parameters<
+          typeof setupUser
+        >[1],
       );
       /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
     } catch (error) {
@@ -209,7 +215,7 @@ export class CredentialBridge {
   private static async loadCredentialsFromKeychain(): Promise<Credentials | null> {
     try {
       // Dynamically import keytar (same as KeychainTokenStorage does)
-      // @ts-ignore -- keytar is an optional native module resolved from core's dependencies at runtime
+      // @ts-expect-error -- keytar is an optional native module resolved from core's dependencies at runtime
       const keytar = await import('keytar');
       const keytarModule = keytar.default || keytar;
 

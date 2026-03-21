@@ -114,7 +114,10 @@ import {
   useOverflowActions,
   useOverflowState,
 } from './contexts/OverflowContext.js';
-import { useErrorCount } from './hooks/useConsoleMessages.js';
+import {
+  useErrorCount,
+  useConsoleMessages,
+} from './hooks/useConsoleMessages.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { calculatePromptWidths } from './components/InputPrompt.js';
 import { calculateMainAreaWidth } from './utils/ui-sizing.js';
@@ -601,6 +604,9 @@ export const AppContainer = (props: AppContainerProps) => {
   }, [settings]);
 
   const { errorCount, clearErrorCount } = useErrorCount();
+  // WEB_INTERFACE_START: Console messages for web broadcast
+  const { consoleMessages } = useConsoleMessages();
+  // WEB_INTERFACE_END
 
   const mainAreaWidth = calculateMainAreaWidth(terminalWidth, config);
   // Derive widths for InputPrompt using shared helper
@@ -2762,8 +2768,18 @@ Logging in with Google... Restarting Gemini CLI to continue.
     mcpClientUpdateCounter,
   ]);
 
-  // WEB_INTERFACE: Console messages moved to useConsoleMessages() hook in DetailedMessagesDisplay
-  // TODO: Re-implement web broadcast using the new hook if needed
+  // WEB_INTERFACE_START: Broadcast console messages to web interface
+  useEffect(() => {
+    if (
+      consoleMessages &&
+      consoleMessages.length > 0 &&
+      webInterface?.service &&
+      webInterface.isRunning
+    ) {
+      webInterface.service.broadcastConsoleMessages(consoleMessages);
+    }
+  }, [consoleMessages, webInterface?.service, webInterface?.isRunning]);
+  // WEB_INTERFACE_END
 
   // Broadcast CLI action required messages for different dialogs
   useEffect(() => {
