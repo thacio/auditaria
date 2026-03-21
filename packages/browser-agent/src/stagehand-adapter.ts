@@ -435,9 +435,11 @@ export class StagehandAdapter {
     // Note: headless must be in localBrowserLaunchOptions per Stagehand v3 docs
     // See: https://docs.stagehand.dev/v3/configuration/browser
 
-    // Strip google/ prefix — Stagehand's deprecated path handles OAuth correctly
-    // via CodeAssistClient when authClient is present in clientOptions
-    const modelName: string = this.config.model.replace('google/', '');
+    // Use provider/model format (e.g., "google/gemini-2.5-flash")
+    // Our patched LLMProvider.getClient routes google/ models to CodeAssistClient for OAuth
+    const modelName: string = this.config.model.startsWith('google/')
+      ? this.config.model
+      : `google/${this.config.model}`;
 
     // Build the model config properly
     // Stagehand's resolveModelConfiguration extracts modelName and puts everything else in clientOptions
@@ -817,37 +819,11 @@ export class StagehandAdapter {
         };
       }
 
-      // Create agent with same model configuration as adapter
-      // Build the same modelConfig that was used to initialize Stagehand
-      const clientOptions: any = {};
-
-      if (this.config.authClient && this.config.project) {
-        // OAuth mode
-        clientOptions.authClient = this.config.authClient;
-        clientOptions.project = this.config.project;
-        clientOptions.location = this.config.location || 'us-central1';
-        clientOptions.sessionId = `browser-agent-task-${Date.now()}`;
-      } else if (this.config.project && this.config.apiKey) {
-        // Vertex AI mode with API key
-        clientOptions.apiKey = this.config.apiKey;
-        clientOptions.project = this.config.project;
-        clientOptions.location = this.config.location || 'us-central1';
-        clientOptions.vertexai = true;
-      } else if (this.config.apiKey) {
-        // Standard Gemini API with API key
-        clientOptions.apiKey = this.config.apiKey;
-      }
-
-      const modelName: string = this.config.model.replace('google/', '');
-
-      const modelConfig: any = {
-        modelName: modelName,
-        ...clientOptions,
-      };
-
-      const agent = stagehand.agent({
-        model: modelConfig,
-      });
+      // Don't pass model to agent() — Stagehand constructor already created the
+      // correct LLM client (CodeAssistClient for OAuth, GoogleClient for API key)
+      // during init(). Passing model again causes duplicate resolution, a second
+      // deprecation warning, and potentially inconsistent clients for internal tools.
+      const agent = stagehand.agent({});
 
       // Create checkPauseState callback for pause/resume control
       const sessionManager = SessionManager.getInstance();
