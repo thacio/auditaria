@@ -1104,7 +1104,7 @@ const SETTINGS_SCHEMA = {
         showInDialog: false,
         additionalProperties: {
           type: 'array',
-          ref: 'ModelPolicy',
+          ref: 'ModelPolicyChain',
         },
       },
     },
@@ -3006,6 +3006,14 @@ export const SETTINGS_SCHEMA_DEFINITIONS: Record<
           },
         },
       },
+    },
+  },
+  ModelPolicyChain: {
+    type: 'array',
+    description: 'A chain of model policies for fallback behavior.',
+    items: {
+      type: 'object',
+      ref: 'ModelPolicy',
     },
   },
   ModelPolicy: {
