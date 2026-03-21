@@ -871,7 +871,6 @@ auditaria
 
 - [**Headless Mode (Scripting)**](./docs/cli/headless.md) - Use Auditaria in
   automated workflows.
-- [**Architecture Overview**](./docs/architecture.md) - How Auditaria works.
 - [**IDE Integration**](./docs/ide-integration/index.md) - VS Code companion.
 - [**Sandboxing & Security**](./docs/cli/sandbox.md) - Safe execution
   environments.
