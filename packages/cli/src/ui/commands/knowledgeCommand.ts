@@ -43,7 +43,9 @@ async function getSearchModule(): Promise<
 // ============================================================================
 
 function getProjectRoot(context: CommandContext): string {
-  return context.services.config?.getProjectRoot() ?? process.cwd();
+  return (
+    context.services.agentContext?.config?.getProjectRoot() ?? process.cwd()
+  );
 }
 
 function formatBytes(bytes: number): string {
@@ -245,8 +247,12 @@ const searchSubCommand: SlashCommand = {
 
     const fileType = typeMatch?.[1];
     const limit = limitMatch ? parseInt(limitMatch[1], 10) : 20;
-    const strategy =
-      (strategyMatch?.[1] as 'keyword' | 'semantic' | 'hybrid') ?? 'hybrid';
+    const strategy: 'keyword' | 'semantic' | 'hybrid' =
+      strategyMatch?.[1] === 'keyword' ||
+      strategyMatch?.[1] === 'semantic' ||
+      strategyMatch?.[1] === 'hybrid'
+        ? strategyMatch[1]
+        : 'hybrid';
 
     // Remove flags from query
     const query = args
@@ -296,6 +302,7 @@ const searchSubCommand: SlashCommand = {
 
       // Build search options
       // Use web search syntax for user-facing searches (supports "quoted phrases", OR, -exclusion)
+      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-explicit-any */
       const response = await system.search({
         query,
         strategy,
@@ -303,8 +310,8 @@ const searchSubCommand: SlashCommand = {
         filters: fileType ? { fileTypes: [`.${fileType}`] } : undefined,
         highlight: true,
         useWebSearchSyntax: true, // Google-style: "exact phrase", OR, -exclude
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- useWebSearchSyntax is new, types will be updated on rebuild
       } as any);
+      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/no-explicit-any */
 
       // Only close if we created a temporary system
       if (closeAfter) {
@@ -426,11 +433,13 @@ const statusSubCommand: SlashCommand = {
       // Get autoIndex config
       let autoIndexEnabled = false;
       try {
+        /* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
         const storage = (
           system as unknown as {
             storage: { getConfigValue: <T>(key: string) => Promise<T | null> };
           }
         ).storage;
+        /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
         if (storage && typeof storage.getConfigValue === 'function') {
           const value = await storage.getConfigValue<boolean>('autoIndex');
           autoIndexEnabled = value === true;
@@ -480,8 +489,8 @@ const statusSubCommand: SlashCommand = {
         '',
         'Definitions:',
         "  Fully indexed = documents with status 'indexed' (already searchable).",
-        "  Queue pending = queued work not started yet.",
-        "  Deferred = pending low-priority work intentionally postponed.",
+        '  Queue pending = queued work not started yet.',
+        '  Deferred = pending low-priority work intentionally postponed.',
       ];
 
       return {
@@ -567,6 +576,7 @@ const setAutoindexSubCommand: SlashCommand = {
       }
 
       // Access storage to save config
+      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion */
       const storage = (
         system as unknown as {
           storage: {
@@ -574,6 +584,7 @@ const setAutoindexSubCommand: SlashCommand = {
           };
         }
       ).storage;
+      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 
       if (storage && typeof storage.setConfigValue === 'function') {
         await storage.setConfigValue('autoIndex', value === 'on');

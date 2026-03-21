@@ -151,7 +151,7 @@ async function startAction(
     };
   }
 
-  const config = context.services.config;
+  const config = context.services.agentContext?.config;
   if (!config) {
     return {
       type: 'message',

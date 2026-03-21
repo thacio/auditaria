@@ -99,7 +99,8 @@ async function executeSkillSetup(
     Date.now(),
   );
 
-  const workingDir = context.services.config?.getWorkingDir() || process.cwd();
+  const workingDir =
+    context.services.agentContext?.config?.getWorkingDir() || process.cwd();
 
   try {
     // AUDITARIA_FEATURE_START: Handle skill types via discriminated union

@@ -550,6 +550,12 @@ export interface PolicyUpdateConfirmationRequest {
   newHash: string;
 }
 
+export interface WorktreeSettings {
+  name: string;
+  path: string;
+  baseSha: string;
+}
+
 export interface ConfigParameters {
   sessionId: string;
   clientName?: string;
@@ -673,6 +679,7 @@ export interface ConfigParameters {
   plan?: boolean;
   tracker?: boolean;
   planSettings?: PlanSettings;
+  worktreeSettings?: WorktreeSettings;
   modelSteering?: boolean;
   onModelChange?: (model: string) => void;
   mcpEnabled?: boolean;
@@ -720,6 +727,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly debugMode: boolean;
   private readonly question: string | undefined;
   private readonly appendSystemPrompt: string | undefined; // AUDITARIA_APPEND_SYSTEM_PROMPT
+  private readonly worktreeSettings: WorktreeSettings | undefined;
   readonly enableConseca: boolean;
 
   private readonly coreTools: string[] | undefined;
@@ -966,6 +974,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.debugMode = params.debugMode;
     this.question = params.question;
     this.appendSystemPrompt = params.appendSystemPrompt; // AUDITARIA_APPEND_SYSTEM_PROMPT
+    this.worktreeSettings = params.worktreeSettings;
 
     this.coreTools = params.coreTools;
     this.mainAgentTools = params.mainAgentTools;
@@ -1611,6 +1620,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   getSessionId(): string {
     return this.promptId;
+  }
+
+  getWorktreeSettings(): WorktreeSettings | undefined {
+    return this.worktreeSettings;
   }
 
   getClientName(): string | undefined {

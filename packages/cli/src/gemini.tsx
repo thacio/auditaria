@@ -9,6 +9,7 @@ import {
   WarningPriority,
   type Config,
   type ResumedSessionData,
+  type WorktreeInfo,
   type OutputPayload,
   type ConsoleLogPayload,
   type UserFeedbackPayload,
@@ -67,6 +68,7 @@ import {
   registerTelemetryConfig,
   setupSignalHandlers,
 } from './utils/cleanup.js';
+import { setupWorktree } from './utils/worktreeSetup.js';
 import {
   cleanupToolOutputFiles,
   cleanupExpiredSessions,
@@ -251,6 +253,13 @@ export async function main() {
   const loadSettingsHandle = startupProfiler.start('load_settings');
   const settings = loadSettings();
   loadSettingsHandle?.end();
+
+  // If a worktree is requested and enabled, set it up early.
+  const requestedWorktree = cliConfig.getRequestedWorktreeName(settings);
+  let worktreeInfo: WorktreeInfo | undefined;
+  if (requestedWorktree !== undefined) {
+    worktreeInfo = await setupWorktree(requestedWorktree || undefined);
+  }
 
   // Report settings errors once during startup
   settings.errors.forEach((error) => {
@@ -478,6 +487,7 @@ export async function main() {
     const loadConfigHandle = startupProfiler.start('load_cli_config');
     const config = await loadCliConfig(settings.merged, sessionId, argv, {
       projectHooks: settings.workspace.settings.hooks,
+      worktreeSettings: worktreeInfo,
     });
     loadConfigHandle?.end();
 

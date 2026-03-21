@@ -643,6 +643,10 @@ export function resetSettingsCacheForTesting() {
   settingsCache.clear();
 }
 
+export function isWorktreeEnabled(settings: LoadedSettings): boolean {
+  return settings.merged.experimental.worktrees;
+}
+
 /**
  * Loads settings from user and workspace directories.
  * Project settings override user settings.
