@@ -779,7 +779,6 @@ export async function renderHook<Result, Props>(
   generateSvg: () => string;
 }> {
   const result = { current: undefined as unknown as Result };
-
   let currentProps = options?.initialProps as Props;
 
   function TestComponent({
