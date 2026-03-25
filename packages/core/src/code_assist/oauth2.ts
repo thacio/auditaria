@@ -167,6 +167,16 @@ async function initOauthClient(
 
   if (credentials) {
     client.setCredentials(credentials as Credentials);
+
+    // AUDITARIA_PROXY_AUTH: When running behind a credential proxy (managed workspaces),
+    // skip server-side token validation. The proxy injects the real token into API requests.
+    // The credential file contains dummy tokens that pass format checks but would fail
+    // Google's validation endpoints. Skipping validation lets the CLI start normally.
+    if (process.env['AUDITARIA_PROXY_AUTH'] === 'true') {
+      debugLogger.log('Proxy auth mode — skipping token validation.');
+      return client;
+    }
+
     try {
       // This will verify locally that the credentials look good.
       const { token } = await client.getAccessToken();
