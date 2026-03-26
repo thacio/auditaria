@@ -92,6 +92,7 @@ describe('<ModelDialog />', () => {
   const mockGetProviderConfig = vi.fn();
   const mockGetWorkingDir = vi.fn();
   const mockGetGemini31LaunchedSync = vi.fn();
+  const mockGetGemini31FlashLiteLaunchedSync = vi.fn();
   const mockGetProModelNoAccess = vi.fn();
   const mockGetProModelNoAccessSync = vi.fn();
   const mockGetUserTier = vi.fn();
@@ -110,6 +111,7 @@ describe('<ModelDialog />', () => {
     getWorkingDir: () => string;
     getIdeMode: () => boolean;
     getGemini31LaunchedSync: () => boolean;
+    getGemini31FlashLiteLaunchedSync: () => boolean;
     getProModelNoAccess: () => Promise<boolean>;
     getProModelNoAccessSync: () => boolean;
     getUserTier: () => UserTierId | undefined;
@@ -126,6 +128,7 @@ describe('<ModelDialog />', () => {
     getWorkingDir: mockGetWorkingDir,
     getIdeMode: () => false,
     getGemini31LaunchedSync: mockGetGemini31LaunchedSync,
+    getGemini31FlashLiteLaunchedSync: mockGetGemini31FlashLiteLaunchedSync,
     getProModelNoAccess: mockGetProModelNoAccess,
     getProModelNoAccessSync: mockGetProModelNoAccessSync,
     getUserTier: mockGetUserTier,
@@ -139,6 +142,7 @@ describe('<ModelDialog />', () => {
     mockGetProviderConfig.mockReturnValue(undefined);
     mockGetWorkingDir.mockReturnValue('C:/projects/auditaria');
     mockGetGemini31LaunchedSync.mockReturnValue(false);
+    mockGetGemini31FlashLiteLaunchedSync.mockReturnValue(false);
     mockGetProModelNoAccess.mockResolvedValue(false);
     mockGetProModelNoAccessSync.mockReturnValue(false);
     mockGetUserTier.mockReturnValue(UserTierId.STANDARD);
@@ -204,6 +208,7 @@ describe('<ModelDialog />', () => {
     mockGetProModelNoAccessSync.mockReturnValue(true);
     mockGetProModelNoAccess.mockResolvedValue(true);
     mockGetHasAccessToPreviewModel.mockReturnValue(true);
+    mockGetGemini31FlashLiteLaunchedSync.mockReturnValue(true);
     mockGetUserTier.mockReturnValue(UserTierId.FREE);
     mockGetDisplayString.mockImplementation((val: string) => val);
 
@@ -635,6 +640,7 @@ describe('<ModelDialog />', () => {
       mockGetProModelNoAccessSync.mockReturnValue(false);
       mockGetProModelNoAccess.mockResolvedValue(false);
       mockGetHasAccessToPreviewModel.mockReturnValue(true);
+      mockGetGemini31FlashLiteLaunchedSync.mockReturnValue(true);
       mockGetUserTier.mockReturnValue(UserTierId.FREE);
       const { lastFrame, stdin, waitUntilReady, unmount } =
         await renderComponent();
