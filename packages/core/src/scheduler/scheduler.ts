@@ -196,7 +196,10 @@ export class Scheduler {
     signal: AbortSignal,
   ): Promise<CompletedToolCall[]> {
     return runInDevTraceSpan(
-      { operation: GeminiCliOperation.ScheduleToolCalls },
+      {
+        operation: GeminiCliOperation.ScheduleToolCalls,
+        logPrompts: this.context.config.getTelemetryLogPromptsEnabled(),
+      },
       async ({ metadata: spanMetadata }) => {
         const requests = Array.isArray(request) ? request : [request];
 
