@@ -1457,9 +1457,22 @@ Logging in with Google... Restarting Gemini CLI to continue.
     (streamingState === StreamingState.Idle ||
       streamingState === StreamingState.Responding ||
       streamingState === StreamingState.WaitingForConfirmation) &&
-    !proQuotaRequest;
+    !proQuotaRequest &&
+    !copyModeEnabled;
 
   const [controlsHeight, setControlsHeight] = useState(0);
+  const [lastNonCopyControlsHeight, setLastNonCopyControlsHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!copyModeEnabled && controlsHeight > 0) {
+      setLastNonCopyControlsHeight(controlsHeight);
+    }
+  }, [copyModeEnabled, controlsHeight]);
+
+  const stableControlsHeight =
+    copyModeEnabled && lastNonCopyControlsHeight > 0
+      ? lastNonCopyControlsHeight
+      : controlsHeight;
 
   useLayoutEffect(() => {
     if (mainControlsRef.current) {
@@ -1471,10 +1484,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
     }
   }, [buffer, terminalWidth, terminalHeight, controlsHeight, isInputActive]);
 
-  // Compute available terminal height based on controls measurement
+  // Compute available terminal height based on stable controls measurement
   const availableTerminalHeight = Math.max(
     0,
-    terminalHeight - controlsHeight - backgroundShellHeight - 1,
+    terminalHeight - stableControlsHeight - backgroundShellHeight - 1,
   );
 
   config.setShellExecutionConfig({
@@ -3225,6 +3238,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       contextFileNames,
       errorCount,
       availableTerminalHeight,
+      stableControlsHeight,
       mainAreaWidth,
       staticAreaMaxItemHeight,
       staticExtraHeight,
@@ -3348,6 +3362,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
       contextFileNames,
       errorCount,
       availableTerminalHeight,
+      stableControlsHeight,
       mainAreaWidth,
       staticAreaMaxItemHeight,
       staticExtraHeight,
