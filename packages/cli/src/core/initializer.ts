@@ -13,6 +13,7 @@ import {
   StartSessionEvent,
   logCliConfiguration,
   startupProfiler,
+  debugLogger,
   checkProviderAvailability, // AUDITARIA_PROVIDER_AVAILABILITY
 } from '@google/gemini-cli-core';
 import { type LoadedSettings } from '../config/settings.js';
@@ -113,9 +114,18 @@ export async function initializeApp(
   );
 
   if (config.getIdeMode()) {
-    const ideClient = await IdeClient.getInstance();
-    await ideClient.connect();
-    logIdeConnection(config, new IdeConnectionEvent(IdeConnectionType.START));
+    IdeClient.getInstance()
+      .then(async (ideClient) => {
+        await ideClient.connect();
+        logIdeConnection(
+          config,
+          new IdeConnectionEvent(IdeConnectionType.START),
+        );
+      })
+      .catch((e) => {
+        // We log locally if IDE connection setup fails in the background.
+        debugLogger.error('Failed to initialize IDE client:', e);
+      });
   }
 
   // AUDITARIA_LOCAL_SEARCH: Auto-start search service if database exists
