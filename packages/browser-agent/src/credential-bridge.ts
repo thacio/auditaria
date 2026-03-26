@@ -214,9 +214,20 @@ export class CredentialBridge {
    */
   private static async loadCredentialsFromKeychain(): Promise<Credentials | null> {
     try {
-      // Dynamically import keytar (same as KeychainTokenStorage does)
-      const keytar = await import('keytar');
-      const keytarModule = keytar.default || keytar;
+      // Dynamically import keytar — optional native module, may not be installed in CI.
+      // Variable indirection bypasses TypeScript's static module resolution (TS2307).
+      const keytarModuleName = 'keytar';
+      interface KeytarLike {
+        getPassword: (
+          service: string,
+          account: string,
+        ) => Promise<string | null>;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- dynamic import of optional native module
+      const keytar = (await import(keytarModuleName)) as {
+        default?: KeytarLike;
+      } & KeytarLike;
+      const keytarModule: KeytarLike = keytar.default ?? keytar;
 
       // Read raw data from keychain (no expiry check)
       const data = await keytarModule.getPassword(
