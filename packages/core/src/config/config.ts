@@ -2481,6 +2481,7 @@ export class Config implements McpContext, AgentLoopContext {
 
     if (isPlanModeTransition || isYoloModeTransition) {
       if (this._geminiClient?.isInitialized()) {
+        this._geminiClient.clearCurrentSequenceModel();
         this._geminiClient.setTools().catch((err) => {
           debugLogger.error('Failed to update tools', err);
         });
