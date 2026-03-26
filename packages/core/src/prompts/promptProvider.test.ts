@@ -54,6 +54,7 @@ describe('PromptProvider', () => {
       },
       getToolRegistry: vi.fn().mockReturnValue(mockToolRegistry),
       getEnableShellOutputEfficiency: vi.fn().mockReturnValue(true),
+      getSandboxEnabled: vi.fn().mockReturnValue(false),
       storage: {
         getProjectTempDir: vi.fn().mockReturnValue('/tmp/project-temp'),
         getPlansDir: vi.fn().mockReturnValue('/tmp/project-temp/plans'),
@@ -120,14 +121,13 @@ describe('PromptProvider', () => {
         DEFAULT_CONTEXT_FILENAME,
       ]);
 
-      const configWithAppend = {
-        ...mockConfig,
+      const configWithAppend = Object.assign(Object.create(mockConfig), {
         getAppendSystemPrompt: vi
           .fn()
           .mockReturnValue(
             'You are a code auditor. Focus on security vulnerabilities.',
           ),
-      } as unknown as Config;
+      }) as unknown as Config;
 
       const provider = new PromptProvider();
       const prompt = provider.getCoreSystemPrompt(configWithAppend);
@@ -142,10 +142,9 @@ describe('PromptProvider', () => {
         DEFAULT_CONTEXT_FILENAME,
       ]);
 
-      const configWithoutAppend = {
-        ...mockConfig,
+      const configWithoutAppend = Object.assign(Object.create(mockConfig), {
         getAppendSystemPrompt: vi.fn().mockReturnValue(undefined),
-      } as unknown as Config;
+      }) as unknown as Config;
 
       const provider = new PromptProvider();
       const promptWithout = provider.getCoreSystemPrompt(configWithoutAppend);
@@ -162,10 +161,9 @@ describe('PromptProvider', () => {
         DEFAULT_CONTEXT_FILENAME,
       ]);
 
-      const configEmpty = {
-        ...mockConfig,
+      const configEmpty = Object.assign(Object.create(mockConfig), {
         getAppendSystemPrompt: vi.fn().mockReturnValue(''),
-      } as unknown as Config;
+      }) as unknown as Config;
 
       const provider = new PromptProvider();
       const promptEmpty = provider.getCoreSystemPrompt(configEmpty);
@@ -179,13 +177,15 @@ describe('PromptProvider', () => {
         DEFAULT_CONTEXT_FILENAME,
       ]);
 
-      const configWithSkillsAndAppend = {
-        ...mockConfig,
-        getSkillsPromptSection: vi
-          .fn()
-          .mockReturnValue('\n## Custom Skills\nSome skill info'),
-        getAppendSystemPrompt: vi.fn().mockReturnValue('APPENDED_MARKER'),
-      } as unknown as Config;
+      const configWithSkillsAndAppend = Object.assign(
+        Object.create(mockConfig),
+        {
+          getSkillsPromptSection: vi
+            .fn()
+            .mockReturnValue('\n## Custom Skills\nSome skill info'),
+          getAppendSystemPrompt: vi.fn().mockReturnValue('APPENDED_MARKER'),
+        },
+      ) as unknown as Config;
 
       const provider = new PromptProvider();
       const prompt = provider.getCoreSystemPrompt(configWithSkillsAndAppend);
