@@ -22,6 +22,8 @@ import {
 } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { getAuditContext, renderUserMemory } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { z } from 'zod';
+import type { ConversationRecord } from '../services/chatRecordingService.js';
+export type { ConversationRecord };
 import {
   AuthType,
   createContentGenerator,
@@ -253,6 +255,25 @@ export interface ResolvedExtensionSetting {
   source?: string;
 }
 
+export interface TrajectoryProvider {
+  /** Prefix used to identify sessions from this provider (e.g., 'ext:') */
+  prefix: string;
+  /** Optional display name for UI Tabs */
+  displayName?: string;
+  /** Return an array of conversational tags/ids */
+  listSessions(workspaceUri?: string): Promise<
+    Array<{
+      id: string;
+      mtime: string;
+      name?: string;
+      displayName?: string;
+      messageCount?: number;
+    }>
+  >;
+  /** Load a single conversation payload */
+  loadSession(id: string): Promise<ConversationRecord | null>;
+}
+
 export interface AgentRunConfig {
   maxTimeMinutes?: number;
   maxTurns?: number;
@@ -408,6 +429,8 @@ export interface GeminiCLIExtension {
    * Used to migrate an extension to a new repository source.
    */
   migratedTo?: string;
+  /** Loaded JS module for trajectory decoding */
+  trajectoryProviderModule?: TrajectoryProvider;
 }
 
 export interface ExtensionInstallMetadata {
