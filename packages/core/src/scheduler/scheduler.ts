@@ -13,6 +13,9 @@ import { checkPolicy, updatePolicy, getPolicyDenialError } from './policy.js';
 import { evaluateBeforeToolHook } from './hook-utils.js';
 import { ToolExecutor } from './tool-executor.js';
 import { ToolModificationHandler } from './tool-modifier.js';
+import { EDIT_TOOL_NAME } from '../tools/tool-names.js'; // AUDITARIA_COLLABORATIVE_WRITING
+import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING
+import { debugLogger } from '../utils/debugLogger.js'; // AUDITARIA_COLLABORATIVE_WRITING
 import {
   type ToolCallRequestInfo,
   type ToolCall,
@@ -795,6 +798,23 @@ export class Scheduler {
         CoreToolCallStatus.Success,
         result.response,
       );
+
+      // AUDITARIA_COLLABORATIVE_WRITING_START - Update collaborative writing registry after AI edit
+      if (toolCall.request.name === EDIT_TOOL_NAME && toolCall.request.args) {
+        const filePath = (toolCall.request.args as { file_path?: string })
+          .file_path;
+        if (filePath) {
+          try {
+            await collaborativeWritingService.updateAfterAIEdit(filePath);
+          } catch (error) {
+            debugLogger.error(
+              '[COLLAB-WRITE] Failed to update registry after AI edit:',
+              error,
+            );
+          }
+        }
+      }
+      // AUDITARIA_COLLABORATIVE_WRITING_END
     } else if (result.status === CoreToolCallStatus.Cancelled) {
       this.state.updateStatus(
         callId,
