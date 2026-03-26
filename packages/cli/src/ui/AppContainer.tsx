@@ -2661,28 +2661,6 @@ Logging in with Google... Restarting Gemini CLI to continue.
   // WEB_INTERFACE_END
 
   useLoadingState(); // Required for loading state context initialization
-  useEffect(() => {
-    if (webInterface?.service && webInterface.isRunning) {
-      webInterface.service.broadcastLoadingState({
-        isLoading: streamingState === StreamingState.Responding || isProcessing,
-        streamingState,
-        elapsedTime,
-        currentLoadingPhrase,
-        thought:
-          typeof thought === 'string' ? thought : thought?.subject || null,
-        thoughtObject:
-          typeof thought === 'object' && thought !== null ? thought : null,
-      });
-    }
-  }, [
-    webInterface?.service,
-    webInterface?.isRunning,
-    streamingState,
-    elapsedTime,
-    currentLoadingPhrase,
-    isProcessing,
-    thought,
-  ]);
 
   // Broadcast slash commands
   useEffect(() => {
@@ -3034,6 +3012,31 @@ Logging in with Google... Restarting Gemini CLI to continue.
       errorVerbosity: settings.merged.ui.errorVerbosity,
       maxLength,
     });
+
+  // WEB_INTERFACE_START: Broadcast loading state to web interface
+  useEffect(() => {
+    if (webInterface?.service && webInterface.isRunning) {
+      webInterface.service.broadcastLoadingState({
+        isLoading: streamingState === StreamingState.Responding || isProcessing,
+        streamingState,
+        elapsedTime,
+        currentLoadingPhrase,
+        thought:
+          typeof thought === 'string' ? thought : thought?.subject || null,
+        thoughtObject:
+          typeof thought === 'object' && thought !== null ? thought : null,
+      });
+    }
+  }, [
+    webInterface?.service,
+    webInterface?.isRunning,
+    streamingState,
+    elapsedTime,
+    currentLoadingPhrase,
+    isProcessing,
+    thought,
+  ]);
+  // WEB_INTERFACE_END
 
   const allowPlanMode =
     config.isPlanEnabled() &&

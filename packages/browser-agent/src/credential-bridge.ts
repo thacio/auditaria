@@ -215,7 +215,6 @@ export class CredentialBridge {
   private static async loadCredentialsFromKeychain(): Promise<Credentials | null> {
     try {
       // Dynamically import keytar (same as KeychainTokenStorage does)
-      // @ts-expect-error -- keytar is an optional native module resolved from core's dependencies at runtime
       const keytar = await import('keytar');
       const keytarModule = keytar.default || keytar;
 

@@ -585,6 +585,17 @@ describe('gemini.tsx main function kitty protocol', () => {
       rawOutput: undefined,
       acceptRawOutputRisk: undefined,
       isCommand: undefined,
+      web: undefined,
+      webBrowser: undefined,
+      port: undefined,
+      telegram: undefined,
+      telegramToken: undefined,
+      discord: undefined,
+      discordToken: undefined,
+      teamsPort: undefined,
+      teamsSecret: undefined,
+      appendSystemPrompt: undefined,
+      appendSystemPromptFile: undefined,
     });
 
     await act(async () => {
