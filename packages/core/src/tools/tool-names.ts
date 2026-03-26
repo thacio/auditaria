@@ -175,14 +175,13 @@ export const CONVERT_TO_MARKDOWN_TOOL_NAME = 'convert_to_markdown';
 export const EXTERNAL_AGENT_SESSION_TOOL_NAME = 'external_agent_session';
 
 /**
- * Tools that can access local files or remote resources and should be
- * treated with extra caution when updating policies.
+ * Tools that require mandatory argument narrowing (e.g., file paths, command prefixes)
+ * when granting persistent or session-wide approval.
  */
-export const SENSITIVE_TOOLS = new Set([
+export const TOOLS_REQUIRING_NARROWING = new Set([
   GLOB_TOOL_NAME,
   GREP_TOOL_NAME,
   READ_MANY_FILES_TOOL_NAME,
-  WEB_FETCH_TOOL_NAME,
   READ_FILE_TOOL_NAME,
   LS_TOOL_NAME,
   WRITE_FILE_TOOL_NAME,
