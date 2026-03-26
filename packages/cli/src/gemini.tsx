@@ -32,6 +32,7 @@ import {
   ValidationRequiredError,
   type AdminControlsSettings,
   debugLogger,
+  isHeadlessMode,
   type SupportedLanguage, // AUDITARIA_FEATURE_I18N
   initI18n, // AUDITARIA_FEATURE_I18N
   isLanguageSupported, // AUDITARIA_FEATURE_I18N
@@ -348,6 +349,7 @@ export async function main() {
   const isDebugMode = cliConfig.isDebugMode(argv);
   const consolePatcher = new ConsolePatcher({
     stderr: true,
+    interactive: isHeadlessMode() ? false : true,
     debugMode: isDebugMode,
     onNewMessage: (msg) => {
       coreEvents.emitConsoleLog(msg.type, msg.content);
