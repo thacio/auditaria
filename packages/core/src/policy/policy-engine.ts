@@ -892,11 +892,11 @@ export class PolicyEngine {
     return excludedTools;
   }
 
-  // AUDITARIA_TOOL_RESTRICTION_START: Check if any rule is an unconditional global deny (no toolName, no mode restriction)
+  // AUDITARIA_TOOL_RESTRICTION_START: Check if any rule is an unconditional global deny (toolName = '*', no mode restriction)
   hasGlobalDenyRule(): boolean {
     return this.rules.some(
       (r) =>
-        !r.toolName &&
+        r.toolName === '*' &&
         !r.toolAnnotations &&
         r.decision === PolicyDecision.DENY &&
         // A rule with modes (e.g., plan mode only) is not a true global deny —
@@ -905,5 +905,5 @@ export class PolicyEngine {
           r.modes.length === 0 ||
           r.modes.includes(this.approvalMode)),
     );
-  } // // AUDITARIA_TOOL_RESTRICTION_END
+  } // AUDITARIA_TOOL_RESTRICTION_END
 }

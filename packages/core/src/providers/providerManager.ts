@@ -60,16 +60,19 @@ export const CODEX_TOOL_OUTPUT_MAX_BYTES = Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIM
 const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
 
 // AUDITARIA_TOOL_RESTRICTION: All Claude Code built-in tools (for --disallowedTools flag)
+// Last updated: 2026-03-31 — verify against Claude's system-reminder tool list periodically
 const CLAUDE_NATIVE_TOOLS = [
   // Core tools (always loaded)
-  'Agent', 'Bash', 'Edit', 'Glob', 'Grep', 'LS', 'MultiEdit',
-  'NotebookEdit', 'NotebookRead', 'Read', 'Skill', 'ToolSearch',
-  'TodoRead', 'TodoWrite', 'WebFetch', 'WebSearch', 'Write',
-  // Deferred tools (loaded on demand)
-  'AskUserQuestion', 'EnterPlanMode', 'ExitPlanMode',
-  'EnterWorktree', 'ExitWorktree',
+  'Agent', 'Bash', 'Edit', 'Glob', 'Grep', 'Read', 'Skill', 'ToolSearch', 'Write',
+  // Deferred tools (loaded on demand via ToolSearch)
+  'AskUserQuestion', 'CronCreate', 'CronDelete', 'CronList',
+  'EnterPlanMode', 'EnterWorktree', 'ExitPlanMode', 'ExitWorktree',
+  'NotebookEdit', 'RemoteTrigger', 'TodoWrite',
   'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate',
-  'CronCreate', 'CronDelete', 'CronList',
+  'WebFetch', 'WebSearch',
+  // Built-in MCP integrations
+  'mcp__claude_ai_Gmail__authenticate',
+  'mcp__claude_ai_Google_Calendar__authenticate',
 ];
 
 function getCodexReasoningEffort(
