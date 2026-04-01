@@ -22,9 +22,66 @@ import {
   logRewind,
   RewindEvent,
   type ChatRecordingService,
+  type ConversationRecord,
+  type MessageRecord,
   type GeminiClient,
   convertSessionToClientHistory,
 } from '@google/gemini-cli-core';
+
+// AUDITARIA_REWIND_START: Build ConversationRecord from mirrored GeminiChat history
+// for external providers where ChatRecordingService doesn't capture messages.
+function buildConversationFromHistory(
+  history: readonly Content[],
+  sessionId: string,
+): ConversationRecord {
+  const messages: MessageRecord[] = [];
+  let turnIndex = 0; // Counts user turns (maps to snapshot index)
+  const baseTime = Date.now();
+
+  for (const entry of history) {
+    const textParts = (entry.parts || [])
+      .filter((p): p is { text: string } => 'text' in p && typeof p.text === 'string')
+      .map((p) => p.text);
+    const content = textParts.join('\n') || '';
+
+    if (entry.role === 'user') {
+      // Skip function responses (tool results mirrored as user messages)
+      const hasFunctionResponse = (entry.parts || []).some(
+        (p) => 'functionResponse' in p,
+      );
+      if (hasFunctionResponse) continue;
+
+      // Skip the initial env context message (not a real user turn)
+      if (content.startsWith('<session_context>')) continue;
+
+      // ID encodes turnIndex for snapshot matching: ext-turn-{index}
+      messages.push({
+        id: `ext-turn-${turnIndex}`,
+        timestamp: new Date(baseTime - (history.length * 1000) + (messages.length * 1000)).toISOString(),
+        content,
+        type: 'user',
+      });
+      turnIndex++;
+    } else if (entry.role === 'model') {
+      messages.push({
+        id: `ext-model-${turnIndex}`,
+        timestamp: new Date(baseTime - (history.length * 1000) + (messages.length * 1000)).toISOString(),
+        content,
+        type: 'gemini',
+        model: 'external',
+      });
+    }
+  }
+
+  return {
+    sessionId,
+    projectHash: '',
+    startTime: new Date(baseTime - (history.length * 1000)).toISOString(),
+    lastUpdated: new Date(baseTime).toISOString(),
+    messages,
+  };
+}
+// AUDITARIA_REWIND_END
 
 /**
  * Helper function to handle the core logic of rewinding a conversation.
@@ -45,6 +102,52 @@ async function rewindConversation(
   newText: string,
 ) {
   try {
+    const config = context.services.agentContext?.config;
+    const isExternalProvider = config?.isExternalProviderActive() ?? false;
+
+    // AUDITARIA_REWIND_START: For external providers, rewind the mirrored history directly
+    if (isExternalProvider) {
+      const history = client.getHistory();
+      // IDs are "ext-turn-{turnIndex}" — find the Nth user message in history
+      const turnMatch = messageId.match(/ext-turn-(\d+)/);
+      const targetTurn = turnMatch ? parseInt(turnMatch[1], 10) : 0;
+
+      // Walk through history, count user turns (skipping functionResponse entries)
+      let turnCount = 0;
+      let cutIndex = 0;
+      for (let i = 0; i < history.length; i++) {
+        const entry = history[i];
+        if (entry.role === 'user') {
+          const hasFunctionResponse = (entry.parts || []).some(
+            (p) => 'functionResponse' in p,
+          );
+          if (hasFunctionResponse) continue;
+          if (turnCount === targetTurn) {
+            cutIndex = i;
+            break;
+          }
+          turnCount++;
+        }
+      }
+
+      // Truncate mirrored history up to (not including) the target user message
+      const newHistory = history.slice(0, cutIndex);
+      client.setHistory(newHistory as Content[]);
+
+      // Notify provider manager to reset Claude's session — next turn will
+      // start a fresh subprocess with conversation summary from mirrored history
+      config?.getProviderManager()?.onHistoryModified();
+
+      // Reset context manager
+      await config?.getContextManager()?.refresh();
+
+      // Remove component and feedback
+      context.ui.removeComponent();
+      coreEvents.emitFeedback('info', 'Conversation rewound.');
+      return;
+    }
+    // AUDITARIA_REWIND_END
+
     const conversation = recordingService.rewindTo(messageId);
     if (!conversation) {
       const errorMsg = 'Could not fetch conversation file';
@@ -119,7 +222,23 @@ export const rewindCommand: SlashCommand = {
         content: 'Recording service unavailable',
       };
 
-    const conversation = recordingService.getConversation();
+    // AUDITARIA_REWIND_START: For external providers, the recording service has no data
+    // because GeminiChat.sendMessageStream() is bypassed. Build conversation from mirrored history.
+    let conversation = recordingService.getConversation();
+    const isExternalProvider = config.isExternalProviderActive();
+    const fcm = config.getFileCheckpointManager(); // AUDITARIA_REWIND
+
+    if (isExternalProvider) {
+      const history = client.getHistory();
+      if (history.length > 0) {
+        conversation = buildConversationFromHistory(
+          history,
+          config.getSessionId(),
+        );
+      }
+    }
+    // AUDITARIA_REWIND_END
+
     if (!conversation)
       return {
         type: 'message',
@@ -143,6 +262,8 @@ export const rewindCommand: SlashCommand = {
       component: (
         <RewindViewer
           conversation={conversation}
+          forceShowRevert={isExternalProvider && !!fcm?.hasSnapshots()} // AUDITARIA_REWIND
+          fileCheckpointManager={isExternalProvider ? fcm : undefined} // AUDITARIA_REWIND
           onExit={() => {
             context.ui.removeComponent();
           }}
@@ -150,23 +271,40 @@ export const rewindCommand: SlashCommand = {
             if (outcome !== RewindOutcome.Cancel) {
               logRewind(config, new RewindEvent(outcome));
             }
+            // AUDITARIA_REWIND_START: File checkpoint revert for external providers
+            const revertFiles = async () => {
+              if (isExternalProvider && fcm?.hasSnapshots()) {
+                // External provider: use our file checkpoint system
+                // messageId is "ext-turn-{index}" — extract the turn index
+                // Rewind to turnIndex: snapshot[N] has the pre-turn-N state (what files
+                // looked like before this turn's edits = what user saw when typing this message)
+                const turnMatch = messageId.match(/ext-turn-(\d+)/);
+                const turnIndex = turnMatch ? parseInt(turnMatch[1], 10) : 0;
+                const changed = await fcm.rewindTo(turnIndex);
+                if (changed.length > 0) {
+                  coreEvents.emitFeedback('info', `Reverted ${changed.length} file(s).`);
+                } else {
+                  coreEvents.emitFeedback('info', 'No file changes to revert.');
+                }
+              } else if (conversation) {
+                // Gemini: use upstream's diff-based revert
+                await revertFileChanges(conversation, messageId);
+                coreEvents.emitFeedback('info', 'File changes reverted.');
+              }
+            };
+            // AUDITARIA_REWIND_END
             switch (outcome) {
               case RewindOutcome.Cancel:
                 context.ui.removeComponent();
                 return;
 
               case RewindOutcome.RevertOnly:
-                if (conversation) {
-                  await revertFileChanges(conversation, messageId);
-                }
+                await revertFiles(); // AUDITARIA_REWIND
                 context.ui.removeComponent();
-                coreEvents.emitFeedback('info', 'File changes reverted.');
                 return;
 
               case RewindOutcome.RewindAndRevert:
-                if (conversation) {
-                  await revertFileChanges(conversation, messageId);
-                }
+                await revertFiles(); // AUDITARIA_REWIND
                 await rewindConversation(
                   context,
                   client,

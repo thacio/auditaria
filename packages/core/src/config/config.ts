@@ -98,6 +98,7 @@ import { ConvertToMarkdownTool } from '../tools/convert-to-markdown.js'; // AUDI
 import { ExternalAgentSessionTool } from '../tools/agent-session.js'; // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
+import { FileCheckpointManager } from '../file-checkpoints/index.js'; // AUDITARIA_REWIND
 import {
   StandardFileSystemService,
   type FileSystemService,
@@ -795,6 +796,7 @@ export class Config implements McpContext, AgentLoopContext {
     copilot: false, // AUDITARIA_COPILOT_PROVIDER
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY
+  private fileCheckpointManager_?: FileCheckpointManager; // AUDITARIA_REWIND
   private _sandboxManager: SandboxManager;
   private readonly _sandboxPolicyManager: SandboxPolicyManager;
   private baseLlmClient!: BaseLlmClient;
@@ -2623,6 +2625,23 @@ export class Config implements McpContext, AgentLoopContext {
     return this.providerManager?.getConfig();
   } // AUDITARIA_CODEX_PROVIDER
 
+  // AUDITARIA_REWIND_START
+  getFileCheckpointManager(): FileCheckpointManager | undefined {
+    return this.fileCheckpointManager_;
+  }
+
+  initFileCheckpointManager(): FileCheckpointManager {
+    if (!this.fileCheckpointManager_) {
+      this.fileCheckpointManager_ = new FileCheckpointManager(
+        this.storage.getProjectTempDir(),
+        this.getSessionId(),
+        this.targetDir,
+      );
+    }
+    return this.fileCheckpointManager_;
+  }
+  // AUDITARIA_REWIND_END
+
   // AUDITARIA_PROVIDER_AVAILABILITY_START
   getProviderAvailability(): {
     claude: boolean;
@@ -3937,6 +3956,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.agentRegistry?.dispose();
     this.agentSessionManager_?.disposeAll(); // AUDITARIA_AGENT_SESSION: Kill all sub-agent sessions
     this.sessionRegistry_?.dispose(); // AUDITARIA_SESSION_MANAGEMENT: Persist and clean up
+    this.fileCheckpointManager_?.dispose(); // AUDITARIA_REWIND
     this.providerManager?.dispose(); // AUDITARIA: Kill main provider's active subprocess
     this._geminiClient?.dispose();
     if (this.mcpClientManager) {

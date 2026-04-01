@@ -101,6 +101,20 @@ async function deleteSessionArtifactsAsync(
   if (safeSessionId && sessionDir.startsWith(tempDir + path.sep)) {
     await fs.rm(sessionDir, { recursive: true, force: true }).catch(() => {});
   }
+
+  // AUDITARIA_REWIND_START: Cleanup file checkpoints
+  const fileCheckpointDir = path.join(
+    tempDir,
+    'file-checkpoints',
+    safeSessionId,
+  );
+  const fileCheckpointsBase = path.join(tempDir, 'file-checkpoints');
+  if (fileCheckpointDir.startsWith(fileCheckpointsBase)) {
+    await fs
+      .rm(fileCheckpointDir, { recursive: true, force: true })
+      .catch(() => {});
+  }
+  // AUDITARIA_REWIND_END
 }
 
 /**

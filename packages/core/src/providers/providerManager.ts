@@ -35,7 +35,7 @@ import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import type { Config } from '../config/config.js';
 
-const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
+const DEBUG = true; // AUDITARIA_CLAUDE_PROVIDER: Debug logging TEMPORARILY ENABLED
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }
@@ -212,6 +212,35 @@ export class ProviderManager {
     this.wireToolOutputHandler();
   }
 
+  // AUDITARIA_REWIND_START: Lazily wire the correct file checkpoint adapter
+  private fileCheckpointAdapterProvider: string | null = null;
+  private ensureFileCheckpointAdapter(): void {
+    const fcm = this.appConfig?.initFileCheckpointManager();
+    if (!fcm) {
+      dbg('[REWIND] no appConfig or initFileCheckpointManager failed');
+      return;
+    }
+    const currentProvider = this.config.type;
+    if (this.fileCheckpointAdapterProvider === currentProvider) return; // Already wired
+
+    dbg(`[REWIND] wiring adapter for provider: ${currentProvider}`);
+    if (currentProvider === 'claude-cli') {
+      import('../file-checkpoints/adapters/ClaudeFileCheckpointAdapter.js').then(
+        ({ ClaudeFileCheckpointAdapter }) => {
+          const adapter = new ClaudeFileCheckpointAdapter(
+            this.cwd,
+            () => this.driver?.getSessionId?.(),
+          );
+          fcm.setAdapter(adapter);
+          dbg('[REWIND] ClaudeFileCheckpointAdapter set');
+        },
+      ).catch((e) => { dbg('[REWIND] adapter import failed', e); });
+    }
+    // Future: codex-cli, copilot-cli adapters
+    this.fileCheckpointAdapterProvider = currentProvider;
+  }
+  // AUDITARIA_REWIND_END
+
   // AUDITARIA: Wire the toolOutputHandler to the toolExecutorServer
   private wireToolOutputHandler(): void {
     if (!this.toolExecutorServer) return;
@@ -304,6 +333,10 @@ export class ProviderManager {
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     this.callCount++;
     const callNum = this.callCount;
+
+    // AUDITARIA_REWIND_START: Lazily initialize file checkpoint adapter for the active provider
+    this.ensureFileCheckpointAdapter();
+    // AUDITARIA_REWIND_END
 
     // AUDITARIA_ATTACHMENTS: Extract inlineData for providers that support images
     const inlineDataParts = extractInlineDataParts(request);
@@ -626,6 +659,23 @@ export class ProviderManager {
         cleanupAttachmentFiles(tempFiles);
         dbg(`cleaned up ${tempFiles.length} attachment temp files`);
       }
+
+      // AUDITARIA_REWIND_START: Create file checkpoint snapshot after turn (even on error/abort)
+      try {
+        const fcm = this.appConfig?.getFileCheckpointManager();
+        dbg(`[REWIND] finally block: fcm=${!!fcm}, claudeSessionId=${this.driver?.getSessionId?.() || 'none'}`);
+        if (fcm) {
+          dbg('[REWIND] calling createSnapshotFromAdapter...');
+          await fcm.createSnapshotFromAdapter({
+            provider: this.config.type,
+            timestamp: Date.now(),
+          });
+          dbg(`[REWIND] snapshot created, hasSnapshots=${fcm.hasSnapshots()}`);
+        }
+      } catch (fcmError) {
+        dbg('[REWIND] file checkpoint snapshot failed (non-fatal)', fcmError);
+      }
+      // AUDITARIA_REWIND_END
     }
 
     return new Turn(chat, promptId);

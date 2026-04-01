@@ -69,6 +69,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       env: {
         ...process.env,
         NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: '1', // AUDITARIA_REWIND: Enable file history in -p mode
       },
     });
     this.activeProcess = proc;

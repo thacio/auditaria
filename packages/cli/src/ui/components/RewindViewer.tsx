@@ -5,13 +5,14 @@
  */
 
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useIsScreenReaderEnabled } from 'ink';
 import { useUIState } from '../contexts/UIStateContext.js';
 import {
   type ConversationRecord,
   type MessageRecord,
   partToString,
+  type FileCheckpointManager, // AUDITARIA_REWIND
 } from '@google/gemini-cli-core';
 import { BaseSelectionList } from './shared/BaseSelectionList.js';
 import { theme } from '../semantic-colors.js';
@@ -32,6 +33,8 @@ interface RewindViewerProps {
     newText: string,
     outcome: RewindOutcome,
   ) => Promise<void>;
+  forceShowRevert?: boolean; // AUDITARIA_REWIND: Show revert options for external providers
+  fileCheckpointManager?: FileCheckpointManager; // AUDITARIA_REWIND: Provides file stats for external providers
 }
 
 const MAX_LINES_PER_BOX = 2;
@@ -48,6 +51,8 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
   conversation,
   onExit,
   onRewind,
+  forceShowRevert, // AUDITARIA_REWIND
+  fileCheckpointManager, // AUDITARIA_REWIND
 }) => {
   const keyMatchers = useKeyMatchers();
   const [isRewinding, setIsRewinding] = useState(false);
@@ -60,6 +65,33 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
     selectMessage,
     clearSelection,
   } = useRewind(conversation);
+
+  // AUDITARIA_REWIND_START: Precompute checkpoint stats for all user messages by turn index
+  const [checkpointStatsMap, setCheckpointStatsMap] = useState<
+    Map<string, { fileCount: number; insertions: number; deletions: number }>
+  >(new Map());
+  useEffect(() => {
+    if (!fileCheckpointManager) return;
+    const snapshotCount = fileCheckpointManager.getSnapshotCount();
+    if (snapshotCount === 0) return;
+
+    const userMessages = conversation.messages.filter((m) => m.type === 'user');
+    Promise.all(
+      userMessages.map(async (msg, idx) => {
+        // Each user message at index idx maps to snapshot at index idx
+        if (idx >= snapshotCount) return null;
+        const stats = await fileCheckpointManager.getDiffStatsForTurn(idx);
+        return stats ? ([msg.id, { fileCount: stats.fileCount, insertions: stats.insertions, deletions: stats.deletions }] as const) : null;
+      }),
+    ).then((results) => {
+      const map = new Map<string, { fileCount: number; insertions: number; deletions: number }>();
+      for (const r of results) {
+        if (r) map.set(r[0], r[1]);
+      }
+      setCheckpointStatsMap(map);
+    }).catch(() => {});
+  }, [fileCheckpointManager, conversation.messages]);
+  // AUDITARIA_REWIND_END
 
   const [highlightedMessageId, setHighlightedMessageId] = useState<
     string | null
@@ -159,9 +191,23 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
     const selectedMessage = interactions.find(
       (m) => m.id === selectedMessageId,
     );
+    // AUDITARIA_REWIND_START: Use checkpoint stats as fallback for confirmation
+    let effectiveConfirmationStats = confirmationStats;
+    if (!effectiveConfirmationStats && selectedMessageId) {
+      const cpStats = checkpointStatsMap.get(selectedMessageId);
+      if (cpStats) {
+        effectiveConfirmationStats = {
+          addedLines: cpStats.insertions,
+          removedLines: cpStats.deletions,
+          fileCount: cpStats.fileCount,
+        };
+      }
+    }
+    // AUDITARIA_REWIND_END
     return (
       <RewindConfirmation
-        stats={confirmationStats}
+        stats={effectiveConfirmationStats}
+        forceShowRevert={forceShowRevert}
         terminalWidth={terminalWidth}
         timestamp={selectedMessage?.timestamp}
         onConfirm={(outcome) => {
@@ -279,7 +325,19 @@ export const RewindViewer: React.FC<RewindViewerProps> = ({
               );
             }
 
-            const stats = getStats(userPrompt);
+            // AUDITARIA_REWIND_START: Use checkpoint stats as fallback for external providers
+            let stats = getStats(userPrompt);
+            if (!stats) {
+              const cpStats = checkpointStatsMap.get(userPrompt.id);
+              if (cpStats) {
+                stats = {
+                  addedLines: cpStats.insertions,
+                  removedLines: cpStats.deletions,
+                  fileCount: cpStats.fileCount,
+                };
+              }
+            }
+            // AUDITARIA_REWIND_END
             const firstFileName = stats?.details?.at(0)?.fileName;
             const cleanedText = getCleanedRewindText(userPrompt);
 

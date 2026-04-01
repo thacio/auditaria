@@ -328,3 +328,8 @@ export {
   getExternalProviderLanguageInstructions,
 } from './prompts/snippets.js';
 // AUDITARIA_CLAUDE_PROVIDER_END
+
+// AUDITARIA_REWIND_START
+export { FileCheckpointManager } from './file-checkpoints/index.js';
+export type { FileCheckpointDiffStats } from './file-checkpoints/index.js';
+// AUDITARIA_REWIND_END

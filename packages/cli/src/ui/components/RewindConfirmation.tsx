@@ -53,6 +53,7 @@ interface RewindConfirmationProps {
   onConfirm: (outcome: RewindOutcome) => void;
   terminalWidth: number;
   timestamp?: string;
+  forceShowRevert?: boolean; // AUDITARIA_REWIND: Show revert options even without upstream stats
 }
 
 export const RewindConfirmation: React.FC<RewindConfirmationProps> = ({
@@ -60,6 +61,7 @@ export const RewindConfirmation: React.FC<RewindConfirmationProps> = ({
   onConfirm,
   terminalWidth,
   timestamp,
+  forceShowRevert, // AUDITARIA_REWIND
 }) => {
   const keyMatchers = useKeyMatchers();
   const isScreenReaderEnabled = useIsScreenReaderEnabled();
@@ -79,7 +81,7 @@ export const RewindConfirmation: React.FC<RewindConfirmationProps> = ({
   };
 
   const options = useMemo(() => {
-    if (stats) {
+    if (stats || forceShowRevert) { // AUDITARIA_REWIND: forceShowRevert for external providers
       return REWIND_OPTIONS;
     }
     return REWIND_OPTIONS.filter(
@@ -87,7 +89,7 @@ export const RewindConfirmation: React.FC<RewindConfirmationProps> = ({
         option.value !== RewindOutcome.RewindAndRevert &&
         option.value !== RewindOutcome.RevertOnly,
     );
-  }, [stats]);
+  }, [stats, forceShowRevert]);
   if (isScreenReaderEnabled) {
     return (
       <Box flexDirection="column" width={terminalWidth}>
