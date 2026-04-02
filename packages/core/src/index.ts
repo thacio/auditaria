@@ -332,4 +332,11 @@ export {
 // AUDITARIA_REWIND_START
 export { FileCheckpointManager } from './file-checkpoints/index.js';
 export type { FileCheckpointDiffStats } from './file-checkpoints/index.js';
+export {
+  listClaudeSessions,
+  validateClaudeSessionId,
+  buildClaudeSessionSummary,
+  getClaudeProjectDirHash,
+} from './providers/claude/claudeSessionBrowser.js';
+export type { ClaudeSessionInfo } from './providers/claude/claudeSessionBrowser.js';
 // AUDITARIA_REWIND_END

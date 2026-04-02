@@ -785,6 +785,30 @@ export const AppContainer = (props: AppContainerProps) => {
     [handleDeleteSessionSync],
   );
 
+  // AUDITARIA_REWIND_START: Load Claude resume UI history from --resume-claude CLI flag
+  // Waits for GeminiClient to be initialized before setting mirrored history.
+  useEffect(() => {
+    if (!isGeminiClientInitialized) return;
+    const pendingHistory = config.consumePendingClaudeResumeUIHistory();
+    if (!pendingHistory || pendingHistory.length === 0) return;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- HistoryItem[] stored from gemini.tsx
+    historyManager.loadHistory(pendingHistory as HistoryItem[]);
+    refreshStatic();
+
+    // Set mirrored history summary (safe now — client is initialized)
+    const summary = config.consumePendingClaudeResumeSummary();
+    if (summary) {
+      try {
+        const client = config.getGeminiClient();
+        client?.setHistory([
+          { role: 'user' as const, parts: [{ text: summary }] },
+          { role: 'model' as const, parts: [{ text: 'Got it. I have the context from the previous session.' }] },
+        ]);
+      } catch { /* chat may not be ready — mirrored history is optional */ }
+    }
+  }, [isGeminiClientInitialized]);
+  // AUDITARIA_REWIND_END
+
   // Create handleAuthSelect wrapper for backward compatibility
   const handleAuthSelect = useCallback(
     async (authType: AuthType | undefined, scope: LoadableSettingScope) => {

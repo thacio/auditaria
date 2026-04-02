@@ -664,6 +664,56 @@ export async function main() {
       }
     }
 
+    // AUDITARIA_REWIND_START: Store --resume-claude flag for later application
+    if (argv.resumeClaude && typeof argv.resumeClaude === 'string') {
+      const claudeSessionId = argv.resumeClaude;
+      config.setPendingClaudeResumeSessionId(claudeSessionId);
+
+      // Pre-parse the JSONL to build UI history (loaded in AppContainer on mount)
+      try {
+        const { validateClaudeSessionId, buildClaudeSessionSummary } = await import(
+          '@google/gemini-cli-core'
+        );
+        const { valid, filePath } = await validateClaudeSessionId(
+          config.getTargetDir(),
+          claudeSessionId,
+        );
+        if (valid) {
+          // Build UI history from JSONL and store for AppContainer
+          const { buildUIHistoryFromClaudeJSONL } = await import(
+            './ui/commands/resumeClaudeCommand.js'
+          );
+          const uiHistory = await buildUIHistoryFromClaudeJSONL(filePath);
+          if (uiHistory.length > 0) {
+            config.setPendingClaudeResumeUIHistory(uiHistory);
+          }
+
+          // Build mirrored history summary
+          const summary = await buildClaudeSessionSummary(filePath);
+          if (summary) {
+            config.setPendingClaudeResumeSummary(summary);
+          }
+
+          startupWarnings.push({
+            id: 'resume-claude',
+            message: `Resuming Claude session ${claudeSessionId.slice(0, 8)}...`,
+            priority: WarningPriority.Low,
+          });
+        } else {
+          // Session not found — clear the pending ID and warn
+          config.setPendingClaudeResumeSessionId('');
+          startupWarnings.push({
+            id: 'resume-claude-not-found',
+            message: `Claude session ${claudeSessionId.slice(0, 8)}... not found for this project. Starting fresh.`,
+            priority: WarningPriority.High,
+          });
+        }
+      } catch {
+        // Non-fatal — session will still resume via --resume flag
+      }
+    }
+    // AUDITARIA_REWIND_END
+
     cliStartupHandle?.end();
 
     // AUDITARIA_TELEGRAM_START: Start Telegram bot if enabled (via --telegram flag or autostart)

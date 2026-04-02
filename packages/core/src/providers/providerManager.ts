@@ -35,7 +35,7 @@ import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import type { Config } from '../config/config.js';
 
-const DEBUG = true; // AUDITARIA_CLAUDE_PROVIDER: Debug logging TEMPORARILY ENABLED
+const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }
@@ -239,6 +239,20 @@ export class ProviderManager {
     // Future: codex-cli, copilot-cli adapters
     this.fileCheckpointAdapterProvider = currentProvider;
   }
+  // AUDITARIA_REWIND: Pending Claude session ID for /resume-claude
+  private pendingResumeSessionId: string | undefined;
+
+  setPendingResumeSessionId(id: string): void {
+    this.pendingResumeSessionId = id;
+    // If driver already exists, set directly
+    if (this.driver?.setSessionId) {
+      this.driver.setSessionId(id);
+      this.pendingResumeSessionId = undefined;
+      dbg('[REWIND] setPendingResumeSessionId: set directly on existing driver', id.slice(0, 8));
+    } else {
+      dbg('[REWIND] setPendingResumeSessionId: stored for driver creation', id.slice(0, 8));
+    }
+  }
   // AUDITARIA_REWIND_END
 
   // AUDITARIA: Wire the toolOutputHandler to the toolExecutorServer
@@ -306,6 +320,11 @@ export class ProviderManager {
     );
   }
 
+  // AUDITARIA_REWIND: Get the current driver's session ID (for display on exit)
+  getDriverSessionId(): string | undefined {
+    return this.driver?.getSessionId?.();
+  }
+
   // AUDITARIA_ATTACHMENTS: Check if the current provider supports image attachments.
   // Codex: via -i temp files. Claude: via --input-format stream-json. Copilot: via ACP inline base64.
   private get driverSupportsImages(): boolean {
@@ -336,6 +355,15 @@ export class ProviderManager {
 
     // AUDITARIA_REWIND_START: Lazily initialize file checkpoint adapter for the active provider
     this.ensureFileCheckpointAdapter();
+
+    // AUDITARIA_REWIND: Apply --resume-claude flag from CLI startup (one-time, on first call)
+    if (this.config.type === 'claude-cli' && this.appConfig) {
+      const pendingId = this.appConfig.consumePendingClaudeResumeSessionId();
+      if (pendingId) {
+        this.setPendingResumeSessionId(pendingId);
+        dbg('[REWIND] applied --resume-claude from CLI flag:', pendingId.slice(0, 8));
+      }
+    }
     // AUDITARIA_REWIND_END
 
     // AUDITARIA_ATTACHMENTS: Extract inlineData for providers that support images
@@ -851,6 +879,13 @@ export class ProviderManager {
       // AUDITARIA_COPILOT_PROVIDER_END
       default:
         throw new Error(`Unknown provider type: ${this.config.type}`);
+    }
+
+    // AUDITARIA_REWIND: Apply pending resume session ID to newly created driver
+    if (this.pendingResumeSessionId && this.driver?.setSessionId) {
+      this.driver.setSessionId(this.pendingResumeSessionId);
+      dbg('[REWIND] applied pending resume session ID to new driver', this.pendingResumeSessionId.slice(0, 8));
+      this.pendingResumeSessionId = undefined;
     }
 
     return this.driver;

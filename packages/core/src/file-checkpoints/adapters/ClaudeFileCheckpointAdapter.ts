@@ -9,8 +9,9 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { copyFile, stat, mkdir } from 'node:fs/promises';
+import { getClaudeProjectDirHash } from '../../providers/claude/claudeSessionBrowser.js';
 
-const DEBUG = true; // Debug logging TEMPORARILY ENABLED
+const DEBUG = false;
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[CLAUDE_CHECKPOINT]', ...args); // eslint-disable-line no-console
 }
@@ -45,15 +46,6 @@ interface ClaudeSnapshotEntry {
     timestamp: string; // ISO date
   };
   isSnapshotUpdate: boolean;
-}
-
-/**
- * Derives the Claude project directory hash from a working directory path.
- * Claude replaces : \ / with - and strips leading separators.
- * E.g., "C:\projects\auditaria" → "C--projects-auditaria"
- */
-function getClaudeProjectDirHash(cwd: string): string {
-  return cwd.replace(/[:\\/]/g, '-').replace(/^-+/, '');
 }
 
 /**

@@ -797,6 +797,9 @@ export class Config implements McpContext, AgentLoopContext {
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private fileCheckpointManager_?: FileCheckpointManager; // AUDITARIA_REWIND
+  private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
+  private pendingClaudeResumeUIHistory_?: unknown[]; // AUDITARIA_REWIND: HistoryItem[] stored for AppContainer
+  private pendingClaudeResumeSummary_?: string; // AUDITARIA_REWIND
   private _sandboxManager: SandboxManager;
   private readonly _sandboxPolicyManager: SandboxPolicyManager;
   private baseLlmClient!: BaseLlmClient;
@@ -2639,6 +2642,35 @@ export class Config implements McpContext, AgentLoopContext {
       );
     }
     return this.fileCheckpointManager_;
+  }
+  setPendingClaudeResumeSessionId(id: string): void {
+    this.pendingClaudeResumeSessionId_ = id;
+  }
+
+  consumePendingClaudeResumeSessionId(): string | undefined {
+    const id = this.pendingClaudeResumeSessionId_;
+    this.pendingClaudeResumeSessionId_ = undefined;
+    return id;
+  }
+
+  setPendingClaudeResumeUIHistory(history: unknown[]): void {
+    this.pendingClaudeResumeUIHistory_ = history;
+  }
+
+  consumePendingClaudeResumeUIHistory(): unknown[] | undefined {
+    const h = this.pendingClaudeResumeUIHistory_;
+    this.pendingClaudeResumeUIHistory_ = undefined;
+    return h;
+  }
+
+  setPendingClaudeResumeSummary(summary: string): void {
+    this.pendingClaudeResumeSummary_ = summary;
+  }
+
+  consumePendingClaudeResumeSummary(): string | undefined {
+    const s = this.pendingClaudeResumeSummary_;
+    this.pendingClaudeResumeSummary_ = undefined;
+    return s;
   }
   // AUDITARIA_REWIND_END
 

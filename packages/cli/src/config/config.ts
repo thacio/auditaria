@@ -131,6 +131,7 @@ export interface CliArgs {
   appendSystemPrompt: string | undefined;
   appendSystemPromptFile: string | undefined;
   // AUDITARIA_APPEND_SYSTEM_PROMPT_END
+  resumeClaude: string | undefined; // AUDITARIA_REWIND
 }
 
 /**
@@ -507,6 +508,12 @@ export async function parseArguments(
           description: 'Append contents of a file to the system prompt.',
         })
         // AUDITARIA_APPEND_SYSTEM_PROMPT_END
+        // AUDITARIA_REWIND_START
+        .option('resume-claude', {
+          type: 'string',
+          description: 'Resume a Claude provider session by session ID.',
+        })
+        // AUDITARIA_REWIND_END
         .option('output-format', {
           alias: 'o',
           type: 'string',

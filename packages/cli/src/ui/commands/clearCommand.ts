@@ -52,6 +52,9 @@ export const clearCommand: SlashCommand = {
       context.ui.setDebugMessage('Clearing terminal.');
     }
 
+    // AUDITARIA_REWIND: Reset external provider session on /clear
+    config?.getProviderManager()?.onHistoryModified();
+
     // AUDITARIA_FEATURE_START: context-management
     // Clear context management backups and hidden content storage
     clearContextBackups(); // Custom Auditaria Feature: context.management.ts tool

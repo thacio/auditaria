@@ -19,7 +19,7 @@ import {
 } from 'node:fs/promises';
 import { diffLines } from 'diff';
 
-const DEBUG = true; // TEMPORARILY ENABLED
+const DEBUG = false;
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[FILE_CHECKPOINT]', ...args); // eslint-disable-line no-console
 }

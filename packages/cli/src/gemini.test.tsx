@@ -527,6 +527,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       discordToken: undefined, // AUDITARIA_DISCORD
       teamsPort: undefined, // AUDITARIA_TEAMS
       teamsSecret: undefined, // AUDITARIA_TEAMS
+      resumeClaude: undefined, // AUDITARIA_REWIND
     });
 
     await act(async () => {
@@ -596,6 +597,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       teamsSecret: undefined,
       appendSystemPrompt: undefined,
       appendSystemPromptFile: undefined,
+      resumeClaude: undefined, // AUDITARIA_REWIND
     });
 
     await act(async () => {

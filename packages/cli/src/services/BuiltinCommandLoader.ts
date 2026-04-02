@@ -59,6 +59,7 @@ import { languageCommand } from '../ui/commands/languageCommand.js';
 import { webCommand } from '../ui/commands/webCommand.js';
 // WEB_INTERFACE_END
 import { skillsCommand } from '../ui/commands/skillsCommand.js';
+import { resumeClaudeCommand } from '../ui/commands/resumeClaudeCommand.js'; // AUDITARIA_REWIND
 import { settingsCommand } from '../ui/commands/settingsCommand.js';
 import { shellsCommand } from '../ui/commands/shellsCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
@@ -207,6 +208,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       themeCommand,
       toolsCommand,
       languageCommand,
+      resumeClaudeCommand, // AUDITARIA_REWIND
       // WEB_INTERFACE_START: Add web command to builtin commands
       webCommand,
       // WEB_INTERFACE_END
