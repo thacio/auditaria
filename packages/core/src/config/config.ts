@@ -800,6 +800,8 @@ export class Config implements McpContext, AgentLoopContext {
   private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
   private pendingClaudeResumeUIHistory_?: unknown[]; // AUDITARIA_REWIND: HistoryItem[] stored for AppContainer
   private pendingClaudeResumeSummary_?: string; // AUDITARIA_REWIND
+  private customProviders_?: import('../providers/openai-compat/types.js').CustomProviderConfig[]; // AUDITARIA_OPENAI_COMPAT
+  private openaiCompatModule_?: typeof import('../providers/openai-compat/index.js'); // AUDITARIA_OPENAI_COMPAT: cached module
   private _sandboxManager: SandboxManager;
   private readonly _sandboxPolicyManager: SandboxPolicyManager;
   private baseLlmClient!: BaseLlmClient;
@@ -1348,6 +1350,16 @@ export class Config implements McpContext, AgentLoopContext {
       this.providerManager.setAppConfig(this); // AUDITARIA_CLAUDE_PROVIDER
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
+
+    // AUDITARIA_OPENAI_COMPAT: Load custom providers + cache module for sync access in setProviderConfig
+    import('../providers/openai-compat/index.js')
+      .then(async (mod) => {
+        this.openaiCompatModule_ = mod;
+        const providers = await mod.loadCustomProviders();
+        if (providers.length > 0) this.customProviders_ = providers;
+      })
+      .catch(() => { /* non-fatal */ });
+
     this.a2aClientManager = new A2AClientManager(this);
     this.modelRouterService = new ModelRouterService(this);
   }
@@ -2674,6 +2686,16 @@ export class Config implements McpContext, AgentLoopContext {
   }
   // AUDITARIA_REWIND_END
 
+  // AUDITARIA_OPENAI_COMPAT_START
+  setCustomProviders(providers: import('../providers/openai-compat/types.js').CustomProviderConfig[]): void {
+    this.customProviders_ = providers;
+  }
+
+  getCustomProviders(): import('../providers/openai-compat/types.js').CustomProviderConfig[] {
+    return this.customProviders_ || [];
+  }
+  // AUDITARIA_OPENAI_COMPAT_END
+
   // AUDITARIA_PROVIDER_AVAILABILITY_START
   getProviderAvailability(): {
     claude: boolean;
@@ -2721,6 +2743,56 @@ export class Config implements McpContext, AgentLoopContext {
     config: ProviderConfig,
     isTemporary: boolean = true /*   Temporary - AUDITARIA_PROVIDER_PERSISTENCE */,
   ): void {
+    // AUDITARIA_OPENAI_COMPAT_START: For openai-compat providers, swap ContentGenerator
+    // instead of routing through external provider path. This keeps Gemini's full agent
+    // pipeline (tools, scheduler, hooks, context) but routes LLM calls to the custom endpoint.
+    if (config.type.startsWith('openai-compat:')) {
+      const providerId = config.type.split(':')[1];
+
+      if (!this.openaiCompatModule_) {
+        console.log('[OPENAI_COMPAT] module not loaded yet, retrying in 1s...'); // eslint-disable-line no-console
+        setTimeout(() => this.setProviderConfig(config, isTemporary), 1000);
+        return;
+      }
+
+      const { OpenAICompatContentGenerator, buildDriverConfig: buildOAIDriverConfig } = this.openaiCompatModule_;
+      const customProviders = this.getCustomProviders();
+      const providerCfg = customProviders.find(p => p.id === providerId);
+
+      if (!providerCfg) {
+        console.log(`[OPENAI_COMPAT] provider ${providerId} not found in providers.json`); // eslint-disable-line no-console
+        return;
+      }
+
+      // Clear external provider completely so Gemini's pipeline runs
+      if (this.providerManager) {
+        this.providerManager.dispose();
+        this.providerManager = undefined;
+      }
+
+      // Swap content generator FIRST (module pre-cached at startup)
+      const driverConfig = buildOAIDriverConfig(providerCfg, config.model);
+      this.contentGenerator = new OpenAICompatContentGenerator(driverConfig);
+
+      // Clear chat history AFTER swap — resetChat creates new GeminiChat
+      // that will use our new ContentGenerator via getContentGenerator()
+      this._geminiClient?.resetChat()
+        .then(() => console.log('[OPENAI_COMPAT] chat reset complete')) // eslint-disable-line no-console
+        .catch(() => { /* non-fatal */ });
+
+      // Update the model name for footer display
+      this.setModel(`${providerCfg.name}: ${driverConfig.model}`, true);
+      console.log(`[OPENAI_COMPAT] ContentGenerator swapped to ${providerCfg.name} (${driverConfig.model})`); // eslint-disable-line no-console
+
+      // AUDITARIA_PROVIDER_PERSISTENCE
+      if (this.onModelChange && !isTemporary) {
+        const persistedPreference = this.getPersistedModelPreferenceForProvider(config);
+        if (persistedPreference) this.onModelChange(persistedPreference);
+      }
+      return;
+    }
+    // AUDITARIA_OPENAI_COMPAT_END
+
     // AUDITARIA_CLAUDE_PROVIDER:
     if (this.providerManager) {
       this.providerManager.setConfig(config);

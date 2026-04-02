@@ -329,6 +329,14 @@ export {
 } from './prompts/snippets.js';
 // AUDITARIA_CLAUDE_PROVIDER_END
 
+// AUDITARIA_OPENAI_COMPAT_START
+export {
+  loadCustomProviders,
+  getCustomProviderContextWindow,
+} from './providers/openai-compat/index.js';
+export type { CustomProviderConfig, ProviderModelConfig } from './providers/openai-compat/index.js';
+// AUDITARIA_OPENAI_COMPAT_END
+
 // AUDITARIA_REWIND_START
 export { FileCheckpointManager } from './file-checkpoints/index.js';
 export type { FileCheckpointDiffStats } from './file-checkpoints/index.js';

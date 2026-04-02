@@ -216,7 +216,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           (view === 'manual' && hasAccessToProModel) ||
           view === 'claude' ||
           view === 'codex' ||
-          view === 'copilot'
+          view === 'copilot' ||
+          view.startsWith('openai-compat:') // AUDITARIA_OPENAI_COMPAT
         ) {
           // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: handle submenu views
           setView('main');
@@ -370,6 +371,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       key: 'Copilot',
     });
     // AUDITARIA_COPILOT_PROVIDER_END
+
+    // AUDITARIA_OPENAI_COMPAT_START: Add custom providers from ~/.auditaria/providers.json
+    const customProviders = config?.getCustomProviders() || [];
+    for (const cp of customProviders) {
+      const isActive = config?.getProviderConfig()?.type === `openai-compat:${cp.id}`;
+      list.push({
+        value: `openai-compat:${cp.id}`,
+        title: isActive ? `${cp.name} (active)` : cp.name,
+        description: `${cp.baseUrl} — ${cp.models.map(m => m.id).join(', ')}`,
+        key: `openai-compat:${cp.id}`,
+      });
+    }
+    // AUDITARIA_OPENAI_COMPAT_END
 
     return list;
   }, [
@@ -564,17 +578,40 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   );
   // AUDITARIA_COPILOT_PROVIDER_END
 
+  // AUDITARIA_OPENAI_COMPAT_START: Build submenu options for custom providers
+  const customProviderOptions = useMemo(() => {
+    if (!view.startsWith('openai-compat:')) return [];
+    const providerId = view.split(':')[1];
+    const customProviders = config?.getCustomProviders() || [];
+    const cp = customProviders.find(p => p.id === providerId);
+    if (!cp) return [];
+
+    const activeModel = config?.getProviderConfig()?.type === view
+      ? config.getProviderConfig()?.model
+      : undefined;
+
+    return cp.models.map(m => ({
+      value: `${view}/${m.id}`,
+      title: m.id === activeModel ? `${m.displayName || m.id} (active)` : (m.displayName || m.id),
+      description: m.contextWindow ? `${Math.round(m.contextWindow / 1000)}K context` : '',
+      key: `${view}/${m.id}`,
+    }));
+  }, [view, config]);
+  // AUDITARIA_OPENAI_COMPAT_END
+
   // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: add submenu views to options selection
   const options =
-    view === 'copilot'
-      ? copilotOptions
-      : view === 'codex'
-        ? codexOptions
-        : view === 'claude'
-          ? claudeOptions
-          : view === 'manual'
-            ? manualOptions
-            : mainOptions;
+    view.startsWith('openai-compat:')
+      ? customProviderOptions
+      : view === 'copilot'
+        ? copilotOptions
+        : view === 'codex'
+          ? codexOptions
+          : view === 'claude'
+            ? claudeOptions
+            : view === 'manual'
+              ? manualOptions
+              : mainOptions;
   // AUDITARIA_COPILOT_PROVIDER_END
 
   // Calculate the initial index based on the preferred model.
@@ -702,6 +739,31 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       // AUDITARIA_COPILOT_PROVIDER_END
 
+      // AUDITARIA_OPENAI_COMPAT_START: Handle custom OpenAI-compatible providers
+      if (model.startsWith('openai-compat:') && !model.includes('/')) {
+        // Main menu entry → open submenu (e.g., "openai-compat:openai" → view)
+        setView(model);
+        return;
+      }
+
+      if (model.startsWith('openai-compat:') && model.includes('/')) {
+        // Submenu model selection: "openai-compat:openai/gpt-4o-mini"
+        if (config) {
+          const [providerPart, selectedModel] = model.split('/');
+          const providerConfig: ProviderConfig = {
+            type: providerPart as ProviderConfig['type'],
+            model: selectedModel,
+            cwd: config.getWorkingDir(),
+          };
+          config.setProviderConfig(providerConfig, !persistMode);
+          const event = new ModelSlashCommandEvent(model);
+          logModelSlashCommand(config, event);
+        }
+        onClose();
+        return;
+      }
+      // AUDITARIA_OPENAI_COMPAT_END
+
       if (config) {
         config.clearProviderConfig(!persistMode); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_PROVIDER_PERSISTENCE
 
@@ -735,7 +797,9 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             ? 'Select OpenAI Codex Model'
             : view === 'copilot'
               ? 'Select GitHub Copilot Model'
-              : 'Select Model'}
+              : view.startsWith('openai-compat:')
+                ? `Select ${(config?.getCustomProviders() || []).find(p => p.id === view.split(':')[1])?.name || 'Custom'} Model`
+                : 'Select Model'}
       </Text>
 
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER */}

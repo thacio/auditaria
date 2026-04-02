@@ -182,7 +182,7 @@ export function clampCodexReasoningEffortForModel(
 }
 
 export interface ProviderConfig {
-  type: 'gemini' | 'claude-cli' | 'codex-cli' | 'copilot-cli' | 'auditaria-cli'; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli
+  type: 'gemini' | 'claude-cli' | 'codex-cli' | 'copilot-cli' | 'auditaria-cli' | `openai-compat:${string}`; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_OPENAI_COMPAT: template literal for custom providers
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;

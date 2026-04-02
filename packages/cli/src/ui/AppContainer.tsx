@@ -2232,6 +2232,19 @@ Logging in with Google... Restarting Gemini CLI to continue.
         }),
       },
       // AUDITARIA_COPILOT_PROVIDER_END
+
+      // AUDITARIA_OPENAI_COMPAT_START: Add custom providers from ~/.auditaria/providers.json
+      ...(config?.getCustomProviders() || []).map((cp) => ({
+        id: `openai-compat:${cp.id}`,
+        label: cp.name,
+        available: true,
+        options: cp.models.map((m) => ({
+          selection: `openai-compat:${cp.id}/${m.id}`,
+          label: `${cp.name} (${m.displayName || m.id})`,
+          description: m.contextWindow ? `${Math.round(m.contextWindow / 1000)}K context` : '',
+        })),
+      })),
+      // AUDITARIA_OPENAI_COMPAT_END
     ];
 
     let activeSelection =
@@ -2248,6 +2261,12 @@ Logging in with Google... Restarting Gemini CLI to continue.
       // AUDITARIA_COPILOT_PROVIDER
       const variant = selectedDisplayModel.split(':')[1] || 'auto';
       activeSelection = `${COPILOT_PREFIX}${variant}`;
+    } else if (selectedDisplayModel.startsWith('openai-compat:')) {
+      // AUDITARIA_OPENAI_COMPAT: Custom provider active
+      const providerConfig = config?.getProviderConfig();
+      if (providerConfig) {
+        activeSelection = `${providerConfig.type}/${providerConfig.model || 'default'}`;
+      }
     }
 
     const availableSelections = new Set(
@@ -2389,6 +2408,21 @@ Logging in with Google... Restarting Gemini CLI to continue.
         );
       }
       // AUDITARIA_COPILOT_PROVIDER_END
+
+      // AUDITARIA_OPENAI_COMPAT_START: Handle custom provider selection from web
+      if (selection.startsWith('openai-compat:') && selection.includes('/')) {
+        const [providerPart, selectedModel] = selection.split('/');
+        config.setProviderConfig(
+          {
+            type: providerPart as import('@google/gemini-cli-core').ProviderConfig['type'],
+            model: selectedModel,
+            cwd: config.getWorkingDir(),
+          },
+          false,
+        );
+        return;
+      }
+      // AUDITARIA_OPENAI_COMPAT_END
     };
 
     webInterface.service.on('model_change_request', handleModelChangeRequest);
