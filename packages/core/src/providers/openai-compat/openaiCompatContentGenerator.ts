@@ -30,9 +30,13 @@ import { MAX_RETRIES } from './types.js';
 // Gemini → OpenAI format translation
 // ---------------------------------------------------------------------------
 
+type OpenAIContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
-  content?: string | null;
+  content?: string | OpenAIContentPart[] | null;
   tool_calls?: Array<{
     id: string;
     type: 'function';
@@ -64,16 +68,6 @@ function geminiContentsToOpenAIMessages(
     const role = content.role === 'model' ? 'assistant' : 'user';
 
     if (!content.parts || content.parts.length === 0) continue;
-
-    // Debug: log raw parts
-    const partTypes = content.parts.map(p => {
-      if (p.functionCall) return `functionCall(${p.functionCall.name},id=${p.functionCall.id})`;
-      if (p.functionResponse) return `functionResponse(${p.functionResponse.name},id=${p.functionResponse.id})`;
-      if (p.text) return `text(${(p.text).slice(0, 30)})`;
-      if (p.thought) return 'thought';
-      return 'other';
-    });
-    console.log(`[CG_TRANSLATE] role=${content.role} parts=[${partTypes.join(', ')}]`); // eslint-disable-line no-console
 
     // Check for function calls (model response with tool calls)
     const functionCalls = content.parts.filter(
@@ -117,12 +111,30 @@ function geminiContentsToOpenAIMessages(
       }
     } else {
       // Regular text message
-      const text = content.parts
-        .filter((p) => p.text && !p.thought)
-        .map((p) => p.text || '')
-        .join('');
-      if (text) {
-        messages.push({ role, content: text });
+      // Check for inline images (Gemini inlineData → OpenAI image_url)
+      const textParts = content.parts.filter((p) => p.text && !p.thought);
+      const imageParts = content.parts.filter((p) => p.inlineData?.data);
+
+      if (imageParts.length > 0) {
+        const contentParts: OpenAIContentPart[] = [];
+        for (const p of textParts) {
+          contentParts.push({ type: 'text', text: p.text || '' });
+        }
+        for (const p of imageParts) {
+          const mime = p.inlineData!.mimeType || 'image/png';
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: `data:${mime};base64,${p.inlineData!.data}` },
+          });
+        }
+        if (contentParts.length > 0) {
+          messages.push({ role, content: contentParts });
+        }
+      } else {
+        const text = textParts.map((p) => p.text || '').join('');
+        if (text) {
+          messages.push({ role, content: text });
+        }
       }
     }
   }
@@ -254,9 +266,7 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
   userTierName?: string;
   paidTier?: GeminiUserTier;
 
-  constructor(private readonly config: OpenAICompatDriverConfig) {
-    console.log(`[OPENAI_COMPAT_CG] constructor: ${config.providerName} ${config.model} → ${config.baseUrl}`); // eslint-disable-line no-console
-  }
+  constructor(private readonly config: OpenAICompatDriverConfig) {}
 
   async generateContent(
     request: GenerateContentParameters,
@@ -299,14 +309,7 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
     _userPromptId: string,
     _role: LlmRole,
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    console.log(`[OPENAI_COMPAT_CG] generateContentStream called for ${this.config.model}`); // eslint-disable-line no-console
     const { messages, tools } = this.translateRequest(request);
-    console.log(`[OPENAI_COMPAT_CG] translated ${messages.length} messages, ${tools?.length || 0} tools`); // eslint-disable-line no-console
-    for (const m of messages) { // eslint-disable-line no-console
-      const preview = (m.content || '').toString().slice(0, 80);
-      const tcIds = m.tool_calls?.map(tc => tc.id.slice(0, 12)).join(',') || '';
-      console.log(`  [MSG] role=${m.role} tcId=${m.tool_call_id?.slice(0, 12) || '-'} tool_calls=[${tcIds}] content="${preview}"`); // eslint-disable-line no-console
-    }
 
     const body: Record<string, unknown> = {
       model: this.config.model,

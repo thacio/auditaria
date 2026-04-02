@@ -2750,7 +2750,6 @@ export class Config implements McpContext, AgentLoopContext {
       const providerId = config.type.split(':')[1];
 
       if (!this.openaiCompatModule_) {
-        console.log('[OPENAI_COMPAT] module not loaded yet, retrying in 1s...'); // eslint-disable-line no-console
         setTimeout(() => this.setProviderConfig(config, isTemporary), 1000);
         return;
       }
@@ -2759,10 +2758,7 @@ export class Config implements McpContext, AgentLoopContext {
       const customProviders = this.getCustomProviders();
       const providerCfg = customProviders.find(p => p.id === providerId);
 
-      if (!providerCfg) {
-        console.log(`[OPENAI_COMPAT] provider ${providerId} not found in providers.json`); // eslint-disable-line no-console
-        return;
-      }
+      if (!providerCfg) return;
 
       // Clear external provider completely so Gemini's pipeline runs
       if (this.providerManager) {
@@ -2777,12 +2773,10 @@ export class Config implements McpContext, AgentLoopContext {
       // Clear chat history AFTER swap — resetChat creates new GeminiChat
       // that will use our new ContentGenerator via getContentGenerator()
       this._geminiClient?.resetChat()
-        .then(() => console.log('[OPENAI_COMPAT] chat reset complete')) // eslint-disable-line no-console
         .catch(() => { /* non-fatal */ });
 
       // Update the model name for footer display
       this.setModel(`${providerCfg.name}: ${driverConfig.model}`, true);
-      console.log(`[OPENAI_COMPAT] ContentGenerator swapped to ${providerCfg.name} (${driverConfig.model})`); // eslint-disable-line no-console
 
       // AUDITARIA_PROVIDER_PERSISTENCE
       if (this.onModelChange && !isTemporary) {
