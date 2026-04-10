@@ -76,7 +76,7 @@ export interface OpenAISSEChunk {
     delta?: {
       role?: string;
       content?: string | null;
-      reasoning_content?: string | null; // DeepSeek, ChatTCU reasoning
+      reasoning_content?: string | null; // DeepSeek-style reasoning tokens
     };
     finish_reason?: string | null;
   }>;

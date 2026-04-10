@@ -16,7 +16,7 @@ import type { OpenAISSEChunk } from './types.js';
  *
  * Handles variations:
  * - "data: [DONE]" and "data:[DONE]" (with/without space)
- * - "reasoning_content" field (DeepSeek, ChatTCU proxy)
+ * - "reasoning_content" field (DeepSeek-style reasoning tokens)
  * - Usage in the final chunk
  * - Malformed lines (silently skipped)
  */
@@ -87,7 +87,7 @@ export async function* parseOpenAISSEStream(
             hasContent = true;
             yield { type: ProviderEventType.Content, text: delta.content };
           }
-          // DeepSeek / ChatTCU reasoning tokens
+          // DeepSeek-style reasoning tokens
           if (delta.reasoning_content) {
             yield {
               type: ProviderEventType.Thinking,

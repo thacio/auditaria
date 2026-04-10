@@ -110,7 +110,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     () => !(config?.getProModelNoAccessSync() ?? false),
   );
   const [view, setView] = useState<
-    'main' | 'manual' | 'claude' | 'codex' | 'copilot'
+    'main' | 'manual' | 'claude' | 'codex' | 'copilot' | string // AUDITARIA_OPENAI_COMPAT: string covers "openai-compat:{id}" submenu views
   >(() => (config?.getProModelNoAccessSync() ? 'manual' : 'main')); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const availability = config?.getProviderAvailability() ?? {

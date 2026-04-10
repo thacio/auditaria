@@ -241,7 +241,9 @@ function makeGeminiResponse(
   finishReason?: string,
 ): GenerateContentResponse {
   const resp = new GenerateContentResponse();
-  if (parts.length > 0) {
+  // Always create candidates if we have parts OR a finishReason
+  // (finishReason needs to live on a candidate for Gemini to see it)
+  if (parts.length > 0 || finishReason) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Candidate construction
     resp.candidates = [{
       content: { role: 'model', parts },
@@ -422,12 +424,23 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
       { id: string; name: string; arguments: string }
     >();
 
+    let finalFinishReason: string | undefined;
+    let finalUsage: GenerateContentResponseUsageMetadata | undefined;
+
     try {
       while (true) {
         if (abortSignal?.aborted) break;
 
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // Stream ended without [DONE] — yield final chunk with finishReason
+          yield makeGeminiResponse(
+            [],
+            finalUsage,
+            this.mapFinishReason(finalFinishReason),
+          );
+          return;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -446,7 +459,15 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
             continue;
           }
 
-          if (data.trim() === '[DONE]') return;
+          if (data.trim() === '[DONE]') {
+            // Yield final response with finishReason so Gemini persists assistant to history
+            yield makeGeminiResponse(
+              [],
+              finalUsage,
+              this.mapFinishReason(finalFinishReason),
+            );
+            return;
+          }
 
           let chunk: OpenAISSEChunk;
           try {
@@ -500,8 +521,11 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
             }
           }
 
-          // Emit tool calls when finish_reason is tool_calls or stop
+          // Track finish reason for the final chunk
           const finishReason = chunk.choices?.[0]?.finish_reason;
+          if (finishReason) finalFinishReason = finishReason;
+
+          // Emit tool calls when finish_reason is tool_calls or stop
           if (
             finishReason === 'tool_calls' &&
             pendingToolCalls.size > 0
@@ -534,11 +558,24 @@ export class OpenAICompatContentGenerator implements ContentGenerator {
                 }
               : undefined;
 
+          if (usageMetadata) finalUsage = usageMetadata;
+
           yield makeGeminiResponse(parts, usageMetadata);
         }
       }
     } finally {
       reader.releaseLock();
+    }
+  }
+
+  private mapFinishReason(reason: string | undefined): string {
+    // Map OpenAI finish_reason to Gemini's expected uppercase format
+    switch (reason) {
+      case 'tool_calls': return 'TOOL_CALLS';
+      case 'length': return 'MAX_TOKENS';
+      case 'content_filter': return 'SAFETY';
+      case 'stop':
+      default: return 'STOP';
     }
   }
 
