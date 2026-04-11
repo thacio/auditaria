@@ -97,7 +97,6 @@ import { setupTerminalAndTheme } from './utils/terminalTheme.js';
 import { runDeferredCommand } from './deferred.js';
 import { cleanupBackgroundLogs } from './utils/logCleanup.js';
 import { SlashCommandConflictHandler } from './services/SlashCommandConflictHandler.js';
-import { initializeConsoleStore } from './ui/hooks/useConsoleMessages.js';
 
 export function validateDnsResolutionOrder(
   order: string | undefined,
@@ -347,7 +346,6 @@ export async function main() {
     process.exit(ExitCodes.FATAL_INPUT_ERROR);
   }
 
-  initializeConsoleStore();
   const isDebugMode = cliConfig.isDebugMode(argv);
   const consolePatcher = new ConsolePatcher({
     stderr: true,
@@ -673,9 +671,8 @@ export async function main() {
 
       // Pre-parse the JSONL to build UI history (loaded in AppContainer on mount)
       try {
-        const { validateClaudeSessionId, buildClaudeSessionSummary } = await import(
-          '@google/gemini-cli-core'
-        );
+        const { validateClaudeSessionId, buildClaudeSessionSummary } =
+          await import('@google/gemini-cli-core');
         const { valid, filePath } = await validateClaudeSessionId(
           config.getTargetDir(),
           claudeSessionId,

@@ -46,6 +46,7 @@ import { TerminalProvider } from './ui/contexts/TerminalContext.js';
 import { isAlternateBufferEnabled } from './ui/hooks/useAlternateBuffer.js';
 import { OverflowProvider } from './ui/contexts/OverflowContext.js';
 import { profiler } from './ui/components/DebugProfiler.js';
+import { initializeConsoleStore } from './ui/hooks/useConsoleMessages.js';
 // WEB_INTERFACE_START: Import web interface providers
 import { SubmitQueryProvider } from './ui/contexts/SubmitQueryContext.js';
 import { WebInterfaceProvider } from './ui/contexts/WebInterfaceContext.js';
@@ -70,6 +71,7 @@ export async function startInteractiveUI(
   webPort?: number,
   // WEB_INTERFACE_END
 ) {
+  initializeConsoleStore();
   // Never enter Ink alternate buffer mode when screen reader mode is enabled
   // as there is no benefit of alternate buffer mode when using a screen reader
   // and the Ink alternate buffer mode requires line wrapping harmful to
