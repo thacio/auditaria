@@ -1162,15 +1162,15 @@ function migrateExperimentalSettings(
     };
     let modified = false;
 
-    const migrateExperimental = (
+    const migrateExperimental = <T = Record<string, unknown>>(
       oldKey: string,
-      migrateFn: (oldValue: Record<string, unknown>) => void,
+      migrateFn: (oldValue: T) => void,
     ) => {
       const old = experimentalSettings[oldKey];
-      if (old) {
+      if (old !== undefined) {
         foundDeprecated?.push(`experimental.${oldKey}`);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-        migrateFn(old as Record<string, unknown>);
+        migrateFn(old as T);
         modified = true;
       }
     };
@@ -1235,6 +1235,24 @@ function migrateExperimentalSettings(
       agentsOverrides['cli_help'] = override;
     });
 
+    // Migrate experimental.plan -> general.plan.enabled
+    migrateExperimental<boolean>('plan', (planValue) => {
+      const generalSettings =
+        (settings.general as Record<string, unknown> | undefined) || {};
+      const newGeneral = { ...generalSettings };
+      const planSettings =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        (newGeneral['plan'] as Record<string, unknown> | undefined) || {};
+      const newPlan = { ...planSettings };
+
+      if (newPlan['enabled'] === undefined) {
+        newPlan['enabled'] = planValue;
+        newGeneral['plan'] = newPlan;
+        loadedSettings.setValue(scope, 'general', newGeneral);
+        modified = true;
+      }
+    });
+
     if (modified) {
       agentsSettings['overrides'] = agentsOverrides;
       loadedSettings.setValue(scope, 'agents', agentsSettings);
@@ -1243,6 +1261,7 @@ function migrateExperimentalSettings(
         const newExperimental = { ...experimentalSettings };
         delete newExperimental['codebaseInvestigatorSettings'];
         delete newExperimental['cliHelpAgentSettings'];
+        delete newExperimental['plan'];
         loadedSettings.setValue(scope, 'experimental', newExperimental);
       }
       return true;
