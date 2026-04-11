@@ -48,6 +48,7 @@ import { WebFetchTool } from '../tools/web-fetch.js';
 import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { AskUserTool } from '../tools/ask-user.js';
+import { UpdateTopicTool, TopicState } from '../tools/topicTool.js';
 import { ExitPlanModeTool } from '../tools/exit-plan-mode.js';
 import { EnterPlanModeTool } from '../tools/enter-plan-mode.js';
 import { GeminiClient } from '../core/client.js';
@@ -753,6 +754,7 @@ export class Config implements McpContext, AgentLoopContext {
   private clientVersion: string;
   private fileSystemService: FileSystemService;
   private trackerService?: TrackerService;
+  readonly topicState = new TopicState();
   private contentGeneratorConfig!: ContentGeneratorConfig;
   private contentGenerator!: ContentGenerator;
   readonly modelConfigService: ModelConfigService;
@@ -805,7 +807,7 @@ export class Config implements McpContext, AgentLoopContext {
   private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
   private pendingClaudeResumeUIHistory_?: unknown[]; // AUDITARIA_REWIND: HistoryItem[] stored for AppContainer
   private pendingClaudeResumeSummary_?: string; // AUDITARIA_REWIND
-  private customProviders_?: import('../providers/openai-compat/types.js').CustomProviderConfig[]; // AUDITARIA_OPENAI_COMPAT
+  private customProviders_?: Array<import('../providers/openai-compat/types.js').CustomProviderConfig>; // AUDITARIA_OPENAI_COMPAT
   private openaiCompatModule_?: typeof import('../providers/openai-compat/index.js'); // AUDITARIA_OPENAI_COMPAT: cached module
   private _sandboxManager: SandboxManager;
   private readonly _sandboxPolicyManager: SandboxPolicyManager;
@@ -1381,7 +1383,9 @@ export class Config implements McpContext, AgentLoopContext {
         const providers = await mod.loadCustomProviders();
         if (providers.length > 0) this.customProviders_ = providers;
       })
-      .catch(() => { /* non-fatal */ });
+      .catch(() => {
+        /* non-fatal */
+      });
 
     this.a2aClientManager = new A2AClientManager(this);
     this.modelRouterService = new ModelRouterService(this);
@@ -2732,11 +2736,13 @@ export class Config implements McpContext, AgentLoopContext {
   // AUDITARIA_REWIND_END
 
   // AUDITARIA_OPENAI_COMPAT_START
-  setCustomProviders(providers: import('../providers/openai-compat/types.js').CustomProviderConfig[]): void {
+  setCustomProviders(
+    providers: Array<import('../providers/openai-compat/types.js').CustomProviderConfig>,
+  ): void {
     this.customProviders_ = providers;
   }
 
-  getCustomProviders(): import('../providers/openai-compat/types.js').CustomProviderConfig[] {
+  getCustomProviders(): Array<import('../providers/openai-compat/types.js').CustomProviderConfig> {
     return this.customProviders_ || [];
   }
   // AUDITARIA_OPENAI_COMPAT_END
@@ -2799,9 +2805,12 @@ export class Config implements McpContext, AgentLoopContext {
         return;
       }
 
-      const { OpenAICompatContentGenerator, buildDriverConfig: buildOAIDriverConfig } = this.openaiCompatModule_;
+      const {
+        OpenAICompatContentGenerator,
+        buildDriverConfig: buildOAIDriverConfig,
+      } = this.openaiCompatModule_;
       const customProviders = this.getCustomProviders();
-      const providerCfg = customProviders.find(p => p.id === providerId);
+      const providerCfg = customProviders.find((p) => p.id === providerId);
 
       if (!providerCfg) return;
 
@@ -2817,15 +2826,17 @@ export class Config implements McpContext, AgentLoopContext {
 
       // Clear chat history AFTER swap — resetChat creates new GeminiChat
       // that will use our new ContentGenerator via getContentGenerator()
-      this._geminiClient?.resetChat()
-        .catch(() => { /* non-fatal */ });
+      this._geminiClient?.resetChat().catch(() => {
+        /* non-fatal */
+      });
 
       // Update the model name for footer display
       this.setModel(`${providerCfg.name}: ${driverConfig.model}`, true);
 
       // AUDITARIA_PROVIDER_PERSISTENCE
       if (this.onModelChange && !isTemporary) {
-        const persistedPreference = this.getPersistedModelPreferenceForProvider(config);
+        const persistedPreference =
+          this.getPersistedModelPreferenceForProvider(config);
         if (persistedPreference) this.onModelChange(persistedPreference);
       }
       return;
@@ -3780,6 +3791,10 @@ export class Config implements McpContext, AgentLoopContext {
         registerFn();
       }
     };
+
+    maybeRegister(UpdateTopicTool, () =>
+      registry.registerTool(new UpdateTopicTool(this, this.messageBus)),
+    );
 
     maybeRegister(LSTool, () =>
       registry.registerTool(new LSTool(this, this.messageBus)),

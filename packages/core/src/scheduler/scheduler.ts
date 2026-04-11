@@ -13,7 +13,6 @@ import { checkPolicy, updatePolicy, getPolicyDenialError } from './policy.js';
 import { evaluateBeforeToolHook } from './hook-utils.js';
 import { ToolExecutor } from './tool-executor.js';
 import { ToolModificationHandler } from './tool-modifier.js';
-import { EDIT_TOOL_NAME } from '../tools/tool-names.js'; // AUDITARIA_COLLABORATIVE_WRITING
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING
 import { debugLogger } from '../utils/debugLogger.js'; // AUDITARIA_COLLABORATIVE_WRITING
 import {
@@ -29,6 +28,7 @@ import {
   type ScheduledToolCall,
 } from './types.js';
 import { ToolErrorType } from '../tools/tool-error.js';
+import { EDIT_TOOL_NAME, UPDATE_TOPIC_TOOL_NAME } from '../tools/tool-names.js'; // AUDITARIA_COLLABORATIVE_WRITING: EDIT_TOOL_NAME
 import { PolicyDecision, type ApprovalMode } from '../policy/types.js';
 import {
   ToolConfirmationOutcome,
@@ -305,9 +305,16 @@ export class Scheduler {
     this.state.clearBatch();
     const currentApprovalMode = this.config.getApprovalMode();
 
+    // Sort requests to ensure Topic changes happen before actions in the same batch.
+    const sortedRequests = [...requests].sort((a, b) => {
+      if (a.name === UPDATE_TOPIC_TOOL_NAME) return -1;
+      if (b.name === UPDATE_TOPIC_TOOL_NAME) return 1;
+      return 0;
+    });
+
     try {
       const toolRegistry = this.context.toolRegistry;
-      const newCalls: ToolCall[] = requests.map((request) => {
+      const newCalls: ToolCall[] = sortedRequests.map((request) => {
         const enrichedRequest: ToolCallRequestInfo = {
           ...request,
           schedulerId: this.schedulerId,
