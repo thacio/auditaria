@@ -5,7 +5,7 @@
  */
 
 import type React from 'react';
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import {
@@ -14,6 +14,8 @@ import {
   tokenLimit,
   getDisplayString,
   checkExhaustive,
+  AuthType,
+  UserAccountManager,
 } from '@google/gemini-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
@@ -188,6 +190,90 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
   const settings = useSettings();
   const { vimEnabled, vimMode } = useVimMode();
 
+  const authType = config.getContentGeneratorConfig()?.authType;
+  const [email, setEmail] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (authType) {
+      const userAccountManager = new UserAccountManager();
+      setEmail(userAccountManager.getCachedGoogleAccount() ?? undefined);
+    } else {
+      setEmail(undefined);
+    }
+  }, [authType]);
+
+  // WEB_INTERFACE_START: Sync footer data to FooterContext for web interface
+  // Hooks must be called unconditionally, before any early return.
+  const footerContext = useFooter();
+  const updateFooterData = footerContext?.updateFooterData;
+  const prevFooterDataRef = useRef<string>('');
+
+  useEffect(() => {
+    if (!updateFooterData) return;
+    if (copyModeEnabled) return;
+
+    const model = uiState.currentModel;
+    const targetDir = config.getTargetDir();
+    const debugMode = config.getDebugMode();
+    const branchName = uiState.branchName;
+    const debugMessage = uiState.debugMessage;
+    const corgiMode = uiState.corgiMode;
+    const promptTokenCount = uiState.sessionStats.lastPromptTokenCount;
+    const isTrustedFolder = uiState.isTrustedFolder;
+    const errorCount = uiState.errorCount;
+    const showErrorDetails = uiState.showErrorDetails;
+    const showMemoryUsage = debugMode || settings.merged.ui.showMemoryUsage;
+
+    // Determine sandbox status
+    let sandboxStatus = 'no sandbox';
+    let isSandboxed = false;
+    if (isTrustedFolder === false) {
+      sandboxStatus = 'untrusted';
+    } else if (
+      process.env['SANDBOX'] &&
+      process.env['SANDBOX'] !== 'sandbox-exec'
+    ) {
+      sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
+      isSandboxed = true;
+    } else if (process.env['SANDBOX'] === 'sandbox-exec') {
+      sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
+      isSandboxed = true;
+    }
+
+    const contextMaxTokens = tokenLimit(model);
+    const contextUsedTokens = promptTokenCount;
+    const contextLeftTokens = contextMaxTokens - contextUsedTokens;
+    const percentage = contextUsedTokens / Math.max(1, contextMaxTokens);
+    const percentageLeft = (1 - percentage) * 100;
+
+    const newData: FooterData = {
+      targetDir,
+      workingDirectory: targetDir,
+      branchName,
+      model,
+      modelDisplayName: getDisplayString(model),
+      contextPercentage: percentageLeft,
+      contextUsedTokens,
+      contextMaxTokens,
+      contextLeftTokens,
+      sandboxStatus,
+      isSandboxed,
+      errorCount,
+      debugMode,
+      debugMessage,
+      corgiMode,
+      showMemoryUsage,
+      showErrorDetails,
+    };
+
+    const newDataStr = JSON.stringify(newData);
+    if (newDataStr !== prevFooterDataRef.current) {
+      prevFooterDataRef.current = newDataStr;
+      updateFooterData(newData);
+    }
+  }, [updateFooterData, uiState, config, settings, copyModeEnabled]);
+  // WEB_INTERFACE_END
+
   if (copyModeEnabled) {
     return <Box height={1} />;
   }
@@ -226,6 +312,7 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
     errorCount > 0 &&
     (isFullErrorVerbosity || debugMode || isDevelopment);
   const displayVimMode = vimEnabled ? vimMode : undefined;
+
   const items =
     settings.merged.ui.footer.items ??
     deriveItemsFromLegacySettings(settings.merged);
@@ -390,6 +477,25 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
         );
         break;
       }
+      case 'auth': {
+        if (!settings.merged.ui.showUserIdentity) break;
+        if (!authType) break;
+        const displayStr =
+          authType === AuthType.LOGIN_WITH_GOOGLE
+            ? (email ?? 'google')
+            : authType;
+        addCol(
+          id,
+          header,
+          () => (
+            <Text color={itemColor} wrap="truncate-end">
+              {displayStr}
+            </Text>
+          ),
+          displayStr.length,
+        );
+        break;
+      }
       case 'code-changes': {
         const added = uiState.sessionStats.metrics.files.totalLinesAdded;
         const removed = uiState.sessionStats.metrics.files.totalLinesRemoved;
@@ -507,81 +613,6 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
       alignItems: 'flex-end',
     });
   }
-
-  // WEB_INTERFACE_START: Sync footer data to FooterContext for web interface
-  const showMemoryUsage =
-    config.getDebugMode() || settings.merged.ui.showMemoryUsage;
-  const footerContext = useFooter();
-  const updateFooterData = footerContext?.updateFooterData;
-  const prevFooterDataRef = useRef<string>('');
-
-  useEffect(() => {
-    if (!updateFooterData) return;
-
-    // Determine sandbox status
-    let sandboxStatus = 'no sandbox';
-    let isSandboxed = false;
-    if (isTrustedFolder === false) {
-      sandboxStatus = 'untrusted';
-    } else if (
-      process.env['SANDBOX'] &&
-      process.env['SANDBOX'] !== 'sandbox-exec'
-    ) {
-      sandboxStatus = process.env['SANDBOX'].replace(/^gemini-(?:cli-)?/, '');
-      isSandboxed = true;
-    } else if (process.env['SANDBOX'] === 'sandbox-exec') {
-      sandboxStatus = `macOS Seatbelt (${process.env['SEATBELT_PROFILE']})`;
-      isSandboxed = true;
-    }
-
-    // Calculate context percentage LEFT (matching ContextUsageDisplay logic)
-    const contextMaxTokens = tokenLimit(model);
-    const contextUsedTokens = promptTokenCount;
-    const contextLeftTokens = contextMaxTokens - contextUsedTokens;
-    const percentage = contextUsedTokens / Math.max(1, contextMaxTokens);
-    const percentageLeft = (1 - percentage) * 100;
-
-    const newData: FooterData = {
-      targetDir,
-      workingDirectory: targetDir,
-      branchName,
-      model,
-      modelDisplayName: getDisplayString(model),
-      contextPercentage: percentageLeft,
-      contextUsedTokens,
-      contextMaxTokens,
-      contextLeftTokens,
-      sandboxStatus,
-      isSandboxed,
-      errorCount,
-      debugMode,
-      debugMessage,
-      corgiMode,
-      showMemoryUsage,
-      showErrorDetails,
-    };
-
-    // Only update if data actually changed to avoid render loops
-    const newDataStr = JSON.stringify(newData);
-    if (newDataStr !== prevFooterDataRef.current) {
-      prevFooterDataRef.current = newDataStr;
-      updateFooterData(newData);
-    }
-  }, [
-    updateFooterData,
-    targetDir,
-    branchName,
-    model,
-    promptTokenCount,
-    isTrustedFolder,
-    errorCount,
-    debugMode,
-    debugMessage,
-    corgiMode,
-    showMemoryUsage,
-    showErrorDetails,
-  ]);
-  // WEB_INTERFACE_END
 
   return (
     <Box width={terminalWidth} paddingX={1} overflow="hidden" flexWrap="nowrap">
