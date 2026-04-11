@@ -780,7 +780,7 @@ export const AppContainer = (props: AppContainerProps) => {
   // Wrap handleDeleteSession to return a Promise for UIActions interface
   const handleDeleteSession = useCallback(
     async (session: SessionInfo): Promise<void> => {
-      handleDeleteSessionSync(session);
+      await handleDeleteSessionSync(session);
     },
     [handleDeleteSessionSync],
   );
@@ -802,10 +802,18 @@ export const AppContainer = (props: AppContainerProps) => {
         const client = config.getGeminiClient();
         client?.setHistory([
           { role: 'user' as const, parts: [{ text: summary }] },
-          { role: 'model' as const, parts: [{ text: 'Got it. I have the context from the previous session.' }] },
+          {
+            role: 'model' as const,
+            parts: [
+              { text: 'Got it. I have the context from the previous session.' },
+            ],
+          },
         ]);
-      } catch { /* chat may not be ready — mirrored history is optional */ }
+      } catch {
+        /* chat may not be ready — mirrored history is optional */
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to client init
   }, [isGeminiClientInitialized]);
   // AUDITARIA_REWIND_END
 
@@ -2241,7 +2249,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
         options: cp.models.map((m) => ({
           selection: `openai-compat:${cp.id}/${m.id}`,
           label: `${cp.name} (${m.displayName || m.id})`,
-          description: m.contextWindow ? `${Math.round(m.contextWindow / 1000)}K context` : '',
+          description: m.contextWindow
+            ? `${Math.round(m.contextWindow / 1000)}K context`
+            : '',
         })),
       })),
       // AUDITARIA_OPENAI_COMPAT_END
@@ -2412,9 +2422,11 @@ Logging in with Google... Restarting Gemini CLI to continue.
       // AUDITARIA_OPENAI_COMPAT_START: Handle custom provider selection from web
       if (selection.startsWith('openai-compat:') && selection.includes('/')) {
         const [providerPart, selectedModel] = selection.split('/');
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        const providerType = providerPart as `openai-compat:${string}`;
         config.setProviderConfig(
           {
-            type: providerPart as import('@google/gemini-cli-core').ProviderConfig['type'],
+            type: providerType,
             model: selectedModel,
             cwd: config.getWorkingDir(),
           },
