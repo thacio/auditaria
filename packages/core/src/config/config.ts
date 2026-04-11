@@ -48,7 +48,8 @@ import { WebFetchTool } from '../tools/web-fetch.js';
 import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { AskUserTool } from '../tools/ask-user.js';
-import { UpdateTopicTool, TopicState } from '../tools/topicTool.js';
+import { UpdateTopicTool } from '../tools/topicTool.js';
+import { TopicState } from './topicState.js';
 import { ExitPlanModeTool } from '../tools/exit-plan-mode.js';
 import { EnterPlanModeTool } from '../tools/enter-plan-mode.js';
 import { GeminiClient } from '../core/client.js';
@@ -664,6 +665,7 @@ export interface ConfigParameters {
   useAlternateBuffer?: boolean;
   useRipgrep?: boolean;
   enableInteractiveShell?: boolean;
+  shellBackgroundCompletionBehavior?: string;
   skipNextSpeakerCheck?: boolean;
   shellExecutionConfig?: ShellExecutionConfig;
   extensionManagement?: boolean;
@@ -807,7 +809,9 @@ export class Config implements McpContext, AgentLoopContext {
   private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
   private pendingClaudeResumeUIHistory_?: unknown[]; // AUDITARIA_REWIND: HistoryItem[] stored for AppContainer
   private pendingClaudeResumeSummary_?: string; // AUDITARIA_REWIND
-  private customProviders_?: Array<import('../providers/openai-compat/types.js').CustomProviderConfig>; // AUDITARIA_OPENAI_COMPAT
+  private customProviders_?: Array<
+    import('../providers/openai-compat/types.js').CustomProviderConfig
+  >; // AUDITARIA_OPENAI_COMPAT
   private openaiCompatModule_?: typeof import('../providers/openai-compat/index.js'); // AUDITARIA_OPENAI_COMPAT: cached module
   private _sandboxManager: SandboxManager;
   private readonly _sandboxPolicyManager: SandboxPolicyManager;
@@ -891,6 +895,10 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly directWebFetch: boolean;
   private readonly useRipgrep: boolean;
   private readonly enableInteractiveShell: boolean;
+  private readonly shellBackgroundCompletionBehavior:
+    | 'inject'
+    | 'notify'
+    | 'silent';
   private readonly skipNextSpeakerCheck: boolean;
   private readonly useBackgroundColor: boolean;
   private readonly useAlternateBuffer: boolean;
@@ -1231,6 +1239,14 @@ export class Config implements McpContext, AgentLoopContext {
     this.useBackgroundColor = params.useBackgroundColor ?? true;
     this.useAlternateBuffer = params.useAlternateBuffer ?? false;
     this.enableInteractiveShell = params.enableInteractiveShell ?? false;
+
+    const requestedBehavior = params.shellBackgroundCompletionBehavior;
+    if (requestedBehavior === 'inject' || requestedBehavior === 'notify') {
+      this.shellBackgroundCompletionBehavior = requestedBehavior;
+    } else {
+      this.shellBackgroundCompletionBehavior = 'silent';
+    }
+
     this.skipNextSpeakerCheck = params.skipNextSpeakerCheck ?? true;
     this.shellExecutionConfig = {
       terminalWidth: params.shellExecutionConfig?.terminalWidth ?? 80,
@@ -1240,6 +1256,7 @@ export class Config implements McpContext, AgentLoopContext {
       sanitizationConfig: this.sanitizationConfig,
       sandboxManager: this._sandboxManager,
       sandboxConfig: this.sandbox,
+      backgroundCompletionBehavior: this.shellBackgroundCompletionBehavior,
     };
     this.truncateToolOutputThreshold =
       params.truncateToolOutputThreshold ??
@@ -2737,12 +2754,16 @@ export class Config implements McpContext, AgentLoopContext {
 
   // AUDITARIA_OPENAI_COMPAT_START
   setCustomProviders(
-    providers: Array<import('../providers/openai-compat/types.js').CustomProviderConfig>,
+    providers: Array<
+      import('../providers/openai-compat/types.js').CustomProviderConfig
+    >,
   ): void {
     this.customProviders_ = providers;
   }
 
-  getCustomProviders(): Array<import('../providers/openai-compat/types.js').CustomProviderConfig> {
+  getCustomProviders(): Array<
+    import('../providers/openai-compat/types.js').CustomProviderConfig
+  > {
     return this.customProviders_ || [];
   }
   // AUDITARIA_OPENAI_COMPAT_END
@@ -3600,6 +3621,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   getEnableInteractiveShell(): boolean {
     return this.enableInteractiveShell;
+  }
+
+  getShellBackgroundCompletionBehavior(): 'inject' | 'notify' | 'silent' {
+    return this.shellBackgroundCompletionBehavior;
   }
 
   getSkipNextSpeakerCheck(): boolean {

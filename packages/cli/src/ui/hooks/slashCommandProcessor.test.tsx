@@ -214,7 +214,7 @@ describe('useSlashCommandProcessor', () => {
             dispatchExtensionStateUpdate: vi.fn(),
             addConfirmUpdateExtensionRequest: vi.fn(),
             openLanguageDialog: vi.fn(), // AUDITARIA: Custom language command
-            toggleBackgroundShell: vi.fn(),
+            toggleBackgroundTasks: vi.fn(),
             toggleShortcutsHelp: vi.fn(),
             setText: vi.fn(),
           },

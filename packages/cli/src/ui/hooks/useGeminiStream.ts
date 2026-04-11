@@ -74,7 +74,7 @@ import {
   ToolCallStatus,
 } from '../types.js';
 import { isAtCommand, isSlashCommand } from '../utils/commandUtils.js';
-import { useShellCommandProcessor } from './shellCommandProcessor.js';
+import { useExecutionLifecycle } from './useExecutionLifecycle.js';
 import { handleAtCommand } from './atCommandProcessor.js';
 import { findLastSafeSplitPoint } from '../utils/markdownUtilities.js';
 import { getInlineThinkingMode } from '../utils/inlineThinkingMode.js';
@@ -397,14 +397,14 @@ export const useGeminiStream = (
     handleShellCommand,
     activeShellPtyId,
     lastShellOutputTime,
-    backgroundShellCount,
-    isBackgroundShellVisible,
-    toggleBackgroundShell,
-    backgroundCurrentShell,
-    registerBackgroundShell,
-    dismissBackgroundShell,
-    backgroundShells,
-  } = useShellCommandProcessor(
+    backgroundTaskCount,
+    isBackgroundTaskVisible,
+    toggleBackgroundTasks,
+    backgroundCurrentExecution,
+    registerBackgroundTask,
+    dismissBackgroundTask,
+    backgroundTasks,
+  } = useExecutionLifecycle(
     addItem,
     setPendingHistoryItem,
     onExec,
@@ -516,7 +516,7 @@ export const useGeminiStream = (
           activeShellPtyId,
           !!isShellFocused,
           [],
-          backgroundShells,
+          backgroundTasks,
         ),
       });
       addItem(historyItem);
@@ -533,7 +533,7 @@ export const useGeminiStream = (
     addItem,
     activeShellPtyId,
     isShellFocused,
-    backgroundShells,
+    backgroundTasks,
   ]);
 
   const pendingToolGroupItems = useMemo((): HistoryItemWithoutId[] => {
@@ -548,7 +548,7 @@ export const useGeminiStream = (
       activeShellPtyId,
       !!isShellFocused,
       [],
-      backgroundShells,
+      backgroundTasks,
     );
 
     if (remainingTools.length > 0) {
@@ -637,7 +637,7 @@ export const useGeminiStream = (
     pushedToolCallIds,
     activeShellPtyId,
     isShellFocused,
-    backgroundShells,
+    backgroundTasks,
   ]);
 
   // WEB_INTERFACE_START: Single unified response_state broadcast
@@ -2111,7 +2111,7 @@ export const useGeminiStream = (
       for (const toolCall of completedAndReadyToSubmitTools) {
         const backgroundedTool = getBackgroundedToolInfo(toolCall);
         if (backgroundedTool) {
-          registerBackgroundShell(
+          registerBackgroundTask(
             backgroundedTool.pid,
             backgroundedTool.command,
             backgroundedTool.initialOutput,
@@ -2245,7 +2245,7 @@ export const useGeminiStream = (
       performMemoryRefresh,
       modelSwitchedFromQuotaError,
       addItem,
-      registerBackgroundShell,
+      registerBackgroundTask,
       consumeUserHint,
       isLowErrorVerbosity,
       maybeAddSuppressedToolErrorNote,
@@ -2343,12 +2343,12 @@ export const useGeminiStream = (
     activePtyId,
     loopDetectionConfirmationRequest,
     lastOutputTime,
-    backgroundShellCount,
-    isBackgroundShellVisible,
-    toggleBackgroundShell,
-    backgroundCurrentShell,
-    backgroundShells,
-    dismissBackgroundShell,
+    backgroundTaskCount,
+    isBackgroundTaskVisible,
+    toggleBackgroundTasks,
+    backgroundCurrentExecution,
+    backgroundTasks,
+    dismissBackgroundTask,
     retryStatus,
   };
 };
