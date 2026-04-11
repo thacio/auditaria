@@ -117,12 +117,10 @@ export class GeminiClient {
   constructor(private readonly context: AgentLoopContext) {
     this.loopDetector = new LoopDetectionService(this.config);
     this.compressionService = new ChatCompressionService();
-    this.agentHistoryProvider = new AgentHistoryProvider(this.config, {
-      truncationThreshold:
-        this.config.getExperimentalAgentHistoryTruncationThreshold(),
-      retainedMessages:
-        this.config.getExperimentalAgentHistoryRetainedMessages(),
-    });
+    this.agentHistoryProvider = new AgentHistoryProvider(
+      this.config.agentHistoryProviderConfig,
+      this.config,
+    );
     this.toolOutputMaskingService = new ToolOutputMaskingService();
     this.lastPromptId = this.config.getSessionId();
 
@@ -631,7 +629,7 @@ export class GeminiClient {
     // Check for context window overflow
     const modelForLimitCheck = this._getActiveModelForCurrentTurn();
 
-    if (this.config.isExperimentalAgentHistoryTruncationEnabled()) {
+    if (this.config.getContextManagementConfig().enabled) {
       const newHistory = await this.agentHistoryProvider.manageHistory(
         this.getHistory(),
         signal,

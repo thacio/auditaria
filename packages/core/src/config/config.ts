@@ -23,6 +23,7 @@ import {
 import { getAuditContext, renderUserMemory } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { z } from 'zod';
 import type { ConversationRecord } from '../services/chatRecordingService.js';
+import type { AgentHistoryProviderConfig } from '../services/types.js';
 export type { ConversationRecord };
 import {
   AuthType,
@@ -225,6 +226,23 @@ export interface TelemetrySettings {
 
 export interface OutputSettings {
   format?: OutputFormat;
+}
+
+export interface ContextManagementConfig {
+  enabled: boolean;
+  historyWindow: {
+    maxTokens: number;
+    retainedTokens: number;
+  };
+  messageLimits: {
+    normalMaxTokens: number;
+    retainedMaxTokens: number;
+    normalizationHeadRatio: number;
+  };
+  toolDistillation: {
+    maxOutputTokens: number;
+    summarizationThresholdTokens: number;
+  };
 }
 
 export interface ToolOutputMaskingConfig {
@@ -697,6 +715,7 @@ export interface ConfigParameters {
   enableHooks?: boolean;
   enableHooksUI?: boolean;
   experiments?: Experiments;
+  contextManagement?: Partial<ContextManagementConfig>;
   hooks?: { [K in HookEventName]?: HookDefinition[] };
   disabledHooks?: string[];
   projectHooks?: { [K in HookEventName]?: HookDefinition[] };
@@ -706,6 +725,7 @@ export interface ConfigParameters {
   disabledSkills?: string[];
   adminSkillsEnabled?: boolean;
   experimentalJitContext?: boolean;
+  autoDistillation?: boolean;
   experimentalMemoryManager?: boolean;
   experimentalAgentHistoryTruncation?: boolean;
   experimentalAgentHistoryTruncationThreshold?: number;
@@ -971,10 +991,6 @@ export class Config implements McpContext, AgentLoopContext {
   private skillsPromptSection: string = ''; // AUDITARIA_SKILLS - Auditaria Custom feature
   private readonly experimentalJitContext: boolean;
   private readonly experimentalMemoryManager: boolean;
-  private readonly experimentalAgentHistoryTruncation: boolean;
-  private readonly experimentalAgentHistoryTruncationThreshold: number;
-  private readonly experimentalAgentHistoryRetainedMessages: number;
-  private readonly experimentalAgentHistorySummarization: boolean;
   private readonly memoryBoundaryMarkers: readonly string[];
   private readonly topicUpdateNarration: boolean;
   private readonly disableLLMCorrection: boolean;
@@ -983,6 +999,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly planModeRoutingEnabled: boolean;
   private readonly modelSteering: boolean;
   private contextManager?: ContextManager;
+  private readonly contextManagement: ContextManagementConfig;
   private terminalBackground: string | undefined = undefined;
   private remoteAdminSettings: AdminControlsSettings | undefined;
   private latestApiRequest: GenerateContentParameters | undefined;
@@ -1186,15 +1203,31 @@ export class Config implements McpContext, AgentLoopContext {
 
     this.experimentalJitContext = params.experimentalJitContext ?? true;
     this.experimentalMemoryManager = params.experimentalMemoryManager ?? false;
-    this.experimentalAgentHistoryTruncation =
-      params.experimentalAgentHistoryTruncation ?? false;
-    this.experimentalAgentHistoryTruncationThreshold =
-      params.experimentalAgentHistoryTruncationThreshold ?? 30;
-    this.experimentalAgentHistoryRetainedMessages =
-      params.experimentalAgentHistoryRetainedMessages ?? 15;
-    this.experimentalAgentHistorySummarization =
-      params.experimentalAgentHistorySummarization ?? false;
     this.memoryBoundaryMarkers = params.memoryBoundaryMarkers ?? ['.git'];
+    this.contextManagement = {
+      enabled: params.contextManagement?.enabled ?? false,
+      historyWindow: {
+        maxTokens: params.contextManagement?.historyWindow?.maxTokens ?? 150000,
+        retainedTokens:
+          params.contextManagement?.historyWindow?.retainedTokens ?? 40000,
+      },
+      messageLimits: {
+        normalMaxTokens:
+          params.contextManagement?.messageLimits?.normalMaxTokens ?? 2500,
+        retainedMaxTokens:
+          params.contextManagement?.messageLimits?.retainedMaxTokens ?? 12000,
+        normalizationHeadRatio:
+          params.contextManagement?.messageLimits?.normalizationHeadRatio ??
+          0.25,
+      },
+      toolDistillation: {
+        maxOutputTokens:
+          params.contextManagement?.toolDistillation?.maxOutputTokens ?? 10000,
+        summarizationThresholdTokens:
+          params.contextManagement?.toolDistillation
+            ?.summarizationThresholdTokens ?? 20000,
+      },
+    };
     this.topicUpdateNarration = params.topicUpdateNarration ?? false;
     this.modelSteering = params.modelSteering ?? false;
     this.injectionService = new InjectionService(() =>
@@ -2419,6 +2452,10 @@ export class Config implements McpContext, AgentLoopContext {
     return this.experimentalJitContext;
   }
 
+  isAutoDistillationEnabled(): boolean {
+    return this.contextManagement.enabled;
+  }
+
   getMemoryBoundaryMarkers(): readonly string[] {
     return this.memoryBoundaryMarkers;
   }
@@ -2427,20 +2464,22 @@ export class Config implements McpContext, AgentLoopContext {
     return this.experimentalMemoryManager;
   }
 
-  isExperimentalAgentHistoryTruncationEnabled(): boolean {
-    return this.experimentalAgentHistoryTruncation;
+  getContextManagementConfig(): ContextManagementConfig {
+    return this.contextManagement;
   }
 
-  getExperimentalAgentHistoryTruncationThreshold(): number {
-    return this.experimentalAgentHistoryTruncationThreshold;
-  }
-
-  getExperimentalAgentHistoryRetainedMessages(): number {
-    return this.experimentalAgentHistoryRetainedMessages;
-  }
-
-  isExperimentalAgentHistorySummarizationEnabled(): boolean {
-    return this.experimentalAgentHistorySummarization;
+  get agentHistoryProviderConfig(): AgentHistoryProviderConfig {
+    return {
+      isTruncationEnabled: this.contextManagement.enabled,
+      isSummarizationEnabled: this.contextManagement.enabled,
+      maxTokens: this.contextManagement.historyWindow.maxTokens,
+      retainedTokens: this.contextManagement.historyWindow.retainedTokens,
+      normalMessageTokens: this.contextManagement.messageLimits.normalMaxTokens,
+      maximumMessageTokens:
+        this.contextManagement.messageLimits.retainedMaxTokens,
+      normalizationHeadRatio:
+        this.contextManagement.messageLimits.normalizationHeadRatio,
+    };
   }
 
   isTopicUpdateNarrationEnabled(): boolean {
@@ -3681,6 +3720,14 @@ export class Config implements McpContext, AgentLoopContext {
         (tokenLimit(this.model) - uiTelemetryService.getLastPromptTokenCount()),
       this.truncateToolOutputThreshold,
     );
+  }
+
+  getToolMaxOutputTokens(): number {
+    return this.contextManagement.toolDistillation.maxOutputTokens;
+  }
+
+  getToolSummarizationThresholdTokens(): number {
+    return this.contextManagement.toolDistillation.summarizationThresholdTokens;
   }
 
   getNextCompressionTruncationId(): number {
