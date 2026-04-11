@@ -190,6 +190,8 @@ export * from './agents/agentLoader.js';
 export * from './agents/local-executor.js';
 export * from './agents/agent-scheduler.js';
 
+// Export browser session management
+export { resetBrowserSession } from './agents/browser/browserAgentFactory.js';
 // Export agent session interface
 export * from './agent/agent-session.js';
 export * from './agent/legacy-agent-session.js';
@@ -334,7 +336,10 @@ export {
   loadCustomProviders,
   getCustomProviderContextWindow,
 } from './providers/openai-compat/index.js';
-export type { CustomProviderConfig, ProviderModelConfig } from './providers/openai-compat/index.js';
+export type {
+  CustomProviderConfig,
+  ProviderModelConfig,
+} from './providers/openai-compat/index.js';
 // AUDITARIA_OPENAI_COMPAT_END
 
 // AUDITARIA_REWIND_START
