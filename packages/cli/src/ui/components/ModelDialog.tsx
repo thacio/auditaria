@@ -23,7 +23,6 @@ import {
   AuthType,
   PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL,
   isProModel,
-  UserTierId,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -400,7 +399,6 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const manualOptions = useMemo(() => {
-    const isFreeTier = config?.getUserTier() === UserTierId.FREE;
     // --- DYNAMIC PATH ---
     if (
       config?.getExperimentalDynamicModelConfiguration?.() === true &&
@@ -417,9 +415,6 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           if (m.tier === 'auto') return false;
           // Pro models are shown for users with pro access
           if (!hasAccessToProModel && m.tier === 'pro') return false;
-          // 3.1 Preview Flash-lite is only available on free tier
-          if (m.tier === 'flash-lite' && m.isPreview && !isFreeTier)
-            return false;
 
           // Flag Guard: Versioned models only show if their flag is active.
           if (id === PREVIEW_GEMINI_3_1_MODEL && !useGemini31) return false;
@@ -502,7 +497,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         },
       ];
 
-      if (isFreeTier && useGemini31FlashLite) {
+      if (useGemini31FlashLite) {
         previewOptions.push({
           value: PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL,
           title: getDisplayString(PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL),
