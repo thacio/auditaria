@@ -10,11 +10,18 @@ import {
   type ToolResultDisplay,
   debugLogger,
   CoreToolCallStatus,
+  type SubagentActivityItem,
 } from '@google/gemini-cli-core';
 import {
   type HistoryItemToolGroup,
   type IndividualToolCallDisplay,
 } from '../types.js';
+
+function hasSubagentHistory(
+  call: ToolCall,
+): call is ToolCall & { subagentHistory: SubagentActivityItem[] } {
+  return 'subagentHistory' in call && call.subagentHistory !== undefined;
+}
 
 /**
  * Transforms `ToolCall` objects into `HistoryItemToolGroup` objects for UI
@@ -71,13 +78,13 @@ export function mapToDisplay(
       case CoreToolCallStatus.Success:
         resultDisplay = call.response.resultDisplay;
         outputFile = call.response.outputFile;
-         
+
         llmOutput = call.response.responseParts;
         break;
       case CoreToolCallStatus.Error:
       case CoreToolCallStatus.Cancelled:
         resultDisplay = call.response.resultDisplay;
-         
+
         llmOutput = call.response.responseParts;
         break;
       case CoreToolCallStatus.AwaitingApproval:
@@ -123,6 +130,9 @@ export function mapToDisplay(
       originalRequestName: call.request.originalRequestName,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       llmOutput,
+      subagentHistory: hasSubagentHistory(call)
+        ? call.subagentHistory
+        : undefined,
     };
   });
 

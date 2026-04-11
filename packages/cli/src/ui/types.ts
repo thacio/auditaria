@@ -19,6 +19,7 @@ import {
   type AnsiOutput,
   CoreToolCallStatus,
   checkExhaustive,
+  type SubagentActivityItem,
 } from '@google/gemini-cli-core';
 import type { PartListUnion } from '@google/genai';
 import { type ReactNode } from 'react';
@@ -137,6 +138,7 @@ export interface IndividualToolCallDisplay {
   progressTotal?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   llmOutput?: any; // AUDITARIA: raw LLM Output for web UI
+  subagentHistory?: SubagentActivityItem[];
 }
 
 // WEB_INTERFACE: ResponseBlock for unified web streaming state
@@ -309,6 +311,12 @@ export type HistoryItemChatList = HistoryItemBase & {
   chats: ChatDetail[];
 };
 
+export type HistoryItemSubagent = HistoryItemBase & {
+  type: 'subagent';
+  agentName: string;
+  history: SubagentActivityItem[];
+};
+
 export interface ToolDefinition {
   name: string;
   displayName: string;
@@ -414,7 +422,8 @@ export type HistoryItemWithoutId =
   | HistoryItemMcpStatus
   | HistoryItemChatList
   | HistoryItemThinking
-  | HistoryItemHint;
+  | HistoryItemHint
+  | HistoryItemSubagent;
 
 export type HistoryItem = HistoryItemWithoutId & { id: number };
 
