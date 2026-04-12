@@ -139,7 +139,7 @@ async function rewindConversation(
       config?.getProviderManager()?.onHistoryModified();
 
       // Reset context manager
-      await config?.getContextManager()?.refresh();
+      await config?.getMemoryContextManager()?.refresh();
 
       // Remove component and feedback
       context.ui.removeComponent();

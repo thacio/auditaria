@@ -14,7 +14,7 @@ import {
   type ServerGeminiStreamEvent,
   Turn,
 } from '../core/turn.js';
-import { findCompressSplitPoint } from '../services/chatCompressionService.js';
+import { findCompressSplitPoint } from '../context/chatCompressionService.js';
 import type { GeminiChat } from '../core/geminiChat.js';
 import type {
   ProviderConfig,

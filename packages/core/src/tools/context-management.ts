@@ -10,7 +10,7 @@ import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import type { Content, Part } from '@google/genai';
 import type { Config } from '../config/config.js';
 import { tokenLimit } from '../core/tokenLimits.js';
-import { DEFAULT_COMPRESSION_TOKEN_THRESHOLD } from '../services/chatCompressionService.js';
+import { DEFAULT_COMPRESSION_TOKEN_THRESHOLD } from '../context/chatCompressionService.js';
 import { CONTEXT_MANAGEMENT_TOOL_NAME } from './tool-names.js';
 
 // ============================================
