@@ -617,7 +617,7 @@ export const AppContainer = (props: AppContainerProps) => {
 
   const { errorCount, clearErrorCount } = useErrorCount();
   // WEB_INTERFACE_START: Console messages for web broadcast
-  const { consoleMessages } = useConsoleMessages();
+  const consoleMessages = useConsoleMessages();
   // WEB_INTERFACE_END
 
   const mainAreaWidth = calculateMainAreaWidth(terminalWidth, config);

@@ -5,6 +5,7 @@
  */
 
 // WEB_INTERFACE_FEATURE: This entire file is part of the web interface implementation
+/* eslint-disable @typescript-eslint/no-explicit-any, no-console */
 
 import path from 'node:path';
 import { promises as fs, existsSync } from 'node:fs';
@@ -15,26 +16,26 @@ import { GitIgnoreParser } from '@google/gemini-cli-core';
  * Tree node representing a file or folder
  */
 export interface TreeNode {
-  label: string;           // File/folder name
-  path: string;            // Relative path from workspace root
+  label: string; // File/folder name
+  path: string; // Relative path from workspace root
   type: 'file' | 'folder';
-  size?: number;           // File size in bytes
-  modified?: number;       // Last modified timestamp (ms)
-  children?: TreeNode[];   // Child nodes for folders
-  hasChildren?: boolean;   // For lazy loading: folder has children but not loaded yet
-  totalChildren?: number;  // Total count when truncated
-  truncated?: boolean;     // Children list was capped at maxChildren
-  ignored?: boolean;       // True if git-ignored or pattern-ignored (shown greyed out)
+  size?: number; // File size in bytes
+  modified?: number; // Last modified timestamp (ms)
+  children?: TreeNode[]; // Child nodes for folders
+  hasChildren?: boolean; // For lazy loading: folder has children but not loaded yet
+  totalChildren?: number; // Total count when truncated
+  truncated?: boolean; // Children list was capped at maxChildren
+  ignored?: boolean; // True if git-ignored or pattern-ignored (shown greyed out)
 }
 
 /**
  * File content with metadata
  */
 export interface FileContent {
-  path: string;            // Relative path from workspace root
-  content: string;         // File content as UTF-8 string
-  size: number;            // File size in bytes
-  modified?: number;       // Last modified timestamp (ms)
+  path: string; // Relative path from workspace root
+  content: string; // File content as UTF-8 string
+  size: number; // File size in bytes
+  modified?: number; // Last modified timestamp (ms)
 }
 
 /**
@@ -63,9 +64,22 @@ export class FileSystemService {
 
   // Fallback patterns for non-git repos — shown greyed out instead of hidden
   private static readonly FALLBACK_IGNORED = [
-    'node_modules', '.idea', '.vscode', '__pycache__', '*.pyc',
-    'dist', 'build', '.cache', '.next', '.nuxt', 'coverage',
-    '.nyc_output', '.auditaria', '.gemini', 'tmp', 'temp',
+    'node_modules',
+    '.idea',
+    '.vscode',
+    '__pycache__',
+    '*.pyc',
+    'dist',
+    'build',
+    '.cache',
+    '.next',
+    '.nuxt',
+    'coverage',
+    '.nyc_output',
+    '.auditaria',
+    '.gemini',
+    'tmp',
+    'temp',
   ];
 
   // Lazy-initialized gitignore parser (null = not yet checked, undefined = not a git repo)
@@ -80,13 +94,13 @@ export class FileSystemService {
     workspaceRoot: string,
     options: {
       maxFileSize?: number;
-    } = {}
+    } = {},
   ) {
     // Resolve workspace root to absolute path
     this.workspaceRoot = path.resolve(workspaceRoot);
 
     // Default max file size: 10MB
-    this.maxFileSize = options.maxFileSize ?? (10 * 1024 * 1024);
+    this.maxFileSize = options.maxFileSize ?? 10 * 1024 * 1024;
   }
 
   /**
@@ -142,10 +156,14 @@ export class FileSystemService {
    * Check if a file/folder is git-ignored (or matches fallback patterns).
    * These items are shown in the tree but greyed out.
    */
-  private isFileIgnored(relativePath: string, name: string): boolean {
+  private isFileIgnored(
+    relativePath: string,
+    name: string,
+    isDirectory: boolean,
+  ): boolean {
     const parser = this.getGitIgnoreParser();
     if (parser) {
-      return parser.isIgnored(relativePath);
+      return parser.isIgnored(relativePath, isDirectory);
     }
     // Fallback for non-git repos: use hardcoded patterns
     return this.matchesFallbackPattern(name);
@@ -155,9 +173,11 @@ export class FileSystemService {
    * Check if a name matches any fallback ignored pattern (glob support).
    */
   private matchesFallbackPattern(name: string): boolean {
-    return FileSystemService.FALLBACK_IGNORED.some(pattern => {
+    return FileSystemService.FALLBACK_IGNORED.some((pattern) => {
       if (pattern.includes('*')) {
-        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+        const regex = new RegExp(
+          '^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$',
+        );
         return regex.test(name);
       }
       return name === pattern;
@@ -184,7 +204,12 @@ export class FileSystemService {
    */
   async getFileTree(
     relativePath: string = '.',
-    options: { maxDepth?: number; maxChildren?: number; currentDepth?: number; parentIgnored?: boolean } = {}
+    options: {
+      maxDepth?: number;
+      maxChildren?: number;
+      currentDepth?: number;
+      parentIgnored?: boolean;
+    } = {},
   ): Promise<TreeNode[]> {
     const maxDepth = options.maxDepth ?? Infinity;
     const maxChildren = options.maxChildren ?? Infinity;
@@ -214,7 +239,13 @@ export class FileSystemService {
         const absoluteEntryPath = path.join(absolutePath, entry.name);
 
         // Determine if this entry is ignored (inherits from parent or own match)
-        const isIgnored = parentIgnored || this.isFileIgnored(entryRelativePath, entry.name);
+        const isIgnored =
+          parentIgnored ||
+          this.isFileIgnored(
+            entryRelativePath,
+            entry.name,
+            entry.isDirectory(),
+          );
 
         try {
           if (entry.isDirectory()) {
@@ -237,7 +268,8 @@ export class FileSystemService {
               nodes.push(node);
             } else {
               // At depth limit — don't recurse, just peek for children
-              const hasChildren = await this.folderHasChildren(absoluteEntryPath);
+              const hasChildren =
+                await this.folderHasChildren(absoluteEntryPath);
 
               const node: TreeNode = {
                 label: entry.name,
@@ -293,11 +325,13 @@ export class FileSystemService {
         if (a.type !== b.type) {
           return a.type === 'folder' ? -1 : 1;
         }
-        return a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' });
+        return a.label.localeCompare(b.label, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
       });
 
       return nodes;
-
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         throw new Error(`Directory not found: ${relativePath}`);
@@ -314,11 +348,18 @@ export class FileSystemService {
    * Used at depth limit to decide if the expand arrow should show.
    * Only skips always-hidden items (ignored items are visible, so they count).
    */
-  private async folderHasChildren(absoluteFolderPath: string): Promise<boolean> {
+  private async folderHasChildren(
+    absoluteFolderPath: string,
+  ): Promise<boolean> {
     try {
-      const entries = await fs.readdir(absoluteFolderPath, { withFileTypes: true });
+      const entries = await fs.readdir(absoluteFolderPath, {
+        withFileTypes: true,
+      });
       for (const entry of entries) {
-        if (!this.isAlwaysHidden(entry.name) && (entry.isFile() || entry.isDirectory())) {
+        if (
+          !this.isAlwaysHidden(entry.name) &&
+          (entry.isFile() || entry.isDirectory())
+        ) {
           return true;
         }
       }
@@ -339,7 +380,10 @@ export class FileSystemService {
    * @param maxResults - Maximum results to return
    * @returns Flat array of matching TreeNode items
    */
-  async searchFiles(query: string, maxResults: number = FileSystemService.TREE_DEFAULTS.searchMaxResults): Promise<TreeNode[]> {
+  async searchFiles(
+    query: string,
+    maxResults: number = FileSystemService.TREE_DEFAULTS.searchMaxResults,
+  ): Promise<TreeNode[]> {
     if (this.rgPath) {
       try {
         return await this.searchFilesWithRg(query, maxResults);
@@ -372,14 +416,18 @@ export class FileSystemService {
    * since users typically search for files. Directories matching the query
    * are found via BFS fallback when rg is unavailable.
    */
-  private searchFilesWithRg(query: string, maxResults: number): Promise<TreeNode[]> {
+  private searchFilesWithRg(
+    query: string,
+    maxResults: number,
+  ): Promise<TreeNode[]> {
     const matcher = this.buildNameMatcher(query);
 
     const args = [
-      '--files',        // List files only (no content search)
-      '--hidden',       // Include hidden files (we exclude specific ones below)
-      '--no-ignore',    // Don't respect .gitignore/.ignore — we handle ignore status client-side
-      '--threads', '4', // Multi-threaded for large directories
+      '--files', // List files only (no content search)
+      '--hidden', // Include hidden files (we exclude specific ones below)
+      '--no-ignore', // Don't respect .gitignore/.ignore — we handle ignore status client-side
+      '--threads',
+      '4', // Multi-threaded for large directories
     ];
 
     // Only exclude always-hidden items from search (ignored items are searchable)
@@ -391,7 +439,9 @@ export class FileSystemService {
 
     return new Promise<TreeNode[]>((resolve, reject) => {
       const results: TreeNode[] = [];
-      const rg = spawn(this.rgPath!, args, { stdio: ['ignore', 'pipe', 'ignore'] });
+      const rg = spawn(this.rgPath!, args, {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
       let buffer = '';
       let done = false;
 
@@ -413,7 +463,7 @@ export class FileSystemService {
         resolve(results);
       };
 
-      rg.stdout!.on('data', (chunk: Buffer) => {
+      rg.stdout.on('data', (chunk: Buffer) => {
         if (done) return;
         buffer += chunk.toString();
         const lines = buffer.split('\n');
@@ -464,14 +514,21 @@ export class FileSystemService {
    * Search files by name using BFS through directories (fallback when rg is unavailable).
    * Supports regex patterns — falls back to substring match on invalid regex.
    */
-  private async searchFilesBFS(query: string, maxResults: number): Promise<TreeNode[]> {
+  private async searchFilesBFS(
+    query: string,
+    maxResults: number,
+  ): Promise<TreeNode[]> {
     const matcher = this.buildNameMatcher(query);
     const results: TreeNode[] = [];
     const queue: string[] = ['.'];
     const maxDirs = FileSystemService.TREE_DEFAULTS.searchMaxDirsVisited;
     let queueIdx = 0;
 
-    while (queueIdx < queue.length && results.length < maxResults && queueIdx < maxDirs) {
+    while (
+      queueIdx < queue.length &&
+      results.length < maxResults &&
+      queueIdx < maxDirs
+    ) {
       const currentRelPath = queue[queueIdx++];
       const absolutePath = this.validatePath(currentRelPath);
 
@@ -492,7 +549,11 @@ export class FileSystemService {
         if (entry.isDirectory()) {
           queue.push(entryRelPath);
           if (matcher(entry.name)) {
-            results.push({ label: entry.name, path: entryRelPath, type: 'folder' });
+            results.push({
+              label: entry.name,
+              path: entryRelPath,
+              type: 'folder',
+            });
           }
         } else if (entry.isFile() && matcher(entry.name)) {
           results.push({ label: entry.name, path: entryRelPath, type: 'file' });
@@ -542,9 +603,8 @@ export class FileSystemService {
         path: relativePath,
         content,
         size: stats.size,
-        modified: stats.mtimeMs
+        modified: stats.mtimeMs,
       };
-
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         throw new Error(`File not found: ${relativePath}`);
@@ -553,9 +613,11 @@ export class FileSystemService {
         throw new Error(`Permission denied: ${relativePath}`);
       }
       // Re-throw our custom errors
-      if (error.message.includes('too large') ||
-          error.message.includes('Binary') ||
-          error.message.includes('not a file')) {
+      if (
+        error.message.includes('too large') ||
+        error.message.includes('Binary') ||
+        error.message.includes('not a file')
+      ) {
         throw error;
       }
       throw new Error(`Failed to read file: ${error.message}`);
@@ -579,7 +641,6 @@ export class FileSystemService {
 
       // Write file
       await fs.writeFile(absolutePath, content, 'utf-8');
-
     } catch (error: any) {
       if (error.code === 'EACCES' || error.code === 'EPERM') {
         throw new Error(`Permission denied: ${relativePath}`);
@@ -617,7 +678,6 @@ export class FileSystemService {
 
       // Create file
       await fs.writeFile(absolutePath, content, 'utf-8');
-
     } catch (error: any) {
       if (error.message.includes('already exists')) {
         throw error;
@@ -636,7 +696,10 @@ export class FileSystemService {
    * @param recursive - If true, recursively delete directories (default: false)
    * @throws Error if path doesn't exist or access denied
    */
-  async deleteFile(relativePath: string, recursive: boolean = false): Promise<void> {
+  async deleteFile(
+    relativePath: string,
+    recursive: boolean = false,
+  ): Promise<void> {
     const absolutePath = this.validatePath(relativePath);
 
     try {
@@ -647,7 +710,6 @@ export class FileSystemService {
       } else {
         await fs.unlink(absolutePath);
       }
-
     } catch (error: any) {
       if (error.code === 'ENOENT') {
         throw new Error(`Path not found: ${relativePath}`);
@@ -692,9 +754,11 @@ export class FileSystemService {
 
       // Rename/move
       await fs.rename(absoluteOldPath, absoluteNewPath);
-
     } catch (error: any) {
-      if (error.message.includes('not found') || error.message.includes('already exists')) {
+      if (
+        error.message.includes('not found') ||
+        error.message.includes('already exists')
+      ) {
         throw error;
       }
       if (error.code === 'EACCES' || error.code === 'EPERM') {
@@ -767,7 +831,6 @@ export class FileSystemService {
     return false;
   }
 
-
   /**
    * Check if file exists
    *
@@ -805,7 +868,7 @@ export class FileSystemService {
         modified: stats.mtimeMs,
         created: stats.birthtimeMs,
         isFile: stats.isFile(),
-        isDirectory: stats.isDirectory()
+        isDirectory: stats.isDirectory(),
       };
     } catch (error: any) {
       if (error.code === 'ENOENT') {
@@ -853,12 +916,14 @@ export class FileSystemService {
       }
 
       await execAsync(command);
-
     } catch (error: any) {
       if (error.message.includes('not found')) {
         throw error;
       }
-      if (error.code === 'ENOENT' || error.message.includes('command not found')) {
+      if (
+        error.code === 'ENOENT' ||
+        error.message.includes('command not found')
+      ) {
         throw new Error('System command not available on this platform');
       }
       throw new Error(`Failed to open file: ${error.message}`);
@@ -891,10 +956,16 @@ export class FileSystemService {
 
         if (stats.isDirectory()) {
           // For folders: open inside the folder
-          spawn('explorer', [absolutePath], { detached: true, stdio: 'ignore' });
+          spawn('explorer', [absolutePath], {
+            detached: true,
+            stdio: 'ignore',
+          });
         } else {
           // For files: select the file in its parent folder
-          spawn('explorer', ['/select,', absolutePath], { detached: true, stdio: 'ignore' });
+          spawn('explorer', ['/select,', absolutePath], {
+            detached: true,
+            stdio: 'ignore',
+          });
         }
 
         // For Windows, we don't wait for explorer to finish
@@ -915,7 +986,9 @@ export class FileSystemService {
         // Linux: Try common file managers, fallback to opening parent directory
         // Check for common file managers
         const stats = await fs.stat(absolutePath);
-        const targetPath = stats.isDirectory() ? absolutePath : path.dirname(absolutePath);
+        const targetPath = stats.isDirectory()
+          ? absolutePath
+          : path.dirname(absolutePath);
 
         // Try nautilus (GNOME), dolphin (KDE), or xdg-open as fallback
         try {
@@ -935,12 +1008,14 @@ export class FileSystemService {
       }
 
       await execAsync(command);
-
     } catch (error: any) {
       if (error.message.includes('not found')) {
         throw error;
       }
-      if (error.code === 'ENOENT' || error.message.includes('command not found')) {
+      if (
+        error.code === 'ENOENT' ||
+        error.message.includes('command not found')
+      ) {
         throw new Error('File manager command not available on this platform');
       }
       throw new Error(`Failed to reveal in file manager: ${error.message}`);
