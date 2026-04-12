@@ -1257,7 +1257,7 @@ async function resolveWorktreeSettings(
     if (isGeminiWorktree(toplevel, projectRoot)) {
       worktreePath = toplevel;
     }
-  } catch (_e) {
+  } catch {
     return undefined;
   }
 

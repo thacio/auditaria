@@ -15,7 +15,7 @@ import packageRenamePlugin from './scripts/package-rename-transform/index.js'; /
 let esbuild;
 try {
   esbuild = (await import('esbuild')).default;
-} catch (_error) {
+} catch {
   console.error('esbuild not available - cannot build bundle');
   process.exit(1);
 }
