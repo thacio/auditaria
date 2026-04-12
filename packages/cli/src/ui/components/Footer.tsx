@@ -182,9 +182,7 @@ interface FooterColumn {
   isHighPriority: boolean;
 }
 
-export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
-  copyModeEnabled = false,
-}) => {
+export const Footer: React.FC = () => {
   const uiState = useUIState();
   const config = useConfig();
   const settings = useSettings();
@@ -210,7 +208,6 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
 
   useEffect(() => {
     if (!updateFooterData) return;
-    if (copyModeEnabled) return;
 
     const model = uiState.currentModel;
     const targetDir = config.getTargetDir();
@@ -271,12 +268,9 @@ export const Footer: React.FC<{ copyModeEnabled?: boolean }> = ({
       prevFooterDataRef.current = newDataStr;
       updateFooterData(newData);
     }
-  }, [updateFooterData, uiState, config, settings, copyModeEnabled]);
+  }, [updateFooterData, uiState, config, settings]);
   // WEB_INTERFACE_END
 
-  if (copyModeEnabled) {
-    return <Box height={1} />;
-  }
 
   const {
     model,
