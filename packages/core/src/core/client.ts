@@ -1300,9 +1300,6 @@ export class GeminiClient {
    * Masks bulky tool outputs to save context window space.
    */
   private async tryMaskToolOutputs(history: readonly Content[]): Promise<void> {
-    if (!this.config.getToolOutputMaskingEnabled()) {
-      return;
-    }
     const result = await this.toolOutputMaskingService.mask(
       history,
       this.config,
