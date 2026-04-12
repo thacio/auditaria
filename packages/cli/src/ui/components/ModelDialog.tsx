@@ -7,6 +7,8 @@
 import type React from 'react';
 import { useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
+import { ModelQuotaDisplay } from './ModelQuotaDisplay.js';
+import { useUIState } from '../contexts/UIStateContext.js';
 import {
   PREVIEW_GEMINI_MODEL,
   PREVIEW_GEMINI_3_1_MODEL,
@@ -105,6 +107,7 @@ function getCodexModelFromSelection(value: string): string | undefined {
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
   const settings = useSettings();
+  const { terminalWidth } = useUIState();
   const [hasAccessToProModel, setHasAccessToProModel] = useState<boolean>(
     () => !(config?.getProModelNoAccessSync() ?? false),
   );
@@ -849,14 +852,14 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       {/* AUDITARIA_CODEX_PROVIDER_END */}
       <Box marginTop={1} flexDirection="column">
         <Box>
-          <Text color={theme.text.primary}>
+          <Text bold color={theme.text.primary}>
             Remember model for future sessions:{' '}
           </Text>
           <Text color={theme.status.success}>
             {persistMode ? 'true' : 'false'}
           </Text>
+          <Text color={theme.text.secondary}> (Press Tab to toggle)</Text>
         </Box>
-        <Text color={theme.text.secondary}>(Press Tab to toggle)</Text>
       </Box>
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER: hide Gemini hint in submenu views, dynamic Esc text */}
       {view !== 'claude' && view !== 'codex' && view !== 'copilot' && (
@@ -868,6 +871,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           </Text>
         </Box>
       )}
+      <ModelQuotaDisplay
+        buckets={config?.getLastRetrievedQuota()?.buckets}
+        availableWidth={terminalWidth - 2}
+      />
       <Box marginTop={1} flexDirection="column">
         <Text color={theme.text.secondary}>
           (Press Esc to {view === 'main' ? 'close' : 'go back'})
