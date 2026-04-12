@@ -3526,6 +3526,14 @@ export class Config implements McpContext, AgentLoopContext {
     return useGemini3_1 && authType === AuthType.USE_GEMINI;
   }
 
+  private isGemini31LaunchedForAuthType(authType?: AuthType): boolean {
+    return (
+      authType === AuthType.USE_GEMINI ||
+      authType === AuthType.USE_VERTEX_AI ||
+      authType === AuthType.GATEWAY
+    );
+  }
+
   /**
    * Returns whether Gemini 3.1 has been launched.
    *
@@ -3535,10 +3543,7 @@ export class Config implements McpContext, AgentLoopContext {
    */
   getGemini31LaunchedSync(): boolean {
     const authType = this.contentGeneratorConfig?.authType;
-    if (
-      authType === AuthType.USE_GEMINI ||
-      authType === AuthType.USE_VERTEX_AI
-    ) {
+    if (this.isGemini31LaunchedForAuthType(authType)) {
       return true;
     }
     return (
@@ -3556,10 +3561,7 @@ export class Config implements McpContext, AgentLoopContext {
    */
   getGemini31FlashLiteLaunchedSync(): boolean {
     const authType = this.contentGeneratorConfig?.authType;
-    if (
-      authType === AuthType.USE_GEMINI ||
-      authType === AuthType.USE_VERTEX_AI
-    ) {
+    if (this.isGemini31LaunchedForAuthType(authType)) {
       return true;
     }
     return (
