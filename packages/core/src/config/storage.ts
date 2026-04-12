@@ -321,6 +321,14 @@ export class Storage {
     return path.join(Storage.getGlobalGeminiDir(), 'memory', identifier);
   }
 
+  getProjectMemoryTempDir(): string {
+    return path.join(this.getProjectTempDir(), 'memory');
+  }
+
+  getProjectSkillsMemoryDir(): string {
+    return path.join(this.getProjectMemoryTempDir(), 'skills');
+  }
+
   // AUDITARIA_MODIFY_START: Check for settings.json in both directories, file-level fallback
   getWorkspaceSettingsPath(): string {
     // Check for settings.json file in each config directory
