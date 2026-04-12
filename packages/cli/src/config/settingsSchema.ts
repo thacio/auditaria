@@ -1943,6 +1943,26 @@ const SETTINGS_SCHEMA = {
     description: 'Setting to enable experimental features',
     showInDialog: false,
     properties: {
+      adk: {
+        type: 'object',
+        label: 'ADK',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: {},
+        description: 'Settings for the Agent Development Kit (ADK).',
+        showInDialog: false,
+        properties: {
+          agentSessionNoninteractiveEnabled: {
+            type: 'boolean',
+            label: 'Agent Session Non-interactive Enabled',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: false,
+            description: 'Enable non-interactive agent sessions.',
+            showInDialog: false,
+          },
+        },
+      },
       enableAgents: {
         type: 'boolean',
         label: 'Enable Agents',
