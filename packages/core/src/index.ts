@@ -142,7 +142,7 @@ export * from './services/modelConfigService.js';
 export * from './sandbox/windows/WindowsSandboxManager.js';
 export * from './services/sessionSummaryUtils.js';
 export { startMemoryService } from './services/memoryService.js';
-export * from './context/contextManager.js';
+export * from './context/memoryContextManager.js';
 export * from './services/trackerService.js';
 export * from './services/trackerTypes.js';
 export * from './services/keychainService.js';
@@ -355,3 +355,7 @@ export {
 } from './providers/claude/claudeSessionBrowser.js';
 export type { ClaudeSessionInfo } from './providers/claude/claudeSessionBrowser.js';
 // AUDITARIA_REWIND_END
+
+// Export context types and profiles
+export * from './context/types.js';
+export * from './context/profiles.js';

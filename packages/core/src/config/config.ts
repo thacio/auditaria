@@ -23,7 +23,11 @@ import {
 import { getAuditContext, renderUserMemory } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { z } from 'zod';
 import type { ConversationRecord } from '../services/chatRecordingService.js';
-import type { AgentHistoryProviderConfig } from '../services/types.js';
+import type {
+  AgentHistoryProviderConfig,
+  ContextManagementConfig,
+  ToolOutputMaskingConfig,
+} from '../context/types.js';
 export type { ConversationRecord };
 import {
   AuthType,
@@ -143,7 +147,7 @@ import {
   type ModelConfigServiceConfig,
 } from '../services/modelConfigService.js';
 import { DEFAULT_MODEL_CONFIGS } from './defaultModelConfigs.js';
-import { ContextManager } from '../context/contextManager.js';
+import { MemoryContextManager } from '../context/memoryContextManager.js';
 import { TrackerService } from '../services/trackerService.js';
 import type { GenerateContentParameters } from '@google/genai';
 
@@ -231,32 +235,6 @@ export interface TelemetrySettings {
 
 export interface OutputSettings {
   format?: OutputFormat;
-}
-
-export interface ToolOutputMaskingConfig {
-  protectionThresholdTokens: number;
-  minPrunableThresholdTokens: number;
-  protectLatestTurn: boolean;
-}
-
-export interface ContextManagementConfig {
-  enabled: boolean;
-  historyWindow: {
-    maxTokens: number;
-    retainedTokens: number;
-  };
-  messageLimits: {
-    normalMaxTokens: number;
-    retainedMaxTokens: number;
-    normalizationHeadRatio: number;
-  };
-  tools: {
-    distillation: {
-      maxOutputTokens: number;
-      summarizationThresholdTokens: number;
-    };
-    outputMasking: ToolOutputMaskingConfig;
-  };
 }
 
 export interface GemmaModelRouterSettings {
@@ -1012,7 +990,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly trackerEnabled: boolean;
   private readonly planModeRoutingEnabled: boolean;
   private readonly modelSteering: boolean;
-  private contextManager?: ContextManager;
+  private memoryContextManager?: MemoryContextManager;
   private readonly contextManagement: ContextManagementConfig;
   private terminalBackground: string | undefined = undefined;
   private remoteAdminSettings: AdminControlsSettings | undefined;
@@ -1573,8 +1551,8 @@ export class Config implements McpContext, AgentLoopContext {
     }
 
     if (this.experimentalJitContext) {
-      this.contextManager = new ContextManager(this);
-      await this.contextManager.refresh();
+      this.memoryContextManager = new MemoryContextManager(this);
+      await this.memoryContextManager.refresh();
     }
 
     await this._geminiClient.initialize();
@@ -2392,12 +2370,12 @@ export class Config implements McpContext, AgentLoopContext {
   }
 
   getUserMemory(): string | HierarchicalMemory {
-    if (this.experimentalJitContext && this.contextManager) {
+    if (this.experimentalJitContext && this.memoryContextManager) {
       return {
-        global: this.contextManager.getGlobalMemory(),
-        extension: this.contextManager.getExtensionMemory(),
-        project: this.contextManager.getEnvironmentMemory(),
-        userProjectMemory: this.contextManager.getUserProjectMemory(),
+        global: this.memoryContextManager.getGlobalMemory(),
+        extension: this.memoryContextManager.getExtensionMemory(),
+        project: this.memoryContextManager.getEnvironmentMemory(),
+        userProjectMemory: this.memoryContextManager.getUserProjectMemory(),
       };
     }
     return this.userMemory;
@@ -2407,8 +2385,8 @@ export class Config implements McpContext, AgentLoopContext {
    * Refreshes the MCP context, including memory, tools, and system instructions.
    */
   async refreshMcpContext(): Promise<void> {
-    if (this.experimentalJitContext && this.contextManager) {
-      await this.contextManager.refresh();
+    if (this.experimentalJitContext && this.memoryContextManager) {
+      await this.memoryContextManager.refresh();
     } else {
       const { refreshServerHierarchicalMemory } = await import(
         '../utils/memoryDiscovery.js'
@@ -2434,9 +2412,10 @@ export class Config implements McpContext, AgentLoopContext {
    * via system instruction updates.
    */
   getSystemInstructionMemory(): string | HierarchicalMemory {
-    if (this.experimentalJitContext && this.contextManager) {
-      const global = this.contextManager.getGlobalMemory();
-      const userProjectMemory = this.contextManager.getUserProjectMemory();
+    if (this.experimentalJitContext && this.memoryContextManager) {
+      const global = this.memoryContextManager.getGlobalMemory();
+      const userProjectMemory =
+        this.memoryContextManager.getUserProjectMemory();
       if (userProjectMemory?.trim()) {
         return { global, userProjectMemory };
       }
@@ -2451,12 +2430,12 @@ export class Config implements McpContext, AgentLoopContext {
    * disabled (Tier 2 memory is already in the system instruction).
    */
   getSessionMemory(): string {
-    if (!this.experimentalJitContext || !this.contextManager) {
+    if (!this.experimentalJitContext || !this.memoryContextManager) {
       return '';
     }
     const sections: string[] = [];
-    const extension = this.contextManager.getExtensionMemory();
-    const project = this.contextManager.getEnvironmentMemory();
+    const extension = this.memoryContextManager.getExtensionMemory();
+    const project = this.memoryContextManager.getEnvironmentMemory();
     if (extension?.trim()) {
       sections.push(
         `<extension_context>\n${extension.trim()}\n</extension_context>`,
@@ -2470,22 +2449,22 @@ export class Config implements McpContext, AgentLoopContext {
   }
 
   getGlobalMemory(): string {
-    return this.contextManager?.getGlobalMemory() ?? '';
+    return this.memoryContextManager?.getGlobalMemory() ?? '';
   }
 
   getEnvironmentMemory(): string {
-    return this.contextManager?.getEnvironmentMemory() ?? '';
+    return this.memoryContextManager?.getEnvironmentMemory() ?? '';
   }
 
-  getContextManager(): ContextManager | undefined {
-    return this.contextManager;
+  getMemoryContextManager(): MemoryContextManager | undefined {
+    return this.memoryContextManager;
   }
 
   isJitContextEnabled(): boolean {
     return this.experimentalJitContext;
   }
 
-  isAutoDistillationEnabled(): boolean {
+  isContextManagementEnabled(): boolean {
     return this.contextManagement.enabled;
   }
 
@@ -2503,8 +2482,6 @@ export class Config implements McpContext, AgentLoopContext {
 
   get agentHistoryProviderConfig(): AgentHistoryProviderConfig {
     return {
-      isTruncationEnabled: this.contextManagement.enabled,
-      isSummarizationEnabled: this.contextManagement.enabled,
       maxTokens: this.contextManagement.historyWindow.maxTokens,
       retainedTokens: this.contextManagement.historyWindow.retainedTokens,
       normalMessageTokens: this.contextManagement.messageLimits.normalMaxTokens,
@@ -2561,8 +2538,8 @@ export class Config implements McpContext, AgentLoopContext {
   }
 
   getGeminiMdFileCount(): number {
-    if (this.experimentalJitContext && this.contextManager) {
-      return this.contextManager.getLoadedPaths().size;
+    if (this.experimentalJitContext && this.memoryContextManager) {
+      return this.memoryContextManager.getLoadedPaths().size;
     }
     return this.geminiMdFileCount;
   }
@@ -2572,8 +2549,8 @@ export class Config implements McpContext, AgentLoopContext {
   }
 
   getGeminiMdFilePaths(): string[] {
-    if (this.experimentalJitContext && this.contextManager) {
-      return Array.from(this.contextManager.getLoadedPaths());
+    if (this.experimentalJitContext && this.memoryContextManager) {
+      return Array.from(this.memoryContextManager.getLoadedPaths());
     }
     return this.geminiMdFilePaths;
   }
