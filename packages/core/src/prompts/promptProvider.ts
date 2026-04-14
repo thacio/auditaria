@@ -204,6 +204,7 @@ export class PromptProvider {
             enableShellEfficiency:
               context.config.getEnableShellOutputEfficiency(),
             interactiveShellEnabled: context.config.isInteractiveShellEnabled(),
+            interactiveShellMode: context.config.getInteractiveShellMode(),
             topicUpdateNarration:
               context.config.isTopicUpdateNarrationEnabled(),
             memoryManagerEnabled: context.config.isMemoryManagerEnabled(),
