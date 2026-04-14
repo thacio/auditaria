@@ -388,7 +388,7 @@ export class GeminiClient {
         systemMemory,
         currentLanguage /* // AUDITARIA_LANGUAGE - Auditaria Custom Feature */,
       );
-      return new GeminiChat(
+      const chat = new GeminiChat(
         this.config,
         systemInstruction,
         tools,
@@ -402,6 +402,8 @@ export class GeminiClient {
           return [{ functionDeclarations: toolDeclarations }];
         },
       );
+      await chat.initialize(resumedSessionData, 'main');
+      return chat;
     } catch (error) {
       await reportError(
         error,

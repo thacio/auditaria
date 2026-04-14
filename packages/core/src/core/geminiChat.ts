@@ -257,11 +257,9 @@ export class GeminiChat {
     private history: Content[] = [],
     resumedSessionData?: ResumedSessionData,
     private readonly onModelChanged?: (modelId: string) => Promise<Tool[]>,
-    kind: 'main' | 'subagent' = 'main',
   ) {
     validateHistory(history);
     this.chatRecordingService = new ChatRecordingService(context);
-    this.chatRecordingService.initialize(resumedSessionData, kind);
     // AUDITARIA_FIX: Estimate tokens including system instruction and tools, not just history.
     // Upstream only estimates history parts, so the initial count is always lower than
     // Gemini's API promptTokenCount (which includes system instruction + tool definitions).
@@ -281,6 +279,13 @@ export class GeminiChat {
         ? Math.floor(JSON.stringify(this.tools).length / 4)
         : 0;
     return historyTokens + sysTokens + toolsTokens;
+  }
+
+  async initialize(
+    resumedSessionData?: ResumedSessionData,
+    kind: 'main' | 'subagent' = 'main',
+  ) {
+    await this.chatRecordingService.initialize(resumedSessionData, kind);
   }
 
   setSystemInstruction(sysInstr: string) {
