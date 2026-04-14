@@ -13,7 +13,7 @@ import {
   type OutputPayload,
   type ConsoleLogPayload,
   type UserFeedbackPayload,
-  sessionId,
+  createSessionId,
   logUserPrompt,
   AuthType,
   UserPromptEvent,
@@ -36,6 +36,7 @@ import {
   type SupportedLanguage, // AUDITARIA_FEATURE_I18N
   initI18n, // AUDITARIA_FEATURE_I18N
   isLanguageSupported, // AUDITARIA_FEATURE_I18N
+  Storage,
 } from '@google/gemini-cli-core';
 
 import { loadCliConfig, parseArguments } from './config/config.js';
@@ -217,6 +218,39 @@ ${reason.stack}`
   });
 }
 
+export async function resolveSessionId(resumeArg: string | undefined): Promise<{
+  sessionId: string;
+  resumedSessionData?: ResumedSessionData;
+}> {
+  if (!resumeArg) {
+    return { sessionId: createSessionId() };
+  }
+
+  const storage = new Storage(process.cwd());
+  await storage.initialize();
+
+  try {
+    const { sessionData, sessionPath } = await new SessionSelector(
+      storage,
+    ).resolveSession(resumeArg);
+    return {
+      sessionId: sessionData.sessionId,
+      resumedSessionData: { conversation: sessionData, filePath: sessionPath },
+    };
+  } catch (error) {
+    if (error instanceof SessionError && error.code === 'NO_SESSIONS_FOUND') {
+      coreEvents.emitFeedback('warning', error.message);
+      return { sessionId: createSessionId() };
+    }
+    coreEvents.emitFeedback(
+      'error',
+      `Error resuming session: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+    await runExitCleanup();
+    process.exit(ExitCodes.FATAL_INPUT_ERROR);
+  }
+}
+
 export async function startInteractiveUI(
   config: Config,
   settings: LoadedSettings,
@@ -331,6 +365,8 @@ export async function main() {
   // AUDITARIA_FEATURE_END
 
   const argv = await argvPromise;
+
+  const { sessionId, resumedSessionData } = await resolveSessionId(argv.resume);
 
   if (
     (argv.allowedTools && argv.allowedTools.length > 0) ||
@@ -650,40 +686,6 @@ export async function main() {
         isAlternateBuffer: useAlternateBuffer,
       })),
     ];
-
-    // Handle --resume flag
-    let resumedSessionData: ResumedSessionData | undefined = undefined;
-    if (argv.resume) {
-      const sessionSelector = new SessionSelector(config);
-      try {
-        const result = await sessionSelector.resolveSession(argv.resume);
-        resumedSessionData = {
-          conversation: result.sessionData,
-          filePath: result.sessionPath,
-        };
-        // Use the existing session ID to continue recording to the same session
-        config.setSessionId(resumedSessionData.conversation.sessionId);
-      } catch (error) {
-        if (
-          error instanceof SessionError &&
-          error.code === 'NO_SESSIONS_FOUND'
-        ) {
-          // No sessions to resume — start a fresh session with a warning
-          startupWarnings.push({
-            id: 'resume-no-sessions',
-            message: error.message,
-            priority: WarningPriority.High,
-          });
-        } else {
-          coreEvents.emitFeedback(
-            'error',
-            `Error resuming session: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          );
-          await runExitCleanup();
-          process.exit(ExitCodes.FATAL_INPUT_ERROR);
-        }
-      }
-    }
 
     // AUDITARIA_REWIND_START: Store --resume-claude flag for later application
     if (argv.resumeClaude && typeof argv.resumeClaude === 'string') {

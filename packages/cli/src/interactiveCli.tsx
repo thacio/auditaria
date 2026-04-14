@@ -120,7 +120,7 @@ export async function startInteractiveUI(
               <TerminalProvider>
                 <ScrollProvider>
                   <OverflowProvider>
-                    <SessionStatsProvider>
+                    <SessionStatsProvider sessionId={config.getSessionId()}>
                       <VimModeProvider>
                         {/* WEB_INTERFACE_START: Wrap with all necessary providers */}
                         <SubmitQueryProvider>
