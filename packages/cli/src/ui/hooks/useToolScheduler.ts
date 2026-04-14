@@ -17,6 +17,7 @@ import {
   CoreToolCallStatus,
   type SubagentActivityItem,
   type SubagentActivityMessage,
+  AGENT_TOOL_NAME,
 } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 // WEB_INTERFACE_START
@@ -265,7 +266,7 @@ export function useToolScheduler(
     const flattened = Object.values(toolCallsMap).flat();
     return flattened.map((tc) => {
       let subagentName = tc.request.name;
-      if (tc.request.name === 'invoke_subagent') {
+      if (tc.request.name === AGENT_TOOL_NAME) {
         const argsObj = tc.request.args;
         let parsedArgs: unknown = argsObj;
 
@@ -279,7 +280,7 @@ export function useToolScheduler(
 
         if (typeof parsedArgs === 'object' && parsedArgs !== null) {
           for (const [key, value] of Object.entries(parsedArgs)) {
-            if (key === 'subagent_name' && typeof value === 'string') {
+            if (key === 'agent_name' && typeof value === 'string') {
               subagentName = value;
               break;
             }
