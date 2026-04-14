@@ -38,8 +38,6 @@ import {
   type ConfirmationRequest,
   type PermissionConfirmationRequest,
   type QuotaStats,
-  MessageType,
-  StreamingState,
   type HistoryItemInfo,
 } from './types.js';
 import { checkPermissions } from './hooks/atCommandProcessor.js';
