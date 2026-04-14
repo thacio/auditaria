@@ -100,3 +100,6 @@ __pycache__/
 vector.tar.gz
 temp_agents/
 platform/
+
+# conductor extension and planning directories
+conductor/
