@@ -38,6 +38,9 @@ import {
   type ConfirmationRequest,
   type PermissionConfirmationRequest,
   type QuotaStats,
+  MessageType,
+  StreamingState,
+  type HistoryItemInfo,
 } from './types.js';
 import { checkPermissions } from './hooks/atCommandProcessor.js';
 import { ToolActionsProvider } from './contexts/ToolActionsContext.js';
@@ -52,6 +55,7 @@ import {
   type UserTierId,
   type GeminiUserTier,
   type UserFeedbackPayload,
+  type HookSystemMessagePayload,
   type AgentDefinition,
   type ApprovalMode,
   IdeClient,
@@ -2228,7 +2232,19 @@ Logging in with Google... Restarting Gemini CLI to continue.
       }
     };
 
+    const handleHookSystemMessage = (payload: HookSystemMessagePayload) => {
+      historyManager.addItem(
+        {
+          type: MessageType.INFO,
+          text: payload.message,
+          source: payload.hookName,
+        } as HistoryItemInfo,
+        Date.now(),
+      );
+    };
+
     coreEvents.on(CoreEvent.UserFeedback, handleUserFeedback);
+    coreEvents.on(CoreEvent.HookSystemMessage, handleHookSystemMessage);
 
     // Flush any messages that happened during startup before this component
     // mounted.
@@ -2236,6 +2252,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
     return () => {
       coreEvents.off(CoreEvent.UserFeedback, handleUserFeedback);
+      coreEvents.off(CoreEvent.HookSystemMessage, handleHookSystemMessage);
     };
   }, [historyManager]);
 
