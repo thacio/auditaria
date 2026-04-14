@@ -10,7 +10,7 @@ import * as crypto from 'node:crypto';
 import * as Diff from 'diff';
 import { watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
-import type { ToolInvocation, ToolResult } from './tools.js';
+import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
@@ -708,10 +708,7 @@ class CollaborativeWritingToolInvocation extends BaseToolInvocation<
     return `${action === 'start' ? 'Start' : 'End'} collaborative writing: ${this.params.file_path}`;
   }
 
-  async execute(
-    _signal: AbortSignal,
-    _updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(_options: ExecuteOptions): Promise<ToolResult> {
     const registry = CollaborativeWritingRegistry.getInstance();
     const action = this.params.action;
 

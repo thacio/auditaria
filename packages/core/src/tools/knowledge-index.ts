@@ -7,7 +7,7 @@
 // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
-import type { ToolInvocation, ToolResult } from './tools.js';
+import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import type { Config } from '../config/config.js';
@@ -89,10 +89,8 @@ class KnowledgeIndexToolInvocation extends BaseToolInvocation<
     }
   }
 
-  async execute(
-    _signal: AbortSignal,
-    updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(options: ExecuteOptions): Promise<ToolResult> {
+    const { updateOutput } = options;
     switch (this.params.action) {
       case 'init':
         return this.executeInit(updateOutput);

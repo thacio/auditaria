@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolResult } from './tools.js';
+import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { Config } from '../config/config.js';
 import type { FunctionDeclaration } from '@google/genai';
@@ -139,10 +139,7 @@ class TodoToolInvocation extends BaseToolInvocation<TodoWriteParams, ToolResult>
     return `Update todo list (${todoCount} total: ${pending} pending, ${inProgress} in progress, ${completed} completed)`;
   }
 
-  async execute(
-    _signal: AbortSignal,
-    _updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(_options: ExecuteOptions): Promise<ToolResult> {
     const { todos } = this.params;
 
     // Validate todos array
@@ -233,8 +230,11 @@ export class TodoTool extends BaseDeclarativeTool<TodoWriteParams, ToolResult> {
     );
   }
 
-  protected createInvocation(params: TodoWriteParams): TodoToolInvocation {
-    return new TodoToolInvocation(params, this.config, this.messageBus);
+  protected createInvocation(
+    params: TodoWriteParams,
+    messageBus: MessageBus,
+  ): ToolInvocation<TodoWriteParams, ToolResult> {
+    return new TodoToolInvocation(params, this.config, messageBus);
   }
 
   /**

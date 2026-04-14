@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ToolInvocation, ToolResult } from './tools.js';
+import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import type { Content, Part } from '@google/genai';
@@ -856,10 +856,7 @@ class ContextManagementToolInvocation extends BaseToolInvocation<
     }
   }
 
-  async execute(
-    _signal: AbortSignal,
-    _updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(_options: ExecuteOptions): Promise<ToolResult> {
     switch (this.params.action) {
       case 'inspect':
         return this.executeInspect();

@@ -11,7 +11,7 @@
 import type { Config } from '../config/config.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
-import type { ToolInvocation, ToolResult } from './tools.js';
+import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
 import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS } from '../providers/types.js';
@@ -281,10 +281,8 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
     }
   }
 
-  async execute(
-    signal: AbortSignal,
-    updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(options: ExecuteOptions): Promise<ToolResult> {
+    const { abortSignal: signal, updateOutput } = options;
     try {
       const manager = this.config.getAgentSessionManager();
 

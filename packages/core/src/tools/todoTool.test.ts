@@ -37,9 +37,7 @@ describe('TodoTool', () => {
   describe('Parameter validation', () => {
     it('should reject non-array todos parameter', async () => {
       const invocation = todoTool.build({ todos: 'invalid' as any });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('must be an array');
       expect(result.returnDisplay).toContain('Error');
@@ -56,9 +54,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: invalidTodos as any });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('non-empty "content" field');
       expect(result.returnDisplay).toContain('Error');
@@ -75,9 +71,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: invalidTodos as any });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('non-empty "content" field');
       expect(result.returnDisplay).toContain('Error');
@@ -94,9 +88,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: invalidTodos as any });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('valid "id" field');
       expect(result.returnDisplay).toContain('Error');
@@ -113,9 +105,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: invalidTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('valid "priority" field');
       expect(result.returnDisplay).toContain('Error');
@@ -132,9 +122,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: invalidTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('valid "status" field');
       expect(result.returnDisplay).toContain('Error');
@@ -153,9 +141,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: validTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('Todos have been modified successfully');
       expect(result.returnDisplay).toContain('Todos have been modified successfully');
@@ -190,9 +176,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: validTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('Todos have been modified successfully');
       expect(result.returnDisplay).toContain('Todos have been modified successfully');
@@ -214,7 +198,7 @@ describe('TodoTool', () => {
         }
       ];
 
-      await todoTool.build({ todos: firstTodos }).execute(new AbortController().signal);
+      await todoTool.build({ todos: firstTodos }).execute({ abortSignal: new AbortController().signal });
       
       // Updated set
       const updatedTodos = [
@@ -233,9 +217,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: updatedTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('Todos have been modified successfully');
       
@@ -247,9 +229,7 @@ describe('TodoTool', () => {
 
     it('should handle empty todos list', async () => {
       const invocation = todoTool.build({ todos: [] });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toContain('Todos have been modified successfully');
       expect(result.returnDisplay).toContain('Todos have been modified successfully');
@@ -272,9 +252,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: validTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.returnDisplay).toContain('<system-reminder>');
       expect(result.returnDisplay).toContain('Your todo list has changed');
@@ -293,9 +271,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: validTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       const expectedJson = JSON.stringify(validTodos);
       expect(result.returnDisplay).toContain(expectedJson);
@@ -312,9 +288,7 @@ describe('TodoTool', () => {
       ];
 
       const invocation = todoTool.build({ todos: validTodos });
-      const result = await invocation.execute(
-        new AbortController().signal,
-      );
+      const result = await invocation.execute({ abortSignal: new AbortController().signal });
       
       expect(result.llmContent).toBe('Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable');
     });
@@ -332,7 +306,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute({ abortSignal: new AbortController().signal });
       
       const currentTodos = TodoTool.getCurrentTodos();
       expect(currentTodos).toEqual(validTodos);
@@ -349,7 +323,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute({ abortSignal: new AbortController().signal });
       
       // Verify todos exist
       expect(TodoTool.getCurrentTodos()).toHaveLength(1);
@@ -372,7 +346,7 @@ describe('TodoTool', () => {
       ];
 
       // Execute to set todos
-      todoTool.build({ todos: validTodos }).execute(new AbortController().signal);
+      todoTool.build({ todos: validTodos }).execute({ abortSignal: new AbortController().signal });
       
       const currentTodos = TodoTool.getCurrentTodos();
       
@@ -405,9 +379,7 @@ describe('TodoTool', () => {
         ];
 
         const invocation = todoTool.build({ todos: validTodos });
-        const result = await invocation.execute(
-          new AbortController().signal,
-        );
+        const result = await invocation.execute({ abortSignal: new AbortController().signal });
         
         expect(result.llmContent).toContain('Todos have been modified successfully');
       }
@@ -427,9 +399,7 @@ describe('TodoTool', () => {
         ];
 
         const invocation = todoTool.build({ todos: validTodos });
-        const result = await invocation.execute(
-          new AbortController().signal,
-        );
+        const result = await invocation.execute({ abortSignal: new AbortController().signal });
         
         expect(result.llmContent).toContain('Todos have been modified successfully');
       }

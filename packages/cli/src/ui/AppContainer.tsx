@@ -2632,7 +2632,15 @@ Logging in with Google... Restarting Gemini CLI to continue.
   // Create a completely stable function that will never change
   const stableWebSubmitQuery = useCallback((query: PartListUnion) => {
     if (submitQueryRef.current) {
-      void submitQueryRef.current(query);
+      const normalized =
+        typeof query === 'string'
+          ? query
+          : Array.isArray(query)
+            ? query.map((p) => (typeof p === 'string' ? { text: p } : p))
+            : typeof query === 'object' && query !== null
+              ? [query]
+              : [{ text: String(query) }];
+      void submitQueryRef.current(normalized);
     }
   }, []); // Empty dependency array - this function never changes
 

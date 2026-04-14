@@ -5,6 +5,7 @@
  */
 
 import type {
+  ExecuteOptions,
   ToolInvocation,
   ToolResult,
   Config,
@@ -270,10 +271,8 @@ class BrowserAgentToolInvocation extends BaseToolInvocation<
     }
   }
 
-  async execute(
-    signal: AbortSignal,
-    updateOutput?: (output: string) => void,
-  ): Promise<ToolResult> {
+  async execute(options: ExecuteOptions): Promise<ToolResult> {
+    const { abortSignal: signal, updateOutput } = options;
     const sessionManager = SessionManager.getInstance();
 
     try {
