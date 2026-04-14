@@ -119,6 +119,7 @@ export interface UIState {
   languageError: string | null;
   isLanguageDialogOpen: boolean;
   showPrivacyNotice: boolean;
+  mouseMode: boolean;
   corgiMode: boolean;
   debugMessage: string;
   quittingMessages: HistoryItem[] | null;
@@ -193,7 +194,7 @@ export interface UIState {
   sessionStats: SessionStatsState;
   terminalWidth: number;
   terminalHeight: number;
-  mainControlsRef: React.RefCallback<DOMElement | null>;
+  mainControlsRef: (node: DOMElement | null) => void;
   // NOTE: This is for performance profiling only.
   rootUiRef: React.MutableRefObject<DOMElement | null>;
   currentIDE: IdeInfo | null;

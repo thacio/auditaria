@@ -240,6 +240,7 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({
           keyExtractor={keyExtractor}
           initialScrollIndex={initialScrollIndex}
           hasFocus={hasFocus}
+          fixedItemHeight={true}
         />
       </Box>
     );
