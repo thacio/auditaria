@@ -5,15 +5,14 @@ This monorepo contains two main packages: `@thacio/auditaria` and
 
 ## `@thacio/auditaria`
 
-This is the main package for the Gemini CLI. It is responsible for the user
+This is the main package for Gemini CLI. It is responsible for the user
 interface, command parsing, and all other user-facing functionality.
 
 When this package is published, it is bundled into a single executable file.
 This bundle includes all of the package's dependencies, including
 `@google/gemini-cli-core`. This means that whether a user installs the package
 with `npm install -g @thacio/auditaria` or runs it directly with
-`npx @thacio/auditaria`, they are using this single, self-contained
-executable.
+`npx @thacio/auditaria`, they are using this single, self-contained executable.
 
 ## `@google/gemini-cli-core`
 
@@ -112,8 +111,8 @@ correctly.
 
 - `npx -y @thacio/auditaria@latest --version` to validate the push worked as
   expected if you were not doing a rc or dev tag
-- `npx -y @thacio/auditaria@<release tag> --version` to validate the tag
-  pushed appropriately
+- `npx -y @thacio/auditaria@<release tag> --version` to validate the tag pushed
+  appropriately
 - _This is destructive locally_
   `npm uninstall @thacio/auditaria && npm uninstall -g @thacio/auditaria && npm cache clean --force &&  npm install @thacio/auditaria@<version>`
 - Smoke testing a basic run through of exercising a few llm commands and tools
