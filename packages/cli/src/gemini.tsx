@@ -196,6 +196,14 @@ function detectLanguage(): SupportedLanguage {
 export function setupUnhandledRejectionHandler() {
   let unhandledRejectionOccurred = false;
   process.on('unhandledRejection', (reason, _promise) => {
+    // AbortError is expected when the user cancels a request (e.g. pressing ESC).
+    // It may surface as an unhandled rejection due to async timing in the
+    // streaming pipeline, but it is not a bug.
+    if (reason instanceof Error && reason.name === 'AbortError') {
+      debugLogger.log(`Suppressed unhandled AbortError: ${reason.message}`);
+      return;
+    }
+
     const errorMessage = `=========================================
 This is an unexpected error. Please file a bug report using the /bug tool.
 CRITICAL: Unhandled Promise Rejection!
