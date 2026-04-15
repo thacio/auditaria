@@ -11,19 +11,25 @@ import {
   type CommandContext,
   type SlashCommand,
 } from './types.js';
-import type { HistoryItem } from '../types.js';
 import { ClaudeSessionPicker } from '../components/ClaudeSessionPicker.js';
 import {
   coreEvents,
   listClaudeSessions,
   validateClaudeSessionId,
-  buildClaudeSessionSummary,
+  loadClaudeSessionAsContent,
   type ClaudeSessionInfo,
 } from '@google/gemini-cli-core';
-import type { Content } from '@google/genai';
+import { buildUIHistoryFromContent } from '../utils/claudeHistoryProjection.js';
 
 /**
- * Executes the resume: sets session ID on provider, builds mirrored history summary.
+ * Executes the resume: sets session ID on provider, populates the mirrored
+ * history and the UI from a single full-fidelity parse of the JSONL file.
+ *
+ * The same parsed Content[] feeds:
+ *   - `client.setHistory()` — the mirrored conversation used by rewind, token
+ *     estimation, and any later buildConversationSummary calls.
+ *   - `context.ui.loadHistory()` — the visible chat log.
+ * Parsing once and projecting to both keeps them from drifting apart.
  */
 async function executeResume(
   context: CommandContext,
@@ -52,108 +58,31 @@ async function executeResume(
     return;
   }
 
-  // Set pending session ID — applied when driver is created/reused
+  // Queue the session ID for the next turn. Internally this sets the provider
+  // manager's nextTurn to 'resume', overriding any stale 'resetWithSummary'
+  // intent (e.g. from a prior /model switch that found non-empty history), so
+  // the next call uses `claude --resume <id>` cleanly instead of dumping the
+  // conversation summary as a prompt.
   pm.setPendingResumeSessionId(sessionId);
 
-  // Build conversation summary and set as mirrored history
-  const summary = await buildClaudeSessionSummary(filePath);
-  if (summary) {
-    const mirroredHistory: Content[] = [
-      { role: 'user', parts: [{ text: summary }] },
-      {
-        role: 'model',
-        parts: [
-          {
-            text: 'Got it. I have the context from the previous session.',
-          },
-        ],
-      },
-    ];
+  // Parse the JSONL once into full-fidelity Content[] (text, tool calls, tool
+  // results, images, compaction markers). This becomes the mirrored history.
+  const mirroredHistory = await loadClaudeSessionAsContent(filePath);
+  if (mirroredHistory.length > 0) {
     client.setHistory(mirroredHistory);
-    // DON'T call onHistoryModified — we want to KEEP the session ID for --resume
   }
 
   // Init file checkpoint manager for the resumed session
   config.initFileCheckpointManager();
 
-  // Load conversation into the UI so user sees the chat history
-  const uiHistory = await buildUIHistoryFromClaudeJSONL(filePath);
+  // Derive UI history from the same Content[] — one parse, two projections.
+  const uiHistory = buildUIHistoryFromContent(mirroredHistory);
   if (uiHistory.length > 0) {
     context.ui.loadHistory(uiHistory);
   }
 
   const shortId = sessionId.slice(0, 8);
   coreEvents.emitFeedback('info', `Resumed Claude session ${shortId}`);
-}
-
-/**
- * Parses a Claude JSONL file and builds HistoryItem[] for UI display.
- * Skips system context, tool results, and metadata entries.
- */
-export async function buildUIHistoryFromClaudeJSONL(
-  jsonlPath: string,
-): Promise<HistoryItem[]> {
-  let data: string;
-  try {
-    const { readFile } = await import('node:fs/promises');
-    data = await readFile(jsonlPath, 'utf-8');
-  } catch {
-    return [];
-  }
-
-  const items: HistoryItem[] = [];
-  let idCounter = 1;
-  const lines = data.split('\n').filter(Boolean);
-
-  for (const line of lines) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Claude JSONL format
-      const entry = JSON.parse(line) as Record<string, unknown>;
-
-      // Only process user and assistant conversation messages
-      const message = entry.message as
-        | { role?: string; content?: unknown }
-        | undefined;
-      if (!message?.role) continue;
-
-      // Extract text content
-      let text = '';
-      if (typeof message.content === 'string') {
-        text = message.content;
-      } else if (Array.isArray(message.content)) {
-        const blocks = message.content as Array<{
-          type?: string;
-          text?: string;
-        }>;
-        // Skip tool_result user messages
-        if (blocks.some((b) => b.type === 'tool_result')) continue;
-        const textBlocks = blocks
-          .filter((b) => b.type === 'text' && b.text)
-          .map((b) => b.text || '');
-        text = textBlocks.join('\n');
-      }
-
-      if (!text) continue;
-
-      // Skip system context injections
-      if (
-        text.startsWith('<session_context>') ||
-        text.startsWith('<auditaria_conversation_history>')
-      ) {
-        continue;
-      }
-
-      if (message.role === 'user') {
-        items.push({ type: 'user', text, id: idCounter++ });
-      } else if (message.role === 'assistant') {
-        items.push({ type: 'gemini', text, id: idCounter++ });
-      }
-    } catch {
-      // Skip malformed lines
-    }
-  }
-
-  return items;
 }
 
 export const resumeClaudeCommand: SlashCommand = {
@@ -173,11 +102,7 @@ export const resumeClaudeCommand: SlashCommand = {
     const trimmedArgs = args?.trim() || '';
 
     // /resume-claude {session-id} — resume specific session
-    if (
-      trimmedArgs &&
-      trimmedArgs !== 'list' &&
-      trimmedArgs.length > 8
-    ) {
+    if (trimmedArgs && trimmedArgs !== 'list' && trimmedArgs.length > 8) {
       const { valid, filePath } = await validateClaudeSessionId(
         config.getTargetDir(),
         trimmedArgs,

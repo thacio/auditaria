@@ -145,7 +145,6 @@ describe('buildConversationSummary', () => {
     expect(summary).toContain('ID: tool_1');
   });
 
-
   it('should truncate large functionCall args', () => {
     const largeArgs = { data: 'y'.repeat(600) };
     const history: Content[] = [
@@ -248,9 +247,7 @@ describe('ProviderManager history mirroring', () => {
 
     // [0] user prompt
     expect(history[0].role).toBe('user');
-    expect((history[0].parts![0] as { text: string }).text).toBe(
-      'test prompt',
-    );
+    expect((history[0].parts![0] as { text: string }).text).toBe('test prompt');
 
     // [1] model: text + functionCall
     expect(history[1].role).toBe('model');
@@ -478,6 +475,152 @@ describe('ProviderManager session reset on context modification', () => {
   });
 });
 
+// ─── NextTurnIntent (resume vs resetWithSummary interplay) ────────────────────
+
+describe('ProviderManager NextTurnIntent transitions', () => {
+  // Build a driver that lets tests inspect the prompt + sessionId seen on each
+  // call, and that records whether resetSession was invoked.
+  function createRecordingDriver() {
+    const record = {
+      promptSeen: undefined as string | undefined,
+      sessionIdAtSend: undefined as string | undefined,
+      resetCalls: 0,
+    };
+    let sessionId: string | undefined;
+    const driver: ProviderDriver = {
+      async *sendMessage(prompt) {
+        record.promptSeen = prompt;
+        record.sessionIdAtSend = sessionId;
+        yield { type: ProviderEventType.Finished } as ProviderEvent;
+      },
+      async interrupt() {},
+      getSessionId() {
+        return sessionId;
+      },
+      setSessionId(id: string) {
+        sessionId = id;
+      },
+      resetSession() {
+        sessionId = undefined;
+        record.resetCalls++;
+      },
+      dispose() {},
+      canResume: true,
+    };
+    return { driver, record };
+  }
+
+  async function runOneTurn(
+    manager: ProviderManager,
+    mockChat: ReturnType<typeof createMockChat>,
+    userPrompt: string,
+  ) {
+    const gen = manager.handleSendMessage(
+      userPrompt,
+      new AbortController().signal,
+      'prompt-test',
+      mockChat as never,
+      'sys',
+    );
+    let r = await gen.next();
+    while (!r.done) r = await gen.next();
+  }
+
+  it('resume after onHistoryModified wins (latest setter wins, no summary injection)', async () => {
+    // This is the exact scenario of Bug #2:
+    //   1. User switches to Claude via /model → onHistoryModified() fires
+    //      because history.length > 0 (env context).
+    //   2. User runs /resume-claude → setPendingResumeSessionId() fires.
+    //   3. Next sendMessage should resume cleanly, NOT dump summary+reset.
+    const manager = new ProviderManager(
+      { type: 'claude-cli', model: 'sonnet' },
+      '/tmp/test',
+    );
+    const mockChat = createMockChat();
+    mockChat.addHistory({ role: 'user', parts: [{ text: 'prior' }] });
+    mockChat.addHistory({ role: 'model', parts: [{ text: 'reply' }] });
+
+    const { driver, record } = createRecordingDriver();
+    (manager as unknown as Record<string, unknown>)['driver'] = driver;
+
+    manager.onHistoryModified(); // sets resetWithSummary
+    manager.setPendingResumeSessionId('sess-abc'); // overrides to resume
+
+    await runOneTurn(manager, mockChat, 'hi');
+
+    // Resume won: driver has the session, no reset, prompt is clean.
+    expect(record.sessionIdAtSend).toBe('sess-abc');
+    expect(record.resetCalls).toBe(0);
+    expect(record.promptSeen).toBe('hi');
+    expect(record.promptSeen).not.toContain('<auditaria_conversation_history>');
+  });
+
+  it('onHistoryModified after setPendingResumeSessionId wins (latest setter wins)', async () => {
+    const manager = new ProviderManager(
+      { type: 'claude-cli', model: 'sonnet' },
+      '/tmp/test',
+    );
+    const mockChat = createMockChat();
+    mockChat.addHistory({ role: 'user', parts: [{ text: 'prior' }] });
+    mockChat.addHistory({ role: 'model', parts: [{ text: 'reply' }] });
+
+    const { driver, record } = createRecordingDriver();
+    (manager as unknown as Record<string, unknown>)['driver'] = driver;
+
+    manager.setPendingResumeSessionId('sess-abc'); // resume
+    manager.onHistoryModified(); // overrides to resetWithSummary
+
+    await runOneTurn(manager, mockChat, 'hi');
+
+    expect(record.resetCalls).toBe(1);
+    expect(record.promptSeen).toContain('<auditaria_conversation_history>');
+    expect(record.promptSeen).toContain('[User]: prior');
+  });
+
+  it('intent is consumed after one turn (resume does not persist)', async () => {
+    const manager = new ProviderManager(
+      { type: 'claude-cli', model: 'sonnet' },
+      '/tmp/test',
+    );
+    const mockChat = createMockChat();
+
+    const { driver, record } = createRecordingDriver();
+    (manager as unknown as Record<string, unknown>)['driver'] = driver;
+
+    manager.setPendingResumeSessionId('sess-first');
+
+    await runOneTurn(manager, mockChat, 'first');
+    expect(record.sessionIdAtSend).toBe('sess-first');
+
+    // Subsequent turn: no intent set — driver session should persist, no reset.
+    await runOneTurn(manager, mockChat, 'second');
+    expect(record.sessionIdAtSend).toBe('sess-first');
+    expect(record.resetCalls).toBe(0);
+  });
+
+  it('intent is consumed after one turn (resetWithSummary does not persist)', async () => {
+    const manager = new ProviderManager(
+      { type: 'claude-cli', model: 'sonnet' },
+      '/tmp/test',
+    );
+    const mockChat = createMockChat();
+    mockChat.addHistory({ role: 'user', parts: [{ text: 'prior' }] });
+    mockChat.addHistory({ role: 'model', parts: [{ text: 'reply' }] });
+
+    const { driver, record } = createRecordingDriver();
+    (manager as unknown as Record<string, unknown>)['driver'] = driver;
+
+    manager.onHistoryModified();
+    await runOneTurn(manager, mockChat, 'first');
+    expect(record.resetCalls).toBe(1);
+
+    // Next turn: no intent — no additional reset, no summary injection.
+    await runOneTurn(manager, mockChat, 'second');
+    expect(record.resetCalls).toBe(1);
+    expect(record.promptSeen).toBe('second');
+  });
+});
+
 // ─── sanitizeHistoryForProviderSwitch ─────────────────────────────────────────
 
 describe('sanitizeHistoryForProviderSwitch', () => {
@@ -624,7 +767,6 @@ describe('sanitizeHistoryForProviderSwitch', () => {
     expect(text).toContain('[CONTENT FORGOTTEN');
     expect(text).toContain('ID: tool_1');
   });
-
 
   it('should handle mixed known and unknown tool calls', () => {
     const knownCall = {
@@ -833,18 +975,29 @@ describe('compactMirroredHistory', () => {
     const originalLength = mockChat._raw.length;
     expect(originalLength).toBe(40);
 
-    compactMirroredHistory(mockChat as never, 'Summary of the conversation about auditing.');
+    compactMirroredHistory(
+      mockChat as never,
+      'Summary of the conversation about auditing.',
+    );
 
     const history = mockChat._raw;
     expect(history.length).toBeLessThan(originalLength);
     // First entry should contain state_snapshot with the summary
     expect(history[0].role).toBe('user');
-    expect((history[0].parts![0] as { text: string }).text).toContain('<state_snapshot>');
-    expect((history[0].parts![0] as { text: string }).text).toContain('Summary of the conversation about auditing.');
-    expect((history[0].parts![0] as { text: string }).text).toContain('</state_snapshot>');
+    expect((history[0].parts![0] as { text: string }).text).toContain(
+      '<state_snapshot>',
+    );
+    expect((history[0].parts![0] as { text: string }).text).toContain(
+      'Summary of the conversation about auditing.',
+    );
+    expect((history[0].parts![0] as { text: string }).text).toContain(
+      '</state_snapshot>',
+    );
     // Model ack should match Gemini's format
     expect(history[1].role).toBe('model');
-    expect((history[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+    expect((history[1].parts![0] as { text: string }).text).toBe(
+      'Got it. Thanks for the additional context!',
+    );
     // Remaining entries come from original history's tail
     expect(history[2].role).toBe('user');
   });
@@ -866,10 +1019,16 @@ describe('compactMirroredHistory', () => {
 
     const history = mockChat._raw;
     expect(history[0].role).toBe('user');
-    expect((history[0].parts![0] as { text: string }).text).toContain('<context_compacted>');
-    expect((history[0].parts![0] as { text: string }).text).not.toContain('<state_snapshot>');
+    expect((history[0].parts![0] as { text: string }).text).toContain(
+      '<context_compacted>',
+    );
+    expect((history[0].parts![0] as { text: string }).text).not.toContain(
+      '<state_snapshot>',
+    );
     // Model ack still matches Gemini's format
-    expect((history[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+    expect((history[1].parts![0] as { text: string }).text).toBe(
+      'Got it. Thanks for the additional context!',
+    );
   });
 
   it('should not trim history with <= 4 entries', () => {
@@ -947,35 +1106,60 @@ describe('ProviderManager compaction handling', () => {
   it('should emit ChatCompressed with state_snapshot when Compacted + CompactionSummary received', async () => {
     // Pre-fill history so there's something to compact
     for (let i = 0; i < 10; i++) {
-      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
-      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }],
+      });
     }
     const preHistoryLength = mockChat._raw.length;
 
     const yielded = await runWithEvents([
       { type: ProviderEventType.Content, text: 'Before compaction' },
-      { type: ProviderEventType.Compacted, preTokens: 150000, trigger: 'auto' as const },
-      { type: ProviderEventType.CompactionSummary, summary: 'Summary of auditing discussion with key findings.' },
+      {
+        type: ProviderEventType.Compacted,
+        preTokens: 150000,
+        trigger: 'auto' as const,
+      },
+      {
+        type: ProviderEventType.CompactionSummary,
+        summary: 'Summary of auditing discussion with key findings.',
+      },
       { type: ProviderEventType.Content, text: 'After compaction' },
       { type: ProviderEventType.Finished },
     ]);
 
     // Should have emitted ChatCompressed event
     const compressed = (yielded as Array<{ type: string }>).find(
-      e => e.type === GeminiEventType.ChatCompressed,
+      (e) => e.type === GeminiEventType.ChatCompressed,
     );
     expect(compressed).toBeDefined();
-    const info = (compressed as unknown as { value: { originalTokenCount: number; compressionStatus: string } }).value;
+    const info = (
+      compressed as unknown as {
+        value: { originalTokenCount: number; compressionStatus: string };
+      }
+    ).value;
     expect(info.originalTokenCount).toBe(150000);
     expect(info.compressionStatus).toBe(CompressionStatus.COMPRESSED);
 
     // History should contain state_snapshot with summary (not context_compacted)
     const firstEntry = mockChat._raw[0];
-    expect((firstEntry.parts![0] as { text: string }).text).toContain('<state_snapshot>');
-    expect((firstEntry.parts![0] as { text: string }).text).toContain('Summary of auditing discussion');
-    expect((firstEntry.parts![0] as { text: string }).text).toContain('</state_snapshot>');
+    expect((firstEntry.parts![0] as { text: string }).text).toContain(
+      '<state_snapshot>',
+    );
+    expect((firstEntry.parts![0] as { text: string }).text).toContain(
+      'Summary of auditing discussion',
+    );
+    expect((firstEntry.parts![0] as { text: string }).text).toContain(
+      '</state_snapshot>',
+    );
     // Model ack matches Gemini's format
-    expect((mockChat._raw[1].parts![0] as { text: string }).text).toBe('Got it. Thanks for the additional context!');
+    expect((mockChat._raw[1].parts![0] as { text: string }).text).toBe(
+      'Got it. Thanks for the additional context!',
+    );
     // History should be shorter (trimmed)
     expect(mockChat._raw.length).toBeLessThan(preHistoryLength + 4);
   });
@@ -983,13 +1167,23 @@ describe('ProviderManager compaction handling', () => {
   it('should use fallback context_compacted when Compacted received without CompactionSummary', async () => {
     // Pre-fill enough history for compaction to actually trim
     for (let i = 0; i < 10; i++) {
-      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
-      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }],
+      });
     }
 
     const yielded = await runWithEvents([
       { type: ProviderEventType.Content, text: 'Before compaction' },
-      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
+      {
+        type: ProviderEventType.Compacted,
+        preTokens: 100000,
+        trigger: 'auto' as const,
+      },
       // No CompactionSummary event follows — fallback triggers at end of stream
       { type: ProviderEventType.Content, text: 'After compaction' },
       { type: ProviderEventType.Finished },
@@ -997,27 +1191,44 @@ describe('ProviderManager compaction handling', () => {
 
     // Should still emit ChatCompressed
     const compressed = (yielded as Array<{ type: string }>).find(
-      e => e.type === GeminiEventType.ChatCompressed,
+      (e) => e.type === GeminiEventType.ChatCompressed,
     );
     expect(compressed).toBeDefined();
 
     // History should use fallback context_compacted marker
     const firstEntry = mockChat._raw[0];
-    expect((firstEntry.parts![0] as { text: string }).text).toContain('<context_compacted>');
-    expect((firstEntry.parts![0] as { text: string }).text).not.toContain('<state_snapshot>');
+    expect((firstEntry.parts![0] as { text: string }).text).toContain(
+      '<context_compacted>',
+    );
+    expect((firstEntry.parts![0] as { text: string }).text).not.toContain(
+      '<state_snapshot>',
+    );
   });
 
   it('should flush accumulated text before trimming on Compacted', async () => {
     // Pre-fill enough history for compaction to actually trim
     for (let i = 0; i < 10; i++) {
-      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
-      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }],
+      });
     }
 
     await runWithEvents([
       { type: ProviderEventType.Content, text: 'hello ' },
-      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
-      { type: ProviderEventType.CompactionSummary, summary: 'Conversation summary here.' },
+      {
+        type: ProviderEventType.Compacted,
+        preTokens: 100000,
+        trigger: 'auto' as const,
+      },
+      {
+        type: ProviderEventType.CompactionSummary,
+        summary: 'Conversation summary here.',
+      },
       { type: ProviderEventType.Content, text: 'world' },
       { type: ProviderEventType.Finished },
     ]);
@@ -1034,15 +1245,28 @@ describe('ProviderManager compaction handling', () => {
   it('should NOT set contextModified after compaction', async () => {
     // Pre-fill enough history
     for (let i = 0; i < 10; i++) {
-      mockChat.addHistory({ role: 'user', parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }] });
-      mockChat.addHistory({ role: 'model', parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }] });
+      mockChat.addHistory({
+        role: 'user',
+        parts: [{ text: `msg ${i}: ${'x'.repeat(200)}` }],
+      });
+      mockChat.addHistory({
+        role: 'model',
+        parts: [{ text: `resp ${i}: ${'y'.repeat(200)}` }],
+      });
     }
 
     // First call with compaction (with summary)
     await runWithEvents([
       { type: ProviderEventType.Content, text: 'Compacted response' },
-      { type: ProviderEventType.Compacted, preTokens: 100000, trigger: 'auto' as const },
-      { type: ProviderEventType.CompactionSummary, summary: 'Summary of conversation.' },
+      {
+        type: ProviderEventType.Compacted,
+        preTokens: 100000,
+        trigger: 'auto' as const,
+      },
+      {
+        type: ProviderEventType.CompactionSummary,
+        summary: 'Summary of conversation.',
+      },
       { type: ProviderEventType.Finished },
     ]);
 
@@ -1058,7 +1282,9 @@ describe('ProviderManager compaction handling', () => {
         yield { type: ProviderEventType.Finished } as ProviderEvent;
       },
       async interrupt() {},
-      getSessionId() { return 'session-after-compact'; },
+      getSessionId() {
+        return 'session-after-compact';
+      },
       resetSession() {},
       dispose() {},
       canResume: true,

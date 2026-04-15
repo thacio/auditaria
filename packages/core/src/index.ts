@@ -368,6 +368,7 @@ export {
   getClaudeProjectDirHash,
 } from './providers/claude/claudeSessionBrowser.js';
 export type { ClaudeSessionInfo } from './providers/claude/claudeSessionBrowser.js';
+export { loadClaudeSessionAsContent } from './providers/claude/claudeSessionLoader.js';
 // AUDITARIA_REWIND_END
 
 // Export context types and profiles

@@ -130,6 +130,7 @@ import { calculateMainAreaWidth } from './utils/ui-sizing.js';
 import ansiEscapes from 'ansi-escapes';
 import { basename } from 'node:path';
 import { computeTerminalTitle } from '../utils/windowTitle.js';
+import { buildUIHistoryFromContent } from './utils/claudeHistoryProjection.js'; // AUDITARIA_REWIND_FEATURE
 import { useTextBuffer } from './components/shared/text-buffer.js';
 import { useLogger } from './hooks/useLogger.js';
 import { useGeminiStream } from './hooks/useGeminiStream.js';
@@ -868,33 +869,26 @@ export const AppContainer = (props: AppContainerProps) => {
     [handleDeleteSessionSync],
   );
 
-  // AUDITARIA_REWIND_START: Load Claude resume UI history from --resume-claude CLI flag
-  // Waits for GeminiClient to be initialized before setting mirrored history.
+  // AUDITARIA_REWIND_START: Apply --resume-claude CLI flag.
+  // The pending Content[] was parsed at startup; both the mirrored history (for
+  // rewind / token estimation / summary-building) and the visible chat log are
+  // derived from the same source, so they can't drift apart.
   useEffect(() => {
     if (!isGeminiClientInitialized) return;
-    const pendingHistory = config.consumePendingClaudeResumeUIHistory();
-    if (!pendingHistory || pendingHistory.length === 0) return;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- HistoryItem[] stored from gemini.tsx
-    historyManager.loadHistory(pendingHistory as HistoryItem[]);
-    refreshStatic();
+    const pendingContent = config.consumePendingClaudeResumeContent();
+    if (!pendingContent || pendingContent.length === 0) return;
 
-    // Set mirrored history summary (safe now — client is initialized)
-    const summary = config.consumePendingClaudeResumeSummary();
-    if (summary) {
-      try {
-        const client = config.getGeminiClient();
-        client?.setHistory([
-          { role: 'user' as const, parts: [{ text: summary }] },
-          {
-            role: 'model' as const,
-            parts: [
-              { text: 'Got it. I have the context from the previous session.' },
-            ],
-          },
-        ]);
-      } catch {
-        /* chat may not be ready — mirrored history is optional */
-      }
+    try {
+      const client = config.getGeminiClient();
+      client?.setHistory(pendingContent);
+    } catch {
+      /* chat may not be ready — mirrored history is optional */
+    }
+
+    const uiHistory = buildUIHistoryFromContent(pendingContent);
+    if (uiHistory.length > 0) {
+      historyManager.loadHistory(uiHistory);
+      refreshStatic();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to client init
   }, [isGeminiClientInitialized]);

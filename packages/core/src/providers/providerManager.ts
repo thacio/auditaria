@@ -55,7 +55,8 @@ export const CLAUDE_INCLUDE_OVERHEAD = true;
 // so the effective limit is 12K tokens (~48KB). We match this for accurate token estimation.
 export const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 10_000;
 const CODEX_SERIALIZATION_FACTOR = 1.2;
-export const CODEX_TOOL_OUTPUT_MAX_BYTES = Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIMIT * CODEX_SERIALIZATION_FACTOR) * 4;
+export const CODEX_TOOL_OUTPUT_MAX_BYTES =
+  Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIMIT * CODEX_SERIALIZATION_FACTOR) * 4;
 
 const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
 
@@ -63,13 +64,35 @@ const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
 // Last updated: 2026-03-31 — verify against Claude's system-reminder tool list periodically
 const CLAUDE_NATIVE_TOOLS = [
   // Core tools (always loaded)
-  'Agent', 'Bash', 'Edit', 'Glob', 'Grep', 'Read', 'Skill', 'ToolSearch', 'Write',
+  'Agent',
+  'Bash',
+  'Edit',
+  'Glob',
+  'Grep',
+  'Read',
+  'Skill',
+  'ToolSearch',
+  'Write',
   // Deferred tools (loaded on demand via ToolSearch)
-  'AskUserQuestion', 'CronCreate', 'CronDelete', 'CronList',
-  'EnterPlanMode', 'EnterWorktree', 'ExitPlanMode', 'ExitWorktree',
-  'NotebookEdit', 'RemoteTrigger', 'TodoWrite',
-  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate',
-  'WebFetch', 'WebSearch',
+  'AskUserQuestion',
+  'CronCreate',
+  'CronDelete',
+  'CronList',
+  'EnterPlanMode',
+  'EnterWorktree',
+  'ExitPlanMode',
+  'ExitWorktree',
+  'NotebookEdit',
+  'RemoteTrigger',
+  'TodoWrite',
+  'TaskCreate',
+  'TaskGet',
+  'TaskList',
+  'TaskOutput',
+  'TaskStop',
+  'TaskUpdate',
+  'WebFetch',
+  'WebSearch',
   // Built-in MCP integrations
   'mcp__claude_ai_Gmail__authenticate',
   'mcp__claude_ai_Google_Calendar__authenticate',
@@ -81,11 +104,21 @@ function getCodexReasoningEffort(
   if (config.type !== 'codex-cli') return undefined;
   const effort = config.options?.['reasoningEffort'];
   if (typeof effort !== 'string') return undefined;
-  if (!CODEX_REASONING_EFFORT_SET.has(effort)) return undefined;
-  return clampCodexReasoningEffortForModel(
-    config.model,
-    effort as CodexReasoningEffort,
-  );
+  if (!isCodexReasoningEffort(effort)) return undefined;
+  return clampCodexReasoningEffortForModel(config.model, effort);
+}
+
+function isCodexReasoningEffort(s: string): s is CodexReasoningEffort {
+  return CODEX_REASONING_EFFORT_SET.has(s);
+}
+
+// Narrow an `options` entry to a string without an unsafe cast.
+function readStringOption(
+  options: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined {
+  const value = options?.[key];
+  return typeof value === 'string' ? value : undefined;
 }
 
 function areProviderOptionsEqual(
@@ -99,18 +132,29 @@ function areProviderOptionsEqual(
 // The env context (from getEnvironmentContext()) is already injected separately to external
 // providers, so we skip it to avoid double-counting tokens.
 // envContextPrefix: first 30 chars of the env context text, used to identify the message.
-export function getHistoryPartsForEstimation(history: readonly Content[], envContextPrefix?: string): Part[] {
+export function getHistoryPartsForEstimation(
+  history: readonly Content[],
+  envContextPrefix?: string,
+): Part[] {
   if (!envContextPrefix) {
     // No prefix to match — return all parts (Gemini path, or prefix not yet computed)
-    return history.flatMap(c => c.parts || []);
+    return history.flatMap((c) => c.parts || []);
   }
   const parts: Part[] = [];
   let skippedEnvContext = false;
   for (const content of history) {
-    if (!skippedEnvContext && content.role === 'user' && content.parts?.length) {
+    if (
+      !skippedEnvContext &&
+      content.role === 'user' &&
+      content.parts?.length
+    ) {
       const firstPart = content.parts[0];
-      if (firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
-          && firstPart.text.startsWith(envContextPrefix)) {
+      if (
+        firstPart &&
+        'text' in firstPart &&
+        typeof firstPart.text === 'string' &&
+        firstPart.text.startsWith(envContextPrefix)
+      ) {
         skippedEnvContext = true;
         // Skip only the env context part, keep any other parts in this message
         const remaining = content.parts.slice(1);
@@ -127,17 +171,22 @@ export function getHistoryPartsForEstimation(history: readonly Content[], envCon
 // Codex truncates tool results to CODEX_TOOL_OUTPUT_TOKEN_LIMIT tokens internally,
 // but our mirrored history stores the full output. This creates shallow copies with
 // capped functionResponse outputs so estimation matches Codex's actual context usage.
-export function capToolOutputsForEstimation(parts: Part[], maxBytes: number): Part[] {
-  return parts.map(part => {
+export function capToolOutputsForEstimation(
+  parts: Part[],
+  maxBytes: number,
+): Part[] {
+  return parts.map((part) => {
     if ('functionResponse' in part && part.functionResponse?.response) {
       const output = part.functionResponse.response.output;
       if (typeof output === 'string' && output.length > maxBytes) {
-        return {
+        const capped: Part = {
           functionResponse: {
-            ...part.functionResponse,
+            id: part.functionResponse.id,
+            name: part.functionResponse.name,
             response: { output: output.slice(0, maxBytes) },
           },
-        } as Part;
+        };
+        return capped;
       }
     }
     return part;
@@ -156,16 +205,29 @@ export function estimateClaudeBaseOverhead(cwd: string): number {
     if (fs.existsSync(claudeMdPath)) {
       const content = fs.readFileSync(claudeMdPath, 'utf-8');
       claudeMdTokens = estimateTokenCountSync([{ text: content }]);
-      dbg(`[OVERHEAD] CLAUDE.md found: ${content.length} chars → ${claudeMdTokens} tokens`);
+      dbg(
+        `[OVERHEAD] CLAUDE.md found: ${content.length} chars → ${claudeMdTokens} tokens`,
+      );
     }
   } catch {
     dbg('[OVERHEAD] Failed to read CLAUDE.md, using 0 for its tokens');
   }
 
   const total = SYSTEM_PROMPT_AND_TOOLS + claudeMdTokens;
-  dbg(`[OVERHEAD] system: ${SYSTEM_PROMPT_AND_TOOLS}T + CLAUDE.md: ${claudeMdTokens}T = ${total}T`);
+  dbg(
+    `[OVERHEAD] system: ${SYSTEM_PROMPT_AND_TOOLS}T + CLAUDE.md: ${claudeMdTokens}T = ${total}T`,
+  );
   return total;
 }
+
+// AUDITARIA_CLAUDE_PROVIDER: Discriminated union describing what the next
+// external-provider turn should do. Replaces two independent fields
+// (contextModified boolean + pendingResumeSessionId string) whose combinations
+// could silently conflict. Latest setter wins.
+export type NextTurnIntent =
+  | { kind: 'continue' }
+  | { kind: 'resume'; sessionId: string }
+  | { kind: 'resetWithSummary' };
 
 export class ProviderManager {
   private driver: ProviderDriver | null = null;
@@ -174,11 +236,21 @@ export class ProviderManager {
   private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
   private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
-  private contextModified = false; // AUDITARIA_CLAUDE_PROVIDER: Set by context_forget, triggers session reset on next call
+  // AUDITARIA_CLAUDE_PROVIDER: Single source of truth for what the next turn
+  // should do. Replaces the previous pair of boolean + pendingResumeSessionId,
+  // which could disagree (e.g. /resume-claude after a provider switch left
+  // contextModified=true, causing the resume session ID to be silently cleared
+  // on the next call). Making the states a discriminated union makes illegal
+  // combinations unrepresentable.
+  private nextTurn: NextTurnIntent = { kind: 'continue' };
   private appConfig?: Config; // AUDITARIA_CLAUDE_PROVIDER: For computing env context prefix
   private envContextPrefix?: string; // Cached first 30 chars of getEnvironmentContext() output
   // AUDITARIA: Callback for routing live tool output to CLI layer (browser agent steps, etc.)
-  private toolOutputHandler?: (callId: string, toolName: string, output: string) => void;
+  private toolOutputHandler?: (
+    callId: string,
+    toolName: string,
+    output: string,
+  ) => void;
   // AUDITARIA: Track toolName → callId for live output routing during MCP bridge execution
   private pendingToolCalls = new Map<string, string>();
 
@@ -207,7 +279,11 @@ export class ProviderManager {
   }
 
   // AUDITARIA: Register callback for live tool output (browser agent steps, etc.)
-  setToolOutputHandler(handler: ((callId: string, toolName: string, output: string) => void) | undefined): void {
+  setToolOutputHandler(
+    handler:
+      | ((callId: string, toolName: string, output: string) => void)
+      | undefined,
+  ): void {
     this.toolOutputHandler = handler;
     this.wireToolOutputHandler();
   }
@@ -225,32 +301,38 @@ export class ProviderManager {
 
     dbg(`[REWIND] wiring adapter for provider: ${currentProvider}`);
     if (currentProvider === 'claude-cli') {
-      import('../file-checkpoints/adapters/ClaudeFileCheckpointAdapter.js').then(
-        ({ ClaudeFileCheckpointAdapter }) => {
-          const adapter = new ClaudeFileCheckpointAdapter(
-            this.cwd,
-            () => this.driver?.getSessionId?.(),
+      import('../file-checkpoints/adapters/ClaudeFileCheckpointAdapter.js')
+        .then(({ ClaudeFileCheckpointAdapter }) => {
+          const adapter = new ClaudeFileCheckpointAdapter(this.cwd, () =>
+            this.driver?.getSessionId?.(),
           );
           fcm.setAdapter(adapter);
           dbg('[REWIND] ClaudeFileCheckpointAdapter set');
-        },
-      ).catch((e) => { dbg('[REWIND] adapter import failed', e); });
+        })
+        .catch((e) => {
+          dbg('[REWIND] adapter import failed', e);
+        });
     }
     // Future: codex-cli, copilot-cli adapters
     this.fileCheckpointAdapterProvider = currentProvider;
   }
-  // AUDITARIA_REWIND: Pending Claude session ID for /resume-claude
-  private pendingResumeSessionId: string | undefined;
-
+  // AUDITARIA_REWIND: Queue a Claude session ID for the next turn. If the driver
+  // exists, the ID is also applied immediately (so getDriverSessionId() reflects
+  // it for display); if not, getOrCreateDriver() applies it after construction.
+  // Overwrites any prior intent (resume > resetWithSummary — latest wins).
   setPendingResumeSessionId(id: string): void {
-    this.pendingResumeSessionId = id;
-    // If driver already exists, set directly
+    this.nextTurn = { kind: 'resume', sessionId: id };
     if (this.driver?.setSessionId) {
       this.driver.setSessionId(id);
-      this.pendingResumeSessionId = undefined;
-      dbg('[REWIND] setPendingResumeSessionId: set directly on existing driver', id.slice(0, 8));
+      dbg(
+        '[REWIND] setPendingResumeSessionId: applied to existing driver',
+        id.slice(0, 8),
+      );
     } else {
-      dbg('[REWIND] setPendingResumeSessionId: stored for driver creation', id.slice(0, 8));
+      dbg(
+        '[REWIND] setPendingResumeSessionId: queued for driver creation',
+        id.slice(0, 8),
+      );
     }
   }
   // AUDITARIA_REWIND_END
@@ -263,21 +345,23 @@ export class ProviderManager {
       return;
     }
     const handler = this.toolOutputHandler;
-    this.toolExecutorServer.setToolOutputHandler((toolName: string, output: string) => {
-      // AUDITARIA: toolExecutorServer uses original names (e.g. "stagehand_browser"),
-      // but pendingToolCalls uses MCP-prefixed names (e.g. "mcp__auditaria-tools__stagehand_browser").
-      // Match by checking if the key ends with __toolName.
-      let callId: string | undefined;
-      for (const [name, id] of this.pendingToolCalls) {
-        if (name === toolName || name.endsWith('__' + toolName)) {
-          callId = id;
-          break;
+    this.toolExecutorServer.setToolOutputHandler(
+      (toolName: string, output: string) => {
+        // AUDITARIA: toolExecutorServer uses original names (e.g. "stagehand_browser"),
+        // but pendingToolCalls uses MCP-prefixed names (e.g. "mcp__auditaria-tools__stagehand_browser").
+        // Match by checking if the key ends with __toolName.
+        let callId: string | undefined;
+        for (const [name, id] of this.pendingToolCalls) {
+          if (name === toolName || name.endsWith('__' + toolName)) {
+            callId = id;
+            break;
+          }
         }
-      }
-      if (callId) {
-        handler(callId, toolName, output);
-      }
-    });
+        if (callId) {
+          handler(callId, toolName, output);
+        }
+      },
+    );
   }
 
   isExternalProviderActive(): boolean {
@@ -286,9 +370,14 @@ export class ProviderManager {
 
   // AUDITARIA: Get display metadata for a bridgeable tool (strips MCP prefix, delegates to toolExecutorServer).
   // Returns undefined for non-bridgeable tools (Claude/Codex built-in tools).
-  getToolDisplayInfo(rawToolName: string, args: Record<string, unknown>): import('./mcp-bridge/toolExecutorServer.js').ToolDisplayInfo | undefined {
+  getToolDisplayInfo(
+    rawToolName: string,
+    args: Record<string, unknown>,
+  ): import('./mcp-bridge/toolExecutorServer.js').ToolDisplayInfo | undefined {
     if (!this.toolExecutorServer) return undefined;
-    const originalName = rawToolName.includes('__') ? rawToolName.split('__').pop()! : rawToolName;
+    const originalName = rawToolName.includes('__')
+      ? rawToolName.split('__').pop()!
+      : rawToolName;
     return this.toolExecutorServer.getToolDisplayInfo(originalName, args);
   }
 
@@ -313,11 +402,10 @@ export class ProviderManager {
   // or when switching from Gemini to Claude with existing conversation history.
   // Schedules a session reset on the next sendMessage() call so Claude gets
   // a fresh session with the modified/existing conversation history.
+  // Overwrites any prior intent (resetWithSummary > resume — latest wins).
   onHistoryModified(): void {
-    this.contextModified = true;
-    dbg(
-      'onHistoryModified: contextModified flag set, will reset session on next call',
-    );
+    this.nextTurn = { kind: 'resetWithSummary' };
+    dbg('onHistoryModified: scheduled resetWithSummary for next call');
   }
 
   // AUDITARIA_REWIND: Get the current driver's session ID (for display on exit)
@@ -328,7 +416,11 @@ export class ProviderManager {
   // AUDITARIA_ATTACHMENTS: Check if the current provider supports image attachments.
   // Codex: via -i temp files. Claude: via --input-format stream-json. Copilot: via ACP inline base64.
   private get driverSupportsImages(): boolean {
-    return this.config?.type === 'codex-cli' || this.config?.type === 'claude-cli' || this.config?.type === 'copilot-cli';
+    return (
+      this.config?.type === 'codex-cli' ||
+      this.config?.type === 'claude-cli' ||
+      this.config?.type === 'copilot-cli'
+    );
   }
 
   // AUDITARIA_ATTACHMENTS: Only Codex needs temp files on disk (-i flag).
@@ -361,7 +453,10 @@ export class ProviderManager {
       const pendingId = this.appConfig.consumePendingClaudeResumeSessionId();
       if (pendingId) {
         this.setPendingResumeSessionId(pendingId);
-        dbg('[REWIND] applied --resume-claude from CLI flag:', pendingId.slice(0, 8));
+        dbg(
+          '[REWIND] applied --resume-claude from CLI flag:',
+          pendingId.slice(0, 8),
+        );
       }
     }
     // AUDITARIA_REWIND_END
@@ -381,13 +476,14 @@ export class ProviderManager {
       driverSupportsImages: this.driverSupportsImages,
     });
 
-    // AUDITARIA_CLAUDE_PROVIDER: If context was modified (e.g. by context_forget),
-    // or when switching from Gemini to Claude with existing conversation history,
-    // inject the conversation summary as the first user message (not in system context).
-    // System context (audit/memory/skills) stays separate as persistent instructions.
-    let effectiveContext = systemContext;
+    // AUDITARIA_CLAUDE_PROVIDER: Read the next-turn intent. Each branch is
+    // mutually exclusive by construction. The intent is consumed (reset to
+    // 'continue') after getOrCreateDriver runs, because getOrCreateDriver needs
+    // to read a 'resume' intent to apply the sessionId to a newly created driver.
+    const intent = this.nextTurn;
+    const effectiveContext = systemContext;
     let effectivePrompt = prompt;
-    if (this.contextModified) {
+    if (intent.kind === 'resetWithSummary') {
       const history = chat.getHistory();
       if (history.length > 0) {
         const envPrefix = await this.ensureEnvContextPrefix();
@@ -395,11 +491,13 @@ export class ProviderManager {
         effectivePrompt = summary + '\n\n' + prompt;
       }
       this.driver?.resetSession?.();
-      this.contextModified = false;
       dbg(
-        `call #${callNum}: context modified — session reset, injecting conversation summary as user message`,
+        `call #${callNum}: resetWithSummary — session reset, injecting conversation summary as user message`,
       );
     }
+    // intent.kind === 'resume': sessionId was applied eagerly in
+    // setPendingResumeSessionId() when the driver existed; if it didn't exist,
+    // getOrCreateDriver() applies it after construction (below).
 
     let driver: ProviderDriver;
     try {
@@ -411,6 +509,9 @@ export class ProviderManager {
       dbg('driver creation FAILED', e);
       throw e;
     }
+
+    // Intent consumed — subsequent turns default to 'continue'.
+    this.nextTurn = { kind: 'continue' };
 
     // AUDITARIA_CLAUDE_PROVIDER: Mirror only the original prompt to GeminiChat.history
     // (not the conversation summary prefix — that's context injection, not conversation).
@@ -432,10 +533,14 @@ export class ProviderManager {
     if (hasImages) {
       if (this.driverNeedsTempFiles) {
         attachmentFiles = writeAttachmentTempFiles(inlineDataParts);
-        dbg(`call #${callNum}: wrote ${attachmentFiles.length} attachment temp files`);
+        dbg(
+          `call #${callNum}: wrote ${attachmentFiles.length} attachment temp files`,
+        );
       } else {
         attachmentFiles = buildInlineAttachments(inlineDataParts);
-        dbg(`call #${callNum}: prepared ${attachmentFiles.length} inline image attachments`);
+        dbg(
+          `call #${callNum}: prepared ${attachmentFiles.length} inline image attachments`,
+        );
       }
     }
 
@@ -505,35 +610,42 @@ export class ProviderManager {
 
           // AUDITARIA: Use stored returnDisplay from bridgeable tool execution (e.g., browser step JSON)
           // toolExecutorServer stores under original names, but toolName here is MCP-prefixed
-          const originalToolName = toolName.includes('__') ? toolName.split('__').pop()! : toolName;
-          const storedDisplay = this.toolExecutorServer?.consumeReturnDisplay(originalToolName);
+          const originalToolName = toolName.includes('__')
+            ? toolName.split('__').pop()!
+            : toolName;
+          const storedDisplay =
+            this.toolExecutorServer?.consumeReturnDisplay(originalToolName);
           this.pendingToolCalls.delete(toolName);
 
-          // AUDITARIA: Extract nice text from Claude's JSON array output for resultDisplay
-          let parsedText = '';
-          let responsePartsArray: any[] = [];
-          
+          // AUDITARIA: Extract response parts from Claude's output.
+          // event.output may arrive as a plain string OR as a JSON array
+          // string like '[{"type":"text","text":"..."}]' from tool bridge.
+          // Unwrap the array when present; otherwise wrap the string as text.
+          type ResponsePart = { text?: string } & Record<string, unknown>;
+          let responsePartsArray: ResponsePart[] = [];
           try {
-            if (typeof event.output === 'string') {
-              if (event.output.trim().startsWith('[')) {
-                const parsed = JSON.parse(event.output);
+            const out = event.output;
+            if (typeof out === 'string') {
+              if (out.trim().startsWith('[')) {
+                const parsed: unknown = JSON.parse(out);
                 if (Array.isArray(parsed)) {
-                  parsedText = parsed.map(p => p.text || '').filter(Boolean).join('\n\n');
-                  responsePartsArray = parsed;
+                  responsePartsArray = parsed.filter(
+                    (p): p is ResponsePart =>
+                      typeof p === 'object' && p !== null,
+                  );
+                } else {
+                  responsePartsArray = [{ text: out }];
                 }
               } else {
-                responsePartsArray = [{ text: event.output }];
+                responsePartsArray = [{ text: out }];
               }
-            } else if (Array.isArray(event.output)) {
-              const outputArray = event.output as any[];
-              parsedText = outputArray.map((p: any) => p.text || JSON.stringify(p)).filter(Boolean).join('\n\n');
-              responsePartsArray = outputArray;
-            } else if (event.output) {
-              responsePartsArray = [{ text: JSON.stringify(event.output) }];
+            } else if (out) {
+              responsePartsArray = [{ text: JSON.stringify(out) }];
             }
-          } catch (e) {
-            // Ignore parse errors, fallback to raw output
-            responsePartsArray = event.output ? [{ text: event.output }] : [];
+          } catch {
+            // Malformed JSON — fall back to raw output as a single text part.
+            responsePartsArray =
+              typeof event.output === 'string' ? [{ text: event.output }] : [];
           }
 
           // AUDITARIA: Use only the user-friendly returnDisplay from tool execution.
@@ -546,7 +658,13 @@ export class ProviderManager {
               callId: event.toolId,
               responseParts: responsePartsArray,
               resultDisplay: finalDisplay,
-              error: event.isError ? new Error(typeof event.output === 'string' ? event.output : JSON.stringify(event.output)) : undefined,
+              error: event.isError
+                ? new Error(
+                    typeof event.output === 'string'
+                      ? event.output
+                      : JSON.stringify(event.output),
+                  )
+                : undefined,
               errorType: undefined,
             },
           };
@@ -556,7 +674,9 @@ export class ProviderManager {
         // AUDITARIA_CLAUDE_PROVIDER_START: Two-phase context compaction handling
         // Phase 1: compact_boundary detected — flush and record, wait for summary
         if (event.type === ProviderEventType.Compacted) {
-          dbg(`event #${eventCount} compacted: trigger=${event.trigger}, preTokens=${event.preTokens}`);
+          dbg(
+            `event #${eventCount} compacted: trigger=${event.trigger}, preTokens=${event.preTokens}`,
+          );
           flushModelParts(chat, modelParts, accumulatedText);
           accumulatedText = '';
           compactionPreTokens = event.preTokens;
@@ -565,11 +685,16 @@ export class ProviderManager {
         }
 
         // Phase 2: summary captured from post-compact user message
-        if (event.type === ProviderEventType.CompactionSummary && awaitingCompactionSummary) {
-          dbg(`event #${eventCount} compaction summary captured (${event.summary.length} chars)`);
+        if (
+          event.type === ProviderEventType.CompactionSummary &&
+          awaitingCompactionSummary
+        ) {
+          dbg(
+            `event #${eventCount} compaction summary captured (${event.summary.length} chars)`,
+          );
           compactMirroredHistory(chat, event.summary);
           const newTokens = estimateTokenCountSync(
-            chat.getHistory().flatMap(c => c.parts || [])
+            chat.getHistory().flatMap((c) => c.parts || []),
           );
           yield {
             type: GeminiEventType.ChatCompressed,
@@ -585,7 +710,10 @@ export class ProviderManager {
         // AUDITARIA_CLAUDE_PROVIDER_END
 
         // AUDITARIA_CODEX_PROVIDER: Capture actual context usage from session JSONL (Codex only)
-        if (event.type === ProviderEventType.Finished && event.contextTokensUsed !== undefined) {
+        if (
+          event.type === ProviderEventType.Finished &&
+          event.contextTokensUsed !== undefined
+        ) {
           codexActualTokens = event.contextTokensUsed;
         }
 
@@ -608,7 +736,7 @@ export class ProviderManager {
       if (awaitingCompactionSummary) {
         compactMirroredHistory(chat); // No summary — uses fallback marker
         const newTokens = estimateTokenCountSync(
-          chat.getHistory().flatMap(c => c.parts || [])
+          chat.getHistory().flatMap((c) => c.parts || []),
         );
         yield {
           type: GeminiEventType.ChatCompressed,
@@ -625,25 +753,42 @@ export class ProviderManager {
       // This is the most accurate source: last_token_usage.input + output - reasoning.
       // Falls back to heuristic estimation for Claude or when session data is unavailable.
       if (this.config.type === 'codex-cli' && codexActualTokens !== undefined) {
-        dbg(`[TOKEN_ESTIMATION] Codex actual from session JSONL: ${codexActualTokens}T`);
+        dbg(
+          `[TOKEN_ESTIMATION] Codex actual from session JSONL: ${codexActualTokens}T`,
+        );
         chat.setLastPromptTokenCount(codexActualTokens);
       } else {
         // AUDITARIA_CLAUDE_PROVIDER: Heuristic estimation for Claude (or Codex fallback).
         // Strips the initial env context message (already injected separately).
         // When CLAUDE_INCLUDE_OVERHEAD is true, includes base overhead (system prompt + CLAUDE.md).
         const envPrefix = await this.ensureEnvContextPrefix();
-        let historyParts = getHistoryPartsForEstimation(chat.getHistory(), envPrefix);
+        let historyParts = getHistoryPartsForEstimation(
+          chat.getHistory(),
+          envPrefix,
+        );
         if (this.config.type === 'codex-cli') {
-          historyParts = capToolOutputsForEstimation(historyParts, CODEX_TOOL_OUTPUT_MAX_BYTES);
+          historyParts = capToolOutputsForEstimation(
+            historyParts,
+            CODEX_TOOL_OUTPUT_MAX_BYTES,
+          );
         }
         const historyTokens = estimateTokenCountSync(historyParts);
         const contextLength = systemContext?.length || 0;
         const contextTokens = Math.ceil(contextLength / 4);
-        const overhead = CLAUDE_INCLUDE_OVERHEAD ? estimateClaudeBaseOverhead(this.cwd) : 0;
-        const estimated = Math.ceil((historyTokens + contextTokens + overhead) * ESTIMATION_CORRECTION_FACTOR);
+        const overhead = CLAUDE_INCLUDE_OVERHEAD
+          ? estimateClaudeBaseOverhead(this.cwd)
+          : 0;
+        const estimated = Math.ceil(
+          (historyTokens + contextTokens + overhead) *
+            ESTIMATION_CORRECTION_FACTOR,
+        );
 
-        dbg(`[TOKEN_ESTIMATION] history: ${historyTokens}T, context: ${contextTokens}T, overhead: ${overhead}T`);
-        dbg(`[TOKEN_ESTIMATION] × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`);
+        dbg(
+          `[TOKEN_ESTIMATION] history: ${historyTokens}T, context: ${contextTokens}T, overhead: ${overhead}T`,
+        );
+        dbg(
+          `[TOKEN_ESTIMATION] × ${ESTIMATION_CORRECTION_FACTOR} = ${estimated}T (includeOverhead=${CLAUDE_INCLUDE_OVERHEAD})`,
+        );
 
         chat.setLastPromptTokenCount(estimated);
       }
@@ -660,29 +805,39 @@ export class ProviderManager {
       // /compress (requires matched functionCall/functionResponse pairs). Add a placeholder.
       const history = chat.getHistory();
       const lastEntry = history[history.length - 1];
-      if (lastEntry?.role === 'model' && lastEntry.parts?.some(p => 'functionCall' in p && p.functionCall)) {
-        const danglingCalls = lastEntry.parts.filter(p => 'functionCall' in p && p.functionCall);
-        for (const part of danglingCalls) {
-          const fc = (part as { functionCall: { name: string } }).functionCall;
+      if (lastEntry?.role === 'model' && lastEntry.parts) {
+        const danglingNames: string[] = [];
+        for (const p of lastEntry.parts) {
+          if ('functionCall' in p && p.functionCall?.name) {
+            danglingNames.push(p.functionCall.name);
+          }
+        }
+        for (const name of danglingNames) {
           chat.addHistory({
             role: 'user',
-            parts: [{
-              functionResponse: {
-                id: `error-${fc.name}`,
-                name: fc.name,
-                response: { output: `[Error: provider stream terminated before tool result was returned]` },
+            parts: [
+              {
+                functionResponse: {
+                  id: `error-${name}`,
+                  name,
+                  response: {
+                    output: `[Error: provider stream terminated before tool result was returned]`,
+                  },
+                },
               },
-            }],
+            ],
           });
         }
-        dbg(`added ${danglingCalls.length} placeholder functionResponse(s) for dangling tool calls`);
+        dbg(
+          `added ${danglingNames.length} placeholder functionResponse(s) for dangling tool calls`,
+        );
       }
 
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
     } finally {
       // AUDITARIA_ATTACHMENTS: Clean up temp files (only for drivers that wrote them)
-      const tempFiles = attachmentFiles.filter(f => f.filePath);
+      const tempFiles = attachmentFiles.filter((f) => f.filePath);
       if (tempFiles.length > 0) {
         cleanupAttachmentFiles(tempFiles);
         dbg(`cleaned up ${tempFiles.length} attachment temp files`);
@@ -691,7 +846,9 @@ export class ProviderManager {
       // AUDITARIA_REWIND_START: Create file checkpoint snapshot after turn (even on error/abort)
       try {
         const fcm = this.appConfig?.getFileCheckpointManager();
-        dbg(`[REWIND] finally block: fcm=${!!fcm}, claudeSessionId=${this.driver?.getSessionId?.() || 'none'}`);
+        dbg(
+          `[REWIND] finally block: fcm=${!!fcm}, claudeSessionId=${this.driver?.getSessionId?.() || 'none'}`,
+        );
         if (fcm) {
           dbg('[REWIND] calling createSnapshotFromAdapter...');
           await fcm.createSnapshotFromAdapter({
@@ -753,7 +910,9 @@ export class ProviderManager {
     const driverConfig = {
       model: this.config.model,
       cwd: this.cwd,
-      permissionMode: (this.config.options?.permissionMode as string) ?? 'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
+      permissionMode:
+        readStringOption(this.config.options, 'permissionMode') ??
+        'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
       mcpServers: this.mcpServers,
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
       toolBridgeScript: this.bridgeScriptPath,
@@ -774,7 +933,9 @@ export class ProviderManager {
         return new CodexCLIDriver(driverConfig);
       }
       case 'copilot-cli': {
-        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        const { CopilotCLIDriver } = await import(
+          './copilot/copilotCLIDriver.js'
+        );
         return new CopilotCLIDriver(driverConfig);
       }
       default:
@@ -783,13 +944,19 @@ export class ProviderManager {
   }
   // AUDITARIA_SESSION_MANAGEMENT_END
 
-  getToolBridgeInfo(): { server: ToolExecutorServer; scriptPath: string; disallowedNativeTools?: string[] } | null {
+  getToolBridgeInfo(): {
+    server: ToolExecutorServer;
+    scriptPath: string;
+    disallowedNativeTools?: string[];
+  } | null {
     if (this.toolExecutorServer && this.bridgeScriptPath) {
       return {
         server: this.toolExecutorServer,
         scriptPath: this.bridgeScriptPath,
         // AUDITARIA_TOOL_RESTRICTION: Pass native tool restrictions for sub-agent drivers
-        disallowedNativeTools: this.appConfig?.hasGlobalToolDeny() ? CLAUDE_NATIVE_TOOLS : undefined,
+        disallowedNativeTools: this.appConfig?.hasGlobalToolDeny()
+          ? CLAUDE_NATIVE_TOOLS
+          : undefined,
       };
     }
     return null;
@@ -845,7 +1012,9 @@ export class ProviderManager {
     const driverConfig = {
       model: this.config.model,
       cwd: this.cwd,
-      permissionMode: (this.config.options?.permissionMode as string) ?? 'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
+      permissionMode:
+        readStringOption(this.config.options, 'permissionMode') ??
+        'bypassPermissions', // AUDITARIA_TOOL_RESTRICTION: configurable
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined, // AUDITARIA_CLAUDE_PROVIDER
       toolBridgeScript: this.bridgeScriptPath, // AUDITARIA_CLAUDE_PROVIDER
@@ -872,7 +1041,9 @@ export class ProviderManager {
       // AUDITARIA_CODEX_PROVIDER_END
       // AUDITARIA_COPILOT_PROVIDER_START
       case 'copilot-cli': {
-        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        const { CopilotCLIDriver } = await import(
+          './copilot/copilotCLIDriver.js'
+        );
         this.driver = new CopilotCLIDriver(driverConfig);
         break;
       }
@@ -881,11 +1052,15 @@ export class ProviderManager {
         throw new Error(`Unknown provider type: ${this.config.type}`);
     }
 
-    // AUDITARIA_REWIND: Apply pending resume session ID to newly created driver
-    if (this.pendingResumeSessionId && this.driver?.setSessionId) {
-      this.driver.setSessionId(this.pendingResumeSessionId);
-      dbg('[REWIND] applied pending resume session ID to new driver', this.pendingResumeSessionId.slice(0, 8));
-      this.pendingResumeSessionId = undefined;
+    // AUDITARIA_REWIND: Apply pending resume session ID to newly created driver.
+    // handleSendMessage clears the intent after this returns, so reading here
+    // without clearing is safe.
+    if (this.nextTurn.kind === 'resume' && this.driver?.setSessionId) {
+      this.driver.setSessionId(this.nextTurn.sessionId);
+      dbg(
+        '[REWIND] applied pending resume session ID to new driver',
+        this.nextTurn.sessionId.slice(0, 8),
+      );
     }
 
     return this.driver;
@@ -951,11 +1126,9 @@ function extractInlineDataParts(request: PartListUnion): Part[] {
   const parts: PartListUnion[] = Array.isArray(request) ? request : [request];
   const result: Part[] = [];
   for (const part of parts) {
-    if (part && typeof part !== 'string') {
-      const p = part as Part;
-      if (p.inlineData?.data && p.inlineData?.mimeType) {
-        result.push(p);
-      }
+    if (!part || typeof part === 'string' || Array.isArray(part)) continue;
+    if (part.inlineData?.data && part.inlineData?.mimeType) {
+      result.push(part);
     }
   }
   return result;
@@ -978,7 +1151,11 @@ function writeAttachmentTempFiles(inlineDataParts: Part[]): AttachmentFile[] {
     const fileName = `auditaria-img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
     const filePath = path.join(os.tmpdir(), fileName);
     fs.writeFileSync(filePath, Buffer.from(part.inlineData.data, 'base64'));
-    files.push({ filePath, mimeType: part.inlineData.mimeType, data: part.inlineData.data });
+    files.push({
+      filePath,
+      mimeType: part.inlineData.mimeType,
+      data: part.inlineData.data,
+    });
   }
   return files;
 }
@@ -988,7 +1165,11 @@ function buildInlineAttachments(inlineDataParts: Part[]): AttachmentFile[] {
   const result: AttachmentFile[] = [];
   for (const p of inlineDataParts) {
     if (p.inlineData?.data && p.inlineData?.mimeType) {
-      result.push({ filePath: '', mimeType: p.inlineData.mimeType, data: p.inlineData.data });
+      result.push({
+        filePath: '',
+        mimeType: p.inlineData.mimeType,
+        data: p.inlineData.data,
+      });
     }
   }
   return result;
@@ -1008,7 +1189,10 @@ function cleanupAttachmentFiles(files: AttachmentFile[]): void {
 // AUDITARIA_CLAUDE_PROVIDER: Build prompt string from PartListUnion for external providers.
 // Unlike partToString(), gives honest descriptions for binary data that the provider can't see.
 // When skipInlineData is true, inlineData parts are omitted (driver handles them via temp files).
-function buildExternalProviderPrompt(request: PartListUnion, skipInlineData = false): string {
+function buildExternalProviderPrompt(
+  request: PartListUnion,
+  skipInlineData = false,
+): string {
   if (!request) return '';
   if (typeof request === 'string') return request;
 
@@ -1020,7 +1204,8 @@ function buildExternalProviderPrompt(request: PartListUnion, skipInlineData = fa
       segments.push(part || '');
       continue;
     }
-    const p = part as Part;
+    if (Array.isArray(part)) continue; // Nested PartListUnion not expected at this level.
+    const p: Part = part;
     if (p.text) {
       segments.push(p.text);
     } else if (p.inlineData) {
@@ -1058,7 +1243,10 @@ function buildExternalProviderPrompt(request: PartListUnion, skipInlineData = fa
 // AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
 // for injecting into a fresh Claude session after context_forget.
 // envContextPrefix: if provided, skips the initial env context message (already injected separately).
-export function buildConversationSummary(history: readonly Content[], envContextPrefix?: string): string {
+export function buildConversationSummary(
+  history: readonly Content[],
+  envContextPrefix?: string,
+): string {
   const lines: string[] = [];
   lines.push('<auditaria_conversation_history>');
   lines.push(
@@ -1078,8 +1266,12 @@ export function buildConversationSummary(history: readonly Content[], envContext
     // separately to external providers via buildExternalProviderContext().
     if (!skippedEnvContext && envContextPrefix && content.role === 'user') {
       const firstPart = content.parts[0];
-      if (firstPart && 'text' in firstPart && typeof firstPart.text === 'string'
-          && firstPart.text.startsWith(envContextPrefix)) {
+      if (
+        firstPart &&
+        'text' in firstPart &&
+        typeof firstPart.text === 'string' &&
+        firstPart.text.startsWith(envContextPrefix)
+      ) {
         skippedEnvContext = true;
         continue;
       }
@@ -1224,13 +1416,19 @@ export function sanitizeHistoryForProviderSwitch(
 // Fraction of history to keep when trimming (matches Gemini's COMPRESSION_PRESERVE_THRESHOLD).
 const COMPACTION_PRESERVE_FRACTION = 0.3;
 
-export function compactMirroredHistory(chat: GeminiChat, summary?: string): void {
+export function compactMirroredHistory(
+  chat: GeminiChat,
+  summary?: string,
+): void {
   const history = chat.getHistory();
   if (history.length <= 4) return; // Too small to trim
 
   // Compress the first 70%, keep last 30% (by character count).
   // findCompressSplitPoint handles user message boundaries so we don't split mid-tool-sequence.
-  const splitPoint = findCompressSplitPoint(history, 1 - COMPACTION_PRESERVE_FRACTION);
+  const splitPoint = findCompressSplitPoint(
+    history,
+    1 - COMPACTION_PRESERVE_FRACTION,
+  );
   if (splitPoint <= 0) return; // Nothing to compress
 
   const historyToKeep = history.slice(splitPoint);
@@ -1242,11 +1440,11 @@ export function compactMirroredHistory(chat: GeminiChat, summary?: string): void
   // 3. High-quality context when switching providers
   const snapshotText = summary
     ? `<state_snapshot>\n${summary}\n</state_snapshot>`
-    : '<context_compacted>\n'
-      + 'The external provider has compacted its context window. '
-      + 'Older conversation history was summarized internally by the provider. '
-      + 'Only recent messages are preserved below.\n'
-      + '</context_compacted>';
+    : '<context_compacted>\n' +
+      'The external provider has compacted its context window. ' +
+      'Older conversation history was summarized internally by the provider. ' +
+      'Only recent messages are preserved below.\n' +
+      '</context_compacted>';
 
   const compactedHistory: Content[] = [
     {

@@ -824,8 +824,12 @@ export class Config implements McpContext, AgentLoopContext {
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private fileCheckpointManager_?: FileCheckpointManager; // AUDITARIA_REWIND
   private pendingClaudeResumeSessionId_?: string; // AUDITARIA_REWIND
-  private pendingClaudeResumeUIHistory_?: unknown[]; // AUDITARIA_REWIND: HistoryItem[] stored for AppContainer
-  private pendingClaudeResumeSummary_?: string; // AUDITARIA_REWIND
+  // AUDITARIA_REWIND: Full-fidelity Content[] parsed from a Claude JSONL session.
+  // The single source of truth for both the mirrored history (passed to
+  // client.setHistory) and the visible UI log (projected via buildUIHistoryFromContent).
+  // Replaces the earlier pair of ui-history + summary fields, which let the two
+  // representations drift apart.
+  private pendingClaudeResumeContent_?: Array<import('@google/genai').Content>;
   private customProviders_?: Array<
     import('../providers/openai-compat/types.js').CustomProviderConfig
   >; // AUDITARIA_OPENAI_COMPAT
@@ -2838,24 +2842,18 @@ export class Config implements McpContext, AgentLoopContext {
     return id;
   }
 
-  setPendingClaudeResumeUIHistory(history: unknown[]): void {
-    this.pendingClaudeResumeUIHistory_ = history;
+  setPendingClaudeResumeContent(
+    content: Array<import('@google/genai').Content>,
+  ): void {
+    this.pendingClaudeResumeContent_ = content;
   }
 
-  consumePendingClaudeResumeUIHistory(): unknown[] | undefined {
-    const h = this.pendingClaudeResumeUIHistory_;
-    this.pendingClaudeResumeUIHistory_ = undefined;
-    return h;
-  }
-
-  setPendingClaudeResumeSummary(summary: string): void {
-    this.pendingClaudeResumeSummary_ = summary;
-  }
-
-  consumePendingClaudeResumeSummary(): string | undefined {
-    const s = this.pendingClaudeResumeSummary_;
-    this.pendingClaudeResumeSummary_ = undefined;
-    return s;
+  consumePendingClaudeResumeContent():
+    | Array<import('@google/genai').Content>
+    | undefined {
+    const c = this.pendingClaudeResumeContent_;
+    this.pendingClaudeResumeContent_ = undefined;
+    return c;
   }
   // AUDITARIA_REWIND_END
 

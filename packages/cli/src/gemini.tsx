@@ -699,28 +699,20 @@ export async function main() {
       const claudeSessionId = argv.resumeClaude;
       config.setPendingClaudeResumeSessionId(claudeSessionId);
 
-      // Pre-parse the JSONL to build UI history (loaded in AppContainer on mount)
+      // Pre-parse the JSONL once into full-fidelity Content[] — the mirrored
+      // history and the UI log are both derived from this single source in
+      // AppContainer on mount.
       try {
-        const { validateClaudeSessionId, buildClaudeSessionSummary } =
+        const { validateClaudeSessionId, loadClaudeSessionAsContent } =
           await import('@google/gemini-cli-core');
         const { valid, filePath } = await validateClaudeSessionId(
           config.getTargetDir(),
           claudeSessionId,
         );
         if (valid) {
-          // Build UI history from JSONL and store for AppContainer
-          const { buildUIHistoryFromClaudeJSONL } = await import(
-            './ui/commands/resumeClaudeCommand.js'
-          );
-          const uiHistory = await buildUIHistoryFromClaudeJSONL(filePath);
-          if (uiHistory.length > 0) {
-            config.setPendingClaudeResumeUIHistory(uiHistory);
-          }
-
-          // Build mirrored history summary
-          const summary = await buildClaudeSessionSummary(filePath);
-          if (summary) {
-            config.setPendingClaudeResumeSummary(summary);
+          const content = await loadClaudeSessionAsContent(filePath);
+          if (content.length > 0) {
+            config.setPendingClaudeResumeContent(content);
           }
 
           startupWarnings.push({
