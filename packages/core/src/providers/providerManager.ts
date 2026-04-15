@@ -35,9 +35,11 @@ import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import type { Config } from '../config/config.js';
 
-const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
+// AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
+// AUDITARIA_PROVIDER_DEBUG=1 (prints to stderr, visible in the terminal).
+const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]) {
-  if (DEBUG) console.log('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
+  if (DEBUG) console.error('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }
 
 // Heuristic underestimation correction factor (15%).
