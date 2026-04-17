@@ -2998,6 +2998,15 @@ export class Config implements McpContext, AgentLoopContext {
     if (config.type !== 'gemini') {
       const history = this.geminiClient.getHistory();
       if (history.length > 0) {
+        if (process.env['AUDITARIA_PROVIDER_DEBUG'] === '1') {
+          // eslint-disable-next-line no-console
+          console.log(
+            '[DEBUG][CONFIG] setProviderConfig → onHistoryModified (history.length=' +
+              history.length +
+              ') | called from:\n' +
+              (new Error().stack?.split('\n').slice(2, 8).join('\n') ?? ''),
+          );
+        }
         this.providerManager.onHistoryModified();
 
         // AUDITARIA_CLAUDE_PROVIDER: Estimate token usage for footer display.

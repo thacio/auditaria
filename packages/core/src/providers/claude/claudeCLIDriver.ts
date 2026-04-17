@@ -1,14 +1,21 @@
-// AUDITARIA_CLAUDE_PROVIDER: CLI-based driver spawning claude subprocess
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-import { spawn, type ChildProcess } from 'child_process';
-import { createInterface } from 'readline';
-import { writeFileSync, unlinkSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
-import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
+import {
+  trackChildProcess,
+  untrackChildProcess,
+} from '../../utils/child-process-tracker.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type {
   ClaudeStreamMessage,
@@ -19,9 +26,12 @@ import type {
   ClaudeDriverConfig,
 } from './types.js';
 
-const DEBUG = false; // AUDITARIA_CLAUDE_PROVIDER: Debug logging disabled
+// AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
+// AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
+// surfaces them as informational LOG lines instead of red ERROR.
+const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]) {
-  if (DEBUG) console.log('[CLI_DRIVER]', ...args);
+  if (DEBUG) console.log('[DEBUG][CLI_DRIVER]', ...args); // eslint-disable-line no-console
 }
 
 // AUDITARIA_CLAUDE_PROVIDER: Quote paths for shell invocation on Windows (unquoted spaces split args)
@@ -41,14 +51,20 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private currentPromptFilePath: string | null = null; // AUDITARIA_AGENT_SESSION: tracks prompt file for rename/cleanup
 
   constructor(private readonly config: ClaudeDriverConfig) {
-    dbg('constructor', { model: config.model, cwd: config.cwd, mcpServerCount: config.mcpServers ? Object.keys(config.mcpServers).length : 0 });
+    dbg('constructor', {
+      model: config.model,
+      cwd: config.cwd,
+      mcpServerCount: config.mcpServers
+        ? Object.keys(config.mcpServers).length
+        : 0,
+    });
   }
 
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
-    attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: Image support via --input-format stream-json
+    attachmentFiles?: Array<import('../types.js').AttachmentFile>, // AUDITARIA_ATTACHMENTS: Image support via --input-format stream-json
   ): AsyncGenerator<ProviderEvent> {
     const isFirstCall = !this.sessionManager.getSessionId();
     const args = this.buildArgs();
@@ -60,7 +76,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
       args.push('--append-system-prompt-file', shellQuote(filePath));
     }
 
-    dbg('sendMessage', { argsCount: args.length, promptLen: prompt.length, hasSystemContext: !!systemContext, isFirstCall });
+    dbg('sendMessage', {
+      argsCount: args.length,
+      promptLen: prompt.length,
+      hasSystemContext: !!systemContext,
+      isFirstCall,
+    });
 
     const proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -98,9 +119,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
       type: 'user',
       message: {
         role: 'user',
-        content: contentBlocks.length === 1 && !attachmentFiles?.length
-          ? prompt  // Simple string for text-only (backwards compatible)
-          : contentBlocks,
+        content:
+          contentBlocks.length === 1 && !attachmentFiles?.length
+            ? prompt // Simple string for text-only (backwards compatible)
+            : contentBlocks,
       },
     });
     proc.stdin?.write(ndjsonMsg + '\n');
@@ -114,7 +136,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     const abortHandler = () => {
       dbg('abort handler triggered');
       if (proc.pid) {
-        killProcessGroup({ pid: proc.pid, escalate: true });
+        void killProcessGroup({ pid: proc.pid, escalate: true });
       }
     };
     signal.addEventListener('abort', abortHandler, { once: true });
@@ -143,7 +165,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
   }
 
   // AUDITARIA_SESSION_MANAGEMENT: Set native session ID for cross-context resume
-  setSessionId(id: string): void { this.sessionManager.setSessionId(id); }
+  setSessionId(id: string): void {
+    this.sessionManager.setSessionId(id);
+  }
   readonly canResume = true;
 
   // AUDITARIA_CLAUDE_PROVIDER: Clear session so next call is "first call" (used by context_forget session reset)
@@ -154,14 +178,18 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   dispose(): void {
     if (this.activeProcess?.pid) {
-      killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
+      void killProcessGroup({ pid: this.activeProcess.pid, escalate: true });
     }
     this.activeProcess = null;
     this.expectingCompactionSummary = false;
     this.cleanupMcpConfig(); // AUDITARIA_CLAUDE_PROVIDER
     // AUDITARIA_AGENT_SESSION: Clean up isolated prompt file for sub-agents
     if (this.currentPromptFilePath) {
-      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      try {
+        unlinkSync(this.currentPromptFilePath);
+      } catch {
+        /* ignore */
+      }
       this.currentPromptFilePath = null;
     }
   }
@@ -243,7 +271,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     // AUDITARIA_CLAUDE_PROVIDER: Inject Auditaria tool bridge as an MCP server
     if (this.config.toolBridgePort && this.config.toolBridgeScript) {
-      const bridgeArgs = [this.config.toolBridgeScript, '--port', String(this.config.toolBridgePort)];
+      const bridgeArgs = [
+        this.config.toolBridgeScript,
+        '--port',
+        String(this.config.toolBridgePort),
+      ];
       // AUDITARIA_AGENT_SESSION: Append --exclude flags for tool filtering
       for (const name of this.config.toolBridgeExclude ?? []) {
         bridgeArgs.push('--exclude', name);
@@ -258,9 +290,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
     if (Object.keys(claudeMcpServers).length === 0) return null;
 
     const configObj = { mcpServers: claudeMcpServers };
-    this.mcpConfigPath = join(tmpdir(), `auditaria-mcp-${process.pid}-${Date.now()}.json`);
+    this.mcpConfigPath = join(
+      tmpdir(),
+      `auditaria-mcp-${process.pid}-${Date.now()}.json`,
+    );
     writeFileSync(this.mcpConfigPath, JSON.stringify(configObj, null, 2));
-    dbg('wrote MCP config', { path: this.mcpConfigPath, serverCount: Object.keys(claudeMcpServers).length });
+    dbg('wrote MCP config', {
+      path: this.mcpConfigPath,
+      serverCount: Object.keys(claudeMcpServers).length,
+    });
     return this.mcpConfigPath;
   }
 
@@ -275,7 +313,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
       mkdirSync(dir, { recursive: true });
       const filePath = join(dir, '.system-prompt');
       writeFileSync(filePath, content, 'utf-8');
-      dbg('wrote system prompt file', { path: filePath, length: content.length });
+      dbg('wrote system prompt file', {
+        path: filePath,
+        length: content.length,
+      });
       return filePath;
     }
 
@@ -287,9 +328,20 @@ export class ClaudeCLIDriver implements ProviderDriver {
     const filePath = join(dir, filename);
 
     // If session ID just became available, clean up old file with short ID
-    if (realId && this.currentPromptFilePath && this.currentPromptFilePath !== filePath) {
-      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
-      dbg('renamed prompt file', { from: this.currentPromptFilePath, to: filePath });
+    if (
+      realId &&
+      this.currentPromptFilePath &&
+      this.currentPromptFilePath !== filePath
+    ) {
+      try {
+        unlinkSync(this.currentPromptFilePath);
+      } catch {
+        /* ignore */
+      }
+      dbg('renamed prompt file', {
+        from: this.currentPromptFilePath,
+        to: filePath,
+      });
     }
 
     writeFileSync(filePath, content, 'utf-8');
@@ -370,6 +422,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
         let message: ClaudeStreamMessage;
         try {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Claude stream-json line shape
           message = JSON.parse(line) as ClaudeStreamMessage;
         } catch {
           dbg('skipping non-JSON line:', line.slice(0, 80));
@@ -408,15 +461,20 @@ export class ClaudeCLIDriver implements ProviderDriver {
     message: ClaudeStreamMessage,
   ): Generator<ProviderEvent> {
     // Capture session ID
-    if (message.session_id) {
-      this.sessionManager.setSessionId(message.session_id as string);
+    if (typeof message.session_id === 'string') {
+      this.sessionManager.setSessionId(message.session_id);
     }
 
     if (message.type === 'system') {
       // AUDITARIA_CLAUDE_PROVIDER: Detect context compaction boundary from Claude subprocess
       if ('subtype' in message && message.subtype === 'compact_boundary') {
-        const metadata = (message as ClaudeCompactBoundaryMessage).compact_metadata;
-        dbg('compact_boundary detected', { trigger: metadata?.trigger, preTokens: metadata?.pre_tokens });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- subtype-discriminated
+        const metadata = (message as ClaudeCompactBoundaryMessage)
+          .compact_metadata;
+        dbg('compact_boundary detected', {
+          trigger: metadata?.trigger,
+          preTokens: metadata?.pre_tokens,
+        });
         yield {
           type: ProviderEventType.Compacted,
           preTokens: metadata?.pre_tokens ?? 0,
@@ -429,20 +487,22 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
 
     if (message.type === 'assistant') {
-      yield* this.processAssistantMessage(
-        message as ClaudeAssistantMessage,
-      );
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- type-discriminated
+      yield* this.processAssistantMessage(message as ClaudeAssistantMessage);
       return;
     }
 
     if (message.type === 'user') {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- type-discriminated
       yield* this.processUserMessage(message as ClaudeUserMessage);
       return;
     }
 
     if (message.type === 'result') {
-      dbg('result message, subtype:', (message as ClaudeResultMessage).subtype);
-      yield* this.processResultMessage(message as ClaudeResultMessage);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- type-discriminated
+      const result = message as ClaudeResultMessage;
+      dbg('result message, subtype:', result.subtype);
+      yield* this.processResultMessage(result);
       return;
     }
 
@@ -458,7 +518,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
       return;
     }
 
-    dbg('assistant message, blocks:', content.length, 'model:', message.message?.model);
+    dbg(
+      'assistant message, blocks:',
+      content.length,
+      'model:',
+      message.message?.model,
+    );
 
     if (message.message?.model) {
       yield {
@@ -505,6 +570,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
             isError: block.is_error,
           };
           break;
+
+        default:
+          // Unknown block type — ignore
+          break;
       }
     }
   }
@@ -537,7 +606,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     for (const block of content) {
       if (block.type === 'tool_result') {
-        dbg('user tool_result for:', block.tool_use_id, 'is_error:', block.is_error);
+        dbg(
+          'user tool_result for:',
+          block.tool_use_id,
+          'is_error:',
+          block.is_error,
+        );
         yield {
           type: ProviderEventType.ToolResult,
           toolId: block.tool_use_id,
@@ -565,13 +639,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
     yield {
       type: ProviderEventType.Finished,
       usage: {
-        inputTokens:
-          usage.cumulativeInputTokens ?? usage.inputTokens,
-        outputTokens:
-          usage.cumulativeOutputTokens ?? usage.outputTokens,
+        inputTokens: usage.cumulativeInputTokens ?? usage.inputTokens,
+        outputTokens: usage.cumulativeOutputTokens ?? usage.outputTokens,
         cacheReadTokens:
-          usage.cumulativeCacheReadInputTokens ??
-          usage.cacheReadInputTokens,
+          usage.cumulativeCacheReadInputTokens ?? usage.cacheReadInputTokens,
         cacheCreationTokens:
           usage.cumulativeCacheCreationInputTokens ??
           usage.cacheCreationInputTokens,

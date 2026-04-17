@@ -1,5 +1,8 @@
-// AUDITARIA_CLAUDE_PROVIDER: Shared types for MCP tool bridge
-// Used by both toolExecutorServer (in Auditaria process) and mcpBridgeServer (standalone)
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 export interface BridgeableToolSchema {
   name: string;

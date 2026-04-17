@@ -15,7 +15,11 @@ import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
 import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS } from '../providers/types.js';
-import { AUDITARIA_MODEL_IDS, VALID_GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '../config/models.js'; // AUDITARIA_AGENT_SESSION
+import {
+  AUDITARIA_MODEL_IDS,
+  VALID_GEMINI_MODELS,
+  DEFAULT_GEMINI_MODEL,
+} from '../config/models.js'; // AUDITARIA_AGENT_SESSION
 
 // -------------------------------------------------------------------
 // Types
@@ -24,11 +28,14 @@ import { AUDITARIA_MODEL_IDS, VALID_GEMINI_MODELS, DEFAULT_GEMINI_MODEL } from '
 const ACTIONS = ['create', 'send', 'list', 'get', 'kill'] as const;
 type Action = (typeof ACTIONS)[number];
 
-// All valid model values the LLM can choose from
+// All valid model values the LLM can choose from. 'auto' is included once and
+// means "use the provider's default" — for Claude this skips --model and lets
+// Claude pick its 1M-context Opus when available.
 const ALL_MODEL_IDS = [
-  ...CLAUDE_MODEL_IDS.filter(id => id !== 'auto'),
-  ...CODEX_MODEL_IDS.filter(id => id !== 'auto'),
-  ...AUDITARIA_MODEL_IDS.filter(id => id !== 'auto'), // AUDITARIA_AGENT_SESSION
+  'auto',
+  ...CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
+  ...CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
+  ...AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGENT_SESSION
 ] as const;
 
 interface ExternalAgentSessionParams {
@@ -54,7 +61,7 @@ const DESCRIPTION = `Manage sessions with alternative LLM providers as external 
 Available providers:
 - "claude" — Claude Code CLI (opus, sonnet, haiku)
 - "codex" — OpenAI Codex CLI (gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini)
-- "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter(id => id !== 'auto').join(', ')})
+- "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 
 You can spawn any provider, including the same one you are running on.
 
@@ -87,7 +94,10 @@ If are *Claude*:
 // Tool class
 // -------------------------------------------------------------------
 
-export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentSessionParams, ToolResult> {
+export class ExternalAgentSessionTool extends BaseDeclarativeTool<
+  ExternalAgentSessionParams,
+  ToolResult
+> {
   static readonly Name = EXTERNAL_AGENT_SESSION_TOOL_NAME;
   static readonly Bridgeable = true; // auto-bridge to external providers via MCP
 
@@ -116,59 +126,73 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
           },
           provider: {
             type: 'string',
-            description: 'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "auditaria" (Auditaria/Gemini CLI).',
+            description:
+              'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "auditaria" (Auditaria/Gemini CLI).',
             enum: ['claude', 'codex', 'auditaria'],
           },
           session_id: {
             type: 'string',
-            description: 'Session ID. Auto-generated on create, required for send/get/kill.',
+            description:
+              'Session ID. Auto-generated on create, required for send/get/kill.',
           },
           message: {
             type: 'string',
-            description: 'The message to send to the sub-agent. Required for "send".',
+            description:
+              'The message to send to the sub-agent. Required for "send".',
           },
           model: {
             type: 'string',
             description:
-              'Model for the sub-agent. Omit for auto (recommended). ' +
-              'Claude models: opus, sonnet, haiku. ' +
+              'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
+              'Claude models: opus, sonnet, haiku, opus[1m], sonnet[1m] (the [1m] variants have a 1M-token context window — use for long sessions or large codebases). ' +
               'Codex models: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini. ' +
-              'Gemini models: ' + AUDITARIA_MODEL_IDS.filter(id => id !== 'auto').join(', ') + ' (default: ' + DEFAULT_GEMINI_MODEL + ').',
+              'Gemini models: ' +
+              AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              ' (default: ' +
+              DEFAULT_GEMINI_MODEL +
+              ').',
             enum: [...ALL_MODEL_IDS],
           },
           mode: {
             type: 'string',
-            description: 'Permission mode for the session. "work" (default) for full access, "consult" for read-only.',
+            description:
+              'Permission mode for the session. "work" (default) for full access, "consult" for read-only.',
             enum: ['work', 'consult'],
           },
           allow_sub_agents: {
             type: 'boolean',
-            description: 'Whether the sub-agent can spawn its own sub-agents. Default: false.',
+            description:
+              'Whether the sub-agent can spawn its own sub-agents. Default: false.',
           },
           system_context: {
             type: 'string',
-            description: 'Custom system context/instructions for the sub-agent session.',
+            description:
+              'Custom system context/instructions for the sub-agent session.',
           },
           // AUDITARIA_AGENT_SESSION: Pagination params for 'get' action
           output_offset: {
             type: 'number',
-            description: 'For "get" action only. Line offset (0-based) to start reading output from. When omitted, uses tail mode (shows last output_limit lines). When set, shows output_limit lines starting from this position.',
+            description:
+              'For "get" action only. Line offset (0-based) to start reading output from. When omitted, uses tail mode (shows last output_limit lines). When set, shows output_limit lines starting from this position.',
           },
           output_limit: {
             type: 'number',
-            description: 'For "get" action only. Number of output lines to return. Default: 50.',
+            description:
+              'For "get" action only. Number of output lines to return. Default: 50.',
           },
         },
         required: ['action'],
         additionalProperties: false,
       },
       messageBus,
-      true,  // canUpdateOutput — stream sub-agent responses
+      true, // canUpdateOutput — stream sub-agent responses
       false, // markdownOutput
     );
   }
 
-  protected override validateToolParamValues(params: ExternalAgentSessionParams): string | null {
+  protected override validateToolParamValues(
+    params: ExternalAgentSessionParams,
+  ): string | null {
     if (!params.action || !ACTIONS.includes(params.action)) {
       return `action must be one of: ${ACTIONS.join(', ')}`;
     }
@@ -184,8 +208,10 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
 
     if (params.action === 'get') {
       if (!params.session_id) return 'session_id is required for "get" action';
-      if (params.output_offset !== undefined && params.output_offset < 0) return 'output_offset must be >= 0';
-      if (params.output_limit !== undefined && params.output_limit < 1) return 'output_limit must be >= 1';
+      if (params.output_offset !== undefined && params.output_offset < 0)
+        return 'output_offset must be >= 0';
+      if (params.output_limit !== undefined && params.output_limit < 1)
+        return 'output_limit must be >= 1';
     }
 
     if (params.action === 'kill' && !params.session_id) {
@@ -198,8 +224,12 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
 
     // Validate model matches provider
     if (params.action === 'create' && params.model && params.provider) {
-      const claudeModels = new Set<string>(CLAUDE_MODEL_IDS.filter(id => id !== 'auto'));
-      const codexModels = new Set<string>(CODEX_MODEL_IDS.filter(id => id !== 'auto'));
+      const claudeModels = new Set<string>(
+        CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
+      );
+      const codexModels = new Set<string>(
+        CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
+      );
       const auditariaModels = VALID_GEMINI_MODELS; // AUDITARIA_AGENT_SESSION
 
       if (params.provider === 'claude' && !claudeModels.has(params.model)) {
@@ -219,7 +249,10 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
         }
       }
       // AUDITARIA_AGENT_SESSION: Validate auditaria model
-      if (params.provider === 'auditaria' && !auditariaModels.has(params.model)) {
+      if (
+        params.provider === 'auditaria' &&
+        !auditariaModels.has(params.model)
+      ) {
         if (claudeModels.has(params.model)) {
           return `Model "${params.model}" is a Claude model, but provider is "auditaria". Gemini models: ${[...auditariaModels].join(', ')}`;
         }
@@ -252,7 +285,10 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<ExternalAgentS
 // Invocation class
 // -------------------------------------------------------------------
 
-class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSessionParams, ToolResult> {
+class ExternalAgentSessionInvocation extends BaseToolInvocation<
+  ExternalAgentSessionParams,
+  ToolResult
+> {
   constructor(
     private readonly config: Config,
     params: ExternalAgentSessionParams,
@@ -301,13 +337,19 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
           return {
             llmContent: `Unknown action: ${this.params.action}`,
             returnDisplay: `Unknown action: ${this.params.action}`,
-            error: { message: `Unknown action: ${this.params.action}`, type: ToolErrorType.INVALID_TOOL_PARAMS },
+            error: {
+              message: `Unknown action: ${this.params.action}`,
+              type: ToolErrorType.INVALID_TOOL_PARAMS,
+            },
           };
       }
     } catch (e) {
-      const msg = e instanceof Error
-        ? e.message
-        : (typeof e === 'object' && e !== null ? JSON.stringify(e) : String(e));
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === 'object' && e !== null
+            ? JSON.stringify(e)
+            : String(e);
       return {
         llmContent: `Error: ${msg}`,
         returnDisplay: `Error: ${msg}`,
@@ -316,9 +358,14 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
     }
   }
 
-  private async executeCreate(manager: import('../providers/agent-session-manager.js').AgentSessionManager): Promise<ToolResult> {
+  private async executeCreate(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): Promise<ToolResult> {
     // Map short names to driver types
-    const providerMap: Record<string, 'claude-cli' | 'codex-cli' | 'auditaria-cli'> = {
+    const providerMap: Record<
+      string,
+      'claude-cli' | 'codex-cli' | 'auditaria-cli'
+    > = {
       claude: 'claude-cli',
       codex: 'codex-cli',
       auditaria: 'auditaria-cli', // AUDITARIA_AGENT_SESSION
@@ -329,7 +376,10 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
       return {
         llmContent: `Unknown provider "${this.params.provider}". Options: claude, codex, auditaria`,
         returnDisplay: `Unknown provider: ${this.params.provider}`,
-        error: { message: `Unknown provider: ${this.params.provider}`, type: ToolErrorType.INVALID_TOOL_PARAMS },
+        error: {
+          message: `Unknown provider: ${this.params.provider}`,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
       };
     }
 
@@ -379,7 +429,9 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
     };
   }
 
-  private executeList(manager: import('../providers/agent-session-manager.js').AgentSessionManager): ToolResult {
+  private executeList(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): ToolResult {
     const sessions = manager.listSessions();
 
     if (sessions.length === 0) {
@@ -389,20 +441,22 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
       };
     }
 
-    const lines = sessions.map(s => {
+    const lines = sessions.map((s) => {
       const age = Math.round((Date.now() - s.createdAt) / 1000);
       let line = `- ${s.id}: provider=${s.provider}, model=${s.model || 'auto'}, mode=${s.mode}, busy=${s.busy}, messages=${s.messageCount}, age=${age}s`;
       // AUDITARIA_AGENT_SESSION: Include truncated context/prompt so LLM can recall session purpose after compression
       if (s.customSystemContext) {
-        const truncated = s.customSystemContext.length > 150
-          ? s.customSystemContext.slice(0, 150) + '...'
-          : s.customSystemContext;
+        const truncated =
+          s.customSystemContext.length > 150
+            ? s.customSystemContext.slice(0, 150) + '...'
+            : s.customSystemContext;
         line += `\n  Role: ${truncated}`;
       }
       if (s.initialMessage) {
-        const truncated = s.initialMessage.length > 150
-          ? s.initialMessage.slice(0, 150) + '...'
-          : s.initialMessage;
+        const truncated =
+          s.initialMessage.length > 150
+            ? s.initialMessage.slice(0, 150) + '...'
+            : s.initialMessage;
         line += `\n  Initial prompt: ${truncated}`;
       }
       if (s.hasOutput) {
@@ -419,13 +473,18 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
   }
 
   // AUDITARIA_AGENT_SESSION: Inspect session details with paginated output
-  private executeGet(manager: import('../providers/agent-session-manager.js').AgentSessionManager): ToolResult {
+  private executeGet(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): ToolResult {
     const detail = manager.getSessionDetail(this.params.session_id!);
     if (!detail) {
       return {
         llmContent: `Session "${this.params.session_id}" not found.`,
         returnDisplay: `Session not found: ${this.params.session_id}`,
-        error: { message: `Session not found: ${this.params.session_id}`, type: ToolErrorType.EXECUTION_FAILED },
+        error: {
+          message: `Session not found: ${this.params.session_id}`,
+          type: ToolErrorType.EXECUTION_FAILED,
+        },
       };
     }
 
@@ -435,8 +494,12 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
 
     // Session metadata
     sections.push(`Session: ${info.id}`);
-    sections.push(`Provider: ${info.provider}, Model: ${info.model || 'auto'}, Mode: ${info.mode}`);
-    sections.push(`Status: ${info.busy ? 'BUSY (processing)' : 'idle'}, Messages: ${info.messageCount}, Age: ${age}s`);
+    sections.push(
+      `Provider: ${info.provider}, Model: ${info.model || 'auto'}, Mode: ${info.mode}`,
+    );
+    sections.push(
+      `Status: ${info.busy ? 'BUSY (processing)' : 'idle'}, Messages: ${info.messageCount}, Age: ${age}s`,
+    );
 
     // Custom system context (the user-settable part only)
     if (info.customSystemContext) {
@@ -458,7 +521,10 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
       let startLine: number;
       if (this.params.output_offset !== undefined) {
         // Explicit offset mode: start from given line
-        startLine = Math.min(this.params.output_offset, Math.max(0, totalLines - 1));
+        startLine = Math.min(
+          this.params.output_offset,
+          Math.max(0, totalLines - 1),
+        );
       } else {
         // Tail mode (default): show last N lines
         startLine = Math.max(0, totalLines - limit);
@@ -466,18 +532,27 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
       const endLine = Math.min(startLine + limit, totalLines);
       const slice = lines.slice(startLine, endLine);
 
-      const sourceLabel = outputSource === 'partialOutput' ? ' (streaming — agent is still working)' : '';
-      sections.push(`\nOutput${sourceLabel} [lines ${startLine}-${endLine - 1} of ${totalLines} total]:`);
+      const sourceLabel =
+        outputSource === 'partialOutput'
+          ? ' (streaming — agent is still working)'
+          : '';
+      sections.push(
+        `\nOutput${sourceLabel} [lines ${startLine}-${endLine - 1} of ${totalLines} total]:`,
+      );
       // Number lines like Read tool for easy reference
       slice.forEach((line, i) => {
         sections.push(`${String(startLine + i).padStart(5)}  ${line}`);
       });
 
       if (endLine < totalLines) {
-        sections.push(`\n... ${totalLines - endLine} more lines below. Use output_offset=${endLine} to continue.`);
+        sections.push(
+          `\n... ${totalLines - endLine} more lines below. Use output_offset=${endLine} to continue.`,
+        );
       }
       if (startLine > 0 && this.params.output_offset !== undefined) {
-        sections.push(`... ${startLine} lines above. Use output_offset=0 to see from beginning.`);
+        sections.push(
+          `... ${startLine} lines above. Use output_offset=0 to see from beginning.`,
+        );
       }
     }
 
@@ -487,7 +562,9 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<ExternalAgentSes
     };
   }
 
-  private executeKill(manager: import('../providers/agent-session-manager.js').AgentSessionManager): ToolResult {
+  private executeKill(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): ToolResult {
     manager.killSession(this.params.session_id!);
     return {
       llmContent: `Session "${this.params.session_id}" has been terminated.`,

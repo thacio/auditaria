@@ -36,10 +36,11 @@ import { getEnvironmentContext } from '../utils/environmentContext.js';
 import type { Config } from '../config/config.js';
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
-// AUDITARIA_PROVIDER_DEBUG=1 (prints to stderr, visible in the terminal).
+// AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
+// surfaces them as informational LOG lines instead of red ERROR.
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(...args: unknown[]) {
-  if (DEBUG) console.error('[PROVIDER_MGR]', ...args); // eslint-disable-line no-console
+  if (DEBUG) console.log('[DEBUG][PROVIDER_MGR]', ...args); // eslint-disable-line no-console
 }
 
 // Heuristic underestimation correction factor (15%).
@@ -407,7 +408,10 @@ export class ProviderManager {
   // Overwrites any prior intent (resetWithSummary > resume — latest wins).
   onHistoryModified(): void {
     this.nextTurn = { kind: 'resetWithSummary' };
-    dbg('onHistoryModified: scheduled resetWithSummary for next call');
+    dbg(
+      'onHistoryModified: scheduled resetWithSummary for next call | called from:\n' +
+        (new Error().stack?.split('\n').slice(2, 8).join('\n') ?? ''),
+    );
   }
 
   // AUDITARIA_REWIND: Get the current driver's session ID (for display on exit)

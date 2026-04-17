@@ -61,6 +61,16 @@ export class ToolExecutorServer {
 
     const httpServer = createServer((req, res) => this.handleRequest(req, res));
 
+    // AUDITARIA: Tool invocations (especially external_agent_session.send spawning
+    // Claude/Codex sub-agents) can legitimately run for many minutes. Node's HTTP
+    // server defaults (5-minute requestTimeout / 60s headersTimeout since Node 18)
+    // would close the connection mid-tool, causing the bridge-side fetch to fail
+    // with "fetch failed" even though the sub-agent is still working. Disable
+    // these server-side timeouts so tool calls can run as long as they need.
+    httpServer.requestTimeout = 0;
+    httpServer.headersTimeout = 0;
+    httpServer.timeout = 0;
+
     this.port = await this.findAvailablePort(httpServer);
     this.server = httpServer;
     return this.port;

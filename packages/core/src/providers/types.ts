@@ -1,4 +1,8 @@
-// AUDITARIA_CLAUDE_PROVIDER: Provider abstraction for alternative LLM backends (Claude, future Codex)
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 export enum ProviderEventType {
   Content = 'content',
@@ -121,8 +125,7 @@ export const CODEX_REASONING_EFFORTS = [
   'xhigh',
 ] as const;
 
-export type CodexReasoningEffort =
-  (typeof CODEX_REASONING_EFFORTS)[number];
+export type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORTS)[number];
 
 // AUDITARIA_CODEX_PROVIDER: Per-model reasoning support in Codex CLI.
 // Keep this in sync with Codex model capabilities to avoid unsupported API calls.
@@ -182,7 +185,13 @@ export function clampCodexReasoningEffortForModel(
 }
 
 export interface ProviderConfig {
-  type: 'gemini' | 'claude-cli' | 'codex-cli' | 'copilot-cli' | 'auditaria-cli' | `openai-compat:${string}`; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_OPENAI_COMPAT: template literal for custom providers
+  type:
+    | 'gemini'
+    | 'claude-cli'
+    | 'codex-cli'
+    | 'copilot-cli'
+    | 'auditaria-cli'
+    | `openai-compat:${string}`; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_OPENAI_COMPAT: template literal for custom providers
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;
@@ -190,17 +199,31 @@ export interface ProviderConfig {
 
 // AUDITARIA_AGENT_SESSION: Canonical model ID lists for external providers (DRY source of truth).
 // Used by tool schemas and UI model catalogs.
-export const CLAUDE_MODEL_IDS = ['auto', 'opus', 'sonnet', 'haiku'] as const;
+// AUDITARIA_AGENT_SESSION: Includes 1M-context variants (opus[1m], sonnet[1m]).
+// 'auto' means "do not pass --model" — Claude resolves its own default
+// (typically the 1M-context Opus when the user has access).
+export const CLAUDE_MODEL_IDS = [
+  'auto',
+  'opus',
+  'sonnet',
+  'haiku',
+  'opus[1m]',
+  'sonnet[1m]',
+] as const;
 export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
 
-export const CODEX_MODEL_IDS = ['auto', 'gpt-5.3-codex', 'gpt-5.2-codex', 'gpt-5.1-codex-mini'] as const;
+export const CODEX_MODEL_IDS = [
+  'auto',
+  'gpt-5.3-codex',
+  'gpt-5.2-codex',
+  'gpt-5.1-codex-mini',
+] as const;
 export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
 
 // AUDITARIA_COPILOT_PROVIDER: Fallback model IDs for Copilot provider.
 // Dynamic discovery from ACP configOptions is preferred; this is the minimal fallback.
 export const COPILOT_MODEL_IDS = ['auto'] as const;
 export type CopilotModelId = (typeof COPILOT_MODEL_IDS)[number];
-
 
 // AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
 // Avoids importing MCPServerConfig from config.ts (circular dependency).

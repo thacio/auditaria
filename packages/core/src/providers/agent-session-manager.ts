@@ -8,16 +8,17 @@
 // Manages lifecycle of sub-agent sessions that use alternative LLM providers.
 // Composes ProviderDrivers directly (NOT ProviderManager — no mirroring needed).
 
-import { join } from 'path';
-import { readdirSync, statSync, unlinkSync } from 'fs';
+import { join } from 'node:path';
+import { readdirSync, statSync, unlinkSync } from 'node:fs';
 import type { ProviderDriver } from './types.js';
 import { ProviderEventType } from './types.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 
-const DEBUG = false;
+// AUDITARIA_AGENT_SESSION: Debug logging gated on AUDITARIA_PROVIDER_DEBUG=1.
+const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
 function dbg(..._args: unknown[]) {
-  if (DEBUG) process.stderr.write(`[AGENT_SESSION] ${_args.map(String).join(' ')}\n`);
+  if (DEBUG) console.log('[DEBUG][AGENT_SESSION]', ..._args); // eslint-disable-line no-console
 }
 
 // -------------------------------------------------------------------
@@ -25,7 +26,11 @@ function dbg(..._args: unknown[]) {
 // -------------------------------------------------------------------
 
 export type SessionMode = 'work' | 'consult';
-export type SessionProviderType = 'claude-cli' | 'codex-cli' | 'copilot-cli' | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli
+export type SessionProviderType =
+  | 'claude-cli'
+  | 'codex-cli'
+  | 'copilot-cli'
+  | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli
 
 export interface AgentSession {
   id: string;
@@ -39,10 +44,10 @@ export interface AgentSession {
   createdAt: number;
   lastMessageAt: number;
   // AUDITARIA_AGENT_SESSION: Inspection fields — survive context compaction
-  customSystemContext?: string;  // Raw user-provided system_context from create
-  initialMessage?: string;       // First message sent via send action (raw LLM prompt)
-  lastResponse?: string;         // Last complete response from send
-  partialOutput?: string;        // Current accumulated text while busy (streaming)
+  customSystemContext?: string; // Raw user-provided system_context from create
+  initialMessage?: string; // First message sent via send action (raw LLM prompt)
+  lastResponse?: string; // Last complete response from send
+  partialOutput?: string; // Current accumulated text while busy (streaming)
 }
 
 export interface SessionInfo {
@@ -86,11 +91,7 @@ const ALWAYS_EXCLUDED_TOOLS = [
 ];
 
 // Additional tools excluded when mode is 'consult' (read-only)
-const CONSULT_EXCLUDED_TOOLS = [
-  'write_file',
-  'edit',
-  'shell',
-];
+const CONSULT_EXCLUDED_TOOLS = ['write_file', 'edit', 'shell'];
 
 // -------------------------------------------------------------------
 // Stale prompt file cleanup
@@ -109,9 +110,13 @@ function cleanupStalePromptFiles(cwd: string, maxAgeDays = 7): void {
           unlinkSync(filePath);
           dbg('cleaned up stale prompt file', filePath);
         }
-      } catch { /* stat/unlink error — skip */ }
+      } catch {
+        /* stat/unlink error — skip */
+      }
     }
-  } catch { /* directory may not exist yet */ }
+  } catch {
+    /* directory may not exist yet */
+  }
 }
 
 // -------------------------------------------------------------------
@@ -129,7 +134,11 @@ export class AgentSessionManager {
   constructor(
     private readonly cwd: string,
     private readonly getMainProviderType: () => string,
-    private readonly getProviderAvailability: () => { claude: boolean; codex: boolean; auditaria: boolean },
+    private readonly getProviderAvailability: () => {
+      claude: boolean;
+      codex: boolean;
+      auditaria: boolean;
+    },
     private readonly toolRegistry?: ToolRegistry,
     private readonly buildExternalProviderContext?: () => string,
   ) {
@@ -156,9 +165,19 @@ export class AgentSessionManager {
     // Validate: provider is available
     const availability = this.getProviderAvailability();
     // AUDITARIA_AGENT_SESSION: Map provider type to availability key
-    const providerKey = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
+    const providerKey =
+      provider === 'claude-cli'
+        ? 'claude'
+        : provider === 'codex-cli'
+          ? 'codex'
+          : 'auditaria';
     if (!availability[providerKey]) {
-      const cliName = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
+      const cliName =
+        provider === 'claude-cli'
+          ? 'claude'
+          : provider === 'codex-cli'
+            ? 'codex'
+            : 'auditaria';
       throw new Error(
         `Provider "${provider}" is not available. Make sure the "${cliName}" CLI is installed and on your PATH.`,
       );
@@ -166,11 +185,18 @@ export class AgentSessionManager {
 
     // Generate session ID
     // AUDITARIA_AGENT_SESSION: Map provider type to prefix
-    const prefix = provider === 'claude-cli' ? 'claude' : provider === 'codex-cli' ? 'codex' : 'auditaria';
+    const prefix =
+      provider === 'claude-cli'
+        ? 'claude'
+        : provider === 'codex-cli'
+          ? 'codex'
+          : 'auditaria';
     const sessionId = opts.sessionId ?? this.generateId(prefix);
 
     if (this.sessions.has(sessionId)) {
-      throw new Error(`Session "${sessionId}" already exists. Use a different ID or kill the existing session.`);
+      throw new Error(
+        `Session "${sessionId}" already exists. Use a different ID or kill the existing session.`,
+      );
     }
 
     // Ensure tool bridge is available (not needed for auditaria — tools are built-in)
@@ -232,7 +258,9 @@ export class AgentSessionManager {
       }
       // AUDITARIA_COPILOT_PROVIDER_START: Copilot sub-agent driver
       case 'copilot-cli': {
-        const { CopilotCLIDriver } = await import('./copilot/copilotCLIDriver.js');
+        const { CopilotCLIDriver } = await import(
+          './copilot/copilotCLIDriver.js'
+        );
         driver = new CopilotCLIDriver({
           model,
           cwd: this.cwd,
@@ -246,7 +274,9 @@ export class AgentSessionManager {
       // AUDITARIA_COPILOT_PROVIDER_END
       // AUDITARIA_AGENT_SESSION_START: Auditaria (Gemini) sub-agent driver
       case 'auditaria-cli': {
-        const { AuditariaCLIDriver } = await import('./auditaria/auditariaCLIDriver.js');
+        const { AuditariaCLIDriver } = await import(
+          './auditaria/auditariaCLIDriver.js'
+        );
         driver = new AuditariaCLIDriver({
           model: model || 'gemini-2.5-pro',
           cwd: this.cwd,
@@ -278,7 +308,8 @@ export class AgentSessionManager {
     dbg('created session', { id: sessionId, provider, model, mode });
 
     // Store the system prompt — it will be passed on the first sendMessage call
-    (session as AgentSession & { _systemContext?: string })._systemContext = subAgentPrompt;
+    (session as AgentSession & { _systemContext?: string })._systemContext =
+      subAgentPrompt;
 
     return this.toSessionInfo(session);
   }
@@ -295,14 +326,19 @@ export class AgentSessionManager {
   ): Promise<string> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      const active = this.listSessions().map(s => s.id).join(', ') || 'none';
-      throw new Error(`Session "${sessionId}" not found. Active sessions: ${active}`);
+      const active =
+        this.listSessions()
+          .map((s) => s.id)
+          .join(', ') || 'none';
+      throw new Error(
+        `Session "${sessionId}" not found. Active sessions: ${active}`,
+      );
     }
 
     if (session.busy) {
       throw new Error(
         `Session "${sessionId}" is busy processing a previous message. ` +
-        `Wait for it to finish or kill and recreate the session.`,
+          `Wait for it to finish or kill and recreate the session.`,
       );
     }
 
@@ -315,14 +351,20 @@ export class AgentSessionManager {
     try {
       // Pass system context on every call — some drivers (auditaria, claude) don't
       // persist --append-system-prompt-file across --resume sessions.
-      const systemContext = (session as AgentSession & { _systemContext?: string })._systemContext;
+      const systemContext = (
+        session as AgentSession & { _systemContext?: string }
+      )._systemContext;
 
       const responseText: string[] = [];
       const toolsUsed = new Map<string, number>();
       let lastUpdateTime = 0;
 
       // Stream events from driver
-      const generator = session.driver.sendMessage(message, signal, systemContext);
+      const generator = session.driver.sendMessage(
+        message,
+        signal,
+        systemContext,
+      );
 
       for await (const event of generator) {
         switch (event.type) {
@@ -334,11 +376,13 @@ export class AgentSessionManager {
             const now = Date.now();
             if (updateOutput && now - lastUpdateTime > 200) {
               lastUpdateTime = now;
-              updateOutput(JSON.stringify({
-                type: 'agent_session_streaming',
-                sessionId,
-                partialText: session.partialOutput,
-              }));
+              updateOutput(
+                JSON.stringify({
+                  type: 'agent_session_streaming',
+                  sessionId,
+                  partialText: session.partialOutput,
+                }),
+              );
             }
             break;
           }
@@ -346,11 +390,13 @@ export class AgentSessionManager {
             const name = event.toolName;
             toolsUsed.set(name, (toolsUsed.get(name) ?? 0) + 1);
             if (updateOutput) {
-              updateOutput(JSON.stringify({
-                type: 'agent_session_tool',
-                sessionId,
-                toolName: name,
-              }));
+              updateOutput(
+                JSON.stringify({
+                  type: 'agent_session_tool',
+                  sessionId,
+                  toolName: name,
+                }),
+              );
             }
             break;
           }
@@ -394,7 +440,7 @@ export class AgentSessionManager {
   // -------------------------------------------------------------------
 
   listSessions(): SessionInfo[] {
-    return Array.from(this.sessions.values()).map(s => this.toSessionInfo(s));
+    return Array.from(this.sessions.values()).map((s) => this.toSessionInfo(s));
   }
 
   // AUDITARIA_AGENT_SESSION: Full session detail for the 'get' action
@@ -406,8 +452,12 @@ export class AgentSessionManager {
       ? (session.partialOutput ?? '')
       : (session.lastResponse ?? '');
     const outputSource: SessionDetail['outputSource'] = session.busy
-      ? (session.partialOutput ? 'partialOutput' : 'none')
-      : (session.lastResponse ? 'lastResponse' : 'none');
+      ? session.partialOutput
+        ? 'partialOutput'
+        : 'none'
+      : session.lastResponse
+        ? 'lastResponse'
+        : 'none';
 
     return {
       info: this.toSessionInfo(session),
@@ -514,7 +564,15 @@ function buildSubAgentSystemPrompt(opts: {
   customSystemContext?: string;
   toolRestrictions?: string[]; // AUDITARIA_AGENT_SESSION: Tool names to restrict (for providers with built-in tools)
 }): string {
-  const { baseContext, sessionId, mainProviderName, mode, allowSubAgents, customSystemContext, toolRestrictions } = opts;
+  const {
+    baseContext,
+    sessionId,
+    mainProviderName,
+    mode,
+    allowSubAgents,
+    customSystemContext,
+    toolRestrictions,
+  } = opts;
 
   const sections: string[] = [];
 
@@ -522,12 +580,13 @@ function buildSubAgentSystemPrompt(opts: {
     sections.push(baseContext);
   }
 
-  const permissionSection = mode === 'consult'
-    ? `### Permissions: READ-ONLY
+  const permissionSection =
+    mode === 'consult'
+      ? `### Permissions: READ-ONLY
 You are in CONSULT mode. You may ONLY read files, search, and analyze.
 Do NOT create, modify, or delete any files. Do NOT run shell commands that modify state.
 If you are asked to make changes, describe what you WOULD do instead of doing it.`
-    : `### Permissions: FULL ACCESS
+      : `### Permissions: FULL ACCESS
 You have full access. You may read, write, and modify files, run shell commands, and use all available tools to complete your task.`;
 
   const subAgentSection = allowSubAgents

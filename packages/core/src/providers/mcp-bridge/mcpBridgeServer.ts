@@ -1,7 +1,8 @@
-// AUDITARIA_CLAUDE_PROVIDER: Standalone MCP stdio server
-// Spawned by Claude CLI as an MCP server. Bridges tool calls to Auditaria's
-// ToolExecutorServer via HTTP on localhost. Fully generic — auto-discovers
-// tools from the API, knows nothing about specific tool implementations.
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -9,12 +10,28 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { Agent, fetch as undiciFetch } from 'undici';
 import type { BridgeableToolSchema, ToolExecuteResponse } from './types.js';
+
+// AUDITARIA: Tool invocations can legitimately run for many minutes (sub-agent
+// Claude/Codex processing real work). Node's fetch (undici) defaults 300s
+// header/body timeouts, which would make the bridge report "fetch failed" long
+// before the sub-agent finishes — even though the work on the server side
+// continues. Use a dispatcher with timeouts disabled so the bridge waits as
+// long as the tool needs.
+const longLivedDispatcher = new Agent({
+  headersTimeout: 0,
+  bodyTimeout: 0,
+  keepAliveTimeout: 60_000,
+  keepAliveMaxTimeout: 600_000,
+});
 
 // Parse --port from CLI arguments
 const portIdx = process.argv.indexOf('--port');
 if (portIdx === -1 || !process.argv[portIdx + 1]) {
-  process.stderr.write('Usage: mcp-bridge --port <PORT> [--exclude <tool_name>]...\n');
+  process.stderr.write(
+    'Usage: mcp-bridge --port <PORT> [--exclude <tool_name>]...\n',
+  );
   process.exit(1);
 }
 const PORT = process.argv[portIdx + 1];
@@ -30,23 +47,33 @@ for (let i = 0; i < process.argv.length; i++) {
 
 // Fetch tool definitions from Auditaria's tool executor
 async function fetchTools(): Promise<BridgeableToolSchema[]> {
-  const res = await fetch(`${BASE_URL}/tools`);
-  if (!res.ok) throw new Error(`Failed to fetch tools: ${res.status} ${res.statusText}`);
-  const allTools = await res.json() as BridgeableToolSchema[];
+  const res = await undiciFetch(`${BASE_URL}/tools`, {
+    dispatcher: longLivedDispatcher,
+  });
+  if (!res.ok)
+    throw new Error(`Failed to fetch tools: ${res.status} ${res.statusText}`);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- API contract
+  const allTools = (await res.json()) as BridgeableToolSchema[];
   // AUDITARIA_AGENT_SESSION: Filter out excluded tools
   return excludeSet.size > 0
-    ? allTools.filter(t => !excludeSet.has(t.name))
+    ? allTools.filter((t) => !excludeSet.has(t.name))
     : allTools;
 }
 
 // Execute a tool via Auditaria's tool executor
-async function executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolExecuteResponse> {
-  const res = await fetch(`${BASE_URL}/execute`, {
+async function executeTool(
+  toolName: string,
+  params: Record<string, unknown>,
+): Promise<ToolExecuteResponse> {
+  const res = await undiciFetch(`${BASE_URL}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tool: toolName, params }),
+    dispatcher: longLivedDispatcher,
   });
-  if (!res.ok) throw new Error(`Tool execution failed: ${res.status} ${res.statusText}`);
+  if (!res.ok)
+    throw new Error(`Tool execution failed: ${res.status} ${res.statusText}`);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- API contract
   return res.json() as Promise<ToolExecuteResponse>;
 }
 
@@ -56,7 +83,9 @@ async function main() {
   try {
     tools = await fetchTools();
   } catch (e) {
-    process.stderr.write(`Failed to connect to Auditaria tool executor at ${BASE_URL}: ${e}\n`);
+    process.stderr.write(
+      `Failed to connect to Auditaria tool executor at ${BASE_URL}: ${e}\n`,
+    );
     process.exit(1);
   }
 
@@ -71,9 +100,10 @@ async function main() {
 
   // Register list_tools handler — returns tool schemas from Auditaria
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map(t => ({
+    tools: tools.map((t) => ({
       name: t.name,
       description: t.description,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- API contract
       inputSchema: t.inputSchema as Record<string, unknown>,
     })),
   }));
@@ -81,7 +111,7 @@ async function main() {
   // Register call_tool handler — delegates execution to Auditaria
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    const tool = tools.find(t => t.name === name);
+    const tool = tools.find((t) => t.name === name);
     if (!tool) {
       return {
         content: [{ type: 'text' as const, text: `Unknown tool: ${name}` }],
@@ -90,14 +120,19 @@ async function main() {
     }
 
     try {
-      const result = await executeTool(name, (args || {}) as Record<string, unknown>);
+      const result = await executeTool(name, args || {});
       return {
         content: [{ type: 'text' as const, text: result.content }],
         isError: result.isError,
       };
     } catch (e) {
       return {
-        content: [{ type: 'text' as const, text: `Bridge error: ${e instanceof Error ? e.message : String(e)}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: `Bridge error: ${e instanceof Error ? e.message : String(e)}`,
+          },
+        ],
         isError: true,
       };
     }
@@ -108,7 +143,7 @@ async function main() {
   await server.connect(transport);
 }
 
-main().catch(e => {
+main().catch((e) => {
   process.stderr.write(`MCP bridge fatal error: ${e}\n`);
   process.exit(1);
 });
