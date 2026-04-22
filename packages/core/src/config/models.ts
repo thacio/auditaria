@@ -261,9 +261,17 @@ export function getDisplayString(
   // AUDITARIA_CLAUDE_PROVIDER: Format Claude model display
   if (model.startsWith('claude-code:')) {
     const variant = model.split(':')[1] || 'unknown';
-    const capitalizedVariant =
-      variant.charAt(0).toUpperCase() + variant.slice(1);
-    return `Claude (${capitalizedVariant})`;
+    // Turn "opus[1m]" into "Opus 1M" for display
+    const match = variant.match(/^([a-z]+)(\[1m\])?$/);
+    let label: string;
+    if (match) {
+      const base = match[1];
+      const capitalized = base.charAt(0).toUpperCase() + base.slice(1);
+      label = match[2] ? `${capitalized} 1M` : capitalized;
+    } else {
+      label = variant.charAt(0).toUpperCase() + variant.slice(1);
+    }
+    return `Claude (${label})`;
   }
 
   // AUDITARIA_CODEX_PROVIDER: Format Codex model display

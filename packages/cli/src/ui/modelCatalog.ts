@@ -1,5 +1,6 @@
 /**
  * @license
+ * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -33,20 +34,33 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CLAUDE_PREFIX}auto`,
     title: 'Auto',
-    description: "Uses Claude Code's default model",
+    description:
+      "Uses Claude Code's default (respects your last-selected model)",
     key: 'claude-auto',
   },
   {
     value: `${CLAUDE_PREFIX}opus`,
     title: 'Opus',
-    description: 'Most capable model',
+    description: 'Most capable · 200K context',
     key: 'claude-opus',
+  },
+  {
+    value: `${CLAUDE_PREFIX}opus[1m]`,
+    title: 'Opus (1M)',
+    description: 'Most capable · 1M context (long sessions, large codebases)',
+    key: 'claude-opus-1m',
   },
   {
     value: `${CLAUDE_PREFIX}sonnet`,
     title: 'Sonnet',
-    description: 'Best balance of speed and capability',
+    description: 'Balanced speed/capability · 200K context',
     key: 'claude-sonnet',
+  },
+  {
+    value: `${CLAUDE_PREFIX}sonnet[1m]`,
+    title: 'Sonnet (1M)',
+    description: 'Balanced · 1M context (long sessions, large codebases)',
+    key: 'claude-sonnet-1m',
   },
   {
     value: `${CLAUDE_PREFIX}haiku`,
@@ -163,6 +177,7 @@ export const CODEX_REASONING_OPTIONS = CODEX_REASONING_EFFORTS.map((value) => ({
 export function isCodexReasoningEffort(
   value: unknown,
 ): value is CodexReasoningEffort {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowing predicate
   return CODEX_REASONING_EFFORTS.includes(value as CodexReasoningEffort);
 }
 
@@ -172,8 +187,11 @@ export function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
 
 // AUDITARIA_COPILOT_PROVIDER_START: Copilot model catalog with dynamic discovery support
 
-import { execSync } from 'child_process';
-import { getCachedCopilotModels, getCopilotModelUsage } from '@google/gemini-cli-core'; // AUDITARIA_COPILOT_PROVIDER
+import { execSync } from 'node:child_process';
+import {
+  getCachedCopilotModels,
+  getCopilotModelUsage,
+} from '@google/gemini-cli-core'; // AUDITARIA_COPILOT_PROVIDER
 
 /** Fallback options when copilot is not installed. */
 export const COPILOT_FALLBACK_OPTIONS: readonly ProviderSubmenuOption[] = [
@@ -255,7 +273,9 @@ export function getCopilotModelOptions(): ProviderSubmenuOption[] {
  * Looks for `--model <model>` then extracts all quoted strings until the next `--` option.
  */
 export function parseCopilotModelsFromHelp(helpText: string): string[] {
-  const modelSectionMatch = helpText.match(/--model\s+<[^>]+>\s+([\s\S]*?)(?=\n\s+--[a-z])/);
+  const modelSectionMatch = helpText.match(
+    /--model\s+<[^>]+>\s+([\s\S]*?)(?=\n\s+--[a-z])/,
+  );
   if (!modelSectionMatch) return [];
 
   const section = modelSectionMatch[1];
@@ -288,7 +308,12 @@ function formatCopilotModelName(modelId: string): string {
  * Includes copilotUsage multiplier in descriptions when available.
  */
 export function buildCopilotOptionsFromModels(
-  models: ReadonlyArray<{ value: string; name: string; description?: string | null; copilotUsage?: string | null }>,
+  models: ReadonlyArray<{
+    value: string;
+    name: string;
+    description?: string | null;
+    copilotUsage?: string | null;
+  }>,
 ): ProviderSubmenuOption[] {
   return models.map((m) => {
     const baseDesc = m.description || m.name;
