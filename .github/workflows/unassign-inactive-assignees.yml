@@ -12,8 +12,6 @@ name: 'Unassign Inactive Issue Assignees'
 # above) are always exempted and will never be auto-unassigned.
 
 on:
-  schedule:
-    - cron: '0 9 * * *' # Every day at 09:00 UTC
   workflow_dispatch:
     inputs:
       dry_run:

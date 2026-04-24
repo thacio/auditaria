@@ -1,8 +1,6 @@
 name: 'Evals: Nightly'
 
 on:
-  schedule:
-    - cron: '0 1 * * *' # Runs at 1 AM every day
   workflow_dispatch:
     inputs:
       suite_type:

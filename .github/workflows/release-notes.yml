@@ -3,8 +3,6 @@
 name: 'Generate Release Notes'
 
 on:
-  release:
-    types: ['published']
   workflow_dispatch:
     inputs:
       version:

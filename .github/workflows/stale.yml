@@ -2,8 +2,6 @@ name: 'Mark stale issues and pull requests'
 
 # Run as a daily cron at 1:30 AM
 on:
-  schedule:
-    - cron: '30 1 * * *'
   workflow_dispatch:
 
 jobs:

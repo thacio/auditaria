@@ -1,10 +1,6 @@
 name: 'On Merge Smoke Test'
 
 on:
-  push:
-    branches:
-      - 'main'
-      - 'release/**'
   workflow_dispatch:
     inputs:
       ref:

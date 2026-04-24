@@ -1,9 +1,6 @@
 name: Release Auditaria (signed) auto on tag  
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 jobs:

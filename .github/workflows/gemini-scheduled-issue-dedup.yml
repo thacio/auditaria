@@ -1,8 +1,6 @@
 name: '📋 Auditaria Scheduled Issue Deduplication'
 
 on:
-  schedule:
-    - cron: '0 * * * *' # Runs every hour
   workflow_dispatch:
 
 concurrency:

@@ -6,11 +6,6 @@ run-name: >-
   ${{ github.event.pull_request.head.ref || github.event.inputs.ref }}
 
 on:
-  pull_request:
-    types:
-      - 'closed'
-    branches:
-      - 'release/**'
   workflow_dispatch:
     inputs:
       ref:

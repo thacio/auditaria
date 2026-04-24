@@ -1,10 +1,6 @@
 name: 'Trigger Docs Rebuild'
 on:
-  push:
-    branches:
-      - 'main'
-    paths:
-      - 'docs/**'
+  workflow_dispatch:
 jobs:
   trigger-rebuild:
     if: "github.repository == 'google-gemini/gemini-cli'"

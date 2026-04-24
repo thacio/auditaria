@@ -1,13 +1,6 @@
 name: 'Testing: E2E (Chained)'
 
 on:
-  push:
-    branches:
-      - 'main'
-  merge_group:
-  workflow_run:
-    workflows: ['Trigger E2E']
-    types: ['completed']
   workflow_dispatch:
     inputs:
       head_sha:

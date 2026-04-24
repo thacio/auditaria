@@ -1,9 +1,7 @@
 name: '🏷️ Issue Opened Labeler'
 
 on:
-  issues:
-    types:
-      - 'opened'
+  workflow_dispatch:
 
 jobs:
   label-issue:

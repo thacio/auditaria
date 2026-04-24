@@ -1,9 +1,7 @@
 name: '🏷️ PR Contribution Guidelines Notifier'
 
 on:
-  pull_request:
-    types:
-      - 'opened'
+  workflow_dispatch:
 
 jobs:
   notify-process-change:

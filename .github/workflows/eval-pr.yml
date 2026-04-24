@@ -1,15 +1,6 @@
 name: 'Evals: PR Evaluation & Regression'
 
 on:
-  pull_request_target:
-    types: ['opened', 'synchronize', 'reopened', 'ready_for_review']
-    paths:
-      - 'packages/core/src/prompts/**'
-      - 'packages/core/src/tools/**'
-      - 'packages/core/src/agents/**'
-      - 'evals/**'
-      - '!**/*.test.ts'
-      - '!**/*.test.tsx'
   workflow_dispatch:
 
 # Prevents multiple runs for the same PR simultaneously (saves tokens)

@@ -2,8 +2,6 @@ name: 'No Response'
 
 # Run as a daily cron at 1:45 AM
 on:
-  schedule:
-    - cron: '45 1 * * *'
   workflow_dispatch:
 
 jobs:

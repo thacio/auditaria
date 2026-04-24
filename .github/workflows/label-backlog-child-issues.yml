@@ -1,10 +1,6 @@
 name: 'Label Child Issues for Project Rollup'
 
 on:
-  issues:
-    types: ['opened', 'edited', 'reopened']
-  schedule:
-    - cron: '0 * * * *' # Run every hour
   workflow_dispatch:
 
 permissions:

@@ -1,8 +1,6 @@
 name: 'Memory Tests: Nightly'
 
 on:
-  schedule:
-    - cron: '0 2 * * *' # Runs at 2 AM every day
   workflow_dispatch: # Allow manual trigger
 
 permissions:
