@@ -28,7 +28,7 @@ SOFTWARE.
 
 
 ============================================================
-@hono/node-server@1.19.13
+@hono/node-server@1.19.11
 (https://github.com/honojs/node-server.git)
 
 MIT License
@@ -487,7 +487,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ============================================================
-eventsource-parser@3.0.3
+eventsource-parser@3.0.6
 (git+ssh://git@github.com/rexxars/eventsource-parser.git)
 
 MIT License
@@ -2151,7 +2151,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ============================================================
-path-to-regexp@8.4.2
+path-to-regexp@0.1.12
 (https://github.com/pillarjs/path-to-regexp.git)
 
 The MIT License (MIT)
@@ -2289,7 +2289,7 @@ THE SOFTWARE.
 
 
 ============================================================
-hono@4.12.12
+hono@4.12.7
 (git+https://github.com/honojs/hono.git)
 
 MIT License
