@@ -14,6 +14,7 @@ import type { ProviderDriver } from './types.js';
 import { ProviderEventType } from './types.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
+import { resolveBridgeScriptPath } from './mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
 
 // AUDITARIA_AGENT_SESSION: Debug logging gated on AUDITARIA_PROVIDER_DEBUG=1.
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
@@ -503,12 +504,8 @@ export class AgentSessionManager {
 
     // Resolve bridge script path
     if (!this.bridgeScriptPath) {
-      try {
-        const { fileURLToPath } = await import('node:url');
-        const { dirname, join: pathJoin } = await import('node:path');
-        const bundleDir = dirname(fileURLToPath(import.meta.url));
-        this.bridgeScriptPath = pathJoin(bundleDir, 'mcp-bridge.js');
-      } catch {
+      this.bridgeScriptPath = await resolveBridgeScriptPath();
+      if (!this.bridgeScriptPath) {
         dbg('could not resolve bridge script path');
         return;
       }

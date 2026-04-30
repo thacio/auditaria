@@ -566,6 +566,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       discordToken: undefined, // AUDITARIA_DISCORD
       teamsPort: undefined, // AUDITARIA_TEAMS
       teamsSecret: undefined, // AUDITARIA_TEAMS
+      exposeMcp: undefined, // AUDITARIA_EXPOSE_MCP
+      mcpPort: undefined, // AUDITARIA_EXPOSE_MCP
       resumeClaude: undefined, // AUDITARIA_REWIND
     });
 
@@ -634,6 +636,8 @@ describe('gemini.tsx main function kitty protocol', () => {
       discordToken: undefined,
       teamsPort: undefined,
       teamsSecret: undefined,
+      exposeMcp: undefined, // AUDITARIA_EXPOSE_MCP
+      mcpPort: undefined, // AUDITARIA_EXPOSE_MCP
       appendSystemPrompt: undefined,
       appendSystemPromptFile: undefined,
       resumeClaude: undefined, // AUDITARIA_REWIND

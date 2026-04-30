@@ -31,6 +31,7 @@ import {
 import { adaptProviderEvent } from './eventAdapter.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
+import { resolveBridgeScriptPath } from './mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
 import { estimateTokenCountSync } from '../utils/tokenCalculation.js';
 import { getEnvironmentContext } from '../utils/environmentContext.js';
 import type { Config } from '../config/config.js';
@@ -238,6 +239,7 @@ export class ProviderManager {
   private mcpServers?: Record<string, ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
   private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
+  private ownsToolExecutorServer = false; // AUDITARIA_EXPOSE_MCP: false when borrowed from Config.toolBridgeService
   private bridgeScriptPath?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to bundled mcp-bridge.js
   // AUDITARIA_CLAUDE_PROVIDER: Single source of truth for what the next turn
   // should do. Replaces the previous pair of boolean + pendingResumeSessionId,
@@ -971,9 +973,17 @@ export class ProviderManager {
   dispose(): void {
     this.driver?.dispose();
     this.driver = null;
-    // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server
-    this.toolExecutorServer?.stop();
+    // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server (only if we own it — borrowed
+    // servers are owned by Config.toolBridgeService and stay alive across provider switches).
+    if (this.ownsToolExecutorServer) {
+      this.toolExecutorServer?.stop();
+    } else {
+      // AUDITARIA_EXPOSE_MCP: Detach our toolOutputHandler closure from the borrowed
+      // server so it doesn't reference this disposed PM's pendingToolCalls map.
+      this.toolExecutorServer?.setToolOutputHandler(undefined);
+    }
     this.toolExecutorServer = undefined;
+    this.ownsToolExecutorServer = false; // AUDITARIA_EXPOSE_MCP
   }
 
   // Expose model for token limit calculation and footer display
@@ -1080,14 +1090,27 @@ export class ProviderManager {
       return;
     }
 
+    // AUDITARIA_EXPOSE_MCP_START: Reuse the shared bridge from Config when it exists
+    // (started eagerly via --expose-mcp). One HTTP listener total.
+    const shared = this.appConfig?.getToolBridgeService?.();
+    const sharedServer = shared?.getServer();
+    const sharedScript = shared?.getScriptPath();
+    if (sharedServer && sharedScript) {
+      this.toolExecutorServer = sharedServer;
+      this.bridgeScriptPath = sharedScript;
+      this.ownsToolExecutorServer = false;
+      this.wireToolOutputHandler();
+      dbg('tool executor server reused from Config', {
+        port: sharedServer.getPort(),
+      });
+      return;
+    }
+    // AUDITARIA_EXPOSE_MCP_END
+
     // Resolve bridge script path relative to the running bundle
     if (!this.bridgeScriptPath) {
-      try {
-        const { fileURLToPath } = await import('node:url');
-        const { dirname, join } = await import('node:path');
-        const bundleDir = dirname(fileURLToPath(import.meta.url));
-        this.bridgeScriptPath = join(bundleDir, 'mcp-bridge.js');
-      } catch {
+      this.bridgeScriptPath = await resolveBridgeScriptPath();
+      if (!this.bridgeScriptPath) {
         dbg('could not resolve bridge script path');
         return;
       }
@@ -1095,8 +1118,11 @@ export class ProviderManager {
 
     const server = new ToolExecutorServer(this.toolRegistry);
     try {
-      const port = await server.start();
+      // AUDITARIA_EXPOSE_MCP: Honor --mcp-port / AUDITARIA_MCP_PORT when the user pinned one.
+      const explicitPort = this.appConfig?.getMcpPort?.();
+      const port = await server.start(explicitPort);
       this.toolExecutorServer = server;
+      this.ownsToolExecutorServer = true; // AUDITARIA_EXPOSE_MCP
       // AUDITARIA: Wire output handler if already registered
       this.wireToolOutputHandler();
       dbg('tool executor server started', {

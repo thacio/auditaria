@@ -20,6 +20,7 @@ import {
   capToolOutputsForEstimation,
   CODEX_TOOL_OUTPUT_MAX_BYTES,
 } from '../providers/providerManager.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { ToolBridgeService } from '../providers/mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
 import { getAuditContext, renderUserMemory } from '../prompts/snippets.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { z } from 'zod';
 import type { ConversationRecord } from '../services/chatRecordingService.js';
@@ -747,6 +748,8 @@ export interface ConfigParameters {
   }>;
   providerConfig?: ProviderConfig; // AUDITARIA_CLAUDE_PROVIDER
   appendSystemPrompt?: string; // AUDITARIA_APPEND_SYSTEM_PROMPT
+  exposeToolBridge?: boolean; // AUDITARIA_EXPOSE_MCP
+  mcpPort?: number; // AUDITARIA_EXPOSE_MCP: Pin MCP bridge to a specific port (otherwise walk 19751..19770)
   enableConseca?: boolean;
   billing?: {
     overageStrategy?: OverageStrategy;
@@ -809,6 +812,9 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly usageStatisticsEnabled: boolean;
   private _geminiClient!: GeminiClient;
   private providerManager?: ProviderManager; // AUDITARIA_CLAUDE_PROVIDER
+  private toolBridgeService?: ToolBridgeService; // AUDITARIA_EXPOSE_MCP
+  private readonly exposeToolBridge: boolean; // AUDITARIA_EXPOSE_MCP
+  private readonly mcpPort: number | undefined; // AUDITARIA_EXPOSE_MCP
   private agentSessionManager_?: AgentSessionManager; // AUDITARIA_AGENT_SESSION
   private sessionRegistry_?: SessionRegistry; // AUDITARIA_SESSION_MANAGEMENT
   private providerAvailability: {
@@ -1081,6 +1087,8 @@ export class Config implements McpContext, AgentLoopContext {
     this.debugMode = params.debugMode;
     this.question = params.question;
     this.appendSystemPrompt = params.appendSystemPrompt; // AUDITARIA_APPEND_SYSTEM_PROMPT
+    this.exposeToolBridge = params.exposeToolBridge ?? false; // AUDITARIA_EXPOSE_MCP
+    this.mcpPort = params.mcpPort; // AUDITARIA_EXPOSE_MCP
     this.worktreeSettings = params.worktreeSettings;
 
     this.coreTools = params.coreTools;
@@ -1517,6 +1525,20 @@ export class Config implements McpContext, AgentLoopContext {
 
     this._toolRegistry = await this.createToolRegistry();
     this.providerManager?.setToolRegistry(this.toolRegistry); // AUDITARIA_CLAUDE_PROVIDER: enable tool bridging
+    // AUDITARIA_EXPOSE_MCP_START: Start MCP bridge eagerly so external hosts can use Auditaria
+    // as an MCP server. The user explicitly asked for this — fail loudly if we can't bind.
+    if (this.exposeToolBridge) {
+      this.toolBridgeService = new ToolBridgeService(
+        this._toolRegistry,
+        this.mcpPort,
+      );
+      const { port } = await this.toolBridgeService.start();
+      coreEvents.emitFeedback(
+        'info',
+        `MCP bridge listening on 127.0.0.1:${port}`,
+      );
+    }
+    // AUDITARIA_EXPOSE_MCP_END
     discoverToolsHandle?.end();
     this.mcpClientManager = new McpClientManager(
       this.clientVersion,
@@ -2813,6 +2835,17 @@ export class Config implements McpContext, AgentLoopContext {
     return this.providerManager;
   }
 
+  // AUDITARIA_EXPOSE_MCP: Shared MCP bridge for external hosts (started eagerly when --expose-mcp set).
+  // ProviderManager.ensureToolExecutorServer() borrows this so there is exactly one HTTP listener.
+  getToolBridgeService(): ToolBridgeService | undefined {
+    return this.toolBridgeService;
+  }
+
+  // AUDITARIA_EXPOSE_MCP: User-pinned port for the MCP bridge, or undefined to walk the default range.
+  getMcpPort(): number | undefined {
+    return this.mcpPort;
+  }
+
   getProviderConfig(): ProviderConfig | undefined {
     return this.providerManager?.getConfig();
   } // AUDITARIA_CODEX_PROVIDER
@@ -3103,6 +3136,19 @@ export class Config implements McpContext, AgentLoopContext {
           this.agentSessionManager_.setToolBridgeInfo(
             bridgeInfo.server,
             bridgeInfo.scriptPath,
+          );
+        }
+      }
+      // AUDITARIA_EXPOSE_MCP: When the eager bridge is up but ProviderManager hasn't
+      // started one (e.g. user is on Gemini), share Config's bridge with sub-agents
+      // so they don't spin up a second listener on a different port.
+      else if (this.toolBridgeService) {
+        const sharedServer = this.toolBridgeService.getServer();
+        const sharedScript = this.toolBridgeService.getScriptPath();
+        if (sharedServer && sharedScript) {
+          this.agentSessionManager_.setToolBridgeInfo(
+            sharedServer,
+            sharedScript,
           );
         }
       }
@@ -4268,6 +4314,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.sessionRegistry_?.dispose(); // AUDITARIA_SESSION_MANAGEMENT: Persist and clean up
     this.fileCheckpointManager_?.dispose(); // AUDITARIA_REWIND
     this.providerManager?.dispose(); // AUDITARIA: Kill main provider's active subprocess
+    this.toolBridgeService?.stop(); // AUDITARIA_EXPOSE_MCP
     this._geminiClient?.dispose();
     if (this.mcpClientManager) {
       await this.mcpClientManager.stop();

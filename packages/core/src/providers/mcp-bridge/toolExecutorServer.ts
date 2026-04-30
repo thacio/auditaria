@@ -56,7 +56,10 @@ export class ToolExecutorServer {
     return this.port;
   }
 
-  async start(): Promise<number> {
+  // AUDITARIA_EXPOSE_MCP: When `explicitPort` is provided (via --mcp-port /
+  // AUDITARIA_MCP_PORT), bind exactly that port and throw on conflict — the user
+  // pinned it deliberately. When omitted, walk BASE_PORT..BASE_PORT+MAX_PORT_ATTEMPTS-1.
+  async start(explicitPort?: number): Promise<number> {
     if (this.server) return this.port!;
 
     const httpServer = createServer((req, res) => this.handleRequest(req, res));
@@ -71,9 +74,24 @@ export class ToolExecutorServer {
     httpServer.headersTimeout = 0;
     httpServer.timeout = 0;
 
-    this.port = await this.findAvailablePort(httpServer);
+    this.port =
+      explicitPort !== undefined
+        ? await this.bindPort(httpServer, explicitPort)
+        : await this.findAvailablePort(httpServer);
     this.server = httpServer;
     return this.port;
+  }
+
+  // AUDITARIA_EXPOSE_MCP: Bind a single explicit port, throwing on EADDRINUSE.
+  private async bindPort(server: Server, port: number): Promise<number> {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', () => {
+        server.removeListener('error', reject);
+        resolve();
+      });
+    });
+    return port;
   }
 
   stop(): void {

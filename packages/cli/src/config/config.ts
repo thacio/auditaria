@@ -115,6 +115,9 @@ export interface CliArgs {
   teamsPort: number | undefined;
   teamsSecret: string | undefined;
   // AUDITARIA_TEAMS_END
+  // AUDITARIA_EXPOSE_MCP
+  exposeMcp: boolean | undefined;
+  mcpPort: number | undefined;
   resume: string | typeof RESUME_LATEST | undefined;
   listSessions: boolean | undefined;
   deleteSession: string | undefined;
@@ -454,6 +457,18 @@ export async function parseArguments(
           description: 'HMAC secret for Teams outgoing webhook (base64).',
         })
         // AUDITARIA_TEAMS_END
+        // AUDITARIA_EXPOSE_MCP_START
+        .option('expose-mcp', {
+          type: 'boolean',
+          description:
+            'Expose Auditaria tools as an MCP server on 127.0.0.1:19751 at startup (also via AUDITARIA_EXPOSE_MCP=1).',
+        })
+        .option('mcp-port', {
+          type: 'number',
+          description:
+            'Pin the MCP bridge to a specific port (also via AUDITARIA_MCP_PORT). Default: walk 19751-19770.',
+        })
+        // AUDITARIA_EXPOSE_MCP_END
         .option('resume', {
           alias: 'r',
           type: 'string',
@@ -1162,6 +1177,17 @@ export async function loadCliConfig(
     model: resolvedModel,
     providerConfig: persistedProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
     appendSystemPrompt, // AUDITARIA_APPEND_SYSTEM_PROMPT
+    // AUDITARIA_EXPOSE_MCP: --expose-mcp flag or AUDITARIA_EXPOSE_MCP=1 env var.
+    // ?? not || so that an explicit --no-expose-mcp wins over the env var.
+    exposeToolBridge:
+      argv.exposeMcp ?? process.env['AUDITARIA_EXPOSE_MCP'] === '1',
+    // AUDITARIA_EXPOSE_MCP: --mcp-port or AUDITARIA_MCP_PORT (only used if numeric)
+    mcpPort:
+      argv.mcpPort ??
+      (process.env['AUDITARIA_MCP_PORT'] &&
+      /^\d+$/.test(process.env['AUDITARIA_MCP_PORT'])
+        ? Number(process.env['AUDITARIA_MCP_PORT'])
+        : undefined),
     maxSessionTurns: settings.model?.maxSessionTurns,
 
     listExtensions: argv.listExtensions || false,
