@@ -30,7 +30,7 @@ export const AUTO_SAVED_POLICY_FILENAME = 'auto-saved.toml';
 
 export class Storage {
   private readonly targetDir: string;
-  private readonly sessionId: string | undefined;
+  private sessionId: string | undefined;
   private projectIdentifier: string | undefined;
   private initPromise: Promise<void> | undefined;
   private customPlansDir: string | undefined;
@@ -42,6 +42,14 @@ export class Storage {
 
   setCustomPlansDir(dir: string | undefined): void {
     this.customPlansDir = dir;
+  }
+
+  setSessionId(sessionId: string | undefined): void {
+    this.sessionId = sessionId;
+  }
+
+  isInitialized(): boolean {
+    return !!this.projectIdentifier;
   }
 
   // AUDITARIA_MODIFY_START: Use fallback resolution for global config directory
