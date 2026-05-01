@@ -121,6 +121,7 @@ export interface CliArgs {
   exposeMcp: boolean | undefined;
   mcpPort: number | undefined;
   resume: string | typeof RESUME_LATEST | undefined;
+  sessionId: string | undefined;
   listSessions: boolean | undefined;
   deleteSession: string | undefined;
   includeDirectories: string[] | undefined;
@@ -266,6 +267,10 @@ export async function parseArguments(
       const hasPositionalQuery = Array.isArray(query)
         ? query.length > 0
         : !!query;
+
+      if (argv['resume'] !== undefined && argv['session-id'] !== undefined) {
+        return 'Cannot use both --resume (-r) and --session-id together';
+      }
 
       if (argv['prompt'] && hasPositionalQuery) {
         return 'Cannot use both a positional prompt and the --prompt (-p) flag together';
@@ -495,6 +500,25 @@ export async function parseArguments(
             const trimmed = value.trim();
             if (trimmed === '') {
               return RESUME_LATEST;
+            }
+            return trimmed;
+          },
+        })
+        .option('session-id', {
+          type: 'string',
+          nargs: 1,
+          description: 'Start a new session with a manually provided UUID.',
+          coerce: (value: string): string => {
+            const trimmed = value.trim();
+            if (!trimmed) {
+              throw new Error('The --session-id option cannot be empty.');
+            }
+            if (!/^[a-zA-Z0-9-_]+$/.test(trimmed)) {
+              throw new Error(
+                'Invalid session ID "' +
+                  trimmed +
+                  '": Only alphanumeric characters, dashes, and underscores are allowed.',
+              );
             }
             return trimmed;
           },
