@@ -46,7 +46,7 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
   const getSupportedCodexReasoningEfforts = (
     model?: string,
   ): ReadonlyArray<(typeof allEfforts)[number]> =>
-    model === 'gpt-5.1-codex-mini' ? miniEfforts : allEfforts;
+    model === 'gpt-5.4-mini' ? miniEfforts : allEfforts;
   const clampCodexReasoningEffortForModel = (
     model: string | undefined,
     effort: (typeof allEfforts)[number],
@@ -440,13 +440,13 @@ describe('<ModelDialog />', () => {
     expect(lastFrame()).toContain('Thinking intensity: Low');
   });
 
-  it('clamps Codex thinking to model-supported max for gpt-5.1-codex-mini', async () => {
+  it('clamps Codex thinking to model-supported max for gpt-5.4-mini', async () => {
     const { lastFrame, stdin } = await renderComponent();
 
     await openCodexView(stdin);
     expect(lastFrame()).toContain('Thinking intensity: Extra High');
 
-    // Move highlight to GPT-5.1 Codex Mini (index 4 in codex submenu).
+    // Move highlight to GPT-5.4 Mini (index 3 in codex submenu: auto, gpt-5.5, gpt-5.4, gpt-5.4-mini).
     stdin.write(downArrow);
     await waitForUpdate();
     stdin.write(downArrow);
@@ -463,7 +463,7 @@ describe('<ModelDialog />', () => {
     expect(mockSetProviderConfig).toHaveBeenCalledWith(
       {
         type: 'codex-cli',
-        model: 'gpt-5.1-codex-mini',
+        model: 'gpt-5.4-mini',
         cwd: 'C:/projects/auditaria',
         options: {
           reasoningEffort: 'high',

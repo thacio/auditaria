@@ -11,22 +11,22 @@ import {
 } from './types.js';
 
 describe('Codex reasoning effort model constraints', () => {
-  it('returns restricted supported efforts for gpt-5.1-codex-mini', () => {
-    expect(getSupportedCodexReasoningEfforts('gpt-5.1-codex-mini')).toEqual([
+  it('returns restricted supported efforts for gpt-5.4-mini', () => {
+    expect(getSupportedCodexReasoningEfforts('gpt-5.4-mini')).toEqual([
       'low',
       'medium',
       'high',
     ]);
   });
 
-  it('clamps unsupported xhigh to high for gpt-5.1-codex-mini', () => {
+  it('clamps unsupported xhigh to high for gpt-5.4-mini', () => {
     expect(
-      clampCodexReasoningEffortForModel('gpt-5.1-codex-mini', 'xhigh'),
+      clampCodexReasoningEffortForModel('gpt-5.4-mini', 'xhigh'),
     ).toBe('high');
   });
 
-  it('keeps xhigh for gpt-5.2-codex', () => {
-    expect(clampCodexReasoningEffortForModel('gpt-5.2-codex', 'xhigh')).toBe(
+  it('keeps xhigh for gpt-5.5', () => {
+    expect(clampCodexReasoningEffortForModel('gpt-5.5', 'xhigh')).toBe(
       'xhigh',
     );
   });

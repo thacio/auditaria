@@ -554,7 +554,7 @@ describe('CodexCLIDriver', () => {
 
     const driver = new CodexCLIDriver({
       ...driverConfig,
-      model: 'gpt-5.1-codex-mini',
+      model: 'gpt-5.4-mini',
       reasoningEffort: 'xhigh',
     });
     const controller = new AbortController();
@@ -579,7 +579,7 @@ describe('CodexCLIDriver', () => {
         'resume',
         '--skip-git-repo-check',
         '-m',
-        'gpt-5.1-codex-mini',
+        'gpt-5.4-mini',
         '-c',
         'model_reasoning_effort=high',
         'thread-mini',

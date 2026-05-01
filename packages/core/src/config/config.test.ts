@@ -2563,7 +2563,7 @@ describe('Config getHooks', () => {
       config.setProviderConfig(
         {
           type: 'codex-cli',
-          model: 'gpt-5.2-codex',
+          model: 'gpt-5.5',
           cwd: '/tmp',
           options: {
             reasoningEffort: 'xhigh',
@@ -2573,7 +2573,7 @@ describe('Config getHooks', () => {
       );
 
       expect(onModelChange).toHaveBeenCalledWith(
-        'codex-code:gpt-5.2-codex|xhigh',
+        'codex-code:gpt-5.5|xhigh',
       );
     });
 

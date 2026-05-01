@@ -1057,9 +1057,11 @@ class AuditariaWebClient {
                 return 'Codex (Auto)';
             }
             const codexTitleMap = {
+                'gpt-5.5': 'GPT-5.5',
+                'gpt-5.4': 'GPT-5.4',
+                'gpt-5.4-mini': 'GPT-5.4 Mini',
                 'gpt-5.3-codex': 'GPT-5.3 Codex',
-                'gpt-5.2-codex': 'GPT-5.2 Codex',
-                'gpt-5.1-codex-mini': 'GPT-5.1 Codex Mini',
+                'gpt-5.2': 'GPT-5.2',
             };
             const mapped = codexTitleMap[variant.toLowerCase()];
             return `Codex (${mapped || variant})`;

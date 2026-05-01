@@ -177,7 +177,7 @@ export class CodexCLIDriver implements ProviderDriver {
   private buildArgs(): string[] {
     const args: string[] = [];
     // AUDITARIA_CODEX_PROVIDER: Always resolve reasoning effort to prevent global config.toml
-    // from applying an unsupported value for the target model (e.g., xhigh for gpt-5.1-codex-mini).
+    // from applying an unsupported value for the target model (e.g., xhigh for gpt-5.4-mini).
     const effectiveReasoningEffort = clampCodexReasoningEffortForModel(
       this.config.model,
       this.config.reasoningEffort ?? 'xhigh',

@@ -60,7 +60,7 @@ const DESCRIPTION = `Manage sessions with alternative LLM providers as external 
 
 Available providers:
 - "claude" — Claude Code CLI (opus, sonnet, haiku)
-- "codex" — OpenAI Codex CLI (gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini)
+- "codex" — OpenAI Codex CLI (gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2)
 - "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 
 You can spawn any provider, including the same one you are running on.
@@ -145,7 +145,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
             description:
               'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
               'Claude models: opus, sonnet, haiku, opus[1m], sonnet[1m] (the [1m] variants have a 1M-token context window — use for long sessions or large codebases). ' +
-              'Codex models: gpt-5.3-codex, gpt-5.2-codex, gpt-5.1-codex-mini. ' +
+              'Codex models: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2. ' +
               'Gemini models: ' +
               AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
               ' (default: ' +

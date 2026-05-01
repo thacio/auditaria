@@ -132,10 +132,12 @@ export type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORTS)[number];
 export const CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL: Readonly<
   Partial<Record<string, readonly CodexReasoningEffort[]>>
 > = {
-  'gpt-5.3-codex': CODEX_REASONING_EFFORTS,
-  'gpt-5.2-codex': CODEX_REASONING_EFFORTS,
+  'gpt-5.5': CODEX_REASONING_EFFORTS,
+  'gpt-5.4': CODEX_REASONING_EFFORTS,
   // API currently supports low/medium/high for mini (xhigh is rejected).
-  'gpt-5.1-codex-mini': ['low', 'medium', 'high'] as const,
+  'gpt-5.4-mini': ['low', 'medium', 'high'] as const,
+  'gpt-5.3-codex': CODEX_REASONING_EFFORTS,
+  'gpt-5.2': CODEX_REASONING_EFFORTS,
 };
 
 export function getSupportedCodexReasoningEfforts(
@@ -214,9 +216,11 @@ export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
 
 export const CODEX_MODEL_IDS = [
   'auto',
+  'gpt-5.5',
+  'gpt-5.4',
+  'gpt-5.4-mini',
   'gpt-5.3-codex',
-  'gpt-5.2-codex',
-  'gpt-5.1-codex-mini',
+  'gpt-5.2',
 ] as const;
 export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
 

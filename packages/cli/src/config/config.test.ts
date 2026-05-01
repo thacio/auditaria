@@ -1982,7 +1982,7 @@ describe('loadCliConfig model selection', () => {
     const config = await loadCliConfig(
       createTestMergedSettings({
         model: {
-          name: 'codex-code:gpt-5.2-codex|xhigh',
+          name: 'codex-code:gpt-5.5|xhigh',
         },
       }),
       'test-session',
@@ -1990,11 +1990,11 @@ describe('loadCliConfig model selection', () => {
     );
 
     expect(config.isExternalProviderActive()).toBe(true);
-    expect(config.getDisplayModel()).toBe('codex-code:gpt-5.2-codex');
+    expect(config.getDisplayModel()).toBe('codex-code:gpt-5.5');
     expect(config.getProviderConfig()).toEqual(
       expect.objectContaining({
         type: 'codex-cli',
-        model: 'gpt-5.2-codex',
+        model: 'gpt-5.5',
         options: {
           reasoningEffort: 'xhigh',
         },
@@ -2008,7 +2008,7 @@ describe('loadCliConfig model selection', () => {
     const config = await loadCliConfig(
       createTestMergedSettings({
         model: {
-          name: 'codex-code:gpt-5.1-codex-mini|xhigh',
+          name: 'codex-code:gpt-5.4-mini|xhigh',
         },
       }),
       'test-session',
@@ -2018,7 +2018,7 @@ describe('loadCliConfig model selection', () => {
     expect(config.getProviderConfig()).toEqual(
       expect.objectContaining({
         type: 'codex-cli',
-        model: 'gpt-5.1-codex-mini',
+        model: 'gpt-5.4-mini',
         options: {
           reasoningEffort: 'high',
         },
@@ -2032,7 +2032,7 @@ describe('loadCliConfig model selection', () => {
     const config = await loadCliConfig(
       createTestMergedSettings({
         model: {
-          name: 'codex-code:gpt-5.2-codex|xhigh',
+          name: 'codex-code:gpt-5.5|xhigh',
         },
       }),
       'test-session',
