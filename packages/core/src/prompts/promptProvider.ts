@@ -48,6 +48,7 @@ export class PromptProvider {
     userMemory?: string | HierarchicalMemory,
     language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
     interactiveOverride?: boolean,
+    topicUpdateNarrationOverride?: boolean,
   ): string {
     const systemMdResolution = resolvePathFromEnv(
       process.env['GEMINI_SYSTEM_MD'],
@@ -61,6 +62,10 @@ export class PromptProvider {
     const isYoloMode = approvalMode === ApprovalMode.YOLO;
     const skills = context.config.getSkillManager().getSkills();
     const toolNames = context.toolRegistry.getAllToolNames();
+    const isTopicUpdateNarrationEnabled =
+      topicUpdateNarrationOverride ??
+      context.config.isTopicUpdateNarrationEnabled();
+
     const enabledToolNames = new Set(toolNames);
 
     const approvedPlanPath = context.config.getApprovedPlanPath();
@@ -143,7 +148,7 @@ export class PromptProvider {
           hasSkills: skills.length > 0,
           hasHierarchicalMemory,
           contextFilenames,
-          topicUpdateNarration: context.config.isTopicUpdateNarrationEnabled(),
+          topicUpdateNarration: isTopicUpdateNarrationEnabled,
         })),
         subAgents: this.withSection(
           'agentContexts',
@@ -188,8 +193,7 @@ export class PromptProvider {
                 ? { path: approvedPlanPath }
                 : undefined,
               taskTracker: trackerDir,
-              topicUpdateNarration:
-                context.config.isTopicUpdateNarrationEnabled(),
+              topicUpdateNarration: isTopicUpdateNarrationEnabled,
             };
           },
           !isPlanMode,
@@ -211,8 +215,7 @@ export class PromptProvider {
             enableShellEfficiency:
               context.config.getEnableShellOutputEfficiency(),
             interactiveShellEnabled: context.config.isInteractiveShellEnabled(),
-            topicUpdateNarration:
-              context.config.isTopicUpdateNarrationEnabled(),
+            topicUpdateNarration: isTopicUpdateNarrationEnabled,
             memoryManagerEnabled: context.config.isMemoryManagerEnabled(),
             // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
@@ -271,7 +274,7 @@ export class PromptProvider {
     let sanitizedPrompt = finalPrompt.replace(/\n{3,}/g, '\n\n');
 
     // Context Reinjection (Active Topic)
-    if (context.config.isTopicUpdateNarrationEnabled()) {
+    if (isTopicUpdateNarrationEnabled) {
       const activeTopic = context.config.topicState.getTopic();
       if (activeTopic) {
         const sanitizedTopic = activeTopic

@@ -28,12 +28,14 @@ export function getCoreSystemPrompt(
   userMemory?: string | HierarchicalMemory,
   language?: SupportedLanguage, // AUDITARIA_FEATURE: i18n support
   interactiveOverride?: boolean,
+  topicUpdateNarrationOverride?: boolean,
 ): string {
   return new PromptProvider().getCoreSystemPrompt(
     config,
     userMemory,
     language, // AUDITARIA_FEATURE: pass language to PromptProvider
     interactiveOverride,
+    topicUpdateNarrationOverride,
   );
 }
 
