@@ -32,7 +32,11 @@ import { resolveModel, supportsModernFeatures } from '../config/models.js';
 // AUDITARIA_FEATURE: Import SupportedLanguage type for i18n support
 import type { SupportedLanguage } from '../i18n/index.js';
 import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
-import { getAllGeminiMdFilenames } from '../tools/memoryTool.js';
+import {
+  getAllGeminiMdFilenames,
+  getGlobalMemoryFilePath,
+  getProjectMemoryIndexFilePath,
+} from '../tools/memoryTool.js';
 import type { AgentLoopContext } from '../config/agent-loop-context.js';
 
 /**
@@ -227,7 +231,13 @@ export class PromptProvider {
               context.config.getEnableShellOutputEfficiency(),
             interactiveShellEnabled: context.config.isInteractiveShellEnabled(),
             topicUpdateNarration: isTopicUpdateNarrationEnabled,
-            memoryManagerEnabled: context.config.isMemoryManagerEnabled(),
+            memoryV2Enabled: context.config.isMemoryV2Enabled(),
+            userProjectMemoryPath: context.config.isMemoryV2Enabled()
+              ? getProjectMemoryIndexFilePath(context.config.storage)
+              : undefined,
+            globalMemoryPath: context.config.isMemoryV2Enabled()
+              ? getGlobalMemoryFilePath()
+              : undefined,
             // AUDITARIA_FEATURE: Pass language for i18n instructions
             language,
           }),
