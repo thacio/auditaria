@@ -1230,6 +1230,7 @@ export async function loadCliConfig(
     experimentalJitContext,
     experimentalMemoryV2: settings.experimental?.memoryV2,
     experimentalAutoMemory: settings.experimental?.autoMemory,
+    experimentalGemma: settings.experimental?.gemma,
     contextManagement,
     modelSteering: settings.experimental?.modelSteering,
     topicUpdateNarration:
