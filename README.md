@@ -919,6 +919,8 @@ standards, and how to submit pull requests.
 
 ## 📖 Resources
 
+- **[Free Course](https://learn.deeplearning.ai/courses/gemini-cli-code-and-create-with-an-open-source-agent/information)** -
+  Learn the basics.
 - **[Official Roadmap](./ROADMAP.md)** - See what's coming next.
 - **[Changelog](./docs/changelogs/index.md)** - See recent notable updates.
 - **[NPM Package](https://www.npmjs.com/package/@thacio/auditaria)** - Package
