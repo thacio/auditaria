@@ -198,6 +198,7 @@ export class Scheduler {
       {
         operation: GeminiCliOperation.ScheduleToolCalls,
         logPrompts: this.context.config.getTelemetryLogPromptsEnabled(),
+        tracesEnabled: this.context.config.getTelemetryTracesEnabled(),
         sessionId: this.context.config.getSessionId(),
       },
       async ({ metadata: spanMetadata }) => {
