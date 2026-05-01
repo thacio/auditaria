@@ -33,30 +33,35 @@ if (!existsSync(join(root, 'node_modules'))) {
 // build all workspaces/packages
 execSync('npm run generate', { stdio: 'inherit', cwd: root });
 
-if (process.env.CI) {
-  console.log('CI environment detected. Building workspaces sequentially...');
-  execSync('npm run build --workspaces', { stdio: 'inherit', cwd: root });
-} else {
-  // Build core first because everyone depends on it
-  console.log('Building @google/gemini-cli-core...');
-  execSync('npm run build -w @google/gemini-cli-core', {
-    stdio: 'inherit',
-    cwd: root,
-  });
+// AUDITARIA: Build in topological order. Each package's build_package.js wipes
+// its own dist/ before tsc emits; on a cold cache, consumer tsc instances fall
+// back to source resolution via workspace symlinks and miss ambient .d.ts
+// declarations (e.g. scribe.js-ocr, vectorlite in packages/search/src/).
+// Both `npm run build --workspaces` (declaration order) and the prior parallel
+// path raced on this. Forcing topo order eliminates the flake.
+//
+// Layers (workspace deps only — devDeps ignored since they don't gate tsc):
+//   0: leaf packages with no workspace deps
+//   1: core (depends on search + browser-agent)
+//   2: consumers of core
+const BUILD_ORDER = [
+  // Layer 0 — leaves
+  '@thacio/auditaria-search',
+  '@thacio/browser-agent',
+  '@google/gemini-cli-devtools',
+  'gemini-cli-vscode-ide-companion',
+  // Layer 1 — core
+  '@google/gemini-cli-core',
+  // Layer 2 — core consumers
+  '@google/gemini-cli-test-utils',
+  '@google/gemini-cli-a2a-server',
+  '@google/gemini-cli-sdk',
+  '@thacio/auditaria',
+];
 
-  // Build the rest in parallel
-  console.log('Building other workspaces in parallel...');
-  const workspaceInfo = JSON.parse(
-    execSync('npm query .workspace --json', { cwd: root, encoding: 'utf-8' }),
-  );
-  const parallelWorkspaces = workspaceInfo
-    .map((w) => w.name)
-    .filter((name) => name !== '@google/gemini-cli-core');
-
-  execSync(
-    `npx npm-run-all --parallel ${parallelWorkspaces.map((w) => `"build -w ${w}"`).join(' ')}`,
-    { stdio: 'inherit', cwd: root },
-  );
+for (const pkg of BUILD_ORDER) {
+  console.log(`Building ${pkg}...`);
+  execSync(`npm run build -w ${pkg}`, { stdio: 'inherit', cwd: root });
 }
 
 // also build container image if sandboxing is enabled
