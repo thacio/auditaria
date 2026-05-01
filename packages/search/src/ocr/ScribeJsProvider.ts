@@ -306,7 +306,7 @@ export class ScribeJsProvider implements OcrProvider {
 
     // Open the PDF using Scribe's internal ImageCache
     const imageCache = this.scribe!.data.image;
-    await imageCache.openMainPDF(pdfArrayBuffer);
+    await imageCache.openMainPDF(pdfArrayBuffer as ArrayBuffer);
 
     progressCallback?.({
       stage: 'processing',

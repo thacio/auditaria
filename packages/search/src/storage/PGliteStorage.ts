@@ -267,8 +267,8 @@ async function loadPGliteOptionsForBun(assets: {
     fs.promises.readFile(assets.dataPath),
   ]);
 
-  const wasmModule = await WebAssembly.compile(wasmBuffer);
-  const fsBundle = new Blob([dataBuffer]);
+  const wasmModule = await WebAssembly.compile(new Uint8Array(wasmBuffer));
+  const fsBundle = new Blob([new Uint8Array(dataBuffer)]);
 
   return { wasmModule, fsBundle };
 }
