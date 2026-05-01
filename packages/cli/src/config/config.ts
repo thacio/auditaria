@@ -25,6 +25,7 @@ import {
   FileDiscoveryService,
   resolveTelemetrySettings,
   FatalConfigError,
+  getErrorMessage,
   getPty,
   debugLogger,
   loadServerHierarchicalMemory,
@@ -65,6 +66,7 @@ import {
 
 import { loadSandboxConfig } from './sandboxConfig.js';
 import { resolvePath } from '../utils/resolvePath.js';
+import { isRecord } from '../utils/settingsUtils.js';
 import { RESUME_LATEST } from '../utils/sessionUtils.js';
 
 import { isWorkspaceTrusted } from './trustedFolders.js';
@@ -131,6 +133,7 @@ export interface CliArgs {
   startupMessages?: string[];
   rawOutput: boolean | undefined;
   acceptRawOutputRisk: boolean | undefined;
+  skipTrust: boolean | undefined;
   isCommand: boolean | undefined;
   // AUDITARIA_APPEND_SYSTEM_PROMPT_START
   appendSystemPrompt: string | undefined;
@@ -320,6 +323,11 @@ export async function parseArguments(
           nargs: 1,
           description:
             'Execute the provided prompt and continue in interactive mode',
+        })
+        .option('skip-trust', {
+          type: 'boolean',
+          description: 'Trust the current workspace for this session.',
+          default: false,
         })
         .option('worktree', {
           alias: 'w',
@@ -571,9 +579,16 @@ export async function parseArguments(
   yargsInstance.wrap(yargsInstance.terminalWidth());
   let result;
   try {
-    result = await yargsInstance.parse();
+    const parsed = await yargsInstance.parse();
+    if (!isRecord(parsed)) {
+      throw new Error('Failed to parse arguments');
+    }
+    result = parsed;
+    if (result['skip-trust']) {
+      process.env['GEMINI_CLI_TRUST_WORKSPACE'] = 'true';
+    }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = getErrorMessage(e);
     debugLogger.error(msg);
     yargsInstance.showHelp();
     await runExitCleanup();
@@ -587,11 +602,13 @@ export async function parseArguments(
   }
 
   // Normalize query args: handle both quoted "@path file" and unquoted @path file
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-  const queryArg = (result as { query?: string | string[] | undefined }).query;
-  const q: string | undefined = Array.isArray(queryArg)
-    ? queryArg.join(' ')
-    : queryArg;
+  const queryArg = result['query'];
+  let q: string | undefined;
+  if (Array.isArray(queryArg)) {
+    q = queryArg.join(' ');
+  } else if (typeof queryArg === 'string') {
+    q = queryArg;
+  }
 
   // -p/--prompt forces non-interactive mode; positional args default to interactive in TTY
   if (q && !result['prompt']) {
@@ -606,8 +623,8 @@ export async function parseArguments(
   }
 
   // Keep CliArgs.query as a string for downstream typing
-  (result as Record<string, unknown>)['query'] = q || undefined;
-  (result as Record<string, unknown>)['startupMessages'] = startupMessages;
+  result['query'] = q || undefined;
+  result['startupMessages'] = startupMessages;
 
   // The import format is now only controlled by settings.memoryImportFormat
   // We no longer accept it as a CLI argument
@@ -737,7 +754,7 @@ export async function loadCliConfig(
       ? false
       : (settings.security?.folderTrust?.enabled ?? false);
   const trustedFolder =
-    isWorkspaceTrusted(settings, cwd, undefined, {
+    isWorkspaceTrusted(settings, cwd, {
       prompt: argv.prompt,
       query: argv.query,
     })?.isTrusted ?? false;
@@ -783,7 +800,7 @@ export async function loadCliConfig(
         return resolveToRealPath(trimmedPath) !== realCwd;
       } catch (e) {
         debugLogger.debug(
-          `[IDE] Skipping inaccessible workspace folder: ${trimmedPath} (${e instanceof Error ? e.message : String(e)})`,
+          `[IDE] Skipping inaccessible workspace folder: ${trimmedPath} (${getErrorMessage(e)})`,
         );
         return false;
       }
@@ -1318,7 +1335,7 @@ async function resolveWorktreeSettings(
     worktreeBaseSha = stdout.trim();
   } catch (e: unknown) {
     debugLogger.debug(
-      `Failed to resolve worktree base SHA at ${worktreePath}: ${e instanceof Error ? e.message : String(e)}`,
+      `Failed to resolve worktree base SHA at ${worktreePath}: ${getErrorMessage(e)}`,
     );
   }
 

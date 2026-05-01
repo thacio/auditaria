@@ -76,6 +76,7 @@ export function resolveContextFilename(dirPath: string): string {
 // AUDITARIA_FEATURE_END:
 
 export const GOOGLE_ACCOUNTS_FILENAME = 'google_accounts.json';
+export const TRUSTED_FOLDERS_FILENAME = 'trustedFolders.json';
 
 /**
  * Returns the home directory.

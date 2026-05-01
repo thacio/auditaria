@@ -499,31 +499,35 @@ export class LoadedSettings {
   }
 }
 
-function findEnvFile(startDir: string): string | null {
+function findEnvFile(startDir: string, isTrusted: boolean): string | null {
   let currentDir = path.resolve(startDir);
 
   const configDirs = getConfigDirFallbacks(); // AUDITARIA_FEATURE: Check all config directories (.auditaria first, then .gemini)
 
   while (true) {
-    // AUDITARIA_FEATURE_START: prefer .env under config directories (auditaria first, then gemini)
-    for (const configDir of configDirs) {
-      const configEnvPath = path.join(currentDir, configDir, '.env');
-      if (fs.existsSync(configEnvPath)) {
-        return configEnvPath;
+    // AUDITARIA_FEATURE_START: prefer .env under config directories (auditaria first, then gemini), only when trusted
+    if (isTrusted) {
+      for (const configDir of configDirs) {
+        const configEnvPath = path.join(currentDir, configDir, '.env');
+        if (fs.existsSync(configEnvPath)) {
+          return configEnvPath;
+        }
       }
-      // AUDITARIA_FEATURE_END
     }
+    // AUDITARIA_FEATURE_END
     const envPath = path.join(currentDir, '.env');
     if (fs.existsSync(envPath)) {
       return envPath;
     }
     const parentDir = path.dirname(currentDir);
     if (parentDir === currentDir || !parentDir) {
-      // AUDITARIA: check .env under home as fallback, checking all config directories
-      for (const configDir of configDirs) {
-        const homeConfigEnvPath = path.join(homedir(), configDir, '.env');
-        if (fs.existsSync(homeConfigEnvPath)) {
-          return homeConfigEnvPath;
+      // AUDITARIA: check .env under home as fallback, checking all config directories, only when trusted
+      if (isTrusted) {
+        for (const configDir of configDirs) {
+          const homeConfigEnvPath = path.join(homedir(), configDir, '.env');
+          if (fs.existsSync(homeConfigEnvPath)) {
+            return homeConfigEnvPath;
+          }
         }
       }
       const homeEnvPath = path.join(homedir(), '.env');
@@ -567,10 +571,10 @@ export function loadEnvironment(
   workspaceDir: string,
   isWorkspaceTrustedFn = isWorkspaceTrusted,
 ): void {
-  const envFilePath = findEnvFile(workspaceDir);
   const trustResult = isWorkspaceTrustedFn(settings, workspaceDir);
-
   const isTrusted = trustResult.isTrusted ?? false;
+  const envFilePath = findEnvFile(workspaceDir, isTrusted);
+
   // Check settings OR check process.argv directly since this might be called
   // before arguments are fully parsed. This is a best-effort sniffing approach
   // that happens early in the CLI lifecycle. It is designed to detect the
@@ -608,8 +612,8 @@ export function loadEnvironment(
       for (const key in parsedEnv) {
         if (Object.hasOwn(parsedEnv, key)) {
           let value = parsedEnv[key];
-          // If the workspace is untrusted but we are sandboxed, only allow whitelisted variables.
-          if (!isTrusted && isSandboxed) {
+          // If the workspace is untrusted, only allow whitelisted variables.
+          if (!isTrusted) {
             if (!AUTH_ENV_VAR_WHITELIST.includes(key)) {
               continue;
             }

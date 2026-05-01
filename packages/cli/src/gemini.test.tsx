@@ -280,6 +280,7 @@ describe('gemini.tsx main function', () => {
     vi.stubEnv('GEMINI_SANDBOX', '');
     vi.stubEnv('SANDBOX', '');
     vi.stubEnv('SHPOOL_SESSION_NAME', '');
+    vi.stubEnv('GEMINI_CLI_TRUST_WORKSPACE', 'true');
 
     initialUnhandledRejectionListeners =
       process.listeners('unhandledRejection');
@@ -569,6 +570,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       exposeMcp: undefined, // AUDITARIA_EXPOSE_MCP
       mcpPort: undefined, // AUDITARIA_EXPOSE_MCP
       resumeClaude: undefined, // AUDITARIA_REWIND
+      skipTrust: undefined,
     });
 
     await act(async () => {
@@ -641,6 +643,7 @@ describe('gemini.tsx main function kitty protocol', () => {
       appendSystemPrompt: undefined,
       appendSystemPromptFile: undefined,
       resumeClaude: undefined, // AUDITARIA_REWIND
+      skipTrust: undefined,
     });
 
     await act(async () => {
