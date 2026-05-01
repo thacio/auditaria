@@ -72,6 +72,7 @@ import { discordCommand } from '../ui/commands/discordCommand.js'; // AUDITARIA_
 import { teamsCommand } from '../ui/commands/teamsCommand.js'; // AUDITARIA_TEAMS_FEATURE
 import { upgradeCommand } from '../ui/commands/upgradeCommand.js';
 import { gemmaStatusCommand } from '../ui/commands/gemmaStatusCommand.js';
+import { voiceCommand } from '../ui/commands/voiceCommand.js';
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -247,6 +248,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       telegramCommand, // AUDITARIA_TELEGRAM_FEATURE
       discordCommand, // AUDITARIA_DISCORD_FEATURE
       teamsCommand, // AUDITARIA_TEAMS_FEATURE
+      ...(this.config?.isVoiceModeEnabled() ? [voiceCommand] : []),
       ...(this.config?.getContentGeneratorConfig()?.authType ===
       AuthType.LOGIN_WITH_GOOGLE
         ? [upgradeCommand]
