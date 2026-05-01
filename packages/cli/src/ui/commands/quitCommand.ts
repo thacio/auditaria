@@ -14,12 +14,15 @@ export const quitCommand: SlashCommand = {
   description: 'Exit the cli',
   kind: CommandKind.BUILT_IN,
   autoExecute: true,
-  action: (context) => {
+  action: (context, args) => {
     const now = Date.now();
     const { sessionStartTime } = context.session.stats;
     const wallDuration = now - sessionStartTime.getTime();
 
-    const messages: HistoryItem[] = [ // AUDITARIA
+    const deleteSession = args.trim() === '--delete';
+
+    const messages: HistoryItem[] = [
+      // AUDITARIA
       {
         type: 'user',
         text: `/quit`, // Keep it consistent, even if /exit was used
@@ -47,6 +50,6 @@ export const quitCommand: SlashCommand = {
     }
     // AUDITARIA_REWIND_END
 
-    return { type: 'quit', messages };
+    return { type: 'quit', deleteSession, messages };
   },
 };
