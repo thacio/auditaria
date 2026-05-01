@@ -243,6 +243,8 @@ export interface OutputSettings {
 
 export interface GemmaModelRouterSettings {
   enabled?: boolean;
+  autoStartServer?: boolean;
+  binaryPath?: string;
   classifier?: {
     host?: string;
     model?: string;
@@ -1386,6 +1388,8 @@ export class Config implements McpContext, AgentLoopContext {
     };
     this.gemmaModelRouter = {
       enabled: params.gemmaModelRouter?.enabled ?? false,
+      autoStartServer: params.gemmaModelRouter?.autoStartServer ?? true,
+      binaryPath: params.gemmaModelRouter?.binaryPath ?? '',
       classifier: {
         host:
           params.gemmaModelRouter?.classifier?.host ?? 'http://localhost:9379',

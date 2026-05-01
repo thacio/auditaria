@@ -71,6 +71,7 @@ import { telegramCommand } from '../ui/commands/telegramCommand.js'; // AUDITARI
 import { discordCommand } from '../ui/commands/discordCommand.js'; // AUDITARIA_DISCORD_FEATURE
 import { teamsCommand } from '../ui/commands/teamsCommand.js'; // AUDITARIA_TEAMS_FEATURE
 import { upgradeCommand } from '../ui/commands/upgradeCommand.js';
+import { gemmaStatusCommand } from '../ui/commands/gemmaStatusCommand.js';
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -236,6 +237,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
           : [skillsCommand]
         : []),
       settingsCommand,
+      gemmaStatusCommand,
       tasksCommand,
       vimCommand,
       setupGithubCommand,

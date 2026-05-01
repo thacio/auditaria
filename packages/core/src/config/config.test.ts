@@ -1976,6 +1976,8 @@ describe('GemmaModelRouterSettings', () => {
     const config = new Config(baseParams);
     const settings = config.getGemmaModelRouterSettings();
     expect(settings.enabled).toBe(false);
+    expect(settings.autoStartServer).toBe(true);
+    expect(settings.binaryPath).toBe('');
     expect(settings.classifier?.host).toBe('http://localhost:9379');
     expect(settings.classifier?.model).toBe('gemma3-1b-gpu-custom');
   });
@@ -1985,6 +1987,8 @@ describe('GemmaModelRouterSettings', () => {
       ...baseParams,
       gemmaModelRouter: {
         enabled: true,
+        autoStartServer: false,
+        binaryPath: '/custom/lit',
         classifier: {
           host: 'http://custom:1234',
           model: 'custom-gemma',
@@ -1994,6 +1998,8 @@ describe('GemmaModelRouterSettings', () => {
     const config = new Config(params);
     const settings = config.getGemmaModelRouterSettings();
     expect(settings.enabled).toBe(true);
+    expect(settings.autoStartServer).toBe(false);
+    expect(settings.binaryPath).toBe('/custom/lit');
     expect(settings.classifier?.host).toBe('http://custom:1234');
     expect(settings.classifier?.model).toBe('custom-gemma');
   });
@@ -2008,6 +2014,8 @@ describe('GemmaModelRouterSettings', () => {
     const config = new Config(params);
     const settings = config.getGemmaModelRouterSettings();
     expect(settings.enabled).toBe(true);
+    expect(settings.autoStartServer).toBe(true);
+    expect(settings.binaryPath).toBe('');
     expect(settings.classifier?.host).toBe('http://localhost:9379');
     expect(settings.classifier?.model).toBe('gemma3-1b-gpu-custom');
   });

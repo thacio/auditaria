@@ -342,6 +342,7 @@ describe('parseArguments', () => {
       { cmd: 'skill list', expected: true },
       { cmd: 'hooks migrate', expected: true },
       { cmd: 'hook migrate', expected: true },
+      { cmd: 'gemma status', expected: true },
       { cmd: 'some query', expected: undefined },
       { cmd: 'hello world', expected: undefined },
     ])(
@@ -760,6 +761,12 @@ describe('parseArguments', () => {
       hooksConfig: { enabled: true },
     });
     const argv = await parseArguments(settings);
+    expect(argv.isCommand).toBe(true);
+  });
+
+  it('should set isCommand to true for gemma command', async () => {
+    process.argv = ['node', 'script.js', 'gemma', 'status'];
+    const argv = await parseArguments(createTestMergedSettings());
     expect(argv.isCommand).toBe(true);
   });
 });
@@ -3125,6 +3132,8 @@ describe('loadCliConfig gemmaModelRouter', () => {
       experimental: {
         gemmaModelRouter: {
           enabled: true,
+          autoStartServer: false,
+          binaryPath: '/custom/lit',
           classifier: {
             host: 'http://custom:1234',
             model: 'custom-gemma',
@@ -3135,6 +3144,8 @@ describe('loadCliConfig gemmaModelRouter', () => {
     const config = await loadCliConfig(settings, 'test-session', argv);
     expect(config.getGemmaModelRouterEnabled()).toBe(true);
     const gemmaSettings = config.getGemmaModelRouterSettings();
+    expect(gemmaSettings.autoStartServer).toBe(false);
+    expect(gemmaSettings.binaryPath).toBe('/custom/lit');
     expect(gemmaSettings.classifier?.host).toBe('http://custom:1234');
     expect(gemmaSettings.classifier?.model).toBe('custom-gemma');
   });
@@ -3152,6 +3163,8 @@ describe('loadCliConfig gemmaModelRouter', () => {
     const config = await loadCliConfig(settings, 'test-session', argv);
     expect(config.getGemmaModelRouterEnabled()).toBe(true);
     const gemmaSettings = config.getGemmaModelRouterSettings();
+    expect(gemmaSettings.autoStartServer).toBe(false);
+    expect(gemmaSettings.binaryPath).toBe('');
     expect(gemmaSettings.classifier?.host).toBe('http://localhost:9379');
     expect(gemmaSettings.classifier?.model).toBe('gemma3-1b-gpu-custom');
   });

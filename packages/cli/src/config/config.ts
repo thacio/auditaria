@@ -14,6 +14,7 @@ import { mcpCommand } from '../commands/mcp.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import { skillsCommand } from '../commands/skills.js';
 import { hooksCommand } from '../commands/hooks.js';
+import { gemmaCommand } from '../commands/gemma.js';
 import {
   setGeminiMdFilename as setServerGeminiMdFilename,
   getCurrentGeminiMdFilename,
@@ -211,6 +212,7 @@ export async function parseArguments(
         extensionsCommand,
         skillsCommand,
         hooksCommand,
+        gemmaCommand,
       ];
 
       const subcommands = commandModules.flatMap((mod) => {
@@ -290,6 +292,7 @@ export async function parseArguments(
   yargsInstance.command(extensionsCommand);
   yargsInstance.command(skillsCommand);
   yargsInstance.command(hooksCommand);
+  yargsInstance.command(gemmaCommand);
 
   yargsInstance
     .command('$0 [query..]', 'Launch Gemini CLI', (yargsInstance) =>
