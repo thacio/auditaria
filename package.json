@@ -101,6 +101,7 @@
     "@babel/parser": "^7.28.5",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
+    "read-package-up": "^11.0.0",
     "@octokit/rest": "^22.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/marked": "^5.0.2",
