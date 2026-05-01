@@ -4379,8 +4379,6 @@ export class Config implements McpContext, AgentLoopContext {
   // AUDITARIA_SKILLS_END - Auditaria Custom feature
 
   private onAgentsRefreshed = async () => {
-    await this.agentRegistry.initialize();
-
     // Propagate updates to the active chat session
     const client = this.geminiClient;
     if (client?.isInitialized()) {
