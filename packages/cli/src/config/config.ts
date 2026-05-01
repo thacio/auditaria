@@ -38,6 +38,7 @@ import {
   getAdminErrorMessage,
   isHeadlessMode,
   Config,
+  SimpleExtensionLoader,
   resolveToRealPath,
   applyAdminAllowlist,
   applyRequiredServers,
@@ -748,6 +749,7 @@ export interface LoadCliConfigOptions {
     disabled?: string[];
   };
   worktreeSettings?: WorktreeSettings;
+  skipExtensions?: boolean;
 }
 
 export async function loadCliConfig(
@@ -756,7 +758,7 @@ export async function loadCliConfig(
   argv: CliArgs,
   options: LoadCliConfigOptions = {},
 ): Promise<Config> {
-  const { cwd = process.cwd(), projectHooks } = options;
+  const { cwd = process.cwd(), projectHooks, skipExtensions = false } = options;
   const debugMode = isDebugMode(argv);
 
   const worktreeSettings =
@@ -831,21 +833,24 @@ export async function loadCliConfig(
     includeDirectories.push(...ideFolders);
   }
 
-  const extensionManager = new ExtensionManager({
-    settings,
-    requestConsent: requestConsentNonInteractive,
-    requestSetting: promptForSetting,
-    workspaceDir: cwd,
-    enabledExtensionOverrides: argv.extensions,
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-    eventEmitter: coreEvents as EventEmitter<ExtensionEvents>,
-    clientVersion: await getVersion(),
-  });
-  await extensionManager.loadExtensions();
+  let extensionManager: ExtensionManager | undefined;
+  if (!skipExtensions) {
+    extensionManager = new ExtensionManager({
+      settings,
+      requestConsent: requestConsentNonInteractive,
+      requestSetting: promptForSetting,
+      workspaceDir: cwd,
+      enabledExtensionOverrides: argv.extensions,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      eventEmitter: coreEvents as EventEmitter<ExtensionEvents>,
+      clientVersion: await getVersion(),
+    });
+    await extensionManager.loadExtensions();
+  }
 
   const extensionPlanSettings = extensionManager
-    .getExtensions()
-    .find((ext) => ext.isActive && ext.plan?.directory)?.plan;
+    ?.getExtensions()
+    ?.find((ext) => ext.isActive && ext.plan?.directory)?.plan;
 
   const experimentalJitContext = settings.experimental.jitContext ?? true;
 
@@ -863,6 +868,9 @@ export async function loadCliConfig(
   let fileCount = 0;
   let filePaths: string[] = [];
 
+  const finalExtensionLoader =
+    extensionManager ?? new SimpleExtensionLoader([]);
+
   if (!experimentalJitContext) {
     // Call the (now wrapper) loadHierarchicalGeminiMemory which calls the server's version
     const result = await loadServerHierarchicalMemory(
@@ -871,7 +879,7 @@ export async function loadCliConfig(
         ? includeDirectories
         : [],
       fileService,
-      extensionManager,
+      finalExtensionLoader,
       trustedFolder,
       memoryImportFormat,
       memoryFileFiltering,
@@ -1256,7 +1264,7 @@ export async function loadCliConfig(
     listSessions: argv.listSessions || false,
     deleteSession: argv.deleteSession,
     enabledExtensions: argv.extensions,
-    extensionLoader: extensionManager,
+    extensionLoader: finalExtensionLoader,
     extensionRegistryURI,
     enableExtensionReloading: settings.experimental?.extensionReloading,
     enableAgents: settings.experimental?.enableAgents,
