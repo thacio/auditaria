@@ -53,7 +53,6 @@ import {
   type ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
   type CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
   detectIdeFromEnv,
-  generalistProfile,
 } from '@google/gemini-cli-core';
 import {
   type Settings,
@@ -1110,14 +1109,19 @@ export async function loadCliConfig(
     }
   }
 
-  const useGeneralistProfile =
-    settings.experimental?.generalistProfile ?? false;
-  const useContextManagement =
-    settings.experimental?.contextManagement ?? false;
+  // TODO(joshualitt): Clean this up alongside removal of the legacy config.
+  let profileSelector: string | undefined = undefined;
+  if (settings.experimental?.stressTestProfile) {
+    profileSelector = 'stressTestProfile';
+  } else if (
+    settings.experimental?.generalistProfile ||
+    settings.experimental?.contextManagement
+  ) {
+    profileSelector = 'generalistProfile';
+  }
+
   const contextManagement = {
-    ...(useGeneralistProfile ? generalistProfile : {}),
-    ...(useContextManagement ? settings?.contextManagement : {}),
-    enabled: useContextManagement || useGeneralistProfile,
+    enabled: !!profileSelector,
   };
 
   return new Config({
@@ -1141,6 +1145,7 @@ export async function loadCliConfig(
     worktreeSettings,
 
     coreTools: settings.tools?.core || undefined,
+    experimentalContextManagementConfig: profileSelector,
     allowedTools: allowedTools.length > 0 ? allowedTools : undefined,
     policyEngineConfig,
     policyUpdateConfirmationRequest,
