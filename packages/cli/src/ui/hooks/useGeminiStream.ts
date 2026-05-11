@@ -1986,7 +1986,6 @@ export const useGeminiStream = (
                 abortSignal,
                 prompt_id!,
                 undefined,
-                false,
                 query,
               );
               const processingStatus = await processGeminiStreamEvents(
