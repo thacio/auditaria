@@ -301,6 +301,10 @@ export class GeminiChat {
     return historyTokens + sysTokens + toolsTokens;
   }
 
+  get loopContext(): AgentLoopContext {
+    return this.context;
+  }
+
   async initialize(
     resumedSessionData?: ResumedSessionData,
     kind: 'main' | 'subagent' = 'main',
