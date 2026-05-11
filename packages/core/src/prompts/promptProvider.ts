@@ -146,6 +146,7 @@ export class PromptProvider {
       const options: snippets.SystemPromptOptions = {
         preamble: this.withSection('preamble', () => ({
           interactive: interactiveMode,
+          approvalMode,
         })),
         coreMandates: this.withSection('coreMandates', () => ({
           interactive: interactiveMode,

@@ -41,6 +41,7 @@ import { getLanguageInfo } from '../i18n/index.js';
 // AUDITARIA_FEATURE_END
 import type { HierarchicalMemory } from '../config/memory.js';
 import { DEFAULT_CONTEXT_FILENAME } from '../tools/memoryTool.js';
+import type { ApprovalMode } from '../policy/types.js';
 
 // --- Options Structs ---
 
@@ -61,6 +62,7 @@ export interface SystemPromptOptions {
 
 export interface PreambleOptions {
   interactive: boolean;
+  approvalMode: ApprovalMode;
 }
 
 export interface CoreMandatesOptions {
@@ -212,9 +214,17 @@ const AUDIT_VERIFY_STANDARDS =
 // AUDITARIA_FEATURE: Custom preamble with audit-focused description
 export function renderPreamble(options?: PreambleOptions): string {
   if (!options) return '';
-  return options.interactive
-    ? `You are Auditaria, an interactive CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`
-    : `You are Auditaria, an autonomous CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`;
+
+  let modeStr = 'Default';
+  if (options.approvalMode === 'plan') modeStr = 'Plan';
+  if (options.approvalMode === 'yolo') modeStr = 'YOLO';
+  if (options.approvalMode === 'autoEdit') modeStr = 'Auto-Edit';
+
+  const base = options.interactive
+    ? `You are Auditaria, an interactive CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}.`
+    : `You are Auditaria, an autonomous CLI agent specializing in ${AUDIT_DOMAIN_DESCRIPTION}.`;
+
+  return `${base} You are currently operating in **${modeStr}** mode. Your primary goal is to help users safely and effectively. ${AUDIT_DOMAIN_SUFFIX}`;
 }
 
 // AUDITARIA_FEATURE: Audit standards are ADDED to upstream's core mandates, not replacing them.
