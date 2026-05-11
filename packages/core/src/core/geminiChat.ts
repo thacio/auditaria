@@ -1004,8 +1004,10 @@ export class GeminiChat {
 
     // Map to track synthetic IDs assigned to each call index across chunks
     const callIndexToId = new Map<number, string>();
+    let runningFunctionCallCounter = 0;
 
     for await (const chunk of streamResponse) {
+      const currentChunkStartCounter = runningFunctionCallCounter;
       const candidateWithReason = chunk?.candidates?.find(
         (candidate) => candidate.finishReason,
       );
@@ -1018,19 +1020,21 @@ export class GeminiChat {
         if (this.context.config.isContextManagementEnabled()) {
           for (let i = 0; i < chunk.functionCalls.length; i++) {
             const fnCall = chunk.functionCalls[i];
+            const globalIndex = currentChunkStartCounter + i;
             if (!fnCall.id) {
-              let id = callIndexToId.get(i);
+              let id = callIndexToId.get(globalIndex);
               if (!id) {
                 id = `synth_${this.context.promptId}_${Date.now()}_${this.callCounter++}`;
-                callIndexToId.set(i, id);
+                callIndexToId.set(globalIndex, id);
                 debugLogger.log(
-                  `[GeminiChat] Assigned synthetic ID: ${id} to tool at index ${i}: ${fnCall.name}`,
+                  `[GeminiChat] Assigned synthetic ID: ${id} to tool at index ${globalIndex}: ${fnCall.name}`,
                 );
               }
               fnCall.id = id;
             }
             finalFunctionCallsMap.set(fnCall.id, fnCall);
           }
+          runningFunctionCallCounter += chunk.functionCalls.length;
         } else {
           legacyFunctionCalls.push(...chunk.functionCalls);
         }
@@ -1047,6 +1051,7 @@ export class GeminiChat {
             hasToolCall = true;
           }
 
+          let localFunctionCallCounter = 0;
           modelResponseParts.push(
             ...content.parts
               .filter((part) => !part.thought)
@@ -1054,11 +1059,14 @@ export class GeminiChat {
                 if (!this.context.config.isContextManagementEnabled()) {
                   return part;
                 }
+                let callIndex: number | undefined;
+                if (part.functionCall) {
+                  callIndex =
+                    currentChunkStartCounter + localFunctionCallCounter++;
+                }
                 return {
                   ...part,
-                  callIndex: chunk.functionCalls?.findIndex(
-                    (fc) => fc.name === part.functionCall?.name,
-                  ),
+                  callIndex,
                 };
               }),
           );
