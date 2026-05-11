@@ -19,6 +19,7 @@ import {
 } from '@google/gemini-cli-core';
 import { ConsoleSummaryDisplay } from './ConsoleSummaryDisplay.js';
 import process from 'node:process';
+import os from 'node:os';
 import { MemoryUsageDisplay } from './MemoryUsageDisplay.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
 import { QuotaDisplay } from './QuotaDisplay.js';
@@ -38,6 +39,8 @@ import {
   deriveItemsFromLegacySettings,
 } from '../../config/footerItems.js';
 import { isDevelopment } from '../../utils/installationInfo.js';
+
+const HOSTNAME = os.hostname();
 
 interface CwdIndicatorProps {
   targetDir: string;
@@ -458,6 +461,15 @@ export const Footer: React.FC = () => {
             </Text>
           ),
           8,
+        );
+        break;
+      }
+      case 'hostname': {
+        addCol(
+          id,
+          header,
+          () => <Text color={itemColor}>{HOSTNAME}</Text>,
+          HOSTNAME.length,
         );
         break;
       }
