@@ -370,7 +370,6 @@ export class TelegramService {
           abortController.signal,
           promptId,
           undefined,
-          false,
           turnCount === 1 ? text : undefined,
         );
 

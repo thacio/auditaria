@@ -346,7 +346,6 @@ export class DiscordService {
           abortController.signal,
           promptId,
           undefined,
-          false,
           turnCount === 1 ? text : undefined,
         );
 

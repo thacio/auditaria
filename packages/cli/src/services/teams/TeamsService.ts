@@ -159,7 +159,7 @@ export class TeamsService {
     try {
       // Check if ngrok is already running (port 4040)
       try {
-        // eslint-disable-next-line no-restricted-syntax -- localhost ngrok API, no SSRF risk
+         
         const existing = await fetch('http://127.0.0.1:4040/api/tunnels');
         if (existing.ok) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -254,7 +254,7 @@ export class TeamsService {
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
       try {
-        // eslint-disable-next-line no-restricted-syntax -- localhost ngrok API, no SSRF risk
+         
         const res = await fetch('http://127.0.0.1:4040/api/tunnels');
         if (res.ok) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -682,7 +682,6 @@ export class TeamsService {
           abortController.signal,
           promptId,
           undefined,
-          false,
           turnCount === 1 ? msg.text : undefined,
         );
 
@@ -955,7 +954,7 @@ export class TeamsService {
       debugLogger.debug(
         `Teams: POST to incoming webhook (${text.length} chars)`,
       );
-      // eslint-disable-next-line no-restricted-syntax -- outbound webhook to Teams, not user-controlled URL
+       
       const response = await fetch(this.teamsConfig.webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
