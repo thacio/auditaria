@@ -91,6 +91,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
         ...process.env,
         NODE_TLS_REJECT_UNAUTHORIZED: '0',
         CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: '1', // AUDITARIA_REWIND: Enable file history in -p mode
+        // AUDITARIA_CLAUDE_PROVIDER: Tag sessions so they survive /resume's
+        // entrypoint filter. Claude hides sessions tagged sdk-cli/sdk-ts/sdk-py
+        // from interactive `claude /resume` (filter set PG_ in claude.exe).
+        // Pre-setting any other allowed entrypoint bypasses the auto-set to
+        // 'sdk-cli' (U9$ in claude.exe only flips 'cli' → 'sdk-cli'). Using
+        // 'local-agent' since Auditaria is conceptually a local agent launcher.
+        CLAUDE_CODE_ENTRYPOINT: 'local-agent',
       },
     });
     this.activeProcess = proc;
