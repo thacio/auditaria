@@ -15,6 +15,11 @@ import { ProviderEventType } from './types.js';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import { ToolExecutorServer } from './mcp-bridge/toolExecutorServer.js';
 import { resolveBridgeScriptPath } from './mcp-bridge/toolBridgeService.js'; // AUDITARIA_EXPOSE_MCP
+import {
+  discoverSessions as discoverSessionsImpl,
+  type DiscoverOptions,
+  type SessionPreview,
+} from './session-discovery.js';
 
 // AUDITARIA_AGENT_SESSION: Debug logging gated on AUDITARIA_PROVIDER_DEBUG=1.
 const DEBUG = process.env['AUDITARIA_PROVIDER_DEBUG'] === '1';
@@ -81,6 +86,10 @@ export interface CreateSessionOpts {
   mode?: SessionMode;
   allowSubAgents?: boolean;
   systemContext?: string;
+  // AUDITARIA_AGENT_SESSION: When set, the new local session resumes an existing
+  // native CLI session (Claude --resume, Codex exec resume, Copilot session/load)
+  // instead of starting fresh. Driver must implement setSessionId + canResume.
+  resumeNativeSessionId?: string;
 }
 
 // Tools always excluded from sub-agent MCP bridge
@@ -291,6 +300,22 @@ export class AgentSessionManager {
         throw new Error(`Unknown provider type: ${provider}`);
     }
 
+    // AUDITARIA_AGENT_SESSION: Resume a stored native CLI session if requested.
+    // Must run BEFORE the first sendMessage so the driver emits --resume <id>
+    // (Claude) / `codex exec resume <id>` / ACP session/load (Copilot).
+    if (opts.resumeNativeSessionId) {
+      if (!driver.canResume || !driver.setSessionId) {
+        throw new Error(
+          `Provider "${provider}" does not support resuming a stored session.`,
+        );
+      }
+      driver.setSessionId(opts.resumeNativeSessionId);
+      dbg('resuming native session', {
+        provider,
+        nativeId: opts.resumeNativeSessionId,
+      });
+    }
+
     const session: AgentSession = {
       id: sessionId,
       provider,
@@ -477,6 +502,14 @@ export class AgentSessionManager {
     session.driver.dispose();
     this.sessions.delete(sessionId);
     dbg('killed session', sessionId);
+  }
+
+  // AUDITARIA_AGENT_SESSION: Discover stored CLI sessions on disk.
+  // Delegates to session-discovery.ts; default scope is the manager's cwd.
+  async discoverStoredSessions(
+    opts: DiscoverOptions = {},
+  ): Promise<SessionPreview[]> {
+    return discoverSessionsImpl(this.cwd, opts);
   }
 
   disposeAll(): void {

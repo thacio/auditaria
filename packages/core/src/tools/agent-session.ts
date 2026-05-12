@@ -25,7 +25,15 @@ import {
 // Types
 // -------------------------------------------------------------------
 
-const ACTIONS = ['create', 'send', 'list', 'get', 'kill'] as const;
+const ACTIONS = [
+  'create',
+  'send',
+  'list',
+  'get',
+  'kill',
+  'resume',
+  'discover',
+] as const;
 type Action = (typeof ACTIONS)[number];
 
 // All valid model values the LLM can choose from. 'auto' is included once and
@@ -50,6 +58,13 @@ interface ExternalAgentSessionParams {
   // AUDITARIA_AGENT_SESSION: Pagination for 'get' action output
   output_offset?: number;
   output_limit?: number;
+  // AUDITARIA_AGENT_SESSION: Resume a stored native CLI session.
+  // Required for 'resume' action; optional on 'create' (acts as a resume).
+  native_session_id?: string;
+  // AUDITARIA_AGENT_SESSION: Discover filters
+  query?: string;
+  limit?: number;
+  all_projects?: boolean;
 }
 
 // -------------------------------------------------------------------
@@ -66,11 +81,13 @@ Available providers:
 You can spawn any provider, including the same one you are running on.
 
 Actions:
-- create: Start a new sub-agent session. Returns the session ID.
+- create: Start a new sub-agent session. Returns the session ID. Optionally pass native_session_id to resume an existing stored CLI session inside the new local session.
 - send: Send a message to an existing session. Returns the sub-agent's full response. IMPORTANT: This blocks until the sub-agent finishes, which can take minutes. Prefer running send calls as background tasks so you can continue working. Use "get" to check on a busy session's progress without blocking.
 - list: Quick overview of all active sessions. Shows: id, provider, model, mode, busy status, message count, age, plus truncated role/context and initial prompt for each session. Use this to recall what sessions exist and what they're for.
 - get: Deep inspect a single session. Shows: full custom system context, full initial prompt, and paginated output with line numbers. Works on busy sessions too — shows live streaming output so you can check progress without waiting. Output uses tail mode by default (last 50 lines); use output_offset/output_limit to navigate. Use output_offset=0 to read from the start.
 - kill: Terminate a session and free its resources.
+- resume: Open a stored CLI session by its native session ID. Requires provider + native_session_id. Use discover first to find IDs. Works for Claude, Codex, and Copilot (not auditaria — Gemini sessions are not resumable).
+- discover: List stored CLI sessions on disk for the current cwd, sorted newest-first. Returns native session IDs you can feed to resume. Optional filters: provider, query (substring of title/prompts), limit (default 20), all_projects (default false).
 
 Permission modes (set on create):
 - "work" (default): Full access — sub-agent can read, write, edit files, run commands, and use all available tools. Use when delegating actual work.
@@ -180,6 +197,27 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
             description:
               'For "get" action only. Number of output lines to return. Default: 50.',
           },
+          // AUDITARIA_AGENT_SESSION: Resume / discover params
+          native_session_id: {
+            type: 'string',
+            description:
+              'Native CLI session ID (from "discover") to resume. Required for "resume" action; optional on "create" to immediately resume a stored session in the new local session.',
+          },
+          query: {
+            type: 'string',
+            description:
+              'For "discover" action only. Case-insensitive substring filter applied to session title and prompts.',
+          },
+          limit: {
+            type: 'number',
+            description:
+              'For "discover" action only. Maximum number of sessions returned. Default: 20.',
+          },
+          all_projects: {
+            type: 'boolean',
+            description:
+              'For "discover" action only. When true, scan sessions across all project directories instead of just the current cwd. Default: false.',
+          },
         },
         required: ['action'],
         additionalProperties: false,
@@ -216,6 +254,39 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
 
     if (params.action === 'kill' && !params.session_id) {
       return 'session_id is required for "kill" action';
+    }
+
+    // AUDITARIA_AGENT_SESSION: resume requires provider + native_session_id; auditaria cannot resume
+    if (params.action === 'resume') {
+      if (!params.provider)
+        return 'provider is required for "resume" action. Options: "claude", "codex"';
+      if (!params.native_session_id)
+        return 'native_session_id is required for "resume" action. Use the "discover" action to find one.';
+      if (params.provider === 'auditaria') {
+        return 'provider "auditaria" cannot be resumed — Auditaria/Gemini sub-agent sessions do not support cross-restart resume.';
+      }
+    }
+
+    // AUDITARIA_AGENT_SESSION: discover param sanity
+    if (params.action === 'discover') {
+      if (params.limit !== undefined && params.limit < 1)
+        return 'limit must be >= 1';
+      if (
+        params.provider &&
+        params.provider !== 'claude' &&
+        params.provider !== 'codex'
+      ) {
+        return 'discover only supports provider="claude" or "codex" (or omit to scan both).';
+      }
+    }
+
+    // AUDITARIA_AGENT_SESSION: native_session_id on create requires resumable provider
+    if (
+      params.action === 'create' &&
+      params.native_session_id &&
+      params.provider === 'auditaria'
+    ) {
+      return 'native_session_id is not supported for provider "auditaria" — Gemini sub-agent sessions are not resumable.';
     }
 
     if (params.mode && params.mode !== 'work' && params.mode !== 'consult') {
@@ -300,10 +371,12 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
   }
 
   getDescription(): string {
-    const { action, session_id, provider } = this.params;
+    const { action, session_id, provider, native_session_id } = this.params;
     switch (action) {
       case 'create':
-        return `Create ${provider} sub-agent session`;
+        return native_session_id
+          ? `Create ${provider} sub-agent (resume ${native_session_id})`
+          : `Create ${provider} sub-agent session`;
       case 'send':
         return `Send message to session ${session_id}`;
       case 'list':
@@ -312,6 +385,10 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
         return `Inspect session ${session_id}`;
       case 'kill':
         return `Kill session ${session_id}`;
+      case 'resume':
+        return `Resume stored ${provider} session ${native_session_id}`;
+      case 'discover':
+        return `Discover stored CLI sessions${provider ? ` (${provider})` : ''}`;
       default:
         return `External agent session: ${action}`;
     }
@@ -333,6 +410,10 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
           return this.executeGet(manager);
         case 'kill':
           return this.executeKill(manager);
+        case 'resume':
+          return await this.executeResume(manager);
+        case 'discover':
+          return await this.executeDiscover(manager);
         default:
           return {
             llmContent: `Unknown action: ${this.params.action}`,
@@ -393,10 +474,14 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
       mode: this.params.mode === 'consult' ? 'consult' : 'work',
       allowSubAgents: this.params.allow_sub_agents ?? false,
       systemContext: this.params.system_context,
+      resumeNativeSessionId: this.params.native_session_id,
     });
 
+    const resumed = !!this.params.native_session_id;
     const result = [
-      `Sub-agent session created successfully.`,
+      resumed
+        ? `Sub-agent session created and resumed stored session "${this.params.native_session_id}".`
+        : `Sub-agent session created successfully.`,
       `- Session ID: ${info.id}`,
       `- Provider: ${info.provider}`,
       `- Model: ${info.model || 'auto'}`,
@@ -407,7 +492,116 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
 
     return {
       llmContent: result,
-      returnDisplay: `Created session: ${info.id} (${info.provider})`,
+      returnDisplay: resumed
+        ? `Resumed ${info.provider} session: ${info.id}`
+        : `Created session: ${info.id} (${info.provider})`,
+    };
+  }
+
+  // AUDITARIA_AGENT_SESSION: Resume a stored CLI session.
+  // Thin wrapper around createSession that requires native_session_id.
+  private async executeResume(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): Promise<ToolResult> {
+    const providerMap: Record<string, 'claude-cli' | 'codex-cli'> = {
+      claude: 'claude-cli',
+      codex: 'codex-cli',
+    };
+    const provider = providerMap[this.params.provider!];
+    if (!provider) {
+      return {
+        llmContent: `Cannot resume provider "${this.params.provider}". Options: claude, codex`,
+        returnDisplay: `Cannot resume: ${this.params.provider}`,
+        error: {
+          message: `Cannot resume provider: ${this.params.provider}`,
+          type: ToolErrorType.INVALID_TOOL_PARAMS,
+        },
+      };
+    }
+
+    const model = this.params.model === 'auto' ? undefined : this.params.model;
+    const info = await manager.createSession({
+      provider,
+      sessionId: this.params.session_id,
+      model,
+      mode: this.params.mode === 'consult' ? 'consult' : 'work',
+      allowSubAgents: this.params.allow_sub_agents ?? false,
+      systemContext: this.params.system_context,
+      resumeNativeSessionId: this.params.native_session_id!,
+    });
+
+    const result = [
+      `Resumed stored ${info.provider} session.`,
+      `- Native session: ${this.params.native_session_id}`,
+      `- Local session ID: ${info.id}`,
+      `- Model: ${info.model || 'auto'}`,
+      `- Mode: ${info.mode}`,
+      ``,
+      `Use action "send" with session_id="${info.id}" to continue the conversation.`,
+    ].join('\n');
+
+    return {
+      llmContent: result,
+      returnDisplay: `Resumed ${info.provider} session: ${this.params.native_session_id}`,
+    };
+  }
+
+  // AUDITARIA_AGENT_SESSION: List stored CLI sessions on disk so the LLM can pick one to resume.
+  private async executeDiscover(
+    manager: import('../providers/agent-session-manager.js').AgentSessionManager,
+  ): Promise<ToolResult> {
+    const providerFilter =
+      this.params.provider === 'claude' || this.params.provider === 'codex'
+        ? this.params.provider
+        : undefined;
+    const previews = await manager.discoverStoredSessions({
+      provider: providerFilter,
+      limit: this.params.limit,
+      query: this.params.query,
+      allProjects: this.params.all_projects ?? false,
+    });
+
+    if (previews.length === 0) {
+      const where = this.params.all_projects
+        ? 'across all projects'
+        : 'in this directory';
+      return {
+        llmContent: `No stored CLI sessions found ${where}.`,
+        returnDisplay: 'No stored sessions found',
+      };
+    }
+
+    const lines = previews.map((p, i) => {
+      const ageHours = Math.round((Date.now() - p.modifiedAt) / 3600_000);
+      const ageLabel =
+        ageHours < 24
+          ? `${ageHours}h ago`
+          : `${Math.round(ageHours / 24)}d ago`;
+      const head = `[${i + 1}] ${p.provider} ${p.nativeSessionId}  (${ageLabel}${p.gitBranch ? `, branch=${p.gitBranch}` : ''})`;
+      const titleLine = p.title
+        ? `\n     title: ${truncate(p.title, 120)}`
+        : '';
+      const firstLine =
+        p.firstPrompt && p.firstPrompt !== p.title
+          ? `\n     first: ${truncate(p.firstPrompt, 120)}`
+          : '';
+      const lastLine =
+        p.lastPrompt && p.lastPrompt !== p.firstPrompt
+          ? `\n     last:  ${truncate(p.lastPrompt, 120)}`
+          : '';
+      return head + titleLine + firstLine + lastLine;
+    });
+
+    const result = [
+      `Found ${previews.length} stored session(s):`,
+      ...lines,
+      ``,
+      `Use action "resume" with provider + native_session_id to continue any of these.`,
+    ].join('\n');
+
+    return {
+      llmContent: result,
+      returnDisplay: `Found ${previews.length} stored session(s)`,
     };
   }
 
@@ -571,4 +765,9 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
       returnDisplay: `Killed session: ${this.params.session_id}`,
     };
   }
+}
+
+// AUDITARIA_AGENT_SESSION: One-line preview truncation for discover output.
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) + '…' : text;
 }
