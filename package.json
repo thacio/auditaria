@@ -86,7 +86,8 @@
     "cross-spawn": "^7.0.6"
   },
   "bin": {
-    "auditaria": "bundle/gemini.js"
+    "auditaria": "bundle/gemini.js",
+    "auditaria-mcp-bridge": "bundle/mcp-bridge.js"
   },
   "files": [
     "bundle/",

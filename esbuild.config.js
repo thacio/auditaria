@@ -136,7 +136,7 @@ const cliConfig = {
 const mcpBridgeConfig = {
   ...baseConfig,
   banner: {
-    js: `const require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
+    js: `#!/usr/bin/env node\nconst require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
   },
   entryPoints: ['packages/core/src/providers/mcp-bridge/mcpBridgeServer.ts'],
   outfile: 'bundle/mcp-bridge.js',
