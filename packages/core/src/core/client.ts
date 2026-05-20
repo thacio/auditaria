@@ -1224,6 +1224,30 @@ export class GeminiClient {
     force: boolean = false,
     abortSignal?: AbortSignal,
   ): Promise<ChatCompressionInfo> {
+    // AUDITARIA_CLAUDE_PROVIDER_START: Route to provider-native compaction
+    // when available. Saves a Gemini API call, preserves the provider's
+    // session (no fresh spawn), and uses the provider's own summarizer
+    // (which has the full conversation context already loaded).
+    const providerManager = this.config.getProviderManager();
+    if (
+      providerManager?.isExternalProviderActive() &&
+      providerManager.supportsNativeCompact()
+    ) {
+      const signal = abortSignal ?? new AbortController().signal;
+      const result = await providerManager.compactNative(
+        this.getChat(),
+        signal,
+      );
+      // No onHistoryModified() call here — the provider's session is alive
+      // and on the compacted context. The mirror was updated in-place.
+      return {
+        originalTokenCount: result.originalTokenCount,
+        newTokenCount: result.newTokenCount,
+        compressionStatus: result.status,
+      };
+    }
+    // AUDITARIA_CLAUDE_PROVIDER_END
+
     // If the model is 'auto', we will use a placeholder model to check.
     // Compression occurs before we choose a model, so calling `count_tokens`
     // before the model is chosen would result in an error.

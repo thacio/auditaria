@@ -421,6 +421,102 @@ export class ProviderManager {
     return this.driver?.getSessionId?.();
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER_START: Provider-native compaction
+  //
+  // Reports whether the active provider can compact its own context window
+  // through a native command (e.g. Claude's `/compact`). When true,
+  // GeminiClient.tryCompressChat routes here instead of running Gemini's
+  // summarizer — cheaper (no extra API call), smarter (the provider
+  // summarizes its own context), and keeps the provider's session alive.
+  supportsNativeCompact(): boolean {
+    return this.config.type === 'claude-cli';
+  }
+
+  // Compacts the active provider's context natively and mirrors the resulting
+  // summary into the Auditaria chat history (via `compactMirroredHistory`,
+  // wrapped in `<state_snapshot>` tags). The provider's own session ID is
+  // preserved — next sendMessage continues with --resume on the compacted
+  // context. Returns the same shape compressCommand expects.
+  async compactNative(
+    chat: GeminiChat,
+    abortSignal: AbortSignal,
+  ): Promise<{
+    originalTokenCount: number;
+    newTokenCount: number;
+    status: CompressionStatus;
+  }> {
+    if (!this.supportsNativeCompact()) {
+      return {
+        originalTokenCount: 0,
+        newTokenCount: 0,
+        status: CompressionStatus.NOOP,
+      };
+    }
+    const driver = await this.getOrCreateDriver();
+    // Nothing to compact yet — provider has no live session.
+    if (!driver.getSessionId?.()) {
+      return {
+        originalTokenCount: 0,
+        newTokenCount: 0,
+        status: CompressionStatus.NOOP,
+      };
+    }
+
+    const originalTokenCount = estimateTokenCountSync(
+      chat.getHistory().flatMap((c) => c.parts || []),
+    );
+
+    let summary: string | undefined;
+    let sawCompacted = false;
+    let lastError: string | undefined;
+    try {
+      for await (const event of driver.sendMessage(
+        '/compact',
+        abortSignal,
+        undefined,
+        undefined,
+      )) {
+        if (event.type === ProviderEventType.Compacted) {
+          sawCompacted = true;
+        } else if (event.type === ProviderEventType.CompactionSummary) {
+          summary = event.summary;
+        } else if (event.type === ProviderEventType.Error) {
+          lastError = event.message;
+        }
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+    }
+
+    if (!sawCompacted || !summary) {
+      dbg('compactNative failed', {
+        sawCompacted,
+        hasSummary: !!summary,
+        lastError,
+      });
+      return {
+        originalTokenCount,
+        newTokenCount: originalTokenCount,
+        status: CompressionStatus.COMPRESSION_FAILED_INFLATED_TOKEN_COUNT,
+      };
+    }
+
+    compactMirroredHistory(chat, summary);
+    const newTokenCount = estimateTokenCountSync(
+      chat.getHistory().flatMap((c) => c.parts || []),
+    );
+    dbg('compactNative success', {
+      pre: originalTokenCount,
+      post: newTokenCount,
+    });
+    return {
+      originalTokenCount,
+      newTokenCount,
+      status: CompressionStatus.COMPRESSED,
+    };
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   // AUDITARIA_ATTACHMENTS: Check if the current provider supports image attachments.
   // Codex: via -i temp files. Claude: via --input-format stream-json. Copilot: via ACP inline base64.
   private get driverSupportsImages(): boolean {
