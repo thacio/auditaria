@@ -165,10 +165,23 @@ export class CopilotCLIDriver implements ProviderDriver {
       }
     };
 
+    // AUDITARIA_COPILOT_PROVIDER: Detect /compact so we can synthesize a
+    // Compacted event on success (see resolve handler below).
+    const isCompactCommand = prompt
+      .trimStart()
+      .toLowerCase()
+      .startsWith('/compact');
+    let lastAgentText = '';
+
     // Install notification handler for this turn
     this.notificationHandler = (method: string, params: unknown) => {
       const events = this.handleNotification(method, params);
       for (const event of events) {
+        if (isCompactCommand && event.type === ProviderEventType.Content) {
+          // Accumulate so we can ship the model-generated summary as
+          // CompactionSummary if Copilot writes one.
+          lastAgentText += event.text;
+        }
         pushEvent(event);
       }
     };
@@ -195,6 +208,22 @@ export class CopilotCLIDriver implements ProviderDriver {
       // Wait for the prompt response in the background
       this.pendingRequests.get(promptRequestId)!.resolve = (result: unknown) => {
         dbg('prompt completed', result);
+        // AUDITARIA_COPILOT_PROVIDER: synthesize Compacted (+CompactionSummary if
+        // any agent text was streamed) before Finished so compactNative can
+        // detect success.
+        if (isCompactCommand) {
+          pushEvent({
+            type: ProviderEventType.Compacted,
+            preTokens: 0,
+            trigger: 'manual',
+          });
+          if (lastAgentText.trim().length > 0) {
+            pushEvent({
+              type: ProviderEventType.CompactionSummary,
+              summary: lastAgentText,
+            });
+          }
+        }
         // Yield finished event
         pushEvent({ type: ProviderEventType.Finished });
         pushEvent(null);
@@ -239,7 +268,12 @@ export class CopilotCLIDriver implements ProviderDriver {
   }
 
   getSessionId(): string | undefined {
-    return this.sessionId;
+    // AUDITARIA_COPILOT_PROVIDER: Report either the active session or the
+    // queued resume target. Without this, callers (e.g. compactNative)
+    // can't tell that we're about to operate on a real session between
+    // setSessionId() and the actual session/load. Matches Claude/Codex
+    // semantics where setSessionId immediately influences getSessionId.
+    return this.sessionId ?? this.resumeSessionId;
   }
 
   // AUDITARIA_SESSION_MANAGEMENT_START: Session resume via ACP session/load

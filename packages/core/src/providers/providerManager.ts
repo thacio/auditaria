@@ -429,7 +429,20 @@ export class ProviderManager {
   // summarizer — cheaper (no extra API call), smarter (the provider
   // summarizes its own context), and keeps the provider's session alive.
   supportsNativeCompact(): boolean {
-    return this.config.type === 'claude-cli';
+    // Claude:   PostCompact hook fires; CompactionSummary from transcript.
+    // Codex:    contextCompaction item event in exec --json stream;
+    //           CompactionSummary from the next agent_message text.
+    // Copilot:  ACP doesn't surface compaction in session/update events.
+    //           copilotCLIDriver synthesizes a Compacted (no summary) when
+    //           the /compact prompt completes successfully, plus
+    //           CompactionSummary if any agent text was streamed. The
+    //           mirror falls back to a generic <context_compacted> tag
+    //           when no summary is available.
+    return (
+      this.config.type === 'claude-cli' ||
+      this.config.type === 'codex-cli' ||
+      this.config.type === 'copilot-cli'
+    );
   }
 
   // Compacts the active provider's context natively and mirrors the resulting
@@ -488,9 +501,10 @@ export class ProviderManager {
       lastError = e instanceof Error ? e.message : String(e);
     }
 
-    if (!sawCompacted || !summary) {
-      dbg('compactNative failed', {
-        sawCompacted,
+    if (!sawCompacted) {
+      // The provider did not signal compaction. For Claude/Codex this is a
+      // hard fail. caller will fall back to Gemini-side compression.
+      dbg('compactNative: no Compacted event seen', {
         hasSummary: !!summary,
         lastError,
       });
@@ -501,6 +515,11 @@ export class ProviderManager {
       };
     }
 
+    // Summary is optional — compactMirroredHistory uses a generic
+    // <context_compacted> tag when undefined (Copilot's normal path).
+    if (!summary) {
+      dbg('compactNative: Compacted without summary — using generic tag');
+    }
     compactMirroredHistory(chat, summary);
     const newTokenCount = estimateTokenCountSync(
       chat.getHistory().flatMap((c) => c.parts || []),

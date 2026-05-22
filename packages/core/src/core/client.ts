@@ -1228,6 +1228,11 @@ export class GeminiClient {
     // when available. Saves a Gemini API call, preserves the provider's
     // session (no fresh spawn), and uses the provider's own summarizer
     // (which has the full conversation context already loaded).
+    //
+    // Safety fallback: if native compaction fails (driver didn't detect the
+    // expected Compacted+CompactionSummary signal), drop through to the
+    // Gemini-side path so the user still gets compression. NOOP (no session
+    // yet) returns immediately — nothing to compact.
     const providerManager = this.config.getProviderManager();
     if (
       providerManager?.isExternalProviderActive() &&
@@ -1238,13 +1243,21 @@ export class GeminiClient {
         this.getChat(),
         signal,
       );
-      // No onHistoryModified() call here — the provider's session is alive
-      // and on the compacted context. The mirror was updated in-place.
-      return {
-        originalTokenCount: result.originalTokenCount,
-        newTokenCount: result.newTokenCount,
-        compressionStatus: result.status,
-      };
+      if (
+        result.status === CompressionStatus.COMPRESSED ||
+        result.status === CompressionStatus.NOOP
+      ) {
+        // Provider's session is alive on the compacted context, the mirror
+        // was updated in-place. No onHistoryModified() call.
+        return {
+          originalTokenCount: result.originalTokenCount,
+          newTokenCount: result.newTokenCount,
+          compressionStatus: result.status,
+        };
+      }
+      // Native compaction failed — fall through to Gemini-side path. The
+      // user still gets a working /compress; downside is a fresh provider
+      // spawn on next turn (loses session continuity for this one case).
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
 
