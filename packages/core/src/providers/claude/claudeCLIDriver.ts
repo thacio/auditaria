@@ -187,6 +187,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // so we don't fire keystrokes before Claude's picker has rendered.
   private promptEmittedAt = new Map<string, number>();
   private writeQueue: PtyWriteQueue | null = null;
+  // AUDITARIA_CLAUDE_PROVIDER: Rolling PTY output buffer used by the
+  // PTY-scrape fallback when transcript writing is broken (Claude 2.1.169
+  // regression). Reset at the start of each turn.
+  private recentPtyOutput = '';
 
   constructor(private readonly config: ClaudeDriverConfig) {
     dbg('constructor', {
@@ -353,15 +357,20 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // future web-typist input.
     this.writeQueue = new PtyWriteQueue((bytes) => pty.write(bytes));
 
-    // Output buffer for trust-dialog detection. We don't parse the TUI for
-    // content — that comes from the transcript JSONL.
+    // Output buffer for trust-dialog detection AND assistant-text scraping
+    // (PTY-scrape fallback when the transcript file is empty — see
+    // scrapeAssistantTextFromPTY below). Larger than the trust-dialog scan
+    // needs because assistant responses can be multi-KB and we need to
+    // capture them in their entirety.
     let recentOutput = '';
-    const RECENT_MAX = 16 * 1024;
+    const RECENT_MAX = 128 * 1024;
+    this.recentPtyOutput = '';
     pty.onData((data) => {
       recentOutput += data;
       if (recentOutput.length > RECENT_MAX) {
         recentOutput = recentOutput.slice(recentOutput.length - RECENT_MAX);
       }
+      this.recentPtyOutput = recentOutput;
       if (DEBUG) {
         // Truncated raw output peek (helpful for debugging Ink startup).
         const stripped = stripAnsi(data).replace(/\r?\n/g, '\\n');
@@ -1187,6 +1196,48 @@ export class ClaudeCLIDriver implements ProviderDriver {
     );
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER: PTY-scrape fallback for Claude 2.1.169+
+  // transcript-writing regression.
+  //
+  // Recent Claude versions stopped writing the conversation lines to
+  // `~/.claude/projects/<cwd>/<session>.jsonl` for our spawned PTY
+  // sessions (the file gets created with only the `ai-title` metadata
+  // line, no user/assistant content). Claude IS generating responses
+  // — they're visible in the PTY — they're just not persisted.
+  //
+  // This scraper extracts Claude's last assistant text from the rolling
+  // recentPtyOutput buffer. Heuristic: Claude's TUI prefixes assistant
+  // text with `●` (U+25CF). After the text comes a status line with
+  // spinner glyphs and elapsed-time markers like "(6s · ↓ 181 tokens)".
+  //
+  // Called only when the transcript yielded no Content for the turn.
+  // Returns null when nothing useful can be extracted (model emitted
+  // tool calls only, or the TUI buffer wrapped past the response).
+  private scrapeAssistantTextFromPTY(): string | null {
+    const stripped = stripAnsi(this.recentPtyOutput);
+    // Find the LAST `●` marker — most recent assistant response.
+    const lastIdx = stripped.lastIndexOf('●');
+    if (lastIdx < 0) return null;
+    let chunk = stripped.slice(lastIdx + 1);
+    // Cut at the first status/spinner indicator that follows the text.
+    // Spinner glyphs:   ✻ ✶ ✽ ✢ ✣ ✤ ✥ ✦ ✧ ✩ ✪ ⚫
+    // Elapsed-time:     "(Xs · ..."
+    // Status pill:      "❯ "  (TUI returning focus to input)
+    const endPattern = /[✻✶✽✢✣✤✥✦✧✩✪⚫]|\s\(\d+s\s*[·]|\n\s*❯\s/;
+    const endIdx = chunk.search(endPattern);
+    if (endIdx >= 0) chunk = chunk.slice(0, endIdx);
+    // The TUI wraps long lines at terminal width. Re-join soft-wrapped
+    // lines, but keep paragraph breaks (blank line between).
+    const text = chunk
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l, i, arr) => l.length > 0 || (arr[i - 1] ?? '').length > 0)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text.length > 0 ? text : null;
+  }
+
   private async *yieldEventsFromTranscript(
     transcriptPath: string,
     stopEv: HookEvent,
@@ -1219,6 +1270,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
         yield { type: ProviderEventType.Finished };
         return;
       }
+      // AUDITARIA_CLAUDE_PROVIDER: PTY-scrape fallback for Claude 2.1.169+
+      // transcript-writing regression. See scrapeAssistantTextFromPTY.
+      const scraped = this.scrapeAssistantTextFromPTY();
+      if (scraped) {
+        dbg('PTY-scrape (transcript empty) yielded', scraped.length, 'chars');
+        yield { type: ProviderEventType.Content, text: scraped };
+        yield { type: ProviderEventType.Finished };
+        return;
+      }
       yield {
         type: ProviderEventType.Error,
         message: `Transcript missing or empty at ${transcriptPath}.`,
@@ -1230,6 +1290,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.transcriptLineOffset = text.length;
 
     let modelEmitted = false;
+    let yieldedAnyContent = false;
     let usage:
       | {
           inputTokens?: number;
@@ -1289,6 +1350,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
             ) {
               continue;
             }
+            if (block.type === 'text' && block.text) {
+              yieldedAnyContent = true;
+            }
             yield* this.yieldEventsFromBlock(block);
           }
         }
@@ -1320,6 +1384,21 @@ export class ClaudeCLIDriver implements ProviderDriver {
             }
           }
         }
+      }
+    }
+
+    // AUDITARIA_CLAUDE_PROVIDER: PTY-scrape fallback for the common case
+    // where transcript has metadata (ai-title etc.) but no assistant text
+    // blocks (Claude 2.1.169+ regression).
+    if (!yieldedAnyContent && !wasCompacted) {
+      const scraped = this.scrapeAssistantTextFromPTY();
+      if (scraped) {
+        dbg(
+          'PTY-scrape (no text in transcript) yielded',
+          scraped.length,
+          'chars',
+        );
+        yield { type: ProviderEventType.Content, text: scraped };
       }
     }
 

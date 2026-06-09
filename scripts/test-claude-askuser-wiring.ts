@@ -44,6 +44,7 @@ async function main() {
   const start = Date.now();
   let promptStart: InteractivePromptStartEvent | null = null;
   let promptResolved = false;
+  let textOutput = '';
 
   try {
     for await (const event of driver.sendMessage(PROMPT, controller.signal)) {
@@ -88,6 +89,7 @@ async function main() {
         console.log(`${ts} ToolResult: ${JSON.stringify(out).slice(0, 200)}`);
       } else if (type === ProviderEventType.Content) {
         const text = (event as { text: string }).text;
+        textOutput += text;
         console.log(`${ts} Content: ${JSON.stringify(text.slice(0, 200))}`);
       } else if (type === ProviderEventType.Finished) {
         console.log(`${ts} Finished`);
@@ -122,25 +124,13 @@ async function main() {
     promptStart?.toolName === 'AskUserQuestion',
     'Event was tagged toolName=AskUserQuestion',
   );
-  // NOTE: We intentionally do NOT assert on Claude's text reply
-  // (`PICKED: BLUE`) because Claude Code 2.1.169 has a regression where the
-  // assistant message is NOT written to the session transcript JSONL after
-  // an AskUserQuestion turn. Our driver yields Content from transcript so
-  // an empty transcript means an empty Content stream. This was confirmed
-  // by directly inspecting transcripts (only `ai-title` written, no
-  // user/assistant lines) and by observing the PTY raw output DOES contain
-  // "PICKED: BLUE" — Claude generated it, just didn't persist it.
-  //
-  // What we DO assert: the interactive-prompt surfacing pipeline is intact
-  // — Start fires, the picker accepts our keystroke (Claude received the
-  // right answer), Resolved fires. Once Claude restores transcript writing
-  // (or we add a PTY-scrape fallback) the Content assertion can be turned
-  // on. Track via the Phase-1B follow-up.
-  console.log(
-    '\nNote: textOutput intentionally NOT asserted (Claude 2.1.169 transcript regression).',
-  );
-  console.log(
-    `     PTY confirmed Claude responded; see debug output to verify.`,
+  // Claude 2.1.169+ transcript-writing regression is worked around by the
+  // PTY-scrape fallback in claudeCLIDriver.scrapeAssistantTextFromPTY().
+  // We assert on textOutput as if the transcript worked — the scraper
+  // makes Content events available either way.
+  a(
+    textOutput.toUpperCase().includes(`PICKED: ${EXPECTED_PICK.toUpperCase()}`),
+    `Claude responded with PICKED: ${EXPECTED_PICK.toUpperCase()} (via PTY-scrape fallback)`,
   );
 
   if (pass) {
