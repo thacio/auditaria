@@ -46,10 +46,17 @@ import { tmpdir, homedir } from 'node:os';
 import stripAnsi from 'strip-ansi';
 import { getPty } from '../../utils/getPty.js';
 import { resolveExecutable } from '../../utils/shell-utils.js';
-import type { ProviderDriver, ProviderEvent } from '../types.js';
+import type {
+  ProviderDriver,
+  ProviderEvent,
+  InteractivePromptResponse,
+  InteractivePromptStartEvent,
+  InteractivePromptQuestion,
+} from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type { ClaudeContentBlock, ClaudeDriverConfig } from './types.js';
+import { PtyWriteQueue } from './interactivePromptSupport.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
 // AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
@@ -65,8 +72,12 @@ const STOP_TIMEOUT_MS = 30 * 60_000; // 30 minutes — long-running tool calls.
 const PROMPT_TYPE_DELAY_MS = 150; // Pause between prompt body and the Enter keystroke.
 const SESSION_START_GRACE_MS = 1500; // Wait after SessionStart for Ink to accept keystrokes.
 const HOOK_POLL_INTERVAL_MS = 50;
-const TRANSCRIPT_FLUSH_RETRIES = 40;
-const TRANSCRIPT_FLUSH_INTERVAL_MS = 50;
+// AUDITARIA_CLAUDE_PROVIDER: bumped from 40×50ms (2s) to 100×100ms (10s).
+// The shorter wait was missing assistant content for AskUserQuestion turns
+// where Claude generates text AFTER the picker resolves but the transcript
+// flush lags.
+const TRANSCRIPT_FLUSH_RETRIES = 100;
+const TRANSCRIPT_FLUSH_INTERVAL_MS = 100;
 const TRUST_DIALOG_SCAN_INTERVAL_MS = 200;
 const PTY_COLS = 200;
 const PTY_ROWS = 50;
@@ -166,6 +177,16 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private hookFilePath: string | null = null;
   private currentPromptFilePath: string | null = null; // AUDITARIA_AGENT_SESSION
   private transcriptLineOffset = 0; // bytes already consumed across turns
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt state.
+  // Maps promptId (= Claude's tool_use_id) → questions structure so
+  // respondToPrompt() can map an answer back to the right keystroke.
+  // MVP: single-question AskUserQuestion only. Multi-question support
+  // (Phase 1B) will use the HTTP hook channel for deny+inject.
+  private pendingPrompts = new Map<string, InteractivePromptQuestion[]>();
+  // Timestamps for when each prompt was surfaced — used to gate respondToPrompt
+  // so we don't fire keystrokes before Claude's picker has rendered.
+  private promptEmittedAt = new Map<string, number>();
+  private writeQueue: PtyWriteQueue | null = null;
 
   constructor(private readonly config: ClaudeDriverConfig) {
     dbg('constructor', {
@@ -208,6 +229,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
       }
       this.currentPromptFilePath = null;
     }
+    // AUDITARIA_CLAUDE_PROVIDER: drop any pending interactive prompts (the UI
+    // modal stays open otherwise). Drivers don't have an emit channel from
+    // dispose() so we silently discard; the UI will see the next session
+    // start fresh.
+    this.pendingPrompts.clear();
+    this.writeQueue = null;
   }
 
   async *sendMessage(
@@ -318,6 +345,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
     this.activePty = pty;
     dbg('spawned', { pid: pty.pid });
+
+    // AUDITARIA_CLAUDE_PROVIDER: Serialise all PTY writes through one queue
+    // so prompt body + CR can't be split by an interactive-prompt response
+    // arriving mid-typing. The 'system' priority writes (typePromptIntoPty,
+    // trust-dialog Enter, AskUserQuestion response) take precedence over
+    // future web-typist input.
+    this.writeQueue = new PtyWriteQueue((bytes) => pty.write(bytes));
 
     // Output buffer for trust-dialog detection. We don't parse the TUI for
     // content — that comes from the transcript JSONL.
@@ -545,6 +579,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
     //   PreToolUse         — tool starting; yield ToolUse live to the UI.
     //   PostToolUse        — tool result; yield ToolResult live to the UI.
     //   UserPromptExpansion — slash command intercept; observe which one.
+    //   Notification       — surfaced by Claude for permission_prompt,
+    //                        idle_prompt, auth_success, elicitation_dialog/
+    //                        complete/response. Observability for now;
+    //                        Phase 1 of the interactive-prompt UX will use
+    //                        this as the detection signal.
     return JSON.stringify({
       hooks: {
         SessionStart: [hookEntry('SessionStart')],
@@ -554,6 +593,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
         PreToolUse: [hookEntry('PreToolUse')],
         PostToolUse: [hookEntry('PostToolUse')],
         UserPromptExpansion: [hookEntry('UserPromptExpansion')],
+        Notification: [hookEntry('Notification')],
       },
     });
     // AUDITARIA_CLAUDE_PROVIDER_END
@@ -693,16 +733,157 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // Strategy mirrors smithersai/claude-p: write the body, brief gap, then
     // CR as a separate event. Ink's bracketed-paste / burst-input heuristics
     // can otherwise drop the CR into the input buffer instead of submitting.
-    // Newlines within the prompt are sent verbatim — Claude's TUI applies
-    // bracketed-paste detection for multi-line input on most terminals.
-    pty.write(prompt);
-    setTimeout(() => {
-      try {
-        pty.write('\r');
-      } catch {
-        /* ignore */
-      }
-    }, PROMPT_TYPE_DELAY_MS);
+    //
+    // AUDITARIA_CLAUDE_PROVIDER: All writes through PtyWriteQueue with the
+    // gate up so a web-typist's keystrokes can't slip between body and CR.
+    void this.writeQueue?.withAtomicBlock(async () => {
+      await this.writeQueue?.writeAtomic(prompt, 'system');
+      await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
+      await this.writeQueue?.writeAtomic('\r', 'system');
+    });
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt response entry point.
+  // Called by providerManager.respondToPrompt() once the UI has the answer.
+  // For AskUserQuestion single-question: write the option-index keystroke
+  // ("N\r") to the live PTY picker. For multi-question (Phase-1B), we'll
+  // fall back to the HTTP hook channel and deny+inject; for now just
+  // resolve the pending promise so the surfaced ProviderEvent loop can
+  // continue.
+  async respondToPrompt(
+    promptId: string,
+    response: InteractivePromptResponse,
+  ): Promise<void> {
+    const questions = this.pendingPrompts.get(promptId);
+    if (!questions) {
+      dbg('respondToPrompt: no pending prompt for id', promptId);
+      return;
+    }
+    // NOTE: do NOT delete from pendingPrompts here — PostToolUse handler
+    // uses this map to detect "we surfaced this one" and emits
+    // InteractivePromptResolved on cleanup. Deleting here would suppress
+    // the Resolved event the UI uses to dismiss the modal.
+
+    if (response.kind !== 'answered') {
+      // User cancelled. We can't easily cancel Claude's picker from outside;
+      // best we can do is send Escape and hope. Esc is 0x1b.
+      dbg('respondToPrompt: user cancelled — sending ESC');
+      await this.writeQueue?.writeAtomic('\x1b', 'system');
+      return;
+    }
+
+    // Map the answer for the first (and, in MVP, only) question to a
+    // 1-indexed digit selecting the option from Claude's picker.
+    const firstAnswer = response.answers[0];
+    if (!firstAnswer) {
+      dbg('respondToPrompt: no answers in response');
+      return;
+    }
+    const question =
+      questions.find((q) => q.id === firstAnswer.questionId) ?? questions[0];
+    if (!question) {
+      dbg('respondToPrompt: no matching question');
+      return;
+    }
+    const optionIndex = question.options.findIndex(
+      (o) => o.id === firstAnswer.optionIds[0],
+    );
+    if (optionIndex < 0) {
+      dbg('respondToPrompt: option id not found', firstAnswer.optionIds[0]);
+      return;
+    }
+    // AUDITARIA_CLAUDE_PROVIDER: Wait until the picker is rendered. PreToolUse
+    // fires when Claude DECIDES to call the tool, before the TUI shows the
+    // picker. Number-digit input goes into the prompt input box if the
+    // picker isn't focused yet. Use arrow keys (Down N-1 + Enter) — these
+    // are interpreted as picker navigation regardless of focus race.
+    const PICKER_READY_DELAY_MS = 2500;
+    const emittedAt = this.promptEmittedAt.get(promptId) ?? Date.now();
+    this.promptEmittedAt.delete(promptId);
+    const waitMore = Math.max(
+      0,
+      PICKER_READY_DELAY_MS - (Date.now() - emittedAt),
+    );
+    if (waitMore > 0) {
+      dbg('respondToPrompt: waiting', waitMore, 'ms for picker to render');
+      await new Promise<void>((r) => setTimeout(r, waitMore));
+    }
+    // Down arrow (CSI Down), one at a time with brief pauses. Sending them
+    // in a single burst gets coalesced as a single keypress by Ink's input
+    // handler; spaced writes are interpreted as discrete navigations.
+    // Default picker focus is on the first option (index 0), so optionIndex=2
+    // requires two down presses to land on option 3.
+    const downArrow = '\x1b[B';
+    const ARROW_DELAY_MS = 80;
+    dbg(
+      'respondToPrompt: writing',
+      optionIndex,
+      'down arrow(s) for option index',
+      optionIndex,
+    );
+    for (let i = 0; i < optionIndex; i++) {
+      await this.writeQueue?.writeAtomic(downArrow, 'system');
+      await new Promise<void>((r) => setTimeout(r, ARROW_DELAY_MS));
+    }
+    // Give the picker a beat to settle on the focused option before
+    // submitting.
+    await new Promise<void>((r) => setTimeout(r, 200));
+    await this.writeQueue?.writeAtomic('\r', 'system');
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Translate Claude's AskUserQuestion tool_input
+  // into our structured InteractivePromptStart event. Returns null if the
+  // input doesn't look like an AskUserQuestion payload (defensive).
+  private buildAskUserQuestionPromptEvent(
+    toolUseId: string,
+    toolInput: unknown,
+  ): InteractivePromptStartEvent | null {
+    if (!isPlainObject(toolInput)) return null;
+    const rawQuestions = toolInput['questions'];
+    if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) return null;
+
+    const questions: InteractivePromptQuestion[] = [];
+    for (let i = 0; i < rawQuestions.length; i++) {
+      const q: unknown = rawQuestions[i];
+      if (!isPlainObject(q)) continue;
+      const questionText = pickString(q, 'question') ?? '';
+      const header = pickString(q, 'header');
+      const multiSelect = q['multiSelect'] === true;
+      const rawOptions = q['options'];
+      if (!Array.isArray(rawOptions)) continue;
+      const options = rawOptions.filter(isPlainObject).map((o, idx) => ({
+        id: String(o['label'] ?? `opt-${idx}`),
+        label: String(o['label'] ?? `Option ${idx + 1}`),
+        description: pickString(o, 'description'),
+      }));
+      if (options.length === 0) continue;
+      questions.push({
+        id: header ?? `q-${i}`,
+        question: questionText,
+        header,
+        options,
+        multiSelect,
+      });
+    }
+    if (questions.length === 0) return null;
+
+    this.pendingPrompts.set(toolUseId, questions);
+    this.promptEmittedAt.set(toolUseId, Date.now());
+
+    return {
+      type: ProviderEventType.InteractivePromptStart,
+      promptId: toolUseId,
+      kind: 'ask-user',
+      title:
+        questions.length === 1
+          ? questions[0].header ||
+            questions[0].question ||
+            'Claude is asking a question'
+          : `Claude is asking ${questions.length} questions`,
+      questions,
+      toolName: 'AskUserQuestion',
+      timeoutMs: 60 * 60_000, // 1 hour — user might take a long time
+    };
   }
 
   private async waitForSessionStart(
@@ -778,7 +959,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     const processEvent = (
       ev: HookEvent,
-    ): { yield?: ProviderEvent; done?: TurnResult } | null => {
+    ): { yields?: ProviderEvent[]; done?: TurnResult } | null => {
       switch (ev.event) {
         case 'PreToolUse': {
           const toolName = pickString(ev.payload, 'tool_name');
@@ -789,14 +970,26 @@ export class ClaudeCLIDriver implements ProviderDriver {
           const safeInput: Record<string, unknown> = isPlainObject(toolInput)
             ? toolInput
             : {};
-          return {
-            yield: {
+          const yields: ProviderEvent[] = [
+            {
               type: ProviderEventType.ToolUse,
               toolName,
               toolId: toolUseId,
               input: safeInput,
             },
-          };
+          ];
+          // AUDITARIA_CLAUDE_PROVIDER: AskUserQuestion → surface as a
+          // first-class InteractivePromptStart so Auditaria's UI can show
+          // the picker. The TUI's own picker is still rendering in the
+          // PTY; respondToPrompt() writes the matching keystroke back.
+          if (toolName === 'AskUserQuestion') {
+            const promptEvent = this.buildAskUserQuestionPromptEvent(
+              toolUseId,
+              toolInput,
+            );
+            if (promptEvent) yields.push(promptEvent);
+          }
+          return { yields };
         }
         case 'PostToolUse': {
           const toolUseId = pickString(ev.payload, 'tool_use_id');
@@ -814,19 +1007,51 @@ export class ClaudeCLIDriver implements ProviderDriver {
               output = String(result);
             }
           }
-          return {
-            yield: {
+          const yields: ProviderEvent[] = [
+            {
               type: ProviderEventType.ToolResult,
               toolId: toolUseId,
               output,
               isError: false,
             },
-          };
+          ];
+          // AUDITARIA_CLAUDE_PROVIDER: If this PostToolUse closes an
+          // AskUserQuestion we surfaced, emit InteractivePromptResolved so
+          // the UI dismisses the modal.
+          if (this.pendingPrompts.has(toolUseId)) {
+            this.pendingPrompts.delete(toolUseId);
+            yields.push({
+              type: ProviderEventType.InteractivePromptResolved,
+              promptId: toolUseId,
+              response: {
+                kind: 'answered',
+                // We don't reverse-engineer the answer from the picker
+                // here; the UI already has its own copy from the
+                // respondToPrompt call. This event just signals "done".
+                answers: [],
+              },
+            });
+          }
+          return { yields };
         }
         case 'UserPromptExpansion': {
           dbg('UserPromptExpansion', {
             type: pickString(ev.payload, 'expansion_type'),
             name: pickString(ev.payload, 'command_name'),
+          });
+          return null;
+        }
+        case 'Notification': {
+          // AUDITARIA_CLAUDE_PROVIDER: Observability only for now. Phase 1
+          // of the interactive-prompt UX will lift this into a real
+          // ProviderEvent (InteractivePrompt) and propagate to UI.
+          // notification_type values: permission_prompt, idle_prompt,
+          // auth_success, elicitation_dialog, elicitation_complete,
+          // elicitation_response.
+          dbg('Notification', {
+            type: pickString(ev.payload, 'notification_type'),
+            title: pickString(ev.payload, 'title'),
+            message: pickString(ev.payload, 'message')?.slice(0, 120),
           });
           return null;
         }
@@ -841,7 +1066,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
           // /compact never fires Stop — PostCompact is the terminal signal.
           if (slashCommandName === 'compact') {
             return {
-              yield: compactedEvent,
+              yields: [compactedEvent],
               done: {
                 kind: 'compacted',
                 yieldedToolUseIds,
@@ -854,7 +1079,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
             };
           }
           // Mid-turn auto-compact: surface and keep listening for Stop.
-          return { yield: compactedEvent };
+          return { yields: [compactedEvent] };
         }
         case 'StopFailure': {
           const errorType = pickString(ev.payload, 'error_type') ?? 'unknown';
@@ -893,7 +1118,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       for (const ev of batch.events) {
         const action = processEvent(ev);
         if (!action) continue;
-        if (action.yield) yield action.yield;
+        if (action.yields) for (const y of action.yields) yield y;
         if (action.done) return action.done;
       }
 
@@ -905,7 +1130,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
         for (const ev of final.events) {
           const action = processEvent(ev);
           if (!action) continue;
-          if (action.yield) yield action.yield;
+          if (action.yields) for (const y of action.yields) yield y;
           if (action.done) return action.done;
         }
         return { kind: 'timeout', yieldedToolUseIds };

@@ -69,6 +69,9 @@ export enum GeminiEventType {
   ModelInfo = 'model_info',
   AgentExecutionStopped = 'agent_execution_stopped',
   AgentExecutionBlocked = 'agent_execution_blocked',
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt surfacing.
+  InteractivePromptStart = 'interactive_prompt_start',
+  InteractivePromptResolved = 'interactive_prompt_resolved',
 }
 
 export type ServerGeminiRetryEvent = {
@@ -215,6 +218,19 @@ export type ServerGeminiCitationEvent = {
 };
 
 // The original union type, now composed of the individual types
+// AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt event types.
+// Mirror the provider-side InteractivePromptStartEvent / Resolved shape so
+// the UI can render the modal without importing provider types directly.
+export type ServerGeminiInteractivePromptStartEvent = {
+  type: GeminiEventType.InteractivePromptStart;
+  value: import('../providers/types.js').InteractivePromptStartEvent;
+};
+export type ServerGeminiInteractivePromptResolvedEvent = {
+  type: GeminiEventType.InteractivePromptResolved;
+  value: import('../providers/types.js').InteractivePromptResolvedEvent;
+};
+// AUDITARIA_CLAUDE_PROVIDER_END
+
 export type ServerGeminiStreamEvent =
   | ServerGeminiChatCompressedEvent
   | ServerGeminiCitationEvent
@@ -233,7 +249,10 @@ export type ServerGeminiStreamEvent =
   | ServerGeminiInvalidStreamEvent
   | ServerGeminiModelInfoEvent
   | ServerGeminiAgentExecutionStoppedEvent
-  | ServerGeminiAgentExecutionBlockedEvent;
+  | ServerGeminiAgentExecutionBlockedEvent
+  // AUDITARIA_CLAUDE_PROVIDER
+  | ServerGeminiInteractivePromptStartEvent
+  | ServerGeminiInteractivePromptResolvedEvent;
 
 // A turn manages the agentic loop turn within the server context.
 export class Turn {

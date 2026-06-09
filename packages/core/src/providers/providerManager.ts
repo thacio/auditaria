@@ -421,6 +421,22 @@ export class ProviderManager {
     return this.driver?.getSessionId?.();
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER: Forward a user's interactive-prompt response to
+  // the active driver. The UI calls this after collecting the user's pick
+  // from the modal surfaced by an InteractivePromptStart event.
+  async respondToPrompt(
+    promptId: string,
+    response: import('./types.js').InteractivePromptResponse,
+  ): Promise<void> {
+    if (!this.driver?.respondToPrompt) {
+      dbg(
+        'respondToPrompt: active driver does not support interactive prompts',
+      );
+      return;
+    }
+    await this.driver.respondToPrompt(promptId, response);
+  }
+
   // AUDITARIA_CLAUDE_PROVIDER_START: Provider-native compaction
   //
   // Reports whether the active provider can compact its own context window
@@ -681,6 +697,31 @@ export class ProviderManager {
           dbg('signal aborted, returning');
           return new Turn(chat, promptId);
         }
+
+        // AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt passthrough.
+        // Surface to UI so the modal can render; the user's answer comes
+        // back via providerManager.respondToPrompt() → driver.
+        if (event.type === ProviderEventType.InteractivePromptStart) {
+          dbg(
+            `event #${eventCount} interactive_prompt_start: ${event.kind} ${event.promptId}`,
+          );
+          yield {
+            type: GeminiEventType.InteractivePromptStart,
+            value: event,
+          };
+          continue;
+        }
+        if (event.type === ProviderEventType.InteractivePromptResolved) {
+          dbg(
+            `event #${eventCount} interactive_prompt_resolved: ${event.promptId}`,
+          );
+          yield {
+            type: GeminiEventType.InteractivePromptResolved,
+            value: event,
+          };
+          continue;
+        }
+        // AUDITARIA_CLAUDE_PROVIDER_END
 
         // Emit tool events as native ToolCallRequest/Response so the UI
         // renders them with proper tool call display (status icons, collapsible results)

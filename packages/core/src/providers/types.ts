@@ -14,6 +14,13 @@ export enum ProviderEventType {
   Error = 'error',
   Compacted = 'compacted', // AUDITARIA_CLAUDE_PROVIDER: Claude context compaction boundary
   CompactionSummary = 'compaction_summary', // AUDITARIA_CLAUDE_PROVIDER: Summary captured after compaction
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt surfacing.
+  // Fired when the active provider needs a user decision mid-turn that the
+  // driver cannot resolve on its own (AskUserQuestion, tool permission,
+  // trust dialog, OAuth re-auth, etc). The turn is paused until the UI
+  // calls providerManager.respondToPrompt(promptId, response).
+  InteractivePromptStart = 'interactive_prompt_start',
+  InteractivePromptResolved = 'interactive_prompt_resolved',
 }
 
 export interface ProviderContentEvent {
@@ -78,6 +85,71 @@ export interface ProviderCompactionSummaryEvent {
   summary: string;
 }
 
+// AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt surfacing
+//
+// Distinguishes what kind of interactive moment we're surfacing so the UI
+// can render the right affordances (number list for ask-user, accept/deny
+// for permissions, trust toggle for folders, abort-only for auth).
+export type InteractivePromptKind =
+  | 'ask-user' // Claude's AskUserQuestion tool
+  | 'permission' // PreToolUse permission gate
+  | 'trust' // Workspace trust dialog (--require-trust-confirmation only)
+  | 'auth' // OAuth re-auth needed mid-session
+  | 'plan-approval' // Plan-mode banner detected via PTY scrape
+  | 'slash-blocked'; // Bare interactive slash command — informational reject
+
+export interface InteractivePromptOption {
+  id: string;
+  label: string;
+  description?: string;
+  isDefault?: boolean;
+  isDestructive?: boolean;
+}
+
+// A single question. AskUserQuestion can have an array of these in one tool
+// call; permission/trust/auth/plan-approval prompts always carry exactly
+// one question (still wrapped in the array for uniformity).
+export interface InteractivePromptQuestion {
+  id: string; // stable identifier (uses Claude's question header or a generated UUID)
+  question: string;
+  header?: string;
+  options: InteractivePromptOption[];
+  multiSelect?: boolean;
+}
+
+export interface InteractivePromptStartEvent {
+  type: ProviderEventType.InteractivePromptStart;
+  promptId: string; // correlation key — usually Claude's tool_use_id
+  kind: InteractivePromptKind;
+  title: string; // short headline for the UI
+  detail?: string; // optional longer body (e.g. tool input preview, cwd)
+  questions: InteractivePromptQuestion[];
+  cwd?: string; // for 'trust'
+  toolName?: string; // for 'permission'
+  timeoutMs?: number; // server-enforced; default 60_000
+}
+
+export interface InteractivePromptAnswer {
+  questionId: string; // matches InteractivePromptQuestion.id
+  optionIds: string[]; // one element for single-select; >=1 for multiSelect
+  customText?: string; // when the user picked "Other" / free-form
+}
+
+export type InteractivePromptResponse =
+  | {
+      kind: 'answered';
+      answers: InteractivePromptAnswer[];
+      rememberForSession?: boolean; // permission: "approve for this session"
+    }
+  | { kind: 'cancelled'; reason: 'timeout' | 'disconnect' | 'user-cancel' };
+
+export interface InteractivePromptResolvedEvent {
+  type: ProviderEventType.InteractivePromptResolved;
+  promptId: string;
+  response: InteractivePromptResponse;
+}
+// AUDITARIA_CLAUDE_PROVIDER_END
+
 export type ProviderEvent =
   | ProviderContentEvent
   | ProviderThinkingEvent
@@ -87,7 +159,10 @@ export type ProviderEvent =
   | ProviderFinishedEvent
   | ProviderErrorEvent
   | ProviderCompactedEvent
-  | ProviderCompactionSummaryEvent;
+  | ProviderCompactionSummaryEvent
+  // AUDITARIA_CLAUDE_PROVIDER
+  | InteractivePromptStartEvent
+  | InteractivePromptResolvedEvent;
 
 // AUDITARIA_ATTACHMENTS: Image attachment for providers that support images.
 // Codex uses filePath (temp file + -i flag), Copilot uses data (inline base64 via ACP).
@@ -115,6 +190,21 @@ export interface ProviderDriver {
   /** Whether this driver supports cross-restart resume */
   readonly canResume: boolean;
   // AUDITARIA_SESSION_MANAGEMENT_END
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Phase-1 interactive-prompt response
+  /**
+   * Called by providerManager.respondToPrompt() when the UI collected the
+   * user's answer to an InteractivePromptStart. Drivers without
+   * interactive-prompt support can omit this. The driver is responsible
+   * for unblocking whatever in-flight machinery was awaiting the answer
+   * (HTTP hook response, PTY keystroke, etc) and emitting the
+   * corresponding InteractivePromptResolved event.
+   */
+  respondToPrompt?(
+    promptId: string,
+    response: InteractivePromptResponse,
+  ): Promise<void>;
+  // AUDITARIA_CLAUDE_PROVIDER_END
 }
 
 // AUDITARIA_CODEX_PROVIDER: Supported Codex reasoning effort values for model thinking intensity.

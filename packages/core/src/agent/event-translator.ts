@@ -277,6 +277,11 @@ export function translateEvent(
     case GeminiEventType.ChatCompressed:
     case GeminiEventType.Retry:
       break;
+    // AUDITARIA_CLAUDE_PROVIDER: Interactive prompts only flow to UI layer
+    // (not external agent transcripts).
+    case GeminiEventType.InteractivePromptStart:
+    case GeminiEventType.InteractivePromptResolved:
+      break;
 
     default:
       ((x: never) => {

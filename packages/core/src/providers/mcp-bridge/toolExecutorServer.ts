@@ -32,13 +32,42 @@ export interface ToolDisplayInfo {
   isOutputMarkdown: boolean;
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Hook-decision contract returned by registered drivers.
+export interface HookDecision {
+  decision: 'allow' | 'deny' | 'defer';
+  /** Shown to Claude on deny (stderr) or via additionalContext on allow. */
+  reason?: string;
+  /** Inlined into Claude's prompt context on allow. Used by AskUserQuestion-via-hook. */
+  additionalContext?: string;
+  /** Optional raw stdout payload to forward (advanced — bypasses standard envelope). */
+  stdout?: string;
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: A registered driver handles incoming hook events
+// from its own spawned claude process. The bridge routes by driverUuid.
+export type HookEventHandler = (
+  eventName: string,
+  payload: Record<string, unknown>,
+) => Promise<HookDecision>;
+
 export class ToolExecutorServer {
   private server: Server | null = null;
   private port: number | null = null;
   private toolOutputHandler?: ToolOutputCallback; // AUDITARIA: Live tool output routing
   private lastReturnDisplays = new Map<string, string>(); // AUDITARIA: Store returnDisplay per tool
+  // AUDITARIA_CLAUDE_PROVIDER: registered drivers awaiting hook callbacks
+  private hookDrivers = new Map<string, HookEventHandler>();
 
   constructor(private readonly registry: ToolRegistry) {}
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Driver registration for /hook routing
+  registerHookDriver(driverUuid: string, handler: HookEventHandler): void {
+    this.hookDrivers.set(driverUuid, handler);
+  }
+  unregisterHookDriver(driverUuid: string): void {
+    this.hookDrivers.delete(driverUuid);
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA: Set callback for live tool output updates (browser agent steps, etc.)
   setToolOutputHandler(handler: ToolOutputCallback | undefined): void {
@@ -179,11 +208,63 @@ export class ToolExecutorServer {
       this.handleListTools(res);
     } else if (req.method === 'POST' && req.url === '/execute') {
       this.handleExecuteTool(req, res);
+    } else if (req.method === 'POST' && req.url === '/hook') {
+      // AUDITARIA_CLAUDE_PROVIDER: route hook events to registered driver
+      void this.handleHook(req, res);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
     }
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: /hook endpoint
+  //
+  // The hook relay (spawned by the claude subprocess) POSTs:
+  //   { driverUuid, eventName, payload }
+  // We look up the registered handler by driverUuid and BLOCK on its
+  // returned promise so the relay (and therefore Claude) waits for the
+  // user's response. The reply body is { decision, reason?, additionalContext?, stdout? }
+  // which the relay translates to Claude's hook output contract.
+  private async handleHook(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): Promise<void> {
+    try {
+      const body = await this.readBody(req);
+      const parsed = JSON.parse(body) as {
+        driverUuid?: string;
+        eventName?: string;
+        payload?: Record<string, unknown>;
+      };
+      const driverUuid = parsed.driverUuid;
+      const eventName = parsed.eventName;
+      if (!driverUuid || !eventName) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ decision: 'defer' }));
+        return;
+      }
+      const handler = this.hookDrivers.get(driverUuid);
+      if (!handler) {
+        // Driver disposed or never registered — defer so claude proceeds.
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ decision: 'defer' }));
+        return;
+      }
+      const decision = await handler(eventName, parsed.payload ?? {});
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(decision));
+    } catch (e: unknown) {
+      // On any error, defer so claude doesn't hang.
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          decision: 'defer',
+          reason: e instanceof Error ? e.message : String(e),
+        }),
+      );
+    }
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   private handleListTools(res: ServerResponse): void {
     const tools = this.getBridgeableTools();

@@ -1854,6 +1854,13 @@ export const useGeminiStream = (
           case ServerGeminiEventType.InvalidStream:
             // Will add the missing logic later
             break;
+          // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt events.
+          // Dispatched into the InteractivePromptContext (added in task #26).
+          // No-op until the context wiring lands; the modal will render
+          // automatically once the context exists.
+          case ServerGeminiEventType.InteractivePromptStart:
+          case ServerGeminiEventType.InteractivePromptResolved:
+            break;
           default: {
             // enforces exhaustive switch-case
             const unreachable: never = event;
