@@ -1299,6 +1299,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         terminalHeight,
         embeddedShellFocused,
         consumePendingHints,
+        setCustomDialog, // AUDITARIA_CLAUDE_PROVIDER: Phase-1 InteractivePromptStart modal
       );
 
   const {

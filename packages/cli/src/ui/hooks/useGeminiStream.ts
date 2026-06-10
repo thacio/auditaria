@@ -115,6 +115,7 @@ interface AttachmentMeta {
   displaySize?: string;
 }
 import { useWebInterface } from '../contexts/WebInterfaceContext.js'; // WEB_INTERFACE AUDITARIA
+import { useClaudeInteractivePromptDialog } from './useClaudeInteractivePromptDialog.jsx'; // AUDITARIA_CLAUDE_PROVIDER
 
 type ToolResponseWithParts = ToolCallResponseInfo & {
   llmContent?: PartListUnion;
@@ -250,6 +251,10 @@ export const useGeminiStream = (
   terminalHeight: number,
   isShellFocused?: boolean,
   consumeUserHint?: () => string | null,
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 InteractivePromptStart bridge.
+  // Optional so existing tests (which pass none) keep compiling. When
+  // omitted, the modal cannot be mounted and the events are no-ops.
+  setCustomDialog?: (node: React.ReactNode | null) => void,
 ) => {
   const [initError, setInitError] = useState<string | null>(null);
   const [retryStatus, setRetryStatus] = useState<RetryAttemptPayload | null>(
@@ -286,6 +291,20 @@ export const useGeminiStream = (
   const logger = useLogger(config);
 
   const webInterface = useWebInterface(); // AUDITARIA_WEB_INTERFACE
+
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt modal bridge.
+  // Returns no-op handlers when setCustomDialog wasn't provided (tests).
+  // Held in a ref so the consumer in `processGeminiStreamEvents` doesn't
+  // need to list it as a useCallback dep (the handlers themselves are
+  // stable via internal useCallbacks).
+  const interactivePrompt = useClaudeInteractivePromptDialog({
+    config,
+    setCustomDialog: setCustomDialog ?? (() => {}),
+    addItem,
+    availableTerminalWidth: terminalWidth,
+  });
+  const interactivePromptRef = useRef(interactivePrompt);
+  interactivePromptRef.current = interactivePrompt;
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Track whether tool output handler is wired to providerManager
   const toolOutputHandlerWiredRef = useRef(false);
@@ -1855,11 +1874,13 @@ export const useGeminiStream = (
             // Will add the missing logic later
             break;
           // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt events.
-          // Dispatched into the InteractivePromptContext (added in task #26).
-          // No-op until the context wiring lands; the modal will render
-          // automatically once the context exists.
+          // InteractivePromptStart → mount AskUserDialog via setCustomDialog.
+          // InteractivePromptResolved → clear the dialog (PostToolUse arrived).
           case ServerGeminiEventType.InteractivePromptStart:
+            interactivePromptRef.current.handleStart(event.value);
+            break;
           case ServerGeminiEventType.InteractivePromptResolved:
+            interactivePromptRef.current.handleResolved();
             break;
           default: {
             // enforces exhaustive switch-case

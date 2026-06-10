@@ -313,6 +313,14 @@ export type {
   ProviderDriver,
   ProviderEvent,
   ExternalMCPServerConfig,
+  // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt event shapes for UI
+  InteractivePromptKind,
+  InteractivePromptOption,
+  InteractivePromptQuestion,
+  InteractivePromptStartEvent,
+  InteractivePromptResolvedEvent,
+  InteractivePromptAnswer,
+  InteractivePromptResponse,
 } from './providers/types.js';
 export { ProviderEventType } from './providers/types.js'; // AUDITARIA_SESSION_MANAGEMENT
 export {
