@@ -5,24 +5,26 @@
  *
  * AUDITARIA_CLAUDE_PROVIDER: Live xterm.js mirror of the Claude PTY.
  *
- * Three display modes the user can flip between at any time, independent
- * of whether a Claude PTY is currently alive:
+ * Three display modes, user-driven via the bottom-right ">_" button and
+ * the in-header buttons. None of the modes block the chat behind them.
  *
- *   - hidden  : nothing on screen. The data stream still arrives and
- *               feeds xterm.js if the terminal was ever opened (so the
- *               buffer stays current even while hidden), and the toggle
- *               button shows a small "active" pulse when a PTY is alive.
- *   - modal   : full-screen centred panel with a dark backdrop.
- *   - pip     : small floating window, no backdrop, draggable by the
- *               header. Pin it anywhere on screen and keep working in
- *               the chat behind it.
+ *   - hidden  : nothing on screen. Data still streams into xterm.js in
+ *               the background so reopening doesn't reset the buffer.
+ *               The toggle button has a small green pulse when a PTY
+ *               is alive so the user knows there's something to look at.
+ *   - modal   : 70vw × 70vh centered panel with a click-through dim
+ *               backdrop. The chat input below stays visible/usable
+ *               (backdrop is `pointer-events: none`).
+ *   - pip     : ~560×320 floating window, no backdrop, draggable by
+ *               the header. Pin it anywhere and keep working in the
+ *               chat behind it.
  *
- * A bottom-right floating button lets the user cycle hidden → modal,
- * and inside the panel itself live buttons for "PiP" (shrink/float) and
- * "Expand" (restore from PiP) and "Close" (hide).
+ * Both the backdrop and the panel are direct children of body so there's
+ * no wrapping element with awkward `pointer-events: none` propagation —
+ * xterm.js's internal scroll, mouse-wheel, and selection all work
+ * naturally inside the panel.
  *
- * Theme: explicit dark palette. Does NOT follow the app theme — a TUI
- * built for a dark terminal renders unreadably on a light surface.
+ * Theme: explicit dark palette. Does NOT follow the app theme.
  */
 
 import { Terminal } from 'xterm';
@@ -32,15 +34,12 @@ import { Unicode11Addon } from 'xterm-unicode11';
 const MIRROR_BG = '#1e1e1e';
 const MIRROR_FG = '#d4d4d4';
 
-// PiP window geometry. Modest defaults; future work could let the user
-// resize the corners.
 const PIP_WIDTH = 560;
 const PIP_HEIGHT = 320;
 const PIP_DEFAULT_X = 24;
 const PIP_DEFAULT_Y = 24;
 
 function encodeBytes(str) {
-  // Use the page's btoa via TextEncoder so multi-byte chars survive intact.
   return btoa(unescape(encodeURIComponent(str)));
 }
 
@@ -48,12 +47,42 @@ function decodeBytes(b64) {
   return decodeURIComponent(escape(atob(b64)));
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Ensure xterm's viewport shows a visible
+// scrollbar rather than relying on OS overlay scrollbars (which are
+// invisible until you scroll). Injected once on first viewer construction.
+let scrollbarStyleInjected = false;
+function injectXtermScrollbarStyle() {
+  if (scrollbarStyleInjected) return;
+  scrollbarStyleInjected = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    .claude-pty-panel .xterm-viewport {
+      scrollbar-width: thin;
+      scrollbar-color: #555 #1e1e1e;
+    }
+    .claude-pty-panel .xterm-viewport::-webkit-scrollbar {
+      width: 10px;
+    }
+    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 5px;
+    }
+    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-thumb:hover {
+      background: #777;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 export class ClaudePtyViewer {
   constructor(wsManager) {
     this.wsManager = wsManager;
     this.toggleButton = null;
-    this.modal = null;
-    this.panel = null; // inner panel — the thing we resize/drag
+    this.backdrop = null;
+    this.panel = null;
     this.containerElement = null;
     this.header = null;
     this.pipBtn = null;
@@ -69,13 +98,15 @@ export class ClaudePtyViewer {
     this.dragging = false;
     this.dragOffset = { x: 0, y: 0 };
 
+    injectXtermScrollbarStyle();
     this.initializeToggleButton();
-    this.initializeModal();
+    this.initializeBackdrop();
+    this.initializePanel();
     this.bindWsEvents();
     this.bindDocumentDragHandlers();
   }
 
-  // ─── Toggle button ────────────────────────────────────────────────────
+  // ─── Toggle button (bottom-right, always visible) ────────────────────
 
   initializeToggleButton() {
     const btn = document.createElement('button');
@@ -95,7 +126,7 @@ export class ClaudePtyViewer {
       font-family: Menlo, Consolas, monospace;
       font-weight: bold;
       font-size: 16px;
-      z-index: 9998;
+      z-index: 10001;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -113,7 +144,6 @@ export class ClaudePtyViewer {
     });
     btn.addEventListener('click', () => this.toggle());
 
-    // Small "pulsing dot" indicator that lights up when a Claude PTY is alive.
     const dot = document.createElement('span');
     dot.className = 'claude-pty-active-dot';
     dot.style.cssText = `
@@ -134,33 +164,38 @@ export class ClaudePtyViewer {
     this.toggleButton = btn;
   }
 
-  // ─── Modal/panel structure ────────────────────────────────────────────
+  // ─── Click-through dim backdrop ──────────────────────────────────────
 
-  initializeModal() {
-    // The outer modal is the backdrop. We hide it in PiP mode.
-    this.modal = document.createElement('div');
-    this.modal.className = 'claude-pty-modal';
-    this.modal.style.cssText = `
+  initializeBackdrop() {
+    this.backdrop = document.createElement('div');
+    this.backdrop.className = 'claude-pty-backdrop';
+    // pointer-events: none so the chat input behind it stays usable in
+    // modal mode. The user closes the panel via the explicit Close button.
+    this.backdrop.style.cssText = `
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.65);
-      z-index: 10000;
+      background: rgba(0,0,0,0.45);
+      z-index: 9999;
       display: none;
-      align-items: center;
-      justify-content: center;
+      pointer-events: none;
     `;
+    document.body.appendChild(this.backdrop);
+  }
 
-    // The inner panel — geometry of this is what changes between
-    // modal mode (centered, large) and PiP mode (small, floating).
+  // ─── Panel (fixed-positioned terminal window) ────────────────────────
+
+  initializePanel() {
     this.panel = document.createElement('div');
+    this.panel.className = 'claude-pty-panel';
     this.panel.style.cssText = `
+      position: fixed;
       background: ${MIRROR_BG};
       border-radius: 8px;
       box-shadow: 0 12px 48px rgba(0,0,0,0.6);
-      display: flex;
+      display: none;
       flex-direction: column;
       overflow: hidden;
-      transition: width 0.12s ease, height 0.12s ease;
+      z-index: 10000;
     `;
 
     this.header = document.createElement('div');
@@ -175,7 +210,7 @@ export class ClaudePtyViewer {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
       user-select: none;
-      cursor: default;
+      flex: 0 0 auto;
     `;
     this.header.innerHTML = `
       <span style="font-weight: 600;">Claude Terminal</span>
@@ -215,8 +250,13 @@ export class ClaudePtyViewer {
     `;
 
     this.containerElement = document.createElement('div');
+    this.containerElement.className = 'claude-pty-body';
+    // overflow: hidden is correct here — xterm renders into a child
+    // .xterm-viewport which has its own scroll handling (we styled its
+    // scrollbar above so it's visible).
     this.containerElement.style.cssText = `
       flex: 1 1 auto;
+      min-height: 0;
       background: ${MIRROR_BG};
       padding: 8px;
       overflow: hidden;
@@ -224,8 +264,7 @@ export class ClaudePtyViewer {
 
     this.panel.appendChild(this.header);
     this.panel.appendChild(this.containerElement);
-    this.modal.appendChild(this.panel);
-    document.body.appendChild(this.modal);
+    document.body.appendChild(this.panel);
 
     this.pipBtn = this.header.querySelector('.cpy-pip');
     this.expandBtn = this.header.querySelector('.cpy-expand');
@@ -243,68 +282,48 @@ export class ClaudePtyViewer {
       e.stopPropagation();
       this.hide();
     });
-
-    // Backdrop click closes only in modal mode (not when we've collapsed
-    // the backdrop for PiP).
-    this.modal.addEventListener('click', (e) => {
-      if (this.mode === 'modal' && e.target === this.modal) {
-        this.hide();
-      }
-    });
-
-    // Apply the default layout for modal mode.
-    this.applyModalLayout();
   }
 
-  // ─── Layout switching ─────────────────────────────────────────────────
+  // ─── Layout switching ────────────────────────────────────────────────
 
   applyModalLayout() {
-    this.panel.style.position = 'static';
-    this.panel.style.left = '';
-    this.panel.style.top = '';
-    this.panel.style.width = 'min(95vw, 1200px)';
-    this.panel.style.height = 'min(85vh, 800px)';
-    this.modal.style.background = 'rgba(0,0,0,0.65)';
-    this.modal.style.pointerEvents = 'auto';
-    this.modal.style.alignItems = 'center';
-    this.modal.style.justifyContent = 'center';
+    this.panel.style.width = '70vw';
+    this.panel.style.height = '70vh';
+    this.panel.style.left = '50%';
+    this.panel.style.top = '50%';
+    this.panel.style.transform = 'translate(-50%, -50%)';
     this.header.style.cursor = 'default';
     this.pipBtn.style.display = '';
     this.expandBtn.style.display = 'none';
+    this.backdrop.style.display = 'block';
     this.refit();
   }
 
   applyPipLayout() {
-    // Tear away from the centred flex layout: anchor the panel absolutely
-    // and zero the backdrop. The OUTER modal still hosts the panel so all
-    // event wiring is unchanged.
-    this.panel.style.position = 'fixed';
-    this.panel.style.left = `${this.pipPosition.x}px`;
-    this.panel.style.top = `${this.pipPosition.y}px`;
     this.panel.style.width = `${PIP_WIDTH}px`;
     this.panel.style.height = `${PIP_HEIGHT}px`;
-    this.modal.style.background = 'transparent';
-    this.modal.style.pointerEvents = 'none';
-    this.panel.style.pointerEvents = 'auto';
+    this.panel.style.left = `${this.pipPosition.x}px`;
+    this.panel.style.top = `${this.pipPosition.y}px`;
+    this.panel.style.transform = 'none';
     this.header.style.cursor = 'move';
     this.pipBtn.style.display = 'none';
     this.expandBtn.style.display = '';
+    this.backdrop.style.display = 'none';
     this.refit();
   }
 
   refit() {
-    // FitAddon needs the container to have a settled size; defer.
     if (!this.term || !this.fitAddon) return;
     requestAnimationFrame(() => {
       try {
         this.fitAddon.fit();
       } catch {
-        /* container not laid out yet */
+        /* container not yet sized */
       }
     });
   }
 
-  // ─── Public mode controls ────────────────────────────────────────────
+  // ─── Mode controls ───────────────────────────────────────────────────
 
   toggle() {
     if (this.mode === 'hidden') {
@@ -317,8 +336,8 @@ export class ClaudePtyViewer {
   show() {
     this.ensureTerminal();
     this.mode = 'modal';
+    this.panel.style.display = 'flex';
     this.applyModalLayout();
-    this.modal.style.display = 'flex';
     requestAnimationFrame(() => {
       this.refit();
       this.term?.focus();
@@ -328,8 +347,8 @@ export class ClaudePtyViewer {
   enterPip() {
     if (this.mode === 'hidden') this.show();
     this.mode = 'pip';
+    this.panel.style.display = 'flex';
     this.applyPipLayout();
-    this.modal.style.display = 'flex';
     requestAnimationFrame(() => {
       this.refit();
       this.term?.focus();
@@ -347,15 +366,15 @@ export class ClaudePtyViewer {
 
   hide() {
     this.mode = 'hidden';
-    this.modal.style.display = 'none';
+    this.panel.style.display = 'none';
+    this.backdrop.style.display = 'none';
   }
 
-  // ─── Drag handling for PiP mode ───────────────────────────────────────
+  // ─── PiP drag ────────────────────────────────────────────────────────
 
   bindDocumentDragHandlers() {
     this.header.addEventListener('mousedown', (e) => {
       if (this.mode !== 'pip') return;
-      // Don't start a drag if the user clicked a button inside the header.
       if (e.target.closest('button')) return;
       this.dragging = true;
       const rect = this.panel.getBoundingClientRect();
@@ -411,7 +430,7 @@ export class ClaudePtyViewer {
       this.term.loadAddon(u11);
       this.term.unicode.activeVersion = '11';
     } catch {
-      // unicode11 is optional.
+      /* unicode11 optional */
     }
     this.term.open(this.containerElement);
     try {
@@ -428,18 +447,12 @@ export class ClaudePtyViewer {
   }
 
   bindWsEvents() {
-    // claude_pty_state controls the toggle-button indicator only — the
-    // viewer's own visibility is driven by the user clicking the button.
     this.wsManager.addEventListener('claude_pty_state', (e) => {
       this.ptyActive = !!(e.detail && e.detail.active);
       if (this.activeDot) {
         this.activeDot.style.display = this.ptyActive ? 'block' : 'none';
       }
     });
-    // PTY data is fed into xterm.js whether the viewer is visible or not,
-    // so opening the viewer mid-turn shows the current screen with no
-    // catch-up dance (plus the late-joiner snapshot the server replays
-    // already covers refresh).
     this.wsManager.addEventListener('claude_pty_data', (e) => {
       if (!e.detail || typeof e.detail.bytes !== 'string') return;
       this.ensureTerminal();
@@ -463,11 +476,8 @@ export class ClaudePtyViewer {
       this.term = null;
       this.fitAddon = null;
     }
-    if (this.toggleButton && this.toggleButton.parentNode) {
-      this.toggleButton.parentNode.removeChild(this.toggleButton);
-    }
-    if (this.modal && this.modal.parentNode) {
-      this.modal.parentNode.removeChild(this.modal);
+    for (const node of [this.toggleButton, this.backdrop, this.panel]) {
+      if (node && node.parentNode) node.parentNode.removeChild(node);
     }
   }
 }
