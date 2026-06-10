@@ -844,12 +844,40 @@ export class ClaudeCLIDriver implements ProviderDriver {
         dbg('respondToPrompt: no answer for question index', qi);
         continue;
       }
-      const optionIndex = question.options.findIndex(
-        (o) => o.id === answer.optionIds[0],
-      );
+      const optionIndex =
+        answer.optionIds.length > 0
+          ? question.options.findIndex((o) => o.id === answer.optionIds[0])
+          : -1;
+      // AUDITARIA_CLAUDE_PROVIDER: Custom-text path. Claude's picker auto-
+      // appends a "Type something" row at index = model-options.length (so
+      // for 3 model options it appears as row 4). Navigate there, press
+      // Enter to switch the picker into text-input mode, type the user's
+      // text, press Enter to submit / auto-advance.
+      const wantsCustomText =
+        optionIndex < 0 &&
+        typeof answer.customText === 'string' &&
+        answer.customText.length > 0;
+      if (wantsCustomText) {
+        const typeRowIndex = question.options.length;
+        dbg(
+          `respondToPrompt: Q${qi + 1}/${questions.length} → custom text (${answer.customText!.length} chars)`,
+        );
+        for (let i = 0; i < typeRowIndex; i++) {
+          await press(DOWN, ARROW_DELAY_MS);
+        }
+        await new Promise<void>((r) => setTimeout(r, SELECT_SETTLE_MS));
+        // Enter focuses the "Type something" row's input box.
+        await press(ENTER, SELECT_SETTLE_MS);
+        // Type the text as a single bulk write — Claude's input box
+        // accepts pasted content fine.
+        await press(answer.customText!, SELECT_SETTLE_MS);
+        // Final Enter submits / auto-advances to the next question.
+        await press(ENTER, isMulti ? TAB_DELAY_MS : 0);
+        continue;
+      }
       if (optionIndex < 0) {
         dbg(
-          'respondToPrompt: option id not found in question',
+          'respondToPrompt: option id not found in question and no customText',
           qi,
           answer.optionIds[0],
         );
