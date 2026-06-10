@@ -193,6 +193,27 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // regression). Reset at the start of each turn.
   private recentPtyOutput = '';
 
+  // AUDITARIA_CLAUDE_PROVIDER_START: Persistent-PTY state. The Claude
+  // sub-process is spawned ONCE on first sendMessage and survives across
+  // turns until dispose(). The web terminal can talk to the live PTY at
+  // any time, including between turns; chat-initiated turns type into
+  // Claude's already-open input box rather than re-spawning.
+  private ptyExited = false;
+  private ptyExitCode = 0;
+  /**
+   * Byte offset into the hook-events JSONL file. Snapshotted at the start
+   * of every sendMessage so processTurnEvents only sees events from this
+   * turn (the file appends across turns now that the PTY persists).
+   */
+  private hookFileByteOffset = 0;
+  /** True once SessionStart has fired on the current PTY. */
+  private sessionStarted = false;
+  /** Resolved `claude` binary path, cached across turns. */
+  private claudeExePath: string | null = null;
+  /** First-call systemContext is locked in; later changes log a warn. */
+  private lastSystemContext: string | undefined = undefined;
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   constructor(private readonly config: ClaudeDriverConfig) {
     dbg('constructor', {
       model: config.model,
@@ -242,6 +263,151 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.writeQueue = null;
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER_START: Persistent-PTY spawn helper.
+  //
+  // Returns null when a healthy PTY is ready for the next turn. Returns
+  // an error message string when the spawn failed and the caller should
+  // surface it as a ProviderEvent.Error.
+  //
+  // On first call: spawns Claude in a PTY, wires the data/exit handlers,
+  // waits for SessionStart (handling the trust dialog inline), captures
+  // the session id.
+  //
+  // On subsequent calls: returns null immediately if the existing PTY is
+  // still alive. If it died (Claude crashed or was killed), tears down
+  // the corpse and respawns fresh — same behaviour as the original
+  // per-turn driver from the caller's perspective.
+  private async ensurePtySpawned(
+    signal: AbortSignal,
+  ): Promise<string | null> {
+    if (this.activePty && !this.ptyExited) return null;
+    if (this.activePty && this.ptyExited) {
+      // Previous PTY died — clean up before respawning.
+      this.activePty = null;
+      this.writeQueue = null;
+      this.sessionStarted = false;
+      this.hookFileByteOffset = 0;
+    }
+
+    const ptyInfo = await getPty();
+    if (!ptyInfo) {
+      return (
+        'node-pty is not available. The interactive Claude driver requires ' +
+        'a PTY backend (@lydell/node-pty or node-pty). On Windows ARM64 ' +
+        'install via WSL2 or use the x64 Node build.'
+      );
+    }
+
+    this.ensureHookInfra();
+
+    // Reset hook file only on the FIRST spawn this session. For respawns
+    // after a PTY crash we also reset so we don't carry old events.
+    try {
+      writeFileSync(this.hookFilePath!, '');
+      this.hookFileByteOffset = 0;
+    } catch (e) {
+      return `Failed to reset hook event file: ${String(e)}`;
+    }
+
+    const settingsJson = this.buildSettingsJson();
+    const args = this.buildArgs(settingsJson, this.lastSystemContext);
+
+    if (!this.claudeExePath) {
+      const resolved = await resolveClaudeExecutable();
+      this.claudeExePath = resolved ?? null;
+    }
+    const claudeExe = this.claudeExePath;
+    if (!claudeExe) {
+      return 'Could not locate the `claude` executable on PATH. Install Claude Code: npm install -g @anthropic-ai/claude-code';
+    }
+
+    let pty: MinimalPty;
+    try {
+      pty = ptyInfo.module.spawn(claudeExe, args, {
+        name: 'xterm-256color',
+        cols: PTY_COLS,
+        rows: PTY_ROWS,
+        cwd: this.config.cwd,
+        env: {
+          ...process.env,
+          NODE_TLS_REJECT_UNAUTHORIZED: '0',
+          CLAUDE_CODE_ENTRYPOINT: 'cli',
+          AUDITARIA_CLAUDE_HOOK_FILE: this.hookFilePath!,
+        },
+        handleFlowControl: true,
+      }) as MinimalPty;
+    } catch (e) {
+      return `Failed to spawn claude in PTY: ${String(e)}. Ensure 'claude' is on PATH.`;
+    }
+    this.activePty = pty;
+    this.ptyExited = false;
+    this.ptyExitCode = 0;
+    this.recentPtyOutput = '';
+    dbg('spawned (persistent)', { pid: pty.pid });
+
+    this.writeQueue = new PtyWriteQueue((bytes) => pty.write(bytes));
+
+    const RECENT_MAX = 128 * 1024;
+    pty.onData((data) => {
+      this.recentPtyOutput += data;
+      if (this.recentPtyOutput.length > RECENT_MAX) {
+        this.recentPtyOutput = this.recentPtyOutput.slice(
+          this.recentPtyOutput.length - RECENT_MAX,
+        );
+      }
+      claudePtyMirror.emitData(data);
+      if (DEBUG) {
+        const stripped = stripAnsi(data).replace(/\r?\n/g, '\\n');
+        dbg('pty raw:', stripped.slice(0, 200));
+      }
+    });
+
+    claudePtyMirror.setActive(this);
+
+    pty.onExit((e) => {
+      this.ptyExited = true;
+      this.ptyExitCode = e.exitCode ?? 0;
+      dbg('pty exit', e);
+      claudePtyMirror.setInactive(this);
+    });
+
+    // First-call: wait for SessionStart hook (handles trust dialog inline).
+    const sessionStartEv = await this.waitForSessionStart(
+      pty,
+      () => this.recentPtyOutput,
+      () => this.ptyExited,
+      signal,
+    );
+    if (!sessionStartEv) {
+      if (this.ptyExited) {
+        return `claude exited before SessionStart (code ${this.ptyExitCode}). Check that the CLI is installed and authenticated.`;
+      }
+      if (signal.aborted) return 'Aborted before SessionStart';
+      return 'Timed out waiting for SessionStart hook from claude.';
+    }
+
+    const sessIdFromHook = pickString(sessionStartEv.payload, 'session_id');
+    if (sessIdFromHook) {
+      this.sessionManager.setSessionId(sessIdFromHook);
+      dbg('captured session_id from SessionStart', sessIdFromHook);
+    }
+    this.sessionStarted = true;
+
+    // Skip past SessionStart in the hook file so future readNewHookEvents
+    // calls don't replay it.
+    try {
+      const stat = await fsp.stat(this.hookFilePath!);
+      this.hookFileByteOffset = stat.size;
+    } catch {
+      /* file may not exist yet, leave offset at 0 */
+    }
+
+    // Brief delay so Ink finishes wiring its raw-mode key handler.
+    await delay(SESSION_START_GRACE_MS);
+    return null;
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   async *sendMessage(
     prompt: string,
     signal: AbortSignal,
@@ -264,227 +430,100 @@ export class ClaudeCLIDriver implements ProviderDriver {
       return;
     }
 
-    const ptyInfo = await getPty();
-    if (!ptyInfo) {
-      yield {
-        type: ProviderEventType.Error,
-        message:
-          'node-pty is not available. The interactive Claude driver requires ' +
-          'a PTY backend (@lydell/node-pty or node-pty). On Windows ARM64 ' +
-          'install via WSL2 or use the x64 Node build.',
-      };
-      return;
+    // AUDITARIA_CLAUDE_PROVIDER: Persistent-PTY refactor. systemContext is
+    // baked into spawn args on the FIRST sendMessage; subsequent calls
+    // can't change it without respawning. Log a warning if it ever
+    // changes mid-session and accept the limitation for now.
+    if (
+      this.lastSystemContext !== undefined &&
+      systemContext !== undefined &&
+      this.lastSystemContext !== systemContext
+    ) {
+      dbg(
+        'WARN: systemContext changed mid-session; not respawning, baked-in copy is stale',
+      );
+    }
+    if (this.lastSystemContext === undefined && systemContext !== undefined) {
+      this.lastSystemContext = systemContext;
     }
 
-    // Lazily set up the hook relay + file (shared across turns in this driver
-    // instance — same temp file is appended to across re-spawns).
-    this.ensureHookInfra();
-
-    // Reset hook file for this turn so we only see events from this spawn.
-    try {
-      writeFileSync(this.hookFilePath!, '');
-    } catch (e) {
-      yield {
-        type: ProviderEventType.Error,
-        message: `Failed to reset hook event file: ${String(e)}`,
-      };
+    const spawnError = await this.ensurePtySpawned(signal);
+    if (spawnError) {
+      yield { type: ProviderEventType.Error, message: spawnError };
       return;
     }
+    const pty = this.activePty!;
 
-    const settingsJson = this.buildSettingsJson();
-    const args = this.buildArgs(settingsJson, systemContext);
+    // AUDITARIA_CLAUDE_PROVIDER_START: Persistent-PTY per-turn flow.
+    // The PTY is already alive and at the input box (Claude finished its
+    // last turn and returned to idle). We snapshot the hook-file offset
+    // and transcript size, type the prompt, drain hook events, run the
+    // final transcript scan, and DO NOT kill the PTY in finally — it
+    // survives for the next sendMessage call.
 
-    dbg('spawnPty', {
-      argsCount: args.length,
-      promptLen: prompt.length,
-      hasSystemContext: !!systemContext,
-      sessionId: this.sessionManager.getSessionId(),
-    });
-
-    // AUDITARIA_CLAUDE_PROVIDER: node-pty (unlike child_process.spawn) does
-    // NOT search PATH — it spawns the literal exe. Resolve `claude` to an
-    // absolute path, preferring the real .exe on Windows (the npm `.cmd`
-    // shim wraps the real binary in a layer of cmd.exe that breaks PTY-bound
-    // TTY detection).
-    const claudeExe = await resolveClaudeExecutable();
-    if (!claudeExe) {
-      yield {
-        type: ProviderEventType.Error,
-        message:
-          'Could not locate the `claude` executable on PATH. Install Claude Code: npm install -g @anthropic-ai/claude-code',
-      };
-      return;
-    }
-    dbg('resolved claude binary', claudeExe);
-
-    // Spawn Claude in a PTY. No -p flag → process.stdout.isTTY=true inside
-    // Claude → entrypoint=cli → interactive billing.
-    let pty: MinimalPty;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- node-pty spawn returns IPty; we narrow to our MinimalPty subset
-      pty = ptyInfo.module.spawn(claudeExe, args, {
-        name: 'xterm-256color',
-        cols: PTY_COLS,
-        rows: PTY_ROWS,
-        cwd: this.config.cwd,
-        env: {
-          ...process.env,
-          NODE_TLS_REJECT_UNAUTHORIZED: '0',
-          // AUDITARIA_CLAUDE_PROVIDER: Belt-and-suspenders — even though
-          // omitting -p is the actual billing trigger, set entrypoint=cli
-          // explicitly. Bug #59105 notes this gets overwritten by the
-          // isNonInteractive boolean, but it's a no-op when the boolean is
-          // false (our case) and signals intent.
-          CLAUDE_CODE_ENTRYPOINT: 'cli',
-          // AUDITARIA_CLAUDE_PROVIDER: Tell the hook relay where to write.
-          AUDITARIA_CLAUDE_HOOK_FILE: this.hookFilePath!,
-        },
-        handleFlowControl: true,
-      }) as MinimalPty;
-    } catch (e) {
-      yield {
-        type: ProviderEventType.Error,
-        message: `Failed to spawn claude in PTY: ${String(e)}. Ensure 'claude' is on PATH.`,
-      };
-      return;
-    }
-    this.activePty = pty;
-    dbg('spawned', { pid: pty.pid });
-
-    // AUDITARIA_CLAUDE_PROVIDER: Serialise all PTY writes through one queue
-    // so prompt body + CR can't be split by an interactive-prompt response
-    // arriving mid-typing. The 'system' priority writes (typePromptIntoPty,
-    // trust-dialog Enter, AskUserQuestion response) take precedence over
-    // future web-typist input.
-    this.writeQueue = new PtyWriteQueue((bytes) => pty.write(bytes));
-
-    // Output buffer for trust-dialog detection AND assistant-text scraping
-    // (PTY-scrape fallback when the transcript file is empty — see
-    // scrapeAssistantTextFromPTY below). Larger than the trust-dialog scan
-    // needs because assistant responses can be multi-KB and we need to
-    // capture them in their entirety.
-    let recentOutput = '';
-    const RECENT_MAX = 128 * 1024;
-    this.recentPtyOutput = '';
-    pty.onData((data) => {
-      recentOutput += data;
-      if (recentOutput.length > RECENT_MAX) {
-        recentOutput = recentOutput.slice(recentOutput.length - RECENT_MAX);
+    // Snapshot transcript byte size so yieldEventsFromTranscript only
+    // reports content from THIS turn.
+    const transcriptPathPredicted = this.computeTranscriptPath();
+    if (transcriptPathPredicted && existsSync(transcriptPathPredicted)) {
+      try {
+        const stat = await fsp.stat(transcriptPathPredicted);
+        this.transcriptLineOffset = stat.size;
+        dbg('pre-turn transcript size', this.transcriptLineOffset);
+      } catch {
+        this.transcriptLineOffset = 0;
       }
-      this.recentPtyOutput = recentOutput;
-      // AUDITARIA_CLAUDE_PROVIDER: Mirror the raw bytes to any external
-      // consumer (web-terminal xterm.js viewer). Self-throttling via
-      // listener cost — no listeners means a cheap emit and no broadcast.
-      claudePtyMirror.emitData(data);
-      if (DEBUG) {
-        // Truncated raw output peek (helpful for debugging Ink startup).
-        const stripped = stripAnsi(data).replace(/\r?\n/g, '\\n');
-        dbg('pty raw:', stripped.slice(0, 200));
-      }
-    });
+    } else {
+      this.transcriptLineOffset = 0;
+    }
 
-    // AUDITARIA_CLAUDE_PROVIDER: Mark mirror active so consumers (web
-    // terminal) can show their viewer in sync with the live PTY.
-    claudePtyMirror.setActive(this);
+    // Snapshot hook-file offset for the same reason (the file appends
+    // across turns now that the PTY persists).
+    try {
+      const stat = await fsp.stat(this.hookFilePath!);
+      this.hookFileByteOffset = stat.size;
+      dbg('pre-turn hook offset', this.hookFileByteOffset);
+    } catch {
+      /* leave the existing offset */
+    }
 
-    let ptyExited = false;
-    let ptyExitCode = 0;
-    pty.onExit((e) => {
-      ptyExited = true;
-      ptyExitCode = e.exitCode ?? 0;
-      dbg('pty exit', e);
-      claudePtyMirror.setInactive(this); // AUDITARIA_CLAUDE_PROVIDER
-    });
+    if (signal.aborted) return;
 
+    // Slash command detection. Stop never fires for TUI-level slash
+    // commands; /compact uses PostCompact instead; others currently hit
+    // the Stop timeout (known limitation).
+    const trimmed = prompt.trimStart();
+    const isSlashCommand = trimmed.startsWith('/');
+    const slashCommandName = isSlashCommand
+      ? trimmed.slice(1).split(/[\s/]/)[0]?.toLowerCase()
+      : undefined;
+    dbg('slash command?', { isSlashCommand, name: slashCommandName });
+
+    this.typePromptIntoPty(pty, prompt);
+
+    // Abort handler. Persistent PTY: send Ctrl+C to abort the CURRENT
+    // turn (Claude will catch SIGINT and return to input) rather than
+    // killing the whole PTY and losing the session.
     const abortHandler = () => {
-      dbg('abort handler triggered');
-      this.killPty();
+      dbg('abort handler triggered — sending Ctrl+C (persistent PTY)');
+      try {
+        this.activePty?.write('\x03');
+      } catch {
+        /* PTY already dead — onExit will tell the mirror */
+      }
     };
     signal.addEventListener('abort', abortHandler, { once: true });
 
     try {
-      // Phase 1: wait for SessionStart hook, dismissing the trust dialog if
-      // it appears first.
-      const sessionStartEv = await this.waitForSessionStart(
-        pty,
-        () => recentOutput,
-        () => ptyExited,
-        signal,
-      );
-      if (!sessionStartEv) {
-        if (ptyExited) {
-          yield {
-            type: ProviderEventType.Error,
-            message: `claude exited before SessionStart (code ${ptyExitCode}). Check that the CLI is installed and authenticated.`,
-          };
-        } else if (signal.aborted) {
-          // Abort — no event.
-        } else {
-          yield {
-            type: ProviderEventType.Error,
-            message: 'Timed out waiting for SessionStart hook from claude.',
-          };
-        }
-        return;
-      }
-
-      // Capture session ID from SessionStart payload.
-      const sessIdFromHook = pickString(sessionStartEv.payload, 'session_id');
-      if (sessIdFromHook) {
-        this.sessionManager.setSessionId(sessIdFromHook);
-        dbg('captured session_id from SessionStart', sessIdFromHook);
-      }
-
-      // Pre-turn: snapshot transcript length so we only yield events from
-      // this turn. We use byte offset, not line count, to be safe under
-      // partial-line appends.
-      const transcriptPathPredicted = this.computeTranscriptPath();
-      if (transcriptPathPredicted && existsSync(transcriptPathPredicted)) {
-        try {
-          const stat = await fsp.stat(transcriptPathPredicted);
-          this.transcriptLineOffset = stat.size;
-          dbg('pre-turn transcript size', this.transcriptLineOffset);
-        } catch {
-          this.transcriptLineOffset = 0;
-        }
-      } else {
-        this.transcriptLineOffset = 0;
-      }
-
-      // Phase 2: type the prompt. Brief delay first so Ink has finished
-      // wiring its raw-mode keyhandler.
-      await delay(SESSION_START_GRACE_MS);
-      if (signal.aborted) return;
-
-      // AUDITARIA_CLAUDE_PROVIDER: Slash command detection. Stop hook never
-      // fires for slash commands (TUI-level operations, not assistant turns).
-      // For /compact specifically we wait on PostCompact instead. Other slash
-      // commands hit the Stop timeout — known limitation, handle case-by-case
-      // as we add support.
-      const trimmed = prompt.trimStart();
-      const isSlashCommand = trimmed.startsWith('/');
-      const slashCommandName = isSlashCommand
-        ? trimmed.slice(1).split(/[\s/]/)[0]?.toLowerCase()
-        : undefined;
-      dbg('slash command?', { isSlashCommand, name: slashCommandName });
-
-      this.typePromptIntoPty(pty, prompt);
-
-      // Phase 3: unified hook-driven event loop. Yield ToolUse / ToolResult
-      // events live as PreToolUse / PostToolUse hooks fire. Terminate on
-      // Stop (normal turn), PostCompact (slash command), or StopFailure
-      // (API error). Track yielded tool ids so the final transcript scan
-      // doesn't double-emit them.
+      // Drain hook events for this turn.
       const turnResult = yield* this.processTurnEvents({
         signal,
-        isExited: () => ptyExited,
-        getExitCode: () => ptyExitCode,
+        isExited: () => this.ptyExited,
+        getExitCode: () => this.ptyExitCode,
         slashCommandName,
       });
 
-      // Phase 4: terminal event reached. Always run a final transcript scan
-      // to emit text/thinking content (those don't have hook signals — they
-      // only exist in the JSONL).
+      // Terminal event reached — run the final transcript scan to emit
+      // text/thinking content (those don't have hook signals).
       if (turnResult.kind === 'stopped' || turnResult.kind === 'compacted') {
         const transcriptPath =
           turnResult.transcriptPathFromHook ?? transcriptPathPredicted;
@@ -508,10 +547,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
           message: turnResult.message,
         };
       } else if (turnResult.kind === 'timeout' && !signal.aborted) {
-        if (ptyExited) {
+        if (this.ptyExited) {
           yield {
             type: ProviderEventType.Error,
-            message: `claude exited before Stop/PostCompact (code ${ptyExitCode}).`,
+            message: `claude exited before Stop/PostCompact (code ${this.ptyExitCode}).`,
           };
         } else {
           yield {
@@ -524,9 +563,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
       }
     } finally {
       signal.removeEventListener('abort', abortHandler);
-      this.killPty();
-      this.activePty = null;
+      // NOTE: do NOT killPty here — the persistent PTY survives across
+      // turns. Cleanup happens in dispose().
     }
+    // AUDITARIA_CLAUDE_PROVIDER_END
   }
 
   // ─── private helpers ──────────────────────────────────────────────────────
@@ -1060,7 +1100,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
     const { signal, isExited, slashCommandName } = opts;
     const deadline = Date.now() + STOP_TIMEOUT_MS;
     const yieldedToolUseIds = new Set<string>();
-    let consumed = 0;
+    // AUDITARIA_CLAUDE_PROVIDER: start at the per-turn offset that
+    // sendMessage snapshotted on the persistent hook file. We then
+    // advance the class field as we drain so the NEXT sendMessage call
+    // picks up where we left off.
+    let consumed = this.hookFileByteOffset;
 
     const processEvent = (
       ev: HookEvent,
