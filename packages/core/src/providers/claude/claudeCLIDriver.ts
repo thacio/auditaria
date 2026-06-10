@@ -771,7 +771,19 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // burst or a system-level response keystroke.
   async writeRawInput(bytes: string): Promise<void> {
     if (!bytes) return;
-    await this.writeQueue?.writeAtomic(bytes, 'web-typist');
+    // eslint-disable-next-line no-console
+    console.log(
+      '[ClaudeCLIDriver.writeRawInput]',
+      bytes.length,
+      'chars; writeQueue=',
+      !!this.writeQueue,
+    );
+    if (!this.writeQueue) {
+      // eslint-disable-next-line no-console
+      console.warn('[ClaudeCLIDriver.writeRawInput] no writeQueue — dropping');
+      return;
+    }
+    await this.writeQueue.writeAtomic(bytes, 'web-typist');
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt response entry point.

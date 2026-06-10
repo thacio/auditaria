@@ -1781,9 +1781,19 @@ export class WebInterfaceService extends EventEmitter {
     else if (message.type === 'claude_pty_input' && typeof message.bytes === 'string') {
       try {
         const decoded = Buffer.from(message.bytes, 'base64').toString('utf-8');
+        // eslint-disable-next-line no-console
+        console.log(
+          '[claude_pty_input] received',
+          message.bytes.length,
+          'b64 chars, decoded',
+          decoded.length,
+          'chars; mirror.isActive=',
+          claudePtyMirror.isActive(),
+        );
         void claudePtyMirror.writeInput(decoded);
-      } catch {
-        /* swallow malformed payload */
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('[claude_pty_input] decode failed:', e);
       }
     }
     // AUDITARIA_CLAUDE_PROVIDER: Web-terminal resize hint (cols × rows).

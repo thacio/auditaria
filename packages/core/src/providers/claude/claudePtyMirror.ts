@@ -116,12 +116,30 @@ class ClaudePtyMirror extends EventEmitter {
    * nothing to write to.
    */
   async writeInput(bytes: string): Promise<void> {
-    if (!this.currentSource || !bytes) return;
+    if (!bytes) return;
+    if (!this.currentSource) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[claudePtyMirror.writeInput] dropped — no active source (active=',
+        this.currentActive,
+        ')',
+      );
+      return;
+    }
     try {
+      // eslint-disable-next-line no-console
+      console.log(
+        '[claudePtyMirror.writeInput] forwarding',
+        bytes.length,
+        'chars to driver.writeRawInput',
+      );
       await this.currentSource.writeRawInput(bytes);
-    } catch {
-      // PTY died between active check and write — drop silently. A
-      // subsequent `active: false` event will tell consumers to clean up.
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error(
+        '[claudePtyMirror.writeInput] driver.writeRawInput threw:',
+        e,
+      );
     }
   }
 }

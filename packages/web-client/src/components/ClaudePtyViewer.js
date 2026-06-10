@@ -79,6 +79,11 @@ function injectXtermScrollbarStyle() {
 
 export class ClaudePtyViewer {
   constructor(wsManager) {
+    // AUDITARIA_CLAUDE_PROVIDER: TEMPORARY diagnostic log so we can confirm
+    // the page is running the latest viewer (cache-bust check) and that
+    // bytes flow through onData → ws.send. Remove once typing is verified.
+    // eslint-disable-next-line no-console
+    console.log('[ClaudePtyViewer] init build=2026-06-10-input-debug');
     this.wsManager = wsManager;
     this.toggleButton = null;
     this.backdrop = null;
@@ -470,10 +475,23 @@ export class ClaudePtyViewer {
     // We attach this BEFORE open() so any racy initial keys don't get
     // dropped on the floor.
     this.term.onData((data) => {
-      this.wsManager.send({
+      const encoded = encodeBytes(data);
+      // eslint-disable-next-line no-console
+      console.log(
+        '[ClaudePtyViewer] onData fired',
+        JSON.stringify(data),
+        '(',
+        data.length,
+        'chars,',
+        encoded.length,
+        'b64 chars)',
+      );
+      const ok = this.wsManager.send({
         type: 'claude_pty_input',
-        bytes: encodeBytes(data),
+        bytes: encoded,
       });
+      // eslint-disable-next-line no-console
+      console.log('[ClaudePtyViewer] ws.send returned', ok);
     });
   }
 
@@ -489,6 +507,11 @@ export class ClaudePtyViewer {
     try {
       this.term.open(this.containerElement);
       this.termOpened = true;
+      // eslint-disable-next-line no-console
+      console.log(
+        '[ClaudePtyViewer] xterm.open done; container size=',
+        this.containerElement.getBoundingClientRect(),
+      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[ClaudePtyViewer] xterm.open failed:', err);
