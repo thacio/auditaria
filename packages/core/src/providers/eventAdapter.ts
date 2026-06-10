@@ -64,13 +64,21 @@ export function adaptProviderEvent(
       };
 
     case ProviderEventType.Error:
+      // AUDITARIA_CLAUDE_PROVIDER: parseAndFormatApiError downstream only
+      // recognises STRINGS and Gemini-shaped JSON nested error objects.
+      // Emitting a `{ message, status }` object falls through to the
+      // generic "An unknown error occurred." fallback, hiding the real
+      // cause. Stringify into a Gemini-like JSON envelope so the
+      // formatter shows the message + status to the user.
       return {
         type: GeminiEventType.Error,
         value: {
-          error: {
-            message: event.message,
-            status: event.status,
-          },
+          error: JSON.stringify({
+            error: {
+              message: event.message,
+              status: event.status ?? 0,
+            },
+          }),
         },
       };
 
