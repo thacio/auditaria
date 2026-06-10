@@ -811,19 +811,21 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // burst or a system-level response keystroke.
   async writeRawInput(bytes: string): Promise<void> {
     if (!bytes) return;
-    // eslint-disable-next-line no-console
-    console.log(
-      '[ClaudeCLIDriver.writeRawInput]',
-      bytes.length,
-      'chars; writeQueue=',
-      !!this.writeQueue,
-    );
-    if (!this.writeQueue) {
-      // eslint-disable-next-line no-console
-      console.warn('[ClaudeCLIDriver.writeRawInput] no writeQueue — dropping');
-      return;
+    await this.writeQueue?.writeAtomic(bytes, 'web-typist');
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Public PTY resize entry-point. Web viewer
+  // calls this whenever xterm.js' FitAddon reports new geometry so
+  // Claude redraws to fit, eliminating the misaligned-lines problem
+  // when the xterm panel is smaller (or larger) than the pinned 200×50
+  // we used to start with.
+  resize(cols: number, rows: number): void {
+    if (!this.activePty) return;
+    try {
+      this.activePty.resize(cols, rows);
+    } catch {
+      /* PTY died — onExit will tell the mirror */
     }
-    await this.writeQueue.writeAtomic(bytes, 'web-typist');
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt response entry point.

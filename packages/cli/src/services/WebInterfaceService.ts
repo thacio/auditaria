@@ -1781,26 +1781,21 @@ export class WebInterfaceService extends EventEmitter {
     else if (message.type === 'claude_pty_input' && typeof message.bytes === 'string') {
       try {
         const decoded = Buffer.from(message.bytes, 'base64').toString('utf-8');
-        // eslint-disable-next-line no-console
-        console.log(
-          '[claude_pty_input] received',
-          message.bytes.length,
-          'b64 chars, decoded',
-          decoded.length,
-          'chars; mirror.isActive=',
-          claudePtyMirror.isActive(),
-        );
         void claudePtyMirror.writeInput(decoded);
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('[claude_pty_input] decode failed:', e);
+      } catch {
+        /* swallow malformed payload */
       }
     }
-    // AUDITARIA_CLAUDE_PROVIDER: Web-terminal resize hint (cols × rows).
-    // No-op for now — the driver pins a 200×50 PTY for hook timing
-    // reasons; future work can plumb pty.resize() in here.
-    else if (message.type === 'claude_pty_resize') {
-      /* reserved */
+    // AUDITARIA_CLAUDE_PROVIDER: Web-terminal resize → forward to the
+    // live Claude PTY so its TUI redraws to the viewer's geometry.
+    // Without this, Claude wraps at the server-pinned cols (200) and
+    // the lines overflow / misalign in any smaller xterm container.
+    else if (
+      message.type === 'claude_pty_resize' &&
+      typeof message.cols === 'number' &&
+      typeof message.rows === 'number'
+    ) {
+      claudePtyMirror.resize(message.cols, message.rows);
     }
     // WEB_INTERFACE_START: Model selection request from web footer
     else if (message.type === 'set_model_request' && message.selection) {

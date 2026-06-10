@@ -48,6 +48,13 @@ export interface ClaudePtyMirrorEvents {
 export interface ClaudePtyMirrorSource {
   /** Push raw bytes into the active PTY's stdin. */
   writeRawInput(bytes: string): Promise<void>;
+  /**
+   * Resize the underlying PTY's cols×rows. Required so the web terminal
+   * can match Claude's rendering to its actual viewport — without it the
+   * server-side pinned 200×50 spills outside the smaller xterm and lines
+   * misalign.
+   */
+  resize?(cols: number, rows: number): void;
 }
 
 class ClaudePtyMirror extends EventEmitter {
@@ -116,30 +123,24 @@ class ClaudePtyMirror extends EventEmitter {
    * nothing to write to.
    */
   async writeInput(bytes: string): Promise<void> {
-    if (!bytes) return;
-    if (!this.currentSource) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[claudePtyMirror.writeInput] dropped — no active source (active=',
-        this.currentActive,
-        ')',
-      );
-      return;
-    }
+    if (!this.currentSource || !bytes) return;
     try {
-      // eslint-disable-next-line no-console
-      console.log(
-        '[claudePtyMirror.writeInput] forwarding',
-        bytes.length,
-        'chars to driver.writeRawInput',
-      );
       await this.currentSource.writeRawInput(bytes);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error(
-        '[claudePtyMirror.writeInput] driver.writeRawInput threw:',
-        e,
-      );
+    } catch {
+      // PTY died between active check and write — drop silently. A
+      // subsequent `active: false` event will tell consumers to clean up.
+    }
+  }
+
+  /** Forward a viewer-side cols×rows change to the active PTY. */
+  resize(cols: number, rows: number): void {
+    if (!this.currentSource || !this.currentSource.resize) return;
+    if (!Number.isFinite(cols) || !Number.isFinite(rows)) return;
+    if (cols < 1 || rows < 1) return;
+    try {
+      this.currentSource.resize(Math.floor(cols), Math.floor(rows));
+    } catch {
+      /* PTY died between active check and resize — drop silently. */
     }
   }
 }

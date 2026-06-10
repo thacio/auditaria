@@ -79,11 +79,6 @@ function injectXtermScrollbarStyle() {
 
 export class ClaudePtyViewer {
   constructor(wsManager) {
-    // AUDITARIA_CLAUDE_PROVIDER: TEMPORARY diagnostic log so we can confirm
-    // the page is running the latest viewer (cache-bust check) and that
-    // bytes flow through onData → ws.send. Remove once typing is verified.
-    // eslint-disable-next-line no-console
-    console.log('[ClaudePtyViewer] init build=2026-06-10-input-debug');
     this.wsManager = wsManager;
     this.toggleButton = null;
     this.backdrop = null;
@@ -475,23 +470,31 @@ export class ClaudePtyViewer {
     // We attach this BEFORE open() so any racy initial keys don't get
     // dropped on the floor.
     this.term.onData((data) => {
-      const encoded = encodeBytes(data);
-      // eslint-disable-next-line no-console
-      console.log(
-        '[ClaudePtyViewer] onData fired',
-        JSON.stringify(data),
-        '(',
-        data.length,
-        'chars,',
-        encoded.length,
-        'b64 chars)',
-      );
-      const ok = this.wsManager.send({
+      this.wsManager.send({
         type: 'claude_pty_input',
-        bytes: encoded,
+        bytes: encodeBytes(data),
       });
-      // eslint-disable-next-line no-console
-      console.log('[ClaudePtyViewer] ws.send returned', ok);
+    });
+
+    // AUDITARIA_CLAUDE_PROVIDER: When xterm's geometry changes (FitAddon
+    // ran on a layout shift, user dragged the modal corner one day,
+    // viewer was just opened in a different mode), tell the server-side
+    // PTY about the new cols×rows so Claude redraws to fit. Without
+    // this, lines wrap at the server-pinned 200 cols and overflow /
+    // misalign in the smaller xterm — the classic "resize garbage"
+    // discussed in xtermjs/xterm.js#1914 and #3584. Debounce 200ms to
+    // dodge the resize race that creates duplicate prompt lines on
+    // rapid drags.
+    let resizeTimer = null;
+    this.term.onResize(({ cols, rows }) => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        this.wsManager.send({
+          type: 'claude_pty_resize',
+          cols,
+          rows,
+        });
+      }, 200);
     });
   }
 
@@ -507,11 +510,6 @@ export class ClaudePtyViewer {
     try {
       this.term.open(this.containerElement);
       this.termOpened = true;
-      // eslint-disable-next-line no-console
-      console.log(
-        '[ClaudePtyViewer] xterm.open done; container size=',
-        this.containerElement.getBoundingClientRect(),
-      );
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[ClaudePtyViewer] xterm.open failed:', err);
