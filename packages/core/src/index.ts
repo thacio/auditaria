@@ -336,6 +336,8 @@ export {
   ProviderManager,
   sanitizeHistoryForProviderSwitch,
 } from './providers/providerManager.js';
+// AUDITARIA_CLAUDE_PROVIDER: web-terminal mirror singleton
+export { claudePtyMirror } from './providers/claude/claudePtyMirror.js';
 export { SessionRegistry } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { SessionRecord } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools

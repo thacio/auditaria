@@ -9,6 +9,7 @@ import { ModalManager } from './managers/ModalManager.js';
 import { KeyboardManager } from './managers/KeyboardManager.js';
 import { LoadingIndicator } from './components/LoadingIndicator.js';
 import { TerminalDisplay } from './components/TerminalDisplay.js';
+import { ClaudePtyViewer } from './components/ClaudePtyViewer.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { shortenPath } from './utils/formatters.js';
 import { FileHandler } from './utils/fileHandler.js';
 import { AudioRecorder } from './utils/audioRecorder.js';
@@ -47,6 +48,10 @@ class AuditariaWebClient {
         this.keyboardManager = new KeyboardManager();
         this.loadingIndicator = new LoadingIndicator();
         this.terminalDisplay = new TerminalDisplay(this.wsManager);
+        // AUDITARIA_CLAUDE_PROVIDER: Live xterm.js mirror of the Claude PTY.
+        // Self-subscribes to claude_pty_state / claude_pty_data on the WS
+        // manager and shows/hides its own modal in sync with PTY lifecycle.
+        this.claudePtyViewer = new ClaudePtyViewer(this.wsManager);
         
         // Initialize confirmation queue (keep existing module)
         this.confirmationQueue = new ConfirmationQueue(this);

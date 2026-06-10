@@ -57,6 +57,7 @@ import { ProviderEventType } from '../types.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type { ClaudeContentBlock, ClaudeDriverConfig } from './types.js';
 import { PtyWriteQueue } from './interactivePromptSupport.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { claudePtyMirror } from './claudePtyMirror.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
 // AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
@@ -371,6 +372,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
         recentOutput = recentOutput.slice(recentOutput.length - RECENT_MAX);
       }
       this.recentPtyOutput = recentOutput;
+      // AUDITARIA_CLAUDE_PROVIDER: Mirror the raw bytes to any external
+      // consumer (web-terminal xterm.js viewer). Self-throttling via
+      // listener cost — no listeners means a cheap emit and no broadcast.
+      claudePtyMirror.emitData(data);
       if (DEBUG) {
         // Truncated raw output peek (helpful for debugging Ink startup).
         const stripped = stripAnsi(data).replace(/\r?\n/g, '\\n');
@@ -378,12 +383,17 @@ export class ClaudeCLIDriver implements ProviderDriver {
       }
     });
 
+    // AUDITARIA_CLAUDE_PROVIDER: Mark mirror active so consumers (web
+    // terminal) can show their viewer in sync with the live PTY.
+    claudePtyMirror.setActive(this);
+
     let ptyExited = false;
     let ptyExitCode = 0;
     pty.onExit((e) => {
       ptyExited = true;
       ptyExitCode = e.exitCode ?? 0;
       dbg('pty exit', e);
+      claudePtyMirror.setInactive(this); // AUDITARIA_CLAUDE_PROVIDER
     });
 
     const abortHandler = () => {
@@ -736,6 +746,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
     } catch {
       /* ignore */
     }
+    // AUDITARIA_CLAUDE_PROVIDER: Ensure the mirror sees the death even if
+    // onExit doesn't fire promptly (kill path races onExit on Windows).
+    claudePtyMirror.setInactive(this);
   }
 
   private typePromptIntoPty(pty: MinimalPty, prompt: string): void {
@@ -750,6 +763,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
       await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
       await this.writeQueue?.writeAtomic('\r', 'system');
     });
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Public PTY input entry-point used by the
+  // claudePtyMirror to forward web-terminal keystrokes. Uses the
+  // 'web-typist' queue priority so it never preempts a typePromptIntoPty
+  // burst or a system-level response keystroke.
+  async writeRawInput(bytes: string): Promise<void> {
+    if (!bytes) return;
+    await this.writeQueue?.writeAtomic(bytes, 'web-typist');
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Phase-1 interactive-prompt response entry point.

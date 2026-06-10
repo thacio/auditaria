@@ -26,6 +26,7 @@ import {
   MCPServerConfig,
   DiscoveredMCPTool,
   ensureRgPath,
+  claudePtyMirror, // AUDITARIA_CLAUDE_PROVIDER
 } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
@@ -293,6 +294,16 @@ export class WebInterfaceService extends EventEmitter {
     message: string;
   } | null = null;
   private currentTerminalCapture: TerminalCaptureData | null = null;
+  // AUDITARIA_CLAUDE_PROVIDER_START: state for the live Claude PTY mirror.
+  // Track active flag + a small ring buffer so new clients reconnecting
+  // mid-turn can replay the recent output (the viewer feeds it straight
+  // into xterm.js, which redraws correctly from any cursor-positioning
+  // sequence in the replay).
+  private claudePtyActive = false;
+  private claudePtyBuffer = '';
+  private claudePtyBufferMax = 64 * 1024;
+  private claudePtyUnsubscribers: Array<() => void> = [];
+  // AUDITARIA_CLAUDE_PROVIDER_END
   // WEB_INTERFACE_START: Track ephemeral states for reconnection
   private currentResponseBlocks: ResponseBlock[] | null = null;
   private currentLoadingState: LoadingStateData | null = null;
@@ -937,6 +948,34 @@ export class WebInterfaceService extends EventEmitter {
       });
       this.setupWebSocketHandlers();
 
+      // AUDITARIA_CLAUDE_PROVIDER_START: Subscribe to the Claude PTY mirror
+      // and fan out raw bytes + lifecycle to the web clients. base64-encode
+      // so binary/control bytes survive the JSON envelope intact.
+      this.claudePtyUnsubscribers.push(
+        claudePtyMirror.onData((bytes: string) => {
+          // Append to the replay ring buffer (used for late-joiners).
+          this.claudePtyBuffer += bytes;
+          if (this.claudePtyBuffer.length > this.claudePtyBufferMax) {
+            this.claudePtyBuffer = this.claudePtyBuffer.slice(
+              this.claudePtyBuffer.length - this.claudePtyBufferMax,
+            );
+          }
+          const encoded = Buffer.from(bytes, 'utf-8').toString('base64');
+          this.broadcastWithSequence('claude_pty_data', { bytes: encoded });
+        }),
+      );
+      this.claudePtyUnsubscribers.push(
+        claudePtyMirror.onActive((isActive: boolean) => {
+          this.claudePtyActive = isActive;
+          if (!isActive) {
+            // PTY died — clear buffer so a new turn starts clean.
+            this.claudePtyBuffer = '';
+          }
+          this.broadcastWithSequence('claude_pty_state', { active: isActive });
+        }),
+      );
+      // AUDITARIA_CLAUDE_PROVIDER_END
+
       // WEB_INTERFACE_START: Initialize file system service
       // Use current working directory as workspace root
       this.fileSystemService = new FileSystemService(process.cwd());
@@ -1033,6 +1072,18 @@ export class WebInterfaceService extends EventEmitter {
       this.directoryWatcherService = undefined;
     }
     // WEB_INTERFACE_END
+
+    // AUDITARIA_CLAUDE_PROVIDER: Tear down PTY-mirror subscriptions
+    for (const off of this.claudePtyUnsubscribers) {
+      try {
+        off();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.claudePtyUnsubscribers = [];
+    this.claudePtyActive = false;
+    this.claudePtyBuffer = '';
 
     // Close WebSocket server
     if (this.wss) {
@@ -1626,6 +1677,9 @@ export class WebInterfaceService extends EventEmitter {
     selection?: string;
     reasoningEffort?: string;
     query?: string;
+    bytes?: string; // AUDITARIA_CLAUDE_PROVIDER: claude_pty_input payload
+    cols?: number; // AUDITARIA_CLAUDE_PROVIDER: claude_pty_resize hint
+    rows?: number;
   }): void {
     if (message.type === 'user_message' && this.submitQueryHandler) {
       const text = message.content?.trim() || '';
@@ -1720,6 +1774,23 @@ export class WebInterfaceService extends EventEmitter {
       // AppContainer will handle emitting the correct event type based on Ink's mode
       this.emit('terminal_input', message.key);
       // WEB_INTERFACE_END
+    }
+    // AUDITARIA_CLAUDE_PROVIDER: Web-terminal raw input → Claude PTY.
+    // Format: { type:'claude_pty_input', bytes:'<base64 utf-8 string>' }.
+    // We use base64 to be safe with control characters in JSON payloads.
+    else if (message.type === 'claude_pty_input' && typeof message.bytes === 'string') {
+      try {
+        const decoded = Buffer.from(message.bytes, 'base64').toString('utf-8');
+        void claudePtyMirror.writeInput(decoded);
+      } catch {
+        /* swallow malformed payload */
+      }
+    }
+    // AUDITARIA_CLAUDE_PROVIDER: Web-terminal resize hint (cols × rows).
+    // No-op for now — the driver pins a 200×50 PTY for hook timing
+    // reasons; future work can plumb pty.resize() in here.
+    else if (message.type === 'claude_pty_resize') {
+      /* reserved */
     }
     // WEB_INTERFACE_START: Model selection request from web footer
     else if (message.type === 'set_model_request' && message.selection) {
@@ -2651,6 +2722,19 @@ export class WebInterfaceService extends EventEmitter {
     // Send current terminal capture to new client if available
     if (this.currentTerminalCapture && this.currentTerminalCapture.content) {
       sendAndStore('terminal_capture', this.currentTerminalCapture);
+    }
+
+    // AUDITARIA_CLAUDE_PROVIDER: late-joiner snapshot for the Claude PTY
+    // mirror. Send the active flag unconditionally so the viewer can
+    // hide/show appropriately, plus the recent ring buffer so xterm.js
+    // can redraw the current screen from cursor-positioning sequences in
+    // the replay.
+    sendAndStore('claude_pty_state', { active: this.claudePtyActive });
+    if (this.claudePtyActive && this.claudePtyBuffer.length > 0) {
+      const encoded = Buffer.from(this.claudePtyBuffer, 'utf-8').toString(
+        'base64',
+      );
+      sendAndStore('claude_pty_data', { bytes: encoded });
     }
 
     // WEB_INTERFACE_START: Send ephemeral states that are still relevant
