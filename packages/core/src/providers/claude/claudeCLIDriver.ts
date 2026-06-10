@@ -781,32 +781,18 @@ export class ClaudeCLIDriver implements ProviderDriver {
       return;
     }
 
-    // Map the answer for the first (and, in MVP, only) question to a
-    // 1-indexed digit selecting the option from Claude's picker.
-    const firstAnswer = response.answers[0];
-    if (!firstAnswer) {
-      dbg('respondToPrompt: no answers in response');
-      return;
-    }
-    const question =
-      questions.find((q) => q.id === firstAnswer.questionId) ?? questions[0];
-    if (!question) {
-      dbg('respondToPrompt: no matching question');
-      return;
-    }
-    const optionIndex = question.options.findIndex(
-      (o) => o.id === firstAnswer.optionIds[0],
-    );
-    if (optionIndex < 0) {
-      dbg('respondToPrompt: option id not found', firstAnswer.optionIds[0]);
-      return;
-    }
     // AUDITARIA_CLAUDE_PROVIDER: Wait until the picker is rendered. PreToolUse
     // fires when Claude DECIDES to call the tool, before the TUI shows the
     // picker. Number-digit input goes into the prompt input box if the
-    // picker isn't focused yet. Use arrow keys (Down N-1 + Enter) — these
-    // are interpreted as picker navigation regardless of focus race.
+    // picker isn't focused yet. Use arrow keys (Down + Enter) — these are
+    // interpreted as picker navigation regardless of focus race.
     const PICKER_READY_DELAY_MS = 2500;
+    const ARROW_DELAY_MS = 80;
+    const SELECT_SETTLE_MS = 200;
+    const TAB_DELAY_MS = 300;
+    const DOWN = '\x1b[B';
+    const ENTER = '\r';
+
     const emittedAt = this.promptEmittedAt.get(promptId) ?? Date.now();
     this.promptEmittedAt.delete(promptId);
     const waitMore = Math.max(
@@ -817,27 +803,75 @@ export class ClaudeCLIDriver implements ProviderDriver {
       dbg('respondToPrompt: waiting', waitMore, 'ms for picker to render');
       await new Promise<void>((r) => setTimeout(r, waitMore));
     }
-    // Down arrow (CSI Down), one at a time with brief pauses. Sending them
-    // in a single burst gets coalesced as a single keypress by Ink's input
-    // handler; spaced writes are interpreted as discrete navigations.
-    // Default picker focus is on the first option (index 0), so optionIndex=2
-    // requires two down presses to land on option 3.
-    const downArrow = '\x1b[B';
-    const ARROW_DELAY_MS = 80;
+
+    // Multi-question picker has a top tab-bar [Q1] [Q2] ... [Submit].
+    // For Q-by-Q: navigate Down to chosen option, Enter to mark, Tab to
+    // next question's tab. After last answer: Tab to Submit, Enter.
+    // Single-question picker has no tab-bar: Enter on the focused option
+    // submits the picker directly.
+    const isMulti = questions.length > 1;
     dbg(
-      'respondToPrompt: writing',
-      optionIndex,
-      'down arrow(s) for option index',
-      optionIndex,
+      'respondToPrompt:',
+      isMulti ? 'multi-question' : 'single-question',
+      'driving picker',
     );
-    for (let i = 0; i < optionIndex; i++) {
-      await this.writeQueue?.writeAtomic(downArrow, 'system');
-      await new Promise<void>((r) => setTimeout(r, ARROW_DELAY_MS));
+
+    const press = async (bytes: string, delayMs: number): Promise<void> => {
+      await this.writeQueue?.writeAtomic(bytes, 'system');
+      if (delayMs > 0) {
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+      }
+    };
+
+    // Picker behaviour observed empirically (Claude Code 2.1.170):
+    //   - Down: move within current question's options
+    //   - Enter on a focused option BOTH selects it AND auto-advances
+    //     focus to the next question's first option — picker is a
+    //     wizard, not a checkbox grid. After Enter on the final
+    //     question's pick, focus auto-advances to the `Submit answers`
+    //     button.
+    //   - For single-question pickers, the lone Enter submits directly.
+    //   - For multi-question, one trailing Enter on the auto-focused
+    //     Submit button confirms.
+    //   - Tab is NOT needed between questions — it would skip past
+    //     Submit to Cancel.
+    for (let qi = 0; qi < questions.length; qi++) {
+      const question = questions[qi];
+      const answer =
+        response.answers.find((a) => a.questionId === question.id) ??
+        response.answers[qi];
+      if (!answer) {
+        dbg('respondToPrompt: no answer for question index', qi);
+        continue;
+      }
+      const optionIndex = question.options.findIndex(
+        (o) => o.id === answer.optionIds[0],
+      );
+      if (optionIndex < 0) {
+        dbg(
+          'respondToPrompt: option id not found in question',
+          qi,
+          answer.optionIds[0],
+        );
+        continue;
+      }
+      dbg(
+        `respondToPrompt: Q${qi + 1}/${questions.length} → option ${optionIndex + 1}`,
+      );
+      for (let i = 0; i < optionIndex; i++) {
+        await press(DOWN, ARROW_DELAY_MS);
+      }
+      await new Promise<void>((r) => setTimeout(r, SELECT_SETTLE_MS));
+      // Enter selects + auto-advances. For multi we wait a beat between
+      // questions so the picker re-renders before the next Down stream.
+      await press(ENTER, isMulti ? TAB_DELAY_MS : 0);
     }
-    // Give the picker a beat to settle on the focused option before
-    // submitting.
-    await new Promise<void>((r) => setTimeout(r, 200));
-    await this.writeQueue?.writeAtomic('\r', 'system');
+
+    // For multi-question, focus is now on the `Submit answers` button
+    // (auto-advanced after the last option's Enter). One Enter submits.
+    if (isMulti) {
+      await press(ENTER, 0);
+    }
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Translate Claude's AskUserQuestion tool_input
