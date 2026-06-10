@@ -145,13 +145,19 @@ export class TerminalDisplay {
         // Update content with HTML from ANSI conversion
         this.contentElement.innerHTML = terminalData.content;
         
-        // Apply terminal styling
+        // Apply terminal styling.
+        // AUDITARIA: Hard-coded dark palette (do NOT follow the app theme).
+        // On light themes the var(--surface)/var(--text) combo made the TUI
+        // unreadable — the ANSI->HTML output assumes a dark background and
+        // emits dark text colours that vanished against the light surface.
+        // Standard terminal black-on-dim-white is correct here regardless
+        // of theme.
         this.contentElement.style.fontFamily = 'monospace';
         this.contentElement.style.whiteSpace = 'pre';
         this.contentElement.style.overflow = 'auto';
         this.contentElement.style.padding = '10px';
-        this.contentElement.style.backgroundColor = 'var(--surface)';
-        this.contentElement.style.color = 'var(--text)';
+        this.contentElement.style.backgroundColor = '#1e1e1e';
+        this.contentElement.style.color = '#d4d4d4';
         this.contentElement.style.borderRadius = '6px';
         this.contentElement.style.minHeight = '400px';
         this.contentElement.style.maxHeight = '70vh';
