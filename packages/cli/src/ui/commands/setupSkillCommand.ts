@@ -50,8 +50,9 @@ const AVAILABLE_SKILLS: Record<string, SkillDefinition> = {
   'docx-writing-skill': {
     type: 'platform-zip',
     name: 'DOCX Writing Skill',
-    description:
-      'Parse markdown to DOCX format — usage: /setup-skill docx-writing-skill [password]',
+    // Keep the [password] hint early — the suggestions UI truncates long
+    // descriptions to the terminal width
+    description: 'Parse markdown to DOCX [password optional]',
     platforms: {
       windows: {
         url: 'https://github.com/thacio/markup_to_docx_parser_releases/releases/download/latest/parser-windows.zip',
@@ -99,9 +100,14 @@ async function executeSkillSetup(
   skill: SkillDefinition,
   password?: string,
 ): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
-  // Show progress message
+  // Show progress message (with the password usage hint when none was given,
+  // so users learn the syntax even if the autocomplete description was cut)
+  const passwordHint =
+    skill.type === 'platform-zip' && !password
+      ? ` (password-protected releases: /setup-skill ${skillId} [password])`
+      : '';
   context.ui.addItem(
-    { type: 'info', text: `Installing skill: ${skill.name}...` },
+    { type: 'info', text: `Installing skill: ${skill.name}...${passwordHint}` },
     Date.now(),
   );
 
