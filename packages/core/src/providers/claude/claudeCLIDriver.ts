@@ -370,10 +370,19 @@ export class ClaudeCLIDriver implements ProviderDriver {
               this.backgroundEmitter.emit('assistant-text', {
                 text: block.text,
               });
+            } else if (block.type === 'tool_use') {
+              // Tool calls in the web-turn: emit a compact text marker
+              // so chat reflects that Claude ran a tool, without trying
+              // to recreate the rich tool-group rendering (the user
+              // already sees the full output in the xterm panel).
+              const argsPreview = summariseToolArgs(block.input);
+              const marker = argsPreview
+                ? `↪ Used ${block.name}: ${argsPreview}`
+                : `↪ Used ${block.name}`;
+              this.backgroundEmitter.emit('assistant-text', { text: marker });
             }
-            // tool_use / tool_result blocks intentionally NOT emitted —
-            // chat UI doesn't need to replay tool calls from the web
-            // terminal; user sees them in the live xterm.
+            // tool_result blocks live in user-role transcript lines, not
+            // here, and they aren't useful to replay into chat.
           }
         }
       }
@@ -550,6 +559,35 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     // Brief delay so Ink finishes wiring its raw-mode key handler.
     await delay(SESSION_START_GRACE_MS);
+
+    // AUDITARIA_CLAUDE_PROVIDER: Switch Claude's TUI into fullscreen
+    // (alt-buffer) mode. The default inline / scrollback mode has a
+    // known per-frame redraw leak in Claude Code 2.1.x that duplicates
+    // banner / spinner / message lines in any xterm.js-based viewer —
+    // tracked in anthropics/claude-code#49086 and #51828. Fullscreen
+    // sidesteps the bug entirely because it redraws against the
+    // alternate screen buffer. We type the slash command, wait for
+    // PostCompact-style flush, then advance the hook offset past the
+    // events it generated so processTurnEvents doesn't see them.
+    //
+    // Opt-out: set AUDITARIA_CLAUDE_TUI_INLINE=1 to keep inline mode
+    // (handy if you ever drive Claude through a non-xterm.js terminal
+    // where the duplicate-line bug isn't the dominant problem).
+    if (process.env['AUDITARIA_CLAUDE_TUI_INLINE'] !== '1') {
+      dbg('sending /tui fullscreen to avoid xterm duplicate-line bug');
+      try {
+        pty.write('/tui fullscreen\r');
+      } catch {
+        /* benign — next turn will try again */
+      }
+      await delay(800); // let the TUI switch + any UserPromptExpansion drain
+      try {
+        const stat = await fsp.stat(this.hookFilePath!);
+        this.hookFileByteOffset = stat.size;
+      } catch {
+        /* ignore */
+      }
+    }
 
     // Start the background hook-watcher now that the PTY is alive and
     // SessionStart has been consumed. It pauses automatically while
@@ -1763,6 +1801,40 @@ interface TranscriptEntry {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Compact one-line summary of a tool_use
+// block's input, used as the inline marker we surface for tool calls
+// in background-turn chat entries. We don't try to be smart per-tool —
+// just pick whichever single field reads best (command for Bash,
+// file_path for Read/Write, pattern for Grep, etc.) and fall back to
+// a truncated JSON dump.
+function summariseToolArgs(input: unknown): string {
+  if (!input || typeof input !== 'object') return '';
+  const obj = input as Record<string, unknown>;
+  const preferred = [
+    'command',
+    'file_path',
+    'pattern',
+    'query',
+    'url',
+    'path',
+    'name',
+    'question',
+  ];
+  for (const k of preferred) {
+    const v = obj[k];
+    if (typeof v === 'string' && v.trim().length > 0) {
+      const trimmed = v.trim();
+      return trimmed.length > 140 ? trimmed.slice(0, 137) + '…' : trimmed;
+    }
+  }
+  try {
+    const dump = JSON.stringify(obj);
+    return dump.length > 140 ? dump.slice(0, 137) + '…' : dump;
+  } catch {
+    return '';
+  }
 }
 
 // AUDITARIA_CLAUDE_PROVIDER: Pull human-typed text out of a transcript

@@ -746,22 +746,38 @@ export const AppContainer = (props: AppContainerProps) => {
   // happened directly in the live PTY (via the web-terminal viewer) so
   // the chat catches up. providerManager forwards from the active
   // driver; no-op on providers that don't expose the background hooks.
+  //
+  // We ALSO mirror these turns into GeminiChat.history (the chat
+  // structure used by /compress, /resume, and provider switching) so
+  // they survive into compaction summaries instead of vanishing.
   useEffect(() => {
     const pm = config.getProviderManager();
     if (!pm || typeof pm.onBackgroundUserMessage !== 'function') return;
+
+    // Helper — push into the mirrored chat history. Wrapped in try/catch
+    // so a missing chat client (early in startup) doesn't blow up the
+    // history-manager add that just succeeded.
+    const mirrorToChat = (role: 'user' | 'model', text: string) => {
+      try {
+        const chat = config.getGeminiClient()?.getChat();
+        chat?.addHistory({
+          role,
+          parts: [{ text }],
+        });
+      } catch {
+        /* ignore — chat not yet available */
+      }
+    };
+
     const offUser = pm.onBackgroundUserMessage(({ text }) => {
       if (!text) return;
-      historyManager.addItem(
-        { type: MessageType.USER, text },
-        Date.now(),
-      );
+      historyManager.addItem({ type: MessageType.USER, text }, Date.now());
+      mirrorToChat('user', text);
     });
     const offAssistant = pm.onBackgroundAssistantText(({ text }) => {
       if (!text) return;
-      historyManager.addItem(
-        { type: MessageType.GEMINI, text },
-        Date.now(),
-      );
+      historyManager.addItem({ type: MessageType.GEMINI, text }, Date.now());
+      mirrorToChat('model', text);
     });
     return () => {
       try {
