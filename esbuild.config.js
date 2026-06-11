@@ -127,6 +127,14 @@ const cliConfig = {
   ],
   alias: {
     'is-in-ci': path.resolve(__dirname, 'packages/cli/src/patches/is-in-ci.ts'),
+    'https-proxy-agent': path.resolve(
+      __dirname,
+      'packages/cli/src/patches/https-proxy-agent.ts',
+    ),
+    'http-proxy-agent': path.resolve(
+      __dirname,
+      'packages/cli/src/patches/http-proxy-agent.ts',
+    ),
     ...commonAliases,
   },
   metafile: true,
