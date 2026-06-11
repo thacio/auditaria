@@ -779,6 +779,34 @@ export const AppContainer = (props: AppContainerProps) => {
       historyManager.addItem({ type: MessageType.GEMINI, text }, Date.now());
       mirrorToChat('model', text);
     });
+
+    // Optional channels — providerManager exposes them for any driver
+    // that implements them. Today only Claude does.
+    const offErr =
+      typeof pm.onBackgroundError === 'function'
+        ? pm.onBackgroundError(({ message }) => {
+            if (!message) return;
+            historyManager.addItem(
+              { type: MessageType.ERROR, text: message },
+              Date.now(),
+            );
+          })
+        : () => {};
+    const offCompact =
+      typeof pm.onBackgroundCompactionSummary === 'function'
+        ? pm.onBackgroundCompactionSummary(({ text }) => {
+            historyManager.addItem(
+              {
+                type: MessageType.INFO,
+                text: text
+                  ? `Context compacted in the live terminal. Summary: ${text.slice(0, 280)}${text.length > 280 ? '…' : ''}`
+                  : 'Context compacted in the live terminal.',
+              },
+              Date.now(),
+            );
+          })
+        : () => {};
+
     return () => {
       try {
         offUser();
@@ -787,6 +815,16 @@ export const AppContainer = (props: AppContainerProps) => {
       }
       try {
         offAssistant();
+      } catch {
+        /* ignore */
+      }
+      try {
+        offErr();
+      } catch {
+        /* ignore */
+      }
+      try {
+        offCompact();
       } catch {
         /* ignore */
       }

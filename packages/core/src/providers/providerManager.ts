@@ -246,6 +246,12 @@ interface BackgroundCapableDriver {
   onBackgroundAssistantText(
     handler: (data: { text: string }) => void,
   ): () => void;
+  onBackgroundError?(
+    handler: (data: { message: string }) => void,
+  ): () => void;
+  onBackgroundCompactionSummary?(
+    handler: (data: { text: string }) => void,
+  ): () => void;
 }
 
 function isBackgroundCapableDriver(
@@ -347,6 +353,22 @@ export class ProviderManager {
     return () => this.backgroundEmitter.off('assistant-text', handler);
   }
 
+  /** Background API errors (Claude StopFailure during a web-PTY turn). */
+  onBackgroundError(
+    handler: (data: { message: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('error', handler);
+    return () => this.backgroundEmitter.off('error', handler);
+  }
+
+  /** Compaction summary text produced by a /compact in the live PTY. */
+  onBackgroundCompactionSummary(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('compaction-summary', handler);
+    return () => this.backgroundEmitter.off('compaction-summary', handler);
+  }
+
   /**
    * Subscribe to the active driver's background events. Called once after
    * each driver creation in getOrCreateDriver, and again when the driver
@@ -372,6 +394,20 @@ export class ProviderManager {
       this.backgroundEmitter.emit('assistant-text', data);
     });
     this.backgroundUnsubscribers.push(offUser, offAssistant);
+
+    // Optional channels — drivers may not implement these.
+    if (typeof this.driver.onBackgroundError === 'function') {
+      const offErr = this.driver.onBackgroundError((data) => {
+        this.backgroundEmitter.emit('error', data);
+      });
+      this.backgroundUnsubscribers.push(offErr);
+    }
+    if (typeof this.driver.onBackgroundCompactionSummary === 'function') {
+      const offCompact = this.driver.onBackgroundCompactionSummary((data) => {
+        this.backgroundEmitter.emit('compaction-summary', data);
+      });
+      this.backgroundUnsubscribers.push(offCompact);
+    }
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
 

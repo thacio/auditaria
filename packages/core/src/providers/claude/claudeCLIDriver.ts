@@ -232,6 +232,8 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private backgroundWatcherTimer: NodeJS.Timeout | null = null;
   private backgroundWatcherPaused = false;
   private backgroundWatcherTickInFlight = false;
+  /** Has THIS background turn's user-message line been emitted? Reset on Stop. */
+  private backgroundTurnUserEmitted = false;
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   constructor(private readonly config: ClaudeDriverConfig) {
@@ -275,12 +277,32 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   /** Fires for each `text` block in an assistant message produced during
    *  a turn not initiated via sendMessage. May fire multiple times per
-   *  turn (one per text block). */
+   *  turn (one per text block). Live PreToolUse markers also flow
+   *  through this channel for ordering. */
   onBackgroundAssistantText(
     handler: (data: { text: string }) => void,
   ): () => void {
     this.backgroundEmitter.on('assistant-text', handler);
     return () => this.backgroundEmitter.off('assistant-text', handler);
+  }
+
+  /** Fires on StopFailure during a background turn (Claude API error
+   *  while the user was driving via xterm.js). */
+  onBackgroundError(
+    handler: (data: { message: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('error', handler);
+    return () => this.backgroundEmitter.off('error', handler);
+  }
+
+  /** Fires when a /compact in the live PTY produces a compaction summary
+   *  user-line in the transcript. The text is Claude's summary of the
+   *  pre-compact history. */
+  onBackgroundCompactionSummary(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('compaction-summary', handler);
+    return () => this.backgroundEmitter.off('compaction-summary', handler);
   }
 
   // ─── Internal watcher control ─────────────────────────────────────────
@@ -309,17 +331,35 @@ export class ClaudeCLIDriver implements ProviderDriver {
       if (batch.consumedBytes === this.hookFileByteOffset) return;
       this.hookFileByteOffset = batch.consumedBytes;
 
-      // A Stop event in the background stream means a user-initiated
-      // turn just completed. Read the transcript delta and emit the
-      // user/assistant messages so the chat catches up.
+      // AUDITARIA_CLAUDE_PROVIDER: Process events in order. Live tool
+      // markers fire from PreToolUse so chat reflects progress as it
+      // happens, the same way chat-initiated turns surface ToolUse.
+      // PostCompact + the next assistant message together carry the
+      // compaction summary; StopFailure surfaces background API errors.
       let sawStop = false;
+      let sawCompact = false;
+      let sawStopFailure: string | undefined;
       for (const ev of batch.events) {
-        if (ev.event === 'Stop' || ev.event === 'PostCompact') {
+        if (ev.event === 'PreToolUse') {
+          await this.handleBackgroundPreToolUse(ev);
+        } else if (ev.event === 'StopFailure') {
+          sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
+        } else if (ev.event === 'PostCompact') {
+          sawCompact = true;
+          sawStop = true;
+        } else if (ev.event === 'Stop') {
           sawStop = true;
         }
       }
+      if (sawStopFailure) {
+        this.backgroundEmitter.emit('error', {
+          message: `Background turn failed: ${sawStopFailure}`,
+        });
+      }
       if (sawStop) {
-        await this.flushBackgroundTranscript();
+        await this.flushBackgroundTranscript({ compactedTurn: sawCompact });
+        // Reset per-turn state for the next background turn.
+        this.backgroundTurnUserEmitted = false;
       }
     } catch {
       /* swallow — try again next tick */
@@ -328,7 +368,77 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
   }
 
-  private async flushBackgroundTranscript(): Promise<void> {
+  // AUDITARIA_CLAUDE_PROVIDER: First hook event of a new background
+  // turn → ensure the user's typed message is in chat BEFORE any tool
+  // markers. We flush JUST the user-message portion of the transcript
+  // (no advance) so the on-Stop flush still emits the assistant text in
+  // order. Subsequent PreToolUse calls within the same turn just emit
+  // the marker.
+  private async handleBackgroundPreToolUse(ev: HookEvent): Promise<void> {
+    if (!this.backgroundTurnUserEmitted) {
+      await this.flushBackgroundUserMessageOnly();
+      this.backgroundTurnUserEmitted = true;
+    }
+    const toolName = pickString(ev.payload, 'tool_name');
+    if (!toolName) return;
+    const toolInput = ev.payload['tool_input'];
+    const argsPreview = summariseToolArgs(toolInput);
+    const marker = argsPreview
+      ? `↪ Calling ${toolName}: ${argsPreview}`
+      : `↪ Calling ${toolName}`;
+    this.backgroundEmitter.emit('assistant-text', { text: marker });
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: Read enough of the transcript to find the
+  // most recent user message that hasn't been emitted yet, emit it, and
+  // advance transcriptLineOffset PAST that line so the on-Stop flush
+  // doesn't replay it. Assistant entries that may already be partially
+  // written are deliberately left for the Stop flush.
+  private async flushBackgroundUserMessageOnly(): Promise<void> {
+    const path = this.computeTranscriptPath();
+    if (!path) return;
+    let content: string;
+    try {
+      content = await fsp.readFile(path, 'utf-8');
+    } catch {
+      return;
+    }
+    if (content.length <= this.transcriptLineOffset) return;
+    const newText = content.slice(this.transcriptLineOffset);
+    const lines = newText.split('\n');
+    let consumed = 0;
+    for (const line of lines) {
+      const lineLen = line.length + 1; // +newline
+      consumed += lineLen;
+      if (!line.trim()) continue;
+      let entry: TranscriptEntry;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        entry = JSON.parse(line) as TranscriptEntry;
+      } catch {
+        continue;
+      }
+      if (
+        entry.type === 'user' &&
+        entry.message &&
+        entry['isCompactSummary'] !== true
+      ) {
+        const text = extractUserTextFromTranscriptEntry(entry);
+        if (text) {
+          this.backgroundEmitter.emit('user-message', { text });
+        }
+        // Advance offset past this user line so the Stop flush doesn't
+        // see it again. We don't go further — assistant lines, if any,
+        // are still being written and should be re-read on Stop.
+        this.transcriptLineOffset += consumed;
+        return;
+      }
+    }
+  }
+
+  private async flushBackgroundTranscript(
+    opts: { compactedTurn?: boolean } = {},
+  ): Promise<void> {
     const path = this.computeTranscriptPath();
     if (!path) return;
     let content: string;
@@ -351,15 +461,28 @@ export class ClaudeCLIDriver implements ProviderDriver {
         continue;
       }
 
-      // Skip compaction summary markers — those aren't real user input.
-      if (
-        entry.type === 'user' &&
-        entry.message &&
-        entry['isCompactSummary'] !== true
-      ) {
-        const text = extractUserTextFromTranscriptEntry(entry);
-        if (text) {
-          this.backgroundEmitter.emit('user-message', { text });
+      if (entry.type === 'user' && entry.message) {
+        if (entry['isCompactSummary'] === true) {
+          // Compaction summary — surface as a one-line info marker so
+          // the chat knows context shrank during a web-terminal turn.
+          if (opts.compactedTurn) {
+            const c = entry.message.content;
+            const summary = typeof c === 'string' ? c : '';
+            this.backgroundEmitter.emit('compaction-summary', {
+              text: summary,
+            });
+          }
+          continue;
+        }
+        // Plain user message — only emit if a PreToolUse handler hasn't
+        // already pushed it this turn (idempotent guard via
+        // backgroundTurnUserEmitted reset on Stop).
+        if (!this.backgroundTurnUserEmitted) {
+          const text = extractUserTextFromTranscriptEntry(entry);
+          if (text) {
+            this.backgroundEmitter.emit('user-message', { text });
+          }
+          this.backgroundTurnUserEmitted = true;
         }
       } else if (entry.type === 'assistant' && entry.message) {
         const content = entry.message.content;
@@ -370,19 +493,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
               this.backgroundEmitter.emit('assistant-text', {
                 text: block.text,
               });
-            } else if (block.type === 'tool_use') {
-              // Tool calls in the web-turn: emit a compact text marker
-              // so chat reflects that Claude ran a tool, without trying
-              // to recreate the rich tool-group rendering (the user
-              // already sees the full output in the xterm panel).
-              const argsPreview = summariseToolArgs(block.input);
-              const marker = argsPreview
-                ? `↪ Used ${block.name}: ${argsPreview}`
-                : `↪ Used ${block.name}`;
-              this.backgroundEmitter.emit('assistant-text', { text: marker });
             }
-            // tool_result blocks live in user-role transcript lines, not
-            // here, and they aren't useful to replay into chat.
+            // tool_use blocks are NO LONGER emitted here — live PreToolUse
+            // handler already wrote a "↪ Calling X: ..." marker in
+            // proper order. tool_result blocks live in user-role
+            // transcript lines, not here.
           }
         }
       }
