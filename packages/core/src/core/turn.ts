@@ -6,6 +6,7 @@
 
 import {
   createUserContent,
+  type Content,
   type PartListUnion,
   type GenerateContentResponse,
   type FunctionCall,
@@ -276,9 +277,13 @@ export class Turn {
     modelConfigKey: ModelConfigKey,
     req: PartListUnion,
     signal: AbortSignal,
-    displayContent?: PartListUnion,
-    role: LlmRole = LlmRole.MAIN,
+    options: {
+      displayContent?: PartListUnion;
+      role?: LlmRole;
+      apiHistoryOverride?: Content[];
+    } = {},
   ): AsyncGenerator<ServerGeminiStreamEvent> {
+    const { displayContent, role = LlmRole.MAIN, apiHistoryOverride } = options;
     try {
       // Note: This assumes `sendMessageStream` yields events like
       // { type: StreamEventType.RETRY } or { type: StreamEventType.CHUNK, value: GenerateContentResponse }
@@ -289,6 +294,7 @@ export class Turn {
         signal,
         role,
         displayContent,
+        apiHistoryOverride,
       );
 
       for await (const streamEvent of responseStream) {

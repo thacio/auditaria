@@ -10,8 +10,7 @@ import { OAUTH_FILE } from '../config/storage.js';
 import type { OAuthCredentials } from '../mcp/token-storage/types.js';
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { GEMINI_DIR, homedir } from '../utils/paths.js';
-import { AUDITARIA_DIR } from '../utils/paths.js'; // AUDITARIA: Also import AUDITARIA_DIR
+import { GEMINI_DIR, homedir, AUDITARIA_DIR } from '../utils/paths.js'; // AUDITARIA: Also import AUDITARIA_DIR
 import { coreEvents } from '../utils/events.js';
 
 const KEYCHAIN_SERVICE_NAME = 'gemini-cli-oauth';
@@ -169,7 +168,7 @@ export class OAuthCredentialStorage {
     } catch {
       coreEvents.emitFeedback(
         'warning',
-        `Corrupted OAuth credential file at ${oldFilePath}, skipping migration`,
+        `Corrupted OAuth credential file at ${usedFilePath}, skipping migration`, // AUDITARIA: usedFilePath (dual-dir migration)
       );
       return null;
     }
