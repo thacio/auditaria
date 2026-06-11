@@ -617,6 +617,7 @@ export class GeminiClient {
       false,
       this.config.getHasAccessToPreviewModel?.() ?? true,
       this.config,
+      this.config.hasGemini35FlashGAAccess?.() ?? false,
     );
   }
 
