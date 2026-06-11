@@ -58,16 +58,15 @@ vi.mock('@google/gemini-cli-core', async (importOriginal) => {
 
   return {
     ...actual,
-    PREVIEW_GEMINI_MODEL: 'gemini-3-pro',
-    PREVIEW_GEMINI_FLASH_MODEL: 'gemini-3-flash',
-    PREVIEW_GEMINI_MODEL_AUTO: 'auto-gemini-3',
-    DEFAULT_GEMINI_MODEL: 'gemini-2.5-pro',
-    DEFAULT_GEMINI_FLASH_MODEL: 'gemini-2.5-flash',
-    DEFAULT_GEMINI_FLASH_LITE_MODEL: 'gemini-2.5-flash-lite',
-    DEFAULT_GEMINI_MODEL_AUTO: 'auto-gemini-2.5',
+    // AUDITARIA_CODEX_PROVIDER: Codex reasoning effort mocks
     CODEX_REASONING_EFFORTS: allEfforts,
     getSupportedCodexReasoningEfforts,
     clampCodexReasoningEffortForModel,
+    getAutoModelDescription: (
+      hasAccessToPreview: boolean,
+      useGemini3_1?: boolean,
+    ) =>
+      `Auto Model Description (preview: ${hasAccessToPreview}, 3.1: ${useGemini3_1})`,
     getDisplayString: (val: string) => mockGetDisplayString(val),
     logModelSlashCommand: (config: Config, event: ModelSlashCommandEvent) =>
       mockLogModelSlashCommand(config, event),
