@@ -14,7 +14,7 @@ import { type HistoryItem } from '../types.js';
 import { convertSessionToHistoryFormats } from '../hooks/useSessionBrowser.js';
 import { revertFileChanges } from '../utils/rewindFileOps.js';
 import { RewindOutcome } from '../components/RewindConfirmation.js';
-import type { Content } from '@google/genai';
+import type { Content } from '@google/genai'; // AUDITARIA_REWIND
 import {
   checkExhaustive,
   coreEvents,
@@ -40,7 +40,9 @@ function buildConversationFromHistory(
 
   for (const entry of history) {
     const textParts = (entry.parts || [])
-      .filter((p): p is { text: string } => 'text' in p && typeof p.text === 'string')
+      .filter(
+        (p): p is { text: string } => 'text' in p && typeof p.text === 'string',
+      )
       .map((p) => p.text);
     const content = textParts.join('\n') || '';
 
@@ -57,7 +59,9 @@ function buildConversationFromHistory(
       // ID encodes turnIndex for snapshot matching: ext-turn-{index}
       messages.push({
         id: `ext-turn-${turnIndex}`,
-        timestamp: new Date(baseTime - (history.length * 1000) + (messages.length * 1000)).toISOString(),
+        timestamp: new Date(
+          baseTime - history.length * 1000 + messages.length * 1000,
+        ).toISOString(),
         content,
         type: 'user',
       });
@@ -65,7 +69,9 @@ function buildConversationFromHistory(
     } else if (entry.role === 'model') {
       messages.push({
         id: `ext-model-${turnIndex}`,
-        timestamp: new Date(baseTime - (history.length * 1000) + (messages.length * 1000)).toISOString(),
+        timestamp: new Date(
+          baseTime - history.length * 1000 + messages.length * 1000,
+        ).toISOString(),
         content,
         type: 'gemini',
         model: 'external',
@@ -76,7 +82,7 @@ function buildConversationFromHistory(
   return {
     sessionId,
     projectHash: '',
-    startTime: new Date(baseTime - (history.length * 1000)).toISOString(),
+    startTime: new Date(baseTime - history.length * 1000).toISOString(),
     lastUpdated: new Date(baseTime).toISOString(),
     messages,
   };
@@ -132,7 +138,7 @@ async function rewindConversation(
 
       // Truncate mirrored history up to (not including) the target user message
       const newHistory = history.slice(0, cutIndex);
-      client.setHistory(newHistory as Content[]);
+      client.setHistory(newHistory);
 
       // Notify provider manager to reset Claude's session — next turn will
       // start a fresh subprocess with conversation summary from mirrored history
@@ -161,7 +167,7 @@ async function rewindConversation(
     const { uiHistory } = convertSessionToHistoryFormats(conversation.messages);
     const clientHistory = convertSessionToClientHistory(conversation.messages);
 
-    client.setHistory(clientHistory as Content[]);
+    client.setHistory(clientHistory);
 
     // Reset context manager as we are rewinding history
     await context.services.agentContext?.config
@@ -284,7 +290,10 @@ export const rewindCommand: SlashCommand = {
                 const turnIndex = turnMatch ? parseInt(turnMatch[1], 10) : 0;
                 const changed = await fcm.rewindTo(turnIndex);
                 if (changed.length > 0) {
-                  coreEvents.emitFeedback('info', `Reverted ${changed.length} file(s).`);
+                  coreEvents.emitFeedback(
+                    'info',
+                    `Reverted ${changed.length} file(s).`,
+                  );
                 } else {
                   coreEvents.emitFeedback('info', 'No file changes to revert.');
                 }

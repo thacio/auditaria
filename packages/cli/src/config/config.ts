@@ -128,6 +128,7 @@ export interface CliArgs {
   useWriteTodos: boolean | undefined;
   outputFormat: string | undefined;
   fakeResponses: string | undefined;
+  fakeResponsesNonStrict?: string | undefined;
   recordResponses: string | undefined;
   startupMessages?: string[];
   rawOutput: boolean | undefined;
@@ -584,6 +585,12 @@ export async function parseArguments(
         .option('fake-responses', {
           type: 'string',
           description: 'Path to a file with fake model responses for testing.',
+          hidden: true,
+        })
+        .option('fake-responses-non-strict', {
+          type: 'string',
+          description:
+            'Path to a file with fake model responses for testing (non-strict mode).',
           hidden: true,
         })
         .option('record-responses', {
@@ -1293,6 +1300,7 @@ export async function loadCliConfig(
     gemmaModelRouter: settings.experimental?.gemmaModelRouter,
     adk: settings.experimental?.adk,
     fakeResponses: argv.fakeResponses,
+    fakeResponsesNonStrict: argv.fakeResponsesNonStrict,
     recordResponses: argv.recordResponses,
     retryFetchErrors: settings.general?.retryFetchErrors,
     billing: settings.billing,
