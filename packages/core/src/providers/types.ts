@@ -299,6 +299,7 @@ export const CLAUDE_MODEL_IDS = [
   'opus',
   'sonnet',
   'haiku',
+  'fable',
   'opus[1m]',
   'sonnet[1m]',
 ] as const;
