@@ -25,7 +25,7 @@ import {
   ToolConfirmationOutcome,
   MCPServerConfig,
   DiscoveredMCPTool,
-  ensureRgPath,
+  resolveRipgrepPath,
   claudePtyMirror, // AUDITARIA_CLAUDE_PROVIDER
 } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
@@ -1778,7 +1778,10 @@ export class WebInterfaceService extends EventEmitter {
     // AUDITARIA_CLAUDE_PROVIDER: Web-terminal raw input → Claude PTY.
     // Format: { type:'claude_pty_input', bytes:'<base64 utf-8 string>' }.
     // We use base64 to be safe with control characters in JSON payloads.
-    else if (message.type === 'claude_pty_input' && typeof message.bytes === 'string') {
+    else if (
+      message.type === 'claude_pty_input' &&
+      typeof message.bytes === 'string'
+    ) {
       try {
         const decoded = Buffer.from(message.bytes, 'base64').toString('utf-8');
         void claudePtyMirror.writeInput(decoded);
@@ -2315,9 +2318,9 @@ export class WebInterfaceService extends EventEmitter {
    * Non-blocking: if rg isn't available, search falls back to BFS.
    */
   private initRipgrepForSearch(): void {
-    ensureRgPath()
+    resolveRipgrepPath()
       .then((rgPath) => {
-        if (this.fileSystemService) {
+        if (rgPath && this.fileSystemService) {
           this.fileSystemService.setRgPath(rgPath);
         }
       })

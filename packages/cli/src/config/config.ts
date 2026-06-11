@@ -22,17 +22,14 @@ import {
   ApprovalMode,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_FILE_FILTERING_OPTIONS,
-  DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
   FileDiscoveryService,
   resolveTelemetrySettings,
   FatalConfigError,
   getErrorMessage,
   getPty,
   debugLogger,
-  loadServerHierarchicalMemory,
   ASK_USER_TOOL_NAME,
   getVersion,
-  type HierarchicalMemory,
   coreEvents,
   GEMINI_MODEL_ALIAS_AUTO,
   getAdminErrorMessage,
@@ -762,7 +759,6 @@ export interface LoadCliConfigOptions {
   };
   worktreeSettings?: WorktreeSettings;
   skipExtensions?: boolean;
-  skipMemoryLoad?: boolean;
 }
 
 export async function loadCliConfig(
@@ -771,12 +767,7 @@ export async function loadCliConfig(
   argv: CliArgs,
   options: LoadCliConfigOptions = {},
 ): Promise<Config> {
-  const {
-    cwd = process.cwd(),
-    projectHooks,
-    skipExtensions = false,
-    skipMemoryLoad = false,
-  } = options;
+  const { cwd = process.cwd(), projectHooks, skipExtensions = false } = options;
   const debugMode = isDebugMode(argv);
 
   const worktreeSettings =
@@ -786,7 +777,6 @@ export async function loadCliConfig(
     process.env['GEMINI_SANDBOX'] = 'true';
   }
 
-  const memoryImportFormat = settings.context?.importFormat || 'tree';
   const includeDirectoryTree = settings.context?.includeDirectoryTree ?? true;
 
   const ideMode = settings.ide?.enabled ?? false;
@@ -802,7 +792,7 @@ export async function loadCliConfig(
       query: argv.query,
     })?.isTrusted ?? false;
 
-  // Set the context filename in the server's memoryTool module BEFORE loading memory
+  // Set the context filename in the server's memory file helpers before loading memory
   // TODO(b/343434939): This is a bit of a hack. The contextFileName should ideally be passed
   // directly to the Config constructor in core, and have core handle setGeminiMdFilename.
   // However, loadHierarchicalGeminiMemory is called *before* createServerConfig.
@@ -814,11 +804,6 @@ export async function loadCliConfig(
   }
 
   const fileService = new FileDiscoveryService(cwd);
-
-  const memoryFileFiltering = {
-    ...DEFAULT_MEMORY_FILE_FILTERING_OPTIONS,
-    ...settings.context?.fileFiltering,
-  };
 
   const fileFiltering = {
     ...DEFAULT_FILE_FILTERING_OPTIONS,
@@ -870,8 +855,6 @@ export async function loadCliConfig(
     ?.getExtensions()
     ?.find((ext) => ext.isActive && ext.plan?.directory)?.plan;
 
-  const experimentalJitContext = settings.experimental.jitContext ?? true;
-
   let extensionRegistryURI =
     process.env['GEMINI_CLI_EXTENSION_REGISTRY_URI'] ??
     (trustedFolder ? settings.experimental?.extensionRegistryURI : undefined);
@@ -882,32 +865,8 @@ export async function loadCliConfig(
     );
   }
 
-  let memoryContent: string | HierarchicalMemory = '';
-  let fileCount = 0;
-  let filePaths: string[] = [];
-
   const finalExtensionLoader =
     extensionManager ?? new SimpleExtensionLoader([]);
-
-  if (!experimentalJitContext && !skipMemoryLoad) {
-    // Call the (now wrapper) loadHierarchicalGeminiMemory which calls the server's version
-    const result = await loadServerHierarchicalMemory(
-      cwd,
-      settings.context?.loadMemoryFromIncludeDirectories || false
-        ? includeDirectories
-        : [],
-      fileService,
-      finalExtensionLoader,
-      trustedFolder,
-      memoryImportFormat,
-      memoryFileFiltering,
-      settings.context?.discoveryMaxDirs,
-      settings.context?.memoryBoundaryMarkers,
-    );
-    memoryContent = result.memoryContent;
-    fileCount = result.fileCount;
-    filePaths = result.filePaths;
-  }
 
   const question = argv.promptInteractive || argv.prompt || '';
 
@@ -1236,9 +1195,6 @@ export async function loadCliConfig(
       settings.security?.environmentVariableRedaction?.allowed,
     enableEnvironmentVariableRedaction:
       settings.security?.environmentVariableRedaction?.enabled,
-    userMemory: memoryContent,
-    geminiMdFileCount: fileCount,
-    geminiMdFilePaths: filePaths,
     approvalMode,
     disableYoloMode:
       settings.security?.disableYoloMode || settings.admin?.secureModeEnabled,
@@ -1296,8 +1252,6 @@ export async function loadCliConfig(
     enableEventDrivenScheduler: true,
     skillsSupport: settings.skills?.enabled ?? true,
     disabledSkills: settings.skills?.disabled,
-    experimentalJitContext,
-    experimentalMemoryV2: settings.experimental?.memoryV2,
     experimentalAutoMemory: settings.experimental?.autoMemory,
     experimentalGemma: settings.experimental?.gemma,
     contextManagement,

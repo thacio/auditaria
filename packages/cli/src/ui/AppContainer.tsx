@@ -73,7 +73,6 @@ import {
   MCPServerStatus, // AUDITARIA_WEB_INTERFACE
   coreEvents,
   CoreEvent,
-  refreshServerHierarchicalMemory,
   flattenMemory,
   type MemoryChangedPayload,
   writeToStdout,
@@ -1254,19 +1253,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       Date.now(),
     );
     try {
-      let flattenedMemory: string;
-      let fileCount: number;
-
-      if (config.isJitContextEnabled()) {
-        await config.getMemoryContextManager()?.refresh();
-        config.updateSystemInstructionIfInitialized();
-        flattenedMemory = flattenMemory(config.getUserMemory());
-        fileCount = config.getGeminiMdFileCount();
-      } else {
-        const result = await refreshServerHierarchicalMemory(config);
-        flattenedMemory = flattenMemory(result.memoryContent);
-        fileCount = result.fileCount;
-      }
+      await config.getMemoryContextManager()?.refresh();
+      config.updateSystemInstructionIfInitialized();
+      const flattenedMemory = flattenMemory(config.getUserMemory());
+      const fileCount = config.getGeminiMdFileCount();
 
       historyManager.addItem(
         {
