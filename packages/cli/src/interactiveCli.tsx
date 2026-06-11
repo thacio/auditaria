@@ -228,6 +228,17 @@ export async function startInteractiveUI(
     });
 
   const cleanupUnmount = () => instance.unmount();
+  const cleanupNonResumableCurrentSession = async () => {
+    try {
+      await config
+        .getGeminiClient()
+        ?.getChatRecordingService()
+        ?.deleteCurrentSessionIfNotResumableAsync();
+    } catch (e: unknown) {
+      debugLogger.error('Error cleaning up non-resumable session:', e);
+    }
+  };
+  registerCleanup(cleanupNonResumableCurrentSession);
   registerCleanup(cleanupUnmount);
 
   const cleanupTtyCheck = setupTtyCheck();
@@ -244,6 +255,13 @@ export async function startInteractiveUI(
       cleanupConsolePatcher();
     } catch (e: unknown) {
       debugLogger.error('Error cleaning up console patcher:', e);
+    }
+
+    try {
+      removeCleanup(cleanupNonResumableCurrentSession);
+      await cleanupNonResumableCurrentSession();
+    } catch (e: unknown) {
+      debugLogger.error('Error removing non-resumable session cleanup:', e);
     }
 
     try {
