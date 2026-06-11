@@ -142,6 +142,24 @@ const mcpBridgeConfig = {
   outfile: 'bundle/mcp-bridge.js',
 };
 
+const workerConfig = {
+  ...baseConfig,
+  entryPoints: {
+    'worker/worker-entry': path.join(
+      path.dirname(require.resolve('ink')),
+      'worker/worker-entry.js',
+    ),
+  },
+  outdir: 'bundle',
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(
+      process.env.NODE_ENV || 'production',
+    ),
+  },
+  plugins: createWasmPlugins(),
+  alias: commonAliases,
+};
+
 const a2aServerConfig = {
   ...baseConfig,
   banner: {
@@ -188,13 +206,19 @@ Promise.allSettled([
       writeFileSync('./bundle/esbuild.json', JSON.stringify(metafile, null, 2));
     }
   }),
+  esbuild.build(workerConfig),
   esbuild.build(a2aServerConfig),
   esbuild.build(mcpBridgeConfig), // AUDITARIA_CLAUDE_PROVIDER
   esbuild.build(stagehandBundleConfig), // AUDITARIA_BROWSER_AGENT
 ]).then((results) => {
-  const [cliResult, a2aResult, mcpBridgeResult, stagehandResult] = results;
+  const [cliResult, workerResult, a2aResult, mcpBridgeResult, stagehandResult] =
+    results; // AUDITARIA: mcp-bridge + stagehand entries
   if (cliResult.status === 'rejected') {
     console.error('gemini.js build failed:', cliResult.reason);
+    process.exit(1);
+  }
+  if (workerResult.status === 'rejected') {
+    console.error('worker-entry.js build failed:', workerResult.reason);
     process.exit(1);
   }
   // error in a2a-server bundling will not stop gemini.js bundling process
