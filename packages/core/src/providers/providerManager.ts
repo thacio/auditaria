@@ -252,18 +252,6 @@ interface BackgroundCapableDriver {
   onBackgroundCompactionSummary?(
     handler: (data: { text: string }) => void,
   ): () => void;
-  onBackgroundToolGroup?(
-    handler: (data: {
-      tools: Array<{
-        callId: string;
-        name: string;
-        args: Record<string, unknown>;
-        output: string;
-        isError: boolean;
-        completed: boolean;
-      }>;
-    }) => void,
-  ): () => void;
 }
 
 function isBackgroundCapableDriver(
@@ -381,23 +369,6 @@ export class ProviderManager {
     return () => this.backgroundEmitter.off('compaction-summary', handler);
   }
 
-  /** Per-turn tool-call group, batched at Stop. */
-  onBackgroundToolGroup(
-    handler: (data: {
-      tools: Array<{
-        callId: string;
-        name: string;
-        args: Record<string, unknown>;
-        output: string;
-        isError: boolean;
-        completed: boolean;
-      }>;
-    }) => void,
-  ): () => void {
-    this.backgroundEmitter.on('tool-group', handler);
-    return () => this.backgroundEmitter.off('tool-group', handler);
-  }
-
   /**
    * Subscribe to the active driver's background events. Called once after
    * each driver creation in getOrCreateDriver, and again when the driver
@@ -436,12 +407,6 @@ export class ProviderManager {
         this.backgroundEmitter.emit('compaction-summary', data);
       });
       this.backgroundUnsubscribers.push(offCompact);
-    }
-    if (typeof this.driver.onBackgroundToolGroup === 'function') {
-      const offGroup = this.driver.onBackgroundToolGroup((data) => {
-        this.backgroundEmitter.emit('tool-group', data);
-      });
-      this.backgroundUnsubscribers.push(offGroup);
     }
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
