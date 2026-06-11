@@ -162,8 +162,17 @@ export class OAuthCredentialStorage {
       } // AUDITARIA ADDITION
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const credentials: Credentials = JSON.parse(credsJson);
+    let credentials: Credentials;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      credentials = JSON.parse(credsJson);
+    } catch {
+      coreEvents.emitFeedback(
+        'warning',
+        `Corrupted OAuth credential file at ${oldFilePath}, skipping migration`,
+      );
+      return null;
+    }
 
     // Save to new storage
     await this.saveCredentials(credentials);
