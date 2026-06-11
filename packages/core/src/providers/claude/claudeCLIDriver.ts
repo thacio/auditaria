@@ -43,6 +43,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir, homedir } from 'node:os';
+import { EventEmitter } from 'node:events';
 import stripAnsi from 'strip-ansi';
 import { getPty } from '../../utils/getPty.js';
 import { resolveExecutable } from '../../utils/shell-utils.js';
@@ -212,6 +213,25 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private claudeExePath: string | null = null;
   /** First-call systemContext is locked in; later changes log a warn. */
   private lastSystemContext: string | undefined = undefined;
+
+  // AUDITARIA_CLAUDE_PROVIDER: Background hook-watcher state. When the
+  // user types in the web terminal between Auditaria-initiated turns,
+  // Claude still processes — hooks fire, the transcript appends. Without
+  // a background drain, those events accumulate on disk and get skipped
+  // by the next sendMessage's offset snapshot, and Auditaria's chat UI
+  // never learns the conversation happened.
+  //
+  // The watcher polls the hook file ~6× per second. On every Stop event
+  // observed OUTSIDE a sendMessage, it reads the transcript delta and
+  // emits user/assistant messages through `backgroundEmitter`, which
+  // providerManager forwards to AppContainer.
+  //
+  // Paused while sendMessage is running so processTurnEvents doesn't
+  // race against us for the same hook bytes.
+  private backgroundEmitter = new EventEmitter();
+  private backgroundWatcherTimer: NodeJS.Timeout | null = null;
+  private backgroundWatcherPaused = false;
+  private backgroundWatcherTickInFlight = false;
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   constructor(private readonly config: ClaudeDriverConfig) {
@@ -239,11 +259,137 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.transcriptLineOffset = 0;
   }
 
+  // AUDITARIA_CLAUDE_PROVIDER_START: Background event subscription. UI
+  // subscribes via providerManager; we expose typed on/off methods so
+  // providerManager doesn't need access to our EventEmitter directly.
+
+  /** Fires when the user typed a message in the web terminal that wasn't
+   *  initiated via sendMessage. Provides the message text parsed from the
+   *  transcript's `user` line. */
+  onBackgroundUserMessage(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('user-message', handler);
+    return () => this.backgroundEmitter.off('user-message', handler);
+  }
+
+  /** Fires for each `text` block in an assistant message produced during
+   *  a turn not initiated via sendMessage. May fire multiple times per
+   *  turn (one per text block). */
+  onBackgroundAssistantText(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('assistant-text', handler);
+    return () => this.backgroundEmitter.off('assistant-text', handler);
+  }
+
+  // ─── Internal watcher control ─────────────────────────────────────────
+
+  private startBackgroundWatcher(): void {
+    if (this.backgroundWatcherTimer) return;
+    this.backgroundWatcherTimer = setInterval(() => {
+      void this.backgroundWatcherTick();
+    }, 150);
+  }
+
+  private stopBackgroundWatcher(): void {
+    if (this.backgroundWatcherTimer) {
+      clearInterval(this.backgroundWatcherTimer);
+      this.backgroundWatcherTimer = null;
+    }
+  }
+
+  private async backgroundWatcherTick(): Promise<void> {
+    if (this.backgroundWatcherPaused) return;
+    if (!this.activePty || this.ptyExited) return;
+    if (this.backgroundWatcherTickInFlight) return;
+    this.backgroundWatcherTickInFlight = true;
+    try {
+      const batch = await this.readNewHookEvents(this.hookFileByteOffset);
+      if (batch.consumedBytes === this.hookFileByteOffset) return;
+      this.hookFileByteOffset = batch.consumedBytes;
+
+      // A Stop event in the background stream means a user-initiated
+      // turn just completed. Read the transcript delta and emit the
+      // user/assistant messages so the chat catches up.
+      let sawStop = false;
+      for (const ev of batch.events) {
+        if (ev.event === 'Stop' || ev.event === 'PostCompact') {
+          sawStop = true;
+        }
+      }
+      if (sawStop) {
+        await this.flushBackgroundTranscript();
+      }
+    } catch {
+      /* swallow — try again next tick */
+    } finally {
+      this.backgroundWatcherTickInFlight = false;
+    }
+  }
+
+  private async flushBackgroundTranscript(): Promise<void> {
+    const path = this.computeTranscriptPath();
+    if (!path) return;
+    let content: string;
+    try {
+      content = await fsp.readFile(path, 'utf-8');
+    } catch {
+      return;
+    }
+    if (content.length <= this.transcriptLineOffset) return;
+    const newText = content.slice(this.transcriptLineOffset);
+    this.transcriptLineOffset = content.length;
+
+    for (const line of newText.split('\n')) {
+      if (!line.trim()) continue;
+      let entry: TranscriptEntry;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+        entry = JSON.parse(line) as TranscriptEntry;
+      } catch {
+        continue;
+      }
+
+      // Skip compaction summary markers — those aren't real user input.
+      if (
+        entry.type === 'user' &&
+        entry.message &&
+        entry['isCompactSummary'] !== true
+      ) {
+        const text = extractUserTextFromTranscriptEntry(entry);
+        if (text) {
+          this.backgroundEmitter.emit('user-message', { text });
+        }
+      } else if (entry.type === 'assistant' && entry.message) {
+        const content = entry.message.content;
+        if (Array.isArray(content)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+          for (const block of content as ClaudeContentBlock[]) {
+            if (block.type === 'text' && block.text) {
+              this.backgroundEmitter.emit('assistant-text', {
+                text: block.text,
+              });
+            }
+            // tool_use / tool_result blocks intentionally NOT emitted —
+            // chat UI doesn't need to replay tool calls from the web
+            // terminal; user sees them in the live xterm.
+          }
+        }
+      }
+    }
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   async interrupt(): Promise<void> {
     this.killPty();
   }
 
   dispose(): void {
+    // AUDITARIA_CLAUDE_PROVIDER: stop the background hook-watcher first
+    // so its in-flight tick can't read into a half-disposed driver.
+    this.stopBackgroundWatcher();
+    this.backgroundEmitter.removeAllListeners();
     this.killPty();
     this.cleanupMcpConfig();
     this.cleanupHookFiles();
@@ -404,6 +550,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     // Brief delay so Ink finishes wiring its raw-mode key handler.
     await delay(SESSION_START_GRACE_MS);
+
+    // Start the background hook-watcher now that the PTY is alive and
+    // SessionStart has been consumed. It pauses automatically while
+    // sendMessage is running.
+    this.startBackgroundWatcher();
     return null;
   }
   // AUDITARIA_CLAUDE_PROVIDER_END
@@ -453,6 +604,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
       return;
     }
     const pty = this.activePty!;
+
+    // AUDITARIA_CLAUDE_PROVIDER: Pause the background watcher for the
+    // duration of this turn so it doesn't race processTurnEvents for
+    // the same hook bytes. Resumed in the finally.
+    this.backgroundWatcherPaused = true;
 
     // AUDITARIA_CLAUDE_PROVIDER_START: Persistent-PTY per-turn flow.
     // The PTY is already alive and at the input box (Claude finished its
@@ -565,6 +721,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       signal.removeEventListener('abort', abortHandler);
       // NOTE: do NOT killPty here — the persistent PTY survives across
       // turns. Cleanup happens in dispose().
+      this.backgroundWatcherPaused = false;
     }
     // AUDITARIA_CLAUDE_PROVIDER_END
   }
@@ -1606,6 +1763,38 @@ interface TranscriptEntry {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// AUDITARIA_CLAUDE_PROVIDER: Pull human-typed text out of a transcript
+// `user` entry. The message content is either a plain string (typical
+// for actual user messages) or an array of blocks where the only block
+// type that represents what the human typed is `text` (the others are
+// tool_result echoes Claude appends when a tool returns).
+function extractUserTextFromTranscriptEntry(
+  entry: TranscriptEntry,
+): string | null {
+  const msg = entry.message;
+  if (!msg) return null;
+  const content = msg.content;
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (Array.isArray(content)) {
+    const parts: string[] = [];
+    for (const block of content as Array<Record<string, unknown>>) {
+      if (
+        block &&
+        block['type'] === 'text' &&
+        typeof block['text'] === 'string'
+      ) {
+        parts.push(block['text'] as string);
+      }
+    }
+    const joined = parts.join('').trim();
+    return joined.length > 0 ? joined : null;
+  }
+  return null;
 }
 
 // AUDITARIA_CLAUDE_PROVIDER: On Windows, npm installs `claude` as a .cmd shim

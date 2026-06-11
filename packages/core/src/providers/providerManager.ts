@@ -7,6 +7,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { EventEmitter } from 'node:events';
 import type { Content, Part, PartListUnion } from '@google/genai';
 import {
   GeminiEventType,
@@ -233,9 +234,41 @@ export type NextTurnIntent =
   | { kind: 'resume'; sessionId: string }
   | { kind: 'resetWithSummary' };
 
+// AUDITARIA_CLAUDE_PROVIDER: Minimal shape the manager looks for on
+// drivers that support background-turn surfacing (turns initiated
+// directly through the live PTY, e.g. by the web terminal viewer).
+// Duck-typed so we don't have to put these on the generic ProviderDriver
+// interface (only Claude needs them today).
+interface BackgroundCapableDriver {
+  onBackgroundUserMessage(
+    handler: (data: { text: string }) => void,
+  ): () => void;
+  onBackgroundAssistantText(
+    handler: (data: { text: string }) => void,
+  ): () => void;
+}
+
+function isBackgroundCapableDriver(
+  d: ProviderDriver | null,
+): d is ProviderDriver & BackgroundCapableDriver {
+  if (!d) return false;
+  const cast = d as ProviderDriver & Partial<BackgroundCapableDriver>;
+  return (
+    typeof cast.onBackgroundUserMessage === 'function' &&
+    typeof cast.onBackgroundAssistantText === 'function'
+  );
+}
+
 export class ProviderManager {
   private driver: ProviderDriver | null = null;
   private callCount = 0;
+  // AUDITARIA_CLAUDE_PROVIDER: Out-of-band channel for events the active
+  // driver discovers between sendMessage calls (e.g. user typed
+  // directly into the live PTY via the web terminal viewer, Claude
+  // processed it, transcript appended). The UI subscribes via
+  // onBackgroundUserMessage / onBackgroundAssistantText below.
+  private backgroundEmitter = new EventEmitter();
+  private backgroundUnsubscribers: Array<() => void> = [];
   private mcpServers?: Record<string, ExternalMCPServerConfig>; // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
   private toolRegistry?: ToolRegistry; // AUDITARIA_CLAUDE_PROVIDER: For tool bridging
   private toolExecutorServer?: ToolExecutorServer; // AUDITARIA_CLAUDE_PROVIDER: HTTP API for MCP bridge
@@ -292,6 +325,55 @@ export class ProviderManager {
     this.toolOutputHandler = handler;
     this.wireToolOutputHandler();
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Public subscribe API for background
+  // events. UI (AppContainer) calls these once on mount; we route the
+  // active driver's background events through our local emitter so the
+  // subscription survives driver re-creation across provider switches.
+
+  /** User message typed directly into the live PTY between sendMessages. */
+  onBackgroundUserMessage(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('user-message', handler);
+    return () => this.backgroundEmitter.off('user-message', handler);
+  }
+
+  /** Assistant text emitted in a turn the user initiated via the live PTY. */
+  onBackgroundAssistantText(
+    handler: (data: { text: string }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('assistant-text', handler);
+    return () => this.backgroundEmitter.off('assistant-text', handler);
+  }
+
+  /**
+   * Subscribe to the active driver's background events. Called once after
+   * each driver creation in getOrCreateDriver, and again when the driver
+   * is replaced. Each call tears down the previous subscriptions before
+   * setting up new ones so we don't leak forwarders.
+   */
+  private wireBackgroundForwarding(): void {
+    for (const off of this.backgroundUnsubscribers) {
+      try {
+        off();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.backgroundUnsubscribers = [];
+
+    if (!isBackgroundCapableDriver(this.driver)) return;
+
+    const offUser = this.driver.onBackgroundUserMessage((data) => {
+      this.backgroundEmitter.emit('user-message', data);
+    });
+    const offAssistant = this.driver.onBackgroundAssistantText((data) => {
+      this.backgroundEmitter.emit('assistant-text', data);
+    });
+    this.backgroundUnsubscribers.push(offUser, offAssistant);
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_REWIND_START: Lazily wire the correct file checkpoint adapter
   private fileCheckpointAdapterProvider: string | null = null;
@@ -1127,6 +1209,17 @@ export class ProviderManager {
   }
 
   dispose(): void {
+    // AUDITARIA_CLAUDE_PROVIDER: tear down background forwarders before
+    // we dispose the driver they're subscribed to.
+    for (const off of this.backgroundUnsubscribers) {
+      try {
+        off();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.backgroundUnsubscribers = [];
+    this.backgroundEmitter.removeAllListeners();
     this.driver?.dispose();
     this.driver = null;
     // AUDITARIA_CLAUDE_PROVIDER: Stop tool executor server (only if we own it — borrowed
@@ -1234,6 +1327,11 @@ export class ProviderManager {
         this.nextTurn.sessionId.slice(0, 8),
       );
     }
+
+    // AUDITARIA_CLAUDE_PROVIDER: Wire background-turn forwarding from
+    // the newly-created driver into our local emitter. No-op for drivers
+    // that don't implement the BackgroundCapableDriver shape.
+    this.wireBackgroundForwarding();
 
     return this.driver;
   }

@@ -742,6 +742,42 @@ export const AppContainer = (props: AppContainerProps) => {
     };
   }, [handleEditorClose, openEditorDialog]);
 
+  // AUDITARIA_CLAUDE_PROVIDER_START: Surface user-initiated turns that
+  // happened directly in the live PTY (via the web-terminal viewer) so
+  // the chat catches up. providerManager forwards from the active
+  // driver; no-op on providers that don't expose the background hooks.
+  useEffect(() => {
+    const pm = config.getProviderManager();
+    if (!pm || typeof pm.onBackgroundUserMessage !== 'function') return;
+    const offUser = pm.onBackgroundUserMessage(({ text }) => {
+      if (!text) return;
+      historyManager.addItem(
+        { type: MessageType.USER, text },
+        Date.now(),
+      );
+    });
+    const offAssistant = pm.onBackgroundAssistantText(({ text }) => {
+      if (!text) return;
+      historyManager.addItem(
+        { type: MessageType.GEMINI, text },
+        Date.now(),
+      );
+    });
+    return () => {
+      try {
+        offUser();
+      } catch {
+        /* ignore */
+      }
+      try {
+        offAssistant();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [config, historyManager]);
+  // AUDITARIA_CLAUDE_PROVIDER_END
+
   useEffect(() => {
     if (
       !(settings.merged.ui.hideBanner || config.getScreenReader()) &&
