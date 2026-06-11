@@ -250,6 +250,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
       isError?: boolean;
     }
   >();
+  /** True for the current background turn if a PostCompact was seen.
+   *  Latches the next `isCompactSummary` user-line for the right surface. */
+  private backgroundCompactedTurn = false;
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   constructor(private readonly config: ClaudeDriverConfig) {
@@ -361,32 +364,40 @@ export class ClaudeCLIDriver implements ProviderDriver {
     if (this.backgroundWatcherTickInFlight) return;
     this.backgroundWatcherTickInFlight = true;
     try {
+      // AUDITARIA_CLAUDE_PROVIDER: Hook events + transcript both drained
+      // on EVERY tick so chat reflects progress as it happens, not in a
+      // single dump at Stop:
+      //   - PreToolUse stashes the call (callId, name, args).
+      //   - PostToolUse completes it AND immediately emits a single-tool
+      //     "tool-group" event so a tool result lands in chat the same
+      //     moment Claude sees it.
+      //   - Transcript is re-read once per tick to surface the user-line
+      //     and any new assistant `text` blocks as they're written by
+      //     Claude (typically once per assistant message in the
+      //     reasoning loop). flushBackgroundTranscriptIncremental skips
+      //     `tool_use` blocks because we already emitted them via the
+      //     hooks above.
+      //   - StopFailure surfaces immediately as a background error.
+      //   - Stop just resets per-turn state; nothing else to flush.
       const batch = await this.readNewHookEvents(this.hookFileByteOffset);
-      if (batch.consumedBytes === this.hookFileByteOffset) return;
-      this.hookFileByteOffset = batch.consumedBytes;
-
-      // AUDITARIA_CLAUDE_PROVIDER: PreToolUse records the call (name +
-      // args + a fresh callId tied to tool_use_id); PostToolUse records
-      // the result. We don't emit anything per-tool here — chat gets a
-      // single structured tool-group event on Stop, rendered as a
-      // proper HistoryItemToolGroup. The live xterm panel already shows
-      // tool progress as it happens; this gives chat the polished
-      // post-turn summary.
+      let sawCompact = this.backgroundCompactedTurn;
       let sawStop = false;
-      let sawCompact = false;
       let sawStopFailure: string | undefined;
-      for (const ev of batch.events) {
-        if (ev.event === 'PreToolUse') {
-          await this.handleBackgroundPreToolUse(ev);
-        } else if (ev.event === 'PostToolUse') {
-          this.handleBackgroundPostToolUse(ev);
-        } else if (ev.event === 'StopFailure') {
-          sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
-        } else if (ev.event === 'PostCompact') {
-          sawCompact = true;
-          sawStop = true;
-        } else if (ev.event === 'Stop') {
-          sawStop = true;
+      if (batch.consumedBytes > this.hookFileByteOffset) {
+        this.hookFileByteOffset = batch.consumedBytes;
+        for (const ev of batch.events) {
+          if (ev.event === 'PreToolUse') {
+            this.handleBackgroundPreToolUse(ev);
+          } else if (ev.event === 'PostToolUse') {
+            this.handleBackgroundPostToolUse(ev); // emits tool-group live
+          } else if (ev.event === 'StopFailure') {
+            sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
+          } else if (ev.event === 'PostCompact') {
+            sawCompact = true;
+            sawStop = true;
+          } else if (ev.event === 'Stop') {
+            sawStop = true;
+          }
         }
       }
       if (sawStopFailure) {
@@ -394,11 +405,19 @@ export class ClaudeCLIDriver implements ProviderDriver {
           message: `Background turn failed: ${sawStopFailure}`,
         });
       }
+
+      // Always read the transcript delta — user message + any new
+      // assistant text blocks land here, regardless of hook timing.
+      this.backgroundCompactedTurn = sawCompact;
+      await this.flushBackgroundTranscriptIncremental();
+
       if (sawStop) {
-        await this.flushBackgroundTranscript({ compactedTurn: sawCompact });
-        this.flushBackgroundToolGroup();
-        // Reset per-turn state for the next background turn.
+        // Per-turn state — drop any tool entries that never completed
+        // (PostToolUse hook didn't fire — rare but possible on tool
+        // error paths) so they don't bleed into the next turn.
+        this.backgroundPendingTools.clear();
         this.backgroundTurnUserEmitted = false;
+        this.backgroundCompactedTurn = false;
       }
     } catch {
       /* swallow — try again next tick */
@@ -407,17 +426,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
   }
 
-  // AUDITARIA_CLAUDE_PROVIDER: First hook event of a new background
-  // turn → ensure the user's typed message is in chat BEFORE any tool
-  // markers. We flush JUST the user-message portion of the transcript
-  // (no advance) so the on-Stop flush still emits the assistant text in
-  // order. Stash the tool invocation for the structured group we emit
-  // at Stop.
-  private async handleBackgroundPreToolUse(ev: HookEvent): Promise<void> {
-    if (!this.backgroundTurnUserEmitted) {
-      await this.flushBackgroundUserMessageOnly();
-      this.backgroundTurnUserEmitted = true;
-    }
+  // AUDITARIA_CLAUDE_PROVIDER: Stash the tool invocation. The transcript
+  // tick will emit the user-line that triggered the turn — no need for
+  // us to force-flush it here (incremental tick handles ordering).
+  private handleBackgroundPreToolUse(ev: HookEvent): void {
     const toolName = pickString(ev.payload, 'tool_name');
     const toolUseId = pickString(ev.payload, 'tool_use_id');
     if (!toolName || !toolUseId) return;
@@ -432,9 +444,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
     });
   }
 
-  // AUDITARIA_CLAUDE_PROVIDER: complete the pending entry with its
-  // result. tool_result may be missing on tool error (the hook fires
-  // with empty result); we still mark it as completed-with-error.
+  // AUDITARIA_CLAUDE_PROVIDER: Complete the pending entry AND emit it
+  // immediately as a single-tool group so chat reflects the result the
+  // moment Claude finishes the tool — no batching to Stop.
   private handleBackgroundPostToolUse(ev: HookEvent): void {
     const toolUseId = pickString(ev.payload, 'tool_use_id');
     if (!toolUseId) return;
@@ -451,35 +463,28 @@ export class ClaudeCLIDriver implements ProviderDriver {
         output = String(result);
       }
     }
-    pending.output = output;
-    pending.isError =
+    const isError =
       ev.payload['is_error'] === true || ev.payload['isError'] === true;
+    this.backgroundPendingTools.delete(toolUseId);
+    this.backgroundEmitter.emit('tool-group', {
+      tools: [
+        {
+          callId: pending.callId,
+          name: pending.name,
+          args: pending.args,
+          output,
+          isError,
+          completed: true,
+        },
+      ],
+    });
   }
 
-  // AUDITARIA_CLAUDE_PROVIDER: emit the per-turn buffer as a single
-  // structured group, then clear. Tools that never received a
-  // PostToolUse (PTY died mid-turn, hook dropped) are still included
-  // with status 'pending'-ish — we just don't have output.
-  private flushBackgroundToolGroup(): void {
-    if (this.backgroundPendingTools.size === 0) return;
-    const tools = Array.from(this.backgroundPendingTools.values()).map((t) => ({
-      callId: t.callId,
-      name: t.name,
-      args: t.args,
-      output: t.output ?? '',
-      isError: t.isError ?? false,
-      completed: t.output !== undefined,
-    }));
-    this.backgroundPendingTools.clear();
-    this.backgroundEmitter.emit('tool-group', { tools });
-  }
-
-  // AUDITARIA_CLAUDE_PROVIDER: Read enough of the transcript to find the
-  // most recent user message that hasn't been emitted yet, emit it, and
-  // advance transcriptLineOffset PAST that line so the on-Stop flush
-  // doesn't replay it. Assistant entries that may already be partially
-  // written are deliberately left for the Stop flush.
-  private async flushBackgroundUserMessageOnly(): Promise<void> {
+  // AUDITARIA_CLAUDE_PROVIDER: Read the transcript delta on every tick
+  // and emit user-message / assistant-text blocks as they appear.
+  // Partial-line safe — only advances the offset past the last newline
+  // so the next tick sees a complete subsequent line.
+  private async flushBackgroundTranscriptIncremental(): Promise<void> {
     const path = this.computeTranscriptPath();
     if (!path) return;
     let content: string;
@@ -489,54 +494,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
       return;
     }
     if (content.length <= this.transcriptLineOffset) return;
-    const newText = content.slice(this.transcriptLineOffset);
-    const lines = newText.split('\n');
-    let consumed = 0;
-    for (const line of lines) {
-      const lineLen = line.length + 1; // +newline
-      consumed += lineLen;
-      if (!line.trim()) continue;
-      let entry: TranscriptEntry;
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-        entry = JSON.parse(line) as TranscriptEntry;
-      } catch {
-        continue;
-      }
-      if (
-        entry.type === 'user' &&
-        entry.message &&
-        entry['isCompactSummary'] !== true
-      ) {
-        const text = extractUserTextFromTranscriptEntry(entry);
-        if (text) {
-          this.backgroundEmitter.emit('user-message', { text });
-        }
-        // Advance offset past this user line so the Stop flush doesn't
-        // see it again. We don't go further — assistant lines, if any,
-        // are still being written and should be re-read on Stop.
-        this.transcriptLineOffset += consumed;
-        return;
-      }
-    }
-  }
+    const fresh = content.slice(this.transcriptLineOffset);
+    const lastNl = fresh.lastIndexOf('\n');
+    if (lastNl < 0) return; // no complete line yet — wait
+    const complete = fresh.slice(0, lastNl);
+    this.transcriptLineOffset += lastNl + 1;
 
-  private async flushBackgroundTranscript(
-    opts: { compactedTurn?: boolean } = {},
-  ): Promise<void> {
-    const path = this.computeTranscriptPath();
-    if (!path) return;
-    let content: string;
-    try {
-      content = await fsp.readFile(path, 'utf-8');
-    } catch {
-      return;
-    }
-    if (content.length <= this.transcriptLineOffset) return;
-    const newText = content.slice(this.transcriptLineOffset);
-    this.transcriptLineOffset = content.length;
-
-    for (const line of newText.split('\n')) {
+    for (const line of complete.split('\n')) {
       if (!line.trim()) continue;
       let entry: TranscriptEntry;
       try {
@@ -548,20 +512,16 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
       if (entry.type === 'user' && entry.message) {
         if (entry['isCompactSummary'] === true) {
-          // Compaction summary — surface as a one-line info marker so
-          // the chat knows context shrank during a web-terminal turn.
-          if (opts.compactedTurn) {
+          if (this.backgroundCompactedTurn) {
             const c = entry.message.content;
             const summary = typeof c === 'string' ? c : '';
             this.backgroundEmitter.emit('compaction-summary', {
               text: summary,
             });
+            this.backgroundCompactedTurn = false;
           }
           continue;
         }
-        // Plain user message — only emit if a PreToolUse handler hasn't
-        // already pushed it this turn (idempotent guard via
-        // backgroundTurnUserEmitted reset on Stop).
         if (!this.backgroundTurnUserEmitted) {
           const text = extractUserTextFromTranscriptEntry(entry);
           if (text) {
@@ -570,24 +530,23 @@ export class ClaudeCLIDriver implements ProviderDriver {
           this.backgroundTurnUserEmitted = true;
         }
       } else if (entry.type === 'assistant' && entry.message) {
-        const content = entry.message.content;
-        if (Array.isArray(content)) {
+        const ac = entry.message.content;
+        if (Array.isArray(ac)) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-          for (const block of content as ClaudeContentBlock[]) {
+          for (const block of ac as ClaudeContentBlock[]) {
             if (block.type === 'text' && block.text) {
               this.backgroundEmitter.emit('assistant-text', {
                 text: block.text,
               });
             }
-            // tool_use blocks are NO LONGER emitted here — live PreToolUse
-            // handler already wrote a "↪ Calling X: ..." marker in
-            // proper order. tool_result blocks live in user-role
-            // transcript lines, not here.
+            // tool_use already emitted live from the PostToolUse hook
+            // (or will be when that hook fires) — skip here.
           }
         }
       }
     }
   }
+
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   async interrupt(): Promise<void> {
