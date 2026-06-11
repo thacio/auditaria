@@ -34,10 +34,35 @@ import { Unicode11Addon } from 'xterm-unicode11';
 const MIRROR_BG = '#1e1e1e';
 const MIRROR_FG = '#d4d4d4';
 
-const PIP_WIDTH = 560;
-const PIP_HEIGHT = 320;
+const PIP_DEFAULT_WIDTH = 560;
+const PIP_DEFAULT_HEIGHT = 320;
+const PIP_MIN_WIDTH = 320;
+const PIP_MIN_HEIGHT = 180;
 const PIP_DEFAULT_X = 24;
 const PIP_DEFAULT_Y = 24;
+
+// AUDITARIA_CLAUDE_PROVIDER: persist a tiny blob of viewer state across
+// page reloads so the user doesn't have to re-toggle the terminal and
+// re-position the PiP every time they refresh.
+const STORAGE_KEY = 'auditaria.claudePtyViewer.v1';
+function loadViewerState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+function saveViewerState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* private mode / quota — silently skip */
+  }
+}
 
 function encodeBytes(str) {
   return btoa(unescape(encodeURIComponent(str)));
@@ -103,16 +128,55 @@ export class ClaudePtyViewer {
     /** @type {'hidden'|'modal'|'pip'} */
     this.mode = 'hidden';
     this.pipPosition = { x: PIP_DEFAULT_X, y: PIP_DEFAULT_Y };
+    this.pipSize = { width: PIP_DEFAULT_WIDTH, height: PIP_DEFAULT_HEIGHT };
+    // Load persisted state. Mode is restored opportunistically — if it
+    // was 'modal' or 'pip', we'll open the panel on construction so a
+    // page reload mid-conversation isn't disruptive.
+    const persisted = loadViewerState();
+    let restoreMode = null;
+    if (persisted) {
+      if (
+        persisted.pipPosition &&
+        typeof persisted.pipPosition.x === 'number' &&
+        typeof persisted.pipPosition.y === 'number'
+      ) {
+        this.pipPosition = persisted.pipPosition;
+      }
+      if (
+        persisted.pipSize &&
+        typeof persisted.pipSize.width === 'number' &&
+        typeof persisted.pipSize.height === 'number'
+      ) {
+        this.pipSize = {
+          width: Math.max(PIP_MIN_WIDTH, persisted.pipSize.width),
+          height: Math.max(PIP_MIN_HEIGHT, persisted.pipSize.height),
+        };
+      }
+      if (persisted.mode === 'modal' || persisted.mode === 'pip') {
+        restoreMode = persisted.mode;
+      }
+    }
+    this._restoreMode = restoreMode;
     this.ptyActive = false;
     this.dragging = false;
+    this.resizing = false;
+    this.resizeStart = { x: 0, y: 0, width: 0, height: 0 };
     this.dragOffset = { x: 0, y: 0 };
 
     injectXtermScrollbarStyle();
     this.initializeToggleButton();
     this.initializeBackdrop();
     this.initializePanel();
+    this.initializeResizeHandle();
     this.bindWsEvents();
     this.bindDocumentDragHandlers();
+
+    // Restore the previously persisted mode now that the DOM is ready.
+    if (this._restoreMode === 'modal') {
+      Promise.resolve().then(() => this.show());
+    } else if (this._restoreMode === 'pip') {
+      Promise.resolve().then(() => this.enterPip());
+    }
   }
 
   // ─── Toggle button (bottom-right, always visible) ────────────────────
@@ -319,12 +383,13 @@ export class ClaudePtyViewer {
     this.pipBtn.style.display = '';
     this.expandBtn.style.display = 'none';
     this.backdrop.style.display = 'block';
+    if (this.resizeHandle) this.resizeHandle.style.display = 'none';
     this.refit();
   }
 
   applyPipLayout() {
-    this.panel.style.width = `${PIP_WIDTH}px`;
-    this.panel.style.height = `${PIP_HEIGHT}px`;
+    this.panel.style.width = `${this.pipSize.width}px`;
+    this.panel.style.height = `${this.pipSize.height}px`;
     this.panel.style.left = `${this.pipPosition.x}px`;
     this.panel.style.top = `${this.pipPosition.y}px`;
     this.panel.style.transform = 'none';
@@ -332,6 +397,7 @@ export class ClaudePtyViewer {
     this.pipBtn.style.display = 'none';
     this.expandBtn.style.display = '';
     this.backdrop.style.display = 'none';
+    if (this.resizeHandle) this.resizeHandle.style.display = 'block';
     this.refit();
   }
 
@@ -368,6 +434,7 @@ export class ClaudePtyViewer {
       this.refit();
       this.term?.focus();
     });
+    this.persistState();
   }
 
   enterPip() {
@@ -382,6 +449,7 @@ export class ClaudePtyViewer {
       this.refit();
       this.term?.focus();
     });
+    this.persistState();
   }
 
   exitPip() {
@@ -392,10 +460,12 @@ export class ClaudePtyViewer {
       this.refit();
       this.term?.focus();
     });
+    this.persistState();
   }
 
   hide() {
     this.mode = 'hidden';
+    this.persistState();
     this.panel.style.display = 'none';
     this.backdrop.style.display = 'none';
   }
@@ -413,25 +483,106 @@ export class ClaudePtyViewer {
       e.preventDefault();
     });
     document.addEventListener('mousemove', (e) => {
-      if (!this.dragging) return;
-      const x = Math.max(
-        0,
-        Math.min(window.innerWidth - PIP_WIDTH, e.clientX - this.dragOffset.x),
-      );
-      const y = Math.max(
-        0,
-        Math.min(
-          window.innerHeight - PIP_HEIGHT,
-          e.clientY - this.dragOffset.y,
-        ),
-      );
-      this.pipPosition.x = x;
-      this.pipPosition.y = y;
-      this.panel.style.left = `${x}px`;
-      this.panel.style.top = `${y}px`;
+      if (this.dragging) {
+        const w = this.pipSize.width;
+        const h = this.pipSize.height;
+        const x = Math.max(
+          0,
+          Math.min(window.innerWidth - w, e.clientX - this.dragOffset.x),
+        );
+        const y = Math.max(
+          0,
+          Math.min(window.innerHeight - h, e.clientY - this.dragOffset.y),
+        );
+        this.pipPosition.x = x;
+        this.pipPosition.y = y;
+        this.panel.style.left = `${x}px`;
+        this.panel.style.top = `${y}px`;
+      } else if (this.resizing) {
+        const dx = e.clientX - this.resizeStart.x;
+        const dy = e.clientY - this.resizeStart.y;
+        const width = Math.max(
+          PIP_MIN_WIDTH,
+          Math.min(
+            window.innerWidth - this.pipPosition.x,
+            this.resizeStart.width + dx,
+          ),
+        );
+        const height = Math.max(
+          PIP_MIN_HEIGHT,
+          Math.min(
+            window.innerHeight - this.pipPosition.y,
+            this.resizeStart.height + dy,
+          ),
+        );
+        this.pipSize.width = width;
+        this.pipSize.height = height;
+        this.panel.style.width = `${width}px`;
+        this.panel.style.height = `${height}px`;
+        this.refit();
+      }
     });
     document.addEventListener('mouseup', () => {
-      this.dragging = false;
+      if (this.dragging || this.resizing) {
+        this.dragging = false;
+        this.resizing = false;
+        this.persistState();
+      }
+    });
+  }
+
+  /**
+   * Add a 14×14 grip square at the bottom-right of the panel that the
+   * user can drag to resize in PiP mode. Hidden in modal mode (the
+   * fixed centred sizing handles itself there).
+   */
+  initializeResizeHandle() {
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'claude-pty-resize-handle';
+    this.resizeHandle.title = 'Drag to resize';
+    this.resizeHandle.style.cssText = `
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+      background: linear-gradient(
+        135deg,
+        transparent 0%,
+        transparent 50%,
+        #555 50%,
+        #555 60%,
+        transparent 60%,
+        transparent 70%,
+        #555 70%,
+        #555 80%,
+        transparent 80%
+      );
+      z-index: 2;
+      display: none;
+    `;
+    this.resizeHandle.addEventListener('mousedown', (e) => {
+      if (this.mode !== 'pip') return;
+      this.resizing = true;
+      const rect = this.panel.getBoundingClientRect();
+      this.resizeStart = {
+        x: e.clientX,
+        y: e.clientY,
+        width: rect.width,
+        height: rect.height,
+      };
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    this.panel.appendChild(this.resizeHandle);
+  }
+
+  persistState() {
+    saveViewerState({
+      mode: this.mode,
+      pipPosition: this.pipPosition,
+      pipSize: this.pipSize,
     });
   }
 
