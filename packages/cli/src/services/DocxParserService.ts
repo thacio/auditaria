@@ -56,25 +56,35 @@ export class DocxParserService {
 
   /**
    * Detect parser executable
+   *
+   * Preferred layout (multi-OS shared folders — e.g. a project on a cloud
+   * drive used from Windows AND macOS): each OS keeps its binaries in its
+   * own subfolder, so installs coexist:
+   *   .auditaria/skills/docx-writing-skill/parser-windows/parser.exe
+   *   .auditaria/skills/docx-writing-skill/parser-macos/parser
+   *   .auditaria/skills/docx-writing-skill/parser-linux/parser
+   * Legacy layout (binary at the skill root) is kept as a fallback so
+   * existing installs work until /setup-skill is re-run.
    */
   private detectParser(): void {
     const platform = process.platform;
     const executable = platform === 'win32' ? 'parser.exe' : 'parser';
+    const osName =
+      platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
 
-    // Check primary location
-    const parserPath = path.join(
+    const skillDir = path.join(
       this.workingDirectory,
-      '.auditaria/skills/docx-writing-skill',
-      executable
+      '.auditaria/skills/docx-writing-skill'
     );
 
-    if (fs.existsSync(parserPath)) {
-      this.parserPath = parserPath;
-      this.isAvailable = true;
-    } else {
-      this.isAvailable = false;
-      this.parserPath = null;
-    }
+    const candidates = [
+      path.join(skillDir, `parser-${osName}`, executable),
+      path.join(skillDir, executable),
+    ];
+
+    const found = candidates.find((candidate) => fs.existsSync(candidate));
+    this.parserPath = found ?? null;
+    this.isAvailable = !!found;
   }
 
   /**

@@ -74,22 +74,61 @@ export class SkillSetupService {
       const extractedFolderName = `parser-${platform}`;
       const extractedPath = path.join(skillsDir, extractedFolderName);
 
-      // Now that download and extract succeeded, remove old installation if it exists
-      if (fs.existsSync(skillInstallPath)) {
-        fs.rmSync(skillInstallPath, { recursive: true, force: true });
+      if (!fs.existsSync(extractedPath)) {
+        if (fs.existsSync(zipPath)) {
+          fs.unlinkSync(zipPath);
+        }
+        return {
+          success: false,
+          message: `Installation failed: expected ${extractedFolderName}/ inside the downloaded ZIP`
+        };
       }
 
-      // Rename extracted folder to skillName if needed
-      // The ZIP might extract to a folder like "parser-windows", we need to rename it
-      if (fs.existsSync(extractedPath)) {
-        if (extractedPath !== skillInstallPath) {
-          fs.renameSync(extractedPath, skillInstallPath);
+      // Multi-OS shared-folder layout: the skill root holds the shared,
+      // platform-independent content (SKILL.md, templates/, assets/, docs)
+      // and each OS keeps its binaries in its own parser-<os>/ subfolder.
+      // Setup only ever replaces ITS OWN platform's subfolder, so users on
+      // different OSes sharing the project folder (cloud drive) can each run
+      // /setup-skill once and coexist:
+      //   docx-writing-skill/parser-windows/parser.exe
+      //   docx-writing-skill/parser-macos/parser
+      //   docx-writing-skill/parser-linux/parser
+      fs.mkdirSync(skillInstallPath, { recursive: true });
+
+      const platformInstallPath = path.join(skillInstallPath, extractedFolderName);
+      if (fs.existsSync(platformInstallPath)) {
+        fs.rmSync(platformInstallPath, { recursive: true, force: true });
+      }
+      fs.renameSync(extractedPath, platformInstallPath);
+
+      // Copy the shared (platform-independent) content up to the skill root,
+      // overwriting whatever a previous setup left there. Anything named
+      // parser* (the executable and any future parser support files) is
+      // platform-specific and stays only in the platform subfolder.
+      for (const entry of fs.readdirSync(platformInstallPath)) {
+        if (entry.toLowerCase().startsWith('parser')) {
+          continue;
         }
+        const from = path.join(platformInstallPath, entry);
+        const to = path.join(skillInstallPath, entry);
+        fs.rmSync(to, { recursive: true, force: true });
+        fs.cpSync(from, to, { recursive: true });
+      }
+
+      // Remove THIS platform's legacy root binary (pre-multi-OS layout).
+      // Other platforms' legacy binaries are left untouched — their owners
+      // migrate the same way by re-running /setup-skill on their machine.
+      const legacyBinary = path.join(
+        skillInstallPath,
+        platform === 'windows' ? 'parser.exe' : 'parser'
+      );
+      if (fs.existsSync(legacyBinary)) {
+        fs.rmSync(legacyBinary, { force: true });
       }
 
       // Set executable permissions on Unix
       if (platform !== 'windows') {
-        this.setExecutablePermissions(skillInstallPath);
+        this.setExecutablePermissions(platformInstallPath);
       }
 
       // Clean up ZIP file
@@ -98,16 +137,17 @@ export class SkillSetupService {
       }
 
       // Verify installation
-      if (!fs.existsSync(skillInstallPath)) {
+      const executable = platform === 'windows' ? 'parser.exe' : 'parser';
+      if (!fs.existsSync(path.join(platformInstallPath, executable))) {
         return {
           success: false,
-          message: `Installation failed: Skill directory not found at ${skillInstallPath}`
+          message: `Installation failed: ${executable} not found at ${platformInstallPath}`
         };
       }
 
       return {
         success: true,
-        message: `Skill ${skillName} installed successfully!`,
+        message: `Skill ${skillName} installed successfully for ${platform}! (installs for other OSes in the shared folder are preserved)`,
         installPath: skillInstallPath
       };
 
