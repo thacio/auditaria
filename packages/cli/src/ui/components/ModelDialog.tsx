@@ -14,11 +14,10 @@ import {
   PREVIEW_GEMINI_3_1_MODEL,
   PREVIEW_GEMINI_FLASH_MODEL,
   PREVIEW_GEMINI_3_1_FLASH_LITE_MODEL,
-  PREVIEW_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
   DEFAULT_GEMINI_FLASH_LITE_MODEL,
-  DEFAULT_GEMINI_MODEL_AUTO,
+  GEMINI_MODEL_ALIAS_AUTO,
   GEMMA_4_31B_IT_MODEL,
   GEMMA_4_26B_A4B_IT_MODEL,
   ModelSlashCommandEvent,
@@ -27,6 +26,8 @@ import {
   AuthType,
   PREVIEW_GEMINI_3_1_CUSTOM_TOOLS_MODEL,
   isProModel,
+  getChannelFromVersion,
+  getAutoModelDescription,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
 import { theme } from '../semantic-colors.js';
@@ -155,7 +156,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   }, [config]);
 
   // Determine the Preferred Model (read once when the dialog opens).
-  const preferredModel = config?.getModel() || DEFAULT_GEMINI_MODEL_AUTO;
+  const preferredModel = config?.getModel() || GEMINI_MODEL_ALIAS_AUTO;
 
   const shouldShowPreviewModels = config?.getHasAccessToPreviewModel();
   const useGemini31 = config?.getGemini31LaunchedSync?.() ?? false;
@@ -256,6 +257,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     { isActive: true },
   );
 
+  const releaseChannel = useMemo(
+    () => getChannelFromVersion(config?.clientVersion ?? ''),
+    [config?.clientVersion],
+  );
+
   const mainOptions = useMemo(() => {
     // --- DYNAMIC PATH ---
     if (
@@ -270,6 +276,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           useCustomTools: useCustomToolModel,
           hasAccessToPreview: shouldShowPreviewModels,
           hasAccessToProModel,
+          releaseChannel,
         });
 
       const list = allOptions
@@ -295,11 +302,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     // --- LEGACY PATH ---
     const list = [
       {
-        value: DEFAULT_GEMINI_MODEL_AUTO,
-        title: getDisplayString(DEFAULT_GEMINI_MODEL_AUTO),
-        description:
-          'Let Gemini CLI decide the best model for the task: gemini-2.5-pro, gemini-2.5-flash',
-        key: DEFAULT_GEMINI_MODEL_AUTO,
+        value: GEMINI_MODEL_ALIAS_AUTO,
+        title: getDisplayString(GEMINI_MODEL_ALIAS_AUTO),
+        description: getAutoModelDescription(releaseChannel, useGemini31),
+        key: GEMINI_MODEL_ALIAS_AUTO,
       },
       {
         value: 'Manual',
@@ -310,17 +316,6 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         key: 'Manual',
       },
     ];
-
-    if (shouldShowPreviewModels) {
-      list.unshift({
-        value: PREVIEW_GEMINI_MODEL_AUTO,
-        title: getDisplayString(PREVIEW_GEMINI_MODEL_AUTO),
-        description: useGemini31
-          ? 'Let Gemini CLI decide the best model for the task: gemini-3.1-pro, gemini-3-flash'
-          : 'Let Gemini CLI decide the best model for the task: gemini-3-pro, gemini-3-flash',
-        key: PREVIEW_GEMINI_MODEL_AUTO,
-      });
-    }
 
     // AUDITARIA_PROVIDER: Single entry that opens the Claude submenu
     // AUDITARIA_PROVIDER_AVAILABILITY: Add availability indicator
@@ -376,11 +371,12 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     // AUDITARIA_OPENAI_COMPAT_START: Add custom providers from ~/.auditaria/providers.json
     const customProviders = config?.getCustomProviders() || [];
     for (const cp of customProviders) {
-      const isActive = config?.getProviderConfig()?.type === `openai-compat:${cp.id}`;
+      const isActive =
+        config?.getProviderConfig()?.type === `openai-compat:${cp.id}`;
       list.push({
         value: `openai-compat:${cp.id}`,
         title: isActive ? `${cp.name} (active)` : cp.name,
-        description: `${cp.baseUrl} — ${cp.models.map(m => m.id).join(', ')}`,
+        description: `${cp.baseUrl} — ${cp.models.map((m) => m.id).join(', ')}`,
         key: `openai-compat:${cp.id}`,
       });
     }
@@ -395,6 +391,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     useGemini31FlashLite,
     useCustomToolModel,
     hasAccessToProModel,
+    releaseChannel,
     isClaudeActive,
     isCodexActive,
     isCopilotActive, // AUDITARIA_COPILOT_PROVIDER
@@ -417,6 +414,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           useCustomTools: useCustomToolModel,
           hasAccessToPreview: shouldShowPreviewModels,
           hasAccessToProModel,
+          releaseChannel,
         });
 
       return allOptions
@@ -509,6 +507,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     useGemini31FlashLite,
     useCustomToolModel,
     hasAccessToProModel,
+    releaseChannel,
     config,
   ]);
 
@@ -567,35 +566,40 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     if (!view.startsWith('openai-compat:')) return [];
     const providerId = view.split(':')[1];
     const customProviders = config?.getCustomProviders() || [];
-    const cp = customProviders.find(p => p.id === providerId);
+    const cp = customProviders.find((p) => p.id === providerId);
     if (!cp) return [];
 
-    const activeModel = config?.getProviderConfig()?.type === view
-      ? config.getProviderConfig()?.model
-      : undefined;
+    const activeModel =
+      config?.getProviderConfig()?.type === view
+        ? config.getProviderConfig()?.model
+        : undefined;
 
-    return cp.models.map(m => ({
+    return cp.models.map((m) => ({
       value: `${view}/${m.id}`,
-      title: m.id === activeModel ? `${m.displayName || m.id} (active)` : (m.displayName || m.id),
-      description: m.contextWindow ? `${Math.round(m.contextWindow / 1000)}K context` : '',
+      title:
+        m.id === activeModel
+          ? `${m.displayName || m.id} (active)`
+          : m.displayName || m.id,
+      description: m.contextWindow
+        ? `${Math.round(m.contextWindow / 1000)}K context`
+        : '',
       key: `${view}/${m.id}`,
     }));
   }, [view, config]);
   // AUDITARIA_OPENAI_COMPAT_END
 
   // AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: add submenu views to options selection
-  const options =
-    view.startsWith('openai-compat:')
-      ? customProviderOptions
-      : view === 'copilot'
-        ? copilotOptions
-        : view === 'codex'
-          ? codexOptions
-          : view === 'claude'
-            ? claudeOptions
-            : view === 'manual'
-              ? manualOptions
-              : mainOptions;
+  const options = view.startsWith('openai-compat:')
+    ? customProviderOptions
+    : view === 'copilot'
+      ? copilotOptions
+      : view === 'codex'
+        ? codexOptions
+        : view === 'claude'
+          ? claudeOptions
+          : view === 'manual'
+            ? manualOptions
+            : mainOptions;
   // AUDITARIA_COPILOT_PROVIDER_END
 
   // Calculate the initial index based on the preferred model.
@@ -735,7 +739,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         if (config) {
           const [providerPart, selectedModel] = model.split('/');
           const providerConfig: ProviderConfig = {
-            type: providerPart as ProviderConfig['type'],
+            type: `openai-compat:${providerPart.slice('openai-compat:'.length)}`,
             model: selectedModel,
             cwd: config.getWorkingDir(),
           };
@@ -782,7 +786,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             : view === 'copilot'
               ? 'Select GitHub Copilot Model'
               : view.startsWith('openai-compat:')
-                ? `Select ${(config?.getCustomProviders() || []).find(p => p.id === view.split(':')[1])?.name || 'Custom'} Model`
+                ? `Select ${(config?.getCustomProviders() || []).find((p) => p.id === view.split(':')[1])?.name || 'Custom'} Model`
                 : 'Select Model'}
       </Text>
 
