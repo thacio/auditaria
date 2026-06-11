@@ -68,6 +68,12 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
     description: 'Fastest and most compact',
     key: 'claude-haiku',
   },
+  {
+    value: `${CLAUDE_PREFIX}fable`,
+    title: 'Fable',
+    description: 'Newest Claude · complex long-running work',
+    key: 'claude-fable',
+  },
 ];
 
 export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [

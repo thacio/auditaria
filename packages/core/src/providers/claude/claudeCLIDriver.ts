@@ -234,6 +234,22 @@ export class ClaudeCLIDriver implements ProviderDriver {
   private backgroundWatcherTickInFlight = false;
   /** Has THIS background turn's user-message line been emitted? Reset on Stop. */
   private backgroundTurnUserEmitted = false;
+  /**
+   * Tool invocations seen in the current background turn — populated by
+   * PreToolUse (name + args), completed by PostToolUse (output + isError),
+   * emitted as a single structured group on Stop, then cleared. Keyed by
+   * tool_use_id from Claude's hook payloads.
+   */
+  private backgroundPendingTools = new Map<
+    string,
+    {
+      callId: string;
+      name: string;
+      args: Record<string, unknown>;
+      output?: string;
+      isError?: boolean;
+    }
+  >();
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   constructor(private readonly config: ClaudeDriverConfig) {
@@ -305,6 +321,24 @@ export class ClaudeCLIDriver implements ProviderDriver {
     return () => this.backgroundEmitter.off('compaction-summary', handler);
   }
 
+  /** Fires once per background turn with all PreToolUse+PostToolUse
+   *  pairs from that turn. UI renders as a single HistoryItemToolGroup. */
+  onBackgroundToolGroup(
+    handler: (data: {
+      tools: Array<{
+        callId: string;
+        name: string;
+        args: Record<string, unknown>;
+        output: string;
+        isError: boolean;
+        completed: boolean;
+      }>;
+    }) => void,
+  ): () => void {
+    this.backgroundEmitter.on('tool-group', handler);
+    return () => this.backgroundEmitter.off('tool-group', handler);
+  }
+
   // ─── Internal watcher control ─────────────────────────────────────────
 
   private startBackgroundWatcher(): void {
@@ -331,17 +365,21 @@ export class ClaudeCLIDriver implements ProviderDriver {
       if (batch.consumedBytes === this.hookFileByteOffset) return;
       this.hookFileByteOffset = batch.consumedBytes;
 
-      // AUDITARIA_CLAUDE_PROVIDER: Process events in order. Live tool
-      // markers fire from PreToolUse so chat reflects progress as it
-      // happens, the same way chat-initiated turns surface ToolUse.
-      // PostCompact + the next assistant message together carry the
-      // compaction summary; StopFailure surfaces background API errors.
+      // AUDITARIA_CLAUDE_PROVIDER: PreToolUse records the call (name +
+      // args + a fresh callId tied to tool_use_id); PostToolUse records
+      // the result. We don't emit anything per-tool here — chat gets a
+      // single structured tool-group event on Stop, rendered as a
+      // proper HistoryItemToolGroup. The live xterm panel already shows
+      // tool progress as it happens; this gives chat the polished
+      // post-turn summary.
       let sawStop = false;
       let sawCompact = false;
       let sawStopFailure: string | undefined;
       for (const ev of batch.events) {
         if (ev.event === 'PreToolUse') {
           await this.handleBackgroundPreToolUse(ev);
+        } else if (ev.event === 'PostToolUse') {
+          this.handleBackgroundPostToolUse(ev);
         } else if (ev.event === 'StopFailure') {
           sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
         } else if (ev.event === 'PostCompact') {
@@ -358,6 +396,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
       }
       if (sawStop) {
         await this.flushBackgroundTranscript({ compactedTurn: sawCompact });
+        this.flushBackgroundToolGroup();
         // Reset per-turn state for the next background turn.
         this.backgroundTurnUserEmitted = false;
       }
@@ -372,21 +411,67 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // turn → ensure the user's typed message is in chat BEFORE any tool
   // markers. We flush JUST the user-message portion of the transcript
   // (no advance) so the on-Stop flush still emits the assistant text in
-  // order. Subsequent PreToolUse calls within the same turn just emit
-  // the marker.
+  // order. Stash the tool invocation for the structured group we emit
+  // at Stop.
   private async handleBackgroundPreToolUse(ev: HookEvent): Promise<void> {
     if (!this.backgroundTurnUserEmitted) {
       await this.flushBackgroundUserMessageOnly();
       this.backgroundTurnUserEmitted = true;
     }
     const toolName = pickString(ev.payload, 'tool_name');
-    if (!toolName) return;
-    const toolInput = ev.payload['tool_input'];
-    const argsPreview = summariseToolArgs(toolInput);
-    const marker = argsPreview
-      ? `↪ Calling ${toolName}: ${argsPreview}`
-      : `↪ Calling ${toolName}`;
-    this.backgroundEmitter.emit('assistant-text', { text: marker });
+    const toolUseId = pickString(ev.payload, 'tool_use_id');
+    if (!toolName || !toolUseId) return;
+    const rawInput = ev.payload['tool_input'];
+    const args: Record<string, unknown> = isPlainObject(rawInput)
+      ? rawInput
+      : {};
+    this.backgroundPendingTools.set(toolUseId, {
+      callId: toolUseId,
+      name: toolName,
+      args,
+    });
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: complete the pending entry with its
+  // result. tool_result may be missing on tool error (the hook fires
+  // with empty result); we still mark it as completed-with-error.
+  private handleBackgroundPostToolUse(ev: HookEvent): void {
+    const toolUseId = pickString(ev.payload, 'tool_use_id');
+    if (!toolUseId) return;
+    const pending = this.backgroundPendingTools.get(toolUseId);
+    if (!pending) return;
+    const result = ev.payload['tool_result'];
+    let output = '';
+    if (typeof result === 'string') {
+      output = result;
+    } else if (result !== undefined && result !== null) {
+      try {
+        output = JSON.stringify(result);
+      } catch {
+        output = String(result);
+      }
+    }
+    pending.output = output;
+    pending.isError =
+      ev.payload['is_error'] === true || ev.payload['isError'] === true;
+  }
+
+  // AUDITARIA_CLAUDE_PROVIDER: emit the per-turn buffer as a single
+  // structured group, then clear. Tools that never received a
+  // PostToolUse (PTY died mid-turn, hook dropped) are still included
+  // with status 'pending'-ish — we just don't have output.
+  private flushBackgroundToolGroup(): void {
+    if (this.backgroundPendingTools.size === 0) return;
+    const tools = Array.from(this.backgroundPendingTools.values()).map((t) => ({
+      callId: t.callId,
+      name: t.name,
+      args: t.args,
+      output: t.output ?? '',
+      isError: t.isError ?? false,
+      completed: t.output !== undefined,
+    }));
+    this.backgroundPendingTools.clear();
+    this.backgroundEmitter.emit('tool-group', { tools });
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Read enough of the transcript to find the

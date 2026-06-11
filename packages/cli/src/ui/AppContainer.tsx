@@ -40,6 +40,8 @@ import {
   type PermissionConfirmationRequest,
   type QuotaStats,
   type HistoryItemInfo,
+  CoreToolCallStatus,
+  type IndividualToolCallDisplay,
 } from './types.js';
 import { checkPermissions } from './hooks/atCommandProcessor.js';
 import { ToolActionsProvider } from './contexts/ToolActionsContext.js';
@@ -259,6 +261,53 @@ const SHELL_WIDTH_FRACTION = 0.89;
  * for the shell. This provides vertical padding and space for other UI elements.
  */
 const SHELL_HEIGHT_PADDING = 10;
+
+// AUDITARIA_CLAUDE_PROVIDER: Helpers for surfacing background tool-call
+// groups into the chat. Description is the single-line blurb shown
+// alongside the tool name; result is truncated so a Bash that dumped a
+// 200KB build log doesn't bloat the chat scrollback (the live xterm
+// still has the full output).
+const BACKGROUND_TOOL_DESC_MAX = 200;
+const BACKGROUND_TOOL_RESULT_MAX = 4_000;
+
+function describeArgs(args: Record<string, unknown>): string {
+  if (!args || typeof args !== 'object') return '';
+  const preferred = [
+    'command',
+    'file_path',
+    'pattern',
+    'query',
+    'url',
+    'path',
+    'name',
+    'question',
+  ];
+  for (const k of preferred) {
+    const v = (args as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.trim().length > 0) {
+      const trimmed = v.trim();
+      return trimmed.length > BACKGROUND_TOOL_DESC_MAX
+        ? trimmed.slice(0, BACKGROUND_TOOL_DESC_MAX - 1) + '…'
+        : trimmed;
+    }
+  }
+  try {
+    const dump = JSON.stringify(args);
+    return dump.length > BACKGROUND_TOOL_DESC_MAX
+      ? dump.slice(0, BACKGROUND_TOOL_DESC_MAX - 1) + '…'
+      : dump;
+  } catch {
+    return '';
+  }
+}
+
+function truncateForChat(s: string): string {
+  if (s.length <= BACKGROUND_TOOL_RESULT_MAX) return s;
+  return (
+    s.slice(0, BACKGROUND_TOOL_RESULT_MAX) +
+    `\n…[truncated ${s.length - BACKGROUND_TOOL_RESULT_MAX} chars]`
+  );
+}
 
 export const AppContainer = (props: AppContainerProps) => {
   const isHelpDismissKey = useIsHelpDismissKey();
@@ -807,6 +856,40 @@ export const AppContainer = (props: AppContainerProps) => {
           })
         : () => {};
 
+    // Structured tool-call group from a background turn. We render it as
+    // a real HistoryItemToolGroup so chat looks the same regardless of
+    // whether the turn started from chat input or the live terminal.
+    const offToolGroup =
+      typeof pm.onBackgroundToolGroup === 'function'
+        ? pm.onBackgroundToolGroup(({ tools }) => {
+            if (!tools || tools.length === 0) return;
+            const display: IndividualToolCallDisplay[] = tools.map((t) => {
+              const argsBlurb = describeArgs(t.args);
+              return {
+                callId: t.callId,
+                name: t.name,
+                args: t.args,
+                description: argsBlurb,
+                resultDisplay: t.output ? truncateForChat(t.output) : undefined,
+                status: !t.completed
+                  ? CoreToolCallStatus.Executing
+                  : t.isError
+                    ? CoreToolCallStatus.Error
+                    : CoreToolCallStatus.Success,
+                confirmationDetails: undefined,
+                isClientInitiated: false,
+              };
+            });
+            historyManager.addItem(
+              { type: 'tool_group', tools: display } as Omit<
+                HistoryItem,
+                'id'
+              >,
+              Date.now(),
+            );
+          })
+        : () => {};
+
     return () => {
       try {
         offUser();
@@ -825,6 +908,11 @@ export const AppContainer = (props: AppContainerProps) => {
       }
       try {
         offCompact();
+      } catch {
+        /* ignore */
+      }
+      try {
+        offToolGroup();
       } catch {
         /* ignore */
       }
