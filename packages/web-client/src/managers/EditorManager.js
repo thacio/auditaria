@@ -293,6 +293,13 @@ export class EditorManager extends EventEmitter {
     // Parser state
     this.parserAvailable = false;
 
+    // WYSIWYG editor state (parser AST bridge)
+    this.wysiwygAvailable = false;
+    this.astSpec = null;              // cached capability manifest
+    this.astSpecPromise = null;       // in-flight spec request
+    this.pendingAstRequests = new Map(); // requestId -> { resolve, reject, timer }
+    this.astRequestCounter = 0;
+
     // Track changes callback (provided by EditorPanel)
     this.getTrackChangesEnabled = null;
 
@@ -380,6 +387,16 @@ export class EditorManager extends EventEmitter {
     // Handle parser status updates
     this.wsManager.addEventListener('parser_status', (event) => {
       this.parserAvailable = event.detail.available;
+
+      // WYSIWYG availability rides on parser_status; invalidate the cached
+      // spec when availability flips so a re-installed parser is re-fetched.
+      const wysiwyg = !!event.detail.wysiwyg;
+      if (wysiwyg !== this.wysiwygAvailable) {
+        this.astSpec = null;
+        this.astSpecPromise = null;
+      }
+      this.wysiwygAvailable = wysiwyg;
+
       this.emit('parser-status-changed', { available: this.parserAvailable });
 
       // If active file is markdown, update toolbar
@@ -390,6 +407,26 @@ export class EditorManager extends EventEmitter {
           this.emit('file-switched', { path: activeFile });
         }
       }
+    });
+
+    // WYSIWYG editor: correlated responses for the AST bridge requests
+    this.wsManager.addEventListener('ast_spec_response', (event) => {
+      this.resolveAstRequest(event.detail.requestId, event.detail.spec);
+    });
+    this.wsManager.addEventListener('md_to_ast_response', (event) => {
+      this.resolveAstRequest(event.detail.requestId, event.detail.ast);
+    });
+    this.wsManager.addEventListener('ast_to_md_response', (event) => {
+      this.resolveAstRequest(event.detail.requestId, event.detail.md);
+    });
+    this.wsManager.addEventListener('docx_to_md_response', (event) => {
+      this.resolveAstRequest(event.detail.requestId, event.detail.mdPath);
+    });
+    this.wsManager.addEventListener('ast_error', (event) => {
+      this.rejectAstRequest(
+        event.detail.requestId,
+        new Error(event.detail.error || 'AST request failed')
+      );
     });
 
     // Handle parse responses
@@ -1419,6 +1456,124 @@ export class EditorManager extends EventEmitter {
       type: 'parse_request',
       path: mdPath
     });
+  }
+
+  // =========================================================================
+  // WYSIWYG editor transport (AST bridge to the parser via WebSocket)
+  // =========================================================================
+
+  /**
+   * Whether the WYSIWYG markdown editor is available
+   * (parser installed + AST flags supported + not disabled server-side)
+   * @returns {boolean}
+   */
+  isWysiwygAvailable() {
+    return this.wysiwygAvailable;
+  }
+
+  /**
+   * Send a correlated AST request and return a Promise for its response.
+   * Conversions go through the parser executable, so allow a generous timeout
+   * (cold start of the binary takes a few seconds).
+   * @param {string} type - Message type
+   * @param {Object} payload - Additional message fields
+   * @param {number} timeoutMs - Reject after this many ms
+   * @returns {Promise<*>}
+   */
+  sendAstRequest(type, payload = {}, timeoutMs = 90000) {
+    const requestId = `ast-${++this.astRequestCounter}-${Date.now()}`;
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingAstRequests.delete(requestId);
+        reject(new Error(`${type} timed out`));
+      }, timeoutMs);
+
+      this.pendingAstRequests.set(requestId, { resolve, reject, timer });
+
+      const sent = this.wsManager.send({ type, requestId, ...payload });
+      if (!sent) {
+        clearTimeout(timer);
+        this.pendingAstRequests.delete(requestId);
+        reject(new Error('Not connected to the CLI session'));
+      }
+    });
+  }
+
+  /**
+   * Resolve a pending AST request by id (no-op for ids we don't own —
+   * responses are broadcast to every client, including other tabs).
+   */
+  resolveAstRequest(requestId, value) {
+    const pending = this.pendingAstRequests.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingAstRequests.delete(requestId);
+    pending.resolve(value);
+  }
+
+  /**
+   * Reject a pending AST request by id
+   */
+  rejectAstRequest(requestId, error) {
+    const pending = this.pendingAstRequests.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingAstRequests.delete(requestId);
+    pending.reject(error);
+  }
+
+  /**
+   * Get the editor capability manifest (cached after first fetch)
+   * @returns {Promise<Object>}
+   */
+  requestAstSpec() {
+    if (this.astSpec) {
+      return Promise.resolve(this.astSpec);
+    }
+    if (this.astSpecPromise) {
+      return this.astSpecPromise;
+    }
+
+    this.astSpecPromise = this.sendAstRequest('ast_spec_request')
+      .then((spec) => {
+        this.astSpec = spec;
+        this.astSpecPromise = null;
+        return spec;
+      })
+      .catch((error) => {
+        this.astSpecPromise = null;
+        throw error;
+      });
+
+    return this.astSpecPromise;
+  }
+
+  /**
+   * Convert markdown content to a document AST (WYSIWYG load path)
+   * @param {string} content - Markdown source (possibly unsaved buffer)
+   * @returns {Promise<Object>}
+   */
+  requestMdToAst(content) {
+    return this.sendAstRequest('md_to_ast_request', { content });
+  }
+
+  /**
+   * Convert a document AST back to markdown (WYSIWYG save path)
+   * @param {Object} ast - Document AST
+   * @returns {Promise<string>}
+   */
+  requestAstToMd(ast) {
+    return this.sendAstRequest('ast_to_md_request', { ast });
+  }
+
+  /**
+   * Import a Word document: .docx -> .md next to it
+   * @param {string} docxPath - Path to the .docx file
+   * @returns {Promise<string>} Path of the created .md file
+   */
+  requestDocxToMd(docxPath) {
+    return this.sendAstRequest('docx_to_md_request', { path: docxPath }, 180000);
   }
 
   // =========================================================================

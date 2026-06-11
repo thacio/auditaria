@@ -50,7 +50,8 @@ const AVAILABLE_SKILLS: Record<string, SkillDefinition> = {
   'docx-writing-skill': {
     type: 'platform-zip',
     name: 'DOCX Writing Skill',
-    description: 'Parse markdown to DOCX format',
+    description:
+      'Parse markdown to DOCX format — usage: /setup-skill docx-writing-skill [password]',
     platforms: {
       windows: {
         url: 'https://github.com/thacio/markup_to_docx_parser_releases/releases/download/latest/parser-windows.zip',
@@ -87,11 +88,16 @@ function detectPlatform(): 'windows' | 'linux' | 'macos' {
 
 /**
  * Execute skill setup - handles all skill types via discriminated union
+ *
+ * @param password Optional password for password-protected skill ZIPs
+ *                 (usage: /setup-skill docx-writing-skill [password]).
+ *                 Works with or without — plain releases need no password.
  */
 async function executeSkillSetup(
   context: CommandContext,
   skillId: string,
   skill: SkillDefinition,
+  password?: string,
 ): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
   // Show progress message
   context.ui.addItem(
@@ -105,7 +111,13 @@ async function executeSkillSetup(
   try {
     // AUDITARIA_FEATURE_START: Handle skill types via discriminated union
     if (skill.type === 'platform-zip') {
-      return await setupPlatformZipSkill(context, skillId, skill, workingDir);
+      return await setupPlatformZipSkill(
+        context,
+        skillId,
+        skill,
+        workingDir,
+        password,
+      );
     } else if (skill.type === 'skill-md') {
       return await setupSkillMdSkill(skillId, skill, workingDir);
     }
@@ -131,6 +143,7 @@ async function setupPlatformZipSkill(
   skillId: string,
   skill: Extract<SkillDefinition, { type: 'platform-zip' }>,
   workingDir: string,
+  password?: string,
 ): Promise<ReturnType<NonNullable<SlashCommand['action']>>> {
   const platform = detectPlatform();
   const platformConfig = skill.platforms[platform];
@@ -148,6 +161,7 @@ async function setupPlatformZipSkill(
     skillName: skillId,
     downloadUrl: platformConfig.url,
     zipFileName: platformConfig.zipName,
+    password,
   });
 
   // Special handling for docx-writing-skill
@@ -213,8 +227,9 @@ function generateSkillSubCommands(): SlashCommand[] {
     description: skill.description,
     kind: CommandKind.BUILT_IN,
     autoExecute: true,
-    action: async (context: CommandContext) =>
-      executeSkillSetup(context, skillId, skill),
+    action: async (context: CommandContext, args: string) =>
+      // Optional trailing arg: password for protected release ZIPs
+      executeSkillSetup(context, skillId, skill, args?.trim() || undefined),
   }));
 }
 
@@ -228,13 +243,16 @@ function generateSkillSubCommands(): SlashCommand[] {
  */
 export const setupSkillCommand: SlashCommand = {
   name: 'setup-skill',
-  description: 'download and setup a skill',
+  description: 'download and setup a skill (usage: /setup-skill <skill> [password])',
   kind: CommandKind.BUILT_IN,
   subCommands: generateSkillSubCommands(),
   completion: async (_context: CommandContext, _partialArg: string) =>
     Object.keys(AVAILABLE_SKILLS),
   action: async (context: CommandContext, args: string) => {
-    const skillId = args.trim();
+    // Usage: /setup-skill <skill-name> [password]
+    const tokens = args.trim().split(/\s+/).filter(Boolean);
+    const skillId = tokens[0] || '';
+    const password = tokens[1];
 
     if (!skillId) {
       const availableSkills = Object.keys(AVAILABLE_SKILLS).join(', ');
@@ -255,7 +273,7 @@ export const setupSkillCommand: SlashCommand = {
       };
     }
 
-    return executeSkillSetup(context, skillId, skill);
+    return executeSkillSetup(context, skillId, skill, password);
   },
 };
 

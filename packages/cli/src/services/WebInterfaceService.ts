@@ -1000,6 +1000,12 @@ export class WebInterfaceService extends EventEmitter {
       // Initialize DOCX parser service
       this.docxParser = new DocxParserService(process.cwd());
 
+      // Warm the WYSIWYG support probe (--emit-spec) so the flag is ready by
+      // the time clients connect; push an update once it resolves.
+      void this.docxParser.probeWysiwygSupport().then(() => {
+        this.broadcastParserStatus();
+      });
+
       // AUDITARIA: Initialize browser streaming manager
       this.streamManager = StreamManager.getInstance();
       this.streamManager.setPageResolver(async (sessionId: string) => {
@@ -1850,6 +1856,25 @@ export class WebInterfaceService extends EventEmitter {
       this.broadcastParserStatus();
     } else if (message.type === 'parse_request' && message.path) {
       this.handleParseRequest(message.path);
+    }
+    // WYSIWYG editor request handlers (AST bridge to the parser binary)
+    else if (message.type === 'ast_spec_request') {
+      this.handleAstSpecRequest((message as any).requestId);
+    } else if (
+      message.type === 'md_to_ast_request' &&
+      typeof (message as any).content === 'string'
+    ) {
+      this.handleMdToAstRequest(
+        (message as any).requestId,
+        (message as any).content,
+      );
+    } else if (
+      message.type === 'ast_to_md_request' &&
+      (message as any).ast !== undefined
+    ) {
+      this.handleAstToMdRequest((message as any).requestId, (message as any).ast);
+    } else if (message.type === 'docx_to_md_request' && message.path) {
+      this.handleDocxToMdRequest((message as any).requestId, message.path);
     }
     // Knowledge Base handlers
     else if (message.type === 'knowledge_base_status_request') {
@@ -2777,6 +2802,7 @@ export class WebInterfaceService extends EventEmitter {
       sendAndStore('parser_status', {
         available: this.docxParser.isParserAvailable(),
         path: this.docxParser.getParserPath(),
+        wysiwyg: this.isWysiwygEnabled(),
       });
     }
 
@@ -3011,6 +3037,22 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   /**
+   * Whether the WYSIWYG markdown editor can be offered to web clients:
+   * parser installed + binary supports the AST flags + not disabled via env.
+   * Set AUDITARIA_WYSIWYG_DISABLED=1 to turn the WYSIWYG editor off.
+   */
+  private isWysiwygEnabled(): boolean {
+    if (process.env['AUDITARIA_WYSIWYG_DISABLED'] === '1') {
+      return false;
+    }
+    return (
+      !!this.docxParser &&
+      this.docxParser.isParserAvailable() &&
+      this.docxParser.isWysiwygSupported()
+    );
+  }
+
+  /**
    * Broadcast parser availability to all connected clients
    */
   public broadcastParserStatus(): void {
@@ -3021,7 +3063,145 @@ export class WebInterfaceService extends EventEmitter {
     this.broadcastWithSequence('parser_status', {
       available: this.docxParser.isParserAvailable(),
       path: this.docxParser.getParserPath(),
+      wysiwyg: this.isWysiwygEnabled(),
     });
+  }
+
+  // =========================================================================
+  // WYSIWYG editor handlers (AST bridge — mirrors handleParseRequest)
+  // =========================================================================
+
+  /**
+   * Send the editor capability manifest (spec) to clients.
+   */
+  private async handleAstSpecRequest(requestId?: string): Promise<void> {
+    if (!this.docxParser || !this.isWysiwygEnabled()) {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'ast_spec',
+        error: 'WYSIWYG editor is not available',
+      });
+      return;
+    }
+
+    const result = await this.docxParser.emitSpec();
+    if (result.success) {
+      this.broadcastWithSequence('ast_spec_response', {
+        requestId,
+        spec: result.spec,
+      });
+    } else {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'ast_spec',
+        error: result.error || 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Convert markdown buffer content to AST (WYSIWYG load path).
+   */
+  private async handleMdToAstRequest(
+    requestId: string | undefined,
+    content: string,
+  ): Promise<void> {
+    if (!this.docxParser || !this.isWysiwygEnabled()) {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'md_to_ast',
+        error: 'WYSIWYG editor is not available',
+      });
+      return;
+    }
+
+    const result = await this.docxParser.mdToAst(content);
+    if (result.success) {
+      this.broadcastWithSequence('md_to_ast_response', {
+        requestId,
+        ast: result.ast,
+      });
+    } else {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'md_to_ast',
+        error: result.error || 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Convert AST back to markdown (WYSIWYG save path).
+   */
+  private async handleAstToMdRequest(
+    requestId: string | undefined,
+    ast: unknown,
+  ): Promise<void> {
+    if (!this.docxParser || !this.isWysiwygEnabled()) {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'ast_to_md',
+        error: 'WYSIWYG editor is not available',
+      });
+      return;
+    }
+
+    let astJson: string;
+    try {
+      astJson = typeof ast === 'string' ? ast : JSON.stringify(ast);
+    } catch (error) {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'ast_to_md',
+        error: `Invalid AST payload: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return;
+    }
+
+    const result = await this.docxParser.astToMd(astJson);
+    if (result.success) {
+      this.broadcastWithSequence('ast_to_md_response', {
+        requestId,
+        md: result.md,
+      });
+    } else {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'ast_to_md',
+        error: result.error || 'Unknown error',
+      });
+    }
+  }
+
+  /**
+   * Import a Word document (.docx → .md) so it can be edited in the WYSIWYG.
+   */
+  private async handleDocxToMdRequest(
+    requestId: string | undefined,
+    docxPath: string,
+  ): Promise<void> {
+    if (!this.docxParser || !this.isWysiwygEnabled()) {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'docx_to_md',
+        error: 'WYSIWYG editor is not available',
+      });
+      return;
+    }
+
+    const result = await this.docxParser.docxToMd(docxPath);
+    if (result.success) {
+      this.broadcastWithSequence('docx_to_md_response', {
+        requestId,
+        mdPath: result.mdPath,
+      });
+    } else {
+      this.broadcastWithSequence('ast_error', {
+        requestId,
+        operation: 'docx_to_md',
+        error: result.error || 'Unknown error',
+      });
+    }
   }
 
   /**
@@ -3065,6 +3245,12 @@ export class WebInterfaceService extends EventEmitter {
 
     this.docxParser.refresh();
     this.broadcastParserStatus();
+
+    // Re-probe WYSIWYG support for the (possibly re-installed) binary and
+    // push an updated status once the async probe resolves.
+    void this.docxParser.probeWysiwygSupport().then(() => {
+      this.broadcastParserStatus();
+    });
   }
 
   // =========================================================================

@@ -13,7 +13,8 @@ import { ExternalChangeWarning } from './ExternalChangeWarning.js';
 import { DiffModal } from './DiffModal.js';
 import { DiffContextMenu } from './DiffContextMenu.js';
 import { themeManager } from '../utils/theme-manager.js';
-import { showErrorToast } from './Toast.js';
+import { showErrorToast, showSuccessToast } from './Toast.js';
+import { WysiwygMarkdownPreview } from '../utils/preview/WysiwygMarkdownPreview.js';
 
 /**
  * Editor Panel Component
@@ -30,6 +31,15 @@ export class EditorPanel extends EventEmitter {
     this.editorManager = editorManager;
     this.previewManager = previewManager;
 
+    // WYSIWYG markdown editor — a dedicated view mode alongside Preview/Split
+    // (NOT registered in the PreviewManager: normal .md preview stays marked.js)
+    this.wysiwygPreview = new WysiwygMarkdownPreview();
+    this.wysiwygPreview.configure({
+      editorManager: this.editorManager,
+      onToggleMaximize: () => this.toggleEditorMaximize(),
+      isMaximized: () => this.isEditorMaximized,
+    });
+
     // UI elements
     this.panel = null;
     this.editorContainer = null;
@@ -39,6 +49,8 @@ export class EditorPanel extends EventEmitter {
     this.previewButton = null;
     this.codeButton = null;
     this.splitButton = null;
+    this.wysiwygButton = null;
+    this.wysiwygSplitButton = null;
     this.diffButton = null;
     this.trackChangesButton = null;
     this.collaborativeWritingButton = null; // AUDITARIA: AI Collaborative Writing toggle
@@ -67,6 +79,9 @@ export class EditorPanel extends EventEmitter {
     this.isPreviewMode = false;
     this.isSplitMode = false;
     this.isDiffMode = false;
+    this.isWysiwygMode = false;       // WYSIWYG editor fills the preview area
+    this.isWysiwygSplitMode = false;  // Monaco + WYSIWYG side by side
+    this.isEditorMaximized = false;   // Panel expanded over the whole window
     this.trackChangesEnabled = true; // Default: show diff when files change externally
     this.isBinaryPreviewMode = false; // Binary files can only be previewed, not edited
     this.activeBinaryFile = null; // Store binary file info { path, language, filename }
@@ -135,6 +150,8 @@ export class EditorPanel extends EventEmitter {
     this.previewButton = document.getElementById('editor-preview-button');
     this.codeButton = document.getElementById('editor-code-button');
     this.splitButton = document.getElementById('editor-split-button');
+    this.wysiwygButton = document.getElementById('editor-wysiwyg-button');
+    this.wysiwygSplitButton = document.getElementById('editor-wysiwyg-split-button');
     this.diffButton = document.getElementById('editor-diff-button');
     this.trackChangesButton = document.getElementById('editor-track-changes-button');
     this.collaborativeWritingButton = document.getElementById('editor-collab-writing-button'); // AUDITARIA
@@ -150,6 +167,7 @@ export class EditorPanel extends EventEmitter {
     this.unsupportedPath = document.getElementById('editor-unsupported-path');
     this.unsupportedDescription = document.getElementById('editor-unsupported-description');
     this.unsupportedAction = document.getElementById('editor-unsupported-open');
+    this.unsupportedImport = document.getElementById('editor-unsupported-import');
     if (this.unsupportedAction) {
       this.unsupportedAction.disabled = true;
     }
@@ -271,6 +289,28 @@ export class EditorPanel extends EventEmitter {
           </button>
 
           <button
+            id="editor-wysiwyg-button"
+            class="editor-toolbar-button"
+            title="Edit in the Word-like WYSIWYG editor"
+            aria-label="Show WYSIWYG editor"
+            style="display: none;"
+          >
+            <span class="codicon codicon-edit"></span>
+            <span class="editor-toolbar-button-text">WYSIWYG</span>
+          </button>
+
+          <button
+            id="editor-wysiwyg-split-button"
+            class="editor-toolbar-button"
+            title="Show code and the WYSIWYG editor side by side"
+            aria-label="Show WYSIWYG split view"
+            style="display: none;"
+          >
+            <span class="codicon codicon-split-horizontal"></span>
+            <span class="editor-toolbar-button-text">Split WYSIWYG</span>
+          </button>
+
+          <button
             id="editor-parse-button"
             class="editor-toolbar-button"
             title="Parse to DOCX"
@@ -332,6 +372,9 @@ export class EditorPanel extends EventEmitter {
             </div>
             <button class="editor-unsupported-action" id="editor-unsupported-open">
               Open with System Default
+            </button>
+            <button class="editor-unsupported-action" id="editor-unsupported-import" style="display: none;">
+              Import as Markdown (WYSIWYG)
             </button>
           </div>
         </div>
@@ -423,6 +466,18 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
+    // WYSIWYG buttons
+    if (this.wysiwygButton) {
+      this.wysiwygButton.addEventListener('click', () => {
+        this.showWysiwyg();
+      });
+    }
+    if (this.wysiwygSplitButton) {
+      this.wysiwygSplitButton.addEventListener('click', () => {
+        this.showWysiwygSplit();
+      });
+    }
+
     // Diff button (toggle)
     if (this.diffButton) {
       this.diffButton.addEventListener('click', () => {
@@ -501,6 +556,26 @@ export class EditorPanel extends EventEmitter {
       });
     }
 
+    // Import .docx as markdown (WYSIWYG) — parser-gated
+    if (this.unsupportedImport) {
+      this.unsupportedImport.addEventListener('click', async () => {
+        if (!this.activeUnsupportedFile) return;
+        const docxPath = this.activeUnsupportedFile.path;
+        this.unsupportedImport.disabled = true;
+        this.unsupportedImport.textContent = 'Importing…';
+        try {
+          const mdPath = await this.editorManager.requestDocxToMd(docxPath);
+          showSuccessToast('Imported — review the YAML metadata header before generating .docx');
+          this.editorManager.requestFile(mdPath);
+        } catch (error) {
+          showErrorToast(`Import failed: ${error.message}`);
+        } finally {
+          this.unsupportedImport.disabled = false;
+          this.unsupportedImport.textContent = 'Import as Markdown (WYSIWYG)';
+        }
+      });
+    }
+
     // EditorManager events
     this.editorManager.on('file-opened', ({ path, language, isBinary, filename: binaryFilename }) => {
       // Binary files — route to preview view, skip editor setup
@@ -530,11 +605,23 @@ export class EditorPanel extends EventEmitter {
 
       // Check if preview is available for the new file
       const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
+      const canWysiwyg = this.canWysiwygFile(language, filename);
 
       // Refresh current view mode with new file content
-      if (wasBinary || !(this.isPreviewMode || this.isSplitMode)) {
+      if (
+        wasBinary ||
+        !(this.isPreviewMode || this.isSplitMode || this.isWysiwygMode || this.isWysiwygSplitMode)
+      ) {
         // Coming from binary or in code view — show editor
         this.showEditor();
+      } else if (this.isWysiwygMode) {
+        if (canWysiwyg) this.showWysiwyg();
+        else if (canPreview) this.showPreview();
+        else this.showEditor();
+      } else if (this.isWysiwygSplitMode) {
+        if (canWysiwyg) this.showWysiwygSplit();
+        else if (canPreview) this.showSplit();
+        else this.showEditor();
       } else if (this.isPreviewMode && canPreview) {
         this.showPreview();
       } else if (this.isSplitMode && canPreview) {
@@ -578,10 +665,19 @@ export class EditorPanel extends EventEmitter {
 
         // Check if preview is available for the new file
         const canPreview = this.previewManager && this.previewManager.canPreview(fileInfo.language, filename);
+        const canWysiwyg = this.canWysiwygFile(fileInfo.language, filename);
 
         // Coming from binary preview — reset to editor view
         if (wasBinary) {
           this.showEditor();
+        } else if (this.isWysiwygMode) {
+          if (canWysiwyg) this.showWysiwyg();
+          else if (canPreview) this.showPreview();
+          else this.showEditor();
+        } else if (this.isWysiwygSplitMode) {
+          if (canWysiwyg) this.showWysiwygSplit();
+          else if (canPreview) this.showSplit();
+          else this.showEditor();
         } else if (this.isPreviewMode && canPreview) {
           this.showPreview();
         } else if (this.isSplitMode && canPreview) {
@@ -714,6 +810,7 @@ export class EditorPanel extends EventEmitter {
    * Show markdown preview
    */
   showPreview() {
+    this.leaveWysiwygModes();
     const editorContainer = document.getElementById('monaco-editor-container');
     const previewContainer = document.getElementById('markdown-preview-container');
 
@@ -797,6 +894,7 @@ export class EditorPanel extends EventEmitter {
    * @param {string} filename - Filename
    */
   showBinaryPreviewView(path, language, filename) {
+    this.leaveWysiwygModes();
     // Clear unsupported overlay when showing binary previews
     this.clearUnsupportedOverlay();
 
@@ -912,6 +1010,12 @@ export class EditorPanel extends EventEmitter {
     if (this.unsupportedAction) {
       this.unsupportedAction.disabled = false;
     }
+    // Offer .docx → .md import when the WYSIWYG-capable parser is installed
+    if (this.unsupportedImport) {
+      const isDocx = filename.toLowerCase().endsWith('.docx');
+      const canImport = isDocx && this.editorManager.isWysiwygAvailable();
+      this.unsupportedImport.style.display = canImport ? '' : 'none';
+    }
     if (this.unsupportedOverlay) {
       this.unsupportedOverlay.style.display = 'flex';
     }
@@ -979,6 +1083,7 @@ export class EditorPanel extends EventEmitter {
    * Show code editor
    */
   showEditor() {
+    this.leaveWysiwygModes();
     const editorContainer = document.getElementById('monaco-editor-container');
     const previewContainer = document.getElementById('markdown-preview-container');
     const activeFile = this.editorManager.getActiveFile();
@@ -1056,6 +1161,7 @@ export class EditorPanel extends EventEmitter {
    * Show split view (code and preview side by side)
    */
   showSplit() {
+    this.leaveWysiwygModes();
     const editorContainer = document.getElementById('monaco-editor-container');
     const previewContainer = document.getElementById('markdown-preview-container');
 
@@ -1114,9 +1220,185 @@ export class EditorPanel extends EventEmitter {
   }
 
   /**
+   * Whether the active file can use the WYSIWYG editor
+   * (markdown + parser with AST support installed)
+   */
+  canWysiwygFile(language, filename) {
+    return this.wysiwygPreview.canPreview(language, filename || '');
+  }
+
+  /**
+   * Leave the WYSIWYG modes: flush+destroy the editor session, clear
+   * button states, and restore the panel size. Called when switching to
+   * any non-WYSIWYG view.
+   */
+  leaveWysiwygModes() {
+    if (this.isWysiwygMode || this.isWysiwygSplitMode || this.wysiwygPreview.session) {
+      this.wysiwygPreview.cleanup();
+    }
+    this.isWysiwygMode = false;
+    this.isWysiwygSplitMode = false;
+    if (this.wysiwygButton) {
+      this.wysiwygButton.classList.remove('active');
+    }
+    if (this.wysiwygSplitButton) {
+      this.wysiwygSplitButton.classList.remove('active');
+    }
+    this.setEditorMaximized(false);
+  }
+
+  /**
+   * Render the WYSIWYG editor for the active file into the preview container
+   */
+  renderWysiwyg() {
+    const previewContainer = document.getElementById('markdown-preview-container');
+    if (!previewContainer) return;
+
+    const activeFile = this.editorManager.getActiveFile();
+    if (!activeFile) return;
+    const fileInfo = this.editorManager.openFiles.get(activeFile);
+    if (!fileInfo || !fileInfo.model) return;
+
+    const content = fileInfo.model.getValue();
+    const filename = activeFile.split('/').pop() || activeFile;
+    this.wysiwygPreview.render(content, previewContainer, {
+      language: fileInfo.language,
+      filename,
+      filePath: activeFile,
+    });
+  }
+
+  /**
+   * Show the WYSIWYG editor alone (fills the preview area)
+   */
+  showWysiwyg() {
+    const editorContainer = document.getElementById('monaco-editor-container');
+    const previewContainer = document.getElementById('markdown-preview-container');
+
+    if (editorContainer) {
+      editorContainer.classList.remove('split-view');
+      editorContainer.style.display = 'none';
+      editorContainer.style.width = '';
+    }
+
+    if (previewContainer) {
+      previewContainer.classList.remove('split-view');
+      previewContainer.style.display = 'block';
+      previewContainer.style.width = '';
+      previewContainer.style.left = '';
+    }
+
+    if (this.diffContainer) {
+      this.diffContainer.style.display = 'none';
+    }
+    if (this.splitResizeHandle) {
+      this.splitResizeHandle.style.display = 'none';
+    }
+
+    this.removePreviewListener();
+    this.removeDiffListener();
+
+    // Update mode state + button states
+    this.isPreviewMode = false;
+    this.isSplitMode = false;
+    this.isDiffMode = false;
+    this.isWysiwygMode = true;
+    this.isWysiwygSplitMode = false;
+    if (this.wysiwygButton) this.wysiwygButton.classList.add('active');
+    if (this.wysiwygSplitButton) this.wysiwygSplitButton.classList.remove('active');
+    if (this.codeButton) this.codeButton.classList.remove('active');
+    if (this.previewButton) this.previewButton.classList.remove('active');
+    if (this.splitButton) this.splitButton.classList.remove('active');
+    if (this.diffButton) this.diffButton.classList.remove('active');
+
+    this.renderWysiwyg();
+  }
+
+  /**
+   * Show code and the WYSIWYG editor side by side
+   */
+  showWysiwygSplit() {
+    const editorContainer = document.getElementById('monaco-editor-container');
+    const previewContainer = document.getElementById('markdown-preview-container');
+
+    if (editorContainer) {
+      editorContainer.classList.add('split-view');
+      editorContainer.style.display = 'block';
+      editorContainer.style.width = `${this.splitRatio}%`;
+    }
+
+    if (previewContainer) {
+      previewContainer.classList.add('split-view');
+      previewContainer.style.display = 'block';
+      previewContainer.style.width = `${100 - this.splitRatio}%`;
+      previewContainer.style.left = `${this.splitRatio}%`;
+    }
+
+    if (this.diffContainer) {
+      this.diffContainer.style.display = 'none';
+    }
+    if (this.splitResizeHandle) {
+      this.splitResizeHandle.style.display = 'block';
+      this.splitResizeHandle.style.left = `${this.splitRatio}%`;
+    }
+
+    this.removeDiffListener();
+
+    // Update mode state + button states
+    this.isPreviewMode = false;
+    this.isSplitMode = false;
+    this.isDiffMode = false;
+    this.isWysiwygMode = false;
+    this.isWysiwygSplitMode = true;
+    if (this.wysiwygSplitButton) this.wysiwygSplitButton.classList.add('active');
+    if (this.wysiwygButton) this.wysiwygButton.classList.remove('active');
+    if (this.codeButton) this.codeButton.classList.remove('active');
+    if (this.previewButton) this.previewButton.classList.remove('active');
+    if (this.splitButton) this.splitButton.classList.remove('active');
+    if (this.diffButton) this.diffButton.classList.remove('active');
+
+    this.renderWysiwyg();
+
+    // Real-time updates from Monaco edits (the WYSIWYG's guards absorb its
+    // own save-back echoes)
+    this.setupPreviewListener();
+
+    // Focus editor
+    if (this.editorManager.editor) {
+      this.editorManager.editor.focus();
+    }
+  }
+
+  /**
+   * Toggle the editor panel between its docked width and a maximized
+   * overlay covering the whole window (used by the WYSIWYG editor).
+   * @returns {boolean} The new maximized state
+   */
+  toggleEditorMaximize() {
+    return this.setEditorMaximized(!this.isEditorMaximized);
+  }
+
+  /**
+   * Apply/remove the maximized state
+   * @returns {boolean} The new maximized state
+   */
+  setEditorMaximized(on) {
+    const next = !!on;
+    if (this.isEditorMaximized === next) {
+      return this.isEditorMaximized;
+    }
+    this.isEditorMaximized = next;
+    if (this.panel) {
+      this.panel.classList.toggle('wys-maximized', next);
+    }
+    return this.isEditorMaximized;
+  }
+
+  /**
    * Show diff view (compare current with saved)
    */
   async showDiff() {
+    this.leaveWysiwygModes();
     const editorContainer = document.getElementById('monaco-editor-container');
     const previewContainer = document.getElementById('markdown-preview-container');
 
@@ -1227,7 +1509,7 @@ export class EditorPanel extends EventEmitter {
     // Add listener to Monaco editor for content changes
     if (this.editorManager.editor) {
       this.previewUpdateListener = this.editorManager.editor.onDidChangeModelContent(() => {
-        if (this.isSplitMode) {
+        if (this.isSplitMode || this.isWysiwygSplitMode) {
           this.updatePreview();
         }
       });
@@ -1366,6 +1648,12 @@ export class EditorPanel extends EventEmitter {
    * Update preview with current editor content
    */
   updatePreview() {
+    // WYSIWYG modes render through the dedicated previewer, not the registry
+    if (this.isWysiwygMode || this.isWysiwygSplitMode) {
+      this.renderWysiwyg();
+      return;
+    }
+
     const previewContainer = document.getElementById('markdown-preview-container');
     if (!previewContainer || !this.previewManager) return;
 
@@ -1412,6 +1700,12 @@ export class EditorPanel extends EventEmitter {
       if (this.splitButton) {
         this.splitButton.style.display = 'none';
       }
+      if (this.wysiwygButton) {
+        this.wysiwygButton.style.display = 'none';
+      }
+      if (this.wysiwygSplitButton) {
+        this.wysiwygSplitButton.style.display = 'none';
+      }
       if (this.parseButton) {
         this.parseButton.style.display = 'none';
       }
@@ -1429,6 +1723,9 @@ export class EditorPanel extends EventEmitter {
     const canPreview = this.previewManager && this.previewManager.canPreview(language, filename);
     const activePreview = canPreview ? this.previewManager.getPreviewerFor(language, filename) : null;
 
+    // WYSIWYG buttons: markdown + parser with AST support (like Parse to DOCX)
+    const canWysiwyg = !this.isBinaryPreviewMode && this.canWysiwygFile(language, filename);
+
     // Binary preview mode: Only show Preview button, hide Code/Split and AI Collab
     if (this.isBinaryPreviewMode) {
       if (this.previewButton) {
@@ -1439,6 +1736,12 @@ export class EditorPanel extends EventEmitter {
       }
       if (this.splitButton) {
         this.splitButton.style.display = 'none'; // Always hide for binary files
+      }
+      if (this.wysiwygButton) {
+        this.wysiwygButton.style.display = 'none';
+      }
+      if (this.wysiwygSplitButton) {
+        this.wysiwygSplitButton.style.display = 'none';
       }
       // AUDITARIA: Hide AI Collab for binary files (not editable)
       if (this.collaborativeWritingButton) {
@@ -1456,6 +1759,14 @@ export class EditorPanel extends EventEmitter {
 
       if (this.splitButton) {
         this.splitButton.style.display = canPreview ? '' : 'none';
+      }
+
+      if (this.wysiwygButton) {
+        this.wysiwygButton.style.display = canWysiwyg ? '' : 'none';
+      }
+
+      if (this.wysiwygSplitButton) {
+        this.wysiwygSplitButton.style.display = canWysiwyg ? '' : 'none';
       }
 
       // AUDITARIA: Show AI Collab button for editable files
@@ -1485,6 +1796,17 @@ export class EditorPanel extends EventEmitter {
     // Ensure we're showing editor if preview not available
     if (!canPreview && (this.isPreviewMode || this.isSplitMode)) {
       this.showEditor();
+    }
+
+    // Fall back when the WYSIWYG becomes unavailable (e.g. parser removed)
+    if (!canWysiwyg && (this.isWysiwygMode || this.isWysiwygSplitMode)) {
+      if (canPreview && this.isWysiwygMode) {
+        this.showPreview();
+      } else if (canPreview && this.isWysiwygSplitMode) {
+        this.showSplit();
+      } else {
+        this.showEditor();
+      }
     }
 
     // Ensure we're showing editor if diff mode but file is no longer dirty
@@ -1540,6 +1862,9 @@ export class EditorPanel extends EventEmitter {
    * Hide panel
    */
   hide() {
+    // A maximized panel must not stay fixed over the window when hidden
+    this.setEditorMaximized(false);
+
     // Always hide, even if state says it's already hidden
     // This fixes issues where CSS classes and state flags are out of sync
     this.panel.classList.remove('visible');
@@ -1610,6 +1935,8 @@ export class EditorPanel extends EventEmitter {
     this.isVisible = !this.isCollapsed;
 
     if (this.isCollapsed) {
+      // A maximized panel must not stay fixed over the window when collapsed
+      this.setEditorMaximized(false);
       // When collapsing, remove .visible and add .collapsed
       this.panel.classList.remove('visible');
       this.panel.classList.add('collapsed');

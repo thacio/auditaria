@@ -80,6 +80,7 @@
     <link rel="stylesheet" href="styles/image-preview.css">
     <link rel="stylesheet" href="styles/svg-preview.css">
     <link rel="stylesheet" href="styles/json-preview.css">
+    <link rel="stylesheet" href="styles/wysiwyg-preview.css">
     <!-- WEB_INTERFACE_END -->
 
     <!-- Arcade Mini-Games -->
@@ -530,10 +531,26 @@
             "lit-element/": "https://cdn.jsdelivr.net/npm/lit-element@4.0.4/",
             "xterm": "https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/+esm",
             "xterm-fit": "https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/+esm",
-            "xterm-unicode11": "https://cdn.jsdelivr.net/npm/@xterm/addon-unicode11@0.8.0/+esm"
+            "xterm-unicode11": "https://cdn.jsdelivr.net/npm/@xterm/addon-unicode11@0.8.0/+esm",
+
+            "@tiptap/pm/": "https://esm.sh/@tiptap/pm@2/",
+            "@tiptap/pm": "https://esm.sh/@tiptap/pm@2",
+            "@tiptap/core": "https://esm.sh/@tiptap/core@2?external=@tiptap/pm",
+            "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-underline": "https://esm.sh/@tiptap/extension-underline@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-text-style": "https://esm.sh/@tiptap/extension-text-style@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-color": "https://esm.sh/@tiptap/extension-color@2?external=@tiptap/core,@tiptap/pm,@tiptap/extension-text-style",
+            "@tiptap/extension-highlight": "https://esm.sh/@tiptap/extension-highlight@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2?external=@tiptap/core,@tiptap/pm",
+            "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2?external=@tiptap/core,@tiptap/pm",
+            "katex": "https://esm.sh/katex@0.16"
         }
     }
     </script>
+    <!-- WYSIWYG markdown editor: KaTeX stylesheet for formula rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
     <!-- AUDITARIA_CLAUDE_PROVIDER: xterm.js stylesheet for the Claude PTY mirror -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
     <!-- WEB_INTERFACE_END -->

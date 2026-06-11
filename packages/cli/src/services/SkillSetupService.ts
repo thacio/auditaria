@@ -38,12 +38,13 @@ export class SkillSetupService {
     skillName: string;        // e.g., 'docx-writing-skill'
     downloadUrl: string;      // Platform-specific download URL
     zipFileName: string;      // e.g., 'parser-windows.zip'
+    password?: string;        // Optional: for password-protected release ZIPs
   }): Promise<{
     success: boolean;
     message: string;
     installPath?: string;     // .auditaria/skills/{skillName}/
   }> {
-    const { skillName, downloadUrl, zipFileName } = config;
+    const { skillName, downloadUrl, zipFileName, password } = config;
 
     try {
       // Create skills directory if it doesn't exist
@@ -60,8 +61,13 @@ export class SkillSetupService {
       // Download the skill ZIP first (before deleting old installation)
       await this.downloadFile(downloadUrl, zipPath);
 
-      // Extract the ZIP
-      await this.extractZip(zipPath, skillsDir);
+      // Extract the ZIP (password-protected ZIPs take the unzipper path;
+      // plain ZIPs keep the existing extract-zip behavior)
+      if (password) {
+        await this.extractZipWithPassword(zipPath, skillsDir, password);
+      } else {
+        await this.extractZip(zipPath, skillsDir);
+      }
 
       // Determine extracted folder path
       const platform = this.detectPlatform();
@@ -192,6 +198,51 @@ export class SkillSetupService {
       await extract(zipPath, { dir: path.resolve(extractTo) });
     } catch (error) {
       throw new Error(`Failed to extract ZIP: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Extract a password-protected ZIP file.
+   *
+   * Uses unzipper, which supports the classic ZipCrypto encryption
+   * (`zip -P <password>` / 7-Zip "ZipCrypto" method). AES-encrypted ZIPs are
+   * NOT supported — release archives must be created with ZipCrypto.
+   */
+  private async extractZipWithPassword(
+    zipPath: string,
+    extractTo: string,
+    password: string,
+  ): Promise<void> {
+    try {
+      const unzipper = await import('unzipper');
+      const directory = await unzipper.Open.file(zipPath);
+
+      const destRoot = path.resolve(extractTo);
+      for (const entry of directory.files) {
+        // Normalize and contain paths (zip-slip protection). A plain
+        // startsWith check is bypassable at separator boundaries
+        // (e.g. "skills-evil" starts with "skills"), so compare via relative.
+        const destPath = path.resolve(destRoot, entry.path);
+        const rel = path.relative(destRoot, destPath);
+        if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) {
+          continue;
+        }
+
+        if (entry.type === 'Directory') {
+          fs.mkdirSync(destPath, { recursive: true });
+          continue;
+        }
+
+        fs.mkdirSync(path.dirname(destPath), { recursive: true });
+        const content = await entry.buffer(password);
+        fs.writeFileSync(destPath, content);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (/BAD_PASSWORD|MISSING_PASSWORD|password/i.test(msg)) {
+        throw new Error('Failed to extract ZIP: invalid password');
+      }
+      throw new Error(`Failed to extract ZIP: ${msg}`);
     }
   }
 
