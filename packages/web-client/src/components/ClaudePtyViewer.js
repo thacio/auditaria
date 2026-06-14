@@ -30,6 +30,8 @@
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-fit';
 import { Unicode11Addon } from 'xterm-unicode11';
+import { WebglAddon } from 'xterm-webgl';
+import { SearchAddon } from 'xterm-search';
 
 const MIRROR_BG = '#1e1e1e';
 const MIRROR_FG = '#d4d4d4';
@@ -116,6 +118,9 @@ export class ClaudePtyViewer {
     this.activeDot = null;
     this.term = null;
     this.fitAddon = null;
+    this.searchAddon = null;
+    this.webglAddon = null;
+    this.searchInput = null;
     this.termOpened = false;
     /**
      * Pre-open data buffer. PTY bytes may arrive before the user has
@@ -337,6 +342,49 @@ export class ClaudePtyViewer {
 
     this.panel.appendChild(this.header);
     this.panel.appendChild(this.containerElement);
+
+    // AUDITARIA_CLAUDE_PROVIDER: Search bar (Ctrl+F toggles). Sits
+    // absolutely under the header, hidden until the xterm SearchAddon
+    // takes the keystroke and reveals it. Enter→findNext,
+    // Shift+Enter→findPrevious, Esc→close.
+    this.searchInput = document.createElement('input');
+    this.searchInput.className = 'claude-pty-search';
+    this.searchInput.type = 'text';
+    this.searchInput.placeholder =
+      'search… (Enter=next, Shift+Enter=prev, Esc=close)';
+    this.searchInput.style.cssText = `
+      position: absolute;
+      top: 38px;
+      right: 8px;
+      width: 280px;
+      padding: 4px 8px;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      color: #d4d4d4;
+      border-radius: 4px;
+      display: none;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 3;
+      outline: none;
+    `;
+    this.searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.searchInput.style.display = 'none';
+        this.term?.focus();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = this.searchInput.value;
+        if (q && this.searchAddon) {
+          const opts = { incremental: false };
+          if (e.shiftKey) this.searchAddon.findPrevious(q, opts);
+          else this.searchAddon.findNext(q, opts);
+        }
+      }
+    });
+    this.panel.appendChild(this.searchInput);
+
     document.body.appendChild(this.panel);
 
     this.pipBtn = this.header.querySelector('.cpy-pip');
@@ -617,6 +665,33 @@ export class ClaudePtyViewer {
     } catch {
       /* unicode11 optional */
     }
+
+    // AUDITARIA_CLAUDE_PROVIDER: SearchAddon for in-mirror Ctrl+F. We
+    // load it before open() so the addon's internal markers are wired
+    // before the first write hits the buffer. Ctrl+F handler routes
+    // through attachCustomKeyEventHandler below so the browser's native
+    // find-in-page doesn't steal focus while the terminal has it.
+    this.searchAddon = new SearchAddon();
+    this.term.loadAddon(this.searchAddon);
+    this.term.attachCustomKeyEventHandler((ev) => {
+      if (
+        ev.type === 'keydown' &&
+        (ev.ctrlKey || ev.metaKey) &&
+        !ev.altKey &&
+        !ev.shiftKey &&
+        ev.key.toLowerCase() === 'f'
+      ) {
+        ev.preventDefault();
+        if (this.searchInput) {
+          this.searchInput.style.display = 'block';
+          this.searchInput.focus();
+          this.searchInput.select();
+        }
+        return false; // tell xterm to skip its own handling
+      }
+      return true;
+    });
+
     // onData fires whenever the underlying textarea sees a keystroke.
     // We attach this BEFORE open() so any racy initial keys don't get
     // dropped on the floor.
@@ -671,6 +746,35 @@ export class ClaudePtyViewer {
     } catch {
       /* container might not be sized yet */
     }
+
+    // AUDITARIA_CLAUDE_PROVIDER: Try the WebGL renderer for the live
+    // Claude PTY mirror. It handles bursty assistant output (large
+    // diffs, file reads) without the DOM renderer's lag. Falls back
+    // to DOM silently if WebGL2 isn't available (older browsers,
+    // disabled GPU acceleration, headless test environments) or if
+    // the addon throws during init. onContextLoss disposes the addon
+    // so the next render falls back gracefully — without it, a tab
+    // backgrounded for too long can come back with a dead canvas.
+    try {
+      const webgl = new WebglAddon();
+      webgl.onContextLoss(() => {
+        try {
+          webgl.dispose();
+        } catch {
+          /* ignore */
+        }
+        this.webglAddon = null;
+      });
+      this.term.loadAddon(webgl);
+      this.webglAddon = webgl;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[ClaudePtyViewer] WebGL unavailable, using DOM renderer:',
+        err && err.message ? err.message : err,
+      );
+    }
+
     // Replay any data that arrived while we were hidden.
     if (this.pendingBytes) {
       try {
@@ -724,6 +828,25 @@ export class ClaudePtyViewer {
 
   destroy() {
     this.hide();
+    // AUDITARIA_CLAUDE_PROVIDER: dispose WebGL first so its GL context
+    // is released before the parent Terminal tears down. SearchAddon
+    // cleans up via term.dispose() but explicit is safer.
+    if (this.webglAddon) {
+      try {
+        this.webglAddon.dispose();
+      } catch {
+        /* ignore */
+      }
+      this.webglAddon = null;
+    }
+    if (this.searchAddon) {
+      try {
+        this.searchAddon.dispose();
+      } catch {
+        /* ignore */
+      }
+      this.searchAddon = null;
+    }
     if (this.term) {
       try {
         this.term.dispose();
