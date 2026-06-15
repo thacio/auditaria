@@ -448,7 +448,9 @@ export class WorkerEmbedder implements TextEmbedder, Embedder {
 
         // Handle worker errors
         this.worker.on('error', (error) => {
-          this.handleWorkerError(error);
+          this.handleWorkerError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         });
 
         // Handle worker exit
