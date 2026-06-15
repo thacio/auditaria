@@ -59,6 +59,7 @@ import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type { ClaudeContentBlock, ClaudeDriverConfig } from './types.js';
 import { PtyWriteQueue } from './interactivePromptSupport.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { claudePtyMirror } from './claudePtyMirror.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { getClaudeProjectDirHash } from './claudeSessionBrowser.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
 // AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
@@ -158,12 +159,15 @@ type TurnResult =
   | { kind: 'aborted'; yieldedToolUseIds: Set<string> }
   | { kind: 'timeout'; yieldedToolUseIds: Set<string> };
 
-// AUDITARIA_CLAUDE_PROVIDER: Encode an absolute path the same way Claude Code
-// does for `~/.claude/projects/<encoded>/<session>.jsonl`. Replace drive-colon
-// and path separators with `-`. Mirrors observed on-disk behavior:
-//   C:\projects\auditaria → C--projects-auditaria
+// AUDITARIA_CLAUDE_PROVIDER: Single-source-of-truth alias for the project
+// directory hash Claude Code uses at `~/.claude/projects/<hash>/`. We
+// used to have two slightly-different replace regexes (this one and the
+// one in claudeSessionBrowser) which silently disagreed on paths
+// containing spaces, diacritics, or other non-ASCII characters —
+// breaking transcript reads (this file) AND /resume-claude listing
+// (claudeSessionBrowser) for any project under OneDrive or similar.
 function encodeProjectPath(absPath: string): string {
-  return absPath.replace(/[:\\/]/g, '-');
+  return getClaudeProjectDirHash(absPath);
 }
 
 function shellQuote(s: string): string {

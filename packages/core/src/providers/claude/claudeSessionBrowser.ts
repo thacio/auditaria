@@ -12,13 +12,27 @@ import { readdir, stat, open } from 'node:fs/promises';
 
 /**
  * Derives the Claude project directory hash from a working directory path.
- * Claude replaces : \ / with - and strips leading separators.
- * E.g., "C:\projects\auditaria" → "C--projects-auditaria"
+ * Claude Code replaces EVERY character outside `[A-Za-z0-9_-]` with `-`, so
+ * drive colons, path separators, spaces, AND non-ASCII characters
+ * (diacritics, CJK, etc.) all collapse to single dashes.
  *
- * Shared by ClaudeFileCheckpointAdapter and this module.
+ * Empirically verified against on-disk `~/.claude/projects/` entries:
+ *   "C:\projects\auditaria"
+ *     → "C--projects-auditaria"
+ *   "C:\Users\thaci\OneDrive - Tribunal de Contas da União\Teams-Galileu"
+ *     → "C--Users-thaci-OneDrive---Tribunal-de-Contas-da-Uni-o-Teams-Galileu"
+ *
+ * The narrower `[:\\/]` regex we shipped originally missed spaces and
+ * diacritics, which silently broke /resume-claude (and the live
+ * provider's background hook watcher) for any project under OneDrive,
+ * "Program Files", or any path with accented characters.
+ *
+ * Shared by ClaudeFileCheckpointAdapter, claudeCLIDriver (transcript
+ * path), and this module — keep them on this single function so they
+ * can't drift again.
  */
 export function getClaudeProjectDirHash(cwd: string): string {
-  return cwd.replace(/[:\\/]/g, '-').replace(/^-+/, '');
+  return cwd.replace(/[^A-Za-z0-9_-]/g, '-').replace(/^-+/, '');
 }
 
 /**
