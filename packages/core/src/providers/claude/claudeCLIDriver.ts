@@ -257,7 +257,27 @@ export class ClaudeCLIDriver implements ProviderDriver {
   }
 
   setSessionId(id: string): void {
+    // AUDITARIA_CLAUDE_PROVIDER: Force PTY respawn on session change so
+    // the next sendMessage actually loads the requested session via
+    // `--resume <id>`. Without this, the persistent PTY would keep
+    // running whatever session it spawned with, and `/resume-claude` (or
+    // any other consumer that switches the session id at runtime) would
+    // silently type the user's prompt into the wrong session — leading
+    // either to a confused response or to a context overflow when the
+    // running session was already near its limit.
+    const previousId = this.sessionManager.getSessionId();
     this.sessionManager.setSessionId(id);
+    if (this.activePty && previousId !== id) {
+      dbg(
+        'setSessionId: session changed',
+        { from: previousId?.slice(0, 8), to: id.slice(0, 8) },
+        '— killing PTY so next sendMessage respawns with --resume',
+      );
+      this.killPty();
+      // killPty calls claudePtyMirror.setInactive and pty.kill. The
+      // ptyExited flag will flip in pty.onExit; ensurePtySpawned will
+      // see activePty alive-but-exited and clean up + respawn.
+    }
   }
 
   resetSession(): void {
