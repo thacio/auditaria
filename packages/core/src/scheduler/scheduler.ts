@@ -28,7 +28,11 @@ import {
   type ScheduledToolCall,
 } from './types.js';
 import { ToolErrorType } from '../tools/tool-error.js';
-import { EDIT_TOOL_NAME, UPDATE_TOPIC_TOOL_NAME } from '../tools/tool-names.js'; // AUDITARIA_COLLABORATIVE_WRITING: EDIT_TOOL_NAME
+import {
+  EDIT_TOOL_NAME, // AUDITARIA_COLLABORATIVE_WRITING: EDIT_TOOL_NAME
+  UPDATE_TOPIC_TOOL_NAME,
+  EDIT_TOOL_NAMES,
+} from '../tools/tool-names.js';
 import { PolicyDecision, type ApprovalMode } from '../policy/types.js';
 import {
   ToolConfirmationOutcome,
@@ -550,7 +554,10 @@ export class Scheduler {
 
   private _isParallelizable(request: ToolCallRequestInfo): boolean {
     // update_topic tool is forced as sequential call
-    if (request.name === UPDATE_TOPIC_TOOL_NAME) {
+    if (
+      request.name === UPDATE_TOPIC_TOOL_NAME ||
+      EDIT_TOOL_NAMES.has(request.name)
+    ) {
       return false;
     }
     if (request.args) {
