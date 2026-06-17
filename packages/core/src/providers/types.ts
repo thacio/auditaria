@@ -282,8 +282,9 @@ export interface ProviderConfig {
     | 'claude-cli'
     | 'codex-cli'
     | 'copilot-cli'
+    | 'agy-cli'
     | 'auditaria-cli'
-    | `openai-compat:${string}`; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_OPENAI_COMPAT: template literal for custom providers
+    | `openai-compat:${string}`; // AUDITARIA_CODEX_PROVIDER: added codex-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGY_PROVIDER: added agy-cli // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_OPENAI_COMPAT: template literal for custom providers
   model?: string;
   cwd?: string;
   options?: Record<string, unknown>;
@@ -319,6 +320,23 @@ export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
 // Dynamic discovery from ACP configOptions is preferred; this is the minimal fallback.
 export const COPILOT_MODEL_IDS = ['auto'] as const;
 export type CopilotModelId = (typeof COPILOT_MODEL_IDS)[number];
+
+// AUDITARIA_AGY_PROVIDER: Model IDs for the Google Antigravity (`agy`) provider.
+// Each maps to an agy `--model` display name (see AGY_MODEL_DISPLAY in
+// agy/agyCLIDriver.ts). Gemini / Claude / GPT-OSS families bill against
+// SEPARATE Antigravity quota pools, so each variant is independently selectable.
+export const AGY_MODEL_IDS = [
+  'auto',
+  'gemini-3.5-flash-low',
+  'gemini-3.5-flash-medium',
+  'gemini-3.5-flash-high',
+  'gemini-3.1-pro-low',
+  'gemini-3.1-pro-high',
+  'claude-sonnet-4.6',
+  'claude-opus-4.6',
+  'gpt-oss-120b',
+] as const;
+export type AgyModelId = (typeof AGY_MODEL_IDS)[number];
 
 // AUDITARIA_CLAUDE_PROVIDER: Minimal MCP server shape for external providers.
 // Avoids importing MCPServerConfig from config.ts (circular dependency).

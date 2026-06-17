@@ -36,7 +36,8 @@ export type SessionProviderType =
   | 'claude-cli'
   | 'codex-cli'
   | 'copilot-cli'
-  | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli
+  | 'agy-cli'
+  | 'auditaria-cli'; // AUDITARIA_AGENT_SESSION: added auditaria-cli // AUDITARIA_COPILOT_PROVIDER: added copilot-cli // AUDITARIA_AGY_PROVIDER: added agy-cli
 
 export interface AgentSession {
   id: string;
@@ -147,6 +148,8 @@ export class AgentSessionManager {
     private readonly getProviderAvailability: () => {
       claude: boolean;
       codex: boolean;
+      copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
+      agy: boolean; // AUDITARIA_AGY_PROVIDER
       auditaria: boolean;
     },
     private readonly toolRegistry?: ToolRegistry,
@@ -180,14 +183,22 @@ export class AgentSessionManager {
         ? 'claude'
         : provider === 'codex-cli'
           ? 'codex'
-          : 'auditaria';
+          : provider === 'copilot-cli' // AUDITARIA_COPILOT_PROVIDER
+            ? 'copilot'
+            : provider === 'agy-cli' // AUDITARIA_AGY_PROVIDER
+              ? 'agy'
+              : 'auditaria';
     if (!availability[providerKey]) {
       const cliName =
         provider === 'claude-cli'
           ? 'claude'
           : provider === 'codex-cli'
             ? 'codex'
-            : 'auditaria';
+            : provider === 'copilot-cli' // AUDITARIA_COPILOT_PROVIDER
+              ? 'copilot'
+              : provider === 'agy-cli' // AUDITARIA_AGY_PROVIDER
+                ? 'agy'
+                : 'auditaria';
       throw new Error(
         `Provider "${provider}" is not available. Make sure the "${cliName}" CLI is installed and on your PATH.`,
       );
@@ -200,7 +211,11 @@ export class AgentSessionManager {
         ? 'claude'
         : provider === 'codex-cli'
           ? 'codex'
-          : 'auditaria';
+          : provider === 'copilot-cli' // AUDITARIA_COPILOT_PROVIDER
+            ? 'copilot'
+            : provider === 'agy-cli' // AUDITARIA_AGY_PROVIDER
+              ? 'agy'
+              : 'auditaria';
     const sessionId = opts.sessionId ?? this.generateId(prefix);
 
     if (this.sessions.has(sessionId)) {
@@ -282,6 +297,20 @@ export class AgentSessionManager {
         break;
       }
       // AUDITARIA_COPILOT_PROVIDER_END
+      // AUDITARIA_AGY_PROVIDER_START: Antigravity sub-agent driver
+      case 'agy-cli': {
+        const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
+        driver = new AgyCLIDriver({
+          model,
+          cwd: this.cwd,
+          toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
+          toolBridgeScript: this.bridgeScriptPath,
+          toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
+          promptFileId: sessionId,
+        });
+        break;
+      }
+      // AUDITARIA_AGY_PROVIDER_END
       // AUDITARIA_AGENT_SESSION_START: Auditaria (Gemini) sub-agent driver
       case 'auditaria-cli': {
         const { AuditariaCLIDriver } = await import(

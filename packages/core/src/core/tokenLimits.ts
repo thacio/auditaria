@@ -33,6 +33,16 @@ export const CODEX_TOKEN_LIMIT = 258_400;
 // but we use 200K as a safe floor for token estimation display.
 export const COPILOT_TOKEN_LIMIT = 200_000;
 
+// AUDITARIA_AGY_PROVIDER: agy spans model families with different windows.
+// Resolve from the model variant suffix in `agy-code:<variant>`.
+export const AGY_GPT_OSS_TOKEN_LIMIT = 128_000;
+export function agyTokenLimit(model?: string): TokenCount {
+  const variant = model?.split(':')[1] ?? '';
+  if (variant.startsWith('claude')) return CLAUDE_TOKEN_LIMIT; // 200K
+  if (variant.startsWith('gpt-oss')) return AGY_GPT_OSS_TOKEN_LIMIT;
+  return DEFAULT_TOKEN_LIMIT; // Gemini 3.x families → 1M
+}
+
 // AUDITARIA_FIX: Include system prompt + tools in token estimation heuristic.
 // When true, initial token count includes systemInstruction and tool definitions (Gemini)
 // or base overhead like CLAUDE.md + system prompt (Claude), matching API-reported counts.
@@ -54,6 +64,11 @@ export function tokenLimit(model: Model): TokenCount {
   // AUDITARIA_COPILOT_PROVIDER: Copilot models (conservative default)
   if (model?.startsWith('copilot-code:')) {
     return COPILOT_TOKEN_LIMIT;
+  }
+
+  // AUDITARIA_AGY_PROVIDER: Antigravity models (per-family window)
+  if (model?.startsWith('agy-code:')) {
+    return agyTokenLimit(model);
   }
 
   // Add other models as they become relevant or if specified by config

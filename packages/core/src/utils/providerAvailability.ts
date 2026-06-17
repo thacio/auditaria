@@ -12,6 +12,7 @@ export interface ProviderAvailability {
   claude: boolean;
   codex: boolean;
   copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
+  agy: boolean; // AUDITARIA_AGY_PROVIDER
   auditaria: boolean;
 }
 
@@ -55,14 +56,15 @@ async function isCommandAvailable(
  * @returns Promise that resolves to an object with availability status for each provider
  */
 export async function checkProviderAvailability(): Promise<ProviderAvailability> {
-  const [claude, codex, copilot] = await Promise.all([
+  const [claude, codex, copilot, agy] = await Promise.all([
     isCommandAvailable('claude'),
     isCommandAvailable('codex'),
     isCommandAvailable('copilot'), // AUDITARIA_COPILOT_PROVIDER
+    isCommandAvailable('agy'), // AUDITARIA_AGY_PROVIDER
   ]);
 
   //Auditaria is always available (we ARE auditaria).
-  return { claude, codex, copilot, auditaria: true };
+  return { claude, codex, copilot, agy, auditaria: true };
 }
 
 /**
@@ -70,7 +72,9 @@ export async function checkProviderAvailability(): Promise<ProviderAvailability>
  * @param provider Provider name ('claude' or 'codex')
  * @returns Install instruction message
  */
-export function getProviderInstallMessage(provider: 'claude' | 'codex' | 'copilot'): string {
+export function getProviderInstallMessage(
+  provider: 'claude' | 'codex' | 'copilot' | 'agy',
+): string {
   if (provider === 'claude') {
     return 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.';
   }
@@ -80,6 +84,10 @@ export function getProviderInstallMessage(provider: 'claude' | 'codex' | 'copilo
   // AUDITARIA_COPILOT_PROVIDER
   if (provider === 'copilot') {
     return 'To use GitHub Copilot, install it from https://www.npmjs.com/package/@github/copilot, then run `copilot` to authenticate.';
+  }
+  // AUDITARIA_AGY_PROVIDER
+  if (provider === 'agy') {
+    return 'To use Google Antigravity, install the Antigravity CLI so `agy` is on your PATH, then run `agy` once to authenticate.';
   }
   return 'Provider not available. Please install and authenticate.';
 }

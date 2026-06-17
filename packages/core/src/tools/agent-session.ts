@@ -14,7 +14,11 @@ import { BaseDeclarativeTool, BaseToolInvocation, Kind } from './tools.js';
 import type { ExecuteOptions, ToolInvocation, ToolResult } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { EXTERNAL_AGENT_SESSION_TOOL_NAME } from './tool-names.js';
-import { CLAUDE_MODEL_IDS, CODEX_MODEL_IDS } from '../providers/types.js';
+import {
+  CLAUDE_MODEL_IDS,
+  CODEX_MODEL_IDS,
+  AGY_MODEL_IDS,
+} from '../providers/types.js'; // AUDITARIA_AGY_PROVIDER: added AGY_MODEL_IDS
 import {
   AUDITARIA_MODEL_IDS,
   VALID_GEMINI_MODELS,
@@ -43,6 +47,7 @@ const ALL_MODEL_IDS = [
   'auto',
   ...CLAUDE_MODEL_IDS.filter((id) => id !== 'auto'),
   ...CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
+  ...AGY_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGY_PROVIDER
   ...AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto'), // AUDITARIA_AGENT_SESSION
 ] as const;
 
@@ -76,7 +81,10 @@ const DESCRIPTION = `Manage sessions with alternative LLM providers as external 
 Available providers:
 - "claude" — Claude Code CLI (opus, sonnet, haiku)
 - "codex" — OpenAI Codex CLI (gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2)
+- "agy" — Google Antigravity CLI (${AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 - "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
+
+IMAGE GENERATION & EDITING (agy only): The "agy" provider has a NATIVE built-in image tool ("generate_image") that no other provider offers. Spawn an "agy" sub-agent when you need to CREATE an image from a text prompt or EDIT/compose images using up to 3 reference images (the sub-agent passes their absolute file paths — high-fidelity edits, e.g. change a single attribute while preserving the rest of the composition). The tool's only inputs are: a text Prompt, an output filename, and optionally up to 3 input image paths. IMPORTANT: it exposes NO resolution / size / aspect-ratio parameter — output dimensions are fixed by the model (~1024px, saved as JPEG) and CANNOT be set; you can only hint at framing/orientation in the prompt text (e.g. "wide landscape banner", "tall portrait"), with no guaranteed pixel size. Just give the agy sub-agent a clear instruction (e.g. "generate an image of X" or "edit these images <abs paths> — change only Y") and let it drive generate_image, then report back the saved image path(s). Prefer "agy" for any image creation/editing task.
 
 You can spawn any provider, including the same one you are running on.
 
@@ -144,8 +152,8 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
           provider: {
             type: 'string',
             description:
-              'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "auditaria" (Auditaria/Gemini CLI).',
-            enum: ['claude', 'codex', 'auditaria'],
+              'The provider to use. Required for "create". Options: "claude" (Claude CLI), "codex" (Codex CLI), "agy" (Google Antigravity CLI), "auditaria" (Auditaria/Gemini CLI).',
+            enum: ['claude', 'codex', 'agy', 'auditaria'],
           },
           session_id: {
             type: 'string',
@@ -163,6 +171,9 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
               'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
               'Claude models: opus, sonnet, haiku, opus[1m], sonnet[1m] (the [1m] variants have a 1M-token context window — use for long sessions or large codebases). ' +
               'Codex models: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2. ' +
+              'Antigravity (agy) models: ' +
+              AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              '. ' +
               'Gemini models: ' +
               AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
               ' (default: ' +
@@ -236,7 +247,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
     }
 
     if (params.action === 'create' && !params.provider) {
-      return 'provider is required for "create" action. Options: "claude", "codex", "auditaria"';
+      return 'provider is required for "create" action. Options: "claude", "codex", "agy", "auditaria"';
     }
 
     if (params.action === 'send') {
@@ -301,6 +312,9 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
       const codexModels = new Set<string>(
         CODEX_MODEL_IDS.filter((id) => id !== 'auto'),
       );
+      const agyModels = new Set<string>(
+        AGY_MODEL_IDS.filter((id) => id !== 'auto'),
+      ); // AUDITARIA_AGY_PROVIDER
       const auditariaModels = VALID_GEMINI_MODELS; // AUDITARIA_AGENT_SESSION
 
       if (params.provider === 'claude' && !claudeModels.has(params.model)) {
@@ -318,6 +332,16 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
         if (auditariaModels.has(params.model)) {
           return `Model "${params.model}" is a Gemini model, but provider is "codex". Codex models: ${[...codexModels].join(', ')}`;
         }
+      }
+      // AUDITARIA_AGY_PROVIDER: Validate agy model
+      if (params.provider === 'agy' && !agyModels.has(params.model)) {
+        if (claudeModels.has(params.model)) {
+          return `Model "${params.model}" is a Claude model, but provider is "agy". Antigravity models: ${[...agyModels].join(', ')}`;
+        }
+        if (codexModels.has(params.model)) {
+          return `Model "${params.model}" is a Codex model, but provider is "agy". Antigravity models: ${[...agyModels].join(', ')}`;
+        }
+        return `Model "${params.model}" is not a valid Antigravity model. Options: ${[...agyModels].join(', ')}`;
       }
       // AUDITARIA_AGENT_SESSION: Validate auditaria model
       if (
@@ -445,17 +469,18 @@ class ExternalAgentSessionInvocation extends BaseToolInvocation<
     // Map short names to driver types
     const providerMap: Record<
       string,
-      'claude-cli' | 'codex-cli' | 'auditaria-cli'
+      'claude-cli' | 'codex-cli' | 'agy-cli' | 'auditaria-cli'
     > = {
       claude: 'claude-cli',
       codex: 'codex-cli',
+      agy: 'agy-cli', // AUDITARIA_AGY_PROVIDER
       auditaria: 'auditaria-cli', // AUDITARIA_AGENT_SESSION
     };
 
     const provider = providerMap[this.params.provider!];
     if (!provider) {
       return {
-        llmContent: `Unknown provider "${this.params.provider}". Options: claude, codex, auditaria`,
+        llmContent: `Unknown provider "${this.params.provider}". Options: claude, codex, agy, auditaria`,
         returnDisplay: `Unknown provider: ${this.params.provider}`,
         error: {
           message: `Unknown provider: ${this.params.provider}`,

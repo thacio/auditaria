@@ -50,9 +50,11 @@ import {
   CLAUDE_PREFIX,
   CODEX_PREFIX,
   COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
+  AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   DEFAULT_CODEX_REASONING_EFFORT,
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
+  AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   isCodexReasoningEffort,
   getCodexReasoningLabel,
@@ -114,13 +116,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     () => !(config?.getProModelNoAccessSync() ?? false),
   );
   const [view, setView] = useState<
-    'main' | 'manual' | 'claude' | 'codex' | 'copilot' | string // AUDITARIA_OPENAI_COMPAT: string covers "openai-compat:{id}" submenu views
-  >(() => (config?.getProModelNoAccessSync() ? 'manual' : 'main')); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
+    'main' | 'manual' | 'claude' | 'codex' | 'copilot' | 'agy' | string // AUDITARIA_OPENAI_COMPAT: string covers "openai-compat:{id}" submenu views // AUDITARIA_AGY_PROVIDER: added 'agy'
+  >('main'); // AUDITARIA_PROVIDER: Always open on the main menu so the external
+  // provider entries (Claude/Codex/Copilot/Agy) are reachable even for users
+  // without pro-model access (who previously got trapped in the gemini-only
+  // 'manual' view with no way to reach providers). The 'Manual' entry still
+  // leads to the gemini model list.
 
   const availability = config?.getProviderAvailability() ?? {
     claude: false,
     codex: false,
     copilot: false, // AUDITARIA_COPILOT_PROVIDER
+    agy: false, // AUDITARIA_AGY_PROVIDER
+    auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
   const [persistMode, setPersistMode] = useState(false);
   const [codexHighlightedModel, setCodexHighlightedModel] = useState<
@@ -199,6 +207,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const isClaudeActive = displayModel.startsWith('claude-code:');
   const isCodexActive = displayModel.startsWith('codex-code:');
   const isCopilotActive = displayModel.startsWith('copilot-code:'); // AUDITARIA_COPILOT_PROVIDER
+  const isAgyActive = displayModel.startsWith('agy-code:'); // AUDITARIA_AGY_PROVIDER
   const codexDisplayEffort = clampCodexReasoningEffortForModel(
     codexHighlightedModel,
     codexReasoningEffort,
@@ -218,13 +227,14 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     (key) => {
       if (key.name === 'escape') {
         if (
-          (view === 'manual' && hasAccessToProModel) ||
+          view === 'manual' || // AUDITARIA_PROVIDER: allow manual→main always so no-pro users can reach providers
           view === 'claude' ||
           view === 'codex' ||
           view === 'copilot' ||
+          view === 'agy' || // AUDITARIA_AGY_PROVIDER
           view.startsWith('openai-compat:') // AUDITARIA_OPENAI_COMPAT
         ) {
-          // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER: handle submenu views
+          // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER + AUDITARIA_AGY_PROVIDER: handle submenu views
           setView('main');
         } else {
           onClose();
@@ -363,6 +373,23 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     });
     // AUDITARIA_COPILOT_PROVIDER_END
 
+    // AUDITARIA_AGY_PROVIDER_START: Single entry that opens the Antigravity submenu
+    const agyTitle = isAgyActive
+      ? 'Google Antigravity (active)'
+      : availability.agy
+        ? 'Google Antigravity'
+        : 'Google Antigravity (not installed)';
+    const agyDescription = availability.agy
+      ? 'Use Google Antigravity (agy) as the LLM backend'
+      : 'Install the Antigravity CLI (`agy`) to use this provider';
+    list.push({
+      value: 'Agy',
+      title: agyTitle,
+      description: agyDescription,
+      key: 'Agy',
+    });
+    // AUDITARIA_AGY_PROVIDER_END
+
     // AUDITARIA_OPENAI_COMPAT_START: Add custom providers from ~/.auditaria/providers.json
     const customProviders = config?.getCustomProviders() || [];
     for (const cp of customProviders) {
@@ -389,9 +416,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     isClaudeActive,
     isCodexActive,
     isCopilotActive, // AUDITARIA_COPILOT_PROVIDER
+    isAgyActive, // AUDITARIA_AGY_PROVIDER
     availability.claude,
     availability.codex,
     availability.copilot, // AUDITARIA_COPILOT_PROVIDER
+    availability.agy, // AUDITARIA_AGY_PROVIDER
   ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
 
   const manualOptions = useMemo(() => {
@@ -553,6 +582,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   );
   // AUDITARIA_COPILOT_PROVIDER_END
 
+  // AUDITARIA_AGY_PROVIDER_START: Antigravity submenu options
+  const agyOptions = useMemo(
+    () =>
+      AGY_SUBMENU_OPTIONS.map((option) => ({
+        value: option.value,
+        title: option.title,
+        description: option.description,
+        key: option.key,
+      })),
+    [],
+  );
+  // AUDITARIA_AGY_PROVIDER_END
+
   // AUDITARIA_OPENAI_COMPAT_START: Build submenu options for custom providers
   const customProviderOptions = useMemo(() => {
     if (!view.startsWith('openai-compat:')) return [];
@@ -584,15 +626,17 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const options = useMemo(() => {
     const rawOptions = view.startsWith('openai-compat:')
       ? customProviderOptions
-      : view === 'copilot'
-        ? copilotOptions
-        : view === 'codex'
-          ? codexOptions
-          : view === 'claude'
-            ? claudeOptions
-            : view === 'manual'
-              ? manualOptions
-              : mainOptions;
+      : view === 'agy' // AUDITARIA_AGY_PROVIDER
+        ? agyOptions
+        : view === 'copilot'
+          ? copilotOptions
+          : view === 'codex'
+            ? codexOptions
+            : view === 'claude'
+              ? claudeOptions
+              : view === 'manual'
+                ? manualOptions
+                : mainOptions;
     const seen = new Set<string>();
     return rawOptions.filter((option) => {
       if (seen.has(option.value)) {
@@ -607,6 +651,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     manualOptions,
     customProviderOptions,
     copilotOptions,
+    agyOptions, // AUDITARIA_AGY_PROVIDER
     codexOptions,
     claudeOptions,
   ]);
@@ -630,6 +675,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       const copilotIdx = options.findIndex((o) => o.value === 'Copilot');
       if (copilotIdx !== -1) return copilotIdx;
     }
+    // AUDITARIA_AGY_PROVIDER: If Antigravity is active, highlight its entry
+    if (isAgyActive && view === 'main') {
+      const agyIdx = options.findIndex((o) => o.value === 'Agy');
+      if (agyIdx !== -1) return agyIdx;
+    }
     const idx = options.findIndex((option) => option.value === preferredModel);
     if (idx !== -1) {
       return idx;
@@ -646,7 +696,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     isClaudeActive,
     isCodexActive,
     isCopilotActive,
-  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER
+    isAgyActive, // AUDITARIA_AGY_PROVIDER
+  ]); // AUDITARIA_CLAUDE_PROVIDER + AUDITARIA_CODEX_PROVIDER + AUDITARIA_COPILOT_PROVIDER + AUDITARIA_AGY_PROVIDER
 
   // Handle selection internally (Autonomous Dialog).
   const handleSelect = useCallback(
@@ -737,6 +788,29 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
       }
       // AUDITARIA_COPILOT_PROVIDER_END
 
+      // AUDITARIA_AGY_PROVIDER_START
+      if (model === 'Agy') {
+        setView('agy');
+        return;
+      }
+
+      if (model.startsWith(AGY_PREFIX)) {
+        if (config) {
+          const agyModel = model.slice(AGY_PREFIX.length);
+          const providerConfig: ProviderConfig = {
+            type: 'agy-cli',
+            model: agyModel === 'auto' ? undefined : agyModel,
+            cwd: config.getWorkingDir(),
+          };
+          config.setProviderConfig(providerConfig, !persistMode); // AUDITARIA_PROVIDER_PERSISTENCE
+          const event = new ModelSlashCommandEvent(`agy-code-${agyModel}`);
+          logModelSlashCommand(config, event);
+        }
+        onClose();
+        return;
+      }
+      // AUDITARIA_AGY_PROVIDER_END
+
       // AUDITARIA_OPENAI_COMPAT_START: Handle custom OpenAI-compatible providers
       if (model.startsWith('openai-compat:') && !model.includes('/')) {
         // Main menu entry → open submenu (e.g., "openai-compat:openai" → view)
@@ -795,9 +869,11 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             ? 'Select OpenAI Codex Model'
             : view === 'copilot'
               ? 'Select GitHub Copilot Model'
-              : view.startsWith('openai-compat:')
-                ? `Select ${(config?.getCustomProviders() || []).find((p) => p.id === view.split(':')[1])?.name || 'Custom'} Model`
-                : 'Select Model'}
+              : view === 'agy' // AUDITARIA_AGY_PROVIDER
+                ? 'Select Google Antigravity Model'
+                : view.startsWith('openai-compat:')
+                  ? `Select ${(config?.getCustomProviders() || []).find((p) => p.id === view.split(':')[1])?.name || 'Custom'} Model`
+                  : 'Select Model'}
       </Text>
 
       {/* AUDITARIA_CLAUDE_PROVIDER_START + AUDITARIA_CODEX_PROVIDER */}
@@ -836,7 +912,23 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         </Box>
       )}
       {/* AUDITARIA_COPILOT_PROVIDER_END */}
-      {(view === 'claude' || view === 'codex' || view === 'copilot') && (
+      {/* AUDITARIA_AGY_PROVIDER_START */}
+      {view === 'agy' && !availability.agy && (
+        <Box marginTop={1} flexDirection="column">
+          <Text color={theme.status.warning}>
+            Note: Google Antigravity CLI (`agy`) is not installed.
+          </Text>
+          <Text color={theme.text.secondary}>
+            Install the Antigravity CLI so `agy` is on your PATH, then run `agy`
+            once to authenticate.
+          </Text>
+        </Box>
+      )}
+      {/* AUDITARIA_AGY_PROVIDER_END */}
+      {(view === 'claude' ||
+        view === 'codex' ||
+        view === 'copilot' ||
+        view === 'agy') /* AUDITARIA_AGY_PROVIDER */ && (
         <Box marginTop={1} flexDirection="column">
           <Text color={theme.status.warning}>
             Runs with bypassPermissions — tools execute without confirmation.

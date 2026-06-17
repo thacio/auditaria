@@ -843,11 +843,13 @@ export class Config implements McpContext, AgentLoopContext {
     claude: boolean;
     codex: boolean;
     copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
+    agy: boolean; // AUDITARIA_AGY_PROVIDER
     auditaria: boolean;
   } = {
     claude: false,
     codex: false,
     copilot: false, // AUDITARIA_COPILOT_PROVIDER
+    agy: false, // AUDITARIA_AGY_PROVIDER
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY
   private fileCheckpointManager_?: FileCheckpointManager; // AUDITARIA_REWIND
@@ -3115,6 +3117,7 @@ export class Config implements McpContext, AgentLoopContext {
     claude: boolean;
     codex: boolean;
     copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
+    agy: boolean; // AUDITARIA_AGY_PROVIDER
     auditaria: boolean;
   } {
     return { ...this.providerAvailability };
@@ -3124,6 +3127,7 @@ export class Config implements McpContext, AgentLoopContext {
     claude: boolean;
     codex: boolean;
     copilot: boolean; // AUDITARIA_COPILOT_PROVIDER
+    agy: boolean; // AUDITARIA_AGY_PROVIDER
     auditaria: boolean;
   }): void {
     this.providerAvailability = { ...availability };
@@ -3148,6 +3152,10 @@ export class Config implements McpContext, AgentLoopContext {
     // AUDITARIA_COPILOT_PROVIDER
     if (config.type === 'copilot-cli') {
       return `copilot-code:${config.model || 'auto'}`;
+    }
+    // AUDITARIA_AGY_PROVIDER
+    if (config.type === 'agy-cli') {
+      return `agy-code:${config.model || 'auto'}`;
     }
     return undefined;
   }

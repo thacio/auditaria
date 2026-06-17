@@ -5,6 +5,7 @@
  */
 
 import { getCopilotModelUsage } from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+import { AGY_MODEL_DISPLAY } from '../providers/agy/agyCLIDriver.js'; // AUDITARIA_AGY_PROVIDER
 
 export interface ModelResolutionContext {
   useGemini3_1?: boolean;
@@ -387,6 +388,14 @@ export function getDisplayString(
     const usageSuffix = usage ? ` ${usage}` : '';
     if (variant === 'auto') return `Copilot (Auto)${usageSuffix}`;
     return `Copilot (${variant})${usageSuffix}`;
+  }
+
+  // AUDITARIA_AGY_PROVIDER: Format Antigravity model display
+  if (model.startsWith('agy-code:')) {
+    const variant = model.split(':')[1] || 'unknown';
+    if (variant === 'auto') return 'Antigravity (Auto)';
+    const display = AGY_MODEL_DISPLAY[variant];
+    return `Antigravity (${display ?? variant})`;
   }
 
   if (config?.getExperimentalDynamicModelConfiguration?.() === true) {

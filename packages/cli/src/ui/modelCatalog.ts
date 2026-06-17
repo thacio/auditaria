@@ -20,6 +20,7 @@ import {
 export const CLAUDE_PREFIX = 'claude:';
 export const CODEX_PREFIX = 'codex:';
 export const COPILOT_PREFIX = 'copilot:'; // AUDITARIA_COPILOT_PROVIDER
+export const AGY_PREFIX = 'agy:'; // AUDITARIA_AGY_PROVIDER
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = 'xhigh';
 
 export interface ProviderSubmenuOption {
@@ -87,7 +88,8 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CODEX_PREFIX}gpt-5.5`,
     title: 'GPT-5.5',
-    description: 'Frontier model for complex coding, research, and real-world work',
+    description:
+      'Frontier model for complex coding, research, and real-world work',
     key: 'codex-gpt55',
     model: 'gpt-5.5',
   },
@@ -118,6 +120,75 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
     description: 'Optimized for professional work and long-running agents',
     key: 'codex-gpt52',
     model: 'gpt-5.2',
+  },
+];
+
+// AUDITARIA_AGY_PROVIDER: Google Antigravity (`agy`) model submenu. Each
+// variant maps to an agy `--model` display name; Gemini / Claude / GPT-OSS
+// families bill against separate Antigravity quota pools.
+export const AGY_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
+  {
+    value: `${AGY_PREFIX}auto`,
+    title: 'Auto',
+    description: "Uses Antigravity's selected model (from agy settings)",
+    key: 'agy-auto',
+    model: undefined,
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.5-flash-low`,
+    title: 'Gemini 3.5 Flash (Low)',
+    description: 'Fast, cheapest compute tier · Gemini quota pool · 1M context',
+    key: 'agy-gemini35-flash-low',
+    model: 'gemini-3.5-flash-low',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.5-flash-medium`,
+    title: 'Gemini 3.5 Flash (Medium)',
+    description: 'Higher effort · Gemini quota pool · 1M context',
+    key: 'agy-gemini35-flash-medium',
+    model: 'gemini-3.5-flash-medium',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.5-flash-high`,
+    title: 'Gemini 3.5 Flash (High)',
+    description: 'Highest effort · Gemini quota pool · 1M context',
+    key: 'agy-gemini35-flash-high',
+    model: 'gemini-3.5-flash-high',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.1-pro-low`,
+    title: 'Gemini 3.1 Pro (Low)',
+    description: 'Stronger reasoning · Gemini quota pool · 1M context',
+    key: 'agy-gemini31-pro-low',
+    model: 'gemini-3.1-pro-low',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.1-pro-high`,
+    title: 'Gemini 3.1 Pro (High)',
+    description: 'Strongest Gemini · highest effort · 1M context',
+    key: 'agy-gemini31-pro-high',
+    model: 'gemini-3.1-pro-high',
+  },
+  {
+    value: `${AGY_PREFIX}claude-sonnet-4.6`,
+    title: 'Claude Sonnet 4.6',
+    description: 'Anthropic Sonnet (thinking) · separate Claude quota pool',
+    key: 'agy-claude-sonnet46',
+    model: 'claude-sonnet-4.6',
+  },
+  {
+    value: `${AGY_PREFIX}claude-opus-4.6`,
+    title: 'Claude Opus 4.6',
+    description: 'Anthropic Opus (thinking) · most capable · Claude quota pool',
+    key: 'agy-claude-opus46',
+    model: 'claude-opus-4.6',
+  },
+  {
+    value: `${AGY_PREFIX}gpt-oss-120b`,
+    title: 'GPT-OSS 120B',
+    description: 'Open-weights · separate quota pool · no vision',
+    key: 'agy-gpt-oss-120b',
+    model: 'gpt-oss-120b',
   },
 ];
 

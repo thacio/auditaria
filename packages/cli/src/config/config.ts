@@ -685,6 +685,7 @@ export function isDebugMode(argv: CliArgs): boolean {
 const CLAUDE_PERSISTED_MODEL_PREFIX = 'claude-code:';
 const CODEX_PERSISTED_MODEL_PREFIX = 'codex-code:';
 const COPILOT_PERSISTED_MODEL_PREFIX = 'copilot-code:'; // AUDITARIA_COPILOT_PROVIDER
+const AGY_PERSISTED_MODEL_PREFIX = 'agy-code:'; // AUDITARIA_AGY_PROVIDER
 
 function parsePersistedProviderConfig(
   modelPreference: string | undefined,
@@ -751,6 +752,18 @@ function parsePersistedProviderConfig(
       type: 'copilot-cli',
       model:
         !copilotModel || copilotModel === 'auto' ? undefined : copilotModel,
+      cwd,
+    };
+  }
+
+  // AUDITARIA_AGY_PROVIDER
+  if (modelPreference.startsWith(AGY_PERSISTED_MODEL_PREFIX)) {
+    const agyModel = modelPreference
+      .slice(AGY_PERSISTED_MODEL_PREFIX.length)
+      .trim();
+    return {
+      type: 'agy-cli',
+      model: !agyModel || agyModel === 'auto' ? undefined : agyModel,
       cwd,
     };
   }

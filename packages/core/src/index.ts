@@ -333,6 +333,7 @@ export {
   CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   COPILOT_MODEL_IDS, // AUDITARIA_COPILOT_PROVIDER
+  AGY_MODEL_IDS, // AUDITARIA_AGY_PROVIDER
 } from './providers/types.js';
 export {
   ProviderManager,
@@ -347,6 +348,10 @@ export {
   getCopilotModelUsage,
   getCachedCopilotModels,
 } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+export {
+  AGY_MODEL_DISPLAY,
+  getAgyModelDisplayName,
+} from './providers/agy/agyCLIDriver.js'; // AUDITARIA_AGY_PROVIDER
 export {
   getAuditContext,
   getAuditPreamble,

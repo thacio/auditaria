@@ -167,8 +167,10 @@ import {
   CLAUDE_PREFIX,
   CODEX_PREFIX,
   COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
+  AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
+  AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
   DEFAULT_CODEX_REASONING_EFFORT,
   CODEX_REASONING_OPTIONS,
@@ -2504,6 +2506,22 @@ Logging in with Google... Restarting Gemini CLI to continue.
       },
       // AUDITARIA_COPILOT_PROVIDER_END
 
+      // AUDITARIA_AGY_PROVIDER_START
+      {
+        id: 'agy',
+        label: 'Antigravity',
+        available: availability.agy,
+        installMessage: availability.agy
+          ? undefined
+          : 'To use Google Antigravity, install the Antigravity CLI so `agy` is on your PATH, then run `agy` once to authenticate.',
+        options: AGY_SUBMENU_OPTIONS.map((option) => ({
+          selection: option.value,
+          label: `Antigravity (${option.title})`,
+          description: option.description,
+        })),
+      },
+      // AUDITARIA_AGY_PROVIDER_END
+
       // AUDITARIA_OPENAI_COMPAT_START: Add custom providers from ~/.auditaria/providers.json
       ...(config?.getCustomProviders() || []).map((cp) => ({
         id: `openai-compat:${cp.id}`,
@@ -2534,6 +2552,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
       // AUDITARIA_COPILOT_PROVIDER
       const variant = selectedDisplayModel.split(':')[1] || 'auto';
       activeSelection = `${COPILOT_PREFIX}${variant}`;
+    } else if (selectedDisplayModel.startsWith('agy-code:')) {
+      // AUDITARIA_AGY_PROVIDER
+      const variant = selectedDisplayModel.split(':')[1] || 'auto';
+      activeSelection = `${AGY_PREFIX}${variant}`;
     } else if (selectedDisplayModel.startsWith('openai-compat:')) {
       // AUDITARIA_OPENAI_COMPAT: Custom provider active
       const providerConfig = config?.getProviderConfig();
@@ -2556,6 +2578,9 @@ Logging in with Google... Restarting Gemini CLI to continue.
       } else if (selectedDisplayModel.startsWith('copilot-code:')) {
         // AUDITARIA_COPILOT_PROVIDER
         activeSelection = `${COPILOT_PREFIX}auto`;
+      } else if (selectedDisplayModel.startsWith('agy-code:')) {
+        // AUDITARIA_AGY_PROVIDER
+        activeSelection = `${AGY_PREFIX}auto`;
       } else {
         const geminiGroup = groups.find((g) => g.id === 'gemini');
         if (geminiGroup) {
@@ -2681,6 +2706,21 @@ Logging in with Google... Restarting Gemini CLI to continue.
         );
       }
       // AUDITARIA_COPILOT_PROVIDER_END
+
+      // AUDITARIA_AGY_PROVIDER_START
+      if (selection.startsWith(AGY_PREFIX)) {
+        const agyModel = selection.slice(AGY_PREFIX.length);
+        config.setProviderConfig(
+          {
+            type: 'agy-cli',
+            model: agyModel === 'auto' ? undefined : agyModel,
+            cwd: config.getWorkingDir(),
+          },
+          false,
+        );
+        return;
+      }
+      // AUDITARIA_AGY_PROVIDER_END
 
       // AUDITARIA_OPENAI_COMPAT_START: Handle custom provider selection from web
       if (selection.startsWith('openai-compat:') && selection.includes('/')) {

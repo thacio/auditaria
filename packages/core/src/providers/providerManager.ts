@@ -246,9 +246,7 @@ interface BackgroundCapableDriver {
   onBackgroundAssistantText(
     handler: (data: { text: string }) => void,
   ): () => void;
-  onBackgroundError?(
-    handler: (data: { message: string }) => void,
-  ): () => void;
+  onBackgroundError?(handler: (data: { message: string }) => void): () => void;
   onBackgroundCompactionSummary?(
     handler: (data: { text: string }) => void,
   ): () => void;
@@ -354,9 +352,7 @@ export class ProviderManager {
   }
 
   /** Background API errors (Claude StopFailure during a web-PTY turn). */
-  onBackgroundError(
-    handler: (data: { message: string }) => void,
-  ): () => void {
+  onBackgroundError(handler: (data: { message: string }) => void): () => void {
     this.backgroundEmitter.on('error', handler);
     return () => this.backgroundEmitter.off('error', handler);
   }
@@ -1220,6 +1216,11 @@ export class ProviderManager {
         );
         return new CopilotCLIDriver(driverConfig);
       }
+      // AUDITARIA_AGY_PROVIDER
+      case 'agy-cli': {
+        const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
+        return new AgyCLIDriver(driverConfig);
+      }
       default:
         throw new Error(`Unknown provider type: ${this.config.type}`);
     }
@@ -1285,6 +1286,10 @@ export class ProviderManager {
     if (this.config.type === 'copilot-cli') {
       return `copilot-code:${this.config.model || 'auto'}`;
     }
+    // AUDITARIA_AGY_PROVIDER
+    if (this.config.type === 'agy-cli') {
+      return `agy-code:${this.config.model || 'auto'}`;
+    }
     return this.config.model || 'unknown';
   }
 
@@ -1349,6 +1354,13 @@ export class ProviderManager {
         break;
       }
       // AUDITARIA_COPILOT_PROVIDER_END
+      // AUDITARIA_AGY_PROVIDER_START
+      case 'agy-cli': {
+        const { AgyCLIDriver } = await import('./agy/agyCLIDriver.js');
+        this.driver = new AgyCLIDriver(driverConfig);
+        break;
+      }
+      // AUDITARIA_AGY_PROVIDER_END
       default:
         throw new Error(`Unknown provider type: ${this.config.type}`);
     }
