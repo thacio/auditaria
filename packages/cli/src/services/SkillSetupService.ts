@@ -108,7 +108,7 @@ export class SkillSetupService {
       if (fs.existsSync(platformInstallPath)) {
         fs.rmSync(platformInstallPath, { recursive: true, force: true });
       }
-      fs.renameSync(extractedPath, platformInstallPath);
+      await this.moveDirResilient(extractedPath, platformInstallPath);
 
       // Copy the shared (platform-independent) content up to the skill root,
       // overwriting whatever a previous setup left there. Anything named
@@ -188,6 +188,50 @@ export class SkillSetupService {
     if (process.platform === 'win32') return 'windows';
     if (process.platform === 'darwin') return 'macos';
     return 'linux';
+  }
+
+  /**
+   * Move a directory, resilient to transient Windows EPERM/EACCES/EBUSY.
+   *
+   * On Windows, renaming a directory that contains a freshly-written
+   * executable (here `parser.exe`) routinely fails with EPERM while
+   * antivirus (Windows Defender real-time protection) still holds the file
+   * open for scanning. The lock is transient, so retry the rename with a
+   * short backoff; if it still fails, fall back to a recursive copy plus a
+   * best-effort delete of the source (by then any scan has finished, and the
+   * install at `dest` is complete even if the source can't be removed).
+   */
+  private async moveDirResilient(src: string, dest: string): Promise<void> {
+    const transient = new Set(['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY']);
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        fs.renameSync(src, dest);
+        return;
+      } catch (error) {
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error
+            ? error.code
+            : undefined;
+        if (typeof code !== 'string' || !transient.has(code)) {
+          throw error;
+        }
+        if (attempt < maxAttempts) {
+          // Linear backoff: ~150ms, 300ms, 450ms, 600ms between tries.
+          await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+          continue;
+        }
+        // Last resort: copy then best-effort remove the source.
+        fs.cpSync(src, dest, { recursive: true });
+        try {
+          fs.rmSync(src, { recursive: true, force: true });
+        } catch {
+          // Leaving the source behind is not fatal — dest is complete.
+        }
+        return;
+      }
+    }
   }
 
   /**
