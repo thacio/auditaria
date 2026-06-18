@@ -175,7 +175,8 @@
     "vscode-material-icons": "^0.1.1",
     "xxhash-wasm": "^1.1.0",
     "grammy": "^1.41.1",
-    "discord.js": "^14.18.0"
+    "discord.js": "^14.18.0",
+    "unzipper": "^0.12.3"
   },
   "optionalDependencies": {
     "@github/keytar": "^7.10.6",
