@@ -38,6 +38,7 @@
     "@modelcontextprotocol/sdk": "^1.23.0",
     "@playwright/browser-chromium": "^1.52.0",
     "@thacio/auditaria-search": "file:../search",
+    "adm-zip": "^0.5.17",
     "ansi-escapes": "^7.3.0",
     "ansi-regex": "^6.2.2",
     "chalk": "^4.1.2",
@@ -81,6 +82,7 @@
   },
   "devDependencies": {
     "@google/gemini-cli-test-utils": "file:../test-utils",
+    "@types/adm-zip": "^0.5.7",
     "@types/command-exists": "^1.2.3",
     "@types/hast": "^3.0.4",
     "@types/node": "^20.11.24",
