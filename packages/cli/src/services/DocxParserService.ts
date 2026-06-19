@@ -8,7 +8,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -18,6 +18,26 @@ const execFileAsync = promisify(execFile);
 // success is keyed on the exit code, never on stderr being empty.
 const AST_MAX_BUFFER = 64 * 1024 * 1024; // 64MB
 const PARSER_ENV = { ...process.env, PYTHONIOENCODING: 'utf-8' };
+
+// Errors that mean "the OS refused to launch this executable" rather than
+// "the parser ran and reported a problem". On locked-down machines (e.g.
+// corporate Windows Defender / WDAC) the unsigned compiled parser.exe is
+// blocked with EPERM/EACCES; ENOENT means a candidate interpreter is absent.
+// Any of these triggers a fallback to the next available way to run the parser.
+const EXEC_BLOCKED_CODES = new Set(['EPERM', 'EACCES', 'ENOENT']);
+
+/**
+ * One concrete way to run the parser. The compiled binary
+ * (`parser.exe [args]`) is preferred; the Python source
+ * (`python parser.py [args]`) is a fallback for machines where the unsigned
+ * binary is blocked from executing but a permitted Python is available.
+ */
+interface ParserInvoker {
+  kind: 'binary' | 'python';
+  cmd: string; // the binary path, or the python interpreter command
+  prefixArgs: string[]; // [] for the binary, [parser.py path] for python
+  cwd?: string; // run python from the source dir (sibling-module imports)
+}
 
 /**
  * DOCX Parser Service
@@ -37,6 +57,11 @@ const PARSER_ENV = { ...process.env, PYTHONIOENCODING: 'utf-8' };
 export class DocxParserService {
   private parserPath: string | null = null;
   private isAvailable: boolean = false;
+  // Ordered ways to run the parser (binary first, python fallback second).
+  // The index of the one that last ran successfully is tried first next time,
+  // so once the binary is found to be blocked we stick with python.
+  private invokers: ParserInvoker[] = [];
+  private activeInvokerIndex = 0;
 
   // WYSIWYG editor support (AST bridge). The installed parser may predate
   // the AST flags, so WYSIWYG availability is probed (--emit-spec) instead
@@ -48,9 +73,7 @@ export class DocxParserService {
   // repopulate the cache after invalidation
   private probeGeneration = 0;
 
-  constructor(
-    private workingDirectory: string
-  ) {
+  constructor(private workingDirectory: string) {
     this.detectParser();
   }
 
@@ -70,21 +93,141 @@ export class DocxParserService {
     const platform = process.platform;
     const executable = platform === 'win32' ? 'parser.exe' : 'parser';
     const osName =
-      platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux';
+      platform === 'win32'
+        ? 'windows'
+        : platform === 'darwin'
+          ? 'macos'
+          : 'linux';
 
     const skillDir = path.join(
       this.workingDirectory,
-      '.auditaria/skills/docx-writing-skill'
+      '.auditaria/skills/docx-writing-skill',
     );
 
-    const candidates = [
+    const invokers: ParserInvoker[] = [];
+
+    // 1) Compiled binary (preferred): fast, self-contained, no Python needed.
+    const binaryPath = [
       path.join(skillDir, `parser-${osName}`, executable),
       path.join(skillDir, executable),
+    ].find((candidate) => fs.existsSync(candidate));
+    if (binaryPath) {
+      invokers.push({ kind: 'binary', cmd: binaryPath, prefixArgs: [] });
+    }
+
+    // 2) Python source (fallback): used when the unsigned binary is blocked
+    // from executing (corporate AV/WDAC) but a permitted Python is present.
+    // `python <abs>/parser.py` puts the script's own folder on sys.path[0],
+    // so its sibling modules import without depending on the cwd.
+    const pythonScript = [
+      path.join(skillDir, `parser-${osName}`, 'parser.py'),
+      path.join(skillDir, 'parser.py'),
+    ].find((candidate) => fs.existsSync(candidate));
+    if (pythonScript) {
+      const python = this.detectPython();
+      if (python) {
+        invokers.push({
+          kind: 'python',
+          cmd: python,
+          prefixArgs: [pythonScript],
+          cwd: path.dirname(pythonScript),
+        });
+      }
+    }
+
+    this.invokers = invokers;
+    this.activeInvokerIndex = 0;
+    // Kept for display (footer / parser_status). Prefer the binary path; fall
+    // back to the source path so it still reads as a real install.
+    this.parserPath = binaryPath ?? pythonScript ?? null;
+    this.isAvailable = invokers.length > 0;
+  }
+
+  /**
+   * Find a usable Python interpreter on PATH, or null if none responds.
+   * Only called when a parser.py source is present, so the (synchronous)
+   * version probe never runs for ordinary binary-only installs.
+   */
+  private detectPython(): string | null {
+    const candidates =
+      process.platform === 'win32'
+        ? ['python', 'py', 'python3']
+        : ['python3', 'python'];
+    for (const cmd of candidates) {
+      try {
+        execFileSync(cmd, ['--version'], { stdio: 'ignore' });
+        return cmd;
+      } catch {
+        // try the next candidate
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Run the parser, transparently falling back from the compiled binary to the
+   * Python source if the binary is blocked from executing (EPERM/EACCES). The
+   * invoker that succeeds is remembered and tried first next time. Optional
+   * `input` is written to the child's stdin (for --ast-to-md).
+   */
+  private async runParser(
+    args: string[],
+    opts: {
+      maxBuffer?: number;
+      env?: NodeJS.ProcessEnv;
+      input?: string;
+    } = {},
+  ): Promise<{ stdout: string; stderr: string }> {
+    if (this.invokers.length === 0) {
+      throw new Error('parser not available');
+    }
+
+    // Try the last-known-good invoker first, then the others.
+    const order = [
+      this.activeInvokerIndex,
+      ...this.invokers
+        .map((_, i) => i)
+        .filter((i) => i !== this.activeInvokerIndex),
     ];
 
-    const found = candidates.find((candidate) => fs.existsSync(candidate));
-    this.parserPath = found ?? null;
-    this.isAvailable = !!found;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < order.length; attempt++) {
+      const idx = order[attempt];
+      const inv = this.invokers[idx];
+      try {
+        const promise = execFileAsync(inv.cmd, [...inv.prefixArgs, ...args], {
+          maxBuffer: opts.maxBuffer,
+          env: opts.env,
+          cwd: inv.cwd,
+        });
+        if (opts.input !== undefined) {
+          const child = promise.child;
+          if (child?.stdin) {
+            // EPIPE if the parser exits early — surfaced via the await below
+            child.stdin.on('error', () => {});
+            child.stdin.write(opts.input, 'utf-8');
+            child.stdin.end();
+          }
+        }
+        const { stdout, stderr } = await promise;
+        this.activeInvokerIndex = idx;
+        return { stdout, stderr };
+      } catch (error) {
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error
+            ? error.code
+            : undefined;
+        const blocked =
+          typeof code === 'string' && EXEC_BLOCKED_CODES.has(code);
+        const moreToTry = attempt < order.length - 1;
+        if (blocked && moreToTry) {
+          lastError = error;
+          continue; // binary blocked → try the python fallback
+        }
+        throw error; // a genuine parser error → let the caller report it
+      }
+    }
+    throw lastError ?? new Error('parser invocation failed');
   }
 
   /**
@@ -115,7 +258,8 @@ export class DocxParserService {
     if (!this.isAvailable || !this.parserPath) {
       return {
         success: false,
-        error: 'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]'
+        error:
+          'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]',
       };
     }
 
@@ -123,14 +267,14 @@ export class DocxParserService {
     if (!fs.existsSync(mdFilePath)) {
       return {
         success: false,
-        error: `Input file not found: ${mdFilePath}`
+        error: `Input file not found: ${mdFilePath}`,
       };
     }
 
     try {
-      // Execute: parser.exe input.md
-      // Parser creates output.docx in same directory
-      await execFileAsync(this.parserPath, [mdFilePath]);
+      // Execute the parser on the markdown file (compiled binary, or the
+      // python source fallback). It writes output.docx in the same directory.
+      await this.runParser([mdFilePath]);
 
       // Calculate expected output path
       const outputPath = mdFilePath.replace(/\.md$/i, '.docx');
@@ -138,31 +282,34 @@ export class DocxParserService {
       if (!fs.existsSync(outputPath)) {
         return {
           success: false,
-          error: 'Parser executed but output file not found'
+          error: 'Parser executed but output file not found',
         };
       }
 
       return {
         success: true,
-        outputPath
+        outputPath,
       };
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
 
       // Detect file-in-use errors
-      if (errorMsg.includes('being used by another process') ||
-          errorMsg.includes('Permission denied') ||
-          errorMsg.includes('EACCES') ||
-          errorMsg.includes('EBUSY')) {
+      if (
+        errorMsg.includes('being used by another process') ||
+        errorMsg.includes('Permission denied') ||
+        errorMsg.includes('EACCES') ||
+        errorMsg.includes('EBUSY')
+      ) {
         return {
           success: false,
-          error: 'File is currently open in another application. Please close it and try again.'
+          error:
+            'File is currently open in another application. Please close it and try again.',
         };
       }
 
       return {
         success: false,
-        error: `Parser error: ${errorMsg}`
+        error: `Parser error: ${errorMsg}`,
       };
     }
   }
@@ -204,11 +351,10 @@ export class DocxParserService {
       let spec: unknown | null = null;
       let supported = false;
       try {
-        const { stdout } = await execFileAsync(
-          this.parserPath!,
-          ['--emit-spec'],
-          { maxBuffer: AST_MAX_BUFFER, env: PARSER_ENV },
-        );
+        const { stdout } = await this.runParser(['--emit-spec'], {
+          maxBuffer: AST_MAX_BUFFER,
+          env: PARSER_ENV,
+        });
         spec = JSON.parse(stdout);
         supported = true;
       } catch {
@@ -247,7 +393,11 @@ export class DocxParserService {
     error?: string;
   }> {
     if (!this.isAvailable || !this.parserPath) {
-      return { success: false, error: 'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]' };
+      return {
+        success: false,
+        error:
+          'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]',
+      };
     }
     if (this.cachedSpec !== null) {
       return { success: true, spec: this.cachedSpec };
@@ -257,7 +407,8 @@ export class DocxParserService {
     if (!supported || this.cachedSpec === null) {
       return {
         success: false,
-        error: 'Installed parser does not support the WYSIWYG editor (missing --emit-spec). Re-run: /setup-skill docx-writing-skill',
+        error:
+          'Installed parser does not support the WYSIWYG editor (missing --emit-spec). Re-run: /setup-skill docx-writing-skill',
       };
     }
     return { success: true, spec: this.cachedSpec };
@@ -273,7 +424,11 @@ export class DocxParserService {
     error?: string;
   }> {
     if (!this.isAvailable || !this.parserPath) {
-      return { success: false, error: 'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]' };
+      return {
+        success: false,
+        error:
+          'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]',
+      };
     }
 
     const tmpPath = path.join(
@@ -283,11 +438,10 @@ export class DocxParserService {
 
     try {
       fs.writeFileSync(tmpPath, content, 'utf-8');
-      const { stdout } = await execFileAsync(
-        this.parserPath,
-        ['--emit-ast', tmpPath],
-        { maxBuffer: AST_MAX_BUFFER, env: PARSER_ENV },
-      );
+      const { stdout } = await this.runParser(['--emit-ast', tmpPath], {
+        maxBuffer: AST_MAX_BUFFER,
+        env: PARSER_ENV,
+      });
       return { success: true, ast: JSON.parse(stdout) };
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -311,25 +465,20 @@ export class DocxParserService {
     error?: string;
   }> {
     if (!this.isAvailable || !this.parserPath) {
-      return { success: false, error: 'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]' };
+      return {
+        success: false,
+        error:
+          'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]',
+      };
     }
 
     try {
-      const promise = execFileAsync(this.parserPath, ['--ast-to-md'], {
+      // The AST JSON goes to the child's stdin; markdown comes back on stdout.
+      const { stdout } = await this.runParser(['--ast-to-md'], {
         maxBuffer: AST_MAX_BUFFER,
         env: PARSER_ENV,
+        input: astJson,
       });
-      const child = promise.child;
-      if (!child.stdin) {
-        return { success: false, error: 'Failed to open stdin for the parser process' };
-      }
-      child.stdin.on('error', () => {
-        /* EPIPE if the parser exits early — surfaced via the promise below */
-      });
-      child.stdin.write(astJson, 'utf-8');
-      child.stdin.end();
-
-      const { stdout } = await promise;
       return { success: true, md: stdout };
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -347,7 +496,11 @@ export class DocxParserService {
     error?: string;
   }> {
     if (!this.isAvailable || !this.parserPath) {
-      return { success: false, error: 'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]' };
+      return {
+        success: false,
+        error:
+          'DOCX parser not installed. Run: /setup-skill docx-writing-skill [password]',
+      };
     }
     if (!fs.existsSync(docxPath)) {
       return { success: false, error: `Input file not found: ${docxPath}` };
@@ -363,13 +516,15 @@ export class DocxParserService {
     }
 
     try {
-      await execFileAsync(
-        this.parserPath,
-        ['--docx-to-md', docxPath, '-o', outMd],
-        { maxBuffer: AST_MAX_BUFFER, env: PARSER_ENV },
-      );
+      await this.runParser(['--docx-to-md', docxPath, '-o', outMd], {
+        maxBuffer: AST_MAX_BUFFER,
+        env: PARSER_ENV,
+      });
       if (!fs.existsSync(outMd)) {
-        return { success: false, error: 'Import executed but the output .md was not found' };
+        return {
+          success: false,
+          error: 'Import executed but the output .md was not found',
+        };
       }
       return { success: true, mdPath: outMd };
     } catch (error: unknown) {
@@ -399,6 +554,7 @@ export class DocxParserService {
       }
     } catch (error) {
       // Don't throw - opening file is optional convenience feature
+      // eslint-disable-next-line no-console
       console.warn(`Failed to open DOCX file: ${error}`);
     }
   }
