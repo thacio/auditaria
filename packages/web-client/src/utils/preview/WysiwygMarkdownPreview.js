@@ -224,23 +224,9 @@ export class WysiwygMarkdownPreview extends BasePreview {
     commentsToggle.textContent = '💬';
     commentsToggle.title = 'Painel de comentários';
 
-    // Zoom controls (- 100% +)
-    const zoomWrap = document.createElement('div');
-    zoomWrap.className = 'wys-zoom';
-    const zoomOut = document.createElement('button');
-    zoomOut.className = 'wys-zoom-btn';
-    zoomOut.textContent = '−';
-    zoomOut.title = 'Diminuir zoom (Ctrl+roda do mouse)';
-    const zoomLabel = document.createElement('button');
-    zoomLabel.className = 'wys-zoom-label';
-    zoomLabel.title = 'Restaurar zoom (100%)';
-    const zoomIn = document.createElement('button');
-    zoomIn.className = 'wys-zoom-btn';
-    zoomIn.textContent = '+';
-    zoomIn.title = 'Aumentar zoom (Ctrl+roda do mouse)';
-    zoomWrap.appendChild(zoomOut);
-    zoomWrap.appendChild(zoomLabel);
-    zoomWrap.appendChild(zoomIn);
+    // Zoom is owned by the editor core (createDocEditor builds its own Zoom
+    // ribbon group and binds Ctrl+wheel on editorElement). The shell must NOT
+    // add its own zoom, or the controls and wheel handler would double up.
 
     // Maximize toggle (host-provided — expands the editor panel)
     let maximizeBtn = null;
@@ -257,7 +243,6 @@ export class WysiwygMarkdownPreview extends BasePreview {
     }
 
     ribbonRow.appendChild(ribbonEl);
-    ribbonRow.appendChild(zoomWrap);
     if (maximizeBtn) {
       ribbonRow.appendChild(maximizeBtn);
     }
@@ -327,9 +312,6 @@ export class WysiwygMarkdownPreview extends BasePreview {
       statusEl,
       commentsPanel,
       commentsToggle,
-      page,
-      zoomLabel,
-      zoom: 100,
       api: null,
       model: null,
       modelSub: null,
@@ -343,21 +325,6 @@ export class WysiwygMarkdownPreview extends BasePreview {
       docMouseMove: null,
       docMouseUp: null,
     };
-
-    // Zoom: buttons, label reset, and Ctrl+wheel on the canvas
-    this.applyZoom(session, this.getStoredZoom());
-    zoomIn.addEventListener('click', () => this.applyZoom(session, session.zoom + 10));
-    zoomOut.addEventListener('click', () => this.applyZoom(session, session.zoom - 10));
-    zoomLabel.addEventListener('click', () => this.applyZoom(session, 100));
-    canvas.addEventListener(
-      'wheel',
-      (e) => {
-        if (!e.ctrlKey) return;
-        e.preventDefault();
-        this.applyZoom(session, session.zoom + (e.deltaY < 0 ? 10 : -10));
-      },
-      { passive: false },
-    );
 
     const showCommentsPanel = (on) => {
       commentsPanel.hidden = !on;
@@ -409,8 +376,9 @@ export class WysiwygMarkdownPreview extends BasePreview {
       return;
     }
 
-    // setAst fires the editor's onUpdate → a save-back got scheduled for the
-    // initial content load. Cancel it: nothing user-made changed yet.
+    // The editor core loads content with emitUpdate=false, so setAst no longer
+    // fires onChange. Defensively clear any scheduled save-back anyway —
+    // nothing user-made changed during the initial load.
     if (session.saveTimer) {
       clearTimeout(session.saveTimer);
       session.saveTimer = null;
@@ -496,7 +464,7 @@ export class WysiwygMarkdownPreview extends BasePreview {
       if (this.session !== session || !session.api) return;
       if (session.pendingChanges) return; // user started typing meanwhile
       session.api.setAst(ast);
-      // setAst triggers onChange → cancel the spurious save-back
+      // setAst loads with emitUpdate=false (no onChange); clear defensively
       if (session.saveTimer) {
         clearTimeout(session.saveTimer);
         session.saveTimer = null;
@@ -653,39 +621,6 @@ export class WysiwygMarkdownPreview extends BasePreview {
       .catch(() => {
         showErrorToast('WYSIWYG: failed to write pending changes to the buffer');
       });
-  }
-
-  /**
-   * Last zoom level the user picked (persisted across sessions)
-   */
-  getStoredZoom() {
-    try {
-      const v = parseInt(localStorage.getItem('auditaria-wysiwyg-zoom'), 10);
-      if (v >= 50 && v <= 200) return v;
-    } catch {
-      /* localStorage unavailable */
-    }
-    return 100;
-  }
-
-  /**
-   * Apply a zoom percentage (50–200) to the document page
-   */
-  applyZoom(session, pct) {
-    const zoom = Math.max(50, Math.min(200, Math.round(pct / 10) * 10));
-    session.zoom = zoom;
-    if (session.page) {
-      // CSS zoom keeps layout + scrollbars correct (unlike transform: scale)
-      session.page.style.zoom = zoom / 100;
-    }
-    if (session.zoomLabel) {
-      session.zoomLabel.textContent = `${zoom}%`;
-    }
-    try {
-      localStorage.setItem('auditaria-wysiwyg-zoom', String(zoom));
-    } catch {
-      /* localStorage unavailable */
-    }
   }
 
   /**

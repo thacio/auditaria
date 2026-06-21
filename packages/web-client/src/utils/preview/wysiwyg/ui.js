@@ -190,6 +190,12 @@ export function dialog({ title, fields, submitLabel = 'Inserir', onBuild }) {
         }
       }
       if (f.type !== 'checkbox') row.appendChild(el);
+      if (f.hint) {
+        const hint = document.createElement('div');
+        hint.className = 'dlg-hint';
+        hint.textContent = f.hint;
+        row.appendChild(hint);
+      }
       els[f.key] = el;
       body.appendChild(row);
     }

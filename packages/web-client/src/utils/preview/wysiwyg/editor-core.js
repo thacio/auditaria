@@ -13,8 +13,9 @@ import { XrefAnchor, XrefRef, TcuListItem, RawBlock, AutoNumber, autoNumberState
   PageBreak, PageOrientation, FigureGrid, ContinueList, RawList, FixedTableWidth,
   tableGridWidths, applyGridWidths, TABLE_TARGET_PX, Frontmatter, Summary, TabIndent,
   Comment, CommentsBlock, Insertion, Deletion, Link,
+  IMAGE_WRAP_OPTS, IMAGE_ALIGN_OPTS, IMAGE_SIDE_OPTS, IMAGE_FIELD_HINTS,
   TrackChanges, trackChangesState, acceptRejectChanges } from './extensions.js';
-import { astToPM, pmToAst, cellCss, editCellRaw, cellAttrString, setBlockAlignRaw, blockCss } from './ast-bridge.js';
+import { astToPM, pmToAst, cellCss, editCellRaw, cellAttrString, setBlockAlignRaw, blockCss, serializeImageOpts } from './ast-bridge.js';
 import { tbtn, sep, ribbonGroup, popover, colorGrid, menu, dialog } from './ui.js';
 import katex from 'katex';
 
@@ -79,16 +80,32 @@ async function finishFigure(src, alt) {
   const v = await dialog({
     title: 'Inserir figura',
     fields: [
-      { key: 'width', type: 'text', label: 'Largura', value: '80%', placeholder: '80%, 192pt, 5cm' },
-      { key: 'caption', type: 'text', label: 'Legenda (vazio = sem legenda)', value: '' },
-      { key: 'id', type: 'text', label: 'id da figura (para [@fig:id])', value: 'fig1' },
+      { key: 'width', type: 'text', label: 'Largura', value: '80%', placeholder: '80%, 192pt, 5cm', hint: IMAGE_FIELD_HINTS.width },
+      { key: 'wrap', type: 'segmented', label: 'Envolvimento de texto', value: 'none', options: IMAGE_WRAP_OPTS, hint: IMAGE_FIELD_HINTS.wrap },
+      { key: 'align', type: 'segmented', label: 'Alinhamento (quando flutuante)', value: 'left', options: IMAGE_ALIGN_OPTS, hint: IMAGE_FIELD_HINTS.align },
+      { key: 'side', type: 'segmented', label: 'Lado do texto (quadrado/justo/através)', value: 'both', options: IMAGE_SIDE_OPTS, hint: IMAGE_FIELD_HINTS.side },
+      { key: 'gap', type: 'text', label: 'Distância do texto (gap, opcional)', value: '', placeholder: '0.5cm', hint: IMAGE_FIELD_HINTS.gap },
+      { key: 'lock', type: 'checkbox', label: 'Travar posição (lock)', value: false, hint: IMAGE_FIELD_HINTS.lock },
+      { key: 'caption', type: 'text', label: 'Legenda (vazio = sem legenda)', value: '', hint: IMAGE_FIELD_HINTS.caption },
+      { key: 'id', type: 'text', label: 'id da figura (para [@fig:id])', value: 'fig1', hint: IMAGE_FIELD_HINTS.id },
     ],
   });
   if (!v) return;
   const width = (v.width || '').trim() || '80%';
+  const map = new Map([['width', width]]);
+  const wrap = v.wrap && v.wrap !== 'none' ? v.wrap : null;
+  if (wrap) {
+    map.set('wrap', wrap);
+    if (v.align && v.align !== 'left') map.set('align', v.align);
+    if (v.side && v.side !== 'both') map.set('side', v.side);
+    const gap = (v.gap || '').trim();
+    if (gap) map.set('gap', gap);
+    if (v.lock) map.set('lock', '');
+  }
+  const opts = serializeImageOpts(map);
   const cap = (v.caption || '').trim();
   const caption = cap ? `{#fig:${(v.id || 'fig1').trim() || 'fig1'} caption="${cap}"}` : null;
-  editor.chain().focus().insertContent({ type: 'image', attrs: { src, alt: alt || '', opts: 'width=' + width, caption } }).run();
+  editor.chain().focus().insertContent({ type: 'image', attrs: { src, alt: alt || '', opts, caption } }).run();
 }
 function insertFigure() {
   if (!uploadImage) { insertFigureUrl(); return; }
@@ -645,6 +662,16 @@ function buildRibbon() {
     tbtn({ label: 'Rejeitar tudo', title: 'Rejeitar todas as alterações', onClick: ar(false, true, 'rejeitada(s) ✗') }),
   ]));
 
+  zoomLabelEl = document.createElement('button');
+  zoomLabelEl.className = 'tbtn zoom-level'; zoomLabelEl.type = 'button';
+  zoomLabelEl.textContent = '100%'; zoomLabelEl.title = 'Redefinir zoom (100%)';
+  zoomLabelEl.addEventListener('click', () => setZoom(1));
+  bar.appendChild(ribbonGroup('Zoom', [
+    tbtn({ label: '−', title: 'Reduzir zoom (Ctrl+scroll)', onClick: zoomOut }),
+    zoomLabelEl,
+    tbtn({ label: '+', title: 'Aumentar zoom (Ctrl+scroll)', onClick: zoomIn }),
+  ]));
+
   buildTableRibbon();
 }
   editor = new Editor({
@@ -665,7 +692,31 @@ function buildRibbon() {
   editor.on('selectionUpdate', refreshUI);
   editor.on('transaction', refreshUI);
   trackChangesState.getAuthor = () => getReviewer() || 'Autor'; // tracked edits use the reviewer name
+
+  // --- Zoom: a core editing affordance. Scaling touches caret placement and the
+  // body-appended popover coordinates, so the factory owns it (hosts call
+  // api.setZoom and drop any shell-level zoom). Applied to the editing surface
+  // only; the ribbon and popovers stay at 100%.
+  let zoomLevel = 1; let zoomLabelEl = null;
+  const ZOOM_MIN = 0.5, ZOOM_MAX = 2;
+  const applyZoom = () => {
+    editorElement.style.zoom = String(zoomLevel);
+    if (zoomLabelEl) zoomLabelEl.textContent = Math.round(zoomLevel * 100) + '%';
+  };
+  const setZoom = (lvl) => { zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round((lvl || 1) * 100) / 100)); applyZoom(); };
+  const zoomIn = () => setZoom(zoomLevel + 0.1);
+  const zoomOut = () => setZoom(zoomLevel - 0.1);
+
   buildRibbon();
+  // Listeners the factory binds to host-provided elements; aborted in destroy()
+  // so the factory is safe to mount/unmount repeatedly (re-mounting hosts).
+  const hostListeners = new AbortController();
+  // Ctrl+wheel zooms (factory-owned so it composes with the editor's own scroll).
+  editorElement.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    if (e.deltaY < 0) zoomIn(); else zoomOut();
+  }, { passive: false, signal: hostListeners.signal });
   if (commentsPanelEl) {
     registerSync(renderCommentsPanel);
     // editor -> panel: DOUBLE-click a commented span to open the panel + reveal
@@ -673,7 +724,7 @@ function buildRibbon() {
     editorElement.addEventListener('dblclick', (e) => {
       const anchor = e.target && e.target.closest ? e.target.closest('.comment-anchor') : null;
       if (anchor && anchor.dataset.comment) { onCommentFocus(); highlightThread(anchor.dataset.comment); }
-    });
+    }, { signal: hostListeners.signal });
   }
   refreshUI();
 
@@ -681,9 +732,12 @@ function buildRibbon() {
     docAttrs = ast.attrs || docAttrs;
     const m = /auto_number_paragraphs\s*:\s*(true|false)/i.exec(docAttrs.frontmatter || '');
     autoNumberState.enabled = !(m && m[1].toLowerCase() === 'false');
-    editor.commands.setContent(astToPM(ast, spec));
+    // emitUpdate=false: loading content is not a user edit, so onChange must NOT
+    // fire (re-mounting hosts wire onChange -> save-back). refreshUI still runs
+    // via the transaction event.
+    editor.commands.setContent(astToPM(ast, spec), false);
   }
   const getAst = () => pmToAst(editor.getJSON(), spec, docAttrs);
 
-  return { editor, setAst, getAst, getDocAttrs: () => docAttrs, setTableWidth, refreshUI, destroy: () => editor.destroy() };
+  return { editor, setAst, getAst, getDocAttrs: () => docAttrs, setTableWidth, setZoom, zoomIn, zoomOut, getZoom: () => zoomLevel, refreshUI, destroy: () => { hostListeners.abort(); editor.destroy(); } };
 }

@@ -261,6 +261,8 @@
 .dlg-overlay .dlg-field.dlg-check { flex-direction: row; }
 .dlg-overlay .dlg-lab { font: 12px var(--font-ui); color: var(--muted); }
 .dlg-overlay .dlg-field.dlg-check .dlg-lab { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 13px; cursor: pointer; }
+.dlg-overlay .dlg-hint { font: 11px var(--font-ui); color: var(--muted); line-height: 1.35; opacity: 0.85; }
+.dlg-overlay .dlg-field.dlg-check .dlg-hint { width: 100%; margin-left: 22px; }
 .dlg-overlay .dlg input[type='text'],
 .dlg-overlay .dlg textarea {
   font: 13px var(--font-ui);
@@ -393,38 +395,9 @@
 }
 .wysiwyg-preview-root .wys-comments-toggle.on { background: #fff3cd; border-color: #f0c000; color: #7a5d00; }
 
-/* ---- zoom controls (ribbon row, right side) ---- */
-.wysiwyg-preview-root .wys-zoom {
-  display: flex;
-  align-items: center;
-  align-self: center;
-  gap: 2px;
-  margin-left: 4px;
-  white-space: nowrap;
-}
-.wysiwyg-preview-root .wys-zoom-btn {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--line-strong);
-  background: #fff;
-  border-radius: 5px;
-  font: 600 14px/1 var(--font-ui);
-  color: var(--ink-soft);
-  cursor: pointer;
-  padding: 0;
-}
-.wysiwyg-preview-root .wys-zoom-btn:hover { background: var(--accent-soft); border-color: var(--accent-hover); }
-.wysiwyg-preview-root .wys-zoom-label {
-  min-width: 44px;
-  height: 24px;
-  border: 0;
-  background: transparent;
-  font: 12px var(--font-ui);
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0 2px;
-}
-.wysiwyg-preview-root .wys-zoom-label:hover { color: var(--ink); text-decoration: underline; }
+/* Zoom controls live in the editor core's ribbon now (it builds its own Zoom
+   group reusing .tbtn and binds Ctrl+wheel on the editing surface), so the
+   shell adds no zoom CSS. */
 
 /* ---- maximized editor panel (toggled from the WYSIWYG ribbon) ---- */
 .editor-panel.wys-maximized {
@@ -509,6 +482,27 @@
 .wysiwyg-preview-root .fig { text-align: center; text-indent: 0; margin: 10pt 0; }
 .wysiwyg-preview-root .fig img { display: inline-block; max-width: 100%; }
 .wysiwyg-preview-root .fig figcaption { font-size: 10pt; color: #555; margin-top: 3pt; }
+/* Floating figures: real on-canvas reflow so the editor mirrors Word. The
+   'flutuante' badge marks them; .md/.docx are unaffected (display-only). */
+.wysiwyg-preview-root .fig-float { position: relative; max-width: 60%; text-align: center; }
+.wysiwyg-preview-root .fig-float[data-wrap="top-bottom"] { max-width: 100%; }
+.wysiwyg-preview-root .fig-float .fig-float-badge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 5;
+  font: 600 9px var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(95, 115, 150, 0.92);
+  border-radius: 3px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
+.wysiwyg-preview-root .fig-overlay { z-index: 3; }
+.wysiwyg-preview-root .fig-overlay.fig-front { opacity: 0.55; }
+.wysiwyg-preview-root .fig-overlay.fig-behind { opacity: 0.35; }
 .wysiwyg-preview-root .endnote-chip { color: #1f6feb; font-weight: 600; cursor: pointer; }
 .wysiwyg-preview-root .page-break {
   text-align: center;

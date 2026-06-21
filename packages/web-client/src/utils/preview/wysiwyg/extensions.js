@@ -12,7 +12,7 @@ import TextStyle from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import katex from 'katex';
 import { dialog } from './ui.js';
-import { blockCss, setBlockIndentRaw } from './ast-bridge.js';
+import { blockCss, setBlockIndentRaw, parseImageOpts, serializeImageOpts } from './ast-bridge.js';
 
 // LaTeX formula ($…$ inline, $$…$$ display) rendered with KaTeX. Atom node;
 // double-click to edit the LaTeX.
@@ -418,6 +418,78 @@ export const TcuListItem = Node.create({
 });
 
 // Image / figure: ![alt](src){width=..} with an optional {#fig:id caption=".."}.
+// When a wrap/positioning opt is present the figure is "flutuante" (floating):
+// Word flows text around/behind/in front of it. The preview ATTEMPTS true
+// on-canvas reflow (real CSS float / clear / absolute overlay) so the editor
+// looks like Word; the .md/.docx and the node's AST are never touched by the
+// preview (display-only). A 'flutuante' badge marks every floating figure.
+const WIDTH_OPT_RE = /([\d.]+)(%|pt|cm|mm|in|px)?/;
+// Resolve a width opt token (e.g. "4cm", "50%", "192pt") to a CSS max-width.
+function imageWidthCss(widthTok) {
+  if (!widthTok) return '100%';
+  const m = WIDTH_OPT_RE.exec(widthTok);
+  if (!m) return '100%';
+  return m[2] ? widthTok : widthTok + 'px';
+}
+// Map the parsed opts to a display intent for the preview. Returns null when the
+// figure is plain inline (no float trigger) so the caller keeps the old render.
+function imageFloatPreview(parsed) {
+  const k = parsed.known;
+  const wrap = k.get('wrap');
+  const trigger = wrap || k.has('align') || k.has('side') || k.has('lock')
+    || k.has('x') || k.has('y') || k.has('hrel') || k.has('valign') || k.has('vrel') || k.has('gap');
+  if (!trigger) return null;
+  return { wrap: wrap || null, align: k.get('align') || null, side: k.get('side') || null, gap: k.get('gap') || null };
+}
+// Convert a length opt (cm/mm/in/pt/px) into a CSS margin value for the gap.
+function gapCss(gapTok) {
+  if (!gapTok) return null;
+  const m = WIDTH_OPT_RE.exec(gapTok);
+  if (!m) return null;
+  return m[2] ? gapTok : gapTok + 'px';
+}
+// Apply the float preview styling to the figure DOM (display-only). FALLBACK
+// PATH: if true reflow ever misbehaves (caret/selection/round-trip), swap the
+// body of this function for the approximate hint — a contained chip
+// (max-width:45% + float) for square/tight/through and a symbolic
+// opacity/dashed-border render for behind/front — by setting fallback=true.
+function applyFloatPreview(fig, img, info) {
+  const fallback = false; // flip to true to degrade to the approximate hint
+  fig.classList.add('fig-float');
+  fig.dataset.wrap = info.wrap || '';
+  const badge = document.createElement('span');
+  badge.className = 'fig-float-badge';
+  badge.contentEditable = 'false';
+  badge.textContent = 'flutuante';
+  fig.appendChild(badge);
+  const gm = gapCss(info.gap);
+  if (info.wrap === 'top-bottom') {
+    fig.style.float = 'none';
+    fig.style.clear = 'both';
+    fig.style.margin = '0 auto';
+    if (gm) { fig.style.marginTop = gm; fig.style.marginBottom = gm; }
+  } else if (info.wrap === 'behind' || info.wrap === 'front') {
+    // Overlay over the following text. NOT z-index:-1 (which can vanish beneath
+    // the canvas); front sits above with reduced opacity so text stays legible,
+    // behind sits at a low z-order so the text layer shows through.
+    fig.classList.add('fig-overlay', info.wrap === 'front' ? 'fig-front' : 'fig-behind');
+    fig.style.position = 'absolute';
+    if (gm) fig.style.margin = gm;
+  } else {
+    // square / tight / through (and positioning-only) -> real float so the
+    // following sibling paragraphs reflow beside the figure for real.
+    // Image POSITION is driven by `align` ONLY. `side` (= Word wrapText) controls
+    // which side TEXT flows around the image — a different axis. Using `side` to
+    // choose the float side put the image on the OPPOSITE side from the rendered
+    // .docx (the mirror bug): e.g. side=right means text-on-right => image LEFT.
+    const floatSide = info.align === 'right' ? 'right'
+      : info.align === 'center' ? 'none' : 'left';
+    if (fallback) fig.style.maxWidth = '45%';
+    fig.style.float = floatSide;
+    if (floatSide === 'none') { fig.style.float = 'none'; fig.style.margin = '0 auto'; }
+    if (gm) fig.style.margin = gm;
+  }
+}
 export const TcuImage = Node.create({
   name: 'image',
   group: 'block',
@@ -428,8 +500,8 @@ export const TcuImage = Node.create({
   },
   parseHTML() { return [{ tag: 'figure[data-fig] img' }]; },
   renderHTML({ node }) {
-    const w = (/width[=:]\s*([\d.]+(?:%|pt|cm|mm|in|px)?)/.exec(node.attrs.opts || '') || [])[1];
-    const style = w ? `max-width:${/[a-z%]$/.test(w) ? w : w + 'px'}` : 'max-width:100%';
+    const parsed = parseImageOpts(node.attrs.opts || '');
+    const style = `max-width:${imageWidthCss(parsed.known.get('width'))}`;
     const cap = node.attrs.caption
       ? (/caption[=:]\s*"([^"]*)"/.exec(node.attrs.caption) || [, ''])[1] : '';
     return ['figure', { 'data-fig': '', class: 'fig' },
@@ -440,30 +512,102 @@ export const TcuImage = Node.create({
     return ({ node, editor, getPos }) => {
       const fig = document.createElement('figure');
       fig.className = 'fig'; fig.setAttribute('data-fig', '');
-      const w = (/width[=:]\s*([\d.]+(?:%|pt|cm|mm|in|px)?)/.exec(node.attrs.opts || '') || [])[1];
+      const parsed = parseImageOpts(node.attrs.opts || '');
       const img = document.createElement('img');
       img.src = node.attrs.src; img.alt = node.attrs.alt;
-      img.style.maxWidth = w ? (/[a-z%]$/.test(w) ? w : w + 'px') : '100%';
+      img.style.maxWidth = imageWidthCss(parsed.known.get('width'));
       const cap = document.createElement('figcaption');
       cap.textContent = node.attrs.caption
         ? (/caption[=:]\s*"([^"]*)"/.exec(node.attrs.caption) || [, ''])[1] : '';
-      fig.title = 'Duplo-clique para editar a legenda';
-      fig.addEventListener('dblclick', async () => {
-        const v = await dialog({
-          title: 'Legenda da figura', submitLabel: 'Salvar',
-          fields: [{ key: 'caption', type: 'text', label: 'Legenda (vazio = sem legenda)', value: cap.textContent || '' }],
-        });
-        if (v == null || typeof getPos !== 'function') return;
-        const id = (/#fig:([\w-]+)/.exec(node.attrs.caption || '') || [, 'fig1'])[1];
-        const text = (v.caption || '').trim();
-        const caption = text ? `{#fig:${id} caption="${text}"}` : null;
-        editor.view.dispatch(editor.view.state.tr.setNodeMarkup(getPos(), undefined, { ...node.attrs, caption }));
-      });
       fig.append(img, cap);
+      const floatInfo = imageFloatPreview(parsed);
+      if (floatInfo) applyFloatPreview(fig, img, floatInfo);
+      fig.title = 'Duplo-clique para editar a figura (legenda + envolvimento de texto)';
+      fig.addEventListener('dblclick', () => editImage(node, editor, getPos));
       return { dom: fig };
     };
   },
 });
+
+// Opt vocabularies for the figure dialog (closed-vocabulary segmented controls
+// so the editor can never emit an invalid value). Free text only for gap.
+export const IMAGE_WRAP_OPTS = [
+  { value: 'none', label: 'Em linha' }, { value: 'square', label: 'Quadrado' },
+  { value: 'tight', label: 'Justo' }, { value: 'through', label: 'Através' },
+  { value: 'top-bottom', label: 'Topo/base' }, { value: 'behind', label: 'Atrás' },
+  { value: 'front', label: 'Frente' },
+];
+export const IMAGE_ALIGN_OPTS = [
+  { value: 'left', label: 'Esquerda' }, { value: 'center', label: 'Centro' }, { value: 'right', label: 'Direita' },
+];
+export const IMAGE_SIDE_OPTS = [
+  { value: 'both', label: 'Ambos' }, { value: 'left', label: 'Esquerda' }, { value: 'right', label: 'Direita' },
+];
+// Plain-language tips shown under each figure-dialog field (insert + edit), so
+// the options are self-explanatory.
+export const IMAGE_FIELD_HINTS = {
+  width: 'Tamanho da imagem: % da largura do texto ou medida fixa (cm, pt, in). Ex.: 80%, 6cm.',
+  wrap: 'Como o texto se comporta em relação à imagem. Em linha = não flutua (ocupa a própria linha). Quadrado / Justo / Através = o texto contorna a figura flutuante. Topo/base = texto só acima e abaixo. Atrás / Frente = imagem atrás / sobre o texto.',
+  align: 'Lado da página onde a figura flutuante fica: esquerda, centro ou direita.',
+  side: 'De que lado(s) o texto contorna a imagem. Só vale para Quadrado / Justo / Através.',
+  gap: 'Espaço entre a imagem e o texto ao redor. Vazio = usa a margem do documento.',
+  lock: 'Fixa a posição: impede arrastar a imagem por engano no Word.',
+  caption: 'Texto da legenda, exibido como "Figura N - ...". Vazio = sem legenda.',
+  id: 'Identificador para citar a figura no texto com [@fig:id].',
+};
+
+// Shared figure editor (dblclick). Reads the current opts via parseImageOpts,
+// lets the user edit the modeled keys (width, wrap, side, align, gap, lock) +
+// caption, and writes back via serializeImageOpts so width AND any unknown
+// tokens survive verbatim. The node's AST/schema never changes.
+async function editImage(node, editor, getPos) {
+  const parsed = parseImageOpts(node.attrs.opts || '');
+  const k = parsed.known;
+  const curWrap = k.get('wrap') || 'none';
+  const curCap = node.attrs.caption
+    ? (/caption[=:]\s*"([^"]*)"/.exec(node.attrs.caption) || [, ''])[1] : '';
+  const v = await dialog({
+    title: 'Editar figura', submitLabel: 'Salvar',
+    fields: [
+      { key: 'width', type: 'text', label: 'Largura', value: k.get('width') || '', placeholder: '80%, 192pt, 5cm', hint: IMAGE_FIELD_HINTS.width },
+      { key: 'wrap', type: 'segmented', label: 'Envolvimento de texto', value: curWrap, options: IMAGE_WRAP_OPTS, hint: IMAGE_FIELD_HINTS.wrap },
+      { key: 'align', type: 'segmented', label: 'Alinhamento (quando flutuante)', value: k.get('align') || 'left', options: IMAGE_ALIGN_OPTS, hint: IMAGE_FIELD_HINTS.align },
+      { key: 'side', type: 'segmented', label: 'Lado do texto (quadrado/justo/através)', value: k.get('side') || 'both', options: IMAGE_SIDE_OPTS, hint: IMAGE_FIELD_HINTS.side },
+      { key: 'gap', type: 'text', label: 'Distância do texto (gap)', value: k.get('gap') || '', placeholder: '0.5cm', hint: IMAGE_FIELD_HINTS.gap },
+      { key: 'lock', type: 'checkbox', label: 'Travar posição (lock)', value: k.has('lock'), hint: IMAGE_FIELD_HINTS.lock },
+      { key: 'caption', type: 'text', label: 'Legenda (vazio = sem legenda)', value: curCap, hint: IMAGE_FIELD_HINTS.caption },
+    ],
+  });
+  if (v == null || typeof getPos !== 'function') return;
+  const opts = buildImageOpts(parsed, v);
+  const id = (/#fig:([\w-]+)/.exec(node.attrs.caption || '') || [, 'fig1'])[1];
+  const text = (v.caption || '').trim();
+  const caption = text ? `{#fig:${id} caption="${text}"}` : null;
+  editor.view.dispatch(editor.view.state.tr.setNodeMarkup(getPos(), undefined, { ...node.attrs, opts, caption }));
+}
+
+// Fold the dialog values back into the parsed opts map (preserving width when the
+// field is blank but a width already existed, and ALL unknown tokens), then
+// serialize canonically. When wrap=none the float-only keys are dropped so the
+// figure reverts to a plain inline image (no auto wrap leaks in).
+function buildImageOpts(parsed, v) {
+  const map = new Map(parsed.known);
+  const width = (v.width || '').trim();
+  if (width) map.set('width', width); else map.delete('width');
+  const wrap = v.wrap && v.wrap !== 'none' ? v.wrap : null;
+  if (wrap) map.set('wrap', wrap); else map.delete('wrap');
+  if (wrap) {
+    if (v.align && v.align !== 'left') map.set('align', v.align); else map.delete('align');
+    if (v.side && v.side !== 'both') map.set('side', v.side); else map.delete('side');
+    const gap = (v.gap || '').trim();
+    if (gap) map.set('gap', gap); else map.delete('gap');
+    if (v.lock) map.set('lock', ''); else map.delete('lock');
+  } else {
+    // no float: strip every float-only key so the image stays inline
+    for (const fk of ['wrap', 'side', 'align', 'x', 'hrel', 'valign', 'y', 'vrel', 'gap', 'lock']) map.delete(fk);
+  }
+  return serializeImageOpts(map, parsed.unknown);
+}
 
 // Make a card-style block collapsible: clicking its header toggles a chevron and
 // hides the body element(s). Display-only (never touches the document/.md).

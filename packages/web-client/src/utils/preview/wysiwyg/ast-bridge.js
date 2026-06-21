@@ -35,6 +35,58 @@ function cssToColorName(css, maps) {
   return maps.hexToName[key] || css; // fall back to literal #hex (parser accepts it)
 }
 
+// ---- image opts (the single canonical serializer for the whole system) ----
+// Image opts live in the ![alt](src){…} brace. The canonical key order is the
+// shared contract between the three emitters (parser, importer, editor) so they
+// all produce byte-identical strings. width is FIRST; the value-less `lock` is a
+// bare flag; unknown/custom tokens are preserved verbatim AFTER the known keys.
+export const IMAGE_OPT_ORDER = ['width', 'wrap', 'side', 'align', 'x', 'hrel',
+  'valign', 'y', 'vrel', 'gap', 'lock'];
+const IMAGE_KNOWN_KEYS = new Set(IMAGE_OPT_ORDER);
+
+// Tokenize an opts string into { known: Map, unknown: string[] }. Known keys are
+// bucketed into the map (last write wins, like the parser); value-less `lock`
+// stores the empty string; anything else keeps its original token order.
+export function parseImageOpts(str) {
+  const known = new Map();
+  const unknown = [];
+  for (const tok of (str || '').trim().split(/\s+/).filter(Boolean)) {
+    const i = tok.indexOf('=');
+    if (i < 0) {
+      if (tok === 'lock') known.set('lock', '');
+      else unknown.push(tok);
+      continue;
+    }
+    const k = tok.slice(0, i);
+    const v = tok.slice(i + 1);
+    if (IMAGE_KNOWN_KEYS.has(k)) known.set(k, v);
+    else unknown.push(tok);
+  }
+  return { known, unknown };
+}
+
+// Serialize a known-key map (+ optional unknown tokens) into the canonical
+// string: known keys in IMAGE_OPT_ORDER, then unknowns verbatim, single-space
+// joined, no surrounding whitespace. `lock` is emitted as a bare flag whenever
+// it is present and truthy (or an empty string, the value-less form).
+export function serializeImageOpts(map, unknown = []) {
+  const get = (k) => (map instanceof Map ? map.get(k) : map[k]);
+  const has = (k) => (map instanceof Map ? map.has(k) : Object.prototype.hasOwnProperty.call(map, k));
+  const tokens = [];
+  for (const k of IMAGE_OPT_ORDER) {
+    if (!has(k)) continue;
+    const v = get(k);
+    if (k === 'lock') {
+      if (v === '' || v === true || v === 'lock' || v === '1' || v === 'true') tokens.push('lock');
+      continue;
+    }
+    if (v == null || v === '') continue;
+    tokens.push(`${k}=${v}`);
+  }
+  for (const t of (unknown || [])) tokens.push(t);
+  return tokens.join(' ');
+}
+
 // ---- inline ---------------------------------------------------------------
 // Flag (value-less) attribute marks shared by both directions.
 const FLAG_MARKS = ['superscript', 'subscript', 'smallcaps', 'allcaps',
