@@ -112,21 +112,50 @@ export function setBlockIndentRaw(raw, dir) {
   if (next > 0) toks.push('indent:' + next + 'cm');
   return toks.join(' ');
 }
-export function blockCss(raw) {
+export function blockCss(raw, maps) {
   if (!raw) return null;
   const len = (v) => (/^[\d.]+$/.test(v) ? v + 'pt' : v);
+  const truthy = (v) => /^(true|1|yes)$/i.test(v);
+  // Resolve a colour token (palette name / bare hex / #hex) to a CSS colour.
+  // Degrades gracefully when `maps` is absent (named colours pass through).
+  const colorCss = (v) => {
+    if (!v) return v;
+    if (v[0] === '#') return v;
+    if (/^[0-9a-fA-F]{6}$/.test(v)) return '#' + v;
+    return (maps && maps.nameToHex && maps.nameToHex[v]) || v;
+  };
   const decls = [];
   for (const tok of raw.split(/\s+/)) {
-    if (['left', 'center', 'right', 'justify'].includes(tok)) decls.push(`text-align:${tok}`);
-    else {
-      const i = tok.indexOf(':'); const k = tok.slice(0, i); const v = tok.slice(i + 1);
-      if (k === 'size') decls.push(`font-size:${len(v)}`);
-      else if (k === 'font') decls.push(`font-family:${v}`);
-      else if (k === 'space-after') decls.push(`margin-bottom:${len(v)}`);
-      else if (k === 'space-before') decls.push(`margin-top:${len(v)}`);
-      else if (k === 'line-height') decls.push(`line-height:${/^[\d.]+$/.test(v) ? v : len(v)}`);
-      else if (k === 'first-line-indent') decls.push(`text-indent:${len(v)}`);
-      else if (k === 'indent') decls.push(`margin-left:${len(v)}`);
+    if (['left', 'center', 'right', 'justify'].includes(tok)) { decls.push(`text-align:${tok}`); continue; }
+    const i = tok.indexOf(':'); if (i < 0) continue;
+    const k = tok.slice(0, i); const v = tok.slice(i + 1);
+    if (k === 'size') decls.push(`font-size:${len(v)}`);
+    else if (k === 'font') decls.push(`font-family:${v}`);
+    else if (k === 'space-after') decls.push(`margin-bottom:${len(v)}`);
+    else if (k === 'space-before') decls.push(`margin-top:${len(v)}`);
+    else if (k === 'line-height') decls.push(`line-height:${/^[\d.]+$/.test(v) ? v : len(v)}`);
+    else if (k === 'first-line-indent') decls.push(`text-indent:${len(v)}`);
+    else if (k === 'indent') decls.push(`margin-left:${len(v)}`);
+    // text formatting carried at block scope (per-instance heading/para overrides)
+    else if (k === 'color') decls.push(`color:${colorCss(v)}`);
+    else if (k === 'bg' && v !== 'none') decls.push(`background-color:${colorCss(v)}`);
+    else if (k === 'highlight') decls.push(`background-color:${(HL_TO_CSS[v] || colorCss(v))}`);
+    else if (k === 'bold' && truthy(v)) decls.push('font-weight:bold');
+    else if (k === 'italic' && truthy(v)) decls.push('font-style:italic');
+    else if (k === 'underline' && truthy(v)) decls.push('text-decoration:underline');
+    else if (k === 'strikethrough' && truthy(v)) decls.push('text-decoration:line-through');
+    else if (k === 'allcaps' && truthy(v)) decls.push('text-transform:uppercase');
+    else if (k === 'smallcaps' && truthy(v)) decls.push('font-variant:small-caps');
+    // borders: "2pt-dark_blue" / "1pt" / "0" (palette colours use '_', not '-')
+    else if (k === 'border' || k.startsWith('border-')) {
+      const side = k === 'border' ? '' : '-' + k.slice('border-'.length);
+      if (v === '0') decls.push(`border${side}:none`);
+      else {
+        const j = v.indexOf('-');
+        const w = j < 0 ? v : v.slice(0, j);
+        const col = j < 0 ? '#000' : colorCss(v.slice(j + 1));
+        decls.push(`border${side}:${w} solid ${col}`);
+      }
     }
   }
   return decls.length ? decls.join(';') : null;
@@ -135,10 +164,10 @@ function blockAlignOf(raw) {
   const m = /(?:^|\s)(left|center|right|justify)(?:\s|$)/.exec(raw || '');
   return m ? m[1] : null;
 }
-function blockAlignToPM(b) {
+function blockAlignToPM(b, maps) {
   const raw = b.attrs?.block;
   if (!raw) return {};
-  return { tcuBlockRaw: raw, tcuAlign: blockAlignOf(raw), tcuBlockCss: blockCss(raw) };
+  return { tcuBlockRaw: raw, tcuAlign: blockAlignOf(raw), tcuBlockCss: blockCss(raw, maps) };
 }
 function blockAlignFromPM(n) {
   return n.attrs?.tcuBlockRaw ? { block: n.attrs.tcuBlockRaw } : {};
@@ -597,11 +626,11 @@ export function astToPM(ast, spec) {
   }
   for (const b of (ast.content || [])) {
     if (b.type === 'heading') {
-      content.push({ type: 'heading', attrs: { level: b.attrs.level, ...blockAlignToPM(b) }, content: inlineAstToPM(b.content, maps) });
+      content.push({ type: 'heading', attrs: { level: b.attrs.level, ...blockAlignToPM(b, maps) }, content: inlineAstToPM(b.content, maps) });
     } else if (b.type === 'paragraph') {
       const c = inlineAstToPM(b.content, maps);
       const node = { type: 'paragraph' };
-      const pa = blockAlignToPM(b);
+      const pa = blockAlignToPM(b, maps);
       if (Object.keys(pa).length) node.attrs = pa;
       if (c.length) node.content = c;
       content.push(node);
