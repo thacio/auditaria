@@ -52,6 +52,17 @@ async function main() {
       '@huggingface/transformers', // WASM/ONNX
       'tesseract.js', // Worker thread spawning
       'markitdown-ts', // Has problematic optional deps
+      // AUDITARIA: Browser-automation stack pulled in transitively via the
+      // `@google/gemini-cli-core` barrel import (core re-exports the
+      // browser-agent tool). The VSCode extension never uses these at runtime;
+      // bundling playwright-core fails on its unresolvable `chromium-bidi`
+      // require, so externalize the whole stack.
+      '@thacio/browser-agent',
+      '@browserbasehq/stagehand',
+      'playwright',
+      'playwright-core',
+      'chromium-bidi',
+      'puppeteer-core',
     ],
     logLevel: 'silent',
     banner: {

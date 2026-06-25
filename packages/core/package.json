@@ -109,6 +109,7 @@
   },
   "devDependencies": {
     "@google/gemini-cli-test-utils": "file:../test-utils",
+    "@types/node": "20.19.1",
     "@types/fast-levenshtein": "0.0.4",
     "@types/js-yaml": "4.0.9",
     "@types/json-stable-stringify": "1.1.0",
