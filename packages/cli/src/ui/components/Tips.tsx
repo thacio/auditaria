@@ -36,6 +36,14 @@ export const Tips: React.FC<TipsProps> = ({ config }) => {
       <Text color={theme.text.primary}>
         {geminiMdFileCount === 0 ? '4.' : '3.'} Be specific for the best results
       </Text>
+      {/* AUDITARIA_PROVIDER_ONLY: surface the no-Google-account / provider option */}
+      <Text color={theme.text.primary}>
+        {geminiMdFileCount === 0 ? '5.' : '4.'} No Google account? Run{' '}
+        <Text color={theme.text.secondary}>/auth</Text> to use Claude Code,
+        Codex, Copilot, or Antigravity, or{' '}
+        <Text color={theme.text.secondary}>/model</Text> to switch provider
+        anytime
+      </Text>
     </Box>
   );
 };

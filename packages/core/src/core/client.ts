@@ -64,6 +64,7 @@ import { ToolOutputMaskingService } from '../context/toolOutputMaskingService.js
 import { calculateRequestTokenCount } from '../utils/tokenCalculation.js';
 import { getCurrentLanguage } from '../i18n/index.js'; // AUDITARIA_LANGUAGE - Auditaria Custom Feature
 import { collaborativeWritingService } from '../tools/collaborative-writing.js'; // AUDITARIA_COLLABORATIVE_WRITING - Auditaria Custom Feature
+import { preflightActiveProvider } from '../providers/providerPreflight.js'; // AUDITARIA_PROVIDER_ONLY
 import {
   applyModelSelection,
   createAvailabilityContextProvider,
@@ -935,6 +936,32 @@ export class GeminiClient {
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     // AUDITARIA_CLAUDE_PROVIDER_START - Delegate to external provider if active
     const providerManager = this.config.getProviderManager();
+
+    // AUDITARIA_PROVIDER_ONLY_START: actionable pre-send guard. Blocks the send
+    // with clear guidance when the active provider's CLI is missing, or when the
+    // user is in provider-only mode (no Google account) with no provider chosen.
+    // Runs for every entry point (CLI, web, Telegram, Discord, Teams) since they
+    // all route through sendMessageStream.
+    const preflightError = await preflightActiveProvider({
+      isExternalActive: !!providerManager?.isExternalProviderActive(),
+      activeProviderType: this.config.getProviderConfig()?.type,
+      authType: this.config.getContentGeneratorConfig()?.authType,
+      getAvailability: () => this.config.getProviderAvailability(),
+      setAvailability: (a) => this.config.setProviderAvailability(a),
+    });
+    if (preflightError) {
+      yield {
+        type: GeminiEventType.Error,
+        value: {
+          error: JSON.stringify({
+            error: { message: preflightError, status: 0 },
+          }),
+        },
+      };
+      return new Turn(this.getChat(), prompt_id);
+    }
+    // AUDITARIA_PROVIDER_ONLY_END
+
     if (providerManager?.isExternalProviderActive()) {
       // AUDITARIA_COLLABORATIVE_WRITING: Check for external file changes before sending to provider
       const collabNotifications =

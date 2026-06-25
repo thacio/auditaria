@@ -11,6 +11,11 @@ export async function validateAuthMethod(
   authMethod: string,
 ): Promise<string | null> {
   loadEnvironment(loadSettings().merged, process.cwd());
+  // AUDITARIA_PROVIDER_ONLY: provider-only mode needs no Google credentials —
+  // the external provider CLI (or a later Gemini key) supplies the model.
+  if (authMethod === AuthType.PROVIDER_ONLY) {
+    return null;
+  }
   if (
     authMethod === AuthType.LOGIN_WITH_GOOGLE ||
     authMethod === AuthType.COMPUTE_ADC

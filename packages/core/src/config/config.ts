@@ -1675,6 +1675,18 @@ export class Config implements McpContext, AgentLoopContext {
     baseUrl?: string,
     customHeaders?: Record<string, string>,
   ) {
+    // AUDITARIA_PROVIDER_ONLY_START: provider-only mode carries no Gemini
+    // credentials. Never build a Gemini content generator for it — the active
+    // external provider driver supplies the model. We still record the authType
+    // so the rest of the app (footer, error preflight) knows we are in
+    // provider-only mode. Switching to a real Gemini auth later runs the normal
+    // path below and builds the content generator on demand.
+    if (authMethod === AuthType.PROVIDER_ONLY) {
+      this.contentGeneratorConfig = { authType: AuthType.PROVIDER_ONLY };
+      return;
+    }
+    // AUDITARIA_PROVIDER_ONLY_END
+
     // Reset availability service when switching auth
     this.modelAvailabilityService.reset();
     this.fallbackOverrides.clear();

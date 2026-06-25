@@ -17,6 +17,9 @@ import {
 import {
   AuthType,
   clearCachedCredentialFile,
+  // AUDITARIA_PROVIDER_ONLY: provider discovery copy for the no-Google-account path
+  getSkipLoginDescription,
+  getGoogleOAuthDiscontinuedNote,
   type Config,
 } from '@google/gemini-cli-core';
 import { useKeypress } from '../hooks/useKeypress.js';
@@ -42,11 +45,29 @@ export function AuthDialog({
   setAuthContext,
 }: AuthDialogProps): React.JSX.Element {
   const [exiting, setExiting] = useState(false);
-  let items = [
+  // AUDITARIA_PROVIDER_ONLY: track the highlighted option to show contextual help.
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  // AUDITARIA_PROVIDER_ONLY_START: Besides the Google options, the auth dialog
+  // offers a single "skip Google sign-in" entry. Selecting it starts Auditaria in
+  // provider-only mode (no Google credentials); the user then picks an external
+  // provider with /model (the highlighted description points to them).
+  type AuthMenuItem = {
+    label: string;
+    value: string;
+    key: string;
+    sublabel?: string;
+  };
+  const SKIP_LOGIN_VALUE = 'skip-google-login';
+  const availability = config.getProviderAvailability();
+
+  let googleItems: AuthMenuItem[] = [
     {
       label: 'Sign in with Google',
       value: AuthType.LOGIN_WITH_GOOGLE,
       key: AuthType.LOGIN_WITH_GOOGLE,
+      sublabel:
+        'No longer serves AI Pro/Ultra/free subscriptions (since 2026-06-18) — highlight to learn more',
     },
     ...(process.env['CLOUD_SHELL'] === 'true'
       ? [
@@ -77,11 +98,24 @@ export function AuthDialog({
     },
   ];
 
+  // enforcedType restricts only the Google options; the skip-login entry always
+  // remains available (provider-only intentionally bypasses the admin lock).
   if (settings.merged.security.auth.enforcedType) {
-    items = items.filter(
+    googleItems = googleItems.filter(
       (item) => item.value === settings.merged.security.auth.enforcedType,
     );
   }
+
+  const skipLoginItem: AuthMenuItem = {
+    label:
+      'Skip Google sign-in — use Claude Code, Codex, Copilot or Antigravity',
+    sublabel: 'No Google account needed (highlight to learn more)',
+    value: SKIP_LOGIN_VALUE,
+    key: SKIP_LOGIN_VALUE,
+  };
+
+  const items: AuthMenuItem[] = [...googleItems, skipLoginItem];
+  // AUDITARIA_PROVIDER_ONLY_END
 
   let defaultAuthType: AuthType | null = null;
   const defaultAuthTypeEnv = process.env['GEMINI_DEFAULT_AUTH_TYPE'];
@@ -95,8 +129,13 @@ export function AuthDialog({
   }
 
   let initialAuthIndex = items.findIndex((item) => {
-    if (settings.merged.security.auth.selectedType) {
-      return item.value === settings.merged.security.auth.selectedType;
+    const selectedType = settings.merged.security.auth.selectedType;
+    // AUDITARIA_PROVIDER_ONLY: highlight the skip-login entry in provider-only mode.
+    if (selectedType === AuthType.PROVIDER_ONLY) {
+      return item.value === SKIP_LOGIN_VALUE;
+    }
+    if (selectedType) {
+      return item.value === selectedType;
     }
 
     if (defaultAuthType) {
@@ -110,6 +149,10 @@ export function AuthDialog({
     return item.value === AuthType.LOGIN_WITH_GOOGLE;
   });
   if (settings.merged.security.auth.enforcedType) {
+    initialAuthIndex = 0;
+  }
+  // AUDITARIA_PROVIDER_ONLY: never leave the list unselected.
+  if (initialAuthIndex < 0) {
     initialAuthIndex = 0;
   }
 
@@ -154,7 +197,31 @@ export function AuthDialog({
     [settings, config, setAuthState, exiting, setAuthContext],
   );
 
-  const handleAuthSelect = async (authMethod: AuthType) => {
+  // AUDITARIA_PROVIDER_ONLY_START: start Auditaria with no Google account.
+  // Persists provider-only auth and resolves through the normal auth effect
+  // (refreshAuth is a no-op for provider-only). No provider is chosen here — the
+  // user picks one with /model afterwards (a pre-send guard guides them if they
+  // send before choosing). The choice then persists for the next launch.
+  const handleSkipLogin = useCallback(() => {
+    if (exiting) {
+      return;
+    }
+    settings.setValue(
+      SettingScope.User,
+      'security.auth.selectedType',
+      AuthType.PROVIDER_ONLY,
+    );
+    setAuthContext({});
+    setAuthState(AuthState.Unauthenticated);
+  }, [exiting, settings, setAuthContext, setAuthState]);
+
+  const handleSelect = async (value: string) => {
+    if (value === SKIP_LOGIN_VALUE) {
+      handleSkipLogin();
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const authMethod = value as AuthType;
     const error = await validateAuthMethodWithSettings(
       authMethod,
       settings,
@@ -166,6 +233,7 @@ export function AuthDialog({
       onSelect(authMethod, SettingScope.User);
     }
   };
+  // AUDITARIA_PROVIDER_ONLY_END
 
   useKeypress(
     (key) => {
@@ -224,19 +292,43 @@ export function AuthDialog({
         </Text>
         <Box marginTop={1}>
           <Text color={theme.text.primary}>
-            How would you like to authenticate for this project?
+            How would you like to use Auditaria for this project?
+          </Text>
+        </Box>
+        {/* AUDITARIA_PROVIDER_ONLY: discovery hint for the no-Google path */}
+        <Box marginTop={1}>
+          <Text color={theme.text.secondary}>
+            No Google account? Choose &quot;Skip Google sign-in&quot; below to
+            use Claude Code, Codex, Copilot, or Antigravity instead.
           </Text>
         </Box>
         <Box marginTop={1}>
           <RadioButtonSelect
             items={items}
             initialIndex={initialAuthIndex}
-            onSelect={handleAuthSelect}
-            onHighlight={() => {
+            onSelect={handleSelect}
+            onHighlight={(value: string) => {
               onAuthError(null);
+              setHighlighted(value);
             }}
           />
         </Box>
+        {/* AUDITARIA_PROVIDER_ONLY: contextual note for the Google sign-in option */}
+        {highlighted === AuthType.LOGIN_WITH_GOOGLE && (
+          <Box marginTop={1}>
+            <Text color={theme.text.secondary}>
+              {getGoogleOAuthDiscontinuedNote()}
+            </Text>
+          </Box>
+        )}
+        {/* AUDITARIA_PROVIDER_ONLY: description for the skip-Google-sign-in option */}
+        {highlighted === SKIP_LOGIN_VALUE && (
+          <Box marginTop={1}>
+            <Text color={theme.text.secondary}>
+              {getSkipLoginDescription(availability)}
+            </Text>
+          </Box>
+        )}
         {authError && (
           <Box marginTop={1}>
             <Text color={theme.status.error}>{authError}</Text>

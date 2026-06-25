@@ -67,6 +67,11 @@ export enum AuthType {
   LEGACY_CLOUD_SHELL = 'cloud-shell',
   COMPUTE_ADC = 'compute-default-credentials',
   GATEWAY = 'gateway',
+  // AUDITARIA_PROVIDER_ONLY: Use Auditaria without any Google account — the model
+  // is supplied entirely by an external provider CLI (Claude/Codex/Copilot/agy) or
+  // is selected later. Carries NO Gemini credentials; refreshAuth never builds a
+  // Gemini content generator for it.
+  PROVIDER_ONLY = 'provider-only',
 }
 
 /**

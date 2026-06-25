@@ -45,6 +45,9 @@ import {
   buildToolVisibilityContext,
   UPDATE_TOPIC_TOOL_NAME,
   UPDATE_TOPIC_DISPLAY_NAME,
+  // AUDITARIA_PROVIDER_ONLY: dead-Gemini-OAuth migration nudge
+  AuthType,
+  getGoogleOAuthDiscontinuedNote,
 } from '@google/gemini-cli-core';
 import type {
   Config,
@@ -131,6 +134,30 @@ interface BackgroundedToolInfo {
 
 const isTopicTool = (name: string): boolean =>
   name === UPDATE_TOPIC_TOOL_NAME || name === UPDATE_TOPIC_DISPLAY_NAME;
+
+// AUDITARIA_PROVIDER_ONLY: When a Google-OAuth send fails (the discontinued
+// consumer path is the most common cause post-2026-06-18), append a migration
+// hint pointing to API key / Vertex / external providers. Only fires for the
+// Google-OAuth auth types and on auth/permission-class errors.
+function augmentGoogleAuthError(
+  formatted: string,
+  authType: AuthType | undefined,
+): string {
+  const isGoogleOAuth =
+    authType === AuthType.LOGIN_WITH_GOOGLE ||
+    authType === AuthType.COMPUTE_ADC;
+  if (!isGoogleOAuth) {
+    return formatted;
+  }
+  if (
+    !/\b(401|403|unauthenticated|unauthorized|permission[_ ]denied|forbidden|eligib|sign[- ]?in|re-?authenticate)\b/i.test(
+      formatted,
+    )
+  ) {
+    return formatted;
+  }
+  return `${formatted}\n\n${getGoogleOAuthDiscontinuedNote()}`;
+}
 
 enum StreamProcessingStatus {
   Completed,
@@ -1419,12 +1446,15 @@ export const useGeminiStream = (
       addItem(
         {
           type: MessageType.ERROR,
-          text: parseAndFormatApiError(
-            eventValue.error,
+          text: augmentGoogleAuthError(
+            parseAndFormatApiError(
+              eventValue.error,
+              config.getContentGeneratorConfig()?.authType,
+              undefined,
+              config.getModel(),
+              DEFAULT_GEMINI_FLASH_MODEL,
+            ),
             config.getContentGeneratorConfig()?.authType,
-            undefined,
-            config.getModel(),
-            DEFAULT_GEMINI_FLASH_MODEL,
           ),
         },
         userMessageTimestamp,
@@ -2082,12 +2112,15 @@ export const useGeminiStream = (
                 addItem(
                   {
                     type: MessageType.ERROR,
-                    text: parseAndFormatApiError(
-                      getErrorMessage(error) || 'Unknown error',
+                    text: augmentGoogleAuthError(
+                      parseAndFormatApiError(
+                        getErrorMessage(error) || 'Unknown error',
+                        config.getContentGeneratorConfig()?.authType,
+                        undefined,
+                        config.getModel(),
+                        DEFAULT_GEMINI_FLASH_MODEL,
+                      ),
                       config.getContentGeneratorConfig()?.authType,
-                      undefined,
-                      config.getModel(),
-                      DEFAULT_GEMINI_FLASH_MODEL,
                     ),
                   },
                   userMessageTimestamp,

@@ -130,6 +130,7 @@ export * from './utils/apiConversionUtils.js';
 export * from './utils/channel.js';
 export * from './utils/constants.js';
 export * from './utils/providerAvailability.js'; // AUDITARIA_PROVIDER_AVAILABILITY
+export * from './providers/providerPreflight.js'; // AUDITARIA_PROVIDER_ONLY
 export * from './utils/sessionUtils.js';
 export * from './utils/cache.js';
 export * from './utils/markdownUtils.js';

@@ -22,6 +22,12 @@ export async function validateAuthMethodWithSettings(
   authType: AuthType,
   settings: LoadedSettings,
 ): Promise<string | null> {
+  // AUDITARIA_PROVIDER_ONLY: provider-only mode needs no Google credentials and
+  // intentionally bypasses enforcedType so users without a working Google account
+  // can still reach an external provider.
+  if (authType === AuthType.PROVIDER_ONLY) {
+    return null;
+  }
   const enforcedType = settings.merged.security.auth.enforcedType;
   if (enforcedType && enforcedType !== authType) {
     return `Authentication is enforced to be ${enforcedType}, but you are currently using ${authType}.`;

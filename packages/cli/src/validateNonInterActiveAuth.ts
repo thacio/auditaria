@@ -9,8 +9,8 @@ import {
   OutputFormat,
   ExitCodes,
   getAuthTypeFromEnv,
+  AuthType,
   type Config,
-  type AuthType,
 } from '@google/gemini-cli-core';
 import { USER_SETTINGS_PATH, type LoadedSettings } from './config/settings.js';
 import { validateAuthMethod } from './config/auth.js';
@@ -25,6 +25,13 @@ export async function validateNonInteractiveAuth(
 ) {
   try {
     const effectiveAuthType = configuredAuthType || getAuthTypeFromEnv();
+
+    // AUDITARIA_PROVIDER_ONLY: provider-only mode needs no Google credentials and
+    // intentionally bypasses enforcedType — external providers are always allowed.
+    // The active provider (from --model / persisted model.name) supplies the model.
+    if (effectiveAuthType === AuthType.PROVIDER_ONLY) {
+      return AuthType.PROVIDER_ONLY;
+    }
 
     const enforcedType = settings.merged.security.auth.enforcedType;
     if (enforcedType && effectiveAuthType !== enforcedType) {
