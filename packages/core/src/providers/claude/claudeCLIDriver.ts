@@ -85,6 +85,50 @@ const TRUST_DIALOG_SCAN_INTERVAL_MS = 200;
 const PTY_COLS = 200;
 const PTY_ROWS = 50;
 
+// AUDITARIA_CLAUDE_PROVIDER_START: Dual/triple-channel turn-completion detection.
+//
+// The Stop hook (channel 1) can be silently dropped — relay spawn failure,
+// appendFileSync EBUSY/EPERM race on Windows (PreToolUse/PostToolUse/Stop fire
+// as separate `node` processes appending to ONE file), `--settings`
+// regressions, or Claude's hook timeout under load. When that happens the turn
+// used to hang until STOP_TIMEOUT_MS (30 min).
+//
+// Channel 2 reads Claude's own session transcript (written independently of our
+// relay) and finalizes the turn when the last NON-sidechain assistant response
+// reaches a terminal stop_reason. Channel 3 (idle PTY-scrape) is the last
+// resort for the case where the transcript ALSO isn't written (Claude 2.1.169+
+// regression) or for TUI slash commands that emit neither a Stop hook nor an
+// assistant transcript entry.
+//
+// Settle window after a terminal stop_reason is first observed: one API
+// response is split across multiple JSONL lines sharing one message.id (e.g. a
+// `thinking` line then a `text` line, BOTH stamped end_turn). We wait for the
+// transcript to stop growing so every block of the final message is on disk
+// before we run the post-turn scan.
+const TRANSCRIPT_TAIL_SETTLE_MS = 600;
+// How long with NO progress on EITHER channel (no hook event, no transcript
+// growth) before we fall back to channel 3 (PTY-scrape) — gated additionally on
+// the PTY showing the input prompt (❯) so we never scrape mid-response.
+const NO_SIGNAL_IDLE_MS = 20_000;
+// Terminal Anthropic stop_reason values meaning "turn done, ready for input".
+const TERMINAL_STOP_REASONS = new Set([
+  'end_turn',
+  'stop_sequence',
+  'max_tokens',
+]);
+// Kill switches (fall back toward hook-only behaviour if a channel misbehaves):
+//   AUDITARIA_CLAUDE_TRANSCRIPT_CHANNEL_DISABLED=1 → disable channel 2
+//   AUDITARIA_CLAUDE_PTY_SCRAPE_DISABLED=1         → disable channel 3 (Phase 4)
+const TRANSCRIPT_CHANNEL_DISABLED =
+  process.env['AUDITARIA_CLAUDE_TRANSCRIPT_CHANNEL_DISABLED'] === '1';
+const PTY_SCRAPE_CHANNEL_DISABLED =
+  process.env['AUDITARIA_CLAUDE_PTY_SCRAPE_DISABLED'] === '1';
+// Synthetic Stop payload used when channels 2/3 finalize a turn the hook missed.
+// yieldEventsFromTranscript only reads `last_assistant_message` off this, which
+// is absent here, so it correctly falls through to the transcript / PTY scrape.
+const SYNTHETIC_STOP: HookEvent = { event: 'Stop', payload: {} };
+// AUDITARIA_CLAUDE_PROVIDER_END
+
 // Hook relay script: tiny CommonJS script. The Claude Code hook command runs
 // `node <relay> <eventName>` per hook fire. Relay reads the JSON payload from
 // stdin, appends a single JSON line to AUDITARIA_CLAUDE_HOOK_FILE. We embed
@@ -106,7 +150,19 @@ process.stdin.on('end', () => {
   } catch (err) {
     line = JSON.stringify({event, error: String(err), raw: buf}) + '\\n';
   }
-  try { fs.appendFileSync(file, line); } catch (_) {}
+  // AUDITARIA_CLAUDE_PROVIDER: PreToolUse/PostToolUse/Stop fire as SEPARATE
+  // node processes appending to ONE file; on Windows they collide
+  // (EBUSY/EPERM/EACCES). The old code swallowed the error and silently
+  // dropped the line — when the dropped line was Stop, the turn hung for
+  // 30 min. Retry a few times with a short synchronous backoff.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try { fs.appendFileSync(file, line); break; }
+    catch (err) {
+      const code = err && err.code;
+      if (attempt === 4 || (code !== 'EBUSY' && code !== 'EPERM' && code !== 'EACCES')) break;
+      try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15 * (attempt + 1)); } catch (_) {}
+    }
+  }
 });
 `;
 
@@ -141,6 +197,8 @@ interface HookEvent {
 type TurnResult =
   | {
       kind: 'stopped';
+      // AUDITARIA_CLAUDE_PROVIDER: which channel detected completion.
+      via?: 'hook' | 'transcript' | 'pty-scrape';
       yieldedToolUseIds: Set<string>;
       stopPayload: HookEvent;
       transcriptPathFromHook?: string;
@@ -197,6 +255,40 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // PTY-scrape fallback when transcript writing is broken (Claude 2.1.169
   // regression). Reset at the start of each turn.
   private recentPtyOutput = '';
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Channel-2 (transcript-tail) per-turn
+  // detector state. Reset by resetTurnDetector() at the start of every
+  // sendMessage turn. Uses its OWN byte cursor — it MUST NOT touch
+  // transcriptLineOffset, which yieldEventsFromTranscript needs left at the
+  // pre-turn snapshot.
+  private turnDet: {
+    cursor: number; // byte offset into the transcript (starts at pre-turn size)
+    leftover: string; // partial trailing line not yet newline-terminated
+    lastStopReason?: string; // latest non-sidechain assistant stop_reason
+    lastSize: number; // last observed file size (for settle/idle)
+    lastGrowthAt: number; // timestamp of last size growth
+    completionSeenAt?: number; // when a terminal stop_reason was first seen
+    surfacedAskIds: Set<string>; // AskUserQuestion ids surfaced by this channel
+    seenToolResults: Set<string>; // tool_use_ids whose result has appeared
+    resolvedAskIds: Set<string>; // surfaced asks we've already resolved
+  } | null = null;
+  // AUDITARIA_CLAUDE_PROVIDER: Channel-2 trigger state for BACKGROUND
+  // (web-terminal) turns — they suffer the same missed-Stop-hook bug.
+  private bgLastSize = 0;
+  private bgLastGrowthAt = 0;
+  // AUDITARIA_CLAUDE_PROVIDER: tool_use_ids surfaced this turn (PreToolUse
+  // hook OR transcript tool_use) whose result hasn't arrived yet (PostToolUse
+  // hook OR transcript tool_result). Channel 3 (PTY-scrape) refuses to
+  // finalize while any is open, so it can't end a turn mid-tool and leave a
+  // dangling functionCall.
+  private turnOpenToolIds = new Set<string>();
+  // AUDITARIA_CLAUDE_PROVIDER: tool_use_ids for which a ToolResult event was
+  // already emitted this turn (PostToolUse hook OR the post-turn transcript
+  // backfill). yieldEventsFromTranscript keys its tool_result skip on THIS set
+  // — NOT on whether the tool_use was streamed — so a dropped PostToolUse hook
+  // still gets its result backfilled (no dangling functionCall).
+  private turnYieldedToolResultIds = new Set<string>();
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Persistent-PTY state. The Claude
   // sub-process is spawned ONCE on first sendMessage and survives across
@@ -312,9 +404,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
   /** Fires on StopFailure during a background turn (Claude API error
    *  while the user was driving via xterm.js). */
-  onBackgroundError(
-    handler: (data: { message: string }) => void,
-  ): () => void {
+  onBackgroundError(handler: (data: { message: string }) => void): () => void {
     this.backgroundEmitter.on('error', handler);
     return () => this.backgroundEmitter.off('error', handler);
   }
@@ -352,7 +442,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
     this.backgroundWatcherTickInFlight = true;
     try {
       const batch = await this.readNewHookEvents(this.hookFileByteOffset);
-      if (batch.consumedBytes === this.hookFileByteOffset) return;
+      // AUDITARIA_CLAUDE_PROVIDER: do NOT early-return when there are no new
+      // hook bytes. The whole point of the channel-2 background trigger below
+      // is to recover turns whose Stop hook was DROPPED — in that case no
+      // further hook events ever arrive, so the per-event loop is empty but
+      // the transcript peek must still run every tick. (We only skip the
+      // per-event processing when the batch is empty; the peek always runs.)
+      const hadNewHooks = batch.consumedBytes !== this.hookFileByteOffset;
       this.hookFileByteOffset = batch.consumedBytes;
 
       // AUDITARIA_CLAUDE_PROVIDER: Process events in order. Live tool
@@ -363,22 +459,32 @@ export class ClaudeCLIDriver implements ProviderDriver {
       let sawStop = false;
       let sawCompact = false;
       let sawStopFailure: string | undefined;
-      for (const ev of batch.events) {
-        if (ev.event === 'PreToolUse') {
-          await this.handleBackgroundPreToolUse(ev);
-        } else if (ev.event === 'StopFailure') {
-          sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
-        } else if (ev.event === 'PostCompact') {
-          sawCompact = true;
-          sawStop = true;
-        } else if (ev.event === 'Stop') {
-          sawStop = true;
+      if (hadNewHooks) {
+        for (const ev of batch.events) {
+          if (ev.event === 'PreToolUse') {
+            await this.handleBackgroundPreToolUse(ev);
+          } else if (ev.event === 'StopFailure') {
+            sawStopFailure = pickString(ev.payload, 'error_type') ?? 'unknown';
+          } else if (ev.event === 'PostCompact') {
+            sawCompact = true;
+            sawStop = true;
+          } else if (ev.event === 'Stop') {
+            sawStop = true;
+          }
+        }
+        if (sawStopFailure) {
+          this.backgroundEmitter.emit('error', {
+            message: `Background turn failed: ${sawStopFailure}`,
+          });
         }
       }
-      if (sawStopFailure) {
-        this.backgroundEmitter.emit('error', {
-          message: `Background turn failed: ${sawStopFailure}`,
-        });
+      // AUDITARIA_CLAUDE_PROVIDER: Channel-2 trigger for background
+      // (web-terminal) turns — the Stop hook can be dropped here too. Runs
+      // EVERY tick (even with no new hooks). If the transcript shows a settled
+      // completed turn, flush even without a Stop.
+      if (!sawStop && (await this.peekBackgroundTranscriptComplete())) {
+        dbg('background channel-2 transcript completion');
+        sawStop = true;
       }
       if (sawStop) {
         await this.flushBackgroundTranscript({ compactedTurn: sawCompact });
@@ -442,6 +548,8 @@ export class ClaudeCLIDriver implements ProviderDriver {
       } catch {
         continue;
       }
+      // AUDITARIA_CLAUDE_PROVIDER: skip sub-agent sidechain entries.
+      if (entry['isSidechain'] === true) continue;
       if (
         entry.type === 'user' &&
         entry.message &&
@@ -484,6 +592,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
       } catch {
         continue;
       }
+
+      // AUDITARIA_CLAUDE_PROVIDER: skip sub-agent sidechain entries.
+      if (entry['isSidechain'] === true) continue;
 
       if (entry.type === 'user' && entry.message) {
         if (entry['isCompactSummary'] === true) {
@@ -571,9 +682,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // still alive. If it died (Claude crashed or was killed), tears down
   // the corpse and respawns fresh — same behaviour as the original
   // per-turn driver from the caller's perspective.
-  private async ensurePtySpawned(
-    signal: AbortSignal,
-  ): Promise<string | null> {
+  private async ensurePtySpawned(signal: AbortSignal): Promise<string | null> {
     if (this.activePty && !this.ptyExited) return null;
     if (this.activePty && this.ptyExited) {
       // Previous PTY died — clean up before respawning.
@@ -617,6 +726,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
     let pty: MinimalPty;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- node-pty module returns a structurally-compatible IPty
       pty = ptyInfo.module.spawn(claudeExe, args, {
         name: 'xterm-256color',
         cols: PTY_COLS,
@@ -808,6 +918,15 @@ export class ClaudeCLIDriver implements ProviderDriver {
     } else {
       this.transcriptLineOffset = 0;
     }
+
+    // AUDITARIA_CLAUDE_PROVIDER: arm channel 2 (transcript-tail) from the same
+    // pre-turn snapshot so it only sees this turn's appended lines.
+    this.resetTurnDetector(this.transcriptLineOffset);
+    // AUDITARIA_CLAUDE_PROVIDER: clear the rolling PTY buffer so channel 3's
+    // idle/scrape logic only ever sees THIS turn's output — a ❯ left over from
+    // the previous turn must not satisfy the idle gate at the start of a new
+    // (possibly slow) turn.
+    this.recentPtyOutput = '';
 
     // Snapshot hook-file offset for the same reason (the file appends
     // across turns now that the PTY persists).
@@ -1441,6 +1560,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // advance the class field as we drain so the NEXT sendMessage call
     // picks up where we left off.
     let consumed = this.hookFileByteOffset;
+    // AUDITARIA_CLAUDE_PROVIDER: idle clock for channel 3 (PTY-scrape). Any
+    // hook event or transcript growth resets it.
+    let lastProgressAt = Date.now();
 
     const processEvent = (
       ev: HookEvent,
@@ -1452,6 +1574,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
           const toolInput = ev.payload['tool_input'];
           if (!toolName || !toolUseId) return null;
           yieldedToolUseIds.add(toolUseId);
+          // AUDITARIA_CLAUDE_PROVIDER: mark this tool open so channel 3 won't
+          // finalize the turn mid-tool. AskUserQuestion is excluded — it's a
+          // user-blocking prompt, not a running tool, and is gated separately
+          // by pendingPrompts.
+          if (toolName !== 'AskUserQuestion')
+            this.turnOpenToolIds.add(toolUseId);
           const safeInput: Record<string, unknown> = isPlainObject(toolInput)
             ? toolInput
             : {};
@@ -1467,7 +1595,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
           // first-class InteractivePromptStart so Auditaria's UI can show
           // the picker. The TUI's own picker is still rendering in the
           // PTY; respondToPrompt() writes the matching keystroke back.
-          if (toolName === 'AskUserQuestion') {
+          // AUDITARIA_CLAUDE_PROVIDER: dedup vs channel 2 — only surface if the
+          // transcript-tail detector hasn't already (keyed by tool_use_id).
+          if (
+            toolName === 'AskUserQuestion' &&
+            !this.pendingPrompts.has(toolUseId)
+          ) {
             const promptEvent = this.buildAskUserQuestionPromptEvent(
               toolUseId,
               toolInput,
@@ -1479,6 +1612,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
         case 'PostToolUse': {
           const toolUseId = pickString(ev.payload, 'tool_use_id');
           if (!toolUseId) return null;
+          // AUDITARIA_CLAUDE_PROVIDER: tool no longer open + its result is now
+          // emitted live, so the post-turn backfill must NOT re-emit it.
+          this.turnOpenToolIds.delete(toolUseId);
+          this.turnYieldedToolResultIds.add(toolUseId);
           const result = ev.payload['tool_result'];
           let output: string;
           if (typeof result === 'string') {
@@ -1582,6 +1719,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
           return {
             done: {
               kind: 'stopped',
+              via: 'hook',
               yieldedToolUseIds,
               stopPayload: ev,
               transcriptPathFromHook: pickString(ev.payload, 'transcript_path'),
@@ -1600,11 +1738,59 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
       const batch = await this.readNewHookEvents(consumed);
       consumed = batch.consumedBytes;
+      if (batch.events.length > 0) lastProgressAt = Date.now();
       for (const ev of batch.events) {
         const action = processEvent(ev);
         if (!action) continue;
         if (action.yields) for (const y of action.yields) yield y;
         if (action.done) return action.done;
+      }
+
+      // AUDITARIA_CLAUDE_PROVIDER: Channel 2 — transcript-tail. Recovers turns
+      // where the Stop hook was dropped (relay/appendFileSync race, --settings
+      // regression, hook timeout). Also surfaces AskUserQuestion redundantly if
+      // its PreToolUse hook was missed. The hook channel is checked FIRST each
+      // tick, so this only finalizes when the hook hasn't (the settle window
+      // gives the hook its head start, leaving the happy path unchanged).
+      const scan = await this.scanTranscriptForTurn(yieldedToolUseIds);
+      if (scan.grew) lastProgressAt = Date.now();
+      for (const y of scan.yields) yield y;
+      if (scan.completed) {
+        return {
+          kind: 'stopped',
+          via: 'transcript',
+          yieldedToolUseIds,
+          stopPayload: SYNTHETIC_STOP,
+          transcriptPathFromHook: this.computeTranscriptPath(),
+        };
+      }
+
+      // AUDITARIA_CLAUDE_PROVIDER: Channel 3 — PTY-scrape idle fallback
+      // (Phase 4). Last resort for when neither the hook NOR the transcript
+      // is written (Claude 2.1.169+ regression) or for TUI slash commands.
+      // Disable with AUDITARIA_CLAUDE_PTY_SCRAPE_DISABLED=1.
+      //
+      // Hard guards (NOT just the ❯ heuristic — which can't tell an idle
+      // prompt from a running tool's picker/spinner): never finalize while a
+      // tool is still running (would orphan its result → dangling functionCall)
+      // or while an AskUserQuestion modal is open (would orphan the prompt).
+      // Then require a long no-progress window AND the PTY showing the input
+      // prompt (❯).
+      if (
+        !PTY_SCRAPE_CHANNEL_DISABLED &&
+        this.turnOpenToolIds.size === 0 &&
+        this.pendingPrompts.size === 0 &&
+        Date.now() - lastProgressAt >= NO_SIGNAL_IDLE_MS &&
+        this.ptyShowsInputPrompt()
+      ) {
+        dbg('channel-3 PTY-scrape idle fallback triggered');
+        return {
+          kind: 'stopped',
+          via: 'pty-scrape',
+          yieldedToolUseIds,
+          stopPayload: SYNTHETIC_STOP,
+          transcriptPathFromHook: this.computeTranscriptPath(),
+        };
       }
 
       if (isExited()) {
@@ -1671,6 +1857,230 @@ export class ClaudeCLIDriver implements ProviderDriver {
       `${sessionId}.jsonl`,
     );
   }
+
+  // AUDITARIA_CLAUDE_PROVIDER_START: Channel-2/3 turn-completion detection.
+
+  /** Reset the channel-2 detector for a new turn. `preTurnSize` is the
+   *  transcript byte size snapshotted before the prompt was typed (the same
+   *  value held in transcriptLineOffset). */
+  private resetTurnDetector(preTurnSize: number): void {
+    this.turnDet = {
+      cursor: preTurnSize,
+      leftover: '',
+      lastStopReason: undefined,
+      lastSize: preTurnSize,
+      lastGrowthAt: Date.now(),
+      completionSeenAt: undefined,
+      surfacedAskIds: new Set(),
+      seenToolResults: new Set(),
+      resolvedAskIds: new Set(),
+    };
+    this.turnOpenToolIds = new Set();
+    this.turnYieldedToolResultIds = new Set();
+  }
+
+  /**
+   * Channel 2 — transcript-tail. Reads new bytes since our private cursor
+   * (partial-last-line-safe), updates rolling state, and reports:
+   *  - `yields`: interactive-prompt events to emit now (AskUserQuestion
+   *    surfaced / resolved, deduped against the hook channel by tool_use_id);
+   *  - `completed`: the turn has reached a terminal stop_reason and settled;
+   *  - `grew`: the transcript grew this tick (used for the idle clock).
+   * NEVER touches transcriptLineOffset.
+   */
+  private async scanTranscriptForTurn(
+    yieldedToolUseIds: Set<string>,
+  ): Promise<{ yields: ProviderEvent[]; completed: boolean; grew: boolean }> {
+    const det = this.turnDet;
+    const none = {
+      yields: [] as ProviderEvent[],
+      completed: false,
+      grew: false,
+    };
+    if (!det) return none;
+    const path = this.computeTranscriptPath();
+    if (!path) return none;
+
+    let size: number;
+    try {
+      const stat = await fsp.stat(path);
+      size = stat.size;
+    } catch {
+      return none;
+    }
+    let grew = false;
+    if (size > det.lastSize) {
+      grew = true;
+      det.lastSize = size;
+      det.lastGrowthAt = Date.now();
+    }
+
+    // AUDITARIA_CLAUDE_PROVIDER: `grew` is reported even when channel 2 is
+    // disabled, so channel 3's idle clock keeps its transcript-growth reset
+    // (the two kill switches stay independent). Only the surfacing/completion
+    // logic below is skipped when channel 2 is off.
+    if (TRANSCRIPT_CHANNEL_DISABLED) {
+      return { yields: [], completed: false, grew };
+    }
+
+    const yields: ProviderEvent[] = [];
+    if (size > det.cursor) {
+      let chunk = '';
+      try {
+        const fh = await fsp.open(path, 'r');
+        try {
+          const len = size - det.cursor;
+          const buf = Buffer.alloc(len);
+          await fh.read(buf, 0, len, det.cursor);
+          chunk = buf.toString('utf-8');
+        } finally {
+          await fh.close();
+        }
+      } catch {
+        return { yields, completed: false, grew };
+      }
+      det.cursor = size;
+      const text = det.leftover + chunk;
+      const lastNl = text.lastIndexOf('\n');
+      if (lastNl < 0) {
+        // Whole chunk is one un-terminated line — buffer it, retry next tick.
+        det.leftover = text;
+      } else {
+        det.leftover = text.slice(lastNl + 1);
+        const completeLines = text.slice(0, lastNl).split('\n');
+        const delta = scanTranscriptDelta(completeLines);
+        if (delta.lastStopReason !== undefined) {
+          det.lastStopReason = delta.lastStopReason;
+        }
+        // Record tool_results FIRST so a question + its answer arriving in the
+        // same batch resolve cleanly instead of surfacing a stale prompt.
+        for (const id of delta.toolResultIds) {
+          det.seenToolResults.add(id);
+          // AUDITARIA_CLAUDE_PROVIDER: result seen in transcript → tool no
+          // longer open (covers a dropped PostToolUse hook).
+          this.turnOpenToolIds.delete(id);
+          if (this.pendingPrompts.has(id) && !det.resolvedAskIds.has(id)) {
+            det.resolvedAskIds.add(id);
+            this.pendingPrompts.delete(id);
+            yields.push({
+              type: ProviderEventType.InteractivePromptResolved,
+              promptId: id,
+              response: { kind: 'answered', answers: [] },
+            });
+          }
+        }
+        // AUDITARIA_CLAUDE_PROVIDER: mark transcript-discovered tool_use blocks
+        // as open (covers a dropped PreToolUse hook) UNLESS their result is
+        // already in this batch. Channel 3 then won't finalize mid-tool even
+        // when the hook was lost.
+        for (const id of delta.toolUseIds) {
+          if (!det.seenToolResults.has(id)) this.turnOpenToolIds.add(id);
+        }
+        for (const ask of delta.askUserQuestions) {
+          if (
+            this.pendingPrompts.has(ask.toolUseId) ||
+            det.surfacedAskIds.has(ask.toolUseId) ||
+            det.seenToolResults.has(ask.toolUseId)
+          ) {
+            continue; // already handled by the hook channel or already seen
+          }
+          const promptEvent = this.buildAskUserQuestionPromptEvent(
+            ask.toolUseId,
+            ask.input,
+          );
+          if (promptEvent) {
+            det.surfacedAskIds.add(ask.toolUseId);
+            yieldedToolUseIds.add(ask.toolUseId);
+            dbg(
+              'channel-2 surfaced AskUserQuestion from transcript',
+              ask.toolUseId,
+            );
+            yields.push(promptEvent);
+          }
+        }
+      }
+    }
+
+    // Completion: a terminal stop_reason that has settled (transcript quiet
+    // long enough that every block of the final message is on disk).
+    const terminal =
+      det.lastStopReason !== undefined &&
+      TERMINAL_STOP_REASONS.has(det.lastStopReason);
+    if (terminal) {
+      if (det.completionSeenAt === undefined) det.completionSeenAt = Date.now();
+    } else {
+      det.completionSeenAt = undefined;
+    }
+    const completed =
+      det.completionSeenAt !== undefined &&
+      Date.now() - det.lastGrowthAt >= TRANSCRIPT_TAIL_SETTLE_MS;
+    if (completed) {
+      dbg('channel-2 transcript completion', {
+        stopReason: det.lastStopReason,
+      });
+    }
+    return { yields, completed, grew };
+  }
+
+  /** Channel 3 gate — does the live PTY tail show Claude's idle input prompt
+   *  (❯)? If so, Claude is waiting for input rather than mid-response, so it
+   *  is safe to scrape. Checking only the TAIL avoids matching a stale ❯ left
+   *  deep in the rolling buffer from a previous turn. */
+  private ptyShowsInputPrompt(): boolean {
+    const lines = stripAnsi(this.recentPtyOutput)
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    // The idle input box (❯) is among the LAST rendered lines. Checking only
+    // the final few (not a 400-char substring) avoids matching a ❯ that
+    // appeared earlier in the buffer — e.g. a selection-list cursor mid-turn.
+    return lines.slice(-3).some((l) => l.includes('❯'));
+  }
+
+  /**
+   * Channel-2 trigger for BACKGROUND (web-terminal) turns. Returns true when
+   * the transcript has a settled terminal assistant entry beyond what the
+   * background flush has already consumed — i.e. a web-terminal turn finished
+   * but its Stop hook was dropped. Reads from transcriptLineOffset (what
+   * flushBackgroundTranscript will consume) WITHOUT advancing it.
+   */
+  private async peekBackgroundTranscriptComplete(): Promise<boolean> {
+    if (TRANSCRIPT_CHANNEL_DISABLED) return false;
+    const path = this.computeTranscriptPath();
+    if (!path) return false;
+    let size: number;
+    try {
+      const stat = await fsp.stat(path);
+      size = stat.size;
+    } catch {
+      return false;
+    }
+    if (size <= this.transcriptLineOffset) return false;
+    if (size > this.bgLastSize) {
+      this.bgLastSize = size;
+      this.bgLastGrowthAt = Date.now();
+    }
+    // Settle so all blocks of the final message are present before we flush.
+    if (Date.now() - this.bgLastGrowthAt < TRANSCRIPT_TAIL_SETTLE_MS) {
+      return false;
+    }
+    let content: string;
+    try {
+      content = await fsp.readFile(path, 'utf-8');
+    } catch {
+      return false;
+    }
+    const fresh = content.slice(this.transcriptLineOffset);
+    const lastNl = fresh.lastIndexOf('\n');
+    if (lastNl < 0) return false;
+    const { lastStopReason } = scanTranscriptDelta(
+      fresh.slice(0, lastNl).split('\n'),
+    );
+    return (
+      lastStopReason !== undefined && TERMINAL_STOP_REASONS.has(lastStopReason)
+    );
+  }
+  // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_CLAUDE_PROVIDER: PTY-scrape fallback for Claude 2.1.169+
   // transcript-writing regression.
@@ -1787,6 +2197,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
         continue;
       }
 
+      // AUDITARIA_CLAUDE_PROVIDER: skip sub-agent (Task) sidechain entries —
+      // their text/tool blocks are internal and must not render as the main
+      // assistant's output (keeps this consistent with channel 2's detector).
+      if (entry['isSidechain'] === true) continue;
+
       // Capture session ID if not already known (paranoia).
       const sid = entry['sessionId'] ?? entry['session_id'];
       if (typeof sid === 'string' && !this.sessionManager.getSessionId()) {
@@ -1820,11 +2235,14 @@ export class ClaudeCLIDriver implements ProviderDriver {
             if (block.type === 'tool_use' && yieldedToolUseIds.has(block.id)) {
               continue;
             }
-            if (
-              block.type === 'tool_result' &&
-              yieldedToolUseIds.has(block.tool_use_id)
-            ) {
-              continue;
+            // AUDITARIA_CLAUDE_PROVIDER: skip a tool_result only if its result
+            // was ALREADY emitted (live PostToolUse or earlier backfill) — NOT
+            // merely because the tool_use was streamed. Otherwise a dropped
+            // PostToolUse leaves a dangling functionCall.
+            if (block.type === 'tool_result') {
+              if (this.turnYieldedToolResultIds.has(block.tool_use_id))
+                continue;
+              this.turnYieldedToolResultIds.add(block.tool_use_id);
             }
             if (block.type === 'text' && block.text) {
               yieldedAnyContent = true;
@@ -1850,7 +2268,12 @@ export class ClaudeCLIDriver implements ProviderDriver {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of own-written JSONL block
           for (const block of content as ClaudeContentBlock[]) {
             if (block.type === 'tool_result') {
-              if (yieldedToolUseIds.has(block.tool_use_id)) continue;
+              // AUDITARIA_CLAUDE_PROVIDER: emit unless this result was already
+              // emitted (live PostToolUse). Keying on result-emitted (not
+              // tool_use-streamed) backfills results whose PostToolUse dropped.
+              if (this.turnYieldedToolResultIds.has(block.tool_use_id))
+                continue;
+              this.turnYieldedToolResultIds.add(block.tool_use_id);
               yield {
                 type: ProviderEventType.ToolResult,
                 toolId: block.tool_use_id,
@@ -1925,8 +2348,15 @@ interface TranscriptEntry {
   type?: string;
   sessionId?: string;
   session_id?: string;
+  // AUDITARIA_CLAUDE_PROVIDER: sub-agent (Task) entries set this true; they
+  // share the transcript file and must be skipped by turn-completion logic.
+  isSidechain?: boolean;
   message?: {
+    id?: string; // AUDITARIA_CLAUDE_PROVIDER: shared across one API response's lines
+    role?: string;
     model?: string;
+    // AUDITARIA_CLAUDE_PROVIDER: 'end_turn' | 'stop_sequence' | 'tool_use' | …
+    stop_reason?: string;
     content?: unknown;
     usage?: {
       input_tokens?: unknown;
@@ -1942,6 +2372,84 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// AUDITARIA_CLAUDE_PROVIDER: Pure transcript-delta analyzer (exported for
+// tests). Given a batch of COMPLETE JSONL lines, returns the latest
+// (non-sidechain) assistant stop_reason, any AskUserQuestion tool_use blocks,
+// and any tool_use_ids whose tool_result appeared. The stateful dedup
+// (surfaced/resolved sets) and settle timing live in the caller
+// (ClaudeCLIDriver.scanTranscriptForTurn).
+//
+// Allowlist by `type` (assistant/user) rather than a metadata skip-blocklist:
+// Claude Code adds new metadata `type` values between versions (ai-title,
+// last-prompt, mode, permission-mode, system, attachment, queue-operation,
+// file-history-snapshot, summary, …) and an allowlist is version-robust.
+export function scanTranscriptDelta(lines: string[]): {
+  lastStopReason?: string;
+  askUserQuestions: Array<{ toolUseId: string; input: unknown }>;
+  toolResultIds: string[];
+  toolUseIds: string[];
+} {
+  let lastStopReason: string | undefined;
+  const askUserQuestions: Array<{ toolUseId: string; input: unknown }> = [];
+  const toolResultIds: string[] = [];
+  // Non-AskUserQuestion tool_use ids (so channel 3 can tell a tool is running
+  // even if its PreToolUse hook was dropped, as long as the transcript exists).
+  const toolUseIds: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let entry: TranscriptEntry;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of Claude-written JSONL line
+      entry = JSON.parse(trimmed) as TranscriptEntry;
+    } catch {
+      continue;
+    }
+    // Only assistant/user lines carry turn state.
+    if (entry.type !== 'assistant' && entry.type !== 'user') continue;
+    // Sub-agent (Task) internals share the transcript; their own end_turn must
+    // NOT end the main turn.
+    if (entry.isSidechain === true) continue;
+    const msg = entry.message;
+    if (!msg || typeof msg !== 'object') continue;
+
+    if (entry.type === 'assistant') {
+      if (typeof msg.stop_reason === 'string') lastStopReason = msg.stop_reason;
+      const content = msg.content;
+      if (Array.isArray(content)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of Claude content blocks
+        for (const block of content as ClaudeContentBlock[]) {
+          if (block.type === 'tool_use' && typeof block.id === 'string') {
+            if (block.name === 'AskUserQuestion') {
+              askUserQuestions.push({
+                toolUseId: block.id,
+                input: block.input,
+              });
+            } else {
+              toolUseIds.push(block.id);
+            }
+          }
+        }
+      }
+    } else {
+      // user line — collect tool_result ids (for AskUserQuestion resolution).
+      const content = msg.content;
+      if (Array.isArray(content)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of Claude content blocks
+        for (const block of content as ClaudeContentBlock[]) {
+          if (
+            block.type === 'tool_result' &&
+            typeof block.tool_use_id === 'string'
+          ) {
+            toolResultIds.push(block.tool_use_id);
+          }
+        }
+      }
+    }
+  }
+  return { lastStopReason, askUserQuestions, toolResultIds, toolUseIds };
+}
+
 // AUDITARIA_CLAUDE_PROVIDER: Compact one-line summary of a tool_use
 // block's input, used as the inline marker we surface for tool calls
 // in background-turn chat entries. We don't try to be smart per-tool —
@@ -1950,6 +2458,7 @@ function delay(ms: number): Promise<void> {
 // a truncated JSON dump.
 function summariseToolArgs(input: unknown): string {
   if (!input || typeof input !== 'object') return '';
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed by the typeof guard above
   const obj = input as Record<string, unknown>;
   const preferred = [
     'command',
@@ -1993,13 +2502,11 @@ function extractUserTextFromTranscriptEntry(
   }
   if (Array.isArray(content)) {
     const parts: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of Claude content blocks
     for (const block of content as Array<Record<string, unknown>>) {
-      if (
-        block &&
-        block['type'] === 'text' &&
-        typeof block['text'] === 'string'
-      ) {
-        parts.push(block['text'] as string);
+      const text = block?.['text'];
+      if (block && block['type'] === 'text' && typeof text === 'string') {
+        parts.push(text);
       }
     }
     const joined = parts.join('').trim();
@@ -2014,7 +2521,8 @@ function extractUserTextFromTranscriptEntry(
 // TTY before Ink can set raw mode. Read the shim and spawn the real exe
 // directly. On Unix, resolveExecutable returns the right thing.
 async function resolveClaudeExecutable(): Promise<string | undefined> {
-  const shim = await resolveExecutable('claude');
+  // resolveExecutable is synchronous (returns string | undefined).
+  const shim = resolveExecutable('claude');
   if (!shim) return undefined;
   if (process.platform !== 'win32') return shim;
   if (!shim.toLowerCase().endsWith('.cmd')) return shim;

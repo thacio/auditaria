@@ -1,9 +1,19 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClaudeCLIDriver } from './claudeCLIDriver.js';
+// AUDITARIA_CLAUDE_PROVIDER: These tests cover the legacy print-mode driver,
+// which was relocated to claudeCLIDriver.print.ts (ClaudeCLIDriverPrint) when
+// the interactive PTY driver became the default. They still validate the
+// `--output-format stream-json` fallback path. The interactive driver's new
+// transcript-tail logic is tested in claudeTranscriptDetector.test.ts.
+import { ClaudeCLIDriverPrint as ClaudeCLIDriver } from './claudeCLIDriver.print.js';
 import { ProviderEventType } from '../types.js';
-import { EventEmitter } from 'events';
-import type { ChildProcess } from 'child_process';
-import { Readable } from 'stream';
+import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
+import { Readable } from 'node:stream';
 
 // Mock child_process.spawn
 vi.mock('child_process', () => ({
@@ -26,11 +36,12 @@ vi.mock('fs', async (importOriginal) => {
   };
 });
 
-import { spawn } from 'child_process';
-import { writeFileSync } from 'fs';
+import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 const mockSpawn = vi.mocked(spawn);
 const mockWriteFileSync = vi.mocked(writeFileSync);
-const expectedShellOption = process.platform === 'win32' ? 'powershell.exe' : true;
+const expectedShellOption =
+  process.platform === 'win32' ? 'powershell.exe' : true;
 
 function createMockProcess(stdoutLines: string[]): ChildProcess {
   const stdout = new Readable({
@@ -42,11 +53,18 @@ function createMockProcess(stdoutLines: string[]): ChildProcess {
     },
   });
 
-  const stderr = new Readable({ read() { this.push(null); } });
+  const stderr = new Readable({
+    read() {
+      this.push(null);
+    },
+  });
   const proc = new EventEmitter() as ChildProcess;
   (proc as unknown as { stdout: Readable }).stdout = stdout;
   (proc as unknown as { stderr: Readable }).stderr = stderr;
-  (proc as unknown as Record<string, unknown>).stdin = { write: vi.fn(), end: vi.fn() };
+  (proc as unknown as Record<string, unknown>).stdin = {
+    write: vi.fn(),
+    end: vi.fn(),
+  };
   (proc as unknown as { pid: number }).pid = 12345;
   (proc as unknown as { exitCode: number | null }).exitCode = 0;
   proc.kill = vi.fn();
@@ -89,7 +107,9 @@ describe('ClaudeCLIDriver', () => {
       session_id: 'test-session-123',
     });
 
-    mockSpawn.mockReturnValue(createMockProcess([systemMsg, assistantMsg, resultMsg]));
+    mockSpawn.mockReturnValue(
+      createMockProcess([systemMsg, assistantMsg, resultMsg]),
+    );
 
     const driver = new ClaudeCLIDriver(driverConfig);
     const events = [];
@@ -122,15 +142,22 @@ describe('ClaudeCLIDriver', () => {
     const events = [];
     const controller = new AbortController();
 
-    for await (const event of driver.sendMessage('what is 6*7?', controller.signal)) {
+    for await (const event of driver.sendMessage(
+      'what is 6*7?',
+      controller.signal,
+    )) {
       events.push(event);
     }
 
-    const modelInfo = events.find(e => e.type === ProviderEventType.ModelInfo);
+    const modelInfo = events.find(
+      (e) => e.type === ProviderEventType.ModelInfo,
+    );
     expect(modelInfo).toBeDefined();
-    expect((modelInfo as { model: string }).model).toBe('claude-sonnet-4-5-20250929');
+    expect((modelInfo as { model: string }).model).toBe(
+      'claude-sonnet-4-5-20250929',
+    );
 
-    const content = events.find(e => e.type === ProviderEventType.Content);
+    const content = events.find((e) => e.type === ProviderEventType.Content);
     expect(content).toBeDefined();
     expect((content as { text: string }).text).toBe('The answer is 42.');
   });
@@ -154,7 +181,7 @@ describe('ClaudeCLIDriver', () => {
       events.push(event);
     }
 
-    const thinking = events.find(e => e.type === ProviderEventType.Thinking);
+    const thinking = events.find((e) => e.type === ProviderEventType.Thinking);
     expect(thinking).toBeDefined();
     expect((thinking as { text: string }).text).toBe('Let me consider...');
   });
@@ -165,7 +192,12 @@ describe('ClaudeCLIDriver', () => {
       message: {
         type: 'message',
         content: [
-          { type: 'tool_use', id: 'tool_1', name: 'Read', input: { file_path: '/tmp/x' } },
+          {
+            type: 'tool_use',
+            id: 'tool_1',
+            name: 'Read',
+            input: { file_path: '/tmp/x' },
+          },
         ],
       },
     });
@@ -174,7 +206,12 @@ describe('ClaudeCLIDriver', () => {
       message: {
         role: 'user',
         content: [
-          { type: 'tool_result', tool_use_id: 'tool_1', content: 'file contents', is_error: false },
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool_1',
+            content: 'file contents',
+            is_error: false,
+          },
         ],
       },
     });
@@ -185,16 +222,21 @@ describe('ClaudeCLIDriver', () => {
     const events = [];
     const controller = new AbortController();
 
-    for await (const event of driver.sendMessage('read file', controller.signal)) {
+    for await (const event of driver.sendMessage(
+      'read file',
+      controller.signal,
+    )) {
       events.push(event);
     }
 
-    const toolUse = events.find(e => e.type === ProviderEventType.ToolUse);
+    const toolUse = events.find((e) => e.type === ProviderEventType.ToolUse);
     expect(toolUse).toBeDefined();
     expect((toolUse as { toolName: string }).toolName).toBe('Read');
     expect((toolUse as { toolId: string }).toolId).toBe('tool_1');
 
-    const toolResult = events.find(e => e.type === ProviderEventType.ToolResult);
+    const toolResult = events.find(
+      (e) => e.type === ProviderEventType.ToolResult,
+    );
     expect(toolResult).toBeDefined();
     expect((toolResult as { output: string }).output).toBe('file contents');
     expect((toolResult as { isError: boolean }).isError).toBe(false);
@@ -227,10 +269,14 @@ describe('ClaudeCLIDriver', () => {
     }
 
     const finished = events.find(
-      e => e.type === ProviderEventType.Finished && (e as { usage?: unknown }).usage,
+      (e) =>
+        e.type === ProviderEventType.Finished &&
+        (e as { usage?: unknown }).usage,
     );
     expect(finished).toBeDefined();
-    const usage = (finished as { usage: { inputTokens: number; outputTokens: number } }).usage;
+    const usage = (
+      finished as { usage: { inputTokens: number; outputTokens: number } }
+    ).usage;
     expect(usage.inputTokens).toBe(200); // cumulative preferred
     expect(usage.outputTokens).toBe(100);
   });
@@ -253,7 +299,7 @@ describe('ClaudeCLIDriver', () => {
       events.push(event);
     }
 
-    const content = events.find(e => e.type === ProviderEventType.Content);
+    const content = events.find((e) => e.type === ProviderEventType.Content);
     expect(content).toBeDefined();
     expect((content as { text: string }).text).toBe('ok');
   });
@@ -277,7 +323,10 @@ describe('ClaudeCLIDriver', () => {
       message: {
         role: 'user',
         content: [
-          { type: 'text', text: 'Summary of conversation: we discussed auditing frameworks and INTOSAI standards.' },
+          {
+            type: 'text',
+            text: 'Summary of conversation: we discussed auditing frameworks and INTOSAI standards.',
+          },
         ],
       },
     });
@@ -286,7 +335,9 @@ describe('ClaudeCLIDriver', () => {
       session_id: 'sess-2',
     });
 
-    mockSpawn.mockReturnValue(createMockProcess([systemMsg, compactMsg, summaryMsg, newSystemMsg]));
+    mockSpawn.mockReturnValue(
+      createMockProcess([systemMsg, compactMsg, summaryMsg, newSystemMsg]),
+    );
 
     const driver = new ClaudeCLIDriver(driverConfig);
     const events = [];
@@ -296,14 +347,20 @@ describe('ClaudeCLIDriver', () => {
       events.push(event);
     }
 
-    const compacted = events.find(e => e.type === ProviderEventType.Compacted);
+    const compacted = events.find(
+      (e) => e.type === ProviderEventType.Compacted,
+    );
     expect(compacted).toBeDefined();
     expect((compacted as { preTokens: number }).preTokens).toBe(150000);
     expect((compacted as { trigger: string }).trigger).toBe('auto');
 
-    const summary = events.find(e => e.type === ProviderEventType.CompactionSummary);
+    const summary = events.find(
+      (e) => e.type === ProviderEventType.CompactionSummary,
+    );
     expect(summary).toBeDefined();
-    expect((summary as { summary: string }).summary).toContain('auditing frameworks');
+    expect((summary as { summary: string }).summary).toContain(
+      'auditing frameworks',
+    );
   });
 
   it('should emit Compacted without CompactionSummary when no summary follows', async () => {
@@ -325,7 +382,9 @@ describe('ClaudeCLIDriver', () => {
       session_id: 'sess-2',
     });
 
-    mockSpawn.mockReturnValue(createMockProcess([systemMsg, compactMsg, newSystemMsg]));
+    mockSpawn.mockReturnValue(
+      createMockProcess([systemMsg, compactMsg, newSystemMsg]),
+    );
 
     const driver = new ClaudeCLIDriver(driverConfig);
     const events = [];
@@ -335,10 +394,14 @@ describe('ClaudeCLIDriver', () => {
       events.push(event);
     }
 
-    const compacted = events.find(e => e.type === ProviderEventType.Compacted);
+    const compacted = events.find(
+      (e) => e.type === ProviderEventType.Compacted,
+    );
     expect(compacted).toBeDefined();
     // No CompactionSummary should be emitted
-    const summary = events.find(e => e.type === ProviderEventType.CompactionSummary);
+    const summary = events.find(
+      (e) => e.type === ProviderEventType.CompactionSummary,
+    );
     expect(summary).toBeUndefined();
   });
 
@@ -362,7 +425,9 @@ describe('ClaudeCLIDriver', () => {
       session_id: 'new-session-after-compact',
     });
 
-    mockSpawn.mockReturnValue(createMockProcess([systemMsg, assistantMsg, compactMsg, newSystemMsg]));
+    mockSpawn.mockReturnValue(
+      createMockProcess([systemMsg, assistantMsg, compactMsg, newSystemMsg]),
+    );
 
     const driver = new ClaudeCLIDriver(driverConfig);
     const controller = new AbortController();
@@ -381,15 +446,27 @@ describe('ClaudeCLIDriver', () => {
     const driver = new ClaudeCLIDriver(driverConfig);
     const controller = new AbortController();
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     for await (const _ of driver.sendMessage('hello', controller.signal)) {
       // consume
     }
 
-    // Prompt is piped via stdin, not passed as -p arg (avoids Windows cmd.exe quoting issues)
+    // Prompt is piped via stdin as NDJSON, not passed as -p arg (avoids
+    // Windows cmd.exe quoting issues and enables image content blocks).
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
-      ['--output-format', 'stream-json', '--verbose', '--model', 'sonnet', '--permission-mode', 'bypassPermissions'],
+      [
+        '-p',
+        '--input-format',
+        'stream-json',
+        '--output-format',
+        'stream-json',
+        '--verbose',
+        '--model',
+        'sonnet',
+        '--permission-mode',
+        'bypassPermissions',
+      ],
       expect.objectContaining({
         cwd: '/tmp/test',
         shell: expectedShellOption,
@@ -399,8 +476,13 @@ describe('ClaudeCLIDriver', () => {
       }),
     );
 
-    // Prompt written to stdin
-    expect(mockProc.stdin!.write).toHaveBeenCalledWith('hello');
+    // Prompt written to stdin as an NDJSON user message (text-only → string content).
+    expect(mockProc.stdin!.write).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'hello' },
+      }) + '\n',
+    );
     expect(mockProc.stdin!.end).toHaveBeenCalled();
   });
 
@@ -411,7 +493,11 @@ describe('ClaudeCLIDriver', () => {
     const driver = new ClaudeCLIDriver(driverConfig);
     const controller = new AbortController();
 
-    for await (const _ of driver.sendMessage('hello', controller.signal, 'audit system context')) {
+    for await (const _ of driver.sendMessage(
+      'hello',
+      controller.signal,
+      'audit system context',
+    )) {
       // consume
     }
 
@@ -425,7 +511,10 @@ describe('ClaudeCLIDriver', () => {
     // --append-system-prompt-file should be in the args (does NOT persist across --resume)
     expect(mockSpawn).toHaveBeenCalledWith(
       'claude',
-      expect.arrayContaining(['--append-system-prompt-file', expect.stringContaining('.system-prompt')]),
+      expect.arrayContaining([
+        '--append-system-prompt-file',
+        expect.stringContaining('.system-prompt'),
+      ]),
       expect.objectContaining({
         shell: expectedShellOption,
         env: expect.objectContaining({
@@ -434,7 +523,12 @@ describe('ClaudeCLIDriver', () => {
       }),
     );
 
-    // Prompt goes via stdin (not mixed with system context)
-    expect(mockProc.stdin!.write).toHaveBeenCalledWith('hello');
+    // Prompt goes via stdin as NDJSON (not mixed with system context)
+    expect(mockProc.stdin!.write).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'user',
+        message: { role: 'user', content: 'hello' },
+      }) + '\n',
+    );
   });
 });
