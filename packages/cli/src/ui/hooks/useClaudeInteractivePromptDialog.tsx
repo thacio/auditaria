@@ -52,6 +52,7 @@ import {
   toGeminiQuestions,
   buildPromptAnswers,
 } from './claudeInteractivePromptTranslators.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { webTerminalBridge } from '../../services/webTerminalBridge.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 /**
  * True when the user has opted out of the in-UI prompt modal.
@@ -109,6 +110,29 @@ export function useClaudeInteractivePromptDialog(
 
   const handleStart = useCallback(
     (event: InteractivePromptStartEvent): void => {
+      // AUDITARIA_CLAUDE_PROVIDER: When the web interface is in use, route the
+      // question to the live Claude terminal instead of this modal. The modal
+      // auto-drives Claude's picker via respondToPrompt, which collides with
+      // the user's manual input in the web terminal (focus/keystroke conflict,
+      // orphaned modal on re-ask). So when a web client is connected, suppress
+      // the modal (and its auto-driver), open the terminal if it's closed, and
+      // let the user answer Claude's picker directly. The driver still resolves
+      // the prompt when the tool_result lands. The CLI-only path (no web
+      // client) keeps the modal unchanged.
+      if (webTerminalBridge.hasConnectedClients()) {
+        webTerminalBridge.requestOpenTerminal();
+        addItem(
+          {
+            type: MessageType.INFO,
+            text:
+              `Claude is asking ${event.questions.length} question${event.questions.length === 1 ? '' : 's'} — ` +
+              `answer directly in the Claude terminal (opened for you).`,
+          },
+          Date.now(),
+        );
+        return;
+      }
+
       if (isInteractivePromptUIDisabled()) {
         addItem(
           {

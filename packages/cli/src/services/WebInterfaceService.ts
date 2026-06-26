@@ -64,6 +64,7 @@ import { DirectoryWatcherService } from './DirectoryWatcherService.js';
 
 // Import DocxParserService for markdown to DOCX parsing
 import { DocxParserService } from './DocxParserService.js';
+import { webTerminalBridge } from './webTerminalBridge.js'; // WEB_INTERFACE_FEATURE: route AskUserQuestion to the live Claude terminal
 
 // Knowledge Base Search Service
 import {
@@ -974,6 +975,13 @@ export class WebInterfaceService extends EventEmitter {
           this.broadcastWithSequence('claude_pty_state', { active: isActive });
         }),
       );
+      // AUDITARIA_CLAUDE_PROVIDER: let CLI hooks ask us to surface the live
+      // Claude terminal — used to route AskUserQuestion to the web terminal
+      // instead of the auto-driven modal. Cleared in stop().
+      webTerminalBridge.setOpenTerminalHandler(() => {
+        this.broadcastWithSequence('claude_pty_open', {});
+      });
+      webTerminalBridge.setClientCount(this.clients.size);
       // AUDITARIA_CLAUDE_PROVIDER_END
 
       // WEB_INTERFACE_START: Initialize file system service
@@ -1090,6 +1098,9 @@ export class WebInterfaceService extends EventEmitter {
     this.claudePtyUnsubscribers = [];
     this.claudePtyActive = false;
     this.claudePtyBuffer = '';
+    // AUDITARIA_CLAUDE_PROVIDER: server down → CLI hooks fall back to the modal.
+    webTerminalBridge.setOpenTerminalHandler(null);
+    webTerminalBridge.setClientCount(0);
 
     // Close WebSocket server
     if (this.wss) {
@@ -1872,7 +1883,10 @@ export class WebInterfaceService extends EventEmitter {
       message.type === 'ast_to_md_request' &&
       (message as any).ast !== undefined
     ) {
-      this.handleAstToMdRequest((message as any).requestId, (message as any).ast);
+      this.handleAstToMdRequest(
+        (message as any).requestId,
+        (message as any).ast,
+      );
     } else if (message.type === 'docx_to_md_request' && message.path) {
       this.handleDocxToMdRequest((message as any).requestId, message.path);
     }
@@ -1933,6 +1947,7 @@ export class WebInterfaceService extends EventEmitter {
 
         // Standard chat connection handling
         this.clients.add(ws);
+        webTerminalBridge.setClientCount(this.clients.size); // WEB_INTERFACE_FEATURE
 
         // WEB_INTERFACE_START: Initialize client state for message resilience
         this.clientStates.set(ws, {
@@ -1943,6 +1958,7 @@ export class WebInterfaceService extends EventEmitter {
 
         ws.on('close', () => {
           this.clients.delete(ws);
+          webTerminalBridge.setClientCount(this.clients.size); // WEB_INTERFACE_FEATURE
           // WEB_INTERFACE_START: Clean up file watches for disconnected client
           if (this.fileWatcherService) {
             this.fileWatcherService.unwatchAllForClient(ws);
@@ -1954,6 +1970,7 @@ export class WebInterfaceService extends EventEmitter {
         ws.on('error', (error) => {
           console.error('WebSocket error:', error);
           this.clients.delete(ws);
+          webTerminalBridge.setClientCount(this.clients.size); // WEB_INTERFACE_FEATURE
         });
 
         // Handle incoming messages from web client

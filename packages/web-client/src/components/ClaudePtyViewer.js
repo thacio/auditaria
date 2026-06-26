@@ -737,7 +737,6 @@ export class ClaudePtyViewer {
       this.term.open(this.containerElement);
       this.termOpened = true;
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('[ClaudePtyViewer] xterm.open failed:', err);
       return;
     }
@@ -768,7 +767,6 @@ export class ClaudePtyViewer {
       this.term.loadAddon(webgl);
       this.webglAddon = webgl;
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.warn(
         '[ClaudePtyViewer] WebGL unavailable, using DOM renderer:',
         err && err.message ? err.message : err,
@@ -780,7 +778,6 @@ export class ClaudePtyViewer {
       try {
         this.term.write(this.pendingBytes);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('[ClaudePtyViewer] replay write failed:', err);
       }
       this.pendingBytes = '';
@@ -794,13 +791,21 @@ export class ClaudePtyViewer {
         this.activeDot.style.display = this.ptyActive ? 'block' : 'none';
       }
     });
+    // AUDITARIA_CLAUDE_PROVIDER: server asks us to surface the terminal so the
+    // user can answer Claude's AskUserQuestion picker here (instead of a modal
+    // that fights this terminal for focus). Only open if currently hidden so we
+    // don't disrupt an existing modal/PiP layout the user already arranged.
+    this.wsManager.addEventListener('claude_pty_open', () => {
+      if (this.mode === 'hidden') {
+        this.show();
+      }
+    });
     this.wsManager.addEventListener('claude_pty_data', (e) => {
       if (!e.detail || typeof e.detail.bytes !== 'string') return;
       let decoded = '';
       try {
         decoded = decodeBytes(e.detail.bytes);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('[ClaudePtyViewer] decode error:', err);
         return;
       }
@@ -820,7 +825,6 @@ export class ClaudePtyViewer {
       try {
         this.term.write(decoded);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('[ClaudePtyViewer] write failed:', err);
       }
     });

@@ -335,6 +335,17 @@ export default tseslint.config(
       'license-header/header': 'off',
     },
   },
+  // AUDITARIA: web-client code runs in the browser, not Node — give it the
+  // browser globals so document/window/console/requestAnimationFrame/etc.
+  // resolve instead of failing no-undef.
+  {
+    files: ['packages/web-client/src/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
   {
     files: [
       './scripts/**/*.js',
