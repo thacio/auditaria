@@ -1,8 +1,10 @@
 name: '🔄 Gemini CLI Bot: Pulse'
 
 on:
-  schedule:
-    - cron: '*/30 * * * *' # Every 30 minutes
+  # AUDITARIA: schedule disabled. Upstream pulses every 30 min, but the job is
+  # gated to `google-gemini/gemini-cli`, so on this fork it only ever skipped —
+  # the cron just cluttered the Actions tab with skipped runs. Manual dispatch
+  # kept so it can still be run on demand.
   workflow_dispatch:
 
 concurrency:
