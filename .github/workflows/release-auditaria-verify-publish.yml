@@ -209,29 +209,31 @@ jobs:
       - name: Verify npm publish (dry-run)
         run: npm publish --dry-run --access public ./auditaria-package.tgz
 
-      - name: Upload package artifact
+      # AUDITARIA: Keep the verified .tgz downloadable from the run for records,
+      # but NON-BLOCKING — a transient GitHub artifact-service hiccup
+      # (CreateArtifact timeout) must never fail the build/publish. The publish
+      # below uses the local file, NOT this artifact, so the flaky cross-job
+      # hand-off is gone.
+      - name: Upload package artifact (records, non-blocking)
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: npm-package-auditaria
           path: auditaria-package.tgz
 
-  publish_npm:
-    needs: [build_bundle_pack]
-    if: ${{ github.event.inputs.enable_publish == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package-auditaria
-
+      # AUDITARIA: Publish now runs in THIS job (no cross-job artifact hand-off),
+      # so we publish the exact bytes we just verified, on the same runner.
+      # Gated at the step level on enable_publish (was a separate publish_npm
+      # job gated with `if: enable_publish == 'true'`).
       - name: Setup Node.js for npm publish
+        if: ${{ github.event.inputs.enable_publish == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish package to npm
+        if: ${{ github.event.inputs.enable_publish == 'true' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TAG: ${{ github.event.inputs.npm_tag }}
@@ -244,6 +246,6 @@ jobs:
           fi
 
       - name: Verify published version
-        if: ${{ github.event.inputs.dry_run_publish != 'true' }}
+        if: ${{ github.event.inputs.enable_publish == 'true' && github.event.inputs.dry_run_publish != 'true' }}
         run: |
-          npm view @thacio/auditaria@${{ needs.build_bundle_pack.outputs.package_version }} version
+          npm view @thacio/auditaria@${{ steps.prepare_package.outputs.package_version }} version
