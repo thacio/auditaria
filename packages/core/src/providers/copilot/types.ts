@@ -1,5 +1,8 @@
-// AUDITARIA_COPILOT_PROVIDER: ACP (Agent Client Protocol) types for GitHub Copilot CLI driver
-// Based on real protocol testing against Copilot CLI 0.0.418 (Feb 2026)
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 // ---------------------------------------------------------------------------
 // JSON-RPC 2.0 base types
@@ -300,6 +303,25 @@ export interface CopilotDriverConfig {
   toolBridgeScript?: string;
   toolBridgeExclude?: string[];
   promptFileId?: string;
+  // AUDITARIA_PROVIDER_TERMINAL: PTY-driver additions. mirrorPty=false keeps
+  // headless drivers (sub-agents, Teams threads) off the web terminal.
+  mirrorPty?: boolean;
+  /** Copilot --effort value (none|low|medium|high|xhigh|max). */
+  reasoningEffort?: string;
+}
+
+// ---------------------------------------------------------------------------
+// AUDITARIA_PROVIDER_TERMINAL: session events.jsonl entry
+// (~/.copilot/session-state/<sessionId>/events.jsonl — written live by the
+// interactive TUI; the PTY driver's read channel)
+// ---------------------------------------------------------------------------
+
+export interface CopilotSessionEvent {
+  type: string;
+  data?: Record<string, unknown>;
+  id?: string;
+  timestamp?: string;
+  parentId?: string;
 }
 
 // ---------------------------------------------------------------------------

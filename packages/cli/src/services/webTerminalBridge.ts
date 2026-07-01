@@ -5,9 +5,9 @@
  *
  * WEB_INTERFACE_FEATURE: Tiny singleton bridge so CLI hooks can learn whether
  * a web client is connected and ask the connected web client(s) to surface the
- * live Claude terminal — WITHOUT importing WebInterfaceService (which would
+ * live provider terminal — WITHOUT importing WebInterfaceService (which would
  * couple React hooks to the web server and risk import cycles). Mirrors the
- * `claudePtyMirror` singleton pattern.
+ * `providerPtyMirror` singleton pattern.
  *
  * Used by the Claude provider's AskUserQuestion handling: when the web
  * interface is in use, the interactive-prompt modal (which auto-drives Claude's

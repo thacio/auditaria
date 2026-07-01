@@ -1,14 +1,30 @@
-// AUDITARIA_COPILOT_PROVIDER: ACP-based driver for GitHub Copilot CLI
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-import { spawn, type ChildProcess } from 'child_process';
-import { createInterface, type Interface as ReadlineInterface } from 'readline';
-import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
+import { spawn, type ChildProcess } from 'node:child_process';
+import {
+  createInterface,
+  type Interface as ReadlineInterface,
+} from 'node:readline';
+import {
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  existsSync,
+  unlinkSync,
+} from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { ProviderDriver, ProviderEvent } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { killProcessGroup } from '../../utils/process-utils.js';
-import { trackChildProcess, untrackChildProcess } from '../../utils/child-process-tracker.js';
+import {
+  trackChildProcess,
+  untrackChildProcess,
+} from '../../utils/child-process-tracker.js';
 import { coreEvents } from '../../utils/events.js'; // AUDITARIA_COPILOT_PROVIDER: signal UI refresh on usage update
 import type {
   JsonRpcResponse,
@@ -21,10 +37,15 @@ import type {
   CopilotModelInfo,
   AcpAvailableModel,
 } from './types.js';
+import { injectAgentsMd, buildMcpConfigArg } from './shared.js'; // AUDITARIA_COPILOT_PROVIDER: shared with the PTY driver
 
 const DEBUG = false;
 function dbg(...args: unknown[]) {
   if (DEBUG) console.log('[COPILOT_DRIVER]', ...args); // eslint-disable-line no-console
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 // ---------------------------------------------------------------------------
@@ -42,8 +63,11 @@ function loadModelsCacheFromDisk(): CopilotModelInfo[] {
   cachedModels = [];
   try {
     if (existsSync(MODELS_CACHE_FILE)) {
-      const data = JSON.parse(readFileSync(MODELS_CACHE_FILE, 'utf-8'));
+      const data: unknown = JSON.parse(
+        readFileSync(MODELS_CACHE_FILE, 'utf-8'),
+      );
       if (Array.isArray(data)) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- own cache file, written by saveModelsCacheToDisk with this exact shape
         cachedModels = data as CopilotModelInfo[];
         dbg('loaded models cache from disk', cachedModels.length, 'entries');
       }
@@ -124,7 +148,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     prompt: string,
     signal: AbortSignal,
     systemContext?: string,
-    attachmentFiles?: import('../types.js').AttachmentFile[], // AUDITARIA_ATTACHMENTS: ACP image support
+    attachmentFiles?: Array<import('../types.js').AttachmentFile>, // AUDITARIA_ATTACHMENTS: ACP image support
   ): AsyncGenerator<ProviderEvent> {
     // Ensure subprocess is running and initialized
     if (!this.initialized) {
@@ -133,10 +157,14 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     // Inject system context into AGENTS.md (Copilot's custom instructions file)
     if (systemContext) {
-      this.injectAgentsMd(systemContext);
+      injectAgentsMd(this.config.cwd, systemContext);
     }
 
-    dbg('sendMessage', { promptLen: prompt.length, hasSystemContext: !!systemContext, sessionId: this.sessionId });
+    dbg('sendMessage', {
+      promptLen: prompt.length,
+      hasSystemContext: !!systemContext,
+      sessionId: this.sessionId,
+    });
 
     // Build prompt content array (ACP format: {type:'text', text:...}, {type:'image', data:..., mimeType:...})
     const promptContent: Array<Record<string, unknown>> = [];
@@ -146,7 +174,11 @@ export class CopilotCLIDriver implements ProviderDriver {
     if (attachmentFiles?.length) {
       for (const f of attachmentFiles) {
         if (f.data) {
-          promptContent.push({ type: 'image', data: f.data, mimeType: f.mimeType });
+          promptContent.push({
+            type: 'image',
+            data: f.data,
+            mimeType: f.mimeType,
+          });
         }
       }
       dbg(`added ${attachmentFiles.length} image content blocks to prompt`);
@@ -206,7 +238,9 @@ export class CopilotCLIDriver implements ProviderDriver {
       });
 
       // Wait for the prompt response in the background
-      this.pendingRequests.get(promptRequestId)!.resolve = (result: unknown) => {
+      this.pendingRequests.get(promptRequestId)!.resolve = (
+        result: unknown,
+      ) => {
         dbg('prompt completed', result);
         // AUDITARIA_COPILOT_PROVIDER: synthesize Compacted (+CompactionSummary if
         // any agent text was streamed) before Finished so compactNative can
@@ -279,7 +313,9 @@ export class CopilotCLIDriver implements ProviderDriver {
   // AUDITARIA_SESSION_MANAGEMENT_START: Session resume via ACP session/load
   private resumeSessionId?: string;
 
-  setSessionId(id: string): void { this.resumeSessionId = id; }
+  setSessionId(id: string): void {
+    this.resumeSessionId = id;
+  }
   readonly canResume = true;
   // AUDITARIA_SESSION_MANAGEMENT_END
 
@@ -296,7 +332,11 @@ export class CopilotCLIDriver implements ProviderDriver {
     this.disposeSubprocess();
     // this._removeAgentsMdSection(); // Not worth the extra write — inject handles stale content
     if (this.currentPromptFilePath) {
-      try { unlinkSync(this.currentPromptFilePath); } catch { /* ignore */ }
+      try {
+        unlinkSync(this.currentPromptFilePath);
+      } catch {
+        /* ignore */
+      }
       this.currentPromptFilePath = null;
     }
   }
@@ -319,7 +359,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     // Build spawn args: copilot --acp --stdio --allow-all [--additional-mcp-config @filepath]
     // --allow-all bypasses permission prompts (like Claude's --dangerously-skip-permissions)
     const args = ['--acp', '--stdio', '--allow-all'];
-    const mcpArg = this.buildMcpConfigArg();
+    const mcpArg = buildMcpConfigArg(this.config);
     if (mcpArg) {
       args.push('--additional-mcp-config', mcpArg);
     }
@@ -342,7 +382,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     });
 
     // Set up NDJSON readline on stdout
-    this.readline = createInterface({ input: proc.stdout! });
+    this.readline = createInterface({ input: proc.stdout });
     this.readline.on('line', (line: string) => {
       this.handleLine(line);
     });
@@ -365,13 +405,16 @@ export class CopilotCLIDriver implements ProviderDriver {
     });
 
     // 1. Send initialize (requires protocolVersion)
-    const initResult = await this.sendRequestAsync<AcpInitializeResult>('initialize', {
-      protocolVersion: 1,
-      clientInfo: {
-        name: 'auditaria-cli',
-        version: '1.0.0',
+    const initResult = await this.sendRequestAsync<AcpInitializeResult>(
+      'initialize',
+      {
+        protocolVersion: 1,
+        clientInfo: {
+          name: 'auditaria-cli',
+          version: '1.0.0',
+        },
       },
-    });
+    );
     dbg('initialize result', initResult);
 
     // AUDITARIA_SESSION_MANAGEMENT_START: Resume existing session or create new
@@ -387,17 +430,22 @@ export class CopilotCLIDriver implements ProviderDriver {
       dbg('session/load result', { sessionId: this.sessionId });
     } else {
       // 2. Send session/new (requires cwd + mcpServers)
-      const newSessionResult = await this.sendRequestAsync<AcpNewSessionResult>('session/new', {
-        cwd: this.config.cwd,
-        mcpServers: [],
-      });
+      const newSessionResult = await this.sendRequestAsync<AcpNewSessionResult>(
+        'session/new',
+        {
+          cwd: this.config.cwd,
+          mcpServers: [],
+        },
+      );
       this.sessionId = newSessionResult.sessionId;
       dbg('session/new result', { sessionId: this.sessionId });
 
       // 3. Parse available models from models.availableModels
       if (newSessionResult.models?.availableModels) {
-        this.parseModelsFromResult(newSessionResult.models.availableModels,
-          newSessionResult.models.currentModelId);
+        this.parseModelsFromResult(
+          newSessionResult.models.availableModels,
+          newSessionResult.models.currentModelId,
+        );
       }
     }
     // AUDITARIA_SESSION_MANAGEMENT_END
@@ -408,7 +456,10 @@ export class CopilotCLIDriver implements ProviderDriver {
     }
 
     this.initialized = true;
-    dbg('initialized', { sessionId: this.sessionId, modelCount: this.availableModels.length });
+    dbg('initialized', {
+      sessionId: this.sessionId,
+      modelCount: this.availableModels.length,
+    });
   }
 
   private disposeSubprocess(): void {
@@ -417,7 +468,7 @@ export class CopilotCLIDriver implements ProviderDriver {
       this.readline = null;
     }
     if (this.proc?.pid) {
-      killProcessGroup({ pid: this.proc.pid, escalate: true });
+      void killProcessGroup({ pid: this.proc.pid, escalate: true });
       untrackChildProcess(this.proc.pid);
     }
     this.proc = null;
@@ -459,6 +510,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     return new Promise<T>((resolve, reject) => {
       this.pendingRequests.set(id, {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- JSON-RPC result shape is guaranteed by the method contract each caller requests
         resolve: (result) => resolve(result as T),
         reject,
       });
@@ -478,7 +530,12 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     let msg: Record<string, unknown>;
     try {
-      msg = JSON.parse(line) as Record<string, unknown>;
+      const parsed: unknown = JSON.parse(line);
+      if (!isRecord(parsed)) {
+        dbg('non-object JSON line:', line.slice(0, 200));
+        return;
+      }
+      msg = parsed;
     } catch {
       dbg('invalid JSON line:', line.slice(0, 200));
       return;
@@ -486,12 +543,17 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     // Check if it's a response (has `id` and no `method`)
     if ('id' in msg && typeof msg.id === 'number' && !('method' in msg)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape guarded by the id/method checks above; fields accessed defensively
       const response = msg as unknown as JsonRpcResponse;
       const pending = this.pendingRequests.get(response.id);
       if (pending) {
         this.pendingRequests.delete(response.id);
         if (response.error) {
-          pending.reject(new Error(`RPC error: ${response.error.message} (code: ${response.error.code})`));
+          pending.reject(
+            new Error(
+              `RPC error: ${response.error.message} (code: ${response.error.code})`,
+            ),
+          );
         } else {
           pending.resolve(response.result);
         }
@@ -501,6 +563,7 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     // Check if it's a notification (has `method`, no `id`)
     if ('method' in msg && typeof msg.method === 'string' && !('id' in msg)) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape guarded by the method/id checks above
       const notification = msg as unknown as JsonRpcNotification;
       dbg('<<< notification', notification.method);
 
@@ -513,7 +576,10 @@ export class CopilotCLIDriver implements ProviderDriver {
 
     // It's a request from the agent (e.g., fs/read_text_file, session/request_permission)
     if ('id' in msg && 'method' in msg) {
-      this.handleAgentRequest(msg as unknown as { id: number; method: string; params: unknown });
+      this.handleAgentRequest(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape guarded by the id/method checks above; params handled per-method
+        msg as unknown as { id: number; method: string; params: unknown },
+      );
     }
   }
 
@@ -534,6 +600,7 @@ export class CopilotCLIDriver implements ProviderDriver {
   private handleNotification(method: string, params: unknown): ProviderEvent[] {
     if (method !== 'session/update') return [];
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ACP session/update contract; all fields are accessed defensively below
     const typedParams = params as AcpSessionUpdateParams;
     const update: AcpSessionUpdate = typedParams?.update;
     if (!update) return [];
@@ -610,7 +677,11 @@ export class CopilotCLIDriver implements ProviderDriver {
   // Agent-initiated requests (fs/read, fs/write, permission)
   // ---------------------------------------------------------------------------
 
-  private handleAgentRequest(request: { id: number; method: string; params: unknown }): void {
+  private handleAgentRequest(request: {
+    id: number;
+    method: string;
+    params: unknown;
+  }): void {
     dbg('agent request', request.method, request.id);
 
     switch (request.method) {
@@ -621,13 +692,19 @@ export class CopilotCLIDriver implements ProviderDriver {
       }
       case 'fs/read_text_file': {
         // Read file and respond
-        const params = request.params as { path?: string } | undefined;
-        if (params?.path) {
+        const params = isRecord(request.params) ? request.params : undefined;
+        const path =
+          typeof params?.['path'] === 'string' ? params['path'] : undefined;
+        if (path) {
           try {
-            const content = readFileSync(params.path, 'utf-8');
+            const content = readFileSync(path, 'utf-8');
             this.sendResponse(request.id, { content });
           } catch (e) {
-            this.sendErrorResponse(request.id, -1, `Failed to read file: ${(e as Error).message}`);
+            this.sendErrorResponse(
+              request.id,
+              -1,
+              `Failed to read file: ${e instanceof Error ? e.message : String(e)}`,
+            );
           }
         } else {
           this.sendErrorResponse(request.id, -1, 'Missing path parameter');
@@ -635,22 +712,40 @@ export class CopilotCLIDriver implements ProviderDriver {
         break;
       }
       case 'fs/write_text_file': {
-        const params = request.params as { path?: string; content?: string } | undefined;
-        if (params?.path && params.content !== undefined) {
+        const params = isRecord(request.params) ? request.params : undefined;
+        const path =
+          typeof params?.['path'] === 'string' ? params['path'] : undefined;
+        const content =
+          typeof params?.['content'] === 'string'
+            ? params['content']
+            : undefined;
+        if (path && content !== undefined) {
           try {
-            writeFileSync(params.path, params.content);
+            writeFileSync(path, content);
             this.sendResponse(request.id, {});
           } catch (e) {
-            this.sendErrorResponse(request.id, -1, `Failed to write file: ${(e as Error).message}`);
+            this.sendErrorResponse(
+              request.id,
+              -1,
+              `Failed to write file: ${e instanceof Error ? e.message : String(e)}`,
+            );
           }
         } else {
-          this.sendErrorResponse(request.id, -1, 'Missing path or content parameter');
+          this.sendErrorResponse(
+            request.id,
+            -1,
+            'Missing path or content parameter',
+          );
         }
         break;
       }
       default:
         // Unknown method — respond with "not supported" error
-        this.sendErrorResponse(request.id, -32601, `Method not found: ${request.method}`);
+        this.sendErrorResponse(
+          request.id,
+          -32601,
+          `Method not found: ${request.method}`,
+        );
         break;
     }
   }
@@ -669,7 +764,10 @@ export class CopilotCLIDriver implements ProviderDriver {
   // Model discovery & switching
   // ---------------------------------------------------------------------------
 
-  private parseModelsFromResult(models: AcpAvailableModel[], currentModelId?: string): void {
+  private parseModelsFromResult(
+    models: AcpAvailableModel[],
+    currentModelId?: string,
+  ): void {
     const parsed: CopilotModelInfo[] = [];
 
     // Auto option first
@@ -708,7 +806,12 @@ export class CopilotCLIDriver implements ProviderDriver {
     }
 
     this.availableModels = parsed;
-    dbg('parsed models', this.availableModels.map((m) => `${m.value}${m.copilotUsage ? ` (${m.copilotUsage})` : ''}`));
+    dbg(
+      'parsed models',
+      this.availableModels.map(
+        (m) => `${m.value}${m.copilotUsage ? ` (${m.copilotUsage})` : ''}`,
+      ),
+    );
   }
 
   private async setModel(modelValue: string): Promise<void> {
@@ -745,155 +848,6 @@ export class CopilotCLIDriver implements ProviderDriver {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // System context injection via AGENTS.md
-  // Copilot reads AGENTS.md as custom instructions. We inject/update a marked
-  // section with our system context (audit context, memory, skills).
-  // ---------------------------------------------------------------------------
-
-  private static readonly AGENTS_MD_START = '##### AUDITARIA SYSTEM PROMPT CONTEXT';
-  private static readonly AGENTS_MD_END = '##### END OF AUDITARIA SYSTEM PROMPT CONTEXT';
-
-  private getAgentsMdPath(): string {
-    return join(this.config.cwd, 'AGENTS.md');
-  }
-
-  /**
-   * Inject or update our marked section in AGENTS.md.
-   * - If file doesn't exist → create with just our section
-   * - If markers exist → replace content between them (only if changed)
-   * - If no markers → append section at end
-   */
-  private injectAgentsMd(systemContext: string): void {
-    const filePath = this.getAgentsMdPath();
-    const startMarker = CopilotCLIDriver.AGENTS_MD_START;
-    const endMarker = CopilotCLIDriver.AGENTS_MD_END;
-
-    try {
-      let existing = '';
-      try {
-        existing = readFileSync(filePath, 'utf-8');
-      } catch {
-        // File doesn't exist — will create
-      }
-
-      const startIdx = existing.indexOf(startMarker);
-      const endIdx = existing.indexOf(endMarker);
-
-      // If markers exist, extract current content and compare
-      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-        const currentContent = existing.slice(startIdx + startMarker.length + 1, endIdx - 1); // strip \n around content
-        if (currentContent === systemContext) return; // Already up to date
-
-        // Replace existing section
-        const before = existing.slice(0, startIdx);
-        const after = existing.slice(endIdx + endMarker.length);
-        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
-        writeFileSync(filePath, before + section + after, 'utf-8');
-      } else if (existing.trim()) {
-        // Append to existing file
-        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
-        writeFileSync(filePath, existing.trimEnd() + '\n\n' + section + '\n', 'utf-8');
-      } else {
-        // New file
-        const section = `${startMarker}\n${systemContext}\n${endMarker}`;
-        writeFileSync(filePath, section + '\n', 'utf-8');
-      }
-
-      dbg('AGENTS.md updated');
-    } catch (e) {
-      dbg('AGENTS.md injection failed', e);
-    }
-  }
-
-  /** Remove our marked section from AGENTS.md on dispose. */
-  private _removeAgentsMdSection(): void {
-    try {
-      const filePath = this.getAgentsMdPath();
-      const existing = readFileSync(filePath, 'utf-8');
-
-      const startIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_START);
-      const endIdx = existing.indexOf(CopilotCLIDriver.AGENTS_MD_END);
-      if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return;
-
-      const before = existing.slice(0, startIdx);
-      const after = existing.slice(endIdx + CopilotCLIDriver.AGENTS_MD_END.length);
-      const cleaned = (before + after).replace(/\n{3,}/g, '\n\n').trim();
-
-      if (cleaned) {
-        writeFileSync(filePath, cleaned + '\n', 'utf-8');
-      } else {
-        // File was only our section — delete it
-        unlinkSync(filePath);
-      }
-      dbg('AGENTS.md cleaned up');
-    } catch {
-      // Best-effort cleanup (file may not exist)
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // MCP config via --additional-mcp-config @filepath
-  // Writes JSON to ~/.auditaria/copilot-mcp-{port}.json, passes @path to CLI.
-  // Port in filename prevents conflicts between parallel Auditaria instances.
-  // (PowerShell mangles raw JSON in args, so @filepath is required on Windows.)
-  // ---------------------------------------------------------------------------
-
-  private buildMcpConfigArg(): string | undefined {
-    const hasBridge = this.config.toolBridgePort && this.config.toolBridgeScript;
-    if (!hasBridge) return undefined;
-
-    const nodePath = process.execPath;
-    const scriptPath = this.config.toolBridgeScript!;
-    const port = this.config.toolBridgePort!;
-
-    const bridgeArgs = [scriptPath, '--port', String(port)];
-    if (this.config.toolBridgeExclude?.length) {
-      for (const name of this.config.toolBridgeExclude) {
-        bridgeArgs.push('--exclude', name);
-      }
-    }
-
-    const mcpConfig = {
-      mcpServers: {
-        auditaria_tools: {
-          command: nodePath,
-          args: bridgeArgs,
-        },
-      },
-    };
-
-      // Write to file only if content changed, return @filepath reference
-    // Include port in filename so parallel Auditaria instances don't conflict
-    const dir = join(homedir(), '.auditaria');
-    const filePath = join(dir, `copilot-mcp-${port}.json`);
-    const newContent = JSON.stringify(mcpConfig, null, 2);
-
-    let needsWrite = true;
-    try {
-      if (existsSync(filePath) && readFileSync(filePath, 'utf-8') === newContent) {
-        needsWrite = false;
-      }
-    } catch { /* missing or unreadable — write */ }
-
-    if (needsWrite) {
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(filePath, newContent);
-      dbg('MCP config written', { filePath });
-    }
-    return `@${filePath}`;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Utilities
-  // ---------------------------------------------------------------------------
-
-  private tryParseJson(text: string): Record<string, unknown> {
-    try {
-      const parsed = JSON.parse(text);
-      return typeof parsed === 'object' && parsed !== null ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
+  // AUDITARIA_COPILOT_PROVIDER: AGENTS.md injection and the MCP bridge
+  // config file moved to shared.ts (shared with copilotPtyDriver).
 }

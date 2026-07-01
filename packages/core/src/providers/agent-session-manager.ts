@@ -262,6 +262,9 @@ export class AgentSessionManager {
           toolBridgeScript: this.bridgeScriptPath,
           toolBridgeExclude: excludeTools.length > 0 ? excludeTools : undefined,
           promptFileId: sessionId,
+          // AUDITARIA_PROVIDER_TERMINAL: sub-agents are headless — keep their
+          // PTYs off the web-terminal mirror (would hijack the main session's).
+          mirrorPty: false,
         });
         break;
       }

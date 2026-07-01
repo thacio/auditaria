@@ -672,7 +672,11 @@ export class ProviderManager {
     return (
       this.config?.type === 'codex-cli' ||
       this.config?.type === 'claude-cli' ||
-      this.config?.type === 'copilot-cli'
+      // AUDITARIA_PROVIDER_TERMINAL: only the ACP driver can feed inline
+      // images; the default interactive PTY driver types prompts into the
+      // TUI and can't attach binaries.
+      (this.config?.type === 'copilot-cli' &&
+        process.env['AUDITARIA_COPILOT_ACP'] === '1')
     );
   }
 
@@ -1195,6 +1199,10 @@ export class ProviderManager {
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
       toolBridgeScript: this.bridgeScriptPath,
       reasoningEffort: getCodexReasoningEffort(this.config),
+      // AUDITARIA_PROVIDER_TERMINAL: standalone drivers (Teams per-thread
+      // sessions) are headless — never mirror their PTYs to the web terminal
+      // (multiple threads would fight over the single mirror).
+      mirrorPty: false,
       // AUDITARIA_TOOL_RESTRICTION: Block Claude native tools when policy has global deny
       ...(this.config.type === 'claude-cli' && hasGlobalDeny
         ? { disallowedTools: CLAUDE_NATIVE_TOOLS }
@@ -1211,6 +1219,8 @@ export class ProviderManager {
         return new CodexCLIDriver(driverConfig);
       }
       case 'copilot-cli': {
+        // AUDITARIA_PROVIDER_TERMINAL: headless contexts keep the ACP driver
+        // (structured protocol, inline image support, no PTY needed).
         const { CopilotCLIDriver } = await import(
           './copilot/copilotCLIDriver.js'
         );
@@ -1347,10 +1357,21 @@ export class ProviderManager {
       // AUDITARIA_CODEX_PROVIDER_END
       // AUDITARIA_COPILOT_PROVIDER_START
       case 'copilot-cli': {
-        const { CopilotCLIDriver } = await import(
-          './copilot/copilotCLIDriver.js'
-        );
-        this.driver = new CopilotCLIDriver(driverConfig);
+        // AUDITARIA_PROVIDER_TERMINAL: the main session drives the real
+        // Copilot TUI in a PTY (live web-terminal mirror, TUI slash
+        // commands, background turn surfacing). AUDITARIA_COPILOT_ACP=1
+        // falls back to the headless agent-to-agent (ACP) driver.
+        if (process.env['AUDITARIA_COPILOT_ACP'] === '1') {
+          const { CopilotCLIDriver } = await import(
+            './copilot/copilotCLIDriver.js'
+          );
+          this.driver = new CopilotCLIDriver(driverConfig);
+        } else {
+          const { CopilotPtyDriver } = await import(
+            './copilot/copilotPtyDriver.js'
+          );
+          this.driver = new CopilotPtyDriver(driverConfig);
+        }
         break;
       }
       // AUDITARIA_COPILOT_PROVIDER_END

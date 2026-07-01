@@ -58,7 +58,7 @@ import { ProviderEventType } from '../types.js';
 import { ClaudeSessionManager } from './claudeSessionManager.js';
 import type { ClaudeContentBlock, ClaudeDriverConfig } from './types.js';
 import { PtyWriteQueue } from './interactivePromptSupport.js'; // AUDITARIA_CLAUDE_PROVIDER
-import { claudePtyMirror } from './claudePtyMirror.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { providerPtyMirror } from '../terminal/ptyMirror.js'; // AUDITARIA_PROVIDER_TERMINAL: shared web-terminal mirror bus
 import { getClaudeProjectDirHash } from './claudeSessionBrowser.js'; // AUDITARIA_CLAUDE_PROVIDER
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
@@ -366,7 +366,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
         '— killing PTY so next sendMessage respawns with --resume',
       );
       this.killPty();
-      // killPty calls claudePtyMirror.setInactive and pty.kill. The
+      // killPty calls providerPtyMirror.setInactive and pty.kill. The
       // ptyExited flag will flip in pty.onExit; ensurePtySpawned will
       // see activePty alive-but-exited and clean up + respawn.
     }
@@ -759,20 +759,26 @@ export class ClaudeCLIDriver implements ProviderDriver {
           this.recentPtyOutput.length - RECENT_MAX,
         );
       }
-      claudePtyMirror.emitData(data);
+      // AUDITARIA_PROVIDER_TERMINAL: source-guarded + suppressible for
+      // headless drivers (sub-agent sessions, Teams threads).
+      if (this.config.mirrorPty !== false) {
+        providerPtyMirror.emitData(this, data);
+      }
       if (DEBUG) {
         const stripped = stripAnsi(data).replace(/\r?\n/g, '\\n');
         dbg('pty raw:', stripped.slice(0, 200));
       }
     });
 
-    claudePtyMirror.setActive(this);
+    if (this.config.mirrorPty !== false) {
+      providerPtyMirror.setActive(this, 'Claude Code');
+    }
 
     pty.onExit((e) => {
       this.ptyExited = true;
       this.ptyExitCode = e.exitCode ?? 0;
       dbg('pty exit', e);
-      claudePtyMirror.setInactive(this);
+      providerPtyMirror.setInactive(this);
     });
 
     // First-call: wait for SessionStart hook (handles trust dialog inline).
@@ -1241,7 +1247,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
     // AUDITARIA_CLAUDE_PROVIDER: Ensure the mirror sees the death even if
     // onExit doesn't fire promptly (kill path races onExit on Windows).
-    claudePtyMirror.setInactive(this);
+    providerPtyMirror.setInactive(this);
   }
 
   private typePromptIntoPty(pty: MinimalPty, prompt: string): void {
@@ -1259,7 +1265,7 @@ export class ClaudeCLIDriver implements ProviderDriver {
   }
 
   // AUDITARIA_CLAUDE_PROVIDER: Public PTY input entry-point used by the
-  // claudePtyMirror to forward web-terminal keystrokes. Uses the
+  // providerPtyMirror to forward web-terminal keystrokes. Uses the
   // 'web-typist' queue priority so it never preempts a typePromptIntoPty
   // burst or a system-level response keystroke.
   async writeRawInput(bytes: string): Promise<void> {

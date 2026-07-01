@@ -3,7 +3,10 @@
  * Copyright 2026 Thacio
  * SPDX-License-Identifier: Apache-2.0
  *
- * AUDITARIA_CLAUDE_PROVIDER: Live xterm.js mirror of the Claude PTY.
+ * AUDITARIA_PROVIDER_TERMINAL: Live xterm.js mirror of the active provider's
+ * PTY (Claude Code, GitHub Copilot, …). The server says which provider owns
+ * the terminal via the `label` field on provider_pty_state; everything else
+ * is provider-agnostic raw bytes.
  *
  * Three display modes, user-driven via the bottom-right ">_" button and
  * the in-header buttons. None of the modes block the chat behind them.
@@ -43,13 +46,17 @@ const PIP_MIN_HEIGHT = 180;
 const PIP_DEFAULT_X = 24;
 const PIP_DEFAULT_Y = 24;
 
-// AUDITARIA_CLAUDE_PROVIDER: persist a tiny blob of viewer state across
+// AUDITARIA_PROVIDER_TERMINAL: persist a tiny blob of viewer state across
 // page reloads so the user doesn't have to re-toggle the terminal and
 // re-position the PiP every time they refresh.
-const STORAGE_KEY = 'auditaria.claudePtyViewer.v1';
+const STORAGE_KEY = 'auditaria.providerTerminalViewer.v1';
+// Pre-rename key — read once as a fallback so users keep their layout.
+const LEGACY_STORAGE_KEY = 'auditaria.claudePtyViewer.v1';
 function loadViewerState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ||
+      localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
@@ -83,28 +90,28 @@ function injectXtermScrollbarStyle() {
   scrollbarStyleInjected = true;
   const style = document.createElement('style');
   style.textContent = `
-    .claude-pty-panel .xterm-viewport {
+    .provider-pty-panel .xterm-viewport {
       scrollbar-width: thin;
       scrollbar-color: #555 #1e1e1e;
     }
-    .claude-pty-panel .xterm-viewport::-webkit-scrollbar {
+    .provider-pty-panel .xterm-viewport::-webkit-scrollbar {
       width: 10px;
     }
-    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-track {
+    .provider-pty-panel .xterm-viewport::-webkit-scrollbar-track {
       background: #1e1e1e;
     }
-    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-thumb {
+    .provider-pty-panel .xterm-viewport::-webkit-scrollbar-thumb {
       background: #555;
       border-radius: 5px;
     }
-    .claude-pty-panel .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    .provider-pty-panel .xterm-viewport::-webkit-scrollbar-thumb:hover {
       background: #777;
     }
   `;
   document.head.appendChild(style);
 }
 
-export class ClaudePtyViewer {
+export class ProviderTerminalViewer {
   constructor(wsManager) {
     this.wsManager = wsManager;
     this.toggleButton = null;
@@ -116,6 +123,10 @@ export class ClaudePtyViewer {
     this.expandBtn = null;
     this.closeBtn = null;
     this.activeDot = null;
+    // AUDITARIA_PROVIDER_TERMINAL: provider display name from
+    // provider_pty_state ("Claude Code", "GitHub Copilot", …).
+    this.titleEl = null;
+    this.providerLabel = '';
     this.term = null;
     this.fitAddon = null;
     this.searchAddon = null;
@@ -188,8 +199,8 @@ export class ClaudePtyViewer {
 
   initializeToggleButton() {
     const btn = document.createElement('button');
-    btn.className = 'claude-pty-toggle';
-    btn.title = 'Toggle Claude terminal (>_)';
+    btn.className = 'provider-pty-toggle';
+    btn.title = 'Toggle provider terminal (>_)';
     btn.style.cssText = `
       position: fixed;
       bottom: 16px;
@@ -223,7 +234,7 @@ export class ClaudePtyViewer {
     btn.addEventListener('click', () => this.toggle());
 
     const dot = document.createElement('span');
-    dot.className = 'claude-pty-active-dot';
+    dot.className = 'provider-pty-active-dot';
     dot.style.cssText = `
       position: absolute;
       top: 4px;
@@ -246,7 +257,7 @@ export class ClaudePtyViewer {
 
   initializeBackdrop() {
     this.backdrop = document.createElement('div');
-    this.backdrop.className = 'claude-pty-backdrop';
+    this.backdrop.className = 'provider-pty-backdrop';
     // pointer-events: none so the chat input behind it stays usable in
     // modal mode. The user closes the panel via the explicit Close button.
     this.backdrop.style.cssText = `
@@ -264,7 +275,7 @@ export class ClaudePtyViewer {
 
   initializePanel() {
     this.panel = document.createElement('div');
-    this.panel.className = 'claude-pty-panel';
+    this.panel.className = 'provider-pty-panel';
     this.panel.style.cssText = `
       position: fixed;
       background: ${MIRROR_BG};
@@ -277,7 +288,7 @@ export class ClaudePtyViewer {
     `;
 
     this.header = document.createElement('div');
-    this.header.className = 'claude-pty-header';
+    this.header.className = 'provider-pty-header';
     this.header.style.cssText = `
       display: flex;
       align-items: center;
@@ -291,9 +302,9 @@ export class ClaudePtyViewer {
       flex: 0 0 auto;
     `;
     this.header.innerHTML = `
-      <span style="font-weight: 600;">Claude Terminal</span>
+      <span class="cpy-title" style="font-weight: 600;">Provider Terminal</span>
       <span class="cpy-hint" style="opacity: 0.6; font-size: 11px;">
-        keystrokes go directly to the Claude PTY
+        keystrokes go directly to the provider's terminal
       </span>
       <div style="display: flex; gap: 6px;">
         <button class="cpy-btn cpy-pip" style="
@@ -328,7 +339,7 @@ export class ClaudePtyViewer {
     `;
 
     this.containerElement = document.createElement('div');
-    this.containerElement.className = 'claude-pty-body';
+    this.containerElement.className = 'provider-pty-body';
     // overflow: hidden is correct here — xterm renders into a child
     // .xterm-viewport which has its own scroll handling (we styled its
     // scrollbar above so it's visible).
@@ -348,7 +359,7 @@ export class ClaudePtyViewer {
     // takes the keystroke and reveals it. Enter→findNext,
     // Shift+Enter→findPrevious, Esc→close.
     this.searchInput = document.createElement('input');
-    this.searchInput.className = 'claude-pty-search';
+    this.searchInput.className = 'provider-pty-search';
     this.searchInput.type = 'text';
     this.searchInput.placeholder =
       'search… (Enter=next, Shift+Enter=prev, Esc=close)';
@@ -390,6 +401,8 @@ export class ClaudePtyViewer {
     this.pipBtn = this.header.querySelector('.cpy-pip');
     this.expandBtn = this.header.querySelector('.cpy-expand');
     this.closeBtn = this.header.querySelector('.cpy-close');
+    this.titleEl = this.header.querySelector('.cpy-title');
+    this.applyProviderLabel();
 
     this.pipBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -586,7 +599,7 @@ export class ClaudePtyViewer {
    */
   initializeResizeHandle() {
     this.resizeHandle = document.createElement('div');
-    this.resizeHandle.className = 'claude-pty-resize-handle';
+    this.resizeHandle.className = 'provider-pty-resize-handle';
     this.resizeHandle.title = 'Drag to resize';
     this.resizeHandle.style.cssText = `
       position: absolute;
@@ -697,7 +710,7 @@ export class ClaudePtyViewer {
     // dropped on the floor.
     this.term.onData((data) => {
       this.wsManager.send({
-        type: 'claude_pty_input',
+        type: 'provider_pty_input',
         bytes: encodeBytes(data),
       });
     });
@@ -716,7 +729,7 @@ export class ClaudePtyViewer {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         this.wsManager.send({
-          type: 'claude_pty_resize',
+          type: 'provider_pty_resize',
           cols,
           rows,
         });
@@ -737,7 +750,7 @@ export class ClaudePtyViewer {
       this.term.open(this.containerElement);
       this.termOpened = true;
     } catch (err) {
-      console.error('[ClaudePtyViewer] xterm.open failed:', err);
+      console.error('[ProviderTerminalViewer] xterm.open failed:', err);
       return;
     }
     try {
@@ -768,7 +781,7 @@ export class ClaudePtyViewer {
       this.webglAddon = webgl;
     } catch (err) {
       console.warn(
-        '[ClaudePtyViewer] WebGL unavailable, using DOM renderer:',
+        '[ProviderTerminalViewer] WebGL unavailable, using DOM renderer:',
         err && err.message ? err.message : err,
       );
     }
@@ -778,35 +791,52 @@ export class ClaudePtyViewer {
       try {
         this.term.write(this.pendingBytes);
       } catch (err) {
-        console.error('[ClaudePtyViewer] replay write failed:', err);
+        console.error('[ProviderTerminalViewer] replay write failed:', err);
       }
       this.pendingBytes = '';
     }
   }
 
+  // AUDITARIA_PROVIDER_TERMINAL: reflect the active provider's name in the
+  // panel title ("Claude Code Terminal", "GitHub Copilot Terminal", …).
+  applyProviderLabel() {
+    if (this.titleEl) {
+      this.titleEl.textContent = this.providerLabel
+        ? `${this.providerLabel} Terminal`
+        : 'Provider Terminal';
+    }
+  }
+
   bindWsEvents() {
-    this.wsManager.addEventListener('claude_pty_state', (e) => {
+    this.wsManager.addEventListener('provider_pty_state', (e) => {
       this.ptyActive = !!(e.detail && e.detail.active);
+      const label =
+        e.detail && typeof e.detail.label === 'string' ? e.detail.label : '';
+      if (this.ptyActive && label !== this.providerLabel) {
+        this.providerLabel = label;
+        this.applyProviderLabel();
+      }
       if (this.activeDot) {
         this.activeDot.style.display = this.ptyActive ? 'block' : 'none';
       }
     });
-    // AUDITARIA_CLAUDE_PROVIDER: server asks us to surface the terminal so the
-    // user can answer Claude's AskUserQuestion picker here (instead of a modal
-    // that fights this terminal for focus). Only open if currently hidden so we
-    // don't disrupt an existing modal/PiP layout the user already arranged.
-    this.wsManager.addEventListener('claude_pty_open', () => {
+    // AUDITARIA_PROVIDER_TERMINAL: server asks us to surface the terminal so
+    // the user can answer an interactive picker here (e.g. Claude's
+    // AskUserQuestion, instead of a modal that fights this terminal for
+    // focus). Only open if currently hidden so we don't disrupt an existing
+    // modal/PiP layout the user already arranged.
+    this.wsManager.addEventListener('provider_pty_open', () => {
       if (this.mode === 'hidden') {
         this.show();
       }
     });
-    this.wsManager.addEventListener('claude_pty_data', (e) => {
+    this.wsManager.addEventListener('provider_pty_data', (e) => {
       if (!e.detail || typeof e.detail.bytes !== 'string') return;
       let decoded = '';
       try {
         decoded = decodeBytes(e.detail.bytes);
       } catch (err) {
-        console.error('[ClaudePtyViewer] decode error:', err);
+        console.error('[ProviderTerminalViewer] decode error:', err);
         return;
       }
       // Always also keep a buffer copy so a *later* show() can replay
@@ -825,7 +855,7 @@ export class ClaudePtyViewer {
       try {
         this.term.write(decoded);
       } catch (err) {
-        console.error('[ClaudePtyViewer] write failed:', err);
+        console.error('[ProviderTerminalViewer] write failed:', err);
       }
     });
   }

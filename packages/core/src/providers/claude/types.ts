@@ -1,4 +1,8 @@
-// AUDITARIA_CLAUDE_PROVIDER: Claude-specific message types (SDK/CLI JSON format)
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 /** Content block types emitted by Claude SDK/CLI */
 export interface ClaudeTextBlock {
@@ -117,4 +121,8 @@ export interface ClaudeDriverConfig {
   toolBridgeScript?: string; // AUDITARIA_CLAUDE_PROVIDER: Path to the MCP bridge script
   toolBridgeExclude?: string[]; // AUDITARIA_AGENT_SESSION: Tools to exclude from MCP bridge
   promptFileId?: string; // AUDITARIA_AGENT_SESSION: Unique ID for isolated system prompt file (sub-agents only)
+  // AUDITARIA_PROVIDER_TERMINAL: false = do NOT mirror this driver's PTY to
+  // the web terminal (headless contexts: sub-agent sessions, Teams threads).
+  // Default (undefined) mirrors — main-session behavior.
+  mirrorPty?: boolean;
 }
