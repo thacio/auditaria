@@ -474,7 +474,8 @@ export class CopilotPtyDriver implements ProviderDriver {
       yield { type: ProviderEventType.Error, message: spawnError };
       return;
     }
-    const session = this.session!;
+    // `let`: the recovery ladder may respawn the PTY mid-turn (retry 3).
+    let session = this.session!;
 
     this.turnInFlight = true;
     try {
@@ -560,9 +561,16 @@ export class CopilotPtyDriver implements ProviderDriver {
               retryStage === 1 &&
               Date.now() - typedAt > PROMPT_RETRY_MS
             ) {
-              dbg('prompt not accepted — retry 2 (clear + retype)');
+              dbg('prompt not accepted — retry 2 (Esc + clear + retype)');
               retryStage = 2;
               typedAt = Date.now();
+              // Esc first: interacting with the mirrored terminal (clicks
+              // are forwarded as mouse events) can leave the TUI with focus
+              // trapped in a popup or an expanded tool-detail pane, where
+              // typed input goes nowhere. Esc closes it and refocuses the
+              // input box; Ctrl+U then clears any half-typed leftovers.
+              await session.writeSystem(ESC);
+              await new Promise<void>((r) => setTimeout(r, 250));
               await session.writeSystem(CTRL_U);
               await new Promise<void>((r) => setTimeout(r, 300));
               await session.typeSubmit(prompt);
@@ -570,21 +578,40 @@ export class CopilotPtyDriver implements ProviderDriver {
               retryStage === 2 &&
               Date.now() - typedAt > PROMPT_RETRY_MS
             ) {
-              const tail = session
-                .strippedOutput()
-                .split('\n')
-                .map((l) => l.trimEnd())
-                .filter((l) => l.trim().length > 0)
-                .slice(-6)
-                .join('\n');
+              dbg('prompt not accepted — retry 3 (respawn + retype)');
+              retryStage = 3;
+              // Nuclear option: the TUI is in a state keystrokes can't fix.
+              // Respawn resuming the SAME session (context intact on disk)
+              // and type the prompt once more into the fresh TUI.
+              session.kill();
+              const respawnErr = await this.ensureSpawned(signal);
+              if (respawnErr) {
+                yield {
+                  type: ProviderEventType.Error,
+                  message:
+                    'Copilot TUI stopped accepting input and the recovery ' +
+                    'respawn failed: ' +
+                    respawnErr,
+                };
+                return;
+              }
+              session = this.session!;
+              await session.typeSubmit(prompt);
+              // Clock starts AFTER the (slow) respawn, or the error branch
+              // below would fire before the fresh TUI had a chance.
+              typedAt = Date.now();
+            } else if (
+              retryStage === 3 &&
+              Date.now() - typedAt > PROMPT_RETRY_MS
+            ) {
               yield {
                 type: ProviderEventType.Error,
                 message:
                   'The Copilot TUI did not accept the prompt (no user.message ' +
-                  'event appeared). It may be showing a dialog or login ' +
-                  'screen — open the web terminal to check. Last terminal ' +
-                  'output:\n' +
-                  tail,
+                  'event appeared), even after a recovery respawn. It may be ' +
+                  'showing a dialog or login screen — open the web terminal ' +
+                  'to check. Last terminal output:\n' +
+                  this.ptyTail(session),
               };
               return;
             }
@@ -701,6 +728,13 @@ export class CopilotPtyDriver implements ProviderDriver {
 
   // ─── Spawn / readiness ────────────────────────────────────────────────
 
+  /** Compact tail of the stripped PTY output for error messages. Fullscreen
+   *  TUIs render with cursor moves rather than newlines, so a "last lines"
+   *  cut produces a useless megablob — use the last characters instead. */
+  private ptyTail(session: PtySession, chars = 400): string {
+    return session.strippedOutput().replace(/\s+/g, ' ').trim().slice(-chars);
+  }
+
   private eventsPath(): string | undefined {
     if (!this.sessionId) return undefined;
     return join(
@@ -787,13 +821,7 @@ export class CopilotPtyDriver implements ProviderDriver {
     while (Date.now() < deadline) {
       if (signal.aborted) return 'Aborted while waiting for the Copilot TUI.';
       if (session.hasExited()) {
-        const tail = session
-          .strippedOutput()
-          .split('\n')
-          .map((l) => l.trimEnd())
-          .filter((l) => l.trim().length > 0)
-          .slice(-6)
-          .join('\n');
+        const tail = this.ptyTail(session);
         return (
           `copilot exited during startup (code ${session.exitCode}). ` +
           'Check that the CLI is installed and authenticated (`copilot /login`).' +
