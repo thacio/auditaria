@@ -88,6 +88,15 @@ const TURN_SETTLE_MS = 1200;
 const PROMPT_CONFIRM_MS = 10_000;
 /** Ladder step for the clear-and-retype retry. */
 const PROMPT_RETRY_MS = 8_000;
+/** No echo of the typed prompt in PTY output after this → input was
+ *  swallowed (TUI churn / focus trap); recover fast instead of waiting. */
+const ECHO_WAIT_MS = 3_000;
+/** Echo-verified retype attempts per PTY life before the respawn escalation. */
+const MAX_TYPE_ATTEMPTS = 3;
+/** After the TUI footer renders, wait up to this long for the startup
+ *  notification burst (gh check, "MCP Servers reloaded") to land before
+ *  typing — input typed during that churn gets swallowed. */
+const STARTUP_CHURN_MAX_MS = 12_000;
 /** Slash commands may produce no events at all — finalize after this. */
 const SLASH_IDLE_DONE_MS = 20_000;
 /** A session.error with no completion following → fail the turn after this. */
@@ -503,13 +512,40 @@ export class CopilotPtyDriver implements ProviderDriver {
       if (signal.aborted && !aborted) onAbort();
 
       try {
-        dbg('typing prompt', { chars: prompt.length, isSlash });
-        await session.typeSubmit(prompt);
-
         const deadline = Date.now() + STOP_TIMEOUT_MS;
         let typedAt = Date.now();
-        let retryStage = 0;
         let lastGrowthAt = Date.now();
+        // Closed-loop typing state. The TUI can swallow typed input entirely
+        // (notification / instruction-reload churn, focus trapped in a popup
+        // or expanded pane after mouse interaction in the mirrored terminal).
+        // The input box ECHOES what actually reaches it, so we verify the
+        // echo in the PTY output and retype quickly instead of waiting blind.
+        let echoSeen = false;
+        let enterRetried = false;
+        let attempts = 0;
+        let respawnsUsed = 0;
+
+        const typeAttempt = async () => {
+          // Fresh output buffer so the echo check only sees post-type bytes
+          // (a prompt quoting on-screen text must not self-match).
+          session.clearRecentOutput();
+          dbg('typing prompt', { chars: prompt.length, isSlash, attempts });
+          await session.typeSubmit(prompt);
+          typedAt = Date.now();
+          echoSeen = false;
+          enterRetried = false;
+        };
+        const recoverAndRetype = async () => {
+          // Esc closes popups / expanded panes and refocuses the input box;
+          // Ctrl+U clears any half-typed leftovers before retyping.
+          await session.writeSystem(ESC);
+          await new Promise<void>((r) => setTimeout(r, 250));
+          await session.writeSystem(CTRL_U);
+          await new Promise<void>((r) => setTimeout(r, 250));
+          await typeAttempt();
+        };
+
+        await typeAttempt();
 
         while (Date.now() < deadline) {
           if (aborted || signal.aborted) {
@@ -549,71 +585,79 @@ export class CopilotPtyDriver implements ProviderDriver {
                 yield { type: ProviderEventType.Finished };
                 return;
               }
-            } else if (
-              retryStage === 0 &&
-              Date.now() - typedAt > PROMPT_CONFIRM_MS
-            ) {
-              dbg('prompt not accepted — retry 1 (Enter)');
-              retryStage = 1;
-              typedAt = Date.now();
-              await session.writeSystem('\r');
-            } else if (
-              retryStage === 1 &&
-              Date.now() - typedAt > PROMPT_RETRY_MS
-            ) {
-              dbg('prompt not accepted — retry 2 (Esc + clear + retype)');
-              retryStage = 2;
-              typedAt = Date.now();
-              // Esc first: interacting with the mirrored terminal (clicks
-              // are forwarded as mouse events) can leave the TUI with focus
-              // trapped in a popup or an expanded tool-detail pane, where
-              // typed input goes nowhere. Esc closes it and refocuses the
-              // input box; Ctrl+U then clears any half-typed leftovers.
-              await session.writeSystem(ESC);
-              await new Promise<void>((r) => setTimeout(r, 250));
-              await session.writeSystem(CTRL_U);
-              await new Promise<void>((r) => setTimeout(r, 300));
-              await session.typeSubmit(prompt);
-            } else if (
-              retryStage === 2 &&
-              Date.now() - typedAt > PROMPT_RETRY_MS
-            ) {
-              dbg('prompt not accepted — retry 3 (respawn + retype)');
-              retryStage = 3;
-              // Nuclear option: the TUI is in a state keystrokes can't fix.
-              // Respawn resuming the SAME session (context intact on disk)
-              // and type the prompt once more into the fresh TUI.
-              session.kill();
-              const respawnErr = await this.ensureSpawned(signal);
-              if (respawnErr) {
-                yield {
-                  type: ProviderEventType.Error,
-                  message:
-                    'Copilot TUI stopped accepting input and the recovery ' +
-                    'respawn failed: ' +
-                    respawnErr,
-                };
-                return;
+            } else {
+              if (!echoSeen && this.promptEchoVisible(session, prompt)) {
+                echoSeen = true;
+                dbg('prompt echo confirmed in PTY output');
               }
-              session = this.session!;
-              await session.typeSubmit(prompt);
-              // Clock starts AFTER the (slow) respawn, or the error branch
-              // below would fire before the fresh TUI had a chance.
-              typedAt = Date.now();
-            } else if (
-              retryStage === 3 &&
-              Date.now() - typedAt > PROMPT_RETRY_MS
-            ) {
-              yield {
-                type: ProviderEventType.Error,
-                message:
-                  'The Copilot TUI did not accept the prompt (no user.message ' +
-                  'event appeared), even after a recovery respawn. It may be ' +
-                  'showing a dialog or login screen — open the web terminal ' +
-                  'to check. Last terminal output:\n' +
-                  this.ptyTail(session),
-              };
-              return;
+              const sinceTyped = Date.now() - typedAt;
+              // Only interfere while nothing has happened since we typed —
+              // if events grew, the turn likely started and acceptance is
+              // on its way; an Esc now could cancel a live generation.
+              const noTurnActivity = lastGrowthAt <= typedAt;
+
+              const attemptFailed =
+                // Echo never appeared: input went nowhere (swallowed by
+                // churn / focus trap) — recover fast.
+                (!echoSeen && noTurnActivity && sinceTyped > ECHO_WAIT_MS) ||
+                // Echo present, Enter re-pressed, still no acceptance:
+                // something is eating the submit — full retype.
+                (echoSeen &&
+                  enterRetried &&
+                  noTurnActivity &&
+                  sinceTyped > PROMPT_CONFIRM_MS + PROMPT_RETRY_MS);
+
+              if (attemptFailed) {
+                attempts++;
+                if (attempts <= MAX_TYPE_ATTEMPTS) {
+                  dbg(`typing attempt failed — recovery retype #${attempts}`);
+                  await recoverAndRetype();
+                } else if (respawnsUsed === 0) {
+                  dbg('retypes exhausted — respawn + fresh attempt cycle');
+                  respawnsUsed = 1;
+                  attempts = 0;
+                  // Nuclear option: the TUI is in a state keystrokes can't
+                  // fix. Respawn resuming the SAME session (context intact
+                  // on disk); the echo-verified typing loop then gets a
+                  // full set of attempts against the fresh TUI.
+                  session.kill();
+                  const respawnErr = await this.ensureSpawned(signal);
+                  if (respawnErr) {
+                    yield {
+                      type: ProviderEventType.Error,
+                      message:
+                        'Copilot TUI stopped accepting input and the ' +
+                        'recovery respawn failed: ' +
+                        respawnErr,
+                    };
+                    return;
+                  }
+                  session = this.session!;
+                  await typeAttempt();
+                } else {
+                  yield {
+                    type: ProviderEventType.Error,
+                    message:
+                      'The Copilot TUI did not accept the prompt (no ' +
+                      'user.message event appeared), even after a recovery ' +
+                      'respawn. It may be showing a dialog or login screen — ' +
+                      'open the web terminal to check. Last terminal output:\n' +
+                      this.ptyTail(session),
+                  };
+                  return;
+                }
+              } else if (
+                echoSeen &&
+                !enterRetried &&
+                noTurnActivity &&
+                sinceTyped > PROMPT_CONFIRM_MS
+              ) {
+                // Text reached the input box but wasn't submitted — the CR
+                // was likely swallowed. Press Enter once before escalating.
+                dbg('echo present but no acceptance — pressing Enter');
+                enterRetried = true;
+                await session.writeSystem('\r');
+              }
             }
           }
 
@@ -735,6 +779,21 @@ export class CopilotPtyDriver implements ProviderDriver {
     return session.strippedOutput().replace(/\s+/g, ' ').trim().slice(-chars);
   }
 
+  /**
+   * Best-effort check that the typed prompt is echoed in the PTY output —
+   * the positive signal that the bytes reached the input box at all. Both
+   * sides are whitespace-compacted (the TUI wraps at the box width) and the
+   * needle is short (renders can interleave UI fragments between characters
+   * mid-typing; the trailing characters sit next to the cursor and render
+   * contiguously). Callers must clear the rolling buffer before typing so a
+   * prompt quoting on-screen text can't self-match.
+   */
+  private promptEchoVisible(session: PtySession, prompt: string): boolean {
+    const needle = prompt.replace(/\s+/g, '').slice(-12);
+    if (!needle) return true;
+    return session.strippedOutput().replace(/\s+/g, '').includes(needle);
+  }
+
   private eventsPath(): string | undefined {
     if (!this.sessionId) return undefined;
     return join(
@@ -848,6 +907,24 @@ export class CopilotPtyDriver implements ProviderDriver {
       // the input box exists. Resume replays history after that, so wait a
       // longer grace before typing on resume.
       if (stripped.includes('? help') || stripped.includes('/ commands')) {
+        // Startup notification burst (gh-not-installed check, "MCP Servers
+        // reloaded: N servers connected") lands AFTER the footer; a prompt
+        // typed during that churn is swallowed. When our MCP bridge is
+        // configured, the reload line is a reliable "burst done" marker —
+        // wait for it (bounded), then the usual grace.
+        if (this.config.toolBridgePort) {
+          const churnDeadline = Date.now() + STARTUP_CHURN_MAX_MS;
+          while (
+            Date.now() < churnDeadline &&
+            !signal.aborted &&
+            !session.hasExited() &&
+            !/MCP Servers reloaded|servers? connected/i.test(
+              session.strippedOutput(),
+            )
+          ) {
+            await new Promise<void>((r) => setTimeout(r, 200));
+          }
+        }
         await new Promise<void>((r) =>
           setTimeout(r, resume ? READY_GRACE_RESUME_MS : READY_GRACE_FRESH_MS),
         );
