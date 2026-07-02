@@ -110,7 +110,15 @@ const POLL_INTERVAL_MS = 100;
 const BACKGROUND_POLL_MS = 300;
 
 const ESC = '\x1b';
-const CTRL_U = '\x15';
+/**
+ * Focus-in report (mode 1004). The Copilot TUI enables focus reporting; the
+ * web-terminal viewer (xterm.js) therefore sends focus-out (ESC [O) whenever
+ * the user clicks from the mirrored terminal back to the chat input — and an
+ * "unfocused" Copilot input box IGNORES Enter (typed text accumulates,
+ * nothing submits; validated live). Asserting focus-in before every typed
+ * prompt neutralizes the stale focus-out. Harmless when already focused.
+ */
+const FOCUS_IN = '\x1b[I';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -526,6 +534,9 @@ export class CopilotPtyDriver implements ProviderDriver {
         let respawnsUsed = 0;
 
         const typeAttempt = async () => {
+          // Assert terminal focus first — a stale focus-out from the web
+          // viewer makes the input box ignore Enter (see FOCUS_IN).
+          await session.writeSystem(FOCUS_IN);
           // Fresh output buffer so the echo check only sees post-type bytes
           // (a prompt quoting on-screen text must not self-match).
           session.clearRecentOutput();
@@ -536,12 +547,13 @@ export class CopilotPtyDriver implements ProviderDriver {
           enterRetried = false;
         };
         const recoverAndRetype = async () => {
-          // Esc closes popups / expanded panes and refocuses the input box;
-          // Ctrl+U clears any half-typed leftovers before retyping.
+          // Copilot's input clears with DOUBLE-Esc (the first arms the
+          // "esc again to clear input" hint) — this also closes popups /
+          // expanded panes. Then retype with focus asserted.
           await session.writeSystem(ESC);
           await new Promise<void>((r) => setTimeout(r, 250));
-          await session.writeSystem(CTRL_U);
-          await new Promise<void>((r) => setTimeout(r, 250));
+          await session.writeSystem(ESC);
+          await new Promise<void>((r) => setTimeout(r, 300));
           await typeAttempt();
         };
 
