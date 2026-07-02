@@ -535,6 +535,15 @@ export class ProviderManager {
     return this.driver?.getSessionId?.();
   }
 
+  // AUDITARIA_PROVIDER_TERMINAL: Whether the active driver can answer
+  // InteractivePromptStart events programmatically (Claude drives its TUI
+  // picker via keystrokes). Drivers without it (Copilot's ask_user) rely on
+  // the user answering in the live terminal — the UI should route there
+  // instead of surfacing a modal whose answer would go nowhere.
+  canRespondToPrompts(): boolean {
+    return typeof this.driver?.respondToPrompt === 'function';
+  }
+
   // AUDITARIA_CLAUDE_PROVIDER: Forward a user's interactive-prompt response to
   // the active driver. The UI calls this after collecting the user's pick
   // from the modal surfaced by an InteractivePromptStart event.

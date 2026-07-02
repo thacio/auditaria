@@ -56,6 +56,7 @@ import type {
   ProviderDriver,
   ProviderEvent,
   AttachmentFile,
+  InteractivePromptOption,
 } from '../types.js';
 import { ProviderEventType } from '../types.js';
 import { PtySession } from '../terminal/ptySession.js';
@@ -156,6 +157,8 @@ export class CopilotTurnTracker {
   private modelEmitted = false;
   private lastAssistantHadToolRequests = false;
   private openToolIds = new Set<string>();
+  /** ask_user tool calls surfaced as InteractivePromptStart (awaiting answer). */
+  private surfacedAskIds = new Set<string>();
   private outputTokens = 0;
   private accumulatedText = '';
   private lastWarning: string | undefined = undefined;
@@ -225,6 +228,43 @@ export class CopilotTurnTracker {
               toolId,
               input: isRecord(args) ? args : {},
             });
+            // Copilot's ask_user tool renders an interactive picker in the
+            // TUI (probe-validated args: {question, choices[], allow_freeform}).
+            // Surface it like Claude's AskUserQuestion so the CLI layer can
+            // route the user to the terminal (web viewer opens + focuses).
+            // The picker blocks the turn until answered; openToolIds already
+            // prevents any completion/idle finalize meanwhile.
+            if (toolName === 'ask_user') {
+              this.surfacedAskIds.add(toolId);
+              const argsRec = isRecord(args) ? args : {};
+              const question =
+                pickString(argsRec, 'question') ??
+                'Copilot is asking a question';
+              const rawChoices = argsRec['choices'];
+              const options: InteractivePromptOption[] = Array.isArray(
+                rawChoices,
+              )
+                ? rawChoices
+                    .filter((c) => typeof c === 'string')
+                    .map((c: string) => ({ id: c, label: c }))
+                : [];
+              events.push({
+                type: ProviderEventType.InteractivePromptStart,
+                promptId: toolId,
+                kind: 'ask-user',
+                title: question,
+                questions: [
+                  {
+                    id: 'q-0',
+                    question,
+                    options,
+                    multiSelect: false,
+                  },
+                ],
+                toolName: 'ask_user',
+                timeoutMs: 60 * 60_000, // 1h — the user may take a while
+              });
+            }
           }
           break;
         }
@@ -233,6 +273,14 @@ export class CopilotTurnTracker {
           const toolId = pickString(data, 'toolCallId');
           if (toolId) {
             this.openToolIds.delete(toolId);
+            // Close any ask_user prompt the UI surfaced for this call.
+            if (this.surfacedAskIds.delete(toolId)) {
+              events.push({
+                type: ProviderEventType.InteractivePromptResolved,
+                promptId: toolId,
+                response: { kind: 'answered', answers: [] },
+              });
+            }
             const result = isRecord(data['result']) ? data['result'] : {};
             let output = pickString(result, 'content') ?? '';
             if (!output && result['content'] !== undefined) {

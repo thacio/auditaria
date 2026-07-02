@@ -46,6 +46,8 @@ import {
   type Config,
   type InteractivePromptStartEvent,
   type InteractivePromptResponse,
+  getProviderDisplayName,
+  providerTypeToAvailabilityKey,
 } from '@google/gemini-cli-core';
 import { MessageType, type HistoryItemWithoutId } from '../types.js';
 import {
@@ -110,23 +112,55 @@ export function useClaudeInteractivePromptDialog(
 
   const handleStart = useCallback(
     (event: InteractivePromptStartEvent): void => {
+      // AUDITARIA_PROVIDER_TERMINAL: provider display name for the messages
+      // below ("Claude Code", "GitHub Copilot", …).
+      const providerKey = providerTypeToAvailabilityKey(
+        config?.getProviderConfig()?.type,
+      );
+      const providerName = providerKey
+        ? getProviderDisplayName(providerKey)
+        : 'The provider';
+      const qCount = `${event.questions.length} question${event.questions.length === 1 ? '' : 's'}`;
+
       // AUDITARIA_CLAUDE_PROVIDER: When the web interface is in use, route the
-      // question to the live Claude terminal instead of this modal. The modal
-      // auto-drives Claude's picker via respondToPrompt, which collides with
-      // the user's manual input in the web terminal (focus/keystroke conflict,
-      // orphaned modal on re-ask). So when a web client is connected, suppress
-      // the modal (and its auto-driver), open the terminal if it's closed, and
-      // let the user answer Claude's picker directly. The driver still resolves
-      // the prompt when the tool_result lands. The CLI-only path (no web
-      // client) keeps the modal unchanged.
+      // question to the live provider terminal instead of this modal. The
+      // modal auto-drives the TUI picker via respondToPrompt, which collides
+      // with the user's manual input in the web terminal (focus/keystroke
+      // conflict, orphaned modal on re-ask). So when a web client is
+      // connected, suppress the modal (and its auto-driver), open the
+      // terminal if it's closed, and let the user answer the picker directly.
+      // The driver still resolves the prompt when the tool result lands.
       if (webTerminalBridge.hasConnectedClients()) {
         webTerminalBridge.requestOpenTerminal();
         addItem(
           {
             type: MessageType.INFO,
             text:
-              `Claude is asking ${event.questions.length} question${event.questions.length === 1 ? '' : 's'} — ` +
-              `answer directly in the Claude terminal (opened for you).`,
+              `${providerName} is asking ${qCount} — ` +
+              `answer directly in the provider terminal (opened for you).`,
+          },
+          Date.now(),
+        );
+        return;
+      }
+
+      // AUDITARIA_PROVIDER_TERMINAL: Drivers without respondToPrompt (Copilot's
+      // ask_user) can't be answered through a modal — the pick must happen in
+      // the live TUI. Without a web client connected, point the user at /web.
+      const pm = config?.getProviderManager();
+      if (
+        pm &&
+        typeof pm.canRespondToPrompts === 'function' &&
+        !pm.canRespondToPrompts()
+      ) {
+        addItem(
+          {
+            type: MessageType.INFO,
+            text:
+              `${providerName} is asking ${qCount}` +
+              (event.title ? ` ("${event.title}")` : '') +
+              `. Answer it in the provider terminal: run /web, then open the ` +
+              `terminal panel (the >_ button) to respond.`,
           },
           Date.now(),
         );
@@ -138,7 +172,7 @@ export function useClaudeInteractivePromptDialog(
           {
             type: MessageType.INFO,
             text:
-              `Claude is asking ${event.questions.length} question${event.questions.length === 1 ? '' : 's'}. ` +
+              `${providerName} is asking ${qCount}. ` +
               `The interactive-prompt modal is disabled (AUDITARIA_CLAUDE_INTERACTIVE_UI=0). ` +
               `Open the terminal pane to answer, or unset the variable to surface the modal here.`,
           },
@@ -167,7 +201,7 @@ export function useClaudeInteractivePromptDialog(
         </Box>,
       );
     },
-    [addItem, availableTerminalWidth, respond, setCustomDialog],
+    [addItem, availableTerminalWidth, respond, setCustomDialog, config],
   );
 
   const handleResolved = useCallback((): void => {

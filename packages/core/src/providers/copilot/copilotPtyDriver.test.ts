@@ -124,6 +124,59 @@ describe('CopilotTurnTracker', () => {
     expect(t.completionCandidateAt).toBeUndefined();
   });
 
+  it('ask_user surfaces InteractivePromptStart and resolves on completion', () => {
+    const t = new CopilotTurnTracker();
+    const startEvents = t.ingest(
+      [
+        ev('tool.execution_start', {
+          toolCallId: 'ask-1',
+          toolName: 'ask_user',
+          arguments: {
+            question: 'Which color do you prefer?',
+            choices: ['red', 'green', 'blue'],
+            allow_freeform: false,
+          },
+        }),
+      ],
+      NOW,
+    );
+    const prompt = startEvents.find(
+      (e) => e.type === ProviderEventType.InteractivePromptStart,
+    );
+    expect(prompt).toBeDefined();
+    if (prompt?.type !== ProviderEventType.InteractivePromptStart) {
+      throw new Error('unreachable');
+    }
+    expect(prompt.promptId).toBe('ask-1');
+    expect(prompt.kind).toBe('ask-user');
+    expect(prompt.title).toBe('Which color do you prefer?');
+    expect(prompt.toolName).toBe('ask_user');
+    expect(prompt.questions[0].options.map((o) => o.id)).toEqual([
+      'red',
+      'green',
+      'blue',
+    ]);
+    // The picker blocks the turn while open.
+    expect(t.hasOpenTools()).toBe(true);
+
+    const doneEvents = t.ingest(
+      [
+        ev('tool.execution_complete', {
+          toolCallId: 'ask-1',
+          success: true,
+          result: { content: 'User selected: green' },
+        }),
+      ],
+      NOW + 1000,
+    );
+    expect(doneEvents).toContainEqual({
+      type: ProviderEventType.InteractivePromptResolved,
+      promptId: 'ask-1',
+      response: { kind: 'answered', answers: [] },
+    });
+    expect(t.hasOpenTools()).toBe(false);
+  });
+
   it('maps tool events to ToolUse/ToolResult with args, output, and isError', () => {
     const t = new CopilotTurnTracker();
     const events = t.ingest(
