@@ -175,7 +175,9 @@ async function startHubAndSelfJoin(
 
   saved.url = baseUrl;
   saved.hub = { port: hub.port };
-  saved.autoconnect = saved.autoconnect ?? true;
+  // Explicit start re-enables autoconnect (e.g. after a /hive reset set it
+  // off) — you started a hub, so you want it back next launch.
+  saved.autoconnect = true;
   saveHiveConfig(saved);
 
   // Self-join over loopback. An explicit full-trust invite guarantees the
@@ -208,7 +210,9 @@ async function joinHive(
   }
   if (extras?.nickname) saved.nickname = extras.nickname;
   if (extras?.description) saved.selfDescription = extras.description;
-  saved.autoconnect = saved.autoconnect ?? true;
+  // Connecting (explicitly, or via autoconnect which only runs when already
+  // enabled) means we want this hive back next launch.
+  saved.autoconnect = true;
   delete saved.hub; // this machine is a plain peer now
   saveHiveConfig(saved);
 
@@ -314,6 +318,17 @@ async function joinAction(
     );
   }
   try {
+    // Explicit join re-establishes which relay we trust: clear any pin left
+    // from a previous/rebuilt hive so we TOFU the relay THIS invite points to
+    // (the invite's passphrase is the primary auth). This is why joining a
+    // reset/rebuilt hive no longer fails with "relay key changed" and needs a
+    // manual hive.json edit. Only the explicit command clears it — autoconnect
+    // reconnects still verify the pin to catch a mid-session relay swap.
+    const cfg = loadHiveConfig();
+    if (cfg.relayFingerprint) {
+      delete cfg.relayFingerprint;
+      saveHiveConfig(cfg);
+    }
     const service = await joinHive(config, invite);
     activeBaseUrl = invite.url;
     return msg(
