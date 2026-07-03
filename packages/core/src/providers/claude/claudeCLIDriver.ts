@@ -1258,7 +1258,9 @@ export class ClaudeCLIDriver implements ProviderDriver {
     // AUDITARIA_CLAUDE_PROVIDER: All writes through PtyWriteQueue with the
     // gate up so a web-typist's keystrokes can't slip between body and CR.
     void this.writeQueue?.withAtomicBlock(async () => {
-      await this.writeQueue?.writeAtomic(prompt, 'system');
+      // Paced chunks, not one burst: a long prompt (e.g. a large delivered
+      // hive message) is otherwise dropped to its tail by Ink's input parser.
+      await this.writeQueue?.writeChunked(prompt, 'system');
       await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
       await this.writeQueue?.writeAtomic('\r', 'system');
     });

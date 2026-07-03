@@ -11,6 +11,14 @@
 
 export type WritePriority = 'system' | 'cli-typist' | 'web-typist';
 
+/**
+ * Paced-write tuning for writeChunked. A large single pty.write is dropped
+ * (leading bytes) by Ink's burst-input parser; ~512-char chunks spaced ~8ms
+ * apart keep a several-KB prompt intact without a perceptible slowdown.
+ */
+const CHUNK_SIZE = 512;
+const CHUNK_DELAY_MS = 8;
+
 interface QueuedWrite {
   priority: WritePriority;
   bytes: string;
@@ -55,6 +63,42 @@ export class PtyWriteQueue {
       this.queue.sort(priorityCompare);
       void this.drain();
     });
+  }
+
+  /**
+   * Write a large payload as paced chunks instead of one burst. A TUI input
+   * parser (Ink) drops the LEADING part of a very large single write, so a
+   * long prompt reaches the model truncated to its tail (the "only the footer
+   * arrived" hive symptom). Splitting into small chunks with a brief gap lets
+   * the reader keep up. Payloads at or under `chunkSize` fall through to a
+   * single writeAtomic — unchanged behavior for normal-length prompts.
+   */
+  async writeChunked(
+    bytes: string,
+    priority: WritePriority,
+    chunkSize = CHUNK_SIZE,
+    delayMs = CHUNK_DELAY_MS,
+  ): Promise<void> {
+    if (bytes.length <= chunkSize) {
+      await this.writeAtomic(bytes, priority);
+      return;
+    }
+    let i = 0;
+    while (i < bytes.length) {
+      let end = Math.min(i + chunkSize, bytes.length);
+      // Don't split a surrogate pair (e.g. an emoji) across chunks — a lone
+      // half encodes to invalid UTF-8 on the wire. Push a trailing high
+      // surrogate into the next chunk.
+      if (end < bytes.length) {
+        const code = bytes.charCodeAt(end - 1);
+        if (code >= 0xd800 && code <= 0xdbff) end -= 1;
+      }
+      await this.writeAtomic(bytes.slice(i, end), priority);
+      i = end;
+      if (i < bytes.length) {
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+      }
+    }
   }
 
   /**

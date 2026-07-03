@@ -187,7 +187,9 @@ export class PtySession implements PtyMirrorSource {
     const queue = this.queue;
     if (!queue) return;
     await queue.withAtomicBlock(async () => {
-      await queue.writeAtomic(text, 'system');
+      // Paced chunks, not one burst: a long prompt is otherwise dropped to its
+      // tail by the TUI's burst-input parser (Ink).
+      await queue.writeChunked(text, 'system');
       await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
       await queue.writeAtomic('\r', 'system');
     });
