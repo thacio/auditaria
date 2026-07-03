@@ -31,6 +31,7 @@ import {
   hiveInstanceKey,
   HiveService,
 } from '../../services/hive/HiveService.js';
+import { getHiveHubDir } from '../../services/hive/hivePaths.js';
 import type { HiveHubHandle } from '../../services/hive/HiveHub.js';
 import type { TunnelHandle } from '../../services/hive/HiveTunnel.js';
 import type { TrustLevel } from '../../services/hive/types.js';
@@ -416,8 +417,20 @@ async function statusAction(): Promise<void | SlashCommandActionReturn> {
   const hubLine = activeHub
     ? `Hub: running locally on port ${activeHub.port}${activeTunnel ? ` behind ${activeTunnel.url}` : ' (no tunnel — LAN only)'}\n`
     : '';
+  // Surface a paste-ready invite when we host the hub — the tunnel URL changes
+  // on every restart, so this is the easy way to (re)share the current address.
+  let inviteLine = '';
+  if (activeHub && activeBaseUrl) {
+    const pass = effectivePassphrase(saved);
+    if (pass) {
+      inviteLine =
+        `Current invite (re-share after a restart — the URL changes each time):\n` +
+        `  ${composeInvite(activeBaseUrl, pass)}\n` +
+        `  (a brand-new peer under an invite/manual policy needs a token: /hive invite)\n`;
+    }
+  }
   const modeLine = `Mode: ${saved.mode ?? 'main'} | trust policy: ${saved.trustPolicy ?? 'open'}\n`;
-  return msg('info', hubLine + modeLine + roster);
+  return msg('info', hubLine + inviteLine + modeLine + roster);
 }
 
 async function sendAction(
@@ -556,6 +569,84 @@ async function stopAction(): Promise<void | SlashCommandActionReturn> {
   );
 }
 
+/** Delete this instance's durable queue files (inbox/outbox/dlq/seen/processed). */
+function purgeInstanceQueues(): void {
+  const dir = getHiveInstanceDir();
+  for (const f of [
+    'inbox.jsonl',
+    'outbox.jsonl',
+    'dlq.jsonl',
+    'seen.jsonl',
+    'processed.jsonl',
+  ]) {
+    try {
+      fs.rmSync(path.join(dir, f), { force: true });
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+
+/**
+ * Destroy the current hive and start clean. Two-step (destructive): a bare
+ * "/hive reset" explains and requires "/hive reset confirm" to proceed.
+ * Deletes the machine's hub state (new url token + relay key + passphrase on
+ * the next /hive start = a genuinely NEW hive that old peers can't rejoin),
+ * clears this instance's hive membership, and purges its queues. "--hard"
+ * also regenerates this node's identity (new nodeId/nickname).
+ */
+async function resetAction(
+  _context: CommandContext,
+  args: string,
+): Promise<void | SlashCommandActionReturn> {
+  const arg = args.trim();
+  const confirmed = /^confirm\b/.test(arg);
+  const hard = /(^|\s)(--hard|hard)(\s|$)/.test(arg);
+  if (!confirmed) {
+    return msg(
+      'info',
+      'This DESTROYS the current hive and starts clean. It will:\n' +
+        '  • stop the hive and delete this machine’s hub state (new URL token, relay key and passphrase next time)\n' +
+        '  • forget this hive on this instance and purge its message queues (inbox/outbox/dead-letter)\n' +
+        '  • old peers can NOT rejoin the new hive (new fingerprint) — they must be re-invited\n\n' +
+        'To proceed: /hive reset confirm   (keeps this node’s identity/nickname)\n' +
+        'Full wipe:  /hive reset confirm --hard   (also a new identity)\n' +
+        'Then /hive start to create the brand-new hive.',
+    );
+  }
+  // Stop everything and release both locks.
+  await teardown();
+  releaseLockAt(getHubLockPath());
+  releaseFileLock();
+  // Delete the machine-wide hub state (identity of the hive lives here).
+  try {
+    fs.rmSync(getHiveHubDir(), { recursive: true, force: true });
+  } catch {
+    /* best-effort */
+  }
+  // Forget this hive on this instance; purge its queues.
+  const saved = loadHiveConfig();
+  delete saved.url;
+  delete saved.passphrase;
+  delete saved.relayFingerprint;
+  delete saved.hub;
+  saved.autoconnect = false;
+  if (hard) {
+    delete saved.nodeId;
+    delete saved.nodePublicKeyPem;
+    delete saved.nodePrivateKeyPem;
+    delete saved.nickname;
+    delete saved.selfDescription;
+  }
+  saveHiveConfig(saved);
+  purgeInstanceQueues();
+  return msg(
+    'info',
+    `Hive reset${hard ? ' (hard — new identity)' : ''}. Everything from the old hive is gone.\n` +
+      'Run /hive start for a brand-new hive, or /hive join <invite> to join a different one.',
+  );
+}
+
 async function teardown(): Promise<void> {
   const service = getActiveHiveService();
   if (service) {
@@ -600,7 +691,8 @@ async function defaultAction(
       "  /hive trust|untrust <nick>      Change a peer's trust hive-wide\n" +
       '  /hive remove <nick>             Revoke a node (lost machine)\n' +
       '  /hive leave                     Disconnect and disable autoconnect\n' +
-      '  /hive stop                      Stop (autoconnect stays on)\n\n' +
+      '  /hive stop                      Stop (autoconnect stays on)\n' +
+      '  /hive reset [confirm] [--hard]  Destroy this hive and start clean\n\n' +
       'The agent itself can join with the hive_connect tool (paste an invite in chat) and use hive_send / hive_status / hive_check.\n\n' +
       (running ? 'Hive is currently RUNNING.' : 'Hive is currently STOPPED.'),
   );
@@ -756,6 +848,14 @@ export const hiveCommand: SlashCommand = {
       kind: CommandKind.BUILT_IN,
       autoExecute: true,
       action: stopAction,
+    },
+    {
+      name: 'reset',
+      description:
+        'Destroy the current hive and start clean (/hive reset confirm)',
+      kind: CommandKind.BUILT_IN,
+      autoExecute: false,
+      action: resetAction,
     },
   ],
   action: defaultAction,

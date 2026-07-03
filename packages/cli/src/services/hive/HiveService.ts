@@ -112,6 +112,9 @@ const VALID_KINDS = new Set<string>([
 /** Failed hive turns are retried up to this many times, then dead-lettered. */
 const MAX_DELIVERY_ATTEMPTS = 3;
 
+/** Max chars of a message's structured `data` rendered into the model prompt. */
+const DATA_RENDER_LIMIT = 4_000;
+
 /** Narrow an arbitrary string to a HiveMessageKind, defaulting to 'chat'. */
 function coerceKind(kind: string | undefined): HiveMessageKind {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
@@ -138,10 +141,18 @@ function buildFencedMessage(
   const kind = coerceKind(env.kind);
   const thread = sanitizeInline(String(env.thread ?? ''), 80);
   const safeBody = scrub(String(env.body ?? ''));
-  const dataLine =
-    env.data && Object.keys(env.data).length > 0
-      ? `\nStructured data: ${scrub(JSON.stringify(env.data).slice(0, 4_000))}`
-      : '';
+  let dataLine = '';
+  if (env.data && Object.keys(env.data).length > 0) {
+    const dataJson = JSON.stringify(env.data);
+    // Cap the rendered data and mark truncation explicitly (don't cut it
+    // silently) so the recipient model knows the payload was larger.
+    const shown =
+      dataJson.length > DATA_RENDER_LIMIT
+        ? scrub(dataJson.slice(0, DATA_RENDER_LIMIT)) +
+          ` …[data truncated: ${dataJson.length} chars total, showing first ${DATA_RENDER_LIMIT}; keep hive_send data under ~4KB]`
+        : scrub(dataJson);
+    dataLine = `\nStructured data: ${shown}`;
+  }
   return (
     `<hive_message_${marker} from="${from}" kind="${kind}" thread="${thread}" trust="${trust}">\n` +
     safeBody +
@@ -684,21 +695,23 @@ export class HiveService implements HiveTransport {
       // by the guard above. Never a silent loss, never a double turn.
       // inProgress hides this id from a mid-turn hive_check.
       this.inProgress.add(id);
-      let turnOk = false;
+      let result = { ok: false, retrySafe: true };
       try {
-        turnOk = await this.processEnvelope(current.value);
+        result = await this.processEnvelope(current.value);
       } finally {
         this.inProgress.delete(id);
       }
-      if (turnOk) {
+      if (result.ok) {
         this.processedSeen.add(id); // fsynced
         this.inbox.ack(current.seq);
         this.client.ack(id, 'processed');
         this.deliveryAttempts.delete(id);
       } else {
         // Turn hard-failed — retry at the next boundary (a cold external
-        // provider session usually warms up by attempt 2), then DLQ.
-        this.handleDeliveryFailure(current);
+        // provider session usually warms up by attempt 2), then DLQ. If the
+        // turn already executed a tool, skip retries (would double the side
+        // effect) and DLQ now.
+        this.handleDeliveryFailure(current, result.retrySafe);
       }
     } catch (e) {
       debugLogger.error('hive: turn processing error:', e);
@@ -719,25 +732,32 @@ export class HiveService implements HiveTransport {
    * Never acks 'processed' (it was not processed) — the relay already released
    * its copy at 'delivered', so no relay action is needed.
    */
-  private handleDeliveryFailure(current: {
-    seq: number;
-    value: InboxEntry;
-  }): void {
+  private handleDeliveryFailure(
+    current: { seq: number; value: InboxEntry },
+    retrySafe: boolean,
+  ): void {
     const { seq, value } = current;
     const id = value.env.id;
     const n = (this.deliveryAttempts.get(id) ?? 0) + 1;
     this.deliveryAttempts.set(id, n);
-    if (n >= MAX_DELIVERY_ATTEMPTS) {
+
+    // Not retry-safe: a tool already executed this turn, so re-running would
+    // double the side effect. Dead-letter immediately instead of retrying.
+    const giveUp = !retrySafe || n >= MAX_DELIVERY_ATTEMPTS;
+    if (giveUp) {
       this.inbox.ack(seq);
       this.localDlq.enqueue(value, false);
       this.deliveryAttempts.delete(id);
+      const why = !retrySafe
+        ? 'the turn failed after already running a tool (not safe to retry)'
+        : `the agent turn failed ${n} times`;
       this.uiInfo(
-        `◇ hive: gave up on the message from ${value.fromNickname} after ${n} failed turns (moved to dead-letter).`,
+        `◇ hive: gave up on the message from ${value.fromNickname} — ${why} (moved to dead-letter).`,
       );
       void this.sendSystemNotice(
         value.env.from,
         value.env.thread,
-        `Delivery notice: ${this.getNickname()} received your message but the agent turn failed ${n} times; it has stopped retrying (moved to dead-letter).`,
+        `Delivery notice: ${this.getNickname()} received your message but ${why}; it has stopped retrying (moved to dead-letter).`,
       );
     } else {
       this.uiInfo(
@@ -888,10 +908,26 @@ export class HiveService implements HiveTransport {
 
   // ---------------- the headless hive turn ----------------
 
-  /** Returns true if the turn ran to completion, false if it hard-failed. */
-  private async processEnvelope(entry: InboxEntry): Promise<boolean> {
+  /**
+   * Run the headless hive turn. Returns { ok, retrySafe }:
+   *  - ok=true  → the turn completed; drainNext acks it processed.
+   *  - ok=false, retrySafe=true  → hard-failed with NO observable side effect
+   *    yet (e.g. a cold external-provider session), so re-running is safe.
+   *  - ok=false, retrySafe=false → failed AFTER a tool executed through our
+   *    scheduler; re-running would double that side effect, so DLQ instead.
+   */
+  private async processEnvelope(
+    entry: InboxEntry,
+  ): Promise<{ ok: boolean; retrySafe: boolean }> {
     const geminiClient = this.config.getGeminiClient();
-    if (!geminiClient?.isInitialized()) return false;
+    if (!geminiClient?.isInitialized()) {
+      return { ok: false, retrySafe: true };
+    }
+    // True once a tool has executed via OUR scheduler this turn — a real,
+    // non-idempotent side effect that must not be replayed by a retry. (Tools
+    // an external provider runs inside its own CLI are invisible here, so the
+    // double-action guard only covers the local/Gemini path — documented.)
+    let sideEffectExecuted = false;
 
     const { env } = entry;
     // Re-resolve trust at delivery time so a /hive untrust while the message
@@ -1026,6 +1062,7 @@ export class HiveService implements HiveTransport {
             allowed,
             abortController.signal,
           );
+          if (completedToolCalls.length > 0) sideEffectExecuted = true;
           for (const completed of completedToolCalls) {
             if (completed.response.responseParts) {
               toolResponseParts.push(...completed.response.responseParts);
@@ -1061,17 +1098,17 @@ export class HiveService implements HiveTransport {
           text: accumulatedText,
         });
       }
-      return true;
+      return { ok: true, retrySafe: true };
     } catch (e) {
       // A hard failure (e.g. a not-yet-warm external-provider session — Claude's
-      // "Transcript missing or empty" on a first cold turn). Return false so
-      // drainNext retries at the next boundary instead of dropping the message;
-      // the sender notice + DLQ decision is made there after the retry budget.
+      // "Transcript missing or empty" on a first cold turn). drainNext retries
+      // when retrySafe (no side effect yet); otherwise it DLQs to avoid
+      // replaying an executed tool.
       debugLogger.error('hive: agent turn failed:', e);
       this.uiInfo(
         `hive: turn for message from ${entry.fromNickname} failed: ${e instanceof Error ? e.message : String(e)}`,
       );
-      return false;
+      return { ok: false, retrySafe: !sideEffectExecuted };
     } finally {
       if (this.currentAbort === abortController) this.currentAbort = undefined;
       // Close any dangling functionCall in the shared history. Two hive-turn
