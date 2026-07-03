@@ -200,6 +200,16 @@ const a2aServerConfig = {
   alias: commonAliases,
 };
 
+// AUDITARIA_HIVE_FEATURE: hive-mcp shim (stdio MCP server for foreign CLIs joining a hive)
+const hiveMcpConfig = {
+  ...baseConfig,
+  banner: {
+    js: `#!/usr/bin/env node\nconst require = (await import('module')).createRequire(import.meta.url); globalThis.__filename = require('url').fileURLToPath(import.meta.url); globalThis.__dirname = require('path').dirname(globalThis.__filename);`,
+  },
+  entryPoints: ['packages/cli/src/hive-mcp/hiveMcpMain.ts'],
+  outfile: 'bundle/hive-mcp.js',
+};
+
 // AUDITARIA_BROWSER_AGENT: Re-bundle stagehand with all deps inlined for self-contained distribution.
 // The installed stagehand dist has external requires (zod, openai, anthropic, etc.) that won't be
 // available when users install auditaria from npm tarball. This re-bundles everything except
@@ -226,9 +236,16 @@ Promise.allSettled([
   esbuild.build(a2aServerConfig),
   esbuild.build(mcpBridgeConfig), // AUDITARIA_CLAUDE_PROVIDER
   esbuild.build(stagehandBundleConfig), // AUDITARIA_BROWSER_AGENT
+  esbuild.build(hiveMcpConfig), // AUDITARIA_HIVE_FEATURE
 ]).then((results) => {
-  const [cliResult, workerResult, a2aResult, mcpBridgeResult, stagehandResult] =
-    results; // AUDITARIA: mcp-bridge + stagehand entries
+  const [
+    cliResult,
+    workerResult,
+    a2aResult,
+    mcpBridgeResult,
+    stagehandResult,
+    hiveMcpResult,
+  ] = results; // AUDITARIA: mcp-bridge + stagehand + hive-mcp entries
   if (cliResult.status === 'rejected') {
     console.error('gemini.js build failed:', cliResult.reason);
     process.exit(1);
@@ -248,5 +265,9 @@ Promise.allSettled([
   // AUDITARIA_BROWSER_AGENT: Stagehand re-bundle failure is non-fatal
   if (stagehandResult.status === 'rejected') {
     console.warn('stagehand bundle failed:', stagehandResult.reason);
+  }
+  // AUDITARIA_HIVE_FEATURE: hive-mcp build failure is non-fatal
+  if (hiveMcpResult.status === 'rejected') {
+    console.warn('hive-mcp build failed:', hiveMcpResult.reason);
   }
 });

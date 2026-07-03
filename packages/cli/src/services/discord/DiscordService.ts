@@ -31,6 +31,8 @@ import {
   setDiscordProcessing,
   injectCliInput,
 } from './DiscordBridge.js';
+// AUDITARIA_HIVE_FEATURE: defer to an in-flight hive turn (shared GeminiClient)
+import { isHiveProcessing } from '../hive/HiveBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
 import {
   attachmentsToParts,
@@ -251,7 +253,9 @@ export class DiscordService {
     }
 
     // AUDITARIA_ATTACHMENTS: Reject messages while AI is busy (don't queue silently)
-    if (this.processing) {
+    // AUDITARIA_HIVE_FEATURE: also defer while a hive-triggered turn is running
+    // (shared GeminiClient — concurrent turns corrupt the chat history).
+    if (this.processing || isHiveProcessing()) {
       await ctx.reply(
         'AI is currently processing another message. Please wait and try again.',
       );

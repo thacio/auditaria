@@ -33,6 +33,8 @@ import {
   setTelegramProcessing,
   injectCliInput,
 } from './TelegramBridge.js';
+// AUDITARIA_HIVE_FEATURE: defer to an in-flight hive turn (shared GeminiClient)
+import { isHiveProcessing } from '../hive/HiveBridge.js';
 import type { HistoryItem } from '../../ui/types.js';
 import {
   attachmentsToParts,
@@ -43,7 +45,10 @@ import {
  * Main Telegram service that bridges the grammY bot with Auditaria's agent loop.
  *
  * Uses the CLI's shared GeminiClient (same conversation, same history).
- * A mutex ensures only one message is processed at a time (CLI or Telegram).
+ * A mutex serializes Telegram-initiated turns against each other. Note it
+ * does NOT serialize against CLI/web turns — nothing else acquires this
+ * lock (AUDITARIA_HIVE_FEATURE: the hive's turn-boundary delivery adds the
+ * cross-source idle signal this pattern lacks).
  *
  * Bidirectional display sync:
  * - Telegram → CLI: pushes user messages and responses to CLI display via TelegramBridge
@@ -53,7 +58,7 @@ import {
  * 1. User sends message in Telegram
  * 2. grammY receives via long polling
  * 3. Access check + sequential processing per chat
- * 4. Acquire mutex (blocks if CLI is processing)
+ * 4. Acquire mutex (serializes Telegram turns; CLI turns are not covered)
  * 5. Push user message to CLI display
  * 6. Call sendMessageStream() on shared GeminiClient
  * 7. Process events: accumulate text, execute tools, handle errors
@@ -275,7 +280,10 @@ export class TelegramService {
     }
 
     // AUDITARIA_ATTACHMENTS: Reject messages while AI is busy (don't queue silently)
-    if (this.processing) {
+    // AUDITARIA_HIVE_FEATURE: also defer while a hive-triggered turn is running
+    // — it shares this GeminiClient, and two turns on the same chat would
+    // corrupt the history (dangling functionCall / functionResponse).
+    if (this.processing || isHiveProcessing()) {
       await ctx.reply(
         'AI is currently processing another message. Please wait and try again.',
       );
@@ -295,7 +303,8 @@ export class TelegramService {
       return;
     }
 
-    // Acquire mutex — blocks if CLI or another Telegram message is processing
+    // Acquire mutex — serializes Telegram-initiated turns (CLI/web turns
+    // do not take this lock)
     const release = await this.acquireLock();
     this.processing = true;
 

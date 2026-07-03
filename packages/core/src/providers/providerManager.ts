@@ -266,6 +266,12 @@ function isBackgroundCapableDriver(
 export class ProviderManager {
   private driver: ProviderDriver | null = null;
   private callCount = 0;
+  // AUDITARIA_HIVE_FEATURE: True while a chat-initiated provider turn (or a
+  // native /compact) is running. Consumers that need a global turn-boundary
+  // signal (the hive's drain-on-idle delivery loop) read it via
+  // isTurnActive() — the UI's StreamingState cannot see turns typed directly
+  // into a live provider PTY, this can.
+  private turnActive = false;
   // AUDITARIA_CLAUDE_PROVIDER: Out-of-band channel for events the active
   // driver discovers between sendMessage calls (e.g. user typed
   // directly into the live PTY via the web terminal viewer, Claude
@@ -365,6 +371,21 @@ export class ProviderManager {
     return () => this.backgroundEmitter.off('compaction-summary', handler);
   }
 
+  // AUDITARIA_HIVE_FEATURE_START: Global turn-activity signal. True while a
+  // chat-initiated provider turn or a native /compact runs. Turns the user
+  // types DIRECTLY into a live provider PTY never pass handleSendMessage —
+  // they surface as background events, so recent background activity also
+  // counts as busy (a turn actively producing output). The 15s window is a
+  // heuristic; the hive drain loop re-checks periodically, so a stale-busy
+  // reading only delays delivery, never loses a message.
+  private lastBackgroundActivity = 0;
+
+  isTurnActive(): boolean {
+    if (this.turnActive) return true;
+    return Date.now() - this.lastBackgroundActivity < 15_000;
+  }
+  // AUDITARIA_HIVE_FEATURE_END
+
   /**
    * Subscribe to the active driver's background events. Called once after
    * each driver creation in getOrCreateDriver, and again when the driver
@@ -384,9 +405,11 @@ export class ProviderManager {
     if (!isBackgroundCapableDriver(this.driver)) return;
 
     const offUser = this.driver.onBackgroundUserMessage((data) => {
+      this.lastBackgroundActivity = Date.now(); // AUDITARIA_HIVE_FEATURE
       this.backgroundEmitter.emit('user-message', data);
     });
     const offAssistant = this.driver.onBackgroundAssistantText((data) => {
+      this.lastBackgroundActivity = Date.now(); // AUDITARIA_HIVE_FEATURE
       this.backgroundEmitter.emit('assistant-text', data);
     });
     this.backgroundUnsubscribers.push(offUser, offAssistant);
@@ -621,6 +644,7 @@ export class ProviderManager {
     let summary: string | undefined;
     let sawCompacted = false;
     let lastError: string | undefined;
+    this.turnActive = true; // AUDITARIA_HIVE_FEATURE: /compact drives the driver too
     try {
       for await (const event of driver.sendMessage(
         '/compact',
@@ -638,6 +662,8 @@ export class ProviderManager {
       }
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
+    } finally {
+      this.turnActive = false; // AUDITARIA_HIVE_FEATURE
     }
 
     if (!sawCompacted) {
@@ -710,6 +736,7 @@ export class ProviderManager {
   ): AsyncGenerator<ServerGeminiStreamEvent, Turn> {
     this.callCount++;
     const callNum = this.callCount;
+    this.turnActive = true; // AUDITARIA_HIVE_FEATURE: cleared in the finally
 
     // AUDITARIA_REWIND_START: Lazily initialize file checkpoint adapter for the active provider
     this.ensureFileCheckpointAdapter();
@@ -1127,6 +1154,8 @@ export class ProviderManager {
       dbg('handleSendMessage ERROR during iteration', e);
       throw e;
     } finally {
+      this.turnActive = false; // AUDITARIA_HIVE_FEATURE
+
       // AUDITARIA_ATTACHMENTS: Clean up temp files (only for drivers that wrote them)
       const tempFiles = attachmentFiles.filter((f) => f.filePath);
       if (tempFiles.length > 0) {

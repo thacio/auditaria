@@ -186,6 +186,12 @@ export const CONVERT_TO_MARKDOWN_TOOL_NAME = 'convert_to_markdown';
 // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
 export const EXTERNAL_AGENT_SESSION_TOOL_NAME = 'external_agent_session';
 
+// AUDITARIA_HIVE_FEATURE - Auditaria Custom Feature
+export const HIVE_CONNECT_TOOL_NAME = 'hive_connect';
+export const HIVE_SEND_TOOL_NAME = 'hive_send';
+export const HIVE_STATUS_TOOL_NAME = 'hive_status';
+export const HIVE_CHECK_TOOL_NAME = 'hive_check';
+
 /**
  * Tools that require mandatory argument narrowing (e.g., file paths, command prefixes)
  * when granting persistent or session-wide approval.

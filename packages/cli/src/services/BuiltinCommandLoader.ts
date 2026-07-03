@@ -72,6 +72,7 @@ import { knowledgeBaseCommand } from '../ui/commands/knowledgeCommand.js'; // AU
 import { telegramCommand } from '../ui/commands/telegramCommand.js'; // AUDITARIA_TELEGRAM_FEATURE
 import { discordCommand } from '../ui/commands/discordCommand.js'; // AUDITARIA_DISCORD_FEATURE
 import { teamsCommand } from '../ui/commands/teamsCommand.js'; // AUDITARIA_TEAMS_FEATURE
+import { hiveCommand } from '../ui/commands/hiveCommand.js'; // AUDITARIA_HIVE_FEATURE
 import { upgradeCommand } from '../ui/commands/upgradeCommand.js';
 import { gemmaStatusCommand } from '../ui/commands/gemmaStatusCommand.js';
 import { voiceCommand } from '../ui/commands/voiceCommand.js';
@@ -252,6 +253,7 @@ export class BuiltinCommandLoader implements ICommandLoader {
       telegramCommand, // AUDITARIA_TELEGRAM_FEATURE
       discordCommand, // AUDITARIA_DISCORD_FEATURE
       teamsCommand, // AUDITARIA_TEAMS_FEATURE
+      hiveCommand, // AUDITARIA_HIVE_FEATURE
       ...(this.config?.isVoiceModeEnabled() ? [voiceCommand] : []),
       ...(this.config?.getContentGeneratorConfig()?.authType ===
       AuthType.LOGIN_WITH_GOOGLE

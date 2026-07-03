@@ -343,6 +343,15 @@ export {
 // AUDITARIA_PROVIDER_TERMINAL: provider-agnostic web-terminal mirror singleton
 // (formerly claudePtyMirror — generalized for Claude/Copilot/Codex/agy PTYs)
 export { providerPtyMirror } from './providers/terminal/ptyMirror.js';
+// AUDITARIA_HIVE_FEATURE: core→cli transport seam for the hive tools
+export { registerHiveTransport, getHiveTransport } from './tools/hive.js';
+export type {
+  HiveTransport,
+  HiveConnectParams,
+  HiveSendParams,
+  HiveStatusParams,
+  HiveCheckParams,
+} from './tools/hive.js';
 export { SessionRegistry } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { SessionRecord } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools

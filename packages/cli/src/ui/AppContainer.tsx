@@ -2896,6 +2896,39 @@ Logging in with Google... Restarting Gemini CLI to continue.
   }, [stableWebSubmitQuery]);
   // AUDITARIA_DISCORD_END
 
+  // AUDITARIA_HIVE_FEATURE_START: Wire hive display callback + turn-boundary
+  // idle signal. HiveService pushes messages/turn output to the CLI display,
+  // and its drain-on-idle delivery loop consumes StreamingState transitions
+  // published here (plan §6.1 — the explicit turn-boundary signal).
+  useEffect(() => {
+    let mounted = true;
+    import('../services/hive/HiveBridge.js')
+      .then(({ registerHiveCliDisplayCallback }) => {
+        if (mounted) {
+          registerHiveCliDisplayCallback(historyManager.addItem);
+        }
+      })
+      .catch(() => {
+        /* Hive bridge not available */
+      });
+    return () => {
+      mounted = false;
+      import('../services/hive/HiveBridge.js')
+        .then(({ unregisterHiveCliDisplayCallback }) => {
+          unregisterHiveCliDisplayCallback();
+        })
+        .catch(() => {});
+    };
+  }, [historyManager.addItem]);
+  useEffect(() => {
+    import('../services/hive/HiveBridge.js')
+      .then(({ publishStreamingIdle }) => {
+        publishStreamingIdle(streamingState === StreamingState.Idle);
+      })
+      .catch(() => {});
+  }, [streamingState]);
+  // AUDITARIA_HIVE_FEATURE_END
+
   // Terminal capture for interactive screens
   // The capture hook is always running (registered in TerminalCaptureContext on mount)
   // We just need to tell it when dialogs are visible so it broadcasts the content

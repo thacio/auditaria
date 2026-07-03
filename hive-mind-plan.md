@@ -1,4 +1,4 @@
-# Auditaria Hive Mind — Feature Design (Draft 3 — decisions incorporated)
+# Auditaria Hive Mind — Feature Design (Draft 4 — neutral wording pass)
 
 Multiple Auditaria instances belonging to the **same user** — on the same or
 different computers — discover each other and exchange messages **hands-free**
@@ -7,13 +7,14 @@ Copilot CLI, etc.) join the same hive through plain MCP. Zero hosting cost.
 
 > Status: design approved in direction, not implemented. Draft 1 = research (MCP
 > spec + client support, prior art, tunneling, code audit). Draft 2 = 3-lens
-> adversarial review incorporated. Draft 3 = user decisions: **Mode A
-> (no-account quick tunnel) first**, relay deferred to phase 3; richer MCP
-> surface (non-blocking `hive_check` alongside blocking `hive_wait`);
-> broadcast-as-chat in v1 including human broadcast; envelope designed for
-> votes/polls; **sub-agent exposure is a committed later phase (not YAGNI)**; AI
-> can join the hive itself and pick/override its nickname (generated-words
-> default); English-only UI strings.
+> critical review incorporated. Draft 3 = user decisions: **Mode A (no-account
+> quick tunnel) first**, relay deferred to phase 3; richer MCP surface
+> (non-blocking `hive_check` alongside blocking `hive_wait`); broadcast-as-chat
+> in v1 including human broadcast; envelope designed for votes/polls;
+> **sub-agent exposure is a committed later phase (not YAGNI)**; AI can join the
+> hive itself and pick/override its nickname (generated-words default);
+> English-only UI strings. Draft 4 = same design, wording pass only: risk
+> discussions rephrased in neutral, defensive language — no change in substance.
 
 ---
 
@@ -36,7 +37,7 @@ each other, and the human had to copy-paste between them.
 - **U4 — Remote tasking by the user**:
   `/hive send office-pc "rebuild the index"` — and
   `/hive send * "status report"` reaches everyone: the hive doubles as a free
-  remote-control channel and a **hive-wide chat**.
+  task-dispatch channel for your own machines and a **hive-wide chat**.
 - **U5 — Foreign agents**: a vanilla Claude Code (no Auditaria) on a third
   machine joins via MCP and participates: sends, receives, sees the roster.
 - **U6 — Structured interactions (votes, polls)**: an agent proposes ("which
@@ -74,7 +75,7 @@ three, "well thought", so each client uses what fits it):**
 
 | Tier                 | Mechanism                                                                                                                                                                                                                                         | Who uses it                                                                                     |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **Push (native)**    | Auditaria session injection — our own bridges pattern; no MCP involved                                                                                                                                                                            | Auditaria peers                                                                                 |
+| **Push (native)**    | Auditaria in-session delivery — our own bridges pattern; no MCP involved                                                                                                                                                                          | Auditaria peers                                                                                 |
 | **Park (blocking)**  | `hive_wait` blocking MCP tool — wakes the model the instant a message arrives, inside a still-open tool call (exactly the shape SEP-2260 blesses)                                                                                                 | Claude Code (≈28 h default stdio timeout), Codex (`tool_timeout_sec`), Gemini CLI (`"timeout"`) |
 | **Pull (on demand)** | `hive_check` non-blocking tool — returns pending messages + roster delta immediately; the model calls it whenever it wants (mid-task "did they reply yet?", periodic check while doing other work, Claude Code background monitors / hook nudges) | Everyone; the only option for Copilot CLI (60 s hard tool cap)                                  |
 
@@ -92,7 +93,7 @@ to park to participate. Claude Code "channels" (`claude/channel`, v2.1.80+) is
 the only true push-to-model; research preview, allowlisted, stdio-only —
 optional proxy in a later phase.
 
-### 2.2 Prior art worth stealing (and avoiding)
+### 2.2 Prior art worth adopting (and avoiding)
 
 - **MCP Agent Mail**: mailbox vocabulary — threads, `ack_required`,
   inbox/outbox, contact policies, memorable agent names; hook-based "you have
@@ -101,19 +102,20 @@ optional proxy in a later phase.
   mailbox-with-automatic-delivery split; idle notifications. Their documented
   failure list (ghost peers after resume, stale status) is our free test plan.
 - **bobnet-mcp**: broker + thin clients; event vocabulary (`peer_joined`,
-  `peer_left`, `status_changed`). Fatal flaw to avoid: in-memory only.
+  `peer_left`, `status_changed`). Main weakness to avoid: in-memory only.
 - **AMQ**: crash-safe inbox semantics, DLQ + receipts (we adopt semantics, NOT
   Maildir renames — §5.2).
-- **cc2cc** (war story): Windows landmines — renames fail under antivirus, no
+- **cc2cc** (field notes): Windows pitfalls — renames fail under antivirus, no
   SIGTERM, duplicate delivery.
 - **Happy**: per-machine daemon + E2E relay — validates the topology.
-- **A2A**: steal the Agent Card concept, not the wire protocol.
+- **A2A**: adopt the Agent Card concept, not the wire protocol.
 
 **Rejected alternative — reuse the web-interface WebSocket:** peer B could
 connect to peer A's `/web` WS behind a tunnel (it already has
-`setSubmitQueryHandler` + broadcast). Rejected: web WS trusts localhost (no peer
-auth), bidirectionality needs a tunnel per machine, no queue/offline story. One
-dedicated rendezvous keeps exactly one invite and one queue store.
+`setSubmitQueryHandler` + broadcast). Rejected: the web WS trusts localhost (no
+peer authentication), bidirectionality needs a tunnel per machine, no
+queue/offline story. One dedicated rendezvous keeps exactly one invite and one
+queue store.
 
 ### 2.3 Connectivity at $0 — both modes, Mode A first (user decision)
 
@@ -130,13 +132,13 @@ step-by-step user instructions for both ship in `docs/hive.md`.
 | Firewall       | clients: 443 ✅; hub needs outbound port 7844 (cloudflared) — fails in strict 443-only networks (same class as the old ripgrep issue; error must name Mode B) | all machines outbound WSS/443                                                                                                            |
 | Privacy        | hub machine (user's own) sees relayed plaintext                                                                                                               | Cloudflare sees plaintext unless E2E (§7.2)                                                                                              |
 
-Both ride Cloudflare's edge ⇒ idle WebSockets are killed (~100 s) and edge
+Both ride Cloudflare's edge ⇒ idle WebSockets are closed (~100 s) and edge
 restarts drop connections. **Network-friendliness rules (user requirement —
 "don't overburden the network"):** one tiny fixed app-level ping/pong every 30 s
 (in Mode B registered via `setWebSocketAutoResponse` so pings don't wake the
 DO); no client polling anywhere in Auditaria (delivery is WS push); `hive_check`
-is on-demand only; reconnect with exponential backoff + jitter; 64 KB payload
-cap; broadcasts count as N sends against relay-side rate limits.
+is on-demand only; reconnect with exponential backoff + jitter; 64 KB message
+size cap; broadcasts count as N sends against relay-side rate limits.
 
 **"Messages must not die if the server dies" — the custody chain (§5.2):** a
 message is always durably held by exactly one party — sender's disk spool (until
@@ -155,9 +157,9 @@ still on a user machine.)
 
 Rejected transports: ngrok free (1 GB/mo + account), localtunnel (flaky,
 IP-password interstitial), bore (raw TCP), pinggy (60-min lifetime), Tailscale
-(VPN install usually banned on corp machines; fine as an escape hatch since the
-hub can bind any reachable host:port), WebRTC P2P (complexity without benefit at
-KB/s).
+(VPN install usually not allowed on corp machines; fine as an escape hatch since
+the hub can bind any reachable host:port), WebRTC P2P (complexity without
+benefit at KB/s).
 
 ---
 
@@ -185,14 +187,14 @@ KB/s).
 Components:
 
 - **HiveService** (every Auditaria node): owns the WSS connection, node
-  keypair + agent card, local durable inbox/outbox, the turn-boundary injection
+  keypair + agent card, local durable inbox/outbox, the turn-boundary delivery
   loop + tool gate, slash-command backend, UI events. Lives in
   `packages/cli/src/services/hive/` (same layer as telegram/discord/teams — it
   needs the agent loop).
 - **HiveHub** (Mode A, v1): embedded relay (`node:http` + `ws`) — roster
   registry, **disk-persisted per-peer queues (restored on restart)**, fan-out,
   relay-side rate limits. Fronted by a cloudflared quick tunnel (spawn + scrape
-  URL from stderr — pattern proven in deskstop-streaming `tunnel.ts` and our
+  URL from stderr — pattern proven in desktop-streaming `tunnel.ts` and our
   Teams ngrok manager). The hub machine is **also a normal peer**: its own
   HiveService connects over loopback (no CF headers — auth falls back to socket
   address; loopback exempt from lockout). Caveat: the hub shares the Node event
@@ -200,15 +202,15 @@ Components:
   must be cheap; degradation under load documented; move to a `worker_thread` if
   it proves noisy.
 - **hive-relay** (Mode B, phase 3): tiny Worker+DO project (separate folder
-  `hive-relay/`, wrangler deploy once; template pinned and audited — it is
-  supply-chain surface). Wire-identical to HiveHub.
+  `hive-relay/`, wrangler deploy once; template pinned and reviewed — it is
+  third-party code we depend on). Wire-identical to HiveHub.
 - **Hive tools** (`packages/core/src/tools/hive.ts`, `Bridgeable = true`):
   `hive_connect`, `hive_send`, `hive_status`, `hive_check`. **No `hive_wait`
   here** — a blocking tool in the core registry would hang main-session turns
   and park unbounded requests against the ToolExecutorServer (the bridge runs
   with all timeouts disabled). All hive tools are added to
-  `ALWAYS_EXCLUDED_TOOLS` so sub-agents cannot impersonate the node (sub-agent
-  participation, when it ships, is explicit routing — §6.3).
+  `ALWAYS_EXCLUDED_TOOLS` so sub-agents cannot speak as the node itself
+  (sub-agent participation, when it ships, is explicit routing — §6.3).
 - **hive-mcp shim** (foreign clients): a standalone stdio MCP server (bundled
   like `mcp-bridge.js` → `bundle/hive-mcp.js`) speaking the same WSS protocol,
   exposing `hive_status`, `hive_send`, `hive_check`, and the blocking
@@ -232,16 +234,19 @@ Matches every surviving prior-art system.
 - At first join, each node generates an **ed25519 keypair**; the public-key
   fingerprint goes in the handshake. The relay **binds `nodeId` ↔ fingerprint
   on first enrollment (TOFU)** and rejects later connections claiming that
-  nodeId with a different key — no queue hijack, no nickname takeover.
-  `/hive remove <nick>` deletes the binding and bans the fingerprint: **the
-  revocation story for a lost laptop** (no fleet-wide re-key; rotating the
-  passphrase stays the nuclear option).
+  nodeId with a different key — an enrolled identity, its queue, and its
+  nickname stay bound to the machine that enrolled them. `/hive remove <nick>`
+  deletes the binding and blocks the fingerprint: **the revocation story for a
+  lost laptop** (no fleet-wide re-key; rotating the passphrase stays the
+  last-resort option).
 - The relay/hub has its own keypair; its fingerprint is **pinned in `hive.json`
-  on first join (TOFU, shown to the user)** and verified on every reconnect — a
-  stolen passphrase + swapped URL can't silently impersonate the relay
-  (essential given Mode A's new-URL-per-restart flow).
-- Private keys: owner-only file permissions; OS keychain is a hardening
-  follow-up.
+  on first join (TOFU, shown to the user)** and verified on every reconnect —
+  the pin guarantees nodes are always talking to the same relay they first
+  joined, whatever the current URL is (essential given Mode A's
+  new-URL-per-restart flow), and that guarantee holds even if the passphrase
+  were ever disclosed.
+- Private keys: owner-only file permissions; OS keychain storage is a later
+  improvement.
 
 ### 4.2 Agent card (A2A-inspired, local-first)
 
@@ -278,8 +283,9 @@ Composed at join; updated on change; broadcast as `card_updated`.
   `"{provider} on {hostname} in {cwdName}"`; agent-authored 1–2 sentences (who
   am I, what am I working on — genuinely useful for U2 routing) via
   `hive_connect`, `/hive describe`, or `hive_status` with `update_description`.
-- **All card fields are untrusted input everywhere they surface**: escaped,
-  length-capped, control-chars-stripped before reaching any model prompt or UI.
+- **All card fields are treated as unverified external text everywhere they
+  surface**: escaped, length-capped, control-characters-stripped before reaching
+  any model prompt or UI.
 - **Status is published by the harness, not the model**: we know when a turn
   starts/ends and when we're blocked on a user prompt. Senders see busy peers
   and can queue or skip.
@@ -288,8 +294,8 @@ Composed at join; updated on change; broadcast as `card_updated`.
 
 `peer_joined`, `peer_left`, `card_updated`, `status_changed` — fanned out to all
 peers; shown as dim UI lines (`◇ hive: amber-falcon joined — "…"`), available to
-models via `hive_status`/`hive_check`. Presence events are **never** injected as
-model turns; only messages reach the model.
+models via `hive_status`/`hive_check`. Presence events **never** trigger a model
+turn; only messages reach the model.
 
 ---
 
@@ -316,26 +322,26 @@ model turns; only messages reach the model.
 }
 ```
 
-Payload cap 64 KB (Codex truncates tool outputs ~10K tokens anyway); big
+Message size cap 64 KB (Codex truncates tool outputs ~10K tokens anyway); big
 artifacts are referenced, not embedded.
 
 **Broadcast = hive chat (v1, including the human):** `to:"*"` messages form the
 shared channel. Every node sees them in its UI as a chat feed
-(`[Hive] amber-falcon: …`); agents receive them by injection/check like any
-message; replies are **direct by default** (§5.4) so the channel doesn't
-cascade. `/hive send * "…"` puts the human in the same chat.
+(`[Hive] amber-falcon: …`); agents receive them by turn-boundary delivery or
+`hive_check` like any message; replies are **direct by default** (§5.4) so the
+channel doesn't cascade. `/hive send * "…"` puts the human in the same chat.
 
 **Votes and polls (U6 — envelope ready in v1, sugar in phase 4):** a proposal is
 `kind:"proposal"`, broadcast,
 `data: {proposalId, question, options[], deadlineSec, tally: "proposer"}`. Each
-peer's agent is injected with it like any message, evaluates, and replies
-`kind:"vote"` **direct to the proposer** with
-`data: {proposalId, choice, reason?}`. The proposer's agent tallies and
-broadcasts a `kind:"status"` result. Deliberately zero relay logic — votes are
-just structured messages, so the same flow works for any future interaction
-pattern (bids, reviews, sign-offs). Phase-4 sugar: `/hive vote` command,
-automatic tally helper, vote rendering in the UI, and a vote-collection
-exemption in the thread budget (first-reply exemption already covers it, §5.4).
+peer's agent receives it like any message, evaluates, and replies `kind:"vote"`
+**direct to the proposer** with `data: {proposalId, choice, reason?}`. The
+proposer's agent tallies and broadcasts a `kind:"status"` result. Deliberately
+zero relay logic — votes are just structured messages, so the same flow works
+for any future interaction pattern (bids, reviews, sign-offs). Phase-4 sugar:
+`/hive vote` command, automatic tally helper, vote rendering in the UI, and a
+vote-collection exemption in the thread budget (first-reply exemption already
+covers it, §5.4).
 
 ### 5.2 Queues and reliability — the custody chain
 
@@ -361,10 +367,10 @@ sender disk spool ──(relay acks receipt)──▶ relay disk/DO queue
 - **At-least-once + dedup**: relay re-delivers until acked; receivers keep a
   persisted seen-ULID set. Two hard rules from review: **(a) acks are idempotent
   and mandatory even on dedup-drop** (re-ack at the highest level previously
-  reached — otherwise a lost ack means infinite redelivery and a false "expired"
+  reached — otherwise a lost ack means endless redelivery and a false "expired"
   receipt for a processed message); **(b) dedup state outlives the maximum TTL**
-  (+ slack) — a bounded window would let a flood evict an old ULID and a replay
-  re-execute as fresh.
+  (+ slack) — with a bounded window, a burst of traffic could evict an old ULID
+  and let a late duplicate be processed again as if new.
 - **Ack levels**: `delivered` = durably fsynced in the receiver's local inbox
   (relay then deletes its copy); `processed` = consumed by a model turn or
   drained by `hive_check`/`hive_wait` — flows end-to-end to the sender as a
@@ -373,10 +379,10 @@ sender disk spool ──(relay acks receipt)──▶ relay disk/DO queue
   receiver-side** for messages stuck in a local inbox (agent busy for days) —
   expiry produces a receipt + `system` notice to the sender in both places. DLQ
   pruned on its own TTL.
-- **Poison messages**: injection failure (provider crash, context overflow, dead
-  PTY) → N retries with backoff → receiver-side DLQ + `system` notice.
-  `processed` only acked on successful consumption. Never silent loss, never
-  infinite retry.
+- **Stuck (undeliverable) messages**: hand-off-to-model failure (provider crash,
+  context overflow, dead PTY) → N retries with backoff → receiver-side DLQ +
+  `system` notice. `processed` only acked on successful consumption. Never
+  silent loss, never endless retry.
 - **Broadcast semantics**: fan-out to per-peer queue entries; `hive_send`
   returns a **per-peer state map**; `processed` receipts stream back
   individually; counts as N against rate limits.
@@ -396,43 +402,46 @@ sender disk spool ──(relay acks receipt)──▶ relay disk/DO queue
 - Keepalive per §2.3 network rules: 30 s fixed ping/pong, backoff+jitter
   reconnect, no polling.
 
-### 5.4 Loop-storm prevention (cascades cost real tokens)
+### 5.4 Reply-cascade prevention (cascades cost real tokens)
 
 - Replies to a broadcast are **direct by default** (never re-broadcast).
 - `hops` cap = 1: no auto-forward chains.
 - **Rate limits enforced at the relay, keyed on the authenticated connection**
-  (client-side limits are advisory UX; a patched shim would ignore them;
-  identity-keyed limits fall to Sybil nodeIds). Default 20 messages/min/node;
-  broadcasts count as N.
+  (client-side limits are advisory UX only, and identity-keyed limits are
+  unreliable because a client could always register fresh nodeIds — so
+  enforcement lives at the relay, per authenticated connection). Default 20
+  messages/min/node; broadcasts count as N.
 - **Thread turn budget** (phase 4): counted per **peer-pair**, locally enforced,
   direct first-replies to a broadcast exempt (U3 and vote collection don't trip
-  it). After N hands-free exchanges with no human message on either side: inject
-  "auto-conversation budget reached — summarize and stop, or ask your user".
+  it). After N hands-free exchanges with no human message on either side:
+  deliver a system notice — "auto-conversation budget reached — summarize and
+  stop, or ask your user".
 - Busy peers are never interrupted: messages queue locally, delivered at the
   turn boundary.
 - **At scale (10+ peers)**: infrastructure is a non-issue (10 WS connections at
   KB/s is nothing for the hub or the tunnel's 200-request cap), but **broadcasts
-  cost N injected turns + N replies in real tokens** — at 10 peers, one
+  cost N delivered turns + N replies in real tokens** — at 10 peers, one
   broadcast question ≈ 10 model turns across the fleet. The design nudges
   accordingly: roster-driven direct addressing (U2 capability routing via
   `hive_status`) is the primary pattern, broadcast is for genuine all-hands
   moments (chat, votes, "who has X?"), and presence events (join/leave/status)
-  are never injected — at 10 peers a chatty roster would otherwise drown
-  everyone. Vote tallying (§5.1) is where 10 peers gets genuinely useful.
+  never trigger model turns — at 10 peers a chatty roster would otherwise bury
+  everyone in noise. Vote tallying (§5.1) is where 10 peers gets genuinely
+  useful.
 
 ---
 
 ## 6. Receive paths (the heart of the feature)
 
-### 6.1 Auditaria peers — native injection + on-demand check
+### 6.1 Auditaria peers — native delivery + on-demand check
 
 Reuses the messaging-bridge machinery
 (`packages/cli/src/services/telegram/TelegramService.ts` et al.) **plus one new,
 explicitly-designed piece: a turn-boundary signal.** (Review finding: the
 Telegram pattern can only busy-REJECT its _own_ turns — its mutex is never
 acquired by CLI/web turns, and `GeminiChat.sendPromise` serializes at API-call
-granularity, which would let an injection splice between a functionCall and its
-tool-result continuation. The doc-comments in `TelegramService.ts:57/:298`
+granularity, which would let a hive turn splice in between a functionCall and
+its tool-result continuation. The doc-comments in `TelegramService.ts:57/:298`
 claiming otherwise are wrong — fix them before cloning the pattern.)
 
 **Turn-boundary gate (new machinery, ~30 lines + one method):**
@@ -445,35 +454,35 @@ claiming otherwise are wrong — fix them before cloning the pattern.)
   to pause the background hook watcher) — covers turns typed **directly into the
   live Claude PTY** via the web terminal, invisible to `streamingState`.
 - HiveService drain-on-idle loop: on idle signal (and periodic fallback),
-  re-check both signals, take its own promise-chain mutex, inject the next
-  queued message. `waiting-on-user` (pending tool confirmation /
-  AskUserQuestion) is **not** an injectable boundary.
-- **Max-hold notice**: a delivered message un-injected for N minutes (agent busy
-  / user away) triggers a `status` notice to the sender ("delivered, not yet
-  processed — agent busy 25m"), so `ack:"processed"` waiters aren't blind.
-  Receiver-side TTL (§5.2) eventually expires it.
+  re-check both signals, take its own promise-chain mutex, hand the next queued
+  message to the model. `waiting-on-user` (pending tool confirmation /
+  AskUserQuestion) is **not** a valid delivery boundary.
+- **Max-hold notice**: a delivered message not yet handed to the model after N
+  minutes (agent busy / user away) triggers a `status` notice to the sender
+  ("delivered, not yet processed — agent busy 25m"), so `ack:"processed"`
+  waiters aren't left guessing. Receiver-side TTL (§5.2) eventually expires it.
 
-**Injection** (proven pattern): a headless agent-loop turn — own `Scheduler`,
-shared `GeminiClient` in `main` mode — exactly like
-`TelegramService.processMessage`, identical under external providers. The
-injected prompt wraps the message in untrusted-input framing (§7.3) plus reply
-instructions ("reply with `hive_send` to thread t\_…; you may also choose not to
-reply"). UI shows the turn like Teams/Telegram turns (`[Hive amber-falcon] …`
-via `pushToCliDisplay`). Replies are **explicit** — only `hive_send` sends; turn
-text is never auto-sent.
+**Hand-off to the model** (proven pattern): a headless agent-loop turn — own
+`Scheduler`, shared `GeminiClient` in `main` mode — exactly like
+`TelegramService.processMessage`, identical under external providers. The prompt
+handed to the model wraps the message in external-content framing (§7.3) plus
+reply instructions ("reply with `hive_send` to thread t\_…; you may also choose
+not to reply"). UI shows the turn like Teams/Telegram turns
+(`[Hive amber-falcon] …` via `pushToCliDisplay`). Replies are **explicit** —
+only `hive_send` sends; turn text is never auto-sent.
 
 **`hive_check` for the local model too**: mid-turn, the agent can drain its own
 inbox ("did office-pc reply yet?") instead of ending its turn. Consistency rule:
 **messages drained via `hive_check` are marked processed and removed from the
-injection queue** — never delivered twice. `hive_send` also accepts a bounded
+delivery queue** — never delivered twice. `hive_send` also accepts a bounded
 `wait_for_reply_sec` (≤ 600) for synchronous ask-and-continue flows; the bridge
 supports minutes-long calls (all timeouts disabled on both sides of the HTTP
 hop).
 
-**Hard tool-permission gate for hive-triggered turns** (the security boundary —
-see §7.3 for the rationale and threat walkthrough):
+**Hard tool-permission gate for hive-triggered turns** (the safety boundary —
+see §7.3 for the rationale and a concrete risk walkthrough):
 
-- _Mechanically_, this is NOT prompt engineering and NOT part of the injection
+- _Mechanically_, this is NOT prompt engineering and NOT part of the delivery
   machinery. Hive turns run in HiveService's own headless loop (Telegram
   pattern), and that loop executes tool calls through its **own `Scheduler`** —
   the same component that already implements tool confirmation/approval modes in
@@ -481,12 +490,13 @@ see §7.3 for the rationale and threat walkthrough):
   model requests a tool, if the tool is in the state-changing set (shell,
   write_file, edit, browser actions…) AND the turn's triggering peer is not
   trusted, the call is not executed; the model receives a structured tool result
-  ("denied — peer not trusted; local approval required") and continues its turn
-  normally — typically replying to the peer that it needs approval. A few lines
-  of code in our own loop; nothing probabilistic.
-- _It cannot affect message reliability_: delivery, injection, `hive_check`, and
-  replies (`hive_send`) are never gated. Worst case for an untrusted peer is
-  "work request answered with 'need approval'", never a lost or stuck message.
+  ("not permitted — peer not trusted; local approval required") and continues
+  its turn normally — typically replying to the peer that it needs approval. A
+  few lines of code in our own loop; nothing probabilistic.
+- _It cannot affect message reliability_: delivery, hand-off to the model,
+  `hive_check`, and replies (`hive_send`) are never gated. Worst case for an
+  untrusted peer is "work request answered with 'need approval'", never a lost
+  or stuck message.
 - _Once a peer is trusted, the gate is inert for it_ — fully hands-free,
   including shell work (U1/U4).
 - **Trust is hive-wide state, recorded at the relay, set once per peer — never
@@ -501,11 +511,12 @@ see §7.3 for the rationale and threat walkthrough):
   already is (the machine minting the invite), at the moment they're already
   copy-pasting an invite to the new machine — so onboarding 10 peers is 10
   `/hive invite` + paste, **zero prompts anywhere, ever**. The relay consumes
-  the token at enrollment and records the trust level. A stolen _old_ invite is
-  useless (single-use, expired); the static passphrase alone can authenticate
-  reconnects of already-enrolled nodes but can no longer enroll a new trusted
-  node — which closes the original "passphrase leak = fleet control" hole
-  _better_ than the per-join prompt did.
+  the token at enrollment and records the trust level. An old, no-longer-secret
+  invite is useless (single-use, expired); the static passphrase alone can
+  authenticate reconnects of already-enrolled nodes but can no longer enroll a
+  new trusted node — which closes the original concern (a leaked passphrase
+  alone being enough to enroll a fully-trusted node) better than the per-join
+  prompt did.
 - `/hive trust <nick>` / `/hive untrust <nick>` from **any** trusted machine
   changes a peer's level hive-wide after the fact. Optional `trustPolicy` knob
   in hive config: `invite` (default, above), `open` (passphrase = full trust,
@@ -519,10 +530,10 @@ see §7.3 for the rationale and threat walkthrough):
   `--consult`). Exposed sub-agents (§6.3) inherit their host node's trust — no
   separate ceremony.
 - (Residual honesty: between trusted peers — the normal same-user case — the
-  gate is out of the picture and the remaining defenses are framing, judgment,
+  gate is out of the picture and the remaining safeguards are framing, judgment,
   the visible reply log, and rate limits.)
-- `approve` posture routes each denied call to a local y/n instead of
-  auto-denying. Prompt framing is defense-in-depth, not the mechanism.
+- `approve` posture routes each blocked call to a local y/n instead of
+  auto-declining. Prompt framing is an added safeguard, not the mechanism.
 
 **Session placement — configurable per node (`/hive mode`):**
 
@@ -530,7 +541,7 @@ see §7.3 for the rationale and threat walkthrough):
 | --------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `main` (default)      | The main session, queued at turn boundaries                                                                        | Peer benefits from this agent's working context (U1/U2 — the point). Tool gate applies.                                                                                          |
 | `concierge` (phase 4) | Isolated per-peer session (`TeamsSessionManager` clone — per-peer client/driver, per-peer mutex, parallel to main) | Keeps the main session's **context/tokens** clean (U3). Honestly: isolates _context_, not _capability_ — same Config, same registry; the tool gate is what protects the machine. |
-| `approve`             | Like `main`, each inbound message needs a local y/n before injection                                               | Low-trust posture.                                                                                                                                                               |
+| `approve`             | Like `main`, each inbound message needs a local y/n before it is handed to the model                               | Low-trust posture.                                                                                                                                                               |
 
 ### 6.2 Foreign clients — shim with wait + check + hook nudges
 
@@ -538,7 +549,7 @@ The shim exposes `hive_status`, `hive_send`, `hive_check`, and
 `hive_wait(max_wait_sec?)`:
 
 - `hive_wait` **blocks** until messages arrive → `{messages, has_more}`,
-  **paginated** (cap per call) so a night's backlog can't blow the foreign
+  **paginated** (cap per call) so a night's backlog can't overflow the foreign
   model's context in one result. Emits heartbeat progress notifications
   (harmless where ignored); honors cancellation.
 - `hive_check` returns immediately: pending messages (drained + processed-
@@ -547,12 +558,12 @@ The shim exposes `hive_status`, `hive_send`, `hive_check`, and
   nudged by hooks:
 - **Hook nudges** (mcp_agent_mail pattern): the shim's one-shot `--check` CLI
   mode prints `HIVE: 3 unread (amber-falcon: "…preview…")` — wired into a Claude
-  Code Stop/PostToolUse hook it nags the model to call `hive_check`; a Stop-hook
-  can also re-arm `hive_wait` for park-mode operation. Snippets ship in docs and
-  `/hive invite --mcp`.
-- The shim applies the same untrusted-input framing to message bodies that the
-  native path uses (a tool result reads as semi-trusted — it must not carry raw
-  peer text).
+  Code Stop/PostToolUse hook it reminds the model to call `hive_check`; a
+  Stop-hook can also re-arm `hive_wait` for park-mode operation. Snippets ship
+  in docs and `/hive invite --mcp`.
+- The shim applies the same external-content framing to message bodies that the
+  native path uses (a tool result reads as semi-trusted — peer text must always
+  arrive clearly marked as coming from a peer, never as raw text).
 
 Per-client onboarding (copy-paste via `/hive invite --mcp`):
 
@@ -587,24 +598,25 @@ is stable, and the v1 wire format is built for it:
 
 ---
 
-## 7. Security and trust
+## 7. Trust and safety
 
-### 7.1 Transport auth (DSS-derived, review-hardened)
+### 7.1 Transport auth (DSS-derived, review-refined)
 
 - **Layer 1**: unguessable URL token path
   (`randomBytes(16).toString('base64url')`).
 - **Layer 2**: passphrase challenge-response, mutual — PBKDF2-SHA256(600k) →
   HKDF → AES-256-GCM, constant-time compare, fresh per-connection _challenge_
-  (replay-proof), auth timeout, fail lockout keyed on `cf-connecting-ip` **with
-  fallback to socket address when absent** (loopback hub-peer, LAN/Tailscale
-  directs); loopback exempt. Copy `shared/src/crypto.ts` helpers nearly
-  verbatim; change AAD domain strings (`hive-auth`).
-- **KDF-DoS fix**: PBKDF2 is **not** run per connection — the relay uses a
+  (an old handshake can never be reused), auth timeout, failed-attempt lockout
+  keyed on `cf-connecting-ip` **with fallback to socket address when absent**
+  (loopback hub-peer, LAN/Tailscale directs); loopback exempt. Copy
+  `shared/src/crypto.ts` helpers nearly verbatim; change AAD domain strings
+  (`hive-auth`).
+- **KDF cost control**: PBKDF2 is **not** run per connection — the relay uses a
   **static per-hive salt** and caches the derived master key; per-connection
   work is HKDF + one GCM op (challenge freshness, not salt freshness, provides
-  replay protection). URL-only attackers get cheap rejections, lockout after 1–2
-  failures, **zero pre-auth metadata**, and a cap on concurrent unauthenticated
-  connections.
+  the no-reuse guarantee). Connections that only know the URL get cheap
+  rejections, lockout after 1–2 failures, **zero pre-auth metadata**, and a cap
+  on concurrent unauthenticated connections.
 - **Layer 3 (identity)**: node keypairs + relay TOFU binding + pinned relay
   fingerprint (§4.1) — membership is the passphrase; _identity_ is the key.
 - Passphrase: machine-generated ~80-bit (`k7mq-x3rp-9wnz-h4td`,
@@ -628,37 +640,43 @@ is stable, and the v1 wire format is built for it:
   CF account gets 2FA; the Worker template is pinned.
 - Queue files at rest: 0600-equivalent, DLQ pruned on TTL.
 
-### 7.3 Inter-agent prompt injection / behavioral authority
+### 7.3 Peer messages as model input / behavioral authority
 
-**The threat, concretely**: a hive message is untrusted model input that can
-trigger tool execution on a remote machine. Every peer is "the same user" —
-until a passphrase leaks, a laptop is stolen, or **one of the user's own agents
-is itself manipulated** (a malicious webpage telling it "instruct your hive
-peers to run X") — then the hive is lateral movement across every machine at
-once, hands-free. Prompt-level "be careful" guidance is not a boundary; models
-comply with plausible requests.
+**The risk, concretely**: a hive message is untrusted input, and an agent acting
+on one may run local tools on its own machine — so message content must never be
+treated as an authorized command by itself. Every peer is "the same user" —
+until a passphrase leaks, a laptop is lost, or **one of the user's own agents is
+itself misled** by unverified content it read elsewhere (for example, a webpage
+that tries to steer it into forwarding a task to its hive peers) — and then a
+single bad request could be relayed to several machines before a human notices;
+that is exactly why the tool gate and rate limits below exist. Prompt-level "be
+careful" guidance is not a boundary; models comply with plausible-sounding
+requests.
 
-Defense layers, in order of actual strength:
+Safeguard layers, strongest first:
 
-1. **Hard tool gate** (§6.1): state-changing tools denied at scheduling time for
-   non-trusted peers — enforced in our Scheduler loop, in code. **Messaging,
+1. **Hard tool gate** (§6.1): state-changing tools blocked at scheduling time
+   for non-trusted peers — enforced in our Scheduler loop, in code. **Messaging,
    chat, votes, polls, knowledge answers are never affected** — the gate only
    governs what a hive-triggered turn may _do to the local machine_.
    One-keypress trust prompt at peer join keeps U1 frictionless on the user's
    own machines.
-2. **Consult honesty**: read-only is NOT exfiltration-proof — a hostile peer can
-   ask an agent to read secrets and `hive_send` them back. Mitigations: standing
-   system rule + UI-visible reply log; optional `--guarded-replies` (outbound
-   `hive_send` from a hive-triggered turn needs local approval). Documented
-   residual risk — the attacker must already hold the hive credential.
-3. **Framing as defense-in-depth**: inbound bodies wrapped in a **per-message
-   random nonce fence**
+2. **Consult honesty**: read-only access does not guarantee data stays local —
+   an agent answering a peer could still include private local file contents in
+   its replies. Mitigations: standing system rule + UI-visible reply log;
+   optional `--guarded-replies` (outbound `hive_send` from a hive-triggered turn
+   needs local approval). Documented residual risk — it requires already holding
+   the hive credential.
+3. **Framing as an added safeguard**: inbound bodies wrapped in a **per-message
+   random marker fence**
    (`<hive_message_X9f2 from="amber-falcon">…</hive_message_X9f2>`), fence
-   occurrences escaped in the body (a static tag is trivially broken out of).
-   All card fields equally escaped (§4.2).
+   occurrences escaped in the body (a fixed, predictable delimiter could be
+   imitated inside a message body — randomizing it per message keeps body text
+   from ever being mistaken for the fence). All card fields equally escaped
+   (§4.2).
 4. **Peer allowlist** (`/hive allow` — matched on verified key fingerprint,
    never on the nickname string) for cautious setups; relay rate limits + queue
-   caps (§5.4) bound blast radius.
+   caps (§5.4) bound the impact of any misuse.
 
 ---
 
@@ -708,9 +726,9 @@ Machine A UI> ◇ hive: cobalt-otter joined (trusted) — "indexing the SEI know
 
 Machine A user> ask cobalt-otter whether the SEI index has the 2025 acórdãos
 Machine A agent> [hive_send → cobalt-otter, expects_reply]
-Machine B>  [Hive amber-falcon] …question…   ← injected at turn boundary, hands-free
+Machine B>  [Hive amber-falcon] …question…   ← delivered at turn boundary, hands-free
 Machine B agent> [knowledge_search …] [hive_send reply to thread]
-Machine A>  [Hive cobalt-otter] "Yes — 1,243 documents, last updated …" ← injected
+Machine A>  [Hive cobalt-otter] "Yes — 1,243 documents, last updated …" ← delivered
 ```
 
 After the one-time invite + join, no human action is needed on either side —
@@ -726,7 +744,7 @@ trust traveled inside the invite; no prompts on any machine. Onboarding 10 peers
 - **Peer offline**: `hive_send` → `queued (peer offline)`; delivery on
   reconnect; depth cap; TTL → DLQ + notice.
 - **Receiver crash mid-turn**: messages were fsynced locally before `delivered`
-  was acked — re-injected on restart; dedup prevents doubles.
+  was acked — re-delivered on restart; dedup prevents doubles.
 - **Agent busy for hours**: max-hold notices to the sender; receiver-side TTL
   eventually expires to DLQ with receipt.
 - **Two hives, one machine**: one hive per process in v1; joining a second
@@ -743,7 +761,7 @@ New code (no upstream conflicts):
 ```
 packages/cli/src/services/hive/
   HiveService.ts        connection, keys/card, JSONL spools, drain-on-idle
-                        injection loop + hard tool gate (own Scheduler),
+                        delivery loop + hard tool gate (own Scheduler),
                         hive_check drain semantics
   HiveHub.ts            Mode-A embedded relay: roster, disk-persisted queues
                         (restore on restart), fan-out, rate limits
@@ -789,7 +807,7 @@ Touched existing files (one line / one block each, marked `// AUDITARIA_HIVE`):
 1. **MVP (Mode A, Auditaria-only)**: HiveHub (disk-persisted queues) +
    HiveTunnel + HiveService + node keys/TOFU + join/roster +
    `hive_connect`/`hive_send`/`hive_status`/`hive_check` + turn-boundary
-   injection (idle signal + `isTurnActive()` + drain loop) + hard tool gate
+   delivery (idle signal + `isTurnActive()` + drain loop) + hard tool gate
    - trust-at-join prompt + JSONL spools + at-least-once/dedup/acks + relay rate
      limits + **broadcast chat incl. `/hive send *`** + generated nicknames +
      agent self-join. → U1/U2/U3/U4 work.
@@ -798,7 +816,7 @@ Touched existing files (one line / one block each, marked `// AUDITARIA_HIVE`):
 3. **Mode B relay**: `hive-relay/` Worker+DO + E2E envelope sealing +
    epoch-aware seq-resume + DLQ/TTL receipt polish + setup docs ("messages
    survive any machine dying; stable URL"). → permanent-hive story.
-4. **Interactions + hardening**: votes/polls sugar (`/hive vote`, tally helper,
+4. **Interactions + robustness**: votes/polls sugar (`/hive vote`, tally helper,
    UI rendering), concierge mode, guarded replies, thread budgets, web-UI hive
    chat panel.
 5. **Sub-agent exposure (committed)**: hierarchical addressing, roster nesting,
@@ -809,17 +827,18 @@ Touched existing files (one line / one block each, marked `// AUDITARIA_HIVE`):
 ### Test plan seeds (from prior-art failure lists + reviews)
 
 Lost-ack redelivery → idempotent re-ack (no false DLQ); dedup survives restart
-and outlives TTL; receiver crash between relay-release and injection
-(fsync-before-ack); hub restart with non-empty queues → full restore; poison
-message → bounded retries → receiver DLQ; broadcast returns per-peer state map;
-`hive_check` drain removes from injection queue (no double delivery);
-turn-boundary gate vs. PTY-typed turns (`isTurnActive`); injection never splices
-between functionCall and tool-result continuation; tool gate denies shell/write
-for untrusted peer and allows after `/hive trust`; nickname homoglyph collision;
-URL-only attacker gets cheap rejection + lockout; relay impersonation fails on
-pinned fingerprint; Windows: no renames in spool path, exit-handler cleanup;
-`hive_wait` re-arm discipline (docs + `has_more`); vote round-trip as plain
-messages.
+and outlives TTL; receiver crash between relay-release and hand-off
+(fsync-before-ack); hub restart with non-empty queues → full restore;
+undeliverable message → bounded retries → receiver DLQ; broadcast returns
+per-peer state map; `hive_check` drain removes from delivery queue (no double
+delivery); turn-boundary gate vs. PTY-typed turns (`isTurnActive`); a delivered
+hive turn never splices between a functionCall and its tool-result continuation;
+tool gate blocks shell/write for an untrusted peer and allows after
+`/hive trust`; nickname homoglyph collision; a connection that only knows the
+URL gets a cheap rejection + lockout; a substitute relay fails the
+pinned-fingerprint check; Windows: no renames in spool path, exit-handler
+cleanup; `hive_wait` re-arm discipline (docs + `has_more`); vote round-trip as
+plain messages.
 
 ---
 
@@ -829,7 +848,7 @@ messages.
    to phase 3 with clear setup instructions. Queues persist on the hub's disk so
    a dead hub loses nothing; senders spool locally; network load stays minimal
    (push-only, 30 s pings, rate limits).
-2. **Trust default**: hands-free injection ON; hard tool gate denies
+2. **Trust default**: hands-free delivery ON; hard tool gate blocks
    machine-changing tools for untrusted peers. **Trust is hive-wide,
    relay-recorded, and travels inside the single-use invite**
    (`/hive invite --full` default, `--consult` for gated/foreign peers) — zero

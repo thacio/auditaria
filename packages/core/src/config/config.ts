@@ -113,6 +113,13 @@ import { KnowledgeSearchTool } from '../tools/knowledge-search.js'; // AUDITARIA
 import { KnowledgeIndexTool } from '../tools/knowledge-index.js'; // AUDITARIA_LOCAL_SEARCH - Auditaria Custom Feature
 import { ConvertToMarkdownTool } from '../tools/convert-to-markdown.js'; // AUDITARIA_CONVERT_TO_MARKDOWN - Auditaria Custom Feature
 import { ExternalAgentSessionTool } from '../tools/agent-session.js'; // AUDITARIA_AGENT_SESSION - Auditaria Custom Feature
+// AUDITARIA_HIVE_FEATURE: Hive tools (transport registered by cli's HiveService)
+import {
+  HiveConnectTool,
+  HiveSendTool,
+  HiveStatusTool,
+  HiveCheckTool,
+} from '../tools/hive.js';
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 import { FileCheckpointManager } from '../file-checkpoints/index.js'; // AUDITARIA_REWIND
@@ -4588,6 +4595,21 @@ export class Config implements McpContext, AgentLoopContext {
         new ExternalAgentSessionTool(this, this.messageBus),
       ),
     );
+
+    // AUDITARIA_HIVE_FEATURE_START - Auditaria Custom Feature
+    maybeRegister(HiveConnectTool, () =>
+      registry.registerTool(new HiveConnectTool(this.messageBus)),
+    );
+    maybeRegister(HiveSendTool, () =>
+      registry.registerTool(new HiveSendTool(this.messageBus)),
+    );
+    maybeRegister(HiveStatusTool, () =>
+      registry.registerTool(new HiveStatusTool(this.messageBus)),
+    );
+    maybeRegister(HiveCheckTool, () =>
+      registry.registerTool(new HiveCheckTool(this.messageBus)),
+    );
+    // AUDITARIA_HIVE_FEATURE_END
 
     if (this.isTrackerEnabled()) {
       maybeRegister(TrackerCreateTaskTool, () =>

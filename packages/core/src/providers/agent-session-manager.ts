@@ -99,6 +99,12 @@ const ALWAYS_EXCLUDED_TOOLS = [
   'stagehand_browser',
   'context_management',
   'memory',
+  // AUDITARIA_HIVE_FEATURE: sub-agents must not speak as the node itself —
+  // hive participation is routed by the host node (plan §6.3).
+  'hive_connect',
+  'hive_send',
+  'hive_status',
+  'hive_check',
 ];
 
 // Additional tools excluded when mode is 'consult' (read-only)

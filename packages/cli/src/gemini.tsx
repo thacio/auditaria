@@ -924,6 +924,22 @@ export async function main() {
     }
     // AUDITARIA_TELEGRAM_END
 
+    // AUDITARIA_HIVE_FEATURE_START: Reconnect the saved hive (quiet best-effort)
+    if (config.isInteractive()) {
+      try {
+        const { autoConnectHive, stopHiveIfRunning } = await import(
+          './ui/commands/hiveCommand.js'
+        );
+        void autoConnectHive(config);
+        registerCleanup(async () => {
+          await stopHiveIfRunning();
+        });
+      } catch {
+        // Silent — autoconnect is best-effort
+      }
+    }
+    // AUDITARIA_HIVE_FEATURE_END
+
     // AUDITARIA_DISCORD_START: Start Discord bot if enabled (via --discord flag or autostart)
     if (argv.discord) {
       try {
