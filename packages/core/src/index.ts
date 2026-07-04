@@ -351,6 +351,7 @@ export type {
   HiveSendParams,
   HiveStatusParams,
   HiveCheckParams,
+  HiveFetchParams,
 } from './tools/hive.js';
 export { SessionRegistry } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
 export type { SessionRecord } from './providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT

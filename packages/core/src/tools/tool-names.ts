@@ -191,6 +191,7 @@ export const HIVE_CONNECT_TOOL_NAME = 'hive_connect';
 export const HIVE_SEND_TOOL_NAME = 'hive_send';
 export const HIVE_STATUS_TOOL_NAME = 'hive_status';
 export const HIVE_CHECK_TOOL_NAME = 'hive_check';
+export const HIVE_FETCH_TOOL_NAME = 'hive_fetch';
 
 /**
  * Tools that require mandatory argument narrowing (e.g., file paths, command prefixes)

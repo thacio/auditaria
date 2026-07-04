@@ -26,7 +26,6 @@
 
 import * as os from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs';
 import type {
   Config,
   ToolCallRequestInfo,
@@ -35,6 +34,7 @@ import type {
   HiveSendParams,
   HiveStatusParams,
   HiveCheckParams,
+  HiveFetchParams,
 } from '@google/gemini-cli-core';
 import {
   GeminiEventType,
@@ -134,15 +134,16 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // external-provider peer by typing it into the CLI's PTY risks a truncated
 // render — a long message that lands while the provider TUI is mid-turn is
 // previewed head+tail (middle silently dropped). So for large messages under
-// an external provider we write the full content to a local file the receiver
-// reads, and type only a short pointer (short prompts never truncate). The
-// file is local to the RECEIVER, so this works cross-machine.
+// an external provider we DON'T type the body: we hold its full content in
+// memory and type only a short notice with a message_id, and the receiver
+// retrieves the exact content by calling the hive_fetch tool (which returns it
+// as the tool result — no truncation, no filesystem, and a clean seam to
+// encrypt-on-hold / decrypt-on-fetch later).
 const HIVE_INLINE_MAX_CHARS = 1200;
-// Delivery files are cleaned opportunistically once older than this (the turn
-// reads the file synchronously, so a short window is plenty; the TTL only
-// bounds accumulation from crashes mid-turn).
-const HIVE_DELIVERY_FILE_TTL_MS = 30 * 60_000;
-const HIVE_DELIVERY_SUBDIR = 'inbox-files';
+// Held delivery content is pruned once older than this. The receiver fetches it
+// within the same delivery turn, so a generous window is plenty; the TTL only
+// bounds memory if a turn never fetches (e.g. the model ignored the notice).
+const HIVE_DELIVERY_CONTENT_TTL_MS = 30 * 60_000;
 
 /**
  * Render a received message as a fenced block for a model prompt. The fence
@@ -280,6 +281,11 @@ export class HiveService implements HiveTransport {
   private currentAbort: AbortController | undefined;
   /** Per-envelope failed-turn counter for the retry→DLQ ladder (in-memory). */
   private deliveryAttempts = new Map<string, number>();
+  // AUDITARIA_HIVE_FEATURE: Full content of large messages delivered by-reference
+  // (id → fenced block), held in memory for the receiver's hive_fetch call. Not
+  // persisted — the inbox custody chain is the source of truth, so a restart
+  // just re-holds it on redelivery.
+  private deliveryContent = new Map<string, { block: string; ts: number }>();
   private currentStatus: PeerStatus = 'idle';
   private savedConfig: HiveNodeConfig;
 
@@ -1175,12 +1181,13 @@ export class HiveService implements HiveTransport {
    * AUDITARIA_HIVE_FEATURE: Render a received message into the prompt for its
    * delivery turn. Normally the fenced block is inlined. But a large message
    * under an external provider gets typed into the CLI's PTY, where a long input
-   * risks a truncated render (see HIVE_INLINE_MAX_CHARS) — so its full block is
-   * written to a local file and the prompt becomes a short pointer the receiver
-   * reads (a short prompt never truncates; the file is local to the receiver, so
-   * it works cross-machine). This is the single seam that owns how a delivery is
-   * rendered to the model; future by-reference delivery (e.g. real file
-   * attachments) plugs in here.
+   * risks a truncated render (see HIVE_INLINE_MAX_CHARS) — so instead of typing
+   * the body we hold it in memory and type only a short notice with a
+   * message_id; the receiver retrieves the exact content with hive_fetch, which
+   * returns it as a tool result (no truncation, no filesystem, and delivered via
+   * a trusted tool call rather than ambiguous typed text). This is the single
+   * seam that owns how a delivery is rendered to the model; future by-reference
+   * delivery (e.g. real file attachments) plugs in here.
    */
   private buildDeliveryPrompt(
     entry: InboxEntry,
@@ -1212,84 +1219,80 @@ export class HiveService implements HiveTransport {
       .join('\n');
 
     // By-reference delivery for a large message under an external provider:
-    // write the full block to a local file, point the receiver at it. Falls
-    // back to inline if the provider is native (no PTY), the message is small,
-    // or the file can't be written.
+    // hold the full block in memory and hand the receiver a message_id to
+    // retrieve with hive_fetch (a short notice never truncates in the PTY).
+    // Native providers (no PTY) and small messages stay inline.
     const providerManager = this.config.getProviderManager?.();
     if (
       providerManager?.isExternalProviderActive?.() &&
       inlinePrompt.length > HIVE_INLINE_MAX_CHARS
     ) {
-      const file = this.writeDeliveryFile(env.id, block);
-      if (file) {
-        return [
-          intro,
-          `This message is large (${block.length} chars); its full, exact content was saved to a local file to avoid a truncated render. ` +
-            `Read this file with your Read tool to see the complete message before acting:`,
-          `  ${file}`,
-          expectLine,
-          replyLine,
-        ]
-          .filter(Boolean)
-          .join('\n');
-      }
+      this.holdDeliveryContent(env.id, block);
+      return [
+        intro,
+        `This message is large (${block.length} chars) and was not inlined to avoid a truncated render. ` +
+          `Call the hive_fetch tool with message_id="${env.id}" to get its full, exact content, then act on it.`,
+        expectLine,
+        replyLine,
+      ]
+        .filter(Boolean)
+        .join('\n');
     }
     return inlinePrompt;
   }
 
-  /** AUDITARIA_HIVE_FEATURE: Directory holding large-message delivery files. */
-  private deliveryFilesDir(): string {
-    return path.join(hiveDataDir(), HIVE_DELIVERY_SUBDIR);
+  /**
+   * AUDITARIA_HIVE_FEATURE: Hold a large message's full fenced block in memory
+   * for the receiver's hive_fetch call, pruning anything past the TTL first
+   * (bounds memory if a delivery turn never fetches).
+   */
+  private holdDeliveryContent(id: string, block: string): void {
+    const now = Date.now();
+    for (const [key, held] of this.deliveryContent) {
+      if (now - held.ts > HIVE_DELIVERY_CONTENT_TTL_MS) {
+        this.deliveryContent.delete(key);
+      }
+    }
+    this.deliveryContent.set(id, { block, ts: now });
   }
 
   /**
-   * AUDITARIA_HIVE_FEATURE: Write a large fenced message to a local file so it
-   * can be delivered to an external-provider peer by reference (a short pointer
-   * prompt) instead of typed verbatim into the PTY, which risks a truncated
-   * render. Returns the absolute path, or undefined on failure (the caller then
-   * falls back to inline delivery).
+   * AUDITARIA_HIVE_FEATURE: hive_fetch transport impl — return the full content
+   * of a large message the receiver was handed a message_id for. The block is
+   * peer-authored (its fence carries the trust level); the tool surfaces it to
+   * the model exactly, with no truncation. (Encrypt-on-hold / decrypt here is
+   * the natural next step, giving the model a trusted, tamper-evident channel.)
    */
-  private writeDeliveryFile(id: string, block: string): string | undefined {
-    try {
-      const dir = this.deliveryFilesDir();
-      fs.mkdirSync(dir, { recursive: true });
-      this.cleanStaleDeliveryFiles(dir);
-      const safeId = id.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'msg';
-      const file = path.join(dir, `${safeId}.md`);
-      // fsync before returning: the pointer prompt is delivered right after
-      // this, and the receiver's model reads the file immediately — the write
-      // must be durably on disk first, not just in the writeback cache.
-      const fd = fs.openSync(file, 'w');
-      try {
-        fs.writeSync(fd, block, null, 'utf8');
-        fs.fsyncSync(fd);
-      } finally {
-        fs.closeSync(fd);
-      }
-      return file;
-    } catch (e) {
-      debugLogger.error('hive: failed to write delivery file:', e);
-      return undefined;
+  async fetch(params: HiveFetchParams): Promise<string> {
+    const id = (params.message_id ?? '').trim();
+    const held = this.deliveryContent.get(id);
+    if (!held) {
+      return (
+        `No held content for message_id "${id}". It may already have been ` +
+        `processed or expired, or the message was delivered inline. Check your ` +
+        `recent hive messages, or call hive_check for anything still pending.`
+      );
     }
-  }
-
-  /** Remove delivery files older than the TTL (bounded, best-effort cleanup). */
-  private cleanStaleDeliveryFiles(dir = this.deliveryFilesDir()): void {
-    try {
-      const now = Date.now();
-      for (const name of fs.readdirSync(dir)) {
-        const p = path.join(dir, name);
-        try {
-          if (now - fs.statSync(p).mtimeMs > HIVE_DELIVERY_FILE_TTL_MS) {
-            fs.rmSync(p, { force: true });
-          }
-        } catch {
-          /* ignore individual file errors */
-        }
-      }
-    } catch {
-      /* dir doesn't exist yet — nothing to clean */
-    }
+    // Read-style paging so the receiver can recover if its harness truncates a
+    // big tool result: offset is a 1-based line, limit a line count; default is
+    // the whole message. A header (which survives head-truncation) states the
+    // totals and the range so the model knows whether to page for more.
+    const lines = held.block.split('\n');
+    const total = lines.length;
+    const start = Math.min(Math.max(1, Math.floor(params.offset ?? 1)) - 1, total);
+    const limit =
+      params.limit != null && params.limit > 0
+        ? Math.floor(params.limit)
+        : total;
+    const end = Math.min(start + limit, total);
+    const slice = lines.slice(start, end).join('\n');
+    const complete = start === 0 && end === total;
+    const header = complete
+      ? `[hive_fetch ${id}: ${total} lines, ${held.block.length} chars — complete]`
+      : `[hive_fetch ${id}: lines ${start + 1}-${end} of ${total} (${held.block.length} chars total)` +
+        (end < total ? `; call again with offset=${end + 1} for more` : '') +
+        `]`;
+    return `${header}\n${slice}`;
   }
 
   /**

@@ -119,6 +119,7 @@ import {
   HiveSendTool,
   HiveStatusTool,
   HiveCheckTool,
+  HiveFetchTool,
 } from '../tools/hive.js';
 import { AgentSessionManager } from '../providers/agent-session-manager.js'; // AUDITARIA_AGENT_SESSION
 import { SessionRegistry } from '../providers/session-registry.js'; // AUDITARIA_SESSION_MANAGEMENT
@@ -4608,6 +4609,9 @@ export class Config implements McpContext, AgentLoopContext {
     );
     maybeRegister(HiveCheckTool, () =>
       registry.registerTool(new HiveCheckTool(this.messageBus)),
+    );
+    maybeRegister(HiveFetchTool, () =>
+      registry.registerTool(new HiveFetchTool(this.messageBus)),
     );
     // AUDITARIA_HIVE_FEATURE_END
 
