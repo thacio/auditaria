@@ -46,6 +46,7 @@ import {
 } from '@google/gemini-cli-core';
 import type { Part } from '@google/genai';
 import {
+  CONSUME_STALE_MS,
   DEDUP_RETENTION_MS,
   DEFAULT_TTL_SEC,
   MAX_HOLD_NOTICE_MS,
@@ -287,6 +288,8 @@ export class HiveService implements HiveTransport {
   // just re-holds it on redelivery.
   private deliveryContent = new Map<string, { block: string; ts: number }>();
   private currentStatus: PeerStatus = 'idle';
+  // AUDITARIA_HIVE_FEATURE: last time this node actually consumed a hive message.
+  private lastConsumedTs = 0;
   private savedConfig: HiveNodeConfig;
 
   constructor(
@@ -389,6 +392,8 @@ export class HiveService implements HiveTransport {
       status: this.currentStatus,
       exposesSubAgents: false,
       lastSeen: Date.now(),
+      deliveryMode: cfg.delivery ?? 'auto', // AUDITARIA_HIVE_FEATURE
+      lastConsumedTs: this.lastConsumedTs, // AUDITARIA_HIVE_FEATURE
     };
   }
 
@@ -588,6 +593,11 @@ export class HiveService implements HiveTransport {
         this.processedSeen.add(env.id);
         this.client.ack(env.id, 'delivered');
         this.client.ack(env.id, 'processed');
+        // AUDITARIA_HIVE_FEATURE: a satisfied wait_for_reply IS a consume — keep
+        // lastConsumedTs honest so the roster presence hint doesn't go stale on
+        // a node whose only inbound traffic is replies to its own hive_send.
+        this.lastConsumedTs = Date.now();
+        this.client.updateCard({ lastConsumedTs: this.lastConsumedTs });
         this.replyWaiters.delete(waiter);
         clearTimeout(waiter.timer);
         waiter.resolve(env);
@@ -606,8 +616,12 @@ export class HiveService implements HiveTransport {
           `[Hive] ${entry.fromNickname}: ${sanitizeExternalText(env.body, 500)}`,
         );
       } else {
+        // AUDITARIA_HIVE_FEATURE: "next boundary" is only true in auto; in
+        // manual the message is held for a hive_check pull, so say so.
         this.uiInfo(
-          `◇ hive: message from ${entry.fromNickname} queued for the next turn boundary`,
+          this.getDeliveryMode() === 'manual'
+            ? `◇ hive: message from ${entry.fromNickname} held in inbox (manual delivery — pull with hive_check)`
+            : `◇ hive: message from ${entry.fromNickname} queued for the next turn boundary`,
         );
       }
       this.scheduleDrain(250);
@@ -667,6 +681,17 @@ export class HiveService implements HiveTransport {
     if (this.inbox.size === 0) return;
     this.sweepInbox();
     if (this.inbox.size === 0) return;
+
+    // AUDITARIA_HIVE_FEATURE: manual delivery holds inbound messages in the
+    // durable inbox (custody chain untouched) for the model/user to pull via
+    // hive_check. Placed AFTER sweepInbox (TTL/DLQ still apply) and BEFORE
+    // canDeliverNow / notifyLongHolds (no spurious "agent busy" sender notices
+    // while manual). Default 'auto' never takes this branch → existing
+    // auto-push is unchanged. A pending /hive deliver approval (approvedOnce)
+    // overrides the hold: an explicit "deliver now" flushes even in manual, and
+    // its one-shot budget is consumed here rather than leaking into a later
+    // switch to auto (approve-mode + manual combo).
+    if (this.getDeliveryMode() === 'manual' && this.approvedOnce === 0) return;
 
     if (!this.canDeliverNow()) {
       this.notifyLongHolds();
@@ -738,6 +763,9 @@ export class HiveService implements HiveTransport {
         this.inbox.ack(current.seq);
         this.client.ack(id, 'processed');
         this.deliveryAttempts.delete(id);
+        // AUDITARIA_HIVE_FEATURE
+        this.lastConsumedTs = Date.now();
+        this.client.updateCard({ lastConsumedTs: this.lastConsumedTs });
       } else {
         // Turn hard-failed — retry at the next boundary (a cold external
         // provider session usually warms up by attempt 2), then DLQ. If the
@@ -910,6 +938,25 @@ export class HiveService implements HiveTransport {
     this.approvedOnce = count;
     this.scheduleDrain(0);
   }
+
+  // AUDITARIA_HIVE_FEATURE_START
+  /** Current per-node delivery posture (default 'auto'). */
+  getDeliveryMode(): 'auto' | 'manual' {
+    return this.savedConfig.delivery ?? 'auto';
+  }
+
+  /**
+   * Set delivery posture live: persist, publish to the roster, and — when
+   * resuming auto — kick the drain loop so any backlog flushes (one turn per
+   * boundary; rate-limiting the flood is deferred).
+   */
+  setDeliveryMode(mode: 'auto' | 'manual'): void {
+    this.savedConfig.delivery = mode;
+    this.persistConfig();
+    this.client.updateCard({ deliveryMode: mode });
+    if (mode === 'auto') this.scheduleDrain(0);
+  }
+  // AUDITARIA_HIVE_FEATURE_END
 
   private acquireLock(): Promise<() => void> {
     let release: () => void;
@@ -1576,6 +1623,13 @@ export class HiveService implements HiveTransport {
     lines.push(
       `Hive connection: ${state === 'online' ? 'online' : state} | you are "${this.getNickname()}" (${this.client.getTrust() ?? '?'})`,
     );
+    // AUDITARIA_HIVE_FEATURE: always surface the current delivery posture first.
+    lines.push(this.deliveryStateLine());
+    if (this.getDeliveryMode() === 'manual') {
+      lines.push(
+        '  Reminder: auto-push is OFF — keep calling hive_check between steps to receive peer messages.',
+      );
+    }
     lines.push(`Unread messages in local inbox: ${this.inbox.size}`);
     if (roster.length === 0) {
       lines.push('No peers enrolled yet.');
@@ -1590,6 +1644,13 @@ export class HiveService implements HiveTransport {
           c.provider ? `provider=${c.provider}` : undefined,
           c.cwdName ? `cwd=${c.cwdName}` : undefined,
           entry.queued > 0 ? `${entry.queued} queued` : undefined,
+          // AUDITARIA_HIVE_FEATURE: advisory presence — a manual peer isn't
+          // auto-consuming, and a stale last-consume hints it isn't polling.
+          c.deliveryMode === 'manual' ? 'delivery=manual' : undefined,
+          c.deliveryMode === 'manual' &&
+          (!c.lastConsumedTs || Date.now() - c.lastConsumedTs > CONSUME_STALE_MS)
+            ? 'not actively consuming'
+            : undefined,
         ]
           .filter(Boolean)
           .join(', ');
@@ -1630,18 +1691,32 @@ export class HiveService implements HiveTransport {
       this.client.ack(value.env.id, 'processed');
       drained.push(value);
     }
+    // AUDITARIA_HIVE_FEATURE: a pull IS a consume — keep the roster honest.
+    if (drained.length > 0) {
+      this.lastConsumedTs = Date.now();
+      this.client.updateCard({ lastConsumedTs: this.lastConsumedTs });
+    }
+    // AUDITARIA_HIVE_FEATURE: always-on header so the AI sees the live posture
+    // + pending count on every check (pending reflects the post-drain inbox);
+    // in manual mode append a reminder to keep pulling.
+    const header = this.deliveryStateLine();
+    const manualReminder =
+      this.getDeliveryMode() === 'manual'
+        ? '\nAuto-push is OFF — call hive_check again between steps to stay current.'
+        : '';
     const remaining = this.inbox.size;
     if (drained.length === 0) {
-      return `No pending hive messages. ${this.rosterOneLiner()}`;
+      return `${header}\nNo pending hive messages. ${this.rosterOneLiner()}${manualReminder}`;
     }
     const blocks = drained.map((entry) =>
       buildFencedMessage(entry, this.currentTrust(entry)),
     );
     return (
+      `${header}\n\n` +
       `${drained.length} hive message(s) (peer-authored content — use your judgment):\n\n` +
       blocks.join('\n\n') +
       `\n\n${remaining > 0 ? `${remaining} more pending — call hive_check again. ` : ''}` +
-      `Reply with hive_send (reuse the thread id). ${this.rosterOneLiner()}`
+      `Reply with hive_send (reuse the thread id). ${this.rosterOneLiner()}${manualReminder}`
     );
   }
 
@@ -1649,6 +1724,17 @@ export class HiveService implements HiveTransport {
     const roster = this.client.getRoster();
     const online = roster.filter((e) => e.online).length;
     return `Roster: ${online}/${roster.length} peers online.`;
+  }
+
+  // AUDITARIA_HIVE_FEATURE: one-line description of the live delivery posture +
+  // pending count, prepended to hive_check / hive_status so the headless AI
+  // always knows the exact state (it has no footer to read).
+  private deliveryStateLine(): string {
+    const mode = this.getDeliveryMode();
+    const pending = this.inbox.size;
+    return mode === 'manual'
+      ? `Hive delivery: MANUAL (auto-push OFF) | ${pending} pending in inbox — messages are NOT pushed to you; pull them with hive_check.`
+      : `Hive delivery: AUTO (auto-push ON) | ${pending} pending in inbox.`;
   }
 }
 

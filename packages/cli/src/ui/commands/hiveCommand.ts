@@ -444,7 +444,9 @@ async function statusAction(): Promise<void | SlashCommandActionReturn> {
         `  (a brand-new peer under an invite/manual policy needs a token: /hive invite)\n`;
     }
   }
-  const modeLine = `Mode: ${saved.mode ?? 'main'} | trust policy: ${saved.trustPolicy ?? 'open'}\n`;
+  // AUDITARIA_HIVE_FEATURE: surface delivery posture + unread for the human.
+  const deliveryMode = service.getDeliveryMode();
+  const modeLine = `Mode: ${saved.mode ?? 'main'} | delivery: ${deliveryMode} (${service.getUnreadCount()} unread) | trust policy: ${saved.trustPolicy ?? 'open'}\n`;
   return msg('info', hubLine + inviteLine + modeLine + roster);
 }
 
@@ -518,6 +520,52 @@ async function modeAction(
   saveHiveConfig(saved);
   return msg('info', `Hive delivery mode set to "${value}".`);
 }
+
+// AUDITARIA_HIVE_FEATURE_START
+async function deliveryAction(
+  context: CommandContext,
+  args: string,
+): Promise<void | SlashCommandActionReturn> {
+  const value = args.trim().toLowerCase();
+  const service = getActiveHiveService();
+  if (value !== 'auto' && value !== 'manual') {
+    const current =
+      service?.getDeliveryMode() ?? loadHiveConfig().delivery ?? 'auto';
+    return msg(
+      'info',
+      `Current delivery: ${current}\n` +
+        'Usage: /hive delivery <auto|manual>\n' +
+        '  auto   — peer messages are auto-pushed to the model at turn boundaries (default)\n' +
+        '  manual — messages wait in the inbox; the model/user pulls them with hive_check',
+    );
+  }
+  if (!service) {
+    const saved = loadHiveConfig();
+    saved.delivery = value;
+    saveHiveConfig(saved);
+    return msg(
+      'info',
+      `Delivery mode saved as "${value}" (applies when the hive next starts).`,
+    );
+  }
+  service.setDeliveryMode(value);
+  const unread = service.getUnreadCount();
+  // Human-facing confirmation (UI only).
+  context.ui.addItem(
+    {
+      type: 'info',
+      text: `[Hive] delivery set to ${value}${value === 'manual' && unread > 0 ? ` (${unread} unread waiting)` : ''}.`,
+    },
+    Date.now(),
+  );
+  // Push the instruction to the HEADLESS session AI as a real turn.
+  const aiInstruction =
+    value === 'manual'
+      ? `Automatic hive push is now OFF — peer messages will NOT be delivered to you automatically. To receive them you must actively check: call hive_check to pull pending messages, or (foreign shim) hive_wait to park and monitor. If you are coordinating live, set up a monitoring pattern (e.g. periodic hive_check between steps).${unread > 0 ? ` ${unread} message(s) are already waiting — call hive_check now.` : ''}`
+      : `Automatic hive push is ON — peer messages arrive automatically at the start of your next turn.`;
+  return { type: 'submit_prompt', content: aiInstruction };
+}
+// AUDITARIA_HIVE_FEATURE_END
 
 async function deliverAction(): Promise<void | SlashCommandActionReturn> {
   const service = getActiveHiveService();
@@ -702,6 +750,8 @@ async function defaultAction(
       '  /hive send <nick|*> <message>   Message a peer; * = hive-wide chat\n' +
       '  /hive describe <text>           Set your roster self-description\n' +
       '  /hive mode <main|approve>       Hands-free delivery vs per-message approval\n' +
+      // AUDITARIA_HIVE_FEATURE
+      '  /hive delivery <auto|manual>    Auto-push peer messages, or hold them for hive_check\n' +
       '  /hive deliver                   Hand pending messages to the model (approve mode)\n' +
       "  /hive trust|untrust <nick>      Change a peer's trust hive-wide\n" +
       '  /hive remove <nick>             Revoke a node (lost machine)\n' +
@@ -826,6 +876,14 @@ export const hiveCommand: SlashCommand = {
       kind: CommandKind.BUILT_IN,
       autoExecute: true,
       action: deliverAction,
+    },
+    // AUDITARIA_HIVE_FEATURE
+    {
+      name: 'delivery',
+      description: 'Auto-push vs pull. Usage: /hive delivery <auto|manual>',
+      kind: CommandKind.BUILT_IN,
+      autoExecute: false,
+      action: deliveryAction,
     },
     {
       name: 'trust',

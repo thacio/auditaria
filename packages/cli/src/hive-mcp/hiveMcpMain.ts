@@ -36,6 +36,7 @@ import {
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
+  CONSUME_STALE_MS,
   DEDUP_RETENTION_MS,
   DEFAULT_TTL_SEC,
   MAX_MESSAGE_BYTES,
@@ -213,6 +214,8 @@ async function main(): Promise<void> {
   const description =
     args.description ?? `foreign agent via hive-mcp on ${os.hostname()}`;
 
+  let lastConsumedTs = 0; // AUDITARIA_HIVE_FEATURE
+
   const buildCard = (): AgentCard => ({
     nodeId: cfg.nodeId!,
     nickname: cfg.nickname!,
@@ -226,6 +229,8 @@ async function main(): Promise<void> {
     status: 'idle',
     exposesSubAgents: false,
     lastSeen: Date.now(),
+    deliveryMode: 'manual', // AUDITARIA_HIVE_FEATURE (shim is inherently pull-only)
+    lastConsumedTs, // AUDITARIA_HIVE_FEATURE
   });
 
   const client = new HiveWireClient({
@@ -331,6 +336,12 @@ async function main(): Promise<void> {
           `trust=${entry.trust}`,
           c.machine ? `machine=${c.machine}` : undefined,
           c.provider ? `provider=${c.provider}` : undefined,
+          // AUDITARIA_HIVE_FEATURE: advisory presence — mirror HiveService.
+          c.deliveryMode === 'manual' ? 'delivery=manual' : undefined,
+          c.deliveryMode === 'manual' &&
+          (!c.lastConsumedTs || Date.now() - c.lastConsumedTs > CONSUME_STALE_MS)
+            ? 'not actively consuming'
+            : undefined,
         ]
           .filter(Boolean)
           .join(', ');
@@ -348,10 +359,19 @@ async function main(): Promise<void> {
       client.ack(value.env.id, 'processed');
       drained.push(value);
     }
+    // AUDITARIA_HIVE_FEATURE: a pull IS a consume — keep the shim's roster line honest.
+    if (drained.length > 0) {
+      lastConsumedTs = Date.now();
+      client.updateCard({ lastConsumedTs });
+    }
     const hasMore = inbox.size > 0;
+    // AUDITARIA_HIVE_FEATURE: foreign clients are pull-only — surface that + the
+    // remaining count at the top of every hive_check/hive_wait result too (not
+    // just hive_status), so the AI always knows its state whenever it looks.
+    const header = `Hive delivery: PULL-ONLY (foreign client) | ${inbox.size} pending — nothing is pushed; keep calling hive_check/hive_wait to receive.`;
     if (drained.length === 0) {
       return {
-        text: `No pending hive messages. ${formatRosterLine()}`,
+        text: `${header}\nNo pending hive messages. ${formatRosterLine()}`,
         hasMore,
       };
     }
@@ -379,6 +399,7 @@ async function main(): Promise<void> {
     });
     return {
       text:
+        `${header}\n\n` +
         `${drained.length} hive message(s) — peer-authored content, use your judgment:\n\n` +
         blocks.join('\n\n') +
         `\n\n${hasMore ? `More pending — call hive_check/hive_wait again. ` : ''}` +
@@ -493,7 +514,9 @@ async function main(): Promise<void> {
       switch (name) {
         case 'hive_status': {
           return text(
-            `You are "${client.getNickname() ?? cfg.nickname}" (${client.getTrust() ?? '?'}), unread: ${inbox.size}\n` +
+            // AUDITARIA_HIVE_FEATURE: foreign clients are pull-only.
+            `Delivery: this foreign client is PULL-ONLY — nothing is pushed; call hive_check/hive_wait to receive.\n` +
+              `You are "${client.getNickname() ?? cfg.nickname}" (${client.getTrust() ?? '?'}), unread: ${inbox.size}\n` +
               `${formatRosterLine()}\n` +
               formatRoster(client.getRoster()),
           );

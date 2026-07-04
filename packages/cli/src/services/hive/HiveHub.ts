@@ -300,6 +300,8 @@ export async function startHiveHub(
           status: 'offline',
           exposesSubAgents: false,
           lastSeen: 0,
+          deliveryMode: 'auto', // AUDITARIA_HIVE_FEATURE
+          lastConsumedTs: 0, // AUDITARIA_HIVE_FEATURE
         };
     return {
       card,
@@ -356,6 +358,15 @@ export async function startHiveHub(
           : 'idle',
       exposesSubAgents: !!card.exposesSubAgents,
       lastSeen: Date.now(),
+      // AUDITARIA_HIVE_FEATURE: whitelist the advisory presence fields
+      // (validated) — the hub rebuilds the card field-by-field and drops
+      // anything not listed here.
+      deliveryMode: card.deliveryMode === 'manual' ? 'manual' : 'auto',
+      lastConsumedTs:
+        typeof card.lastConsumedTs === 'number' &&
+        Number.isFinite(card.lastConsumedTs)
+          ? card.lastConsumedTs
+          : 0,
     };
   }
 

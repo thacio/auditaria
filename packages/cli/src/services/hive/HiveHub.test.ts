@@ -397,4 +397,49 @@ describe('HiveHub', () => {
     const entry = hub!.listRoster().find((e) => e.card.nodeId === keys.nodeId);
     expect(entry?.card.selfDescription).not.toContain(String.fromCharCode(27));
   }, 40_000);
+
+  // AUDITARIA_HIVE_FEATURE: guards the sanitizeCard drop-bug (the hub rebuilds
+  // the card field-by-field) + the CardMsg.patch Pick — advisory delivery
+  // presence must survive BOTH the auth card and a live updateCard patch.
+  it('propagates advisory delivery presence (deliveryMode + lastConsumedTs)', async () => {
+    const h = await startHub();
+    const keys = { ...generateIdentityKeyPair(), nodeId: makeNodeId() };
+    const consumedAt = Date.now() - 1_000;
+    const client = new HiveWireClient({
+      url: `http://127.0.0.1:${h.port}/${h.urlToken}`,
+      passphrase: PASS,
+      identity: {
+        nodeId: keys.nodeId,
+        publicKeyPem: keys.publicKeyPem,
+        privateKeyPem: keys.privateKeyPem,
+      },
+      getCard: () => ({
+        ...makeCard('router', keys.nodeId),
+        deliveryMode: 'manual',
+        lastConsumedTs: consumedAt,
+      }),
+    });
+    clients.push(client);
+    await new Promise<void>((resolve, reject) => {
+      client.once('welcome', () => resolve());
+      client.once('authfail', (r: string) => reject(new Error(r)));
+      client.start();
+      setTimeout(() => reject(new Error('timeout')), 20_000);
+    });
+    // Auth-card path: the fields survive the hub's sanitizeCard rebuild.
+    const entry = hub!.listRoster().find((e) => e.card.nodeId === keys.nodeId);
+    expect(entry?.card.deliveryMode).toBe('manual');
+    expect(entry?.card.lastConsumedTs).toBe(consumedAt);
+
+    // Live-patch path: updateCard({ deliveryMode, lastConsumedTs }) reaches an
+    // observing peer's roster (exercises the CardMsg.patch Pick extension).
+    const observer = await connectClient(h, 'observer');
+    client.updateCard({ deliveryMode: 'auto', lastConsumedTs: consumedAt + 5 });
+    await waitFor(() => {
+      const c = observer.client
+        .getRoster()
+        .find((e) => e.card.nodeId === keys.nodeId)?.card;
+      return c?.deliveryMode === 'auto' && c?.lastConsumedTs === consumedAt + 5;
+    });
+  }, 40_000);
 });

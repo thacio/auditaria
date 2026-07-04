@@ -59,6 +59,10 @@ export const MAX_WAIT_FOR_REPLY_SEC = 600;
  */
 export const MAX_HOLD_NOTICE_MS = 25 * 60_000;
 
+// AUDITARIA_HIVE_FEATURE: a manual peer whose last consume is older than this
+// is flagged "not actively consuming" in roster views (advisory only).
+export const CONSUME_STALE_MS = 5 * 60_000;
+
 // -------------------------------------------------------------------
 // Trust
 // -------------------------------------------------------------------
@@ -151,6 +155,10 @@ export interface AgentCard {
   status: PeerStatus;
   exposesSubAgents: boolean;
   lastSeen: number;
+  // AUDITARIA_HIVE_FEATURE: advisory roster presence (routing hint, no election).
+  deliveryMode?: 'auto' | 'manual';
+  /** ms epoch the node last actually consumed/processed an inbound message. */
+  lastConsumedTs?: number;
 }
 
 export interface RosterEntry {
@@ -279,6 +287,8 @@ export interface CardMsg {
       | 'provider'
       | 'capabilities'
       | 'exposesSubAgents'
+      | 'deliveryMode' // AUDITARIA_HIVE_FEATURE
+      | 'lastConsumedTs' // AUDITARIA_HIVE_FEATURE
     >
   >;
 }
@@ -382,6 +392,10 @@ export interface HiveNodeConfig {
    * 'approve' — each inbound message needs a local y/n before hand-off.
    */
   mode?: 'main' | 'approve';
+  // AUDITARIA_HIVE_FEATURE: per-node auto-push posture (orthogonal to `mode`).
+  // 'auto' (default) pushes inbound messages at turn boundaries; 'manual' holds
+  // them in the durable inbox for the model/user to pull with hive_check.
+  delivery?: 'auto' | 'manual';
   /** Hub-side posture for new enrollments (see TrustPolicy). */
   trustPolicy?: TrustPolicy;
   /** Rejoin on every start (quiet best-effort, like Telegram autostart). */
