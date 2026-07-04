@@ -113,6 +113,14 @@ const VALID_KINDS = new Set<string>([
 /** Failed hive turns are retried up to this many times, then dead-lettered. */
 const MAX_DELIVERY_ATTEMPTS = 3;
 
+// AUDITARIA_HIVE_FEATURE: A turn that dead-lettered with NO side effect (its
+// retries were exhausted by a transient window — a cold provider session, a
+// rebuild/restart tearing down the turn mid-flight, or a busy main session) is
+// redriven for another attempt when the node next comes up. This many redrives,
+// then it stays dead-lettered for good (so a genuinely un-processable message
+// can't loop across restarts).
+const MAX_DLQ_REDRIVES = 2;
+
 /** Max chars of a message's structured `data` rendered into the model prompt. */
 const DATA_RENDER_LIMIT = 4_000;
 
@@ -392,6 +400,9 @@ export class HiveService implements HiveTransport {
     // signals, and messages that arrived while the model was busy).
     this.drainTimer = setInterval(() => this.scheduleDrain(0), 5_000);
     this.drainTimer.unref?.();
+    // The node is coming up stable now — recover any messages that dead-lettered
+    // from a transient window (cold session / restart / busy main session).
+    this.redriveSafeDlqEntries();
   }
 
   async stop(): Promise<void> {
@@ -761,7 +772,10 @@ export class HiveService implements HiveTransport {
     const giveUp = !retrySafe || n >= MAX_DELIVERY_ATTEMPTS;
     if (giveUp) {
       this.inbox.ack(seq);
-      this.localDlq.enqueue(value, false);
+      // Record whether this dead-letter is safe to redrive later: true only if
+      // no tool ran (retrySafe). Any existing dlqRedrives count on the entry is
+      // preserved by the spread.
+      this.localDlq.enqueue({ ...value, dlqRetrySafe: retrySafe }, false);
       this.deliveryAttempts.delete(id);
       const why = !retrySafe
         ? 'the turn failed after already running a tool (not safe to retry)'
@@ -779,6 +793,44 @@ export class HiveService implements HiveTransport {
         `◇ hive: turn for ${value.fromNickname} failed (attempt ${n}/${MAX_DELIVERY_ATTEMPTS}) — will retry at the next boundary.`,
       );
       // Left in the inbox; the finally's scheduleDrain re-attempts shortly.
+    }
+  }
+
+  /**
+   * AUDITARIA_HIVE_FEATURE: On startup, move retry-SAFE dead-lettered messages
+   * back into the inbox for another delivery attempt. These are turns that
+   * failed with NO side effect during a transient window (a cold provider
+   * session, a rebuild/restart mid-turn, or a busy main session) and exhausted
+   * their in-session retries — recoverable now that the node is up. Entries
+   * where a tool already ran (dlqRetrySafe !== true, e.g. TTL-expired or
+   * side-effect turns) are left in the DLQ. Each entry is redriven at most
+   * MAX_DLQ_REDRIVES times so a genuinely un-processable message can't loop.
+   */
+  private redriveSafeDlqEntries(): void {
+    let redriven = 0;
+    for (const { seq, value } of this.localDlq.entries()) {
+      if (value.dlqRetrySafe !== true) continue;
+      if ((value.dlqRedrives ?? 0) >= MAX_DLQ_REDRIVES) continue;
+      // Re-enqueue a clean inbox entry (drop the DLQ-only retry-safe marker,
+      // bump the redrive counter). Dedup/processedSeen in drainNext still guards
+      // against re-processing anything that did complete.
+      const redelivered: InboxEntry = {
+        env: value.env,
+        seq: 0, // assigned by enqueue below
+        receivedAt: value.receivedAt,
+        fromNickname: value.fromNickname,
+        fromTrust: value.fromTrust,
+        dlqRedrives: (value.dlqRedrives ?? 0) + 1,
+      };
+      redelivered.seq = this.inbox.enqueue(redelivered);
+      this.localDlq.ack(seq);
+      redriven++;
+    }
+    if (redriven > 0) {
+      this.uiInfo(
+        `◇ hive: redrove ${redriven} dead-lettered message(s) for another delivery attempt after recovery.`,
+      );
+      this.scheduleDrain(1_000);
     }
   }
 

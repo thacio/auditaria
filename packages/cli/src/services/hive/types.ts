@@ -405,6 +405,14 @@ export interface InboxEntry {
   /** Nickname snapshot at receive time (roster may change before hand-off). */
   fromNickname: string;
   fromTrust: TrustLevel;
+  // AUDITARIA_HIVE_FEATURE: DLQ-redrive bookkeeping. dlqRetrySafe is set when the
+  // entry is moved to the local DLQ — true ONLY if the turn failed with no side
+  // effect (safe to redrive once the node recovers); a tool-already-ran entry is
+  // false and is never redriven (would double the side effect). dlqRedrives
+  // bounds how many times a transient-fail entry is redriven before it stays
+  // dead-lettered for good.
+  dlqRetrySafe?: boolean;
+  dlqRedrives?: number;
 }
 
 /** Result surfaced to hive_send callers. */
