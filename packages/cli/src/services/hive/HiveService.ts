@@ -130,10 +130,10 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // reads, and type only a short pointer (short prompts never truncate). The
 // file is local to the RECEIVER, so this works cross-machine.
 const HIVE_INLINE_MAX_CHARS = 1200;
-// Delivery files are cleaned opportunistically once older than this (the turn
-// reads the file synchronously, so a short window is plenty; the TTL only
-// bounds accumulation from crashes mid-turn).
-const HIVE_DELIVERY_FILE_TTL_MS = 30 * 60_000;
+// A delivery file is read by the model during its delivery turn and then
+// deleted in processEnvelope's finally, so it lives only for that turn. Any
+// file left in the subdir is a crash-orphan from a killed run — cleared on
+// start()/stop() (the subdir is per-instance and single-writer).
 const HIVE_DELIVERY_SUBDIR = 'inbox-files';
 
 /**
@@ -382,6 +382,7 @@ export class HiveService implements HiveTransport {
 
   start(): void {
     this.stopped = false;
+    this.clearDeliveryFiles(); // drop any crash-orphaned delivery files
     registerHiveTransport(this);
     this.client.start();
     // Turn-boundary signal: drain when the UI goes idle…
@@ -415,6 +416,7 @@ export class HiveService implements HiveTransport {
     this.localDlq.dispose();
     this.seen.dispose();
     this.processedSeen.dispose();
+    this.clearDeliveryFiles();
   }
 
   getConnectionState(): HiveClientState {
@@ -949,7 +951,10 @@ export class HiveService implements HiveTransport {
     // was queued takes effect (falls back to the receive-time snapshot).
     const effectiveTrust = this.currentTrust(entry);
     const trusted = effectiveTrust === 'full';
-    const prompt = this.buildDeliveryPrompt(entry, effectiveTrust);
+    const { prompt, deliveryFile } = this.buildDeliveryPrompt(
+      entry,
+      effectiveTrust,
+    );
 
     // Show the inbound message as a user-style item (like Telegram turns).
     pushHiveToCliDisplay({
@@ -1108,6 +1113,14 @@ export class HiveService implements HiveTransport {
       return { ok: false, retrySafe: !sideEffectExecuted };
     } finally {
       if (this.currentAbort === abortController) this.currentAbort = undefined;
+      // The delivery file (if any) was read during this turn — it's done now.
+      if (deliveryFile) {
+        try {
+          fs.rmSync(deliveryFile, { force: true });
+        } catch {
+          /* start()/stop() sweep will catch it */
+        }
+      }
       // Close any dangling functionCall in the shared history. Two hive-turn
       // exits can leave a model functionCall without its functionResponse:
       // (a) a declined tool for a non-trusted peer where the loop then breaks
@@ -1133,7 +1146,7 @@ export class HiveService implements HiveTransport {
   private buildDeliveryPrompt(
     entry: InboxEntry,
     effectiveTrust: 'full' | 'consult',
-  ): string {
+  ): { prompt: string; deliveryFile?: string } {
     const { env } = entry;
     const trusted = effectiveTrust === 'full';
     const block = buildFencedMessage(entry, effectiveTrust);
@@ -1170,19 +1183,22 @@ export class HiveService implements HiveTransport {
     ) {
       const file = this.writeDeliveryFile(env.id, block);
       if (file) {
-        return [
-          intro,
-          `This message is large (${block.length} chars); its full, exact content was saved to a local file to avoid a truncated render. ` +
-            `Read this file with your Read tool to see the complete message before acting:`,
-          `  ${file}`,
-          expectLine,
-          replyLine,
-        ]
-          .filter(Boolean)
-          .join('\n');
+        return {
+          prompt: [
+            intro,
+            `This message is large (${block.length} chars); its full, exact content was saved to a local file to avoid a truncated render. ` +
+              `Read this file with your Read tool to see the complete message before acting:`,
+            `  ${file}`,
+            expectLine,
+            replyLine,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+          deliveryFile: file,
+        };
       }
     }
-    return inlinePrompt;
+    return { prompt: inlinePrompt };
   }
 
   /** AUDITARIA_HIVE_FEATURE: Directory holding large-message delivery files. */
@@ -1201,7 +1217,6 @@ export class HiveService implements HiveTransport {
     try {
       const dir = this.deliveryFilesDir();
       fs.mkdirSync(dir, { recursive: true });
-      this.cleanStaleDeliveryFiles(dir);
       const safeId = id.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 64) || 'msg';
       const file = path.join(dir, `${safeId}.md`);
       fs.writeFileSync(file, block, 'utf8');
@@ -1212,22 +1227,16 @@ export class HiveService implements HiveTransport {
     }
   }
 
-  /** Remove delivery files older than the TTL (bounded, best-effort cleanup). */
-  private cleanStaleDeliveryFiles(dir = this.deliveryFilesDir()): void {
+  /**
+   * Remove the whole delivery-files subdir. Each turn deletes its own file, so
+   * anything here is a crash-orphan from a killed run — cleared on start()/stop()
+   * (per-instance, single-writer, so clearing all of it is safe).
+   */
+  private clearDeliveryFiles(): void {
     try {
-      const now = Date.now();
-      for (const name of fs.readdirSync(dir)) {
-        const p = path.join(dir, name);
-        try {
-          if (now - fs.statSync(p).mtimeMs > HIVE_DELIVERY_FILE_TTL_MS) {
-            fs.rmSync(p, { force: true });
-          }
-        } catch {
-          /* ignore individual file errors */
-        }
-      }
+      fs.rmSync(this.deliveryFilesDir(), { recursive: true, force: true });
     } catch {
-      /* dir doesn't exist yet — nothing to clean */
+      /* nothing to clear */
     }
   }
 
