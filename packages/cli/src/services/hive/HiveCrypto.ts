@@ -359,6 +359,26 @@ const NICK_ADJECTIVES = [
   'swift',
   'velvet',
   'winter',
+  'arctic',
+  'bold',
+  'breezy',
+  'bronze',
+  'cedar',
+  'coral',
+  'dusky',
+  'ember',
+  'fabled',
+  'gentle',
+  'hazel',
+  'indigo',
+  'keen',
+  'maple',
+  'nimble',
+  'pearl',
+  'sable',
+  'tidal',
+  'umber',
+  'zesty',
 ];
 
 const NICK_ANIMALS = [
@@ -382,12 +402,33 @@ const NICK_ANIMALS = [
   'raven',
   'stoat',
   'toucan',
+  'alpaca',
+  'bison',
+  'caracal',
+  'dingo',
+  'egret',
+  'fennec',
+  'gannet',
+  'hoopoe',
+  'impala',
+  'jackdaw',
+  'koala',
+  'lemur',
+  'macaw',
+  'numbat',
+  'ocelot',
+  'puffin',
+  'serval',
+  'tapir',
+  'vervet',
+  'wombat',
 ];
 
 export function generateNickname(): string {
-  const r = randomBytes(2);
-  const adj = NICK_ADJECTIVES[r[0] % NICK_ADJECTIVES.length];
-  const animal = NICK_ANIMALS[r[1] % NICK_ANIMALS.length];
+  // randomInt is uniform — no modulo bias (256 % len skewed the old draw
+  // toward the first entries of each list).
+  const adj = NICK_ADJECTIVES[nodeCrypto.randomInt(NICK_ADJECTIVES.length)];
+  const animal = NICK_ANIMALS[nodeCrypto.randomInt(NICK_ANIMALS.length)];
   return `${adj}-${animal}`;
 }
 
