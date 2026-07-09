@@ -145,6 +145,18 @@ const HIVE_INLINE_MAX_CHARS = 1200;
 // within the same delivery turn, so a generous window is plenty; the TTL only
 // bounds memory if a turn never fetches (e.g. the model ignored the notice).
 const HIVE_DELIVERY_CONTENT_TTL_MS = 30 * 60_000;
+// AUDITARIA_HIVE_FEATURE: minimum spacing between delivery attempts for one
+// message. Live testing showed transient contention (a cold provider session,
+// the user's own turn racing the boundary gate) failing attempts SECONDS apart
+// — burning the whole retry ladder while nothing had changed, and re-typing the
+// notice into the model's context each time. Backoff makes each retry meet a
+// genuinely new situation.
+const HIVE_RETRY_BACKOFF_MS = 45_000;
+// Hard ceiling for one headless delivery turn. Without it, a turn whose
+// completion is never detected (external-provider detection miss) pins its
+// message in inbox+inProgress indefinitely — invisible to hive_check and never
+// retried/DLQ'd. On abort the normal failure ladder takes over.
+const HIVE_TURN_TIMEOUT_MS = 10 * 60_000;
 
 /**
  * Render a received message as a fenced block for a model prompt. The fence
@@ -280,8 +292,11 @@ export class HiveService implements HiveTransport {
   private turnCounter = 0;
   /** AbortController of the hive turn in flight (for stop() cancellation). */
   private currentAbort: AbortController | undefined;
-  /** Per-envelope failed-turn counter for the retry→DLQ ladder (in-memory). */
-  private deliveryAttempts = new Map<string, number>();
+  /**
+   * Per-envelope failed-turn tracking for the retry→DLQ ladder (in-memory):
+   * attempt count + when the last attempt failed (drives the retry backoff).
+   */
+  private deliveryAttempts = new Map<string, { n: number; lastAt: number }>();
   // AUDITARIA_HIVE_FEATURE: Full content of large messages delivered by-reference
   // (id → fenced block), held in memory for the receiver's hive_fetch call. Not
   // persisted — the inbox custody chain is the source of truth, so a restart
@@ -701,6 +716,14 @@ export class HiveService implements HiveTransport {
     const head = this.inbox.peek();
     if (!head) return;
 
+    // AUDITARIA_HIVE_FEATURE: retry backoff — after a failed attempt, hold the
+    // head until the backoff elapses so transient contention can't burn the
+    // whole ladder in seconds (the 5s drain timer re-polls; FIFO order kept).
+    const priorAttempt = this.deliveryAttempts.get(head.value.env.id);
+    if (priorAttempt && Date.now() - priorAttempt.lastAt < HIVE_RETRY_BACKOFF_MS) {
+      return;
+    }
+
     // Pre-lock hold check (advisory — avoids acquiring the lock only to bail).
     const headHold = this.holdReason(head.value);
     if (headHold) {
@@ -798,8 +821,8 @@ export class HiveService implements HiveTransport {
   ): void {
     const { seq, value } = current;
     const id = value.env.id;
-    const n = (this.deliveryAttempts.get(id) ?? 0) + 1;
-    this.deliveryAttempts.set(id, n);
+    const n = (this.deliveryAttempts.get(id)?.n ?? 0) + 1;
+    this.deliveryAttempts.set(id, { n, lastAt: Date.now() });
 
     // Not retry-safe: a tool already executed this turn, so re-running would
     // double the side effect. Dead-letter immediately instead of retrying.
@@ -824,9 +847,9 @@ export class HiveService implements HiveTransport {
       );
     } else {
       this.uiInfo(
-        `◇ hive: turn for ${value.fromNickname} failed (attempt ${n}/${MAX_DELIVERY_ATTEMPTS}) — will retry at the next boundary.`,
+        `◇ hive: turn for ${value.fromNickname} failed (attempt ${n}/${MAX_DELIVERY_ATTEMPTS}) — will retry at a turn boundary after a ${Math.round(HIVE_RETRY_BACKOFF_MS / 1000)}s backoff.`,
       );
-      // Left in the inbox; the finally's scheduleDrain re-attempts shortly.
+      // Left in the inbox; the drain timer re-attempts once the backoff elapses.
     }
   }
 
@@ -1054,7 +1077,11 @@ export class HiveService implements HiveTransport {
     // was queued takes effect (falls back to the receive-time snapshot).
     const effectiveTrust = this.currentTrust(entry);
     const trusted = effectiveTrust === 'full';
-    const prompt = this.buildDeliveryPrompt(entry, effectiveTrust);
+    // AUDITARIA_HIVE_FEATURE: pass the attempt number so retries under an
+    // external provider type a short fetch-notice instead of re-typing the
+    // full message into the model's context again.
+    const attemptNo = this.deliveryAttempts.get(env.id)?.n ?? 0;
+    const prompt = this.buildDeliveryPrompt(entry, effectiveTrust, attemptNo);
 
     // Show the inbound message as a user-style item (like Telegram turns).
     pushHiveToCliDisplay({
@@ -1066,6 +1093,17 @@ export class HiveService implements HiveTransport {
     // Expose it so stop() can cancel a runaway turn mid-stream (not just
     // between loop iterations via this.stopped).
     this.currentAbort = abortController;
+    // AUDITARIA_HIVE_FEATURE: watchdog — a delivery turn whose completion is
+    // never detected (external-provider miss) would otherwise pin its message
+    // in inbox+inProgress indefinitely. Abort → normal failure ladder.
+    const watchdog = setTimeout(() => {
+      try {
+        abortController.abort();
+      } catch {
+        /* ignore */
+      }
+    }, HIVE_TURN_TIMEOUT_MS);
+    watchdog.unref?.();
     const promptId = `hive-${Date.now()}-${++this.turnCounter}`;
     const scheduler = new Scheduler({
       context: this.config,
@@ -1212,6 +1250,7 @@ export class HiveService implements HiveTransport {
       );
       return { ok: false, retrySafe: !sideEffectExecuted };
     } finally {
+      clearTimeout(watchdog); // AUDITARIA_HIVE_FEATURE
       if (this.currentAbort === abortController) this.currentAbort = undefined;
       // Close any dangling functionCall in the shared history. Two hive-turn
       // exits can leave a model functionCall without its functionResponse:
@@ -1239,6 +1278,7 @@ export class HiveService implements HiveTransport {
   private buildDeliveryPrompt(
     entry: InboxEntry,
     effectiveTrust: 'full' | 'consult',
+    attemptNo = 0,
   ): string {
     const { env } = entry;
     const trusted = effectiveTrust === 'full';
@@ -1268,16 +1308,25 @@ export class HiveService implements HiveTransport {
     // By-reference delivery for a large message under an external provider:
     // hold the full block in memory and hand the receiver a message_id to
     // retrieve with hive_fetch (a short notice never truncates in the PTY).
-    // Native providers (no PTY) and small messages stay inline.
+    // Native providers (no PTY) and small messages stay inline. A RETRY under
+    // an external provider also goes by reference regardless of size: the
+    // earlier attempt already typed the full text, so re-typing it would
+    // duplicate the content in the model's context — a short notice (with the
+    // content re-pullable via hive_fetch) is both deduplicating and safe.
     const providerManager = this.config.getProviderManager?.();
     if (
       providerManager?.isExternalProviderActive?.() &&
-      inlinePrompt.length > HIVE_INLINE_MAX_CHARS
+      (attemptNo > 0 || inlinePrompt.length > HIVE_INLINE_MAX_CHARS)
     ) {
       this.holdDeliveryContent(env.id, block);
+      const retryPrefix =
+        attemptNo > 0
+          ? `(Delivery retry ${attemptNo + 1} — an earlier copy of this notice or message may already appear in your context; process it ONCE.) `
+          : '';
       return [
         intro,
-        `This message is large (${block.length} chars) and was not inlined to avoid a truncated render. ` +
+        retryPrefix +
+          `This message (${block.length} chars) was not inlined to avoid a truncated render. ` +
           `Call the hive_fetch tool with message_id="${env.id}" to get its full, exact content, then act on it.`,
         expectLine,
         replyLine,
@@ -1630,7 +1679,8 @@ export class HiveService implements HiveTransport {
         '  Reminder: auto-push is OFF — keep calling hive_check between steps to receive peer messages.',
       );
     }
-    lines.push(`Unread messages in local inbox: ${this.inbox.size}`);
+    // AUDITARIA_HIVE_FEATURE: exclude in-flight deliveries from "unread".
+    lines.push(`Unread messages in local inbox: ${this.inboxCounts().pending}`);
     if (roster.length === 0) {
       lines.push('No peers enrolled yet.');
     } else {
@@ -1704,9 +1754,16 @@ export class HiveService implements HiveTransport {
       this.getDeliveryMode() === 'manual'
         ? '\nAuto-push is OFF — call hive_check again between steps to stay current.'
         : '';
-    const remaining = this.inbox.size;
+    const { pending: remaining, inFlight } = this.inboxCounts();
     if (drained.length === 0) {
-      return `${header}\nNo pending hive messages. ${this.rosterOneLiner()}${manualReminder}`;
+      // AUDITARIA_HIVE_FEATURE: say why the inbox isn't empty when a delivery
+      // turn is running — "No pending" next to a non-zero count reads as a
+      // stuck counter.
+      const inFlightLine =
+        inFlight > 0
+          ? `No new messages — ${inFlight} message(s) currently being delivered to you in another turn. `
+          : 'No pending hive messages. ';
+      return `${header}\n${inFlightLine}${this.rosterOneLiner()}${manualReminder}`;
     }
     const blocks = drained.map((entry) =>
       buildFencedMessage(entry, this.currentTrust(entry)),
@@ -1726,15 +1783,30 @@ export class HiveService implements HiveTransport {
     return `Roster: ${online}/${roster.length} peers online.`;
   }
 
+  // AUDITARIA_HIVE_FEATURE: split the raw inbox size into truly-pending vs
+  // in-flight (a message whose delivery turn is running right now). Counting an
+  // in-flight message as "pending" made hive_check print "1 pending" and "No
+  // pending hive messages" in the same result — indistinguishable from a stuck
+  // counter for a manual-mode agent.
+  private inboxCounts(): { pending: number; inFlight: number } {
+    let inFlight = 0;
+    for (const { value } of this.inbox.entries()) {
+      if (this.inProgress.has(value.env.id)) inFlight++;
+    }
+    return { pending: this.inbox.size - inFlight, inFlight };
+  }
+
   // AUDITARIA_HIVE_FEATURE: one-line description of the live delivery posture +
   // pending count, prepended to hive_check / hive_status so the headless AI
   // always knows the exact state (it has no footer to read).
   private deliveryStateLine(): string {
     const mode = this.getDeliveryMode();
-    const pending = this.inbox.size;
+    const { pending, inFlight } = this.inboxCounts();
+    const inFlightNote =
+      inFlight > 0 ? ` (+${inFlight} being delivered to you right now)` : '';
     return mode === 'manual'
-      ? `Hive delivery: MANUAL (auto-push OFF) | ${pending} pending in inbox — messages are NOT pushed to you; pull them with hive_check.`
-      : `Hive delivery: AUTO (auto-push ON) | ${pending} pending in inbox.`;
+      ? `Hive delivery: MANUAL (auto-push OFF) | ${pending} pending in inbox${inFlightNote} — messages are NOT pushed to you; pull them with hive_check.`
+      : `Hive delivery: AUTO (auto-push ON) | ${pending} pending in inbox${inFlightNote}.`;
   }
 }
 
