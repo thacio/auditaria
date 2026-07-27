@@ -74,6 +74,14 @@ const SESSION_START_TIMEOUT_MS = 30_000; // Time for Ink to fully bootstrap.
 const STOP_TIMEOUT_MS = 30 * 60_000; // 30 minutes — long-running tool calls.
 const PROMPT_TYPE_DELAY_MS = 150; // Pause between prompt body and the Enter keystroke.
 const SESSION_START_GRACE_MS = 1500; // Wait after SessionStart for Ink to accept keystrokes.
+// AUDITARIA_CLAUDE_PROVIDER: prompt-acceptance verification. Typing was
+// fire-and-forget: Ink's paste heuristics can swallow the CR into the input
+// buffer, and after a web-viewer focus-out the TUI (focus reporting, mode
+// 1004) can mishandle Enter — the prompt then sits visibly unsubmitted until a
+// human presses Enter, while the failure ladders burn minutes. If no signal
+// confirms acceptance within this window, re-assert focus-in + CR (bounded).
+const PROMPT_ACCEPT_TIMEOUT_MS = 3_000;
+const MAX_PROMPT_RESUBMITS = 2;
 const HOOK_POLL_INTERVAL_MS = 50;
 // AUDITARIA_CLAUDE_PROVIDER: bumped from 40×50ms (2s) to 100×100ms (10s).
 // The shorter wait was missing assistant content for AskUserQuestion turns
@@ -255,6 +263,14 @@ export class ClaudeCLIDriver implements ProviderDriver {
   // PTY-scrape fallback when transcript writing is broken (Claude 2.1.169
   // regression). Reset at the start of each turn.
   private recentPtyOutput = '';
+
+  // AUDITARIA_CLAUDE_PROVIDER: prompt-acceptance tracking (see
+  // PROMPT_ACCEPT_TIMEOUT_MS). typedAt is stamped when the CR lands; accepted
+  // flips on the UserPromptSubmit hook OR any turn progress (hook event /
+  // transcript growth); resubmits bounds the focus-in+CR retries.
+  private promptTypedAtMs = 0;
+  private promptAcceptedThisTurn = false;
+  private promptResubmits = 0;
 
   // AUDITARIA_CLAUDE_PROVIDER_START: Channel-2 (transcript-tail) per-turn
   // detector state. Reset by resetTurnDetector() at the start of every
@@ -1102,9 +1118,14 @@ export class ClaudeCLIDriver implements ProviderDriver {
     //                        complete/response. Observability for now;
     //                        Phase 1 of the interactive-prompt UX will use
     //                        this as the detection signal.
+    //   UserPromptSubmit   — positive prompt-acceptance signal (parity with
+    //                        Copilot's user.message): clears the CR-retry in
+    //                        processTurnEvents the instant the TUI takes the
+    //                        typed prompt.
     return JSON.stringify({
       hooks: {
         SessionStart: [hookEntry('SessionStart')],
+        UserPromptSubmit: [hookEntry('UserPromptSubmit')],
         Stop: [hookEntry('Stop')],
         PostCompact: [hookEntry('PostCompact')],
         StopFailure: [hookEntry('StopFailure')],
@@ -1257,12 +1278,23 @@ export class ClaudeCLIDriver implements ProviderDriver {
     //
     // AUDITARIA_CLAUDE_PROVIDER: All writes through PtyWriteQueue with the
     // gate up so a web-typist's keystrokes can't slip between body and CR.
+    // AUDITARIA_CLAUDE_PROVIDER: acceptance tracking — reset per typed prompt;
+    // processTurnEvents re-sends focus-in+CR if nothing confirms acceptance.
+    this.promptAcceptedThisTurn = false;
+    this.promptResubmits = 0;
+    this.promptTypedAtMs = 0;
     void this.writeQueue?.withAtomicBlock(async () => {
+      // AUDITARIA_CLAUDE_PROVIDER: assert focus-in first — Claude Code enables
+      // focus reporting (mode 1004), and after the web viewer sends a
+      // focus-out (user clicks from the mirrored terminal back to chat) the
+      // TUI can mishandle Enter, leaving the typed prompt unsubmitted.
+      await this.writeQueue?.writeAtomic('\x1b[I', 'system');
       // Paced chunks, not one burst: a long prompt (e.g. a large delivered
       // hive message) is otherwise dropped to its tail by Ink's input parser.
       await this.writeQueue?.writeChunked(prompt, 'system');
       await new Promise<void>((r) => setTimeout(r, PROMPT_TYPE_DELAY_MS));
       await this.writeQueue?.writeAtomic('\r', 'system');
+      this.promptTypedAtMs = Date.now(); // AUDITARIA_CLAUDE_PROVIDER
     });
   }
 
@@ -1746,7 +1778,13 @@ export class ClaudeCLIDriver implements ProviderDriver {
 
       const batch = await this.readNewHookEvents(consumed);
       consumed = batch.consumedBytes;
-      if (batch.events.length > 0) lastProgressAt = Date.now();
+      if (batch.events.length > 0) {
+        lastProgressAt = Date.now();
+        // AUDITARIA_CLAUDE_PROVIDER: any hook event (UserPromptSubmit or
+        // otherwise) only fires after the prompt was taken — acceptance
+        // confirmed even on Claude versions without the UserPromptSubmit hook.
+        this.promptAcceptedThisTurn = true;
+      }
       for (const ev of batch.events) {
         const action = processEvent(ev);
         if (!action) continue;
@@ -1761,7 +1799,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
       // tick, so this only finalizes when the hook hasn't (the settle window
       // gives the hook its head start, leaving the happy path unchanged).
       const scan = await this.scanTranscriptForTurn(yieldedToolUseIds);
-      if (scan.grew) lastProgressAt = Date.now();
+      if (scan.grew) {
+        lastProgressAt = Date.now();
+        // AUDITARIA_CLAUDE_PROVIDER: transcript growth = the turn is running.
+        this.promptAcceptedThisTurn = true;
+      }
       for (const y of scan.yields) yield y;
       if (scan.completed) {
         return {
@@ -1771,6 +1813,31 @@ export class ClaudeCLIDriver implements ProviderDriver {
           stopPayload: SYNTHETIC_STOP,
           transcriptPathFromHook: this.computeTranscriptPath(),
         };
+      }
+
+      // AUDITARIA_CLAUDE_PROVIDER: prompt-acceptance verification (closed-loop
+      // typing, Copilot-driver parity). If the typed prompt produced NO signal
+      // (no hook event, no transcript growth) within PROMPT_ACCEPT_TIMEOUT_MS,
+      // it is almost certainly sitting unsubmitted in the input box (CR
+      // swallowed by Ink's paste heuristics, or Enter mishandled after a
+      // focus-out) — re-assert focus-in and re-send CR. Bounded retries; a
+      // redundant CR on an already-submitted (empty) input box is a no-op.
+      // Guarded on pendingPrompts so a CR can never answer an open picker.
+      if (
+        !this.promptAcceptedThisTurn &&
+        this.promptTypedAtMs > 0 &&
+        this.promptResubmits < MAX_PROMPT_RESUBMITS &&
+        this.pendingPrompts.size === 0 &&
+        Date.now() - this.promptTypedAtMs >= PROMPT_ACCEPT_TIMEOUT_MS
+      ) {
+        this.promptResubmits++;
+        this.promptTypedAtMs = Date.now();
+        dbg('prompt not accepted — re-asserting focus-in + CR', {
+          attempt: this.promptResubmits,
+        });
+        await this.writeQueue?.withAtomicBlock(async () => {
+          await this.writeQueue?.writeAtomic('\x1b[I\r', 'system');
+        });
       }
 
       // AUDITARIA_CLAUDE_PROVIDER: Channel 3 — PTY-scrape idle fallback
