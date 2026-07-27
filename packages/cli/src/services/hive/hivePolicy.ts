@@ -42,6 +42,49 @@ export function parseInvite(input: string):
 }
 
 // ---------------------------------------------------------------
+// Hub-address rotation (Mode A quick tunnels)
+// ---------------------------------------------------------------
+//
+// A cloudflared quick tunnel mints a NEW random hostname on every hub
+// restart, but the hive's identity survives (urlToken, relay key and
+// passphrase persist in hub.json). These helpers let a peer recognize the
+// same hive behind a new address.
+
+/** Last path segment of a base invite URL = the hive's urlToken. */
+export function urlTokenOf(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    const segs = u.pathname.split('/').filter(Boolean);
+    return segs.length ? segs[segs.length - 1] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Candidate re-point addresses from the machine-local hub-info discovery
+ * file (rewritten by the hub on every start). Only addresses whose urlToken
+ * matches the saved URL's token qualify — same hive, new front door.
+ * Loopback first (same machine → no tunnel hairpin, immune to rotation).
+ * Auth still fully validates each candidate (passphrase challenge-response
+ * + pinned relay fingerprint), so a wrong candidate can never connect the
+ * peer to a different hive.
+ */
+export function hubInfoFallbackUrls(
+  savedUrl: string,
+  info: { url?: string; loopbackUrl?: string; urlToken?: string } | undefined,
+): string[] {
+  if (!info?.urlToken) return [];
+  const token = urlTokenOf(savedUrl);
+  if (!token || token !== info.urlToken) return [];
+  const out: string[] = [];
+  for (const u of [info.loopbackUrl, info.url]) {
+    if (u && u !== savedUrl && !out.includes(u)) out.push(u);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------
 // Hard tool gate (§6.1 / §7.3)
 // ---------------------------------------------------------------
 //

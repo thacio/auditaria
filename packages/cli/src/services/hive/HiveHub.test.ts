@@ -168,6 +168,39 @@ describe('HiveHub', () => {
     expect(failReason).toContain('invalid passphrase');
   }, 40_000);
 
+  it('heals a rotated hub address via getFallbackUrls and reports the switch', async () => {
+    const h = await startHub();
+    const liveUrl = `http://127.0.0.1:${h.port}/${h.urlToken}`;
+    // Primary URL is dead (nothing listens on port 1) — simulates the saved
+    // quick-tunnel hostname after a hub restart rotated it.
+    const switched: string[] = [];
+    const keys = { ...generateIdentityKeyPair(), nodeId: makeNodeId() };
+    const client = new HiveWireClient({
+      url: 'http://127.0.0.1:1/stale-token',
+      passphrase: PASS,
+      identity: {
+        nodeId: keys.nodeId,
+        publicKeyPem: keys.publicKeyPem,
+        privateKeyPem: keys.privateKeyPem,
+      },
+      getCard: () => makeCard('healer', keys.nodeId),
+      getFallbackUrls: () => [liveUrl],
+      onUrlSwitched: (url) => switched.push(url),
+    });
+    clients.push(client);
+    const welcome = new Promise<void>((resolve, reject) => {
+      client.once('welcome', () => resolve());
+      client.once('authfail', (reason: string) =>
+        reject(new Error(`authfail: ${reason}`)),
+      );
+      setTimeout(() => reject(new Error('welcome timeout')), 20_000);
+    });
+    client.start();
+    await welcome;
+    expect(switched).toEqual([liveUrl]);
+    expect(client.getNickname()).toBe('healer');
+  }, 40_000);
+
   it('routes a direct message, deletes it on delivered-ack, forwards processed receipts', async () => {
     const h = await startHub();
     const a = await connectClient(h, 'alpha');

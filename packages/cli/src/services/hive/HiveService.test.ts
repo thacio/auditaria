@@ -11,7 +11,12 @@
 // hub integration test (HiveHub.test.ts).
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { parseInvite, isToolGatedForConsult } from './hivePolicy.js';
+import {
+  parseInvite,
+  isToolGatedForConsult,
+  urlTokenOf,
+  hubInfoFallbackUrls,
+} from './hivePolicy.js';
 import { hiveInstanceKey } from './hivePaths.js';
 
 // Mirrors core's Kind string-enum values (hivePolicy is core-import-free).
@@ -72,6 +77,58 @@ describe('parseInvite', () => {
     expect(parseInvite('')).toBeUndefined();
     expect(parseInvite('https://no-fragment.example.com')).toBeUndefined();
     expect(parseInvite('#only-fragment')).toBeUndefined();
+  });
+});
+
+describe('urlTokenOf (hub-address rotation)', () => {
+  it('extracts the token from tunnel and loopback URLs', () => {
+    expect(urlTokenOf('https://lucky-mole.trycloudflare.com/AbCdEf')).toBe(
+      'AbCdEf',
+    );
+    expect(urlTokenOf('http://127.0.0.1:18800/tok')).toBe('tok');
+    expect(urlTokenOf('https://x.y/a/b/deep-token/')).toBe('deep-token');
+  });
+
+  it('returns undefined for URLs without a path or unparseable input', () => {
+    expect(urlTokenOf('https://bare-host.example.com')).toBeUndefined();
+    expect(urlTokenOf('https://bare-host.example.com/')).toBeUndefined();
+    expect(urlTokenOf('not a url')).toBeUndefined();
+    expect(urlTokenOf('')).toBeUndefined();
+  });
+});
+
+describe('hubInfoFallbackUrls (hub-address rotation)', () => {
+  const savedUrl = 'https://old-name.trycloudflare.com/AbCdEf';
+  const info = {
+    url: 'https://new-name.trycloudflare.com/AbCdEf',
+    loopbackUrl: 'http://127.0.0.1:18800/AbCdEf',
+    urlToken: 'AbCdEf',
+  };
+
+  it('offers loopback first, then the new tunnel URL, on a token match', () => {
+    expect(hubInfoFallbackUrls(savedUrl, info)).toEqual([
+      'http://127.0.0.1:18800/AbCdEf',
+      'https://new-name.trycloudflare.com/AbCdEf',
+    ]);
+  });
+
+  it('excludes candidates equal to the saved URL', () => {
+    expect(
+      hubInfoFallbackUrls('http://127.0.0.1:18800/AbCdEf', info),
+    ).toEqual(['https://new-name.trycloudflare.com/AbCdEf']);
+  });
+
+  it('returns nothing on a token mismatch (different hive)', () => {
+    expect(
+      hubInfoFallbackUrls('https://old.trycloudflare.com/OtherTok', info),
+    ).toEqual([]);
+  });
+
+  it('returns nothing without a discovery file or without a saved token', () => {
+    expect(hubInfoFallbackUrls(savedUrl, undefined)).toEqual([]);
+    expect(hubInfoFallbackUrls('https://bare-host.example.com', info)).toEqual(
+      [],
+    );
   });
 });
 

@@ -406,6 +406,23 @@ export interface HiveNodeConfig {
   };
 }
 
+/**
+ * Machine-local hub discovery file (~/.auditaria/hive/hub-info.json),
+ * rewritten by the hub on every start. Quick-tunnel hostnames rotate per
+ * restart; peers ON THE HUB MACHINE use this file to find the hive's new
+ * address (token-matched, then fully re-authenticated) with no human action.
+ */
+export interface HubInfoFile {
+  /** Public base invite URL — the current tunnel (or loopback fallback). */
+  url: string;
+  /** http://127.0.0.1:<port>/<token> — preferred for same-machine peers. */
+  loopbackUrl: string;
+  urlToken: string;
+  port: number;
+  pid: number;
+  startedAt: number;
+}
+
 // -------------------------------------------------------------------
 // Local delivery bookkeeping
 // -------------------------------------------------------------------

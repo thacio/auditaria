@@ -66,6 +66,17 @@ export interface HiveWireClientOptions {
   pinnedFingerprint?: string;
   onPinFingerprint?: (fingerprint: string) => void;
   onLog?: (text: string) => void;
+  /**
+   * Alternate base URLs to try when the primary keeps failing — e.g. the
+   * hub machine's current addresses from hub-info.json after a quick-tunnel
+   * rotation. Queried before each reconnect attempt (from the first retry
+   * on). Every candidate still runs the FULL auth (passphrase challenge-
+   * response + pinned relay fingerprint), so a wrong candidate can never
+   * connect us to a different hive.
+   */
+  getFallbackUrls?: () => string[];
+  /** Fired after a successful auth on a URL different from the configured one. */
+  onUrlSwitched?: (url: string) => void;
 }
 
 export type HiveClientState = 'connecting' | 'online' | 'offline' | 'stopped';
@@ -189,12 +200,33 @@ export class HiveWireClient extends EventEmitter {
     this.reconnectTimer.unref?.();
   }
 
+  /**
+   * URL for this connection attempt. The configured URL first; from the
+   * first retry on, rotate through fallback candidates (hub-info discovery)
+   * so a rotated quick-tunnel hostname heals without human action.
+   */
+  private pickUrlForAttempt(): string {
+    if (this.reconnectAttempt === 0) return this.options.url;
+    const candidates = [this.options.url];
+    try {
+      for (const u of this.options.getFallbackUrls?.() ?? []) {
+        if (u && !candidates.includes(u)) candidates.push(u);
+      }
+    } catch {
+      /* discovery is best-effort */
+    }
+    return candidates[this.reconnectAttempt % candidates.length];
+  }
+
+  private currentUrl = '';
+
   private connect(): void {
     if (this.stopped) return;
     this.setState('connecting');
+    this.currentUrl = this.pickUrlForAttempt();
     let ws: WebSocket;
     try {
-      ws = new WebSocket(toWsUrl(this.options.url));
+      ws = new WebSocket(toWsUrl(this.currentUrl));
     } catch (e) {
       this.log(
         `hive: connect failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -231,6 +263,13 @@ export class HiveWireClient extends EventEmitter {
               if (ok) {
                 authed = true;
                 this.reconnectAttempt = 0;
+                // Fallback candidate authenticated (same passphrase + same
+                // pinned relay key) — adopt it as the primary and let the
+                // owner persist it (heals a rotated quick-tunnel hostname).
+                if (this.currentUrl && this.currentUrl !== this.options.url) {
+                  this.options.url = this.currentUrl;
+                  this.options.onUrlSwitched?.(this.currentUrl);
+                }
                 this.setState('online');
                 this.emit('welcome', {
                   nickname: this.nicknameFromHub,

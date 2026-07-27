@@ -31,10 +31,14 @@ import {
   hiveInstanceKey,
   HiveService,
 } from '../../services/hive/HiveService.js';
-import { getHiveHubDir } from '../../services/hive/hivePaths.js';
+import {
+  getHiveHubDir,
+  getHubInfoPath,
+} from '../../services/hive/hivePaths.js';
+import { writeJsonFile } from '../../services/hive/HiveStore.js';
 import type { HiveHubHandle } from '../../services/hive/HiveHub.js';
 import type { TunnelHandle } from '../../services/hive/HiveTunnel.js';
-import type { TrustLevel } from '../../services/hive/types.js';
+import type { TrustLevel, HubInfoFile } from '../../services/hive/types.js';
 import { HIVE_HUB_BASE_PORT } from '../../services/hive/types.js';
 import { makeStrongPassphrase } from '../../services/hive/HiveCrypto.js';
 
@@ -173,6 +177,21 @@ async function startHubAndSelfJoin(
   }
   activeBaseUrl = baseUrl;
 
+  // Machine-local discovery file: peers on THIS machine read it to re-point
+  // automatically when the quick-tunnel hostname rotates (hub restart).
+  try {
+    writeJsonFile(getHubInfoPath(), {
+      url: baseUrl,
+      loopbackUrl: `http://127.0.0.1:${hub.port}/${hub.urlToken}`,
+      urlToken: hub.urlToken,
+      port: hub.port,
+      pid: process.pid,
+      startedAt: Date.now(),
+    } satisfies HubInfoFile);
+  } catch {
+    /* discovery is best-effort */
+  }
+
   saved.url = baseUrl;
   saved.hub = { port: hub.port };
   // Explicit start re-enables autoconnect (e.g. after a /hive reset set it
@@ -296,20 +315,70 @@ async function joinAction(
   context: CommandContext,
   args: string,
 ): Promise<void | SlashCommandActionReturn> {
-  if (getActiveHiveService()) {
-    return msg(
-      'info',
-      'Already connected to a hive. Use /hive leave first to join a different one.',
-    );
-  }
   const config = getConfig(context);
   if (!config) return msg('error', 'Config not available yet.');
-  const invite = parseInvite(args);
+  const saved = loadHiveConfig();
+  const savedPass = effectivePassphrase(saved);
+  let invite = parseInvite(args);
+  // URL-only form: an enrolled peer can re-point at the hive's NEW address
+  // (quick-tunnel hostnames rotate on every hub restart) with just
+  // "/hive join <url>" — the saved passphrase is reused.
+  if (!invite && savedPass) {
+    const bare = args
+      .trim()
+      .replace(/^\/hive\s+join\s+/i, '')
+      .replace(/\/+$/, '');
+    if (/^https?:\/\/\S+$/i.test(bare) && !bare.includes('#')) {
+      invite = { url: bare, passphrase: savedPass };
+    }
+  }
   if (!invite) {
     return msg(
       'error',
-      'Could not parse the invite. Expected: /hive join <url>#<passphrase>[.<token>]',
+      'Could not parse the invite. Expected: /hive join <url>#<passphrase>[.<token>]' +
+        (savedPass
+          ? '\nAlready enrolled here — a bare "/hive join <url>" also works (reuses the saved passphrase).'
+          : ''),
     );
+  }
+  const samePass = !!savedPass && invite.passphrase === savedPass;
+  const active = getActiveHiveService();
+  if (active) {
+    if (activeHub) {
+      return msg(
+        'info',
+        `This machine hosts the hive hub — peers join it at ${activeBaseUrl ?? '(unknown)'}. ` +
+          'Use /hive invite to mint invites, or /hive leave first to join a different hive.',
+      );
+    }
+    if (!samePass) {
+      return msg(
+        'info',
+        'Already connected to a hive, and this invite carries a DIFFERENT passphrase (another hive). ' +
+          'Use /hive leave first to switch hives.',
+      );
+    }
+    // Same passphrase → same hive at a new address (hub restart rotated the
+    // tunnel URL). Re-point in place: swap the connection but keep the
+    // instance lock, identity, trust, queues AND the relay-fingerprint pin —
+    // the pin then cryptographically verifies it IS the same hub.
+    await active.stop().catch(() => {});
+    setActiveHiveService(undefined);
+    try {
+      const service = await joinHive(config, invite);
+      activeBaseUrl = invite.url;
+      return msg(
+        'info',
+        `Hive address updated — reconnecting to ${invite.url} as "${service.getNickname()}" (identity and queues kept).`,
+      );
+    } catch (e) {
+      await teardown();
+      releaseFileLock();
+      return msg(
+        'error',
+        `Failed to re-point: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
   if (!acquireFileLock()) {
     return msg(
@@ -318,16 +387,19 @@ async function joinAction(
     );
   }
   try {
-    // Explicit join re-establishes which relay we trust: clear any pin left
-    // from a previous/rebuilt hive so we TOFU the relay THIS invite points to
-    // (the invite's passphrase is the primary auth). This is why joining a
-    // reset/rebuilt hive no longer fails with "relay key changed" and needs a
-    // manual hive.json edit. Only the explicit command clears it — autoconnect
-    // reconnects still verify the pin to catch a mid-session relay swap.
-    const cfg = loadHiveConfig();
-    if (cfg.relayFingerprint) {
-      delete cfg.relayFingerprint;
-      saveHiveConfig(cfg);
+    // Pin handling: a DIFFERENT passphrase means a different (or rebuilt)
+    // hive — clear any pin left from before so we TOFU the relay THIS invite
+    // points to (the invite's passphrase is the primary auth; this is why
+    // joining a reset/rebuilt hive doesn't fail with "relay key changed").
+    // The SAME passphrase means the same hive at a possibly-new address —
+    // KEEP the pin so the relay key is verified. Autoconnect reconnects
+    // always verify the pin to catch a mid-session relay swap.
+    if (!samePass) {
+      const cfg = loadHiveConfig();
+      if (cfg.relayFingerprint) {
+        delete cfg.relayFingerprint;
+        saveHiveConfig(cfg);
+      }
     }
     const service = await joinHive(config, invite);
     activeBaseUrl = invite.url;
@@ -684,6 +756,12 @@ async function resetAction(
   // Delete the machine-wide hub state (identity of the hive lives here).
   try {
     fs.rmSync(getHiveHubDir(), { recursive: true, force: true });
+  } catch {
+    /* best-effort */
+  }
+  // And the hub-info discovery file — its urlToken belongs to the dead hive.
+  try {
+    fs.rmSync(getHubInfoPath(), { force: true });
   } catch {
     /* best-effort */
   }

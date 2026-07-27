@@ -42,9 +42,12 @@ import {
   MAX_MESSAGE_BYTES,
   type AgentCard,
   type HiveEnvelope,
+  type HubInfoFile,
   type InboxEntry,
   type RosterEntry,
 } from '../services/hive/types.js';
+import { hubInfoFallbackUrls } from '../services/hive/hivePolicy.js';
+import { getHubInfoPath } from '../services/hive/hivePaths.js';
 import {
   generateIdentityKeyPair,
   generateNickname,
@@ -247,6 +250,15 @@ async function main(): Promise<void> {
       cfg.relayFingerprint = fp;
       saveShimConfig(cfg);
     },
+    // Same-machine auto-heal: the --url baked into the MCP registration goes
+    // stale when the hub restarts (quick-tunnel hostnames rotate). If this
+    // machine hosts the hub, hub-info.json points at the same hive's new
+    // address (token-matched; auth still fully validates).
+    getFallbackUrls: () =>
+      hubInfoFallbackUrls(
+        args.url!,
+        readJsonFile<HubInfoFile>(getHubInfoPath()),
+      ),
     getCard: buildCard,
     onLog: (text) => process.stderr.write(`${text}\n`),
   });

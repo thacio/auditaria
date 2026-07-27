@@ -56,6 +56,7 @@ import {
   type HiveEnvelope,
   type HiveMessageKind,
   type HiveNodeConfig,
+  type HubInfoFile,
   type InboxEntry,
   type PeerStatus,
   type RosterEntry,
@@ -76,6 +77,7 @@ import {
   hiveInstanceKey,
   getHiveInstanceDir,
   getHiveConfigPath,
+  getHubInfoPath,
 } from './hivePaths.js';
 import {
   JsonlQueueStore,
@@ -84,7 +86,7 @@ import {
   writeJsonFile,
 } from './HiveStore.js';
 import { HiveWireClient, type HiveClientState } from './HiveWireClient.js';
-import { isToolGatedForConsult } from './hivePolicy.js';
+import { isToolGatedForConsult, hubInfoFallbackUrls } from './hivePolicy.js';
 import {
   isStreamingIdle,
   onStreamingIdle,
@@ -308,6 +310,8 @@ export class HiveService implements HiveTransport {
   // just re-holds it on redelivery.
   private deliveryContent = new Map<string, { block: string; ts: number }>();
   private currentStatus: PeerStatus = 'idle';
+  /** Consecutive offline transitions since the last successful connect. */
+  private offlineNotices = 0;
   // AUDITARIA_HIVE_FEATURE: last time this node actually consumed a hive message.
   private lastConsumedTs = 0;
   private savedConfig: HiveNodeConfig;
@@ -334,6 +338,21 @@ export class HiveService implements HiveTransport {
         this.savedConfig.relayFingerprint = fp;
         this.persistConfig();
         this.uiInfo(`hive: relay identity pinned (${fp.slice(0, 24)}…)`);
+      },
+      // Same-machine auto-heal after a hub restart rotated the quick-tunnel
+      // hostname: the hub rewrites hub-info.json on every start; if its
+      // urlToken matches ours, its addresses are THIS hive's new front door.
+      getFallbackUrls: () =>
+        hubInfoFallbackUrls(
+          options.url,
+          readJsonFile<HubInfoFile>(getHubInfoPath()),
+        ),
+      onUrlSwitched: (url) => {
+        this.savedConfig.url = url;
+        this.persistConfig();
+        this.uiInfo(
+          `hive: hub address changed — reconnected via ${url} (saved for next launch)`,
+        );
       },
       getCard: () => this.buildCard(),
       onLog: (text) => debugLogger.debug(text),
@@ -506,9 +525,25 @@ export class HiveService implements HiveTransport {
     });
 
     this.client.on('state', (state: HiveClientState) => {
-      if (state === 'offline') {
+      if (state === 'online') {
+        this.offlineNotices = 0;
+        return;
+      }
+      if (state !== 'offline') return;
+      // One notice per outage, not one per retry; after a few failed
+      // attempts, explain the likely cause (quick-tunnel hostnames rotate
+      // on every hub restart) and the one-command fix.
+      this.offlineNotices++;
+      if (this.offlineNotices === 1) {
         this.uiInfo(
           'hive: disconnected — reconnecting (messages spool locally)',
+        );
+      } else if (this.offlineNotices === 4) {
+        this.uiInfo(
+          'hive: still unreachable. If the hub restarted, its quick-tunnel URL changed — ' +
+            'get the fresh invite on the hub (/hive invite) and run "/hive join <invite>" here. ' +
+            'No /hive leave needed: identity, trust and queues are kept. ' +
+            'Peers running on the hub machine itself re-point automatically.',
         );
       }
     });

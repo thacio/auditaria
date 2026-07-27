@@ -52,3 +52,12 @@ export function getHiveConfigPath(): string {
 export function getHiveHubDir(): string {
   return path.join(os.homedir(), '.auditaria', 'hive', 'hub');
 }
+
+/**
+ * Machine-local hub discovery file: the hub's CURRENT addresses, rewritten
+ * on every hub start (quick-tunnel hostnames rotate per restart). Peers on
+ * this machine read it to auto-heal their saved URL; see HubInfoFile.
+ */
+export function getHubInfoPath(): string {
+  return path.join(os.homedir(), '.auditaria', 'hive', 'hub-info.json');
+}
