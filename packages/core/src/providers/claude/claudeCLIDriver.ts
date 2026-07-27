@@ -514,6 +514,27 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
   }
 
+  // AUDITARIA_HIVE_FEATURE: Positive "background (PTY-typed) turn is open"
+  // signal for ProviderManager.isTurnActive(). The manager's 15s
+  // recent-activity window lapses during long tool executions (a running
+  // tool produces no hook or transcript events), which let headless
+  // deliveries (hive/Telegram/…) type a prompt into the live PTY MID-TURN —
+  // Claude queues it as user input and injects it into the running turn,
+  // and the delivery turn then never sees its own completion (observed live:
+  // 10-min ceiling → false DLQ + dead-letter for a message that WAS
+  // processed). Two positive signals, either means "turn open":
+  //  - backgroundTurnUserEmitted: set at the first PreToolUse of a
+  //    background turn, cleared on its Stop — covers the whole tool phase.
+  //  - recent transcript growth (bgLastGrowthAt, bumped by the watcher's
+  //    per-tick peek): covers the thinking/streaming phases.
+  // Residual gap: a >20s pure-thinking stretch before any tool call with no
+  // transcript writes — rare, and the drain loop's re-check only delays
+  // delivery in the false-busy direction, never loses a message.
+  isBackgroundTurnActive(): boolean {
+    if (this.backgroundTurnUserEmitted) return true;
+    return Date.now() - this.bgLastGrowthAt < 20_000;
+  }
+
   // AUDITARIA_CLAUDE_PROVIDER: First hook event of a new background
   // turn → ensure the user's typed message is in chat BEFORE any tool
   // markers. We flush JUST the user-message portion of the transcript

@@ -382,6 +382,20 @@ export class ProviderManager {
 
   isTurnActive(): boolean {
     if (this.turnActive) return true;
+    // Positive signal from the driver beats the time heuristic: a long tool
+    // execution inside a background turn produces no background events for
+    // minutes, so the 15s window alone reads "idle" mid-turn and a headless
+    // delivery gets typed into the live PTY (queued input → injected into
+    // the RUNNING turn; observed live as a false DLQ + dead-letter).
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const driver = this.driver as {
+      isBackgroundTurnActive?: () => boolean;
+    } | null;
+    try {
+      if (driver?.isBackgroundTurnActive?.()) return true;
+    } catch {
+      /* driver signal is best-effort */
+    }
     return Date.now() - this.lastBackgroundActivity < 15_000;
   }
   // AUDITARIA_HIVE_FEATURE_END

@@ -143,11 +143,20 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // receiver retrieves the exact content by calling the hive_fetch tool (which
 // returns it as the tool result — no truncation, no filesystem, and a clean
 // seam to encrypt-on-hold / decrypt-on-fetch later).
-// 1200→2000 after live feedback: two peers independently flagged sub-1KB chat
-// replies going by-reference (an extra fetch round-trip per message). Typical
-// chat replies now inline; the by-reference path still covers genuinely large
-// content, and retries ALWAYS deliver by reference regardless of size.
-const HIVE_INLINE_MAX_CHARS = 2000;
+// History: 1200 (whole prompt) → 2000 (fenced content) after peers flagged
+// sub-1KB replies going by-reference — then IMMEDIATELY reverted to 600 after
+// a live SILENT CORRUPTION: a ~2000-char fenced block typed into the
+// receiver's Claude PTY arrived with ~2 consecutive 512-char chunks excised
+// mid-word (Ink's input parser drops paced chunks of long typed prompts —
+// the very reason writeChunked exists; the closed-loop typing check verifies
+// SUBMISSION, not body INTEGRITY, so a middle excision passes silently).
+// Inline typing is only proven safe well under ~1200 TOTAL typed chars
+// (content + ~700 boilerplate). Anything bigger goes by-reference: hive_fetch
+// returns the exact content as a tool result — nothing is typed, nothing can
+// corrupt. Do NOT raise this again until the driver types long prompts
+// verifiably intact (bracketed paste + integrity check before CR), validated
+// live. Silent corruption is strictly worse than an extra fetch round-trip.
+const HIVE_INLINE_MAX_CHARS = 600;
 // Held delivery content is pruned once older than this. The receiver fetches it
 // within the same delivery turn, so a generous window is plenty; the TTL only
 // bounds memory if a turn never fetches (e.g. the model ignored the notice).
