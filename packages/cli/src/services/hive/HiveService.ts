@@ -131,15 +131,16 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
   return kind && VALID_KINDS.has(kind) ? (kind as HiveMessageKind) : 'chat';
 }
 
-// AUDITARIA_HIVE_FEATURE: Above this prompt size, delivering a message to an
-// external-provider peer by typing it into the CLI's PTY risks a truncated
-// render — a long message that lands while the provider TUI is mid-turn is
-// previewed head+tail (middle silently dropped). So for large messages under
-// an external provider we DON'T type the body: we hold its full content in
-// memory and type only a short notice with a message_id, and the receiver
-// retrieves the exact content by calling the hive_fetch tool (which returns it
-// as the tool result — no truncation, no filesystem, and a clean seam to
-// encrypt-on-hold / decrypt-on-fetch later).
+// AUDITARIA_HIVE_FEATURE: Above this FENCED-CONTENT size (the message block —
+// body + data + fence, NOT the constant prompt boilerplate around it),
+// delivering to an external-provider peer by typing into the CLI's PTY risks a
+// truncated render — a long message that lands while the provider TUI is
+// mid-turn is previewed head+tail (middle silently dropped). So for large
+// messages under an external provider we DON'T type the body: we hold its full
+// content in memory and type only a short notice with a message_id, and the
+// receiver retrieves the exact content by calling the hive_fetch tool (which
+// returns it as the tool result — no truncation, no filesystem, and a clean
+// seam to encrypt-on-hold / decrypt-on-fetch later).
 const HIVE_INLINE_MAX_CHARS = 1200;
 // Held delivery content is pruned once older than this. The receiver fetches it
 // within the same delivery turn, so a generous window is plenty; the TTL only
@@ -1313,10 +1314,13 @@ export class HiveService implements HiveTransport {
     // earlier attempt already typed the full text, so re-typing it would
     // duplicate the content in the model's context — a short notice (with the
     // content re-pullable via hive_fetch) is both deduplicating and safe.
+    // Size check keys on the fenced CONTENT (block), not the whole prompt:
+    // the intro/reply boilerplate adds a constant ~700 chars that made
+    // inlining unpredictable for senders (a 900-char body went by reference).
     const providerManager = this.config.getProviderManager?.();
     if (
       providerManager?.isExternalProviderActive?.() &&
-      (attemptNo > 0 || inlinePrompt.length > HIVE_INLINE_MAX_CHARS)
+      (attemptNo > 0 || block.length > HIVE_INLINE_MAX_CHARS)
     ) {
       this.holdDeliveryContent(env.id, block);
       const retryPrefix =
@@ -1761,7 +1765,7 @@ export class HiveService implements HiveTransport {
       // stuck counter.
       const inFlightLine =
         inFlight > 0
-          ? `No new messages — ${inFlight} message(s) currently being delivered to you in another turn. `
+          ? `No new messages — ${inFlight} message(s) mid-delivery (if you are handling a hive message in this very turn, that is it — the count clears when the turn completes). `
           : 'No pending hive messages. ';
       return `${header}\n${inFlightLine}${this.rosterOneLiner()}${manualReminder}`;
     }
@@ -1803,7 +1807,9 @@ export class HiveService implements HiveTransport {
     const mode = this.getDeliveryMode();
     const { pending, inFlight } = this.inboxCounts();
     const inFlightNote =
-      inFlight > 0 ? ` (+${inFlight} being delivered to you right now)` : '';
+      inFlight > 0
+        ? ` (+${inFlight} mid-delivery — if you are handling a hive message in THIS turn, that is it; the count clears when the turn completes)`
+        : '';
     return mode === 'manual'
       ? `Hive delivery: MANUAL (auto-push OFF) | ${pending} pending in inbox${inFlightNote} — messages are NOT pushed to you; pull them with hive_check.`
       : `Hive delivery: AUTO (auto-push ON) | ${pending} pending in inbox${inFlightNote}.`;

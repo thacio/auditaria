@@ -609,14 +609,15 @@ export async function startHiveHub(
     conn.card = merged;
     const entry = rosterEntryFor(conn.nodeId);
     if (entry) {
-      broadcastEvent(
-        {
-          t: 'event',
-          kind: patch.status ? 'status_changed' : 'card_updated',
-          entry,
-        },
-        conn.nodeId,
-      );
+      // AUDITARIA_HIVE_FEATURE: echo the update to the ORIGINATOR too (no
+      // exceptNodeId). Excluding it left the sender's rosterCache stuck on its
+      // auth-time self entry — its own description/status updates were visible
+      // to every peer except itself until reconnect.
+      broadcastEvent({
+        t: 'event',
+        kind: patch.status ? 'status_changed' : 'card_updated',
+        entry,
+      });
     }
   }
 
