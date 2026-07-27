@@ -141,7 +141,11 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // receiver retrieves the exact content by calling the hive_fetch tool (which
 // returns it as the tool result — no truncation, no filesystem, and a clean
 // seam to encrypt-on-hold / decrypt-on-fetch later).
-const HIVE_INLINE_MAX_CHARS = 1200;
+// 1200→2000 after live feedback: two peers independently flagged sub-1KB chat
+// replies going by-reference (an extra fetch round-trip per message). Typical
+// chat replies now inline; the by-reference path still covers genuinely large
+// content, and retries ALWAYS deliver by reference regardless of size.
+const HIVE_INLINE_MAX_CHARS = 2000;
 // Held delivery content is pruned once older than this. The receiver fetches it
 // within the same delivery turn, so a generous window is plenty; the TTL only
 // bounds memory if a turn never fetches (e.g. the model ignored the notice).
