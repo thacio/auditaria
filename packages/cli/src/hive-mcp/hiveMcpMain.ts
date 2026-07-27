@@ -404,7 +404,9 @@ async function main(): Promise<void> {
         // trust="…" tells the foreign agent whether the sender is trusted, so
         // its own permission system can factor that in.
         `<hive_message_${marker} from="${from}" kind="${kind}" thread="${thread}" trust="${entry.fromTrust}">\n` +
-        scrub(String(entry.env.body ?? '')) +
+        // Control-strip before scrub: peer bodies are rendered into a TTY, so
+        // ESC/C1 must be inert (maxLen = envelope cap → no real truncation).
+        scrub(sanitizeExternalText(String(entry.env.body ?? ''), MAX_MESSAGE_BYTES)) +
         dataLine +
         `\n</hive_message_${marker}>`
       );

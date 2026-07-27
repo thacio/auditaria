@@ -193,7 +193,14 @@ function buildFencedMessage(
   const from = sanitizeInline(entry.fromNickname, 60);
   const kind = coerceKind(env.kind);
   const thread = sanitizeInline(String(env.thread ?? ''), 80);
-  const safeBody = scrub(String(env.body ?? ''));
+  // Control-strip the body BEFORE the marker scrub (stripping could otherwise
+  // splice a marker match together). Peer bodies reach a TTY twice — typed
+  // into the receiver's PTY (inline delivery) and rendered in tool results —
+  // so ESC/C1 sequences must be inert and a raw \r must never submit the
+  // input box early. maxLen = the envelope cap, i.e. no practical truncation.
+  const safeBody = scrub(
+    sanitizeExternalText(String(env.body ?? ''), MAX_MESSAGE_BYTES),
+  );
   let dataLine = '';
   if (env.data && Object.keys(env.data).length > 0) {
     const dataJson = JSON.stringify(env.data);

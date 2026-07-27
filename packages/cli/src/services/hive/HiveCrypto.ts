@@ -464,10 +464,17 @@ export function normalizeNickname(nickname: string): string {
  * a model prompt or the UI: strip control characters, cap length.
  */
 export function sanitizeExternalText(text: string, maxLen = 400): string {
-  // Strip C0 controls (keeps tab/newline), DEL. Escape-encoded so the
-  // source file stays plain text.
-  // eslint-disable-next-line no-control-regex
-  const cleaned = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  // Normalize CRLF/CR to LF first: on the inline typed-delivery path a raw
+  // \r would SUBMIT the receiver's PTY input box early, splitting the rest
+  // of the prompt into a second prompt (peer-controlled prompt injection).
+  // Then strip C0 controls (keeps tab/newline), DEL, and C1 controls —
+  // ESC (\x1b) lets a peer body inject terminal escape sequences when typed
+  // or rendered, and 0x9B is an 8-bit CSI in some terminals. Peer text must
+  // reach a TTY as inert data. Escape-encoded so the source stays plain text.
+  const cleaned = text
+    .replace(/\r\n?/g, '\n')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u0080-\u009F]/g, '');
   return cleaned.length > maxLen ? cleaned.slice(0, maxLen) + '…' : cleaned;
 }
 

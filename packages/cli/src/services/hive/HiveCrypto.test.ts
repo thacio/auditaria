@@ -179,6 +179,22 @@ describe('sanitizeExternalText', () => {
     const long = 'x'.repeat(1_000);
     expect(sanitizeExternalText(long, 100).length).toBeLessThanOrEqual(101);
   });
+
+  it('strips C1 controls (8-bit CSI and friends)', () => {
+    const dirty = 'a' + String.fromCharCode(0x9b) + '31mb' + String.fromCharCode(0x80);
+    expect(sanitizeExternalText(dirty)).toBe('a31mb');
+  });
+
+  it('normalizes CR and CRLF to LF (a raw \\r typed into a PTY submits early)', () => {
+    expect(sanitizeExternalText('a\r\nb\rc\nd')).toBe('a\nb\nc\nd');
+  });
+
+  it('neutralizes a bracketed-paste terminator in peer content', () => {
+    // \x1b[201~ inside a typed body must not be able to end a future
+    // bracketed paste and return the terminal to keypress mode.
+    const dirty = 'safe' + String.fromCharCode(27) + '[201~rm -rf';
+    expect(sanitizeExternalText(dirty)).toBe('safe[201~rm -rf');
+  });
 });
 
 describe('sanitizeInline (single-line fence/roster fields)', () => {
