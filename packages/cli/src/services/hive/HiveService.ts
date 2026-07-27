@@ -164,11 +164,15 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // both into ONE submitted stream) make the effective typed size unbounded
 // regardless of this cap. Worse, the failure geometry INVERTS the "small is
 // safe" intuition: the payload sits between head/tail boilerplate, so one
-// discarded pipe read (up to 1024 bytes — reads VARY with timing; 1024 is
-// the ceiling, not the quantum, so small excisions are predicted too) can
-// erase a SMALL payload entirely while both imperative boilerplate ends
-// survive — a well-formed instruction with its content gone (the silent,
-// most dangerous variant; large payloads lose a detectable piece instead). The lasting fixes are the turn gate + a future
+// discarded pipe read (read size is BOUNDED by 1024, not fixed at it;
+// sub-1024 excisions are possible in principle but UNOBSERVED — both clean
+// specimens lost exactly-full reads, consistent with the reader coalescing
+// to the ceiling under the same backlog that triggers the drop) can erase
+// a SMALL payload entirely while both imperative boilerplate ends survive —
+// a well-formed instruction with its content gone (the silent, most
+// dangerous variant; large payloads lose a detectable piece instead). If a
+// much-smaller gap is ever observed, treat it as a POSSIBLY DIFFERENT bug,
+// not as this one pre-explained. The lasting fixes are the turn gate + a future
 // don't-type-into-a-non-empty-input-box check + by-reference delivery, not
 // any threshold value.
 const HIVE_INLINE_MAX_CHARS = 600;
