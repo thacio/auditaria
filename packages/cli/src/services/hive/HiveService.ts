@@ -156,6 +156,20 @@ function coerceKind(kind: string | undefined): HiveMessageKind {
 // corrupt. Do NOT raise this again until the driver types long prompts
 // verifiably intact (bracketed paste + integrity check before CR), validated
 // live. Silent corruption is strictly worse than an extra fetch round-trip.
+//
+// HONEST LABEL (peer review insisted, correctly): 600 is exposure
+// REDUCTION, not a proven-safe boundary. The race is probabilistic — clean
+// samples can never prove a threshold safe — and composition collisions
+// (a delivery typed into an input box already holding a user draft merges
+// both into ONE submitted stream) make the effective typed size unbounded
+// regardless of this cap. Worse, the failure geometry INVERTS the "small is
+// safe" intuition: the payload sits between head/tail boilerplate, so one
+// random 1024-byte excision can erase a SMALL payload entirely while both
+// imperative boilerplate ends survive — a well-formed instruction with its
+// content gone (the silent, most dangerous variant; large payloads lose a
+// detectable piece instead). The lasting fixes are the turn gate + a future
+// don't-type-into-a-non-empty-input-box check + by-reference delivery, not
+// any threshold value.
 const HIVE_INLINE_MAX_CHARS = 600;
 // Held delivery content is pruned once older than this. The receiver fetches it
 // within the same delivery turn, so a generous window is plenty; the TTL only
