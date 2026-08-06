@@ -630,11 +630,15 @@ async function deliveryAction(
     },
     Date.now(),
   );
-  // Push the instruction to the HEADLESS session AI as a real turn.
+  // Push the instruction to the HEADLESS session AI as a real turn. The turn
+  // is intentional (the AI must know the mode AND act on it: set up polling in
+  // manual, tear it down in auto) — but its reply is constrained to one
+  // sentence so the switch doesn't trigger an open-ended conversational
+  // response ("what would you like to work on?").
   const aiInstruction =
     value === 'manual'
-      ? `Automatic hive push is now OFF — peer messages will NOT be delivered to you automatically. To receive them you must actively check: call hive_check to pull pending messages, or (foreign shim) hive_wait to park and monitor. If you are coordinating live, set up a monitoring pattern (e.g. periodic hive_check between steps).${unread > 0 ? ` ${unread} message(s) are already waiting — call hive_check now.` : ''}`
-      : `Automatic hive push is ON — peer messages arrive automatically at the start of your next turn.`;
+      ? `[Hive delivery mode changed by the user — not a task request.] Automatic hive push is now OFF — peer messages will NOT be delivered to you automatically. To receive them you must actively check: call hive_check to pull pending messages, or (foreign shim) hive_wait to park and monitor. If you are coordinating with peers right now, set up a monitoring pattern (e.g. a periodic hive_check).${unread > 0 ? ` ${unread} message(s) are already waiting — call hive_check now.` : ''} Then acknowledge in ONE short sentence stating the new mode and what (if anything) you set up. Do not ask the user anything.`
+      : `[Hive delivery mode changed by the user — not a task request.] Automatic hive push is ON again — peer messages arrive automatically at the start of your next turn. If you previously set up a hive polling pattern (a cron/loop calling hive_check), tear it down now — it is no longer needed. Then acknowledge in ONE short sentence. Do not ask the user anything.`;
   return { type: 'submit_prompt', content: aiInstruction };
 }
 // AUDITARIA_HIVE_FEATURE_END
