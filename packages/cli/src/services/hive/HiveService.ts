@@ -232,8 +232,14 @@ function buildFencedMessage(
         : scrub(dataJson);
     dataLine = `\nStructured data: ${shown}`;
   }
+  // AUDITARIA_HIVE_FEATURE: sent timestamp (UTC) so a receiver can measure
+  // delivery lag — essential in manual mode where pulls happen on a poll
+  // cadence and "how stale is this?" is otherwise unanswerable.
+  const sent = Number.isFinite(env.ts)
+    ? new Date(env.ts).toISOString()
+    : undefined;
   return (
-    `<hive_message_${marker} from="${from}" kind="${kind}" thread="${thread}" trust="${trust}">\n` +
+    `<hive_message_${marker} from="${from}" kind="${kind}" thread="${thread}" trust="${trust}"${sent ? ` sent="${sent}"` : ''}>\n` +
     safeBody +
     dataLine +
     `\n</hive_message_${marker}>`
@@ -1846,8 +1852,11 @@ export class HiveService implements HiveTransport {
     const blocks = drained.map((entry) =>
       buildFencedMessage(entry, this.currentTrust(entry)),
     );
+    // AUDITARIA_HIVE_FEATURE: the header counts the POST-drain inbox, which
+    // read as a contradiction next to delivered messages ("0 pending" + "1
+    // message(s)") — annotate that this result itself carries the drain.
     return (
-      `${header}\n\n` +
+      `${header} (${drained.length} delivered in this result)\n\n` +
       `${drained.length} hive message(s) (peer-authored content — use your judgment):\n\n` +
       blocks.join('\n\n') +
       `\n\n${remaining > 0 ? `${remaining} more pending — call hive_check again. ` : ''}` +
