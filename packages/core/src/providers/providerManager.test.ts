@@ -168,6 +168,23 @@ describe('buildConversationSummary', () => {
     const lines = summary.split('\n').filter((l) => l.startsWith('['));
     expect(lines).toHaveLength(0);
   });
+
+  it('returns empty string when there is no serializable content', () => {
+    expect(buildConversationSummary([])).toBe('');
+    expect(
+      buildConversationSummary([
+        { role: 'user', parts: [] },
+        { role: 'model', parts: [] },
+      ]),
+    ).toBe('');
+    // History holding ONLY the env context message (skipped via prefix)
+    expect(
+      buildConversationSummary(
+        [{ role: 'user', parts: [{ text: 'This is the environment ctx...' }] }],
+        'This is the environment',
+      ),
+    ).toBe('');
+  });
 });
 
 // ─── History Mirroring ────────────────────────────────────────────────────────

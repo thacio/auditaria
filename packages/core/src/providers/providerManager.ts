@@ -795,7 +795,11 @@ export class ProviderManager {
       if (history.length > 0) {
         const envPrefix = await this.ensureEnvContextPrefix();
         const summary = buildConversationSummary(history, envPrefix);
-        effectivePrompt = summary + '\n\n' + prompt;
+        // Empty summary (e.g. history holds only the env context message) —
+        // don't prepend a bare wrapper, just send the user's prompt.
+        if (summary) {
+          effectivePrompt = summary + '\n\n' + prompt;
+        }
       }
       this.driver?.resetSession?.();
       dbg(
@@ -1650,19 +1654,13 @@ function buildExternalProviderPrompt(
 // AUDITARIA_CLAUDE_PROVIDER: Serialize Content[] history to a readable transcript
 // for injecting into a fresh Claude session after context_forget.
 // envContextPrefix: if provided, skips the initial env context message (already injected separately).
+// Returns '' when the history contains no serializable conversation content
+// (e.g. only the env context message) — callers must not inject an empty wrapper.
 export function buildConversationSummary(
   history: readonly Content[],
   envContextPrefix?: string,
 ): string {
   const lines: string[] = [];
-  lines.push('<auditaria_conversation_history>');
-  lines.push(
-    'The following is the conversation history from the current session.',
-  );
-  lines.push(
-    'Some content may have been removed by the user (marked as FORGOTTEN).',
-  );
-  lines.push('Continue the conversation naturally.\n');
 
   let skippedEnvContext = false;
   for (const content of history) {
@@ -1733,8 +1731,16 @@ export function buildConversationSummary(
     }
   }
 
-  lines.push('</auditaria_conversation_history>');
-  return lines.join('\n');
+  if (lines.length === 0) return '';
+
+  return [
+    '<auditaria_conversation_history>',
+    'The following is the conversation history from the current session.',
+    'Some content may have been removed by the user (marked as FORGOTTEN).',
+    'Continue the conversation naturally.\n',
+    ...lines,
+    '</auditaria_conversation_history>',
+  ].join('\n');
 }
 
 // AUDITARIA_CLAUDE_PROVIDER: Convert Claude-specific tool call parts in history to text descriptions.

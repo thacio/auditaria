@@ -60,6 +60,7 @@ import type { ClaudeContentBlock, ClaudeDriverConfig } from './types.js';
 import { PtyWriteQueue } from './interactivePromptSupport.js'; // AUDITARIA_CLAUDE_PROVIDER
 import { providerPtyMirror } from '../terminal/ptyMirror.js'; // AUDITARIA_PROVIDER_TERMINAL: shared web-terminal mirror bus
 import { getClaudeProjectDirHash } from './claudeSessionBrowser.js'; // AUDITARIA_CLAUDE_PROVIDER
+import { isLocalCommandNoise } from './claudeSessionLoader.js'; // AUDITARIA_CLAUDE_PROVIDER: filter slash-command bookkeeping from background user messages
 
 // AUDITARIA_CLAUDE_PROVIDER: Debug logging — enable at runtime with
 // AUDITARIA_PROVIDER_DEBUG=1. Writes to stdout with a [DEBUG] prefix so the UI
@@ -2594,14 +2595,20 @@ function extractUserTextFromTranscriptEntry(
   const content = msg.content;
   if (typeof content === 'string') {
     const trimmed = content.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    if (trimmed.length === 0 || isLocalCommandNoise(trimmed)) return null;
+    return trimmed;
   }
   if (Array.isArray(content)) {
     const parts: string[] = [];
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape of Claude content blocks
     for (const block of content as Array<Record<string, unknown>>) {
       const text = block?.['text'];
-      if (block && block['type'] === 'text' && typeof text === 'string') {
+      if (
+        block &&
+        block['type'] === 'text' &&
+        typeof text === 'string' &&
+        !isLocalCommandNoise(text)
+      ) {
         parts.push(text);
       }
     }
