@@ -7,6 +7,7 @@ from google.cloud import firestore
 from triage_orchestrator import process_issue_triage
 from utils.validator import validate_triage_result
 from utils.egress import send_label_action, send_comment_action
+from utils.events import publish_issue_ready_for_code
 from db.issues_store import IssuesStore, ClaimAction, ReleaseAction
 
 FEATURE_CLOSED_COMMENT = (
@@ -145,6 +146,9 @@ def main() -> None:
                 )
                 send_label_action(
                     owner, repo, issue_number, [f"effort/{effort.lower()}"]
+                )
+                publish_issue_ready_for_code(
+                    owner, repo, issue_number, workable_spec
                 )
                 store.release_lock(
                     owner,
