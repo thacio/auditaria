@@ -141,6 +141,19 @@ export class ProviderTerminalViewer {
      * is genuinely visible, then open + replay.
      */
     this.pendingBytes = '';
+    /**
+     * Display mode for the terminal CONTENT (independent of panel mode):
+     *   - 'screen': render server-side viewport snapshots (duplication-
+     *     immune — Claude's inline redraw leak lives in scrollback, which
+     *     snapshots never carry). Default. No scrollback in this mode.
+     *   - 'raw': classic raw byte stream into xterm.js, full scrollback,
+     *     but accumulates whatever duplicated frames the TUI emits.
+     * @type {'screen'|'raw'}
+     */
+    this.displayMode = 'screen';
+    /** Latest snapshot that arrived while the panel was closed (replace, not append). */
+    this.pendingSnapshot = '';
+    this.modeBtn = null;
     /** @type {'hidden'|'modal'|'pip'} */
     this.mode = 'hidden';
     this.pipPosition = { x: PIP_DEFAULT_X, y: PIP_DEFAULT_Y };
@@ -170,6 +183,9 @@ export class ProviderTerminalViewer {
       }
       if (persisted.mode === 'modal' || persisted.mode === 'pip') {
         restoreMode = persisted.mode;
+      }
+      if (persisted.displayMode === 'raw') {
+        this.displayMode = 'raw';
       }
     }
     this._restoreMode = restoreMode;
@@ -307,6 +323,15 @@ export class ProviderTerminalViewer {
         keystrokes go directly to the provider's terminal
       </span>
       <div style="display: flex; gap: 6px;">
+        <button class="cpy-btn cpy-mode" style="
+          background: transparent;
+          border: 1px solid #444;
+          color: #ddd;
+          border-radius: 4px;
+          padding: 2px 10px;
+          cursor: pointer;
+          font-size: 12px;
+        ">Live</button>
         <button class="cpy-btn cpy-pip" style="
           background: transparent;
           border: 1px solid #444;
@@ -403,6 +428,14 @@ export class ProviderTerminalViewer {
     this.closeBtn = this.header.querySelector('.cpy-close');
     this.titleEl = this.header.querySelector('.cpy-title');
     this.applyProviderLabel();
+
+    // AUDITARIA_PROVIDER_TERMINAL: Live screen / Raw stream content toggle.
+    this.modeBtn = this.header.querySelector('.cpy-mode');
+    this.applyDisplayModeButton();
+    this.modeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleDisplayMode();
+    });
 
     this.pipBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -644,6 +677,7 @@ export class ProviderTerminalViewer {
       mode: this.mode,
       pipPosition: this.pipPosition,
       pipSize: this.pipSize,
+      displayMode: this.displayMode,
     });
   }
 
@@ -786,8 +820,17 @@ export class ProviderTerminalViewer {
       );
     }
 
-    // Replay any data that arrived while we were hidden.
-    if (this.pendingBytes) {
+    // Replay whatever arrived while we were hidden, per display mode.
+    if (this.displayMode === 'screen') {
+      if (this.pendingSnapshot) {
+        this.applySnapshot(this.pendingSnapshot);
+        this.pendingSnapshot = '';
+      } else {
+        // Nothing buffered (e.g. fresh page) — ask for a paint now instead
+        // of waiting for the TUI's next output.
+        this.wsManager.send({ type: 'provider_pty_refresh' });
+      }
+    } else if (this.pendingBytes) {
       try {
         this.term.write(this.pendingBytes);
       } catch (err) {
@@ -796,6 +839,57 @@ export class ProviderTerminalViewer {
       this.pendingBytes = '';
     }
   }
+
+  // AUDITARIA_PROVIDER_TERMINAL_START: Live screen / Raw stream toggle.
+  applyDisplayModeButton() {
+    if (!this.modeBtn) return;
+    if (this.displayMode === 'screen') {
+      this.modeBtn.textContent = 'Live';
+      this.modeBtn.title =
+        'Live screen mode: shows the current terminal screen (no scrollback), ' +
+        'immune to duplicated-line rendering bugs. Click for raw stream mode.';
+    } else {
+      this.modeBtn.textContent = 'Raw';
+      this.modeBtn.title =
+        'Raw stream mode: full byte stream with scrollback (may accumulate ' +
+        "the TUI's duplicated-line rendering bug). Click for live screen mode.";
+    }
+  }
+
+  toggleDisplayMode() {
+    this.displayMode = this.displayMode === 'screen' ? 'raw' : 'screen';
+    this.applyDisplayModeButton();
+    this.persistState();
+    // Old content belongs to the other representation — start clean and ask
+    // the server for a fresh paint of the new one.
+    this.pendingBytes = '';
+    this.pendingSnapshot = '';
+    if (this.term && this.termOpened) {
+      try {
+        // Queued RIS, not term.reset() — serializes with in-flight writes.
+        this.term.write('\x1bc');
+      } catch {
+        /* ignore */
+      }
+    }
+    this.wsManager.send({ type: 'provider_pty_refresh' });
+  }
+
+  /** Repaint the terminal from a full viewport snapshot (screen mode). */
+  applySnapshot(decoded) {
+    if (!this.term || !this.termOpened) return;
+    try {
+      // RIS (ESC c) + snapshot in ONE write: xterm parses writes
+      // asynchronously, so a synchronous term.reset() could land before the
+      // previous snapshot finished parsing and its tail would resurrect
+      // after the reset. A single ordered write is atomic per frame, and
+      // xterm coalesces the repaint (no blank flash).
+      this.term.write('\x1bc' + decoded);
+    } catch (err) {
+      console.error('[ProviderTerminalViewer] snapshot apply failed:', err);
+    }
+  }
+  // AUDITARIA_PROVIDER_TERMINAL_END
 
   // AUDITARIA_PROVIDER_TERMINAL: reflect the active provider's name in the
   // panel title ("Claude Code Terminal", "GitHub Copilot Terminal", …).
@@ -831,6 +925,10 @@ export class ProviderTerminalViewer {
       }
     });
     this.wsManager.addEventListener('provider_pty_data', (e) => {
+      // Raw stream feeds the terminal only in 'raw' display mode — in
+      // 'screen' mode the snapshots below are the single source of truth
+      // (mixing both would reintroduce the duplication we're avoiding).
+      if (this.displayMode !== 'raw') return;
       if (!e.detail || typeof e.detail.bytes !== 'string') return;
       let decoded = '';
       try {
@@ -857,6 +955,24 @@ export class ProviderTerminalViewer {
       } catch (err) {
         console.error('[ProviderTerminalViewer] write failed:', err);
       }
+    });
+    // AUDITARIA_PROVIDER_TERMINAL: viewport snapshots for 'screen' mode.
+    // Each message is a COMPLETE repaint — replace, never append.
+    this.wsManager.addEventListener('provider_screen_data', (e) => {
+      if (this.displayMode !== 'screen') return;
+      if (!e.detail || typeof e.detail.snapshot !== 'string') return;
+      let decoded = '';
+      try {
+        decoded = decodeBytes(e.detail.snapshot);
+      } catch (err) {
+        console.error('[ProviderTerminalViewer] snapshot decode error:', err);
+        return;
+      }
+      if (!this.termOpened) {
+        this.pendingSnapshot = decoded;
+        return;
+      }
+      this.applySnapshot(decoded);
     });
   }
 

@@ -27,6 +27,7 @@ import {
   DiscoveredMCPTool,
   resolveRipgrepPath,
   providerPtyMirror, // AUDITARIA_PROVIDER_TERMINAL: web-terminal mirror bus (Claude/Copilot/… PTYs)
+  ProviderScreenMirror, // AUDITARIA_PROVIDER_TERMINAL: headless screen oracle for "Live screen" mode
 } from '@google/gemini-cli-core';
 import type { FooterData } from '../ui/contexts/FooterContext.js';
 import type { LoadingStateData } from '../ui/contexts/LoadingStateContext.js';
@@ -305,6 +306,11 @@ export class WebInterfaceService extends EventEmitter {
   private providerPtyBuffer = '';
   private providerPtyBufferMax = 64 * 1024;
   private providerPtyUnsubscribers: Array<() => void> = [];
+  // Headless screen oracle for the viewer's "Live screen" mode: absorbs the
+  // raw stream and serves duplication-immune viewport snapshots (Claude's
+  // inline-mode redraw leak lives in scrollback, which this never keeps).
+  private screenMirror: ProviderScreenMirror | null = null;
+  private screenSnapshotTimer: NodeJS.Timeout | null = null;
   // AUDITARIA_PROVIDER_TERMINAL_END
   // WEB_INTERFACE_START: Track ephemeral states for reconnection
   private currentResponseBlocks: ResponseBlock[] | null = null;
@@ -954,6 +960,13 @@ export class WebInterfaceService extends EventEmitter {
       // mirror and fan out raw bytes + lifecycle to the web clients.
       // base64-encode so binary/control bytes survive the JSON envelope
       // intact. `label` tells the viewer which provider owns the terminal.
+      // Screen oracle for "Live screen" mode. Seed with any bytes that
+      // arrived before the service started (ring buffer) so the grid isn't
+      // blank until the TUI's next repaint.
+      this.screenMirror = new ProviderScreenMirror();
+      if (this.providerPtyBuffer) {
+        this.screenMirror.write(this.providerPtyBuffer);
+      }
       this.providerPtyUnsubscribers.push(
         providerPtyMirror.onData((bytes: string) => {
           // Append to the replay ring buffer (used for late-joiners).
@@ -965,6 +978,10 @@ export class WebInterfaceService extends EventEmitter {
           }
           const encoded = Buffer.from(bytes, 'utf-8').toString('base64');
           this.broadcastWithSequence('provider_pty_data', { bytes: encoded });
+          // Feed the screen oracle ALWAYS (grid must stay current even with
+          // no clients); broadcasting snapshots is throttled + client-gated.
+          this.screenMirror?.write(bytes);
+          this.scheduleScreenSnapshot();
         }),
       );
       this.providerPtyUnsubscribers.push(
@@ -975,6 +992,8 @@ export class WebInterfaceService extends EventEmitter {
             // PTY died — clear buffer so a new turn starts clean.
             this.providerPtyBuffer = '';
           }
+          // Either transition means a different PTY owns the screen next.
+          this.screenMirror?.reset();
           this.broadcastWithSequence('provider_pty_state', {
             active: isActive,
             label: this.providerPtyLabel,
@@ -1105,6 +1124,12 @@ export class WebInterfaceService extends EventEmitter {
     this.providerPtyActive = false;
     this.providerPtyLabel = undefined;
     this.providerPtyBuffer = '';
+    if (this.screenSnapshotTimer) {
+      clearTimeout(this.screenSnapshotTimer);
+      this.screenSnapshotTimer = null;
+    }
+    this.screenMirror?.dispose();
+    this.screenMirror = null;
     // AUDITARIA_PROVIDER_TERMINAL: server down → CLI hooks fall back to the modal.
     webTerminalBridge.setOpenTerminalHandler(null);
     webTerminalBridge.setClientCount(0);
@@ -1371,6 +1396,75 @@ export class WebInterfaceService extends EventEmitter {
   // WEB_INTERFACE_END
 
   // WEB_INTERFACE_START: Generic broadcast helper with sequence numbers
+  // AUDITARIA_PROVIDER_TERMINAL_START: "Live screen" snapshot fan-out.
+  // Trailing-edge throttle: bursts of PTY output collapse into one
+  // serialize+broadcast every SNAPSHOT_THROTTLE_MS.
+  private static readonly SNAPSHOT_THROTTLE_MS = 80;
+
+  private scheduleScreenSnapshot(): void {
+    if (this.screenSnapshotTimer) return;
+    this.screenSnapshotTimer = setTimeout(() => {
+      this.screenSnapshotTimer = null;
+      void this.broadcastScreenSnapshot();
+    }, WebInterfaceService.SNAPSHOT_THROTTLE_MS);
+  }
+
+  private async broadcastScreenSnapshot(): Promise<void> {
+    const mirror = this.screenMirror;
+    if (!mirror || !this.providerPtyActive) return;
+    if (!this.isRunning || this.clients.size === 0) return;
+    const snapshot = await mirror.snapshot();
+    this.broadcastWithSequence('provider_screen_data', {
+      snapshot: Buffer.from(snapshot, 'utf-8').toString('base64'),
+      cols: mirror.cols,
+      rows: mirror.rows,
+    });
+  }
+
+  /**
+   * Viewer asks for a fresh paint (display-mode toggle, panel reopen).
+   * UNICAST both representations — the client consumes whichever matches
+   * its mode. Broadcasting the raw replay instead would append duplicate
+   * history into every other raw-mode viewer.
+   */
+  private handleProviderPtyRefresh(ws: WebSocket): void {
+    if (!this.providerPtyActive) return;
+    const sendSequenced = (type: string, data: unknown) => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const sequence = this.getNextSequence();
+      const message = JSON.stringify({
+        type,
+        data,
+        sequence,
+        timestamp: Date.now(),
+      });
+      try {
+        ws.send(message);
+        this.clientStates
+          .get(ws)
+          ?.messageBuffer.add({ sequence, message, timestamp: Date.now() });
+      } catch {
+        /* client went away */
+      }
+    };
+    if (this.providerPtyBuffer.length > 0) {
+      sendSequenced('provider_pty_data', {
+        bytes: Buffer.from(this.providerPtyBuffer, 'utf-8').toString('base64'),
+      });
+    }
+    const mirror = this.screenMirror;
+    if (mirror) {
+      void mirror.snapshot().then((snapshot) => {
+        sendSequenced('provider_screen_data', {
+          snapshot: Buffer.from(snapshot, 'utf-8').toString('base64'),
+          cols: mirror.cols,
+          rows: mirror.rows,
+        });
+      });
+    }
+  }
+  // AUDITARIA_PROVIDER_TERMINAL_END
+
   private broadcastWithSequence(type: string, data: any): void {
     if (!this.isRunning || this.clients.size === 0) {
       return;
@@ -1823,6 +1917,10 @@ export class WebInterfaceService extends EventEmitter {
       typeof message.rows === 'number'
     ) {
       providerPtyMirror.resize(message.cols, message.rows);
+      // Keep the screen oracle's grid in lock-step with the real PTY, else
+      // snapshots wrap at the wrong width.
+      this.screenMirror?.resize(message.cols, message.rows);
+      this.scheduleScreenSnapshot();
     }
     // WEB_INTERFACE_START: Model selection request from web footer
     else if (message.type === 'set_model_request' && message.selection) {
@@ -1989,6 +2087,12 @@ export class WebInterfaceService extends EventEmitter {
               this.handleAcknowledgment(ws, message);
             } else if (message.type === 'resync_request') {
               this.handleResyncRequest(ws, message);
+            }
+            // AUDITARIA_PROVIDER_TERMINAL: needs the ws — replies are
+            // UNICAST (a broadcast replay would append duplicate history
+            // into other raw-mode viewers).
+            else if (message.type === 'provider_pty_refresh') {
+              this.handleProviderPtyRefresh(ws);
             } else {
               this.handleIncomingMessage(message);
             }
@@ -2795,6 +2899,19 @@ export class WebInterfaceService extends EventEmitter {
         'base64',
       );
       sendAndStore('provider_pty_data', { bytes: encoded });
+    }
+    // "Live screen" late-joiner: a fresh viewport snapshot so screen-mode
+    // viewers paint immediately instead of waiting for the TUI's next
+    // repaint. Async (headless parse barrier) — sendAndStore is captured.
+    if (this.providerPtyActive && this.screenMirror) {
+      const mirror = this.screenMirror;
+      void mirror.snapshot().then((snapshot) => {
+        sendAndStore('provider_screen_data', {
+          snapshot: Buffer.from(snapshot, 'utf-8').toString('base64'),
+          cols: mirror.cols,
+          rows: mirror.rows,
+        });
+      });
     }
 
     // WEB_INTERFACE_START: Send ephemeral states that are still relevant
