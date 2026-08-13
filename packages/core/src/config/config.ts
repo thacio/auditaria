@@ -1412,6 +1412,7 @@ export class Config implements McpContext, AgentLoopContext {
         approvalMode: engineApprovalMode,
         disableAlwaysAllow: this.disableAlwaysAllow,
         sandboxManager: this._sandboxManager,
+        isTrustedFolder: () => this.isTrustedFolder(),
       },
       checkerRunner,
     );
@@ -3682,13 +3683,16 @@ export class Config implements McpContext, AgentLoopContext {
    * 'false' for untrusted.
    */
   isTrustedFolder(): boolean {
+    if (this.trustedFolder !== undefined) {
+      return this.trustedFolder;
+    }
+
     const context = ideContextStore.get();
     if (context?.workspaceState?.isTrusted !== undefined) {
       return context.workspaceState.isTrusted;
     }
 
-    // Default to untrusted if folder trust is enabled and no explicit value is set.
-    return this.folderTrust ? (this.trustedFolder ?? false) : true;
+    return this.folderTrust ? false : true;
   }
 
   setIdeMode(value: boolean): void {
