@@ -86,7 +86,8 @@ export interface AcpAvailableModel {
   name: string;
   description?: string | null;
   _meta?: {
-    copilotUsage?: string; // e.g., "1x", "3x", "0.33x", "0x"
+    copilotUsage?: string; // legacy premium-request multiplier, e.g. "1x", "3x", "15x"
+    copilotPriceCategory?: string; // AI-credits cost tier: "low" | "medium" | "high" | "very_high"
     copilotEnablement?: string; // e.g., "enabled"
   };
 }
@@ -332,5 +333,6 @@ export interface CopilotModelInfo {
   value: string; // The modelId to pass to session/set_model (e.g., 'claude-sonnet-4.5')
   name: string; // Human-readable name (e.g., 'Claude Sonnet 4.5')
   description?: string | null;
-  copilotUsage?: string | null; // Usage multiplier from _meta.copilotUsage (e.g., '1x', '3x', '0.33x', '0x')
+  copilotUsage?: string | null; // Legacy premium-request multiplier (e.g., '1x', '15x'). GitHub has moved billing to AI credits; prefer copilotPriceCategory.
+  copilotPriceCategory?: string | null; // Relative AI-credits cost tier: 'low' | 'medium' | 'high' | 'very_high'
 }

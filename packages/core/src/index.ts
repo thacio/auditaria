@@ -361,7 +361,10 @@ export type { SessionRecord } from './providers/session-registry.js'; // AUDITAR
 export type { ToolDisplayInfo } from './providers/mcp-bridge/toolExecutorServer.js'; // AUDITARIA: Display metadata for bridgeable tools
 export {
   getCopilotModelUsage,
+  getCopilotModelCost,
+  formatCopilotModelCost,
   getCachedCopilotModels,
+  refreshCopilotModelsCache,
 } from './providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
 export {
   AGY_MODEL_DISPLAY,

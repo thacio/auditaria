@@ -15,6 +15,7 @@ import {
   mkdirSync,
   existsSync,
   unlinkSync,
+  statSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -96,10 +97,232 @@ export function getCopilotModelUsage(modelId: string): string | undefined {
   return models.find((m) => m.value === modelId)?.copilotUsage ?? undefined;
 }
 
+// AUDITARIA_COPILOT_PROVIDER_START: cost labelling.
+// GitHub replaced the premium-request multiplier ("15x") with AI-credits
+// billing; the ACP metadata now carries a relative `copilotPriceCategory`
+// alongside a `copilotUsage` multiplier that is no longer kept in step (e.g.
+// Gemini Flash reports "14x" at price category "low"). Prefer the category and
+// only fall back to the multiplier when the CLI is too old to report one.
+const COPILOT_PRICE_CATEGORY_LABELS: Readonly<Record<string, string>> = {
+  low: 'low cost',
+  medium: 'medium cost',
+  high: 'high cost',
+  very_high: 'very high cost',
+};
+
+/**
+ * Human-readable relative cost for a Copilot model, e.g. 'high cost'.
+ * Returns undefined when neither signal is available.
+ */
+export function formatCopilotModelCost(
+  model: Pick<CopilotModelInfo, 'copilotUsage' | 'copilotPriceCategory'>,
+): string | undefined {
+  const category = model.copilotPriceCategory;
+  if (category) return COPILOT_PRICE_CATEGORY_LABELS[category] ?? category;
+  return model.copilotUsage ?? undefined;
+}
+
+/** Relative cost label for a cached Copilot model id. */
+export function getCopilotModelCost(modelId: string): string | undefined {
+  const found = loadModelsCacheFromDisk().find((m) => m.value === modelId);
+  return found ? formatCopilotModelCost(found) : undefined;
+}
+// AUDITARIA_COPILOT_PROVIDER_END
+
 /** Get cached Copilot models (from last ACP session/new). Returns [] if no cache. */
 export function getCachedCopilotModels(): CopilotModelInfo[] {
   return loadModelsCacheFromDisk();
 }
+
+/**
+ * Build the cached model list from an ACP `session/new` payload.
+ * Shared by the live driver and the background refresh.
+ */
+function buildCopilotModelInfos(
+  models: AcpAvailableModel[],
+  currentModelId?: string,
+): CopilotModelInfo[] {
+  // Copilot itself now ships an `auto` entry in availableModels — skip it below
+  // so the list has exactly one.
+  const defaultModel = currentModelId
+    ? models.find((m) => m.modelId === currentModelId)
+    : undefined;
+  const parsed: CopilotModelInfo[] = [
+    {
+      value: 'auto',
+      name: 'Auto',
+      description: currentModelId
+        ? `Uses Copilot's default model (${currentModelId})`
+        : "Uses Copilot's default model",
+      copilotUsage: defaultModel?._meta?.copilotUsage,
+      copilotPriceCategory: defaultModel?._meta?.copilotPriceCategory,
+    },
+  ];
+  for (const m of models) {
+    if (m.modelId === 'auto') continue;
+    parsed.push({
+      value: m.modelId,
+      name: m.name,
+      description: m.description,
+      copilotUsage: m._meta?.copilotUsage,
+      copilotPriceCategory: m._meta?.copilotPriceCategory,
+    });
+  }
+  return parsed;
+}
+
+// AUDITARIA_COPILOT_PROVIDER_START: background model-cache refresh.
+// The interactive PTY driver is the default and only ever *reads* this cache,
+// so without this the model list froze at whatever the last ACP session saw
+// (stale entries, dropped models, outdated cost tiers). A short headless ACP
+// handshake — initialize + session/new — is enough to re-read the list.
+const MODELS_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12h
+const MODELS_REFRESH_TIMEOUT_MS = 30_000;
+let modelsRefreshInFlight: Promise<void> | null = null;
+
+function modelsCacheAgeMs(): number {
+  try {
+    return Date.now() - statSync(MODELS_CACHE_FILE).mtimeMs;
+  } catch {
+    return Number.POSITIVE_INFINITY; // missing → always stale
+  }
+}
+
+/**
+ * Refresh `~/.auditaria/copilot-models.json` from Copilot's ACP model list.
+ * Fire-and-forget: never throws, deduped, and a no-op while the cache is fresh
+ * (pass `force` to bypass the age check). Emits a model-changed event when the
+ * list actually changed so open menus repopulate.
+ */
+export function refreshCopilotModelsCache(force = false): Promise<void> {
+  if (modelsRefreshInFlight) return modelsRefreshInFlight;
+  if (!force && modelsCacheAgeMs() < MODELS_CACHE_MAX_AGE_MS) {
+    return Promise.resolve();
+  }
+
+  modelsRefreshInFlight = fetchCopilotModelsViaAcp()
+    .then((models) => {
+      if (!models || models.length === 0) return;
+      const changed = JSON.stringify(models) !== JSON.stringify(cachedModels);
+      cachedModels = models;
+      // Always rewrite so mtime advances (otherwise a stable list re-probes
+      // Copilot on every launch).
+      saveModelsCacheToDisk(models);
+      if (changed) coreEvents.emitModelChanged('auto');
+    })
+    .catch(() => {
+      // Copilot missing, not logged in, or ACP unavailable — keep the old cache.
+    })
+    .finally(() => {
+      modelsRefreshInFlight = null;
+    });
+
+  return modelsRefreshInFlight;
+}
+
+/** Validate one raw `availableModels` entry without casting. */
+function toAcpAvailableModel(entry: unknown): AcpAvailableModel | undefined {
+  if (!isRecord(entry)) return undefined;
+  const { modelId, name, description, _meta } = entry;
+  if (typeof modelId !== 'string' || typeof name !== 'string') return undefined;
+  const meta = isRecord(_meta) ? _meta : undefined;
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  return {
+    modelId,
+    name,
+    description: str(description) ?? null,
+    _meta: meta && {
+      copilotUsage: str(meta['copilotUsage']),
+      copilotPriceCategory: str(meta['copilotPriceCategory']),
+      copilotEnablement: str(meta['copilotEnablement']),
+    },
+  };
+}
+
+/** Minimal ACP handshake that reads `models.availableModels` and exits. */
+function fetchCopilotModelsViaAcp(): Promise<CopilotModelInfo[] | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: CopilotModelInfo[] | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        proc.kill();
+      } catch {
+        // already gone
+      }
+      resolve(result);
+    };
+
+    const proc = spawn('copilot', ['--acp', '--stdio', '--allow-all'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: getShellOption(),
+    });
+    if (proc.pid) trackChildProcess(proc.pid);
+
+    const timer = setTimeout(() => finish(null), MODELS_REFRESH_TIMEOUT_MS);
+    proc.on('error', () => finish(null));
+    proc.on('exit', () => finish(null));
+
+    const send = (id: number, method: string, params: unknown) => {
+      proc.stdin?.write(
+        `${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`,
+      );
+    };
+
+    let buffer = '';
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString('utf-8');
+      let newline: number;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline).trim();
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        let msg: unknown;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        if (!isRecord(msg)) continue;
+
+        if (msg['id'] === 1) {
+          send(2, 'session/new', { cwd: process.cwd(), mcpServers: [] });
+          continue;
+        }
+        if (msg['id'] !== 2) continue;
+
+        const result = isRecord(msg['result']) ? msg['result'] : undefined;
+        const modelState = isRecord(result?.['models'])
+          ? result['models']
+          : undefined;
+        const available = modelState?.['availableModels'];
+        if (!Array.isArray(available)) {
+          finish(null);
+          return;
+        }
+        const currentModelId =
+          typeof modelState?.['currentModelId'] === 'string'
+            ? modelState['currentModelId']
+            : undefined;
+        finish(
+          buildCopilotModelInfos(
+            available.flatMap((entry) => toAcpAvailableModel(entry) ?? []),
+            currentModelId,
+          ),
+        );
+        return;
+      }
+    });
+
+    send(1, 'initialize', {
+      protocolVersion: 1,
+      clientInfo: { name: 'auditaria-cli', version: '1.0.0' },
+    });
+  });
+}
+// AUDITARIA_COPILOT_PROVIDER_END
 
 function getShellOption(): boolean | string {
   return process.platform === 'win32' ? 'powershell.exe' : true;
@@ -768,29 +991,7 @@ export class CopilotCLIDriver implements ProviderDriver {
     models: AcpAvailableModel[],
     currentModelId?: string,
   ): void {
-    const parsed: CopilotModelInfo[] = [];
-
-    // Auto option first
-    const defaultUsage = currentModelId
-      ? models.find((m) => m.modelId === currentModelId)?._meta?.copilotUsage
-      : undefined;
-    parsed.push({
-      value: 'auto',
-      name: 'Auto',
-      description: currentModelId
-        ? `Uses Copilot's default model (${currentModelId})`
-        : "Uses Copilot's default model",
-      copilotUsage: defaultUsage,
-    });
-
-    for (const m of models) {
-      parsed.push({
-        value: m.modelId,
-        name: m.name,
-        description: m.description,
-        copilotUsage: m._meta?.copilotUsage,
-      });
-    }
+    const parsed = buildCopilotModelInfos(models, currentModelId);
 
     // Check if anything changed vs cached data
     const oldCache = loadModelsCacheFromDisk();

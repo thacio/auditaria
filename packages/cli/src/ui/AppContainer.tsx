@@ -92,7 +92,7 @@ import {
   type CodexReasoningEffort, // AUDITARIA_PROVIDER and WEB
   getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
   clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
-  getCopilotModelUsage, // AUDITARIA_COPILOT_PROVIDER
+  getCopilotModelCost, // AUDITARIA_COPILOT_PROVIDER
   tokenLimit, // AUDITARIA_WEB_INTERFACE: direct footer data computation
   getDisplayString, // AUDITARIA_WEB_INTERFACE: direct footer data computation
   buildUserSteeringHintPrompt,
@@ -2492,13 +2492,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
           ? undefined
           : 'To use GitHub Copilot, install it from https://www.npmjs.com/package/@github/copilot, then run `copilot` to authenticate.',
         options: getCopilotModelOptions().map((option) => {
-          const usage = option.model
-            ? getCopilotModelUsage(option.model)
+          const cost = option.model
+            ? getCopilotModelCost(option.model)
             : undefined;
           return {
             selection: option.value,
-            label: usage
-              ? `Copilot (${option.title}) ${usage}`
+            label: cost
+              ? `Copilot (${option.title}) (${cost})`
               : `Copilot (${option.title})`,
             description: option.description,
           };

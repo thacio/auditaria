@@ -207,27 +207,40 @@ export interface ProviderDriver {
   // AUDITARIA_CLAUDE_PROVIDER_END
 }
 
-// AUDITARIA_CODEX_PROVIDER: Supported Codex reasoning effort values for model thinking intensity.
+// AUDITARIA_CODEX_PROVIDER: Supported Codex reasoning effort values for model
+// thinking intensity, ordered lowest → highest (the clamping logic below relies
+// on that order). `max` and `ultra` arrived with the GPT-5.6 family; `ultra` is
+// "maximum reasoning with automatic task delegation".
 export const CODEX_REASONING_EFFORTS = [
   'low',
   'medium',
   'high',
   'xhigh',
+  'max',
+  'ultra',
 ] as const;
 
 export type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORTS)[number];
 
 // AUDITARIA_CODEX_PROVIDER: Per-model reasoning support in Codex CLI.
-// Keep this in sync with Codex model capabilities to avoid unsupported API calls.
+// Mirrors `supported_reasoning_levels` in the CLI's own `~/.codex/models_cache.json`.
+const CODEX_EFFORTS_THROUGH_XHIGH = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+] as const satisfies readonly CodexReasoningEffort[];
+
 export const CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL: Readonly<
   Partial<Record<string, readonly CodexReasoningEffort[]>>
 > = {
-  'gpt-5.5': CODEX_REASONING_EFFORTS,
-  'gpt-5.4': CODEX_REASONING_EFFORTS,
-  // API currently supports low/medium/high for mini (xhigh is rejected).
-  'gpt-5.4-mini': ['low', 'medium', 'high'] as const,
-  'gpt-5.3-codex': CODEX_REASONING_EFFORTS,
-  'gpt-5.2': CODEX_REASONING_EFFORTS,
+  'gpt-5.6-sol': CODEX_REASONING_EFFORTS,
+  'gpt-5.6-terra': CODEX_REASONING_EFFORTS,
+  // Luna tops out at `max` (no `ultra` delegation tier).
+  'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'] as const,
+  'gpt-5.5': CODEX_EFFORTS_THROUGH_XHIGH,
+  'gpt-5.4': CODEX_EFFORTS_THROUGH_XHIGH,
+  'gpt-5.4-mini': CODEX_EFFORTS_THROUGH_XHIGH,
 };
 
 export function getSupportedCodexReasoningEfforts(
@@ -292,27 +305,34 @@ export interface ProviderConfig {
 
 // AUDITARIA_AGENT_SESSION: Canonical model ID lists for external providers (DRY source of truth).
 // Used by tool schemas and UI model catalogs.
-// AUDITARIA_AGENT_SESSION: Includes 1M-context variants (opus[1m], sonnet[1m]).
+// AUDITARIA_AGENT_SESSION: Includes the `[1m]` 1M-context variants and the
+// `opusplan` alias (Opus while planning, Sonnet while executing).
 // 'auto' means "do not pass --model" — Claude resolves its own default
-// (typically the 1M-context Opus when the user has access).
+// (respecting the user's last selection in the Claude Code TUI).
 export const CLAUDE_MODEL_IDS = [
   'auto',
   'opus',
+  'opus[1m]',
+  'opusplan',
+  'opusplan[1m]',
   'sonnet',
+  'sonnet[1m]',
   'haiku',
   'fable',
-  'opus[1m]',
-  'sonnet[1m]',
+  'fable[1m]',
 ] as const;
 export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
 
+// AUDITARIA_CODEX_PROVIDER: Mirrors the user-selectable (`visibility: "list"`)
+// models in the Codex CLI's own `~/.codex/models_cache.json`.
 export const CODEX_MODEL_IDS = [
   'auto',
+  'gpt-5.6-sol',
+  'gpt-5.6-terra',
+  'gpt-5.6-luna',
   'gpt-5.5',
   'gpt-5.4',
   'gpt-5.4-mini',
-  'gpt-5.3-codex',
-  'gpt-5.2',
 ] as const;
 export type CodexModelId = (typeof CODEX_MODEL_IDS)[number];
 
@@ -327,6 +347,12 @@ export type CopilotModelId = (typeof COPILOT_MODEL_IDS)[number];
 // SEPARATE Antigravity quota pools, so each variant is independently selectable.
 export const AGY_MODEL_IDS = [
   'auto',
+  'gemini-3.7-flash-low',
+  'gemini-3.7-flash-medium',
+  'gemini-3.7-flash-high',
+  'gemini-3.6-flash-low',
+  'gemini-3.6-flash-medium',
+  'gemini-3.6-flash-high',
   'gemini-3.5-flash-low',
   'gemini-3.5-flash-medium',
   'gemini-3.5-flash-high',

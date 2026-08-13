@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getCopilotModelUsage } from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
+import { getCopilotModelCost } from '../providers/copilot/copilotCLIDriver.js'; // AUDITARIA_COPILOT_PROVIDER
 import { AGY_MODEL_DISPLAY } from '../providers/agy/agyCLIDriver.js'; // AUDITARIA_AGY_PROVIDER
 
 export interface ModelResolutionContext {
@@ -381,13 +381,14 @@ export function getDisplayString(
     return `Codex (${variant})`;
   }
 
-  // AUDITARIA_COPILOT_PROVIDER: Format Copilot model display (with usage multiplier from ACP)
+  // AUDITARIA_COPILOT_PROVIDER: Format Copilot model display (with the relative
+  // AI-credits cost tier from ACP).
   if (model.startsWith('copilot-code:')) {
     const variant = model.split(':')[1] || 'unknown';
-    const usage = getCopilotModelUsage(variant);
-    const usageSuffix = usage ? ` ${usage}` : '';
-    if (variant === 'auto') return `Copilot (Auto)${usageSuffix}`;
-    return `Copilot (${variant})${usageSuffix}`;
+    const cost = getCopilotModelCost(variant);
+    const costSuffix = cost ? ` (${cost})` : '';
+    if (variant === 'auto') return `Copilot (Auto)${costSuffix}`;
+    return `Copilot (${variant})${costSuffix}`;
   }
 
   // AUDITARIA_AGY_PROVIDER: Format Antigravity model display

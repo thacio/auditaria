@@ -31,6 +31,8 @@ export interface ProviderSubmenuOption {
   model?: string;
 }
 
+// Descriptions mirror Claude Code's own `/model` picker. The `[1m]` suffix opts
+// into the 1M-context beta; without it the alias uses the standard 200K window.
 export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CLAUDE_PREFIX}auto`,
@@ -42,38 +44,58 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CLAUDE_PREFIX}opus`,
     title: 'Opus',
-    description: 'Most capable · 200K context',
+    description: 'Best for everyday, complex tasks',
     key: 'claude-opus',
   },
   {
     value: `${CLAUDE_PREFIX}opus[1m]`,
     title: 'Opus (1M)',
-    description: 'Most capable · 1M context (long sessions, large codebases)',
+    description: 'Best for everyday, complex tasks · 1M context',
     key: 'claude-opus-1m',
+  },
+  {
+    value: `${CLAUDE_PREFIX}opusplan`,
+    title: 'Opus Plan',
+    description: 'Opus while planning, Sonnet while executing',
+    key: 'claude-opusplan',
+  },
+  {
+    value: `${CLAUDE_PREFIX}opusplan[1m]`,
+    title: 'Opus Plan (1M)',
+    description: 'Opus while planning, Sonnet while executing · 1M context',
+    key: 'claude-opusplan-1m',
   },
   {
     value: `${CLAUDE_PREFIX}sonnet`,
     title: 'Sonnet',
-    description: 'Balanced speed/capability · 200K context',
+    description: 'Efficient for routine tasks',
     key: 'claude-sonnet',
   },
   {
     value: `${CLAUDE_PREFIX}sonnet[1m]`,
     title: 'Sonnet (1M)',
-    description: 'Balanced · 1M context (long sessions, large codebases)',
+    description: 'Efficient for routine tasks · 1M context',
     key: 'claude-sonnet-1m',
   },
   {
     value: `${CLAUDE_PREFIX}haiku`,
     title: 'Haiku',
-    description: 'Fastest and most compact',
+    description: 'Fastest for quick answers',
     key: 'claude-haiku',
   },
   {
     value: `${CLAUDE_PREFIX}fable`,
     title: 'Fable',
-    description: 'Newest Claude · complex long-running work',
+    description:
+      'Most capable for your hardest and longest-running tasks · requires usage credits',
     key: 'claude-fable',
+  },
+  {
+    value: `${CLAUDE_PREFIX}fable[1m]`,
+    title: 'Fable (1M)',
+    description:
+      'Most capable for your hardest and longest-running tasks · 1M context · requires usage credits',
+    key: 'claude-fable-1m',
   },
 ];
 
@@ -84,6 +106,27 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
     description: "Uses Codex's default model",
     key: 'codex-auto',
     model: undefined,
+  },
+  {
+    value: `${CODEX_PREFIX}gpt-5.6-sol`,
+    title: 'GPT-5.6 Sol',
+    description: 'Latest frontier agentic coding model',
+    key: 'codex-gpt56sol',
+    model: 'gpt-5.6-sol',
+  },
+  {
+    value: `${CODEX_PREFIX}gpt-5.6-terra`,
+    title: 'GPT-5.6 Terra',
+    description: 'Balanced agentic coding model for everyday work',
+    key: 'codex-gpt56terra',
+    model: 'gpt-5.6-terra',
+  },
+  {
+    value: `${CODEX_PREFIX}gpt-5.6-luna`,
+    title: 'GPT-5.6 Luna',
+    description: 'Fast and affordable agentic coding model',
+    key: 'codex-gpt56luna',
+    model: 'gpt-5.6-luna',
   },
   {
     value: `${CODEX_PREFIX}gpt-5.5`,
@@ -107,20 +150,6 @@ export const CODEX_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
     key: 'codex-gpt54mini',
     model: 'gpt-5.4-mini',
   },
-  {
-    value: `${CODEX_PREFIX}gpt-5.3-codex`,
-    title: 'GPT-5.3 Codex',
-    description: 'Coding-optimized model',
-    key: 'codex-gpt53codex',
-    model: 'gpt-5.3-codex',
-  },
-  {
-    value: `${CODEX_PREFIX}gpt-5.2`,
-    title: 'GPT-5.2',
-    description: 'Optimized for professional work and long-running agents',
-    key: 'codex-gpt52',
-    model: 'gpt-5.2',
-  },
 ];
 
 // AUDITARIA_AGY_PROVIDER: Google Antigravity (`agy`) model submenu. Each
@@ -133,6 +162,48 @@ export const AGY_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
     description: "Uses Antigravity's selected model (from agy settings)",
     key: 'agy-auto',
     model: undefined,
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.7-flash-low`,
+    title: 'Gemini 3.7 Flash (Low)',
+    description: 'Newest Flash · cheapest compute tier · Gemini quota pool',
+    key: 'agy-gemini37-flash-low',
+    model: 'gemini-3.7-flash-low',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.7-flash-medium`,
+    title: 'Gemini 3.7 Flash (Medium)',
+    description: 'Newest Flash · higher effort · Gemini quota pool',
+    key: 'agy-gemini37-flash-medium',
+    model: 'gemini-3.7-flash-medium',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.7-flash-high`,
+    title: 'Gemini 3.7 Flash (High)',
+    description: 'Newest Flash · highest effort · Gemini quota pool',
+    key: 'agy-gemini37-flash-high',
+    model: 'gemini-3.7-flash-high',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.6-flash-low`,
+    title: 'Gemini 3.6 Flash (Low)',
+    description: 'Fast, cheapest compute tier · Gemini quota pool · 1M context',
+    key: 'agy-gemini36-flash-low',
+    model: 'gemini-3.6-flash-low',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.6-flash-medium`,
+    title: 'Gemini 3.6 Flash (Medium)',
+    description: 'Higher effort · Gemini quota pool · 1M context',
+    key: 'agy-gemini36-flash-medium',
+    model: 'gemini-3.6-flash-medium',
+  },
+  {
+    value: `${AGY_PREFIX}gemini-3.6-flash-high`,
+    title: 'Gemini 3.6 Flash (High)',
+    description: 'Highest effort · Gemini quota pool · 1M context',
+    key: 'agy-gemini36-flash-high',
+    model: 'gemini-3.6-flash-high',
   },
   {
     value: `${AGY_PREFIX}gemini-3.5-flash-low`,
@@ -258,6 +329,8 @@ export const CODEX_REASONING_LABELS: Readonly<
   medium: 'Medium',
   high: 'High',
   xhigh: 'Extra High',
+  max: 'Max',
+  ultra: 'Ultra',
 };
 
 export const CODEX_REASONING_OPTIONS = CODEX_REASONING_EFFORTS.map((value) => ({
@@ -281,7 +354,9 @@ export function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
 import { execSync } from 'node:child_process';
 import {
   getCachedCopilotModels,
-  getCopilotModelUsage,
+  getCopilotModelCost,
+  formatCopilotModelCost,
+  refreshCopilotModelsCache,
 } from '@google/gemini-cli-core'; // AUDITARIA_COPILOT_PROVIDER
 
 /** Fallback options when copilot is not installed. */
@@ -303,12 +378,19 @@ let helpModelIds: string[] | null = null;
  * Priority: 1) copilot-models.json (rich ACP data) → 2) copilot --help (basic IDs) → 3) fallback
  */
 export function getCopilotModelOptions(): ProviderSubmenuOption[] {
-  // 1. Try cached models from ACP session/new (has names, descriptions, usage)
+  // Copilot's model line-up moves; the interactive PTY driver only reads this
+  // cache, so kick a throttled background refresh whenever the menu is built.
+  // It emits a model-changed event when the list actually shifted, which
+  // repopulates the open menu.
+  void refreshCopilotModelsCache();
+
+  // 1. Try cached models from ACP session/new (has names, descriptions, cost)
   const cached = getCachedCopilotModels();
   if (cached.length > 0) {
     return cached.map((m) => {
-      const desc = m.copilotUsage
-        ? `${m.description || m.name} (${m.copilotUsage})`
+      const cost = formatCopilotModelCost(m);
+      const desc = cost
+        ? `${m.description || m.name} (${cost})`
         : m.description || m.name;
       return {
         value: `${COPILOT_PREFIX}${m.value}`,
@@ -347,11 +429,11 @@ export function getCopilotModelOptions(): ProviderSubmenuOption[] {
       model: undefined,
     },
     ...helpModelIds.map((modelId) => {
-      const usage = getCopilotModelUsage(modelId);
+      const cost = getCopilotModelCost(modelId);
       return {
         value: `${COPILOT_PREFIX}${modelId}`,
         title: formatCopilotModelName(modelId),
-        description: usage ? `${modelId} (${usage})` : modelId,
+        description: cost ? `${modelId} (${cost})` : modelId,
         key: `copilot-${modelId.replace(/[^a-z0-9-]/gi, '_')}`,
         model: modelId,
       };
@@ -396,7 +478,7 @@ function formatCopilotModelName(modelId: string): string {
 /**
  * Build Copilot submenu options from ACP session/new model list.
  * Called after the driver's session/new returns models.availableModels.
- * Includes copilotUsage multiplier in descriptions when available.
+ * Includes the relative AI-credits cost in descriptions when available.
  */
 export function buildCopilotOptionsFromModels(
   models: ReadonlyArray<{
@@ -404,11 +486,13 @@ export function buildCopilotOptionsFromModels(
     name: string;
     description?: string | null;
     copilotUsage?: string | null;
+    copilotPriceCategory?: string | null;
   }>,
 ): ProviderSubmenuOption[] {
   return models.map((m) => {
     const baseDesc = m.description || m.name;
-    const desc = m.copilotUsage ? `${baseDesc} (${m.copilotUsage})` : baseDesc;
+    const cost = formatCopilotModelCost(m);
+    const desc = cost ? `${baseDesc} (${cost})` : baseDesc;
     return {
       value: `${COPILOT_PREFIX}${m.value}`,
       title: m.name,

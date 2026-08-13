@@ -64,6 +64,12 @@ function dbg(...args: unknown[]) {
 // quota pools, so each is its own selectable entry. Exported for the model
 // catalog (DRY). 'auto'/undefined → omit --model (agy uses settings.json).
 export const AGY_MODEL_DISPLAY: Readonly<Record<string, string>> = {
+  'gemini-3.7-flash-low': 'Gemini 3.7 Flash (Low)',
+  'gemini-3.7-flash-medium': 'Gemini 3.7 Flash (Medium)',
+  'gemini-3.7-flash-high': 'Gemini 3.7 Flash (High)',
+  'gemini-3.6-flash-low': 'Gemini 3.6 Flash (Low)',
+  'gemini-3.6-flash-medium': 'Gemini 3.6 Flash (Medium)',
+  'gemini-3.6-flash-high': 'Gemini 3.6 Flash (High)',
   'gemini-3.5-flash-low': 'Gemini 3.5 Flash (Low)',
   'gemini-3.5-flash-medium': 'Gemini 3.5 Flash (Medium)',
   'gemini-3.5-flash-high': 'Gemini 3.5 Flash (High)',

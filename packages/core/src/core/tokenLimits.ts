@@ -21,6 +21,13 @@ export const DEFAULT_TOKEN_LIMIT = 1_048_576;
 export const GEMMA_4_TOKEN_LIMIT = 256_000;
 
 export const CLAUDE_TOKEN_LIMIT = 200_000; // AUDITARIA_CLAUDE_PROVIDER
+// AUDITARIA_CLAUDE_PROVIDER: the `[1m]` alias suffix (opus[1m], sonnet[1m],
+// fable[1m], opusplan[1m]) opts into Claude's 1M-context window.
+export const CLAUDE_1M_TOKEN_LIMIT = 1_000_000;
+export function claudeTokenLimit(model?: string): TokenCount {
+  const variant = model?.split(':')[1] ?? '';
+  return variant.endsWith('[1m]') ? CLAUDE_1M_TOKEN_LIMIT : CLAUDE_TOKEN_LIMIT;
+}
 
 // AUDITARIA_CODEX_PROVIDER: Codex model token limits.
 // All GPT-5.x Codex models use 272K context window (400K total minus 128K output reservation).
@@ -51,9 +58,9 @@ export function agyTokenLimit(model?: string): TokenCount {
 export const SYSTEM_PROMPT_ESTIMATION_FIX = true;
 
 export function tokenLimit(model: Model): TokenCount {
-  // AUDITARIA_CLAUDE_PROVIDER: Claude models
+  // AUDITARIA_CLAUDE_PROVIDER: Claude models (200K, or 1M for `[1m]` variants)
   if (model?.startsWith('claude-code:')) {
-    return CLAUDE_TOKEN_LIMIT;
+    return claudeTokenLimit(model);
   }
 
   // AUDITARIA_CODEX_PROVIDER: Codex models (all use same 258.4K effective context)

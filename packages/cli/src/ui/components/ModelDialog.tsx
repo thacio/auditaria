@@ -65,6 +65,8 @@ const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
   medium: 2,
   high: 3,
   xhigh: 4,
+  max: 5,
+  ultra: 6,
 };
 
 function rotateCodexReasoningEffort(

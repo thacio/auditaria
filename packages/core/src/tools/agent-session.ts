@@ -79,8 +79,8 @@ interface ExternalAgentSessionParams {
 const DESCRIPTION = `Manage sessions with alternative LLM providers as external sub-agents. Each sub-agent runs in its own session with its own conversation context and access to Auditaria's tools (file ops, search, browser, etc.).
 
 Available providers:
-- "claude" — Claude Code CLI (opus, sonnet, haiku)
-- "codex" — OpenAI Codex CLI (gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2)
+- "claude" — Claude Code CLI (${CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
+- "codex" — OpenAI Codex CLI (${CODEX_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 - "agy" — Google Antigravity CLI (${AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 - "auditaria" — Auditaria/Gemini CLI (${AUDITARIA_MODEL_IDS.filter((id) => id !== 'auto').join(', ')})
 
@@ -172,8 +172,12 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
             type: 'string',
             description:
               'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
-              'Claude models: opus, sonnet, haiku, opus[1m], sonnet[1m] (the [1m] variants have a 1M-token context window — use for long sessions or large codebases). ' +
-              'Codex models: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2. ' +
+              'Claude models: ' +
+              CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              ' (the [1m] variants have a 1M-token context window — use for long sessions or large codebases; opusplan uses Opus while planning and Sonnet while executing). ' +
+              'Codex models: ' +
+              CODEX_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
+              '. ' +
               'Antigravity (agy) models: ' +
               AGY_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
               '. ' +
