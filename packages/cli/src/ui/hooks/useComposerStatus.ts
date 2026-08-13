@@ -82,11 +82,16 @@ export const useComposerStatus = () => {
     showApprovalModeIndicator,
   ]);
 
-  const showMinimalContext = isContextUsageHigh(
-    uiState.sessionStats.lastPromptTokenCount,
-    uiState.currentModel,
-    settings.merged.model?.compressionThreshold,
-  );
+  // AUDITARIA: Respect `ui.footer.hideContextPercentage` (default: true) here
+  // too, so the context percentage never bleeds through above the prompt
+  // unless the user opted in.
+  const showMinimalContext =
+    settings.merged.ui.footer.hideContextPercentage === false &&
+    isContextUsageHigh(
+      uiState.sessionStats.lastPromptTokenCount,
+      uiState.currentModel,
+      settings.merged.model?.compressionThreshold,
+    );
 
   const loadingPhrases = settings.merged.ui.loadingPhrases;
   const showTips = loadingPhrases === 'tips' || loadingPhrases === 'all';

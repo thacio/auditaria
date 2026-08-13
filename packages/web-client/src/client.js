@@ -1748,6 +1748,9 @@ class AuditariaWebClient {
       ? contextPercentage
       : 0;
     const contextDisplay = `${contextPercentageSafe.toFixed(0)}% context left`;
+    // The context pill mirrors the CLI's `ui.footer.hideContextPercentage`
+    // setting, which defaults to hidden.
+    const showContextPill = footerData.hideContextPercentage === false;
 
     const modelDisplay =
       footerData.modelDisplayName || footerData.model || 'unknown';
@@ -1807,11 +1810,15 @@ class AuditariaWebClient {
         extraClass: 'web-footer-pill-sandbox',
         title: sandboxStatus,
       }),
-      this.createFooterPill({
-        text: contextDisplay,
-        extraClass: 'web-footer-pill-context',
-        title: `${contextPercentageSafe.toFixed(2)}% context left`,
-      }),
+      ...(showContextPill
+        ? [
+            this.createFooterPill({
+              text: contextDisplay,
+              extraClass: 'web-footer-pill-context',
+              title: `${contextPercentageSafe.toFixed(2)}% context left`,
+            }),
+          ]
+        : []),
       this.createFooterPill({
         text: workingDirectoryText,
         tone: 'subtle',

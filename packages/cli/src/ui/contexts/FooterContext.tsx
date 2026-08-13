@@ -27,6 +27,11 @@ export interface FooterData {
   contextUsedTokens: number;
   contextMaxTokens: number;
   contextLeftTokens: number;
+  /**
+   * Mirrors `ui.footer.hideContextPercentage` (default: true) so the web
+   * footer hides the context pill by default, matching the CLI footer.
+   */
+  hideContextPercentage: boolean;
   sandboxStatus: string;
   isSandboxed: boolean;
   errorCount: number;

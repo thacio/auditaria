@@ -3052,6 +3052,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       contextUsedTokens,
       contextMaxTokens,
       contextLeftTokens,
+      hideContextPercentage:
+        settings.merged.ui.footer.hideContextPercentage !== false,
       sandboxStatus,
       isSandboxed,
       errorCount,
@@ -3082,6 +3084,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
     corgiMode,
     showErrorDetails,
     settings.merged.ui.showMemoryUsage,
+    settings.merged.ui.footer.hideContextPercentage,
   ]);
   // WEB_INTERFACE_END
 

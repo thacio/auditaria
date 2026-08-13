@@ -253,6 +253,8 @@ export const Footer: React.FC = () => {
       contextUsedTokens,
       contextMaxTokens,
       contextLeftTokens,
+      hideContextPercentage:
+        settings.merged.ui.footer.hideContextPercentage !== false,
       sandboxStatus,
       isSandboxed,
       errorCount,
