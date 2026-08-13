@@ -21,12 +21,15 @@ import type {
   ProviderConfig,
   ProviderDriver,
   ExternalMCPServerConfig,
+  ProviderReasoningEffort,
   CodexReasoningEffort,
   AttachmentFile,
 } from './types.js';
 import {
-  CODEX_REASONING_EFFORTS,
+  clampReasoningEffortForProvider,
   clampCodexReasoningEffortForModel,
+  isProviderReasoningEffort,
+  providerSupportsReasoningEffort,
   ProviderEventType,
 } from './types.js';
 import { adaptProviderEvent } from './eventAdapter.js';
@@ -62,8 +65,6 @@ export const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 10_000;
 const CODEX_SERIALIZATION_FACTOR = 1.2;
 export const CODEX_TOOL_OUTPUT_MAX_BYTES =
   Math.ceil(CODEX_TOOL_OUTPUT_TOKEN_LIMIT * CODEX_SERIALIZATION_FACTOR) * 4;
-
-const CODEX_REASONING_EFFORT_SET = new Set<string>(CODEX_REASONING_EFFORTS);
 
 // AUDITARIA_TOOL_RESTRICTION: All Claude Code built-in tools (for --disallowedTools flag)
 // Last updated: 2026-03-31 — verify against Claude's system-reminder tool list periodically
@@ -103,18 +104,34 @@ const CLAUDE_NATIVE_TOOLS = [
   'mcp__claude_ai_Google_Calendar__authenticate',
 ];
 
-function getCodexReasoningEffort(
+// AUDITARIA_PROVIDER_EFFORT: resolve the thinking-intensity flag for any
+// provider whose CLI accepts one (Claude, Codex, Copilot — not agy, which
+// bakes the tier into the model name). Returns undefined when unset or
+// unsupported, so the driver simply omits `--effort`.
+function getProviderReasoningEffort(
   config: ProviderConfig,
-): CodexReasoningEffort | undefined {
-  if (config.type !== 'codex-cli') return undefined;
+): ProviderReasoningEffort | undefined {
+  if (!providerSupportsReasoningEffort(config.type)) return undefined;
   const effort = config.options?.['reasoningEffort'];
-  if (typeof effort !== 'string') return undefined;
-  if (!isCodexReasoningEffort(effort)) return undefined;
-  return clampCodexReasoningEffortForModel(config.model, effort);
+  if (!isProviderReasoningEffort(effort)) return undefined;
+  return clampReasoningEffortForProvider(config.type, config.model, effort);
 }
 
-function isCodexReasoningEffort(s: string): s is CodexReasoningEffort {
-  return CODEX_REASONING_EFFORT_SET.has(s);
+// AUDITARIA_PROVIDER_EFFORT: the shared driver config carries an effort on the
+// provider-wide scale; Codex accepts a narrower set (no none/minimal), so clamp
+// into its range on the way in.
+function toCodexDriverConfig<
+  T extends { model?: string; reasoningEffort?: ProviderReasoningEffort },
+>(driverConfig: T): T & { reasoningEffort?: CodexReasoningEffort } {
+  return {
+    ...driverConfig,
+    reasoningEffort: driverConfig.reasoningEffort
+      ? clampCodexReasoningEffortForModel(
+          driverConfig.model,
+          driverConfig.reasoningEffort,
+        )
+      : undefined,
+  };
 }
 
 // Narrow an `options` entry to a string without an unsafe cast.
@@ -1254,7 +1271,7 @@ export class ProviderManager {
       mcpServers: this.mcpServers,
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined,
       toolBridgeScript: this.bridgeScriptPath,
-      reasoningEffort: getCodexReasoningEffort(this.config),
+      reasoningEffort: getProviderReasoningEffort(this.config),
       // AUDITARIA_PROVIDER_TERMINAL: standalone drivers (Teams per-thread
       // sessions) are headless — never mirror their PTYs to the web terminal
       // (multiple threads would fight over the single mirror).
@@ -1272,7 +1289,7 @@ export class ProviderManager {
       }
       case 'codex-cli': {
         const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
-        return new CodexCLIDriver(driverConfig);
+        return new CodexCLIDriver(toCodexDriverConfig(driverConfig));
       }
       case 'copilot-cli': {
         // AUDITARIA_PROVIDER_TERMINAL: headless contexts keep the ACP driver
@@ -1390,7 +1407,7 @@ export class ProviderManager {
       mcpServers: this.mcpServers, // AUDITARIA_CLAUDE_PROVIDER: MCP passthrough
       toolBridgePort: this.toolExecutorServer?.getPort() ?? undefined, // AUDITARIA_CLAUDE_PROVIDER
       toolBridgeScript: this.bridgeScriptPath, // AUDITARIA_CLAUDE_PROVIDER
-      reasoningEffort: getCodexReasoningEffort(this.config),
+      reasoningEffort: getProviderReasoningEffort(this.config),
       // AUDITARIA_TOOL_RESTRICTION: Block Claude native tools when policy has global deny
       ...(this.config.type === 'claude-cli' && hasGlobalDeny
         ? { disallowedTools: CLAUDE_NATIVE_TOOLS }
@@ -1407,7 +1424,7 @@ export class ProviderManager {
       // AUDITARIA_CODEX_PROVIDER_START
       case 'codex-cli': {
         const { CodexCLIDriver } = await import('./codex/codexCLIDriver.js');
-        this.driver = new CodexCLIDriver(driverConfig);
+        this.driver = new CodexCLIDriver(toCodexDriverConfig(driverConfig));
         break;
       }
       // AUDITARIA_CODEX_PROVIDER_END

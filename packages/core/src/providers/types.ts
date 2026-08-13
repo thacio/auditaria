@@ -252,41 +252,136 @@ export function getSupportedCodexReasoningEfforts(
   );
 }
 
-export function clampCodexReasoningEffortForModel(
+// AUDITARIA_PROVIDER_EFFORT_START: provider-agnostic reasoning effort.
+// Codex was the first provider we exposed a thinking-intensity control for,
+// but Claude Code (`--effort`) and Copilot (`--effort/--reasoning-effort`)
+// accept one too. `agy` does NOT: it rejects `--effort` for every model in its
+// catalog because the tier is baked into the model name ("Gemini 3.7 Flash
+// (High)"), so it is deliberately absent from the table below.
+//
+// One ordered scale spans every provider (lowest → highest); each provider
+// exposes the contiguous slice its CLI accepts.
+export const PROVIDER_REASONING_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+  'ultra',
+] as const;
+export type ProviderReasoningEffort =
+  (typeof PROVIDER_REASONING_EFFORTS)[number];
+
+/** `claude --effort <level>` (Claude Code 2.1.x). */
+export const CLAUDE_REASONING_EFFORTS = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const satisfies readonly ProviderReasoningEffort[];
+
+/** `copilot --effort <level>` (Copilot CLI 1.0.x). */
+export const COPILOT_REASONING_EFFORTS = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const satisfies readonly ProviderReasoningEffort[];
+
+/** Provider types that accept a reasoning-effort setting. */
+export type ReasoningEffortProviderType =
+  | 'claude-cli'
+  | 'codex-cli'
+  | 'copilot-cli';
+
+export function providerSupportsReasoningEffort(
+  type: string | undefined,
+): type is ReasoningEffortProviderType {
+  return (
+    type === 'claude-cli' || type === 'codex-cli' || type === 'copilot-cli'
+  );
+}
+
+/** Sensible starting point per provider (each CLI's own default is opaque). */
+export const DEFAULT_REASONING_EFFORT_BY_PROVIDER: Readonly<
+  Record<ReasoningEffortProviderType, ProviderReasoningEffort>
+> = {
+  'claude-cli': 'high',
+  'codex-cli': 'xhigh',
+  'copilot-cli': 'medium',
+};
+
+export function isProviderReasoningEffort(
+  value: unknown,
+): value is ProviderReasoningEffort {
+  return (
+    typeof value === 'string' &&
+    (PROVIDER_REASONING_EFFORTS as readonly string[]).includes(value)
+  );
+}
+
+/**
+ * Effort levels the given provider (and, for Codex, the given model) accepts.
+ * Returns [] for providers without an effort control.
+ */
+export function getSupportedReasoningEfforts(
+  providerType: string | undefined,
+  model?: string,
+): readonly ProviderReasoningEffort[] {
+  switch (providerType) {
+    case 'claude-cli':
+      return CLAUDE_REASONING_EFFORTS;
+    case 'copilot-cli':
+      return COPILOT_REASONING_EFFORTS;
+    case 'codex-cli':
+      return getSupportedCodexReasoningEfforts(model);
+    default:
+      return [];
+  }
+}
+
+/** Clamp an effort into the range the provider/model actually accepts. */
+export function clampReasoningEffortForProvider(
+  providerType: string | undefined,
   model: string | undefined,
-  effort: CodexReasoningEffort,
-): CodexReasoningEffort {
-  const supported = getSupportedCodexReasoningEfforts(model);
+  effort: ProviderReasoningEffort,
+): ProviderReasoningEffort {
+  const supported = getSupportedReasoningEfforts(providerType, model);
+  if (supported.length === 0) return effort;
   if (supported.includes(effort)) return effort;
 
-  const requestedIndex = CODEX_REASONING_EFFORTS.indexOf(effort);
-  if (requestedIndex === -1) return supported[0] ?? 'medium';
+  const requested = PROVIDER_REASONING_EFFORTS.indexOf(effort);
+  const indices = supported.map((value) =>
+    PROVIDER_REASONING_EFFORTS.indexOf(value),
+  );
+  const clamped = Math.max(
+    Math.min(...indices),
+    Math.min(Math.max(...indices), requested),
+  );
+  return PROVIDER_REASONING_EFFORTS[clamped];
+}
+// AUDITARIA_PROVIDER_EFFORT_END
 
-  const supportedIndices = supported
-    .map((value) => CODEX_REASONING_EFFORTS.indexOf(value))
-    .filter((index) => index !== -1);
-  if (supportedIndices.length === 0) return 'medium';
-
-  const minIndex = Math.min(...supportedIndices);
-  const maxIndex = Math.max(...supportedIndices);
-  const clampedIndex = Math.max(minIndex, Math.min(maxIndex, requestedIndex));
-  const clampedEffort = CODEX_REASONING_EFFORTS[clampedIndex];
-
-  if (supported.includes(clampedEffort)) return clampedEffort;
-
-  // Fallback for non-contiguous support sets.
-  let best = supported[0] ?? 'medium';
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const candidate of supported) {
-    const candidateIndex = CODEX_REASONING_EFFORTS.indexOf(candidate);
-    if (candidateIndex === -1) continue;
-    const distance = Math.abs(candidateIndex - requestedIndex);
-    if (distance < bestDistance) {
-      best = candidate;
-      bestDistance = distance;
-    }
-  }
-  return best;
+// AUDITARIA_PROVIDER_EFFORT: accepts any level on the shared scale (Copilot's
+// `none`/`minimal` have no Codex equivalent and clamp to the lowest supported)
+// and always returns one Codex accepts.
+export function clampCodexReasoningEffortForModel(
+  model: string | undefined,
+  effort: ProviderReasoningEffort,
+): CodexReasoningEffort {
+  const clamped = clampReasoningEffortForProvider('codex-cli', model, effort);
+  // Re-find in the Codex list so the return type narrows without an assertion.
+  return (
+    getSupportedCodexReasoningEfforts(model).find(
+      (candidate) => candidate === clamped,
+    ) ?? 'medium'
+  );
 }
 
 export interface ProviderConfig {

@@ -111,6 +111,7 @@ export type ClaudeStreamMessage =
 /** Driver configuration for Claude providers */
 export interface ClaudeDriverConfig {
   model?: string;
+  reasoningEffort?: string; // AUDITARIA_PROVIDER_EFFORT: `claude --effort <level>`
   cwd: string;
   permissionMode?: string;
   allowedTools?: string[];

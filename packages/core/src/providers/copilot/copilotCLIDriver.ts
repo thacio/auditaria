@@ -582,6 +582,10 @@ export class CopilotCLIDriver implements ProviderDriver {
     // Build spawn args: copilot --acp --stdio --allow-all [--additional-mcp-config @filepath]
     // --allow-all bypasses permission prompts (like Claude's --dangerously-skip-permissions)
     const args = ['--acp', '--stdio', '--allow-all'];
+    // AUDITARIA_PROVIDER_EFFORT: thinking intensity for this session.
+    if (this.config.reasoningEffort) {
+      args.push('--effort', this.config.reasoningEffort);
+    }
     const mcpArg = buildMcpConfigArg(this.config);
     if (mcpArg) {
       args.push('--additional-mcp-config', mcpArg);

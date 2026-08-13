@@ -38,12 +38,20 @@ interface ModelDialogProps {
   onClose: () => void;
 }
 
-// AUDITARIA_CODEX_PROVIDER_START: Define Codex reasoning effort options and utilities
+// AUDITARIA_PROVIDER_EFFORT_START: reasoning-effort options and utilities.
+// Shared by every provider whose CLI accepts `--effort` (Claude, Codex,
+// Copilot). `agy` has no effort control — its models bake the tier into the
+// model name — so its submenu shows no meter.
 import {
-  getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER
-  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER
+  PROVIDER_REASONING_EFFORTS, // AUDITARIA_PROVIDER_EFFORT
+  getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
+  clampReasoningEffortForProvider, // AUDITARIA_PROVIDER_EFFORT
+  providerSupportsReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
+  isProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
+  DEFAULT_REASONING_EFFORT_BY_PROVIDER, // AUDITARIA_PROVIDER_EFFORT
   type ProviderConfig, // AUDITARIA_CLAUDE_PROVIDER
-  type CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
+  type ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
+  type ReasoningEffortProviderType, // AUDITARIA_PROVIDER_EFFORT
 } from '@google/gemini-cli-core';
 
 import {
@@ -51,29 +59,33 @@ import {
   CODEX_PREFIX,
   COPILOT_PREFIX, // AUDITARIA_COPILOT_PROVIDER
   AGY_PREFIX, // AUDITARIA_AGY_PROVIDER
-  DEFAULT_CODEX_REASONING_EFFORT,
   CLAUDE_SUBMENU_OPTIONS,
   CODEX_SUBMENU_OPTIONS,
   AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
-  isCodexReasoningEffort,
-  getCodexReasoningLabel,
+  getReasoningEffortLabel,
+  type ProviderSubmenuOption,
 } from '../modelCatalog.js'; // AUDITARIA_PROVIDER and WEB
 
-const CODEX_REASONING_BAR_LEVELS: Record<CodexReasoningEffort, number> = {
-  low: 1,
-  medium: 2,
-  high: 3,
-  xhigh: 4,
-  max: 5,
-  ultra: 6,
+/** Bar count per level — position on the shared none→ultra scale. */
+function reasoningBarLevel(effort: ProviderReasoningEffort): number {
+  return PROVIDER_REASONING_EFFORTS.indexOf(effort) + 1;
+}
+
+/** Submenu view id → provider type, for views that have an effort control. */
+const EFFORT_VIEW_PROVIDERS: Readonly<
+  Record<string, ReasoningEffortProviderType>
+> = {
+  claude: 'claude-cli',
+  codex: 'codex-cli',
+  copilot: 'copilot-cli',
 };
 
-function rotateCodexReasoningEffort(
-  current: CodexReasoningEffort,
+function rotateReasoningEffort(
+  current: ProviderReasoningEffort,
   direction: -1 | 1,
-  supportedEfforts: readonly CodexReasoningEffort[],
-): CodexReasoningEffort {
+  supportedEfforts: readonly ProviderReasoningEffort[],
+): ProviderReasoningEffort {
   if (supportedEfforts.length === 0) return current;
   const index = supportedEfforts.findIndex((effort) => effort === current);
   const safeIndex = index === -1 ? 0 : index;
@@ -82,19 +94,24 @@ function rotateCodexReasoningEffort(
   return supportedEfforts[next];
 }
 
-function CodexReasoningMeter({
+function ReasoningMeter({
   effort,
-  maxEffort = 'xhigh',
+  minEffort,
+  maxEffort,
 }: {
-  effort: CodexReasoningEffort;
-  maxEffort?: CodexReasoningEffort;
+  effort: ProviderReasoningEffort;
+  minEffort: ProviderReasoningEffort;
+  maxEffort: ProviderReasoningEffort;
 }): React.JSX.Element {
-  const filledBars = CODEX_REASONING_BAR_LEVELS[effort];
-  const maxBars = CODEX_REASONING_BAR_LEVELS[maxEffort];
+  // Bars are relative to the supported slice, so a provider that starts at
+  // `low` doesn't render two dead leading bars.
+  const base = reasoningBarLevel(minEffort) - 1;
+  const maxBars = reasoningBarLevel(maxEffort) - base;
+  const filledBars = reasoningBarLevel(effort) - base;
   return (
     <Text>
       <Text color={theme.status.success}>
-        {'|'.repeat(Math.min(filledBars, maxBars))}
+        {'|'.repeat(Math.max(0, Math.min(filledBars, maxBars)))}
       </Text>
       <Text color={theme.text.secondary}>
         {'|'.repeat(Math.max(0, maxBars - filledBars))}
@@ -103,12 +120,16 @@ function CodexReasoningMeter({
   );
 }
 
-function getCodexModelFromSelection(value: string): string | undefined {
-  if (!value.startsWith(CODEX_PREFIX)) return undefined;
-  const codexModel = value.slice(CODEX_PREFIX.length);
-  return codexModel === 'auto' ? undefined : codexModel;
+/** Strip a submenu prefix, mapping the 'auto' sentinel to undefined. */
+function getModelFromSelection(
+  value: string,
+  prefix: string,
+): string | undefined {
+  if (!value.startsWith(prefix)) return undefined;
+  const model = value.slice(prefix.length);
+  return model === 'auto' ? undefined : model;
 }
-// AUDITARIA_CODEX_PROVIDER_END
+// AUDITARIA_PROVIDER_EFFORT_END
 
 export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const config = useContext(ConfigContext);
@@ -133,24 +154,37 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     auditaria: true,
   }; // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
   const [persistMode, setPersistMode] = useState(false);
-  const [codexHighlightedModel, setCodexHighlightedModel] = useState<
-    string | undefined
-  >(() => {
-    const providerConfig = config?.getProviderConfig();
-    if (providerConfig?.type !== 'codex-cli') return undefined;
-    return providerConfig.model;
-  });
-  const [codexReasoningEffort, setCodexReasoningEffort] =
-    useState<CodexReasoningEffort>(() => {
+  // AUDITARIA_PROVIDER_EFFORT_START: effort state is per provider, so switching
+  // submenus doesn't clobber a level chosen for another provider. The
+  // highlighted model matters for Codex, whose supported range is per-model.
+  const [highlightedModel, setHighlightedModel] = useState<string | undefined>(
+    () => {
       const providerConfig = config?.getProviderConfig();
-      const effort = providerConfig?.options?.['reasoningEffort'];
-      const initialEffort = isCodexReasoningEffort(effort)
-        ? effort
-        : DEFAULT_CODEX_REASONING_EFFORT;
-      const codexModel =
-        providerConfig?.type === 'codex-cli' ? providerConfig.model : undefined;
-      return clampCodexReasoningEffortForModel(codexModel, initialEffort);
-    });
+      return providerSupportsReasoningEffort(providerConfig?.type)
+        ? providerConfig?.model
+        : undefined;
+    },
+  );
+  const [effortByProvider, setEffortByProvider] = useState<
+    Record<ReasoningEffortProviderType, ProviderReasoningEffort>
+  >(() => {
+    const defaults = { ...DEFAULT_REASONING_EFFORT_BY_PROVIDER };
+    const providerConfig = config?.getProviderConfig();
+    const active = providerConfig?.type;
+    const effort = providerConfig?.options?.['reasoningEffort'];
+    if (
+      providerSupportsReasoningEffort(active) &&
+      isProviderReasoningEffort(effort)
+    ) {
+      defaults[active] = clampReasoningEffortForProvider(
+        active,
+        providerConfig?.model,
+        effort,
+      );
+    }
+    return defaults;
+  });
+  // AUDITARIA_PROVIDER_EFFORT_END
 
   useEffect(() => {
     async function checkAccess() {
@@ -210,20 +244,25 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const isCodexActive = displayModel.startsWith('codex-code:');
   const isCopilotActive = displayModel.startsWith('copilot-code:'); // AUDITARIA_COPILOT_PROVIDER
   const isAgyActive = displayModel.startsWith('agy-code:'); // AUDITARIA_AGY_PROVIDER
-  const codexDisplayEffort = clampCodexReasoningEffortForModel(
-    codexHighlightedModel,
-    codexReasoningEffort,
+  // AUDITARIA_PROVIDER_EFFORT_START: effort control for the current submenu.
+  const effortProvider = EFFORT_VIEW_PROVIDERS[view];
+  const supportedEfforts = getSupportedReasoningEfforts(
+    effortProvider,
+    highlightedModel,
   );
-  const codexSupportedEfforts = getSupportedCodexReasoningEfforts(
-    codexHighlightedModel,
+  const showEffortControl = !!effortProvider && supportedEfforts.length > 0;
+  const currentEffort = effortProvider
+    ? effortByProvider[effortProvider]
+    : undefined;
+  const displayEffort = clampReasoningEffortForProvider(
+    effortProvider,
+    highlightedModel,
+    currentEffort ?? 'medium',
   );
-  const codexMinSupportedEffort =
-    codexSupportedEfforts[0] ?? codexDisplayEffort;
-  const codexMaxSupportedEffort =
-    codexSupportedEfforts[codexSupportedEfforts.length - 1] ??
-    codexDisplayEffort;
-  const codexDisplayMeterMaxEffort = codexMaxSupportedEffort;
-  // AUDITARIA_CODEX_PROVIDER_END
+  const minSupportedEffort = supportedEfforts[0] ?? displayEffort;
+  const maxSupportedEffort =
+    supportedEfforts[supportedEfforts.length - 1] ?? displayEffort;
+  // AUDITARIA_PROVIDER_EFFORT_END
 
   useKeypress(
     (key) => {
@@ -247,21 +286,27 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         setPersistMode((prev) => !prev);
         return true;
       }
-      // AUDITARIA_CODEX_PROVIDER_START
-      if (view === 'codex' && (key.name === 'left' || key.name === 'right')) {
-        const supportedEfforts = getSupportedCodexReasoningEfforts(
-          codexHighlightedModel,
-        );
-        setCodexReasoningEffort((prev) =>
-          rotateCodexReasoningEffort(
-            clampCodexReasoningEffortForModel(codexHighlightedModel, prev),
+      // AUDITARIA_PROVIDER_EFFORT_START
+      if (
+        effortProvider &&
+        showEffortControl &&
+        (key.name === 'left' || key.name === 'right')
+      ) {
+        setEffortByProvider((prev) => ({
+          ...prev,
+          [effortProvider]: rotateReasoningEffort(
+            clampReasoningEffortForProvider(
+              effortProvider,
+              highlightedModel,
+              prev[effortProvider],
+            ),
             key.name === 'right' ? 1 : -1,
             supportedEfforts,
           ),
-        );
+        }));
         return true;
       }
-      // AUDITARIA_CODEX_PROVIDER_END
+      // AUDITARIA_PROVIDER_EFFORT_END
       return false;
     },
     { isActive: true },
@@ -534,53 +579,63 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     config,
   ]);
 
+  // AUDITARIA_PROVIDER_EFFORT_START: per-row effort meter for a provider whose
+  // supported range can vary by model (Codex); flat for the others.
+  const buildEffortRows = useCallback(
+    (
+      providerType: ReasoningEffortProviderType,
+      submenuOptions: readonly ProviderSubmenuOption[],
+    ) => {
+      const effort = effortByProvider[providerType];
+      return submenuOptions.map((option) => {
+        const supported = getSupportedReasoningEfforts(
+          providerType,
+          option.model,
+        );
+        const min = supported[0];
+        const max = supported[supported.length - 1];
+        return {
+          value: option.value,
+          title: option.title,
+          description: option.description,
+          key: option.key,
+          rightElement:
+            min && max ? (
+              <ReasoningMeter
+                effort={clampReasoningEffortForProvider(
+                  providerType,
+                  option.model,
+                  effort,
+                )}
+                minEffort={min}
+                maxEffort={max}
+              />
+            ) : undefined,
+        };
+      });
+    },
+    [effortByProvider],
+  );
+  // AUDITARIA_PROVIDER_EFFORT_END
+
   // AUDITARIA_CLAUDE_PROVIDER_START: Claude submenu options
   const claudeOptions = useMemo(
-    () =>
-      CLAUDE_SUBMENU_OPTIONS.map((option) => ({
-        value: option.value,
-        title: option.title,
-        description: option.description,
-        key: option.key,
-      })),
-    [],
+    () => buildEffortRows('claude-cli', CLAUDE_SUBMENU_OPTIONS),
+    [buildEffortRows],
   );
   // AUDITARIA_CLAUDE_PROVIDER_END
 
   // AUDITARIA_CODEX_PROVIDER_START: Codex submenu options
-  const codexOptions = useMemo(() => {
-    const effortForModel = (model?: string) =>
-      clampCodexReasoningEffortForModel(model, codexReasoningEffort);
-    const maxEffortForModel = (model?: string) => {
-      const supported = getSupportedCodexReasoningEfforts(model);
-      return supported[supported.length - 1] ?? 'xhigh';
-    };
-
-    return CODEX_SUBMENU_OPTIONS.map((option) => ({
-      value: option.value,
-      title: option.title,
-      description: option.description,
-      rightElement: (
-        <CodexReasoningMeter
-          effort={effortForModel(option.model)}
-          maxEffort={maxEffortForModel(option.model)}
-        />
-      ),
-      key: option.key,
-    }));
-  }, [codexReasoningEffort]);
+  const codexOptions = useMemo(
+    () => buildEffortRows('codex-cli', CODEX_SUBMENU_OPTIONS),
+    [buildEffortRows],
+  );
   // AUDITARIA_CODEX_PROVIDER_END
 
-  // AUDITARIA_COPILOT_PROVIDER_START: Copilot submenu options (parsed from `copilot --help`)
+  // AUDITARIA_COPILOT_PROVIDER_START: Copilot submenu options (from the ACP model cache)
   const copilotOptions = useMemo(
-    () =>
-      getCopilotModelOptions().map((option) => ({
-        value: option.value,
-        title: option.title,
-        description: option.description,
-        key: option.key,
-      })),
-    [],
+    () => buildEffortRows('copilot-cli', getCopilotModelOptions()),
+    [buildEffortRows],
   );
   // AUDITARIA_COPILOT_PROVIDER_END
 
@@ -722,6 +777,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             type: 'claude-cli',
             model: claudeModel === 'auto' ? undefined : claudeModel,
             cwd: config.getWorkingDir(),
+            options: {
+              // AUDITARIA_PROVIDER_EFFORT
+              reasoningEffort: effortByProvider['claude-cli'],
+            },
           };
           config.setProviderConfig(providerConfig, !persistMode); // AUDITARIA_PROVIDER_PERSISTENCE
           const event = new ModelSlashCommandEvent(
@@ -742,17 +801,19 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
 
       if (model.startsWith(CODEX_PREFIX)) {
         if (config) {
-          const codexModel = getCodexModelFromSelection(model);
+          const codexModel = getModelFromSelection(model, CODEX_PREFIX);
           const providerConfig: ProviderConfig = {
             type: 'codex-cli',
             model: codexModel,
             cwd: config.getWorkingDir(),
             options: {
-              reasoningEffort: clampCodexReasoningEffortForModel(
+              // AUDITARIA_PROVIDER_EFFORT: Codex's range is per-model.
+              reasoningEffort: clampReasoningEffortForProvider(
+                'codex-cli',
                 codexModel,
-                codexReasoningEffort,
+                effortByProvider['codex-cli'],
               ),
-            }, // AUDITARIA_CODEX_PROVIDER
+            },
           };
           config.setProviderConfig(providerConfig, !persistMode); // AUDITARIA_PROVIDER_PERSISTENCE
           const event = new ModelSlashCommandEvent(
@@ -778,6 +839,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
             type: 'copilot-cli',
             model: copilotModel === 'auto' ? undefined : copilotModel,
             cwd: config.getWorkingDir(),
+            options: {
+              // AUDITARIA_PROVIDER_EFFORT
+              reasoningEffort: effortByProvider['copilot-cli'],
+            },
           };
           config.setProviderConfig(providerConfig, !persistMode);
           const event = new ModelSlashCommandEvent(
@@ -849,7 +914,7 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
     },
     [
       config,
-      codexReasoningEffort /* AUDITARIA_CODEX_PROVIDER */,
+      effortByProvider /* AUDITARIA_PROVIDER_EFFORT */,
       onClose,
       persistMode,
     ],
@@ -943,40 +1008,47 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
           items={options}
           onSelect={handleSelect}
           onHighlight={(value) => {
-            if (
-              view === 'codex' &&
-              typeof value === 'string' &&
-              value.startsWith(CODEX_PREFIX)
-            ) {
-              setCodexHighlightedModel(getCodexModelFromSelection(value));
+            // AUDITARIA_PROVIDER_EFFORT: track the highlighted model so the
+            // supported range follows it (Codex varies per model).
+            if (!effortProvider || typeof value !== 'string') return;
+            const prefix =
+              view === 'claude'
+                ? CLAUDE_PREFIX
+                : view === 'codex'
+                  ? CODEX_PREFIX
+                  : COPILOT_PREFIX;
+            if (value.startsWith(prefix)) {
+              setHighlightedModel(getModelFromSelection(value, prefix));
             }
           }}
           initialIndex={initialIndex}
           showNumbers={true}
         />
       </Box>
-      {/* AUDITARIA_CODEX_PROVIDER_START: show compact Codex thinking controls when in Codex view */}
-      {view === 'codex' && (
+      {/* AUDITARIA_PROVIDER_EFFORT_START: thinking-intensity control for any
+          provider whose CLI accepts --effort (Claude, Codex, Copilot). */}
+      {showEffortControl && (
         <Box marginTop={1} flexDirection="column">
           <Box alignItems="center">
             <Text color={theme.text.primary}>
-              Thinking intensity: {getCodexReasoningLabel(codexDisplayEffort)}
+              Thinking intensity: {getReasoningEffortLabel(displayEffort)}
             </Text>
             <Box marginLeft={1}>
-              <CodexReasoningMeter
-                effort={codexDisplayEffort}
-                maxEffort={codexDisplayMeterMaxEffort}
+              <ReasoningMeter
+                effort={displayEffort}
+                minEffort={minSupportedEffort}
+                maxEffort={maxSupportedEffort}
               />
             </Box>
           </Box>
           <Text color={theme.text.secondary}>
-            Supported range: {getCodexReasoningLabel(codexMinSupportedEffort)} -{' '}
-            {getCodexReasoningLabel(codexMaxSupportedEffort)}
+            Supported range: {getReasoningEffortLabel(minSupportedEffort)} -{' '}
+            {getReasoningEffortLabel(maxSupportedEffort)}
           </Text>
           <Text color={theme.text.secondary}>(Use Left/Right arrows)</Text>
         </Box>
       )}
-      {/* AUDITARIA_CODEX_PROVIDER_END */}
+      {/* AUDITARIA_PROVIDER_EFFORT_END */}
       <Box marginTop={1} flexDirection="column">
         <Box>
           <Text bold color={theme.text.primary}>

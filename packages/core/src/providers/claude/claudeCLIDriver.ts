@@ -1077,6 +1077,11 @@ export class ClaudeCLIDriver implements ProviderDriver {
       args.push('--model', this.config.model);
     }
 
+    // AUDITARIA_PROVIDER_EFFORT: thinking intensity for this session.
+    if (this.config.reasoningEffort) {
+      args.push('--effort', this.config.reasoningEffort);
+    }
+
     const sessionId = this.sessionManager.getSessionId();
     if (sessionId) {
       args.push('--resume', sessionId);

@@ -313,6 +313,8 @@ export type { Content, Part, FunctionCall } from '@google/genai';
 export type {
   ProviderConfig,
   CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
+  ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
+  ReasoningEffortProviderType, // AUDITARIA_PROVIDER_EFFORT
   ProviderDriver,
   ProviderEvent,
   ExternalMCPServerConfig,
@@ -331,6 +333,15 @@ export {
   CODEX_SUPPORTED_REASONING_EFFORTS_BY_MODEL,
   getSupportedCodexReasoningEfforts,
   clampCodexReasoningEffortForModel,
+  // AUDITARIA_PROVIDER_EFFORT: provider-agnostic reasoning effort
+  PROVIDER_REASONING_EFFORTS,
+  CLAUDE_REASONING_EFFORTS,
+  COPILOT_REASONING_EFFORTS,
+  DEFAULT_REASONING_EFFORT_BY_PROVIDER,
+  providerSupportsReasoningEffort,
+  isProviderReasoningEffort,
+  getSupportedReasoningEfforts,
+  clampReasoningEffortForProvider,
   CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   COPILOT_MODEL_IDS, // AUDITARIA_COPILOT_PROVIDER

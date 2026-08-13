@@ -40,8 +40,8 @@ import {
   applyAdminAllowlist,
   applyRequiredServers,
   getAdminBlockedMcpServersMessage,
-  CODEX_REASONING_EFFORTS, // AUDITARIA_PROVIDER_PERSISTENCE
-  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER_PERSISTENCE
+  isProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
+  clampReasoningEffortForProvider, // AUDITARIA_PROVIDER_EFFORT
   getProjectRootForWorktree,
   isGeminiWorktree,
   getSafeGitEnv,
@@ -50,7 +50,7 @@ import {
   type HookEventName,
   type OutputFormat,
   type ProviderConfig, // AUDITARIA_PROVIDER_PERSISTENCE
-  type CodexReasoningEffort, // AUDITARIA_PROVIDER_PERSISTENCE
+  type ReasoningEffortProviderType, // AUDITARIA_PROVIDER_EFFORT
   detectIdeFromEnv,
 } from '@google/gemini-cli-core';
 import {
@@ -694,67 +694,45 @@ function parsePersistedProviderConfig(
 ): ProviderConfig | undefined {
   if (!modelPreference) return undefined;
 
-  if (modelPreference.startsWith(CLAUDE_PERSISTED_MODEL_PREFIX)) {
-    const claudeModel = modelPreference
-      .slice(CLAUDE_PERSISTED_MODEL_PREFIX.length)
-      .trim();
+  // AUDITARIA_PROVIDER_EFFORT: `<prefix><model>[|<effort>]` — shared by every
+  // provider whose CLI accepts `--effort`.
+  const parseWithEffort = (
+    prefix: string,
+    type: ReasoningEffortProviderType,
+  ): ProviderConfig => {
+    const payload = modelPreference.slice(prefix.length).trim();
+    const separatorIndex = payload.indexOf('|');
+    const modelPart =
+      separatorIndex >= 0 ? payload.slice(0, separatorIndex).trim() : payload;
+    const effortPart =
+      separatorIndex >= 0
+        ? payload.slice(separatorIndex + 1).trim()
+        : undefined;
+
+    const model = !modelPart || modelPart === 'auto' ? undefined : modelPart;
+    const effort = isProviderReasoningEffort(effortPart)
+      ? clampReasoningEffortForProvider(type, model, effortPart)
+      : undefined;
+
     return {
-      type: 'claude-cli',
-      model: !claudeModel || claudeModel === 'auto' ? undefined : claudeModel,
+      type,
+      model,
       cwd,
+      options: effort ? { reasoningEffort: effort } : undefined,
     };
+  };
+
+  if (modelPreference.startsWith(CLAUDE_PERSISTED_MODEL_PREFIX)) {
+    return parseWithEffort(CLAUDE_PERSISTED_MODEL_PREFIX, 'claude-cli');
   }
 
   if (modelPreference.startsWith(CODEX_PERSISTED_MODEL_PREFIX)) {
-    const codexPayload = modelPreference
-      .slice(CODEX_PERSISTED_MODEL_PREFIX.length)
-      .trim();
-    const separatorIndex = codexPayload.indexOf('|');
-    const modelPart =
-      separatorIndex >= 0
-        ? codexPayload.slice(0, separatorIndex).trim()
-        : codexPayload;
-    const reasoningPart =
-      separatorIndex >= 0
-        ? codexPayload.slice(separatorIndex + 1).trim()
-        : undefined;
-
-    const codexModel =
-      !modelPart || modelPart === 'auto' ? undefined : modelPart;
-    let clampedReasoningEffort: CodexReasoningEffort | undefined;
-    if (
-      reasoningPart &&
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-      CODEX_REASONING_EFFORTS.includes(reasoningPart as CodexReasoningEffort)
-    ) {
-      clampedReasoningEffort = clampCodexReasoningEffortForModel(
-        codexModel,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-        reasoningPart as CodexReasoningEffort,
-      );
-    }
-
-    return {
-      type: 'codex-cli',
-      model: codexModel,
-      cwd,
-      options: clampedReasoningEffort
-        ? { reasoningEffort: clampedReasoningEffort }
-        : undefined,
-    };
+    return parseWithEffort(CODEX_PERSISTED_MODEL_PREFIX, 'codex-cli');
   }
 
   // AUDITARIA_COPILOT_PROVIDER
   if (modelPreference.startsWith(COPILOT_PERSISTED_MODEL_PREFIX)) {
-    const copilotModel = modelPreference
-      .slice(COPILOT_PERSISTED_MODEL_PREFIX.length)
-      .trim();
-    return {
-      type: 'copilot-cli',
-      model:
-        !copilotModel || copilotModel === 'auto' ? undefined : copilotModel,
-      cwd,
-    };
+    return parseWithEffort(COPILOT_PERSISTED_MODEL_PREFIX, 'copilot-cli');
   }
 
   // AUDITARIA_AGY_PROVIDER

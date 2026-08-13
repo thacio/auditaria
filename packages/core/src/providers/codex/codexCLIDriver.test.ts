@@ -1,9 +1,14 @@
+/**
+ * @license
+ * Copyright 2026 Thacio
+ * SPDX-License-Identifier: Apache-2.0
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CodexCLIDriver } from './codexCLIDriver.js';
 import { ProviderEventType } from '../types.js';
-import { EventEmitter } from 'events';
-import type { ChildProcess } from 'child_process';
-import { Readable } from 'stream';
+import { EventEmitter } from 'node:events';
+import type { ChildProcess } from 'node:child_process';
+import { Readable } from 'node:stream';
 
 // Mock child_process.spawn
 vi.mock('child_process', () => ({
@@ -36,13 +41,19 @@ vi.mock('os', async (importOriginal) => {
   };
 });
 
-import { spawn } from 'child_process';
-import { writeFileSync, readFileSync, existsSync } from 'fs';
+import { spawn } from 'node:child_process';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 const mockSpawn = vi.mocked(spawn);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockExistsSync = vi.mocked(existsSync);
-const expectedShellOption = process.platform === 'win32' ? 'powershell.exe' : true;
+const expectedShellOption =
+  process.platform === 'win32' ? 'powershell.exe' : true;
+
+/** Narrows a writeFileSync path arg to the Codex config.toml. */
+function isConfigTomlPath(pathArg: unknown): pathArg is string {
+  return typeof pathArg === 'string' && pathArg.includes('config.toml');
+}
 
 function createMockProcess(stdoutLines: string[]): ChildProcess {
   const stdout = new Readable({
@@ -54,11 +65,18 @@ function createMockProcess(stdoutLines: string[]): ChildProcess {
     },
   });
 
-  const stderr = new Readable({ read() { this.push(null); } });
+  const stderr = new Readable({
+    read() {
+      this.push(null);
+    },
+  });
   const proc = new EventEmitter() as ChildProcess;
   (proc as unknown as { stdout: Readable }).stdout = stdout;
   (proc as unknown as { stderr: Readable }).stderr = stderr;
-  (proc as unknown as Record<string, unknown>).stdin = { write: vi.fn(), end: vi.fn() };
+  (proc as unknown as Record<string, unknown>).stdin = {
+    write: vi.fn(),
+    end: vi.fn(),
+  };
   (proc as unknown as { pid: number }).pid = 12345;
   (proc as unknown as { exitCode: number | null }).exitCode = 0;
   proc.kill = vi.fn();
@@ -71,7 +89,7 @@ function createMockProcess(stdoutLines: string[]): ChildProcess {
 
 describe('CodexCLIDriver', () => {
   const driverConfig = {
-    model: 'gpt-5.3-codex',
+    model: 'gpt-5.6-terra',
     cwd: '/tmp/test',
   };
 
@@ -125,7 +143,9 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const contentEvents = events.filter(e => e.type === ProviderEventType.Content);
+    const contentEvents = events.filter(
+      (e) => e.type === ProviderEventType.Content,
+    );
     expect(contentEvents).toHaveLength(3);
     expect((contentEvents[0] as { text: string }).text).toBe('Hello');
     expect((contentEvents[1] as { text: string }).text).toBe(' world');
@@ -139,7 +159,11 @@ describe('CodexCLIDriver', () => {
     });
     const completed = JSON.stringify({
       type: 'item.completed',
-      item: { id: 'reason-1', type: 'reasoning', text: 'Let me think... about this.' },
+      item: {
+        id: 'reason-1',
+        type: 'reasoning',
+        text: 'Let me think... about this.',
+      },
     });
 
     mockSpawn.mockReturnValue(createMockProcess([update, completed]));
@@ -152,16 +176,25 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const thinkingEvents = events.filter(e => e.type === ProviderEventType.Thinking);
+    const thinkingEvents = events.filter(
+      (e) => e.type === ProviderEventType.Thinking,
+    );
     expect(thinkingEvents).toHaveLength(2);
-    expect((thinkingEvents[0] as { text: string }).text).toBe('Let me think...');
+    expect((thinkingEvents[0] as { text: string }).text).toBe(
+      'Let me think...',
+    );
     expect((thinkingEvents[1] as { text: string }).text).toBe(' about this.');
   });
 
   it('should emit ToolUse and ToolResult from command_execution items', async () => {
     const started = JSON.stringify({
       type: 'item.started',
-      item: { id: 'cmd-1', type: 'command_execution', command: 'ls -la', status: 'running' },
+      item: {
+        id: 'cmd-1',
+        type: 'command_execution',
+        command: 'ls -la',
+        status: 'running',
+      },
     });
     const completed = JSON.stringify({
       type: 'item.completed',
@@ -181,17 +214,26 @@ describe('CodexCLIDriver', () => {
     const events = [];
     const controller = new AbortController();
 
-    for await (const event of driver.sendMessage('list files', controller.signal)) {
+    for await (const event of driver.sendMessage(
+      'list files',
+      controller.signal,
+    )) {
       events.push(event);
     }
 
-    const toolUse = events.find(e => e.type === ProviderEventType.ToolUse);
+    const toolUse = events.find((e) => e.type === ProviderEventType.ToolUse);
     expect(toolUse).toBeDefined();
-    expect((toolUse as { toolName: string }).toolName).toBe('command_execution');
+    expect((toolUse as { toolName: string }).toolName).toBe(
+      'command_execution',
+    );
     expect((toolUse as { toolId: string }).toolId).toBe('codex-cmd-1');
-    expect((toolUse as { input: Record<string, unknown> }).input).toEqual({ command: 'ls -la' });
+    expect((toolUse as { input: Record<string, unknown> }).input).toEqual({
+      command: 'ls -la',
+    });
 
-    const toolResult = events.find(e => e.type === ProviderEventType.ToolResult);
+    const toolResult = events.find(
+      (e) => e.type === ProviderEventType.ToolResult,
+    );
     expect(toolResult).toBeDefined();
     expect((toolResult as { toolId: string }).toolId).toBe('codex-cmd-1');
     expect((toolResult as { output: string }).output).toContain('file1.txt');
@@ -201,7 +243,12 @@ describe('CodexCLIDriver', () => {
   it('should mark tool result as error when exit code is non-zero', async () => {
     const started = JSON.stringify({
       type: 'item.started',
-      item: { id: 'cmd-2', type: 'command_execution', command: 'false', status: 'running' },
+      item: {
+        id: 'cmd-2',
+        type: 'command_execution',
+        command: 'false',
+        status: 'running',
+      },
     });
     const completed = JSON.stringify({
       type: 'item.completed',
@@ -225,7 +272,9 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const toolResult = events.find(e => e.type === ProviderEventType.ToolResult);
+    const toolResult = events.find(
+      (e) => e.type === ProviderEventType.ToolResult,
+    );
     expect(toolResult).toBeDefined();
     expect((toolResult as { isError?: boolean }).isError).toBe(true);
   });
@@ -265,12 +314,16 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const toolUse = events.find(e => e.type === ProviderEventType.ToolUse);
+    const toolUse = events.find((e) => e.type === ProviderEventType.ToolUse);
     expect(toolUse).toBeDefined();
-    expect((toolUse as { toolName: string }).toolName).toBe('mcp__auditaria-tools__knowledge_search');
+    expect((toolUse as { toolName: string }).toolName).toBe(
+      'mcp__auditaria-tools__knowledge_search',
+    );
     expect((toolUse as { toolId: string }).toolId).toBe('codex-mcp-1');
 
-    const toolResult = events.find(e => e.type === ProviderEventType.ToolResult);
+    const toolResult = events.find(
+      (e) => e.type === ProviderEventType.ToolResult,
+    );
     expect(toolResult).toBeDefined();
     expect((toolResult as { output: string }).output).toBe('Found 3 results.');
     expect((toolResult as { isError?: boolean }).isError).toBe(false);
@@ -302,16 +355,23 @@ describe('CodexCLIDriver', () => {
     const events = [];
     const controller = new AbortController();
 
-    for await (const event of driver.sendMessage('edit file', controller.signal)) {
+    for await (const event of driver.sendMessage(
+      'edit file',
+      controller.signal,
+    )) {
       events.push(event);
     }
 
-    const toolUse = events.find(e => e.type === ProviderEventType.ToolUse);
+    const toolUse = events.find((e) => e.type === ProviderEventType.ToolUse);
     expect(toolUse).toBeDefined();
     expect((toolUse as { toolName: string }).toolName).toBe('file_change');
-    expect((toolUse as { input: Record<string, unknown> }).input).toHaveProperty('paths');
+    expect(
+      (toolUse as { input: Record<string, unknown> }).input,
+    ).toHaveProperty('paths');
 
-    const toolResult = events.find(e => e.type === ProviderEventType.ToolResult);
+    const toolResult = events.find(
+      (e) => e.type === ProviderEventType.ToolResult,
+    );
     expect(toolResult).toBeDefined();
     expect((toolResult as { output: string }).output).toContain('applied');
   });
@@ -332,7 +392,9 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const compacted = events.find(e => e.type === ProviderEventType.Compacted);
+    const compacted = events.find(
+      (e) => e.type === ProviderEventType.Compacted,
+    );
     expect(compacted).toBeDefined();
     expect((compacted as { trigger: string }).trigger).toBe('auto');
   });
@@ -344,7 +406,11 @@ describe('CodexCLIDriver', () => {
     });
     const summary = JSON.stringify({
       type: 'item.completed',
-      item: { id: 'msg-1', type: 'agent_message', text: 'Summary of the conversation so far.' },
+      item: {
+        id: 'msg-1',
+        type: 'agent_message',
+        text: 'Summary of the conversation so far.',
+      },
     });
 
     mockSpawn.mockReturnValue(createMockProcess([compaction, summary]));
@@ -357,9 +423,13 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const compSummary = events.find(e => e.type === ProviderEventType.CompactionSummary);
+    const compSummary = events.find(
+      (e) => e.type === ProviderEventType.CompactionSummary,
+    );
     expect(compSummary).toBeDefined();
-    expect((compSummary as { summary: string }).summary).toBe('Summary of the conversation so far.');
+    expect((compSummary as { summary: string }).summary).toBe(
+      'Summary of the conversation so far.',
+    );
   });
 
   it('should emit Finished with usage from turn.completed', async () => {
@@ -379,10 +449,14 @@ describe('CodexCLIDriver', () => {
     }
 
     const finished = events.find(
-      e => e.type === ProviderEventType.Finished && (e as { usage?: unknown }).usage,
+      (e) =>
+        e.type === ProviderEventType.Finished &&
+        (e as { usage?: unknown }).usage,
     );
     expect(finished).toBeDefined();
-    const usage = (finished as { usage: { inputTokens: number; outputTokens: number } }).usage;
+    const usage = (
+      finished as { usage: { inputTokens: number; outputTokens: number } }
+    ).usage;
     expect(usage.inputTokens).toBe(500);
     expect(usage.outputTokens).toBe(200);
   });
@@ -403,7 +477,7 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const error = events.find(e => e.type === ProviderEventType.Error);
+    const error = events.find((e) => e.type === ProviderEventType.Error);
     expect(error).toBeDefined();
     expect((error as { message: string }).message).toBe('Rate limit exceeded');
   });
@@ -424,7 +498,7 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const error = events.find(e => e.type === ProviderEventType.Error);
+    const error = events.find((e) => e.type === ProviderEventType.Error);
     expect(error).toBeDefined();
     expect((error as { message: string }).message).toBe('Something went wrong');
   });
@@ -447,7 +521,7 @@ describe('CodexCLIDriver', () => {
       events.push(event);
     }
 
-    const content = events.find(e => e.type === ProviderEventType.Content);
+    const content = events.find((e) => e.type === ProviderEventType.Content);
     expect(content).toBeDefined();
     expect((content as { text: string }).text).toBe('ok');
   });
@@ -465,7 +539,17 @@ describe('CodexCLIDriver', () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       'codex',
-      ['exec', '--json', '-m', 'gpt-5.3-codex', '-s', 'danger-full-access', '--skip-git-repo-check'],
+      [
+        'exec',
+        '--json',
+        '-m',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=xhigh',
+        '-s',
+        'danger-full-access',
+        '--skip-git-repo-check',
+      ],
       expect.objectContaining({
         cwd: '/tmp/test',
         shell: expectedShellOption,
@@ -535,13 +619,17 @@ describe('CodexCLIDriver', () => {
         'resume',
         '--skip-git-repo-check',
         '-m',
-        'gpt-5.3-codex',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=xhigh',
         'thread-xyz',
       ],
       expect.objectContaining({ cwd: '/tmp/test' }),
     );
   });
 
+  // gpt-5.4-mini tops out at xhigh (no max/ultra), per the Codex CLI's own
+  // supported_reasoning_levels in ~/.codex/models_cache.json.
   it('should clamp unsupported reasoning for mini model and pass it to resume command', async () => {
     const threadMsg = JSON.stringify({
       type: 'thread.started',
@@ -555,7 +643,7 @@ describe('CodexCLIDriver', () => {
     const driver = new CodexCLIDriver({
       ...driverConfig,
       model: 'gpt-5.4-mini',
-      reasoningEffort: 'xhigh',
+      reasoningEffort: 'ultra',
     });
     const controller = new AbortController();
 
@@ -581,7 +669,7 @@ describe('CodexCLIDriver', () => {
         '-m',
         'gpt-5.4-mini',
         '-c',
-        'model_reasoning_effort=high',
+        'model_reasoning_effort=xhigh',
         'thread-mini',
       ],
       expect.objectContaining({ cwd: '/tmp/test' }),
@@ -595,7 +683,11 @@ describe('CodexCLIDriver', () => {
     const driver = new CodexCLIDriver(driverConfig);
     const controller = new AbortController();
 
-    for await (const _ of driver.sendMessage('hello', controller.signal, 'audit context')) {
+    for await (const _ of driver.sendMessage(
+      'hello',
+      controller.signal,
+      'audit context',
+    )) {
       // consume
     }
 
@@ -609,7 +701,10 @@ describe('CodexCLIDriver', () => {
     // -c flag should be in the args
     expect(mockSpawn).toHaveBeenCalledWith(
       'codex',
-      expect.arrayContaining(['-c', expect.stringContaining('model_instructions_file=')]),
+      expect.arrayContaining([
+        '-c',
+        expect.stringContaining('model_instructions_file='),
+      ]),
       expect.objectContaining({ shell: expectedShellOption }),
     );
   });
@@ -629,13 +724,16 @@ describe('CodexCLIDriver', () => {
     });
     const controller = new AbortController();
 
-    for await (const _ of driverWithMcp.sendMessage('hello', controller.signal)) {
+    for await (const _ of driverWithMcp.sendMessage(
+      'hello',
+      controller.signal,
+    )) {
       // consume
     }
 
     // Should have written config.toml with MCP block
-    const configWrites = mockWriteFileSync.mock.calls.filter(
-      (call) => typeof call[0] === 'string' && call[0].includes('config.toml'),
+    const configWrites = mockWriteFileSync.mock.calls.filter((call) =>
+      isConfigTomlPath(call[0]),
     );
     expect(configWrites.length).toBeGreaterThan(0);
     const writtenContent = configWrites[0][1] as string;
@@ -648,7 +746,8 @@ describe('CodexCLIDriver', () => {
   });
 
   it('should remove MCP config from ~/.codex/config.toml on dispose', async () => {
-    const configWithMcp = '[features]\ntest = true\n\n# AUDITARIA_MCP_START\n[mcp_servers.auditaria-tools]\ncommand = "node"\n# AUDITARIA_MCP_END\n';
+    const configWithMcp =
+      '[features]\ntest = true\n\n# AUDITARIA_MCP_START\n[mcp_servers.auditaria-tools]\ncommand = "node"\n# AUDITARIA_MCP_END\n';
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(configWithMcp);
 
@@ -662,7 +761,10 @@ describe('CodexCLIDriver', () => {
     });
     const controller = new AbortController();
 
-    for await (const _ of driverWithMcp.sendMessage('hello', controller.signal)) {
+    for await (const _ of driverWithMcp.sendMessage(
+      'hello',
+      controller.signal,
+    )) {
       // consume
     }
 
@@ -672,8 +774,8 @@ describe('CodexCLIDriver', () => {
     driverWithMcp.dispose();
 
     // Should have written cleaned config (without AUDITARIA block)
-    const configWrites = mockWriteFileSync.mock.calls.filter(
-      (call) => typeof call[0] === 'string' && call[0].includes('config.toml'),
+    const configWrites = mockWriteFileSync.mock.calls.filter((call) =>
+      isConfigTomlPath(call[0]),
     );
     expect(configWrites.length).toBeGreaterThan(0);
     const writtenContent = configWrites[0][1] as string;

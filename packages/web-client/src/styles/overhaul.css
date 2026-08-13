@@ -1099,7 +1099,7 @@ pre {
   min-width: 0;
 }
 
-.web-footer-model-menu-item-codex {
+.web-footer-model-menu-item-effort {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1171,7 +1171,7 @@ pre {
 }
 /* AUDITARIA_PROVIDER_AVAILABILITY_END */
 
-.web-footer-codex-effort-control {
+.web-footer-effort-control {
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -1183,7 +1183,7 @@ pre {
   gap: 3px;
 }
 
-.web-footer-codex-effort-title {
+.web-footer-effort-title {
   color: var(--text-muted);
   letter-spacing: 0.15px;
   font-weight: 640;
@@ -1193,7 +1193,7 @@ pre {
   padding-right: 1px;
 }
 
-.web-footer-codex-effort-arrow {
+.web-footer-effort-arrow {
   border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
   border-radius: 999px;
   background: var(--surface-alt);
@@ -1213,25 +1213,25 @@ pre {
     transform var(--transition-fast) ease;
 }
 
-.web-footer-codex-effort-arrow:hover:not(:disabled),
-.web-footer-codex-effort-arrow:focus-visible:not(:disabled) {
+.web-footer-effort-arrow:hover:not(:disabled),
+.web-footer-effort-arrow:focus-visible:not(:disabled) {
   border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
   background: color-mix(in srgb, var(--primary-10) 76%, var(--surface-alt));
   color: var(--text);
   transform: scale(1.03);
 }
 
-.web-footer-codex-effort-arrow:disabled {
+.web-footer-effort-arrow:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
-.web-footer-codex-effort-arrow:focus-visible {
+.web-footer-effort-arrow:focus-visible {
   outline: 2px solid var(--focus-border);
   outline-offset: 1px;
 }
 
-.web-footer-codex-effort-bars {
+.web-footer-effort-bars {
   display: inline-flex;
   min-width: 58px;
   justify-content: center;
@@ -1241,11 +1241,11 @@ pre {
   font-weight: 760;
 }
 
-.web-footer-codex-effort-bars .is-filled {
+.web-footer-effort-bars .is-filled {
   color: var(--success);
 }
 
-.web-footer-codex-effort-bars .is-empty {
+.web-footer-effort-bars .is-empty {
   color: color-mix(in srgb, var(--text-muted) 58%, transparent);
 }
 

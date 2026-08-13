@@ -89,9 +89,13 @@ import {
   type AgentsDiscoveredPayload,
   ChangeAuthRequestedError,
   ProjectIdRequiredError,
-  type CodexReasoningEffort, // AUDITARIA_PROVIDER and WEB
-  getSupportedCodexReasoningEfforts, // AUDITARIA_PROVIDER and WEB
-  clampCodexReasoningEffortForModel, // AUDITARIA_PROVIDER and WEB
+  // AUDITARIA_PROVIDER_EFFORT: provider-agnostic reasoning effort
+  type ProviderReasoningEffort,
+  type ReasoningEffortProviderType,
+  getSupportedReasoningEfforts,
+  clampReasoningEffortForProvider,
+  isProviderReasoningEffort,
+  DEFAULT_REASONING_EFFORT_BY_PROVIDER,
   getCopilotModelCost, // AUDITARIA_COPILOT_PROVIDER
   tokenLimit, // AUDITARIA_WEB_INTERFACE: direct footer data computation
   getDisplayString, // AUDITARIA_WEB_INTERFACE: direct footer data computation
@@ -172,10 +176,8 @@ import {
   CODEX_SUBMENU_OPTIONS,
   AGY_SUBMENU_OPTIONS, // AUDITARIA_AGY_PROVIDER
   getCopilotModelOptions, // AUDITARIA_COPILOT_PROVIDER
-  DEFAULT_CODEX_REASONING_EFFORT,
-  CODEX_REASONING_OPTIONS,
+  getReasoningEffortOptions, // AUDITARIA_PROVIDER_EFFORT
   getGeminiWebOptions,
-  isCodexReasoningEffort,
 } from './modelCatalog.js';
 import { useApprovalModeIndicator } from './hooks/useApprovalModeIndicator.js';
 import { useSessionStats } from './contexts/SessionContext.js';
@@ -2432,14 +2434,30 @@ Logging in with Google... Restarting Gemini CLI to continue.
     const selectedDisplayModel = config.getDisplayModel();
     const selectedGeminiModel = config.getModel();
 
+    // AUDITARIA_PROVIDER_EFFORT_START: current effort per provider. Only the
+    // active provider's value is known; the rest fall back to their default.
     const providerConfig = config.getProviderConfig();
-    const rawCodexEffort =
-      providerConfig?.type === 'codex-cli'
-        ? providerConfig.options?.['reasoningEffort']
-        : undefined;
-    const baseCodexEffort = isCodexReasoningEffort(rawCodexEffort)
-      ? rawCodexEffort
-      : DEFAULT_CODEX_REASONING_EFFORT;
+    const activeProviderType = providerConfig?.type;
+    const rawEffort = providerConfig?.options?.['reasoningEffort'];
+    const effortFor = (
+      providerType: ReasoningEffortProviderType,
+    ): ProviderReasoningEffort =>
+      providerType === activeProviderType &&
+      isProviderReasoningEffort(rawEffort)
+        ? clampReasoningEffortForProvider(
+            providerType,
+            providerConfig?.model,
+            rawEffort,
+          )
+        : DEFAULT_REASONING_EFFORT_BY_PROVIDER[providerType];
+
+    const reasoningEffortForGroup = (
+      providerType: ReasoningEffortProviderType,
+    ) => ({
+      currentEffort: effortFor(providerType),
+      options: getReasoningEffortOptions(providerType),
+    });
+    // AUDITARIA_PROVIDER_EFFORT_END
 
     const availability = config.getProviderAvailability(); // AUDITARIA_PROVIDER_AVAILABILITY: Get provider availability status
 
@@ -2461,10 +2479,15 @@ Logging in with Google... Restarting Gemini CLI to continue.
         installMessage: availability.claude
           ? undefined
           : 'To use Claude Code, install it from https://docs.anthropic.com/en/docs/claude-code, then run `claude` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
+        reasoningEffort: reasoningEffortForGroup('claude-cli'), // AUDITARIA_PROVIDER_EFFORT
         options: CLAUDE_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Claude (${option.title})`,
           description: option.description,
+          supportedReasoningEfforts: getSupportedReasoningEfforts(
+            'claude-cli',
+            option.model,
+          ),
         })),
       },
       {
@@ -2474,11 +2497,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
         installMessage: availability.codex
           ? undefined
           : 'To use OpenAI Codex, install it from https://www.npmjs.com/package/@openai/codex, then run `codex` to authenticate.', // AUDITARIA_PROVIDER_AVAILABILITY
+        reasoningEffort: reasoningEffortForGroup('codex-cli'), // AUDITARIA_PROVIDER_EFFORT
         options: CODEX_SUBMENU_OPTIONS.map((option) => ({
           selection: option.value,
           label: `Codex (${option.title})`,
           description: option.description,
-          supportedReasoningEfforts: getSupportedCodexReasoningEfforts(
+          supportedReasoningEfforts: getSupportedReasoningEfforts(
+            'codex-cli',
             option.model,
           ),
         })),
@@ -2491,6 +2516,7 @@ Logging in with Google... Restarting Gemini CLI to continue.
         installMessage: availability.copilot
           ? undefined
           : 'To use GitHub Copilot, install it from https://www.npmjs.com/package/@github/copilot, then run `copilot` to authenticate.',
+        reasoningEffort: reasoningEffortForGroup('copilot-cli'), // AUDITARIA_PROVIDER_EFFORT
         options: getCopilotModelOptions().map((option) => {
           const cost = option.model
             ? getCopilotModelCost(option.model)
@@ -2501,6 +2527,10 @@ Logging in with Google... Restarting Gemini CLI to continue.
               ? `Copilot (${option.title}) (${cost})`
               : `Copilot (${option.title})`,
             description: option.description,
+            supportedReasoningEfforts: getSupportedReasoningEfforts(
+              'copilot-cli',
+              option.model,
+            ),
           };
         }),
       },
@@ -2588,28 +2618,17 @@ Logging in with Google... Restarting Gemini CLI to continue.
             selection: activeSelection,
             label: `Gemini (${selectedGeminiModel})`,
             description: 'Currently selected model',
+            supportedReasoningEfforts: [], // AUDITARIA_PROVIDER_EFFORT: Gemini has no effort control here
           });
         }
       }
     }
 
-    const activeCodexSelection = activeSelection.startsWith(CODEX_PREFIX)
-      ? activeSelection
-      : `${CODEX_PREFIX}auto`;
-    const activeCodexModel = activeCodexSelection.slice(CODEX_PREFIX.length);
-    const codexReasoningEffort = clampCodexReasoningEffortForModel(
-      activeCodexModel === 'auto' ? undefined : activeCodexModel,
-      baseCodexEffort,
-    );
-
+    // AUDITARIA_PROVIDER_EFFORT: effort metadata now rides on each group
+    // (see `reasoningEffort` above), so there is no codex-specific block.
     return {
       groups,
       activeSelection,
-      codexReasoning: {
-        activeSelection: activeCodexSelection,
-        currentEffort: codexReasoningEffort,
-        options: CODEX_REASONING_OPTIONS,
-      },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- currentModel, modelChangeNonce, settingsNonce are intentional trigger deps
   }, [config, currentModel, modelChangeNonce, settings, settingsNonce]);
@@ -2649,13 +2668,33 @@ Logging in with Google... Restarting Gemini CLI to continue.
         return;
       }
 
+      // AUDITARIA_PROVIDER_EFFORT_START: resolve the effort to persist for a
+      // provider that accepts one — the web payload wins, then whatever the
+      // active provider config already had, then the provider default.
+      const resolveEffort = (
+        providerType: ReasoningEffortProviderType,
+        model?: string,
+      ): ProviderReasoningEffort => {
+        const existing =
+          config.getProviderConfig()?.options?.['reasoningEffort'];
+        const base = isProviderReasoningEffort(payload?.reasoningEffort)
+          ? payload.reasoningEffort
+          : isProviderReasoningEffort(existing)
+            ? existing
+            : DEFAULT_REASONING_EFFORT_BY_PROVIDER[providerType];
+        return clampReasoningEffortForProvider(providerType, model, base);
+      };
+      // AUDITARIA_PROVIDER_EFFORT_END
+
       if (selection.startsWith(CLAUDE_PREFIX)) {
         const claudeModel = selection.slice(CLAUDE_PREFIX.length);
+        const model = claudeModel === 'auto' ? undefined : claudeModel;
         config.setProviderConfig(
           {
             type: 'claude-cli',
-            model: claudeModel === 'auto' ? undefined : claudeModel,
+            model,
             cwd: config.getWorkingDir(),
+            options: { reasoningEffort: resolveEffort('claude-cli', model) },
           },
           false,
         ); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
@@ -2664,29 +2703,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
 
       if (selection.startsWith(CODEX_PREFIX)) {
         const codexModel = selection.slice(CODEX_PREFIX.length);
-        const existingProviderConfig = config.getProviderConfig();
-        const payloadReasoningEffort = payload?.reasoningEffort;
-        const existingReasoningEffort =
-          existingProviderConfig?.options?.['reasoningEffort'];
-        const baseReasoningEffort: CodexReasoningEffort =
-          isCodexReasoningEffort(payloadReasoningEffort)
-            ? payloadReasoningEffort
-            : isCodexReasoningEffort(existingReasoningEffort)
-              ? existingReasoningEffort
-              : DEFAULT_CODEX_REASONING_EFFORT;
-        const clampedReasoningEffort = clampCodexReasoningEffortForModel(
-          codexModel === 'auto' ? undefined : codexModel,
-          baseReasoningEffort,
-        );
-
+        const model = codexModel === 'auto' ? undefined : codexModel;
         config.setProviderConfig(
           {
             type: 'codex-cli',
-            model: codexModel === 'auto' ? undefined : codexModel,
+            model,
             cwd: config.getWorkingDir(),
-            options: {
-              reasoningEffort: clampedReasoningEffort,
-            },
+            options: { reasoningEffort: resolveEffort('codex-cli', model) },
           },
           false,
         ); // AUDITARIA_PROVIDER_PERSISTENCE: persist model change
@@ -2696,11 +2719,13 @@ Logging in with Google... Restarting Gemini CLI to continue.
       // AUDITARIA_COPILOT_PROVIDER_START
       if (selection.startsWith(COPILOT_PREFIX)) {
         const copilotModel = selection.slice(COPILOT_PREFIX.length);
+        const model = copilotModel === 'auto' ? undefined : copilotModel;
         config.setProviderConfig(
           {
             type: 'copilot-cli',
-            model: copilotModel === 'auto' ? undefined : copilotModel,
+            model,
             cwd: config.getWorkingDir(),
+            options: { reasoningEffort: resolveEffort('copilot-cli', model) },
           },
           false,
         );

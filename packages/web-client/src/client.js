@@ -84,7 +84,7 @@ class AuditariaWebClient {
     this.modelMenuElement = null;
     this.modelMenuAnchor = null;
     this.modelMenuScrollTop = 0;
-    this.codexMenuEfforts = new Map();
+    this.menuReasoningEfforts = new Map();
     this.handleModelMenuOutsideClick =
       this.handleModelMenuOutsideClick.bind(this);
     this.handleModelMenuEscape = this.handleModelMenuEscape.bind(this);
@@ -1231,15 +1231,17 @@ class AuditariaWebClient {
       this.modelMenuScrollTop = this.modelMenuElement.scrollTop;
     }
     this.modelMenuData = this.normalizeModelMenuData(modelMenuData);
-    const codexOptions =
-      this.modelMenuData?.groups?.find((group) => group.id === 'codex')
-        ?.options || [];
-    const codexSelections = new Set(
-      codexOptions.map((option) => option.selection),
+    // Drop remembered effort overrides for selections that no longer exist.
+    const effortSelections = new Set(
+      (this.modelMenuData?.groups || [])
+        .filter((group) => group.reasoningEffort?.options?.length)
+        .flatMap((group) =>
+          (group.options || []).map((option) => option.selection),
+        ),
     );
-    for (const selection of this.codexMenuEfforts.keys()) {
-      if (!codexSelections.has(selection)) {
-        this.codexMenuEfforts.delete(selection);
+    for (const selection of this.menuReasoningEfforts.keys()) {
+      if (!effortSelections.has(selection)) {
+        this.menuReasoningEfforts.delete(selection);
       }
     }
     if (this.latestFooterData) {
@@ -1281,15 +1283,19 @@ class AuditariaWebClient {
     }
   }
 
-  getCodexReasoningMetadataForSelection(selection) {
-    if (!selection?.startsWith('codex:')) return null;
-    const codexReasoning = this.modelMenuData?.codexReasoning;
-    if (!codexReasoning?.options?.length) return null;
-
-    const codexGroup = this.modelMenuData?.groups?.find(
-      (group) => group.id === 'codex',
+  // Effort metadata now rides on whichever group owns the selection, so every
+  // provider with an `--effort` flag (Claude, Codex, Copilot) gets the control.
+  getReasoningMetadataForSelection(selection) {
+    if (!selection) return null;
+    const group = this.modelMenuData?.groups?.find((candidate) =>
+      (candidate.options || []).some(
+        (option) => option.selection === selection,
+      ),
     );
-    const activeOption = codexGroup?.options?.find(
+    const reasoning = group?.reasoningEffort;
+    if (!reasoning?.options?.length) return null;
+
+    const activeOption = group.options.find(
       (option) => option.selection === selection,
     );
     const supportedEfforts = Array.isArray(
@@ -1300,29 +1306,28 @@ class AuditariaWebClient {
     if (!supportedEfforts.length) return null;
 
     return {
-      currentEffort: codexReasoning.currentEffort,
-      options: codexReasoning.options,
+      currentEffort: reasoning.currentEffort,
+      options: reasoning.options,
       supportedEfforts,
     };
   }
 
-  getCodexEffortStateForSelection(selection) {
-    const codexReasoning =
-      this.getCodexReasoningMetadataForSelection(selection);
-    if (!codexReasoning) return null;
+  getReasoningEffortStateForSelection(selection) {
+    const reasoning = this.getReasoningMetadataForSelection(selection);
+    if (!reasoning) return null;
 
-    const effortOrder = codexReasoning.options.map((option) => option.value);
-    const supportedEfforts = codexReasoning.supportedEfforts.filter((value) =>
+    const effortOrder = reasoning.options.map((option) => option.value);
+    const supportedEfforts = reasoning.supportedEfforts.filter((value) =>
       effortOrder.includes(value),
     );
     if (!supportedEfforts.length) return null;
 
     const effortLabelMap = new Map(
-      codexReasoning.options.map((option) => [option.value, option.label]),
+      reasoning.options.map((option) => [option.value, option.label]),
     );
 
-    const overriddenEffort = this.codexMenuEfforts.get(selection);
-    let currentEffort = overriddenEffort || codexReasoning.currentEffort;
+    const overriddenEffort = this.menuReasoningEfforts.get(selection);
+    let currentEffort = overriddenEffort || reasoning.currentEffort;
     if (!supportedEfforts.includes(currentEffort)) {
       const fallback =
         [...supportedEfforts]
@@ -1330,7 +1335,7 @@ class AuditariaWebClient {
           .find(
             (value) =>
               effortOrder.indexOf(value) <=
-              effortOrder.indexOf(codexReasoning.currentEffort),
+              effortOrder.indexOf(reasoning.currentEffort),
           ) || supportedEfforts[0];
       currentEffort = fallback;
     }
@@ -1379,7 +1384,7 @@ class AuditariaWebClient {
     for (const group of this.modelMenuData.groups) {
       const section = document.createElement('div');
       section.className = 'web-footer-model-menu-section';
-      const isCodexGroup = group.id === 'codex';
+      const hasEffortControl = Boolean(group.reasoningEffort?.options?.length);
       const isAvailable = group.available !== false; // AUDITARIA_PROVIDER_AVAILABILITY: Default to true for backwards compatibility
 
       // Determine if this group contains the active selection
@@ -1443,8 +1448,8 @@ class AuditariaWebClient {
         if (option.selection === this.modelMenuData.activeSelection) {
           item.classList.add('is-active');
         }
-        if (isCodexGroup) {
-          item.classList.add('web-footer-model-menu-item-codex');
+        if (hasEffortControl) {
+          item.classList.add('web-footer-model-menu-item-effort');
         }
 
         const main = document.createElement('div');
@@ -1463,32 +1468,32 @@ class AuditariaWebClient {
         }
         item.append(main);
 
-        if (isCodexGroup) {
-          const effortState = this.getCodexEffortStateForSelection(
+        if (hasEffortControl) {
+          const effortState = this.getReasoningEffortStateForSelection(
             option.selection,
           );
           if (effortState) {
             const effortControl = document.createElement('div');
-            effortControl.className = 'web-footer-codex-effort-control';
+            effortControl.className = 'web-footer-effort-control';
 
             const effortTitle = document.createElement('span');
-            effortTitle.className = 'web-footer-codex-effort-title';
+            effortTitle.className = 'web-footer-effort-title';
             effortTitle.textContent = 'Thinking';
             effortControl.append(effortTitle);
 
             const leftArrow = document.createElement('button');
             leftArrow.type = 'button';
-            leftArrow.className = 'web-footer-codex-effort-arrow';
+            leftArrow.className = 'web-footer-effort-arrow';
             leftArrow.textContent = '\u2039';
             effortControl.append(leftArrow);
 
             const effortBars = document.createElement('span');
-            effortBars.className = 'web-footer-codex-effort-bars';
+            effortBars.className = 'web-footer-effort-bars';
             effortControl.append(effortBars);
 
             const rightArrow = document.createElement('button');
             rightArrow.type = 'button';
-            rightArrow.className = 'web-footer-codex-effort-arrow';
+            rightArrow.className = 'web-footer-effort-arrow';
             rightArrow.textContent = '\u203A';
             effortControl.append(rightArrow);
 
@@ -1513,7 +1518,7 @@ class AuditariaWebClient {
             };
 
             const renderState = () => {
-              const state = this.getCodexEffortStateForSelection(
+              const state = this.getReasoningEffortStateForSelection(
                 option.selection,
               );
               if (!state) return;
@@ -1536,21 +1541,24 @@ class AuditariaWebClient {
             leftArrow.addEventListener('click', (event) => {
               event.preventDefault();
               event.stopPropagation();
-              const state = this.getCodexEffortStateForSelection(
+              const state = this.getReasoningEffortStateForSelection(
                 option.selection,
               );
               if (!state || !state.canDecrease) return;
-              this.codexMenuEfforts.set(option.selection, state.previousEffort);
+              this.menuReasoningEfforts.set(
+                option.selection,
+                state.previousEffort,
+              );
               renderState();
             });
             rightArrow.addEventListener('click', (event) => {
               event.preventDefault();
               event.stopPropagation();
-              const state = this.getCodexEffortStateForSelection(
+              const state = this.getReasoningEffortStateForSelection(
                 option.selection,
               );
               if (!state || !state.canIncrease) return;
-              this.codexMenuEfforts.set(option.selection, state.nextEffort);
+              this.menuReasoningEfforts.set(option.selection, state.nextEffort);
               renderState();
             });
 
@@ -1564,8 +1572,8 @@ class AuditariaWebClient {
             return;
           }
 
-          if (isCodexGroup) {
-            const state = this.getCodexEffortStateForSelection(
+          if (hasEffortControl) {
+            const state = this.getReasoningEffortStateForSelection(
               option.selection,
             );
             this.wsManager.sendModelSelection(

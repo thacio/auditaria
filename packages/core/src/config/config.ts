@@ -3176,20 +3176,25 @@ export class Config implements McpContext, AgentLoopContext {
   private getPersistedModelPreferenceForProvider(
     config: ProviderConfig,
   ): string | undefined {
-    if (config.type === 'claude-cli') {
-      return `claude-code:${config.model || 'auto'}`;
-    }
-    if (config.type === 'codex-cli') {
+    // AUDITARIA_PROVIDER_EFFORT: `<prefix>:<model>[|<effort>]` — the optional
+    // `|effort` suffix is used by every provider that accepts `--effort`.
+    const withEffort = (prefix: string): string => {
       const model = config.model || 'auto';
       const effort = config.options?.['reasoningEffort'];
-      if (typeof effort === 'string' && effort.length > 0) {
-        return `codex-code:${model}|${effort}`;
-      }
-      return `codex-code:${model}`;
+      return typeof effort === 'string' && effort.length > 0
+        ? `${prefix}:${model}|${effort}`
+        : `${prefix}:${model}`;
+    };
+
+    if (config.type === 'claude-cli') {
+      return withEffort('claude-code');
+    }
+    if (config.type === 'codex-cli') {
+      return withEffort('codex-code');
     }
     // AUDITARIA_COPILOT_PROVIDER
     if (config.type === 'copilot-cli') {
-      return `copilot-code:${config.model || 'auto'}`;
+      return withEffort('copilot-code');
     }
     // AUDITARIA_AGY_PROVIDER
     if (config.type === 'agy-cli') {

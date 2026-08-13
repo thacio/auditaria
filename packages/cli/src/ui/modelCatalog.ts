@@ -13,15 +13,14 @@ import {
   isActiveModel,
   isPreviewModel,
   getDisplayString,
-  CODEX_REASONING_EFFORTS,
-  type CodexReasoningEffort,
+  getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
+  type ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
 } from '@google/gemini-cli-core';
 
 export const CLAUDE_PREFIX = 'claude:';
 export const CODEX_PREFIX = 'codex:';
 export const COPILOT_PREFIX = 'copilot:'; // AUDITARIA_COPILOT_PROVIDER
 export const AGY_PREFIX = 'agy:'; // AUDITARIA_AGY_PROVIDER
-export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = 'xhigh';
 
 export interface ProviderSubmenuOption {
   key: string;
@@ -322,9 +321,13 @@ function deriveModelDescription(model: string): string {
   return model;
 }
 
-export const CODEX_REASONING_LABELS: Readonly<
-  Record<CodexReasoningEffort, string>
+// AUDITARIA_PROVIDER_EFFORT_START: labels for the shared effort scale, used by
+// the CLI dialog and the web model menu for every provider that has one.
+export const REASONING_EFFORT_LABELS: Readonly<
+  Record<ProviderReasoningEffort, string>
 > = {
+  none: 'None',
+  minimal: 'Minimal',
   low: 'Low',
   medium: 'Medium',
   high: 'High',
@@ -333,21 +336,23 @@ export const CODEX_REASONING_LABELS: Readonly<
   ultra: 'Ultra',
 };
 
-export const CODEX_REASONING_OPTIONS = CODEX_REASONING_EFFORTS.map((value) => ({
-  value,
-  label: CODEX_REASONING_LABELS[value],
-}));
-
-export function isCodexReasoningEffort(
-  value: unknown,
-): value is CodexReasoningEffort {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowing predicate
-  return CODEX_REASONING_EFFORTS.includes(value as CodexReasoningEffort);
+export function getReasoningEffortLabel(
+  effort: ProviderReasoningEffort,
+): string {
+  return REASONING_EFFORT_LABELS[effort] ?? REASONING_EFFORT_LABELS.medium;
 }
 
-export function getCodexReasoningLabel(effort: CodexReasoningEffort): string {
-  return CODEX_REASONING_LABELS[effort] ?? CODEX_REASONING_LABELS.medium;
+/** Selectable effort options for a provider (and, for Codex, a model). */
+export function getReasoningEffortOptions(
+  providerType: string | undefined,
+  model?: string,
+): Array<{ value: ProviderReasoningEffort; label: string }> {
+  return getSupportedReasoningEfforts(providerType, model).map((value) => ({
+    value,
+    label: REASONING_EFFORT_LABELS[value],
+  }));
 }
+// AUDITARIA_PROVIDER_EFFORT_END
 
 // AUDITARIA_COPILOT_PROVIDER_START: Copilot model catalog with dynamic discovery support
 
