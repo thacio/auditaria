@@ -45,6 +45,7 @@ interface ModelDialogProps {
 import {
   PROVIDER_REASONING_EFFORTS, // AUDITARIA_PROVIDER_EFFORT
   getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
+  getReasoningEffortDisplay, // AUDITARIA_PROVIDER_EFFORT
   clampReasoningEffortForProvider, // AUDITARIA_PROVIDER_EFFORT
   providerSupportsReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
   isProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
@@ -262,6 +263,10 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
   const minSupportedEffort = supportedEfforts[0] ?? displayEffort;
   const maxSupportedEffort =
     supportedEfforts[supportedEfforts.length - 1] ?? displayEffort;
+  // The provider CLI's own explanation of the current level, when it has one.
+  const displayEffortDescription = effortProvider
+    ? getReasoningEffortDisplay(effortProvider, displayEffort).description
+    : undefined;
   // AUDITARIA_PROVIDER_EFFORT_END
 
   useKeypress(
@@ -1031,7 +1036,8 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
         <Box marginTop={1} flexDirection="column">
           <Box alignItems="center">
             <Text color={theme.text.primary}>
-              Thinking intensity: {getReasoningEffortLabel(displayEffort)}
+              Thinking intensity:{' '}
+              {getReasoningEffortLabel(displayEffort, effortProvider)}
             </Text>
             <Box marginLeft={1}>
               <ReasoningMeter
@@ -1041,9 +1047,13 @@ export function ModelDialog({ onClose }: ModelDialogProps): React.JSX.Element {
               />
             </Box>
           </Box>
+          {displayEffortDescription && (
+            <Text color={theme.text.secondary}>{displayEffortDescription}</Text>
+          )}
           <Text color={theme.text.secondary}>
-            Supported range: {getReasoningEffortLabel(minSupportedEffort)} -{' '}
-            {getReasoningEffortLabel(maxSupportedEffort)}
+            Supported range:{' '}
+            {getReasoningEffortLabel(minSupportedEffort, effortProvider)} -{' '}
+            {getReasoningEffortLabel(maxSupportedEffort, effortProvider)}
           </Text>
           <Text color={theme.text.secondary}>(Use Left/Right arrows)</Text>
         </Box>

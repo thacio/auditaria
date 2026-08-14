@@ -12,6 +12,7 @@ import {
   getSupportedReasoningEfforts,
   providerSupportsReasoningEffort,
   isProviderReasoningEffort,
+  getReasoningEffortDisplay,
 } from './types.js';
 
 describe('Codex reasoning effort model constraints', () => {
@@ -67,16 +68,20 @@ describe('provider-agnostic reasoning effort', () => {
   });
 
   it('exposes each CLI documented range', () => {
+    // `ultra` is Claude's ultracode (session-scoped, delivered via
+    // --settings; the --effort flag itself only accepts low..max).
     expect(getSupportedReasoningEfforts('claude-cli')).toEqual([
       'low',
       'medium',
       'high',
       'xhigh',
       'max',
+      'ultra',
     ]);
+    // No 'minimal': the flag's --help advertises it, but Copilot's app
+    // bundle has no such level, label, or description.
     expect(getSupportedReasoningEfforts('copilot-cli')).toEqual([
       'none',
-      'minimal',
       'low',
       'medium',
       'high',
@@ -96,19 +101,23 @@ describe('provider-agnostic reasoning effort', () => {
   });
 
   it('clamps into the provider range', () => {
-    // Claude has no `ultra`.
-    expect(
-      clampReasoningEffortForProvider('claude-cli', undefined, 'ultra'),
-    ).toBe('max');
-    // Copilot's `none`/`minimal` are below every other provider's floor.
+    // Copilot's `none` is below every other provider's floor.
     expect(
       clampReasoningEffortForProvider('claude-cli', undefined, 'none'),
     ).toBe('low');
     expect(
       clampReasoningEffortForProvider('copilot-cli', undefined, 'none'),
     ).toBe('none');
+    // Copilot tops out at max; Claude's ultra (ultracode) is in range.
     expect(
       clampReasoningEffortForProvider('copilot-cli', undefined, 'ultra'),
+    ).toBe('max');
+    expect(
+      clampReasoningEffortForProvider('claude-cli', undefined, 'ultra'),
+    ).toBe('ultra');
+    // Codex per-model: Luna has no ultra tier.
+    expect(
+      clampReasoningEffortForProvider('codex-cli', 'gpt-5.6-luna', 'ultra'),
     ).toBe('max');
   });
 
@@ -119,9 +128,36 @@ describe('provider-agnostic reasoning effort', () => {
   });
 
   it('validates effort strings', () => {
-    expect(isProviderReasoningEffort('minimal')).toBe(true);
     expect(isProviderReasoningEffort('ultra')).toBe(true);
+    expect(isProviderReasoningEffort('minimal')).toBe(false);
     expect(isProviderReasoningEffort('turbo')).toBe(false);
     expect(isProviderReasoningEffort(undefined)).toBe(false);
+  });
+
+  it("uses each CLI's own vocabulary for display", () => {
+    // Claude: bare tokens; ultra surfaces as Claude's own "ultracode".
+    expect(getReasoningEffortDisplay('claude-cli', 'xhigh').label).toBe(
+      'xhigh',
+    );
+    expect(getReasoningEffortDisplay('claude-cli', 'ultra').label).toBe(
+      'ultracode',
+    );
+    // Copilot: its TUI labels.
+    expect(getReasoningEffortDisplay('copilot-cli', 'xhigh').label).toBe(
+      'Extra High',
+    );
+    expect(getReasoningEffortDisplay('copilot-cli', 'none')).toEqual({
+      label: 'None',
+      description: 'No model thinking',
+    });
+    // Codex: tokens + the models_cache.json descriptions.
+    expect(getReasoningEffortDisplay('codex-cli', 'ultra')).toEqual({
+      label: 'ultra',
+      description: 'Maximum reasoning with automatic task delegation',
+    });
+    // Unknown provider falls back to the bare token.
+    expect(getReasoningEffortDisplay('agy-cli', 'high')).toEqual({
+      label: 'high',
+    });
   });
 });

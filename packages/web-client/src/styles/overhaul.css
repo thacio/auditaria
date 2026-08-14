@@ -1171,6 +1171,24 @@ pre {
 }
 /* AUDITARIA_PROVIDER_AVAILABILITY_END */
 
+.web-footer-effort-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The provider CLI's own word for the current level (e.g. "xhigh",
+   "ultracode", "Extra High") so users can correlate with that CLI. */
+.web-footer-effort-word {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .web-footer-effort-control {
   border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
   border-radius: 999px;

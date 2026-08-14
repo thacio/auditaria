@@ -1325,6 +1325,12 @@ class AuditariaWebClient {
     const effortLabelMap = new Map(
       reasoning.options.map((option) => [option.value, option.label]),
     );
+    // The provider CLI's own explanation per level, when it publishes one.
+    const effortDescriptionMap = new Map(
+      reasoning.options
+        .filter((option) => option.description)
+        .map((option) => [option.value, option.description]),
+    );
 
     const overriddenEffort = this.menuReasoningEfforts.get(selection);
     let currentEffort = overriddenEffort || reasoning.currentEffort;
@@ -1356,11 +1362,12 @@ class AuditariaWebClient {
 
     return {
       currentEffort,
-      currentLabel: effortLabelMap.get(currentEffort) || 'Medium',
+      currentLabel: effortLabelMap.get(currentEffort) || currentEffort,
+      currentDescription: effortDescriptionMap.get(currentEffort) || '',
       previousEffort,
-      previousLabel: effortLabelMap.get(previousEffort) || 'Medium',
+      previousLabel: effortLabelMap.get(previousEffort) || previousEffort,
       nextEffort,
-      nextLabel: effortLabelMap.get(nextEffort) || 'Medium',
+      nextLabel: effortLabelMap.get(nextEffort) || nextEffort,
       canDecrease,
       canIncrease,
       filledBars,
@@ -1497,6 +1504,16 @@ class AuditariaWebClient {
             rightArrow.textContent = '\u203A';
             effortControl.append(rightArrow);
 
+            // The provider CLI's own word for the current level, shown under
+            // the bar so users can correlate with what that CLI displays
+            // (e.g. Claude's "ultracode", Copilot's "Extra High").
+            const effortWord = document.createElement('span');
+            effortWord.className = 'web-footer-effort-word';
+
+            const effortWrap = document.createElement('div');
+            effortWrap.className = 'web-footer-effort-wrap';
+            effortWrap.append(effortControl, effortWord);
+
             const renderBars = (state) => {
               effortBars.replaceChildren();
 
@@ -1529,11 +1546,16 @@ class AuditariaWebClient {
               const increaseTarget = state.canIncrease
                 ? state.nextLabel
                 : state.currentLabel;
-              effortControl.title = `Thinking: ${state.currentLabel}`;
+              const detail = state.currentDescription
+                ? `${state.currentLabel} — ${state.currentDescription}`
+                : state.currentLabel;
+              effortControl.title = `Thinking: ${detail}`;
               leftArrow.title = `Decrease thinking to ${decreaseTarget}`;
               rightArrow.title = `Increase thinking to ${increaseTarget}`;
               leftArrow.disabled = !state.canDecrease;
               rightArrow.disabled = !state.canIncrease;
+              effortWord.textContent = state.currentLabel;
+              effortWord.title = detail;
               renderBars(state);
             };
             renderState();
@@ -1562,7 +1584,7 @@ class AuditariaWebClient {
               renderState();
             });
 
-            item.append(effortControl);
+            item.append(effortWrap);
           }
         }
 

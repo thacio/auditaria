@@ -1078,7 +1078,14 @@ export class ClaudeCLIDriver implements ProviderDriver {
     }
 
     // AUDITARIA_PROVIDER_EFFORT: thinking intensity for this session.
-    if (this.config.reasoningEffort) {
+    // `ultra` is our id for Claude's ultracode mode ("xhigh + dynamic
+    // workflow orchestration"). The --effort flag rejects it (valid values:
+    // low..max), so it becomes --effort xhigh here plus `"ultracode": true`
+    // in the --settings JSON — the session-scoped delivery path Claude
+    // Code's own settings schema documents for it.
+    if (this.config.reasoningEffort === 'ultra') {
+      args.push('--effort', 'xhigh');
+    } else if (this.config.reasoningEffort) {
       args.push('--effort', this.config.reasoningEffort);
     }
 
@@ -1161,6 +1168,10 @@ export class ClaudeCLIDriver implements ProviderDriver {
         UserPromptExpansion: [hookEntry('UserPromptExpansion')],
         Notification: [hookEntry('Notification')],
       },
+      // AUDITARIA_PROVIDER_EFFORT: session-scoped ultracode mode (see
+      // buildArgs — pairs with --effort xhigh). Harmlessly ignored when
+      // workflows are unavailable (the schema `.catch`es invalid values).
+      ...(this.config.reasoningEffort === 'ultra' ? { ultracode: true } : {}),
     });
     // AUDITARIA_CLAUDE_PROVIDER_END
   }

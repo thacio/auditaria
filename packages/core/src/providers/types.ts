@@ -260,10 +260,12 @@ export function getSupportedCodexReasoningEfforts(
 // (High)"), so it is deliberately absent from the table below.
 //
 // One ordered scale spans every provider (lowest → highest); each provider
-// exposes the contiguous slice its CLI accepts.
+// exposes the contiguous slice its CLI accepts. The `ultra` slot is the
+// "top level plus orchestration" tier both frontier CLIs converged on:
+// Codex's `ultra` ("maximum reasoning with automatic task delegation") and
+// Claude Code's `ultracode` ("xhigh + dynamic workflow orchestration").
 export const PROVIDER_REASONING_EFFORTS = [
   'none',
-  'minimal',
   'low',
   'medium',
   'high',
@@ -274,19 +276,30 @@ export const PROVIDER_REASONING_EFFORTS = [
 export type ProviderReasoningEffort =
   (typeof PROVIDER_REASONING_EFFORTS)[number];
 
-/** `claude --effort <level>` (Claude Code 2.1.x). */
+/**
+ * Claude Code levels: `claude --effort <low|medium|high|xhigh|max>` (verified
+ * against 2.1.231 — anything else warns and falls back to the default).
+ * `ultra` maps to Claude's session-scoped `ultracode` mode, which the flag
+ * does NOT accept: the driver translates it to `--effort xhigh` plus
+ * `"ultracode": true` in the `--settings` JSON (the delivery path Claude
+ * Code's own settings schema documents for it).
+ */
 export const CLAUDE_REASONING_EFFORTS = [
   'low',
   'medium',
   'high',
   'xhigh',
   'max',
+  'ultra',
 ] as const satisfies readonly ProviderReasoningEffort[];
 
-/** `copilot --effort <level>` (Copilot CLI 1.0.x). */
+/**
+ * Copilot levels (CLI 1.0.79). `--help` also advertises a `minimal` choice,
+ * but it appears nowhere in the app bundle — no level list, label, or
+ * description includes it — so we mirror the TUI's canonical set.
+ */
 export const COPILOT_REASONING_EFFORTS = [
   'none',
-  'minimal',
   'low',
   'medium',
   'high',
@@ -316,6 +329,109 @@ export const DEFAULT_REASONING_EFFORT_BY_PROVIDER: Readonly<
   'codex-cli': 'xhigh',
   'copilot-cli': 'medium',
 };
+
+// AUDITARIA_PROVIDER_EFFORT: per-provider display vocabulary. `label` is the
+// exact word the provider's own CLI shows for the level, so users can
+// correlate what they pick here with what they see in that CLI;
+// `description` is the provider's own explanation where it publishes one.
+// Sources (all extracted from the installed CLIs, not invented):
+// - Claude Code 2.1.231: bare tokens (`/effort low|medium|high|xhigh|max`);
+//   `ultracode` wording from its /effort help and settings schema.
+// - Codex CLI 0.146.0: tokens + per-level descriptions from the CLI's own
+//   `~/.codex/models_cache.json` `supported_reasoning_levels`.
+// - Copilot CLI 1.0.79: label map {none:"None"…xhigh:"Extra High",max:"Max"}
+//   and the "Select Effort Level" descriptions, both from its app bundle.
+export interface ReasoningEffortDisplay {
+  label: string;
+  description?: string;
+}
+
+const CLAUDE_EFFORT_DISPLAY: Partial<
+  Record<ProviderReasoningEffort, ReasoningEffortDisplay>
+> = {
+  low: { label: 'low' },
+  medium: { label: 'medium' },
+  high: { label: 'high' },
+  xhigh: { label: 'xhigh' },
+  max: { label: 'max' },
+  ultra: {
+    label: 'ultracode',
+    description:
+      'xhigh + dynamic workflow orchestration (needs workflows enabled and an xhigh-capable model)',
+  },
+};
+
+const CODEX_EFFORT_DISPLAY: Partial<
+  Record<ProviderReasoningEffort, ReasoningEffortDisplay>
+> = {
+  low: { label: 'low', description: 'Fast responses with lighter reasoning' },
+  medium: {
+    label: 'medium',
+    description: 'Balances speed and reasoning depth for everyday tasks',
+  },
+  high: {
+    label: 'high',
+    description: 'Greater reasoning depth for complex problems',
+  },
+  xhigh: {
+    label: 'xhigh',
+    description: 'Extra high reasoning depth for complex problems',
+  },
+  max: {
+    label: 'max',
+    description: 'Maximum reasoning depth for the hardest problems',
+  },
+  ultra: {
+    label: 'ultra',
+    description: 'Maximum reasoning with automatic task delegation',
+  },
+};
+
+const COPILOT_EFFORT_DISPLAY: Partial<
+  Record<ProviderReasoningEffort, ReasoningEffortDisplay>
+> = {
+  none: { label: 'None', description: 'No model thinking' },
+  low: { label: 'Low', description: 'Minimal thinking, prioritizes speed' },
+  medium: {
+    label: 'Medium',
+    description: 'Balanced, thinks on harder problems',
+  },
+  high: {
+    label: 'High',
+    description: 'Optimal performance, thorough thinking',
+  },
+  xhigh: {
+    label: 'Extra High',
+    description: 'Extra performance, extended thinking',
+  },
+  max: { label: 'Max', description: 'Maximum performance, deepest thinking' },
+};
+
+const EFFORT_DISPLAY_BY_PROVIDER: Readonly<
+  Record<
+    ReasoningEffortProviderType,
+    Partial<Record<ProviderReasoningEffort, ReasoningEffortDisplay>>
+  >
+> = {
+  'claude-cli': CLAUDE_EFFORT_DISPLAY,
+  'codex-cli': CODEX_EFFORT_DISPLAY,
+  'copilot-cli': COPILOT_EFFORT_DISPLAY,
+};
+
+/**
+ * The provider CLI's own label (and, where it has one, its own explanation)
+ * for an effort level. Falls back to the bare token for unknown combinations.
+ */
+export function getReasoningEffortDisplay(
+  providerType: string | undefined,
+  effort: ProviderReasoningEffort,
+): ReasoningEffortDisplay {
+  if (providerSupportsReasoningEffort(providerType)) {
+    const display = EFFORT_DISPLAY_BY_PROVIDER[providerType][effort];
+    if (display) return display;
+  }
+  return { label: effort };
+}
 
 export function isProviderReasoningEffort(
   value: unknown,

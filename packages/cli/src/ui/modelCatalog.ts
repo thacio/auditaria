@@ -14,6 +14,7 @@ import {
   isPreviewModel,
   getDisplayString,
   getSupportedReasoningEfforts, // AUDITARIA_PROVIDER_EFFORT
+  getReasoningEffortDisplay, // AUDITARIA_PROVIDER_EFFORT
   type ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
 } from '@google/gemini-cli-core';
 
@@ -321,36 +322,36 @@ function deriveModelDescription(model: string): string {
   return model;
 }
 
-// AUDITARIA_PROVIDER_EFFORT_START: labels for the shared effort scale, used by
-// the CLI dialog and the web model menu for every provider that has one.
-export const REASONING_EFFORT_LABELS: Readonly<
-  Record<ProviderReasoningEffort, string>
-> = {
-  none: 'None',
-  minimal: 'Minimal',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'Extra High',
-  max: 'Max',
-  ultra: 'Ultra',
-};
-
+// AUDITARIA_PROVIDER_EFFORT_START: effort vocabulary for the CLI dialog and
+// the web model menu. Labels and descriptions come from
+// getReasoningEffortDisplay, which carries each provider CLI's OWN wording
+// (Claude: bare tokens + ultracode; Codex: tokens + models_cache
+// descriptions; Copilot: its TUI labels None…Extra High/Max) so what users
+// pick here matches what that CLI shows them.
 export function getReasoningEffortLabel(
   effort: ProviderReasoningEffort,
+  providerType?: string,
 ): string {
-  return REASONING_EFFORT_LABELS[effort] ?? REASONING_EFFORT_LABELS.medium;
+  return getReasoningEffortDisplay(providerType, effort).label;
 }
 
 /** Selectable effort options for a provider (and, for Codex, a model). */
 export function getReasoningEffortOptions(
   providerType: string | undefined,
   model?: string,
-): Array<{ value: ProviderReasoningEffort; label: string }> {
-  return getSupportedReasoningEfforts(providerType, model).map((value) => ({
-    value,
-    label: REASONING_EFFORT_LABELS[value],
-  }));
+): Array<{
+  value: ProviderReasoningEffort;
+  label: string;
+  description?: string;
+}> {
+  return getSupportedReasoningEfforts(providerType, model).map((value) => {
+    const display = getReasoningEffortDisplay(providerType, value);
+    return {
+      value,
+      label: display.label,
+      description: display.description,
+    };
+  });
 }
 // AUDITARIA_PROVIDER_EFFORT_END
 

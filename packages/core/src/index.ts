@@ -315,6 +315,7 @@ export type {
   CodexReasoningEffort, // AUDITARIA_CODEX_PROVIDER
   ProviderReasoningEffort, // AUDITARIA_PROVIDER_EFFORT
   ReasoningEffortProviderType, // AUDITARIA_PROVIDER_EFFORT
+  ReasoningEffortDisplay, // AUDITARIA_PROVIDER_EFFORT
   ProviderDriver,
   ProviderEvent,
   ExternalMCPServerConfig,
@@ -342,6 +343,7 @@ export {
   isProviderReasoningEffort,
   getSupportedReasoningEfforts,
   clampReasoningEffortForProvider,
+  getReasoningEffortDisplay,
   CLAUDE_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   CODEX_MODEL_IDS, // AUDITARIA_AGENT_SESSION
   COPILOT_MODEL_IDS, // AUDITARIA_COPILOT_PROVIDER
