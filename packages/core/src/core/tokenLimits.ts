@@ -20,13 +20,17 @@ type TokenCount = number;
 export const DEFAULT_TOKEN_LIMIT = 1_048_576;
 export const GEMMA_4_TOKEN_LIMIT = 256_000;
 
-export const CLAUDE_TOKEN_LIMIT = 200_000; // AUDITARIA_CLAUDE_PROVIDER
-// AUDITARIA_CLAUDE_PROVIDER: the `[1m]` alias suffix (opus[1m], sonnet[1m],
-// fable[1m], opusplan[1m]) opts into Claude's 1M-context window.
+export const CLAUDE_TOKEN_LIMIT = 200_000; // AUDITARIA_CLAUDE_PROVIDER: Haiku 4.5 / non-Claude-Code Claude contexts
+// AUDITARIA_CLAUDE_PROVIDER: 1M is the DEFAULT context window in Claude Code
+// as of 2.1.x (v2.1.75 Opus auto-upgrade on Max/Team/Enterprise, v2.1.197
+// Sonnet 5 native 1M on every plan, v2.1.219 Opus 5) — no beta header, no
+// long-context premium. Only Haiku 4.5 remains 200K. The `[1m]` alias suffix
+// still exists to FORCE the 1M variant where it isn't automatic (Pro-plan
+// Opus, Sonnet 4.6 pins, LLM gateways) and is silently stripped elsewhere.
 export const CLAUDE_1M_TOKEN_LIMIT = 1_000_000;
 export function claudeTokenLimit(model?: string): TokenCount {
   const variant = model?.split(':')[1] ?? '';
-  return variant.endsWith('[1m]') ? CLAUDE_1M_TOKEN_LIMIT : CLAUDE_TOKEN_LIMIT;
+  return variant.includes('haiku') ? CLAUDE_TOKEN_LIMIT : CLAUDE_1M_TOKEN_LIMIT;
 }
 
 // AUDITARIA_CODEX_PROVIDER: Codex model token limits.
@@ -45,6 +49,8 @@ export const COPILOT_TOKEN_LIMIT = 200_000;
 export const AGY_GPT_OSS_TOKEN_LIMIT = 128_000;
 export function agyTokenLimit(model?: string): TokenCount {
   const variant = model?.split(':')[1] ?? '';
+  // Antigravity's Claude models (Sonnet/Opus 4.6) run at 200K there —
+  // Claude Code's 1M default does not apply to agy.
   if (variant.startsWith('claude')) return CLAUDE_TOKEN_LIMIT; // 200K
   if (variant.startsWith('gpt-oss')) return AGY_GPT_OSS_TOKEN_LIMIT;
   return DEFAULT_TOKEN_LIMIT; // Gemini 3.x families → 1M
@@ -58,7 +64,7 @@ export function agyTokenLimit(model?: string): TokenCount {
 export const SYSTEM_PROMPT_ESTIMATION_FIX = true;
 
 export function tokenLimit(model: Model): TokenCount {
-  // AUDITARIA_CLAUDE_PROVIDER: Claude models (200K, or 1M for `[1m]` variants)
+  // AUDITARIA_CLAUDE_PROVIDER: Claude models (1M default; Haiku 200K)
   if (model?.startsWith('claude-code:')) {
     return claudeTokenLimit(model);
   }

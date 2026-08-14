@@ -38,4 +38,24 @@ describe('tokenLimit', () => {
   it('should have the correct default token limit value', () => {
     expect(DEFAULT_TOKEN_LIMIT).toBe(1_048_576);
   });
+
+  // AUDITARIA_CLAUDE_PROVIDER: 1M is Claude Code's default context window
+  // (2.1.x); only Haiku stays at 200K. The [1m] variants force what is
+  // already the default elsewhere, so they resolve to the same limit.
+  it('gives Claude Code models the 1M default, Haiku 200K', () => {
+    expect(tokenLimit('claude-code:opus')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:sonnet')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:fable')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:auto')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:opus[1m]')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:opusplan[1m]')).toBe(1_000_000);
+    expect(tokenLimit('claude-code:haiku')).toBe(200_000);
+  });
+
+  // AUDITARIA_AGY_PROVIDER: Antigravity's Claude models are not Claude Code —
+  // they keep the 200K window.
+  it('keeps agy Claude models at 200K', () => {
+    expect(tokenLimit('agy-code:claude-sonnet-4.6')).toBe(200_000);
+    expect(tokenLimit('agy-code:claude-opus-4.6')).toBe(200_000);
+  });
 });

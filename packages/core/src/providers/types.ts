@@ -516,10 +516,14 @@ export interface ProviderConfig {
 
 // AUDITARIA_AGENT_SESSION: Canonical model ID lists for external providers (DRY source of truth).
 // Used by tool schemas and UI model catalogs.
-// AUDITARIA_AGENT_SESSION: Includes the `[1m]` 1M-context variants and the
-// `opusplan` alias (Opus while planning, Sonnet while executing).
-// 'auto' means "do not pass --model" — Claude resolves its own default
-// (respecting the user's last selection in the Claude Code TUI).
+// AUDITARIA_AGENT_SESSION: 1M context is Claude Code's DEFAULT for opus /
+// sonnet / fable since 2.1.x (only haiku stays 200K). The `[1m]` variants
+// remain because the suffix still FORCES the 1M variant where it is not
+// automatic — Pro-plan Opus (usage credits), Sonnet 4.6 pins, LLM gateways —
+// and is silently ignored elsewhere. `fable[1m]` is gone: Claude Code strips
+// the suffix for Fable (pure no-op). `opusplan` = Opus while planning,
+// Sonnet while executing. 'auto' means "do not pass --model" — Claude
+// resolves its own default (respecting the user's last TUI selection).
 export const CLAUDE_MODEL_IDS = [
   'auto',
   'opus',
@@ -530,7 +534,6 @@ export const CLAUDE_MODEL_IDS = [
   'sonnet[1m]',
   'haiku',
   'fable',
-  'fable[1m]',
 ] as const;
 export type ClaudeModelId = (typeof CLAUDE_MODEL_IDS)[number];
 

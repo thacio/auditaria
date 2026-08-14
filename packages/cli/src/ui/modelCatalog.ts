@@ -31,8 +31,11 @@ export interface ProviderSubmenuOption {
   model?: string;
 }
 
-// Descriptions mirror Claude Code's own `/model` picker. The `[1m]` suffix opts
-// into the 1M-context beta; without it the alias uses the standard 200K window.
+// Descriptions mirror Claude Code's own `/model` picker. 1M context is the
+// DEFAULT for opus/sonnet/fable since Claude Code 2.1.x (only haiku is 200K);
+// the `[1m]` variants remain to FORCE 1M where it is not automatic — Pro-plan
+// Opus (usage credits), Sonnet 4.6 pins, LLM gateways — and are silently
+// ignored elsewhere.
 export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CLAUDE_PREFIX}auto`,
@@ -44,13 +47,15 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   {
     value: `${CLAUDE_PREFIX}opus`,
     title: 'Opus',
-    description: 'Best for everyday, complex tasks',
+    description:
+      'Best for everyday, complex tasks · 1M context (Pro plan: 200K unless forced)',
     key: 'claude-opus',
   },
   {
     value: `${CLAUDE_PREFIX}opus[1m]`,
-    title: 'Opus (1M)',
-    description: 'Best for everyday, complex tasks · 1M context',
+    title: 'Opus (1M forced)',
+    description:
+      'Forces the 1M variant — for Pro plans (usage credits) or LLM gateways; no-op where 1M is already default',
     key: 'claude-opus-1m',
   },
   {
@@ -61,41 +66,36 @@ export const CLAUDE_SUBMENU_OPTIONS: readonly ProviderSubmenuOption[] = [
   },
   {
     value: `${CLAUDE_PREFIX}opusplan[1m]`,
-    title: 'Opus Plan (1M)',
-    description: 'Opus while planning, Sonnet while executing · 1M context',
+    title: 'Opus Plan (1M forced)',
+    description:
+      'Opus while planning, Sonnet while executing — forces 1M in both phases on plans without auto-upgrade',
     key: 'claude-opusplan-1m',
   },
   {
     value: `${CLAUDE_PREFIX}sonnet`,
     title: 'Sonnet',
-    description: 'Efficient for routine tasks',
+    description: 'Efficient for routine tasks · native 1M context on all plans',
     key: 'claude-sonnet',
   },
   {
     value: `${CLAUDE_PREFIX}sonnet[1m]`,
-    title: 'Sonnet (1M)',
-    description: 'Efficient for routine tasks · 1M context',
+    title: 'Sonnet (1M forced)',
+    description:
+      'Forces the 1M variant — only needed behind LLM gateways (Sonnet 5 is natively 1M)',
     key: 'claude-sonnet-1m',
   },
   {
     value: `${CLAUDE_PREFIX}haiku`,
     title: 'Haiku',
-    description: 'Fastest for quick answers',
+    description: 'Fastest for quick answers · 200K context',
     key: 'claude-haiku',
   },
   {
     value: `${CLAUDE_PREFIX}fable`,
     title: 'Fable',
     description:
-      'Most capable for your hardest and longest-running tasks · requires usage credits',
-    key: 'claude-fable',
-  },
-  {
-    value: `${CLAUDE_PREFIX}fable[1m]`,
-    title: 'Fable (1M)',
-    description:
       'Most capable for your hardest and longest-running tasks · 1M context · requires usage credits',
-    key: 'claude-fable-1m',
+    key: 'claude-fable',
   },
 ];
 
