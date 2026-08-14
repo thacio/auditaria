@@ -174,7 +174,7 @@ export class ExternalAgentSessionTool extends BaseDeclarativeTool<
               'Model for the sub-agent. Use "auto" or omit to use the user\'s last-selected model in the underlying CLI — usually this is the preferred choice unless the user has instructed otherwise. ' +
               'Claude models: ' +
               CLAUDE_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
-              ' (1M context is the Claude Code default for opus/sonnet/fable — only haiku is 200K; the [1m] variants just FORCE 1M where it is not automatic, e.g. Pro-plan Opus or LLM gateways, and are otherwise no-ops; opusplan uses Opus while planning and Sonnet while executing). ' +
+              ' (all run with a 1M-token context window except haiku at 200K; opusplan uses Opus while planning and Sonnet while executing). ' +
               'Codex models: ' +
               CODEX_MODEL_IDS.filter((id) => id !== 'auto').join(', ') +
               '. ' +
